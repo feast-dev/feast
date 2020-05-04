@@ -1,24 +1,34 @@
 # FarFetch CI setup
 
-The CI setup ensures that PRs on GitHub are automatically tested before being merging to *master*. The CI jobs defined under 
-
-[.github/workflows]: ../../.github/workflows
-
-run compilation, unit and end-to-end tests using GitHub Workflows.
+The CI setup ensures that PRs on GitHub are automatically tested before being merging to *master*. The CI jobs defined under [.github/workflows](../../.github/workflows) run compilation, unit and end-to-end tests using GitHub Workflows.
 
  ## Agent configuration
 
 1. Spin an Azure VM with Ubuntu 18.04. Choose e.g. a B4ms instance (burstable VM with 4 cores)
 2. Install prerequisites:
 
+Install **Docker**:
 
 ```
 sudo apt update
 sudo apt install docker.io
 sudo usermod -aG docker $USER
+```
+
+Install **docker-compose**:
+
+```
 
 sudo curl -L "https://github.com/docker/compose/releases/download/1.25.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 sudo chmod +x docker-compose
+```
+
+Upgrade **Git** to a more recent version to ensure repos are properly checked out including `.git` directory (used by Python SDK setup.py):
+
+```
+sudo add-apt-repository ppa:git-core/ppa -y
+sudo apt-get update
+sudo apt-get install git -y
 ```
 
 3. Follow the actions to [add a self-hosted runner to your repository](https://help.github.com/en/actions/hosting-your-own-runners/adding-self-hosted-runners)
@@ -38,7 +48,7 @@ Once the ACR instance is deployed, fetch the password from the Access keys secti
 
 Populate the GitHub secrets settings with the ACR configuration:
 
-![](create-secrets.png)
+![GitHub secrets](create-secrets.png)
 
 - CONTAINERREGISTRY_IMAGENAMEBASE=farfetchfeast
 - CONTAINERREGISTRY_PASSWORD=<ACR password>
@@ -50,5 +60,3 @@ Populate the GitHub secrets settings with the ACR configuration:
 The integration test job deploys the application components using Docker-compose. Later on, it will be extended to run end-to-end test scenarios.
 
 ![Integration test job](integration-test-job.png)
-
-

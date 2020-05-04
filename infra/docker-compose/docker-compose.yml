@@ -23,6 +23,11 @@ services:
       - -jar
       - /opt/feast/feast-core.jar
       - --spring.config.location=classpath:/application.yml,file:/etc/feast/application.yaml
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   online-serving:
     build:
@@ -120,3 +125,37 @@ services:
       POSTGRES_PASSWORD: password
     ports:
       - "5432:5342"
+
+  end-to-end-tests:
+    build:
+      context: ../..
+      dockerfile: tests/e2e/Dockerfile
+      args:
+        FEAST_CI_IMAGE: ${FEAST_CI_IMAGE}:${FEAST_VERSION}
+    volumes:
+      - ../..:/feast
+    depends_on:
+      - core
+      - online-serving
+    command:
+      - bash
+      - -c
+      - |
+        set -ex
+        cd /feast
+
+        make compile-protos-python
+
+        # Ensure Feast Core is running and has initialized
+        for i in {1..60}; do curl -sf http://core:8080/healthz && break; echo "Waiting for Core..."; sleep 1; done
+        curl -f http://core:8080/healthz
+
+        # Run single end-to-end test
+        cd tests/e2e
+        pytest basic-ingest-redis-serving.py \
+          --core_url core:6565 \
+          --serving_url online-serving:6566 \
+          -k test_basic_register_feature_set_success  \
+          -sv \
+          --junitxml=build/junit.xml \
+          -o junit_family=xunit2

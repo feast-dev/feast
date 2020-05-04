@@ -44,5 +44,8 @@ RUN PROTOC_ZIP=protoc-${PROTOC_VERSION}-linux-x86_64.zip && \
 	  go build && mkdir -p $HOME/bin && cp protoc-gen-docs $HOME/bin
 
 COPY Makefile /build/Makefile
-COPY sdk/python/requirements-ci.txt /build/sdk/python/requirements-ci.txt
-RUN cd /build && make install-python-ci-dependencies install-go-ci-dependencies && rm -rf /build
+COPY sdk/python/requirements-*.txt /build/sdk/python/
+RUN cd /build && \
+    make install-python-ci-dependencies install-go-ci-dependencies && \
+    pip install -r sdk/python/requirements-dev.txt && \
+    rm -rf /build
