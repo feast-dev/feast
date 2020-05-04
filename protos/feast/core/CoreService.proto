@@ -52,8 +52,11 @@ service CoreService {
     // Create or update and existing feature set.
     //
     // This function is idempotent - it will not create a new feature set if schema does not change.
-    // If an existing feature set is updated, core will advance the version number, which will be
-    // returned in response.
+    // Schema changes will update the feature set if the changes are valid.
+    // All changes except the following are valid:
+    // - Changes to feature set id (name, project)
+    // - Changes to entities
+    // - Changes to feature type
     rpc ApplyFeatureSet (ApplyFeatureSetRequest) returns (ApplyFeatureSetResponse);
 
     // Updates core with the configuration of the store.
@@ -102,9 +105,6 @@ message GetFeatureSetRequest {
 
     // Name of feature set (required).
     string name = 1;
-
-    // Version of feature set (optional). If omitted then latest feature set will be returned.
-    int32 version = 2;
 }
 
 // Response containing a single feature set
@@ -133,15 +133,6 @@ message ListFeatureSetsRequest {
         // - my-feature-set* can be used to match all features prefixed by "my-feature-set"
         // - my-feature-set-6 can be used to select a single feature set
         string feature_set_name = 1;
-
-
-        // Versions of the given feature sets that will be returned.
-        // Valid options for version:
-        //     "latest": only the latest version is returned.
-        //     "*": Subscribe to all versions
-        //     [version number]: pin to a specific version. Project and feature set name must be
-        //                       explicitly defined if a specific version is pinned.
-        string feature_set_version = 2;
     }
 }
 
@@ -163,23 +154,24 @@ message ListStoresResponse {
 }
 
 message ApplyFeatureSetRequest {
-    // Feature set version and source will be ignored
     feast.core.FeatureSet feature_set = 1;
 }
 
 message ApplyFeatureSetResponse {
     enum Status {
-        // Latest feature set version is consistent with provided feature set
+        // Latest feature set is consistent with provided feature set
         NO_CHANGE = 0;
 
-        // New feature set or feature set version created
+        // New feature set created
         CREATED = 1;
 
         // Error occurred while trying to apply changes
         ERROR = 2;
+
+        // Changes detected and updated successfully
+        UPDATED = 3;
     }
 
-    // Feature set response has been enriched with version and source information
     feast.core.FeatureSet feature_set = 1;
     Status status = 2;
 }

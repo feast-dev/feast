@@ -40,9 +40,6 @@ message FeatureSetSpec {
     // Name of the feature set. Must be unique.
     string name = 1;
 
-    // Feature set version.
-    int32 version = 2;
-
     // List of entities contained within this featureSet.
     // This allows the feature to be used during joins between feature sets.
     // If the featureSet is ingested into a store that supports keys, this value

@@ -28,6 +28,4 @@ message FeatureSetReference {
     string project = 1;
     // Name of the FeatureSet
     string name = 2;
-    // Version no. of the FeatureSet
-    int32 version = 3;
 }
