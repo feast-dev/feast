@@ -3,7 +3,6 @@ package feast
 import (
 	"fmt"
 	"github.com/gojek/feast/sdk/go/protos/feast/serving"
-	"strconv"
 	"strings"
 )
 
@@ -56,35 +55,20 @@ func buildFeatures(featureReferences []string, defaultProject string) ([]*servin
 	for _, featureRef := range featureReferences {
 		var project string
 		var name string
-		var version int
-		var featureSplit []string
 
 		projectSplit := strings.Split(featureRef, "/")
 
 		if len(projectSplit) == 2 {
 			project = projectSplit[0]
-			name = projectSplit[1]
+			name = strings.Split(projectSplit[1], ":")[0]
 		} else if len(projectSplit) == 1 {
 			project = defaultProject
-			featureSplit = projectSplit[0]
+			name = strings.Split(projectSplit[0], ":")[0]
 		} else {
 			return nil, fmt.Errorf(ErrInvalidFeatureName, featureRef)
 		}
 
-		if len(featureSplit) == 2 {
-			name = featureSplit[0]
-			v, err := strconv.Atoi(featureSplit[1])
-			if err != nil {
-				return nil, fmt.Errorf(ErrInvalidFeatureName, featureRef)
-			}
-			version = v
-		} else if len(featureSplit) == 1 {
-			name = featureSplit[0]
-		} else {
-			return nil, fmt.Errorf(ErrInvalidFeatureName, featureRef)
-		}
-
-		if project == "" || name == "" || version < 0 {
+		if project == "" || name == "" {
 			return nil, fmt.Errorf(ErrInvalidFeatureName, featureRef)
 		}
 

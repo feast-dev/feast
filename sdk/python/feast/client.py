@@ -400,9 +400,7 @@ class Client:
 
         # If the feature set has changed, update the local copy
         if apply_fs_response.status == ApplyFeatureSetResponse.Status.CREATED:
-            print(
-                f'Feature set updated/created: "{applied_fs.name}"'
-            )
+            print(f'Feature set updated/created: "{applied_fs.name}"')
 
         # If no change has been applied, do nothing
         if apply_fs_response.status == ApplyFeatureSetResponse.Status.NO_CHANGE:
@@ -435,9 +433,7 @@ class Client:
         if name is None:
             name = "*"
 
-        filter = ListFeatureSetsRequest.Filter(
-            project=project, feature_set_name=name
-        )
+        filter = ListFeatureSetsRequest.Filter(project=project, feature_set_name=name)
 
         # Get latest feature sets from Feast Core
         feature_set_protos = self._core_service_stub.ListFeatureSets(
@@ -476,9 +472,7 @@ class Client:
 
         try:
             get_feature_set_response = self._core_service_stub.GetFeatureSet(
-                GetFeatureSetRequest(
-                    project=project, name=name.strip()
-                )
+                GetFeatureSetRequest(project=project, name=name.strip())
             )  # type: GetFeatureSetResponse
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
@@ -874,7 +868,7 @@ def _build_feature_references(
                 f'Could not parse feature ref {feature_ref}, expecting "project/feature"'
             )
 
-        features.append(FeatureReference(project=project, name=name))
+        features.append(FeatureReference(project=project, name=name.split(":")[0]))
     return features
 
 
