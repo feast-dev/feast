@@ -3,18 +3,18 @@ kafka:
 redis:
   enabled: false
 grafana:
-  enabled: false
+  enabled: true
 prometheus-statsd-exporter:
-  enabled: false
+  enabled: true
 prometheus:
-  enabled: false
+  enabled: true
 
 feast-core:
   enabled:
     true
   prometheus:
     enabled:
-      false
+      true
   gcpServiceAccount:
     enabled: true
     existingSecret:
