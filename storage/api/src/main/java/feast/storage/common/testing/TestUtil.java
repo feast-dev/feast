@@ -87,7 +87,7 @@ public class TestUtil {
 
   private static String getFeatureSetReference(FeatureSet featureSet) {
     FeatureSetSpec spec = featureSet.getSpec();
-    return String.format("%s/%s:%d", spec.getProject(), spec.getName(), spec.getVersion());
+    return String.format("%s/%s:%d", spec.getProject(), spec.getName());
   }
 
   /**

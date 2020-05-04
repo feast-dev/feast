@@ -85,13 +85,7 @@ public class QueryTemplater {
               .collect(Collectors.toList());
       featureSetInfos.add(
           new FeatureSetQueryInfo(
-              spec.getProject(),
-              spec.getName(),
-              spec.getVersion(),
-              maxAge.getSeconds(),
-              fsEntities,
-              features,
-              ""));
+              spec.getProject(), spec.getName(), maxAge.getSeconds(), fsEntities, features, ""));
     }
     return featureSetInfos;
   }

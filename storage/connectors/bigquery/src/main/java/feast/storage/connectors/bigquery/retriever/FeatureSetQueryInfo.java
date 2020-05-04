@@ -22,7 +22,6 @@ public class FeatureSetQueryInfo {
 
   private final String project;
   private final String name;
-  private final int version;
   private final long maxAge;
   private final List<String> entities;
   private final List<String> features;
@@ -31,14 +30,12 @@ public class FeatureSetQueryInfo {
   public FeatureSetQueryInfo(
       String project,
       String name,
-      int version,
       long maxAge,
       List<String> entities,
       List<String> features,
       String table) {
     this.project = project;
     this.name = name;
-    this.version = version;
     this.maxAge = maxAge;
     this.entities = entities;
     this.features = features;
@@ -49,7 +46,6 @@ public class FeatureSetQueryInfo {
 
     this.project = featureSetInfo.getProject();
     this.name = featureSetInfo.getName();
-    this.version = featureSetInfo.getVersion();
     this.maxAge = featureSetInfo.getMaxAge();
     this.entities = featureSetInfo.getEntities();
     this.features = featureSetInfo.getFeatures();
@@ -62,10 +58,6 @@ public class FeatureSetQueryInfo {
 
   public String getName() {
     return name;
-  }
-
-  public int getVersion() {
-    return version;
   }
 
   public long getMaxAge() {

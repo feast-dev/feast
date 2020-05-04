@@ -64,14 +64,14 @@ public class RedisClusterOnlineRetrieverTest {
     redisKeyList =
         Lists.newArrayList(
                 RedisKey.newBuilder()
-                    .setFeatureSet("project/featureSet:1")
+                    .setFeatureSet("project/featureSet")
                     .addAllEntities(
                         Lists.newArrayList(
                             Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
                             Field.newBuilder().setName("entity2").setValue(strValue("a")).build()))
                     .build(),
                 RedisKey.newBuilder()
-                    .setFeatureSet("project/featureSet:1")
+                    .setFeatureSet("project/featureSet")
                     .addAllEntities(
                         Lists.newArrayList(
                             Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
@@ -89,17 +89,9 @@ public class RedisClusterOnlineRetrieverTest {
         FeatureSetRequest.newBuilder()
             .setSpec(getFeatureSetSpec())
             .addFeatureReference(
-                FeatureReference.newBuilder()
-                    .setName("feature1")
-                    .setVersion(1)
-                    .setProject("project")
-                    .build())
+                FeatureReference.newBuilder().setName("feature1").setProject("project").build())
             .addFeatureReference(
-                FeatureReference.newBuilder()
-                    .setName("feature2")
-                    .setVersion(1)
-                    .setProject("project")
-                    .build())
+                FeatureReference.newBuilder().setName("feature2").setProject("project").build())
             .build();
     List<EntityRow> entityRows =
         ImmutableList.of(
@@ -145,7 +137,7 @@ public class RedisClusterOnlineRetrieverTest {
             Lists.newArrayList(
                 FeatureRow.newBuilder()
                     .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                    .setFeatureSet("project/featureSet:1")
+                    .setFeatureSet("project/featureSet")
                     .addAllFields(
                         Lists.newArrayList(
                             Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
@@ -153,7 +145,7 @@ public class RedisClusterOnlineRetrieverTest {
                     .build(),
                 FeatureRow.newBuilder()
                     .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                    .setFeatureSet("project/featureSet:1")
+                    .setFeatureSet("project/featureSet")
                     .addAllFields(
                         Lists.newArrayList(
                             Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
@@ -171,17 +163,9 @@ public class RedisClusterOnlineRetrieverTest {
         FeatureSetRequest.newBuilder()
             .setSpec(getFeatureSetSpec())
             .addFeatureReference(
-                FeatureReference.newBuilder()
-                    .setName("feature1")
-                    .setVersion(1)
-                    .setProject("project")
-                    .build())
+                FeatureReference.newBuilder().setName("feature1").setProject("project").build())
             .addFeatureReference(
-                FeatureReference.newBuilder()
-                    .setName("feature2")
-                    .setVersion(1)
-                    .setProject("project")
-                    .build())
+                FeatureReference.newBuilder().setName("feature2").setProject("project").build())
             .build();
     List<EntityRow> entityRows =
         ImmutableList.of(
@@ -221,14 +205,14 @@ public class RedisClusterOnlineRetrieverTest {
             Lists.newArrayList(
                 FeatureRow.newBuilder()
                     .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                    .setFeatureSet("project/featureSet:1")
+                    .setFeatureSet("project/featureSet")
                     .addAllFields(
                         Lists.newArrayList(
                             Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
                             Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
                     .build(),
                 FeatureRow.newBuilder()
-                    .setFeatureSet("project/featureSet:1")
+                    .setFeatureSet("project/featureSet")
                     .addAllFields(
                         Lists.newArrayList(
                             Field.newBuilder().setName("feature1").build(),
@@ -252,7 +236,6 @@ public class RedisClusterOnlineRetrieverTest {
     return FeatureSetSpec.newBuilder()
         .setProject("project")
         .setName("featureSet")
-        .setVersion(1)
         .addEntities(EntitySpec.newBuilder().setName("entity1"))
         .addEntities(EntitySpec.newBuilder().setName("entity2"))
         .addFeatures(FeatureSpec.newBuilder().setName("feature1"))
