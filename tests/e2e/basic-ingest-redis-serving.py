@@ -557,7 +557,6 @@ def test_all_types_infer_register_ingest_file_success(client,
 
 # TODO: rewrite these using python SDK once the labels are implemented there
 class TestsBasedOnGrpc:
-    LAST_VERSION = 0
     GRPC_CONNECTION_TIMEOUT = 3
     LABEL_KEY = "my"
     LABEL_VALUE = "label"
@@ -595,7 +594,7 @@ class TestsBasedOnGrpc:
         try:
             get_feature_set_response = core_service_stub.GetFeatureSet(
                 CoreService_pb2.GetFeatureSetRequest(
-                    project=project, name=name.strip(), version=self.LAST_VERSION
+                    project=project, name=name.strip(),
                 )
             )  # type: GetFeatureSetResponse
         except grpc.RpcError as e:
