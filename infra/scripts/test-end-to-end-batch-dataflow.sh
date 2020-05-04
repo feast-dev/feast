@@ -57,6 +57,29 @@ gcloud config list
 
 echo "
 ============================================================
+Build docker image based on current commit SHA
+============================================================
+"
+infra/scripts/publish-docker-image.sh \
+  --repository gcr.io/kf-feast/feast-core \
+  --tag ${PULL_BASE_REF:1} \
+  --file infra/docker/core/Dockerfile \
+  --google-service-account-file /etc/gcloud/service-account.json
+
+infra/scripts/publish-docker-image.sh \
+  --repository gcr.io/kf-feast/feast-serving \
+  --tag ${PULL_BASE_REF:1} \
+  --file infra/docker/serving/Dockerfile \
+  --google-service-account-file /etc/gcloud/service-account.json
+
+docker tag gcr.io/kf-feast/feast-core:${PULL_BASE_REF:1}
+docker push gcr.io/kf-feast/feast-core:${PULL_BASE_REF:1}
+
+docker tag gcr.io/kf-feast/feast-serving:${PULL_BASE_REF:1}
+docker push gcr.io/kf-feast/feast-serving:${PULL_BASE_REF:1}
+
+echo "
+============================================================
 Creating temp BQ table for Feast Serving
 ============================================================
 "

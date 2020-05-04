@@ -5,6 +5,8 @@ feast-core:
     enabled: true
   postgresql:
     existingSecret: feast-postgresql
+  image:
+    tag: $PULL_BASE_REF:1
   application-override.yaml:
     feast:
       stream:
@@ -36,6 +38,8 @@ feast-core:
 feast-online-serving:
   # feast-online-serving.enabled -- Flag to install Feast Online Serving
   enabled: true
+  image:
+    tag: $PULL_BASE_REF:1
   application-override.yaml:
     feast:
       active_store: online
@@ -55,6 +59,8 @@ feast-online-serving:
 feast-batch-serving:
   # feast-batch-serving.enabled -- Flag to install Feast Batch Serving
   enabled: true
+  image:
+    tag: $PULL_BASE_REF:1
   gcpServiceAccount:
     enabled: true
 
