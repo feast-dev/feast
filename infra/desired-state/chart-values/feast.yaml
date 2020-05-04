@@ -7,7 +7,7 @@ grafana:
 prometheus-statsd-exporter:
   enabled: false
 prometheus:
-  enabled: faslse
+  enabled: false
 
 feast-core:
   enabled:
