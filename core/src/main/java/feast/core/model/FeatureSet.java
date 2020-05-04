@@ -22,8 +22,9 @@ import com.google.protobuf.Timestamp;
 import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.*;
 import feast.core.util.TypeConversion;
-import feast.types.ValueProto.ValueType.Enum;
+import feast.types.ValueProto.ValueType;
 import java.util.*;
+import java.util.stream.Collectors;
 import javax.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -35,8 +36,8 @@ import org.tensorflow.metadata.v0.*;
 @javax.persistence.Entity
 @Table(
     name = "feature_sets",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"name", "version", "project_name"}))
-public class FeatureSet extends AbstractTimestampEntity implements Comparable<FeatureSet> {
+    uniqueConstraints = @UniqueConstraint(columnNames = {"name", "project_name"}))
+public class FeatureSet extends AbstractTimestampEntity {
 
   // Id of the featureSet, defined as project/feature_set_name:feature_set_version
   @Id @GeneratedValue private long id;
@@ -44,10 +45,6 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   // Name of the featureSet
   @Column(name = "name", nullable = false)
   private String name;
-
-  // Version of the featureSet
-  @Column(name = "version")
-  private int version;
 
   // Project that this featureSet belongs to
   @ManyToOne(fetch = FetchType.LAZY)
@@ -94,7 +91,6 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   public FeatureSet(
       String name,
       String project,
-      int version,
       long maxAgeSeconds,
       List<Entity> entities,
       List<Feature> features,
@@ -108,14 +104,9 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     this.features = new HashSet<>();
     this.name = name;
     this.project = new Project(project);
-    this.version = version;
     this.labels = TypeConversion.convertMapToJsonString(labels);
     addEntities(entities);
     addFeatures(features);
-  }
-
-  public void setVersion(int version) {
-    this.version = version;
   }
 
   public void setName(String name) {
@@ -151,13 +142,88 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     return new FeatureSet(
         featureSetProto.getSpec().getName(),
         featureSetProto.getSpec().getProject(),
-        featureSetProto.getSpec().getVersion(),
         featureSetSpec.getMaxAge().getSeconds(),
         entitySpecs,
         featureSpecs,
         source,
         featureSetProto.getSpec().getLabelsMap(),
         featureSetProto.getMeta().getStatus());
+  }
+
+  // Updates the existing feature set from a proto.
+  public void updateFromProto(FeatureSetProto.FeatureSet featureSetProto)
+      throws InvalidProtocolBufferException {
+    FeatureSetSpec spec = featureSetProto.getSpec();
+    if (this.toProto().getSpec().equals(spec)) {
+      return;
+    }
+
+    // 1. validate
+    // 1a. check no change to identifiers
+    if (!name.equals(spec.getName())) {
+      throw new IllegalArgumentException(
+          String.format("Given feature set name %s does not match name %s.", spec.getName(), name));
+    }
+    if (!project.getName().equals(spec.getProject())) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Given feature set project %s does not match project %s.",
+              spec.getProject(), project));
+    }
+
+    Map<String, Entity> existingEntities =
+        entities.stream().collect(Collectors.toMap(entity -> entity.getName(), entity -> entity));
+
+    // 1b. check no change to entities
+    if (spec.getEntitiesList().size() != existingEntities.keySet().size()) {
+      throw new IllegalArgumentException(
+          String.format("Given set of entities do not match size of existing entities."));
+    } else {
+      for (EntitySpec otherEntitySpec : spec.getEntitiesList()) {
+        Entity existingEntity = existingEntities.get(otherEntitySpec.getName());
+        if (existingEntity == null) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Given entity %s not found in list of previously defined entities.",
+                  otherEntitySpec.getName()));
+        } else {
+          if (otherEntitySpec.getValueType() != ValueType.Enum.valueOf(existingEntity.getType())) {
+            throw new IllegalArgumentException(
+                String.format(
+                    "Given entity %s has type %s that does not match existing type %s.",
+                    otherEntitySpec.getName(),
+                    otherEntitySpec.getValueType(),
+                    existingEntity.getType()));
+          }
+        }
+      }
+    }
+
+    status = FeatureSetStatus.STATUS_PENDING.toString();
+    // 4. Update max age and source.
+    maxAgeSeconds = spec.getMaxAge().getSeconds();
+    source = Source.fromProto(spec.getSource());
+
+    Map<String, FeatureSpec> updatedFeatures =
+        spec.getFeaturesList().stream().collect(Collectors.toMap(FeatureSpec::getName, fs -> fs));
+
+    // 3. Tombstone features that are gone, update features that have changed
+    for (Feature feature : features) {
+      String featureName = feature.getName();
+      FeatureSpec updatedFeatureSpec = updatedFeatures.get(featureName);
+      if (updatedFeatureSpec == null) {
+        feature.archive();
+      } else {
+        feature.updateFromProto(updatedFeatureSpec);
+        updatedFeatures.remove(featureName);
+      }
+    }
+
+    // 4. Add new features
+    for (FeatureSpec featureSpec : updatedFeatures.values()) {
+      Feature feature = Feature.fromProto(featureSpec);
+      addFeature(feature);
+    }
   }
 
   public void addEntities(List<Entity> entities) {
@@ -192,9 +258,11 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
 
     List<FeatureSpec> featureSpecs = new ArrayList<>();
     for (Feature featureField : features) {
-      FeatureSpec.Builder featureSpecBuilder = FeatureSpec.newBuilder();
-      setFeatureSpecFields(featureSpecBuilder, featureField);
-      featureSpecs.add(featureSpecBuilder.build());
+      if (!featureField.isArchived()) {
+        FeatureSpec.Builder featureSpecBuilder = FeatureSpec.newBuilder();
+        setFeatureSpecFields(featureSpecBuilder, featureField);
+        featureSpecs.add(featureSpecBuilder.build());
+      }
     }
 
     FeatureSetMeta.Builder meta =
@@ -206,7 +274,6 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     FeatureSetSpec.Builder spec =
         FeatureSetSpec.newBuilder()
             .setName(getName())
-            .setVersion(getVersion())
             .setProject(project.getName())
             .setMaxAge(Duration.newBuilder().setSeconds(maxAgeSeconds))
             .addAllEntities(entitySpecs)
@@ -220,14 +287,14 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   private void setEntitySpecFields(EntitySpec.Builder entitySpecBuilder, Entity entityField) {
     entitySpecBuilder
         .setName(entityField.getName())
-        .setValueType(Enum.valueOf(entityField.getType()));
+        .setValueType(ValueType.Enum.valueOf(entityField.getType()));
   }
 
   private void setFeatureSpecFields(FeatureSpec.Builder featureSpecBuilder, Feature featureField)
       throws InvalidProtocolBufferException {
     featureSpecBuilder
         .setName(featureField.getName())
-        .setValueType(Enum.valueOf(featureField.getType()));
+        .setValueType(ValueType.Enum.valueOf(featureField.getType()));
 
     if (featureField.getPresence() != null) {
       featureSpecBuilder.setPresence(FeaturePresence.parseFrom(featureField.getPresence()));
@@ -349,7 +416,6 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     HashCodeBuilder hcb = new HashCodeBuilder();
     hcb.append(project.getName());
     hcb.append(getName());
-    hcb.append(getVersion());
     return hcb.toHashCode();
   }
 
@@ -362,10 +428,5 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
       return false;
     }
     return this.equalTo(((FeatureSet) obj));
-  }
-
-  @Override
-  public int compareTo(FeatureSet o) {
-    return Integer.compare(getVersion(), o.getVersion());
   }
 }

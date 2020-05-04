@@ -148,7 +148,7 @@ public class JobServiceTest {
 
     FeatureSet fs =
         TestObjectFactory.CreateFeatureSet(
-            name, project, version, Arrays.asList(entity), Arrays.asList(feature));
+            name, project, Arrays.asList(entity), Arrays.asList(feature));
     fs.setCreated(Date.from(Instant.ofEpochSecond(10L)));
     return fs;
   }
@@ -168,7 +168,6 @@ public class JobServiceTest {
     return Arrays.asList(
         // all provided: name, version and project
         FeatureSetReference.newBuilder()
-            .setVersion(this.featureSet.getVersion())
             .setName(this.featureSet.getName())
             .setProject(this.featureSet.getProject().toString())
             .build(),
@@ -180,10 +179,7 @@ public class JobServiceTest {
             .build(),
 
         // name and version
-        FeatureSetReference.newBuilder()
-            .setName(this.featureSet.getName())
-            .setVersion(this.featureSet.getVersion())
-            .build());
+        FeatureSetReference.newBuilder().setName(this.featureSet.getName()).build());
   }
 
   private List<ListFeatureSetsRequest.Filter> newDummyListRequestFilters() {
@@ -192,21 +188,18 @@ public class JobServiceTest {
         ListFeatureSetsRequest.Filter.newBuilder()
             .setFeatureSetName(this.featureSet.getName())
             .setProject(this.featureSet.getProject().toString())
-            .setFeatureSetVersion(String.valueOf(this.featureSet.getVersion()))
             .build(),
 
         // name and project
         ListFeatureSetsRequest.Filter.newBuilder()
             .setFeatureSetName(this.featureSet.getName())
             .setProject(this.featureSet.getProject().toString())
-            .setFeatureSetVersion("*")
             .build(),
 
         // name and project
         ListFeatureSetsRequest.Filter.newBuilder()
             .setFeatureSetName(this.featureSet.getName())
             .setProject("*")
-            .setFeatureSetVersion(String.valueOf(this.featureSet.getVersion()))
             .build());
   }
 

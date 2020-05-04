@@ -79,6 +79,9 @@ public class Feature {
   private byte[] timeOfDayDomain;
 
   public Feature() {}
+  // Whether this feature has been archived. A archived feature cannot be
+  // retrieved from or written to.
+  private boolean archived = false;
 
   private Feature(String name, ValueType.Enum type) {
     this.setName(name);
@@ -88,13 +91,17 @@ public class Feature {
   public static Feature fromProto(FeatureSpec featureSpec) {
     Feature feature = new Feature(featureSpec.getName(), featureSpec.getValueType());
     feature.labels = TypeConversion.convertMapToJsonString(featureSpec.getLabelsMap());
+    feature.updateSchema(featureSpec);
+    return feature;
+  }
 
+  private void updateSchema(FeatureSpec featureSpec) {
     switch (featureSpec.getPresenceConstraintsCase()) {
       case PRESENCE:
-        feature.setPresence(featureSpec.getPresence().toByteArray());
+        setPresence(featureSpec.getPresence().toByteArray());
         break;
       case GROUP_PRESENCE:
-        feature.setGroupPresence(featureSpec.getGroupPresence().toByteArray());
+        setGroupPresence(featureSpec.getGroupPresence().toByteArray());
         break;
       case PRESENCECONSTRAINTS_NOT_SET:
         break;
@@ -102,10 +109,10 @@ public class Feature {
 
     switch (featureSpec.getShapeTypeCase()) {
       case SHAPE:
-        feature.setShape(featureSpec.getShape().toByteArray());
+        setShape(featureSpec.getShape().toByteArray());
         break;
       case VALUE_COUNT:
-        feature.setValueCount(featureSpec.getValueCount().toByteArray());
+        setValueCount(featureSpec.getValueCount().toByteArray());
         break;
       case SHAPETYPE_NOT_SET:
         break;
@@ -113,45 +120,64 @@ public class Feature {
 
     switch (featureSpec.getDomainInfoCase()) {
       case DOMAIN:
-        feature.setDomain(featureSpec.getDomain());
+        setDomain(featureSpec.getDomain());
         break;
       case INT_DOMAIN:
-        feature.setIntDomain(featureSpec.getIntDomain().toByteArray());
+        setIntDomain(featureSpec.getIntDomain().toByteArray());
         break;
       case FLOAT_DOMAIN:
-        feature.setFloatDomain(featureSpec.getFloatDomain().toByteArray());
+        setFloatDomain(featureSpec.getFloatDomain().toByteArray());
         break;
       case STRING_DOMAIN:
-        feature.setStringDomain(featureSpec.getStringDomain().toByteArray());
+        setStringDomain(featureSpec.getStringDomain().toByteArray());
         break;
       case BOOL_DOMAIN:
-        feature.setBoolDomain(featureSpec.getBoolDomain().toByteArray());
+        setBoolDomain(featureSpec.getBoolDomain().toByteArray());
         break;
       case STRUCT_DOMAIN:
-        feature.setStructDomain(featureSpec.getStructDomain().toByteArray());
+        setStructDomain(featureSpec.getStructDomain().toByteArray());
         break;
       case NATURAL_LANGUAGE_DOMAIN:
-        feature.setNaturalLanguageDomain(featureSpec.getNaturalLanguageDomain().toByteArray());
+        setNaturalLanguageDomain(featureSpec.getNaturalLanguageDomain().toByteArray());
         break;
       case IMAGE_DOMAIN:
-        feature.setImageDomain(featureSpec.getImageDomain().toByteArray());
+        setImageDomain(featureSpec.getImageDomain().toByteArray());
         break;
       case MID_DOMAIN:
-        feature.setMidDomain(featureSpec.getMidDomain().toByteArray());
+        setMidDomain(featureSpec.getMidDomain().toByteArray());
         break;
       case URL_DOMAIN:
-        feature.setUrlDomain(featureSpec.getUrlDomain().toByteArray());
+        setUrlDomain(featureSpec.getUrlDomain().toByteArray());
         break;
       case TIME_DOMAIN:
-        feature.setTimeDomain(featureSpec.getTimeDomain().toByteArray());
+        setTimeDomain(featureSpec.getTimeDomain().toByteArray());
         break;
       case TIME_OF_DAY_DOMAIN:
-        feature.setTimeOfDayDomain(featureSpec.getTimeOfDayDomain().toByteArray());
+        setTimeOfDayDomain(featureSpec.getTimeOfDayDomain().toByteArray());
         break;
       case DOMAININFO_NOT_SET:
         break;
     }
-    return feature;
+  }
+
+  /** Archive this feature. */
+  public void archive() {
+    this.archived = true;
+  }
+
+  /**
+   * Update the feature object with a valid feature spec. Only schema changes are allowed.
+   *
+   * @param featureSpec {@link FeatureSpec} containing schema changes.
+   */
+  public void updateFromProto(FeatureSpec featureSpec) {
+    if (ValueType.Enum.valueOf(type) != featureSpec.getValueType()) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Given feature %s has type %s that does not match existing type %s.",
+              featureSpec.getName(), featureSpec.getValueType(), type));
+    }
+    updateSchema(featureSpec);
   }
 
   public Map<String, String> getLabels() {

@@ -104,7 +104,6 @@ public class JobCoordinatorService {
                 .listFeatureSets(
                     ListFeatureSetsRequest.Filter.newBuilder()
                         .setFeatureSetName(subscription.getName())
-                        .setFeatureSetVersion(subscription.getVersion())
                         .setProject(subscription.getProject())
                         .build())
                 .getFeatureSetsList();
@@ -201,8 +200,8 @@ public class JobCoordinatorService {
         .map(FeatureSetProto.FeatureSet::getSpec)
         .map(
             fs ->
-                featureSetRepository.findFeatureSetByNameAndProject_NameAndVersion(
-                    fs.getName(), fs.getProject(), fs.getVersion()))
+                featureSetRepository.findFeatureSetByNameAndProject_Name(
+                    fs.getName(), fs.getProject()))
         .collect(Collectors.toList());
   }
 }

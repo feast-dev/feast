@@ -91,8 +91,7 @@ public class DirectRunnerJobManagerTest {
             .setName("SERVING")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
-            .addSubscriptions(
-                Subscription.newBuilder().setProject("*").setName("*").setVersion("*").build())
+            .addSubscriptions(Subscription.newBuilder().setProject("*").setName("*").build())
             .build();
 
     SourceProto.Source source =
@@ -110,7 +109,6 @@ public class DirectRunnerJobManagerTest {
             .setSpec(
                 FeatureSetSpec.newBuilder()
                     .setName("featureSet")
-                    .setVersion(1)
                     .setMaxAge(Duration.newBuilder())
                     .setSource(source)
                     .build())

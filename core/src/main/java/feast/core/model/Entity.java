@@ -54,6 +54,10 @@ public class Entity {
     return entity;
   }
 
+  public EntitySpec toProto() {
+    return EntitySpec.newBuilder().setName(name).setValueType(ValueType.Enum.valueOf(type)).build();
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
