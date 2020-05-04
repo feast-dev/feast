@@ -6,6 +6,7 @@ helmRepos:
   incubator: "https://kubernetes-charts-incubator.storage.googleapis.com"
   feast-charts: "https://feast-charts.storage.googleapis.com"
   bitnami: "https://charts.bitnami.com/bitnami"
+  farfetch-public: "https://konnekt-public-charts.storage.googleapis.com"
 
 namespaces:
   feast:
