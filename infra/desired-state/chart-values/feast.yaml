@@ -12,6 +12,9 @@ prometheus:
 feast-core:
   enabled:
     true
+  prometheus:
+    enabled:
+      false
   gcpServiceAccount:
     enabled: true
     existingSecret:
