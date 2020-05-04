@@ -2,6 +2,12 @@ kafka:
   enabled: false
 redis:
   enabled: false
+grafana:
+  enabled: false
+prometheus-statsd-exporter:
+  enabled: false
+prometheus:
+  enabled: faslse
 
 feast-core:
   enabled:
