@@ -198,7 +198,7 @@ class TestClient:
 
         fields = dict()
         for feature_num in range(1, 10):
-            fields[f"my_project/feature_{str(feature_num)}:1"] = ValueProto.Value(
+            fields[f"my_project/feature_{str(feature_num)}"] = ValueProto.Value(
                 int64_val=feature_num
             )
         field_values = GetOnlineFeaturesResponse.FieldValues(fields=fields)
@@ -222,21 +222,21 @@ class TestClient:
         response = mocked_client.get_online_features(
             entity_rows=entity_rows,
             feature_refs=[
-                "my_project/feature_1:1",
-                "my_project/feature_2:1",
-                "my_project/feature_3:1",
-                "my_project/feature_4:1",
-                "my_project/feature_5:1",
-                "my_project/feature_6:1",
-                "my_project/feature_7:1",
-                "my_project/feature_8:1",
-                "my_project/feature_9:1",
+                "my_project/feature_1",
+                "my_project/feature_2",
+                "my_project/feature_3",
+                "my_project/feature_4",
+                "my_project/feature_5",
+                "my_project/feature_6",
+                "my_project/feature_7",
+                "my_project/feature_8",
+                "my_project/feature_9",
             ],
         )  # type: GetOnlineFeaturesResponse
 
         assert (
-            response.field_values[0].fields["my_project/feature_1:1"].int64_val == 1
-            and response.field_values[0].fields["my_project/feature_9:1"].int64_val == 9
+            response.field_values[0].fields["my_project/feature_1"].int64_val == 1
+            and response.field_values[0].fields["my_project/feature_9"].int64_val == 9
         )
 
     @pytest.mark.parametrize(
@@ -257,7 +257,6 @@ class TestClient:
                 feature_set=FeatureSetProto(
                     spec=FeatureSetSpecProto(
                         name="my_feature_set",
-                        version=2,
                         max_age=Duration(seconds=3600),
                         features=[
                             FeatureSpecProto(
@@ -287,11 +286,10 @@ class TestClient:
             ),
         )
         mocked_client.set_project("my_project")
-        feature_set = mocked_client.get_feature_set("my_feature_set", version=2)
+        feature_set = mocked_client.get_feature_set("my_feature_set")
 
         assert (
             feature_set.name == "my_feature_set"
-            and feature_set.version == 2
             and feature_set.fields["my_feature_1"].name == "my_feature_1"
             and feature_set.fields["my_feature_1"].dtype == ValueType.FLOAT
             and feature_set.fields["my_entity_1"].name == "my_entity_1"
@@ -422,7 +420,6 @@ class TestClient:
     #             feature_set=FeatureSetProto(
     #                 spec=FeatureSetSpecProto(
     #                     name="customer_fs",
-    #                     version=1,
     #                     project="my_project",
     #                     entities=[
     #                         EntitySpecProto(
@@ -454,8 +451,8 @@ class TestClient:
     #             "datetime": [datetime.utcnow() for _ in range(3)],
     #             "customer": [1001, 1002, 1003],
     #             "transaction": [1001, 1002, 1003],
-    #             "my_project/customer_feature_1:1": [1001, 1002, 1003],
-    #             "my_project/customer_feature_2:1": [1001, 1002, 1003],
+    #             "my_project/customer_feature_1": [1001, 1002, 1003],
+    #             "my_project/customer_feature_2": [1001, 1002, 1003],
     #         }
     #     )
     #
@@ -511,8 +508,8 @@ class TestClient:
     #             }
     #         ),
     #         feature_refs=[
-    #             "my_project/customer_feature_1:1",
-    #             "my_project/customer_feature_2:1",
+    #             "my_project/customer_feature_1",
+    #             "my_project/customer_feature_2",
     #         ],
     #     )  # type: Job
     #
@@ -521,10 +518,10 @@ class TestClient:
     #     actual_dataframe = response.to_dataframe()
     #
     #     assert actual_dataframe[
-    #         ["my_project/customer_feature_1:1", "my_project/customer_feature_2:1"]
+    #         ["my_project/customer_feature_1", "my_project/customer_feature_2"]
     #     ].equals(
     #         expected_dataframe[
-    #             ["my_project/customer_feature_1:1", "my_project/customer_feature_2:1"]
+    #             ["my_project/customer_feature_1", "my_project/customer_feature_2"]
     #         ]
     #     )
 

@@ -134,7 +134,7 @@ def test_apply_all_featuresets(client):
 @pytest.mark.direct_runner
 @pytest.mark.dataflow_runner
 def test_get_batch_features_with_file(client):
-    file_fs1 = client.get_feature_set(name="file_feature_set", version=1)
+    file_fs1 = client.get_feature_set(name="file_feature_set")
 
     N_ROWS = 10
     time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
@@ -154,7 +154,7 @@ def test_get_batch_features_with_file(client):
 
     time.sleep(15)
     feature_retrieval_job = client.get_batch_features(
-        entity_rows="file://file_feature_set.avro", feature_refs=[f"{PROJECT_NAME}/feature_value1:1"]
+        entity_rows="file://file_feature_set.avro", feature_refs=[f"{PROJECT_NAME}/feature_value1"]
     )
 
     output = feature_retrieval_job.to_dataframe()
@@ -166,7 +166,7 @@ def test_get_batch_features_with_file(client):
 @pytest.mark.direct_runner
 @pytest.mark.dataflow_runner
 def test_get_batch_features_with_gs_path(client, gcs_path):
-    gcs_fs1 = client.get_feature_set(name="gcs_feature_set", version=1)
+    gcs_fs1 = client.get_feature_set(name="gcs_feature_set")
 
     N_ROWS = 10
     time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
@@ -200,7 +200,7 @@ def test_get_batch_features_with_gs_path(client, gcs_path):
     time.sleep(15)
     feature_retrieval_job = client.get_batch_features(
         entity_rows=f"{gcs_path}{ts}/*",
-        feature_refs=[f"{PROJECT_NAME}/feature_value2:1"]
+        feature_refs=[f"{PROJECT_NAME}/feature_value2"]
     )
 
     output = feature_retrieval_job.to_dataframe()
@@ -211,7 +211,7 @@ def test_get_batch_features_with_gs_path(client, gcs_path):
 
 @pytest.mark.direct_runner
 def test_order_by_creation_time(client):
-    proc_time_fs = client.get_feature_set(name="processing_time", version=1)
+    proc_time_fs = client.get_feature_set(name="processing_time")
 
     time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
     N_ROWS = 10
@@ -233,7 +233,7 @@ def test_order_by_creation_time(client):
     time.sleep(15)
     client.ingest(proc_time_fs, correct_df)
     feature_retrieval_job = client.get_batch_features(
-        entity_rows=incorrect_df[["datetime", "entity_id"]], feature_refs=[f"{PROJECT_NAME}/feature_value3:1"]
+        entity_rows=incorrect_df[["datetime", "entity_id"]], feature_refs=[f"{PROJECT_NAME}/feature_value3"]
     )
     output = feature_retrieval_job.to_dataframe()
     print(output.head())
@@ -243,7 +243,7 @@ def test_order_by_creation_time(client):
 
 @pytest.mark.direct_runner
 def test_additional_columns_in_entity_table(client):
-    add_cols_fs = client.get_feature_set(name="additional_columns", version=1)
+    add_cols_fs = client.get_feature_set(name="additional_columns")
 
     N_ROWS = 10
     time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
@@ -263,7 +263,7 @@ def test_additional_columns_in_entity_table(client):
 
     time.sleep(15)
     feature_retrieval_job = client.get_batch_features(
-        entity_rows=entity_df, feature_refs=[f"{PROJECT_NAME}/feature_value4:1"]
+        entity_rows=entity_df, feature_refs=[f"{PROJECT_NAME}/feature_value4"]
     )
     output = feature_retrieval_job.to_dataframe().sort_values(by=["entity_id"])
     print(output.head(10))
@@ -275,7 +275,7 @@ def test_additional_columns_in_entity_table(client):
 
 @pytest.mark.direct_runner
 def test_point_in_time_correctness_join(client):
-    historical_fs = client.get_feature_set(name="historical", version=1)
+    historical_fs = client.get_feature_set(name="historical")
 
     time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
     N_EXAMPLES = 10
@@ -307,8 +307,8 @@ def test_point_in_time_correctness_join(client):
 
 @pytest.mark.direct_runner
 def test_multiple_featureset_joins(client):
-    fs1 = client.get_feature_set(name="feature_set_1", version=1)
-    fs2 = client.get_feature_set(name="feature_set_2", version=1)
+    fs1 = client.get_feature_set(name="feature_set_1")
+    fs2 = client.get_feature_set(name="feature_set_2")
 
     N_ROWS = 10
     time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
@@ -340,7 +340,7 @@ def test_multiple_featureset_joins(client):
 
     time.sleep(15)
     feature_retrieval_job = client.get_batch_features(
-        entity_rows=entity_df, feature_refs=[f"{PROJECT_NAME}/feature_value6:1", f"{PROJECT_NAME}/other_feature_value7:1"]
+        entity_rows=entity_df, feature_refs=[f"{PROJECT_NAME}/feature_value6", f"{PROJECT_NAME}/other_feature_value7"]
     )
     output = feature_retrieval_job.to_dataframe()
     print(output.head())
@@ -351,7 +351,7 @@ def test_multiple_featureset_joins(client):
 
 @pytest.mark.direct_runner
 def test_no_max_age(client):
-    no_max_age_fs = client.get_feature_set(name="no_max_age", version=1)
+    no_max_age_fs = client.get_feature_set(name="no_max_age")
 
     time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
     N_ROWS = 10
@@ -366,7 +366,7 @@ def test_no_max_age(client):
 
     time.sleep(15)
     feature_retrieval_job = client.get_batch_features(
-        entity_rows=features_8_df[["datetime", "entity_id"]], feature_refs=[f"{PROJECT_NAME}/feature_value8:1"]
+        entity_rows=features_8_df[["datetime", "entity_id"]], feature_refs=[f"{PROJECT_NAME}/feature_value8"]
     )
 
     output = feature_retrieval_job.to_dataframe()

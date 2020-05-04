@@ -9,16 +9,14 @@ import (
 
 var (
 	// ErrInvalidFeatureName indicates that the user has provided a feature reference with the wrong structure or contents
-	ErrInvalidFeatureName = "invalid feature references %s provided, feature names must be in the format <project>/<feature>:<version>"
+	ErrInvalidFeatureName = "invalid feature references %s provided, feature names must be in the format <project>/<feature>"
 )
 
 // OnlineFeaturesRequest wrapper on feast.serving.GetOnlineFeaturesRequest.
 type OnlineFeaturesRequest struct {
 	// Features is the list of features to obtain from Feast. Each feature can be given as
 	// <feature-name>
-	// <feature-name>:<feature-version>
 	// <project-name>/<feature-name>
-	// <project-name>/<feature-name>:<feature-version>
 	// The only required components are the feature name and project.
 	Features []string
 
@@ -50,7 +48,7 @@ func (r OnlineFeaturesRequest) buildRequest() (*serving.GetOnlineFeaturesRequest
 	}, nil
 }
 
-// buildFeatures create a slice of FeatureReferences from a slice of "<project>/<feature_name>:<feature-set-version>"
+// buildFeatures create a slice of FeatureReferences from a slice of "<project>/<feature_name>"
 // It returns an error when the format is invalid
 func buildFeatures(featureReferences []string, defaultProject string) ([]*serving.FeatureReference, error) {
 	var features []*serving.FeatureReference
@@ -65,10 +63,10 @@ func buildFeatures(featureReferences []string, defaultProject string) ([]*servin
 
 		if len(projectSplit) == 2 {
 			project = projectSplit[0]
-			featureSplit = strings.Split(projectSplit[1], ":")
+			name = projectSplit[1]
 		} else if len(projectSplit) == 1 {
 			project = defaultProject
-			featureSplit = strings.Split(projectSplit[0], ":")
+			featureSplit = projectSplit[0]
 		} else {
 			return nil, fmt.Errorf(ErrInvalidFeatureName, featureRef)
 		}
@@ -92,7 +90,6 @@ func buildFeatures(featureReferences []string, defaultProject string) ([]*servin
 
 		features = append(features, &serving.FeatureReference{
 			Name:    name,
-			Version: int32(version),
 			Project: project,
 		})
 	}

@@ -40,21 +40,12 @@ class CoreServicer(Core.CoreServiceServicer):
                 or request.filter.feature_set_name == "*"
                 or fs.spec.name == request.filter.feature_set_name
             )
-            and (
-                not request.filter.feature_set_version
-                or str(fs.spec.version) == request.filter.feature_set_version
-                or request.filter.feature_set_version == "*"
-            )
         ]
 
         return ListFeatureSetsResponse(feature_sets=filtered_feature_set_response)
 
     def ApplyFeatureSet(self, request: ApplyFeatureSetRequest, context):
         feature_set = request.feature_set
-        if feature_set.spec.version is None:
-            feature_set.spec.version = 1
-        else:
-            feature_set.spec.version = feature_set.spec.version + 1
 
         if feature_set.spec.source.type == SourceTypeProto.INVALID:
             feature_set.spec.source.kafka_source_config.CopyFrom(

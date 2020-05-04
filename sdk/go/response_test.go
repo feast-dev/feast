@@ -67,7 +67,7 @@ func TestOnlineFeaturesResponseToInt64Array(t *testing.T) {
 		{
 			name: "length mismatch",
 			args: args{
-				order:  []string{"fs:1:feature2", "fs:1:feature1"},
+				order:  []string{"fs:feature2", "fs:feature1"},
 				fillNa: []int64{-1},
 			},
 			want:    nil,

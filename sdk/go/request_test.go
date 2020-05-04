@@ -20,7 +20,7 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 		{
 			name: "valid",
 			req: OnlineFeaturesRequest{
-				Features: []string{"my_project_1/feature1:1", "my_project_2/feature1:1", "my_project_4/feature3", "feature2:2", "feature2"},
+				Features: []string{"my_project_1/feature1", "my_project_2/feature1", "my_project_4/feature3", "feature2", "feature2"},
 				Entities: []Row{
 					{"entity1": Int64Val(1), "entity2": StrVal("bob")},
 					{"entity1": Int64Val(1), "entity2": StrVal("annie")},
@@ -33,27 +33,22 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 					{
 						Project: "my_project_1",
 						Name:    "feature1",
-						Version: 1,
 					},
 					{
 						Project: "my_project_2",
 						Name:    "feature1",
-						Version: 1,
 					},
 					{
 						Project: "my_project_4",
 						Name:    "feature3",
-						Version: 0,
 					},
 					{
 						Project: "my_project_3",
 						Name:    "feature2",
-						Version: 2,
 					},
 					{
 						Project: "my_project_3",
 						Name:    "feature2",
-						Version: 0,
 					},
 				},
 				EntityRows: []*serving.GetOnlineFeaturesRequest_EntityRow{
@@ -113,12 +108,12 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 		{
 			name: "invalid_feature_name/wrong_format",
 			req: OnlineFeaturesRequest{
-				Features: []string{"fs1:3:feature1"},
+				Features: []string{"fs1:feature1"},
 				Entities: []Row{},
 				Project:  "my_project",
 			},
 			wantErr: true,
-			err:     fmt.Errorf(ErrInvalidFeatureName, "fs1:3:feature1"),
+			err:     fmt.Errorf(ErrInvalidFeatureName, "fs1:feature1"),
 		},
 		{
 			name: "invalid_feature_name/invalid_version",
