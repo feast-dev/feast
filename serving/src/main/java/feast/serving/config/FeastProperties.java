@@ -386,7 +386,6 @@ public class FeastProperties {
         return StoreProto.Store.Subscription.newBuilder()
             .setName(getName())
             .setProject(getProject())
-            .setVersion(getVersion())
             .build();
       }
     }
