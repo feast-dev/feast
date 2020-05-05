@@ -1,6 +1,13 @@
 name: deploy-to-aks
 
-on: push
+on:
+  push:
+    branches:
+    - master
+    paths:
+    - 'infra/charts/**'
+    - 'infra/desired-state/**'
+    - 'infra/scripts/deploy-to-aks.sh'
 
 jobs:
   deploy:
