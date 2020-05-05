@@ -109,7 +109,7 @@ public class JobUpdateTask implements Callable<Job> {
 
     // If any existing feature set populated by the job has its status as pending
     for (FeatureSet featureSet : job.getFeatureSets()) {
-      if (featureSet.getStatus().equals(FeatureSetStatus.STATUS_PENDING.toString())) {
+      if (featureSet.getStatus().equals(FeatureSetStatus.STATUS_PENDING)) {
         return true;
       }
     }

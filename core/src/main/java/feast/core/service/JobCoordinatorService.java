@@ -164,12 +164,12 @@ public class JobCoordinatorService {
     ready.removeAll(pending);
     ready.forEach(
         fs -> {
-          fs.setStatus(FeatureSetStatus.STATUS_READY.toString());
+          fs.setStatus(FeatureSetStatus.STATUS_READY);
           featureSetRepository.save(fs);
         });
     pending.forEach(
         fs -> {
-          fs.setStatus(FeatureSetStatus.STATUS_PENDING.toString());
+          fs.setStatus(FeatureSetStatus.STATUS_PENDING);
           featureSetRepository.save(fs);
         });
     featureSetRepository.flush();

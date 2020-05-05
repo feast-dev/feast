@@ -25,16 +25,16 @@ public interface FeatureSetRepository extends JpaRepository<FeatureSet, String> 
 
   long count();
 
-  // Find single feature set by project, name, and version
+  // Find single feature set by project and name
   FeatureSet findFeatureSetByNameAndProject_Name(String name, String project);
 
   // find all feature sets and order by name
   List<FeatureSet> findAllByOrderByNameAsc();
 
-  // find all versions of feature sets matching the given name pattern with a specific project.
+  // find all feature sets matching the given name pattern with a specific project.
   List<FeatureSet> findAllByNameLikeAndProject_NameOrderByNameAsc(String name, String project_name);
 
-  // find all versions of feature sets matching the given name pattern and project pattern
+  // find all feature sets matching the given name pattern and project pattern
   List<FeatureSet> findAllByNameLikeAndProject_NameLikeOrderByNameAsc(
       String name, String project_name);
 }

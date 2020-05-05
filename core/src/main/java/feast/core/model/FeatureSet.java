@@ -16,6 +16,7 @@
  */
 package feast.core.model;
 
+import com.google.common.collect.Sets;
 import com.google.protobuf.Duration;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
@@ -77,8 +78,9 @@ public class FeatureSet extends AbstractTimestampEntity {
   private Source source;
 
   // Status of the feature set
+  @Enumerated(EnumType.STRING)
   @Column(name = "status")
-  private String status;
+  private FeatureSetStatus status;
 
   // User defined metadata
   @Column(name = "labels", columnDefinition = "text")
@@ -99,7 +101,7 @@ public class FeatureSet extends AbstractTimestampEntity {
       FeatureSetStatus status) {
     this.maxAgeSeconds = maxAgeSeconds;
     this.source = source;
-    this.status = status.toString();
+    this.status = status;
     this.entities = new HashSet<>();
     this.features = new HashSet<>();
     this.name = name;
@@ -167,39 +169,22 @@ public class FeatureSet extends AbstractTimestampEntity {
     if (!project.getName().equals(spec.getProject())) {
       throw new IllegalArgumentException(
           String.format(
-              "Given feature set project %s does not match project %s.",
-              spec.getProject(), project));
+              "You are attempting to change the project of feature set %s from %s to %s. This isn't allowed. Please create a new feature set under the desired project.",
+              spec.getName(), project, spec.getProject()));
     }
 
-    Map<String, Entity> existingEntities =
-        entities.stream().collect(Collectors.toMap(entity -> entity.getName(), entity -> entity));
+    Set<EntitySpec> existingEntities =
+        entities.stream().map(Entity::toProto).collect(Collectors.toSet());
 
     // 1b. check no change to entities
-    if (spec.getEntitiesList().size() != existingEntities.keySet().size()) {
+    if (!Sets.newHashSet(spec.getEntitiesList()).equals(existingEntities)) {
       throw new IllegalArgumentException(
-          String.format("Given set of entities do not match size of existing entities."));
-    } else {
-      for (EntitySpec otherEntitySpec : spec.getEntitiesList()) {
-        Entity existingEntity = existingEntities.get(otherEntitySpec.getName());
-        if (existingEntity == null) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "Given entity %s not found in list of previously defined entities.",
-                  otherEntitySpec.getName()));
-        } else {
-          if (otherEntitySpec.getValueType() != ValueType.Enum.valueOf(existingEntity.getType())) {
-            throw new IllegalArgumentException(
-                String.format(
-                    "Given entity %s has type %s that does not match existing type %s.",
-                    otherEntitySpec.getName(),
-                    otherEntitySpec.getValueType(),
-                    existingEntity.getType()));
-          }
-        }
-      }
+          String.format(
+              "Given set of entities {%s} do not match existing entities {%s}",
+              spec.getEntitiesList(), existingEntities));
     }
 
-    status = FeatureSetStatus.STATUS_PENDING.toString();
+    status = FeatureSetStatus.STATUS_PENDING;
     // 4. Update max age and source.
     maxAgeSeconds = spec.getMaxAge().getSeconds();
     source = Source.fromProto(spec.getSource());
@@ -269,7 +254,7 @@ public class FeatureSet extends AbstractTimestampEntity {
         FeatureSetMeta.newBuilder()
             .setCreatedTimestamp(
                 Timestamp.newBuilder().setSeconds(super.getCreated().getTime() / 1000L))
-            .setStatus(FeatureSetStatus.valueOf(status));
+            .setStatus(status);
 
     FeatureSetSpec.Builder spec =
         FeatureSetSpec.newBuilder()

@@ -174,8 +174,8 @@ public class Feature {
     if (ValueType.Enum.valueOf(type) != featureSpec.getValueType()) {
       throw new IllegalArgumentException(
           String.format(
-              "Given feature %s has type %s that does not match existing type %s.",
-              featureSpec.getName(), featureSpec.getValueType(), type));
+              "You are attempting to change the type of feature %s from %s to %s. This isn't allowed. Please create a new feature.",
+              featureSpec.getName(), type, featureSpec.getValueType()));
     }
     updateSchema(featureSpec);
   }
