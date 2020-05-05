@@ -39,7 +39,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class ValidateFeatureRowsTest {
+public class ProcessAndValidateFeatureRowsTest {
 
   @Rule public transient TestPipeline p = TestPipeline.create();
 
@@ -71,6 +71,59 @@ public class ValidateFeatureRowsTest {
 
     FeatureSetSpec fs2 =
         FeatureSetSpec.newBuilder()
+            .setName("feature_set_2")
+            .setProject("myproject")
+            .addEntities(
+                EntitySpec.newBuilder()
+                    .setName("entity_id_primary")
+                    .setValueType(Enum.INT32)
+                    .build())
+            .addEntities(
+                EntitySpec.newBuilder()
+                    .setName("entity_id_secondary")
+                    .setValueType(Enum.STRING)
+                    .build())
+            .addFeatures(
+                FeatureSpec.newBuilder().setName("feature_1").setValueType(Enum.STRING).build())
+            .addFeatures(
+                FeatureSpec.newBuilder().setName("feature_2").setValueType(Enum.INT64).build())
+            .build();
+
+    Map<String, FeatureSetSpec> featureSetSpecs = new HashMap<>();
+    featureSetSpecs.put("myproject/feature_set", fs1);
+    featureSetSpecs.put("myproject/feature_set_2", fs2);
+
+    List<FeatureRow> input = new ArrayList<>();
+    List<FeatureRow> expected = new ArrayList<>();
+
+    for (FeatureSetSpec featureSetSpec : featureSetSpecs.values()) {
+      FeatureRow randomRow = TestUtil.createRandomFeatureRow(featureSetSpec);
+      input.add(randomRow);
+      expected.add(randomRow);
+    }
+
+    input.add(FeatureRow.newBuilder().setFeatureSet("invalid").build());
+
+    PCollectionTuple output =
+        p.apply(Create.of(input))
+            .setCoder(ProtoCoder.of(FeatureRow.class))
+            .apply(
+                ProcessAndValidateFeatureRows.newBuilder()
+                    .setFailureTag(FAILURE_TAG)
+                    .setSuccessTag(SUCCESS_TAG)
+                    .setFeatureSetSpecs(featureSetSpecs)
+                    .build());
+
+    PAssert.that(output.get(SUCCESS_TAG)).containsInAnyOrder(expected);
+    PAssert.that(output.get(FAILURE_TAG).apply(Count.globally())).containsInAnyOrder(1L);
+
+    p.run();
+  }
+
+  @Test
+  public void shouldStripVersions() {
+    FeatureSetSpec fs1 =
+        FeatureSetSpec.newBuilder()
             .setName("feature_set")
             .setProject("myproject")
             .addEntities(
@@ -91,31 +144,26 @@ public class ValidateFeatureRowsTest {
 
     Map<String, FeatureSetSpec> featureSetSpecs = new HashMap<>();
     featureSetSpecs.put("myproject/feature_set", fs1);
-    featureSetSpecs.put("myproject/feature_set", fs2);
 
     List<FeatureRow> input = new ArrayList<>();
     List<FeatureRow> expected = new ArrayList<>();
 
-    for (FeatureSetSpec featureSetSpec : featureSetSpecs.values()) {
-      FeatureRow randomRow = TestUtil.createRandomFeatureRow(featureSetSpec);
-      input.add(randomRow);
-      expected.add(randomRow);
-    }
-
-    input.add(FeatureRow.newBuilder().setFeatureSet("invalid").build());
+    FeatureRow randomRow = TestUtil.createRandomFeatureRow(fs1);
+    expected.add(randomRow);
+    randomRow = randomRow.toBuilder().setFeatureSet("myproject/feature_set:1").build();
+    input.add(randomRow);
 
     PCollectionTuple output =
         p.apply(Create.of(input))
             .setCoder(ProtoCoder.of(FeatureRow.class))
             .apply(
-                ValidateFeatureRows.newBuilder()
+                ProcessAndValidateFeatureRows.newBuilder()
                     .setFailureTag(FAILURE_TAG)
                     .setSuccessTag(SUCCESS_TAG)
                     .setFeatureSetSpecs(featureSetSpecs)
                     .build());
 
     PAssert.that(output.get(SUCCESS_TAG)).containsInAnyOrder(expected);
-    PAssert.that(output.get(FAILURE_TAG).apply(Count.globally())).containsInAnyOrder(1L);
 
     p.run();
   }
@@ -163,7 +211,7 @@ public class ValidateFeatureRowsTest {
         p.apply(Create.of(input))
             .setCoder(ProtoCoder.of(FeatureRow.class))
             .apply(
-                ValidateFeatureRows.newBuilder()
+                ProcessAndValidateFeatureRows.newBuilder()
                     .setFailureTag(FAILURE_TAG)
                     .setSuccessTag(SUCCESS_TAG)
                     .setFeatureSetSpecs(featureSets)

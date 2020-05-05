@@ -27,8 +27,8 @@ import feast.core.StoreProto.Store;
 import feast.ingestion.options.BZip2Decompressor;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.options.StringListStreamConverter;
+import feast.ingestion.transform.ProcessAndValidateFeatureRows;
 import feast.ingestion.transform.ReadFromSource;
-import feast.ingestion.transform.ValidateFeatureRows;
 import feast.ingestion.transform.metrics.WriteFailureMetricsTransform;
 import feast.ingestion.transform.metrics.WriteSuccessMetricsTransform;
 import feast.ingestion.utils.SpecUtil;
@@ -124,12 +124,12 @@ public class ImportJob {
                   .setFailureTag(DEADLETTER_OUT)
                   .build());
 
-      // Step 2. Validate incoming FeatureRows
+      // Step 2. Process and validate incoming FeatureRows
       PCollectionTuple validatedRows =
           convertedFeatureRows
               .get(FEATURE_ROW_OUT)
               .apply(
-                  ValidateFeatureRows.newBuilder()
+                  ProcessAndValidateFeatureRows.newBuilder()
                       .setFeatureSetSpecs(featureSetSpecsByKey)
                       .setSuccessTag(FEATURE_ROW_OUT)
                       .setFailureTag(DEADLETTER_OUT)

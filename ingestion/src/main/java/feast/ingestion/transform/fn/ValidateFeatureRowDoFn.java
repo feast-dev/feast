@@ -58,8 +58,6 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
   public void processElement(ProcessContext context) {
     String error = null;
     FeatureRow featureRow = context.element();
-    featureRow =
-        featureRow.toBuilder().setFeatureSet(stripVersion(featureRow.getFeatureSet())).build();
     FeatureSet featureSet = getFeatureSets().get(featureRow.getFeatureSet());
     List<FieldProto.Field> fields = new ArrayList<>();
     if (featureSet != null) {
@@ -109,11 +107,5 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
       featureRow = featureRow.toBuilder().clearFields().addAllFields(fields).build();
       context.output(getSuccessTag(), featureRow);
     }
-  }
-
-  // For backward compatibility. Will be deprecated eventually.
-  private String stripVersion(String featureSetId) {
-    String[] split = featureSetId.split(":");
-    return split[0];
   }
 }
