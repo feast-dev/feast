@@ -33,6 +33,7 @@ import feast.core.CoreServiceProto.ListStoresResponse.Builder;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto;
+import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.SourceProto;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.Subscription;
@@ -335,6 +336,7 @@ public class SpecService {
 
     // Build a new FeatureSet object which includes the new properties
     FeatureSet featureSet = FeatureSet.fromProto(newFeatureSet);
+    featureSet.setStatus(FeatureSetStatus.STATUS_PENDING.toString());
     if (newFeatureSet.getSpec().getSource() == SourceProto.Source.getDefaultInstance()) {
       featureSet.setSource(defaultSource);
     }

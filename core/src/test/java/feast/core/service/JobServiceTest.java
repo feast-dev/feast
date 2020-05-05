@@ -41,12 +41,7 @@ import feast.core.StoreProto.Store.StoreType;
 import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
-import feast.core.model.FeatureSet;
-import feast.core.model.Field;
-import feast.core.model.Job;
-import feast.core.model.JobStatus;
-import feast.core.model.Source;
-import feast.core.model.Store;
+import feast.core.model.*;
 import feast.types.ValueProto.ValueType.Enum;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -148,8 +143,8 @@ public class JobServiceTest {
 
   // dummy model constructorss
   private FeatureSet newDummyFeatureSet(String name, int version, String project) {
-    Field feature = TestObjectFactory.CreateFeatureField(name + "_feature", Enum.INT64);
-    Field entity = TestObjectFactory.CreateEntityField(name + "_entity", Enum.STRING);
+    Feature feature = TestObjectFactory.CreateFeature(name + "_feature", Enum.INT64);
+    Entity entity = TestObjectFactory.CreateEntity(name + "_entity", Enum.STRING);
 
     FeatureSet fs =
         TestObjectFactory.CreateFeatureSet(

@@ -18,8 +18,9 @@ package feast.core.service;
 
 import feast.core.FeatureSetProto;
 import feast.core.SourceProto;
+import feast.core.model.Entity;
+import feast.core.model.Feature;
 import feast.core.model.FeatureSet;
-import feast.core.model.Field;
 import feast.core.model.Source;
 import feast.types.ValueProto;
 import java.util.HashMap;
@@ -37,7 +38,7 @@ public class TestObjectFactory {
           true);
 
   public static FeatureSet CreateFeatureSet(
-      String name, String project, int version, List<Field> entities, List<Field> features) {
+      String name, String project, int version, List<Entity> entities, List<Feature> features) {
     return new FeatureSet(
         name,
         project,
@@ -50,13 +51,13 @@ public class TestObjectFactory {
         FeatureSetProto.FeatureSetStatus.STATUS_READY);
   }
 
-  public static Field CreateFeatureField(String name, ValueProto.ValueType.Enum valueType) {
-    return new Field(
+  public static Feature CreateFeature(String name, ValueProto.ValueType.Enum valueType) {
+    return Feature.fromProto(
         FeatureSetProto.FeatureSpec.newBuilder().setName(name).setValueType(valueType).build());
   }
 
-  public static Field CreateEntityField(String name, ValueProto.ValueType.Enum valueType) {
-    return new Field(
+  public static Entity CreateEntity(String name, ValueProto.ValueType.Enum valueType) {
+    return Entity.fromProto(
         FeatureSetProto.EntitySpec.newBuilder().setName(name).setValueType(valueType).build());
   }
 }
