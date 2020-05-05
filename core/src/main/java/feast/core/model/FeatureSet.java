@@ -180,7 +180,7 @@ public class FeatureSet extends AbstractTimestampEntity {
     if (!Sets.newHashSet(spec.getEntitiesList()).equals(existingEntities)) {
       throw new IllegalArgumentException(
           String.format(
-              "Given set of entities {%s} do not match existing entities {%s}",
+              "You are attempting to change the entities of this feature set: Given set of entities \n{%s}\n does not match existing set of entities\n {%s}. This isn't allowed. Please create a new feature set. ",
               spec.getEntitiesList(), existingEntities));
     }
 

@@ -278,7 +278,7 @@ public class SpecService {
     }
 
     // Persist the FeatureSet object
-    featureSet.setStatus(FeatureSetStatus.STATUS_PENDING.toString());
+    featureSet.setStatus(FeatureSetStatus.STATUS_PENDING);
     project.addFeatureSet(featureSet);
     projectRepository.saveAndFlush(project);
 

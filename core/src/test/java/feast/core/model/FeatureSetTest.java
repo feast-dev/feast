@@ -16,6 +16,7 @@
  */
 package feast.core.model;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -102,7 +103,7 @@ public class FeatureSetTest {
             .build();
 
     FeatureSet actual = FeatureSet.fromProto(oldFeatureSetProto);
-    actual.setStatus(FeatureSetStatus.STATUS_READY.toString());
+    actual.setStatus(FeatureSetStatus.STATUS_READY);
     actual.updateFromProto(newFeatureSetProto);
 
     FeatureSet expected = FeatureSet.fromProto(newFeatureSetProto);
@@ -116,11 +117,11 @@ public class FeatureSetTest {
   @Test
   public void shouldNotUpdateIfNoChange() throws InvalidProtocolBufferException {
     FeatureSet actual = FeatureSet.fromProto(oldFeatureSetProto);
-    actual.setStatus(FeatureSetStatus.STATUS_READY.toString());
+    actual.setStatus(FeatureSetStatus.STATUS_READY);
     actual.updateFromProto(oldFeatureSetProto);
 
     FeatureSet expected = FeatureSet.fromProto(oldFeatureSetProto);
-    expected.setStatus(FeatureSetStatus.STATUS_READY.toString());
+    expected.setStatus(FeatureSetStatus.STATUS_READY);
 
     assertThat(actual, equalTo(expected));
   }
@@ -157,8 +158,7 @@ public class FeatureSetTest {
             .build();
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(
-        "Given entity entity has type FLOAT that does not match existing type STRING.");
+    expectedException.expectMessage(containsString("does not match existing set of entities"));
     FeatureSet existingFeatureSet = FeatureSet.fromProto(oldFeatureSetProto);
     existingFeatureSet.updateFromProto(newFeatureSetProto);
   }
@@ -197,7 +197,8 @@ public class FeatureSetTest {
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "Given feature feature2 has type FLOAT that does not match existing type STRING.");
+        containsString(
+            "You are attempting to change the type of feature feature2 from STRING to FLOAT."));
     FeatureSet existingFeatureSet = FeatureSet.fromProto(oldFeatureSetProto);
     existingFeatureSet.updateFromProto(newFeatureSetProto);
   }
