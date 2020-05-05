@@ -6,7 +6,7 @@ set -o pipefail
 
 test -z ${GOOGLE_APPLICATION_CREDENTIALS} && GOOGLE_APPLICATION_CREDENTIALS="/etc/service-account/service-account-df.json"
 test -z ${GCLOUD_PROJECT} && GCLOUD_PROJECT="kf-feast"
-test -z ${GCLOUD_REGION} && GCLOUD_REGION="asia-east1"
+test -z ${GCLOUD_REGION} && GCLOUD_REGION="us-central1"
 test -z ${GCLOUD_NETWORK} && GCLOUD_NETWORK="default"
 test -z ${GCLOUD_SUBNET} && GCLOUD_SUBNET="default"
 test -z ${TEMP_BUCKET} && TEMP_BUCKET="feast-templocation-kf-feast"
