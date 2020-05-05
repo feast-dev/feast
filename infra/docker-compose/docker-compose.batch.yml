@@ -1,0 +1,29 @@
+version: "3.7"
+
+services:
+  batch-serving:
+    image: ${FEAST_SERVING_IMAGE}:${FEAST_VERSION}
+    volumes:
+      - ./serving/${FEAST_BATCH_SERVING_CONFIG}:/etc/feast/application.yml
+      - ./serving/${FEAST_BATCH_STORE_CONFIG}:/etc/feast/store.yml
+      - ./gcp-service-accounts/${FEAST_BATCH_SERVING_GCP_SERVICE_ACCOUNT_KEY}:/etc/gcloud/service-accounts/key.json
+    depends_on:
+      - redis
+    ports:
+      - 6567:6567
+    restart: on-failure
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
+      FEAST_JOB_STAGING_LOCATION: ${FEAST_BATCH_JOB_STAGING_LOCATION}
+    command:
+      - "java"
+      - "-Xms1024m"
+      - "-Xmx1024m"
+      - "-jar"
+      - "/opt/feast/feast-serving.jar"
+      - "--spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml"
+
+  redis:
+    image: redis:5-alpine
+    ports:
+      - "6379:6379"

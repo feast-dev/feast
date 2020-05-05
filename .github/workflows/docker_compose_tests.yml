@@ -1,0 +1,12 @@
+name: docker compose tests
+
+on: [push, pull_request]
+
+jobs:
+  basic-redis-e2e-tests-docker-compose:
+    runs-on: ubuntu-latest
+    name: basic redis e2e tests on docker compose
+    steps:
+      - uses: actions/checkout@v2
+      - name: test docker compose
+        run: ./infra/scripts/test-docker-compose.sh
