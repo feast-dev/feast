@@ -17,8 +17,8 @@ apps:
     description: Feast
     namespace: feast
     enabled: true
-    chart: farfetch-public/feast-beta
-    version: 0.5.1
+    chart: farfetch-public/feast
+    version: 0.5.0
     valuesFiles:
     - chart-values/feast.yaml
   feast-redis-jobstore:
