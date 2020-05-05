@@ -26,7 +26,7 @@ docker inspect feast_jupyter_1
 docker logs feast_jupyter_1
 
 # Wait for Jupyter Notebook Container to come online
-timeout 5m bash -c 'until [ $(curl -s ${JUPYTER_DOCKER_CONTAINER_IP_ADDRESS}:8888/tree | grep notebook | wc -l) -gt 0 ]; do echo waiting for Jupyter to start...; echo; sleep 5; done'
+${PROJECT_ROOT_DIR}/infra/scripts/wait-for-it.sh ${JUPYTER_DOCKER_CONTAINER_IP_ADDRESS}:8888 --timeout=300
 
 # Run e2e tests for Redis
-docker exec feast_jupyter_1  bash -c 'cd feast/tests/e2e/ && pytest -s basic-ingest-redis-serving.py --core_url core:6565 --serving_url=online-serving:6566'
+docker exec feast_jupyter_1 bash -c 'cd feast/tests/e2e/ && pytest -s basic-ingest-redis-serving.py --core_url core:6565 --serving_url=online-serving:6566'
