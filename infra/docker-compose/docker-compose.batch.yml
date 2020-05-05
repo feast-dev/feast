@@ -8,7 +8,6 @@ services:
       - ./serving/${FEAST_BATCH_STORE_CONFIG}:/etc/feast/store.yml
       - ./gcp-service-accounts/${FEAST_BATCH_SERVING_GCP_SERVICE_ACCOUNT_KEY}:/etc/gcloud/service-accounts/key.json
     depends_on:
-      - core
       - redis
     ports:
       - 6567:6567
@@ -23,3 +22,8 @@ services:
       - "-jar"
       - "/opt/feast/feast-serving.jar"
       - "--spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml"
+
+  redis:
+    image: redis:5-alpine
+    ports:
+      - "6379:6379"

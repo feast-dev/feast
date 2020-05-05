@@ -38,11 +38,6 @@ services:
       - 8888:8888
     command: ["/etc/startup.sh"]
 
-  redis:
-    image: redis:5-alpine
-    ports:
-      - "6379:6379"
-
   kafka:
     image: confluentinc/cp-kafka:5.2.1
     environment:
