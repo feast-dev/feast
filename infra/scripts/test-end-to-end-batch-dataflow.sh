@@ -188,6 +188,9 @@ envsubst $'$TEMP_BUCKET $DATASET_NAME $GCLOUD_PROJECT $GCLOUD_NETWORK \
   $GCLOUD_SUBNET $GCLOUD_REGION $feast_kafka_1_ip
   $feast_kafka_2_ip $feast_kafka_3_ip $feast_redis_ip $feast_statsd_ip' < values-end-to-end-batch-dataflow.yaml > $ORIGINAL_DIR/infra/charts/feast/values-end-to-end-batch-dataflow-updated.yaml
 
+cd $ORIGINAL_DIR/infra/charts
+helm template feast
+
 cd $ORIGINAL_DIR/infra/charts/feast
 helm install --wait --timeout 600s --values="values-end-to-end-batch-dataflow-updated.yaml" ${HELM_RELEASE_NAME} .
 
