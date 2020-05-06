@@ -32,7 +32,6 @@ import feast.core.CoreServiceProto.ListStoresResponse.Builder;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto;
-import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.SourceProto;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.Subscription;
@@ -142,8 +141,7 @@ public class SpecService {
     List<FeatureSet> featureSets = new ArrayList<FeatureSet>() {};
 
     if (project.contains("*")) {
-      // Matching all projects
-
+      // Matching a wildcard project
       if (name.contains("*")) {
         featureSets =
             featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc(
@@ -157,7 +155,6 @@ public class SpecService {
       }
     } else if (!project.contains("*")) {
       // Matching a specific project
-
       if (name.contains("*")) {
         // Find all feature sets matching a pattern in a specific project
         featureSets =
@@ -278,7 +275,6 @@ public class SpecService {
     }
 
     // Persist the FeatureSet object
-    featureSet.setStatus(FeatureSetStatus.STATUS_PENDING);
     project.addFeatureSet(featureSet);
     projectRepository.saveAndFlush(project);
 

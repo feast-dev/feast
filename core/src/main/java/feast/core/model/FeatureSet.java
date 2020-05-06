@@ -183,7 +183,6 @@ public class FeatureSet extends AbstractTimestampEntity {
               spec.getEntitiesList(), existingEntities));
     }
 
-    status = FeatureSetStatus.STATUS_PENDING;
     // 4. Update max age and source.
     maxAgeSeconds = spec.getMaxAge().getSeconds();
     source = Source.fromProto(spec.getSource());

@@ -72,7 +72,7 @@ public class FeatureSetTest {
   }
 
   @Test
-  public void shouldUpdateFromProtoAndSetPendingToTrue() throws InvalidProtocolBufferException {
+  public void shouldUpdateFromProto() throws InvalidProtocolBufferException {
     SourceProto.Source newSource =
         SourceProto.Source.newBuilder()
             .setType(SourceType.KAFKA)
@@ -103,13 +103,13 @@ public class FeatureSetTest {
             .build();
 
     FeatureSet actual = FeatureSet.fromProto(oldFeatureSetProto);
-    actual.setStatus(FeatureSetStatus.STATUS_READY);
     actual.updateFromProto(newFeatureSetProto);
 
     FeatureSet expected = FeatureSet.fromProto(newFeatureSetProto);
     Feature archivedFeature =
         Feature.fromProto(
             FeatureSpec.newBuilder().setName("feature2").setValueType(Enum.STRING).build());
+    archivedFeature.setArchived(true);
     expected.addFeature(archivedFeature);
     assertThat(actual, equalTo(expected));
   }
