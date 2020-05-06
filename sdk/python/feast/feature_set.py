@@ -716,6 +716,8 @@ class FeatureSet:
         ]
 
         for _, field in self._fields.items():
+            if isinstance(field, Entity):
+                continue
             feature = schema_pb2.Feature()
             for attr in attributes_to_copy_from_field_to_feature:
                 if getattr(field, attr) is None:

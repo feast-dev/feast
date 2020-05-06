@@ -22,19 +22,8 @@ import feast.core.IngestionJobProto;
 import feast.core.job.Runner;
 import java.util.ArrayList;
 import java.util.List;
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
+import javax.persistence.*;
 import javax.persistence.Entity;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
-import javax.persistence.Id;
-import javax.persistence.Index;
-import javax.persistence.JoinColumn;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToMany;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -71,7 +60,7 @@ public class Job extends AbstractTimestampEntity {
   private Store store;
 
   // FeatureSets populated by the job
-  @ManyToMany
+  @ManyToMany(cascade = CascadeType.ALL)
   @JoinTable(
       name = "jobs_feature_sets",
       joinColumns = @JoinColumn(name = "job_id"),
@@ -82,10 +71,6 @@ public class Job extends AbstractTimestampEntity {
       })
   private List<FeatureSet> featureSets;
 
-  // Job Metrics
-  @OneToMany(mappedBy = "job", cascade = CascadeType.ALL)
-  private List<Metrics> metrics;
-
   @Enumerated(EnumType.STRING)
   @Column(name = "status", length = 16)
   private JobStatus status;
@@ -94,34 +79,12 @@ public class Job extends AbstractTimestampEntity {
     super();
   }
 
-  public Job(
-      String id,
-      String extId,
-      Runner runner,
-      Source source,
-      Store sink,
-      List<FeatureSet> featureSets,
-      JobStatus jobStatus) {
-    this.id = id;
-    this.extId = extId;
-    this.source = source;
-    this.runner = runner;
-    this.store = sink;
-    this.featureSets = featureSets;
-    this.status = jobStatus;
-  }
-
   public boolean hasTerminated() {
     return getStatus().isTerminal();
   }
 
   public boolean isRunning() {
     return getStatus() == JobStatus.RUNNING;
-  }
-
-  public void updateMetrics(List<Metrics> newMetrics) {
-    metrics.clear();
-    metrics.addAll(newMetrics);
   }
 
   public String getSinkName() {

@@ -25,6 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
@@ -194,6 +195,13 @@ public class JobCoordinatorServiceTest {
     when(specService.listStores(any()))
         .thenReturn(ListStoresResponse.newBuilder().addStore(store).build());
 
+    for (FeatureSetProto.FeatureSet fs : Lists.newArrayList(featureSet1, featureSet2)) {
+      FeatureSetSpec spec = fs.getSpec();
+      when(featureSetRepository.findFeatureSetByNameAndProject_NameAndVersion(
+              spec.getName(), spec.getProject(), spec.getVersion()))
+          .thenReturn(FeatureSet.fromProto(fs));
+    }
+
     when(jobManager.startJob(argThat(new JobMatcher(expectedInput)))).thenReturn(expected);
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
 
@@ -318,6 +326,12 @@ public class JobCoordinatorServiceTest {
     when(jobManager.startJob(argThat(new JobMatcher(expectedInput1)))).thenReturn(expected1);
     when(jobManager.startJob(argThat(new JobMatcher(expectedInput2)))).thenReturn(expected2);
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
+    for (FeatureSetProto.FeatureSet fs : Lists.newArrayList(featureSet1, featureSet2)) {
+      FeatureSetSpec spec = fs.getSpec();
+      when(featureSetRepository.findFeatureSetByNameAndProject_NameAndVersion(
+              spec.getName(), spec.getProject(), spec.getVersion()))
+          .thenReturn(FeatureSet.fromProto(fs));
+    }
 
     JobCoordinatorService jcs =
         new JobCoordinatorService(

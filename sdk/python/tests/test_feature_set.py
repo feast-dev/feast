@@ -210,9 +210,6 @@ class TestFeatureSet:
         feature_set.import_tfx_schema(test_input_schema)
 
         # After update
-        for entity in feature_set.entities:
-            assert entity.presence is not None
-            assert entity.shape is not None
         for feature in feature_set.features:
             assert feature.presence is not None
             assert feature.shape is not None

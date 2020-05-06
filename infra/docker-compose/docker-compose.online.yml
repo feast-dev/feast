@@ -1,0 +1,23 @@
+version: "3.7"
+
+services:
+  online-serving:
+    image: ${FEAST_SERVING_IMAGE}:${FEAST_VERSION}
+    volumes:
+      - ./serving/${FEAST_ONLINE_SERVING_CONFIG}:/etc/feast/application.yml
+      - ./serving/${FEAST_ONLINE_STORE_CONFIG}:/etc/feast/store.yml
+    depends_on:
+      - redis
+    ports:
+      - 6566:6566
+    restart: on-failure
+    command:
+      - java
+      - -jar
+      - /opt/feast/feast-serving.jar
+      - --spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml
+
+  redis:
+    image: redis:5-alpine
+    ports:
+      - "6379:6379"
