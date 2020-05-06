@@ -47,6 +47,7 @@ class AbstractProducer:
     def _set_error(self, exception: str):
         self.error_count += 1
         self.last_exception = exception
+        raise Exception(exception)
 
     def print_results(self) -> None:
         """
@@ -130,8 +131,6 @@ class ConfluentProducer(AbstractProducer):
             int: Number of messages still in queue.
         """
         messages = self.producer.flush(timeout=timeout)
-        if self.error_count:
-            raise Exception(self.last_exception)
         if messages:
             raise Exception("Not all Kafka messages are successfully delivered.")
         return messages
