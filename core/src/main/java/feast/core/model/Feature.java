@@ -16,7 +16,9 @@
  */
 package feast.core.model;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto.FeatureSpec;
+import feast.core.FeatureSetProto.FeatureSpec.Builder;
 import feast.core.util.TypeConversion;
 import feast.types.ValueProto.ValueType;
 import java.util.Arrays;
@@ -26,6 +28,7 @@ import javax.persistence.*;
 import javax.persistence.Entity;
 import lombok.Getter;
 import lombok.Setter;
+import org.tensorflow.metadata.v0.*;
 
 /**
  * Feature belonging to a featureset. Contains name, type as well as domain metadata about the
@@ -93,6 +96,55 @@ public class Feature {
     feature.labels = TypeConversion.convertMapToJsonString(featureSpec.getLabelsMap());
     feature.updateSchema(featureSpec);
     return feature;
+  }
+
+  public FeatureSpec toProto() throws InvalidProtocolBufferException {
+    Builder featureSpecBuilder =
+        FeatureSpec.newBuilder().setName(getName()).setValueType(ValueType.Enum.valueOf(getType()));
+
+    if (getPresence() != null) {
+      featureSpecBuilder.setPresence(FeaturePresence.parseFrom(getPresence()));
+    } else if (getGroupPresence() != null) {
+      featureSpecBuilder.setGroupPresence(FeaturePresenceWithinGroup.parseFrom(getGroupPresence()));
+    }
+
+    if (getShape() != null) {
+      featureSpecBuilder.setShape(FixedShape.parseFrom(getShape()));
+    } else if (getValueCount() != null) {
+      featureSpecBuilder.setValueCount(ValueCount.parseFrom(getValueCount()));
+    }
+
+    if (getDomain() != null) {
+      featureSpecBuilder.setDomain(getDomain());
+    } else if (getIntDomain() != null) {
+      featureSpecBuilder.setIntDomain(IntDomain.parseFrom(getIntDomain()));
+    } else if (getFloatDomain() != null) {
+      featureSpecBuilder.setFloatDomain(FloatDomain.parseFrom(getFloatDomain()));
+    } else if (getStringDomain() != null) {
+      featureSpecBuilder.setStringDomain(StringDomain.parseFrom(getStringDomain()));
+    } else if (getBoolDomain() != null) {
+      featureSpecBuilder.setBoolDomain(BoolDomain.parseFrom(getBoolDomain()));
+    } else if (getStructDomain() != null) {
+      featureSpecBuilder.setStructDomain(StructDomain.parseFrom(getStructDomain()));
+    } else if (getNaturalLanguageDomain() != null) {
+      featureSpecBuilder.setNaturalLanguageDomain(
+          NaturalLanguageDomain.parseFrom(getNaturalLanguageDomain()));
+    } else if (getImageDomain() != null) {
+      featureSpecBuilder.setImageDomain(ImageDomain.parseFrom(getImageDomain()));
+    } else if (getMidDomain() != null) {
+      featureSpecBuilder.setMidDomain(MIDDomain.parseFrom(getMidDomain()));
+    } else if (getUrlDomain() != null) {
+      featureSpecBuilder.setUrlDomain(URLDomain.parseFrom(getUrlDomain()));
+    } else if (getTimeDomain() != null) {
+      featureSpecBuilder.setTimeDomain(TimeDomain.parseFrom(getTimeDomain()));
+    } else if (getTimeOfDayDomain() != null) {
+      featureSpecBuilder.setTimeOfDayDomain(TimeOfDayDomain.parseFrom(getTimeOfDayDomain()));
+    }
+
+    if (getLabels() != null) {
+      featureSpecBuilder.putAllLabels(getLabels());
+    }
+    return featureSpecBuilder.build();
   }
 
   private void updateSchema(FeatureSpec featureSpec) {
@@ -171,6 +223,12 @@ public class Feature {
    * @param featureSpec {@link FeatureSpec} containing schema changes.
    */
   public void updateFromProto(FeatureSpec featureSpec) {
+    if (isArchived()) {
+      throw new IllegalArgumentException(
+          String.format(
+              "You are attempting to create a feature %s that was previously archived. This isn't allowed. Please create a new feature with a different name.",
+              featureSpec.getName()));
+    }
     if (ValueType.Enum.valueOf(type) != featureSpec.getValueType()) {
       throw new IllegalArgumentException(
           String.format(
@@ -193,7 +251,9 @@ public class Feature {
       return false;
     }
     Feature feature = (Feature) o;
-    return Objects.equals(getName(), feature.getName())
+    return getName().equals(feature.getName())
+        && getType().equals(feature.getType())
+        && isArchived() == (feature.isArchived())
         && Objects.equals(getLabels(), feature.getLabels())
         && Arrays.equals(getPresence(), feature.getPresence())
         && Arrays.equals(getGroupPresence(), feature.getGroupPresence())

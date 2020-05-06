@@ -56,7 +56,7 @@ service CoreService {
     // All changes except the following are valid:
     // - Changes to feature set id (name, project)
     // - Changes to entities
-    // - Changes to feature type
+    // - Changes to feature name and type
     rpc ApplyFeatureSet (ApplyFeatureSetRequest) returns (ApplyFeatureSetResponse);
 
     // Updates core with the configuration of the store.
@@ -158,6 +158,7 @@ message ApplyFeatureSetRequest {
 }
 
 message ApplyFeatureSetResponse {
+    // TODO: 0 should correspond to invalid rather than NO_CHANGE
     enum Status {
         // Latest feature set is consistent with provided feature set
         NO_CHANGE = 0;

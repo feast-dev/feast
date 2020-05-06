@@ -23,7 +23,6 @@ import com.google.protobuf.Timestamp;
 import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.*;
 import feast.core.util.TypeConversion;
-import feast.types.ValueProto.ValueType;
 import java.util.*;
 import java.util.stream.Collectors;
 import javax.persistence.*;
@@ -193,21 +192,21 @@ public class FeatureSet extends AbstractTimestampEntity {
         spec.getFeaturesList().stream().collect(Collectors.toMap(FeatureSpec::getName, fs -> fs));
 
     // 3. Tombstone features that are gone, update features that have changed
-    for (Feature feature : features) {
-      String featureName = feature.getName();
-      FeatureSpec updatedFeatureSpec = updatedFeatures.get(featureName);
+    for (Feature existingFeature : features) {
+      String existingFeatureName = existingFeature.getName();
+      FeatureSpec updatedFeatureSpec = updatedFeatures.get(existingFeatureName);
       if (updatedFeatureSpec == null) {
-        feature.archive();
+        existingFeature.archive();
       } else {
-        feature.updateFromProto(updatedFeatureSpec);
-        updatedFeatures.remove(featureName);
+        existingFeature.updateFromProto(updatedFeatureSpec);
+        updatedFeatures.remove(existingFeatureName);
       }
     }
 
     // 4. Add new features
     for (FeatureSpec featureSpec : updatedFeatures.values()) {
-      Feature feature = Feature.fromProto(featureSpec);
-      addFeature(feature);
+      Feature newFeature = Feature.fromProto(featureSpec);
+      addFeature(newFeature);
     }
   }
 
@@ -236,17 +235,13 @@ public class FeatureSet extends AbstractTimestampEntity {
   public FeatureSetProto.FeatureSet toProto() throws InvalidProtocolBufferException {
     List<EntitySpec> entitySpecs = new ArrayList<>();
     for (Entity entityField : entities) {
-      EntitySpec.Builder entitySpecBuilder = EntitySpec.newBuilder();
-      setEntitySpecFields(entitySpecBuilder, entityField);
-      entitySpecs.add(entitySpecBuilder.build());
+      entitySpecs.add(entityField.toProto());
     }
 
     List<FeatureSpec> featureSpecs = new ArrayList<>();
     for (Feature featureField : features) {
       if (!featureField.isArchived()) {
-        FeatureSpec.Builder featureSpecBuilder = FeatureSpec.newBuilder();
-        setFeatureSpecFields(featureSpecBuilder, featureField);
-        featureSpecs.add(featureSpecBuilder.build());
+        featureSpecs.add(featureField.toProto());
       }
     }
 
@@ -267,64 +262,6 @@ public class FeatureSet extends AbstractTimestampEntity {
             .setSource(source.toProto());
 
     return FeatureSetProto.FeatureSet.newBuilder().setMeta(meta).setSpec(spec).build();
-  }
-
-  private void setEntitySpecFields(EntitySpec.Builder entitySpecBuilder, Entity entityField) {
-    entitySpecBuilder
-        .setName(entityField.getName())
-        .setValueType(ValueType.Enum.valueOf(entityField.getType()));
-  }
-
-  private void setFeatureSpecFields(FeatureSpec.Builder featureSpecBuilder, Feature featureField)
-      throws InvalidProtocolBufferException {
-    featureSpecBuilder
-        .setName(featureField.getName())
-        .setValueType(ValueType.Enum.valueOf(featureField.getType()));
-
-    if (featureField.getPresence() != null) {
-      featureSpecBuilder.setPresence(FeaturePresence.parseFrom(featureField.getPresence()));
-    } else if (featureField.getGroupPresence() != null) {
-      featureSpecBuilder.setGroupPresence(
-          FeaturePresenceWithinGroup.parseFrom(featureField.getGroupPresence()));
-    }
-
-    if (featureField.getShape() != null) {
-      featureSpecBuilder.setShape(FixedShape.parseFrom(featureField.getShape()));
-    } else if (featureField.getValueCount() != null) {
-      featureSpecBuilder.setValueCount(ValueCount.parseFrom(featureField.getValueCount()));
-    }
-
-    if (featureField.getDomain() != null) {
-      featureSpecBuilder.setDomain(featureField.getDomain());
-    } else if (featureField.getIntDomain() != null) {
-      featureSpecBuilder.setIntDomain(IntDomain.parseFrom(featureField.getIntDomain()));
-    } else if (featureField.getFloatDomain() != null) {
-      featureSpecBuilder.setFloatDomain(FloatDomain.parseFrom(featureField.getFloatDomain()));
-    } else if (featureField.getStringDomain() != null) {
-      featureSpecBuilder.setStringDomain(StringDomain.parseFrom(featureField.getStringDomain()));
-    } else if (featureField.getBoolDomain() != null) {
-      featureSpecBuilder.setBoolDomain(BoolDomain.parseFrom(featureField.getBoolDomain()));
-    } else if (featureField.getStructDomain() != null) {
-      featureSpecBuilder.setStructDomain(StructDomain.parseFrom(featureField.getStructDomain()));
-    } else if (featureField.getNaturalLanguageDomain() != null) {
-      featureSpecBuilder.setNaturalLanguageDomain(
-          NaturalLanguageDomain.parseFrom(featureField.getNaturalLanguageDomain()));
-    } else if (featureField.getImageDomain() != null) {
-      featureSpecBuilder.setImageDomain(ImageDomain.parseFrom(featureField.getImageDomain()));
-    } else if (featureField.getMidDomain() != null) {
-      featureSpecBuilder.setMidDomain(MIDDomain.parseFrom(featureField.getMidDomain()));
-    } else if (featureField.getUrlDomain() != null) {
-      featureSpecBuilder.setUrlDomain(URLDomain.parseFrom(featureField.getUrlDomain()));
-    } else if (featureField.getTimeDomain() != null) {
-      featureSpecBuilder.setTimeDomain(TimeDomain.parseFrom(featureField.getTimeDomain()));
-    } else if (featureField.getTimeOfDayDomain() != null) {
-      featureSpecBuilder.setTimeOfDayDomain(
-          TimeOfDayDomain.parseFrom(featureField.getTimeOfDayDomain()));
-    }
-
-    if (featureField.getLabels() != null) {
-      featureSpecBuilder.putAllLabels(featureField.getLabels());
-    }
   }
 
   /**
