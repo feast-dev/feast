@@ -18,7 +18,7 @@ These components can be used to create a string based feature reference as follo
 
 `<project>/<feature-set>:<feature>`
 
-Feast will attempt to infer both the `project` and `feature-set` name if it is not provided, but a user must provide a `feature` name. 
+Feast will attempt to infer both the `project` and `feature-set` name if it is not provided, but a user must provide a `feature` name.
 
 ```python
 # Feature references
@@ -73,7 +73,7 @@ This is called a point in time correct join.
 
 Feast allows users to retrieve features from any feature sets and join them to gether in a single response dataset. The only requirement is that the user provide the correct entities in order to look up the features.
 
-###  **Point-in-time-correct Join** 
+### **Point-in-time-correct Join**
 
 Below is another example of how a point-in-time-correct join works. We have two dataframes. The first is the `entity dataframe` that contains timestamps, entities, and labels. The user would like to have driver features joined onto this `entity dataframe` from the `driver dataframe` to produce an `output dataframe` that contains both labels and features. They would then like to train their model on this output
 
@@ -96,7 +96,7 @@ dataset = client.get_batch_features(
         feature_refs=features, # this is a list of feature references
         entity_rows=entity_df # This is the entity dataframe above
     )
-    
+
 # This prints out the dataframe below 
 print(dataset.to_dataframe())
 ```
@@ -124,5 +124,5 @@ data = client.get_online_features(
     )
 ```
 
-Online serving with Feast is built to be very low latency. Feast Serving provides a [gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html) that is backed by [Redis](https://redis.io/). We also provide support for [Python](https://api.docs.feast.dev/python/), [Go](https://godoc.org/github.com/gojek/feast/sdk/go), and Java clients. 
+Online serving with Feast is built to be very low latency. Feast Serving provides a [gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html) that is backed by [Redis](https://redis.io/). We also provide support for [Python](https://api.docs.feast.dev/python/), [Go](https://godoc.org/github.com/gojek/feast/sdk/go), and Java clients.
 
