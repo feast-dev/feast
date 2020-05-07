@@ -54,7 +54,7 @@ Historical feature retrieval can be done through either the Feast SDK or directl
 # Add the target variable to our feature list
 features = self._features + [self._target]
 
-# Retrieve training dataset from Feas. The "entity_df" is a dataframe that contains
+# Retrieve training dataset from Feast. The "entity_df" is a dataframe that contains
 # timestamps and entity keys. In this case it is a dataframe with two columns.
 # One timestamp column, and one customer id column
 dataset = client.get_batch_features(
