@@ -73,7 +73,7 @@ feast:
     # See the following for options https://api.docs.feast.dev/grpc/feast.core.pb.html#KafkaSourceConfig
     options:
       topic: feast-features
-      bootstrapServers: localhost:9092
+      bootstrapServers: ${STREAM_HOST:localhost}:${STREAM_PORT:9092}
       replicationFactor: 1
       partitions: 1
 
