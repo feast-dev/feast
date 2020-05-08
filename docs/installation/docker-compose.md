@@ -131,7 +131,7 @@ docker-compose \
 up -d
 ```
 
-A Jupyter Notebook environment is now available to use Feast:
+A Jupyter Notebook environment should become available within a few minutes:
 
 {% embed url="http://localhost:8888/tree/feast/examples" %}
 

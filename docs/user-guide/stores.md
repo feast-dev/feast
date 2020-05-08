@@ -33,7 +33,7 @@ Please continue to the [feature retrieval](feature-retrieval.md) section for mor
 
 ## Subscriptions
 
-Stores are populated by ingestion jobs \(Apache Beam\) that retrieve feature data from [sources]() based on subscriptions. These subscriptions are typically defined by the administrators of the Feast deployment. In most cases a store would simply subscribe to all features, but in some cases it may subscribe to a subset in order to improve performance or efficiency.
+Stores are populated by ingestion jobs \(Apache Beam\) that retrieve feature data from sources based on subscriptions. These subscriptions are typically defined by the administrators of the Feast deployment. In most cases a store would simply subscribe to all features, but in some cases it may subscribe to a subset in order to improve performance or efficiency.
 
 
 
