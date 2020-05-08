@@ -28,6 +28,9 @@ import java.util.stream.Collectors;
 
 public class FeatureSetValidator {
   public static void validateSpec(FeatureSetSpec featureSetSpec) {
+    if (featureSetSpec.getLabelsMap().containsKey("")) {
+      throw new IllegalArgumentException("Feature set label keys must not be empty");
+    }
     checkValidCharacters(featureSetSpec.getName(), "name");
     checkUniqueColumns(featureSetSpec.getEntitiesList(), featureSetSpec.getFeaturesList());
     for (EntitySpec entitySpec : featureSetSpec.getEntitiesList()) {
@@ -35,6 +38,9 @@ public class FeatureSetValidator {
     }
     for (FeatureSpec featureSpec : featureSetSpec.getFeaturesList()) {
       checkValidCharacters(featureSpec.getName(), "features::name");
+      if (featureSpec.getLabelsMap().containsKey("")) {
+        throw new IllegalArgumentException("Feature label keys must not be empty");
+      }
     }
   }
 

@@ -23,9 +23,7 @@ KAFKA_CHUNK_PRODUCTION_TIMEOUT = 120  # type: int
 
 
 def _encode_pa_tables(
-        file: str,
-        fs: FeatureSet,
-        row_group_idx: int,
+    file: str, feature_set: str, fields: dict, row_group_idx: int
 ) -> List[bytes]:
     """
     Helper function to encode a PyArrow table(s) read from parquet file(s) into
@@ -42,8 +40,11 @@ def _encode_pa_tables(
             File directory of all the parquet file to encode.
             Parquet file must have more than one row group.
 
-        fs (feast.feature_set.FeatureSet):
-            FeatureSet describing parquet files.
+        feature_set (str):
+            Feature set reference in the format f"{project}/{name}:{version}".
+
+        fields (dict[str, enum.Enum.ValueType]):
+            A mapping of field names to their value types.
 
         row_group_idx(int):
             Row group index to read and encode into byte like FeatureRow
@@ -63,12 +64,9 @@ def _encode_pa_tables(
 
     # Preprocess the columns by converting all its values to Proto values
     proto_columns = {
-        field_name: pa_column_to_proto_column(field.dtype,
-                                              table.column(field_name))
-        for field_name, field in fs.fields.items()
+        field_name: pa_column_to_proto_column(dtype, table.column(field_name))
+        for field_name, dtype in fields.items()
     }
-
-    feature_set = f"{fs.name}:{fs.version}"
 
     # List to store result
     feature_rows = []
@@ -125,9 +123,13 @@ def get_feature_row_chunks(
             Iterable list of byte encoded FeatureRow(s).
     """
 
+    feature_set = f"{fs.name}:{fs.version}"
+
+    field_map = {field.name: field.dtype for field in fs.fields.values()}
+
     pool = Pool(max_workers)
-    func = partial(_encode_pa_tables, file, fs)
-    for chunk in pool.imap_unordered(func, row_groups):
+    func = partial(_encode_pa_tables, file, feature_set, field_map)
+    for chunk in pool.imap(func, row_groups):
         yield chunk
     return
 

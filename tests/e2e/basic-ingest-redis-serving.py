@@ -2,11 +2,14 @@ import pytest
 import math
 import random
 import time
+import grpc
 from feast.entity import Entity
 from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequest,
     GetOnlineFeaturesResponse,
 )
+from feast.core.CoreService_pb2_grpc import CoreServiceStub
+from feast.core import CoreService_pb2
 from feast.types.Value_pb2 import Value as Value
 from feast.client import Client
 from feast.feature_set import FeatureSet
@@ -140,9 +143,9 @@ def test_basic_retrieve_online_success(client, basic_dataframe):
             basic_dataframe.iloc[0]["daily_transactions"])
 
         if math.isclose(
-            sent_daily_transactions,
-            returned_daily_transactions,
-            abs_tol=FLOAT_TOLERANCE,
+                sent_daily_transactions,
+                returned_daily_transactions,
+                abs_tol=FLOAT_TOLERANCE,
         ):
             break
 
@@ -299,7 +302,7 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
         sent_float_list = all_types_dataframe.iloc[0]["float_list_feature"]
 
         if math.isclose(
-            returned_float_list[0], sent_float_list[0], abs_tol=FLOAT_TOLERANCE
+                returned_float_list[0], sent_float_list[0], abs_tol=FLOAT_TOLERANCE
         ):
             break
 
@@ -394,9 +397,9 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
             large_volume_dataframe.iloc[0]["daily_transactions"])
 
         if math.isclose(
-            sent_daily_transactions,
-            returned_daily_transactions,
-            abs_tol=FLOAT_TOLERANCE,
+                sent_daily_transactions,
+                returned_daily_transactions,
+                abs_tol=FLOAT_TOLERANCE,
         ):
             break
 
@@ -489,10 +492,86 @@ def test_all_types_parquet_register_feature_set_success(client):
 @pytest.mark.timeout(600)
 @pytest.mark.run(order=41)
 def test_all_types_infer_register_ingest_file_success(client,
-    all_types_parquet_file):
+                                                      all_types_parquet_file):
     # Get feature set
     all_types_fs = client.get_feature_set(name="all_types_parquet")
 
     # Ingest user embedding data
     client.ingest(feature_set=all_types_fs, source=all_types_parquet_file,
                   force_update=True)
+
+
+# TODO: rewrite these using python SDK once the labels are implemented there
+class TestsBasedOnGrpc:
+    LAST_VERSION = 0
+    GRPC_CONNECTION_TIMEOUT = 3
+    LABEL_KEY = "my"
+    LABEL_VALUE = "label"
+
+    @pytest.fixture(scope="module")
+    def core_service_stub(self, core_url):
+        if core_url.endswith(":443"):
+            core_channel = grpc.secure_channel(
+                core_url, grpc.ssl_channel_credentials()
+            )
+        else:
+            core_channel = grpc.insecure_channel(core_url)
+
+        try:
+            grpc.channel_ready_future(core_channel).result(timeout=self.GRPC_CONNECTION_TIMEOUT)
+        except grpc.FutureTimeoutError:
+            raise ConnectionError(
+                f"Connection timed out while attempting to connect to Feast "
+                f"Core gRPC server {core_url} "
+            )
+        core_service_stub = CoreServiceStub(core_channel)
+        return core_service_stub
+
+    def apply_feature_set(self, core_service_stub, feature_set_proto):
+        try:
+            apply_fs_response = core_service_stub.ApplyFeatureSet(
+                CoreService_pb2.ApplyFeatureSetRequest(feature_set=feature_set_proto),
+                timeout=self.GRPC_CONNECTION_TIMEOUT,
+            )  # type: ApplyFeatureSetResponse
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+        return apply_fs_response.feature_set
+
+    def get_feature_set(self, core_service_stub, name):
+        try:
+            get_feature_set_response = core_service_stub.GetFeatureSet(
+                CoreService_pb2.GetFeatureSetRequest(
+                    name=name.strip(), version=self.LAST_VERSION
+                )
+            )  # type: GetFeatureSetResponse
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+        return get_feature_set_response.feature_set
+
+    @pytest.mark.timeout(45)
+    @pytest.mark.run(order=51)
+    def test_register_feature_set_with_labels(self, core_service_stub):
+        feature_set_name = "test_feature_set_labels"
+        feature_set_proto = FeatureSet(feature_set_name).to_proto()
+        feature_set_proto.labels[self.LABEL_KEY] = self.LABEL_VALUE
+        self.apply_feature_set(core_service_stub, feature_set_proto)
+
+        retrieved_feature_set = self.get_feature_set(core_service_stub, feature_set_name)
+
+        assert self.LABEL_KEY in retrieved_feature_set.labels
+        assert retrieved_feature_set.labels[self.LABEL_KEY] == self.LABEL_VALUE
+
+    @pytest.mark.timeout(45)
+    @pytest.mark.run(order=52)
+    def test_register_feature_with_labels(self, core_service_stub):
+        feature_set_name = "test_feature_labels"
+        feature_set_proto = FeatureSet(feature_set_name, features=[Feature("rating", ValueType.INT64)]) \
+            .to_proto()
+        feature_set_proto.features[0].labels[self.LABEL_KEY] = self.LABEL_VALUE
+        self.apply_feature_set(core_service_stub, feature_set_proto)
+
+        retrieved_feature_set = self.get_feature_set(core_service_stub, feature_set_name)
+        retrieved_feature = retrieved_feature_set.features[0]
+
+        assert self.LABEL_KEY in retrieved_feature.labels
+        assert retrieved_feature.labels[self.LABEL_KEY] == self.LABEL_VALUE

@@ -15,11 +15,21 @@ from google.protobuf.message import (
 from typing import (
     Optional as typing___Optional,
     Text as typing___Text,
+    Union as typing___Union,
 )
 
 from typing_extensions import (
     Literal as typing_extensions___Literal,
 )
+
+
+builtin___bool = bool
+builtin___bytes = bytes
+builtin___float = float
+builtin___int = int
+if sys.version_info < (3,):
+    builtin___buffer = buffer
+    builtin___unicode = unicode
 
 
 class Field(google___protobuf___message___Message):
@@ -34,13 +44,14 @@ class Field(google___protobuf___message___Message):
         name : typing___Optional[typing___Text] = None,
         value : typing___Optional[feast___types___Value_pb2___Value] = None,
         ) -> None: ...
-    @classmethod
-    def FromString(cls, s: bytes) -> Field: ...
+    if sys.version_info >= (3,):
+        @classmethod
+        def FromString(cls, s: builtin___bytes) -> Field: ...
+    else:
+        @classmethod
+        def FromString(cls, s: typing___Union[builtin___bytes, builtin___buffer, builtin___unicode]) -> Field: ...
     def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
-    if sys.version_info >= (3,):
-        def HasField(self, field_name: typing_extensions___Literal[u"value"]) -> bool: ...
-        def ClearField(self, field_name: typing_extensions___Literal[u"name",u"value"]) -> None: ...
-    else:
-        def HasField(self, field_name: typing_extensions___Literal[u"value",b"value"]) -> bool: ...
-        def ClearField(self, field_name: typing_extensions___Literal[u"name",b"name",u"value",b"value"]) -> None: ...
+    def HasField(self, field_name: typing_extensions___Literal[u"value",b"value"]) -> builtin___bool: ...
+    def ClearField(self, field_name: typing_extensions___Literal[u"name",b"name",u"value",b"value"]) -> None: ...
+global___Field = Field
