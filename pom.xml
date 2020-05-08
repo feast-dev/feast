@@ -33,6 +33,7 @@
         <module>core</module>
         <module>serving</module>
         <module>sdk/java</module>
+        <module>docs/coverage/java</module>
     </modules>
 
     <properties>
@@ -432,9 +433,9 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.22.1</version>
+                <version>3.0.0-M4</version>
                 <configuration>
-                    <argLine>-Xms2048m -Xmx2048m -Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
+                    <argLine>@{argLine} -Xms2048m -Xmx2048m -Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
                     <excludes>
                         <groups>IntegrationTest</groups>
                     </excludes>
@@ -555,6 +556,18 @@
                     <configuration>
                         <cleanupDaemonThreads>false</cleanupDaemonThreads>
                     </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>0.8.5</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>prepare-agent</goal>
+                            </goals>
+                        </execution>
+                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>org.springframework.boot</groupId>
