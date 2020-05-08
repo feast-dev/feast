@@ -53,9 +53,11 @@ prometheus:
   # prometheus.enabled -- Flag to enable scraping of Feast Core metrics
   enabled: true
 
+# By default we disable the liveness probe, since if the DB fails restarting core will not result
+# in application healing.
 livenessProbe:
   # livenessProbe.enabled -- Flag to enabled the probe
-  enabled: true
+  enabled: false
   # livenessProbe.initialDelaySeconds -- Delay before the probe is initiated
   initialDelaySeconds: 60
   # livenessProbe.periodSeconds -- How often to perform the probe

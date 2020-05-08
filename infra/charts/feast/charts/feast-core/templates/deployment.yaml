@@ -125,9 +125,8 @@ spec:
 
         {{- if .Values.livenessProbe.enabled }}
         livenessProbe:
-          httpGet:
-            path: /healthz
-            port: {{ .Values.service.http.targetPort }}
+          exec:
+            command: ["/usr/bin/grpc-health-probe", "-addr=:{{ .Values.service.grpc.targetPort }}"]
           initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
           periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
           successThreshold: {{ .Values.livenessProbe.successThreshold }}
@@ -137,9 +136,8 @@ spec:
 
         {{- if .Values.readinessProbe.enabled }}
         readinessProbe:
-          httpGet:
-            path: /healthz
-            port: {{ .Values.service.http.targetPort }}
+          exec:
+            command: ["/usr/bin/grpc-health-probe", "-addr=:{{ .Values.service.grpc.targetPort }}"]
           initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
           periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
           successThreshold: {{ .Values.readinessProbe.successThreshold }}
