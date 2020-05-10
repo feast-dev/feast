@@ -80,6 +80,24 @@ feast:
       subscriptions:
         - name: "*"
           project: "*"
+    - name: historical_snowflake
+      type: Snowflake
+      config:  # Store specific configuration.
+        schema: PUBLIC
+        database: DEMO_DB
+        role: ACCOUNTADMIN
+        table_name: FEAST_FEATURES
+        url: jdbc:snowflake://test.snowflakecomputing.com
+        username: username
+        password: password
+        warehouse: COMPUTE_WH
+        staging_location: s3://feast-snowflake-staging/test/
+        class_name: net.snowflake.client.jdbc.SnowflakeDriver
+        batch_size: 1
+        storage_integration: s3_int
+      subscriptions:
+        - name: "*"
+          project: "*"
 
   tracing:
     # If true, Feast will provide tracing data (using OpenTracing API) for various RPC method calls

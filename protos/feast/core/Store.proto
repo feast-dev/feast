@@ -98,6 +98,8 @@ message Store {
     CASSANDRA = 3;
 
     REDIS_CLUSTER = 4;
+
+    Snowflake = 5;
   }
 
   message RedisConfig {
@@ -144,6 +146,21 @@ message Store {
 
   }
 
+  message SnowflakeConfig {
+    string url = 1;
+    string class_name = 2;
+    int32 batch_size = 3;
+    string username = 4;
+    string password = 5;
+    string staging_location = 6;
+    string database = 7;
+    string schema = 8;
+    string warehouse = 9;
+    string role = 10;
+    string table_name = 11;
+    string storage_integration = 12;
+  }
+
   message Subscription {
     // Name of project that the feature sets belongs to. This can be one of
     // - [project_name]
@@ -184,5 +201,6 @@ message Store {
     BigQueryConfig bigquery_config = 12;
     CassandraConfig cassandra_config = 13;
     RedisClusterConfig redis_cluster_config = 14;
+    SnowflakeConfig Snowflake_config = 15;
   }
 }

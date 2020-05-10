@@ -208,7 +208,7 @@ def test_batch_get_historical_features_with_file(client):
         assert output["entity_id"].to_list() == [
             int(i) for i in output["feature_value1"].to_list()
         ]
-        clean_up_remote_files(feature_retrieval_job.get_avro_files())
+        clean_up_remote_files(feature_retrieval_job.get_files())
 
     wait_for(check, timedelta(minutes=10))
 
@@ -266,7 +266,7 @@ def test_batch_get_historical_features_with_gs_path(client, gcs_path):
             int(i) for i in output["feature_value2"].to_list()
         ]
 
-        clean_up_remote_files(feature_retrieval_job.get_avro_files())
+        clean_up_remote_files(feature_retrieval_job.get_files())
         blob.delete()
 
     wait_for(check, timedelta(minutes=5))
@@ -308,7 +308,7 @@ def test_batch_order_by_creation_time(client):
 
         assert output["feature_value3"].to_list() == ["CORRECT"] * N_ROWS
 
-        clean_up_remote_files(feature_retrieval_job.get_avro_files())
+        clean_up_remote_files(feature_retrieval_job.get_files())
 
     wait_for(check, timedelta(minutes=5))
 
@@ -360,7 +360,7 @@ def test_batch_additional_columns_in_entity_table(client):
             output["feature_value4"].to_list()
             == features_df["feature_value4"].to_list()
         )
-        clean_up_remote_files(feature_retrieval_job.get_avro_files())
+        clean_up_remote_files(feature_retrieval_job.get_files())
 
     wait_for(check, timedelta(minutes=5))
 
@@ -403,7 +403,7 @@ def test_batch_point_in_time_correctness_join(client):
         print(output.head())
 
         assert output["feature_value5"].to_list() == ["CORRECT"] * N_EXAMPLES
-        clean_up_remote_files(feature_retrieval_job.get_avro_files())
+        clean_up_remote_files(feature_retrieval_job.get_files())
 
     wait_for(check, timedelta(minutes=5))
 
@@ -460,7 +460,7 @@ def test_batch_multiple_featureset_joins(client):
             output["other_entity_id"].to_list()
             == output["feature_set_2__other_feature_value7"].to_list()
         )
-        clean_up_remote_files(feature_retrieval_job.get_avro_files())
+        clean_up_remote_files(feature_retrieval_job.get_files())
 
     wait_for(check, timedelta(minutes=5))
 
@@ -493,7 +493,7 @@ def test_batch_no_max_age(client):
 
         assert output["entity_id"].to_list() == output["feature_value8"].to_list()
 
-        clean_up_remote_files(feature_retrieval_job.get_avro_files())
+        clean_up_remote_files(feature_retrieval_job.get_files())
 
     wait_for(check, timedelta(minutes=5))
 
@@ -585,7 +585,7 @@ def test_update_featureset_apply_featureset_and_ingest_first_subset(
             == subset_df["update_feature2"].to_list()
         )
 
-        clean_up_remote_files(feature_retrieval_job.get_avro_files())
+        clean_up_remote_files(feature_retrieval_job.get_files())
 
     wait_for(check, timedelta(minutes=5))
 
@@ -651,7 +651,7 @@ def test_update_featureset_update_featureset_and_ingest_second_subset(
             output["update_feature4"].to_list()
             == subset_df["update_feature4"].to_list()
         )
-        clean_up_remote_files(feature_retrieval_job.get_avro_files())
+        clean_up_remote_files(feature_retrieval_job.get_files())
 
     wait_for(check, timedelta(minutes=5))
 
@@ -684,7 +684,7 @@ def test_update_featureset_retrieve_valid_fields(client, update_featureset_dataf
     output = feature_retrieval_job.to_dataframe(timeout_sec=180).sort_values(
         by=["entity_id"]
     )
-    clean_up_remote_files(feature_retrieval_job.get_avro_files())
+    clean_up_remote_files(feature_retrieval_job.get_files())
     print(output.head(10))
     assert (
         output["update_feature1"].to_list()
@@ -776,7 +776,7 @@ def test_batch_dataset_statistics(client):
             feature.num_stats.std_dev = std
 
     assert_stats_equal(expected_stats, stats)
-    clean_up_remote_files(feature_retrieval_job.get_avro_files())
+    clean_up_remote_files(feature_retrieval_job.get_files())
 
 
 def get_rows_ingested(

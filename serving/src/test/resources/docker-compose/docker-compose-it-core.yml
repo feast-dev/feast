@@ -3,7 +3,7 @@ version: '3'
 services:
   core:
     image: gcr.io/kf-feast/feast-core:latest
-    volumes: 
+    volumes:
       - ./core/application-it.yml:/etc/feast/application.yml
     environment:
       DB_HOST: db

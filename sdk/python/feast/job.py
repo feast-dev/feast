@@ -1,5 +1,8 @@
+import csv
+import gzip
+from io import BufferedRandom
 from typing import List
-from urllib.parse import urlparse
+from urllib.parse import ParseResult, urlparse
 
 import fastavro
 import grpc
@@ -9,6 +12,7 @@ from feast.constants import CONFIG_TIMEOUT_KEY
 from feast.constants import FEAST_DEFAULT_OPTIONS as defaults
 from feast.serving.ServingService_pb2 import (
     DATA_FORMAT_AVRO,
+    DATA_FORMAT_CSV,
     JOB_STATUS_DONE,
     GetJobRequest,
 )
@@ -71,7 +75,7 @@ class RetrievalJob:
             metadata=self.auth_metadata.get_signed_meta() if self.auth_metadata else (),
         ).job
 
-    def get_avro_files(self, timeout_sec: int = int(defaults[CONFIG_TIMEOUT_KEY])):
+    def get_files(self, timeout_sec: int = int(defaults[CONFIG_TIMEOUT_KEY])):
         """
         Wait until job is done to get the file uri to Avro result files on
         Google Cloud Storage.
@@ -82,7 +86,7 @@ class RetrievalJob:
                 is exceeded, an exception will be raised.
 
         Returns:
-            str: Google Cloud Storage file uris of the returned Avro files.
+            str: Google Cloud Storage or S3 file uris of the returned Avro/CSV/CSV.GZ files.
         """
 
         def try_retrieve():
@@ -99,9 +103,12 @@ class RetrievalJob:
         if self.job_proto.error:
             raise Exception(self.job_proto.error)
 
-        if self.job_proto.data_format != DATA_FORMAT_AVRO:
+        if (
+            self.job_proto.data_format != DATA_FORMAT_AVRO
+            and self.job_proto.data_format != DATA_FORMAT_CSV
+        ):
             raise Exception(
-                "Feast only supports Avro data format for now. Please check "
+                "Feast only supports Avro and CSV data format for now. Please check "
                 "your Feast Serving deployment."
             )
 
@@ -110,7 +117,7 @@ class RetrievalJob:
     def result(self, timeout_sec: int = int(defaults[CONFIG_TIMEOUT_KEY])):
         """
         Wait until job is done to get an iterable rows of result. The row can
-        only represent an Avro row in Feast 0.3.
+        only represent an Avro or CSV row in Feast 0.3.
 
         Args:
             timeout_sec (int):
@@ -118,16 +125,44 @@ class RetrievalJob:
                 is exceeded, an exception will be raised.
 
         Returns:
-            Iterable of Avro rows.
+            Iterable of Avro or CSV rows.
         """
-        uris = self.get_avro_files(timeout_sec)
+        # list of parseResult
+        uris = self.get_files(timeout_sec)
         for file_uri in uris:
             file_obj = get_staging_client(file_uri.scheme).download_file(file_uri)
             file_obj.seek(0)
-            avro_reader = fastavro.reader(file_obj)
+            for row in self.result_object_reader(file_obj, file_uri):
+                yield row
 
+    def result_object_reader(self, file_obj: BufferedRandom, file_uri: ParseResult):
+        """
+        iterable of result object rows
+        :param file_obj: BufferedRandom: result object
+        :return: Iterable of Avro or csv rows.
+        """
+        if self.job_proto.data_format == DATA_FORMAT_AVRO:
+            avro_reader = fastavro.reader(file_obj)
             for record in avro_reader:
                 yield record
+        elif self.job_proto.data_format == DATA_FORMAT_CSV:
+            # check file format only support csv and gz compression files
+            ext = file_uri.path.lstrip("/").split(".")[-1]
+            if ext.lower() == "csv":
+                decode_obj = file_obj.read().decode("utf-8")
+                csv_reader = csv.DictReader(decode_obj.splitlines(), delimiter=",")
+                for record in csv_reader:
+                    yield record
+            elif ext.lower() == "gz":
+                with gzip.open(file_obj, mode="rt") as f:
+                    csv_reader = csv.DictReader(f, delimiter=",")
+                    for record in csv_reader:
+                        yield record
+            else:
+                raise Exception(
+                    "Feast only supports CSV data format with .csv or .csv.gz extension for now. Please check "
+                    "your Feast Serving deployment."
+                )
 
     def to_dataframe(
         self, timeout_sec: int = int(defaults[CONFIG_TIMEOUT_KEY])
@@ -208,7 +243,7 @@ class RetrievalJob:
         Returns:
             DatasetFeatureStatisticsList containing statistics of Feast features over the retrieved dataset.
         """
-        self.get_avro_files(timeout_sec)  # wait for job completion
+        self.get_files(timeout_sec)  # wait for job completion
         if self.job_proto.error:
             raise Exception(self.job_proto.error)
         return self.job_proto.dataset_feature_statistics_list

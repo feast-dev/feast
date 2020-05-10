@@ -189,6 +189,7 @@ public class TestUtil {
         return fieldBuilder.setValue(Value.newBuilder().setDoubleVal((double) value)).build();
       case STRING:
         return fieldBuilder.setValue(Value.newBuilder().setStringVal((String) value)).build();
+
       default:
         throw new IllegalStateException("Unexpected valueType: " + value.getClass());
     }

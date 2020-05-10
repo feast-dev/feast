@@ -31,9 +31,10 @@ public class JobServiceConfig {
   @Bean
   public JobService jobService(FeastProperties feastProperties)
       throws InvalidProtocolBufferException, JsonProcessingException {
-    if (!feastProperties.getActiveStore().toProto().getType().equals(StoreType.BIGQUERY)) {
-      return new NoopJobService();
+    StoreType activeStoreType = feastProperties.getActiveStore().toProto().getType();
+    if (activeStoreType.equals(StoreType.BIGQUERY) || activeStoreType.equals(StoreType.Snowflake)) {
+      return new RedisBackedJobService(feastProperties.getJobStore());
     }
-    return new RedisBackedJobService(feastProperties.getJobStore());
+    return new NoopJobService();
   }
 }

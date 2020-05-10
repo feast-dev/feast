@@ -21,23 +21,14 @@ import static feast.common.models.Store.parseSubscriptionFrom;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.proto.core.StoreProto;
-import feast.proto.core.StoreProto.Store.BigQueryConfig;
-import feast.proto.core.StoreProto.Store.Builder;
-import feast.proto.core.StoreProto.Store.CassandraConfig;
-import feast.proto.core.StoreProto.Store.RedisClusterConfig;
-import feast.proto.core.StoreProto.Store.RedisConfig;
-import feast.proto.core.StoreProto.Store.StoreType;
-import feast.proto.core.StoreProto.Store.Subscription;
+import feast.proto.core.StoreProto.Store.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import javax.persistence.Column;
+import javax.persistence.*;
 import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Lob;
-import javax.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -90,6 +81,9 @@ public class Store {
       case REDIS_CLUSTER:
         config = storeProto.getRedisClusterConfig().toByteArray();
         break;
+      case Snowflake:
+        config = storeProto.getSnowflakeConfig().toByteArray();
+        break;
       default:
         throw new IllegalArgumentException("Invalid store provided");
     }
@@ -117,6 +111,9 @@ public class Store {
       case REDIS_CLUSTER:
         RedisClusterConfig redisClusterConfig = RedisClusterConfig.parseFrom(config);
         return storeProtoBuilder.setRedisClusterConfig(redisClusterConfig).build();
+      case Snowflake:
+        SnowflakeConfig jdbcConfig = SnowflakeConfig.parseFrom(config);
+        return storeProtoBuilder.setSnowflakeConfig(jdbcConfig).build();
       default:
         throw new InvalidProtocolBufferException("Invalid store set");
     }

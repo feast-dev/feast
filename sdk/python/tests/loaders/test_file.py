@@ -27,6 +27,7 @@ from pandas.testing import assert_frame_equal
 from pytest import fixture
 
 from feast.loaders.file import export_source_to_staging_location
+from feast.serving.ServingService_pb2 import DataFormat
 
 BUCKET = "test_bucket"
 FOLDER_NAME = "test_folder"
@@ -52,18 +53,24 @@ def avro_data_path():
 
 
 @patch("feast.loaders.file._get_file_name", return_value=FILE_NAME)
-def test_export_source_to_staging_location_local_file_should_pass(get_file_name):
-    source = export_source_to_staging_location(TEST_DATA_FRAME, LOCAL_FILE)
+def test_export_source_to_staging_location_local_file_should_pass(
+    get_file_name, data_format=DataFormat.DATA_FORMAT_AVRO
+):
+    source = export_source_to_staging_location(TEST_DATA_FRAME, LOCAL_FILE, data_format)
     assert source == [f"{LOCAL_FILE}/{FILE_NAME}"]
     assert get_file_name.call_count == 1
 
 
 @mock_s3
 @patch("feast.loaders.file._get_file_name", return_value=FILE_NAME)
-def test_export_source_to_staging_location_dataframe_to_s3_should_pass(get_file_name):
+def test_export_source_to_staging_location_dataframe_to_s3_should_pass(
+    get_file_name, data_format=DataFormat.DATA_FORMAT_AVRO
+):
     s3_client = boto3.client("s3")
     s3_client.create_bucket(Bucket=BUCKET)
-    source = export_source_to_staging_location(TEST_DATA_FRAME, S3_LOCATION)
+    source = export_source_to_staging_location(
+        TEST_DATA_FRAME, S3_LOCATION, data_format
+    )
     file_obj = tempfile.TemporaryFile()
     uri = urlparse(source[0])
     s3_client.download_fileobj(uri.hostname, uri.path[1:], file_obj)
@@ -74,14 +81,16 @@ def test_export_source_to_staging_location_dataframe_to_s3_should_pass(get_file_
     assert get_file_name.call_count == 1
 
 
-def test_export_source_to_staging_location_s3_file_as_source_should_pass():
-    source = export_source_to_staging_location(S3_LOCATION, None)
+def test_export_source_to_staging_location_s3_file_as_source_should_pass(
+    data_format=DataFormat.DATA_FORMAT_AVRO,
+):
+    source = export_source_to_staging_location(S3_LOCATION, None, data_format)
     assert source == [S3_LOCATION]
 
 
 @mock_s3
 def test_export_source_to_staging_location_s3_wildcard_as_source_should_pass(
-    avro_data_path,
+    avro_data_path, data_format=DataFormat.DATA_FORMAT_AVRO
 ):
     s3_client = boto3.client("s3")
     s3_client.create_bucket(Bucket=BUCKET)
@@ -89,5 +98,5 @@ def test_export_source_to_staging_location_s3_wildcard_as_source_should_pass(
         s3_client.upload_fileobj(data, BUCKET, f"{FOLDER_NAME}/file1.avro")
     with open(avro_data_path, "rb") as data:
         s3_client.upload_fileobj(data, BUCKET, f"{FOLDER_NAME}/file2.avro")
-    sources = export_source_to_staging_location(f"{S3_LOCATION}/*", None)
+    sources = export_source_to_staging_location(f"{S3_LOCATION}/*", None, data_format)
     assert sources == [f"{S3_LOCATION}/file1.avro", f"{S3_LOCATION}/file2.avro"]

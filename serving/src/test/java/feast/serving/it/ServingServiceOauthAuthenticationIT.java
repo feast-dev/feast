@@ -80,7 +80,8 @@ public class ServingServiceOauthAuthenticationIT extends BaseAuthIT {
     String hydraExternalHost = environment.getServiceHost(HYDRA, HYDRA_PORT);
     Integer hydraExternalPort = environment.getServicePort(HYDRA, HYDRA_PORT);
     String hydraExternalUrl = String.format("http://%s:%s", hydraExternalHost, hydraExternalPort);
-    AuthTestUtils.seedHydra(hydraExternalUrl, CLIENT_ID, CLIENT_SECRET, AUDIENCE, GRANT_TYPE);
+    IntegrationTestUtils.seedHydra(
+        hydraExternalUrl, CLIENT_ID, CLIENT_SECRET, AUDIENCE, GRANT_TYPE);
 
     // set up options for call credentials
     options.put("oauth_url", TOKEN_URL);
@@ -108,12 +109,13 @@ public class ServingServiceOauthAuthenticationIT extends BaseAuthIT {
   public void shouldAllowUnauthenticatedGetOnlineFeatures() {
     // apply feature set
     CoreSimpleAPIClient coreClient =
-        AuthTestUtils.getSecureApiClientForCore(FEAST_CORE_PORT, options);
-    AuthTestUtils.applyFeatureSet(coreClient, PROJECT_NAME, ENTITY_ID, FEATURE_NAME);
+        IntegrationTestUtils.getSecureApiClientForCore(FEAST_CORE_PORT, options);
+    IntegrationTestUtils.applyFeatureSet(
+        coreClient, PROJECT_NAME, "test_1", ENTITY_ID, FEATURE_NAME, null);
     ServingServiceBlockingStub servingStub =
-        AuthTestUtils.getServingServiceStub(false, FEAST_SERVING_PORT, null);
+        IntegrationTestUtils.getServingServiceStub(false, FEAST_SERVING_PORT, null);
     GetOnlineFeaturesRequest onlineFeatureRequest =
-        AuthTestUtils.createOnlineFeatureRequest(PROJECT_NAME, FEATURE_NAME, ENTITY_ID, 1);
+        IntegrationTestUtils.createOnlineFeatureRequest(PROJECT_NAME, FEATURE_NAME, ENTITY_ID, 1);
     GetOnlineFeaturesResponse featureResponse = servingStub.getOnlineFeatures(onlineFeatureRequest);
     assertEquals(1, featureResponse.getFieldValuesCount());
     Map<String, Value> fieldsMap = featureResponse.getFieldValues(0).getFieldsMap();
@@ -126,12 +128,13 @@ public class ServingServiceOauthAuthenticationIT extends BaseAuthIT {
   void canGetOnlineFeaturesIfAuthenticated() {
     // apply feature set
     CoreSimpleAPIClient coreClient =
-        AuthTestUtils.getSecureApiClientForCore(FEAST_CORE_PORT, options);
-    AuthTestUtils.applyFeatureSet(coreClient, PROJECT_NAME, ENTITY_ID, FEATURE_NAME);
+        IntegrationTestUtils.getSecureApiClientForCore(FEAST_CORE_PORT, options);
+    IntegrationTestUtils.applyFeatureSet(
+        coreClient, PROJECT_NAME, "test_1", ENTITY_ID, FEATURE_NAME, null);
     ServingServiceBlockingStub servingStub =
-        AuthTestUtils.getServingServiceStub(true, FEAST_SERVING_PORT, options);
+        IntegrationTestUtils.getServingServiceStub(true, FEAST_SERVING_PORT, options);
     GetOnlineFeaturesRequest onlineFeatureRequest =
-        AuthTestUtils.createOnlineFeatureRequest(PROJECT_NAME, FEATURE_NAME, ENTITY_ID, 1);
+        IntegrationTestUtils.createOnlineFeatureRequest(PROJECT_NAME, FEATURE_NAME, ENTITY_ID, 1);
     GetOnlineFeaturesResponse featureResponse = servingStub.getOnlineFeatures(onlineFeatureRequest);
     assertEquals(1, featureResponse.getFieldValuesCount());
     Map<String, Value> fieldsMap = featureResponse.getFieldValues(0).getFieldsMap();

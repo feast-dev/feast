@@ -41,9 +41,10 @@ public class RequestHelper {
           .asRuntimeException();
     }
 
-    if (!getFeaturesRequest.getDatasetSource().hasFileSource()) {
+    if (!(getFeaturesRequest.getDatasetSource().hasFileSource()
+        || getFeaturesRequest.getDatasetSource().hasTableSource())) {
       throw Status.INVALID_ARGUMENT
-          .withDescription("Dataset source must be provided: only file source supported")
+          .withDescription("Invalid dataset source provided")
           .asRuntimeException();
     }
 

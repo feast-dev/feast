@@ -320,6 +320,11 @@ public class FeastProperties {
               StoreProto.Store.CassandraConfig.newBuilder();
           JsonFormat.parser().merge(jsonWriter.writeValueAsString(config), cassandraConfig);
           return storeProtoBuilder.setCassandraConfig(cassandraConfig.build()).build();
+        case Snowflake:
+          StoreProto.Store.SnowflakeConfig.Builder jdbcConfig =
+              StoreProto.Store.SnowflakeConfig.newBuilder();
+          JsonFormat.parser().merge(jsonWriter.writeValueAsString(config), jdbcConfig);
+          return storeProtoBuilder.setSnowflakeConfig(jdbcConfig.build()).build();
         default:
           throw new InvalidProtocolBufferException("Invalid store set");
       }

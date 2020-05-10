@@ -189,6 +189,7 @@ enum JobStatus {
 enum DataFormat {
     DATA_FORMAT_INVALID = 0;
     DATA_FORMAT_AVRO = 1;
+    DATA_FORMAT_CSV = 2;
 }
 
 message Job {
@@ -214,6 +215,9 @@ message DatasetSource {
     oneof dataset_source {
         // File source to load the dataset from.
         FileSource file_source = 1;
+
+        // Table in store where dataset can be found.
+        TableSource table_source = 2;
     }
 
     message FileSource {
@@ -222,7 +226,11 @@ message DatasetSource {
         // accessible by this serving instance.
         repeated string file_uris = 1;
 
-        // Format of the data. Currently only avro is supported.
+        // Format of the data
         DataFormat data_format = 2;
+    }
+
+    message TableSource {
+        string table_name = 1;
     }
 }

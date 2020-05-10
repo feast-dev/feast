@@ -91,7 +91,8 @@ public class ServingServiceOauthAuthorizationIT extends BaseAuthIT {
     Integer ketoExternalPort = environment.getServicePort("keto_1", KETO_PORT);
     String ketoExternalUrl = String.format("http://%s:%s", ketoExternalHost, ketoExternalPort);
     try {
-      AuthTestUtils.seedKeto(ketoExternalUrl, PROJECT_NAME, PROJECT_MEMBER_CLIENT_ID, CLIENT_ID);
+      IntegrationTestUtils.seedKeto(
+          ketoExternalUrl, PROJECT_NAME, PROJECT_MEMBER_CLIENT_ID, CLIENT_ID);
     } catch (ApiException e) {
       throw new RuntimeException(String.format("Could not seed Keto store %s", ketoExternalUrl));
     }
@@ -113,10 +114,11 @@ public class ServingServiceOauthAuthorizationIT extends BaseAuthIT {
     String hydraExternalHost = environment.getServiceHost(HYDRA, HYDRA_PORT);
     Integer hydraExternalPort = environment.getServicePort(HYDRA, HYDRA_PORT);
     String hydraExternalUrl = String.format("http://%s:%s", hydraExternalHost, hydraExternalPort);
-    AuthTestUtils.seedHydra(hydraExternalUrl, CLIENT_ID, CLIENT_SECRET, AUDIENCE, GRANT_TYPE);
-    AuthTestUtils.seedHydra(
+    IntegrationTestUtils.seedHydra(
+        hydraExternalUrl, CLIENT_ID, CLIENT_SECRET, AUDIENCE, GRANT_TYPE);
+    IntegrationTestUtils.seedHydra(
         hydraExternalUrl, PROJECT_MEMBER_CLIENT_ID, CLIENT_SECRET, AUDIENCE, GRANT_TYPE);
-    AuthTestUtils.seedHydra(
+    IntegrationTestUtils.seedHydra(
         hydraExternalUrl, NOT_PROJECT_MEMBER_CLIENT_ID, CLIENT_SECRET, AUDIENCE, GRANT_TYPE);
     // set up options for call credentials
     adminCredentials.put("oauth_url", TOKEN_URL);
@@ -126,22 +128,23 @@ public class ServingServiceOauthAuthorizationIT extends BaseAuthIT {
     adminCredentials.put("audience", AUDIENCE);
     adminCredentials.put("grant_type", GRANT_TYPE);
 
-    coreClient = AuthTestUtils.getSecureApiClientForCore(FEAST_CORE_PORT, adminCredentials);
+    coreClient = IntegrationTestUtils.getSecureApiClientForCore(FEAST_CORE_PORT, adminCredentials);
   }
 
   @BeforeEach
   public void setUp() {
     // seed core
-    AuthTestUtils.applyFeatureSet(coreClient, PROJECT_NAME, ENTITY_ID, FEATURE_NAME);
+    IntegrationTestUtils.applyFeatureSet(
+        coreClient, PROJECT_NAME, "test_1", ENTITY_ID, FEATURE_NAME, null);
   }
 
   @Test
   public void shouldNotAllowUnauthenticatedGetOnlineFeatures() {
     ServingServiceBlockingStub servingStub =
-        AuthTestUtils.getServingServiceStub(false, FEAST_SERVING_PORT, null);
+        IntegrationTestUtils.getServingServiceStub(false, FEAST_SERVING_PORT, null);
 
     GetOnlineFeaturesRequest onlineFeatureRequest =
-        AuthTestUtils.createOnlineFeatureRequest(PROJECT_NAME, FEATURE_NAME, ENTITY_ID, 1);
+        IntegrationTestUtils.createOnlineFeatureRequest(PROJECT_NAME, FEATURE_NAME, ENTITY_ID, 1);
     Exception exception =
         assertThrows(
             StatusRuntimeException.class,
@@ -159,9 +162,9 @@ public class ServingServiceOauthAuthorizationIT extends BaseAuthIT {
   void canGetOnlineFeaturesIfAdmin() {
     // apply feature set
     ServingServiceBlockingStub servingStub =
-        AuthTestUtils.getServingServiceStub(true, FEAST_SERVING_PORT, adminCredentials);
+        IntegrationTestUtils.getServingServiceStub(true, FEAST_SERVING_PORT, adminCredentials);
     GetOnlineFeaturesRequest onlineFeatureRequest =
-        AuthTestUtils.createOnlineFeatureRequest(PROJECT_NAME, FEATURE_NAME, ENTITY_ID, 1);
+        IntegrationTestUtils.createOnlineFeatureRequest(PROJECT_NAME, FEATURE_NAME, ENTITY_ID, 1);
     GetOnlineFeaturesResponse featureResponse = servingStub.getOnlineFeatures(onlineFeatureRequest);
     assertEquals(1, featureResponse.getFieldValuesCount());
     Map<String, Value> fieldsMap = featureResponse.getFieldValues(0).getFieldsMap();
@@ -176,9 +179,9 @@ public class ServingServiceOauthAuthorizationIT extends BaseAuthIT {
     memberCredsOptions.putAll(adminCredentials);
     memberCredsOptions.put(CLIENT_ID, PROJECT_MEMBER_CLIENT_ID);
     ServingServiceBlockingStub servingStub =
-        AuthTestUtils.getServingServiceStub(true, FEAST_SERVING_PORT, memberCredsOptions);
+        IntegrationTestUtils.getServingServiceStub(true, FEAST_SERVING_PORT, memberCredsOptions);
     GetOnlineFeaturesRequest onlineFeatureRequest =
-        AuthTestUtils.createOnlineFeatureRequest(PROJECT_NAME, FEATURE_NAME, ENTITY_ID, 1);
+        IntegrationTestUtils.createOnlineFeatureRequest(PROJECT_NAME, FEATURE_NAME, ENTITY_ID, 1);
     GetOnlineFeaturesResponse featureResponse = servingStub.getOnlineFeatures(onlineFeatureRequest);
     assertEquals(1, featureResponse.getFieldValuesCount());
     Map<String, Value> fieldsMap = featureResponse.getFieldValues(0).getFieldsMap();
@@ -193,9 +196,9 @@ public class ServingServiceOauthAuthorizationIT extends BaseAuthIT {
     notMemberCredsOptions.putAll(adminCredentials);
     notMemberCredsOptions.put(CLIENT_ID, NOT_PROJECT_MEMBER_CLIENT_ID);
     ServingServiceBlockingStub servingStub =
-        AuthTestUtils.getServingServiceStub(true, FEAST_SERVING_PORT, notMemberCredsOptions);
+        IntegrationTestUtils.getServingServiceStub(true, FEAST_SERVING_PORT, notMemberCredsOptions);
     GetOnlineFeaturesRequest onlineFeatureRequest =
-        AuthTestUtils.createOnlineFeatureRequest(PROJECT_NAME, FEATURE_NAME, ENTITY_ID, 1);
+        IntegrationTestUtils.createOnlineFeatureRequest(PROJECT_NAME, FEATURE_NAME, ENTITY_ID, 1);
     StatusRuntimeException exception =
         assertThrows(
             StatusRuntimeException.class,

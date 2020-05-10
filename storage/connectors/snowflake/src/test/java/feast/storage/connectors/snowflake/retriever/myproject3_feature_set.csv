@@ -1,0 +1,6 @@
+EVENT_TIMESTAMP,CREATED_TIMESTAMP,ENTITY_ID_PRIMARY,ENTITY_ID_SECONDARY,INGESTION_ID,JOB_ID,FEATURE_1,FEATURE_2
+2019-12-31 16:00:00,2020-06-30 15:52:33,1,1a,,snowflakehistoricalretrievertest0shouldwritetosnowflake,400,50
+2019-12-31 18:00:00,2020-06-30 15:52:33,1,1a,,snowflakehistoricalretrievertest0shouldwritetosnowflake,410,52
+2019-12-31 20:00:00,2020-06-30 15:52:33,2,2a,,snowflakehistoricalretrievertest0shouldwritetosnowflake,100,20
+2020-01-01 08:00:00,2020-06-30 15:52:33,2,2a,,snowflakehistoricalretrievertest0shouldwritetosnowflake,220,33
+2020-01-01 10:00:00,2020-06-30 15:52:33,3,3a,,snowflakehistoricalretrievertest0shouldwritetosnowflake,300,22
