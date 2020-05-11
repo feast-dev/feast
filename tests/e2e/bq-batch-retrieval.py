@@ -375,12 +375,20 @@ def test_no_max_age(client):
     assert output["entity_id"].to_list() == output["feature_value8"].to_list()
 
 
-@pytest.mark.dataflow_runner
-def test_write_terminate_jobs(client):
-    ingest_jobs = client.list_ingest_jobs()
-    ingest_jobs = [client.list_ingest_jobs(job.id)[0].external_id for job in ingest_jobs if job.status == IngestionJobStatus.RUNNING]
+@pytest.fixture(scope="module", autouse=True)
+def infra_teardown(pytestconfig, core_url, serving_url):
+   client = Client(core_url=core_url, serving_url=serving_url)
+   client.set_project(PROJECT_NAME)
 
-    cwd = os.getcwd()
-    with open(f"{cwd}/ingesting_jobs.txt", "w+") as output:
-        for job in ingest_jobs:
-            output.write('%s\n' % job)
+   marker = pytestconfig.getoption("-m")
+   yield marker
+   if marker == 'dataflow_runner':
+       ingest_jobs = client.list_ingest_jobs()
+       ingest_jobs = [client.list_ingest_jobs(job.id)[0].external_id for job in ingest_jobs if job.status == IngestionJobStatus.RUNNING]
+
+       cwd = os.getcwd()
+       with open(f"{cwd}/ingesting_jobs.txt", "w+") as output:
+           for job in ingest_jobs:
+               output.write('%s\n' % job)
+   else:
+       print('Cleaning up not required')
