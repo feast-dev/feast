@@ -732,7 +732,6 @@ class Client:
         source: Union[pd.DataFrame, str],
         chunk_size: int = 10000,
         version: int = None,
-        force_update: bool = False,
         max_workers: int = max(CPU_COUNT - 1, 1),
         disable_progress_bar: bool = False,
         timeout: int = KAFKA_CHUNK_PRODUCTION_TIMEOUT,
@@ -757,10 +756,6 @@ class Client:
 
             version (int):
                 Feature set version.
-
-            force_update (bool):
-                Automatically update feature set based on source data prior to
-                ingesting. This will also register changes to Feast.
 
             max_workers (int):
                 Number of worker processes to use to encode values.
@@ -792,14 +787,6 @@ class Client:
 
         row_count = pq_file.metadata.num_rows
 
-        # Update the feature set based on PyArrow table of first row group
-        if force_update:
-            feature_set.infer_fields_from_pa(
-                table=pq_file.read_row_group(0),
-                discard_unused_fields=True,
-                replace_existing_features=True,
-            )
-            self.apply(feature_set)
         current_time = time.time()
 
         print("Waiting for feature set to be ready for ingestion...")
