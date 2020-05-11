@@ -552,8 +552,7 @@ def test_all_types_infer_register_ingest_file_success(client,
     all_types_fs = client.get_feature_set(name="all_types_parquet")
 
     # Ingest user embedding data
-    client.ingest(feature_set=all_types_fs, source=all_types_parquet_file,
-                  force_update=True)
+    client.ingest(feature_set=all_types_fs, source=all_types_parquet_file)
 
 
 # TODO: rewrite these using python SDK once the labels are implemented there
