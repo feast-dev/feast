@@ -168,7 +168,7 @@ public class Feature {
     }
     Feature feature = (Feature) o;
     return Objects.equals(getName(), feature.getName())
-        && Objects.equals(labels, feature.labels)
+        && Objects.equals(getLabels(), feature.getLabels())
         && Arrays.equals(getPresence(), feature.getPresence())
         && Arrays.equals(getGroupPresence(), feature.getGroupPresence())
         && Arrays.equals(getShape(), feature.getShape())
