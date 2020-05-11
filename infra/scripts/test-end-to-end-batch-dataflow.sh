@@ -251,9 +251,6 @@ cd $ORIGINAL_DIR/tests/e2e
 # Remove BQ Dataset
 bq rm -r -f ${GCLOUD_PROJECT}:${DATASET_NAME}
 
-# Clean up GKE cluster
-kubectl delete services --all
-
 # Uninstall helm release before clearing PVCs
 helm uninstall ${HELM_RELEASE_NAME}
 kubectl delete pvc --all
