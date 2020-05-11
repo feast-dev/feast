@@ -25,8 +25,6 @@ class AbstractProducer:
     def __init__(self, brokers: str, row_count: int, disable_progress_bar: bool):
         self.brokers = brokers
         self.row_count = row_count
-        self.error_count = 0
-        self.last_exception = ""
 
         # Progress bar will always display average rate
         self.pbar = tqdm(
@@ -45,8 +43,6 @@ class AbstractProducer:
         self.pbar.update(1)
 
     def _set_error(self, exception: str):
-        self.error_count += 1
-        self.last_exception = exception
         raise Exception(exception)
 
     def print_results(self) -> None:
@@ -63,24 +59,7 @@ class AbstractProducer:
 
         print("Ingestion complete!")
 
-        failed_message = (
-            ""
-            if self.error_count == 0
-            else f"\nFail: {self.error_count / self.row_count}"
-        )
-
-        last_exception_message = (
-            ""
-            if self.last_exception == ""
-            else f"\nLast exception:\n{self.last_exception}"
-        )
-
-        print(
-            f"\nIngestion statistics:"
-            f"\nSuccess: {self.pbar.n}/{self.row_count}"
-            f"{failed_message}"
-            f"{last_exception_message}"
-        )
+        print(f"\nIngestion statistics:" f"\nSuccess: {self.pbar.n}/{self.row_count}")
         return None
 
 
@@ -205,8 +184,6 @@ class KafkaPythonProducer(AbstractProducer):
                 provided timeout
         """
         messages = self.producer.flush(timeout=timeout)
-        if self.error_count:
-            raise Exception(self.last_exception)
         if messages:
             raise Exception("Not all Kafka messages are successfully delivered.")
         return messages
