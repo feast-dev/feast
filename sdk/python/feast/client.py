@@ -400,7 +400,10 @@ class Client:
 
         # If the feature set has changed, update the local copy
         if apply_fs_response.status == ApplyFeatureSetResponse.Status.CREATED:
-            print(f'Feature set updated/created: "{applied_fs.name}"')
+            print(f'Feature set created: "{applied_fs.name}"')
+
+        if apply_fs_response.status == ApplyFeatureSetResponse.Status.UPDATED:
+            print(f'Feature set updated: "{applied_fs.name}"')
 
         # If no change has been applied, do nothing
         if apply_fs_response.status == ApplyFeatureSetResponse.Status.NO_CHANGE:
@@ -719,7 +722,7 @@ class Client:
         max_workers: int = max(CPU_COUNT - 1, 1),
         disable_progress_bar: bool = False,
         timeout: int = KAFKA_CHUNK_PRODUCTION_TIMEOUT,
-    ) -> None:
+    ) -> str:
         """
         Loads feature data into Feast for a specific feature set.
 
@@ -747,8 +750,8 @@ class Client:
                 Timeout in seconds to wait for completion.
 
         Returns:
-            None:
-                None
+            str:
+                ingestion id for this dataset
         """
 
         if isinstance(feature_set, FeatureSet):
@@ -827,7 +830,7 @@ class Client:
             print("Removing temporary file(s)...")
             shutil.rmtree(dir_path)
 
-        return None
+        return ingestion_id
 
 
 def _build_feature_references(
@@ -868,7 +871,12 @@ def _build_feature_references(
                 f'Could not parse feature ref {feature_ref}, expecting "project/feature"'
             )
 
-        features.append(FeatureReference(project=project, name=name.split(":")[0]))
+        if ":" in name:
+            raise ValueError(
+                f'Could not parse feature ref {feature_ref}, expecting "project/feature". Versions were deprecated in v0.5.0.'
+            )
+
+        features.append(FeatureReference(project=project, name=name))
     return features
 
 

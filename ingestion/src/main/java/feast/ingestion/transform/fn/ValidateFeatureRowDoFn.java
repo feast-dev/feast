@@ -65,7 +65,7 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
         Field fieldSpec = featureSet.getField(field.getName());
         if (fieldSpec == null) {
           // skip
-          break;
+          continue;
         }
         // If value is set in the FeatureRow, make sure the value type matches
         // that defined in FeatureSetSpec

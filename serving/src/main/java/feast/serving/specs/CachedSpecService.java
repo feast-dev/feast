@@ -146,7 +146,11 @@ public class CachedSpecService {
    */
   public void populateCache() {
     Map<String, FeatureSetSpec> featureSetMap = getFeatureSetMap();
+
+    featureSetCache.invalidateAll();
     featureSetCache.putAll(featureSetMap);
+
+    featureToFeatureSetMapping.clear();
     featureToFeatureSetMapping.putAll(getFeatureToFeatureSetMapping(featureSetMap));
 
     featureSetsCount.set(featureSetCache.size());

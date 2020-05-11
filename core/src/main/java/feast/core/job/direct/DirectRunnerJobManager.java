@@ -79,7 +79,7 @@ public class DirectRunnerJobManager implements JobManager {
         featureSetProtos.add(featureSet.toProto());
       }
       ImportOptions pipelineOptions =
-          getPipelineOptions(featureSetProtos, job.getStore().toProto());
+          getPipelineOptions(job.getId(), featureSetProtos, job.getStore().toProto());
       PipelineResult pipelineResult = runPipeline(pipelineOptions);
       DirectJob directJob = new DirectJob(job.getId(), pipelineResult);
       jobs.add(directJob);
@@ -93,7 +93,8 @@ public class DirectRunnerJobManager implements JobManager {
   }
 
   private ImportOptions getPipelineOptions(
-      List<FeatureSetProto.FeatureSet> featureSets, StoreProto.Store sink) throws IOException {
+      String jobName, List<FeatureSetProto.FeatureSet> featureSets, StoreProto.Store sink)
+      throws IOException {
     String[] args = TypeConversion.convertMapToArgs(defaultOptions);
     ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);
 
@@ -101,6 +102,7 @@ public class DirectRunnerJobManager implements JobManager {
         new BZip2Compressor<>(new FeatureSetJsonByteConverter());
 
     pipelineOptions.setFeatureSetJson(featureSetJsonCompressor.compress(featureSets));
+    pipelineOptions.setJobName(jobName);
     pipelineOptions.setStoreJson(Collections.singletonList(JsonFormat.printer().print(sink)));
     pipelineOptions.setRunner(DirectRunner.class);
     pipelineOptions.setProject(""); // set to default value to satisfy validation

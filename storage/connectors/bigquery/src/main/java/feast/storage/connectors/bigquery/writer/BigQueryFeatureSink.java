@@ -26,7 +26,6 @@ import feast.storage.api.writer.WriteResult;
 import feast.storage.connectors.bigquery.common.TypeUtil;
 import feast.types.FeatureRowProto;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
@@ -195,10 +194,10 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
         TimePartitioning.newBuilder(TimePartitioning.Type.DAY).setField("event_timestamp").build();
     log.info("Table partitioning: " + timePartitioning.toString());
 
-    FieldList fieldsList = FieldList.of(Collections.emptyList());
+    List<Field> fieldsList = new ArrayList<>();
     if (existingTable != null) {
       Schema existingSchema = existingTable.getDefinition().getSchema();
-      fieldsList = existingSchema.getFields();
+      fieldsList.addAll(existingSchema.getFields());
     }
 
     for (Field field : fields) {
@@ -209,7 +208,7 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
 
     return StandardTableDefinition.newBuilder()
         .setTimePartitioning(timePartitioning)
-        .setSchema(Schema.of(fields))
+        .setSchema(Schema.of(FieldList.of(fieldsList)))
         .build();
   }
 }

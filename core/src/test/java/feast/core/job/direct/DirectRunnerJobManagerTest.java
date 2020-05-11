@@ -116,8 +116,10 @@ public class DirectRunnerJobManagerTest {
 
     Printer printer = JsonFormat.printer();
 
+    String expectedJobId = "feast-job-0";
     ImportOptions expectedPipelineOptions =
         PipelineOptionsFactory.fromArgs("").as(ImportOptions.class);
+    expectedPipelineOptions.setJobName(expectedJobId);
     expectedPipelineOptions.setAppName("DirectRunnerJobManager");
     expectedPipelineOptions.setRunner(DirectRunner.class);
     expectedPipelineOptions.setBlockOnRun(false);
@@ -130,7 +132,6 @@ public class DirectRunnerJobManagerTest {
     expectedPipelineOptions.setFeatureSetJson(
         featureSetJsonCompressor.compress(Collections.singletonList(featureSet)));
 
-    String expectedJobId = "feast-job-0";
     ArgumentCaptor<ImportOptions> pipelineOptionsCaptor =
         ArgumentCaptor.forClass(ImportOptions.class);
     ArgumentCaptor<DirectJob> directJobCaptor = ArgumentCaptor.forClass(DirectJob.class);

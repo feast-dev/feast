@@ -263,13 +263,24 @@ public class FeatureSet extends AbstractTimestampEntity {
     return FeatureSetProto.FeatureSet.newBuilder().setMeta(meta).setSpec(spec).build();
   }
 
-  /**
-   * Checks if the given featureSet's schema and source has is different from this one.
-   *
-   * @param other FeatureSet to compare to
-   * @return boolean denoting if the source or schema have changed.
-   */
-  public boolean equalTo(FeatureSet other) {
+  @Override
+  public int hashCode() {
+    HashCodeBuilder hcb = new HashCodeBuilder();
+    hcb.append(project.getName());
+    hcb.append(getName());
+    return hcb.toHashCode();
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) {
+      return true;
+    }
+    if (!(obj instanceof FeatureSet)) {
+      return false;
+    }
+
+    FeatureSet other = (FeatureSet) obj;
     if (!getName().equals(other.getName())) {
       return false;
     }
@@ -330,24 +341,5 @@ public class FeatureSet extends AbstractTimestampEntity {
     }
 
     return true;
-  }
-
-  @Override
-  public int hashCode() {
-    HashCodeBuilder hcb = new HashCodeBuilder();
-    hcb.append(project.getName());
-    hcb.append(getName());
-    return hcb.toHashCode();
-  }
-
-  @Override
-  public boolean equals(Object obj) {
-    if (this == obj) {
-      return true;
-    }
-    if (!(obj instanceof FeatureSet)) {
-      return false;
-    }
-    return this.equalTo(((FeatureSet) obj));
   }
 }

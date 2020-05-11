@@ -28,4 +28,6 @@ message FeatureSetReference {
     string project = 1;
     // Name of the FeatureSet
     string name = 2;
+    // Feature set version was removed in v0.5.0.
+    reserved 3;
 }

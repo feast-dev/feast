@@ -32,6 +32,7 @@ import feast.core.CoreServiceProto.ListStoresResponse.Builder;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto;
+import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.SourceProto;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.Subscription;
@@ -248,6 +249,16 @@ public class SpecService {
       throw new IllegalArgumentException(String.format("Project is archived: %s", project_name));
     }
 
+    // Set source to default if not set in proto
+    if (newFeatureSet.getSpec().getSource() == SourceProto.Source.getDefaultInstance()) {
+      newFeatureSet =
+          newFeatureSet
+              .toBuilder()
+              .setSpec(
+                  newFeatureSet.getSpec().toBuilder().setSource(defaultSource.toProto()).build())
+              .build();
+    }
+
     // Retrieve existing FeatureSet
     FeatureSet featureSet =
         featureSetRepository.findFeatureSetByNameAndProject_Name(
@@ -258,9 +269,6 @@ public class SpecService {
       // Create new feature set since it doesn't exist
       newFeatureSet = newFeatureSet.toBuilder().setSpec(newFeatureSet.getSpec()).build();
       featureSet = FeatureSet.fromProto(newFeatureSet);
-      if (newFeatureSet.getSpec().getSource() == SourceProto.Source.getDefaultInstance()) {
-        featureSet.setSource(defaultSource);
-      }
       status = Status.CREATED;
     } else {
       // If the featureSet remains unchanged, we do nothing.
@@ -275,6 +283,7 @@ public class SpecService {
     }
 
     // Persist the FeatureSet object
+    featureSet.setStatus(FeatureSetStatus.STATUS_PENDING);
     project.addFeatureSet(featureSet);
     projectRepository.saveAndFlush(project);
 

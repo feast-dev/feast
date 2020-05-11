@@ -38,10 +38,10 @@ public class RequestUtil {
 
       if (projectSplit.length == 1) {
         project = defaultProject;
-        name = projectSplit[0].split(":")[0];
+        name = projectSplit[0];
       } else if (projectSplit.length == 2) {
         project = projectSplit[0];
-        name = projectSplit[1].split(":")[0];
+        name = projectSplit[1];
       } else {
         throw new IllegalArgumentException(
             String.format(
@@ -49,7 +49,7 @@ public class RequestUtil {
                 featureRefString));
       }
 
-      if (project.isEmpty() || name.isEmpty()) {
+      if (project.isEmpty() || name.isEmpty() || name.contains(":")) {
         throw new IllegalArgumentException(
             String.format(
                 "Feature id '%s' has invalid format. Expected format: <project>/<feature-name>.",

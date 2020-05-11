@@ -139,7 +139,6 @@ message Store {
     // pattern matching.
     string project = 3;
 
-
     // Name of the desired feature set. Asterisks can be used as wildcards in the name.
     // Matching on names is only permitted if a specific project is defined. It is disallowed
     // If the project name is set to "*"
@@ -148,6 +147,9 @@ message Store {
     // - my-feature-set* can be used to match all features prefixed by "my-feature-set"
     // - my-feature-set-6 can be used to select a single feature set
     string name = 1;
+
+    // Feature set version was removed in v0.5.0.
+    reserved 2;
   }
 
   // Name of the store.

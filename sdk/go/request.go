@@ -60,10 +60,10 @@ func buildFeatures(featureReferences []string, defaultProject string) ([]*servin
 
 		if len(projectSplit) == 2 {
 			project = projectSplit[0]
-			name = strings.Split(projectSplit[1], ":")[0]
+			name = projectSplit[1]
 		} else if len(projectSplit) == 1 {
 			project = defaultProject
-			name = strings.Split(projectSplit[0], ":")[0]
+			name = projectSplit[0]
 		} else {
 			return nil, fmt.Errorf(ErrInvalidFeatureName, featureRef)
 		}
