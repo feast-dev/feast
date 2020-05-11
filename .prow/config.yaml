@@ -267,6 +267,55 @@ presubmits:
     branches:
     - ^v0\.(3|4)-branch$
 
+  - name: publish-docker-images
+    decorate: true
+    spec:
+      containers:
+      - image: google/cloud-sdk:273.0.0
+        command:
+        - bash
+        - -c
+        - |
+          infra/scripts/download-maven-cache.sh \
+            --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
+            --output-dir $PWD/
+
+          infra/scripts/publish-docker-image.sh \
+            --repository gcr.io/kf-feast/feast-core \
+            --tag ${PULL_PULL_SHA:1} \
+            --file infra/docker/core/Dockerfile \
+            --google-service-account-file /etc/gcloud/service-account.json
+
+          infra/scripts/publish-docker-image.sh \
+            --repository gcr.io/kf-feast/feast-serving \
+            --tag ${PULL_PULL_SHA:1} \
+            --file infra/docker/serving/Dockerfile \
+            --google-service-account-file /etc/gcloud/service-account.json
+
+          docker tag gcr.io/kf-feast/feast-core:${PULL_PULL_SHA:1}
+          docker push gcr.io/kf-feast/feast-core:${PULL_PULL_SHA:1}
+
+          docker tag gcr.io/kf-feast/feast-serving:${PULL_PULL_SHA:1}
+          docker push gcr.io/kf-feast/feast-serving:${PULL_PULL_SHA:1}
+
+          fi
+        volumeMounts:
+        - name: docker-socket
+          mountPath: /var/run/docker.sock
+        - name: service-account
+          mountPath: /etc/gcloud/service-account.json
+          subPath: service-account.json
+          readOnly: true
+        securityContext:
+          privileged: true
+      volumes:
+      - name: docker-socket
+        hostPath:
+          path: /var/run/docker.sock
+      - name: service-account
+        secret:
+          secretName: feast-service-account
+
 postsubmits:
   gojek/feast:
   - name: publish-python-sdk
