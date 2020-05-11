@@ -269,6 +269,7 @@ presubmits:
 
   - name: publish-docker-images
     decorate: true
+    always_run: true
     spec:
       containers:
       - image: google/cloud-sdk:273.0.0
