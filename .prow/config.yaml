@@ -225,26 +225,26 @@ presubmits:
     branches:
     - ^v0\.(3|4)-branch$
 
-    - name: test-end-to-end-batch-dataflow
-      decorate: true
-      always_run: false
-      spec:
-        volumes:
+  - name: test-end-to-end-batch-dataflow
+    decorate: true
+    always_run: false
+    spec:
+      volumes:
+      - name: service-account-df
+        secret:
+          secretName: feast-service-account
+      containers:
+      - image: maven:3.6-jdk-11
+        command: ["infra/scripts/test-end-to-end-batch-dataflow.sh"]
+        resources:
+          requests:
+            cpu: "6"
+            memory: "6144Mi"
+        volumeMounts:
         - name: service-account-df
-          secret:
-            secretName: feast-service-account
-        containers:
-        - image: maven:3.6-jdk-11
-          command: ["infra/scripts/test-end-to-end-batch-dataflow.sh"]
-          resources:
-            requests:
-              cpu: "6"
-              memory: "6144Mi"
-          volumeMounts:
-          - name: service-account-df
-            mountPath: "/etc/service-account"
-      skip_branches:
-      - ^v0\.(3|4)-branch$
+          mountPath: "/etc/service-account"
+    skip_branches:
+    - ^v0\.(3|4)-branch$
 
   - name: test-end-to-end-batch-dataflow-java-8
     decorate: true
