@@ -1,0 +1,141 @@
+feast-core:
+  # feast-core.enabled -- Flag to install Feast Core
+  enabled: true
+  gcpServiceAccount:
+    enabled: true
+  postgresql:
+    existingSecret: feast-postgresql
+  image:
+    tag: $PULL_PULL_SHA:1
+  application-override.yaml:
+    feast:
+      stream:
+        options:
+          bootstrapServers: $feast_kafka_1_ip:31090
+      jobs:
+        active_runner: dataflow
+
+        runners:
+        - name: dataflow
+          type: DataflowRunner
+          options:
+            project: $GCLOUD_PROJECT
+            region: $GCLOUD_REGION
+            zone: $GCLOUD_REGION-a
+            tempLocation: gs://$TEMP_BUCKET/tempLocation
+            network: $GCLOUD_NETWORK
+            subnetwork: regions/$GCLOUD_REGION/subnetworks/$GCLOUD_SUBNET
+            maxNumWorkers: 1
+            autoscalingAlgorithm: THROUGHPUT_BASED
+            usePublicIps: false
+            workerMachineType: n1-standard-1
+            deadLetterTableSpec: $GCLOUD_PROJECT:$DATASET_NAME.deadletter
+
+        metrics:
+          enabled: true
+          host: $feast_statsd_ip
+
+feast-online-serving:
+  # feast-online-serving.enabled -- Flag to install Feast Online Serving
+  enabled: true
+  image:
+    tag: $PULL_PULL_SHA:1
+  application-override.yaml:
+    feast:
+      active_store: online
+
+      # List of store configurations
+      stores:
+      - name: online
+        type: REDIS
+        config:
+          host: $feast_redis_ip
+          port: 6379
+        subscriptions:
+        - name: "*"
+          project: "*"
+          version: "*"
+
+feast-batch-serving:
+  # feast-batch-serving.enabled -- Flag to install Feast Batch Serving
+  enabled: true
+  image:
+    tag: $PULL_PULL_SHA:1
+  gcpServiceAccount:
+    enabled: true
+
+  application-override.yaml:
+    feast:
+      active_store: historical
+
+      # List of store configurations
+      stores:
+      - name: historical
+        type: BIGQUERY
+        config:
+          project_id: $GCLOUD_PROJECT
+          dataset_id: $DATASET_NAME
+          staging_location: gs://$TEMP_BUCKET/stagingLocation
+          initial_retry_delay_seconds: 3
+          total_timeout_seconds: 21600
+        subscriptions:
+        - name: "*"
+          project: "*"
+          version: "*"
+
+postgresql:
+  # postgresql.enabled -- Flag to install Postgresql
+  enabled: true
+  existingSecret: feast-postgresql
+
+kafka:
+  # kafka.enabled -- Flag to install Kafka
+  enabled: true
+  external:
+    enabled: true
+    type: LoadBalancer
+    annotations:
+      cloud.google.com/load-balancer-type: Internal
+    loadBalancerSourceRanges:
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+    firstListenerPort: 31090
+    loadBalancerIP:
+    - $feast_kafka_1_ip
+    - $feast_kafka_2_ip
+    - $feast_kafka_3_ip
+  configurationOverrides:
+    "advertised.listeners": |-
+      EXTERNAL://${LOAD_BALANCER_IP}:31090
+    "listener.security.protocol.map": |-
+      PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+    "log.retention.hours": 1
+
+redis:
+  # redis.enabled -- Flag to install Redis
+  enabled: true
+  usePassword: false
+  master:
+    service:
+      type: LoadBalancer
+      loadBalancerIP: $feast_redis_ip
+      annotations:
+        cloud.google.com/load-balancer-type: Internal
+      loadBalancerSourceRanges:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+
+prometheus-statsd-exporter:
+  # prometheus-statsd-exporter.enabled -- Flag to install StatsD to Prometheus Exporter
+  enabled: true
+  service:
+    type: LoadBalancer
+    annotations:
+      cloud.google.com/load-balancer-type: Internal
+    loadBalancerSourceRanges:
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+    loadBalancerIP: $feast_statsd_ip
