@@ -286,6 +286,10 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
       return false;
     }
 
+    if (!getLabels().equals(other.getLabels())) {
+      return false;
+    }
+
     if (!project.getName().equals(other.project.getName())) {
       return false;
     }
