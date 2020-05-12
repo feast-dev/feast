@@ -1,0 +1,104 @@
+name: ci
+
+on:
+  # Trigger the workflow on push or pull request,
+  # but only for the master branch
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+
+jobs:
+
+  build-and-test:
+
+    # Run the job on a self-hosted agent VM. The VM will cache Docker layers, which considerably speeds up the build.
+    runs-on: self-hosted
+    steps:
+
+    # Delete any files left from the previous build, including files owned by root created by Docker in mounted volumes.
+    - name: Clean current directory
+      run: shopt -s dotglob; sudo rm -rf *
+
+    # Checkout sources from Git
+    - uses: actions/checkout@v2
+
+    # Build base CI image, with dependencies such as Go and Python.
+    # This image seldom changes, so thanks to layer caching this usually completes in seconds.
+    - name: Build CI image
+      uses: docker/build-push-action@v1
+      with:
+        username: ${{ secrets.CONTAINERREGISTRY_USERNAME }}
+        password: ${{ secrets.CONTAINERREGISTRY_PASSWORD }}
+        repository: ${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-ci
+        registry: ${{ secrets.CONTAINERREGISTRY_URL }}
+        dockerfile: infra/docker/ci/Dockerfile
+        tags: v${{ github.sha }}
+
+    # Cache the Maven repository across runs.
+    - name: Cache Maven repository
+      id: cache-maven
+      uses: actions/cache@v1
+      with:
+        path: .m2
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
+
+    # Generate the Maven cache if needed by running a throwaway build of Feast.
+    # --user: run as the host user, to avoid writing .m2 files to the host as root.
+    # -e MAVEN_CONFIG: See https://github.com/carlossg/docker-maven#running-as-non-root
+    # -v $PWD:/build: mount the current directory to write .m2 files onto the host.
+    - name: Generate Maven cache
+      if: steps.cache-maven.outputs.cache-hit != 'true'
+      run: docker run --rm --user $(id -u):$(id -g) -e MAVEN_CONFIG=/build/.m2 -v $PWD:/build $IMAGE bash -c "cd /build && mvn -Dmaven.repo.local=/build/.m2/repository -Dgpg.skip=true -B clean verify -DskipTests"
+      env:
+        IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-ci:v${{ github.sha }}
+
+    # Build images in parallel.
+    - name: Build Feast runtime and end-to-end test images
+      run: |
+        set -x
+        docker-compose -f infra/docker-compose/docker-compose.yml build --parallel end-to-end-tests core online-serving
+      env:
+        FEAST_VERSION: v${{ github.sha }}
+        FEAST_CI_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-ci
+        FEAST_CORE_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-core
+        FEAST_SERVING_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-serving
+
+    # "docker-compose up" starts docker containers.
+    # "--abort-on-container-exit" ensures that the containers are shutdown when end-to-end
+    # tests complete, and that the task exit status indicates failure if there are test failures.  
+    # Images fetched from a repository, such as Kafka, will not be built, so this
+    # step will only build the Feast Core image.
+    - name: Run Feast end-to-end test with Docker compose
+      run: |
+        set -x
+        docker-compose -f infra/docker-compose/docker-compose.yml up --abort-on-container-exit end-to-end-tests
+      env:
+        COMPOSE_PROJECT_NAME: feast
+        FEAST_VERSION: v${{ github.sha }}
+        FEAST_CI_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-ci
+        FEAST_CORE_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-core
+        FEAST_SERVING_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-serving
+        FEAST_CORE_CONFIG: direct-runner.yml
+        FEAST_ONLINE_SERVING_CONFIG: online-serving.yml
+        FEAST_ONLINE_STORE_CONFIG: redis-store.yml
+
+    # Login to Azure Container Registry.
+    - name: Login to Azure Container Registry
+      uses: azure/docker-login@v1
+      with:
+        login-server: ${{ secrets.CONTAINERREGISTRY_URL }}
+        username: ${{ secrets.CONTAINERREGISTRY_USERNAME }}
+        password: ${{ secrets.CONTAINERREGISTRY_PASSWORD }}
+
+    # Promote successfully tested container to Azure Container Registry.
+    - name: Push image to ACR
+      run: |
+        docker-compose -f infra/docker-compose/docker-compose.yml push core
+      env:
+        FEAST_VERSION: v${{ github.sha }}
+        FEAST_CORE_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-core
