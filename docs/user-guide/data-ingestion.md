@@ -23,7 +23,7 @@ from feast import FeatureSet, Client, Entity
 import pandas as pd
 
 # Connect to Feast core
-client = Client(core_url="feast-core.example.com
+client = Client(core_url="feast-core.example.com")
 
 # Load in customer data
 df = pd.read_csv("customer.csv")
