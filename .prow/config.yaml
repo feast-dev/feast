@@ -232,7 +232,7 @@ presubmits:
       volumes:
       - name: service-account-df
         secret:
-          secretName: feast-service-account
+          secretName: feast-e2e-service-account
       containers:
       - image: maven:3.6-jdk-11
         command: ["infra/scripts/test-end-to-end-batch-dataflow.sh"]
@@ -242,7 +242,7 @@ presubmits:
             memory: "6144Mi"
         volumeMounts:
         - name: service-account-df
-          mountPath: "/etc/service-account"
+          mountPath: "/etc/service-account-df"
     skip_branches:
     - ^v0\.(3|4)-branch$
 
@@ -253,7 +253,7 @@ presubmits:
       volumes:
         - name: service-account-df
           secret:
-            secretName: feast-service-account
+            secretName: feast-e2e-service-account
       containers:
         - image: maven:3.6-jdk-8
           command: ["infra/scripts/test-end-to-end-batch-dataflow.sh"]
@@ -263,7 +263,7 @@ presubmits:
               memory: "6144Mi"
           volumeMounts:
             - name: service-account-df
-              mountPath: "/etc/service-account"
+              mountPath: "/etc/service-account-df"
     branches:
     - ^v0\.(3|4)-branch$
 
@@ -298,8 +298,6 @@ presubmits:
 
           docker tag gcr.io/kf-feast/feast-serving:${PULL_PULL_SHA:1}
           docker push gcr.io/kf-feast/feast-serving:${PULL_PULL_SHA:1}
-
-          fi
         volumeMounts:
         - name: docker-socket
           mountPath: /var/run/docker.sock
