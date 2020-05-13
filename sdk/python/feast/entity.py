@@ -29,7 +29,7 @@ class Entity(Field):
             Returns EntitySpec object
         """
         value_type = ValueTypeProto.ValueType.Enum.Value(self.dtype.name)
-        return EntityProto(name=self.name, value_type=value_type)
+        return EntityProto(name=self.name, value_type=value_type,)
 
     @classmethod
     def from_proto(cls, entity_proto: EntityProto):
@@ -42,4 +42,5 @@ class Entity(Field):
         Returns:
             Entity object
         """
-        return cls(name=entity_proto.name, dtype=ValueType(entity_proto.value_type))
+        entity = cls(name=entity_proto.name, dtype=ValueType(entity_proto.value_type))
+        return entity

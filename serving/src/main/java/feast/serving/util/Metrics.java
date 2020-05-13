@@ -61,4 +61,12 @@ public class Metrics {
           .help("number requested feature rows that were stale")
           .labelNames("project", "feature_name")
           .register();
+
+  public static final Counter grpcRequestCount =
+      Counter.build()
+          .name("grpc_request_count")
+          .subsystem("feast_serving")
+          .help("number of grpc requests served")
+          .labelNames("method", "status_code")
+          .register();
 }

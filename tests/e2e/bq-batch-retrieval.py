@@ -4,11 +4,13 @@ from datetime import datetime
 from datetime import timedelta
 from urllib.parse import urlparse
 
+import os
 import uuid
 import numpy as np
 import pandas as pd
 import pytest
 import pytz
+from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.client import Client
 from feast.entity import Entity
 from feast.feature import Feature
@@ -59,6 +61,8 @@ def client(core_url, serving_url, allow_dirty):
     return client
 
 @pytest.mark.first
+@pytest.mark.direct_runner
+@pytest.mark.dataflow_runner
 def test_apply_all_featuresets(client):
     client.set_project(PROJECT_NAME)
 
@@ -127,6 +131,8 @@ def test_apply_all_featuresets(client):
     client.apply(no_max_age_fs)
 
 
+@pytest.mark.direct_runner
+@pytest.mark.dataflow_runner
 def test_get_batch_features_with_file(client):
     file_fs1 = client.get_feature_set(name="file_feature_set", version=1)
 
@@ -139,7 +145,7 @@ def test_get_batch_features_with_file(client):
             "feature_value1": [f"{i}" for i in range(N_ROWS)],
         }
     )
-    client.ingest(file_fs1, features_1_df)
+    client.ingest(file_fs1, features_1_df, timeout=480)
 
     # Rename column (datetime -> event_timestamp)
     features_1_df = features_1_df.rename(columns={"datetime": "event_timestamp"})
@@ -157,6 +163,8 @@ def test_get_batch_features_with_file(client):
     assert output["entity_id"].to_list() == [int(i) for i in output["feature_value1"].to_list()]
 
 
+@pytest.mark.direct_runner
+@pytest.mark.dataflow_runner
 def test_get_batch_features_with_gs_path(client, gcs_path):
     gcs_fs1 = client.get_feature_set(name="gcs_feature_set", version=1)
 
@@ -169,7 +177,7 @@ def test_get_batch_features_with_gs_path(client, gcs_path):
             "feature_value2": [f"{i}" for i in range(N_ROWS)],
         }
     )
-    client.ingest(gcs_fs1, features_1_df)
+    client.ingest(gcs_fs1, features_1_df, timeout=360)
 
     # Rename column (datetime -> event_timestamp)
     features_1_df = features_1_df.rename(columns={"datetime": "event_timestamp"})
@@ -201,6 +209,7 @@ def test_get_batch_features_with_gs_path(client, gcs_path):
     assert output["entity_id"].to_list() == [int(i) for i in output["feature_value2"].to_list()]
 
 
+@pytest.mark.direct_runner
 def test_order_by_creation_time(client):
     proc_time_fs = client.get_feature_set(name="processing_time", version=1)
 
@@ -232,6 +241,7 @@ def test_order_by_creation_time(client):
     assert output["feature_value3"].to_list() == ["CORRECT"] * N_ROWS
 
 
+@pytest.mark.direct_runner
 def test_additional_columns_in_entity_table(client):
     add_cols_fs = client.get_feature_set(name="additional_columns", version=1)
 
@@ -263,6 +273,7 @@ def test_additional_columns_in_entity_table(client):
     assert output["feature_value4"].to_list() == features_df["feature_value4"].to_list()
 
 
+@pytest.mark.direct_runner
 def test_point_in_time_correctness_join(client):
     historical_fs = client.get_feature_set(name="historical", version=1)
 
@@ -294,6 +305,7 @@ def test_point_in_time_correctness_join(client):
     assert output["feature_value5"].to_list() == ["CORRECT"] * N_EXAMPLES
 
 
+@pytest.mark.direct_runner
 def test_multiple_featureset_joins(client):
     fs1 = client.get_feature_set(name="feature_set_1", version=1)
     fs2 = client.get_feature_set(name="feature_set_2", version=1)
@@ -337,6 +349,7 @@ def test_multiple_featureset_joins(client):
     assert output["other_entity_id"].to_list() == output["other_feature_value7"].to_list()
 
 
+@pytest.mark.direct_runner
 def test_no_max_age(client):
     no_max_age_fs = client.get_feature_set(name="no_max_age", version=1)
 
@@ -360,3 +373,22 @@ def test_no_max_age(client):
     print(output.head())
 
     assert output["entity_id"].to_list() == output["feature_value8"].to_list()
+
+
+@pytest.fixture(scope="module", autouse=True)
+def infra_teardown(pytestconfig, core_url, serving_url):
+   client = Client(core_url=core_url, serving_url=serving_url)
+   client.set_project(PROJECT_NAME)
+
+   marker = pytestconfig.getoption("-m")
+   yield marker
+   if marker == 'dataflow_runner':
+       ingest_jobs = client.list_ingest_jobs()
+       ingest_jobs = [client.list_ingest_jobs(job.id)[0].external_id for job in ingest_jobs if job.status == IngestionJobStatus.RUNNING]
+
+       cwd = os.getcwd()
+       with open(f"{cwd}/ingesting_jobs.txt", "w+") as output:
+           for job in ingest_jobs:
+               output.write('%s\n' % job)
+   else:
+       print('Cleaning up not required')

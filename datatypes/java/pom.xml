@@ -39,6 +39,15 @@
       <plugins>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <configuration>
+            <!-- To ensure Ingestion remains compatible for Java 8-only Beam runners -->
+            <release>8</release>
+          </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-dependency-plugin</artifactId>
           <configuration>
             <!-- Required for generated code to compile; annotations are common false positive -->
@@ -107,4 +116,5 @@
           <artifactId>javax.annotation-api</artifactId>
       </dependency>
     </dependencies>
+
 </project>

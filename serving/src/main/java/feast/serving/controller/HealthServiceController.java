@@ -18,6 +18,7 @@ package feast.serving.controller;
 
 import feast.core.StoreProto.Store;
 import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
+import feast.serving.interceptors.GrpcMonitoringInterceptor;
 import feast.serving.service.ServingService;
 import feast.serving.specs.CachedSpecService;
 import io.grpc.health.v1.HealthGrpc.HealthImplBase;
@@ -30,7 +31,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 // Reference: https://github.com/grpc/grpc/blob/master/doc/health-checking.md
 
-@GRpcService
+@GRpcService(interceptors = {GrpcMonitoringInterceptor.class})
 public class HealthServiceController extends HealthImplBase {
   private CachedSpecService specService;
   private ServingService servingService;

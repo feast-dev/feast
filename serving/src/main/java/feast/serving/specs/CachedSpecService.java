@@ -18,7 +18,6 @@ package feast.serving.specs;
 
 import static feast.serving.util.RefUtil.generateFeatureSetStringRef;
 import static feast.serving.util.RefUtil.generateFeatureStringRef;
-import static feast.serving.util.mappers.YamlToProtoMapper.yamlToStoreProto;
 import static java.util.Comparator.comparingInt;
 import static java.util.stream.Collectors.groupingBy;
 
@@ -27,20 +26,17 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import feast.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
-import feast.core.CoreServiceProto.UpdateStoreRequest;
-import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
+import feast.core.StoreProto;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.Subscription;
 import feast.serving.ServingAPIProto.FeatureReference;
 import feast.serving.exception.SpecRetrievalException;
+import feast.storage.api.retriever.FeatureSetRequest;
 import io.grpc.StatusRuntimeException;
 import io.prometheus.client.Gauge;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -51,14 +47,13 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 
-/** In-memory cache of specs. */
+/** In-memory cache of specs hosted in Feast Core. */
 public class CachedSpecService {
 
   private static final int MAX_SPEC_COUNT = 1000;
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(CachedSpecService.class);
 
   private final CoreSpecService coreService;
-  private final Path configPath;
 
   private final Map<String, String> featureToFeatureSetMapping;
 
@@ -79,10 +74,9 @@ public class CachedSpecService {
           .help("epoch time of the last time the cache was updated")
           .register();
 
-  public CachedSpecService(CoreSpecService coreService, Path configPath) {
-    this.configPath = configPath;
+  public CachedSpecService(CoreSpecService coreService, StoreProto.Store store) {
     this.coreService = coreService;
-    this.store = updateStore(readConfig(configPath));
+    this.store = coreService.registerStore(store);
 
     Map<String, FeatureSetSpec> featureSets = getFeatureSetMap();
     featureToFeatureSetMapping =
@@ -117,11 +111,15 @@ public class CachedSpecService {
         .map(
             featureReference -> {
               String featureSet =
-                  featureToFeatureSetMapping.getOrDefault(
-                      generateFeatureStringRef(featureReference), "");
-              if (featureSet.isEmpty()) {
+                  featureToFeatureSetMapping.get(generateFeatureStringRef(featureReference));
+              if (featureSet == null) {
                 throw new SpecRetrievalException(
-                    String.format("Unable to retrieve feature %s", featureReference));
+                    String.format(
+                        "Unable to find feature set for feature ref: "
+                            + "(project: %s, name: %s, version: %d)",
+                        featureReference.getProject(),
+                        featureReference.getName(),
+                        featureReference.getVersion()));
               }
               return Pair.of(featureSet, featureReference);
             })
@@ -140,7 +138,7 @@ public class CachedSpecService {
                 featureSetRequests.add(featureSetRequest);
               } catch (ExecutionException e) {
                 throw new SpecRetrievalException(
-                    String.format("Unable to retrieve featureSet with id %s", fsName), e);
+                    String.format("Unable to find featureSet with name: %s", fsName), e);
               }
             });
     return featureSetRequests;
@@ -151,7 +149,6 @@ public class CachedSpecService {
    * from core to preload the cache.
    */
   public void populateCache() {
-    this.store = updateStore(readConfig(configPath));
     Map<String, FeatureSetSpec> featureSetMap = getFeatureSetMap();
     featureSetCache.putAll(featureSetMap);
     featureToFeatureSetMapping.putAll(getFeatureToFeatureSetMapping(featureSetMap));
@@ -233,30 +230,5 @@ public class CachedSpecService {
               }
             });
     return mapping;
-  }
-
-  private Store readConfig(Path path) {
-    try {
-      List<String> fileContents = Files.readAllLines(path);
-      String yaml = fileContents.stream().reduce("", (l1, l2) -> l1 + "\n" + l2);
-      log.info("loaded store config at {}: \n{}", path.toString(), yaml);
-      return yamlToStoreProto(yaml);
-    } catch (IOException e) {
-      throw new RuntimeException(
-          String.format("Unable to read store config at %s", path.toAbsolutePath()), e);
-    }
-  }
-
-  private Store updateStore(Store store) {
-    UpdateStoreRequest request = UpdateStoreRequest.newBuilder().setStore(store).build();
-    try {
-      UpdateStoreResponse updateStoreResponse = coreService.updateStore(request);
-      if (!updateStoreResponse.getStore().equals(store)) {
-        throw new RuntimeException("Core store config not matching current store config");
-      }
-      return updateStoreResponse.getStore();
-    } catch (Exception e) {
-      throw new RuntimeException("Unable to update store configuration", e);
-    }
   }
 }

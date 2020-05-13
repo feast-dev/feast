@@ -1,251 +1,379 @@
-# Feast Chart
+feast
+===== 
 
-This directory provides the Helm chart for Feast installation. 
+Feature store for machine learning. Current chart version is `0.5.0-alpha.1`
 
-This chart installs Feast Core and Feast Serving components of Feast, along with
-the required and optional dependencies. Components and dependencies can be 
-enabled or disabled by changing the corresponding `enabled` flag. Feast Core and
-Feast Serving are subcharts of this parent Feast chart. The structure of the charts 
-are as follows:
+## TL;DR;
 
-```
-feast  // top level feast chart
-│
-├── feast-core  // feast-core subchart
-│   ├── postgresql  // Postgresql dependency for feast-core (Feast database)
-│   └── kafka  // Kafka dependency for feast-core (default stream source)
-│
-├── feast-serving-online  // feast-serving subchart
-│    └── redis  // Redis dependency for installation of store together with feast-serving
-│
-└── feast-serving-batch  // feast-serving subchart
-```
-
-## Prerequisites
-- Kubernetes 1.13 or newer cluster
-- Helm 2.15.2 or newer
-
-## Resources Required
-The chart deploys pods that consume minimum resources as specified in the resources configuration parameter.
-
-## Installing the Chart
-
-Add repository for Feast chart:
 ```bash
+# Add Feast Helm chart
 helm repo add feast-charts https://feast-charts.storage.googleapis.com
 helm repo update
+
+# Create secret for Feast database, replace <your-password> with the desired value
+kubectl create secret generic feast-postgresql \
+    --from-literal=postgresql-password=<your_password>
+
+# Install Feast with Online Serving and Beam DirectRunner
+helm install --name myrelease feast-charts/feast \
+    --set feast-core.postgresql.existingSecret=feast-postgresql \
+    --set postgresql.existingSecret=feast-postgresql
 ```
 
-Install Feast release with minimal features, without batch serving and persistence:
+## Introduction
+This chart install Feast deployment on a Kubernetes cluster using the [Helm](https://v2.helm.sh/docs/using_helm/#installing-helm) package manager. 
+
+## Prerequisites
+- Kubernetes 1.12+
+- Helm 2.15+ (not tested with Helm 3)
+- Persistent Volume support on the underlying infrastructure
+
+## Chart Requirements
+
+| Repository | Name | Version |
+|------------|------|---------|
+|  | feast-core | 0.5.0-alpha.1 |
+|  | feast-serving | 0.5.0-alpha.1 |
+|  | feast-serving | 0.5.0-alpha.1 |
+|  | prometheus-statsd-exporter | 0.1.2 |
+| https://kubernetes-charts-incubator.storage.googleapis.com/ | kafka | 0.20.8 |
+| https://kubernetes-charts.storage.googleapis.com/ | grafana | 5.0.5 |
+| https://kubernetes-charts.storage.googleapis.com/ | postgresql | 8.6.1 |
+| https://kubernetes-charts.storage.googleapis.com/ | prometheus | 11.0.2 |
+| https://kubernetes-charts.storage.googleapis.com/ | redis | 10.5.6 |
+
+## Chart Values
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| feast-batch-serving.enabled | bool | `false` | Flag to install Feast Batch Serving |
+| feast-core.enabled | bool | `true` | Flag to install Feast Core |
+| feast-online-serving.enabled | bool | `true` | Flag to install Feast Online Serving |
+| grafana.enabled | bool | `true` | Flag to install Grafana |
+| kafka.enabled | bool | `true` | Flag to install Kafka |
+| postgresql.enabled | bool | `true` | Flag to install Postgresql |
+| prometheus-statsd-exporter.enabled | bool | `true` | Flag to install StatsD to Prometheus Exporter |
+| prometheus.enabled | bool | `true` | Flag to install Prometheus |
+| redis.enabled | bool | `true` | Flag to install Redis |
+
+## Configuration and installation details
+
+The default configuration will install Feast with Online Serving. Ingestion
+of features will use Beam [DirectRunner](https://beam.apache.org/documentation/runners/direct/) 
+that runs on the same container where Feast Core is running. 
+
 ```bash
-RELEASE_NAME=demo
-helm install feast-charts/feast --name $RELEASE_NAME -f values-demo.yaml
+# Create secret for Feast database, replace <your-password> accordingly
+kubectl create secret generic feast-postgresql \
+    --from-literal=postgresql-password=<your_password>
+
+# Install Feast with Online Serving and Beam DirectRunner
+helm install --name myrelease feast-charts/feast \
+    --set feast-core.postgresql.existingSecret=feast-postgresql \
+    --set postgresql.existingSecret=feast-postgresql
 ```
 
-Install Feast release for typical use cases, with batch and online serving:
+In order to test that the installation is successful:
 ```bash
-# To install Feast Batch serving, BigQuery and Google Cloud service account
-# is required. The service account needs to have these roles: 
-# - bigquery.dataEditor
-# - bigquery.jobUser
-#
-# Assuming a service account JSON file has been downloaded to /home/user/key.json,
-# run the following command to create a secret in Kubernetes
-# (make sure the file name is called key.json):
-kubectl create secret generic feast-gcp-service-account --from-file=/home/user/key.json
+helm test myrelease
 
-# Set these required configuration in Feast Batch Serving
-STAGING_LOCATION=gs://bucket/path
-PROJECT_ID=google-cloud-project-id
-DATASET_ID=bigquery-dataset-id
+# If the installation is successful, the following should be printed
+RUNNING: myrelease-feast-online-serving-test
+PASSED: myrelease-feast-online-serving-test
+RUNNING: myrelease-grafana-test
+PASSED: myrelease-grafana-test
+RUNNING: myrelease-test-topic-create-consume-produce
+PASSED: myrelease-test-topic-create-consume-produce
 
-# Install the Helm release using default values.yaml
-helm install feast-charts/feast --name feast \
-  --set feast-serving-batch."application\.yaml".feast.jobs.staging-location=$STAGING_LOCATION \
-  --set feast-serving-batch."store\.yaml".bigquery_config.project_id=$PROJECT_ID \
-  --set feast-serving-batch."store\.yaml".bigquery_config.dataset_id=$DATASET_ID
+# Once the test completes, to check the logs
+kubectl logs myrelease-feast-online-serving-test
 ```
 
-## Parameters
+> The test pods can be safely deleted after the test finishes.  
+> Check the yaml files in `templates/tests/` folder to see the processes
+> the test pods execute.
 
-The following table lists the configurable parameters of the Feast chart and their default values.
+### Feast metrics 
 
-| Parameter | Description | Default
-| --------- | ----------- | -------
-| `feast-core.enabled` | Flag to install Feast Core | `true`
-| `feast-core.postgresql.enabled` | Flag to install Postgresql as Feast database | `true`
-| `feast-core.postgresql.postgresqlDatabase` |  Name of the database used by Feast Core | `feast`
-| `feast-core.postgresql.postgresqlUsername` |  Username to authenticate to Feast database | `postgres`
-| `feast-core.postgresql.postgresqlPassword` |  Passsword to authenticate to Feast database | `password`
-| `feast-core.kafka.enabled` |  Flag to install Kafka as the default source for Feast | `true`
-| `feast-core.kafka.topics[0].name` |  Default topic name in Kafka| `feast`
-| `feast-core.kafka.topics[0].replicationFactor` |  No of replication factor for the topic| `1`
-| `feast-core.kafka.topics[0].partitions` |  No of partitions for the topic | `1`
-| `feast-core.prometheus-statsd-exporter.enabled` | Flag to install Prometheus StatsD Exporter | `false`
-| `feast-core.prometheus-statsd-exporter.*` | Refer to this [link](charts/feast-core/charts/prometheus-statsd-exporter/values.yaml  |
-| `feast-core.replicaCount` | No of pods to create | `1`
-| `feast-core.image.repository` | Repository for Feast Core Docker image | `gcr.io/kf-feast/feast-core`
-| `feast-core.image.tag` | Tag for Feast Core Docker image | `0.4.7`
-| `feast-core.image.pullPolicy` | Image pull policy for Feast Core Docker image | `IfNotPresent`
-| `feast-core.prometheus.enabled` | Add annotations to enable Prometheus scraping | `false`
-| `feast-core.application.yaml` | Configuration for Feast Core application | Refer to this [link](charts/feast-core/values.yaml) 
-| `feast-core.springConfigMountPath` | Directory to mount application.yaml | `/etc/feast/feast-core`
-| `feast-core.gcpServiceAccount.useExistingSecret` | Flag to use existing secret for GCP service account | `false`
-| `feast-core.gcpServiceAccount.existingSecret.name` | Secret name for the service account | `feast-gcp-service-account`
-| `feast-core.gcpServiceAccount.existingSecret.key` | Secret key for the service account | `key.json`
-| `feast-core.gcpServiceAccount.mountPath` | Directory to mount the JSON key file | `/etc/gcloud/service-accounts`
-| `feast-core.gcpProjectId` | Project ID to set `GOOGLE_CLOUD_PROJECT` to change default project used by SDKs | `""`
-| `feast-core.jarPath` | Path to Jar file in the Docker image | `/opt/feast/feast-core.jar`
-| `feast-core.jvmOptions` | Options for the JVM | `[]`
-| `feast-core.logLevel` | Application logging level | `warn`
-| `feast-core.logType` | Application logging type (`JSON` or `Console`) | `JSON`
-| `feast-core.springConfigProfiles` | Map of profile name to file content for additional Spring profiles | `{}`
-| `feast-core.springConfigProfilesActive` | CSV of profiles to enable from `springConfigProfiles` | `""`
-| `feast-core.livenessProbe.enabled` | Flag to enable liveness probe | `true`
-| `feast-core.livenessProbe.initialDelaySeconds` | Delay before liveness probe is initiated | `60`
-| `feast-core.livenessProbe.periodSeconds` | How often to perform the probe | `10`
-| `feast-core.livenessProbe.timeoutSeconds` | Timeout duration for the probe | `5`
-| `feast-core.livenessProbe.successThreshold` | Minimum no of consecutive successes for the probe to be considered successful | `1`
-| `feast-core.livenessProbe.failureThreshold` | Minimum no of consecutive failures for the probe to be considered failed | `5`
-| `feast-core.readinessProbe.enabled` | Flag to enable readiness probe | `true`
-| `feast-core.readinessProbe.initialDelaySeconds` | Delay before readiness probe is initiated | `30`
-| `feast-core.readinessProbe.periodSeconds` | How often to perform the probe | `10`
-| `feast-core.readinessProbe.timeoutSeconds` | Timeout duration for the probe | `10`
-| `feast-core.readinessProbe.successThreshold` | Minimum no of consecutive successes for the probe to be considered successful | `1`
-| `feast-core.service.type` | Kubernetes Service Type | `ClusterIP`
-| `feast-core.http.port` | Kubernetes Service port for HTTP request| `80`
-| `feast-core.http.targetPort` | Container port for HTTP request | `8080`
-| `feast-core.grpc.port` | Kubernetes Service port for GRPC request| `6565`
-| `feast-core.grpc.targetPort` | Container port for GRPC request| `6565`
-| `feast-core.resources` | CPU and memory allocation for the pod | `{}`
-| `feast-core.ingress` | See *Ingress Parameters* [below](#ingress-parameters) | `{}`
-| `feast-serving-online.enabled` | Flag to install Feast Online Serving | `true`
-| `feast-serving-online.redis.enabled` | Flag to install Redis in Feast Serving | `false`
-| `feast-serving-online.redis.usePassword` | Flag to use password to access Redis | `false`
-| `feast-serving-online.redis.cluster.enabled` | Flag to enable Redis cluster | `false`
-| `feast-serving-online.core.enabled` | Flag for Feast Serving to use Feast Core in the same Helm release | `true`
-| `feast-serving-online.replicaCount` | No of pods to create  | `1`
-| `feast-serving-online.image.repository` | Repository for Feast Serving Docker image | `gcr.io/kf-feast/feast-serving`
-| `feast-serving-online.image.tag` | Tag for Feast Serving Docker image | `0.4.7`
-| `feast-serving-online.image.pullPolicy` | Image pull policy for Feast Serving Docker image | `IfNotPresent`
-| `feast-serving-online.prometheus.enabled` | Add annotations to enable Prometheus scraping | `true`
-| `feast-serving-online.application.yaml` | Application configuration for Feast Serving | Refer to this [link](charts/feast-serving/values.yaml) 
-| `feast-serving-online.store.yaml` | Store configuration for Feast Serving | Refer to this [link](charts/feast-serving/values.yaml) 
-| `feast-serving-online.springConfigMountPath` | Directory to mount application.yaml and store.yaml | `/etc/feast/feast-serving`
-| `feast-serving-online.gcpServiceAccount.useExistingSecret` | Flag to use existing secret for GCP service account | `false`
-| `feast-serving-online.gcpServiceAccount.existingSecret.name` | Secret name for the service account | `feast-gcp-service-account`
-| `feast-serving-online.gcpServiceAccount.existingSecret.key` | Secret key for the service account | `key.json`
-| `feast-serving-online.gcpServiceAccount.mountPath` | Directory to mount the JSON key file | `/etc/gcloud/service-accounts`
-| `feast-serving-online.gcpProjectId` | Project ID to set `GOOGLE_CLOUD_PROJECT` to change default project used by SDKs | `""`
-| `feast-serving-online.jarPath` | Path to Jar file in the Docker image | `/opt/feast/feast-serving.jar`
-| `feast-serving-online.jvmOptions` | Options for the JVM | `[]`
-| `feast-serving-online.logLevel` | Application logging level | `warn`
-| `feast-serving-online.logType` | Application logging type (`JSON` or `Console`) | `JSON`
-| `feast-serving-online.springConfigProfiles` | Map of profile name to file content for additional Spring profiles | `{}`
-| `feast-serving-online.springConfigProfilesActive` | CSV of profiles to enable from `springConfigProfiles` | `""`
-| `feast-serving-online.livenessProbe.enabled` | Flag to enable liveness probe | `true`
-| `feast-serving-online.livenessProbe.initialDelaySeconds` | Delay before liveness probe is initiated | `60`
-| `feast-serving-online.livenessProbe.periodSeconds` | How often to perform the probe | `10`
-| `feast-serving-online.livenessProbe.timeoutSeconds` | Timeout duration for the probe | `5`
-| `feast-serving-online.livenessProbe.successThreshold` | Minimum no of consecutive successes for the probe to be considered successful | `1`
-| `feast-serving-online.livenessProbe.failureThreshold` | Minimum no of consecutive failures for the probe to be considered failed | `5`
-| `feast-serving-online.readinessProbe.enabled` | Flag to enable readiness probe | `true`
-| `feast-serving-online.readinessProbe.initialDelaySeconds` | Delay before readiness probe is initiated | `30`
-| `feast-serving-online.readinessProbe.periodSeconds` | How often to perform the probe | `10`
-| `feast-serving-online.readinessProbe.timeoutSeconds` | Timeout duration for the probe | `10`
-| `feast-serving-online.readinessProbe.successThreshold` | Minimum no of consecutive successes for the probe to be considered successful | `1`
-| `feast-serving-online.service.type` | Kubernetes Service Type | `ClusterIP`
-| `feast-serving-online.http.port` | Kubernetes Service port for HTTP request| `80`
-| `feast-serving-online.http.targetPort` | Container port for HTTP request | `8080`
-| `feast-serving-online.grpc.port` | Kubernetes Service port for GRPC request| `6566`
-| `feast-serving-online.grpc.targetPort` | Container port for GRPC request| `6566`
-| `feast-serving-online.resources` | CPU and memory allocation for the pod | `{}`
-| `feast-serving-online.ingress` | See *Ingress Parameters* [below](#ingress-parameters) | `{}`
-| `feast-serving-batch.enabled` | Flag to install Feast Batch Serving | `true`
-| `feast-serving-batch.redis.enabled` | Flag to install Redis in Feast Serving | `false`
-| `feast-serving-batch.redis.usePassword` | Flag to use password to access Redis | `false`
-| `feast-serving-batch.redis.cluster.enabled` | Flag to enable Redis cluster | `false`
-| `feast-serving-batch.core.enabled` | Flag for Feast Serving to use Feast Core in the same Helm release | `true`
-| `feast-serving-batch.replicaCount` | No of pods to create  | `1`
-| `feast-serving-batch.image.repository` | Repository for Feast Serving Docker image | `gcr.io/kf-feast/feast-serving`
-| `feast-serving-batch.image.tag` | Tag for Feast Serving Docker image | `0.4.7`
-| `feast-serving-batch.image.pullPolicy` | Image pull policy for Feast Serving Docker image | `IfNotPresent`
-| `feast-serving-batch.prometheus.enabled` | Add annotations to enable Prometheus scraping | `true`
-| `feast-serving-batch.application.yaml` | Application configuration for Feast Serving | Refer to this [link](charts/feast-serving/values.yaml) 
-| `feast-serving-batch.store.yaml` | Store configuration for Feast Serving | Refer to this [link](charts/feast-serving/values.yaml) 
-| `feast-serving-batch.springConfigMountPath` | Directory to mount application.yaml and store.yaml | `/etc/feast/feast-serving`
-| `feast-serving-batch.gcpServiceAccount.useExistingSecret` | Flag to use existing secret for GCP service account | `false`
-| `feast-serving-batch.gcpServiceAccount.existingSecret.name` | Secret name for the service account | `feast-gcp-service-account`
-| `feast-serving-batch.gcpServiceAccount.existingSecret.key` | Secret key for the service account | `key.json`
-| `feast-serving-batch.gcpServiceAccount.mountPath` | Directory to mount the JSON key file | `/etc/gcloud/service-accounts`
-| `feast-serving-batch.gcpProjectId` | Project ID to set `GOOGLE_CLOUD_PROJECT` to change default project used by SDKs | `""`
-| `feast-serving-batch.jarPath` | Path to Jar file in the Docker image | `/opt/feast/feast-serving.jar`
-| `feast-serving-batch.jvmOptions` | Options for the JVM | `[]`
-| `feast-serving-batch.logLevel` | Application logging level | `warn`
-| `feast-serving-batch.logType` | Application logging type (`JSON` or `Console`) | `JSON`
-| `feast-serving-batch.springConfigProfiles` | Map of profile name to file content for additional Spring profiles | `{}`
-| `feast-serving-batch.springConfigProfilesActive` | CSV of profiles to enable from `springConfigProfiles` | `""`
-| `feast-serving-batch.livenessProbe.enabled` | Flag to enable liveness probe | `true`
-| `feast-serving-batch.livenessProbe.initialDelaySeconds` | Delay before liveness probe is initiated | `60`
-| `feast-serving-batch.livenessProbe.periodSeconds` | How often to perform the probe | `10`
-| `feast-serving-batch.livenessProbe.timeoutSeconds` | Timeout duration for the probe | `5`
-| `feast-serving-batch.livenessProbe.successThreshold` | Minimum no of consecutive successes for the probe to be considered successful | `1`
-| `feast-serving-batch.livenessProbe.failureThreshold` | Minimum no of consecutive failures for the probe to be considered failed | `5`
-| `feast-serving-batch.readinessProbe.enabled` | Flag to enable readiness probe | `true`
-| `feast-serving-batch.readinessProbe.initialDelaySeconds` | Delay before readiness probe is initiated | `30`
-| `feast-serving-batch.readinessProbe.periodSeconds` | How often to perform the probe | `10`
-| `feast-serving-batch.readinessProbe.timeoutSeconds` | Timeout duration for the probe | `10`
-| `feast-serving-batch.readinessProbe.successThreshold` | Minimum no of consecutive successes for the probe to be considered successful | `1`
-| `feast-serving-batch.service.type` | Kubernetes Service Type | `ClusterIP`
-| `feast-serving-batch.http.port` | Kubernetes Service port for HTTP request| `80`
-| `feast-serving-batch.http.targetPort` | Container port for HTTP request | `8080`
-| `feast-serving-batch.grpc.port` | Kubernetes Service port for GRPC request| `6566`
-| `feast-serving-batch.grpc.targetPort` | Container port for GRPC request| `6566`
-| `feast-serving-batch.resources` | CPU and memory allocation for the pod | `{}`
-| `feast-serving-batch.ingress` | See *Ingress Parameters* [below](#ingress-parameters) | `{}`
+Feast default installation includes Grafana, StatsD exporter and Prometheus. Request
+metrics from Feast Core and Feast Serving, as well as ingestion statistic from
+Feast Ingestion are accessible from Prometheus and Grafana dashboard. The following
+show a quick example how to access the metrics.
 
-## Ingress Parameters
+```
+# Forwards local port 9090 to the Prometheus server pod
+kubectl port-forward svc/myrelease-prometheus-server 9090:80
+```
 
-The following table lists the configurable parameters of the ingress section for each Feast module.
+Visit http://localhost:9090 to access the Prometheus server:
 
-Note, there are two ingresses available for each module - `grpc` and `http`.
+![Prometheus Server](files/img/prometheus-server.png?raw=true)
 
-| Parameter                     | Description | Default
-| ----------------------------- | ----------- | -------
-| `ingress.grcp.enabled`        | Enables an ingress (endpoint) for the gRPC server | `false`
-| `ingress.grcp.*`              | See below |
-| `ingress.http.enabled`        | Enables an ingress (endpoint) for the HTTP server | `false`
-| `ingress.http.*`              | See below |
-| `ingress.*.class`             | Value for `kubernetes.io/ingress.class` | `nginx`
-| `ingress.*.hosts`             | List of host-names for the ingress | `[]`
-| `ingress.*.annotations`       | Additional ingress annotations | `{}`
-| `ingress.*.https.enabled`     | Add a tls section to the ingress | `true`
-| `ingress.*.https.secretNames` | Map of hostname to TLS secret name | `{}` If not specified, defaults to `domain-tld-tls` e.g. `feast.example.com` uses secret `example-com-tls`
-| `ingress.*.auth.enabled`      | Enable auth on the ingress (only applicable for `nginx` type | `false`
-| `ingress.*.auth.signinHost`   | External hostname of the OAuth2 proxy to use | First item in `ingress.hosts`, replacing the sub-domain with 'auth' e.g. `feast.example.com` uses `auth.example.com`
-| `ingress.*.auth.authUrl`      | Internal URI to internal auth endpoint | `http://auth-server.auth-ns.svc.cluster.local/auth`
-| `ingress.*.whitelist`         | Subnet masks to whitelist (i.e. value for `nginx.ingress.kubernetes.io/whitelist-source-range`) | `"""`
+### Enable Batch Serving
 
-To enable all the ingresses will a config like the following (while also adding the hosts etc):
+To install Feast Batch Serving for retrieval of historical features in offline
+training, access to BigQuery is required. First, create a [service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) key that
+will provide the credentials to access BigQuery. Grant the service account `editor` 
+role so it has write permissions to BigQuery and Cloud Storage.
+
+> In production, it is advised to give only the required [permissions](foo-feast-batch-serving-test) for the 
+> the service account, versus `editor` role which is very permissive.
+
+Create a Kubernetes secret for the service account JSON file:
+```bash
+# By default Feast expects the secret to be named "feast-gcp-service-account"
+# and the JSON file to be named "credentials.json"
+kubectl create secret generic feast-gcp-service-account --from-file=credentials.json
+```
+
+Create a new Cloud Storage bucket (if not exists) and make sure the service
+account has write access to the bucket:
+```bash
+gsutil mb <bucket_name>
+```
+
+Use the following Helm values to enable Batch Serving:
+```yaml
+# values-batch-serving.yaml
+feast-core:
+  gcpServiceAccount:
+    enabled: true
+  postgresql:
+    existingSecret: feast-postgresql
+
+feast-batch-serving:
+  enabled: true
+  gcpServiceAccount:
+    enabled: true 
+  application-override.yaml:
+    feast:
+      active_store: historical
+      stores:
+      - name: historical
+        type: BIGQUERY
+        config:
+          project_id: <google_project_id>
+          dataset_id: <bigquery_dataset_id>
+          staging_location: gs://<bucket_name>/feast-staging-location
+          initial_retry_delay_seconds: 3
+          total_timeout_seconds: 21600
+        subscriptions:
+        - name: "*"
+          project: "*"
+          version: "*"
+
+postgresql:
+  existingSecret: feast-postgresql
+```
+
+> To delete the previous release, run `helm delete --purge myrelease`  
+> Note this will not delete the persistent volume that has been claimed (PVC).  
+> In a test cluster, run `kubectl delete pvc --all` to delete all claimed PVCs.
+
+```bash
+# Install a new release
+helm install --name myrelease -f values-batch-serving.yaml feast-charts/feast
+
+# Wait until all pods are created and running/completed (can take about 5m)
+kubectl get pods 
+
+# Batch Serving is installed so `helm test` will also test for batch retrieval
+helm test myrelease
+```
+
+### Use DataflowRunner for ingestion
+
+Apache Beam [DirectRunner](https://beam.apache.org/documentation/runners/direct/)
+is not suitable for production use case because it is not easy to scale the
+number of workers and there is no convenient API to monitor and manage the
+workers. Feast supports [DataflowRunner](https://beam.apache.org/documentation/runners/dataflow/) which is a managed service on Google Cloud. 
+
+> Make sure `feast-gcp-service-account` Kubernetes secret containing the
+> service account has been created and the service account has permissions
+> to manage Dataflow jobs.
+
+Since Dataflow workers run outside the Kube cluster and they will need to interact
+with Kafka brokers, Redis stores and StatsD server installed in the cluster,
+these services need to be exposed for access outside the cluster by setting
+`service.type: LoadBalancer`. 
+
+In a typical use case, 5 `LoadBalancer` (internal) IP addresses are required by
+Feast when running with `DataflowRunner`. In Google Cloud, these (internal) IP 
+addresses should be reserved first:
+```bash
+# Check with your network configuration which IP addresses are available for use
+gcloud compute addresses create \
+  feast-kafka-1 feast-kafka-2 feast-kafka-3 feast-redis feast-statsd \
+  --region <region> --subnet <subnet> \
+  --addresses 10.128.0.11,10.128.0.12,10.128.0.13,10.128.0.14,10.128.0.15
+```
+
+Use the following Helm values to enable DataflowRuner (and Batch Serving), 
+replacing the `<*load_balancer_ip*>` tags with the ip addresses reserved above:
 
 ```yaml
+# values-dataflow-runner.yaml
 feast-core:
-  ingress:
-    grpc:
-      enabled: true
-    http:
-      enabled: true
-feast-serving-online:
-  ingress:
-    grpc:
-      enabled: true
-    http:
-      enabled: true
-feast-serving-batch:
-  ingress:
-    grpc:
-      enabled: true
-    http:
-      enabled: true
+  gcpServiceAccount:
+    enabled: true
+  postgresql:
+    existingSecret: feast-postgresql
+  application-override.yaml:
+    feast:
+      stream:
+        options:
+          bootstrapServers: <kafka_sevice_load_balancer_ip_address_1:31090>
+      jobs:
+        active_runner: dataflow
+        metrics:
+          host: <prometheus_statsd_exporter_load_balancer_ip_address>
+        runners:
+        - name: dataflow
+          type: DataflowRunner
+          options:
+            project: <google_project_id>
+            region: <dataflow_regional_endpoint e.g. asia-east1>
+            zone: <google_zone e.g. asia-east1-a>
+            tempLocation: <gcs_path_for_temp_files e.g. gs://bucket/tempLocation>
+            network: <google_cloud_network_name>
+            subnetwork: <google_cloud_subnetwork_path e.g. regions/asia-east1/subnetworks/mysubnetwork>
+            maxNumWorkers: 1
+            autoscalingAlgorithm: THROUGHPUT_BASED
+            usePublicIps: false
+            workerMachineType: n1-standard-1
+            deadLetterTableSpec: <bigquery_table_spec_for_deadletter e.g. project_id:dataset_id.table_id>
+
+feast-online-serving:
+  application-override.yaml:
+    feast:
+      stores:
+      - name: online
+        type: REDIS 
+        config:
+          host: <redis_service_load_balancer_ip_addresss>
+          port: 6379
+        subscriptions:
+        - name: "*"
+          project: "*"
+          version: "*"
+
+feast-batch-serving:
+  enabled: true
+  gcpServiceAccount:
+    enabled: true 
+  application-override.yaml:
+    feast:
+      active_store: historical
+      stores:
+      - name: historical
+        type: BIGQUERY
+        config:
+          project_id: <google_project_id>
+          dataset_id: <bigquery_dataset_id>
+          staging_location: gs://<bucket_name>/feast-staging-location
+          initial_retry_delay_seconds: 3
+          total_timeout_seconds: 21600
+        subscriptions:
+        - name: "*"
+          project: "*"
+          version: "*"
+
+postgresql:
+  existingSecret: feast-postgresql
+
+kafka:
+  external:
+    enabled: true
+    type: LoadBalancer
+    annotations:
+      cloud.google.com/load-balancer-type: Internal
+    loadBalancerSourceRanges:
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+    firstListenerPort: 31090
+    loadBalancerIP:
+    - <kafka_sevice_load_balancer_ip_address_1>
+    - <kafka_sevice_load_balancer_ip_address_2>
+    - <kafka_sevice_load_balancer_ip_address_3>
+  configurationOverrides:
+    "advertised.listeners": |-
+      EXTERNAL://${LOAD_BALANCER_IP}:31090
+    "listener.security.protocol.map": |-
+      PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+    "log.retention.hours": 1
+
+redis:
+  master:
+    service:
+      type: LoadBalancer
+      loadBalancerIP: <redis_service_load_balancer_ip_addresss>
+      annotations:
+        cloud.google.com/load-balancer-type: Internal
+      loadBalancerSourceRanges:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+
+prometheus-statsd-exporter:
+  service:
+    type: LoadBalancer
+    annotations:
+      cloud.google.com/load-balancer-type: Internal
+    loadBalancerSourceRanges:
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+    loadBalancerIP: <prometheus_statsd_exporter_load_balancer_ip_address>
+``` 
+
+```bash
+# Install a new release
+helm install --name myrelease -f values-dataflow-runner.yaml feast-charts/feast
+
+# Wait until all pods are created and running/completed (can take about 5m)
+kubectl get pods 
+
+# Test the installation
+helm test myrelease
 ```
 
+If the tests are successful, Dataflow jobs should appear in Google Cloud console
+running features ingestion: https://console.cloud.google.com/dataflow
+
+![Dataflow Jobs](files/img/dataflow-jobs.png)
+
+### Production configuration
+
+#### Resources requests
+
+The `resources` field in the deployment spec is left empty in the examples. In
+production these should be set according to the load each services are expected
+to handle and the service level objectives (SLO). Also Feast Core and Serving
+is Java application and it is [good practice](https://stackoverflow.com/a/6916718/3949303) 
+to set the minimum and maximum heap. This is an example reasonable value to set for Feast Serving:
+
+```yaml
+feast-online-serving:
+  javaOpts: "-Xms2048m -Xmx2048m"
+  resources:
+    limits:
+      memory: "2048Mi"
+    requests:
+      memory: "2048Mi"
+      cpu: "1"
+```
+
+#### High availability
+
+Default Feast installation only configures a single instance of Redis
+server. If due to network failures or out of memory error Redis is down,
+Feast serving will fail to respond to requests. Soon, Feast will support
+highly available Redis via [Redis cluster](https://redis.io/topics/cluster-tutorial), 
+sentinel or additional proxies.
+
+### Documentation development
+
+This `README.md` is generated using [helm-docs](https://github.com/norwoodj/helm-docs/).
+Please run `helm-docs` to regenerate the `README.md` every time `README.md.gotmpl`
+or `values.yaml` are updated.

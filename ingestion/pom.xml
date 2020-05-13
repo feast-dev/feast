@@ -33,6 +33,15 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <!-- To ensure Ingestion remains compatible for Java 8-only Beam runners -->
+          <release>8</release>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <version>3.2.1</version>
         <executions>
@@ -89,6 +98,30 @@
     <dependency>
       <groupId>dev.feast</groupId>
       <artifactId>datatypes-java</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>dev.feast</groupId>
+      <artifactId>feast-storage-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>dev.feast</groupId>
+      <artifactId>feast-storage-connector-redis</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>dev.feast</groupId>
+      <artifactId>feast-storage-connector-redis-cluster</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>dev.feast</groupId>
+      <artifactId>feast-storage-connector-bigquery</artifactId>
       <version>${project.version}</version>
     </dependency>
 

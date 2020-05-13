@@ -2,12 +2,15 @@ import pytest
 import math
 import random
 import time
+import grpc
 from feast.entity import Entity
 from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequest,
     GetOnlineFeaturesResponse,
 )
 from feast.core.IngestionJob_pb2 import IngestionJobStatus
+from feast.core.CoreService_pb2_grpc import CoreServiceStub
+from feast.core import CoreService_pb2
 from feast.types.Value_pb2 import Value as Value
 from feast.client import Client
 from feast.feature_set import FeatureSet, FeatureSetRef
@@ -25,6 +28,7 @@ import uuid
 
 FLOAT_TOLERANCE = 0.00001
 PROJECT_NAME = 'basic_' + uuid.uuid4().hex.upper()[0:6]
+
 
 @pytest.fixture(scope='module')
 def core_url(pytestconfig):
@@ -146,11 +150,34 @@ def test_basic_retrieve_online_success(client, basic_dataframe):
             basic_dataframe.iloc[0]["daily_transactions"])
 
         if math.isclose(
-            sent_daily_transactions,
-            returned_daily_transactions,
-            abs_tol=FLOAT_TOLERANCE,
+                sent_daily_transactions,
+                returned_daily_transactions,
+                abs_tol=FLOAT_TOLERANCE,
         ):
             break
+
+@pytest.mark.timeout(300)
+@pytest.mark.run(order=19)
+def test_basic_ingest_jobs(client, basic_dataframe):
+    # list ingestion jobs given featureset
+    cust_trans_fs = client.get_feature_set(name="customer_transactions")
+    ingest_jobs = client.list_ingest_jobs(
+        feature_set_ref=FeatureSetRef.from_feature_set(cust_trans_fs))
+    # filter ingestion jobs to only those that are running
+    ingest_jobs = [job for job in ingest_jobs if job.status == IngestionJobStatus.RUNNING]
+    assert len(ingest_jobs) >= 1
+
+    for ingest_job in ingest_jobs:
+        # restart ingestion ingest_job
+        client.restart_ingest_job(ingest_job)
+        ingest_job.wait(IngestionJobStatus.RUNNING)
+        assert ingest_job.status == IngestionJobStatus.RUNNING
+
+        # stop ingestion ingest_job
+        client.stop_ingest_job(ingest_job)
+        ingest_job.wait(IngestionJobStatus.ABORTED)
+        assert ingest_job.status == IngestionJobStatus.ABORTED
+
 
 @pytest.mark.timeout(300)
 @pytest.mark.run(order=19)
@@ -319,17 +346,16 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
         if response is None:
             continue
 
-
         returned_float_list = (
             response.field_values[0]
-                .fields[PROJECT_NAME+"/float_list_feature"]
+                .fields[PROJECT_NAME + "/float_list_feature"]
                 .float_list_val.val
         )
 
         sent_float_list = all_types_dataframe.iloc[0]["float_list_feature"]
 
         if math.isclose(
-            returned_float_list[0], sent_float_list[0], abs_tol=FLOAT_TOLERANCE
+                returned_float_list[0], sent_float_list[0], abs_tol=FLOAT_TOLERANCE
         ):
             break
 
@@ -354,6 +380,29 @@ def test_all_types_ingest_jobs(client, all_types_dataframe):
         client.stop_ingest_job(ingest_job)
         ingest_job.wait(IngestionJobStatus.ABORTED)
         assert ingest_job.status == IngestionJobStatus.ABORTED
+
+@pytest.mark.timeout(300)
+@pytest.mark.run(order=29)
+def test_all_types_ingest_jobs(client, all_types_dataframe):
+    # list ingestion jobs given featureset
+    all_types_fs = client.get_feature_set(name="all_types")
+    ingest_jobs = client.list_ingest_jobs(
+        feature_set_ref=FeatureSetRef.from_feature_set(all_types_fs))
+    # filter ingestion jobs to only those that are running
+    ingest_jobs = [job for job in ingest_jobs if job.status == IngestionJobStatus.RUNNING]
+    assert len(ingest_jobs) >= 1
+
+    for ingest_job in ingest_jobs:
+        # restart ingestion ingest_job
+        client.restart_ingest_job(ingest_job)
+        ingest_job.wait(IngestionJobStatus.RUNNING)
+        assert ingest_job.status == IngestionJobStatus.RUNNING
+
+        # stop ingestion ingest_job
+        client.stop_ingest_job(ingest_job)
+        ingest_job.wait(IngestionJobStatus.ABORTED)
+        assert ingest_job.status == IngestionJobStatus.ABORTED
+
 
 @pytest.fixture(scope='module')
 def large_volume_dataframe():
@@ -445,9 +494,9 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
             large_volume_dataframe.iloc[0]["daily_transactions_large"])
 
         if math.isclose(
-            sent_daily_transactions,
-            returned_daily_transactions,
-            abs_tol=FLOAT_TOLERANCE,
+                sent_daily_transactions,
+                returned_daily_transactions,
+                abs_tol=FLOAT_TOLERANCE,
         ):
             break
 
@@ -462,14 +511,14 @@ def all_types_parquet_file():
             "customer_id": [np.int32(random.randint(0, 10000)) for _ in
                             range(COUNT)],
             "int32_feature_parquet": [np.int32(random.randint(0, 10000)) for _ in
-                              range(COUNT)],
+                                      range(COUNT)],
             "int64_feature_parquet": [np.int64(random.randint(0, 10000)) for _ in
-                              range(COUNT)],
+                                      range(COUNT)],
             "float_feature_parquet": [np.float(random.random()) for _ in range(COUNT)],
             "double_feature_parquet": [np.float64(random.random()) for _ in
-                               range(COUNT)],
+                                       range(COUNT)],
             "string_feature_parquet": ["one" + str(random.random()) for _ in
-                               range(COUNT)],
+                                       range(COUNT)],
             "bytes_feature_parquet": [b"one" for _ in range(COUNT)],
             "int32_list_feature_parquet": [
                 np.array([1, 2, 3, random.randint(0, 10000)], dtype=np.int32)
@@ -539,10 +588,85 @@ def test_all_types_parquet_register_feature_set_success(client):
 @pytest.mark.timeout(600)
 @pytest.mark.run(order=41)
 def test_all_types_infer_register_ingest_file_success(client,
-    all_types_parquet_file):
+                                                      all_types_parquet_file):
     # Get feature set
     all_types_fs = client.get_feature_set(name="all_types_parquet")
 
     # Ingest user embedding data
-    client.ingest(feature_set=all_types_fs, source=all_types_parquet_file,
-                  force_update=True)
+    client.ingest(feature_set=all_types_fs, source=all_types_parquet_file)
+
+
+# TODO: rewrite these using python SDK once the labels are implemented there
+class TestsBasedOnGrpc:
+    LAST_VERSION = 0
+    GRPC_CONNECTION_TIMEOUT = 3
+    LABEL_KEY = "my"
+    LABEL_VALUE = "label"
+
+    @pytest.fixture(scope="module")
+    def core_service_stub(self, core_url):
+        if core_url.endswith(":443"):
+            core_channel = grpc.secure_channel(
+                core_url, grpc.ssl_channel_credentials()
+            )
+        else:
+            core_channel = grpc.insecure_channel(core_url)
+
+        try:
+            grpc.channel_ready_future(core_channel).result(timeout=self.GRPC_CONNECTION_TIMEOUT)
+        except grpc.FutureTimeoutError:
+            raise ConnectionError(
+                f"Connection timed out while attempting to connect to Feast "
+                f"Core gRPC server {core_url} "
+            )
+        core_service_stub = CoreServiceStub(core_channel)
+        return core_service_stub
+
+    def apply_feature_set(self, core_service_stub, feature_set_proto):
+        try:
+            apply_fs_response = core_service_stub.ApplyFeatureSet(
+                CoreService_pb2.ApplyFeatureSetRequest(feature_set=feature_set_proto),
+                timeout=self.GRPC_CONNECTION_TIMEOUT,
+            )  # type: ApplyFeatureSetResponse
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+        return apply_fs_response.feature_set
+
+    def get_feature_set(self, core_service_stub, name, project):
+        try:
+            get_feature_set_response = core_service_stub.GetFeatureSet(
+                CoreService_pb2.GetFeatureSetRequest(
+                    project=project, name=name.strip(), version=self.LAST_VERSION
+                )
+            )  # type: GetFeatureSetResponse
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+        return get_feature_set_response.feature_set
+
+    @pytest.mark.timeout(45)
+    @pytest.mark.run(order=51)
+    def test_register_feature_set_with_labels(self, core_service_stub):
+        feature_set_name = "test_feature_set_labels"
+        feature_set_proto = FeatureSet(feature_set_name, PROJECT_NAME).to_proto()
+        feature_set_proto.spec.labels[self.LABEL_KEY] = self.LABEL_VALUE
+        self.apply_feature_set(core_service_stub, feature_set_proto)
+
+        retrieved_feature_set = self.get_feature_set(core_service_stub, feature_set_name, PROJECT_NAME)
+
+        assert self.LABEL_KEY in retrieved_feature_set.spec.labels
+        assert retrieved_feature_set.spec.labels[self.LABEL_KEY] == self.LABEL_VALUE
+
+    @pytest.mark.timeout(45)
+    @pytest.mark.run(order=52)
+    def test_register_feature_with_labels(self, core_service_stub):
+        feature_set_name = "test_feature_labels"
+        feature_set_proto = FeatureSet(feature_set_name, PROJECT_NAME, features=[Feature("rating", ValueType.INT64)]) \
+            .to_proto()
+        feature_set_proto.spec.features[0].labels[self.LABEL_KEY] = self.LABEL_VALUE
+        self.apply_feature_set(core_service_stub, feature_set_proto)
+
+        retrieved_feature_set = self.get_feature_set(core_service_stub, feature_set_name, PROJECT_NAME)
+        retrieved_feature = retrieved_feature_set.spec.features[0]
+
+        assert self.LABEL_KEY in retrieved_feature.labels
+        assert retrieved_feature.labels[self.LABEL_KEY] == self.LABEL_VALUE

@@ -29,6 +29,8 @@
 
     <modules>
         <module>datatypes/java</module>
+        <module>storage/api</module>
+        <module>storage/connectors</module>
         <module>ingestion</module>
         <module>core</module>
         <module>serving</module>
@@ -36,7 +38,7 @@
     </modules>
 
     <properties>
-        <revision>0.4.7-SNAPSHOT</revision>
+        <revision>0.5-SNAPSHOT</revision>
         <github.url>https://github.com/gojek/feast</github.url>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -308,6 +310,18 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+
+            <dependency>
+                <groupId>javax.xml.bind</groupId>
+                <artifactId>jaxb-api</artifactId>
+                <version>2.3.1</version>
+            </dependency>
+            <dependency>
+                <groupId>javax.annotation</groupId>
+                <artifactId>javax.annotation-api</artifactId>
+                <version>1.3.2</version>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 
@@ -337,7 +351,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.1.1</version>
                 <executions>
                     <execution>
                         <id>attach-javadocs</id>
@@ -396,22 +409,21 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
-                    <compilerArgs>
-                        <arg>-Xlint:all</arg>
-                          <!-- -Xdoclint:all breaks on a false positive in JDK < 9 -->
-                          <!-- https://bugs.java.com/bugdatabase/view_bug.do?bug_id=JDK-8186647 -->
-                        <arg>-Xdoclint:-syntax</arg>
-                    </compilerArgs>
+                    <release>11</release>
                 </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
                 <version>3.0.0-M2</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>extra-enforcer-rules</artifactId>
+                        <version>1.2</version>
+                    </dependency>
+                </dependencies>
                 <executions>
                     <execution>
                         <id>valid-build-environment</id>
@@ -421,10 +433,10 @@
                         <configuration>
                             <rules>
                                 <requireMavenVersion>
-                                    <version>[3.5,4.0)</version>
+                                    <version>[3.6,4.0)</version>
                                 </requireMavenVersion>
                                 <requireJavaVersion>
-                                    <version>[1.8,1.9)</version>
+                                    <version>[11.0,)</version>
                                 </requireJavaVersion>
                                 <reactorModuleConvergence />
                             </rules>
@@ -474,6 +486,14 @@
                     <!-- Parent POM isn't a Spring Boot app, don't try to discover main classes. -->
                     <skip>true</skip>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>build-info</id>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <!-- nexus-staging-maven-plugin configures Maven to deploy to OSSRH Nexus Repository Manager -->
             <plugin>
@@ -558,6 +578,17 @@
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.8.1</version>
+                    <configuration>
+                        <compilerArgs>
+                            <arg>-Xlint:all</arg>
+                            <arg>-Xdoclint:all</arg>
+                        </compilerArgs>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
                     <version>3.1.1</version>
                     <dependencies>
@@ -573,7 +604,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>3.1.0</version>
+                    <version>3.1.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>

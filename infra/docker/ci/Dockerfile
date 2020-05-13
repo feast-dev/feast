@@ -1,4 +1,4 @@
-FROM maven:3.6-jdk-8
+FROM maven:3.6-jdk-11
 
 # Install Google Cloud SDK
 RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" \

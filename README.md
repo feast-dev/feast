@@ -1,5 +1,10 @@
 # Feast - Feature Store for Machine Learning
 
+[![Unit Tests](https://github.com/gojek/feast/workflows/unit%20tests/badge.svg?branch=master)](https://github.com/gojek/feast/actions?query=workflow%3A%22unit+tests%22+branch%3Amaster)
+[![Code Standards](https://github.com/gojek/feast/workflows/code%20standards/badge.svg?branch=master)](https://github.com/gojek/feast/actions?query=workflow%3A%22code+standards%22+branch%3Amaster)
+[![Docs latest](https://img.shields.io/badge/Docs-latest-blue.svg)](https://docs.feast.dev/)
+[![GitHub Release](https://img.shields.io/github/release/gojek/feast.svg?style=flat)](https://github.com/gojek/feast/releases)
+
 ## Overview
 
 Feast (Feature Store) is a tool for managing and serving machine learning features. Feast is the bridge between models and data.
@@ -34,10 +39,10 @@ The following commands will start Feast in online-only mode.
 git clone https://github.com/gojek/feast.git
 cd feast/infra/docker-compose
 cp .env.sample .env
-docker-compose up -d
+docker-compose -f docker-compose.yml -f docker-compose.online.yml up -d
 ```
 
-A [Jupyter Notebook](http://localhost:8888/tree/feast/examples) is now available to start using Feast.
+This will start a local Feast deployment with online serving. Additionally, a [Jupyter Notebook](http://localhost:8888/tree/feast/examples) with Feast examples.
 
 Please see the links below to set up Feast for batch/historical serving with BigQuery.
 
@@ -45,13 +50,14 @@ Please see the links below to set up Feast for batch/historical serving with Big
 
 Please refer to the official documentation at <https://docs.feast.dev>
 
- * [Why Feast?](https://docs.feast.dev/why-feast)
- * [Concepts](https://docs.feast.dev/concepts)
- * [Installation](https://docs.feast.dev/installing-feast/overview)
+ * [Why Feast?](https://docs.feast.dev/introduction/why-feast)
+ * [Concepts](https://docs.feast.dev/concepts/concepts)
+ * [Installation](https://docs.feast.dev/installation/overview)
  * [Examples](https://github.com/gojek/feast/blob/master/examples/)
+ * [Roadmap](https://docs.feast.dev/roadmap)
  * [Change Log](https://github.com/gojek/feast/blob/master/CHANGELOG.md)
- * [Slack (#Feast)](https://join.slack.com/t/kubeflow/shared_invite/enQtNDg5MTM4NTQyNjczLTdkNTVhMjg1ZTExOWI0N2QyYTQ2MTIzNTJjMWRiOTFjOGRlZWEzODc1NzMwNTMwM2EzNjY1MTFhODczNjk4MTk)
+ * [Slack (#Feast)](https://join.slack.com/t/kubeflow/shared_invite/zt-cpr020z4-PfcAue_2nw67~iIDy7maAQ)
 
 ## Notice
 
-Feast is a community project and is still under active development. Your feedback and contributions are important to us. Please have a look at our [contributing guide](CONTRIBUTING.md) for details.
+Feast is a community project and is still under active development. Your feedback and contributions are important to us. Please have a look at our [contributing guide](docs/contributing/contributing.md) for details.

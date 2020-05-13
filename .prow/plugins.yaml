@@ -12,6 +12,7 @@ plugins:
   - wip         
   - trigger
   - config-updater
+  - require-matching-label
 
 config_updater:
   maps:
@@ -23,3 +24,10 @@ external_plugins:
   - name: needs-rebase
     events:
     - pull_request
+
+require_matching_label:
+- missing_label: needs-kind
+  org: gojek
+  repo: feast
+  prs: true
+  regexp: ^kind/

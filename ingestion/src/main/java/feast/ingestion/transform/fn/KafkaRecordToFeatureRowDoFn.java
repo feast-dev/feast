@@ -18,8 +18,7 @@ package feast.ingestion.transform.fn;
 
 import com.google.auto.value.AutoValue;
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.ingestion.transform.ReadFromSource.Builder;
-import feast.ingestion.values.FailedElement;
+import feast.storage.api.writer.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.Base64;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;

@@ -33,6 +33,7 @@ import feast.core.CoreServiceProto.ListStoresResponse.Builder;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto;
+import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.SourceProto;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.Subscription;
@@ -86,7 +87,8 @@ public class SpecService {
    * @param request: GetFeatureSetRequest Request containing filter parameters.
    * @return Returns a GetFeatureSetResponse containing a feature set..
    */
-  public GetFeatureSetResponse getFeatureSet(GetFeatureSetRequest request) {
+  public GetFeatureSetResponse getFeatureSet(GetFeatureSetRequest request)
+      throws InvalidProtocolBufferException {
 
     // Validate input arguments
     checkValidCharacters(request.getName(), "featureSetName");
@@ -150,7 +152,8 @@ public class SpecService {
    * @param filter filter containing the desired featureSet name and version filter
    * @return ListFeatureSetsResponse with list of featureSets found matching the filter
    */
-  public ListFeatureSetsResponse listFeatureSets(ListFeatureSetsRequest.Filter filter) {
+  public ListFeatureSetsResponse listFeatureSets(ListFeatureSetsRequest.Filter filter)
+      throws InvalidProtocolBufferException {
     String name = filter.getFeatureSetName();
     String project = filter.getProject();
     String version = filter.getFeatureSetVersion();
@@ -280,7 +283,8 @@ public class SpecService {
    *
    * @param newFeatureSet Feature set that will be created or updated.
    */
-  public ApplyFeatureSetResponse applyFeatureSet(FeatureSetProto.FeatureSet newFeatureSet) {
+  public ApplyFeatureSetResponse applyFeatureSet(FeatureSetProto.FeatureSet newFeatureSet)
+      throws InvalidProtocolBufferException {
 
     // Validate incoming feature set
     FeatureSetValidator.validateSpec(newFeatureSet);
@@ -332,6 +336,7 @@ public class SpecService {
 
     // Build a new FeatureSet object which includes the new properties
     FeatureSet featureSet = FeatureSet.fromProto(newFeatureSet);
+    featureSet.setStatus(FeatureSetStatus.STATUS_PENDING.toString());
     if (newFeatureSet.getSpec().getSource() == SourceProto.Source.getDefaultInstance()) {
       featureSet.setSource(defaultSource);
     }

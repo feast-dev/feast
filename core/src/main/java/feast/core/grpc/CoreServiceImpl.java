@@ -17,6 +17,7 @@
 package feast.core.grpc;
 
 import com.google.api.gax.rpc.InvalidArgumentException;
+import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.CoreServiceGrpc.CoreServiceImplBase;
 import feast.core.CoreServiceProto.ApplyFeatureSetRequest;
 import feast.core.CoreServiceProto.ApplyFeatureSetResponse;
@@ -91,7 +92,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       GetFeatureSetResponse response = specService.getFeatureSet(request);
       responseObserver.onNext(response);
       responseObserver.onCompleted();
-    } catch (RetrievalException | StatusRuntimeException e) {
+    } catch (RetrievalException | StatusRuntimeException | InvalidProtocolBufferException e) {
       log.error("Exception has occurred in GetFeatureSet method: ", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
@@ -105,7 +106,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       ListFeatureSetsResponse response = specService.listFeatureSets(request.getFilter());
       responseObserver.onNext(response);
       responseObserver.onCompleted();
-    } catch (RetrievalException | IllegalArgumentException e) {
+    } catch (RetrievalException | IllegalArgumentException | InvalidProtocolBufferException e) {
       log.error("Exception has occurred in ListFeatureSet method: ", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());

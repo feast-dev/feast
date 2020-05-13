@@ -18,15 +18,13 @@ import sys
 
 import click
 import pkg_resources
-import toml
 import yaml
 
-from feast import config as feast_config
 from feast.client import Client
 from feast.config import Config
+from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.feature_set import FeatureSet, FeatureSetRef
 from feast.loaders.yaml import yaml_loader
-from feast.core.IngestionJob_pb2 import IngestionJobStatus
 
 _logger = logging.getLogger(__name__)
 
@@ -66,14 +64,7 @@ def version(client_only: bool, **kwargs):
         }
 
         if not client_only:
-            feast_client = Client(
-                core_url=feast_config.get_config_property_or_fail(
-                    "core_url", force_config=kwargs
-                ),
-                serving_url=feast_config.get_config_property_or_fail(
-                    "serving_url", force_config=kwargs
-                ),
-            )
+            feast_client = Client(**kwargs)
             feast_versions_dict.update(feast_client.version())
 
         print(json.dumps(feast_versions_dict))
@@ -96,13 +87,8 @@ def config_list():
     """
     List Feast properties for the currently active configuration
     """
-
     try:
-        feast_config_string = toml.dumps(feast_config._get_or_create_config())
-        if not feast_config_string.strip():
-            print("Configuration has not been set")
-        else:
-            print(feast_config_string.replace('""', "").strip())
+        print(Config())
     except Exception as e:
         _logger.error("Error occurred when reading Feast configuration file")
         _logger.exception(e)
@@ -117,7 +103,9 @@ def config_set(prop, value):
     Set a Feast properties for the currently active configuration
     """
     try:
-        feast_config.set_property(prop.strip(), value.strip())
+        conf = Config()
+        conf.set(option=prop.strip(), value=value.strip())
+        conf.save()
     except Exception as e:
         _logger.error("Error in reading config file")
         _logger.exception(e)
@@ -137,9 +125,7 @@ def feature_set_list():
     """
     List all feature sets
     """
-    feast_client = Client(
-        core_url=feast_config.get_config_property_or_fail("core_url")
-    )  # type: Client
+    feast_client = Client()  # type: Client
 
     table = []
     for fs in feast_client.list_feature_sets():
@@ -163,11 +149,7 @@ def feature_set_create(filename):
     """
 
     feature_sets = [FeatureSet.from_dict(fs_dict) for fs_dict in yaml_loader(filename)]
-
-    feast_client = Client(
-        core_url=feast_config.get_config_property_or_fail("core_url")
-    )  # type: Client
-
+    feast_client = Client()  # type: Client
     feast_client.apply(feature_sets)
 
 
@@ -178,10 +160,7 @@ def feature_set_describe(name: str, version: int):
     """
     Describe a feature set
     """
-    feast_client = Client(
-        core_url=feast_config.get_config_property_or_fail("core_url")
-    )  # type: Client
-
+    feast_client = Client()  # type: Client
     fs = feast_client.get_feature_set(name=name, version=version)
     if not fs:
         print(
@@ -206,9 +185,7 @@ def project_create(name: str):
     """
     Create a project
     """
-    feast_client = Client(
-        core_url=feast_config.get_config_property_or_fail("core_url")
-    )  # type: Client
+    feast_client = Client()  # type: Client
     feast_client.create_project(name)
 
 
@@ -218,9 +195,7 @@ def project_archive(name: str):
     """
     Archive a project
     """
-    feast_client = Client(
-        core_url=feast_config.get_config_property_or_fail("core_url")
-    )  # type: Client
+    feast_client = Client()  # type: Client
     feast_client.archive_project(name)
 
 
@@ -229,9 +204,7 @@ def project_list():
     """
     List all projects
     """
-    feast_client = Client(
-        core_url=feast_config.get_config_property_or_fail("core_url")
-    )  # type: Client
+    feast_client = Client()  # type: Client
 
     table = []
     for project in feast_client.list_projects():
@@ -377,10 +350,7 @@ def ingest(name, version, filename, file_type):
     Ingest feature data into a feature set
     """
 
-    feast_client = Client(
-        core_url=feast_config.get_config_property_or_fail("core_url")
-    )  # type: Client
-
+    feast_client = Client()  # type: Client
     feature_set = feast_client.get_feature_set(name=name, version=version)
     feature_set.ingest_file(file_path=filename)
 

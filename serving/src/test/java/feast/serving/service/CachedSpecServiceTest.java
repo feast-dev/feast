@@ -19,14 +19,14 @@ package feast.serving.service;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.common.collect.Lists;
 import feast.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
-import feast.core.CoreServiceProto.UpdateStoreRequest;
-import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
@@ -37,16 +37,11 @@ import feast.core.StoreProto.Store.Subscription;
 import feast.serving.ServingAPIProto.FeatureReference;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.specs.CoreSpecService;
-import feast.serving.specs.FeatureSetRequest;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import feast.storage.api.retriever.FeatureSetRequest;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -55,7 +50,6 @@ import org.mockito.Mock;
 
 public class CachedSpecServiceTest {
 
-  private File configFile;
   private Store store;
 
   @Rule public final ExpectedException expectedException = ExpectedException.none();
@@ -66,26 +60,8 @@ public class CachedSpecServiceTest {
   private CachedSpecService cachedSpecService;
 
   @Before
-  public void setUp() throws IOException {
+  public void setUp() {
     initMocks(this);
-
-    configFile = File.createTempFile("serving", ".yml");
-    String yamlString =
-        "name: SERVING\n"
-            + "type: REDIS\n"
-            + "redis_config:\n"
-            + "  host: localhost\n"
-            + "  port: 6379\n"
-            + "subscriptions:\n"
-            + "- project: project\n"
-            + "  name: fs1\n"
-            + "  version: \"*\"\n"
-            + "- project: project\n"
-            + "  name: fs2\n"
-            + "  version: \"*\"";
-    BufferedWriter writer = new BufferedWriter(new FileWriter(configFile));
-    writer.write(yamlString);
-    writer.close();
 
     store =
         Store.newBuilder()
@@ -106,8 +82,7 @@ public class CachedSpecServiceTest {
                     .build())
             .build();
 
-    when(coreService.updateStore(UpdateStoreRequest.newBuilder().setStore(store).build()))
-        .thenReturn(UpdateStoreResponse.newBuilder().setStore(store).build());
+    when(coreService.registerStore(store)).thenReturn(store);
 
     featureSetSpecs = new LinkedHashMap<>();
     featureSetSpecs.put(
@@ -164,12 +139,12 @@ public class CachedSpecServiceTest {
                 .build()))
         .thenReturn(ListFeatureSetsResponse.newBuilder().addAllFeatureSets(fs2FeatureSets).build());
 
-    cachedSpecService = new CachedSpecService(coreService, configFile.toPath());
+    cachedSpecService = new CachedSpecService(coreService, store);
   }
 
-  @After
-  public void tearDown() {
-    configFile.delete();
+  @Test
+  public void shouldRegisterStoreWithCore() {
+    verify(coreService, times(1)).registerStore(cachedSpecService.getStore());
   }
 
   @Test

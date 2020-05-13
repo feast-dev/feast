@@ -39,4 +39,7 @@ message FeatureRow {
     // <project>/<feature-set-name>:<version>. This value will be used by the feast ingestion job to filter
     // rows, and write the values to the correct tables.
     string feature_set = 6;
+
+    // Identifier tying this feature row to a specific ingestion job.
+    string ingestion_id = 7;
 }

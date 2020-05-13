@@ -16,7 +16,6 @@
  */
 package feast.serving.controller;
 
-import feast.serving.FeastProperties;
 import feast.serving.ServingAPIProto.GetBatchFeaturesRequest;
 import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
@@ -26,8 +25,12 @@ import feast.serving.ServingAPIProto.GetJobResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingServiceGrpc.ServingServiceImplBase;
+import feast.serving.config.FeastProperties;
+import feast.serving.exception.SpecRetrievalException;
+import feast.serving.interceptors.GrpcMonitoringInterceptor;
 import feast.serving.service.ServingService;
 import feast.serving.util.RequestHelper;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import io.opentracing.Scope;
 import io.opentracing.Span;
@@ -36,7 +39,7 @@ import org.lognet.springboot.grpc.GRpcService;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 
-@GRpcService
+@GRpcService(interceptors = {GrpcMonitoringInterceptor.class})
 public class ServingServiceGRpcController extends ServingServiceImplBase {
 
   private static final Logger log =
@@ -73,6 +76,10 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       GetOnlineFeaturesResponse onlineFeatures = servingService.getOnlineFeatures(request);
       responseObserver.onNext(onlineFeatures);
       responseObserver.onCompleted();
+    } catch (SpecRetrievalException e) {
+      log.error("Failed to retrieve specs in SpecService", e);
+      responseObserver.onError(
+          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asException());
     } catch (Exception e) {
       log.warn("Failed to get Online Features", e);
       responseObserver.onError(e);
@@ -88,6 +95,10 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       GetBatchFeaturesResponse batchFeatures = servingService.getBatchFeatures(request);
       responseObserver.onNext(batchFeatures);
       responseObserver.onCompleted();
+    } catch (SpecRetrievalException e) {
+      log.error("Failed to retrieve specs in SpecService", e);
+      responseObserver.onError(
+          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asException());
     } catch (Exception e) {
       log.warn("Failed to get Batch Features", e);
       responseObserver.onError(e);

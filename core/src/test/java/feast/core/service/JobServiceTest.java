@@ -34,22 +34,14 @@ import feast.core.CoreServiceProto.RestartIngestionJobRequest;
 import feast.core.CoreServiceProto.RestartIngestionJobResponse;
 import feast.core.CoreServiceProto.StopIngestionJobRequest;
 import feast.core.CoreServiceProto.StopIngestionJobResponse;
-import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.FeatureSetReferenceProto.FeatureSetReference;
 import feast.core.IngestionJobProto.IngestionJob;
-import feast.core.SourceProto.KafkaSourceConfig;
-import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
-import feast.core.model.FeatureSet;
-import feast.core.model.Field;
-import feast.core.model.Job;
-import feast.core.model.JobStatus;
-import feast.core.model.Source;
-import feast.core.model.Store;
+import feast.core.model.*;
 import feast.types.ValueProto.ValueType.Enum;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -84,14 +76,7 @@ public class JobServiceTest {
 
     // create mock objects for testing
     // fake data source
-    this.dataSource =
-        new Source(
-            SourceType.KAFKA,
-            KafkaSourceConfig.newBuilder()
-                .setBootstrapServers("kafka:9092")
-                .setTopic("my-topic")
-                .build(),
-            true);
+    this.dataSource = TestObjectFactory.defaultSource;
     // fake data store
     this.dataStore =
         new Store(
@@ -124,14 +109,19 @@ public class JobServiceTest {
 
   // setup fake spec service
   public void setupSpecService() {
-    ListFeatureSetsResponse response =
-        ListFeatureSetsResponse.newBuilder().addFeatureSets(this.featureSet.toProto()).build();
+    try {
+      ListFeatureSetsResponse response =
+          ListFeatureSetsResponse.newBuilder().addFeatureSets(this.featureSet.toProto()).build();
 
-    when(this.specService.listFeatureSets(this.listFilters.get(0))).thenReturn(response);
+      when(this.specService.listFeatureSets(this.listFilters.get(0))).thenReturn(response);
 
-    when(this.specService.listFeatureSets(this.listFilters.get(1))).thenReturn(response);
+      when(this.specService.listFeatureSets(this.listFilters.get(1))).thenReturn(response);
 
-    when(this.specService.listFeatureSets(this.listFilters.get(2))).thenReturn(response);
+      when(this.specService.listFeatureSets(this.listFilters.get(2))).thenReturn(response);
+    } catch (InvalidProtocolBufferException e) {
+      e.printStackTrace();
+      fail("Unexpected exception");
+    }
   }
 
   // setup fake job repository
@@ -153,19 +143,12 @@ public class JobServiceTest {
 
   // dummy model constructorss
   private FeatureSet newDummyFeatureSet(String name, int version, String project) {
-    Field feature = new Field(name + "_feature", Enum.INT64);
-    Field entity = new Field(name + "_entity", Enum.STRING);
+    Feature feature = TestObjectFactory.CreateFeature(name + "_feature", Enum.INT64);
+    Entity entity = TestObjectFactory.CreateEntity(name + "_entity", Enum.STRING);
 
     FeatureSet fs =
-        new FeatureSet(
-            name,
-            project,
-            version,
-            100L,
-            Arrays.asList(entity),
-            Arrays.asList(feature),
-            this.dataSource,
-            FeatureSetStatus.STATUS_READY);
+        TestObjectFactory.CreateFeatureSet(
+            name, project, version, Arrays.asList(entity), Arrays.asList(feature));
     fs.setCreated(Date.from(Instant.ofEpochSecond(10L)));
     return fs;
   }
@@ -174,7 +157,7 @@ public class JobServiceTest {
     return new Job(
         id,
         extId,
-        Runner.DATAFLOW.name(),
+        Runner.DATAFLOW,
         this.dataSource,
         this.dataStore,
         Arrays.asList(this.featureSet),
@@ -336,10 +319,9 @@ public class JobServiceTest {
   }
 
   @Test
-  public void testStopAlreadyStop() {
+  public void testStopAlreadyStopped() {
     // check that stop jobs does not trying to stop jobs that are not already stopped
-    List<JobStatus> doNothingStatuses = new ArrayList<>();
-    doNothingStatuses.addAll(JobStatus.getTerminalState());
+    List<JobStatus> doNothingStatuses = new ArrayList<>(JobStatus.getTerminalStates());
 
     JobStatus prevStatus = this.job.getStatus();
     for (JobStatus status : doNothingStatuses) {

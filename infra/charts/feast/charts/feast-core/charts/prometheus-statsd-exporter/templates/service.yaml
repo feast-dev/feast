@@ -16,6 +16,38 @@ metadata:
 {{- end }}
   name: {{ template "prometheus-statsd-exporter.fullname" . }}
 spec:
+  ports:
+    - name: metrics
+      port: {{ .Values.service.metricsPort }}
+      protocol: TCP
+      targetPort: 9102
+    - name: statsd-tcp
+      port: {{ .Values.service.statsdPort }}
+      protocol: TCP
+      targetPort: 9125
+  selector:
+    app: {{ template "prometheus-statsd-exporter.name" . }}
+    release: {{ .Release.Name }}
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+{{- if .Values.service.annotations }}
+  annotations:
+{{ toYaml .Values.service.annotations | indent 4 }}
+{{- end }}
+  labels:
+    app: {{ template "prometheus-statsd-exporter.fullname" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    component: "{{ .Chart.Name }}"
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+{{- if .Values.service.labels }}
+{{ toYaml .Values.service.labels | indent 4 }}
+{{- end }}
+  name: {{ template "prometheus-statsd-exporter.fullname" . }}-udp
+spec:
 {{- if .Values.service.clusterIP }}
   clusterIP: {{ .Values.service.clusterIP }}
 {{- end }}
@@ -33,14 +65,6 @@ spec:
   {{- end }}
 {{- end }}
   ports:
-    - name: metrics
-      port: {{ .Values.service.metricsPort }}
-      protocol: TCP
-      targetPort: 9102
-    - name: statsd-tcp
-      port: {{ .Values.service.statsdPort }}
-      protocol: TCP
-      targetPort: 9125
     - name: statsd-udp
       port: {{ .Values.service.statsdPort }}
       protocol: UDP

@@ -11,8 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
+import warnings
 from collections import OrderedDict
 from typing import Dict, List, Optional
 
@@ -21,6 +20,7 @@ import pyarrow as pa
 from google.protobuf import json_format
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToJson
+from google.protobuf.message import Message
 from pandas.api.types import is_datetime64_ns_dtype
 from pyarrow.lib import TimestampType
 
@@ -39,6 +39,7 @@ from feast.type_map import (
     pa_to_feast_value_type,
     python_type_to_feast_value_type,
 )
+from tensorflow_metadata.proto.v0 import schema_pb2
 
 
 class FeatureSet:
@@ -652,10 +653,99 @@ class FeatureSet:
         """
 
         if not self.name:
-            raise ValueError(f"No name found in feature set.")
+            raise ValueError("No name found in feature set.")
 
         if len(self.entities) == 0:
-            raise ValueError(f"No entities found in feature set {self.name}")
+            raise ValueError("No entities found in feature set {self.name}")
+
+    def import_tfx_schema(self, schema: schema_pb2.Schema):
+        """
+        Updates presence_constraints, shape_type and domain_info for all fields
+        (features and entities) in the FeatureSet from schema in the Tensorflow metadata.
+
+        Args:
+            schema: Schema from Tensorflow metadata
+
+        Returns:
+            None
+
+        """
+        _make_tfx_schema_domain_info_inline(schema)
+        for feature_from_tfx_schema in schema.feature:
+            if feature_from_tfx_schema.name in self._fields.keys():
+                field = self._fields[feature_from_tfx_schema.name]
+                field.update_presence_constraints(feature_from_tfx_schema)
+                field.update_shape_type(feature_from_tfx_schema)
+                field.update_domain_info(feature_from_tfx_schema)
+            else:
+                warnings.warn(
+                    f"The provided schema contains feature name '{feature_from_tfx_schema.name}' "
+                    f"that does not exist in the FeatureSet '{self.name}' in Feast"
+                )
+
+    def export_tfx_schema(self) -> schema_pb2.Schema:
+        """
+        Create a Tensorflow metadata schema from a FeatureSet.
+
+        Returns:
+            Tensorflow metadata schema.
+
+        """
+        schema = schema_pb2.Schema()
+
+        # List of attributes to copy from fields in the FeatureSet to feature in
+        # Tensorflow metadata schema where the attribute name is the same.
+        attributes_to_copy_from_field_to_feature = [
+            "name",
+            "presence",
+            "group_presence",
+            "shape",
+            "value_count",
+            "domain",
+            "int_domain",
+            "float_domain",
+            "string_domain",
+            "bool_domain",
+            "struct_domain",
+            "_natural_language_domain",
+            "image_domain",
+            "mid_domain",
+            "url_domain",
+            "time_domain",
+            "time_of_day_domain",
+        ]
+
+        for _, field in self._fields.items():
+            if isinstance(field, Entity):
+                continue
+            feature = schema_pb2.Feature()
+            for attr in attributes_to_copy_from_field_to_feature:
+                if getattr(field, attr) is None:
+                    # This corresponds to an unset member in the proto Oneof field.
+                    continue
+                if issubclass(type(getattr(feature, attr)), Message):
+                    # Proto message field to copy is an "embedded" field, so MergeFrom()
+                    # method must be used.
+                    getattr(feature, attr).MergeFrom(getattr(field, attr))
+                elif issubclass(type(getattr(feature, attr)), (int, str, bool)):
+                    # Proto message field is a simple Python type, so setattr()
+                    # can be used.
+                    setattr(feature, attr, getattr(field, attr))
+                else:
+                    warnings.warn(
+                        f"Attribute '{attr}' cannot be copied from Field "
+                        f"'{field.name}' in FeatureSet '{self.name}' to a "
+                        f"Feature in the Tensorflow metadata schema, because"
+                        f"the type is neither a Protobuf message or Python "
+                        f"int, str and bool"
+                    )
+            # "type" attr is handled separately because the attribute name is different
+            # ("dtype" in field and "type" in Feature) and "type" in Feature is only
+            # a subset of "dtype".
+            feature.type = field.dtype.to_tfx_schema_feature_type()
+            schema.feature.append(feature)
+
+        return schema
 
     @classmethod
     def from_yaml(cls, yml: str):
@@ -853,6 +943,40 @@ class FeatureSetRef:
     def __hash__(self):
         # hash this reference
         return hash(repr(self))
+
+
+def _make_tfx_schema_domain_info_inline(schema: schema_pb2.Schema) -> None:
+    """
+    Copy top level domain info defined at schema level into inline definition.
+    One use case is when importing domain info from Tensorflow metadata schema
+    into Feast features. Feast features do not have access to schema level information
+    so the domain info needs to be inline.
+
+    Args:
+        schema: Tensorflow metadata schema
+
+    Returns: None
+    """
+    # Reference to domains defined at schema level
+    domain_ref_to_string_domain = {d.name: d for d in schema.string_domain}
+    domain_ref_to_float_domain = {d.name: d for d in schema.float_domain}
+    domain_ref_to_int_domain = {d.name: d for d in schema.int_domain}
+
+    # With the reference, it is safe to remove the domains defined at schema level
+    del schema.string_domain[:]
+    del schema.float_domain[:]
+    del schema.int_domain[:]
+
+    for feature in schema.feature:
+        domain_info_case = feature.WhichOneof("domain_info")
+        if domain_info_case == "domain":
+            domain_ref = feature.domain
+            if domain_ref in domain_ref_to_string_domain:
+                feature.string_domain.MergeFrom(domain_ref_to_string_domain[domain_ref])
+            elif domain_ref in domain_ref_to_float_domain:
+                feature.float_domain.MergeFrom(domain_ref_to_float_domain[domain_ref])
+            elif domain_ref in domain_ref_to_int_domain:
+                feature.int_domain.MergeFrom(domain_ref_to_int_domain[domain_ref])
 
 
 def _infer_pd_column_type(column, series, rows_to_sample):

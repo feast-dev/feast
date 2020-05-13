@@ -69,6 +69,7 @@ message Store {
     // ====================|==================|================================
     // - event_timestamp   | TIMESTAMP        | event time of the FeatureRow
     // - created_timestamp | TIMESTAMP        | processing time of the ingestion of the FeatureRow
+    // - ingestion_id      | STRING           | unique id identifying groups of rows that have been ingested together
     // - job_id            | STRING           | identifier for the job that writes the FeatureRow to the corresponding BigQuery table
     //
     // BigQuery table created will be partitioned by the field "event_timestamp"
@@ -105,6 +106,8 @@ message Store {
 
     // Unsupported in Feast 0.3
     CASSANDRA = 3;
+
+    REDIS_CLUSTER = 4;
   }
 
   message RedisConfig {
@@ -120,11 +123,21 @@ message Store {
   message BigQueryConfig {
     string project_id = 1;
     string dataset_id = 2;
+    string staging_location = 3;
+    int32 initial_retry_delay_seconds = 4;
+    int32 total_timeout_seconds = 5;
   }
 
   message CassandraConfig {
     string host = 1;
     int32 port = 2;
+  }
+
+  message RedisClusterConfig {
+    // List of Redis Uri for all the nodes in Redis Cluster, comma separated. Eg. host1:6379, host2:6379
+    string connection_string = 1;
+    int32 initial_backoff_ms = 2;
+    int32 max_retries = 3;
   }
 
   message Subscription {
@@ -169,5 +182,6 @@ message Store {
     RedisConfig redis_config = 11;
     BigQueryConfig bigquery_config = 12;
     CassandraConfig cassandra_config = 13;
+    RedisClusterConfig redis_cluster_config = 14;
   }
 }

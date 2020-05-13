@@ -20,7 +20,7 @@ This guide requires [Google Cloud Platform](https://cloud.google.com/) for insta
 
 1. [Google Cloud SDK ](https://cloud.google.com/sdk/install)installed, authenticated, and configured to the project you will use.
 2. [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) installed.
-3. [Helm](https://helm.sh/) \(2.16.0 or greater\) installed on your local machine with Tiller installed in your cluster. Helm 3 has not been tested yet.
+3. [Helm](https://helm.sh/3) \(2.16.0 or greater\) installed on your local machine with Tiller installed in your cluster. Helm 3 has not been tested yet.
 
 ## 1. Set up GCP
 
@@ -156,7 +156,7 @@ Install the Feast Helm chart:
 helm install --name feast -f my-feast-values.yaml .
 ```
 
-Ensure that the system comes online. This will take a few minutes.
+Ensure that the system comes online. This will take a few minutes. 
 
 ```bash
 kubectl get pods

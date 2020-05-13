@@ -1,0 +1,72 @@
+spec:
+  name: bikeshare
+  entities:
+  - name: station_id
+    valueType: INT64
+  features:
+  - name: location
+    valueType: STRING
+    stringDomain:
+      name: location
+      value:
+      - (30.24258, -97.71726)
+      - (30.24472, -97.72336)
+      - (30.24891, -97.75019)
+    presence:
+      minFraction: 1.0
+      minCount: 1
+    shape:
+      dim:
+      - size: 1
+  - name: name
+    valueType: STRING
+    stringDomain:
+      name: name
+      value:
+      - 10th & Red River
+      - 11th & Salina
+      - 11th & San Jacinto
+      - 13th & San Antonio
+      - 17th & Guadalupe
+    presence:
+      minFraction: 1.0
+      minCount: 1
+    shape:
+      dim:
+      - size: 1
+  - name: status
+    valueType: STRING
+    stringDomain:
+      name: status
+      value:
+      - "active"
+      - "closed"
+    presence:
+      minFraction: 1.0
+      minCount: 1
+    shape:
+      dim:
+      - size: 1
+  - name: latitude
+    valueType: DOUBLE
+    floatDomain:
+      min: 100.0
+      max: 105.0
+    presence:
+      minFraction: 1.0
+      minCount: 1
+    shape:
+      dim:
+      - size: 1
+  - name: longitude
+    valueType: DOUBLE
+    floatDomain:
+      min: 102.0
+      max: 105.0
+    presence:
+      minFraction: 1.0
+      minCount: 1
+    shape:
+      dim:
+      - size: 1
+  maxAge: 3600s

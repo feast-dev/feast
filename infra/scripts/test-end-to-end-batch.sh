@@ -8,7 +8,10 @@ test -z ${SKIP_BUILD_JARS} && SKIP_BUILD_JARS="false"
 test -z ${GOOGLE_CLOUD_PROJECT} && GOOGLE_CLOUD_PROJECT="kf-feast"
 test -z ${TEMP_BUCKET} && TEMP_BUCKET="feast-templocation-kf-feast"
 test -z ${JOBS_STAGING_LOCATION} && JOBS_STAGING_LOCATION="gs://${TEMP_BUCKET}/staging-location"
-test -z ${JAR_VERSION_SUFFIX} && JAR_VERSION_SUFFIX="-SNAPSHOT"
+
+# Get the current build version using maven (and pom.xml)
+FEAST_BUILD_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+echo Building version: $FEAST_BUILD_VERSION
 
 echo "
 This script will run end-to-end tests for Feast Core and Batch Serving.
@@ -115,13 +118,17 @@ grpc:
   enable-reflection: true
 
 feast:
-  version: 0.3
   jobs:
-    runner: DirectRunner
-    options: {}
-    updates:
-      pollingIntervalMillis: 30000
-      timeoutSeconds: 240
+    polling_interval_milliseconds: 10000
+    job_update_timeout_seconds: 240
+
+    active_runner: direct
+
+    runners:
+      - name: direct
+        type: DirectRunner
+        options: {}
+
     metrics:
       enabled: false
 
@@ -137,24 +144,18 @@ spring:
   jpa:
     properties.hibernate:
       format_sql: true
-      event.merge.entity_copy_observer: allow
+      event:
+        merge:
+          entity_copy_observer: allow
     hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
     hibernate.ddl-auto: update
   datasource:
     url: jdbc:postgresql://localhost:5432/postgres
     username: postgres
     password: password
-
-management:
-  metrics:
-    export:
-      simple:
-        enabled: false
-      statsd:
-        enabled: false
 EOF
 
-nohup java -jar core/target/feast-core-*${JAR_VERSION_SUFFIX}.jar \
+nohup java -jar core/target/feast-core-${FEAST_BUILD_VERSION}.jar \
   --spring.config.location=file:///tmp/core.application.yml \
   &> /var/log/feast-core.log &
 sleep 35
@@ -175,46 +176,49 @@ bq --location=US --project_id=${GOOGLE_CLOUD_PROJECT} mk \
   ${GOOGLE_CLOUD_PROJECT}:${DATASET_NAME}
 
 # Start Feast Online Serving in background
-cat <<EOF > /tmp/serving.store.bigquery.yml
-name: warehouse
-type: BIGQUERY
-bigquery_config:
-  projectId: ${GOOGLE_CLOUD_PROJECT}
-  datasetId: ${DATASET_NAME}
-subscriptions:
-  - name: "*"
-    version: "*"
-    project: "*"
-EOF
-
 cat <<EOF > /tmp/serving.warehouse.application.yml
 feast:
-  version: 0.3
+  # GRPC service address for Feast Core
+  # Feast Serving requires connection to Feast Core to retrieve and reload Feast metadata (e.g. FeatureSpecs, Store information)
   core-host: localhost
   core-grpc-port: 6565
+
+  # Indicates the active store. Only a single store in the last can be active at one time. In the future this key
+  # will be deprecated in order to allow multiple stores to be served from a single serving instance
+  active_store: historical
+
+  # List of store configurations
+  stores:
+    - name: historical
+      type: BIGQUERY
+      config:
+        project_id: ${GOOGLE_CLOUD_PROJECT}
+        dataset_id: ${DATASET_NAME}
+        staging_location: ${JOBS_STAGING_LOCATION}
+        initial_retry_delay_seconds: 1
+        total_timeout_seconds: 21600
+      subscriptions:
+        - name: "*"
+          project: "*"
+          version: "*"
+
+  job_store:
+    redis_host: localhost
+    redis_port: 6379
+
   tracing:
     enabled: false
-  store:
-    config-path: /tmp/serving.store.bigquery.yml
-  jobs:
-    staging-location: ${JOBS_STAGING_LOCATION}
-    store-type: REDIS
-    bigquery-initial-retry-delay-secs: 1
-    bigquery-total-timeout-secs: 900
-    store-options:
-      host: localhost
-      port: 6379
+
 grpc:
   port: 6566
   enable-reflection: true
 
-spring:
-  main:
-    web-environment: false
+server:
+  port: 8081
 
 EOF
 
-nohup java -jar serving/target/feast-serving-*${JAR_VERSION_SUFFIX}.jar \
+nohup java -jar serving/target/feast-serving-${FEAST_BUILD_VERSION}.jar \
   --spring.config.location=file:///tmp/serving.warehouse.application.yml \
   &> /var/log/feast-serving-warehouse.log &
 sleep 15
@@ -250,13 +254,16 @@ ORIGINAL_DIR=$(pwd)
 cd tests/e2e
 
 set +e
-pytest bq-batch-retrieval.py --gcs_path "gs://${TEMP_BUCKET}/" --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+pytest bq-batch-retrieval.py -m direct_runner --gcs_path "gs://${TEMP_BUCKET}/" --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 
 if [[ ${TEST_EXIT_CODE} != 0 ]]; then
   echo "[DEBUG] Printing logs"
   ls -ltrh /var/log/feast*
   cat /var/log/feast-serving-warehouse.log /var/log/feast-core.log
+
+  echo "[DEBUG] Printing Python packages list"
+  pip list
 fi
 
 cd ${ORIGINAL_DIR}

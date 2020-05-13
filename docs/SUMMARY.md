@@ -5,23 +5,13 @@
 ## Introduction
 
 * [Why Feast?](introduction/why-feast.md)
-* [Getting Started](introduction/getting-started/README.md)
-  * [Feast SDK](introduction/getting-started/feast-sdk.md)
+* [Getting Help](introduction/getting-help.md)
 * [Roadmap](introduction/roadmap.md)
 * [Changelog](https://github.com/gojek/feast/blob/master/CHANGELOG.md)
-* [Getting Help](introduction/getting-help.md)
 
-## User guide
+## Concepts
 
-* [Overview](user-guide/overview.md)
-* [Architecture](user-guide/architecture.md)
-* [Feature Sets](user-guide/feature-sets.md)
-* [Entities](user-guide/entities.md)
-* [Features](user-guide/features.md)
-* [Sources](user-guide/sources.md)
-* [Data ingestion](user-guide/data-ingestion.md)
-* [Stores](user-guide/stores.md)
-* [Feature retrieval](user-guide/feature-retrieval.md)
+* [Concepts](concepts/concepts.md)
 
 ## Installation
 
@@ -31,8 +21,8 @@
 
 ## Tutorials
 
-* [Basic Tutorial](https://github.com/gojek/feast/blob/master/examples/basic/basic.ipynb)
-* [Churn Prediction Tutorial](https://github.com/gojek/feast/blob/master/examples/feast-xgboost-churn-prediction-tutorial/Telecom%20Customer%20Churn%20Prediction%20%28with%20Feast%20and%20XGBoost%29.ipynb)
+* [Basic](https://github.com/gojek/feast/blob/master/examples/basic/basic.ipynb)
+* [Churn Prediction \(XGBoost\)](https://github.com/gojek/feast/blob/master/examples/feast-xgboost-churn-prediction-tutorial/Telecom%20Customer%20Churn%20Prediction%20%28with%20Feast%20and%20XGBoost%29.ipynb)
 
 ## Administration
 
@@ -52,5 +42,4 @@
 * [Development Guide](contributing/development-guide.md)
 * [Style Guide](contributing/style-guide.md)
 * [Release Process](contributing/release-process.md)
-* [Adding a New Store](contributing/adding-new-storage-connectors.md)
 
