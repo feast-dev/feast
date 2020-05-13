@@ -18,7 +18,7 @@ These components can be used to create a string based feature reference as follo
 
 `<project>/<feature-set>:<feature>`
 
-Feast will attempt to infer both the `project` and `feature-set` name if it is not provided, but a user must provide a `feature` name.
+Feast will attempt to infer both the `project` and `feature-set` name if it is not provided, but a user must provide a `feature` name. 
 
 ```python
 # Feature references
@@ -54,8 +54,8 @@ Historical feature retrieval can be done through either the Feast SDK or directl
 # Add the target variable to our feature list
 features = self._features + [self._target]
 
-# Retrieve training dataset from Feast. The "entity_df" is a dataframe that contains
-# timestamps and entity keys. In this case it is a dataframe with two columns.
+# Retrieve training dataset from Feas. The "entity_df" is a dataframe that contains
+# timestamps and entity keys. In this case, it is a dataframe with two columns.
 # One timestamp column, and one customer id column
 dataset = client.get_batch_features(
     feature_refs=features,
@@ -71,9 +71,9 @@ In the above example, Feast does a point in time correct query from a single fea
 
 This is called a point in time correct join.
 
-Feast allows users to retrieve features from any feature sets and join them to gether in a single response dataset. The only requirement is that the user provide the correct entities in order to look up the features.
+Feast allows users to retrieve features from any feature sets and join them together in a single response dataset. The only requirement is that the user provides the correct entities in order to look up the features.
 
-### **Point-in-time-correct Join**
+###  **Point-in-time-correct Join** 
 
 Below is another example of how a point-in-time-correct join works. We have two dataframes. The first is the `entity dataframe` that contains timestamps, entities, and labels. The user would like to have driver features joined onto this `entity dataframe` from the `driver dataframe` to produce an `output dataframe` that contains both labels and features. They would then like to train their model on this output
 
@@ -81,7 +81,7 @@ Below is another example of how a point-in-time-correct join works. We have two 
 
 ![Input 2: Driver DataFrame](https://lh3.googleusercontent.com/LRtCOzmcfhLWzpyndbRKZSVPanLLzfULoHx2YxY6N3i1gQd2Eh6MS1igahOe8ydA7zQulIFJEaQ0IXFXOsdkKRobOC6ThSOnT4hACbCl1jeM4O2JDVC_kvw8lwTCezVUD3d6ZUYj31Q)
 
-Typically the `input 1` DataFrame would be provided by the user, and the `input 2` DataFrame would already be ingested into Feast. In order to join these two, the user would call Feast as follows:
+Typically the `input 1` DataFrame would be provided by the user, and the `input 2` DataFrame would already be ingested into Feast. To join these two, the user would call Feast as follows:
 
 ```python
 # Feature references
@@ -89,6 +89,7 @@ features = [
  'conv_rate',
  'acc_rate',
  'avg_daily_trips',
+ 'trip_completed'
  ]
 
 
@@ -96,7 +97,7 @@ dataset = client.get_batch_features(
         feature_refs=features, # this is a list of feature references
         entity_rows=entity_df # This is the entity dataframe above
     )
-
+    
 # This prints out the dataframe below 
 print(dataset.to_dataframe())
 ```
@@ -124,5 +125,5 @@ data = client.get_online_features(
     )
 ```
 
-Online serving with Feast is built to be very low latency. Feast Serving provides a [gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html) that is backed by [Redis](https://redis.io/). We also provide support for [Python](https://api.docs.feast.dev/python/), [Go](https://godoc.org/github.com/gojek/feast/sdk/go), and Java clients.
+Online serving with Feast is built to be very low latency. Feast Serving provides a [gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html) that is backed by [Redis](https://redis.io/). We also provide support for [Python](https://api.docs.feast.dev/python/), [Go](https://godoc.org/github.com/gojek/feast/sdk/go), and Java clients. 
 
