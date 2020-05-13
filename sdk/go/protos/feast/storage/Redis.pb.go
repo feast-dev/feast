@@ -46,7 +46,7 @@ type RedisKey struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// FeatureSet this row belongs to, this is defined as featureSetName:version.
+	// FeatureSet this row belongs to, this is defined as featureSetName.
 	FeatureSet string `protobuf:"bytes,2,opt,name=feature_set,json=featureSet,proto3" json:"feature_set,omitempty"`
 	// List of fields containing entity names and their respective values
 	// contained within this feature row. The entities should be sorted

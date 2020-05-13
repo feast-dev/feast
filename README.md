@@ -39,10 +39,10 @@ The following commands will start Feast in online-only mode.
 git clone https://github.com/gojek/feast.git
 cd feast/infra/docker-compose
 cp .env.sample .env
-docker-compose up -d
+docker-compose -f docker-compose.yml -f docker-compose.online.yml up -d
 ```
 
-A [Jupyter Notebook](http://localhost:8888/tree/feast/examples) is now available to start using Feast.
+This will start a local Feast deployment with online serving. Additionally, a [Jupyter Notebook](http://localhost:8888/tree/feast/examples) with Feast examples.
 
 Please see the links below to set up Feast for batch/historical serving with BigQuery.
 

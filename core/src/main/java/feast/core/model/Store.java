@@ -125,22 +125,18 @@ public class Store {
   }
 
   private static String convertSubscriptionToString(Subscription sub) {
-    if (sub.getVersion().isEmpty() || sub.getName().isEmpty() || sub.getProject().isEmpty()) {
+    if (sub.getName().isEmpty() || sub.getProject().isEmpty()) {
       throw new IllegalArgumentException(
           String.format("Missing arguments in subscription string: %s", sub.toString()));
     }
-    return String.format("%s:%s:%s", sub.getProject(), sub.getName(), sub.getVersion());
+    return String.format("%s:%s", sub.getProject(), sub.getName());
   }
 
   private Subscription convertStringToSubscription(String sub) {
     if (sub.equals("")) {
       return Subscription.newBuilder().build();
     }
-    String[] split = sub.split(":", 3);
-    return Subscription.newBuilder()
-        .setProject(split[0])
-        .setName(split[1])
-        .setVersion(split[2])
-        .build();
+    String[] split = sub.split(":", 2);
+    return Subscription.newBuilder().setProject(split[0]).setName(split[1]).build();
   }
 }

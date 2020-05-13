@@ -68,7 +68,6 @@ class FeatureSet:
         else:
             self._source = source
         self._max_age = max_age
-        self._version = None
         self._status = None
         self._created_timestamp = None
 
@@ -194,20 +193,6 @@ class FeatureSet:
         Sets the source of this feature set
         """
         self._source = source
-
-    @property
-    def version(self):
-        """
-        Returns the version of this feature set
-        """
-        return self._version
-
-    @version.setter
-    def version(self, version):
-        """
-        Sets the version of this feature set
-        """
-        self._version = version
 
     @property
     def max_age(self):
@@ -621,7 +606,6 @@ class FeatureSet:
 
         self.name = feature_set.name
         self.project = feature_set.project
-        self.version = feature_set.version
         self.source = feature_set.source
         self.max_age = feature_set.max_age
         self.features = feature_set.features
@@ -653,10 +637,10 @@ class FeatureSet:
         """
 
         if not self.name:
-            raise ValueError(f"No name found in feature set.")
+            raise ValueError("No name found in feature set.")
 
         if len(self.entities) == 0:
-            raise ValueError(f"No entities found in feature set {self.name}")
+            raise ValueError("No entities found in feature set {self.name}")
 
     def import_tfx_schema(self, schema: schema_pb2.Schema):
         """
@@ -716,6 +700,8 @@ class FeatureSet:
         ]
 
         for _, field in self._fields.items():
+            if isinstance(field, Entity):
+                continue
             feature = schema_pb2.Feature()
             for attr in attributes_to_copy_from_field_to_feature:
                 if getattr(field, attr) is None:
@@ -807,7 +793,6 @@ class FeatureSet:
             if len(feature_set_proto.spec.project) == 0
             else feature_set_proto.spec.project,
         )
-        feature_set._version = feature_set_proto.spec.version
         feature_set._status = feature_set_proto.meta.status
         feature_set._created_timestamp = feature_set_proto.meta.created_timestamp
         return feature_set
@@ -826,7 +811,6 @@ class FeatureSet:
 
         spec = FeatureSetSpecProto(
             name=self.name,
-            version=self.version,
             project=self.project,
             max_age=self.max_age,
             source=self.source.to_proto() if self.source is not None else None,
@@ -850,10 +834,8 @@ class FeatureSetRef:
     Represents a reference to a featureset
     """
 
-    def __init__(self, project: str = None, name: str = None, version: int = None):
-        self.proto = FeatureSetReferenceProto(
-            project=project, name=name, version=version
-        )
+    def __init__(self, project: str = None, name: str = None):
+        self.proto = FeatureSetReferenceProto(project=project, name=name)
 
     @property
     def project(self) -> str:
@@ -869,13 +851,6 @@ class FeatureSetRef:
         """
         return self.proto.name
 
-    @property
-    def version(self) -> int:
-        """
-        Get the version of feature set referenced by this reference
-        """
-        return self.proto.version
-
     @classmethod
     def from_feature_set(cls, feature_set: FeatureSet):
         """
@@ -887,7 +862,7 @@ class FeatureSetRef:
         Returns:
             FeatureSetRef that refers to the given feature set
         """
-        return cls(feature_set.project, feature_set.name, feature_set.version)
+        return cls(feature_set.project, feature_set.name)
 
     @classmethod
     def from_str(cls, ref_str: str):
@@ -901,15 +876,13 @@ class FeatureSetRef:
         Returns:
             FeatureSetRef constructed from the string
         """
+        project = ""
         if "/" in ref_str:
             project, ref_str = ref_str.split("/")
-        if ":" in ref_str:
-            ref_str, version_str = ref_str.split(":")
-        name = ref_str
 
-        return cls(project, name, int(version_str))
+        return cls(project, ref_str)
 
-    def to_proto(self, arg1) -> FeatureSetReferenceProto:
+    def to_proto(self) -> FeatureSetReferenceProto:
         """
         Convert and return this feature set reference to protobuf.
 
@@ -924,14 +897,12 @@ class FeatureSetRef:
 
     def __repr__(self):
         # return string representation of the reference
-        # [project/]name[:version]
+        # [project/]name
         ref_str = ""
         if self.proto.project:
             ref_str += self.proto.project + "/"
         if self.proto.name:
             ref_str += self.proto.name
-        if self.proto.version:
-            ref_str += ":" + str(self.proto.version).strip()
         return ref_str
 
     def __eq__(self, other):

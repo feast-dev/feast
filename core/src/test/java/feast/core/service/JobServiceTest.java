@@ -41,12 +41,7 @@ import feast.core.StoreProto.Store.StoreType;
 import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
-import feast.core.model.FeatureSet;
-import feast.core.model.Field;
-import feast.core.model.Job;
-import feast.core.model.JobStatus;
-import feast.core.model.Source;
-import feast.core.model.Store;
+import feast.core.model.*;
 import feast.types.ValueProto.ValueType.Enum;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -148,12 +143,12 @@ public class JobServiceTest {
 
   // dummy model constructorss
   private FeatureSet newDummyFeatureSet(String name, int version, String project) {
-    Field feature = TestObjectFactory.CreateFeatureField(name + "_feature", Enum.INT64);
-    Field entity = TestObjectFactory.CreateEntityField(name + "_entity", Enum.STRING);
+    Feature feature = TestObjectFactory.CreateFeature(name + "_feature", Enum.INT64);
+    Entity entity = TestObjectFactory.CreateEntity(name + "_entity", Enum.STRING);
 
     FeatureSet fs =
         TestObjectFactory.CreateFeatureSet(
-            name, project, version, Arrays.asList(entity), Arrays.asList(feature));
+            name, project, Arrays.asList(entity), Arrays.asList(feature));
     fs.setCreated(Date.from(Instant.ofEpochSecond(10L)));
     return fs;
   }
@@ -173,7 +168,6 @@ public class JobServiceTest {
     return Arrays.asList(
         // all provided: name, version and project
         FeatureSetReference.newBuilder()
-            .setVersion(this.featureSet.getVersion())
             .setName(this.featureSet.getName())
             .setProject(this.featureSet.getProject().toString())
             .build(),
@@ -185,10 +179,7 @@ public class JobServiceTest {
             .build(),
 
         // name and version
-        FeatureSetReference.newBuilder()
-            .setName(this.featureSet.getName())
-            .setVersion(this.featureSet.getVersion())
-            .build());
+        FeatureSetReference.newBuilder().setName(this.featureSet.getName()).build());
   }
 
   private List<ListFeatureSetsRequest.Filter> newDummyListRequestFilters() {
@@ -197,21 +188,18 @@ public class JobServiceTest {
         ListFeatureSetsRequest.Filter.newBuilder()
             .setFeatureSetName(this.featureSet.getName())
             .setProject(this.featureSet.getProject().toString())
-            .setFeatureSetVersion(String.valueOf(this.featureSet.getVersion()))
             .build(),
 
         // name and project
         ListFeatureSetsRequest.Filter.newBuilder()
             .setFeatureSetName(this.featureSet.getName())
             .setProject(this.featureSet.getProject().toString())
-            .setFeatureSetVersion("*")
             .build(),
 
         // name and project
         ListFeatureSetsRequest.Filter.newBuilder()
             .setFeatureSetName(this.featureSet.getName())
             .setProject("*")
-            .setFeatureSetVersion(String.valueOf(this.featureSet.getVersion()))
             .build());
   }
 

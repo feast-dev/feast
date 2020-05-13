@@ -120,7 +120,6 @@ public class ImportJobTest {
     FeatureSetSpec spec =
         FeatureSetSpec.newBuilder()
             .setName("feature_set")
-            .setVersion(3)
             .setProject("myproject")
             .addEntities(
                 EntitySpec.newBuilder()
@@ -164,7 +163,6 @@ public class ImportJobTest {
                 Subscription.newBuilder()
                     .setProject(spec.getProject())
                     .setName(spec.getName())
-                    .setVersion(String.valueOf(spec.getVersion()))
                     .build())
             .build();
 

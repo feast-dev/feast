@@ -21,68 +21,22 @@ services:
       - /opt/feast/feast-core.jar
       - --spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml
 
-  online-serving:
-    image: ${FEAST_SERVING_IMAGE}:${FEAST_VERSION}
-    volumes:
-      - ./serving/${FEAST_ONLINE_SERVING_CONFIG}:/etc/feast/application.yml
-      - ./serving/${FEAST_ONLINE_STORE_CONFIG}:/etc/feast/store.yml
-    depends_on:
-      - core
-      - redis
-    ports:
-      - 6566:6566
-    restart: on-failure
-    command:
-      - java
-      - -jar
-      - /opt/feast/feast-serving.jar
-      - --spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml
-
-  batch-serving:
-    image: ${FEAST_SERVING_IMAGE}:${FEAST_VERSION}
-    volumes:
-      - ./serving/${FEAST_BATCH_SERVING_CONFIG}:/etc/feast/application.yml
-      - ./serving/${FEAST_BATCH_STORE_CONFIG}:/etc/feast/store.yml
-      - ./gcp-service-accounts/${FEAST_BATCH_SERVING_GCP_SERVICE_ACCOUNT_KEY}:/etc/gcloud/service-accounts/key.json
-    depends_on:
-      - core
-      - redis
-    ports:
-      - 6567:6567
-    restart: on-failure
-    environment:
-      GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
-      FEAST_JOB_STAGING_LOCATION: ${FEAST_JOB_STAGING_LOCATION}
-    command:
-      - "java"
-      - "-Xms1024m"
-      - "-Xmx1024m"
-      - "-jar"
-      - "/opt/feast/feast-serving.jar"
-      - "--spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml"
-
   jupyter:
-    image: jupyter/datascience-notebook:63d0df23b673
+    image: jupyter/minimal-notebook:619e9cc2fc07
     volumes:
-      - ../../:/home/jovyan/feast
       - ./gcp-service-accounts/${FEAST_JUPYTER_GCP_SERVICE_ACCOUNT_KEY}:/etc/gcloud/service-accounts/key.json
+      - ./jupyter/startup.sh:/etc/startup.sh
     depends_on:
       - core
-      - online-serving
     environment:
       FEAST_CORE_URL: core:6565
-      FEAST_SERVING_URL: online-serving:6566
+      FEAST_ONLINE_SERVING_URL: online-serving:6566
+      FEAST_BATCH_SERVING_URL: batch-serving:6567
       GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
+      FEAST_REPOSITORY_VERSION: ${FEAST_REPOSITORY_VERSION}
     ports:
       - 8888:8888
-    command:
-      - start-notebook.sh
-      - --NotebookApp.token=''
-
-  redis:
-    image: redis:5-alpine
-    ports:
-      - "6379:6379"
+    command: ["/etc/startup.sh"]
 
   kafka:
     image: confluentinc/cp-kafka:5.2.1

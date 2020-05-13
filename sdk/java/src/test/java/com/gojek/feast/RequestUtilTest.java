@@ -36,40 +36,35 @@ class RequestUtilTest {
   private static Stream<Arguments> provideValidFeatureIds() {
     return Stream.of(
         Arguments.of(
-            Collections.singletonList("driver_project/driver_id:1"),
+            Collections.singletonList("driver_project/driver_id"),
             Collections.singletonList(
                 FeatureReference.newBuilder()
                     .setProject("driver_project")
                     .setName("driver_id")
-                    .setVersion(1)
                     .build())),
         Arguments.of(
-            Arrays.asList("driver_project/driver_id:1", "driver_project/driver_name:1"),
+            Arrays.asList("driver_project/driver_id", "driver_project/driver_name"),
             Arrays.asList(
                 FeatureReference.newBuilder()
                     .setProject("driver_project")
                     .setName("driver_id")
-                    .setVersion(1)
                     .build(),
                 FeatureReference.newBuilder()
                     .setProject("driver_project")
                     .setName("driver_name")
-                    .setVersion(1)
                     .build())),
         Arguments.of(
             Arrays.asList(
-                "driver_project/driver_id:1",
-                "driver_project/driver_name:1",
+                "driver_project/driver_id",
+                "driver_project/driver_name",
                 "booking_project/driver_name"),
             Arrays.asList(
                 FeatureReference.newBuilder()
                     .setProject("driver_project")
-                    .setVersion(1)
                     .setName("driver_id")
                     .build(),
                 FeatureReference.newBuilder()
                     .setProject("driver_project")
-                    .setVersion(1)
                     .setName("driver_name")
                     .build(),
                 FeatureReference.newBuilder()
@@ -96,7 +91,7 @@ class RequestUtilTest {
 
   private static Stream<Arguments> provideInvalidFeatureRefs() {
     return Stream.of(
-        Arguments.of(Collections.singletonList("missing:bad_version")),
+        Arguments.of(Collections.singletonList("/noproject")),
         Arguments.of(Collections.singletonList("")));
   }
 

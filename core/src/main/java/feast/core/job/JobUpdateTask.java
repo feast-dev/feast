@@ -16,6 +16,8 @@
  */
 package feast.core.job;
 
+import com.google.common.collect.Sets;
+import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.log.Action;
 import feast.core.log.AuditLogger;
 import feast.core.log.Resource;
@@ -27,7 +29,6 @@ import feast.core.model.Store;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -35,7 +36,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -84,7 +84,7 @@ public class JobUpdateTask implements Callable<Job> {
     } else {
       Job job = currentJob.get();
 
-      if (featureSetsChangedFor(job)) {
+      if (requiresUpdate(job)) {
         submittedJob = executorService.submit(() -> updateJob(job));
       } else {
         return updateStatus(job);
@@ -101,13 +101,19 @@ public class JobUpdateTask implements Callable<Job> {
     }
   }
 
-  boolean featureSetsChangedFor(Job job) {
-    Set<String> existingFeatureSetsPopulatedByJob =
-        job.getFeatureSets().stream().map(FeatureSet::getId).collect(Collectors.toSet());
-    Set<String> newFeatureSetsPopulatedByJob =
-        featureSets.stream().map(FeatureSet::getId).collect(Collectors.toSet());
+  boolean requiresUpdate(Job job) {
+    // If set of feature sets has changed
+    if (!Sets.newHashSet(featureSets).equals(Sets.newHashSet(job.getFeatureSets()))) {
+      return true;
+    }
 
-    return !newFeatureSetsPopulatedByJob.equals(existingFeatureSetsPopulatedByJob);
+    // If any existing feature set populated by the job has its status as pending
+    for (FeatureSet featureSet : job.getFeatureSets()) {
+      if (featureSet.getStatus().equals(FeatureSetStatus.STATUS_PENDING)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private Job createJob() {

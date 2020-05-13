@@ -1,0 +1,29 @@
+feast-core:
+  gcpServiceAccount:
+    enabled: true
+  postgresql:
+    existingSecret: feast-postgresql
+
+feast-batch-serving:
+  enabled: true
+  gcpServiceAccount:
+    enabled: true 
+  application-override.yaml:
+    feast:
+      active_store: historical
+      stores:
+      - name: historical
+        type: BIGQUERY
+        config:
+          project_id: <google_project_id>
+          dataset_id: <bigquery_dataset_id>
+          staging_location: gs://<bucket_name>/feast-staging-location
+          initial_retry_delay_seconds: 3
+          total_timeout_seconds: 21600
+        subscriptions:
+        - name: "*"
+          project: "*"
+          version: "*"
+
+postgresql:
+  existingSecret: feast-postgresql

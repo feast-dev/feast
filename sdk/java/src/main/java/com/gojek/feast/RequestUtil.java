@@ -34,58 +34,30 @@ public class RequestUtil {
     for (String featureRefString : featureRefStrings) {
       String project;
       String name;
-      int version = 0;
-      String[] featureSplit;
       String[] projectSplit = featureRefString.split("/");
 
-      if (projectSplit.length == 2) {
-        project = projectSplit[0];
-        featureSplit = projectSplit[1].split(":");
-      } else if (projectSplit.length == 1) {
+      if (projectSplit.length == 1) {
         project = defaultProject;
-        featureSplit = projectSplit[0].split(":");
+        name = projectSplit[0];
+      } else if (projectSplit.length == 2) {
+        project = projectSplit[0];
+        name = projectSplit[1];
       } else {
         throw new IllegalArgumentException(
             String.format(
-                "Feature id '%s' has invalid format. Expected format: <project>:<feature-name>:<feature-version>.",
+                "Feature id '%s' has invalid format. Expected format: <project>/<feature-name>.",
                 featureRefString));
       }
 
-      if (featureSplit.length == 2) {
-        name = featureSplit[0];
-        try {
-          version = Integer.parseInt(featureSplit[1]);
-        } catch (NumberFormatException e) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "Feature id '%s' contains invalid version. Expected format: <project>/<feature-name>:<feature-version>.",
-                  featureRefString));
-        }
-      } else if (featureSplit.length == 1) {
-        name = featureSplit[0];
-      } else {
+      if (project.isEmpty() || name.isEmpty() || name.contains(":")) {
         throw new IllegalArgumentException(
             String.format(
-                "Feature id '%s' has invalid format. Expected format: <project>/<feature-name>:<feature-version>.",
+                "Feature id '%s' has invalid format. Expected format: <project>/<feature-name>.",
                 featureRefString));
       }
 
-      if (project.isEmpty() || name.isEmpty() || version < 0) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Feature id '%s' has invalid format. Expected format: <project>/<feature-name>:<feature-version>.",
-                featureRefString));
-      }
-
-      featureRefs.add(
-          FeatureReference.newBuilder()
-              .setName(name)
-              .setProject(project)
-              .setVersion(version)
-              .build());
+      featureRefs.add(FeatureReference.newBuilder().setName(name).setProject(project).build());
     }
-
-    ;
     return featureRefs;
   }
 }

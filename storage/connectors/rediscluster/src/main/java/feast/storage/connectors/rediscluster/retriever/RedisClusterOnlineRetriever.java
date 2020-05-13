@@ -218,9 +218,6 @@ public class RedisClusterOnlineRetriever implements OnlineRetriever {
   // TODO: Refactor this out to common package?
   private static String generateFeatureSetStringRef(FeatureSetSpec featureSetSpec) {
     String ref = String.format("%s/%s", featureSetSpec.getProject(), featureSetSpec.getName());
-    if (featureSetSpec.getVersion() > 0) {
-      return ref + String.format(":%d", featureSetSpec.getVersion());
-    }
     return ref;
   }
 }

@@ -54,7 +54,7 @@ public class JobUpdateTaskTest {
   private static final FeatureSetProto.FeatureSet.Builder fsBuilder =
       FeatureSetProto.FeatureSet.newBuilder().setMeta(FeatureSetMeta.newBuilder());
   private static final FeatureSetSpec.Builder specBuilder =
-      FeatureSetSpec.newBuilder().setProject("project1").setVersion(1);
+      FeatureSetSpec.newBuilder().setProject("project1");
 
   @Mock private JobManager jobManager;
 
@@ -73,8 +73,7 @@ public class JobUpdateTaskTest {
                 .setName("test")
                 .setType(StoreType.REDIS)
                 .setRedisConfig(RedisConfig.newBuilder().build())
-                .addSubscriptions(
-                    Subscription.newBuilder().setProject("*").setName("*").setVersion("*").build())
+                .addSubscriptions(Subscription.newBuilder().setProject("*").setName("*").build())
                 .build());
 
     source =

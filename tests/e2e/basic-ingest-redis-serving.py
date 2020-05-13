@@ -552,13 +552,11 @@ def test_all_types_infer_register_ingest_file_success(client,
     all_types_fs = client.get_feature_set(name="all_types_parquet")
 
     # Ingest user embedding data
-    client.ingest(feature_set=all_types_fs, source=all_types_parquet_file,
-                  force_update=True)
+    client.ingest(feature_set=all_types_fs, source=all_types_parquet_file)
 
 
 # TODO: rewrite these using python SDK once the labels are implemented there
 class TestsBasedOnGrpc:
-    LAST_VERSION = 0
     GRPC_CONNECTION_TIMEOUT = 3
     LABEL_KEY = "my"
     LABEL_VALUE = "label"
@@ -596,7 +594,7 @@ class TestsBasedOnGrpc:
         try:
             get_feature_set_response = core_service_stub.GetFeatureSet(
                 CoreService_pb2.GetFeatureSetRequest(
-                    project=project, name=name.strip(), version=self.LAST_VERSION
+                    project=project, name=name.strip(),
                 )
             )  # type: GetFeatureSetResponse
         except grpc.RpcError as e:

@@ -210,9 +210,6 @@ class TestFeatureSet:
         feature_set.import_tfx_schema(test_input_schema)
 
         # After update
-        for entity in feature_set.entities:
-            assert entity.presence is not None
-            assert entity.shape is not None
         for feature in feature_set.features:
             assert feature.presence is not None
             assert feature.shape is not None
@@ -271,15 +268,13 @@ def make_tfx_schema_domain_info_inline(schema):
 class TestFeatureSetRef:
     def test_from_feature_set(self):
         feature_set = FeatureSet("test", "test")
-        feature_set.version = 2
         ref = FeatureSetRef.from_feature_set(feature_set)
 
         assert ref.name == "test"
         assert ref.project == "test"
-        assert ref.version == 2
 
     def test_str_ref(self):
-        original_ref = FeatureSetRef(project="test", name="test", version=2)
+        original_ref = FeatureSetRef(project="test", name="test")
         ref_str = repr(original_ref)
         parsed_ref = FeatureSetRef.from_str(ref_str)
         assert original_ref == parsed_ref

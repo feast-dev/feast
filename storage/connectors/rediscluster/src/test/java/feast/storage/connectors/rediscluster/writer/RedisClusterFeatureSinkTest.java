@@ -87,7 +87,6 @@ public class RedisClusterFeatureSinkTest {
     FeatureSetSpec spec1 =
         FeatureSetSpec.newBuilder()
             .setName("fs")
-            .setVersion(1)
             .setProject("myproject")
             .addEntities(EntitySpec.newBuilder().setName("entity").setValueType(Enum.INT64).build())
             .addFeatures(
@@ -98,7 +97,6 @@ public class RedisClusterFeatureSinkTest {
         FeatureSetSpec.newBuilder()
             .setName("feature_set")
             .setProject("myproject")
-            .setVersion(1)
             .addEntities(
                 EntitySpec.newBuilder()
                     .setName("entity_id_primary")
@@ -116,7 +114,7 @@ public class RedisClusterFeatureSinkTest {
             .build();
 
     Map<String, FeatureSetSpec> specMap =
-        ImmutableMap.of("myproject/fs:1", spec1, "myproject/feature_set:1", spec2);
+        ImmutableMap.of("myproject/fs", spec1, "myproject/feature_set", spec2);
     RedisClusterConfig redisClusterConfig =
         RedisClusterConfig.newBuilder()
             .setConnectionString(CONNECTION_STRING)
@@ -154,7 +152,7 @@ public class RedisClusterFeatureSinkTest {
     HashMap<RedisKey, FeatureRow> kvs = new LinkedHashMap<>();
     kvs.put(
         RedisKey.newBuilder()
-            .setFeatureSet("myproject/fs:1")
+            .setFeatureSet("myproject/fs")
             .addEntities(field("entity", 1, Enum.INT64))
             .build(),
         FeatureRow.newBuilder()
@@ -163,7 +161,7 @@ public class RedisClusterFeatureSinkTest {
             .build());
     kvs.put(
         RedisKey.newBuilder()
-            .setFeatureSet("myproject/fs:1")
+            .setFeatureSet("myproject/fs")
             .addEntities(field("entity", 2, Enum.INT64))
             .build(),
         FeatureRow.newBuilder()
@@ -174,12 +172,12 @@ public class RedisClusterFeatureSinkTest {
     List<FeatureRow> featureRows =
         ImmutableList.of(
             FeatureRow.newBuilder()
-                .setFeatureSet("myproject/fs:1")
+                .setFeatureSet("myproject/fs")
                 .addFields(field("entity", 1, Enum.INT64))
                 .addFields(field("feature", "one", Enum.STRING))
                 .build(),
             FeatureRow.newBuilder()
-                .setFeatureSet("myproject/fs:1")
+                .setFeatureSet("myproject/fs")
                 .addFields(field("entity", 2, Enum.INT64))
                 .addFields(field("feature", "two", Enum.STRING))
                 .build());
@@ -199,7 +197,7 @@ public class RedisClusterFeatureSinkTest {
     HashMap<RedisKey, FeatureRow> kvs = new LinkedHashMap<>();
     kvs.put(
         RedisKey.newBuilder()
-            .setFeatureSet("myproject/fs:1")
+            .setFeatureSet("myproject/fs")
             .addEntities(field("entity", 1, Enum.INT64))
             .build(),
         FeatureRow.newBuilder()
@@ -210,7 +208,7 @@ public class RedisClusterFeatureSinkTest {
     List<FeatureRow> featureRows =
         ImmutableList.of(
             FeatureRow.newBuilder()
-                .setFeatureSet("myproject/fs:1")
+                .setFeatureSet("myproject/fs")
                 .addFields(field("entity", 1, Enum.INT64))
                 .addFields(field("feature", "one", Enum.STRING))
                 .build());
@@ -254,13 +252,12 @@ public class RedisClusterFeatureSinkTest {
     FeatureSetSpec spec1 =
         FeatureSetSpec.newBuilder()
             .setName("fs")
-            .setVersion(1)
             .setProject("myproject")
             .addEntities(EntitySpec.newBuilder().setName("entity").setValueType(Enum.INT64).build())
             .addFeatures(
                 FeatureSpec.newBuilder().setName("feature").setValueType(Enum.STRING).build())
             .build();
-    Map<String, FeatureSetSpec> specMap = ImmutableMap.of("myproject/fs:1", spec1);
+    Map<String, FeatureSetSpec> specMap = ImmutableMap.of("myproject/fs", spec1);
     redisClusterFeatureSink =
         RedisClusterFeatureSink.builder()
             .setFeatureSetSpecs(specMap)
@@ -271,7 +268,7 @@ public class RedisClusterFeatureSinkTest {
     List<FeatureRow> featureRows =
         ImmutableList.of(
             FeatureRow.newBuilder()
-                .setFeatureSet("myproject/fs:1")
+                .setFeatureSet("myproject/fs")
                 .addFields(field("entity", 1, Enum.INT64))
                 .addFields(field("feature", "one", Enum.STRING))
                 .build());
@@ -291,7 +288,7 @@ public class RedisClusterFeatureSinkTest {
 
     FeatureRow offendingRow =
         FeatureRow.newBuilder()
-            .setFeatureSet("myproject/feature_set:1")
+            .setFeatureSet("myproject/feature_set")
             .setEventTimestamp(Timestamp.newBuilder().setSeconds(10))
             .addFields(
                 Field.newBuilder()
@@ -317,7 +314,7 @@ public class RedisClusterFeatureSinkTest {
 
     RedisKey expectedKey =
         RedisKey.newBuilder()
-            .setFeatureSet("myproject/feature_set:1")
+            .setFeatureSet("myproject/feature_set")
             .addEntities(
                 Field.newBuilder()
                     .setName("entity_id_primary")
@@ -347,7 +344,7 @@ public class RedisClusterFeatureSinkTest {
   public void shouldConvertRowWithOutOfOrderFieldsToValidKey() {
     FeatureRow offendingRow =
         FeatureRow.newBuilder()
-            .setFeatureSet("myproject/feature_set:1")
+            .setFeatureSet("myproject/feature_set")
             .setEventTimestamp(Timestamp.newBuilder().setSeconds(10))
             .addFields(
                 Field.newBuilder()
@@ -369,7 +366,7 @@ public class RedisClusterFeatureSinkTest {
 
     RedisKey expectedKey =
         RedisKey.newBuilder()
-            .setFeatureSet("myproject/feature_set:1")
+            .setFeatureSet("myproject/feature_set")
             .addEntities(
                 Field.newBuilder()
                     .setName("entity_id_primary")
@@ -402,7 +399,7 @@ public class RedisClusterFeatureSinkTest {
   public void shouldMergeDuplicateFeatureFields() {
     FeatureRow featureRowWithDuplicatedFeatureFields =
         FeatureRow.newBuilder()
-            .setFeatureSet("myproject/feature_set:1")
+            .setFeatureSet("myproject/feature_set")
             .setEventTimestamp(Timestamp.newBuilder().setSeconds(10))
             .addFields(
                 Field.newBuilder()
@@ -428,7 +425,7 @@ public class RedisClusterFeatureSinkTest {
 
     RedisKey expectedKey =
         RedisKey.newBuilder()
-            .setFeatureSet("myproject/feature_set:1")
+            .setFeatureSet("myproject/feature_set")
             .addEntities(
                 Field.newBuilder()
                     .setName("entity_id_primary")
@@ -459,7 +456,7 @@ public class RedisClusterFeatureSinkTest {
   public void shouldPopulateMissingFeatureValuesWithDefaultInstance() {
     FeatureRow featureRowWithDuplicatedFeatureFields =
         FeatureRow.newBuilder()
-            .setFeatureSet("myproject/feature_set:1")
+            .setFeatureSet("myproject/feature_set")
             .setEventTimestamp(Timestamp.newBuilder().setSeconds(10))
             .addFields(
                 Field.newBuilder()
@@ -477,7 +474,7 @@ public class RedisClusterFeatureSinkTest {
 
     RedisKey expectedKey =
         RedisKey.newBuilder()
-            .setFeatureSet("myproject/feature_set:1")
+            .setFeatureSet("myproject/feature_set")
             .addEntities(
                 Field.newBuilder()
                     .setName("entity_id_primary")

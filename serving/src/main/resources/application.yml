@@ -22,7 +22,6 @@ feast:
         # Wildcards match all options. No filtering is done.
         - name: "*"
           project: "*"
-          version: "*"
 
     - name: historical
       type: BIGQUERY
@@ -44,7 +43,6 @@ feast:
       subscriptions:
         - name: "*"
           project: "*"
-          version: "*"
 
   tracing:
     # If true, Feast will provide tracing data (using OpenTracing API) for various RPC method calls

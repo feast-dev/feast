@@ -53,7 +53,7 @@ type FeatureRow struct {
 	// will use to perform joins, determine latest values, and coalesce rows.
 	EventTimestamp *timestamp.Timestamp `protobuf:"bytes,3,opt,name=event_timestamp,json=eventTimestamp,proto3" json:"event_timestamp,omitempty"`
 	// Complete reference to the featureSet this featureRow belongs to, in the form of
-	// <project>/<feature-set-name>:<version>. This value will be used by the feast ingestion job to filter
+	// <project>/<feature-set-name>. This value will be used by the feast ingestion job to filter
 	// rows, and write the values to the correct tables.
 	FeatureSet string `protobuf:"bytes,6,opt,name=feature_set,json=featureSet,proto3" json:"feature_set,omitempty"`
 }

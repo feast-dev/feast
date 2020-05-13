@@ -1,0 +1,70 @@
+version: "3.7"
+
+services:
+  core:
+    image: maven:3.6-openjdk-11
+    volumes:
+      - ${HOME}/.m2:/root/.m2:delegated
+      - ../../.:/code:cached
+    environment:
+      DB_HOST: db
+      FEAST_STREAM_OPTIONS_BOOTSTRAPSERVERS: kafka:9092
+      GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
+    restart: on-failure
+    depends_on:
+      - db
+      - kafka
+    ports:
+      - 6565:6565
+
+    working_dir: /code
+    command:
+      - mvn
+      - -pl
+      - core
+      - spring-boot:run
+
+  jupyter:
+    image: jupyter/minimal-notebook:619e9cc2fc07
+    volumes:
+      - ./gcp-service-accounts/${FEAST_JUPYTER_GCP_SERVICE_ACCOUNT_KEY}:/etc/gcloud/service-accounts/key.json
+      - ./jupyter/startup.sh:/etc/startup.sh
+    depends_on:
+      - core
+    environment:
+      FEAST_CORE_URL: core:6565
+      FEAST_ONLINE_SERVING_URL: online-serving:6566
+      FEAST_BATCH_SERVING_URL: batch-serving:6567
+      GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
+      FEAST_REPOSITORY_VERSION: ${FEAST_REPOSITORY_VERSION}
+    ports:
+      - 8888:8888
+    command: ["/etc/startup.sh"]
+
+  kafka:
+    image: confluentinc/cp-kafka:5.2.1
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://kafka:9092,OUTSIDE://localhost:9094
+      KAFKA_LISTENERS: INSIDE://:9092,OUTSIDE://:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+    ports:
+      - "9092:9092"
+      - "9094:9094"
+
+    depends_on:
+      - zookeeper
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:5.2.1
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  db:
+    image: postgres:12-alpine
+    environment:
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
