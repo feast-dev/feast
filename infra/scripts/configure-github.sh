@@ -79,10 +79,10 @@ fi
 
 QUERY_PAYLOAD="{ \"query\": \"query getNodeIdOfRepo { repository(name: \\\"$REPO_NAME\\\", owner: \\\"$OWNER_NAME\\\") { id branchProtectionRules(first: 100) { edges { node { id databaseId pattern } } } } }\" }"
 
-RESPONSE=$(curl -v --request POST --header "Authorization: Bearer $TOKEN" --header "Content-Type: application/json" --data-raw "$QUERY_PAYLOAD" https://api.github.com/graphql)
+RESPONSE=$(curl -f -v --request POST --header "Authorization: Bearer $TOKEN" --header "Content-Type: application/json" --data-raw "$QUERY_PAYLOAD" https://api.github.com/graphql)
 
-HAS_DATA=$(echo "$RESPONSE" | jq -e 'has("data")')
-HAS_MESSAGE=$(echo "$RESPONSE" | jq -e 'has("message")')
+HAS_DATA=$(jq -e 'has("data")' <<< "$RESPONSE")
+HAS_MESSAGE=$(jq -e 'has("message")' <<< "$RESPONSE")
 
 if $HAS_MESSAGE;
 then
@@ -91,14 +91,14 @@ then
   exit 1;
 fi
 
-REPO_ID=$(echo "$RESPONSE" | jq -r '.data.repository.id')
+REPO_ID=$(jq -r '.data.repository.id' <<< "$RESPONSE")
 
 MUTATION_PAYLOAD="{ \"query\": \"mutation setBranchProtectionRule { createBranchProtectionRule(input: {repositoryId: \\\"$REPO_ID\\\", pattern: \\\"$BRANCH_NAME\\\", requiredApprovingReviewCount: 2, requiresApprovingReviews: true}) { branchProtectionRule { id } } }\" }"
 
-RESPONSE=$(curl -v --request POST --header "Authorization: Bearer $TOKEN" --header "Content-Type: application/json" --data-raw "$MUTATION_PAYLOAD" https://api.github.com/graphql)
+RESPONSE=$(curl -f -v --request POST --header "Authorization: Bearer $TOKEN" --header "Content-Type: application/json" --data-raw "$MUTATION_PAYLOAD" https://api.github.com/graphql)
 
-HAS_DATA=$(echo "$RESPONSE" | jq -e 'has("data")')
-HAS_MESSAGE=$(echo "$RESPONSE" | jq -e 'has("message")')
+HAS_DATA=$(jq -e 'has("data")' <<< "$RESPONSE")
+HAS_MESSAGE=$(jq -e 'has("message")' <<< "$RESPONSE")
 
 if $HAS_MESSAGE;
 then
