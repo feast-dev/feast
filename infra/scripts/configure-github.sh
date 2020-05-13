@@ -106,3 +106,5 @@ then
 
   exit 1;
 fi
+
+echo "Completed successfully."
