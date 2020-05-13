@@ -1,3 +1,11 @@
+#!/bin/bash
+
+# This script automates deploy Feast to Azure Kubernetes Service (a.k.a AKS)
+# Checks dependencies first, if there is a missing dependency, install it silently
+
+# Stop on error
+set -e
+
 # check kubectl
 
 if ! [ -x "$(command -v kubectl)" ]; then
