@@ -27,6 +27,9 @@ data:
           type: statsd
           host: {{ .Release.Name }}-prometheus-statsd-exporter-udp
           port: 9125
+
+    server:
+      port: {{ .Values.service.http.targetPort }}
 {{- end }}
 
   application-override.yaml: |

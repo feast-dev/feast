@@ -66,5 +66,5 @@ Current chart version is `0.5.0-alpha.1`
 | service.grpc.targetPort | int | `6565` | Container port serving GRPC requests |
 | service.http.nodePort | string | `nil` | Port number that each cluster node will listen to |
 | service.http.port | int | `80` | Service port for HTTP requests |
-| service.http.targetPort | int | `8080` | Container port serving HTTP requests |
+| service.http.targetPort | int | `8080` | Container port serving HTTP requests and Prometheus metrics |
 | service.type | string | `"ClusterIP"` | Kubernetes service type |

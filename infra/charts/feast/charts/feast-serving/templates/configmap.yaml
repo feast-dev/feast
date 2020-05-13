@@ -29,6 +29,9 @@ data:
       job_store:
         redis_host: {{ .Release.Name }}-redis-master
         redis_port: 6379
+
+    server:
+      port: {{ .Values.service.http.targetPort }}
 {{- end }}
 
   application-override.yaml: |

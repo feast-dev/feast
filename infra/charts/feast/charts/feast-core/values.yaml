@@ -14,7 +14,7 @@ application.yaml:
   enabled: true
 
 application-generated.yaml:
-  # "application-generated.yaml".enabled -- Flag to include Helm generated configuration for Feast database URL, Kafka bootstrap servers and jobs metrics host. This is useful for deployment that uses default configuration for Kafka, Postgres and StatsD exporter. Please set `application-override.yaml` to override this configuration.
+  # "application-generated.yaml".enabled -- Flag to include Helm generated configuration for http port, Feast database URL, Kafka bootstrap servers and jobs metrics host. This is useful for deployment that uses default configuration for Kafka, Postgres and StatsD exporter. Please set `application-override.yaml` to override this configuration.
   enabled: true
 
 # "application-secret.yaml" -- Configuration to override the default [application.yaml](https://github.com/gojek/feast/blob/master/core/src/main/resources/application.yml). Will be created as a Secret. `application-override.yaml` has a higher precedence than `application-secret.yaml`. It is recommended to either set `application-override.yaml` or `application-secret.yaml` only to simplify config management.
@@ -89,7 +89,7 @@ service:
   http:
     # service.http.port -- Service port for HTTP requests
     port: 80
-    # service.http.targetPort -- Container port serving HTTP requests
+    # service.http.targetPort -- Container port serving HTTP requests and Prometheus metrics
     targetPort: 8080
     # service.http.nodePort -- Port number that each cluster node will listen to
     nodePort:
