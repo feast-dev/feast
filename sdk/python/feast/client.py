@@ -585,7 +585,7 @@ class Client:
             # String based source
             if not entity_rows.endswith((".avro", "*")):
                 raise Exception(
-                    f"Only .avro and wildcard paths are accepted as entity_rows"
+                    "Only .avro and wildcard paths are accepted as entity_rows"
                 )
         else:
             raise Exception(
@@ -778,7 +778,7 @@ class Client:
         elif isinstance(feature_set, str):
             name = feature_set
         else:
-            raise Exception(f"Feature set name must be provided")
+            raise Exception("Feature set name must be provided")
 
         # Read table and get row count
         dir_path, dest_path = _read_table_from_source(source, chunk_size, max_workers)

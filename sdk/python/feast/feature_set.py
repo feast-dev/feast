@@ -653,10 +653,10 @@ class FeatureSet:
         """
 
         if not self.name:
-            raise ValueError(f"No name found in feature set.")
+            raise ValueError("No name found in feature set.")
 
         if len(self.entities) == 0:
-            raise ValueError(f"No entities found in feature set {self.name}")
+            raise ValueError("No entities found in feature set {self.name}")
 
     def import_tfx_schema(self, schema: schema_pb2.Schema):
         """
