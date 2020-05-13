@@ -46,4 +46,4 @@ fi
 
 # run helmsman
 
-./helmsman -apply -f ./infra/desired-state/desired-state.yaml -debug -no-ns -no-env-subst
+./helmsman -apply -f ./infra/desired-state/desired-state.yaml -debug -no-ns
