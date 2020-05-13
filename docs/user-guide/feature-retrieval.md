@@ -73,7 +73,7 @@ This is called a point in time correct join.
 
 Feast allows users to retrieve features from any feature sets and join them together in a single response dataset. The only requirement is that the user provides the correct entities in order to look up the features.
 
-###  **Point-in-time-correct Join** 
+### **Point-in-time-correct Join**
 
 Below is another example of how a point-in-time-correct join works. We have two dataframes. The first is the `entity dataframe` that contains timestamps, entities, and labels. The user would like to have driver features joined onto this `entity dataframe` from the `driver dataframe` to produce an `output dataframe` that contains both labels and features. They would then like to train their model on this output
 
