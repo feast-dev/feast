@@ -26,10 +26,6 @@ if ! [ -x "$(command -v helm)" ]; then
   curl -Ls https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | DESIRED_VERSION=v3.2.1 bash
 fi
 
-# update helm repos
-
-helm repo update
-
 # install required plugins
 
 helm plugin list | grep -cE ^diff>/dev/null || helm plugin install "https://github.com/databus23/helm-diff" --version 3.1.1
