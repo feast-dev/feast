@@ -1,26 +1,24 @@
 import math
+import os
 import random
 import time
+import uuid
 from datetime import datetime
 from datetime import timedelta
 from urllib.parse import urlparse
 
-import os
-import uuid
 import numpy as np
 import pandas as pd
 import pytest
 import pytz
+from feast.client import Client
 from feast.core.CoreService_pb2 import ListStoresRequest
 from feast.core.IngestionJob_pb2 import IngestionJobStatus
-from feast.client import Client
-from feast.core.FeatureSet_pb2 import FeatureSetStatus
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_set import FeatureSet
 from feast.type_map import ValueType
 from google.cloud import storage, bigquery
-from google.cloud.bigquery import TableReference
 from google.protobuf.duration_pb2 import Duration
 from pandavro import to_avro
 
@@ -65,6 +63,7 @@ def client(core_url, serving_url, allow_dirty):
             )
 
     return client
+
 
 @pytest.mark.first
 @pytest.mark.direct_runner
@@ -425,21 +424,25 @@ def test_batch_no_max_age(client):
 
 @pytest.fixture(scope="module", autouse=True)
 def infra_teardown(pytestconfig, core_url, serving_url):
-   client = Client(core_url=core_url, serving_url=serving_url)
-   client.set_project(PROJECT_NAME)
+    client = Client(core_url=core_url, serving_url=serving_url)
+    client.set_project(PROJECT_NAME)
 
-   marker = pytestconfig.getoption("-m")
-   yield marker
-   if marker == 'dataflow_runner':
-       ingest_jobs = client.list_ingest_jobs()
-       ingest_jobs = [client.list_ingest_jobs(job.id)[0].external_id for job in ingest_jobs if job.status == IngestionJobStatus.RUNNING]
+    marker = pytestconfig.getoption("-m")
+    yield marker
+    if marker == "dataflow_runner":
+        ingest_jobs = client.list_ingest_jobs()
+        ingest_jobs = [
+            client.list_ingest_jobs(job.id)[0].external_id
+            for job in ingest_jobs
+            if job.status == IngestionJobStatus.RUNNING
+        ]
 
-       cwd = os.getcwd()
-       with open(f"{cwd}/ingesting_jobs.txt", "w+") as output:
-           for job in ingest_jobs:
-               output.write('%s\n' % job)
-   else:
-       print('Cleaning up not required')
+        cwd = os.getcwd()
+        with open(f"{cwd}/ingesting_jobs.txt", "w+") as output:
+            for job in ingest_jobs:
+                output.write("%s\n" % job)
+    else:
+        print("Cleaning up not required")
 
 
 @pytest.fixture(scope="module")
@@ -521,8 +524,11 @@ def test_update_featureset_update_featureset_and_ingest_second_subset(
         time.sleep(15)  # wait for rows to get written to bq
         rows_ingested = get_rows_ingested(client, update_fs, ingestion_id)
         if rows_ingested == len(subset_df):
+            print(f"Number of rows successfully ingested: {rows_ingested}. Continuing.")
             break
-        print(f"Number of rows successfully ingested: {rows_ingested}. Retrying ingestion.")
+        print(
+            f"Number of rows successfully ingested: {rows_ingested}. Retrying ingestion."
+        )
         time.sleep(30)
 
     feature_retrieval_job = client.get_batch_features(
@@ -576,7 +582,9 @@ def test_update_featureset_retrieve_valid_fields(client, update_featureset_dataf
         == update_featureset_dataframe["update_feature1"].to_list()
     )
     # we have to convert to float because the column contains np.NaN
-    assert [math.isnan(i) for i in output["update_feature3"].to_list()[:5]] == [True] * 5
+    assert [math.isnan(i) for i in output["update_feature3"].to_list()[:5]] == [
+        True
+    ] * 5
     assert output["update_feature3"].to_list()[5:] == [
         float(i) for i in update_featureset_dataframe["update_feature3"].to_list()[5:]
     ]
@@ -586,17 +594,21 @@ def test_update_featureset_retrieve_valid_fields(client, update_featureset_dataf
     )
 
 
-def get_rows_ingested(client: Client, feature_set: FeatureSet, ingestion_id: str) -> int:
-    response = client._core_service_stub.ListStores(ListStoresRequest(filter=ListStoresRequest.Filter(name="historical")))
+def get_rows_ingested(
+    client: Client, feature_set: FeatureSet, ingestion_id: str
+) -> int:
+    response = client._core_service_stub.ListStores(
+        ListStoresRequest(filter=ListStoresRequest.Filter(name="historical"))
+    )
     bq_config = response.store[0].bigquery_config
     project = bq_config.project_id
     dataset = bq_config.dataset_id
     table = f"{PROJECT_NAME}_{feature_set.name}"
 
     bq_client = bigquery.Client(project=project)
-    rows = bq_client.query(f'SELECT * FROM `{project}.{dataset}.{table}` WHERE ingestion_id = "{ingestion_id}"').result()
-    row_count = 0
-    for row in rows:
-        row_count += 1
-    return row_count
+    rows = bq_client.query(
+        f'SELECT COUNT(*) as count FROM `{project}.{dataset}.{table}` WHERE ingestion_id = "{ingestion_id}"'
+    ).result()
 
+    for row in rows:
+        return row["count"]
