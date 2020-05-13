@@ -142,15 +142,7 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<String, Iterable<Featu
           "Feature set reference in the feature row is null. Please check the input feature rows from previous steps");
       return;
     }
-    String[] colonSplits = featureSetRef.split(":");
-    if (colonSplits.length != 2) {
-      log.error(
-          "Skip writing feature row metrics because the feature set reference '{}' does not"
-              + "follow the required format <project>/<feature_set_name>:<version>",
-          featureSetRef);
-      return;
-    }
-    String[] slashSplits = colonSplits[0].split("/");
+    String[] slashSplits = featureSetRef.split("/");
     if (slashSplits.length != 2) {
       log.error(
           "Skip writing feature row metrics because the feature set reference '{}' does not"
@@ -161,7 +153,6 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<String, Iterable<Featu
 
     String featureSetProject = slashSplits[0];
     String featureSetName = slashSplits[1];
-    String featureSetVersion = colonSplits[1];
 
     // featureRowLagStats is stats for feature row lag for feature set "featureSetName"
     DescriptiveStatistics featureRowLagStats = new DescriptiveStatistics();
@@ -201,7 +192,6 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<String, Iterable<Featu
       STORE_TAG_KEY + ":" + getStoreName(),
       FEATURE_SET_PROJECT_TAG_KEY + ":" + featureSetProject,
       FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
-      FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
       INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName(),
     };
 

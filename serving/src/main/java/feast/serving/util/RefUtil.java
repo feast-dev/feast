@@ -22,25 +22,11 @@ import feast.serving.ServingAPIProto.FeatureReference;
 public class RefUtil {
   public static String generateFeatureStringRef(FeatureReference featureReference) {
     String ref = String.format("%s/%s", featureReference.getProject(), featureReference.getName());
-    if (featureReference.getVersion() > 0) {
-      return ref + String.format(":%d", featureReference.getVersion());
-    }
-    return ref;
-  }
-
-  public static String generateFeatureStringRefWithoutProject(FeatureReference featureReference) {
-    String ref = String.format("%s", featureReference.getName());
-    if (featureReference.getVersion() > 0) {
-      return ref + String.format(":%d", featureReference.getVersion());
-    }
     return ref;
   }
 
   public static String generateFeatureSetStringRef(FeatureSetSpec featureSetSpec) {
     String ref = String.format("%s/%s", featureSetSpec.getProject(), featureSetSpec.getName());
-    if (featureSetSpec.getVersion() > 0) {
-      return ref + String.format(":%d", featureSetSpec.getVersion());
-    }
     return ref;
   }
 }

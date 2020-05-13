@@ -48,12 +48,7 @@ message Store {
 
     // BigQuery stores a FeatureRow element as a row in a BigQuery table.
     // 
-    // Table name is derived from the feature set name and version as:
-    // [feature_set_name]_v[feature_set_version] 
-    // 
-    // For example:
-    // A feature row for feature set "driver" and version "1" will be written
-    // to table "driver_v1".
+    // Table name is derived is the same as the feature set name.
     // 
     // The entities and features in a FeatureSetSpec corresponds to the 
     // fields in the BigQuery table (these make up the BigQuery schema). 
@@ -74,11 +69,6 @@ message Store {
     //
     // BigQuery table created will be partitioned by the field "event_timestamp"
     // of the FeatureRow (https://cloud.google.com/bigquery/docs/partitioned-tables).
-    //
-    // Since newer version of feature set can introduce breaking, non backward-
-    // compatible BigQuery schema updates, incrementing the version of a 
-    // feature set will result in the creation of a new empty BigQuery table
-    // with the new schema.
     // 
     // The following table shows how ValueType in Feast is mapped to 
     // BigQuery Standard SQL data types 
@@ -149,7 +139,6 @@ message Store {
     // pattern matching.
     string project = 3;
 
-
     // Name of the desired feature set. Asterisks can be used as wildcards in the name.
     // Matching on names is only permitted if a specific project is defined. It is disallowed
     // If the project name is set to "*"
@@ -159,13 +148,8 @@ message Store {
     // - my-feature-set-6 can be used to select a single feature set
     string name = 1;
 
-    // Versions of the given feature sets that will be returned.
-    // Valid options for version:
-    //     "latest": only the latest version is returned.
-    //     "*": Subscribe to all versions
-    //     [version number]: pin to a specific version. Project and feature set name must be
-    //                       explicitly defined if a specific version is pinned.
-    string version = 2;
+    // Feature set version was removed in v0.5.0.
+    reserved 2;
   }
 
   // Name of the store.

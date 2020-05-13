@@ -17,10 +17,8 @@
 package feast.core.service;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.core.CoreServiceProto.ListStoresRequest.Filter;
 import feast.core.CoreServiceProto.ListStoresResponse;
-import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.Subscription;
@@ -99,16 +97,11 @@ public class JobCoordinatorService {
       Store store = Store.fromProto(storeSpec);
 
       for (Subscription subscription : store.getSubscriptions()) {
-        var featureSetSpecs =
-            specService
-                .listFeatureSets(
-                    ListFeatureSetsRequest.Filter.newBuilder()
-                        .setFeatureSetName(subscription.getName())
-                        .setFeatureSetVersion(subscription.getVersion())
-                        .setProject(subscription.getProject())
-                        .build())
-                .getFeatureSetsList();
-        featureSets.addAll(featureSetsFromProto(featureSetSpecs));
+        List<FeatureSet> featureSetsForSub =
+            featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc(
+                subscription.getName().replace('*', '%'),
+                subscription.getProject().replace('*', '%'));
+        featureSets.addAll(featureSetsForSub);
       }
 
       featureSets.stream()
@@ -171,12 +164,12 @@ public class JobCoordinatorService {
     ready.removeAll(pending);
     ready.forEach(
         fs -> {
-          fs.setStatus(FeatureSetStatus.STATUS_READY.toString());
+          fs.setStatus(FeatureSetStatus.STATUS_READY);
           featureSetRepository.save(fs);
         });
     pending.forEach(
         fs -> {
-          fs.setStatus(FeatureSetStatus.STATUS_PENDING.toString());
+          fs.setStatus(FeatureSetStatus.STATUS_PENDING);
           featureSetRepository.save(fs);
         });
     featureSetRepository.flush();
@@ -193,16 +186,5 @@ public class JobCoordinatorService {
     }
     // return the latest
     return Optional.of(jobs.get(0));
-  }
-
-  // TODO: optimize this to make less calls to the database.
-  private List<FeatureSet> featureSetsFromProto(List<FeatureSetProto.FeatureSet> protos) {
-    return protos.stream()
-        .map(FeatureSetProto.FeatureSet::getSpec)
-        .map(
-            fs ->
-                featureSetRepository.findFeatureSetByNameAndProject_NameAndVersion(
-                    fs.getName(), fs.getProject(), fs.getVersion()))
-        .collect(Collectors.toList());
   }
 }

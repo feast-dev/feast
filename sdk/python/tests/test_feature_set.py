@@ -268,15 +268,13 @@ def make_tfx_schema_domain_info_inline(schema):
 class TestFeatureSetRef:
     def test_from_feature_set(self):
         feature_set = FeatureSet("test", "test")
-        feature_set.version = 2
         ref = FeatureSetRef.from_feature_set(feature_set)
 
         assert ref.name == "test"
         assert ref.project == "test"
-        assert ref.version == 2
 
     def test_str_ref(self):
-        original_ref = FeatureSetRef(project="test", name="test", version=2)
+        original_ref = FeatureSetRef(project="test", name="test")
         ref_str = repr(original_ref)
         parsed_ref = FeatureSetRef.from_str(ref_str)
         assert original_ref == parsed_ref

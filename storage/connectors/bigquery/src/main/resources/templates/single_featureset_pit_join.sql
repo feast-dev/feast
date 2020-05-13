@@ -13,7 +13,7 @@ SELECT
   -- event_timestamp contains the timestamps to join onto
   event_timestamp,
   -- the feature_timestamp, i.e. the latest occurrence of the requested feature relative to the entity_dataset timestamp
-  NULL as {{ featureSet.project }}_{{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp,
+  NULL as {{ featureSet.project }}_{{ featureSet.name }}_feature_timestamp,
   -- created timestamp of the feature at the corresponding feature_timestamp
   NULL as created_timestamp,
   -- select only entities belonging to this feature set
@@ -25,11 +25,11 @@ UNION ALL
 SELECT
   NULL as uuid,
   event_timestamp,
-  event_timestamp as {{ featureSet.project }}_{{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp,
+  event_timestamp as {{ featureSet.project }}_{{ featureSet.name }}_feature_timestamp,
   created_timestamp,
   {{ featureSet.entities | join(', ')}},
   false AS is_entity_table
-FROM `{{projectId}}.{{datasetId}}.{{ featureSet.project }}_{{ featureSet.name }}_v{{ featureSet.version }}` WHERE event_timestamp <= '{{maxTimestamp}}'
+FROM `{{projectId}}.{{datasetId}}.{{ featureSet.project }}_{{ featureSet.name }}` WHERE event_timestamp <= '{{maxTimestamp}}'
 {% if featureSet.maxAge == 0 %}{% else %}AND event_timestamp >= Timestamp_sub(TIMESTAMP '{{ minTimestamp }}', interval {{ featureSet.maxAge }} second){% endif %}
 ),
 /*
@@ -48,7 +48,7 @@ SELECT
   event_timestamp,
   {{ featureSet.entities | join(', ')}},
   {% for featureName in featureSet.features %}
-  IF(event_timestamp >= {{ featureSet.project }}_{{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp {% if featureSet.maxAge == 0 %}{% else %}AND Timestamp_sub(event_timestamp, interval {{ featureSet.maxAge }} second) < {{ featureSet.project }}_{{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp{% endif %}, {{ featureSet.project }}_{{ featureName }}_v{{ featureSet.version }}, NULL) as {{ featureSet.project }}_{{ featureName }}_v{{ featureSet.version }}{% if loop.last %}{% else %}, {% endif %}
+  IF(event_timestamp >= {{ featureSet.project }}_{{ featureSet.name }}_feature_timestamp {% if featureSet.maxAge == 0 %}{% else %}AND Timestamp_sub(event_timestamp, interval {{ featureSet.maxAge }} second) < {{ featureSet.project }}_{{ featureSet.name }}_feature_timestamp{% endif %}, {{ featureSet.project }}_{{ featureName }}, NULL) as {{ featureSet.project }}_{{ featureName }}{% if loop.last %}{% else %}, {% endif %}
   {% endfor %}
 FROM (
 SELECT
@@ -56,7 +56,7 @@ SELECT
   event_timestamp,
   {{ featureSet.entities | join(', ')}},
   FIRST_VALUE(created_timestamp IGNORE NULLS) over w AS created_timestamp,
-  FIRST_VALUE({{ featureSet.project }}_{{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp IGNORE NULLS) over w AS {{ featureSet.project }}_{{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp,
+  FIRST_VALUE({{ featureSet.project }}_{{ featureSet.name }}_feature_timestamp IGNORE NULLS) over w AS {{ featureSet.project }}_{{ featureSet.name }}_feature_timestamp,
   is_entity_table
 FROM union_features
 WINDOW w AS (PARTITION BY {{ featureSet.entities | join(', ') }} ORDER BY event_timestamp DESC, is_entity_table DESC, created_timestamp DESC ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
@@ -67,15 +67,15 @@ WINDOW w AS (PARTITION BY {{ featureSet.entities | join(', ') }} ORDER BY event_
  */
 LEFT JOIN (
 SELECT
-  event_timestamp as {{ featureSet.project }}_{{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp,
+  event_timestamp as {{ featureSet.project }}_{{ featureSet.name }}_feature_timestamp,
   created_timestamp,
   {{ featureSet.entities | join(', ')}},
   {% for featureName in featureSet.features %}
-  {{ featureName }} as {{ featureSet.project }}_{{ featureName }}_v{{ featureSet.version }}{% if loop.last %}{% else %}, {% endif %}
+  {{ featureName }} as {{ featureSet.project }}_{{ featureName }}{% if loop.last %}{% else %}, {% endif %}
   {% endfor %}
-FROM `{{ projectId }}.{{ datasetId }}.{{ featureSet.project }}_{{ featureSet.name }}_v{{ featureSet.version }}` WHERE event_timestamp <= '{{maxTimestamp}}'
+FROM `{{ projectId }}.{{ datasetId }}.{{ featureSet.project }}_{{ featureSet.name }}` WHERE event_timestamp <= '{{maxTimestamp}}'
 {% if featureSet.maxAge == 0 %}{% else %}AND event_timestamp >= Timestamp_sub(TIMESTAMP '{{ minTimestamp }}', interval {{ featureSet.maxAge }} second){% endif %}
-) USING ({{ featureSet.project }}_{{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp, created_timestamp, {{ featureSet.entities | join(', ')}})
+) USING ({{ featureSet.project }}_{{ featureSet.name }}_feature_timestamp, created_timestamp, {{ featureSet.entities | join(', ')}})
 WHERE is_entity_table
 )
 /*

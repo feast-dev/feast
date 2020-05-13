@@ -29,7 +29,7 @@ import org.junit.Test;
 
 public class FeatureSetJsonByteConverterTest {
 
-  private FeatureSetProto.FeatureSet newFeatureSet(Integer version, Integer numberOfFeatures) {
+  private FeatureSetProto.FeatureSet newFeatureSet(Integer numberOfFeatures) {
     List<FeatureSetProto.FeatureSpec> features =
         IntStream.range(1, numberOfFeatures + 1)
             .mapToObj(
@@ -51,7 +51,6 @@ public class FeatureSetJsonByteConverterTest {
                                 .setBootstrapServers("somebrokers:9092")
                                 .setTopic("sometopic")))
                 .addAllFeatures(features)
-                .setVersion(version)
                 .addEntities(
                     FeatureSetProto.EntitySpec.newBuilder()
                         .setName("entity")
@@ -65,12 +64,11 @@ public class FeatureSetJsonByteConverterTest {
     int nrOfFeatures = 1;
     List<FeatureSetProto.FeatureSet> featureSets =
         IntStream.range(1, nrOfFeatureSet + 1)
-            .mapToObj(i -> newFeatureSet(i, nrOfFeatures))
+            .mapToObj(i -> newFeatureSet(nrOfFeatures))
             .collect(Collectors.toList());
 
     String expectedOutputString =
-        "{\"version\":1,"
-            + "\"entities\":[{\"name\":\"entity\",\"valueType\":2}],"
+        "{\"entities\":[{\"name\":\"entity\",\"valueType\":2}],"
             + "\"features\":[{\"name\":\"feature1\",\"valueType\":6}],"
             + "\"source\":{"
             + "\"type\":1,"

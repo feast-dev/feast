@@ -248,7 +248,6 @@ public class JobService {
     // match featuresets using contents of featureset reference
     String fsName = fsReference.getName();
     String fsProject = fsReference.getProject();
-    Integer fsVersion = fsReference.getVersion();
 
     // construct list featureset request filter using feature set reference
     // for proto3, default value for missing values:
@@ -258,7 +257,6 @@ public class JobService {
         ListFeatureSetsRequest.Filter.newBuilder()
             .setFeatureSetName((fsName != "") ? fsName : "*")
             .setProject((fsProject != "") ? fsProject : "*")
-            .setFeatureSetVersion((fsVersion != 0) ? fsVersion.toString() : "*")
             .build();
 
     return filter;

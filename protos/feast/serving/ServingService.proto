@@ -69,9 +69,6 @@ message FeatureReference {
     // Feature name
     string name = 2;
 
-    // Feature version
-    int32 version = 3;
-
     // The features will be retrieved if:
     // entity_timestamp - max_age  <= event_timestamp <= entity_timestamp
     //

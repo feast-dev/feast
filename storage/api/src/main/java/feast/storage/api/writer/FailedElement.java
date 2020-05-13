@@ -40,9 +40,6 @@ public abstract class FailedElement {
   public abstract String getFeatureSetName();
 
   @Nullable
-  public abstract String getFeatureSetVersion();
-
-  @Nullable
   public abstract String getTransformName();
 
   @Nullable
@@ -65,8 +62,6 @@ public abstract class FailedElement {
     public abstract Builder setProjectName(String projectName);
 
     public abstract Builder setFeatureSetName(String featureSetName);
-
-    public abstract Builder setFeatureSetVersion(String featureSetVersion);
 
     public abstract Builder setJobName(String jobName);
 

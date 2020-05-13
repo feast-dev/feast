@@ -18,6 +18,7 @@ package feast.ingestion.transform;
 
 import com.google.auto.value.AutoValue;
 import feast.core.FeatureSetProto;
+import feast.ingestion.transform.fn.ProcessFeatureRowDoFn;
 import feast.ingestion.transform.fn.ValidateFeatureRowDoFn;
 import feast.ingestion.values.FeatureSet;
 import feast.storage.api.writer.FailedElement;
@@ -33,7 +34,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.commons.lang3.tuple.Pair;
 
 @AutoValue
-public abstract class ValidateFeatureRows
+public abstract class ProcessAndValidateFeatureRows
     extends PTransform<PCollection<FeatureRow>, PCollectionTuple> {
 
   public abstract Map<String, FeatureSetProto.FeatureSetSpec> getFeatureSetSpecs();
@@ -43,7 +44,7 @@ public abstract class ValidateFeatureRows
   public abstract TupleTag<FailedElement> getFailureTag();
 
   public static Builder newBuilder() {
-    return new AutoValue_ValidateFeatureRows.Builder();
+    return new AutoValue_ProcessAndValidateFeatureRows.Builder();
   }
 
   @AutoValue.Builder
@@ -56,7 +57,7 @@ public abstract class ValidateFeatureRows
 
     public abstract Builder setFailureTag(TupleTag<FailedElement> failureTag);
 
-    public abstract ValidateFeatureRows build();
+    public abstract ProcessAndValidateFeatureRows build();
   }
 
   @Override
@@ -67,14 +68,16 @@ public abstract class ValidateFeatureRows
             .map(e -> Pair.of(e.getKey(), new FeatureSet(e.getValue())))
             .collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
 
-    return input.apply(
-        "ValidateFeatureRows",
-        ParDo.of(
-                ValidateFeatureRowDoFn.newBuilder()
-                    .setFeatureSets(featureSets)
-                    .setSuccessTag(getSuccessTag())
-                    .setFailureTag(getFailureTag())
-                    .build())
-            .withOutputTags(getSuccessTag(), TupleTagList.of(getFailureTag())));
+    return input
+        .apply("ProcessFeatureRows", ParDo.of(new ProcessFeatureRowDoFn()))
+        .apply(
+            "ValidateFeatureRows",
+            ParDo.of(
+                    ValidateFeatureRowDoFn.newBuilder()
+                        .setFeatureSets(featureSets)
+                        .setSuccessTag(getSuccessTag())
+                        .setFailureTag(getFailureTag())
+                        .build())
+                .withOutputTags(getSuccessTag(), TupleTagList.of(getFailureTag())));
   }
 }

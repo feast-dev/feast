@@ -112,7 +112,7 @@ public class RedisOnlineRetriever implements OnlineRetriever {
   /**
    * Create {@link RedisKey}
    *
-   * @param featureSet featureSet reference of the feature. E.g. feature_set_1:1
+   * @param featureSet featureSet reference of the feature. E.g. feature_set_1
    * @param featureSetEntityNames entity names that belong to the featureSet
    * @param entityRow entityRow to build the key from
    * @return {@link RedisKey}
@@ -213,9 +213,6 @@ public class RedisOnlineRetriever implements OnlineRetriever {
   // TODO: Refactor this out to common package?
   private static String generateFeatureSetStringRef(FeatureSetSpec featureSetSpec) {
     String ref = String.format("%s/%s", featureSetSpec.getProject(), featureSetSpec.getName());
-    if (featureSetSpec.getVersion() > 0) {
-      return ref + String.format(":%d", featureSetSpec.getVersion());
-    }
     return ref;
   }
 }

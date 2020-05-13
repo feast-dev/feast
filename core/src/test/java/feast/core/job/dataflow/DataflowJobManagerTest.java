@@ -103,8 +103,7 @@ public class DataflowJobManagerTest {
             .setName("SERVING")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
-            .addSubscriptions(
-                Subscription.newBuilder().setProject("*").setName("*").setVersion("*").build())
+            .addSubscriptions(Subscription.newBuilder().setProject("*").setName("*").build())
             .build();
 
     SourceProto.Source source =
@@ -124,7 +123,6 @@ public class DataflowJobManagerTest {
                 FeatureSetSpec.newBuilder()
                     .setSource(source)
                     .setName("featureSet")
-                    .setVersion(1)
                     .setMaxAge(Duration.newBuilder().build()))
             .build();
 
@@ -220,12 +218,7 @@ public class DataflowJobManagerTest {
 
     FeatureSetProto.FeatureSet featureSet =
         FeatureSetProto.FeatureSet.newBuilder()
-            .setSpec(
-                FeatureSetSpec.newBuilder()
-                    .setName("featureSet")
-                    .setVersion(1)
-                    .setSource(source)
-                    .build())
+            .setSpec(FeatureSetSpec.newBuilder().setName("featureSet").setSource(source).build())
             .build();
 
     dfJobManager = Mockito.spy(dfJobManager);

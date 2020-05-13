@@ -400,9 +400,10 @@ class Client:
 
         # If the feature set has changed, update the local copy
         if apply_fs_response.status == ApplyFeatureSetResponse.Status.CREATED:
-            print(
-                f'Feature set updated/created: "{applied_fs.name}:{applied_fs.version}"'
-            )
+            print(f'Feature set created: "{applied_fs.name}"')
+
+        if apply_fs_response.status == ApplyFeatureSetResponse.Status.UPDATED:
+            print(f'Feature set updated: "{applied_fs.name}"')
 
         # If no change has been applied, do nothing
         if apply_fs_response.status == ApplyFeatureSetResponse.Status.NO_CHANGE:
@@ -412,7 +413,7 @@ class Client:
         feature_set._update_from_feature_set(applied_fs)
 
     def list_feature_sets(
-        self, project: str = None, name: str = None, version: str = None
+        self, project: str = None, name: str = None,
     ) -> List[FeatureSet]:
         """
         Retrieve a list of feature sets from Feast Core
@@ -420,7 +421,6 @@ class Client:
         Args:
             project: Filter feature sets based on project name
             name: Filter feature sets based on feature set name
-            version: Filter feature sets based on version numbf,
 
         Returns:
             List of feature sets
@@ -436,12 +436,7 @@ class Client:
         if name is None:
             name = "*"
 
-        if version is None:
-            version = "*"
-
-        filter = ListFeatureSetsRequest.Filter(
-            project=project, feature_set_name=name, feature_set_version=version
-        )
+        filter = ListFeatureSetsRequest.Filter(project=project, feature_set_name=name)
 
         # Get latest feature sets from Feast Core
         feature_set_protos = self._core_service_stub.ListFeatureSets(
@@ -457,16 +452,14 @@ class Client:
         return feature_sets
 
     def get_feature_set(
-        self, name: str, version: int = None, project: str = None
+        self, name: str, project: str = None
     ) -> Union[FeatureSet, None]:
         """
-        Retrieves a feature set. If no version is specified then the latest
-        version will be returned.
+        Retrieves a feature set.
 
         Args:
             project: Feast project that this feature set belongs to
             name: Name of feature set
-            version: Version of feature set
 
         Returns:
             Returns either the specified feature set, or raises an exception if
@@ -480,14 +473,9 @@ class Client:
             else:
                 raise ValueError("No project has been configured.")
 
-        if version is None:
-            version = 0
-
         try:
             get_feature_set_response = self._core_service_stub.GetFeatureSet(
-                GetFeatureSetRequest(
-                    project=project, name=name.strip(), version=int(version)
-                )
+                GetFeatureSetRequest(project=project, name=name.strip())
             )  # type: GetFeatureSetResponse
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
@@ -519,7 +507,7 @@ class Client:
             feature_refs (List[str]):
                 List of feature references that will be returned for each entity.
                 Each feature reference should have the following format
-                "project/feature:version".
+                "project/feature".
 
             entity_rows (Union[pd.DataFrame, str]):
                 Pandas dataframe containing entities and a 'datetime' column.
@@ -539,7 +527,7 @@ class Client:
             >>> from datetime import datetime
             >>>
             >>> feast_client = Client(core_url="localhost:6565", serving_url="localhost:6566")
-            >>> feature_refs = ["my_project/bookings_7d:1", "booking_14d"]
+            >>> feature_refs = ["my_project/bookings_7d", "booking_14d"]
             >>> entity_rows = pd.DataFrame(
             >>>         {
             >>>            "datetime": [pd.datetime.now() for _ in range(3)],
@@ -626,11 +614,11 @@ class Client:
 
         Args:
             feature_refs: List of feature references in the following format
-                [project]/[feature_name]:[version]. Only the feature name
+                [project]/[feature_name]. Only the feature name
                 is a required component in the reference.
                 example:
-                    ["my_project/my_feature_1:3",
-                    "my_project3/my_feature_4:1",]
+                    ["my_project/my_feature_1",
+                    "my_feature_4",]
             entity_rows: List of GetFeaturesRequest.EntityRow where each row
                 contains entities. Timestamp should not be set for online
                 retrieval. All entity types within a feature
@@ -731,18 +719,16 @@ class Client:
         feature_set: Union[str, FeatureSet],
         source: Union[pd.DataFrame, str],
         chunk_size: int = 10000,
-        version: int = None,
         max_workers: int = max(CPU_COUNT - 1, 1),
         disable_progress_bar: bool = False,
         timeout: int = KAFKA_CHUNK_PRODUCTION_TIMEOUT,
-    ) -> None:
+    ) -> str:
         """
         Loads feature data into Feast for a specific feature set.
 
         Args:
             feature_set (typing.Union[str, feast.feature_set.FeatureSet]):
                 Feature set object or the string name of the feature set
-                (without a version).
 
             source (typing.Union[pd.DataFrame, str]):
                 Either a file path or Pandas Dataframe to ingest into Feast
@@ -754,9 +740,6 @@ class Client:
             chunk_size (int):
                 Amount of rows to load and ingest at a time.
 
-            version (int):
-                Feature set version.
-
             max_workers (int):
                 Number of worker processes to use to encode values.
 
@@ -767,14 +750,12 @@ class Client:
                 Timeout in seconds to wait for completion.
 
         Returns:
-            None:
-                None
+            str:
+                ingestion id for this dataset
         """
 
         if isinstance(feature_set, FeatureSet):
             name = feature_set.name
-            if version is None:
-                version = feature_set.version
         elif isinstance(feature_set, str):
             name = feature_set
         else:
@@ -793,7 +774,7 @@ class Client:
         while True:
             if timeout is not None and time.time() - current_time >= timeout:
                 raise TimeoutError("Timed out waiting for feature set to be ready")
-            feature_set = self.get_feature_set(name, version)
+            feature_set = self.get_feature_set(name)
             if (
                 feature_set is not None
                 and feature_set.status == FeatureSetStatus.STATUS_READY
@@ -849,7 +830,7 @@ class Client:
             print("Removing temporary file(s)...")
             shutil.rmtree(dir_path)
 
-        return None
+        return ingestion_id
 
 
 def _build_feature_references(
@@ -861,7 +842,7 @@ def _build_feature_references(
 
     Args:
         feature_refs: List of feature reference strings
-            ("project/feature:version")
+            ("project/feature")
         default_project: This project will be used if the project name is
             not provided in the feature reference
     """
@@ -870,12 +851,11 @@ def _build_feature_references(
 
     for feature_ref in feature_refs:
         project_split = feature_ref.split("/")
-        version = 0
 
         if len(project_split) == 2:
-            project, feature_version = project_split
+            project, name = project_split
         elif len(project_split) == 1:
-            feature_version = project_split[0]
+            name = project_split[0]
             if default_project is None:
                 raise ValueError(
                     f"No project specified in {feature_ref} and no default project provided"
@@ -883,26 +863,20 @@ def _build_feature_references(
             project = default_project
         else:
             raise ValueError(
-                f'Could not parse feature ref {feature_ref}, expecting "project/feature:version"'
+                f'Could not parse feature ref {feature_ref}, expecting "project/feature"'
             )
 
-        feature_split = feature_version.split(":")
-        if len(feature_split) == 2:
-            name, version = feature_split
-            version = int(version)
-        elif len(feature_split) == 1:
-            name = feature_split[0]
-        else:
+        if len(project) == 0 or len(name) == 0:
             raise ValueError(
-                f'Could not parse feature ref {feature_ref}, expecting "project/feature:version"'
+                f'Could not parse feature ref {feature_ref}, expecting "project/feature"'
             )
 
-        if len(project) == 0 or len(name) == 0 or version < 0:
+        if ":" in name:
             raise ValueError(
-                f'Could not parse feature ref {feature_ref}, expecting "project/feature:version"'
+                f'Could not parse feature ref {feature_ref}, expecting "project/feature". Versions were deprecated in v0.5.0.'
             )
 
-        features.append(FeatureReference(project=project, name=name, version=version))
+        features.append(FeatureReference(project=project, name=name))
     return features
 
 
@@ -916,7 +890,7 @@ def _generate_ingestion_id(feature_set: FeatureSet) -> str:
     Returns:
         UUID unique to current time and the feature set provided.
     """
-    uuid_str = f"{feature_set.name}_{feature_set.version}_{int(time.time())}"
+    uuid_str = f"{feature_set.name}_{int(time.time())}"
     return str(uuid.uuid3(uuid.NAMESPACE_DNS, uuid_str))
 
 

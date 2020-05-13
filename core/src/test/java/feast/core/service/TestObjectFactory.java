@@ -38,11 +38,10 @@ public class TestObjectFactory {
           true);
 
   public static FeatureSet CreateFeatureSet(
-      String name, String project, int version, List<Entity> entities, List<Feature> features) {
+      String name, String project, List<Entity> entities, List<Feature> features) {
     return new FeatureSet(
         name,
         project,
-        version,
         100L,
         entities,
         features,
