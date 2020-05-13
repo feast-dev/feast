@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# This script configures given GitHub Repo and Branch to be protected
+# After configuration `branch` closed for commits
+# Only way to update the `branch` is merging another branch via a PR
+# Script also configures that the PR reviewed by at least 2 reviewers
 HELP="
 $(basename "$0") [--token] [--repo repo_name] [--owner repo_owner] [--branch branch_name]
 
