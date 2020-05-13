@@ -32,7 +32,7 @@ helm repo update
 
 # install required plugins
 
-helm plugin install https://github.com/databus23/helm-diff --version master
+helm plugin list | grep -cE ^diff>/dev/null || helm plugin install "https://github.com/databus23/helm-diff" --version 3.1.1
 
 # check helmsman
 
