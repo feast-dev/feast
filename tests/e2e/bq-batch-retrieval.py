@@ -640,8 +640,9 @@ def get_rows_ingested(
 
 
 def clean_up_remote_files(files):
+    storage_client = storage.Client()
     for file_uri in files:
         if file_uri.scheme == "gs":
-            blob = Blob.from_string(file_uri.geturl())
+            blob = Blob.from_string(file_uri.geturl(), client=storage_client)
             blob.delete()
 
