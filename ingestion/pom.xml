@@ -71,10 +71,6 @@
                   <shadedPattern>org.springframework.vendor</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>io.grpc</pattern>
-                  <shadedPattern>io.grpc.vendor</shadedPattern>
-                </relocation>
-                <relocation>
                   <pattern>io.opencensus</pattern>
                   <shadedPattern>io.opencensus.vendor</shadedPattern>
                 </relocation>
