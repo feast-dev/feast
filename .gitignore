@@ -194,3 +194,4 @@ secrets/
 
 # Dumping ground
 tmp/
+.helmsman-tmp/

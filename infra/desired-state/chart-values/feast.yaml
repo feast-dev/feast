@@ -1,0 +1,81 @@
+kafka:
+  enabled: false
+redis:
+  enabled: false
+grafana:
+  enabled: true
+prometheus-statsd-exporter:
+  enabled: true
+prometheus:
+  enabled: true
+
+feast-core:
+  enabled:
+    true
+  prometheus:
+    enabled:
+      true
+  gcpServiceAccount:
+    enabled: true
+    existingSecret:
+      name: feast-gcp-service-account
+      key: dev-konnekt-data-deep-1_feast-server-azure-cluster.json
+  postgresql:
+    existingSecret: feast-postgresql
+  kafka:
+    enabled:
+      false
+  application-override.yaml:
+    feast:
+      stream:
+        type: kafka
+        options:
+          topic: feast-features
+          bootstrapServers: feast-kafka:9092
+
+feast-online-serving:
+  enabled: false
+
+feast-batch-serving:
+  enabled:
+    true
+  redis:
+    enabled: false
+  livenessProbe:
+    enabled: true
+  readinessProbe:
+    enabled: true
+  gcpServiceAccount:
+    enabled: true
+    existingSecret:
+      name: feast-gcp-service-account
+      key: dev-konnekt-data-deep-1_feast-server-azure-cluster.json
+  application-override.yaml:
+    feast:
+      active_store: historical
+      stores:
+        - name: historical
+          type: BIGQUERY
+          config:
+            project_id: dev-konnekt-data-deep-1
+            dataset_id: feast_warehouse
+            staging_location: gs://dev-konnekt-data-deep-1-dataflow-workspace/batch-staging/
+            initial_retry_delay_seconds: 3
+            total_timeout_seconds: 21600
+          subscriptions:
+            - name: "*"
+              project: "*"
+              version: "*"
+      stream:
+        type: kafka
+        options:
+          topic: feast-features
+          bootstrapServers: feast-kafka:9092
+      job-store:
+        redis_host: feast-redis-jobstore-master
+        redis_port: 6379
+
+
+
+postgresql:
+  existingSecret: feast-postgresql
