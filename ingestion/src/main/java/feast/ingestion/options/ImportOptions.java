@@ -28,7 +28,8 @@ import org.apache.beam.sdk.options.Validation.Required;
 public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions, DirectOptions {
 
   @Required
-  @Description("Default feast project to apply to incoming rows that do not specify project in its feature set reference.")
+  @Description(
+      "Default feast project to apply to incoming rows that do not specify project in its feature set reference.")
   String getDefaultFeastProject();
 
   void setDefaultFeastProject(String defaultProject);

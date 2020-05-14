@@ -32,8 +32,7 @@ public class ProcessFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow> {
     FeatureRow featureRow = context.element();
     String featureSetId = stripVersion(featureRow.getFeatureSet());
     featureSetId = applyDefaultProject(featureSetId);
-    featureRow =
-        featureRow.toBuilder().setFeatureSet(featureSetId).build();
+    featureRow = featureRow.toBuilder().setFeatureSet(featureSetId).build();
     context.output(featureRow);
   }
 
