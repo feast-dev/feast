@@ -75,10 +75,6 @@
                   <shadedPattern>io.opencensus.vendor</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>feast.core</pattern>
-                  <shadedPattern>feast.core.vendor</shadedPattern>
-                </relocation>
-                <relocation>
                   <pattern>com.google.cloud.bigquery</pattern>
                   <shadedPattern>com.google.cloud.bigquery.vendor</shadedPattern>
                 </relocation>
