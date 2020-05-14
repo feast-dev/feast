@@ -16,7 +16,7 @@
  */
 package feast.storage.api.retriever;
 
-import feast.serving.ServingAPIProto.DatasetSource;
+import feast.proto.serving.ServingAPIProto.DatasetSource;
 import java.util.List;
 
 /**

@@ -18,16 +18,16 @@ package feast.storage.connectors.redis.retriever;
 
 import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.FeatureSetProto.EntitySpec;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.serving.ServingAPIProto.FeatureReference;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
-import feast.storage.RedisProto.RedisKey;
+import feast.proto.core.FeatureSetProto.EntitySpec;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
+import feast.proto.storage.RedisProto.RedisKey;
+import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FieldProto.Field;
+import feast.proto.types.ValueProto.Value;
 import feast.storage.api.retriever.FeatureSetRequest;
 import feast.storage.api.retriever.OnlineRetriever;
-import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.FieldProto.Field;
-import feast.types.ValueProto.Value;
 import io.grpc.Status;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
@@ -68,8 +68,8 @@ public class RedisOnlineRetriever implements OnlineRetriever {
    * {@link EntityRow} provided by the user.
    *
    * @param entityRows list of entity rows in the feature request
-   * @param featureSetRequests Map of {@link feast.core.FeatureSetProto.FeatureSetSpec} to feature
-   *     references in the request tied to that feature set.
+   * @param featureSetRequests Map of {@link feast.proto.core.FeatureSetProto.FeatureSetSpec} to
+   *     feature references in the request tied to that feature set.
    * @return List of List of {@link FeatureRow}
    */
   @Override

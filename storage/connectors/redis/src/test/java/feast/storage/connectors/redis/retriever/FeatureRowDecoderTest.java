@@ -19,12 +19,12 @@ package feast.storage.connectors.redis.retriever;
 import static org.junit.Assert.*;
 
 import com.google.protobuf.Timestamp;
-import feast.core.FeatureSetProto;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.types.FeatureRowProto;
-import feast.types.FieldProto.Field;
-import feast.types.ValueProto.Value;
-import feast.types.ValueProto.ValueType;
+import feast.proto.core.FeatureSetProto;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.types.FeatureRowProto;
+import feast.proto.types.FieldProto.Field;
+import feast.proto.types.ValueProto.Value;
+import feast.proto.types.ValueProto.ValueType;
 import java.util.Collections;
 import org.junit.Test;
 

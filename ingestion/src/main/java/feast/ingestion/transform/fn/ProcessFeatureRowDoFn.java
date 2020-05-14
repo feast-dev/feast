@@ -16,7 +16,7 @@
  */
 package feast.ingestion.transform.fn;
 
-import feast.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FeatureRowProto.FeatureRow;
 import org.apache.beam.sdk.transforms.DoFn;
 
 public class ProcessFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow> {

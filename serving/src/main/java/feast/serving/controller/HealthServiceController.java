@@ -16,8 +16,8 @@
  */
 package feast.serving.controller;
 
-import feast.core.StoreProto.Store;
-import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
+import feast.proto.core.StoreProto.Store;
+import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.serving.interceptors.GrpcMonitoringInterceptor;
 import feast.serving.service.ServingService;
 import feast.serving.specs.CachedSpecService;

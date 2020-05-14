@@ -17,7 +17,7 @@
 package feast.storage.connectors.rediscluster.writer;
 
 import com.google.common.collect.Lists;
-import feast.core.StoreProto;
+import feast.proto.core.StoreProto;
 import feast.storage.common.retry.BackOffExecutor;
 import io.lettuce.core.LettuceFutures;
 import io.lettuce.core.RedisFuture;

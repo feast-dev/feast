@@ -17,9 +17,9 @@
 package feast.core.model;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.FeatureSetProto;
-import feast.core.IngestionJobProto;
 import feast.core.job.Runner;
+import feast.proto.core.FeatureSetProto;
+import feast.proto.core.IngestionJobProto;
 import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.*;

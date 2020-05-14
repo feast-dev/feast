@@ -18,8 +18,6 @@ package feast.core.job.direct;
 
 import com.google.common.base.Strings;
 import com.google.protobuf.util.JsonFormat;
-import feast.core.FeatureSetProto;
-import feast.core.StoreProto;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
@@ -33,6 +31,8 @@ import feast.ingestion.ImportJob;
 import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.options.OptionCompressor;
+import feast.proto.core.FeatureSetProto;
+import feast.proto.core.StoreProto;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;

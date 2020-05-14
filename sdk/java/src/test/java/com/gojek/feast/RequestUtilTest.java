@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.protobuf.TextFormat;
-import feast.serving.ServingAPIProto.FeatureReference;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;

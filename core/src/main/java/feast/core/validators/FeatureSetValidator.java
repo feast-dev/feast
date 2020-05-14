@@ -19,9 +19,9 @@ package feast.core.validators;
 import static feast.core.validators.Matchers.checkValidCharacters;
 
 import com.google.common.collect.Sets;
-import feast.core.FeatureSetProto.EntitySpec;
-import feast.core.FeatureSetProto.FeatureSet;
-import feast.core.FeatureSetProto.FeatureSpec;
+import feast.proto.core.FeatureSetProto.EntitySpec;
+import feast.proto.core.FeatureSetProto.FeatureSet;
+import feast.proto.core.FeatureSetProto.FeatureSpec;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;

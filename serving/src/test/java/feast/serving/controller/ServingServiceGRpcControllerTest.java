@@ -19,13 +19,13 @@ package feast.serving.controller;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.protobuf.Timestamp;
-import feast.serving.ServingAPIProto.FeatureReference;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
+import feast.proto.types.ValueProto.Value;
 import feast.serving.config.FeastProperties;
 import feast.serving.service.ServingService;
-import feast.types.ValueProto.Value;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.jaegertracing.Configuration;

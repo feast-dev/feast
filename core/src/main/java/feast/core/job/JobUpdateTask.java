@@ -25,6 +25,7 @@ import feast.core.model.Job;
 import feast.core.model.JobStatus;
 import feast.core.model.Source;
 import feast.core.model.Store;
+import feast.proto.core.FeatureSetProto.FeatureSetStatus;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;

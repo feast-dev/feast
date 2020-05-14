@@ -17,10 +17,10 @@
 package feast.core.model;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.FeatureSetProto.FeatureSpec;
-import feast.core.FeatureSetProto.FeatureSpec.Builder;
 import feast.core.util.TypeConversion;
-import feast.types.ValueProto.ValueType;
+import feast.proto.core.FeatureSetProto.FeatureSpec;
+import feast.proto.core.FeatureSetProto.FeatureSpec.Builder;
+import feast.proto.types.ValueProto.ValueType;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;

@@ -16,13 +16,13 @@
  */
 package com.gojek.feast;
 
-import feast.serving.ServingAPIProto.FeatureReference;
-import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
-import feast.serving.ServingAPIProto.GetFeastServingInfoResponse;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
-import feast.serving.ServingServiceGrpc;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
+import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
+import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
+import feast.proto.serving.ServingServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.List;

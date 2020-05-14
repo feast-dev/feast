@@ -18,8 +18,8 @@ package feast.storage.connectors.bigquery.writer;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.protobuf.util.Timestamps;
-import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.FieldProto.Field;
+import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FieldProto.Field;
 import java.util.Base64;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.SerializableFunction;

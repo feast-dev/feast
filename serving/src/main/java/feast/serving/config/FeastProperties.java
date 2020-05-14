@@ -25,7 +25,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-import feast.core.StoreProto;
+import feast.proto.core.StoreProto;
 import java.util.*;
 import java.util.stream.Collectors;
 import javax.validation.constraints.NotBlank;

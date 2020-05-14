@@ -17,11 +17,11 @@
 package feast.storage.connectors.rediscluster.writer;
 
 import com.google.auto.value.AutoValue;
-import feast.core.FeatureSetProto;
-import feast.core.StoreProto.Store.RedisClusterConfig;
+import feast.proto.core.FeatureSetProto;
+import feast.proto.core.StoreProto.Store.RedisClusterConfig;
+import feast.proto.types.FeatureRowProto;
 import feast.storage.api.writer.FeatureSink;
 import feast.storage.api.writer.WriteResult;
-import feast.types.FeatureRowProto;
 import java.util.Map;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;

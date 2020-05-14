@@ -16,8 +16,8 @@
  */
 package feast.core.model;
 
-import feast.core.FeatureSetProto.EntitySpec;
-import feast.types.ValueProto.ValueType;
+import feast.proto.core.FeatureSetProto.EntitySpec;
+import feast.proto.types.ValueProto.ValueType;
 import java.util.Objects;
 import javax.persistence.*;
 import lombok.Getter;

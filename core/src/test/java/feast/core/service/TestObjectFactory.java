@@ -16,13 +16,13 @@
  */
 package feast.core.service;
 
-import feast.core.FeatureSetProto;
-import feast.core.SourceProto;
 import feast.core.model.Entity;
 import feast.core.model.Feature;
 import feast.core.model.FeatureSet;
 import feast.core.model.Source;
-import feast.types.ValueProto;
+import feast.proto.core.FeatureSetProto;
+import feast.proto.core.SourceProto;
+import feast.proto.types.ValueProto;
 import java.util.HashMap;
 import java.util.List;
 

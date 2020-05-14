@@ -18,8 +18,8 @@ package feast.storage.api.retriever;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableSet;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.serving.ServingAPIProto.FeatureReference;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;

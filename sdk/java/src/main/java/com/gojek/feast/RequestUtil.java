@@ -16,7 +16,7 @@
  */
 package com.gojek.feast;
 
-import feast.serving.ServingAPIProto.FeatureReference;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
 import java.util.ArrayList;
 import java.util.List;
 

@@ -16,15 +16,15 @@
  */
 package feast.ingestion.transform;
 
-import feast.core.FeatureSetProto.EntitySpec;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.FeatureSetProto.FeatureSpec;
+import feast.proto.core.FeatureSetProto.EntitySpec;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.FeatureSetProto.FeatureSpec;
+import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FieldProto.Field;
+import feast.proto.types.ValueProto.Value;
+import feast.proto.types.ValueProto.ValueType.Enum;
 import feast.storage.api.writer.FailedElement;
 import feast.test.TestUtil;
-import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.FieldProto.Field;
-import feast.types.ValueProto.Value;
-import feast.types.ValueProto.ValueType.Enum;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

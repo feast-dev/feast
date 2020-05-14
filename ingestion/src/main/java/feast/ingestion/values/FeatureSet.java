@@ -19,12 +19,12 @@ package feast.ingestion.values;
 import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
 import static feast.ingestion.utils.SpecUtil.getFieldsByName;
 
-import feast.core.FeatureSetProto;
+import feast.proto.core.FeatureSetProto;
 import java.io.Serializable;
 import java.util.Map;
 
 /**
- * This class represents {@link feast.core.FeatureSetProto.FeatureSetSpec} but contains fields
+ * This class represents {@link feast.proto.core.FeatureSetProto.FeatureSetSpec} but contains fields
  * directly accessible by name for feature validation purposes.
  *
  * <p>The use for this class is mainly for validating the Fields in FeatureRow.

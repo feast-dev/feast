@@ -16,10 +16,10 @@
  */
 package feast.storage.connectors.rediscluster.retriever;
 
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.FeatureSetProto.FeatureSpec;
-import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.FieldProto.Field;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.FeatureSetProto.FeatureSpec;
+import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FieldProto.Field;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
