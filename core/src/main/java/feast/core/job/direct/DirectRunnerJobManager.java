@@ -26,6 +26,7 @@ import feast.core.job.option.FeatureSetJsonByteConverter;
 import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
+import feast.core.model.Project;
 import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
 import feast.ingestion.options.BZip2Compressor;
@@ -105,6 +106,7 @@ public class DirectRunnerJobManager implements JobManager {
     pipelineOptions.setJobName(jobName);
     pipelineOptions.setStoreJson(Collections.singletonList(JsonFormat.printer().print(sink)));
     pipelineOptions.setRunner(DirectRunner.class);
+    pipelineOptions.setDefaultFeastProject(Project.DEFAULT_NAME);
     pipelineOptions.setProject(""); // set to default value to satisfy validation
     if (metrics.isEnabled()) {
       pipelineOptions.setMetricsExporterType(metrics.getType());

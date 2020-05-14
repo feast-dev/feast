@@ -279,6 +279,7 @@ public class DataflowJobManager implements JobManager {
     pipelineOptions.setFeatureSetJson(featureSetJsonCompressor.compress(featureSets));
     pipelineOptions.setStoreJson(Collections.singletonList(JsonFormat.printer().print(sink)));
     pipelineOptions.setProject(projectId);
+    pipelineOptions.setDefaultFeastProject(Project.DEFAULT_NAME);
     pipelineOptions.setUpdate(update);
     pipelineOptions.setRunner(DataflowRunner.class);
     pipelineOptions.setJobName(jobName);

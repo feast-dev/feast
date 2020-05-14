@@ -109,6 +109,7 @@ public class ProcessAndValidateFeatureRowsTest {
             .setCoder(ProtoCoder.of(FeatureRow.class))
             .apply(
                 ProcessAndValidateFeatureRows.newBuilder()
+                    .setDefaultProject("myproject")
                     .setFailureTag(FAILURE_TAG)
                     .setSuccessTag(SUCCESS_TAG)
                     .setFeatureSetSpecs(featureSetSpecs)
@@ -158,10 +159,60 @@ public class ProcessAndValidateFeatureRowsTest {
             .setCoder(ProtoCoder.of(FeatureRow.class))
             .apply(
                 ProcessAndValidateFeatureRows.newBuilder()
+                        .setDefaultProject("myproject")
                     .setFailureTag(FAILURE_TAG)
                     .setSuccessTag(SUCCESS_TAG)
                     .setFeatureSetSpecs(featureSetSpecs)
                     .build());
+
+    PAssert.that(output.get(SUCCESS_TAG)).containsInAnyOrder(expected);
+
+    p.run();
+  }
+
+  @Test
+  public void shouldApplyDefaultProject() {
+    FeatureSetSpec fs1 =
+            FeatureSetSpec.newBuilder()
+                    .setName("feature_set")
+                    .setProject("myproject")
+                    .addEntities(
+                            EntitySpec.newBuilder()
+                                    .setName("entity_id_primary")
+                                    .setValueType(Enum.INT32)
+                                    .build())
+                    .addEntities(
+                            EntitySpec.newBuilder()
+                                    .setName("entity_id_secondary")
+                                    .setValueType(Enum.STRING)
+                                    .build())
+                    .addFeatures(
+                            FeatureSpec.newBuilder().setName("feature_1").setValueType(Enum.STRING).build())
+                    .addFeatures(
+                            FeatureSpec.newBuilder().setName("feature_2").setValueType(Enum.INT64).build())
+                    .build();
+
+    Map<String, FeatureSetSpec> featureSetSpecs = new HashMap<>();
+    featureSetSpecs.put("myproject/feature_set", fs1);
+
+    List<FeatureRow> input = new ArrayList<>();
+    List<FeatureRow> expected = new ArrayList<>();
+
+    FeatureRow randomRow = TestUtil.createRandomFeatureRow(fs1);
+    expected.add(randomRow);
+    randomRow = randomRow.toBuilder().setFeatureSet("feature_set").build();
+    input.add(randomRow);
+
+    PCollectionTuple output =
+            p.apply(Create.of(input))
+                    .setCoder(ProtoCoder.of(FeatureRow.class))
+                    .apply(
+                            ProcessAndValidateFeatureRows.newBuilder()
+                                    .setDefaultProject("myproject")
+                                    .setFailureTag(FAILURE_TAG)
+                                    .setSuccessTag(SUCCESS_TAG)
+                                    .setFeatureSetSpecs(featureSetSpecs)
+                                    .build());
 
     PAssert.that(output.get(SUCCESS_TAG)).containsInAnyOrder(expected);
 
@@ -212,6 +263,7 @@ public class ProcessAndValidateFeatureRowsTest {
             .setCoder(ProtoCoder.of(FeatureRow.class))
             .apply(
                 ProcessAndValidateFeatureRows.newBuilder()
+                        .setDefaultProject("myproject")
                     .setFailureTag(FAILURE_TAG)
                     .setSuccessTag(SUCCESS_TAG)
                     .setFeatureSetSpecs(featureSets)
