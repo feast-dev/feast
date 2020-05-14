@@ -276,6 +276,7 @@ class TestClient:
                     spec=FeatureSetSpecProto(
                         name="my_feature_set",
                         max_age=Duration(seconds=3600),
+                        labels={'key1': 'val1', 'key2': 'val2'},
                         features=[
                             FeatureSpecProto(
                                 name="my_feature_1",
@@ -308,6 +309,10 @@ class TestClient:
 
         assert (
             feature_set.name == "my_feature_set"
+            and 'key1' in feature_set.labels
+            and feature_set.labels['key1'] == 'val1'
+            and 'key2' in feature_set.labels
+            and feature_set.labels['key2'] == 'val2'
             and feature_set.fields["my_feature_1"].name == "my_feature_1"
             and feature_set.fields["my_feature_1"].dtype == ValueType.FLOAT
             and feature_set.fields["my_entity_1"].name == "my_entity_1"
