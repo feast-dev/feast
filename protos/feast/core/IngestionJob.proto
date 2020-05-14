@@ -20,7 +20,7 @@ package feast.core;
 
 option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 option java_outer_classname = "IngestionJobProto";
-option java_package = "feast.core";
+option java_package = "feast.proto.core";
 
 import "feast/core/FeatureSet.proto";
 import "feast/core/Store.proto";

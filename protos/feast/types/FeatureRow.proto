@@ -21,7 +21,7 @@ import "feast/types/Field.proto";
 
 package feast.types;
 
-option java_package = "feast.types";
+option java_package = "feast.proto.types";
 option java_outer_classname = "FeatureRowProto";
 option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/types";
 

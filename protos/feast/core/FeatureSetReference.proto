@@ -20,7 +20,7 @@ package feast.core;
 
 option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 option java_outer_classname = "FeatureSetReferenceProto";
-option java_package = "feast.core";
+option java_package = "feast.proto.core";
 
 // Defines a composite key that refers to a unique FeatureSet
 message FeatureSetReference {

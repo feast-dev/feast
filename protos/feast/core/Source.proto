@@ -17,7 +17,7 @@
 syntax = "proto3";
 package feast.core;
 
-option java_package = "feast.core";
+option java_package = "feast.proto.core";
 option java_outer_classname = "SourceProto";
 option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 
