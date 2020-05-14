@@ -293,11 +293,6 @@ presubmits:
             --file infra/docker/serving/Dockerfile \
             --google-service-account-file /etc/gcloud/service-account.json
 
-          docker tag gcr.io/kf-feast/feast-core:${PULL_PULL_SHA:1}
-          docker push gcr.io/kf-feast/feast-core:${PULL_PULL_SHA:1}
-
-          docker tag gcr.io/kf-feast/feast-serving:${PULL_PULL_SHA:1}
-          docker push gcr.io/kf-feast/feast-serving:${PULL_PULL_SHA:1}
         volumeMounts:
         - name: docker-socket
           mountPath: /var/run/docker.sock
