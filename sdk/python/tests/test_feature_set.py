@@ -288,9 +288,9 @@ def make_tfx_schema_domain_info_inline(schema):
 
 
 def test_feature_set_class_contains_labels():
-    fs = FeatureSet("my-feature-set", labels={'key1': 'val1', 'key2': 'val2'})
-    assert 'key1' in fs.labels.keys() and fs.labels['key1'] == 'val1'
-    assert 'key2' in fs.labels.keys() and fs.labels['key2'] == 'val2'
+    fs = FeatureSet("my-feature-set", labels={"key1": "val1", "key2": "val2"})
+    assert "key1" in fs.labels.keys() and fs.labels["key1"] == "val1"
+    assert "key2" in fs.labels.keys() and fs.labels["key2"] == "val2"
 
 
 def test_feature_set_without_labels():
@@ -300,38 +300,38 @@ def test_feature_set_without_labels():
 
 def test_set_labels_adds_to_class():
     fs = FeatureSet("my-feature-set")
-    fs.set_label('k1', 'v1')
-    assert fs.labels['k1'] == 'v1'
+    fs.set_label("k1", "v1")
+    assert fs.labels["k1"] == "v1"
 
 
 def test_set_labels_overwrites_existing():
     fs = FeatureSet("my-feature-set")
-    fs.set_label('k1', 'v1')
-    fs.set_label('k1', 'v2')
-    assert fs.labels['k1'] == 'v2'
+    fs.set_label("k1", "v1")
+    fs.set_label("k1", "v2")
+    assert fs.labels["k1"] == "v2"
 
 
 def test_remove_labels_empty_failure():
     fs = FeatureSet("my-feature-set")
     with pytest.raises(ValueError):
-        fs.remove_label('key1')
+        fs.remove_label("key1")
 
 
 def test_remove_labels_invalid_key_failure():
     fs = FeatureSet("my-feature-set")
-    fs.set_label('k1', 'v1')
+    fs.set_label("k1", "v1")
     with pytest.raises(ValueError):
-        fs.remove_label('key1')
+        fs.remove_label("key1")
 
 
 def test_feature_set_unequal_based_on_labels():
     fs1 = FeatureSet("my-feature-set")
     fs2 = FeatureSet("my-feature-set")
     assert fs1 == fs2
-    fs1.set_label('k1', 'v1')
-    fs2.set_label('k1', 'v1')
+    fs1.set_label("k1", "v1")
+    fs2.set_label("k1", "v1")
     assert fs1 == fs2
-    fs2.set_label('k1', 'unequal')
+    fs2.set_label("k1", "unequal")
     assert not fs1 == fs2
 
 

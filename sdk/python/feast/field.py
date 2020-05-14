@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Union, MutableMapping, Optional
+from typing import MutableMapping, Optional, Union
 
 from feast.core.FeatureSet_pb2 import EntitySpec, FeatureSpec
 from feast.value_type import ValueType
@@ -24,7 +24,12 @@ class Field:
     features.
     """
 
-    def __init__(self, name: str, dtype: ValueType, labels: Optional[MutableMapping[str, str]] = None):
+    def __init__(
+        self,
+        name: str,
+        dtype: ValueType,
+        labels: Optional[MutableMapping[str, str]] = None,
+    ):
         self._name = name
         if not isinstance(dtype, ValueType):
             raise ValueError("dtype is not a valid ValueType")

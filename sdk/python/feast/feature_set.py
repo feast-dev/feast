@@ -13,7 +13,7 @@
 # limitations under the License.
 import warnings
 from collections import OrderedDict
-from typing import Dict, List, Optional, MutableMapping
+from typing import Dict, List, MutableMapping, Optional
 
 import pandas as pd
 from google.protobuf import json_format
@@ -56,7 +56,7 @@ class FeatureSet:
         entities: List[Entity] = None,
         source: Source = None,
         max_age: Optional[Duration] = None,
-        labels: Optional[MutableMapping[str, str]] = None
+        labels: Optional[MutableMapping[str, str]] = None,
     ):
         self._name = name
         self._project = project

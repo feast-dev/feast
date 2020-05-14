@@ -58,7 +58,9 @@ class Feature(Field):
             Feature object
         """
         feature = cls(
-            name=feature_proto.name, dtype=ValueType(feature_proto.value_type), labels=feature_proto.labels
+            name=feature_proto.name,
+            dtype=ValueType(feature_proto.value_type),
+            labels=feature_proto.labels,
         )
         feature.update_presence_constraints(feature_proto)
         feature.update_shape_type(feature_proto)
