@@ -445,6 +445,17 @@ def infra_teardown(pytestconfig, core_url, serving_url):
         print("Cleaning up not required")
 
 
+
+'''
+This suite of tests tests the apply feature set - update feature set - retrieve  
+event sequence. It ensures that when a feature set is updated, tombstoned features 
+are no longer retrieved, and added features are null for previously ingested
+rows.
+
+It is marked separately because of the length of time required
+to perform this test, due to bigquery schema caching for streaming writes.
+'''
+
 @pytest.fixture(scope="module")
 def update_featureset_dataframe():
     n_rows = 10
@@ -461,7 +472,7 @@ def update_featureset_dataframe():
     )
 
 
-@pytest.mark.direct_runner
+@pytest.mark.fs_update
 @pytest.mark.run(order=20)
 def test_update_featureset_apply_featureset_and_ingest_first_subset(
     client, update_featureset_dataframe
@@ -494,7 +505,7 @@ def test_update_featureset_apply_featureset_and_ingest_first_subset(
     assert output["update_feature2"].to_list() == subset_df["update_feature2"].to_list()
 
 
-@pytest.mark.direct_runner
+@pytest.mark.fs_update
 @pytest.mark.timeout(600)
 @pytest.mark.run(order=21)
 def test_update_featureset_update_featureset_and_ingest_second_subset(
@@ -548,7 +559,7 @@ def test_update_featureset_update_featureset_and_ingest_second_subset(
     assert output["update_feature4"].to_list() == subset_df["update_feature4"].to_list()
 
 
-@pytest.mark.direct_runner
+@pytest.mark.fs_update
 @pytest.mark.run(order=22)
 def test_update_featureset_retrieve_all_fields(client, update_featureset_dataframe):
     with pytest.raises(Exception):
@@ -564,7 +575,7 @@ def test_update_featureset_retrieve_all_fields(client, update_featureset_datafra
         feature_retrieval_job.result()
 
 
-@pytest.mark.direct_runner
+@pytest.mark.fs_update
 @pytest.mark.run(order=23)
 def test_update_featureset_retrieve_valid_fields(client, update_featureset_dataframe):
     feature_retrieval_job = client.get_batch_features(
