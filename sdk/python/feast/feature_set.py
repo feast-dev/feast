@@ -86,7 +86,8 @@ class FeatureSet:
                 return False
 
         if (
-            self.name != other.name
+            self.labels != other.labels
+            or self.name != other.name
             or self.project != other.project
             or self.max_age != other.max_age
         ):

@@ -335,6 +335,14 @@ def test_feature_set_unequal_based_on_labels():
     assert not fs1 == fs2
 
 
+def test_feature_set_unequal_other_has_no_labels():
+    fs1 = FeatureSet("my-feature-set")
+    fs2 = FeatureSet("my-feature-set")
+    assert fs1 == fs2
+    fs1.set_label("k1", "v1")
+    assert not fs1 == fs2
+
+
 class TestFeatureSetRef:
     def test_from_feature_set(self):
         feature_set = FeatureSet("test", "test")
