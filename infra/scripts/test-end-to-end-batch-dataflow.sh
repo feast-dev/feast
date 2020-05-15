@@ -216,7 +216,6 @@ if [[ ${TEST_EXIT_CODE} != 0 ]]; then
 fi
 
 cd ${ORIGINAL_DIR}
-exit ${TEST_EXIT_CODE}
 
 echo "
 ============================================================
@@ -244,3 +243,5 @@ do
     echo $line
     gcloud dataflow jobs cancel $line --region=${GCLOUD_REGION}
 done < ingesting_jobs.txt
+
+exit ${TEST_EXIT_CODE}
