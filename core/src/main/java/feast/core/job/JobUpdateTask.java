@@ -17,7 +17,6 @@
 package feast.core.job;
 
 import com.google.common.collect.Sets;
-import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.log.Action;
 import feast.core.log.AuditLogger;
 import feast.core.log.Resource;
@@ -103,17 +102,7 @@ public class JobUpdateTask implements Callable<Job> {
 
   boolean requiresUpdate(Job job) {
     // If set of feature sets has changed
-    if (!Sets.newHashSet(featureSets).equals(Sets.newHashSet(job.getFeatureSets()))) {
-      return true;
-    }
-
-    // If any existing feature set populated by the job has its status as pending
-    for (FeatureSet featureSet : job.getFeatureSets()) {
-      if (featureSet.getStatus().equals(FeatureSetStatus.STATUS_PENDING)) {
-        return true;
-      }
-    }
-    return false;
+    return !Sets.newHashSet(featureSets).equals(Sets.newHashSet(job.getFeatureSets()));
   }
 
   private Job createJob() {
