@@ -101,18 +101,18 @@ ip_count=0
 for ip_addr_name in $feast_kafka_1_ip_name $feast_kafka_2_ip_name $feast_kafka_3_ip_name $feast_redis_ip_name $feast_statsd_ip_name
 do
   if [[ "$ip_count" == 0 ]]; then
-    export feast_kafka_1_ip=$(gcloud compute addresses describe ${ip_addr_name} --region=asia-east1 --format "value(address)")
+    export feast_kafka_1_ip=$(gcloud compute addresses describe ${ip_addr_name} --region=${GCLOUD_REGION} --format "value(address)")
   elif [[ "$ip_count" == 1 ]]; then
-    export feast_kafka_2_ip=$(gcloud compute addresses describe ${ip_addr_name} --region=asia-east1 --format "value(address)")
+    export feast_kafka_2_ip=$(gcloud compute addresses describe ${ip_addr_name} --region=${GCLOUD_REGION} --format "value(address)")
   elif [[ "$ip_count" == 2 ]]; then
-    export feast_kafka_3_ip=$(gcloud compute addresses describe ${ip_addr_name} --region=asia-east1 --format "value(address)")
+    export feast_kafka_3_ip=$(gcloud compute addresses describe ${ip_addr_name} --region=${GCLOUD_REGION} --format "value(address)")
   elif [[ "$ip_count" == 3 ]]; then
-    export feast_redis_ip=$(gcloud compute addresses describe ${ip_addr_name} --region=asia-east1 --format "value(address)")
+    export feast_redis_ip=$(gcloud compute addresses describe ${ip_addr_name} --region=${GCLOUD_REGION} --format "value(address)")
   elif [[ "$ip_count" == 4 ]]; then
-    export feast_statsd_ip=$(gcloud compute addresses describe ${ip_addr_name} --region=asia-east1 --format "value(address)")
+    export feast_statsd_ip=$(gcloud compute addresses describe ${ip_addr_name} --region=${GCLOUD_REGION} --format "value(address)")
   fi
   ip_count=$((ip_count + 1))
-  export "$(echo $ip_addr_name | tr '-' '_')=$(gcloud compute addresses describe ${ip_addr_name} --region=asia-east1 --format "value(address)")"
+  export "$(echo $ip_addr_name | tr '-' '_')=$(gcloud compute addresses describe ${ip_addr_name} --region=${GCLOUD_REGION} --format "value(address)")"
 done
 
 echo "
@@ -242,5 +242,5 @@ gcloud container clusters delete --region=${GCLOUD_REGION} ${K8_CLUSTER_NAME}
 while read line
 do 
     echo $line
-    gcloud dataflow jobs cancel $line --region=asia-east1
+    gcloud dataflow jobs cancel $line --region=${GCLOUD_REGION}
 done < ingesting_jobs.txt
