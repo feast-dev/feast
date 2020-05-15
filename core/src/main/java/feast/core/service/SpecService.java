@@ -19,15 +19,14 @@ package feast.core.service;
 import static feast.core.validators.Matchers.checkValidCharacters;
 import static feast.core.validators.Matchers.checkValidCharactersAllowAsterisk;
 
+import com.google.api.client.util.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.dao.FeatureSetRepository;
+import feast.core.dao.JobRepository;
 import feast.core.dao.ProjectRepository;
 import feast.core.dao.StoreRepository;
 import feast.core.exception.RetrievalException;
-import feast.core.model.FeatureSet;
-import feast.core.model.Project;
-import feast.core.model.Source;
-import feast.core.model.Store;
+import feast.core.model.*;
 import feast.core.validators.FeatureSetValidator;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse.Status;
@@ -63,17 +62,19 @@ public class SpecService {
   private final FeatureSetRepository featureSetRepository;
   private final ProjectRepository projectRepository;
   private final StoreRepository storeRepository;
+  private final JobRepository jobRepository;
   private final Source defaultSource;
 
   @Autowired
   public SpecService(
-      FeatureSetRepository featureSetRepository,
-      StoreRepository storeRepository,
-      ProjectRepository projectRepository,
-      Source defaultSource) {
+          FeatureSetRepository featureSetRepository,
+          StoreRepository storeRepository,
+          ProjectRepository projectRepository,
+          JobRepository jobRepository, Source defaultSource) {
     this.featureSetRepository = featureSetRepository;
     this.storeRepository = storeRepository;
     this.projectRepository = projectRepository;
+    this.jobRepository = jobRepository;
     this.defaultSource = defaultSource;
   }
 
@@ -108,6 +109,9 @@ public class SpecService {
       throw new RetrievalException(
           String.format("Feature set with name \"%s\" could not be found.", request.getName()));
     }
+
+    checkAndUpdateStatus(featureSet);
+
     return GetFeatureSetResponse.newBuilder().setFeatureSet(featureSet.toProto()).build();
   }
 
@@ -181,6 +185,7 @@ public class SpecService {
     ListFeatureSetsResponse.Builder response = ListFeatureSetsResponse.newBuilder();
     if (featureSets.size() > 0) {
       for (FeatureSet featureSet : featureSets) {
+        checkAndUpdateStatus(featureSet);
         response.addFeatureSets(featureSet.toProto());
       }
     }
@@ -330,4 +335,41 @@ public class SpecService {
         .setStore(updateStoreRequest.getStore())
         .build();
   }
+
+  /**
+   * Checks the status of the given feature set. If there are jobs populating values from this feature set,
+   * and if for each source and sink pair, there is at least 1 job running, it sets the feature set's status to STATUS_READY and updates the db with the new status.
+   *
+   * @param featureSet {@link FeatureSet}
+   */
+  private void checkAndUpdateStatus(FeatureSet featureSet) {
+      // check if the job is ready
+    List<Job> jobsForFeatureSet = jobRepository.findByFeatureSetsIn(Collections.singletonList(featureSet));
+    if (jobsForFeatureSet.size() != 0) {
+
+      List<List<Job>> jobsGroupedBySourceAndSink = jobsForFeatureSet.stream()
+              .collect(Collectors.groupingBy(Job::getSource, Collectors.groupingBy(Job::getSinkName)))
+              .values()
+              .stream()
+              .flatMap(map -> map.values().stream())
+              .collect(Collectors.toList());
+
+      for (List<Job> jobs : jobsGroupedBySourceAndSink) {
+        long jobsRunning = jobs.stream().filter(job -> job.getStatus() == JobStatus.RUNNING).count();
+        if (jobsRunning == 0) {
+          if (featureSet.getStatus() == FeatureSetStatus.STATUS_READY) {
+            featureSet.setStatus(FeatureSetStatus.STATUS_PENDING);
+            featureSetRepository.save(featureSet);
+          }
+          return;
+        }
+      }
+
+      if (featureSet.getStatus() != FeatureSetStatus.STATUS_READY) {
+        featureSet.setStatus(FeatureSetStatus.STATUS_READY);
+        featureSetRepository.save(featureSet);
+      }
+    }
+  }
+
 }

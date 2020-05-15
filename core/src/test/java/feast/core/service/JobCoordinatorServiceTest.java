@@ -51,6 +51,7 @@ import feast.proto.core.StoreProto.Store.RedisConfig;
 import feast.proto.core.StoreProto.Store.StoreType;
 import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.junit.Before;
 import org.junit.Rule;
@@ -149,7 +150,7 @@ public class JobCoordinatorServiceTest {
             .build();
     FeatureSet featureSet2 = FeatureSet.fromProto(featureSetProto2);
     String extId = "ext";
-    ArgumentCaptor<Job> jobArgCaptor = ArgumentCaptor.forClass(Job.class);
+    ArgumentCaptor<List<Job>> jobArgCaptor = ArgumentCaptor.forClass(List.class);
 
     Job expectedInput =
         new Job(
@@ -183,9 +184,9 @@ public class JobCoordinatorServiceTest {
         new JobCoordinatorService(
             jobRepository, featureSetRepository, specService, jobManager, feastProperties);
     jcs.Poll();
-    verify(jobRepository, times(1)).saveAndFlush(jobArgCaptor.capture());
-    Job actual = jobArgCaptor.getValue();
-    assertThat(actual, equalTo(expected));
+    verify(jobRepository, times(1)).saveAll(jobArgCaptor.capture());
+    List<Job> actual = jobArgCaptor.getValue();
+    assertThat(actual, equalTo(Collections.singletonList(expected)));
   }
 
   @Test
@@ -277,7 +278,7 @@ public class JobCoordinatorServiceTest {
             feast.core.model.Store.fromProto(store),
             Arrays.asList(featureSet2),
             JobStatus.RUNNING);
-    ArgumentCaptor<Job> jobArgCaptor = ArgumentCaptor.forClass(Job.class);
+    ArgumentCaptor<List<Job>> jobArgCaptor = ArgumentCaptor.forClass(List.class);
 
     when(featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc("%", "project1"))
         .thenReturn(Lists.newArrayList(featureSet1, featureSet2));
@@ -294,8 +295,8 @@ public class JobCoordinatorServiceTest {
             jobRepository, featureSetRepository, specService, jobManager, feastProperties);
     jcs.Poll();
 
-    verify(jobRepository, times(2)).saveAndFlush(jobArgCaptor.capture());
-    List<Job> actual = jobArgCaptor.getAllValues();
+    verify(jobRepository, times(1)).saveAll(jobArgCaptor.capture());
+    List<Job> actual = jobArgCaptor.getValue();
 
     assertThat(actual.get(0), equalTo(expected1));
     assertThat(actual.get(1), equalTo(expected2));

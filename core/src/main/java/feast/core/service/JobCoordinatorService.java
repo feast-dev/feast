@@ -121,9 +121,6 @@ public class JobCoordinatorService {
 
     log.info("Creating/Updating {} jobs...", jobUpdateTasks.size());
     startOrUpdateJobs(jobUpdateTasks);
-
-    log.info("Updating feature set status");
-    updateFeatureSetStatuses(jobUpdateTasks);
   }
 
   void startOrUpdateJobs(List<JobUpdateTask> tasks) {
@@ -132,47 +129,20 @@ public class JobCoordinatorService {
     tasks.forEach(ecs::submit);
 
     int completedTasks = 0;
+    List<Job> completedJobs = new ArrayList<>();
     while (completedTasks < tasks.size()) {
       try {
         Job job = ecs.take().get();
         if (job != null) {
-          jobRepository.saveAndFlush(job);
+          completedJobs.add(job);
         }
       } catch (ExecutionException | InterruptedException e) {
         log.warn("Unable to start or update job: {}", e.getMessage());
       }
       completedTasks++;
     }
+    jobRepository.saveAll(completedJobs);
     executorService.shutdown();
-  }
-
-  // TODO: make this more efficient
-  private void updateFeatureSetStatuses(List<JobUpdateTask> jobUpdateTasks) {
-    Set<FeatureSet> ready = new HashSet<>();
-    Set<FeatureSet> pending = new HashSet<>();
-    for (JobUpdateTask task : jobUpdateTasks) {
-      getJob(task.getSource(), task.getStore())
-          .ifPresent(
-              job -> {
-                if (job.isRunning()) {
-                  ready.addAll(job.getFeatureSets());
-                } else {
-                  pending.addAll(job.getFeatureSets());
-                }
-              });
-    }
-    ready.removeAll(pending);
-    ready.forEach(
-        fs -> {
-          fs.setStatus(FeatureSetStatus.STATUS_READY);
-          featureSetRepository.save(fs);
-        });
-    pending.forEach(
-        fs -> {
-          fs.setStatus(FeatureSetStatus.STATUS_PENDING);
-          featureSetRepository.save(fs);
-        });
-    featureSetRepository.flush();
   }
 
   @Transactional

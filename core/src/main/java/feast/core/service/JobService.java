@@ -181,6 +181,10 @@ public class JobService {
             job.getId(), job.getExtId(), job.getRunner()));
     // sync job status & update job model in job repository
     job = this.syncJobStatus(jobManager, job);
+
+    for (FeatureSet featureSet: job.getFeatureSets()) {
+      featureSet.setStatus(FeatureSetStatus.STATUS_PENDING);
+    }
     this.jobRepository.saveAndFlush(job);
 
     return RestartIngestionJobResponse.newBuilder().build();
@@ -226,6 +230,11 @@ public class JobService {
 
     // sync job status & update job model in job repository
     job = this.syncJobStatus(jobManager, job);
+
+    for (FeatureSet featureSet: job.getFeatureSets()) {
+      featureSet.setStatus(FeatureSetStatus.STATUS_PENDING);
+    }
+
     this.jobRepository.saveAndFlush(job);
 
     return StopIngestionJobResponse.newBuilder().build();
