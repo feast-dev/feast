@@ -281,7 +281,6 @@ if [[ ${TEST_EXIT_CODE} != 0 ]]; then
 fi
 
 cd ${ORIGINAL_DIR}
-exit ${TEST_EXIT_CODE}
 
 echo "
 ============================================================
@@ -290,3 +289,5 @@ Cleaning up
 "
 
 bq rm -r -f ${GOOGLE_CLOUD_PROJECT}:${DATASET_NAME}
+
+exit ${TEST_EXIT_CODE}
