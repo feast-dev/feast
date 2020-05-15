@@ -3,6 +3,20 @@
 set -e
 set -o pipefail
 
+PYTEST_MARK='direct_runner' #default
+
+print_usage() {
+  printf "Usage: ./test-end-to-end-batch -m pytest_mark"
+}
+
+while getopts 'm:' flag; do
+  case "${flag}" in
+    m) PYTEST_MARK="${OPTARG}" ;;
+    *) print_usage
+       exit 1 ;;
+  esac
+done
+
 test -z ${GOOGLE_APPLICATION_CREDENTIALS} && GOOGLE_APPLICATION_CREDENTIALS="/etc/service-account/service-account.json"
 test -z ${SKIP_BUILD_JARS} && SKIP_BUILD_JARS="false"
 test -z ${GOOGLE_CLOUD_PROJECT} && GOOGLE_CLOUD_PROJECT="kf-feast"
@@ -254,7 +268,7 @@ ORIGINAL_DIR=$(pwd)
 cd tests/e2e
 
 set +e
-pytest bq-batch-retrieval.py -m direct_runner --gcs_path "gs://${TEMP_BUCKET}/" --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+pytest bq-batch-retrieval.py -m ${PYTEST_MARK} --gcs_path "gs://${TEMP_BUCKET}/" --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 
 if [[ ${TEST_EXIT_CODE} != 0 ]]; then
