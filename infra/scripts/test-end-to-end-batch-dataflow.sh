@@ -4,7 +4,7 @@ echo "Preparing environment variables..."
 set -e
 set -o pipefail
 
-test -z ${GOOGLE_APPLICATION_CREDENTIALS} && GOOGLE_APPLICATION_CREDENTIALS="/etc/service-account/service-account-df.json"
+test -z ${GOOGLE_APPLICATION_CREDENTIALS} && GOOGLE_APPLICATION_CREDENTIALS="/etc/service-account-df/service-account-df.json"
 test -z ${GCLOUD_PROJECT} && GCLOUD_PROJECT="kf-feast"
 test -z ${GCLOUD_REGION} && GCLOUD_REGION="us-central1"
 test -z ${GCLOUD_NETWORK} && GCLOUD_NETWORK="default"
@@ -38,10 +38,15 @@ Installing gcloud SDK and required packages
 ============================================================
 "
 apt-get -qq update
-apt-get -y install wget netcat kafkacat build-essential gettext-base curl kubectl
+apt-get -y install wget netcat kafkacat build-essential gettext-base curl apt-transport-https gnupg2
+
 curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
 chmod 700 $ORIGINAL_DIR/get_helm.sh
 $ORIGINAL_DIR/get_helm.sh
+
+curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.18.0/bin/linux/amd64/kubectl
+chmod +x ./kubectl
+mv ./kubectl /usr/local/bin/kubectl
 
 if [[ ! $(command -v gsutil) ]]; then
   CURRENT_DIR=$(dirname "$BASH_SOURCE")
