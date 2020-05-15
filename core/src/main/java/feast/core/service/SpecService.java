@@ -19,7 +19,6 @@ package feast.core.service;
 import static feast.core.validators.Matchers.checkValidCharacters;
 import static feast.core.validators.Matchers.checkValidCharactersAllowAsterisk;
 
-import com.google.api.client.util.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobRepository;
@@ -67,10 +66,11 @@ public class SpecService {
 
   @Autowired
   public SpecService(
-          FeatureSetRepository featureSetRepository,
-          StoreRepository storeRepository,
-          ProjectRepository projectRepository,
-          JobRepository jobRepository, Source defaultSource) {
+      FeatureSetRepository featureSetRepository,
+      StoreRepository storeRepository,
+      ProjectRepository projectRepository,
+      JobRepository jobRepository,
+      Source defaultSource) {
     this.featureSetRepository = featureSetRepository;
     this.storeRepository = storeRepository;
     this.projectRepository = projectRepository;
@@ -337,25 +337,30 @@ public class SpecService {
   }
 
   /**
-   * Checks the status of the given feature set. If there are jobs populating values from this feature set,
-   * and if for each source and sink pair, there is at least 1 job running, it sets the feature set's status to STATUS_READY and updates the db with the new status.
+   * Checks the status of the given feature set. If there are jobs populating values from this
+   * feature set, and if for each source and sink pair, there is at least 1 job running, it sets the
+   * feature set's status to STATUS_READY and updates the db with the new status.
    *
    * @param featureSet {@link FeatureSet}
    */
   private void checkAndUpdateStatus(FeatureSet featureSet) {
-      // check if the job is ready
-    List<Job> jobsForFeatureSet = jobRepository.findByFeatureSetsIn(Collections.singletonList(featureSet));
+    // check if the job is ready
+    List<Job> jobsForFeatureSet =
+        jobRepository.findByFeatureSetsIn(Collections.singletonList(featureSet));
     if (jobsForFeatureSet.size() != 0) {
 
-      List<List<Job>> jobsGroupedBySourceAndSink = jobsForFeatureSet.stream()
-              .collect(Collectors.groupingBy(Job::getSource, Collectors.groupingBy(Job::getSinkName)))
+      List<List<Job>> jobsGroupedBySourceAndSink =
+          jobsForFeatureSet.stream()
+              .collect(
+                  Collectors.groupingBy(Job::getSource, Collectors.groupingBy(Job::getSinkName)))
               .values()
               .stream()
               .flatMap(map -> map.values().stream())
               .collect(Collectors.toList());
 
       for (List<Job> jobs : jobsGroupedBySourceAndSink) {
-        long jobsRunning = jobs.stream().filter(job -> job.getStatus() == JobStatus.RUNNING).count();
+        long jobsRunning =
+            jobs.stream().filter(job -> job.getStatus() == JobStatus.RUNNING).count();
         if (jobsRunning == 0) {
           if (featureSet.getStatus() == FeatureSetStatus.STATUS_READY) {
             featureSet.setStatus(FeatureSetStatus.STATUS_PENDING);
@@ -371,5 +376,4 @@ public class SpecService {
       }
     }
   }
-
 }

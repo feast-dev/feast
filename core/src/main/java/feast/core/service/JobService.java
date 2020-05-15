@@ -182,7 +182,7 @@ public class JobService {
     // sync job status & update job model in job repository
     job = this.syncJobStatus(jobManager, job);
 
-    for (FeatureSet featureSet: job.getFeatureSets()) {
+    for (FeatureSet featureSet : job.getFeatureSets()) {
       featureSet.setStatus(FeatureSetStatus.STATUS_PENDING);
     }
     this.jobRepository.saveAndFlush(job);
@@ -231,7 +231,7 @@ public class JobService {
     // sync job status & update job model in job repository
     job = this.syncJobStatus(jobManager, job);
 
-    for (FeatureSet featureSet: job.getFeatureSets()) {
+    for (FeatureSet featureSet : job.getFeatureSets()) {
       featureSet.setStatus(FeatureSetStatus.STATUS_PENDING);
     }
 

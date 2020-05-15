@@ -144,7 +144,8 @@ public class SpecServiceTest {
     when(storeRepository.findById("NOTFOUND")).thenReturn(Optional.empty());
 
     specService =
-        new SpecService(featureSetRepository, storeRepository, projectRepository, jobRepository, defaultSource);
+        new SpecService(
+            featureSetRepository, storeRepository, projectRepository, jobRepository, defaultSource);
   }
 
   @Test
@@ -671,55 +672,82 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void getFeatureSetShouldUpdateStatusFromPendingToRunning() throws InvalidProtocolBufferException {
+  public void getFeatureSetShouldUpdateStatusFromPendingToRunning()
+      throws InvalidProtocolBufferException {
     FeatureSet featureSet = newDummyFeatureSet("fs", "project1");
-    Source source = Source.fromProto(SourceProto.Source.newBuilder()
-    .setType(SourceType.KAFKA)
-    .setKafkaSourceConfig(KafkaSourceConfig.newBuilder().setBootstrapServers("kafka:9092").setTopic("topic")).build());
+    Source source =
+        Source.fromProto(
+            SourceProto.Source.newBuilder()
+                .setType(SourceType.KAFKA)
+                .setKafkaSourceConfig(
+                    KafkaSourceConfig.newBuilder()
+                        .setBootstrapServers("kafka:9092")
+                        .setTopic("topic"))
+                .build());
 
-    Store store1 = Store.fromProto(StoreProto.Store.newBuilder().setName("store1").setType(StoreType.REDIS).build());
-    Store store2 = Store.fromProto(StoreProto.Store.newBuilder().setName("store2").setType(StoreType.REDIS).build());
+    Store store1 =
+        Store.fromProto(
+            StoreProto.Store.newBuilder().setName("store1").setType(StoreType.REDIS).build());
+    Store store2 =
+        Store.fromProto(
+            StoreProto.Store.newBuilder().setName("store2").setType(StoreType.REDIS).build());
 
-    List<Job> jobs = Arrays.asList(
+    List<Job> jobs =
+        Arrays.asList(
             newDummyJob(source, store1, JobStatus.RUNNING),
             newDummyJob(source, store1, JobStatus.ABORTED),
-            newDummyJob(source, store2, JobStatus.RUNNING)
-    );
+            newDummyJob(source, store2, JobStatus.RUNNING));
     featureSet.setStatus(FeatureSetStatus.STATUS_PENDING);
 
-    when(featureSetRepository.findFeatureSetByNameAndProject_Name("fs", "project1")).thenReturn(featureSet);
+    when(featureSetRepository.findFeatureSetByNameAndProject_Name("fs", "project1"))
+        .thenReturn(featureSet);
     when(jobRepository.findByFeatureSetsIn(Collections.singletonList(featureSet))).thenReturn(jobs);
     ArgumentCaptor<FeatureSet> featureSetArgCaptor = ArgumentCaptor.forClass(FeatureSet.class);
-    specService.getFeatureSet(GetFeatureSetRequest.newBuilder().setProject("project1").setName("fs").build());
+    specService.getFeatureSet(
+        GetFeatureSetRequest.newBuilder().setProject("project1").setName("fs").build());
 
     verify(featureSetRepository, times(1)).save(featureSetArgCaptor.capture());
     assertThat(featureSetArgCaptor.getValue().getStatus(), equalTo(FeatureSetStatus.STATUS_READY));
   }
 
   @Test
-  public void getFeatureSetShouldUpdateStatusFromRunningToPending() throws InvalidProtocolBufferException {
+  public void getFeatureSetShouldUpdateStatusFromRunningToPending()
+      throws InvalidProtocolBufferException {
     FeatureSet featureSet = newDummyFeatureSet("fs", "project1");
-    Source source = Source.fromProto(SourceProto.Source.newBuilder()
-            .setType(SourceType.KAFKA)
-            .setKafkaSourceConfig(KafkaSourceConfig.newBuilder().setBootstrapServers("kafka:9092").setTopic("topic")).build());
+    Source source =
+        Source.fromProto(
+            SourceProto.Source.newBuilder()
+                .setType(SourceType.KAFKA)
+                .setKafkaSourceConfig(
+                    KafkaSourceConfig.newBuilder()
+                        .setBootstrapServers("kafka:9092")
+                        .setTopic("topic"))
+                .build());
 
-    Store store1 = Store.fromProto(StoreProto.Store.newBuilder().setName("store1").setType(StoreType.REDIS).build());
-    Store store2 = Store.fromProto(StoreProto.Store.newBuilder().setName("store2").setType(StoreType.REDIS).build());
+    Store store1 =
+        Store.fromProto(
+            StoreProto.Store.newBuilder().setName("store1").setType(StoreType.REDIS).build());
+    Store store2 =
+        Store.fromProto(
+            StoreProto.Store.newBuilder().setName("store2").setType(StoreType.REDIS).build());
 
-    List<Job> jobs = Arrays.asList(
+    List<Job> jobs =
+        Arrays.asList(
             newDummyJob(source, store1, JobStatus.RUNNING),
             newDummyJob(source, store1, JobStatus.ABORTED),
-            newDummyJob(source, store2, JobStatus.ABORTED)
-    );
+            newDummyJob(source, store2, JobStatus.ABORTED));
     featureSet.setStatus(FeatureSetStatus.STATUS_READY);
 
-    when(featureSetRepository.findFeatureSetByNameAndProject_Name("fs", "project1")).thenReturn(featureSet);
+    when(featureSetRepository.findFeatureSetByNameAndProject_Name("fs", "project1"))
+        .thenReturn(featureSet);
     when(jobRepository.findByFeatureSetsIn(Collections.singletonList(featureSet))).thenReturn(jobs);
     ArgumentCaptor<FeatureSet> featureSetArgCaptor = ArgumentCaptor.forClass(FeatureSet.class);
-    specService.getFeatureSet(GetFeatureSetRequest.newBuilder().setProject("project1").setName("fs").build());
+    specService.getFeatureSet(
+        GetFeatureSetRequest.newBuilder().setProject("project1").setName("fs").build());
 
     verify(featureSetRepository, times(1)).save(featureSetArgCaptor.capture());
-    assertThat(featureSetArgCaptor.getValue().getStatus(), equalTo(FeatureSetStatus.STATUS_PENDING));
+    assertThat(
+        featureSetArgCaptor.getValue().getStatus(), equalTo(FeatureSetStatus.STATUS_PENDING));
   }
 
   private Job newDummyJob(Source source, Store store, JobStatus status) {
