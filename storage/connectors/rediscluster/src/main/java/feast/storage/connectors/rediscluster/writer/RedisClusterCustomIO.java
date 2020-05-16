@@ -16,18 +16,18 @@
  */
 package feast.storage.connectors.rediscluster.writer;
 
-import feast.core.FeatureSetProto.EntitySpec;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.FeatureSetProto.FeatureSpec;
-import feast.core.StoreProto.Store.RedisClusterConfig;
-import feast.storage.RedisProto.RedisKey;
-import feast.storage.RedisProto.RedisKey.Builder;
+import feast.proto.core.FeatureSetProto.EntitySpec;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.FeatureSetProto.FeatureSpec;
+import feast.proto.core.StoreProto.Store.RedisClusterConfig;
+import feast.proto.storage.RedisProto.RedisKey;
+import feast.proto.storage.RedisProto.RedisKey.Builder;
+import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FieldProto.Field;
+import feast.proto.types.ValueProto;
 import feast.storage.api.writer.FailedElement;
 import feast.storage.api.writer.WriteResult;
 import feast.storage.common.retry.Retriable;
-import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.FieldProto.Field;
-import feast.types.ValueProto;
 import io.lettuce.core.RedisException;
 import java.io.IOException;
 import java.util.ArrayList;

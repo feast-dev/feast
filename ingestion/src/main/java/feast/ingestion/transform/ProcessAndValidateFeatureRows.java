@@ -17,12 +17,12 @@
 package feast.ingestion.transform;
 
 import com.google.auto.value.AutoValue;
-import feast.core.FeatureSetProto;
 import feast.ingestion.transform.fn.ProcessFeatureRowDoFn;
 import feast.ingestion.transform.fn.ValidateFeatureRowDoFn;
 import feast.ingestion.values.FeatureSet;
+import feast.proto.core.FeatureSetProto;
+import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.storage.api.writer.FailedElement;
-import feast.types.FeatureRowProto.FeatureRow;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.PTransform;

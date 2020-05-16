@@ -17,8 +17,8 @@
 package feast.serving.service;
 
 import com.google.protobuf.util.JsonFormat;
-import feast.serving.ServingAPIProto.Job;
-import feast.serving.ServingAPIProto.Job.Builder;
+import feast.proto.serving.ServingAPIProto.Job;
+import feast.proto.serving.ServingAPIProto.Job.Builder;
 import feast.serving.config.FeastProperties;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;

@@ -16,15 +16,15 @@
  */
 package feast.serving.controller;
 
-import feast.serving.ServingAPIProto.GetBatchFeaturesRequest;
-import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
-import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
-import feast.serving.ServingAPIProto.GetFeastServingInfoResponse;
-import feast.serving.ServingAPIProto.GetJobRequest;
-import feast.serving.ServingAPIProto.GetJobResponse;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
-import feast.serving.ServingServiceGrpc.ServingServiceImplBase;
+import feast.proto.serving.ServingAPIProto.GetBatchFeaturesRequest;
+import feast.proto.serving.ServingAPIProto.GetBatchFeaturesResponse;
+import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
+import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
+import feast.proto.serving.ServingAPIProto.GetJobRequest;
+import feast.proto.serving.ServingAPIProto.GetJobResponse;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
+import feast.proto.serving.ServingServiceGrpc.ServingServiceImplBase;
 import feast.serving.config.FeastProperties;
 import feast.serving.exception.SpecRetrievalException;
 import feast.serving.interceptors.GrpcMonitoringInterceptor;

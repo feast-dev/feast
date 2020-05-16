@@ -16,14 +16,14 @@
  */
 package feast.serving.specs;
 
-import feast.core.CoreServiceGrpc;
-import feast.core.CoreServiceProto.GetFeatureSetRequest;
-import feast.core.CoreServiceProto.GetFeatureSetResponse;
-import feast.core.CoreServiceProto.ListFeatureSetsRequest;
-import feast.core.CoreServiceProto.ListFeatureSetsResponse;
-import feast.core.CoreServiceProto.UpdateStoreRequest;
-import feast.core.CoreServiceProto.UpdateStoreResponse;
-import feast.core.StoreProto.Store;
+import feast.proto.core.CoreServiceGrpc;
+import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
+import feast.proto.core.CoreServiceProto.GetFeatureSetResponse;
+import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
+import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.proto.core.CoreServiceProto.UpdateStoreRequest;
+import feast.proto.core.CoreServiceProto.UpdateStoreResponse;
+import feast.proto.core.StoreProto.Store;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.slf4j.Logger;

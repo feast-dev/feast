@@ -17,14 +17,14 @@
 package feast.core.model;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.StoreProto;
-import feast.core.StoreProto.Store.BigQueryConfig;
-import feast.core.StoreProto.Store.Builder;
-import feast.core.StoreProto.Store.CassandraConfig;
-import feast.core.StoreProto.Store.RedisClusterConfig;
-import feast.core.StoreProto.Store.RedisConfig;
-import feast.core.StoreProto.Store.StoreType;
-import feast.core.StoreProto.Store.Subscription;
+import feast.proto.core.StoreProto;
+import feast.proto.core.StoreProto.Store.BigQueryConfig;
+import feast.proto.core.StoreProto.Store.Builder;
+import feast.proto.core.StoreProto.Store.CassandraConfig;
+import feast.proto.core.StoreProto.Store.RedisClusterConfig;
+import feast.proto.core.StoreProto.Store.RedisConfig;
+import feast.proto.core.StoreProto.Store.StoreType;
+import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;

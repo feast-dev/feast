@@ -16,9 +16,9 @@
  */
 package feast.serving.service;
 
-import feast.serving.ServingAPIProto;
-import feast.serving.ServingAPIProto.*;
-import feast.serving.ServingAPIProto.Job.Builder;
+import feast.proto.serving.ServingAPIProto;
+import feast.proto.serving.ServingAPIProto.*;
+import feast.proto.serving.ServingAPIProto.Job.Builder;
 import feast.serving.specs.CachedSpecService;
 import feast.storage.api.retriever.FeatureSetRequest;
 import feast.storage.api.retriever.HistoricalRetrievalResult;

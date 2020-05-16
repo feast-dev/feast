@@ -17,11 +17,6 @@
 package feast.core.service;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.CoreServiceProto.ListStoresRequest.Filter;
-import feast.core.CoreServiceProto.ListStoresResponse;
-import feast.core.FeatureSetProto.FeatureSetStatus;
-import feast.core.StoreProto;
-import feast.core.StoreProto.Store.Subscription;
 import feast.core.config.FeastProperties;
 import feast.core.config.FeastProperties.JobProperties;
 import feast.core.dao.FeatureSetRepository;
@@ -32,6 +27,11 @@ import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.Source;
 import feast.core.model.Store;
+import feast.proto.core.CoreServiceProto.ListStoresRequest.Filter;
+import feast.proto.core.CoreServiceProto.ListStoresResponse;
+import feast.proto.core.FeatureSetProto.FeatureSetStatus;
+import feast.proto.core.StoreProto;
+import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;

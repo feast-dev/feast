@@ -16,8 +16,8 @@
  */
 package feast.core.validators;
 
-import feast.core.FeatureSetProto;
-import feast.types.ValueProto;
+import feast.proto.core.FeatureSetProto;
+import feast.proto.types.ValueProto;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

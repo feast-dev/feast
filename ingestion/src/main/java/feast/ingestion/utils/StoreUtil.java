@@ -16,17 +16,17 @@
  */
 package feast.ingestion.utils;
 
-import static feast.types.ValueProto.ValueType;
+import static feast.proto.types.ValueProto.ValueType;
 
 import com.google.cloud.bigquery.StandardSQLTypeName;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.StoreProto.Store;
-import feast.core.StoreProto.Store.StoreType;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.StoreProto.Store;
+import feast.proto.core.StoreProto.Store.StoreType;
+import feast.proto.types.ValueProto.ValueType.Enum;
 import feast.storage.api.writer.FeatureSink;
 import feast.storage.connectors.bigquery.writer.BigQueryFeatureSink;
 import feast.storage.connectors.redis.writer.RedisFeatureSink;
 import feast.storage.connectors.rediscluster.writer.RedisClusterFeatureSink;
-import feast.types.ValueProto.ValueType.Enum;
 import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;

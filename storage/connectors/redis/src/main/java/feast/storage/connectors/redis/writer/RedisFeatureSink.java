@@ -17,13 +17,13 @@
 package feast.storage.connectors.redis.writer;
 
 import com.google.auto.value.AutoValue;
-import feast.core.FeatureSetProto.FeatureSet;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.StoreProto;
-import feast.core.StoreProto.Store.RedisConfig;
+import feast.proto.core.FeatureSetProto.FeatureSet;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.StoreProto;
+import feast.proto.core.StoreProto.Store.RedisConfig;
+import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.storage.api.writer.FeatureSink;
 import feast.storage.api.writer.WriteResult;
-import feast.types.FeatureRowProto.FeatureRow;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisConnectionException;
 import io.lettuce.core.RedisURI;

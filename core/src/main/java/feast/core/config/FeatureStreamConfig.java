@@ -17,10 +17,10 @@
 package feast.core.config;
 
 import com.google.common.base.Strings;
-import feast.core.SourceProto.KafkaSourceConfig;
-import feast.core.SourceProto.SourceType;
 import feast.core.config.FeastProperties.StreamProperties;
 import feast.core.model.Source;
+import feast.proto.core.SourceProto.KafkaSourceConfig;
+import feast.proto.core.SourceProto.SourceType;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;

@@ -16,8 +16,8 @@
  */
 package feast.serving.util;
 
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.serving.ServingAPIProto.FeatureReference;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
 
 public class RefUtil {
   public static String generateFeatureStringRef(FeatureReference featureReference) {

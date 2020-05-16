@@ -16,8 +16,8 @@
  */
 package feast.storage.api.writer;
 
-import feast.core.FeatureSetProto;
-import feast.types.FeatureRowProto.FeatureRow;
+import feast.proto.core.FeatureSetProto;
+import feast.proto.types.FeatureRowProto.FeatureRow;
 import java.io.Serializable;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;

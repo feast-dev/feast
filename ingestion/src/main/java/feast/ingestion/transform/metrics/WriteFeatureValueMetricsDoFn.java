@@ -26,9 +26,9 @@ import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.STORE_TAG_KE
 import com.google.auto.value.AutoValue;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
-import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.FieldProto.Field;
-import feast.types.ValueProto.Value;
+import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FieldProto.Field;
+import feast.proto.types.ValueProto.Value;
 import java.util.ArrayList;
 import java.util.DoubleSummaryStatistics;
 import java.util.HashMap;

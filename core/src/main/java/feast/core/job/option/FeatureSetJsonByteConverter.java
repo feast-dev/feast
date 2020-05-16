@@ -18,8 +18,8 @@ package feast.core.job.option;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-import feast.core.FeatureSetProto;
 import feast.ingestion.options.OptionByteConverter;
+import feast.proto.core.FeatureSetProto;
 import java.util.ArrayList;
 import java.util.List;
 

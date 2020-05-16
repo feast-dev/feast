@@ -21,7 +21,7 @@ import "feast/types/Field.proto";
 package feast.storage;
 
 option java_outer_classname = "RedisProto";
-option java_package = "feast.storage";
+option java_package = "feast.proto.storage";
 option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/storage";
 
 message RedisKey {

@@ -18,11 +18,11 @@ package feast.ingestion.transform;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
-import feast.core.SourceProto.Source;
-import feast.core.SourceProto.SourceType;
 import feast.ingestion.transform.fn.KafkaRecordToFeatureRowDoFn;
+import feast.proto.core.SourceProto.Source;
+import feast.proto.core.SourceProto.SourceType;
+import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.storage.api.writer.FailedElement;
-import feast.types.FeatureRowProto.FeatureRow;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;

@@ -16,7 +16,7 @@
  */
 package feast.core.model;
 
-import feast.core.IngestionJobProto.IngestionJobStatus;
+import feast.proto.core.IngestionJobProto.IngestionJobStatus;
 import java.util.Map;
 import java.util.Set;
 

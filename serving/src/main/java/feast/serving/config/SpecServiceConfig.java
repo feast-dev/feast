@@ -18,7 +18,7 @@ package feast.serving.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.StoreProto;
+import feast.proto.core.StoreProto;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.specs.CoreSpecService;
 import java.util.concurrent.Executors;

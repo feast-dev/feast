@@ -19,9 +19,9 @@ package feast.core.job.option;
 import static org.junit.Assert.*;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.FeatureSetProto;
-import feast.core.SourceProto;
-import feast.types.ValueProto;
+import feast.proto.core.FeatureSetProto;
+import feast.proto.core.SourceProto;
+import feast.proto.types.ValueProto;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;

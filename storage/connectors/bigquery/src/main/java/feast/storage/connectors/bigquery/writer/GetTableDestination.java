@@ -17,7 +17,7 @@
 package feast.storage.connectors.bigquery.writer;
 
 import com.google.api.services.bigquery.model.TimePartitioning;
-import feast.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FeatureRowProto.FeatureRow;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.ValueInSingleWindow;

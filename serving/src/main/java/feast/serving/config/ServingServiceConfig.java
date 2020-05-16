@@ -18,7 +18,7 @@ package feast.serving.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.StoreProto;
+import feast.proto.core.StoreProto;
 import feast.serving.service.HistoricalServingService;
 import feast.serving.service.JobService;
 import feast.serving.service.NoopJobService;
