@@ -1,7 +1,7 @@
 package feast
 
 import (
-	"github.com/gojek/feast/sdk/go/protos/feast/types"
+	"github.com/feast-dev/feast/sdk/go/protos/feast/types"
 	"github.com/golang/protobuf/proto"
 )
 

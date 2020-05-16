@@ -170,7 +170,7 @@ public class DataflowJobManagerTest {
         actualPipelineOptions.getOptionsId()); // avoid comparing this value
 
     // We only check that we are calling getFilesToStage() manually, because the automatic approach
-    // throws an error: https://github.com/gojek/feast/pull/291 i.e. do not check for the actual
+    // throws an error: https://github.com/feast-dev/feast/pull/291 i.e. do not check for the actual
     // files that are staged
     assertThat(
         "filesToStage in pipelineOptions should not be null, job manager should set it.",

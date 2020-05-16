@@ -40,7 +40,7 @@
 
     <properties>
         <revision>0.5-SNAPSHOT</revision>
-        <github.url>https://github.com/gojek/feast</github.url>
+        <github.url>https://github.com/feast-dev/feast</github.url>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -87,7 +87,7 @@
     <scm>
         <url>${github.url}</url>
         <connection>scm:git:${github.url}.git</connection>
-        <developerConnection>scm:git:git@github.com:gojek/feast.git</developerConnection>
+        <developerConnection>scm:git:git@github.com:feast-dev/feast.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
 

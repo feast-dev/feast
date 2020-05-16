@@ -6,8 +6,8 @@
 
 ## GitHub
 
-* Feast's GitHub repo can be [found here](https://github.com/gojek/feast/).
-* Found a bug or need a feature? [Create an issue on GitHub](https://github.com/gojek/feast/issues/new)
+* Feast's GitHub repo can be [found here](https://github.com/feast-dev/feast/).
+* Found a bug or need a feature? [Create an issue on GitHub](https://github.com/feast-dev/feast/issues/new)
 
 ## Community Call
 

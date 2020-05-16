@@ -19,7 +19,7 @@ from setuptools import find_packages, setup
 
 NAME = "feast"
 DESCRIPTION = "Python SDK for Feast"
-URL = "https://github.com/gojek/feast"
+URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
 REQUIRES_PYTHON = ">=3.6.0"
 

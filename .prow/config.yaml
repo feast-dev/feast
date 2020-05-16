@@ -41,7 +41,7 @@ deck:
 tide:
   queries:
   - repos:
-    - gojek/feast
+    - feast-dev/feast
     labels:
     - lgtm
     - approved
@@ -53,7 +53,7 @@ tide:
     - needs-rebase
     - needs-kind
   merge_method:
-    gojek/feast: squash
+    feast-dev/feast: squash
   blocker_label: merge-blocker
   squash_label: tide/squash
 
@@ -61,7 +61,7 @@ tide:
 # https://github.com/kubernetes/test-infra/blob/6571843b1aa7bd6cf577a7a8b9e9971241f424d5/prow/jobs.md
 
 presubmits:
-  gojek/feast:
+  feast-dev/feast:
   - name: test-core-and-ingestion
     decorate: true
     spec:
@@ -332,7 +332,7 @@ presubmits:
           secretName: feast-service-account
 
 postsubmits:
-  gojek/feast:
+  feast-dev/feast:
   - name: publish-python-sdk
     decorate: true
     spec:

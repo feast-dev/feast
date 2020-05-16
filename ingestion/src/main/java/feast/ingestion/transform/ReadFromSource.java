@@ -61,7 +61,7 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
       Source source = read.getSource();
       Preconditions.checkState(
           source.getType().equals(SourceType.KAFKA),
-          "Source type must be KAFKA. Please raise an issue in https://github.com/gojek/feast/issues to request additional source types.");
+          "Source type must be KAFKA. Please raise an issue in https://github.com/feast-dev/feast/issues to request additional source types.");
       Preconditions.checkState(
           !source.getKafkaSourceConfig().getBootstrapServers().isEmpty(),
           "bootstrap_servers cannot be empty.");

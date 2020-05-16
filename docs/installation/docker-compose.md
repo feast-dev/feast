@@ -30,10 +30,10 @@ The docker compose setup uses Direct Runner for the Apache Beam jobs that popula
 
 ## 1. Set up environment
 
-Clone the [Feast repository](https://github.com/gojek/feast/) and navigate to the `docker-compose` sub-directory:
+Clone the [Feast repository](https://github.com/feast-dev/feast/) and navigate to the `docker-compose` sub-directory:
 
 ```bash
-git clone https://github.com/gojek/feast.git && \
+git clone https://github.com/feast-dev/feast.git && \
 cd feast && export FEAST_HOME_DIR=$(pwd) && \
 cd infra/docker-compose
 ```

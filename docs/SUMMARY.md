@@ -7,7 +7,7 @@
 * [Why Feast?](introduction/why-feast.md)
 * [Getting Help](introduction/getting-help.md)
 * [Roadmap](introduction/roadmap.md)
-* [Changelog](https://github.com/gojek/feast/blob/master/CHANGELOG.md)
+* [Changelog](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
 
 ## Concepts
 
@@ -21,8 +21,8 @@
 
 ## Tutorials
 
-* [Basic](https://github.com/gojek/feast/blob/master/examples/basic/basic.ipynb)
-* [Churn Prediction \(XGBoost\)](https://github.com/gojek/feast/blob/master/examples/feast-xgboost-churn-prediction-tutorial/Telecom%20Customer%20Churn%20Prediction%20%28with%20Feast%20and%20XGBoost%29.ipynb)
+* [Basic](https://github.com/feast-dev/feast/blob/master/examples/basic/basic.ipynb)
+* [Churn Prediction \(XGBoost\)](https://github.com/feast-dev/feast/blob/master/examples/feast-xgboost-churn-prediction-tutorial/Telecom%20Customer%20Churn%20Prediction%20%28with%20Feast%20and%20XGBoost%29.ipynb)
 
 ## Administration
 
@@ -31,7 +31,7 @@
 ## Reference
 
 * [Python SDK](https://api.docs.feast.dev/python/)
-* [Go SDK](https://godoc.org/github.com/gojek/feast/sdk/go)
+* [Go SDK](https://godoc.org/github.com/feast-dev/feast/sdk/go)
 * [gRPC Types](https://api.docs.feast.dev/grpc/feast.types.pb.html)
 * [Core gRPC API](https://api.docs.feast.dev/grpc/feast.core.pb.html)
 * [Serving gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html)

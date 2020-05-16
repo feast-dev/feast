@@ -738,7 +738,7 @@ class TestClient:
                 Feature(name="bytes_list_feature", dtype=ValueType.BYTES_LIST),
                 # Feature(name="bool_list_feature",
                 # dtype=ValueType.BOOL_LIST), # TODO: Add support for this
-                #  type again https://github.com/gojek/feast/issues/341
+                #  type again https://github.com/feast-dev/feast/issues/341
                 Feature(name="double_list_feature", dtype=ValueType.DOUBLE_LIST),
             ],
             max_age=Duration(seconds=3600),

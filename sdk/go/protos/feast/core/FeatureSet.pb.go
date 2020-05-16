@@ -23,8 +23,8 @@
 package core
 
 import (
-	types "github.com/gojek/feast/sdk/go/protos/feast/types"
-	v0 "github.com/gojek/feast/sdk/go/protos/tensorflow_metadata/proto/v0"
+	types "github.com/feast-dev/feast/sdk/go/protos/feast/types"
+	v0 "github.com/feast-dev/feast/sdk/go/protos/tensorflow_metadata/proto/v0"
 	proto "github.com/golang/protobuf/proto"
 	duration "github.com/golang/protobuf/ptypes/duration"
 	timestamp "github.com/golang/protobuf/ptypes/timestamp"

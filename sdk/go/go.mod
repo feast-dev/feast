@@ -1,4 +1,4 @@
-module github.com/gojek/feast/sdk/go
+module github.com/feast-dev/feast/sdk/go
 
 go 1.13
 

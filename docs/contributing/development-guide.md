@@ -119,7 +119,7 @@ The following section is a quick walk-through to test whether your local Feast d
 ### 4.2 Clone Feast
 
 ```bash
-git clone https://github.com/gojek/feast.git && cd feast && \
+git clone https://github.com/feast-dev/feast.git && cd feast && \
 export FEAST_HOME_DIR=$(pwd)
 ```
 
@@ -458,7 +458,7 @@ To have confidence in Beam stability and our users' ability to deploy Feast on a
 
 You do _not_ need a Java 8 SDK installed for development. Newer JDKs can build for the older platform, and Feast's Maven build does this automatically.
 
-See [Feast issue \#517](https://github.com/gojek/feast/issues/517) for discussion.
+See [Feast issue \#517](https://github.com/feast-dev/feast/issues/517) for discussion.
 
 ### 5.2 IntelliJ Tips and Troubleshooting
 
