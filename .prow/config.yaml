@@ -41,7 +41,7 @@ deck:
 tide:
   queries:
   - repos:
-    - gojek/feast
+    - feast-dev/feast
     labels:
     - lgtm
     - approved
@@ -53,7 +53,7 @@ tide:
     - needs-rebase
     - needs-kind
   merge_method:
-    gojek/feast: squash
+    feast-dev/feast: squash
   blocker_label: merge-blocker
   squash_label: tide/squash
 
@@ -61,7 +61,7 @@ tide:
 # https://github.com/kubernetes/test-infra/blob/6571843b1aa7bd6cf577a7a8b9e9971241f424d5/prow/jobs.md
 
 presubmits:
-  gojek/feast:
+  feast-dev/feast:
   - name: test-core-and-ingestion
     decorate: true
     spec:
@@ -205,25 +205,25 @@ presubmits:
     - ^v0\.(3|4)-branch$
 
   - name: test-end-to-end-batch-fs-update
-      decorate: true
-      always_run: false
-      spec:
-        volumes:
-          - name: service-account
-            secret:
-              secretName: feast-service-account
-        containers:
-          - image: maven:3.6-jdk-11
-            command: ["infra/scripts/test-end-to-end-batch.sh", "-m", "fs_update"]
-            resources:
-              requests:
-                cpu: "6"
-                memory: "6144Mi"
-            volumeMounts:
-              - name: service-account
-                mountPath: "/etc/service-account"
-      skip_branches:
-        - ^v0\.(3|4)-branch$
+    decorate: true
+    always_run: false
+    spec:
+      volumes:
+        - name: service-account
+          secret:
+            secretName: feast-service-account
+      containers:
+        - image: maven:3.6-jdk-11
+          command: ["infra/scripts/test-end-to-end-batch.sh", "-m", "fs_update"]
+          resources:
+            requests:
+              cpu: "6"
+              memory: "6144Mi"
+          volumeMounts:
+            - name: service-account
+              mountPath: "/etc/service-account"
+    skip_branches:
+      - ^v0\.(3|4)-branch$
 
   - name: test-end-to-end-batch-java-8
     decorate: true
@@ -332,7 +332,7 @@ presubmits:
           secretName: feast-service-account
 
 postsubmits:
-  gojek/feast:
+  feast-dev/feast:
   - name: publish-python-sdk
     decorate: true
     spec:

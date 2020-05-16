@@ -24,7 +24,7 @@ import "feast/types/Value.proto";
 
 option java_package = "feast.serving";
 option java_outer_classname = "ServingAPIProto";
-option go_package = "github.com/gojek/feast/sdk/go/protos/feast/serving";
+option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/serving";
 
 service ServingService {
     // Get information about this Feast serving.

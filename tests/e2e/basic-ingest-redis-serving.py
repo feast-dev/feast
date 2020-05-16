@@ -231,7 +231,7 @@ def all_types_dataframe():
             #     np.array([True, False, True]),
             #     np.array([True, False, True]),
             # ],
-            # TODO: https://github.com/gojek/feast/issues/341
+            # TODO: https://github.com/feast-dev/feast/issues/341
         }
     )
 
@@ -510,7 +510,7 @@ def all_types_parquet_file():
     )
 
     # TODO: Boolean list is not being tested.
-    #  https://github.com/gojek/feast/issues/341
+    #  https://github.com/feast-dev/feast/issues/341
 
     file_path = os.path.join(tempfile.mkdtemp(), 'all_types.parquet')
     df.to_parquet(file_path, allow_truncated_timestamps=True)

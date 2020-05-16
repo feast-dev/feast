@@ -1,4 +1,4 @@
-module github.com/gojek/feast
+module github.com/feast-dev/feast
 
 require (
 	github.com/Masterminds/goutils v1.1.0 // indirect
@@ -6,7 +6,7 @@ require (
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/ghodss/yaml v1.0.0
 	github.com/gogo/protobuf v1.3.1 // indirect
-	github.com/gojek/feast/sdk/go v0.0.0-20200316014539-fb893ded90cd // indirect
+	github.com/feast-dev/feast/sdk/go v0.0.0-20200316014539-fb893ded90cd // indirect
 	github.com/golang/mock v1.2.0
 	github.com/golang/protobuf v1.4.0
 	github.com/google/go-cmp v0.4.0

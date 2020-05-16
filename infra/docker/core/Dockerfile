@@ -21,7 +21,7 @@ RUN mvn --also-make --projects core,ingestion -Drevision=$REVISION \
 # The final size of the production image will be bigger but it seems
 # a good tradeoff between speed and size.
 #
-# https://github.com/gojek/feast/pull/291
+# https://github.com/feast-dev/feast/pull/291
 RUN apt-get -qq update && apt-get -y install unar && \
   unar /build/core/target/feast-core-$REVISION.jar -o /build/core/target/
 

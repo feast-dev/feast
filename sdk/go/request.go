@@ -2,7 +2,7 @@ package feast
 
 import (
 	"fmt"
-	"github.com/gojek/feast/sdk/go/protos/feast/serving"
+	"github.com/feast-dev/feast/sdk/go/protos/feast/serving"
 	"strings"
 )
 

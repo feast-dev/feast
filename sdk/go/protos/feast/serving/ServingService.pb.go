@@ -23,7 +23,7 @@ package serving
 
 import (
 	context "context"
-	types "github.com/gojek/feast/sdk/go/protos/feast/types"
+	types "github.com/feast-dev/feast/sdk/go/protos/feast/types"
 	proto "github.com/golang/protobuf/proto"
 	duration "github.com/golang/protobuf/ptypes/duration"
 	timestamp "github.com/golang/protobuf/ptypes/timestamp"

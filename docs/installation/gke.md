@@ -128,10 +128,10 @@ helm init --service-account tiller
 
 ## 4. Install Feast with Helm
 
-Clone the [Feast repository](https://github.com/gojek/feast/) and navigate to the `charts` sub-directory:
+Clone the [Feast repository](https://github.com/feast-dev/feast/) and navigate to the `charts` sub-directory:
 
 ```bash
-git clone https://github.com/gojek/feast.git && cd feast && \
+git clone https://github.com/feast-dev/feast.git && cd feast && \
 export FEAST_HOME_DIR=$(pwd) && \
 cd infra/charts/feast
 ```
@@ -207,5 +207,5 @@ NAME
 
 That's it! You can now start to use Feast!
 
-Please see our [examples](https://github.com/gojek/feast/blob/master/examples/) to get started.
+Please see our [examples](https://github.com/feast-dev/feast/blob/master/examples/) to get started.
 

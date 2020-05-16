@@ -6,7 +6,7 @@ The Feast golang SDK currently only supports retrieval from online stores.
 ```{go}
 import (
     "context"
-    feast "github.com/gojek/feast/sdk/go"
+    feast "github.com/feast-dev/feast/sdk/go"
 )
 
 func main() {

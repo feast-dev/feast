@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/opentracing/opentracing-go"
 
-	"github.com/gojek/feast/sdk/go/protos/feast/serving"
+	"github.com/feast-dev/feast/sdk/go/protos/feast/serving"
 	"google.golang.org/grpc"
 
 	"go.opencensus.io/plugin/ocgrpc"

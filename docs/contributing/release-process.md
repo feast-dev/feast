@@ -26,12 +26,12 @@ For Feast maintainers, these are the concrete steps for making a new release.
 1. Tag the merge commit with the release version, using a `v` prefix. Push the tag.
 1. Bump to the next working version and append `-SNAPSHOT` in `pom.xml`.
 1. Commit the POM and open a PR.
-1. Create a [GitHub release](https://github.com/gojek/feast/releases) which includes a summary of important changes as well as any artifacts associated with the release. Make sure to include the same change log as added in [CHANGELOG.md]. Use `Feast vX.Y.Z` as the title.
+1. Create a [GitHub release](https://github.com/feast-dev/feast/releases) which includes a summary of important changes as well as any artifacts associated with the release. Make sure to include the same change log as added in [CHANGELOG.md]. Use `Feast vX.Y.Z` as the title.
 1. Create one final PR to the master branch and also update its [CHANGELOG.md].
 
 When a tag that matches a Semantic Version string is pushed, CI will automatically build and push the relevant artifacts to their repositories or package managers \(docker images, Python wheels, etc\). JVM artifacts are promoted from Sonatype OSSRH to Maven Central, but it sometimes takes some time for them to be available.
 
-[CHANGELOG.md]: https://github.com/gojek/feast/blob/master/CHANGELOG.md
+[CHANGELOG.md]: https://github.com/feast-dev/feast/blob/master/CHANGELOG.md
 
 ### Creating a change log
 
@@ -42,7 +42,7 @@ We use an [open source change log generator](https://hub.docker.com/r/ferrarimar
 4. Update the  arguments below and run the command to generate the change log to the console.
 ```
 docker run -it --rm ferrarimarco/github-changelog-generator \
---user gojek \
+--user feast-dev \
 --project feast  \
 --release-branch <release-branch-to-find-changes>  \
 --future-release <proposed-release-version>  \

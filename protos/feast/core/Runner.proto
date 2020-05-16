@@ -19,7 +19,7 @@ package feast.core;
 
 option java_package = "feast.core";
 option java_outer_classname = "RunnerProto";
-option go_package = "github.com/gojek/feast/sdk/go/protos/feast/core";
+option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 
 message DirectRunnerConfigOptions {
     /**
