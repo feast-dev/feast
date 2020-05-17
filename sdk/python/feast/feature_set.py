@@ -69,8 +69,11 @@ class FeatureSet:
             self._source = None
         else:
             self._source = source
+        if labels is None:
+            self._labels = OrderedDict()
+        else:
+            self._labels = labels
         self._max_age = max_age
-        self._labels = labels
         self._status = None
         self._created_timestamp = None
 
@@ -267,19 +270,13 @@ class FeatureSet:
         """
         Sets the label value for a given key
         """
-        if not self.labels:
-            self.labels = {key: value}
-        else:
-            self.labels[key] = value
+        self.labels[key] = value
 
     def remove_label(self, key: str):
         """
         Removes a label based on key
         """
-        if not self.labels or key not in self.labels.keys():
-            raise ValueError("Could not find label key " + key + ", no action taken")
-        elif key in self.labels.keys():
-            del self.labels[key]
+        del self.labels[key]
 
     def add(self, resource):
         """

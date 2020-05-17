@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from collections import OrderedDict
 from typing import MutableMapping, Optional, Union
 
 from feast.core.FeatureSet_pb2 import EntitySpec, FeatureSpec
@@ -34,7 +35,10 @@ class Field:
         if not isinstance(dtype, ValueType):
             raise ValueError("dtype is not a valid ValueType")
         self._dtype = dtype
-        self._labels = labels
+        if labels is None:
+            self._labels = OrderedDict()
+        else:
+            self._labels = labels
         self._presence = None
         self._group_presence = None
         self._shape = None
@@ -53,7 +57,11 @@ class Field:
         self._time_of_day_domain = None
 
     def __eq__(self, other):
-        if self.name != other.name or self.dtype != other.dtype:
+        if (
+            self.name != other.name
+            or self.dtype != other.dtype
+            or self.labels != other.labels
+        ):
             return False
         return True
 
@@ -76,7 +84,7 @@ class Field:
         """
         Getter for labels of this field
         """
-        return self._presence
+        return self._labels
 
     @property
     def presence(self) -> schema_pb2.FeaturePresence:
