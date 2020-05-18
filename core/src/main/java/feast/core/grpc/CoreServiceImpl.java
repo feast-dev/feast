@@ -193,10 +193,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     } catch (UnsupportedOperationException e) {
       log.error("Attempted to archive an unsupported project:", e);
       responseObserver.onError(
-          Status.UNIMPLEMENTED
-              .withDescription(e.getMessage())
-              .withCause(e)
-              .asRuntimeException());
+          Status.UNIMPLEMENTED.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     } catch (Exception e) {
       log.error("Exception has occurred in the createProject method: ", e);
       responseObserver.onError(

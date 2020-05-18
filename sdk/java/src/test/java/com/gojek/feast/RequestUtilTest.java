@@ -22,7 +22,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import com.google.protobuf.TextFormat;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -83,7 +82,7 @@ class RequestUtilTest {
   }
 
   private static Stream<Arguments> provideInvalidFeatureRefs() {
-    return Stream.of(Arguments.of(Collections.singletonList("project/feature")));
+    return Stream.of(Arguments.of(List.of("project/feature", "")));
   }
 
   @ParameterizedTest

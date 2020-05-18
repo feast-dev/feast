@@ -54,7 +54,7 @@ public class RequestUtil {
    *
    * @param featureRefString string feature reference to parse from.
    * @param ignoreProject If true, would ignore if project is specified in given ref string.
-   *                      Otherwise, throwws a  {@link IllegalArgumentException} if project is specified.
+   *     Otherwise, throwws a {@link IllegalArgumentException} if project is specified.
    * @return a parsed {@link FeatureReference.Builder}
    */
   public static FeatureReference.Builder parseFeatureRef(

@@ -21,9 +21,9 @@ import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
-import feast.proto.types.ValueProto.Value;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc;
+import feast.proto.types.ValueProto.Value;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.HashSet;
@@ -57,7 +57,7 @@ public class FeastClient implements AutoCloseable {
   public GetFeastServingInfoResponse getFeastServingInfo() {
     return stub.getFeastServingInfo(GetFeastServingInfoRequest.newBuilder().build());
   }
- 
+
   /**
    * Get online features from Feast from FeatureSets
    *
