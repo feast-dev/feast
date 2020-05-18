@@ -21,6 +21,7 @@ import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
+import feast.proto.types.ValueProto.Value;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc;
 import io.grpc.ManagedChannel;
@@ -56,7 +57,7 @@ public class FeastClient implements AutoCloseable {
   public GetFeastServingInfoResponse getFeastServingInfo() {
     return stub.getFeastServingInfo(GetFeastServingInfoRequest.newBuilder().build());
   }
-
+ 
   /**
    * Get online features from Feast from FeatureSets
    *
@@ -146,7 +147,7 @@ public class FeastClient implements AutoCloseable {
               field
                   .getFieldsMap()
                   .forEach(
-                      (String name, Object value) -> {
+                      (String name, Value value) -> {
                         // Strip project from string Feature References from returned from serving
                         if (!entityRefs.contains(name)) {
                           FeatureReference featureRef =
