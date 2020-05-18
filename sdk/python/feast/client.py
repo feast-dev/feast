@@ -651,7 +651,8 @@ class Client:
             for entity_row in entity_rows:
                 entity_refs.update(entity_row.fields.keys())
 
-            def strip_project(field_value):
+            strip_field_values = []
+            for field_value in response.field_values:
                 # strip the project part the string feature references returned from serving
                 strip_fields = {}
                 for ref_str, value in field_value.fields.items():
@@ -663,11 +664,10 @@ class Client:
                             FeatureRef.from_str(ref_str, ignore_project=True)
                         )
                         strip_fields[strip_ref_str] = value
-                return GetOnlineFeaturesResponse.FieldValues(fields=strip_fields)
+                strip_field_values.append(
+                    GetOnlineFeaturesResponse.FieldValues(fields=strip_fields)
+                )
 
-            strip_field_values = [
-                strip_project(field_value) for field_value in response.field_values
-            ]
             del response.field_values[:]
             response.field_values.extend(strip_field_values)
 
