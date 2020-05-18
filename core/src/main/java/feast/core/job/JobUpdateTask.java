@@ -16,6 +16,7 @@
  */
 package feast.core.job;
 
+import com.google.common.collect.Sets;
 import feast.core.log.Action;
 import feast.core.log.AuditLogger;
 import feast.core.log.Resource;
@@ -101,11 +102,17 @@ public class JobUpdateTask implements Callable<Job> {
 
   boolean requiresUpdate(Job job) {
     // If set of feature sets has changed
+    if (!Sets.newHashSet(featureSets).equals(Sets.newHashSet(job.getFeatureSets()))) {
+      return false;
+    }
+
+    // If job is not currently populating the required version
     for (FeatureSet featureSet : featureSets) {
       if (job.getFeatureSetVersion(featureSet.getId()) != featureSet.getVersion()) {
         return true;
       }
     }
+
     return false;
   }
 
