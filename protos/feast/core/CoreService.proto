@@ -154,7 +154,7 @@ message ListStoresResponse {
 }
 
 message ApplyFeatureSetRequest {
-    // Feature set version and source will be ignored.
+    // Feature set version
     // If project is unspecified, will default to 'default' project.
     // If project specified does not exist, the project would be automatically created.
     feast.core.FeatureSet feature_set = 1;
