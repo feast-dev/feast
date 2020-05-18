@@ -25,6 +25,7 @@ import feast.core.model.Job;
 import feast.core.model.JobStatus;
 import feast.core.model.Source;
 import feast.core.model.Store;
+import feast.proto.core.FeatureSetProto.FeatureSetStatus;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -102,7 +103,16 @@ public class JobUpdateTask implements Callable<Job> {
 
   boolean requiresUpdate(Job job) {
     // If set of feature sets has changed
-    return !Sets.newHashSet(featureSets).equals(Sets.newHashSet(job.getFeatureSets()));
+    if (!Sets.newHashSet(featureSets).equals(Sets.newHashSet(job.getFeatureSets()))) {
+      return true;
+    }
+    // If any of the incoming feature sets were updated
+    for (FeatureSet featureSet : featureSets) {
+      if (featureSet.getStatus() == FeatureSetStatus.STATUS_PENDING) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private Job createJob() {

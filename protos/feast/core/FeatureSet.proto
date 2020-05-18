@@ -147,5 +147,6 @@ message FeatureSetMeta {
 enum FeatureSetStatus {
     STATUS_INVALID = 0;
     STATUS_PENDING = 1;
+    STATUS_JOB_STARTING = 3;
     STATUS_READY = 2;
 }
