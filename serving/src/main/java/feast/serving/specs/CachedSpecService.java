@@ -176,8 +176,7 @@ public class CachedSpecService {
     featureSetCache.invalidateAll();
     featureSetCache.putAll(featureSetMap);
 
-    featureToFeatureSetMapping.clear();
-    featureToFeatureSetMapping.putAll(getFeatureToFeatureSetMapping(featureSetMap));
+    featureToFeatureSetMapping = getFeatureToFeatureSetMapping(featureSetMap);
 
     featureSetsCount.set(featureSetCache.size());
     cacheLastUpdated.set(System.currentTimeMillis());
