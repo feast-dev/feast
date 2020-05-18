@@ -65,7 +65,7 @@ public class AccessManagementService {
       throw new IllegalArgumentException(String.format("Could not find project: \"%s\"", name));
     }
     if (name.equals(Project.DEFAULT_NAME)) {
-      throw new IllegalArgumentException("Archiving the default project is not allowed.");
+      throw new UnsupportedOperationException("Archiving the default project is not allowed.");
     }
     Project p = project.get();
     p.setArchived(true);
