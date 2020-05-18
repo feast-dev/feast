@@ -19,7 +19,6 @@ syntax = "proto3";
 package feast.serving;
 
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/duration.proto";
 import "feast/types/Value.proto";
 
 option java_package = "feast.proto.serving";
@@ -74,15 +73,8 @@ message FeatureReference {
     // in which case the feature set would be automatically infered
     string feature_set = 5;
 
-    // The features will be retrieved if:
-    // entity_timestamp - max_age  <= event_timestamp <= entity_timestamp
-    //
-    // If unspecified the default max_age specified in FeatureSetSpec will
-    // be used.
-    google.protobuf.Duration max_age = 4;
-
-    // Feature version was removed in v0.5.0
-    reserved 3;
+    // Feature version and max_age was removed in v0.5.0
+    reserved 3, 4;
 }
 
 message GetOnlineFeaturesRequest {
