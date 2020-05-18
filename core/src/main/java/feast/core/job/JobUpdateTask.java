@@ -16,7 +16,6 @@
  */
 package feast.core.job;
 
-import com.google.common.collect.Sets;
 import feast.core.log.Action;
 import feast.core.log.AuditLogger;
 import feast.core.log.Resource;
@@ -102,7 +101,12 @@ public class JobUpdateTask implements Callable<Job> {
 
   boolean requiresUpdate(Job job) {
     // If set of feature sets has changed
-    return !Sets.newHashSet(featureSets).equals(Sets.newHashSet(job.getFeatureSets()));
+    for (FeatureSet featureSet : featureSets) {
+      if (job.getFeatureSetVersion(featureSet.getId()) != featureSet.getVersion()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private Job createJob() {
@@ -112,10 +116,17 @@ public class JobUpdateTask implements Callable<Job> {
 
   /** Start or update the job to ingest data to the sink. */
   private Job startJob(String jobId) {
-
     Job job =
-        new Job(
-            jobId, "", jobManager.getRunnerType(), source, store, featureSets, JobStatus.PENDING);
+        Job.builder()
+            .id(jobId)
+            .extId("")
+            .runner(jobManager.getRunnerType())
+            .source(source)
+            .store(store)
+            .status(JobStatus.PENDING)
+            .build();
+    job.addAllFeatureSets(featureSets);
+
     try {
       logAudit(Action.SUBMIT, job, "Building graph and submitting to %s", runnerName);
 
@@ -142,7 +153,7 @@ public class JobUpdateTask implements Callable<Job> {
 
   /** Update the given job */
   private Job updateJob(Job job) {
-    job.setFeatureSets(featureSets);
+    job.addAllFeatureSets(featureSets);
     job.setStore(store);
     logAudit(Action.UPDATE, job, "Updating job %s for runner %s", job.getId(), runnerName);
     return jobManager.updateJob(job);

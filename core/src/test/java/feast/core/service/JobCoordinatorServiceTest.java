@@ -153,24 +153,28 @@ public class JobCoordinatorServiceTest {
     ArgumentCaptor<List<Job>> jobArgCaptor = ArgumentCaptor.forClass(List.class);
 
     Job expectedInput =
-        new Job(
-            "",
-            "",
-            Runner.DATAFLOW,
-            feast.core.model.Source.fromProto(source),
-            feast.core.model.Store.fromProto(store),
-            Arrays.asList(featureSet1, featureSet2),
-            JobStatus.PENDING);
+        Job.builder()
+            .id("")
+            .extId("")
+            .runner(Runner.DATAFLOW)
+            .source(feast.core.model.Source.fromProto(source))
+            .store(Store.fromProto(store))
+            .status(JobStatus.PENDING)
+            .build();
+    expectedInput.addFeatureSet(featureSet1);
+    expectedInput.addFeatureSet(featureSet2);
 
     Job expected =
-        new Job(
-            "some_id",
-            extId,
-            Runner.DATAFLOW,
-            feast.core.model.Source.fromProto(source),
-            feast.core.model.Store.fromProto(store),
-            Arrays.asList(featureSet1, featureSet2),
-            JobStatus.RUNNING);
+        Job.builder()
+            .id("some_id")
+            .extId(extId)
+            .runner(Runner.DATAFLOW)
+            .source(feast.core.model.Source.fromProto(source))
+            .store(Store.fromProto(store))
+            .status(JobStatus.RUNNING)
+            .build();
+    expected.addFeatureSet(featureSet1);
+    expected.addFeatureSet(featureSet2);
 
     when(featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc("%", "project1"))
         .thenReturn(Lists.newArrayList(featureSet1, featureSet2));
@@ -240,44 +244,48 @@ public class JobCoordinatorServiceTest {
     FeatureSet featureSet2 = FeatureSet.fromProto(featureSetProto2);
 
     Job expectedInput1 =
-        new Job(
-            "name1",
-            "",
-            Runner.DATAFLOW,
-            feast.core.model.Source.fromProto(source1),
-            feast.core.model.Store.fromProto(store),
-            Arrays.asList(featureSet1),
-            JobStatus.PENDING);
+        Job.builder()
+            .id("name1")
+            .extId("")
+            .runner(Runner.DATAFLOW)
+            .source(feast.core.model.Source.fromProto(source1))
+            .store(Store.fromProto(store))
+            .status(JobStatus.PENDING)
+            .build();
+    expectedInput1.addFeatureSet(featureSet1);
 
     Job expected1 =
-        new Job(
-            "name1",
-            "extId1",
-            Runner.DATAFLOW,
-            feast.core.model.Source.fromProto(source1),
-            feast.core.model.Store.fromProto(store),
-            Arrays.asList(featureSet1),
-            JobStatus.RUNNING);
+        Job.builder()
+            .id("name1")
+            .extId("extId1")
+            .runner(Runner.DATAFLOW)
+            .source(feast.core.model.Source.fromProto(source1))
+            .store(Store.fromProto(store))
+            .status(JobStatus.RUNNING)
+            .build();
+    expected1.addFeatureSet(featureSet1);
 
     Job expectedInput2 =
-        new Job(
-            "",
-            "extId2",
-            Runner.DATAFLOW,
-            feast.core.model.Source.fromProto(source2),
-            feast.core.model.Store.fromProto(store),
-            Arrays.asList(featureSet2),
-            JobStatus.PENDING);
+        Job.builder()
+            .id("name2")
+            .extId("")
+            .runner(Runner.DATAFLOW)
+            .source(feast.core.model.Source.fromProto(source2))
+            .store(Store.fromProto(store))
+            .status(JobStatus.PENDING)
+            .build();
+    expectedInput2.addFeatureSet(featureSet2);
 
     Job expected2 =
-        new Job(
-            "name2",
-            "extId2",
-            Runner.DATAFLOW,
-            feast.core.model.Source.fromProto(source2),
-            feast.core.model.Store.fromProto(store),
-            Arrays.asList(featureSet2),
-            JobStatus.RUNNING);
+        Job.builder()
+            .id("name2")
+            .extId("extId2")
+            .runner(Runner.DATAFLOW)
+            .source(feast.core.model.Source.fromProto(source2))
+            .store(Store.fromProto(store))
+            .status(JobStatus.RUNNING)
+            .build();
+    expected2.addFeatureSet(featureSet2);
     ArgumentCaptor<List<Job>> jobArgCaptor = ArgumentCaptor.forClass(List.class);
 
     when(featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc("%", "project1"))

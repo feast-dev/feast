@@ -694,9 +694,9 @@ public class SpecServiceTest {
 
     List<Job> jobs =
         Arrays.asList(
-            newDummyJob(source, store1, JobStatus.RUNNING),
-            newDummyJob(source, store1, JobStatus.ABORTED),
-            newDummyJob(source, store2, JobStatus.RUNNING));
+            newDummyJob(source, store1, JobStatus.RUNNING, Collections.singletonList(featureSet)),
+            newDummyJob(source, store1, JobStatus.ABORTED, Collections.singletonList(featureSet)),
+            newDummyJob(source, store2, JobStatus.RUNNING, Collections.singletonList(featureSet)));
     featureSet.setStatus(FeatureSetStatus.STATUS_PENDING);
 
     when(featureSetRepository.findFeatureSetByNameAndProject_Name("fs", "project1"))
@@ -733,9 +733,9 @@ public class SpecServiceTest {
 
     List<Job> jobs =
         Arrays.asList(
-            newDummyJob(source, store1, JobStatus.RUNNING),
-            newDummyJob(source, store1, JobStatus.ABORTED),
-            newDummyJob(source, store2, JobStatus.ABORTED));
+            newDummyJob(source, store1, JobStatus.RUNNING, Collections.singletonList(featureSet)),
+            newDummyJob(source, store1, JobStatus.ABORTED, Collections.singletonList(featureSet)),
+            newDummyJob(source, store2, JobStatus.ABORTED, Collections.singletonList(featureSet)));
     featureSet.setStatus(FeatureSetStatus.STATUS_READY);
 
     when(featureSetRepository.findFeatureSetByNameAndProject_Name("fs", "project1"))
@@ -750,11 +750,13 @@ public class SpecServiceTest {
         featureSetArgCaptor.getValue().getStatus(), equalTo(FeatureSetStatus.STATUS_PENDING));
   }
 
-  private Job newDummyJob(Source source, Store store, JobStatus status) {
+  private Job newDummyJob(
+      Source source, Store store, JobStatus status, List<FeatureSet> featureSets) {
     Job job = new Job();
     job.setSource(source);
     job.setStore(store);
     job.setStatus(status);
+    job.addAllFeatureSets(featureSets);
     return job;
   }
 

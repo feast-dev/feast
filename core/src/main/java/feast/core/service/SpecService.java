@@ -84,8 +84,9 @@ public class SpecService {
    * is omitted, the latest feature set will be provided.
    *
    * @param request: GetFeatureSetRequest Request containing filter parameters.
-   * @return Returns a GetFeatureSetResponse containing a feature set..
+   * @return Returns a GetFeatureSetResponse containing a feature set.
    */
+  @Transactional
   public GetFeatureSetResponse getFeatureSet(GetFeatureSetRequest request)
       throws InvalidProtocolBufferException {
 
@@ -130,6 +131,7 @@ public class SpecService {
    * @param filter filter containing the desired featureSet name
    * @return ListFeatureSetsResponse with list of featureSets found matching the filter
    */
+  @Transactional
   public ListFeatureSetsResponse listFeatureSets(ListFeatureSetsRequest.Filter filter)
       throws InvalidProtocolBufferException {
     String name = filter.getFeatureSetName();
@@ -343,7 +345,7 @@ public class SpecService {
    *
    * @param featureSet {@link FeatureSet}
    */
-  private void checkAndUpdateStatus(FeatureSet featureSet) {
+  private void checkAndUpdateStatus(FeatureSet featureSet) throws InvalidProtocolBufferException {
     // check if the job is ready
     List<Job> jobsForFeatureSet =
         jobRepository.findByFeatureSetsIn(Collections.singletonList(featureSet));
@@ -358,9 +360,14 @@ public class SpecService {
               .flatMap(map -> map.values().stream())
               .collect(Collectors.toList());
 
+      Long featureSetVersion = featureSet.getVersion();
       for (List<Job> jobs : jobsGroupedBySourceAndSink) {
         long jobsRunning =
-            jobs.stream().filter(job -> job.getStatus() == JobStatus.RUNNING).count();
+            jobs.stream()
+                .filter(job -> job.getStatus() == JobStatus.RUNNING)
+                .filter(
+                    job -> job.getFeatureSetVersion(featureSet.getId()).equals(featureSetVersion))
+                .count();
         if (jobsRunning == 0) {
           if (featureSet.getStatus() == FeatureSetStatus.STATUS_READY) {
             featureSet.setStatus(FeatureSetStatus.STATUS_PENDING);

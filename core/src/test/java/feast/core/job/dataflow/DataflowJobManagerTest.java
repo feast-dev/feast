@@ -153,14 +153,16 @@ public class DataflowJobManagerTest {
 
     doReturn(mockPipelineResult).when(dfJobManager).runPipeline(any());
     Job job =
-        new Job(
-            jobName,
-            "",
-            Runner.DATAFLOW,
-            Source.fromProto(source),
-            Store.fromProto(store),
-            Lists.newArrayList(FeatureSet.fromProto(featureSet)),
-            JobStatus.PENDING);
+        Job.builder()
+            .id(jobName)
+            .extId("")
+            .runner(Runner.DATAFLOW)
+            .source(Source.fromProto(source))
+            .store(Store.fromProto(store))
+            .status(JobStatus.PENDING)
+            .build();
+    job.addFeatureSet(FeatureSet.fromProto(featureSet));
+
     Job actual = dfJobManager.startJob(job);
 
     verify(dfJobManager, times(1)).runPipeline(captor.capture());
@@ -229,14 +231,15 @@ public class DataflowJobManagerTest {
     doReturn(mockPipelineResult).when(dfJobManager).runPipeline(any());
 
     Job job =
-        new Job(
-            "job",
-            "",
-            Runner.DATAFLOW,
-            Source.fromProto(source),
-            Store.fromProto(store),
-            Lists.newArrayList(FeatureSet.fromProto(featureSet)),
-            JobStatus.PENDING);
+        Job.builder()
+            .id("job")
+            .extId("")
+            .runner(Runner.DATAFLOW)
+            .source(Source.fromProto(source))
+            .store(Store.fromProto(store))
+            .status(JobStatus.PENDING)
+            .build();
+    job.addFeatureSet(FeatureSet.fromProto(featureSet));
 
     expectedException.expect(JobExecutionException.class);
     dfJobManager.startJob(job);

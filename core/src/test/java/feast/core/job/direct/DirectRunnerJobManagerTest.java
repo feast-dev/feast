@@ -140,14 +140,16 @@ public class DirectRunnerJobManagerTest {
     doReturn(mockPipelineResult).when(drJobManager).runPipeline(any());
 
     Job job =
-        new Job(
-            expectedJobId,
-            "",
-            Runner.DIRECT,
-            Source.fromProto(source),
-            Store.fromProto(store),
-            Lists.newArrayList(FeatureSet.fromProto(featureSet)),
-            JobStatus.PENDING);
+        Job.builder()
+            .id(expectedJobId)
+            .extId("")
+            .runner(Runner.DIRECT)
+            .source(Source.fromProto(source))
+            .store(Store.fromProto(store))
+            .status(JobStatus.PENDING)
+            .build();
+    job.addFeatureSet(FeatureSet.fromProto(featureSet));
+
     Job actual = drJobManager.startJob(job);
     verify(drJobManager, times(1)).runPipeline(pipelineOptionsCaptor.capture());
     verify(directJobRegistry, times(1)).add(directJobCaptor.capture());

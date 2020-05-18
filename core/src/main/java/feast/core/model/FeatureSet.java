@@ -42,6 +42,9 @@ public class FeatureSet extends AbstractTimestampEntity {
   // Id of the featureSet, defined as project/feature_set_name:feature_set_version
   @Id @GeneratedValue private long id;
 
+  // Version of the feature set. Only incremented when a new schema is applied.
+  private long version = 0;
+
   // Name of the featureSet
   @Column(name = "name", nullable = false)
   private String name;
@@ -207,6 +210,9 @@ public class FeatureSet extends AbstractTimestampEntity {
       Feature newFeature = Feature.fromProto(featureSpec);
       addFeature(newFeature);
     }
+
+    // 5. Increment the version
+    this.version += 1;
   }
 
   public void addEntities(List<Entity> entities) {

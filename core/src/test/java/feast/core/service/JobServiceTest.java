@@ -154,14 +154,17 @@ public class JobServiceTest {
   }
 
   private Job newDummyJob(String id, String extId, JobStatus status) {
-    return new Job(
-        id,
-        extId,
-        Runner.DATAFLOW,
-        this.dataSource,
-        this.dataStore,
-        Arrays.asList(this.featureSet),
-        status);
+    Job job =
+        Job.builder()
+            .id(id)
+            .extId(extId)
+            .runner(Runner.DATAFLOW)
+            .source(dataSource)
+            .store(dataStore)
+            .status(status)
+            .build();
+    job.addFeatureSet(featureSet);
+    return job;
   }
 
   private List<FeatureSetReference> newDummyFeatureSetReferences() {

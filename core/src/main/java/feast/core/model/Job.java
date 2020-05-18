@@ -25,11 +25,13 @@ import java.util.List;
 import javax.persistence.*;
 import javax.persistence.Entity;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
 /** Contains information about a run job. */
 @AllArgsConstructor
+@Builder
 @Getter
 @Setter
 @Entity
@@ -69,7 +71,17 @@ public class Job extends AbstractTimestampEntity {
         @Index(name = "idx_jobs_feature_sets_job_id", columnList = "job_id"),
         @Index(name = "idx_jobs_feature_sets_feature_sets_id", columnList = "feature_sets_id")
       })
-  private List<FeatureSet> featureSets;
+  @Builder.Default
+  private Set<FeatureSet> featureSets = new HashSet<>();
+
+  @ElementCollection
+  @CollectionTable(
+      name = "feature_sets_version_mapping",
+      joinColumns = {@JoinColumn(name = "job_id", referencedColumnName = "id")})
+  @MapKeyColumn(name = "feature_set_id")
+  @Column(name = "feature_sets_version")
+  @Builder.Default
+  private Map<Long, Long> featureSetVersionMap = new HashMap<>();
 
   @Enumerated(EnumType.STRING)
   @Column(name = "status", length = 16)
@@ -77,6 +89,11 @@ public class Job extends AbstractTimestampEntity {
 
   public Job() {
     super();
+
+    // Need to add defaults here since Builder.Default masks defaults
+    // from this constructor
+    this.featureSetVersionMap = new HashMap<>();
+    this.featureSets = new HashSet<>();
   }
 
   public boolean hasTerminated() {
@@ -89,6 +106,21 @@ public class Job extends AbstractTimestampEntity {
 
   public String getSinkName() {
     return store.getName();
+  }
+
+  public Long getFeatureSetVersion(Long id) {
+    return featureSetVersionMap.getOrDefault(id, -1L);
+  }
+
+  public void addFeatureSet(FeatureSet featureSet) {
+    featureSets.add(featureSet);
+    featureSetVersionMap.put(featureSet.getId(), featureSet.getVersion());
+  }
+
+  public void addAllFeatureSets(List<FeatureSet> allFeatureSets) {
+    for (FeatureSet featureSet : allFeatureSets) {
+      this.addFeatureSet(featureSet);
+    }
   }
 
   /**

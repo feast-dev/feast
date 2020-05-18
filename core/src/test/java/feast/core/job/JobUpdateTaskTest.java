@@ -93,7 +93,17 @@ public class JobUpdateTaskTest {
   }
 
   Job makeJob(String extId, List<FeatureSet> featureSets, JobStatus status) {
-    return new Job("job", extId, RUNNER, source, store, featureSets, status);
+    Job job =
+        Job.builder()
+            .id("job")
+            .extId(extId)
+            .runner(Runner.DATAFLOW)
+            .source(source)
+            .store(store)
+            .status(status)
+            .build();
+    job.addAllFeatureSets(featureSets);
+    return job;
   }
 
   JobUpdateTask makeTask(List<FeatureSet> featureSets, Optional<Job> currentJob) {
@@ -104,6 +114,7 @@ public class JobUpdateTaskTest {
   public void shouldUpdateJobIfPresent() {
     FeatureSet featureSet2 =
         FeatureSet.fromProto(fsBuilder.setSpec(specBuilder.setName("featureSet2")).build());
+    featureSet2.setSource(source);
     List<FeatureSet> existingFeatureSetsPopulatedByJob = Collections.singletonList(featureSet1);
     List<FeatureSet> newFeatureSetsPopulatedByJob = Arrays.asList(featureSet1, featureSet2);
 
