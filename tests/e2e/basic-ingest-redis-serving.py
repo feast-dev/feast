@@ -180,7 +180,7 @@ def test_basic_retrieve_online_multiple_featureset(client, cust_trans_df, driver
         # Test retrieve with different variations of the string feature refs
         # ie feature set inference for feature refs without specified feature set
         feature_ref_df_mapping = [
-            ("customer_transactions:daily_transactions", cust_trans_df)
+            ("customer_transactions:daily_transactions", cust_trans_df),
             ("driver:rating", driver_df),
             ("total_transactions", cust_trans_df),
         ]
