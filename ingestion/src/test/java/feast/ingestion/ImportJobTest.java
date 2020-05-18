@@ -176,6 +176,7 @@ public class ImportJobTest {
             });
     options.setFeatureSetJson(compressor.compress(spec));
     options.setStoreJson(Collections.singletonList(JsonFormat.printer().print(redis)));
+    options.setDefaultFeastProject("myproject");
     options.setProject("");
     options.setBlockOnRun(false);
 
