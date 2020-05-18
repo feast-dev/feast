@@ -79,7 +79,7 @@ public class QueryTemplater {
       Duration maxAge = spec.getMaxAge();
       List<String> fsEntities =
           spec.getEntitiesList().stream().map(EntitySpec::getName).collect(Collectors.toList());
-      List<FeatureReference> features = List.copyOf(featureSetRequest.getFeatureReferences());
+      List<FeatureReference> features = featureSetRequest.getFeatureReferences().asList();
       featureSetInfos.add(
           new FeatureSetQueryInfo(
               spec.getProject(), spec.getName(), maxAge.getSeconds(), fsEntities, features, ""));
