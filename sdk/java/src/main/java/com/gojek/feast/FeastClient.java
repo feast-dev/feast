@@ -25,6 +25,7 @@ import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -57,60 +58,77 @@ public class FeastClient implements AutoCloseable {
   }
 
   /**
-   * Get online features from Feast.
+   * Get online features from Feast from FeatureSets
    *
-   * <p>See {@link #getOnlineFeatures(List, List, String)}
+   * <p>See {@link #getOnlineFeatures(List, List, String, boolean)}
    *
-   * @param features list of string feature references to retrieve, feature reference follows this
-   *     format [project]/[name]
-   * @param rows list of {@link Row} to select the entities to retrieve the features for
-   * @param defaultProject {@link String} Default project to find features in if not provided in
-   *     feature reference.
-   * @return list of {@link Row} containing features
+   * @param featureRefs list of string feature references to retrieve in the following format
+   *     featureSet:feature, where 'featureSet' and 'feature' refer to the FeatureSet and Feature
+   *     names respectively. Only the Feature name is required.
+   * @param rows list of {@link Row} to select the entities to retrieve the features for.
+   * @return list of {@link Row} containing retrieved data fields.
    */
-  public List<Row> getOnlineFeatures(List<String> features, List<Row> rows, String defaultProject) {
-    return getOnlineFeatures(features, rows, defaultProject, false);
+  public List<Row> getOnlineFeatures(List<String> featureRefs, List<Row> rows) {
+    return getOnlineFeatures(featureRefs, rows, "");
   }
 
   /**
    * Get online features from Feast.
    *
-   * <p>Example of retrieving online features for the driver project, with features driver_id and
+   * <p>See {@link #getOnlineFeatures(List, List, String, boolean)}
+   *
+   * @param featureRefs list of string feature references to retrieve in the following format
+   *     featureSet:feature, where 'featureSet' and 'feature' refer to the FeatureSet and Feature
+   *     names respectively. Only the Feature name is required.
+   * @param rows list of {@link Row} to select the entities to retrieve the features for
+   * @param project {@link String} Specifies the project which contains the FeatureSets which the
+   *     Feature requested belong to.
+   * @return list of {@link Row} containing retrieved data fields.
+   */
+  public List<Row> getOnlineFeatures(List<String> featureRefs, List<Row> rows, String project) {
+    return getOnlineFeatures(featureRefs, rows, project, false);
+  }
+
+  /**
+   * Get online features from Feast.
+   *
+   * <p>Example of retrieving online features for the driver featureset, with features driver_id and
    * driver_name
    *
    * <pre>{@code
    * FeastClient client = FeastClient.create("localhost", 6566);
-   * List<String> requestedFeatureIds = Arrays.asList("driver/driver_id", "driver/driver_name");
+   * List<String> requestedFeatureIds = Arrays.asList("driver:driver_id", "driver:driver_name");
    * List<Row> requestedRows =
    *         Arrays.asList(Row.create().set("driver_id", 123), Row.create().set("driver_id", 456));
    * List<Row> retrievedFeatures = client.getOnlineFeatures(requestedFeatureIds, requestedRows);
    * retrievedFeatures.forEach(System.out::println);
    * }</pre>
    *
-   * @param featureRefStrings list of feature refs to retrieve, feature refs follow this format
-   *     [project]/[name]
+   * @param featureRefs list of string feature references to retrieve in the following format
+   *     featureSet:feature, where 'featureSet' and 'feature' refer to the FeatureSet and Feature
+   *     names respectively. Only the Feature name is required.
    * @param rows list of {@link Row} to select the entities to retrieve the features for
-   * @param defaultProject {@link String} Default project to find features in if not provided in
-   *     feature reference.
+   * @param project {@link String} Specifies the project which contains the FeatureSets which the
+   *     Feature requested belong to.
    * @param omitEntitiesInResponse if true, the returned {@link Row} will not contain field and
    *     value for the entity
-   * @return list of {@link Row} containing features
+   * @return list of {@link Row} containing retrieved data fields.
    */
   public List<Row> getOnlineFeatures(
-      List<String> featureRefStrings,
-      List<Row> rows,
-      String defaultProject,
-      boolean omitEntitiesInResponse) {
-    List<FeatureReference> features =
-        RequestUtil.createFeatureRefs(featureRefStrings, defaultProject);
+      List<String> featureRefs, List<Row> rows, String project, boolean omitEntitiesInResponse) {
+    List<FeatureReference> features = RequestUtil.createFeatureRefs(featureRefs, project);
+    // build entity rows and collect entity references
+    HashSet<String> entityRefs = new HashSet<>();
     List<EntityRow> entityRows =
         rows.stream()
             .map(
-                row ->
-                    EntityRow.newBuilder()
-                        .setEntityTimestamp(row.getEntityTimestamp())
-                        .putAllFields(row.getFields())
-                        .build())
+                row -> {
+                  entityRefs.addAll(row.getFields().keySet());
+                  return EntityRow.newBuilder()
+                      .setEntityTimestamp(row.getEntityTimestamp())
+                      .putAllFields(row.getFields())
+                      .build();
+                })
             .collect(Collectors.toList());
 
     GetOnlineFeaturesResponse response =
@@ -125,7 +143,18 @@ public class FeastClient implements AutoCloseable {
         .map(
             field -> {
               Row row = Row.create();
-              field.getFieldsMap().forEach(row::set);
+              field
+                  .getFieldsMap()
+                  .forEach(
+                      (String name, Object value) -> {
+                        // Strip project from string Feature References from returned from serving
+                        if (!entityRefs.contains(name)) {
+                          FeatureReference featureRef =
+                              RequestUtil.parseFeatureRef(name, true).build();
+                          name = RequestUtil.renderFeatureRef(featureRef);
+                        }
+                        row.set(name, value);
+                      });
               return row;
             })
         .collect(Collectors.toList());

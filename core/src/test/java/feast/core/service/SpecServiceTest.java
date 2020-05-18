@@ -1,6 +1,6 @@
 /*
  * SPDX-License-Identifier: Apache-2.0
- * Copyright 2018-2019 The Feast Authors
+ * Copyright 2018-2020 The Feast Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ import feast.core.model.*;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse.Status;
 import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
+import feast.proto.core.CoreServiceProto.GetFeatureSetResponse;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.proto.core.CoreServiceProto.ListStoresRequest;
@@ -105,11 +106,13 @@ public class SpecServiceTest {
     Feature f3f1 = TestObjectFactory.CreateFeature("f3f1", Enum.INT64);
     Feature f3f2 = TestObjectFactory.CreateFeature("f3f2", Enum.INT64);
     Entity f3e1 = TestObjectFactory.CreateEntity("f3e1", Enum.STRING);
-    FeatureSet featureSet3v1 =
+    FeatureSet featureSet3 =
         TestObjectFactory.CreateFeatureSet(
             "f3", "project1", Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1));
 
-    featureSets = Arrays.asList(featureSet1, featureSet2);
+    FeatureSet featureSet4 = newDummyFeatureSet("f4", Project.DEFAULT_NAME);
+    featureSets = Arrays.asList(featureSet1, featureSet2, featureSet3, featureSet4);
+
     when(featureSetRepository.findAll()).thenReturn(featureSets);
     when(featureSetRepository.findAllByOrderByNameAsc()).thenReturn(featureSets);
     when(featureSetRepository.findFeatureSetByNameAndProject_Name("f1", "project1"))
@@ -158,15 +161,6 @@ public class SpecServiceTest {
     ListFeatureSetsResponse expected =
         ListFeatureSetsResponse.newBuilder().addAllFeatureSets(list).build();
     assertThat(actual, equalTo(expected));
-  }
-
-  @Test
-  public void listFeatureSetShouldFailIfFeatureSetProvidedWithoutProject()
-      throws InvalidProtocolBufferException {
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(
-        "Invalid listFeatureSetRequest, missing arguments. Must provide project and feature set name.");
-    specService.listFeatureSets(Filter.newBuilder().setFeatureSetName("f1").build());
   }
 
   @Test
@@ -512,6 +506,26 @@ public class SpecServiceTest {
   }
 
   @Test
+  public void applyFeatureSetShouldUsedDefaultProjectIfUnspecified()
+      throws InvalidProtocolBufferException {
+    Feature f3f1 = TestObjectFactory.CreateFeature("f3f1", Enum.INT64);
+    Feature f3f2 = TestObjectFactory.CreateFeature("f3f2", Enum.INT64);
+    Entity f3e1 = TestObjectFactory.CreateEntity("f3e1", Enum.STRING);
+
+    // In protov3, unspecified project defaults to ""
+    FeatureSetProto.FeatureSet incomingFeatureSet =
+        TestObjectFactory.CreateFeatureSet("f3", "", Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1))
+            .toProto();
+    ApplyFeatureSetResponse applyFeatureSetResponse =
+        specService.applyFeatureSet(incomingFeatureSet);
+    assertThat(applyFeatureSetResponse.getStatus(), equalTo(Status.CREATED));
+
+    assertThat(
+        applyFeatureSetResponse.getFeatureSet().getSpec().getProject(),
+        equalTo(Project.DEFAULT_NAME));
+  }
+
+  @Test
   public void applyFeatureSetShouldFailWhenProjectIsArchived()
       throws InvalidProtocolBufferException {
     Feature f3f1 = TestObjectFactory.CreateFeature("f3f1", Enum.INT64);
@@ -661,10 +675,20 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void shouldFailIfGetFeatureSetWithoutProject() throws InvalidProtocolBufferException {
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("No project provided");
-    specService.getFeatureSet(GetFeatureSetRequest.newBuilder().setName("f1").build());
+  public void getOrListFeatureSetShouldUseDefaultProjectIfProjectUnspecified()
+      throws InvalidProtocolBufferException {
+    when(featureSetRepository.findFeatureSetByNameAndProject_Name("f4", Project.DEFAULT_NAME))
+        .thenReturn(featureSets.get(3));
+    FeatureSet expected = featureSets.get(3);
+    // check getFeatureSet()
+    GetFeatureSetResponse getResponse =
+        specService.getFeatureSet(GetFeatureSetRequest.newBuilder().setName("f4").build());
+    assertThat(getResponse.getFeatureSet(), equalTo(expected.toProto()));
+
+    // check listFeatureSets()
+    ListFeatureSetsResponse listResponse =
+        specService.listFeatureSets(Filter.newBuilder().setFeatureSetName("f4").build());
+    assertThat(listResponse.getFeatureSetsList(), equalTo(Arrays.asList(expected.toProto())));
   }
 
   private FeatureSet newDummyFeatureSet(String name, String project) {

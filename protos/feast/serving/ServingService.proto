@@ -63,11 +63,16 @@ message GetFeastServingInfoResponse {
 }
 
 message FeatureReference {
-    // Project name
+    // Project name. This field is optional, if unspecified will default to 'default'.
     string project = 1;
 
     // Feature name
     string name = 2;
+
+    // Feature set name specifying the feature set of this referenced feature.
+    // This field is optional if the feature referenced is unique across the project
+    // in which case the feature set would be automatically infered
+    string feature_set_name = 5;
 
     // The features will be retrieved if:
     // entity_timestamp - max_age  <= event_timestamp <= entity_timestamp
@@ -75,6 +80,9 @@ message FeatureReference {
     // If unspecified the default max_age specified in FeatureSetSpec will
     // be used.
     google.protobuf.Duration max_age = 4;
+
+    // Feature version was removed in v0.5.0
+    reserved 3;
 }
 
 message GetOnlineFeaturesRequest {

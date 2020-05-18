@@ -80,7 +80,8 @@ public class SpecService {
   /**
    * Get a feature set matching the feature name and version and project. The feature set name and
    * project are required, but version can be omitted by providing 0 for its value. If the version
-   * is omitted, the latest feature set will be provided.
+   * is omitted, the latest feature set will be provided. If the project is omitted, the default
+   * would be used.
    *
    * @param request: GetFeatureSetRequest Request containing filter parameters.
    * @return Returns a GetFeatureSetResponse containing a feature set..
@@ -94,8 +95,9 @@ public class SpecService {
     if (request.getName().isEmpty()) {
       throw new IllegalArgumentException("No feature set name provided");
     }
+    // Autofill default project if project is not specified
     if (request.getProject().isEmpty()) {
-      throw new IllegalArgumentException("No project provided");
+      request = request.toBuilder().setProject("default").build();
     }
 
     FeatureSet featureSet;
@@ -117,7 +119,8 @@ public class SpecService {
    * projects.
    *
    * <p>Project name can be explicitly provided, or an asterisk can be provided to match all
-   * projects. It is not possible to provide a combination of asterisks/wildcards and text.
+   * projects. It is not possible to provide a combination of asterisks/wildcards and text. If the
+   * project name is omitted, the default project would be used.
    *
    * <p>The feature set name in the filter accepts an asterisk as a wildcard. All matching feature
    * sets will be returned. Regex is not supported. Explicitly defining a feature set name is not
@@ -131,13 +134,18 @@ public class SpecService {
     String name = filter.getFeatureSetName();
     String project = filter.getProject();
 
-    if (project.isEmpty() || name.isEmpty()) {
+    if (name.isEmpty()) {
       throw new IllegalArgumentException(
-          "Invalid listFeatureSetRequest, missing arguments. Must provide project and feature set name.");
+          "Invalid listFeatureSetRequest, missing arguments. Must provide feature set name:");
     }
 
     checkValidCharactersAllowAsterisk(name, "featureSetName");
     checkValidCharactersAllowAsterisk(project, "projectName");
+
+    // Autofill default project if project not specified
+    if (project.isEmpty()) {
+      project = Project.DEFAULT_NAME;
+    }
 
     List<FeatureSet> featureSets = new ArrayList<FeatureSet>() {};
 
@@ -227,12 +235,21 @@ public class SpecService {
    *
    * <p>This function is idempotent. If no changes are detected in the incoming featureSet's schema,
    * this method will update the incoming featureSet spec with the latest version stored in the
-   * repository, and return that.
+   * repository, and return that. If project is not specified in the given featureSet, will assign
+   * the featureSet to the'default' project.
    *
    * @param newFeatureSet Feature set that will be created or updated.
    */
   public ApplyFeatureSetResponse applyFeatureSet(FeatureSetProto.FeatureSet newFeatureSet)
       throws InvalidProtocolBufferException {
+    // Autofill default project if not specified
+    if (newFeatureSet.getSpec().getProject().isEmpty()) {
+      newFeatureSet =
+          newFeatureSet
+              .toBuilder()
+              .setSpec(newFeatureSet.getSpec().toBuilder().setProject(Project.DEFAULT_NAME).build())
+              .build();
+    }
 
     // Validate incoming feature set
     FeatureSetValidator.validateSpec(newFeatureSet);

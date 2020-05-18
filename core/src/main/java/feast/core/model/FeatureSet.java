@@ -39,7 +39,6 @@ import org.tensorflow.metadata.v0.*;
     uniqueConstraints = @UniqueConstraint(columnNames = {"name", "project_name"}))
 public class FeatureSet extends AbstractTimestampEntity {
 
-  // Id of the featureSet, defined as project/feature_set_name:feature_set_version
   @Id @GeneratedValue private long id;
 
   // Name of the featureSet
