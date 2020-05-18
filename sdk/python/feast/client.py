@@ -549,11 +549,6 @@ class Client:
 
         self._connect_serving()
 
-        feature_references = _build_feature_references(
-            feature_ref_strs=feature_refs,
-            project=project if project is not None else self.project,
-        )
-
         # Retrieve serving information to determine store type and
         # staging location
         serving_info = self._serving_service_stub.GetFeastServingInfo(
@@ -595,7 +590,10 @@ class Client:
             entity_rows, serving_info.job_staging_location
         )  # type: List[str]
         request = GetBatchFeaturesRequest(
-            features=feature_references,
+            features=_build_feature_references(
+                feature_ref_strs=feature_refs,
+                project=project if project is not None else self.project,
+            ),
             dataset_source=DatasetSource(
                 file_source=DatasetSource.FileSource(
                     file_uris=staged_files, data_format=DataFormat.DATA_FORMAT_AVRO
@@ -877,12 +875,12 @@ def _build_feature_references(
         A list of FeatureReference protos parsed from args.
     """
     feature_refs = [FeatureRef.from_str(ref_str) for ref_str in feature_ref_strs]
-    ref_protos = [ref.to_proto() for ref in feature_refs]
+    feature_ref_protos = [ref.to_proto() for ref in feature_refs]
     # apply project if specified
     if project is not None:
-        for ref_proto in ref_protos:
-            ref_proto.project = project
-    return ref_protos
+        for feature_ref_proto in feature_ref_protos:
+            feature_ref_proto.project = project
+    return feature_ref_proto
 
 
 def _generate_ingestion_id(feature_set: FeatureSet) -> str:
