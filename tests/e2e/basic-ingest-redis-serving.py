@@ -209,7 +209,12 @@ def test_basic_retrieve_online_multiple_featureset(client, cust_trans_df, driver
                 .fields[feature_ref]
                 .float_val
             )
-            _, feature_name = feature_ref.split(":")
+            feature_ref_splits = feature_ref.split(":")
+            if len(feature_ref_splits) == 1:
+                feature_name = feature_ref
+            else:
+                _, feature_name = feature_ref_splits
+
             sent_value = float(
                 ingest_df.iloc[0][feature_name])
 
