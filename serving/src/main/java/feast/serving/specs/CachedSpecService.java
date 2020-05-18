@@ -59,7 +59,7 @@ public class CachedSpecService {
 
   private final CoreSpecService coreService;
 
-  private final Map<String, String> featureToFeatureSetMapping;
+  private Map<String, String> featureToFeatureSetMapping;
 
   private final LoadingCache<String, FeatureSetSpec> featureSetCache;
   private Store store;
