@@ -132,17 +132,19 @@ public class JobCoordinatorService {
     tasks.forEach(ecs::submit);
 
     int completedTasks = 0;
+    List<Job> startedJobs = new ArrayList<>();
     while (completedTasks < tasks.size()) {
       try {
         Job job = ecs.take().get();
         if (job != null) {
-          jobRepository.saveAndFlush(job);
+          startedJobs.add(job);
         }
       } catch (ExecutionException | InterruptedException e) {
         log.warn("Unable to start or update job: {}", e.getMessage());
       }
       completedTasks++;
     }
+    jobRepository.saveAll(startedJobs);
     executorService.shutdown();
   }
 
@@ -169,7 +171,7 @@ public class JobCoordinatorService {
         });
     pending.forEach(
         fs -> {
-          fs.setStatus(FeatureSetStatus.STATUS_PENDING);
+          fs.setStatus(FeatureSetStatus.STATUS_JOB_STARTING);
           featureSetRepository.save(fs);
         });
     featureSetRepository.flush();

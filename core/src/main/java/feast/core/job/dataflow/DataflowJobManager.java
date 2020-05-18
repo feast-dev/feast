@@ -162,6 +162,7 @@ public class DataflowJobManager implements JobManager {
               true);
 
       job.setExtId(extId);
+      job.setStatus(JobStatus.PENDING);
       return job;
     } catch (InvalidProtocolBufferException e) {
       log.error(e.getMessage());
