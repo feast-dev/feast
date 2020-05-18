@@ -391,10 +391,12 @@ def test_batch_multiple_featureset_joins(client):
     )
 
     time.sleep(15)
+    # Test retrieve with different variations of the string feature refs
+    # ie feature set inference for feature refs without specified feature set
     feature_retrieval_job = client.get_batch_features(
         entity_rows=entity_df,
         feature_refs=[
-            "feature_set_1:feature_value6",
+            "feature_value6",
             "feature_set_2:other_feature_value7",
         ],
         project=PROJECT_NAME,
@@ -404,7 +406,7 @@ def test_batch_multiple_featureset_joins(client):
     print(output.head())
 
     assert output["entity_id"].to_list() == [
-        int(i) for i in output["feature_set_1__feature_value6"].to_list()
+        int(i) for i in output["feature_value6"].to_list()
     ]
     assert (
         output["other_entity_id"].to_list() == output["feature_set_2__other_feature_value7"].to_list()

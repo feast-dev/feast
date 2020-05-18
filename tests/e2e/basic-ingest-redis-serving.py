@@ -29,7 +29,6 @@ import uuid
 
 FLOAT_TOLERANCE = 0.00001
 PROJECT_NAME = 'basic_' + uuid.uuid4().hex.upper()[0:6]
-DEFAULT_PROJECT = FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY]
 
 @pytest.fixture(scope='module')
 def core_url(pytestconfig):
@@ -115,8 +114,8 @@ def test_basic_register_feature_set_success(client):
                                                   project=PROJECT_NAME)
     assert cust_trans_fs_actual == cust_trans_fs_expected
 
-    # reset client's project to default for other tests
-    client.set_project(DEFAULT_PROJECT)
+    # reset client's project for other tests
+    client.set_project()
 
 @pytest.mark.timeout(300)
 @pytest.mark.run(order=11)
@@ -178,9 +177,12 @@ def test_basic_retrieve_online_multiple_featureset(client, cust_trans_df, driver
     # Poll serving for feature values until the correct values are returned
     while True:
         time.sleep(1)
-        feature_refs = [
-            "customer_transactions:daily_transactions",
-            "driver:rating",
+        # Test retrieve with different variations of the string feature refs
+        # ie feature set inference for feature refs without specified feature set
+        feature_ref_df_mapping = [
+            ("customer_transactions:daily_transactions", cust_trans_df)
+            ("driver:rating", driver_df),
+            ("total_transactions", cust_trans_df),
         ]
         response = client.get_online_features(
             entity_rows=[
@@ -195,8 +197,7 @@ def test_basic_retrieve_online_multiple_featureset(client, cust_trans_df, driver
                     }
                 )
             ],
-            # Test retrieve with different variations of the string feature refs
-            feature_refs=feature_refs,
+            feature_refs=[mapping[0] for mapping in feature_ref_df_mapping],
         )  # type: GetOnlineFeaturesResponse
 
         if response is None:
@@ -217,13 +218,12 @@ def test_basic_retrieve_online_multiple_featureset(client, cust_trans_df, driver
                 returned_value,
                 abs_tol=FLOAT_TOLERANCE,
             )
-        dfs = [ cust_trans_df, driver_df ]
-        if all([check_response(df, response, ref) for df, ref in zip(dfs, feature_refs)]):
+        if all([check_response(df, response, ref) for ref, df in feature_ref_df_mapping]):
             break
 
 @pytest.mark.timeout(300)
 @pytest.mark.run(order=19)
-def test_basic_ingest_jobs(client, basic_dataframe):
+def test_basic_ingest_jobs(client):
     # list ingestion jobs given featureset
     cust_trans_fs = client.get_feature_set(name="customer_transactions")
     ingest_jobs = client.list_ingest_jobs(
