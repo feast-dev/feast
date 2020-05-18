@@ -241,7 +241,7 @@ public class CachedSpecService {
                     featureSetSpec.getProject().equals(DEFAULT_PROJECT_NAME);
 
                 for (boolean hasProject : new boolean[] {true, false}) {
-                  if (!isInDefaultProject && hasProject == false) continue;
+                  if (!isInDefaultProject && !hasProject) continue;
                   // Features can be referenced without a featureset if there are no conflicts.
                   for (boolean hasFeatureSet : new boolean[] {true, false}) {
                     // Get mapping between string feature reference and featureset
