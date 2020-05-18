@@ -4,7 +4,7 @@ echo "Preparing environment variables..."
 set -e
 set -o pipefail
 
-test -z ${GOOGLE_APPLICATION_CREDENTIALS} && GOOGLE_APPLICATION_CREDENTIALS="/etc/service-account/service-account-df.json"
+test -z ${GOOGLE_APPLICATION_CREDENTIALS} && GOOGLE_APPLICATION_CREDENTIALS="/etc/service-account-df/service-account-df.json"
 test -z ${GCLOUD_PROJECT} && GCLOUD_PROJECT="kf-feast"
 test -z ${GCLOUD_REGION} && GCLOUD_REGION="us-central1"
 test -z ${GCLOUD_NETWORK} && GCLOUD_NETWORK="default"
@@ -32,12 +32,21 @@ This script will run end-to-end tests for Feast Core and Batch Serving using Dat
 ORIGINAL_DIR=$(pwd)
 echo $ORIGINAL_DIR
 
+echo "Environment:"
+printenv
+
 echo "
 ============================================================
 Installing gcloud SDK and required packages
 ============================================================
 "
 apt-get -qq update
+
+apt-get install -y apt-transport-https
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | tee -a /etc/apt/sources.list.d/kubernetes.list
+apt-get -qq update
+
 apt-get -y install wget netcat kafkacat build-essential gettext-base curl kubectl
 curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
 chmod 700 $ORIGINAL_DIR/get_helm.sh
@@ -162,7 +171,7 @@ Helm install Feast and its dependencies
 "
 cd $ORIGINAL_DIR/infra/scripts/test-templates
 envsubst $'$TEMP_BUCKET $DATASET_NAME $GCLOUD_PROJECT $GCLOUD_NETWORK \
-  $GCLOUD_SUBNET $GCLOUD_REGION $feast_kafka_1_ip
+  $GCLOUD_SUBNET $GCLOUD_REGION $PULL_PULL_SHA $feast_kafka_1_ip
   $feast_kafka_2_ip $feast_kafka_3_ip $feast_redis_ip $feast_statsd_ip' < values-end-to-end-batch-dataflow.yaml > $ORIGINAL_DIR/infra/charts/feast/values-end-to-end-batch-dataflow-updated.yaml
 
 cd $ORIGINAL_DIR/infra/charts
@@ -235,13 +244,15 @@ kubectl delete pvc --all
 yes | gcloud compute addresses delete $feast_kafka_1_ip_name $feast_kafka_2_ip_name $feast_kafka_3_ip_name $feast_redis_ip_name $feast_statsd_ip_name --region=${GCLOUD_REGION}
 
 # Tear down GKE infrastructure
-gcloud container clusters delete --region=${GCLOUD_REGION} ${K8_CLUSTER_NAME}
+gcloud container clusters delete --quiet --region=${GCLOUD_REGION} ${K8_CLUSTER_NAME}
 
 # Stop Dataflow jobs from retrieved Dataflow job ids in ingesting_jobs.txt
-while read line
-do 
-    echo $line
-    gcloud dataflow jobs cancel $line --region=${GCLOUD_REGION}
-done < ingesting_jobs.txt
+if [ -f ingesting_jobs.txt ]; then
+  while read line
+  do
+      echo $line
+      gcloud dataflow jobs cancel $line --region=${GCLOUD_REGION}
+  done < ingesting_jobs.txt
+fi
 
 exit ${TEST_EXIT_CODE}
