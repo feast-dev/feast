@@ -450,7 +450,7 @@ type ApplyFeatureSetRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// Feature set version and source will be ignored.
+	// Feature set version
 	// If project is unspecified, will default to 'default' project.
 	// If project specified does not exist, the project would be automatically created.
 	FeatureSet *FeatureSet `protobuf:"bytes,1,opt,name=feature_set,json=featureSet,proto3" json:"feature_set,omitempty"`

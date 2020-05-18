@@ -72,7 +72,7 @@ message FeatureReference {
     // Feature set name specifying the feature set of this referenced feature.
     // This field is optional if the feature referenced is unique across the project
     // in which case the feature set would be automatically infered
-    string feature_set_name = 5;
+    string feature_set = 5;
 
     // The features will be retrieved if:
     // entity_timestamp - max_age  <= event_timestamp <= entity_timestamp

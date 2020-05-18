@@ -34,9 +34,9 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 			want: &serving.GetOnlineFeaturesRequest{
 				Features: []*serving.FeatureReference{
 					{
-						Project:        "driver_project",
-						FeatureSetName: "driver",
-						Name:           "driver_id",
+						Project:    "driver_project",
+						FeatureSet: "driver",
+						Name:       "driver_id",
 					},
 					{
 						Project: "driver_project",

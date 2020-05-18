@@ -93,7 +93,7 @@ func parseFeatureRef(featureRefStr string, ignoreProject bool) (*serving.Feature
 	// parse featureset if specified
 	if strings.Contains(featureRefStr, ":") {
 		refSplit := strings.Split(featureRefStr, ":")
-		featureRef.FeatureSetName, featureRefStr = refSplit[0], refSplit[1]
+		featureRef.FeatureSet, featureRefStr = refSplit[0], refSplit[1]
 	}
 	featureRef.Name = featureRefStr
 
@@ -102,12 +102,12 @@ func parseFeatureRef(featureRefStr string, ignoreProject bool) (*serving.Feature
 
 // Converts a FeatureReference proto into a string
 // featureRef - The FeatureReference to render as string
-// Returns string representation of the given FeatureReference 
+// Returns string representation of the given FeatureReference
 func toFeatureRefStr(featureRef *serving.FeatureReference) string {
 	refStr := ""
 	// In protov3, unset string and default to ""
-	if len(featureRef.FeatureSetName) > 0 {
-		refStr += featureRef.FeatureSetName + ":"
+	if len(featureRef.FeatureSet) > 0 {
+		refStr += featureRef.FeatureSet + ":"
 	}
 	refStr += featureRef.Name
 

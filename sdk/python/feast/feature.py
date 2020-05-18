@@ -68,8 +68,8 @@ class Feature(Field):
 class FeatureRef:
     """ Feature Reference represents a reference to a specific feature.  """
 
-    def __init__(self, name: str, feature_set_name: str = None):
-        self.proto = FeatureRefProto(name=name, feature_set_name=feature_set_name)
+    def __init__(self, name: str, feature_set: str = None):
+        self.proto = FeatureRefProto(name=name, feature_set=feature_set)
 
     @classmethod
     def from_proto(cls, proto: FeatureRefProto):
@@ -82,7 +82,7 @@ class FeatureRef:
         Returns:
             FeatureRef that refers to the given feature
         """
-        return cls(name=proto.name, feature_set_name=proto.feature_set_name)
+        return cls(name=proto.name, feature_set=proto.feature_set)
 
     @classmethod
     def from_str(cls, feature_ref_str: str, ignore_project: bool = False):
@@ -109,7 +109,7 @@ class FeatureRef:
 
         # parse feature set name if specified
         if ":" in feature_ref_str:
-            proto.feature_set_name, feature_ref_str = feature_ref_str.split(":")
+            proto.feature_set, feature_ref_str = feature_ref_str.split(":")
 
         proto.name = feature_ref_str
         return cls.from_proto(proto)
@@ -130,8 +130,8 @@ class FeatureRef:
         ref_str = ""
         if len(self.proto.project) > 0:
             ref_str += self.proto.project + "/"
-        if len(self.proto.feature_set_name) > 0:
-            ref_str += self.proto.feature_set_name + ":"
+        if len(self.proto.feature_set) > 0:
+            ref_str += self.proto.feature_set + ":"
         ref_str += self.proto.name
         return ref_str
 

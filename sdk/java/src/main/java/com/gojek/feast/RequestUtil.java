@@ -79,7 +79,7 @@ public class RequestUtil {
     // parse featureset if specified
     if (featureRefString.contains(":")) {
       String[] featureSetSplit = featureRefString.split(":");
-      featureRef.setFeatureSetName(featureSetSplit[0]);
+      featureRef.setFeatureSet(featureSetSplit[0]);
       featureRefString = featureSetSplit[1];
     }
     featureRef.setName(featureRefString);
@@ -95,8 +95,8 @@ public class RequestUtil {
   public static String renderFeatureRef(FeatureReference featureReference) {
     String refStr = "";
     // In protov3, unset string and int fields default to "" and 0 respectively
-    if (!featureReference.getFeatureSetName().isEmpty()) {
-      refStr += featureReference.getFeatureSetName() + ":";
+    if (!featureReference.getFeatureSet().isEmpty()) {
+      refStr += featureReference.getFeatureSet() + ":";
     }
     refStr = refStr + featureReference.getName();
 

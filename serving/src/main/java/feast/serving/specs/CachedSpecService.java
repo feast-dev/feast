@@ -283,13 +283,13 @@ public class CachedSpecService {
     FeatureReference.Builder featureRef =
         FeatureReference.newBuilder()
             .setProject(featureSetSpec.getProject())
-            .setFeatureSetName(featureSetSpec.getName())
+            .setFeatureSet(featureSetSpec.getName())
             .setName(featureSpec.getName());
     if (!hasProject) {
       featureRef = featureRef.clearProject();
     }
     if (!hasFeatureSet) {
-      featureRef = featureRef.clearFeatureSetName();
+      featureRef = featureRef.clearFeatureSet();
     }
     return Pair.of(
         generateFeatureStringRef(featureRef.build()), generateFeatureSetStringRef(featureSetSpec));

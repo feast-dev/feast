@@ -22,8 +22,8 @@ import feast.proto.serving.ServingAPIProto.FeatureReference;
 public class RefUtil {
   public static String generateFeatureStringRef(FeatureReference featureReference) {
     String ref = featureReference.getName();
-    if (!featureReference.getFeatureSetName().isEmpty()) {
-      ref = featureReference.getFeatureSetName() + ":" + ref;
+    if (!featureReference.getFeatureSet().isEmpty()) {
+      ref = featureReference.getFeatureSet() + ":" + ref;
     }
     if (!featureReference.getProject().isEmpty()) {
       ref = featureReference.getProject() + "/" + ref;

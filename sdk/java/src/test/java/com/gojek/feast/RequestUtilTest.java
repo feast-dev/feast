@@ -40,7 +40,7 @@ class RequestUtilTest {
             Arrays.asList(
                 FeatureReference.newBuilder()
                     .setProject("driver_project")
-                    .setFeatureSetName("driver")
+                    .setFeatureSet("driver")
                     .setName("driver_id")
                     .build(),
                 FeatureReference.newBuilder()

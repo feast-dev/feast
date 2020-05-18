@@ -136,13 +136,13 @@ public class CachedSpecServiceTest {
         FeatureReference.newBuilder()
             .setProject("project")
             .setName("feature")
-            .setFeatureSetName("fs1")
+            .setFeatureSet("fs1")
             .build();
     FeatureReference fs1fr2 =
         FeatureReference.newBuilder()
             .setProject("project")
             .setName("feature2")
-            .setFeatureSetName("fs1")
+            .setFeatureSet("fs1")
             .build();
 
     assertThat(
@@ -160,7 +160,7 @@ public class CachedSpecServiceTest {
   public void shouldPopulateAndReturnFeatureSetWithDefaultProjectIfProjectNotSupplied() {
     // test that CachedSpecService will use default project when project unspecified
     FeatureReference fs2fr3 =
-        FeatureReference.newBuilder().setName("feature3").setFeatureSetName("fs2").build();
+        FeatureReference.newBuilder().setName("feature3").setFeatureSet("fs2").build();
     // check that this is true for references in where feature set is unspecified
     FeatureReference fs2fr5 = FeatureReference.newBuilder().setName("feature5").build();
 
@@ -176,7 +176,7 @@ public class CachedSpecServiceTest {
   }
 
   @Test
-  public void shouldPopulateAndReturnClosestFeatureSetIfFeatureSetNameNotSupplied() {
+  public void shouldPopulateAndReturnClosestFeatureSetIfFeatureSetNotSupplied() {
     // test that CachedSpecService will try to match a featureset without a featureset name in
     // reference
     FeatureReference fs1fr1 =

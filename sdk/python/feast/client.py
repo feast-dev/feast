@@ -880,7 +880,7 @@ def _build_feature_references(
     if project is not None:
         for feature_ref_proto in feature_ref_protos:
             feature_ref_proto.project = project
-    return feature_ref_proto
+    return feature_ref_protos
 
 
 def _generate_ingestion_id(feature_set: FeatureSet) -> str:
