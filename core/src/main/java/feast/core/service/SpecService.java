@@ -97,7 +97,7 @@ public class SpecService {
     }
     // Autofill default project if project is not specified
     if (request.getProject().isEmpty()) {
-      request = request.toBuilder().setProject("default").build();
+      request = request.toBuilder().setProject(Project.DEFAULT_NAME).build();
     }
 
     FeatureSet featureSet;
