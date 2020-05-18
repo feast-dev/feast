@@ -292,13 +292,15 @@ class Client:
         """
         return self._config.get(CONFIG_PROJECT_KEY)
 
-    def set_project(self, project: str):
+    def set_project(self, project: Optional[str] = None):
         """
         Set currently active Feast project
 
         Args:
-            project: Project to set as active
+            project: Project to set as active. If unset, will reset to the default project.
         """
+        if project is None:
+            project = FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY]
         self._config.set(CONFIG_PROJECT_KEY, project)
 
     def list_projects(self) -> List[str]:
