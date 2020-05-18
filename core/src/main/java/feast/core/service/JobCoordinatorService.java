@@ -29,7 +29,6 @@ import feast.core.model.Source;
 import feast.core.model.Store;
 import feast.proto.core.CoreServiceProto.ListStoresRequest.Filter;
 import feast.proto.core.CoreServiceProto.ListStoresResponse;
-import feast.proto.core.FeatureSetProto.FeatureSetStatus;
 import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.ArrayList;

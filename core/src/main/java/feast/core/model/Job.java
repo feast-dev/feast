@@ -20,8 +20,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.job.Runner;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.IngestionJobProto;
-import java.util.ArrayList;
-import java.util.List;
+
+import java.util.*;
 import javax.persistence.*;
 import javax.persistence.Entity;
 import lombok.AllArgsConstructor;

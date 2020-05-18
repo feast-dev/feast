@@ -34,6 +34,7 @@ import feast.proto.core.CoreServiceProto.RestartIngestionJobRequest;
 import feast.proto.core.CoreServiceProto.RestartIngestionJobResponse;
 import feast.proto.core.CoreServiceProto.StopIngestionJobRequest;
 import feast.proto.core.CoreServiceProto.StopIngestionJobResponse;
+import feast.proto.core.FeatureSetProto.FeatureSetStatus;
 import feast.proto.core.FeatureSetReferenceProto.FeatureSetReference;
 import feast.proto.core.IngestionJobProto;
 import java.util.ArrayList;
