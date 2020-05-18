@@ -69,7 +69,7 @@ func (fc *GrpcClient) GetOnlineFeatures(ctx context.Context, req *OnlineFeatures
 				if err != nil {
 					return nil, err
 				}
-				stripRefStr := renderFeatureRef(featureRef)
+				stripRefStr := toFeatureRefStr(featureRef)
 				stripFields[stripRefStr] = value
 			}
 		}

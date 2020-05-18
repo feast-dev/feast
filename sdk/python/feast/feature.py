@@ -95,7 +95,7 @@ class FeatureRef:
         Args:
             feature_ref_str: String representation of the feature reference
             ignore_project: Ignore projects in given string feature reference
-                            instead throwing and error
+                            instead throwing an error
 
         Returns:
             FeatureRef that refers to the given feature

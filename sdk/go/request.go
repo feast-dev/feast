@@ -72,7 +72,8 @@ func buildFeatureRefs(featureRefStrs []string, project string) ([]*serving.Featu
 
 // Parses a string FeatureReference into FeatureReference proto
 // featureRefStr - the string feature reference to parse.
-// ignoreProject - whether to ignore project in string
+// ignoreProject - if true would ignore if project is specified in the given featureRefStr
+// 				   Otherwise, would return an error if project is detected in featureRefStr.
 // Returns parsed FeatureReference.
 // Returns an error when the format of the string feature reference is invalid
 func parseFeatureRef(featureRefStr string, ignoreProject bool) (*serving.FeatureReference, error) {
@@ -99,11 +100,10 @@ func parseFeatureRef(featureRefStr string, ignoreProject bool) (*serving.Feature
 	return &featureRef, nil
 }
 
-// Renders a FeatureReference proto into a string
+// Converts a FeatureReference proto into a string
 // featureRef - The FeatureReference to render as string
-// Returns parsed FeatureReference.
-// Returns an error when the format of the string feature reference is invalid
-func renderFeatureRef(featureRef *serving.FeatureReference) string {
+// Returns string representation of the given FeatureReference 
+func toFeatureRefStr(featureRef *serving.FeatureReference) string {
 	refStr := ""
 	// In protov3, unset string and default to ""
 	if len(featureRef.FeatureSetName) > 0 {
