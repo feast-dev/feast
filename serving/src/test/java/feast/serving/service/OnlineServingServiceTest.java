@@ -93,7 +93,6 @@ public class OnlineServingServiceTest {
                         Field.newBuilder().setName("entity2").setValue(strValue("a")).build(),
                         Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
                         Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
-                .setFeatureSet("project/featureSet")
                 .build(),
             FeatureRow.newBuilder()
                 .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
@@ -103,7 +102,6 @@ public class OnlineServingServiceTest {
                         Field.newBuilder().setName("entity2").setValue(strValue("b")).build(),
                         Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
                         Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
-                .setFeatureSet("project/featureSet")
                 .build());
 
     FeatureSetRequest featureSetRequest =
@@ -315,7 +313,6 @@ public class OnlineServingServiceTest {
                         Field.newBuilder().setName("entity2").setValue(strValue("a")).build(),
                         Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
                         Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
-                .setFeatureSet("project/featureSet")
                 .build(),
             FeatureRow.newBuilder()
                 .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
@@ -325,7 +322,6 @@ public class OnlineServingServiceTest {
                         Field.newBuilder().setName("entity2").setValue(strValue("b")).build(),
                         Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
                         Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
-                .setFeatureSet("project/featureSet")
                 .build());
 
     FeatureSetRequest featureSetRequest =
