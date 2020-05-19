@@ -13,6 +13,7 @@
 # limitations under the License.
 
 
+import datetime
 import logging
 import os
 import shutil
@@ -25,9 +26,10 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import grpc
 import pandas as pd
+from google.protobuf.timestamp_pb2 import Timestamp
+
 import pyarrow as pa
 import pyarrow.parquet as pq
-
 from feast.config import Config
 from feast.constants import (
     CONFIG_CORE_SECURE_KEY,
@@ -48,6 +50,7 @@ from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionRequest,
     GetFeatureSetRequest,
     GetFeatureSetResponse,
+    GetFeatureStatisticsRequest,
     ListFeatureSetsRequest,
     ListFeatureSetsResponse,
     ListIngestionJobsRequest,
@@ -76,6 +79,7 @@ from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesResponse,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
+from tensorflow_metadata.proto.v0 import statistics_pb2
 
 _logger = logging.getLogger(__name__)
 
@@ -858,6 +862,80 @@ class Client:
             shutil.rmtree(dir_path)
 
         return ingestion_id
+
+    def get_statistics(
+        self,
+        feature_set_id: str,
+        store: str,
+        features: List[str] = [],
+        ingestion_ids: Optional[List[str]] = None,
+        start_date: Optional[datetime.datetime] = None,
+        end_date: Optional[datetime.datetime] = None,
+        force_refresh: bool = False,
+        default_project: Optional[str] = None,
+    ) -> statistics_pb2.DatasetFeatureStatisticsList:
+        """
+        Retrieves the feature featureStatistics computed over the data in the batch
+        stores.
+
+        Args:
+            feature_set_id: Fully qualified feature set id in the format
+                project/feature_set to retrieve batch featureStatistics for. If project
+                is not provided, the default ("default") will be used.
+            store: Name of the store to retrieve feature featureStatistics over. This
+                store must be a historical store.
+            features: Optional list of feature names to filter from the results.
+            ingestion_ids: Optional list of dataset Ids by which to filter data
+                before retrieving featureStatistics. Cannot be used with start_date
+                and end_date.
+                If multiple dataset ids are provided, unaggregatable featureStatistics
+                will be dropped.
+            start_date: Optional start date over which to filter statistical data.
+                Data from this date will be included.
+                Cannot be used with dataset_ids. If the provided period spans
+                multiple days, unaggregatable featureStatistics will be dropped.
+            end_date: Optional end date over which to filter statistical data.
+                Data from this data will not be included.
+                Cannot be used with dataset_ids. If the provided period spans
+                multiple days, unaggregatable featureStatistics will be dropped.
+            force_refresh: Setting this flag to true will force a recalculation
+                of featureStatistics and overwrite results currently in the cache, if any.
+            default_project: Manual override for default project.
+
+        Returns:
+           Returns a tensorflow DatasetFeatureStatisticsList containing TFDV featureStatistics.
+        """
+
+        self._connect_core()
+        if ingestion_ids is not None and (
+            start_date is not None or end_date is not None
+        ):
+            raise ValueError(
+                "Only one of dataset_id or [start_date, end_date] can be provided."
+            )
+
+        if default_project != "" and "/" not in feature_set_id:
+            feature_set_id = f"{default_project}/{feature_set_id}"
+
+        request = GetFeatureStatisticsRequest(
+            feature_set_id=feature_set_id,
+            features=features,
+            store=store,
+            force_refresh=force_refresh,
+        )
+        if ingestion_ids is not None:
+            request.ingestion_ids.extend(ingestion_ids)
+        else:
+            if start_date is not None:
+                request.start_date.CopyFrom(
+                    Timestamp(seconds=int(start_date.timestamp()))
+                )
+            if end_date is not None:
+                request.end_date.CopyFrom(Timestamp(seconds=int(end_date.timestamp())))
+
+        return self._core_service_stub.GetFeatureStatistics(
+            request
+        ).dataset_feature_statistics_list
 
 
 def _build_feature_references(

@@ -23,8 +23,8 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToDict, MessageToJson
 from google.protobuf.message import Message
 from pandas.api.types import is_datetime64_ns_dtype
-from pyarrow.lib import TimestampType
 
+import pyarrow as pa
 from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
 from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
 from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
@@ -40,6 +40,7 @@ from feast.type_map import (
     pa_to_feast_value_type,
     python_type_to_feast_value_type,
 )
+from pyarrow.lib import TimestampType
 from tensorflow_metadata.proto.v0 import schema_pb2
 
 
