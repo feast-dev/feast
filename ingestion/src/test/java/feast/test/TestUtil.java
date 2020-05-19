@@ -190,6 +190,22 @@ public class TestUtil {
    */
   public static FeatureRow createRandomFeatureRow(
       FeatureSetSpec featureSetSpec, int randomStringSize) {
+    return createRandomFeatureRowOrDefault(featureSetSpec, randomStringSize, null);
+  }
+
+  /**
+   * Create a Feature Row with random value according to the FeatureSet.
+   *
+   * <p>The Feature Row created contains fields according to the entities and features defined in
+   * FeatureSet, matching the value type of the field, with randomized value for testing.
+   *
+   * @param featureSetSpec {@link FeatureSetSpec}
+   * @param randomStringSize number of characters for the generated random string
+   * @param defaultValue default value to be used for each field.
+   * @return {@link FeatureRow}
+   */
+  public static FeatureRow createRandomFeatureRowOrDefault(
+      FeatureSetSpec featureSetSpec, int randomStringSize, String defaultValue) {
     Builder builder =
         FeatureRow.newBuilder()
             .setFeatureSet(getFeatureSetReference(featureSetSpec))
@@ -202,7 +218,10 @@ public class TestUtil {
               builder.addFields(
                   Field.newBuilder()
                       .setName(field.getName())
-                      .setValue(createRandomValue(field.getValueType(), randomStringSize))
+                      .setValue(
+                          defaultValue != null
+                              ? createValueFromDefault(field.getValueType(), defaultValue)
+                              : createRandomValue(field.getValueType(), randomStringSize))
                       .build());
             });
 
@@ -213,7 +232,10 @@ public class TestUtil {
               builder.addFields(
                   Field.newBuilder()
                       .setName(field.getName())
-                      .setValue(createRandomValue(field.getValueType(), randomStringSize))
+                      .setValue(
+                          defaultValue != null
+                              ? createValueFromDefault(field.getValueType(), defaultValue)
+                              : createRandomValue(field.getValueType(), randomStringSize))
                       .build());
             });
 
@@ -285,6 +307,72 @@ public class TestUtil {
         break;
       case BOOL_LIST:
         builder.setBoolListVal(BoolList.newBuilder().addVal(random.nextBoolean()).build());
+        break;
+    }
+    return builder.build();
+  }
+
+  /**
+   * Create a Feast {@link Value} of {@link ValueType.Enum} from a default String for tests.
+   *
+   * @param type {@link ValueType.Enum}
+   * @param defaultValue string to generate Value from
+   * @return {@link Value}
+   */
+  private static Value createValueFromDefault(ValueType.Enum type, String defaultValue) {
+    Value.Builder builder = Value.newBuilder();
+    boolean bool = defaultValue.length() > 0 || Integer.parseInt(defaultValue) != 0;
+
+    switch (type) {
+      case INVALID:
+      case UNRECOGNIZED:
+        throw new IllegalArgumentException("Invalid ValueType: " + type);
+      case BYTES:
+        builder.setBytesVal(ByteString.copyFrom(defaultValue.getBytes()));
+        break;
+      case STRING:
+        builder.setStringVal(defaultValue);
+        break;
+      case INT32:
+        builder.setInt32Val(Integer.parseInt(defaultValue));
+        break;
+      case INT64:
+        builder.setInt64Val(Long.parseLong(defaultValue));
+        break;
+      case DOUBLE:
+        builder.setDoubleVal(Double.parseDouble(defaultValue));
+        break;
+      case FLOAT:
+        builder.setFloatVal(Float.parseFloat(defaultValue));
+        break;
+      case BOOL:
+        builder.setBoolVal(bool);
+        break;
+      case BYTES_LIST:
+        builder.setBytesListVal(
+            BytesList.newBuilder().addVal(ByteString.copyFrom(defaultValue.getBytes())).build());
+        break;
+      case STRING_LIST:
+        builder.setStringListVal(StringList.newBuilder().addVal(defaultValue).build());
+        break;
+      case INT32_LIST:
+        builder.setInt32ListVal(
+            Int32List.newBuilder().addVal(Integer.parseInt(defaultValue)).build());
+        break;
+      case INT64_LIST:
+        builder.setInt64ListVal(
+            Int64List.newBuilder().addVal(Long.parseLong(defaultValue)).build());
+        break;
+      case DOUBLE_LIST:
+        builder.setDoubleListVal(
+            DoubleList.newBuilder().addVal(Double.parseDouble(defaultValue)).build());
+        break;
+      case FLOAT_LIST:
+        builder.setFloatListVal(
+            FloatList.newBuilder().addVal(Float.parseFloat(defaultValue)).build());
+        break;
+      case BOOL_LIST:
+        builder.setBoolListVal(BoolList.newBuilder().addVal(bool).build());
         break;
     }
     return builder.build();

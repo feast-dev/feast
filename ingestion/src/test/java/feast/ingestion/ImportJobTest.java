@@ -45,9 +45,7 @@ import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -55,6 +53,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -144,17 +143,12 @@ public class ImportJobTest {
                             .build())
                     .build())
             .build();
-
-    ObjectInputStream in =
-        new ObjectInputStream(
-            new FileInputStream("src/test/resources/feast/ingestion/TestFeatureRows.txt"));
-
-    List<FeatureRow> byteList = (List<FeatureRow>) in.readObject();
-    in.close();
-
-    for (FeatureRow bytes : byteList) {
-      defaultValues.add(bytes);
-    }
+    IntStream.range(0, IMPORT_JOB_SAMPLE_FEATURE_ROW_SIZE)
+        .forEach(
+            i -> {
+              defaultValues.add(
+                  TestUtil.createRandomFeatureRowOrDefault(spec, 0, String.valueOf(i)));
+            });
 
     featureSet = FeatureSet.newBuilder().setSpec(spec).build();
 
