@@ -63,7 +63,7 @@ class TestFeatureSet:
         assert len(fs.features) == 1 and fs.features[0].name == "my-feature-2"
 
     def test_remove_feature_failure(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(KeyError):
             fs = FeatureSet("my-feature-set")
             fs.drop(name="my-feature-1")
 

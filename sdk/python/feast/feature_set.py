@@ -312,11 +312,7 @@ class FeatureSet:
         Args:
             name: Name of Feature or Entity to be removed
         """
-        if name not in self._fields:
-            raise ValueError("Could not find field " + name + ", no action taken")
-        if name in self._fields:
-            del self._fields[name]
-            return
+        del self._fields[name]
 
     def _add_fields(self, fields: List[Field]):
         """

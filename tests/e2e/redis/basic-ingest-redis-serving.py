@@ -688,11 +688,16 @@ class TestsBasedOnGrpc:
     @pytest.mark.run(order=51)
     def test_register_feature_set_with_labels(self, core_service_stub):
         feature_set_name = "test_feature_set_labels"
-        feature_set_proto = FeatureSet(feature_set_name, PROJECT_NAME).to_proto()
-        feature_set_proto.spec.labels[self.LABEL_KEY] = self.LABEL_VALUE
+        feature_set_proto = FeatureSet(
+            name=feature_set_name,
+            project=PROJECT_NAME,
+            labels={self.LABEL_KEY: self.LABEL_VALUE},
+        ).to_proto()
         self.apply_feature_set(core_service_stub, feature_set_proto)
 
-        retrieved_feature_set = self.get_feature_set(core_service_stub, feature_set_name, PROJECT_NAME)
+        retrieved_feature_set = self.get_feature_set(
+            core_service_stub, feature_set_name, PROJECT_NAME
+        )
 
         assert self.LABEL_KEY in retrieved_feature_set.spec.labels
         assert retrieved_feature_set.spec.labels[self.LABEL_KEY] == self.LABEL_VALUE
@@ -701,12 +706,22 @@ class TestsBasedOnGrpc:
     @pytest.mark.run(order=52)
     def test_register_feature_with_labels(self, core_service_stub):
         feature_set_name = "test_feature_labels"
-        feature_set_proto = FeatureSet(feature_set_name, PROJECT_NAME, features=[Feature("rating", ValueType.INT64)]) \
-            .to_proto()
-        feature_set_proto.spec.features[0].labels[self.LABEL_KEY] = self.LABEL_VALUE
+        feature_set_proto = FeatureSet(
+            name=feature_set_name,
+            project=PROJECT_NAME,
+            features=[
+                Feature(
+                    name="rating",
+                    dtype=ValueType.INT64,
+                    labels={self.LABEL_KEY: self.LABEL_VALUE},
+                )
+            ],
+        ).to_proto()
         self.apply_feature_set(core_service_stub, feature_set_proto)
 
-        retrieved_feature_set = self.get_feature_set(core_service_stub, feature_set_name, PROJECT_NAME)
+        retrieved_feature_set = self.get_feature_set(
+            core_service_stub, feature_set_name, PROJECT_NAME
+        )
         retrieved_feature = retrieved_feature_set.spec.features[0]
 
         assert self.LABEL_KEY in retrieved_feature.labels
