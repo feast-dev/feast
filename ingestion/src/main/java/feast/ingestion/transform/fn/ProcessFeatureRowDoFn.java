@@ -21,11 +21,18 @@ import org.apache.beam.sdk.transforms.DoFn;
 
 public class ProcessFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow> {
 
+  private String defaultProject;
+
+  public ProcessFeatureRowDoFn(String defaultProject) {
+    this.defaultProject = defaultProject;
+  }
+
   @ProcessElement
   public void processElement(ProcessContext context) {
     FeatureRow featureRow = context.element();
-    featureRow =
-        featureRow.toBuilder().setFeatureSet(stripVersion(featureRow.getFeatureSet())).build();
+    String featureSetId = stripVersion(featureRow.getFeatureSet());
+    featureSetId = applyDefaultProject(featureSetId);
+    featureRow = featureRow.toBuilder().setFeatureSet(featureSetId).build();
     context.output(featureRow);
   }
 
@@ -33,5 +40,13 @@ public class ProcessFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow> {
   private String stripVersion(String featureSetId) {
     String[] split = featureSetId.split(":");
     return split[0];
+  }
+
+  private String applyDefaultProject(String featureSetId) {
+    String[] split = featureSetId.split("/");
+    if (split.length == 1) {
+      return defaultProject + "/" + featureSetId;
+    }
+    return featureSetId;
   }
 }

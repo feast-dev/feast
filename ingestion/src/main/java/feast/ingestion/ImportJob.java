@@ -130,6 +130,7 @@ public class ImportJob {
               .get(FEATURE_ROW_OUT)
               .apply(
                   ProcessAndValidateFeatureRows.newBuilder()
+                      .setDefaultProject(options.getDefaultFeastProject())
                       .setFeatureSetSpecs(featureSetSpecsByKey)
                       .setSuccessTag(FEATURE_ROW_OUT)
                       .setFailureTag(DEADLETTER_OUT)

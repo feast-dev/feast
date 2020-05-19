@@ -39,6 +39,8 @@ public abstract class ProcessAndValidateFeatureRows
 
   public abstract Map<String, FeatureSetProto.FeatureSetSpec> getFeatureSetSpecs();
 
+  public abstract String getDefaultProject();
+
   public abstract TupleTag<FeatureRow> getSuccessTag();
 
   public abstract TupleTag<FailedElement> getFailureTag();
@@ -52,6 +54,8 @@ public abstract class ProcessAndValidateFeatureRows
 
     public abstract Builder setFeatureSetSpecs(
         Map<String, FeatureSetProto.FeatureSetSpec> featureSets);
+
+    public abstract Builder setDefaultProject(String defaultProject);
 
     public abstract Builder setSuccessTag(TupleTag<FeatureRow> successTag);
 
@@ -69,7 +73,7 @@ public abstract class ProcessAndValidateFeatureRows
             .collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
 
     return input
-        .apply("ProcessFeatureRows", ParDo.of(new ProcessFeatureRowDoFn()))
+        .apply("ProcessFeatureRows", ParDo.of(new ProcessFeatureRowDoFn(getDefaultProject())))
         .apply(
             "ValidateFeatureRows",
             ParDo.of(
