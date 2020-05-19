@@ -65,8 +65,8 @@ service CoreService {
     rpc UpdateStore (UpdateStoreRequest) returns (UpdateStoreResponse);
 
     // Creates a project. Projects serve as namespaces within which resources like features will be
-    // created. Both feature set names as well as field names must be unique within a project. Project
-    // names themselves must be globally unique.
+    // created. Feature set names as must be unique within a project while field (Feature/Entity) names
+    // must be unique within a Feature Set. Project names themselves must be globally unique.
     rpc CreateProject (CreateProjectRequest) returns (CreateProjectResponse);
 
     // Archives a project. Archived projects will continue to exist and function, but won't be visible
@@ -99,7 +99,7 @@ service CoreService {
 
 // Request for a single feature set
 message GetFeatureSetRequest {
-    // Name of project the feature set belongs to (required)
+    // Name of project the feature set belongs to. If omitted will default to 'default' project.
     string project = 3;
 
     // Name of feature set (required).
@@ -122,6 +122,7 @@ message ListFeatureSetsRequest {
         // If an asterisk is provided, filtering on projects will be disabled. All projects will
         // be matched. It is NOT possible to provide an asterisk with a string in order to do
         // pattern matching.
+        // If unspecified this field will default to the default project 'default'.
         string project = 3;
 
         // Name of the desired feature set. Asterisks can be used as wildcards in the name.
@@ -153,6 +154,9 @@ message ListStoresResponse {
 }
 
 message ApplyFeatureSetRequest {
+    // Feature set version
+    // If project is unspecified, will default to 'default' project.
+    // If project specified does not exist, the project would be automatically created.
     feast.core.FeatureSet feature_set = 1;
 }
 

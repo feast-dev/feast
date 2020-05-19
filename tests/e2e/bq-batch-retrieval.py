@@ -27,7 +27,6 @@ pd.set_option("display.max_columns", None)
 
 PROJECT_NAME = "batch_" + uuid.uuid4().hex.upper()[0:6]
 
-
 @pytest.fixture(scope="module")
 def core_url(pytestconfig):
     return pytestconfig.getoption("core_url")
@@ -53,7 +52,6 @@ def client(core_url, serving_url, allow_dirty):
     # Get client for core and serving
     client = Client(core_url=core_url, serving_url=serving_url)
     client.create_project(PROJECT_NAME)
-    client.set_project(PROJECT_NAME)
 
     # Ensure Feast core is active, but empty
     if not allow_dirty:
@@ -167,7 +165,8 @@ def test_batch_get_batch_features_with_file(client):
     time.sleep(15)
     feature_retrieval_job = client.get_batch_features(
         entity_rows="file://file_feature_set.avro",
-        feature_refs=[f"{PROJECT_NAME}/feature_value1"],
+        feature_refs=["feature_value1"],
+        project=PROJECT_NAME,
     )
 
     output = feature_retrieval_job.to_dataframe()
@@ -220,7 +219,9 @@ def test_batch_get_batch_features_with_gs_path(client, gcs_path):
 
     time.sleep(15)
     feature_retrieval_job = client.get_batch_features(
-        entity_rows=f"{gcs_path}{ts}/*", feature_refs=[f"{PROJECT_NAME}/feature_value2"]
+        entity_rows=f"{gcs_path}{ts}/*",
+        feature_refs=["feature_value2"],
+        project=PROJECT_NAME,
     )
 
     output = feature_retrieval_job.to_dataframe()
@@ -259,7 +260,8 @@ def test_batch_order_by_creation_time(client):
     client.ingest(proc_time_fs, correct_df)
     feature_retrieval_job = client.get_batch_features(
         entity_rows=incorrect_df[["datetime", "entity_id"]],
-        feature_refs=[f"{PROJECT_NAME}/feature_value3"],
+        feature_refs=["feature_value3"],
+        project=PROJECT_NAME,
     )
     output = feature_retrieval_job.to_dataframe()
     clean_up_remote_files(feature_retrieval_job.get_avro_files())
@@ -295,7 +297,9 @@ def test_batch_additional_columns_in_entity_table(client):
 
     time.sleep(15)
     feature_retrieval_job = client.get_batch_features(
-        entity_rows=entity_df, feature_refs=[f"{PROJECT_NAME}/feature_value4"]
+        entity_rows=entity_df,
+        feature_refs=["feature_value4"],
+        project=PROJECT_NAME,
     )
     output = feature_retrieval_job.to_dataframe().sort_values(by=["entity_id"])
     clean_up_remote_files(feature_retrieval_job.get_avro_files())
@@ -341,7 +345,9 @@ def test_batch_point_in_time_correctness_join(client):
 
     time.sleep(15)
     feature_retrieval_job = client.get_batch_features(
-        entity_rows=entity_df, feature_refs=[f"{PROJECT_NAME}/feature_value5"]
+        entity_rows=entity_df,
+        feature_refs=["feature_value5"],
+        project=PROJECT_NAME,
     )
     output = feature_retrieval_job.to_dataframe()
     clean_up_remote_files(feature_retrieval_job.get_avro_files())
@@ -385,12 +391,15 @@ def test_batch_multiple_featureset_joins(client):
     )
 
     time.sleep(15)
+    # Test retrieve with different variations of the string feature refs
+    # ie feature set inference for feature refs without specified feature set
     feature_retrieval_job = client.get_batch_features(
         entity_rows=entity_df,
         feature_refs=[
-            f"{PROJECT_NAME}/feature_value6",
-            f"{PROJECT_NAME}/other_feature_value7",
+            "feature_value6",
+            "feature_set_2:other_feature_value7",
         ],
+        project=PROJECT_NAME,
     )
     output = feature_retrieval_job.to_dataframe()
     clean_up_remote_files(feature_retrieval_job.get_avro_files())
@@ -400,7 +409,7 @@ def test_batch_multiple_featureset_joins(client):
         int(i) for i in output["feature_value6"].to_list()
     ]
     assert (
-        output["other_entity_id"].to_list() == output["other_feature_value7"].to_list()
+        output["other_entity_id"].to_list() == output["feature_set_2__other_feature_value7"].to_list()
     )
 
 
@@ -423,7 +432,8 @@ def test_batch_no_max_age(client):
     time.sleep(15)
     feature_retrieval_job = client.get_batch_features(
         entity_rows=features_8_df[["datetime", "entity_id"]],
-        feature_refs=[f"{PROJECT_NAME}/feature_value8"],
+        feature_refs=["feature_value8"],
+        project=PROJECT_NAME,
     )
 
     output = feature_retrieval_job.to_dataframe()
@@ -504,9 +514,10 @@ def test_update_featureset_apply_featureset_and_ingest_first_subset(
     feature_retrieval_job = client.get_batch_features(
         entity_rows=update_featureset_dataframe[["datetime", "entity_id"]].iloc[:5],
         feature_refs=[
-            f"{PROJECT_NAME}/update_feature1",
-            f"{PROJECT_NAME}/update_feature2",
+            "update_feature1",
+            "update_feature2",
         ],
+        project=PROJECT_NAME
     )
 
     output = feature_retrieval_job.to_dataframe().sort_values(by=["entity_id"])
@@ -557,10 +568,11 @@ def test_update_featureset_update_featureset_and_ingest_second_subset(
     feature_retrieval_job = client.get_batch_features(
         entity_rows=update_featureset_dataframe[["datetime", "entity_id"]].iloc[5:],
         feature_refs=[
-            f"{PROJECT_NAME}/update_feature1",
-            f"{PROJECT_NAME}/update_feature3",
-            f"{PROJECT_NAME}/update_feature4",
+            "update_feature1",
+            "update_feature3",
+            "update_feature4",
         ],
+        project=PROJECT_NAME,
     )
 
     output = feature_retrieval_job.to_dataframe().sort_values(by=["entity_id"])
@@ -579,11 +591,12 @@ def test_update_featureset_retrieve_all_fields(client, update_featureset_datafra
         feature_retrieval_job = client.get_batch_features(
             entity_rows=update_featureset_dataframe[["datetime", "entity_id"]],
             feature_refs=[
-                f"{PROJECT_NAME}/update_feature1",
-                f"{PROJECT_NAME}/update_feature2",
-                f"{PROJECT_NAME}/update_feature3",
-                f"{PROJECT_NAME}/update_feature4",
+                "update_feature1",
+                "update_feature2",
+                "update_feature3",
+                "update_feature4",
             ],
+            project=PROJECT_NAME,
         )
         feature_retrieval_job.result()
 
@@ -594,10 +607,11 @@ def test_update_featureset_retrieve_valid_fields(client, update_featureset_dataf
     feature_retrieval_job = client.get_batch_features(
         entity_rows=update_featureset_dataframe[["datetime", "entity_id"]],
         feature_refs=[
-            f"{PROJECT_NAME}/update_feature1",
-            f"{PROJECT_NAME}/update_feature3",
-            f"{PROJECT_NAME}/update_feature4",
+            "update_feature1",
+            "update_feature3",
+            "update_feature4",
         ],
+        project=PROJECT_NAME,
     )
     output = feature_retrieval_job.to_dataframe().sort_values(by=["entity_id"])
     clean_up_remote_files(feature_retrieval_job.get_avro_files())

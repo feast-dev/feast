@@ -36,6 +36,7 @@ from feast.constants import (
     CONFIG_PROJECT_KEY,
     CONFIG_SERVING_SECURE_KEY,
     CONFIG_SERVING_URL_KEY,
+    FEAST_DEFAULT_OPTIONS,
 )
 from feast.core.CoreService_pb2 import (
     ApplyFeatureSetRequest,
@@ -57,6 +58,7 @@ from feast.core.CoreService_pb2 import (
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
+from feast.feature import FeatureRef
 from feast.feature_set import Entity, FeatureSet, FeatureSetRef
 from feast.job import IngestJob, RetrievalJob
 from feast.loaders.abstract_producer import get_producer
@@ -290,13 +292,15 @@ class Client:
         """
         return self._config.get(CONFIG_PROJECT_KEY)
 
-    def set_project(self, project: str):
+    def set_project(self, project: Optional[str] = None):
         """
         Set currently active Feast project
 
         Args:
-            project: Project to set as active
+            project: Project to set as active. If unset, will reset to the default project.
         """
+        if project is None:
+            project = FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY]
         self._config.set(CONFIG_PROJECT_KEY, project)
 
     def list_projects(self) -> List[str]:
@@ -339,13 +343,17 @@ class Client:
         """
 
         self._connect_core()
-        self._core_service_stub.ArchiveProject(
-            ArchiveProjectRequest(name=project),
-            timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
-        )  # type: ArchiveProjectResponse
+        try:
+            self._core_service_stub.ArchiveProject(
+                ArchiveProjectRequest(name=project),
+                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+            )  # type: ArchiveProjectResponse
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
 
+        # revert to the default project
         if self._project == project:
-            self._project = ""
+            self._project = FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY]
 
     def apply(self, feature_sets: Union[List[FeatureSet], FeatureSet]):
         """
@@ -498,23 +506,24 @@ class Client:
         self,
         feature_refs: List[str],
         entity_rows: Union[pd.DataFrame, str],
-        default_project: str = None,
+        project: str = None,
     ) -> RetrievalJob:
         """
         Retrieves historical features from a Feast Serving deployment.
 
         Args:
-            feature_refs (List[str]):
-                List of feature references that will be returned for each entity.
-                Each feature reference should have the following format
-                "project/feature".
-
+            feature_refs: List of feature references that will be returned for each entity.
+                Each feature reference should have the following format:
+                "feature_set:feature" where "feature_set" & "feature" refer to
+                the feature and feature set names respectively.
+                Only the feature name is required.
             entity_rows (Union[pd.DataFrame, str]):
                 Pandas dataframe containing entities and a 'datetime' column.
                 Each entity in a feature set must be present as a column in this
                 dataframe. The datetime column must contain timestamps in
                 datetime64 format.
-            default_project: Default project where feature values will be found.
+            project: Specifies the project which contain the FeatureSets
+                which the requested features belong to.
 
         Returns:
             feast.job.RetrievalJob:
@@ -541,10 +550,6 @@ class Client:
         """
 
         self._connect_serving()
-
-        feature_references = _build_feature_references(
-            feature_refs=feature_refs, default_project=default_project
-        )
 
         # Retrieve serving information to determine store type and
         # staging location
@@ -587,7 +592,10 @@ class Client:
             entity_rows, serving_info.job_staging_location
         )  # type: List[str]
         request = GetBatchFeaturesRequest(
-            features=feature_references,
+            features=_build_feature_references(
+                feature_ref_strs=feature_refs,
+                project=project if project is not None else self.project,
+            ),
             dataset_source=DatasetSource(
                 file_source=DatasetSource.FileSource(
                     file_uris=staged_files, data_format=DataFormat.DATA_FORMAT_AVRO
@@ -607,23 +615,22 @@ class Client:
         self,
         feature_refs: List[str],
         entity_rows: List[GetOnlineFeaturesRequest.EntityRow],
-        default_project: Optional[str] = None,
+        project: Optional[str] = None,
     ) -> GetOnlineFeaturesResponse:
         """
         Retrieves the latest online feature data from Feast Serving
 
         Args:
-            feature_refs: List of feature references in the following format
-                [project]/[feature_name]. Only the feature name
-                is a required component in the reference.
-                example:
-                    ["my_project/my_feature_1",
-                    "my_feature_4",]
+            feature_refs: List of feature references that will be returned for each entity.
+                Each feature reference should have the following format:
+                "feature_set:feature" where "feature_set" & "feature" refer to
+                the feature and feature set names respectively.
+                Only the feature name is required.
             entity_rows: List of GetFeaturesRequest.EntityRow where each row
                 contains entities. Timestamp should not be set for online
                 retrieval. All entity types within a feature
-            default_project: This project will be used if the project name is
-                not provided in the feature reference
+            project: Specifies the project which contain the FeatureSets
+                which the requested features belong to.
 
         Returns:
             Returns a list of maps where each item in the list contains the
@@ -635,14 +642,37 @@ class Client:
             response = self._serving_service_stub.GetOnlineFeatures(
                 GetOnlineFeaturesRequest(
                     features=_build_feature_references(
-                        feature_refs=feature_refs,
-                        default_project=(
-                            default_project if not self.project else self.project
-                        ),
+                        feature_ref_strs=feature_refs,
+                        project=project if project is not None else self.project,
                     ),
                     entity_rows=entity_rows,
                 )
             )
+            # collect entity row refs
+            entity_refs = set()
+            for entity_row in entity_rows:
+                entity_refs.update(entity_row.fields.keys())
+
+            strip_field_values = []
+            for field_value in response.field_values:
+                # strip the project part the string feature references returned from serving
+                strip_fields = {}
+                for ref_str, value in field_value.fields.items():
+                    # find and ignore entities
+                    if ref_str in entity_refs:
+                        strip_fields[ref_str] = value
+                    else:
+                        strip_ref_str = repr(
+                            FeatureRef.from_str(ref_str, ignore_project=True)
+                        )
+                        strip_fields[strip_ref_str] = value
+                strip_field_values.append(
+                    GetOnlineFeaturesResponse.FieldValues(fields=strip_fields)
+                )
+
+            del response.field_values[:]
+            response.field_values.extend(strip_field_values)
+
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 
@@ -834,50 +864,25 @@ class Client:
 
 
 def _build_feature_references(
-    feature_refs: List[str], default_project: str = None
+    feature_ref_strs: List[str], project: Optional[str] = None
 ) -> List[FeatureReference]:
     """
-    Builds a list of FeatureSet objects from feature set ids in order to
-    retrieve feature data from Feast Serving
+    Builds a list of FeatureReference protos from string feature set references
 
     Args:
-        feature_refs: List of feature reference strings
-            ("project/feature")
-        default_project: This project will be used if the project name is
-            not provided in the feature reference
+        feature_ref_strs: List of string feature references
+        project: Optionally specifies the project in the parsed feature references.
+
+    Returns:
+        A list of FeatureReference protos parsed from args.
     """
-
-    features = []
-
-    for feature_ref in feature_refs:
-        project_split = feature_ref.split("/")
-
-        if len(project_split) == 2:
-            project, name = project_split
-        elif len(project_split) == 1:
-            name = project_split[0]
-            if default_project is None:
-                raise ValueError(
-                    f"No project specified in {feature_ref} and no default project provided"
-                )
-            project = default_project
-        else:
-            raise ValueError(
-                f'Could not parse feature ref {feature_ref}, expecting "project/feature"'
-            )
-
-        if len(project) == 0 or len(name) == 0:
-            raise ValueError(
-                f'Could not parse feature ref {feature_ref}, expecting "project/feature"'
-            )
-
-        if ":" in name:
-            raise ValueError(
-                f'Could not parse feature ref {feature_ref}, expecting "project/feature". Versions were deprecated in v0.5.0.'
-            )
-
-        features.append(FeatureReference(project=project, name=name))
-    return features
+    feature_refs = [FeatureRef.from_str(ref_str) for ref_str in feature_ref_strs]
+    feature_ref_protos = [ref.to_proto() for ref in feature_refs]
+    # apply project if specified
+    if project is not None:
+        for feature_ref_proto in feature_ref_protos:
+            feature_ref_proto.project = project
+    return feature_ref_protos
 
 
 def _generate_ingestion_id(feature_set: FeatureSet) -> str:

@@ -53,8 +53,7 @@ public class JobUpdateTaskTest {
 
   private static final FeatureSetProto.FeatureSet.Builder fsBuilder =
       FeatureSetProto.FeatureSet.newBuilder().setMeta(FeatureSetMeta.newBuilder());
-  private static final FeatureSetSpec.Builder specBuilder =
-      FeatureSetSpec.newBuilder().setProject("project1");
+  private static final FeatureSetSpec.Builder specBuilder = FeatureSetSpec.newBuilder();
 
   @Mock private JobManager jobManager;
 

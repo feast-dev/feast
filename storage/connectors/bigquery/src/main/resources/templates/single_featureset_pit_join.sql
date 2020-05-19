@@ -47,8 +47,8 @@ SELECT
   uuid,
   event_timestamp,
   {{ featureSet.entities | join(', ')}},
-  {% for featureName in featureSet.features %}
-  IF(event_timestamp >= {{ featureSet.project }}_{{ featureSet.name }}_feature_timestamp {% if featureSet.maxAge == 0 %}{% else %}AND Timestamp_sub(event_timestamp, interval {{ featureSet.maxAge }} second) < {{ featureSet.project }}_{{ featureSet.name }}_feature_timestamp{% endif %}, {{ featureSet.project }}_{{ featureName }}, NULL) as {{ featureSet.project }}_{{ featureName }}{% if loop.last %}{% else %}, {% endif %}
+  {% for feature in featureSet.features %}
+  IF(event_timestamp >= {{ featureSet.project }}_{{ featureSet.name }}_feature_timestamp {% if featureSet.maxAge == 0 %}{% else %}AND Timestamp_sub(event_timestamp, interval {{ featureSet.maxAge }} second) < {{ featureSet.project }}_{{ featureSet.name }}_feature_timestamp{% endif %}, {{ featureSet.project }}__{{ featureSet.name }}__{{ feature.name }}, NULL) as {{ featureSet.project }}__{{ featureSet.name }}__{{ feature.name }}{% if loop.last %}{% else %}, {% endif %}
   {% endfor %}
 FROM (
 SELECT
@@ -70,8 +70,8 @@ SELECT
   event_timestamp as {{ featureSet.project }}_{{ featureSet.name }}_feature_timestamp,
   created_timestamp,
   {{ featureSet.entities | join(', ')}},
-  {% for featureName in featureSet.features %}
-  {{ featureName }} as {{ featureSet.project }}_{{ featureName }}{% if loop.last %}{% else %}, {% endif %}
+  {% for feature in featureSet.features %}
+  {{ feature.name }} as {{ featureSet.project }}__{{ featureSet.name }}__{{ feature.name }}{% if loop.last %}{% else %}, {% endif %}
   {% endfor %}
 FROM `{{ projectId }}.{{ datasetId }}.{{ featureSet.project }}_{{ featureSet.name }}` WHERE event_timestamp <= '{{maxTimestamp}}'
 {% if featureSet.maxAge == 0 %}{% else %}AND event_timestamp >= Timestamp_sub(TIMESTAMP '{{ minTimestamp }}', interval {{ featureSet.maxAge }} second){% endif %}

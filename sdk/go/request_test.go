@@ -20,35 +20,27 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 		{
 			name: "valid",
 			req: OnlineFeaturesRequest{
-				Features: []string{"my_project_1/feature1", "my_project_2/feature1", "my_project_4/feature3", "feature2", "feature2"},
+				Features: []string{
+					"driver:driver_id",
+					"driver_id",
+				},
 				Entities: []Row{
 					{"entity1": Int64Val(1), "entity2": StrVal("bob")},
 					{"entity1": Int64Val(1), "entity2": StrVal("annie")},
 					{"entity1": Int64Val(1), "entity2": StrVal("jane")},
 				},
-				Project: "my_project_3",
+				Project: "driver_project",
 			},
 			want: &serving.GetOnlineFeaturesRequest{
 				Features: []*serving.FeatureReference{
 					{
-						Project: "my_project_1",
-						Name:    "feature1",
+						Project:    "driver_project",
+						FeatureSet: "driver",
+						Name:       "driver_id",
 					},
 					{
-						Project: "my_project_2",
-						Name:    "feature1",
-					},
-					{
-						Project: "my_project_4",
-						Name:    "feature3",
-					},
-					{
-						Project: "my_project_3",
-						Name:    "feature2",
-					},
-					{
-						Project: "my_project_3",
-						Name:    "feature2",
+						Project: "driver_project",
+						Name:    "driver_id",
 					},
 				},
 				EntityRows: []*serving.GetOnlineFeaturesRequest_EntityRow{
@@ -77,34 +69,6 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 			err:     nil,
 		},
 		{
-			name: "valid_project_in_name",
-			req: OnlineFeaturesRequest{
-				Features: []string{"project/feature1"},
-				Entities: []Row{},
-			},
-			want: &serving.GetOnlineFeaturesRequest{
-				Features: []*serving.FeatureReference{
-					{
-						Project: "project",
-						Name:    "feature1",
-					},
-				},
-				EntityRows:             []*serving.GetOnlineFeaturesRequest_EntityRow{},
-				OmitEntitiesInResponse: false,
-			},
-			wantErr: false,
-			err:     nil,
-		},
-		{
-			name: "no_project",
-			req: OnlineFeaturesRequest{
-				Features: []string{"feature1"},
-				Entities: []Row{},
-			},
-			wantErr: true,
-			err:     fmt.Errorf(ErrInvalidFeatureName, "feature1"),
-		},
-		{
 			name: "invalid_feature_name/wrong_format",
 			req: OnlineFeaturesRequest{
 				Features: []string{"/fs1:feature1"},
@@ -112,7 +76,7 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 				Project:  "my_project",
 			},
 			wantErr: true,
-			err:     fmt.Errorf(ErrInvalidFeatureName, "/fs1:feature1"),
+			err:     fmt.Errorf(ErrInvalidFeatureRef, "/fs1:feature1"),
 		},
 	}
 	for _, tc := range tt {

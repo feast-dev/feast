@@ -898,11 +898,11 @@ class FeatureSetRef:
     def __repr__(self):
         # return string representation of the reference
         # [project/]name
+        # in protov3 unset string and int fields default to "" and 0
         ref_str = ""
-        if self.proto.project:
+        if len(self.proto.project) > 0:
             ref_str += self.proto.project + "/"
-        if self.proto.name:
-            ref_str += self.proto.name
+        ref_str += self.proto.name
         return ref_str
 
     def __eq__(self, other):

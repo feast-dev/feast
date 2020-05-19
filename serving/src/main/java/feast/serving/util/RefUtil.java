@@ -21,7 +21,13 @@ import feast.proto.serving.ServingAPIProto.FeatureReference;
 
 public class RefUtil {
   public static String generateFeatureStringRef(FeatureReference featureReference) {
-    String ref = String.format("%s/%s", featureReference.getProject(), featureReference.getName());
+    String ref = featureReference.getName();
+    if (!featureReference.getFeatureSet().isEmpty()) {
+      ref = featureReference.getFeatureSet() + ":" + ref;
+    }
+    if (!featureReference.getProject().isEmpty()) {
+      ref = featureReference.getProject() + "/" + ref;
+    }
     return ref;
   }
 

@@ -183,6 +183,17 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       accessManagementService.archiveProject(request.getName());
       responseObserver.onNext(ArchiveProjectResponse.getDefaultInstance());
       responseObserver.onCompleted();
+    } catch (IllegalArgumentException e) {
+      log.error("Recieved an invalid request on calling archiveProject method:", e);
+      responseObserver.onError(
+          Status.INVALID_ARGUMENT
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
+    } catch (UnsupportedOperationException e) {
+      log.error("Attempted to archive an unsupported project:", e);
+      responseObserver.onError(
+          Status.UNIMPLEMENTED.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     } catch (Exception e) {
       log.error("Exception has occurred in the createProject method: ", e);
       responseObserver.onError(

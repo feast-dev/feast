@@ -69,7 +69,6 @@ public class JobServiceTest {
   // test target
   public JobService jobService;
 
-  /* unit test setup */
   @Before
   public void setup() {
     initMocks(this);
@@ -107,7 +106,6 @@ public class JobServiceTest {
         new JobService(this.jobRepository, this.specService, Arrays.asList(this.jobManager));
   }
 
-  // setup fake spec service
   public void setupSpecService() {
     try {
       ListFeatureSetsResponse response =
@@ -124,7 +122,6 @@ public class JobServiceTest {
     }
   }
 
-  // setup fake job repository
   public void setupJobRepository() {
     when(this.jobRepository.findById(this.job.getId())).thenReturn(Optional.of(this.job));
     when(this.jobRepository.findByStoreName(this.dataStore.getName()))
@@ -134,14 +131,12 @@ public class JobServiceTest {
     when(this.jobRepository.findAll()).thenReturn(Arrays.asList(this.job));
   }
 
-  // TODO: setup fake job manager
   public void setupJobManager() {
     when(this.jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
     when(this.jobManager.restartJob(this.job))
         .thenReturn(this.newDummyJob(this.job.getId(), this.job.getExtId(), JobStatus.PENDING));
   }
 
-  // dummy model constructorss
   private FeatureSet newDummyFeatureSet(String name, int version, String project) {
     Feature feature = TestObjectFactory.CreateFeature(name + "_feature", Enum.INT64);
     Entity entity = TestObjectFactory.CreateEntity(name + "_entity", Enum.STRING);
@@ -203,7 +198,6 @@ public class JobServiceTest {
             .build());
   }
 
-  /* unit tests */
   private ListIngestionJobsResponse tryListJobs(ListIngestionJobsRequest request) {
     ListIngestionJobsResponse response = null;
     try {
@@ -216,7 +210,6 @@ public class JobServiceTest {
     return response;
   }
 
-  // list jobs
   @Test
   public void testListJobsById() {
     ListIngestionJobsRequest.Filter filter =
@@ -275,7 +268,6 @@ public class JobServiceTest {
     assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
   }
 
-  // stop jobs
   private StopIngestionJobResponse tryStopJob(
       StopIngestionJobRequest request, boolean expectError) {
     StopIngestionJobResponse response = null;

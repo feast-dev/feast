@@ -15,6 +15,7 @@ from feast.types.Value_pb2 import Value as Value
 from feast.client import Client
 from feast.feature_set import FeatureSet, FeatureSetRef
 from feast.type_map import ValueType
+from feast.constants import FEAST_DEFAULT_OPTIONS, CONFIG_PROJECT_KEY
 from google.protobuf.duration_pb2 import Duration
 from datetime import datetime
 import pytz
@@ -28,7 +29,6 @@ import uuid
 
 FLOAT_TOLERANCE = 0.00001
 PROJECT_NAME = 'basic_' + uuid.uuid4().hex.upper()[0:6]
-
 
 @pytest.fixture(scope='module')
 def core_url(pytestconfig):
@@ -51,7 +51,6 @@ def client(core_url, serving_url, allow_dirty):
     # Get client for core and serving
     client = Client(core_url=core_url, serving_url=serving_url)
     client.create_project(PROJECT_NAME)
-    client.set_project(PROJECT_NAME)
 
     # Ensure Feast core is active, but empty
     if not allow_dirty:
@@ -63,80 +62,94 @@ def client(core_url, serving_url, allow_dirty):
 
     return client
 
-
-@pytest.fixture(scope='module')
-def basic_dataframe():
+def basic_dataframe(entities, features, ingest_time, n_size):
     offset = random.randint(1000, 100000)  # ensure a unique key space is used
-    return pd.DataFrame(
-        {
-            "datetime": [datetime.utcnow().replace(tzinfo=pytz.utc) for _ in
-                         range(5)],
-            "customer_id": [offset + inc for inc in range(5)],
-            "daily_transactions": [np.random.rand() for _ in range(5)],
-            "total_transactions": [512 for _ in range(5)],
-        }
-    )
+    df_dict = {
+        "datetime": [ingest_time.replace(tzinfo=pytz.utc) for _ in
+                     range(n_size)],
+    }
+    for entity_name in entities:
+        df_dict[entity_name] = list(range(1, n_size + 1))
+    for feature_name in features:
+        df_dict[feature_name] = [np.random.rand() for _ in range(n_size)]
+    return pd.DataFrame(df_dict)
 
+
+@pytest.fixture(scope="module")
+def ingest_time():
+    return datetime.utcnow()
+
+@pytest.fixture(scope="module")
+def cust_trans_df(ingest_time):
+    return basic_dataframe(entities=["customer_id"],
+                           features=["daily_transactions", "total_transactions"],
+                           ingest_time=ingest_time,
+                           n_size=5)
+
+@pytest.fixture(scope="module")
+def driver_df(ingest_time):
+    return basic_dataframe(entities=["driver_id"],
+                           features=["rating", "cost"],
+                           ingest_time=ingest_time,
+                           n_size=5)
 
 @pytest.mark.timeout(45)
 @pytest.mark.run(order=10)
 def test_basic_register_feature_set_success(client):
-    # Load feature set from file
+    # Register feature set without project
     cust_trans_fs_expected = FeatureSet.from_yaml("basic/cust_trans_fs.yaml")
-
-    client.set_project(PROJECT_NAME)
-
-    # Register feature set
+    driver_fs_expected = FeatureSet.from_yaml("basic/driver_fs.yaml")
     client.apply(cust_trans_fs_expected)
+    client.apply(driver_fs_expected)
+    cust_trans_fs_actual = client.get_feature_set("customer_transactions")
+    assert cust_trans_fs_actual == cust_trans_fs_expected
+    driver_fs_actual = client.get_feature_set("driver")
+    assert driver_fs_actual == driver_fs_expected
 
-    cust_trans_fs_actual = client.get_feature_set(name="customer_transactions")
-
+    # Register feature set with project
+    cust_trans_fs_expected = FeatureSet.from_yaml("basic/cust_trans_fs.yaml")
+    client.set_project(PROJECT_NAME)
+    client.apply(cust_trans_fs_expected)
+    cust_trans_fs_actual = client.get_feature_set("customer_transactions",
+                                                  project=PROJECT_NAME)
     assert cust_trans_fs_actual == cust_trans_fs_expected
 
-    if cust_trans_fs_actual is None:
-        raise Exception(
-            "Client cannot retrieve 'customer_transactions' FeatureSet "
-            "after registration. Either Feast Core does not save the "
-            "FeatureSet correctly or the client needs to wait longer for FeatureSet "
-            "to be committed."
-        )
-
+    # reset client's project for other tests
+    client.set_project()
 
 @pytest.mark.timeout(300)
 @pytest.mark.run(order=11)
-def test_basic_ingest_success(client, basic_dataframe):
-    client.set_project(PROJECT_NAME)
-
+def test_basic_ingest_success(client, cust_trans_df, driver_df):
     cust_trans_fs = client.get_feature_set(name="customer_transactions")
+    driver_fs = client.get_feature_set(name="driver")
 
     # Ingest customer transaction data
-    client.ingest(cust_trans_fs, basic_dataframe)
+    client.ingest(cust_trans_fs, cust_trans_df)
+    client.ingest(driver_fs, driver_df)
     time.sleep(5)
 
 
 @pytest.mark.timeout(45)
 @pytest.mark.run(order=12)
-def test_basic_retrieve_online_success(client, basic_dataframe):
+def test_basic_retrieve_online_success(client, cust_trans_df):
     # Poll serving for feature values until the correct values are returned
     while True:
         time.sleep(1)
-
-        client.set_project(PROJECT_NAME)
-
         response = client.get_online_features(
             entity_rows=[
                 GetOnlineFeaturesRequest.EntityRow(
                     fields={
                         "customer_id": Value(
-                            int64_val=basic_dataframe.iloc[0]["customer_id"]
+                            int64_val=cust_trans_df.iloc[0]["customer_id"]
                         )
                     }
                 )
             ],
+            # Test retrieve with different variations of the string feature refs
             feature_refs=[
                 "daily_transactions",
                 "total_transactions",
-            ],
+            ]
         )  # type: GetOnlineFeaturesResponse
 
         if response is None:
@@ -144,23 +157,78 @@ def test_basic_retrieve_online_success(client, basic_dataframe):
 
         returned_daily_transactions = float(
             response.field_values[0]
-                .fields[PROJECT_NAME + "/daily_transactions"]
-                .float_val
+            .fields["daily_transactions"]
+            .float_val
         )
         sent_daily_transactions = float(
-            basic_dataframe.iloc[0]["daily_transactions"])
+            cust_trans_df.iloc[0]["daily_transactions"])
 
         if math.isclose(
-                sent_daily_transactions,
-                returned_daily_transactions,
-                abs_tol=FLOAT_TOLERANCE,
+            sent_daily_transactions,
+            returned_daily_transactions,
+            abs_tol=FLOAT_TOLERANCE,
         ):
             break
 
 
+@pytest.mark.timeout(45)
+@pytest.mark.run(order=13)
+def test_basic_retrieve_online_multiple_featureset(client, cust_trans_df, driver_df):
+    # Poll serving for feature values until the correct values are returned
+    while True:
+        time.sleep(1)
+        # Test retrieve with different variations of the string feature refs
+        # ie feature set inference for feature refs without specified feature set
+        feature_ref_df_mapping = [
+            ("customer_transactions:daily_transactions", cust_trans_df),
+            ("driver:rating", driver_df),
+            ("total_transactions", cust_trans_df),
+        ]
+        response = client.get_online_features(
+            entity_rows=[
+                GetOnlineFeaturesRequest.EntityRow(
+                    fields={
+                        "customer_id": Value(
+                            int64_val=cust_trans_df.iloc[0]["customer_id"]
+                        ),
+                        "driver_id": Value(
+                            int64_val=driver_df.iloc[0]["driver_id"]
+                        )
+                    }
+                )
+            ],
+            feature_refs=[mapping[0] for mapping in feature_ref_df_mapping],
+        )  # type: GetOnlineFeaturesResponse
+
+        if response is None:
+            continue
+
+        def check_response(ingest_df, response, feature_ref):
+            returned_value = float(
+                response.field_values[0]
+                .fields[feature_ref]
+                .float_val
+            )
+            feature_ref_splits = feature_ref.split(":")
+            if len(feature_ref_splits) == 1:
+                feature_name = feature_ref
+            else:
+                _, feature_name = feature_ref_splits
+
+            sent_value = float(
+                ingest_df.iloc[0][feature_name])
+
+            return math.isclose(
+                sent_value,
+                returned_value,
+                abs_tol=FLOAT_TOLERANCE,
+            )
+        if all([check_response(df, response, ref) for ref, df in feature_ref_df_mapping]):
+            break
+
 @pytest.mark.timeout(300)
 @pytest.mark.run(order=19)
-def test_basic_ingest_jobs(client, basic_dataframe):
+def test_basic_ingest_jobs(client):
     # list ingestion jobs given featureset
     cust_trans_fs = client.get_feature_set(name="customer_transactions")
     ingest_jobs = client.list_ingest_jobs(
@@ -327,7 +395,7 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
 
         returned_float_list = (
             response.field_values[0]
-                .fields[PROJECT_NAME + "/float_list_feature"]
+                .fields["float_list_feature"]
                 .float_list_val.val
         )
 
@@ -445,7 +513,7 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
 
         returned_daily_transactions = float(
             response.field_values[0]
-                .fields[PROJECT_NAME + "/daily_transactions_large"]
+                .fields["daily_transactions_large"]
                 .float_val
         )
         sent_daily_transactions = float(

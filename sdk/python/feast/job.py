@@ -37,7 +37,9 @@ class RetrievalJob:
     A class representing a job for feature retrieval in Feast.
     """
 
-    def __init__(self, job_proto: JobProto, serving_stub: ServingServiceStub):
+    def __init__(
+        self, job_proto: JobProto, serving_stub: ServingServiceStub,
+    ):
         """
         Args:
             job_proto: Job proto object (wrapped by this job object)
@@ -45,7 +47,8 @@ class RetrievalJob:
         """
         self.job_proto = job_proto
         self.serving_stub = serving_stub
-        self.storage_client = storage.Client(project=None)
+        # TODO: abstract away GCP depedency
+        self.gcs_client = storage.Client(project=None)
 
     @property
     def id(self):
@@ -125,7 +128,7 @@ class RetrievalJob:
         for file_uri in uris:
             if file_uri.scheme == "gs":
                 file_obj = tempfile.TemporaryFile()
-                self.storage_client.download_blob_to_file(file_uri.geturl(), file_obj)
+                self.gcs_client.download_blob_to_file(file_uri.geturl(), file_obj)
             elif file_uri.scheme == "file":
                 file_obj = open(file_uri.path, "rb")
             else:

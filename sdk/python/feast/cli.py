@@ -137,6 +137,7 @@ def feature_set_list():
 
 
 @feature_set.command("apply")
+# TODO: add project option to overwrite project setting.
 @click.option(
     "--filename",
     "-f",
