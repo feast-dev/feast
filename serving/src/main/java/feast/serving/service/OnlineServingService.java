@@ -16,6 +16,7 @@
  */
 package feast.serving.service;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.protobuf.Duration;
 import feast.proto.serving.ServingAPIProto.*;
@@ -67,14 +68,21 @@ public class OnlineServingService implements ServingService {
           GetOnlineFeaturesResponse.newBuilder();
       List<FeatureSetRequest> featureSetRequests =
           specService.getFeatureSets(request.getFeaturesList());
+      scope.span().log(ImmutableMap.of("event", "featureSetRequests", "value", featureSetRequests));
+
       List<EntityRow> entityRows = request.getEntityRowsList();
+      scope.span().log(ImmutableMap.of("event", "entityRows", "value", entityRows));
+      
       Map<EntityRow, Map<String, Value>> featureValuesMap =
           entityRows.stream()
               .collect(Collectors.toMap(row -> row, row -> Maps.newHashMap(row.getFieldsMap())));
+      scope.span().log(ImmutableMap.of("event", "featureValuesMap", "value", featureValuesMap));
+
       // Get all feature rows from the retriever. Each feature row list corresponds to a single
       // feature set request.
       List<List<FeatureRow>> featureRows =
           retriever.getOnlineFeatures(entityRows, featureSetRequests);
+      scope.span().log(ImmutableMap.of("event", "featureRows", "value", featureRows));
 
       // For each feature set request, read the feature rows returned by the retriever, and
       // populate the featureValuesMap with the feature values corresponding to that entity row.
@@ -128,6 +136,8 @@ public class OnlineServingService implements ServingService {
           featureValuesMap.values().stream()
               .map(valueMap -> FieldValues.newBuilder().putAllFields(valueMap).build())
               .collect(Collectors.toList());
+      scope.span().log(ImmutableMap.of("event", "fieldValues", "value", fieldValues));
+
       return getOnlineFeaturesResponseBuilder.addAllFieldValues(fieldValues).build();
     }
   }
