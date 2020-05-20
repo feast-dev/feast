@@ -23,6 +23,7 @@ import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc;
+import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
 import feast.proto.types.ValueProto.Value;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -39,8 +40,8 @@ public class FeastClient implements AutoCloseable {
 
   private static final int CHANNEL_SHUTDOWN_TIMEOUT_SEC = 5;
 
-  private final ManagedChannel channel;
-  private final ServingServiceGrpc.ServingServiceBlockingStub stub;
+  private ManagedChannel channel;
+  private ServingServiceBlockingStub stub;
 
   /**
    * Create a client to access Feast
@@ -161,9 +162,9 @@ public class FeastClient implements AutoCloseable {
         .collect(Collectors.toList());
   }
 
-  private FeastClient(ManagedChannel channel) {
+  protected FeastClient(ManagedChannel channel) {
     this.channel = channel;
-    stub = ServingServiceGrpc.newBlockingStub(channel);
+    this.stub = ServingServiceGrpc.newBlockingStub(channel);
   }
 
   public void close() throws Exception {
