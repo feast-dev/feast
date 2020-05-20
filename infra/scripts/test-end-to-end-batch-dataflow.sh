@@ -11,22 +11,27 @@ test -z ${GCLOUD_NETWORK} && GCLOUD_NETWORK="default"
 test -z ${GCLOUD_SUBNET} && GCLOUD_SUBNET="default"
 test -z ${TEMP_BUCKET} && TEMP_BUCKET="feast-templocation-kf-feast"
 test -z ${K8_CLUSTER_NAME} && K8_CLUSTER_NAME="feast-e2e-dataflow"
-test -z ${HELM_RELEASE_NAME} && HELM_RELEASE_NAME="feast-e2e-release"
+test -z ${HELM_RELEASE_NAME} && HELM_RELEASE_NAME="pr-$PULL_NUMBER"
+test -z ${HELM_COMMON_NAME} && HELM_COMMON_NAME="deps"
+
+feast_kafka_1_ip_name="feast-kafka-1"
+feast_kafka_2_ip_name="feast-kafka-2"
+feast_kafka_3_ip_name="feast-kafka-3"
+feast_redis_ip_name="feast-redis"
+feast_statsd_ip_name="feast-statsd"
 
 echo "
 This script will run end-to-end tests for Feast Core and Batch Serving using Dataflow Runner.
 
-1. Install gcloud SDK and required packages.
-2. Create temporary BQ table for Feast Serving.
-3. Generate valid names for IP addresses and k8s cluster, then store as environment variables.
-4. Create GKE nodepool for Feast e2e test with DataflowRunner.
-5. Setup Feast Core, Feast Serving and dependencies using Helm.
-  - Redis as the job store for Feast Batch Serving.
-  - Postgres for persisting Feast metadata.
-  - Kafka and Zookeeper as the Source in Feast.
-6. Install Python 3.7.4, Feast Python SDK and run end-to-end tests from
+1. Setup K8s cluster (optional, if it was not created before)
+2. Reuse existing IP addresses or generate new ones for stateful services
+3. Install stateful services (kafka, redis, postgres, etc) (optional)
+4. Build core & serving docker images
+5. Create temporary BQ table for Feast Serving.
+6. Rollout target images to cluster via helm in dedicated namespace (pr-{number})
+7. Install Python 3.7.4, Feast Python SDK and run end-to-end tests from
    tests/e2e via pytest.
-7. Tear down infrastructure, including Dataflow jobs.
+8. Tear down feast services, keep stateful services.
 "
 
 ORIGINAL_DIR=$(pwd)
@@ -35,35 +40,168 @@ echo $ORIGINAL_DIR
 echo "Environment:"
 printenv
 
-echo "
-============================================================
-Installing gcloud SDK and required packages
-============================================================
-"
-apt-get -qq update
-
-apt-get install -y apt-transport-https
-curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
-echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | tee -a /etc/apt/sources.list.d/kubernetes.list
-apt-get -qq update
-
-apt-get -y install wget netcat kafkacat build-essential gettext-base curl kubectl
-curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
-chmod 700 $ORIGINAL_DIR/get_helm.sh
-$ORIGINAL_DIR/get_helm.sh
-
-if [[ ! $(command -v gsutil) ]]; then
-  CURRENT_DIR=$(dirname "$BASH_SOURCE")
-  . "${CURRENT_DIR}"/install-google-cloud-sdk.sh
-fi
-
 export GOOGLE_APPLICATION_CREDENTIALS
 gcloud auth activate-service-account --key-file ${GOOGLE_APPLICATION_CREDENTIALS}
+gcloud -q auth configure-docker
 
 gcloud config set project ${GCLOUD_PROJECT}
 gcloud config set compute/region ${GCLOUD_REGION}
 gcloud config list
 
+apt-get -qq update
+apt-get -y install wget build-essential gettext-base curl
+
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+chmod 700 $ORIGINAL_DIR/get_helm.sh
+$ORIGINAL_DIR/get_helm.sh
+
+
+function getPublicAddresses() {
+  existing_addresses=$(gcloud compute addresses list --filter="region:($GCLOUD_REGION) name:kafka" --format "list(name)")
+  if [[ -z "$existing_addresses" ]]; then
+    echo "
+============================================================
+Reserving IP addresses for Feast dependencies
+============================================================
+"
+
+    gcloud compute addresses create \
+      $feast_kafka_1_ip_name $feast_kafka_2_ip_name $feast_kafka_3_ip_name $feast_redis_ip_name $feast_statsd_ip_name \
+      --region ${GCLOUD_REGION} --subnet ${GCLOUD_SUBNET}
+  fi
+
+
+  export feast_kafka_1_ip=$(gcloud compute addresses describe $feast_kafka_1_ip_name --region=${GCLOUD_REGION} --format "value(address)")
+  export feast_kafka_2_ip=$(gcloud compute addresses describe $feast_kafka_2_ip_name --region=${GCLOUD_REGION} --format "value(address)")
+  export feast_kafka_3_ip=$(gcloud compute addresses describe $feast_kafka_3_ip_name --region=${GCLOUD_REGION} --format "value(address)")
+  export feast_redis_ip=$(gcloud compute addresses describe $feast_redis_ip_name --region=${GCLOUD_REGION} --format "value(address)")
+  export feast_statsd_ip=$(gcloud compute addresses describe $feast_statsd_ip_name --region=${GCLOUD_REGION} --format "value(address)")
+}
+
+function createKubeCluster() {
+  echo "
+============================================================
+Creating GKE nodepool for Feast e2e test with DataflowRunner
+============================================================
+"
+  gcloud container clusters create ${K8_CLUSTER_NAME} --region ${GCLOUD_REGION} \
+      --enable-cloud-logging \
+      --enable-cloud-monitoring \
+      --network ${GCLOUD_NETWORK} \
+      --subnetwork ${GCLOUD_SUBNET} \
+      --scopes https://www.googleapis.com/auth/devstorage.read_only,https://www.googleapis.com/auth/logging.write,\
+https://www.googleapis.com/auth/monitoring,https://www.googleapis.com/auth/service.management.readonly,\
+https://www.googleapis.com/auth/servicecontrol,https://www.googleapis.com/auth/trace.append,\
+https://www.googleapis.com/auth/bigquery \
+      --machine-type n1-standard-2
+
+  echo "
+============================================================
+Create feast-postgres-database Secret in GKE nodepool
+============================================================
+"
+  kubectl create secret generic feast-postgresql --from-literal=postgresql-password=password
+
+  echo "
+============================================================
+Create feast-gcp-service-account Secret in GKE nodepool
+============================================================
+"
+  cd $ORIGINAL_DIR/infra/scripts
+  kubectl create secret generic feast-gcp-service-account --from-file=credentials.json=${GOOGLE_APPLICATION_CREDENTIALS}
+}
+
+function installDependencies() {
+  echo "
+============================================================
+Helm install common parts (kafka, redis, etc)
+============================================================
+"
+  cd $ORIGINAL_DIR/infra/charts/feast
+
+  helm install --wait --values="values-end-to-end-batch-dataflow-updated.yaml" \
+   --set "feast-core.enabled=false" \
+   --set "feast-online-serving.enabled=false" \
+   --set "feast-batch-serving.enabled=false" \
+   "$HELM_COMMON_NAME" .
+
+}
+
+function buildAndPushImage()
+{
+  echo docker build -t $1:$2 --build-arg REVISION=$2 -f $3 $ORIGINAL_DIR
+  docker build -t $1:$2 --build-arg REVISION=$2 -f $3 $ORIGINAL_DIR
+  docker push $1:$2
+}
+
+function buildTarget() {
+  buildAndPushImage "gcr.io/kf-feast/feast-core" "$PULL_NUMBER" "$ORIGINAL_DIR/infra/docker/core/Dockerfile"
+  buildAndPushImage "gcr.io/kf-feast/feast-serving" "$PULL_NUMBER" "$ORIGINAL_DIR/infra/docker/serving/Dockerfile"
+}
+
+function installTarget() {
+  echo "
+============================================================
+Helm install feast
+============================================================
+"
+  cd $ORIGINAL_DIR/infra/charts/feast
+
+  helm install --wait --timeout 300s --debug --values="values-end-to-end-batch-dataflow-updated.yaml" \
+   --set "postgresql.enabled=false" \
+   --set "kafka.enabled=false" \
+   --set "redis.enabled=false" \
+   --set "prometheus-statsd-exporter.enabled=false" \
+   --set "prometheus.enabled=false" \
+    "$HELM_RELEASE_NAME" .
+
+}
+
+function clean() {
+  echo "
+  ============================================================
+  Cleaning up
+  ============================================================
+  "
+  cd $ORIGINAL_DIR/tests/e2e
+
+  # Remove BQ Dataset
+  bq rm -r -f ${GCLOUD_PROJECT}:${DATASET_NAME}
+
+  # Uninstall helm release before clearing PVCs
+  helm uninstall ${HELM_RELEASE_NAME}
+
+  # Stop Dataflow jobs from retrieved Dataflow job ids in ingesting_jobs.txt
+  if [ -f ingesting_jobs.txt ]; then
+    while read line
+    do
+        echo $line
+        gcloud dataflow jobs cancel $line --region=${GCLOUD_REGION}
+    done < ingesting_jobs.txt
+  fi
+}
+
+# 1.
+existing_cluster=$(gcloud container clusters list --format "list(name)" --filter "name:$K8_CLUSTER_NAME")
+if [[ -z $existing_cluster ]]; then
+  createKubeCluster "$@"
+else
+  gcloud container clusters get-credentials $K8_CLUSTER_NAME --region $GCLOUD_REGION --project $GCLOUD_PROJECT
+fi
+
+# 2.
+getPublicAddresses "$@"
+
+# 3.
+existing_deps=$(helm list --filter deps -q)
+if [[ -z $existing_deps ]]; then
+  installDependencies "$@"
+fi
+
+# 4.
+buildTarget "$@"
+
+# 5.
 echo "
 ============================================================
 Creating temp BQ table for Feast Serving
@@ -76,115 +214,38 @@ bq --location=US --project_id=${GCLOUD_PROJECT} mk \
   --default_table_expiration 86400 \
   ${GCLOUD_PROJECT}:${DATASET_NAME}
 
-echo "
-============================================================
-Check and generate valid k8s cluster name
-============================================================
-"
-count=0
-for cluster_name in $(gcloud container clusters list --format "list(name)")
-do
-  if [[ $cluster_name == "feast-e2e-dataflow"* ]]; then
-    count=$((count + 1))
-  fi
-done
-temp="$K8_CLUSTER_NAME-$count"
-export K8_CLUSTER_NAME=$temp
-echo "Cluster name is $K8_CLUSTER_NAME"
 
-echo "
-============================================================
-Reserving IP addresses for Feast dependencies
-============================================================
-"
-feast_kafka_1_ip_name="feast-kafka-$((count*3 + 1))"
-feast_kafka_2_ip_name="feast-kafka-$((count*3 + 2))"
-feast_kafka_3_ip_name="feast-kafka-$((count*3 + 3))"
-feast_redis_ip_name="feast-redis-$((count + 1))"
-feast_statsd_ip_name="feast-statsd-$((count + 1))"
-gcloud compute addresses create \
-  $feast_kafka_1_ip_name $feast_kafka_2_ip_name $feast_kafka_3_ip_name $feast_redis_ip_name $feast_statsd_ip_name \
-  --region ${GCLOUD_REGION} --subnet ${GCLOUD_SUBNET}
-
-ip_count=0
-for ip_addr_name in $feast_kafka_1_ip_name $feast_kafka_2_ip_name $feast_kafka_3_ip_name $feast_redis_ip_name $feast_statsd_ip_name
-do
-  if [[ "$ip_count" == 0 ]]; then
-    export feast_kafka_1_ip=$(gcloud compute addresses describe ${ip_addr_name} --region=${GCLOUD_REGION} --format "value(address)")
-  elif [[ "$ip_count" == 1 ]]; then
-    export feast_kafka_2_ip=$(gcloud compute addresses describe ${ip_addr_name} --region=${GCLOUD_REGION} --format "value(address)")
-  elif [[ "$ip_count" == 2 ]]; then
-    export feast_kafka_3_ip=$(gcloud compute addresses describe ${ip_addr_name} --region=${GCLOUD_REGION} --format "value(address)")
-  elif [[ "$ip_count" == 3 ]]; then
-    export feast_redis_ip=$(gcloud compute addresses describe ${ip_addr_name} --region=${GCLOUD_REGION} --format "value(address)")
-  elif [[ "$ip_count" == 4 ]]; then
-    export feast_statsd_ip=$(gcloud compute addresses describe ${ip_addr_name} --region=${GCLOUD_REGION} --format "value(address)")
-  fi
-  ip_count=$((ip_count + 1))
-  export "$(echo $ip_addr_name | tr '-' '_')=$(gcloud compute addresses describe ${ip_addr_name} --region=${GCLOUD_REGION} --format "value(address)")"
-done
-
-echo "
-============================================================
-Creating GKE nodepool for Feast e2e test with DataflowRunner
-============================================================
-"
-gcloud container clusters create ${K8_CLUSTER_NAME} --region ${GCLOUD_REGION} \
-    --enable-cloud-logging \
-    --enable-cloud-monitoring \
-    --network ${GCLOUD_NETWORK} \
-    --subnetwork ${GCLOUD_SUBNET} \
-    --machine-type n1-standard-2
-sleep 120
-
-echo "
-============================================================
-Create feast-postgres-database Secret in GKE nodepool
-============================================================
-"
-kubectl create secret generic feast-postgresql --from-literal=postgresql-password=password
-
-echo "
-============================================================
-Create feast-gcp-service-account Secret in GKE nodepool
-============================================================
-"
-cd $ORIGINAL_DIR/infra/scripts
-kubectl create secret generic feast-gcp-service-account --from-file=${GOOGLE_APPLICATION_CREDENTIALS}
-
+# 6.
 echo "
 ============================================================
 Export required environment variables
 ============================================================
 "
+
 export TEMP_BUCKET=$TEMP_BUCKET
 export DATASET_NAME=$DATASET_NAME
 export GCLOUD_PROJECT=$GCLOUD_PROJECT
 export GCLOUD_NETWORK=$GCLOUD_NETWORK
 export GCLOUD_SUBNET=$GCLOUD_SUBNET
 export GCLOUD_REGION=$GCLOUD_REGION
+export HELM_COMMON_NAME=$HELM_COMMON_NAME
 
-echo "
-============================================================
-Helm install Feast and its dependencies
-============================================================
-"
 cd $ORIGINAL_DIR/infra/scripts/test-templates
 envsubst $'$TEMP_BUCKET $DATASET_NAME $GCLOUD_PROJECT $GCLOUD_NETWORK \
-  $GCLOUD_SUBNET $GCLOUD_REGION $PULL_PULL_SHA $feast_kafka_1_ip
+  $GCLOUD_SUBNET $GCLOUD_REGION $PULL_NUMBER $HELM_COMMON_NAME $feast_kafka_1_ip
   $feast_kafka_2_ip $feast_kafka_3_ip $feast_redis_ip $feast_statsd_ip' < values-end-to-end-batch-dataflow.yaml > $ORIGINAL_DIR/infra/charts/feast/values-end-to-end-batch-dataflow-updated.yaml
 
-cd $ORIGINAL_DIR/infra/charts
-helm template feast
 
-cd $ORIGINAL_DIR/infra/charts/feast
-helm install --wait --timeout 600s --values="values-end-to-end-batch-dataflow-updated.yaml" ${HELM_RELEASE_NAME} .
+set +e
+installTarget "$@"
 
+# 7.
 echo "
 ============================================================
 Installing Python 3.7 with Miniconda and Feast SDK
 ============================================================
 "
+cd $ORIGINAL_DIR
 # Install Python 3.7 with Miniconda
 wget -q https://repo.continuum.io/miniconda/Miniconda3-4.7.12-Linux-x86_64.sh \
    -O /tmp/miniconda.sh
@@ -212,7 +273,7 @@ core_ip=$(kubectl get -o jsonpath="{.spec.clusterIP}" service ${HELM_RELEASE_NAM
 serving_ip=$(kubectl get -o jsonpath="{.spec.clusterIP}" service ${HELM_RELEASE_NAME}-feast-batch-serving)
 
 set +e
-pytest bq-batch-retrieval.py -m dataflow_runner --core_url "$core_ip:6565" --serving_url "$serving_ip:6566" --gcs_path "gs://${TEMP_BUCKET}/" --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+pytest -v bq-batch-retrieval.py -m dataflow_runner --core_url "$core_ip:6565" --serving_url "$serving_ip:6566" --gcs_path "gs://${TEMP_BUCKET}/" --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 
 if [[ ${TEST_EXIT_CODE} != 0 ]]; then
@@ -224,35 +285,5 @@ if [[ ${TEST_EXIT_CODE} != 0 ]]; then
   pip list
 fi
 
-cd ${ORIGINAL_DIR}
-
-echo "
-============================================================
-Cleaning up
-============================================================
-"
-cd $ORIGINAL_DIR/tests/e2e
-
-# Remove BQ Dataset
-bq rm -r -f ${GCLOUD_PROJECT}:${DATASET_NAME}
-
-# Uninstall helm release before clearing PVCs
-helm uninstall ${HELM_RELEASE_NAME}
-kubectl delete pvc --all
-
-# Release IP addresses
-yes | gcloud compute addresses delete $feast_kafka_1_ip_name $feast_kafka_2_ip_name $feast_kafka_3_ip_name $feast_redis_ip_name $feast_statsd_ip_name --region=${GCLOUD_REGION}
-
-# Tear down GKE infrastructure
-gcloud container clusters delete --quiet --region=${GCLOUD_REGION} ${K8_CLUSTER_NAME}
-
-# Stop Dataflow jobs from retrieved Dataflow job ids in ingesting_jobs.txt
-if [ -f ingesting_jobs.txt ]; then
-  while read line
-  do
-      echo $line
-      gcloud dataflow jobs cancel $line --region=${GCLOUD_REGION}
-  done < ingesting_jobs.txt
-fi
-
+clean "$@"
 exit ${TEST_EXIT_CODE}
