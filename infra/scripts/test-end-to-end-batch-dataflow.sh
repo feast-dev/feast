@@ -26,7 +26,7 @@ This script will run end-to-end tests for Feast Core and Batch Serving using Dat
 1. Setup K8s cluster (optional, if it was not created before)
 2. Reuse existing IP addresses or generate new ones for stateful services
 3. Install stateful services (kafka, redis, postgres, etc) (optional)
-4. Build core & serving docker images
+4. Build core & serving docker images (optional)
 5. Create temporary BQ table for Feast Serving.
 6. Rollout target images to cluster via helm in dedicated namespace (pr-{number})
 7. Install Python 3.7.4, Feast Python SDK and run end-to-end tests from
@@ -199,7 +199,7 @@ if [[ -z $existing_deps ]]; then
 fi
 
 # 4.
-buildTarget "$@"
+# buildTarget "$@"
 
 # 5.
 echo "
@@ -229,10 +229,11 @@ export GCLOUD_NETWORK=$GCLOUD_NETWORK
 export GCLOUD_SUBNET=$GCLOUD_SUBNET
 export GCLOUD_REGION=$GCLOUD_REGION
 export HELM_COMMON_NAME=$HELM_COMMON_NAME
+export IMAGE_TAG=${PULL_PULL_SHA:1}
 
 cd $ORIGINAL_DIR/infra/scripts/test-templates
 envsubst $'$TEMP_BUCKET $DATASET_NAME $GCLOUD_PROJECT $GCLOUD_NETWORK \
-  $GCLOUD_SUBNET $GCLOUD_REGION $PULL_NUMBER $HELM_COMMON_NAME $feast_kafka_1_ip
+  $GCLOUD_SUBNET $GCLOUD_REGION $IMAGE_TAG $HELM_COMMON_NAME $feast_kafka_1_ip
   $feast_kafka_2_ip $feast_kafka_3_ip $feast_redis_ip $feast_statsd_ip' < values-end-to-end-batch-dataflow.yaml > $ORIGINAL_DIR/infra/charts/feast/values-end-to-end-batch-dataflow-updated.yaml
 
 

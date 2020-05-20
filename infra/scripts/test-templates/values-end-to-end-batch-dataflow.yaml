@@ -6,7 +6,7 @@ feast-core:
   postgresql:
     existingSecret: feast-postgresql
   image:
-    tag: $PULL_NUMBER
+    tag: $IMAGE_TAG
   application-override.yaml:
     spring:
       datasource:
@@ -42,7 +42,7 @@ feast-online-serving:
   # feast-online-serving.enabled -- Flag to install Feast Online Serving
   enabled: true
   image:
-    tag: $PULL_NUMBER
+    tag: $IMAGE_TAG
   application-override.yaml:
     feast:
       active_store: online
@@ -63,7 +63,7 @@ feast-batch-serving:
   # feast-batch-serving.enabled -- Flag to install Feast Batch Serving
   enabled: true
   image:
-    tag: $PULL_NUMBER
+    tag: $IMAGE_TAG
   gcpServiceAccount:
     enabled: true
   application-override.yaml:
