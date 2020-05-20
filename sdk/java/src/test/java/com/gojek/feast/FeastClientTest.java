@@ -34,7 +34,6 @@ import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.grpc.testing.GrpcCleanupRule;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -87,7 +86,8 @@ public class FeastClientTest {
     List<Row> rows =
         this.client.getOnlineFeatures(
             List.of("driver:name", "rating"),
-            List.of(Row.create().set("driver_id", 1).setEntityTimestamp(Instant.ofEpochSecond(100))),
+            List.of(
+                Row.create().set("driver_id", 1).setEntityTimestamp(Instant.ofEpochSecond(100))),
             "driver_project");
 
     assertEquals(
@@ -121,10 +121,10 @@ public class FeastClientTest {
         .addFieldValues(
             FieldValues.newBuilder()
                 .putAllFields(
-                  Map.of(
-                    "driver_id", intValue(1),
-                    "driver:name", strValue("david"),
-                    "rating", intValue(3)))
+                    Map.of(
+                        "driver_id", intValue(1),
+                        "driver:name", strValue("david"),
+                        "rating", intValue(3)))
                 .build())
         .build();
   }

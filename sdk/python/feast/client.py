@@ -639,6 +639,18 @@ class Client:
         self._connect_serving()
 
         try:
+            print("====================== actual:")
+            print(
+                str(
+                    GetOnlineFeaturesRequest(
+                        features=_build_feature_references(
+                            feature_ref_strs=feature_refs,
+                            project=project if project is not None else self.project,
+                        ),
+                        entity_rows=entity_rows,
+                    )
+                )
+            )
             response = self._serving_service_stub.GetOnlineFeatures(
                 GetOnlineFeaturesRequest(
                     features=_build_feature_references(
@@ -658,14 +670,11 @@ class Client:
                 # strip the project part the string feature references returned from serving
                 strip_fields = {}
                 for ref_str, value in field_value.fields.items():
-                    # find and ignore entities
-                    if ref_str in entity_refs:
-                        strip_fields[ref_str] = value
-                    else:
-                        strip_ref_str = repr(
+                    if ref_str not in entity_refs:
+                        ref_str = repr(
                             FeatureRef.from_str(ref_str, ignore_project=True)
                         )
-                        strip_fields[strip_ref_str] = value
+                    strip_fields[ref_str] = value
                 strip_field_values.append(
                     GetOnlineFeaturesResponse.FieldValues(fields=strip_fields)
                 )
