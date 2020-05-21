@@ -15,7 +15,6 @@
 
 import pkgutil
 import tempfile
-from copy import deepcopy
 from concurrent import futures
 from datetime import datetime
 from unittest import mock
@@ -252,9 +251,11 @@ class TestClient:
         )
 
         got_fields = got_response.field_values[0].fields
-        assert (got_fields["driver_id"] == int_val(1)
-                and got_fields["driver:age"] == int_val(1)
-                and got_fields["rating"] == int_val(9))
+        assert (
+            got_fields["driver_id"] == int_val(1)
+            and got_fields["driver:age"] == int_val(1)
+            and got_fields["rating"] == int_val(9)
+        )
 
     @pytest.mark.parametrize(
         "mocked_client",
