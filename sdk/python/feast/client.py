@@ -385,13 +385,7 @@ class Client:
         feature_set.is_valid()
         feature_set_proto = feature_set.to_proto()
         if len(feature_set_proto.spec.project) == 0:
-            if self.project is None:
-                raise ValueError(
-                    f"No project found in feature set {feature_set.name}. "
-                    f"Please set the project within the feature set or within "
-                    f"your Feast Client."
-                )
-            else:
+            if self.project is not None:
                 feature_set_proto.spec.project = self.project
 
         # Convert the feature set to a request and send to Feast Core
