@@ -1,10 +1,10 @@
-module github.com/feast-dev/feast
+module github.com/mrzzy/feast
 
 require (
 	github.com/Masterminds/goutils v1.1.0 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
-	github.com/feast-dev/feast/sdk/go v0.0.0-20200516052424-09ff3dda724c // indirect
+	github.com/mrzzy/feast/sdk/go v0.0.0-20200516052424-09ff3dda724c // indirect
 	github.com/ghodss/yaml v1.0.0
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
