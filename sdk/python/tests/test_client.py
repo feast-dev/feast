@@ -15,6 +15,7 @@
 
 import pkgutil
 import tempfile
+from copy import deepcopy
 from concurrent import futures
 from datetime import datetime
 from unittest import mock
@@ -220,7 +221,7 @@ class TestClient:
                 FeatureRefProto(project="driver_project", name="rating"),
             ]
         )
-        expected_response = GetOnlineFeaturesResponse()
+        recieve_response = GetOnlineFeaturesResponse()
         for row_number in range(1, ROW_COUNT + 1):
             request.entity_rows.append(
                 GetOnlineFeaturesRequest.EntityRow(
@@ -234,12 +235,12 @@ class TestClient:
                     "driver_project/rating": int_val(9),
                 }
             )
-            expected_response.field_values.append(field_values)
+            recieve_response.field_values.append(field_values)
 
         mocker.patch.object(
             mocked_client._serving_service_stub,
             "GetOnlineFeatures",
-            return_value=expected_response,
+            return_value=recieve_response,
         )
         got_response = mocked_client.get_online_features(
             entity_rows=request.entity_rows,
@@ -250,7 +251,10 @@ class TestClient:
             request
         )
 
-        assert got_response == expected_response
+        got_fields = got_response.field_values[0].fields
+        assert (got_fields["driver_id"] == int_val(1)
+                and got_fields["driver:age"] == int_val(1)
+                and got_fields["rating"] == int_val(9))
 
     @pytest.mark.parametrize(
         "mocked_client",

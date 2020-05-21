@@ -639,18 +639,6 @@ class Client:
         self._connect_serving()
 
         try:
-            print("====================== actual:")
-            print(
-                str(
-                    GetOnlineFeaturesRequest(
-                        features=_build_feature_references(
-                            feature_ref_strs=feature_refs,
-                            project=project if project is not None else self.project,
-                        ),
-                        entity_rows=entity_rows,
-                    )
-                )
-            )
             response = self._serving_service_stub.GetOnlineFeatures(
                 GetOnlineFeaturesRequest(
                     features=_build_feature_references(
