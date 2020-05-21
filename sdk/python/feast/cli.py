@@ -128,7 +128,7 @@ def feature_set_list():
     feast_client = Client()  # type: Client
 
     table = []
-    for fs in feast_client.list_feature_sets():
+    for fs in feast_client.list_feature_sets(project="*", name="*"):
         table.append([fs.name, repr(fs)])
 
     from tabulate import tabulate
