@@ -61,7 +61,7 @@ func (fc *GrpcClient) GetOnlineFeatures(ctx context.Context, req *OnlineFeatures
 
 	// strip projects from to projects
 	for _, fieldValue := range resp.GetFieldValues() {
-		stripFields := make(map[string]*types.Value)
+		stripFields := make(map[string]*types.Value, len(fieldValue.Fields))
 		for refStr, value := range fieldValue.Fields {
 			_, isEntity := entityRefs[refStr]
 			if !isEntity { // is feature ref
