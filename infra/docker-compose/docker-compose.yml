@@ -9,6 +9,7 @@ services:
     environment:
       DB_HOST: db
       GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
+      FEAST_STREAM_OPTIONS_BOOTSTRAPSERVERS: ${FEAST_STREAM_OPTIONS_BOOTSTRAPSERVERS}
     restart: on-failure
     depends_on:
       - db
