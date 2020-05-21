@@ -40,8 +40,8 @@ public class FeastClient implements AutoCloseable {
 
   private static final int CHANNEL_SHUTDOWN_TIMEOUT_SEC = 5;
 
-  private ManagedChannel channel;
-  private ServingServiceBlockingStub stub;
+  private final ManagedChannel channel;
+  private final ServingServiceBlockingStub stub;
 
   /**
    * Create a client to access Feast
