@@ -22,7 +22,7 @@ func TestGetOnlineFeatures(t *testing.T) {
 		err     error
 	}{
 		{
-			name: "valid",
+			name: "Valid client Get Online Features call",
 			req: OnlineFeaturesRequest{
 				Features: []string{
 					"driver:rating",
