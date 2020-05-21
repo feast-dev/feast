@@ -129,7 +129,7 @@ def test_basic_ingest_success(client, cust_trans_df, driver_df):
     time.sleep(5)
 
 
-@pytest.mark.timeout(45)
+@pytest.mark.timeout(60)
 @pytest.mark.run(order=12)
 def test_basic_retrieve_online_success(client, cust_trans_df):
     # Poll serving for feature values until the correct values are returned
