@@ -267,13 +267,6 @@
       <scope>test</scope>
     </dependency>
 
-    <!-- Hibernate for formatting SQL string -->
-    <dependency>
-      <groupId>org.hibernate</groupId>
-      <artifactId>hibernate-core</artifactId>
-      <version>5.4.5.Final</version>
-    </dependency>
-
     <!-- Utilities -->
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
