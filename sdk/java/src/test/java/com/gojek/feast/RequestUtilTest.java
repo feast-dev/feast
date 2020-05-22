@@ -19,6 +19,7 @@ package com.gojek.feast;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.google.common.collect.ImmutableList;
 import com.google.protobuf.TextFormat;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
 import java.util.Arrays;
@@ -82,7 +83,7 @@ class RequestUtilTest {
   }
 
   private static Stream<Arguments> provideInvalidFeatureRefs() {
-    return Stream.of(Arguments.of(List.of("project/feature", "")));
+    return Stream.of(Arguments.of(ImmutableList.of("project/feature", "")));
   }
 
   @ParameterizedTest

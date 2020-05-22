@@ -417,7 +417,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <release>11</release>
+                    <!-- Our leaf applications target 11, except Ingestion and its deps remain on 8 for Beam -->
+                    <release>8</release>
                 </configuration>
             </plugin>
             <plugin>
