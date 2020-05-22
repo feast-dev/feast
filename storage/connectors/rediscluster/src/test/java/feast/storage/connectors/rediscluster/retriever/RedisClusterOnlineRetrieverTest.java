@@ -133,7 +133,7 @@ public class RedisClusterOnlineRetrieverTest {
     when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
 
     List<List<FeatureRow>> expected =
-        List.of(
+        ImmutableList.of(
             Lists.newArrayList(
                 FeatureRow.newBuilder()
                     .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
@@ -153,7 +153,8 @@ public class RedisClusterOnlineRetrieverTest {
                     .build()));
 
     List<List<FeatureRow>> actual =
-        redisClusterOnlineRetriever.getOnlineFeatures(entityRows, List.of(featureSetRequest));
+        redisClusterOnlineRetriever.getOnlineFeatures(
+            entityRows, ImmutableList.of(featureSetRequest));
     assertThat(actual, equalTo(expected));
   }
 
@@ -201,7 +202,7 @@ public class RedisClusterOnlineRetrieverTest {
     when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
 
     List<List<FeatureRow>> expected =
-        List.of(
+        ImmutableList.of(
             Lists.newArrayList(
                 FeatureRow.newBuilder()
                     .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
@@ -220,7 +221,8 @@ public class RedisClusterOnlineRetrieverTest {
                     .build()));
 
     List<List<FeatureRow>> actual =
-        redisClusterOnlineRetriever.getOnlineFeatures(entityRows, List.of(featureSetRequest));
+        redisClusterOnlineRetriever.getOnlineFeatures(
+            entityRows, ImmutableList.of(featureSetRequest));
     assertThat(actual, equalTo(expected));
   }
 
