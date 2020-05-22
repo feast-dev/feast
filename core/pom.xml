@@ -157,11 +157,9 @@
             <version>v1b3-rev266-1.25.0</version>
         </dependency>
 
-        <!--compile 'org.hibernate:hibernate-core:5.3.6.Final'-->
         <dependency>
             <groupId>org.hibernate</groupId>
             <artifactId>hibernate-core</artifactId>
-            <version>5.3.6.Final</version>
         </dependency>
 
         <!--compile 'org.postgresql:postgresql:42.2.5'-->
