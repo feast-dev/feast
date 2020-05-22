@@ -6,8 +6,11 @@ feast-core:
   postgresql:
     existingSecret: feast-postgresql
   image:
-    tag: $PULL_PULL_SHA:1
+    tag: $IMAGE_TAG
   application-override.yaml:
+    spring:
+      datasource:
+        url: jdbc:postgresql://$HELM_COMMON_NAME-postgresql:5432/postgres
     feast:
       stream:
         options:
@@ -39,7 +42,7 @@ feast-online-serving:
   # feast-online-serving.enabled -- Flag to install Feast Online Serving
   enabled: true
   image:
-    tag: $PULL_PULL_SHA:1
+    tag: $IMAGE_TAG
   application-override.yaml:
     feast:
       active_store: online
@@ -60,10 +63,9 @@ feast-batch-serving:
   # feast-batch-serving.enabled -- Flag to install Feast Batch Serving
   enabled: true
   image:
-    tag: $PULL_PULL_SHA:1
+    tag: $IMAGE_TAG
   gcpServiceAccount:
     enabled: true
-
   application-override.yaml:
     feast:
       active_store: historical
@@ -82,6 +84,8 @@ feast-batch-serving:
         - name: "*"
           project: "*"
           version: "*"
+      job_store:
+        redis_host: $HELM_COMMON_NAME-redis-master
 
 postgresql:
   # postgresql.enabled -- Flag to install Postgresql

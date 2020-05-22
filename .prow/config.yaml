@@ -254,8 +254,11 @@ presubmits:
       - name: service-account-df
         secret:
           secretName: feast-e2e-service-account
+      - name: docker-socket
+          hostPath:
+            path: /var/run/docker.sock
       containers:
-      - image: maven:3.6-jdk-11
+      - image: google/cloud-sdk:273.0.0
         command: ["infra/scripts/test-end-to-end-batch-dataflow.sh"]
         resources:
           requests:
@@ -264,28 +267,11 @@ presubmits:
         volumeMounts:
         - name: service-account-df
           mountPath: "/etc/service-account-df"
+        - name: docker-socket
+          mountPath: /var/run/docker.sock
+        securityContext:
+          privileged: true
     skip_branches:
-    - ^v0\.(3|4)-branch$
-
-  - name: test-end-to-end-batch-dataflow-java-8
-    decorate: true
-    always_run: false
-    spec:
-      volumes:
-        - name: service-account-df
-          secret:
-            secretName: feast-e2e-service-account
-      containers:
-        - image: maven:3.6-jdk-8
-          command: ["infra/scripts/test-end-to-end-batch-dataflow.sh"]
-          resources:
-            requests:
-              cpu: "6"
-              memory: "6144Mi"
-          volumeMounts:
-            - name: service-account-df
-              mountPath: "/etc/service-account-df"
-    branches:
     - ^v0\.(3|4)-branch$
 
   - name: publish-docker-images
