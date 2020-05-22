@@ -1,14 +1,20 @@
 feast:
   core-host: core
-  core-grpc-port: 6565
-  store:
-    config-path: /etc/feast/store.yml
-
-  jobs:
-    store-type: REDIS
-    store-options:
-      host: redis
-      port: 6379
-
-grpc:
-  port: 6567
+  active-store: batch
+  stores:
+    - name: historical
+      type: BIGQUERY
+      # Changes required for batch serving to work
+      # Please see https://api.docs.feast.dev/grpc/feast.core.pb.html#Store for configuration options
+      config:
+        project_id: my_project
+        dataset_id: my_dataset
+        staging_location: gs://mybucket/myprefix
+        initial_retry_delay_seconds: 1
+        total_timeout_seconds: 21600
+      subscriptions:
+        - name: "*"
+          project: "*"
+  job_store:
+    redis_host: redis
+    redis_port: 6379
