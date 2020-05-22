@@ -5,8 +5,6 @@ feast-core:
     enabled: true
   postgresql:
     existingSecret: feast-postgresql
-  service:
-    type: LoadBalancer
   image:
     tag: $IMAGE_TAG
   application-override.yaml:
@@ -32,7 +30,7 @@ feast-core:
             subnetwork: regions/$GCLOUD_REGION/subnetworks/$GCLOUD_SUBNET
             maxNumWorkers: 1
             autoscalingAlgorithm: THROUGHPUT_BASED
-            #usePublicIps: false
+            usePublicIps: false
             workerMachineType: n1-standard-1
             deadLetterTableSpec: $GCLOUD_PROJECT:$DATASET_NAME.deadletter
 
@@ -45,8 +43,6 @@ feast-online-serving:
   enabled: true
   image:
     tag: $IMAGE_TAG
-  service:
-    type: LoadBalancer
   application-override.yaml:
     feast:
       active_store: online
@@ -70,8 +66,6 @@ feast-batch-serving:
     tag: $IMAGE_TAG
   gcpServiceAccount:
     enabled: true
-  service:
-    type: LoadBalancer
   application-override.yaml:
     feast:
       active_store: historical
@@ -104,12 +98,12 @@ kafka:
   external:
     enabled: true
     type: LoadBalancer
-#    annotations:
-#      cloud.google.com/load-balancer-type: Internal
-#    loadBalancerSourceRanges:
-#    - 10.0.0.0/8
-#    - 172.16.0.0/12
-#    - 192.168.0.0/16
+    annotations:
+      cloud.google.com/load-balancer-type: Internal
+    loadBalancerSourceRanges:
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
     firstListenerPort: 31090
     loadBalancerIP:
     - $feast_kafka_1_ip
