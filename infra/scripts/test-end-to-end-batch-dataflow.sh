@@ -13,6 +13,7 @@ test -z ${TEMP_BUCKET} && TEMP_BUCKET="feast-templocation-kf-feast"
 test -z ${K8_CLUSTER_NAME} && K8_CLUSTER_NAME="feast-e2e-dataflow"
 test -z ${HELM_RELEASE_NAME} && HELM_RELEASE_NAME="pr-$PULL_NUMBER"
 test -z ${HELM_COMMON_NAME} && HELM_COMMON_NAME="deps"
+test -z ${DATASET_NAME} && DATASET_NAME=feast_e2e_$(date +%s)
 
 feast_kafka_1_ip_name="feast-kafka-1"
 feast_kafka_2_ip_name="feast-kafka-2"
@@ -119,7 +120,7 @@ Helm install common parts (kafka, redis, etc)
 "
   cd $ORIGINAL_DIR/infra/charts/feast
 
-  helm install --wait --values="values-end-to-end-batch-dataflow-updated.yaml" \
+  helm install --wait --debug --values="values-end-to-end-batch-dataflow-updated.yaml" \
    --set "feast-core.enabled=false" \
    --set "feast-online-serving.enabled=false" \
    --set "feast-batch-serving.enabled=false" \
@@ -192,30 +193,6 @@ fi
 # 2.
 getPublicAddresses "$@"
 
-# 3.
-existing_deps=$(helm list --filter deps -q)
-if [[ -z $existing_deps ]]; then
-  installDependencies "$@"
-fi
-
-# 4.
-# buildTarget "$@"
-
-# 5.
-echo "
-============================================================
-Creating temp BQ table for Feast Serving
-============================================================
-"
-DATASET_NAME=feast_e2e_$(date +%s)
-
-bq --location=US --project_id=${GCLOUD_PROJECT} mk \
-  --dataset \
-  --default_table_expiration 86400 \
-  ${GCLOUD_PROJECT}:${DATASET_NAME}
-
-
-# 6.
 echo "
 ============================================================
 Export required environment variables
@@ -231,11 +208,34 @@ export GCLOUD_REGION=$GCLOUD_REGION
 export HELM_COMMON_NAME=$HELM_COMMON_NAME
 export IMAGE_TAG=${PULL_PULL_SHA:1}
 
-cd $ORIGINAL_DIR/infra/scripts/test-templates
 envsubst $'$TEMP_BUCKET $DATASET_NAME $GCLOUD_PROJECT $GCLOUD_NETWORK \
   $GCLOUD_SUBNET $GCLOUD_REGION $IMAGE_TAG $HELM_COMMON_NAME $feast_kafka_1_ip
-  $feast_kafka_2_ip $feast_kafka_3_ip $feast_redis_ip $feast_statsd_ip' < values-end-to-end-batch-dataflow.yaml > $ORIGINAL_DIR/infra/charts/feast/values-end-to-end-batch-dataflow-updated.yaml
+  $feast_kafka_2_ip $feast_kafka_3_ip $feast_redis_ip $feast_statsd_ip' < $ORIGINAL_DIR/infra/scripts/test-templates/values-end-to-end-batch-dataflow.yaml > $ORIGINAL_DIR/infra/charts/feast/values-end-to-end-batch-dataflow-updated.yaml
 
+
+# 3.
+existing_deps=$(helm list --filter deps -q)
+if [[ -z $existing_deps ]]; then
+  installDependencies "$@"
+fi
+
+# 4.
+# buildTarget "$@"
+
+# 5.
+echo "
+============================================================
+Creating temp BQ table for Feast Serving
+============================================================
+"
+
+bq --location=US --project_id=${GCLOUD_PROJECT} mk \
+  --dataset \
+  --default_table_expiration 86400 \
+  ${GCLOUD_PROJECT}:${DATASET_NAME}
+
+
+# 6.
 
 set +e
 installTarget "$@"
