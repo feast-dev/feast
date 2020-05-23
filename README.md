@@ -1,7 +1,12 @@
-# Feast - Feature Store for Machine Learning
+<p align="center">
+<a href="https://feast.dev/">
+  <img src="docs/.gitbook/assets/feast_logo.png" width="550">
+  </a>
+</p>
+<br />
 
 [![Unit Tests](https://github.com/feast-dev/feast/workflows/unit%20tests/badge.svg?branch=master)](https://github.com/feast-dev/feast/actions?query=workflow%3A%22unit+tests%22+branch%3Amaster)
-![Docker Compose Tests](https://github.com/feast-dev/feast/workflows/docker%20compose%20tests/badge.svg?branch=master)
+[![Docker Compose Tests](https://github.com/feast-dev/feast/workflows/docker%20compose%20tests/badge.svg?branch=master)](https://github.com/feast-dev/feast/actions?query=workflow%3A%22docker+compose+tests%22+branch%3Amaster)
 [![Code Standards](https://github.com/feast-dev/feast/workflows/code%20standards/badge.svg?branch=master)](https://github.com/feast-dev/feast/actions?query=workflow%3A%22code+standards%22+branch%3Amaster)
 [![Docs latest](https://img.shields.io/badge/Docs-latest-blue.svg)](https://docs.feast.dev/)
 [![GitHub Release](https://img.shields.io/github/release/feast-dev/feast.svg?style=flat)](https://github.com/feast-dev/feast/releases)
