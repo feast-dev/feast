@@ -31,6 +31,9 @@ build-cli:
 	$(MAKE) build-proto
 	$(MAKE) -C cli build-all
 
+test-java-with-coverage:
+	mvn test jacoco:report-aggregate
+
 build-java:
 	mvn clean verify
 
