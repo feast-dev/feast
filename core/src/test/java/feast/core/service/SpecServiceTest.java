@@ -36,10 +36,9 @@ import feast.core.CoreServiceProto.ListStoresResponse;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto;
+import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
-import feast.core.SourceProto.KafkaSourceConfig;
-import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
@@ -53,10 +52,7 @@ import feast.core.model.Source;
 import feast.core.model.Store;
 import feast.types.ValueProto.ValueType.Enum;
 import io.grpc.StatusRuntimeException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Rule;
@@ -82,26 +78,18 @@ public class SpecServiceTest {
   @Before
   public void setUp() {
     initMocks(this);
-    defaultSource =
-        new Source(
-            SourceType.KAFKA,
-            KafkaSourceConfig.newBuilder()
-                .setBootstrapServers("kafka:9092")
-                .setTopic("my-topic")
-                .build(),
-            true);
+    defaultSource = TestObjectFactory.defaultSource;
 
     FeatureSet featureSet1v1 = newDummyFeatureSet("f1", 1);
     FeatureSet featureSet1v2 = newDummyFeatureSet("f1", 2);
     FeatureSet featureSet1v3 = newDummyFeatureSet("f1", 3);
     FeatureSet featureSet2v1 = newDummyFeatureSet("f2", 1);
 
-    Field f3f1 = new Field("f3", "f3f1", Enum.INT64);
-    Field f3f2 = new Field("f3", "f3f2", Enum.INT64);
-    Field f3e1 = new Field("f3", "f3e1", Enum.STRING);
+    Field f3f1 = TestObjectFactory.CreateFeatureField("f3", "f3f1", Enum.INT64);
+    Field f3f2 = TestObjectFactory.CreateFeatureField("f3", "f3f2", Enum.INT64);
+    Field f3e1 = TestObjectFactory.CreateEntityField("f3", "f3e1", Enum.STRING);
     FeatureSet featureSet3v1 =
-        new FeatureSet(
-            "f3", 1, 100L, Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1), defaultSource);
+        TestObjectFactory.CreateFeatureSet("f3", 1, Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1));
 
     featureSets =
         Arrays.asList(featureSet1v1, featureSet1v2, featureSet1v3, featureSet2v1, featureSet3v1);
@@ -349,12 +337,12 @@ public class SpecServiceTest {
   public void applyFeatureSetShouldNotCreateFeatureSetIfFieldsUnordered()
       throws InvalidProtocolBufferException {
 
-    Field f3f1 = new Field("f3", "f3f1", Enum.INT64);
-    Field f3f2 = new Field("f3", "f3f2", Enum.INT64);
-    Field f3e1 = new Field("f3", "f3e1", Enum.STRING);
+    Field f3f1 = TestObjectFactory.CreateFeatureField("f3", "f3f1", Enum.INT64);
+    Field f3f2 = TestObjectFactory.CreateFeatureField("f3", "f3f2", Enum.INT64);
+    Field f3e1 = TestObjectFactory.CreateEntityField("f3", "f3e1", Enum.STRING);
     FeatureSetProto.FeatureSetSpec incomingFeatureSet =
-        (new FeatureSet(
-                "f3", 5, 100L, Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1), defaultSource))
+        (TestObjectFactory.CreateFeatureSet(
+                "f3", 5, Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1)))
             .toProto();
 
     FeatureSetSpec expected = incomingFeatureSet;
@@ -365,6 +353,100 @@ public class SpecServiceTest {
     assertThat(
         applyFeatureSetResponse.getFeatureSet().getEntities(0), equalTo(expected.getEntities(0)));
     assertThat(applyFeatureSetResponse.getFeatureSet().getName(), equalTo(expected.getName()));
+  }
+
+  @Test
+  public void applyFeatureSetShouldAcceptFeatureLabels() throws InvalidProtocolBufferException {
+    List<FeatureSetProto.EntitySpec> entitySpecs = new ArrayList<>();
+    entitySpecs.add(
+        FeatureSetProto.EntitySpec.newBuilder()
+            .setName("entity1")
+            .setValueType(Enum.INT64)
+            .build());
+
+    Map<String, String> featureLabels0 =
+        new HashMap<String, String>() {
+          {
+            put("label1", "feast1");
+          }
+        };
+
+    Map<String, String> featureLabels1 =
+        new HashMap<String, String>() {
+          {
+            put("label1", "feast1");
+            put("label2", "feast2");
+          }
+        };
+
+    List<Map<String, String>> featureLabels = new ArrayList<>();
+    featureLabels.add(featureLabels0);
+    featureLabels.add(featureLabels1);
+
+    List<FeatureSpec> featureSpecs = new ArrayList<>();
+    featureSpecs.add(
+        FeatureSpec.newBuilder()
+            .setName("feature1")
+            .setValueType(Enum.INT64)
+            .putAllLabels(featureLabels.get(0))
+            .build());
+    featureSpecs.add(
+        FeatureSpec.newBuilder()
+            .setName("feature2")
+            .setValueType(Enum.INT64)
+            .putAllLabels(featureLabels.get(1))
+            .build());
+
+    FeatureSetSpec featureSetSpec =
+        FeatureSetSpec.newBuilder()
+            .setName("featureSetWithConstraints")
+            .addAllEntities(entitySpecs)
+            .addAllFeatures(featureSpecs)
+            .build();
+
+    ApplyFeatureSetResponse applyFeatureSetResponse = specService.applyFeatureSet(featureSetSpec);
+    FeatureSetSpec appliedFeatureSetSpec = applyFeatureSetResponse.getFeatureSet();
+
+    // appliedEntitySpecs needs to be sorted because the list returned by specService may not
+    // follow the order in the request
+    List<FeatureSetProto.EntitySpec> appliedEntitySpecs =
+        new ArrayList<>(appliedFeatureSetSpec.getEntitiesList());
+    appliedEntitySpecs.sort(Comparator.comparing(EntitySpec::getName));
+
+    // appliedFeatureSpecs needs to be sorted because the list returned by specService may not
+    // follow the order in the request
+    List<FeatureSpec> appliedFeatureSpecs =
+        new ArrayList<>(appliedFeatureSetSpec.getFeaturesList());
+    appliedFeatureSpecs.sort(Comparator.comparing(FeatureSpec::getName));
+
+    List<Map<String, String>> featureSpecsLabels =
+        appliedFeatureSpecs.stream().map(e -> e.getLabelsMap()).collect(Collectors.toList());
+    assertThat(appliedEntitySpecs, equalTo(entitySpecs));
+    assertThat(appliedFeatureSpecs, equalTo(featureSpecs));
+    assertThat(featureSpecsLabels, equalTo(featureLabels));
+  }
+
+  @Test
+  public void applyFeatureSetShouldAcceptFeatureSetLabels() throws InvalidProtocolBufferException {
+    Map<String, String> featureSetLabels =
+        new HashMap<String, String>() {
+          {
+            put("description", "My precious feature set");
+          }
+        };
+
+    FeatureSetSpec featureSetSpec =
+        FeatureSetSpec.newBuilder()
+            .setName("preciousFeatureSet")
+            .putAllLabels(featureSetLabels)
+            .build();
+
+    ApplyFeatureSetResponse applyFeatureSetResponse = specService.applyFeatureSet(featureSetSpec);
+    FeatureSetSpec appliedFeatureSetSpec = applyFeatureSetResponse.getFeatureSet();
+
+    Map<String, String> appliedLabels = appliedFeatureSetSpec.getLabelsMap();
+
+    assertThat(appliedLabels, equalTo(featureSetLabels));
   }
 
   @Test
@@ -406,10 +488,13 @@ public class SpecServiceTest {
   }
 
   private FeatureSet newDummyFeatureSet(String name, int version) {
-    Field feature = new Field(name, "feature", Enum.INT64);
-    Field entity = new Field(name, "entity", Enum.STRING);
-    return new FeatureSet(
-        name, version, 100L, Arrays.asList(entity), Arrays.asList(feature), defaultSource);
+    Field feature = TestObjectFactory.CreateFeatureField(name, "feature", Enum.INT64);
+    Field entity = TestObjectFactory.CreateEntityField(name, "entity", Enum.STRING);
+
+    FeatureSet fs =
+        TestObjectFactory.CreateFeatureSet(
+            name, version, Arrays.asList(entity), Arrays.asList(feature));
+    return fs;
   }
 
   private Store newDummyStore(String name) {

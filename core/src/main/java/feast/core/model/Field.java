@@ -16,7 +16,9 @@
  */
 package feast.core.model;
 
+import feast.core.util.TypeConversion;
 import feast.types.ValueProto.ValueType;
+import java.util.Map;
 import java.util.Objects;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -52,11 +54,15 @@ public class Field {
   @Column(name = "type", nullable = false)
   private String type;
 
+  // Labels that this field belongs to
+  @Column(name = "labels", columnDefinition = "text")
+  private String labels;
+
   public Field() {
     super();
   }
 
-  public Field(String featureSetId, String name, ValueType.Enum type) {
+  public Field(String featureSetId, String name, ValueType.Enum type, Map<String, String> labels) {
     // TODO: Remove all mention of feature sets inside of this class!
     FeatureSet featureSet = new FeatureSet();
     featureSet.setId(featureSetId);
@@ -64,6 +70,15 @@ public class Field {
     this.id = String.format("%s:%s", featureSetId, name);
     this.name = name;
     this.type = type.toString();
+    this.labels = TypeConversion.convertMapToJsonString(labels);
+  }
+
+  public Field(String featureSetId, String name, ValueType.Enum type) {
+    this(featureSetId, name, type, null);
+  }
+
+  public Map<String, String> getLabels() {
+    return TypeConversion.convertJsonStringToMap(this.labels);
   }
 
   @Override
@@ -75,11 +90,13 @@ public class Field {
       return false;
     }
     Field field = (Field) o;
-    return name.equals(field.getName()) && type.equals(field.getType());
+    return name.equals(field.getName())
+        && type.equals(field.getType())
+        && labels.equals(field.labels);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(super.hashCode(), id, featureSet, name, type);
+    return Objects.hash(super.hashCode(), id, featureSet, name, type, labels);
   }
 }

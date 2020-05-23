@@ -69,9 +69,6 @@ public class TypeConversion {
    * @return json string corresponding to given map
    */
   public static String convertMapToJsonString(Map<String, String> map) {
-    if (map.isEmpty()) {
-      return "{}";
-    }
     return gson.toJson(map);
   }
 

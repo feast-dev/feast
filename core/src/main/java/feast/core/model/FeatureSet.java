@@ -21,6 +21,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
+import feast.core.util.TypeConversion;
 import feast.types.ValueProto.ValueType;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -79,6 +80,10 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   @JoinColumn(name = "source")
   private Source source;
 
+  // User defined metadata
+  @Column(name = "labels", columnDefinition = "text")
+  private String labels;
+
   public FeatureSet() {
     super();
   }
@@ -89,7 +94,8 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
       long maxAgeSeconds,
       List<Field> entities,
       List<Field> features,
-      Source source) {
+      Source source,
+      Map<String, String> labels) {
     this.id = String.format("%s:%s", name, version);
     this.name = name;
     this.version = version;
@@ -97,6 +103,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     this.entities = entities;
     this.features = features;
     this.source = source;
+    this.labels = TypeConversion.convertMapToJsonString(labels);
   }
 
   public static FeatureSet fromProto(FeatureSetSpec featureSetSpec) {
@@ -104,7 +111,8 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     String id = String.format("%s:%d", featureSetSpec.getName(), featureSetSpec.getVersion());
     List<Field> features = new ArrayList<>();
     for (FeatureSpec feature : featureSetSpec.getFeaturesList()) {
-      features.add(new Field(id, feature.getName(), feature.getValueType()));
+      features.add(
+          new Field(id, feature.getName(), feature.getValueType(), feature.getLabelsMap()));
     }
     List<Field> entities = new ArrayList<>();
     for (EntitySpec entity : featureSetSpec.getEntitiesList()) {
@@ -117,7 +125,8 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
         featureSetSpec.getMaxAge().getSeconds(),
         entities,
         features,
-        source);
+        source,
+        featureSetSpec.getLabelsMap());
   }
 
   public FeatureSetSpec toProto() throws InvalidProtocolBufferException {
@@ -136,6 +145,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
           FeatureSpec.newBuilder()
               .setName(feature.getName())
               .setValueType(ValueType.Enum.valueOf(feature.getType()))
+              .putAllLabels(feature.getLabels())
               .build());
     }
     return FeatureSetSpec.newBuilder()
@@ -145,6 +155,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
         .addAllEntities(entitySpecs)
         .addAllFeatures(featureSpecs)
         .setSource(source.toProto())
+        .putAllLabels(TypeConversion.convertJsonStringToMap(labels))
         .build();
   }
 
@@ -208,5 +219,18 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   @Override
   public int compareTo(FeatureSet o) {
     return Integer.compare(version, o.version);
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) {
+      return true;
+    }
+    if (!(obj instanceof FeatureSet)) {
+      return false;
+    }
+    FeatureSet other = (FeatureSet) obj;
+
+    return this.equalTo(other) && labels.equals(other.labels);
   }
 }
