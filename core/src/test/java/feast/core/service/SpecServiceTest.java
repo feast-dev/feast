@@ -420,7 +420,7 @@ public class SpecServiceTest {
     appliedFeatureSpecs.sort(Comparator.comparing(FeatureSpec::getName));
 
     List<Map<String, String>> featureSpecsLabels =
-        featureSpecs.stream().map(e -> e.getLabelsMap()).collect(Collectors.toList());
+        appliedFeatureSpecs.stream().map(e -> e.getLabelsMap()).collect(Collectors.toList());
     assertThat(appliedEntitySpecs, equalTo(entitySpecs));
     assertThat(appliedFeatureSpecs, equalTo(featureSpecs));
     assertThat(featureSpecsLabels, equalTo(featureLabels));
