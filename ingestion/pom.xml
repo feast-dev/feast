@@ -33,15 +33,6 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <configuration>
-          <!-- To ensure Ingestion remains compatible for Java 8-only Beam runners -->
-          <release>8</release>
-        </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <version>3.2.1</version>
         <executions>
@@ -79,6 +70,31 @@
                   <shadedPattern>com.google.cloud.bigquery.vendor</shadedPattern>
                 </relocation>
               </relocations>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <!--
+            We want to keep Ingestion compatible with Java 8 runtime for Beam runners, #518.
+            Unfortunately this doesn't seem to work on Reactor modules, though:
+            https://github.com/mojohaus/mojo-parent/issues/85
+            -->
+          <execution>
+            <id>enforce-bytecode-version</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <enforceBytecodeVersion>
+                  <maxJdkVersion>1.8</maxJdkVersion>
+                </enforceBytecodeVersion>
+              </rules>
             </configuration>
           </execution>
         </executions>
