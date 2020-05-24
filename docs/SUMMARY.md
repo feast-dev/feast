@@ -1,27 +1,33 @@
 # Table of contents
 
-* [What is Feast?](README.md)
-
-## Introduction
-
-* [Why Feast?](introduction/why-feast.md)
-* [Getting Help](introduction/getting-help.md)
-* [Roadmap](introduction/roadmap.md)
+* [Introduction](README.md)
+* [Why Feast?](why-feast.md)
+* [Getting Started](getting-started/README.md)
+  * [Deploying Feast](getting-started/deploying-feast/README.md)
+    * [Docker Compose](getting-started/deploying-feast/docker-compose.md)
+    * [Kubernetes \(GKE\)](getting-started/deploying-feast/kubernetes.md)
+  * [Connecting to Feast](getting-started/connecting-to-feast-1/README.md)
+    * [Python SDK](getting-started/connecting-to-feast-1/python-sdk.md)
+    * [Feast CLI](getting-started/connecting-to-feast-1/connecting-to-feast.md)
+* [Roadmap](roadmap.md)
 * [Changelog](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
+* [Community](getting-help.md)
 
-## Concepts
+## User Guide
 
-* [Concepts](concepts/concepts.md)
-
-## Installation
-
-* [Overview](installation/overview.md)
-* [Docker Compose](installation/docker-compose.md)
-* [Google Kubernetes Engine \(GKE\)](installation/gke.md)
+* [Concepts](user-guide/overview.md)
+* [Architecture](user-guide/architecture.md)
+* [Feature Sets](user-guide/feature-sets.md)
+* [Entities](user-guide/entities.md)
+* [Features](user-guide/features.md)
+* [Sources](user-guide/sources.md)
+* [Data ingestion](user-guide/data-ingestion.md)
+* [Stores](user-guide/stores.md)
+* [Feature retrieval](user-guide/feature-retrieval.md)
 
 ## Tutorials
 
-* [Basic](https://github.com/feast-dev/feast/blob/master/examples/basic/basic.ipynb)
+* [Basic Tutorial](https://github.com/feast-dev/feast/blob/master/examples/basic/basic.ipynb)
 * [Churn Prediction \(XGBoost\)](https://github.com/feast-dev/feast/blob/master/examples/feast-xgboost-churn-prediction-tutorial/Telecom%20Customer%20Churn%20Prediction%20%28with%20Feast%20and%20XGBoost%29.ipynb)
 
 ## Administration
@@ -30,11 +36,13 @@
 
 ## Reference
 
-* [Python SDK](https://api.docs.feast.dev/python/)
-* [Go SDK](https://godoc.org/github.com/feast-dev/feast/sdk/go)
-* [gRPC Types](https://api.docs.feast.dev/grpc/feast.types.pb.html)
-* [Core gRPC API](https://api.docs.feast.dev/grpc/feast.core.pb.html)
-* [Serving gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html)
+* [Configuration Reference](reference/configuration-reference.md)
+* [API](reference/api/README.md)
+  * [Core gRPC API](https://api.docs.feast.dev/grpc/feast.core.pb.html)
+  * [Serving gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html)
+  * [gRPC Types](https://api.docs.feast.dev/grpc/feast.types.pb.html)
+  * [Go SDK](https://godoc.org/github.com/feast-dev/feast/sdk/go)
+  * [Python SDK](https://api.docs.feast.dev/python/)
 
 ## Contributing
 
@@ -42,4 +50,5 @@
 * [Development Guide](contributing/development-guide.md)
 * [Style Guide](contributing/style-guide.md)
 * [Release Process](contributing/release-process.md)
+* [Adding a New Store](contributing/adding-a-new-store.md)
 

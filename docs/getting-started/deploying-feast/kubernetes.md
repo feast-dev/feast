@@ -1,4 +1,4 @@
-# Google Kubernetes Engine \(GKE\)
+# Kubernetes \(GKE\)
 
 ### Overview <a id="m_5245424069798496115gmail-overview-1"></a>
 
