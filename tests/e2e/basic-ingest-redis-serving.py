@@ -129,7 +129,7 @@ def test_basic_ingest_success(client, cust_trans_df, driver_df):
     time.sleep(5)
 
 
-@pytest.mark.timeout(60)
+@pytest.mark.timeout(90)
 @pytest.mark.run(order=12)
 def test_basic_retrieve_online_success(client, cust_trans_df):
     # Poll serving for feature values until the correct values are returned
@@ -171,7 +171,7 @@ def test_basic_retrieve_online_success(client, cust_trans_df):
             break
 
 
-@pytest.mark.timeout(45)
+@pytest.mark.timeout(90)
 @pytest.mark.run(order=13)
 def test_basic_retrieve_online_multiple_featureset(client, cust_trans_df, driver_df):
     # Poll serving for feature values until the correct values are returned
@@ -359,7 +359,7 @@ def test_all_types_ingest_success(client, all_types_dataframe):
     client.ingest(all_types_fs, all_types_dataframe)
 
 
-@pytest.mark.timeout(45)
+@pytest.mark.timeout(90)
 @pytest.mark.run(order=22)
 def test_all_types_retrieve_online_success(client, all_types_dataframe):
     # Poll serving for feature values until the correct values are returned
@@ -484,7 +484,7 @@ def test_large_volume_ingest_success(client, large_volume_dataframe):
     client.ingest(cust_trans_fs, large_volume_dataframe)
 
 
-@pytest.mark.timeout(45)
+@pytest.mark.timeout(90)
 @pytest.mark.run(order=32)
 def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
     # Poll serving for feature values until the correct values are returned
