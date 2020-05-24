@@ -125,5 +125,5 @@ data = client.get_online_features(
     )
 ```
 
-Online serving with Feast is built to be very low latency. Feast Serving provides a [gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html) that is backed by [Redis](https://redis.io/). We also provide support for [Python](https://api.docs.feast.dev/python/), [Go](https://godoc.org/github.com/gojek/feast/sdk/go), and Java clients. 
+Online serving with Feast is built to be very low latency. Feast Serving provides a [gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html) that is backed by [Redis](https://redis.io/). We also provide support for [Python](https://api.docs.feast.dev/python/), [Go](https://godoc.org/github.com/gojek/feast/sdk/go), and Java clients.
 

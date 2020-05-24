@@ -52,33 +52,3 @@ cust_trans_fs = FeatureSet.from_yaml("customer_transactions_feature_set.yaml")
 client.ingest(cust_trans_fs, customer_data)
 ```
 
-### Making changes to Feature Sets
-
-In order to facilitate the need for feature set definitions to change over time, a limited set of changes can be made to existing feature sets. 
-
-To apply changes to a feature set:
-
-```text
-# With existing feature set
-cust_trans_fs = FeatureSet.from_yaml("customer_transactions_feature_set.yaml")
-
-# Add new feature
-cust_trans_fs.add(Feature(name="avg_basket_size", dtype=ValueType.INT32))
-
-# Apply changed feature set
-client.apply(cust_trans_fs)
-```
-
-Permitted changes include:
-
-* Adding new features
-* Deleting existing features  \(note that deleted features are _tombstoned_ and remain on record_,_ rather than removed completely; as a result, new features will not be able to take the names of these deleted features\)
-* Changing features' TFX schemas
-* Changing the feature set's source and max age
-
-Note that the following are **not** allowed:
-
-* Changes to project or name of the feature set.
-* Changes to entities.
-* Changes to names and types of existing features. 
-
