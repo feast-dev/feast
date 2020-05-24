@@ -12,7 +12,7 @@ This installation guide will demonstrate three ways of installing Feast:
 
 ### Overview
 
-A docker compose file is provided to quickly test Feast with the official docker images. There is no hard dependency on GCP, unless batch serving is required. 
+A docker compose file is provided to quickly test Feast with the official docker images. There is no hard dependency on GCP, unless batch serving is required.
 
 * Define and register feature set
 * Feature ingestion
