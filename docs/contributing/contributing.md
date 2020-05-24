@@ -6,7 +6,7 @@ We use [RFCs](https://en.wikipedia.org/wiki/Request_for_Comments) and [GitHub is
 
 Please communicate your ideas through a GitHub issue or through our Slack Channel before starting development.
 
-Please [submit a PR ](https://github.com/feast-dev/feast/pulls)to the master branch of the Feast repository once you are ready to submit your contribution. Code submission to Feast \(including submission from project maintainers\) require review and approval from maintainers or code owners. 
+Please [submit a PR ](https://github.com/feast-dev/feast/pulls)to the master branch of the Feast repository once you are ready to submit your contribution. Code submission to Feast \(including submission from project maintainers\) require review and approval from maintainers or code owners.
 
 PRs that are submitted by the general public need to be identified as `ok-to-test`. Once enabled, [Prow](https://github.com/kubernetes/test-infra/tree/master/prow) will run a range of tests to verify the submission, after which community members will help to review the pull request.
 
@@ -31,7 +31,7 @@ The main components of Feast are:
 
 ### 2.**2 Requirements**
 
-#### 2.**2.1 Development environment** 
+#### 2.**2.1 Development environment**
 
 The following software is required for Feast development
 
@@ -132,7 +132,7 @@ The following section is a quick walk-through to test whether your local Feast d
 
   can be accessed with credentials user `postgres` and password `password`. Different database configurations can be supplied here \(`/core/src/main/resources/application.yml`\)
 
-* Redis is running locally and accessible from `localhost:6379`   
+* Redis is running locally and accessible from `localhost:6379`
 * \(optional\) The local environment has been authentication with Google Cloud Platform and has full access to BigQuery. This is only necessary for BigQuery testing/development.
 
 #### 2.4.2 Clone Feast
@@ -170,7 +170,7 @@ Rpc succeeded with OK status
 
 Feast Serving is configured through the `$FEAST_HOME_DIR/serving/src/main/resources/application.yml`. Each Serving deployment must be configured with a store. The default store is Redis \(used for online serving\).
 
-The configuration for this default store is located in a separate `.yml` file. The default location is `$FEAST_HOME_DIR/serving/sample_redis_config.yml`:   
+The configuration for this default store is located in a separate `.yml` file. The default location is `$FEAST_HOME_DIR/serving/sample_redis_config.yml`:
 
 ```text
 name: serving
@@ -184,7 +184,7 @@ subscriptions:
     version: "*"
 ```
 
-Once Feast Serving is started, it will register its store with Feast Core \(by name\) and start to subscribe to a feature sets based on its subscription. 
+Once Feast Serving is started, it will register its store with Feast Core \(by name\) and start to subscribe to a feature sets based on its subscription.
 
 Start Feast Serving GRPC server on localhost:6566 with store name `serving`
 
@@ -231,9 +231,9 @@ store {
 Rpc succeeded with OK status
 ```
 
-In order to use BigQuery as a historical store, it is necessary to start Feast Serving with a different store type. 
+In order to use BigQuery as a historical store, it is necessary to start Feast Serving with a different store type.
 
-Copy `$FEAST_HOME_DIR/serving/sample_redis_config.yml`  to the following location `$FEAST_HOME_DIR/serving/my_bigquery_config.yml` and update the configuration as below:
+Copy `$FEAST_HOME_DIR/serving/sample_redis_config.yml` to the following location `$FEAST_HOME_DIR/serving/my_bigquery_config.yml` and update the configuration as below:
 
 ```text
 name: bigquery
@@ -247,7 +247,7 @@ subscriptions:
     project: "*"
 ```
 
-Then inside `serving/src/main/resources/application.yml` modify the following key `feast.store.config-path`  to point to the new store configuration.
+Then inside `serving/src/main/resources/application.yml` modify the following key `feast.store.config-path` to point to the new store configuration.
 
 After making these changes, restart Feast Serving:
 
@@ -299,7 +299,7 @@ grpc_cli call localhost:6565 CreateProject '
 When a feature set is successfully registered, Feast Core will start an **ingestion** job that listens for new features in the feature set.
 
 {% hint style="info" %}
-Note that Feast currently only supports source of type `KAFKA`, so you must have access to a running Kafka broker to register a FeatureSet successfully. It is possible to omit the `source` from a Feature Set, but Feast Core will still use Kafka behind the scenes, it is simply abstracted away from the user. 
+Note that Feast currently only supports source of type `KAFKA`, so you must have access to a running Kafka broker to register a FeatureSet successfully. It is possible to omit the `source` from a Feature Set, but Feast Core will still use Kafka behind the scenes, it is simply abstracted away from the user.
 {% endhint %}
 
 Create a new FeatureSet in Feast by sending a request to Feast Core:
@@ -459,7 +459,7 @@ field_values {
 
 #### 2.4.8 Summary
 
-If you have made it to this point successfully you should have a functioning Feast deployment, at the very least using the Apache Beam DirectRunner for ingestion jobs and Redis for online serving. 
+If you have made it to this point successfully you should have a functioning Feast deployment, at the very least using the Apache Beam DirectRunner for ingestion jobs and Redis for online serving.
 
 It is important to note that most of the functionality demonstrated above is already available in a more abstracted form in the Python SDK \(Feast management, data ingestion, feature retrieval\) and the Java/Go SDKs \(feature retrieval\). However, it is useful to understand these internals from a development standpoint.
 
@@ -525,3 +525,4 @@ And to format:
 ```text
 $ make format-python
 ```
+

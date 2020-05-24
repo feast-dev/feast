@@ -2,7 +2,7 @@
 
 ## Architecture
 
-![Logical diagram of a typical Feast deployment](../.gitbook/assets/basic-architecture-diagram%20%282%29.svg)
+![Logical diagram of a typical Feast deployment](https://github.com/feast-dev/feast/tree/e1568aaa239880216234fee0bc247de6e57336aa/docs/.gitbook/assets/basic-architecture-diagram%20%282%29.svg)
 
 The core components of a Feast deployment are
 

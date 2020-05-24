@@ -156,7 +156,7 @@ Install the Feast Helm chart:
 helm install --name feast -f my-feast-values.yaml .
 ```
 
-Ensure that the system comes online. This will take a few minutes. 
+Ensure that the system comes online. This will take a few minutes.
 
 ```bash
 kubectl get pods

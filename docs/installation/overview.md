@@ -10,5 +10,3 @@ This installation guide will demonstrate three ways of installing Feast:
   * Recommended way to install Feast for production use.
   * The guide has dependencies on BigQuery, and Google Cloud Storage.
 
-
-
