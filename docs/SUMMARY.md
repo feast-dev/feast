@@ -42,6 +42,7 @@
   * [Serving gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html)
   * [gRPC Types](https://api.docs.feast.dev/grpc/feast.types.pb.html)
   * [Go SDK](https://godoc.org/github.com/feast-dev/feast/sdk/go)
+  * [Java SDK](https://javadoc.io/doc/dev.feast/feast-sdk)
   * [Python SDK](https://api.docs.feast.dev/python/)
 
 ## Contributing

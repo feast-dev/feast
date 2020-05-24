@@ -2,7 +2,7 @@
 
 ## Using Feast
 
-Feast acts as the interface between ML models and data. Feast enables your team to 
+Feast acts as the interface between ML models and data. Feast enables your team to
 
 1. Create feature specifications to manage features and load in data that should be managed
 2. Retrieve historical features for training models
@@ -14,7 +14,7 @@ Feast currently does not apply feature transformations to data.
 
 ### 1. Creating and managing features
 
-Feature creators model the data within their organization into Feast through the creation of [feature sets](feature-sets.md). 
+Feature creators model the data within their organization into Feast through the creation of [feature sets](feature-sets.md).
 
 Feature sets are specifications that contain both schema and data source information. They allow Feast to know how to interpret your data, and optionally where to find it. Feature sets allow users to define domain [entities](entities.md) along with the [features](features.md) that are available on these entities. Feature sets also allow users to define schemas that describe the properties of the data, which in turn can be used for validation purposes.
 
@@ -36,7 +36,7 @@ Stores supported: [Redis](https://redis.io/), [Redis Cluster](https://redis.io/t
 
 ## Concept Hierarchy
 
-![](../.gitbook/assets/image%20%283%29.png)
+![](../.gitbook/assets/image%20%283%29%20%281%29.png)
 
 Feast resources are arranged in the above hierarchy, with projects grouping one or more [feature sets](feature-sets.md), which in turn groups multiple [features](features.md) or [entities](entities.md).
 
@@ -44,11 +44,11 @@ The logical grouping of these resources are important for namespacing as well as
 
 ## Concepts
 
-[Entities](entities.md) are objects in an organization that model a specific construct.  Examples of these include customers, transactions, and drivers. 
+[Entities](entities.md) are objects in an organization that model a specific construct. Examples of these include customers, transactions, and drivers.
 
 [Features](features.md) are measurable properties that are observed on entities. Features are used as inputs to models.
 
-[Feature Sets](feature-sets.md) are schemas that define logical groupings of entities, features, data sources, and other related metadata. 
+[Feature Sets](feature-sets.md) are schemas that define logical groupings of entities, features, data sources, and other related metadata.
 
 [Stores](stores.md) are databases that maintain feature data that gets served to models during training or inference.
 

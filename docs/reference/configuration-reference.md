@@ -10,127 +10,78 @@ Configuration options for both the Feast CLI and Feast Python SDK can be defined
 
 The following list is a subset of all configuration properties. Please see [this link](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/constants.py) for the complete list of configuration options
 
+| Option | Description | Default |
+| :--- | :--- | :--- |
+
+
+| `FEAST_CONFIG` | Location of Feast configuration file | `/.feast/config` |
+| :--- | :--- | :--- |
+
+
 <table>
   <thead>
     <tr>
-      <th style="text-align:left">Option</th>
-      <th style="text-align:left">Description</th>
-      <th style="text-align:left">Default</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="text-align:left"><code>FEAST_CONFIG</code>
-      </td>
-      <td style="text-align:left">Location of Feast configuration file</td>
-      <td style="text-align:left"><code>/.feast/config</code>
-      </td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>CONFIG_FEAST_ENV_VAR_PREFIX</code>
-      </td>
-      <td style="text-align:left">
+      <th style="text-align:left"><code>CONFIG_FEAST_ENV_VAR_PREFIX</code>
+      </th>
+      <th style="text-align:left">
         <p>Default prefix to Feast environmental variable options.</p>
         <p>Does not apply to <code>FEAST_CONFIG</code>
         </p>
-      </td>
-      <td style="text-align:left"><code>FEAST_</code>
-      </td>
+      </th>
+      <th style="text-align:left"><code>FEAST_</code>
+      </th>
     </tr>
-    <tr>
-      <td style="text-align:left"><code>PROJECT</code>
-      </td>
-      <td style="text-align:left">Default Feast project to use</td>
-      <td style="text-align:left"><code>default</code>
-      </td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>CORE_URL</code>
-      </td>
-      <td style="text-align:left">URL used to connect to Feast Core</td>
-      <td style="text-align:left"><code>localhost:6565</code>
-      </td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>CORE_ENABLE_SSL</code>
-      </td>
-      <td style="text-align:left">Enables TLS/SSL on connections to Feast Core</td>
-      <td style="text-align:left"><code>False</code>
-      </td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>CORE_AUTH_ENABLED</code>
-      </td>
-      <td style="text-align:left">Enable user authentication when connecting to a Feast Core instance</td>
-      <td
-      style="text-align:left"><code>False</code>
-        </td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>CORE_AUTH_TOKEN</code>
-      </td>
-      <td style="text-align:left">Provide a static <code>JWT</code> token to authenticate with Feast Core</td>
-      <td
-      style="text-align:left"><code>Null</code>
-        </td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>CORE_SERVER_SSL_CERT</code>
-      </td>
-      <td style="text-align:left">Path to certificate(s) used by Feast Client to authenticate TLS connection
-        to Feast Core (not to authenticate you as a client).</td>
-      <td style="text-align:left"><code>Null</code>
-      </td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>SERVING_URL</code>
-      </td>
-      <td style="text-align:left">URL used to connect to Feast Serving</td>
-      <td style="text-align:left"><code>localhost:6566</code>
-      </td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>SERVING_ENABLE_SSL</code>
-      </td>
-      <td style="text-align:left">Enables TLS/SSL on connections to Feast Serving</td>
-      <td style="text-align:left"><code>False</code>
-      </td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>SERVING_SERVER_SSL_CERT</code>
-      </td>
-      <td style="text-align:left">Path to certificate(s) used by Feast Client to authenticate TLS connection
-        to Feast Serving (not to authenticate you as a client).</td>
-      <td style="text-align:left"><code>None</code>
-      </td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>GRPC_CONNECTION_TIMEOUT_DEFAULT</code>
-      </td>
-      <td style="text-align:left">Default gRPC connection timeout to both Feast Serving and Feast Core (in
-        seconds)</td>
-      <td style="text-align:left"><code>3</code>
-      </td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>GRPC_CONNECTION_TIMEOUT_APPLY</code>
-      </td>
-      <td style="text-align:left">Default gRPC connection timeout when sending an ApplyFeatureSet command
-        to Feast Core (in seconds)</td>
-      <td style="text-align:left"><code>600</code>
-      </td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>BATCH_FEATURE_REQUEST_WAIT_S</code>
-      </td>
-      <td style="text-align:left">Time to wait for batch feature requests before timing out.</td>
-      <td style="text-align:left"><code>600</code>
-      </td>
-    </tr>
-  </tbody>
-</table>### Usage
+  </thead>
+  <tbody></tbody>
+</table>| `PROJECT` | Default Feast project to use | `default` |
+| :--- | :--- | :--- |
 
-#### Configuration File
+
+| `CORE_URL` | URL used to connect to Feast Core | `localhost:6565` |
+| :--- | :--- | :--- |
+
+
+| `CORE_ENABLE_SSL` | Enables TLS/SSL on connections to Feast Core | `False` |
+| :--- | :--- | :--- |
+
+
+| `CORE_AUTH_ENABLED` | Enable user authentication when connecting to a Feast Core instance | `False` |
+| :--- | :--- | :--- |
+
+
+| `CORE_AUTH_TOKEN` | Provide a static `JWT` token to authenticate with Feast Core | `Null` |
+| :--- | :--- | :--- |
+
+
+| `CORE_SERVER_SSL_CERT` | Path to certificate\(s\) used by Feast Client to authenticate TLS connection to Feast Core \(not to authenticate you as a client\). | `Null` |
+| :--- | :--- | :--- |
+
+
+| `SERVING_URL` | URL used to connect to Feast Serving | `localhost:6566` |
+| :--- | :--- | :--- |
+
+
+| `SERVING_ENABLE_SSL` | Enables TLS/SSL on connections to Feast Serving | `False` |
+| :--- | :--- | :--- |
+
+
+| `SERVING_SERVER_SSL_CERT` | Path to certificate\(s\) used by Feast Client to authenticate TLS connection to Feast Serving \(not to authenticate you as a client\). | `None` |
+| :--- | :--- | :--- |
+
+
+| `GRPC_CONNECTION_TIMEOUT_DEFAULT` | Default gRPC connection timeout to both Feast Serving and Feast Core \(in seconds\) | `3` |
+| :--- | :--- | :--- |
+
+
+| `GRPC_CONNECTION_TIMEOUT_APPLY` | Default gRPC connection timeout when sending an ApplyFeatureSet command to Feast Core \(in seconds\) | `600` |
+| :--- | :--- | :--- |
+
+
+| `BATCH_FEATURE_REQUEST_WAIT_S` | Time to wait for batch feature requests before timing out. | `600` |
+| :--- | :--- | :--- |
+
+
+### Configuration File
 
 Feast Configuration File \(`~/.feast/config`\)
 
@@ -140,13 +91,13 @@ project = default
 core_url = localhost:6565
 ```
 
-#### Environmental Variables
+### Environmental Variables
 
 ```bash
 FEAST_CORE_URL=my_feast:6565 FEAST_PROJECT=default feast projects list
 ```
 
-#### Feast SDK
+### Feast SDK
 
 ```python
 client = Client(

@@ -12,4 +12,3 @@ PRs that are submitted by the general public need to be identified as `ok-to-tes
 Please sign the [Google CLA](https://cla.developers.google.com/) in order to have your code merged into the Feast repository.
 {% endhint %}
 
-
