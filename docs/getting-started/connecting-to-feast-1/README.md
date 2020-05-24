@@ -17,5 +17,11 @@
 
 {% page-ref page="connecting-to-feast.md" %}
 
+## Online Serving Clients
 
+Feast provides three ways to retrieve data in production for online serving
+
+* [Python SDK](https://api.docs.feast.dev/python/) \(as above\)
+* [Go Client library](https://godoc.org/github.com/feast-dev/feast/sdk/go)
+* [Java Client library](https://javadoc.io/doc/dev.feast/feast-sdk)
 
