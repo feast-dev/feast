@@ -543,8 +543,6 @@ public class SpecServiceTest {
 
   @Test
   public void applyFeatureSetShouldAcceptFeatureLabels() throws InvalidProtocolBufferException {
-    List<EntitySpec> entitySpecs = new ArrayList<>();
-    entitySpecs.add(EntitySpec.newBuilder().setName("entity1").setValueType(Enum.INT64).build());
 
     Map<String, String> featureLabels0 =
         new HashMap<>() {
@@ -583,7 +581,6 @@ public class SpecServiceTest {
         FeatureSetSpec.newBuilder()
             .setProject("project1")
             .setName("featureSetWithConstraints")
-            .addAllEntities(entitySpecs)
             .addAllFeatures(featureSpecs)
             .build();
     FeatureSetProto.FeatureSet featureSet =
@@ -592,22 +589,15 @@ public class SpecServiceTest {
     ApplyFeatureSetResponse applyFeatureSetResponse = specService.applyFeatureSet(featureSet);
     FeatureSetSpec appliedFeatureSetSpec = applyFeatureSetResponse.getFeatureSet().getSpec();
 
-    // appliedEntitySpecs needs to be sorted because the list returned by specService may not
-    // follow the order in the request
-    List<EntitySpec> appliedEntitySpecs = new ArrayList<>(appliedFeatureSetSpec.getEntitiesList());
-    appliedEntitySpecs.sort(Comparator.comparing(EntitySpec::getName));
-
     // appliedFeatureSpecs needs to be sorted because the list returned by specService may not
     // follow the order in the request
     List<FeatureSpec> appliedFeatureSpecs =
         new ArrayList<>(appliedFeatureSetSpec.getFeaturesList());
     appliedFeatureSpecs.sort(Comparator.comparing(FeatureSpec::getName));
 
-    var featureSpecsLabels =
-        featureSpecs.stream().map(e -> e.getLabelsMap()).collect(Collectors.toList());
-    assertEquals(appliedEntitySpecs, entitySpecs);
-    assertEquals(appliedFeatureSpecs, featureSpecs);
-    assertEquals(featureSpecsLabels, featureLabels);
+    var appliedFeatureSpecsLabels =
+        appliedFeatureSpecs.stream().map(e -> e.getLabelsMap()).collect(Collectors.toList());
+    assertEquals(appliedFeatureSpecsLabels, featureLabels);
   }
 
   @Test
