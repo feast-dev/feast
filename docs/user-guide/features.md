@@ -28,7 +28,7 @@ driver = Entity("driver_id", ValueType.INT64)
 total_trips_24h = Feature("total_trips_24h", ValueType.INT64)
 
 # Create a feature set with a single entity and a single feature
-driver_fs = FeatureSet("customer_fs", entities=[driver], features=[total_trips_24h])
+driver_fs = FeatureSet("driver_fs", entities=[driver], features=[total_trips_24h])
 
 # Register the feature set with Feast
 client.apply(driver_fs)
