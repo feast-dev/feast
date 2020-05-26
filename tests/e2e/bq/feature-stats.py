@@ -49,7 +49,6 @@ def client(core_url, allow_dirty):
     # Get client for core and serving
     client = Client(core_url=core_url)
     client.create_project(PROJECT_NAME)
-    client.set_project(PROJECT_NAME)
 
     # Ensure Feast core is active, but empty
     if not allow_dirty:
@@ -171,7 +170,7 @@ def feature_stats_dataset_agg(client, feature_stats_feature_set):
 
 def test_feature_stats_retrieval_by_single_dataset(client, feature_stats_dataset_basic):
     stats = client.get_statistics(
-        f"{PROJECT_NAME}/feature_stats",
+        f"feature_stats",
         features=["strings", "ints", "floats"],
         store=STORE_NAME,
         ingestion_ids=[feature_stats_dataset_basic["id"]],
@@ -182,7 +181,7 @@ def test_feature_stats_retrieval_by_single_dataset(client, feature_stats_dataset
 
 def test_feature_stats_by_date(client, feature_stats_dataset_basic):
     stats = client.get_statistics(
-        f"{PROJECT_NAME}/feature_stats",
+        "feature_stats",
         features=["strings", "ints", "floats"],
         store=STORE_NAME,
         start_date=feature_stats_dataset_basic["date"],
@@ -193,7 +192,7 @@ def test_feature_stats_by_date(client, feature_stats_dataset_basic):
 
 def test_feature_stats_agg_over_datasets(client, feature_stats_dataset_agg):
     stats = client.get_statistics(
-        f"{PROJECT_NAME}/feature_stats",
+        "feature_stats",
         features=["strings", "ints", "floats"],
         store=STORE_NAME,
         ingestion_ids=feature_stats_dataset_agg["ids"],
@@ -203,7 +202,7 @@ def test_feature_stats_agg_over_datasets(client, feature_stats_dataset_agg):
 
 def test_feature_stats_agg_over_dates(client, feature_stats_dataset_agg):
     stats = client.get_statistics(
-        f"{PROJECT_NAME}/feature_stats",
+        "feature_stats",
         features=["strings", "ints", "floats"],
         store=STORE_NAME,
         start_date=feature_stats_dataset_agg["start_date"],
@@ -230,7 +229,7 @@ def test_feature_stats_force_refresh(
     time.sleep(10)
 
     actual_stats = client.get_statistics(
-        f"{PROJECT_NAME}/feature_stats",
+        "feature_stats",
         features=["strings", "ints", "floats"],
         store="historical",
         start_date=feature_stats_dataset_basic["date"],
