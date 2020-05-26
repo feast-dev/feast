@@ -110,7 +110,7 @@ def test_version_returns_results(client):
 def test_basic_register_feature_set_success(client):
     # Register feature set without project
     cust_trans_fs_expected = FeatureSet.from_yaml(f"{DIR_PATH}/basic/cust_trans_fs.yaml")
-    driver_fs_expected = FeatureSet.from_yaml(f"{DIR_PATH}basic/driver_fs.yaml")
+    driver_fs_expected = FeatureSet.from_yaml(f"{DIR_PATH}/basic/driver_fs.yaml")
     client.apply(cust_trans_fs_expected)
     client.apply(driver_fs_expected)
     cust_trans_fs_actual = client.get_feature_set("customer_transactions")
