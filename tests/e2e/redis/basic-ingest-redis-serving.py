@@ -29,6 +29,7 @@ import uuid
 
 FLOAT_TOLERANCE = 0.00001
 PROJECT_NAME = 'basic_' + uuid.uuid4().hex.upper()[0:6]
+DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
 
 @pytest.fixture(scope='module')
@@ -108,8 +109,8 @@ def test_version_returns_results(client):
 @pytest.mark.run(order=10)
 def test_basic_register_feature_set_success(client):
     # Register feature set without project
-    cust_trans_fs_expected = FeatureSet.from_yaml("basic/cust_trans_fs.yaml")
-    driver_fs_expected = FeatureSet.from_yaml("basic/driver_fs.yaml")
+    cust_trans_fs_expected = FeatureSet.from_yaml(f"{DIR_PATH}/basic/cust_trans_fs.yaml")
+    driver_fs_expected = FeatureSet.from_yaml(f"{DIR_PATH}basic/driver_fs.yaml")
     client.apply(cust_trans_fs_expected)
     client.apply(driver_fs_expected)
     cust_trans_fs_actual = client.get_feature_set("customer_transactions")
@@ -118,7 +119,7 @@ def test_basic_register_feature_set_success(client):
     assert driver_fs_actual == driver_fs_expected
 
     # Register feature set with project
-    cust_trans_fs_expected = FeatureSet.from_yaml("basic/cust_trans_fs.yaml")
+    cust_trans_fs_expected = FeatureSet.from_yaml(f"{DIR_PATH}/basic/cust_trans_fs.yaml")
     client.set_project(PROJECT_NAME)
     client.apply(cust_trans_fs_expected)
     cust_trans_fs_actual = client.get_feature_set("customer_transactions",
@@ -466,7 +467,7 @@ def large_volume_dataframe():
 @pytest.mark.run(order=30)
 def test_large_volume_register_feature_set_success(client):
     cust_trans_fs_expected = FeatureSet.from_yaml(
-        "large_volume/cust_trans_large_fs.yaml")
+        f"{DIR_PATH}/large_volume/cust_trans_large_fs.yaml")
 
     # Register feature set
     client.apply(cust_trans_fs_expected)
@@ -604,7 +605,7 @@ def all_types_parquet_file():
 def test_all_types_parquet_register_feature_set_success(client):
     # Load feature set from file
     all_types_parquet_expected = FeatureSet.from_yaml(
-        "all_types_parquet/all_types_parquet.yaml")
+        f"{DIR_PATH}/all_types_parquet/all_types_parquet.yaml")
 
     # Register feature set
     client.apply(all_types_parquet_expected)
