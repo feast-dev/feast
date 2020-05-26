@@ -18,7 +18,7 @@ package feast.core.service;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.protobuf.Timestamp;
@@ -31,6 +31,7 @@ import feast.proto.core.CoreServiceProto.GetFeatureStatisticsRequest;
 import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.BigQueryConfig;
 import feast.proto.core.StoreProto.Store.StoreType;
+import feast.storage.connectors.bigquery.statistics.BigQueryStatisticsRetriever;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Optional;
@@ -127,6 +128,11 @@ public class StatsServiceTest {
     when(featureSetRepository.findFeatureSetByNameAndProject_Name(
             "my_feature_set", Project.DEFAULT_NAME))
         .thenReturn(null);
+
+    statsService = spy(statsService);
+    BigQueryStatisticsRetriever retriever = mock(BigQueryStatisticsRetriever.class);
+    doReturn(retriever).when(statsService).getStatisticsRetriever(storeProto.getName());
+
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Illegal request. Unable to find feature set my_feature_set");
     statsService.getFeatureStatistics(request);

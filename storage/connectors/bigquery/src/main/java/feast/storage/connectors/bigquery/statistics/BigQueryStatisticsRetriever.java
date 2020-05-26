@@ -41,7 +41,12 @@ public abstract class BigQueryStatisticsRetriever implements StatisticsRetriever
   public abstract BigQuery bigquery();
 
   public static BigQueryStatisticsRetriever create(BigQueryConfig config) {
-    BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+    BigQuery bigquery =
+        BigQueryOptions.getDefaultInstance()
+            .toBuilder()
+            .setProjectId(config.getProjectId())
+            .build()
+            .getService();
     return newBuilder()
         .setBigquery(bigquery)
         .setDatasetId(config.getDatasetId())
