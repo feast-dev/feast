@@ -37,8 +37,8 @@ public class FeatureSetStatisticsQueryInfo {
   // Feature set name
   private final String name;
 
-  // Dataset ID to retrieve statistics over
-  private String datasetId = "";
+  // Ingestion ID to retrieve statistics over
+  private String ingestionId = "";
 
   // Date to retrieve statistics over
   private String date = "";
@@ -49,12 +49,12 @@ public class FeatureSetStatisticsQueryInfo {
   // List of fields to get stats for
   private final List<FeatureStatisticsQueryInfo> features;
 
-  public FeatureSetStatisticsQueryInfo(String project, String name, String datasetId) {
+  public FeatureSetStatisticsQueryInfo(String project, String name, String ingestionId) {
     this.project = project;
     this.name = name;
     this.entityNames = new ArrayList<>();
     this.features = new ArrayList<>();
-    this.datasetId = datasetId;
+    this.ingestionId = ingestionId;
   }
 
   public FeatureSetStatisticsQueryInfo(String project, String name, Timestamp date) {
@@ -84,8 +84,8 @@ public class FeatureSetStatisticsQueryInfo {
     return name;
   }
 
-  public String getDatasetId() {
-    return datasetId;
+  public String getIngestionId() {
+    return ingestionId;
   }
 
   public String getDate() {

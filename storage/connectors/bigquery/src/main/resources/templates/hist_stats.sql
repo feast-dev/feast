@@ -1,9 +1,9 @@
 WITH subset AS (
 SELECT * FROM `{{ projectId }}.{{ datasetId }}.{{ featureSet.project }}_{{ featureSet.name }}`
-{% if featureSet.datasetId == "" %}
+{% if featureSet.ingestionId == "" %}
 WHERE DATE(event_timestamp) = '{{ featureSet.date }}'
 {% else %}
-WHERE dataset_id='{{ featureSet.datasetId }}'
+WHERE ingestion_id='{{ featureSet.ingestionId }}'
 {% endif %}
 )
 {% for feature in featureSet.features %}
