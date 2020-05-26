@@ -315,7 +315,7 @@ public class StatsService {
    * @param storeName name of the store to retrieve statistics from
    * @return {@link StatisticsRetriever}
    */
-  private StatisticsRetriever getStatisticsRetriever(String storeName)
+  StatisticsRetriever getStatisticsRetriever(String storeName)
       throws InvalidProtocolBufferException {
     Store store =
         storeRepository
