@@ -19,7 +19,7 @@ Statistics can be retrieved from Feast using the python SDK's `get_statistics` m
 Feature statistics can be retrieved for a single feature set, from a single valid warehouse store. Users can opt to either retrieve feature statistics for a discrete subset of data by providing an `ingestion_id` , a unique id generated for a dataset when it is ingested into feast:
 
 ```{python}
-#A unique ingestion id is returned for each batch ingestion
+# A unique ingestion id is returned for each batch ingestion
 ingestion_id=client.ingest(feature_set,df)
 
 stats = client.get_statistics( 
@@ -142,7 +142,11 @@ The following metrics are written at the end of each window as [statsd gauges](h
 feast_ingestion_feature_value_min
 feast_ingestion_feature_value_max
 feast_ingestion_feature_value_mean
-feast_ingestion_feature_value_percentile_25 feast_ingestion_feature_value_percentile_50 feast_ingestion_feature_value_percentile_90 feast_ingestion_feature_value_percentile_95 feast_ingestion_feature_value_percentile_99
+feast_ingestion_feature_value_percentile_25 
+feast_ingestion_feature_value_percentile_50 
+feast_ingestion_feature_value_percentile_90 
+feast_ingestion_feature_value_percentile_95 
+feast_ingestion_feature_value_percentile_99
 ```
 
 {% hint style="info" %}
