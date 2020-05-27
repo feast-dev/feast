@@ -9,7 +9,7 @@ feast:
       config:
         project_id: project
         dataset_id: dataset
-        staging_location: gs:///gcs_bucket/prefix
+        staging_location: gs://gcs_bucket/prefix
         initial_retry_delay_seconds: 1
         total_timeout_seconds: 21600
       subscriptions:
