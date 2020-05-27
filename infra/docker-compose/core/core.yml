@@ -11,4 +11,4 @@ feast:
     type: kafka
     options:
       topic: feast-features
-      bootstrapServers: kafka:9092
+      bootstrapServers: "kafka:9092,localhost:9094"
