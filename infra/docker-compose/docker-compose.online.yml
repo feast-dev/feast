@@ -5,6 +5,7 @@ services:
     image: ${FEAST_SERVING_IMAGE}:${FEAST_VERSION}
     volumes:
       - ./serving/${FEAST_ONLINE_SERVING_CONFIG}:/etc/feast/application.yml
+      - ./serving/sample_redis_config.yml:/etc/feast/sample_redis_config.yml
     depends_on:
       - redis
     ports:
@@ -15,6 +16,7 @@ services:
       - -jar
       - /opt/feast/feast-serving.jar
       - --spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml
+      - --feast.store.config-path=/etc/feast/sample_redis_config.yml
 
   redis:
     image: redis:5-alpine
