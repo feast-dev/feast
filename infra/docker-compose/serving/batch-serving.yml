@@ -1,15 +1,15 @@
 feast:
   core-host: core
-  active-store: batch
+  active-store: historical
   stores:
     - name: historical
       type: BIGQUERY
       # Changes required for batch serving to work
       # Please see https://api.docs.feast.dev/grpc/feast.core.pb.html#Store for configuration options
       config:
-        project_id: my_project
-        dataset_id: my_dataset
-        staging_location: gs://mybucket/myprefix
+        project_id: project
+        dataset_id: dataset
+        staging_location: gs:///gcs_bucket/prefix
         initial_retry_delay_seconds: 1
         total_timeout_seconds: 21600
       subscriptions:
@@ -18,3 +18,6 @@ feast:
   job_store:
     redis_host: redis
     redis_port: 6379
+  
+grpc:
+  port: 6567
