@@ -77,7 +77,7 @@ $ mvn verify
 
 ### 3.3 Running components locally
 
-The `core` and `serving` modules are Spring Boot applications. These may be run as usual for [the Spring Boot Maven plugin](https://docs.spring.io/spring-boot/docs/current/maven-plugin/index.html):
+The `core` and `serving` modules are Spring Boot applications. These may be run as usual for the Spring Boot Maven plugin:
 
 ```text
 $ mvn --projects core spring-boot:run
