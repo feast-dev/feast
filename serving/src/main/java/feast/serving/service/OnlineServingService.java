@@ -98,7 +98,6 @@ public class OnlineServingService implements ServingService {
           if (isStale(featureSetRequest, entityRow, featureRow)) {
             featureSetRequest
                 .getFeatureReferences()
-                .parallelStream()
                 .forEach(
                     ref -> {
                       populateStaleKeyCountMetrics(project, ref);
