@@ -160,14 +160,18 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
         break;
       case CASSANDRA:
         CassandraConfig cassandraConfig = getStore().getCassandraConfig();
+        log.info("Tracing Enabled: {}", cassandraConfig.getTracing());
         SerializableFunction<Session, Mapper> mapperFactory =
-            new CassandraMutationMapperFactory(CassandraMutation.class);
+            new CassandraMutationMapperFactory(
+                CassandraMutation.class, cassandraConfig.getTracing());
         input
             .apply(
                 "Create CassandraMutation from FeatureRow",
                 ParDo.of(
                     new FeatureRowToCassandraMutationDoFn(
-                        getFeatureSets(), cassandraConfig.getDefaultTtl())))
+                        getFeatureSets(),
+                        cassandraConfig.getDefaultTtl(),
+                        cassandraConfig.getVersionless())))
             .apply(
                 CassandraIO.<CassandraMutation>write()
                     .withHosts(Arrays.asList(cassandraConfig.getBootstrapHosts().split(",")))

@@ -554,6 +554,7 @@
                         It is assumed that the GPG command used is version 2.x.
                         -->
                         <configuration>
+                            <skip>true</skip>
                             <gpgArguments>
                                 <arg>--pinentry-mode</arg>
                                 <arg>loopback</arg>

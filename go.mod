@@ -7,8 +7,8 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/mock v1.2.0
-	github.com/golang/protobuf v1.3.2
-	github.com/google/go-cmp v0.3.0
+	github.com/golang/protobuf v1.4.1
+	github.com/google/go-cmp v0.4.0
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/lyft/protoc-gen-validate v0.1.0 // indirect
 	github.com/mitchellh/copystructure v1.0.0 // indirect

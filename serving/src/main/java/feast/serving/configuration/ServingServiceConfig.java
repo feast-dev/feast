@@ -16,6 +16,7 @@
  */
 package feast.serving.configuration;
 
+import com.datastax.oss.driver.api.core.ConsistencyLevel;
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.cql.*;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -176,11 +177,22 @@ public class ServingServiceConfig {
         log.info(
             String.format(
                 "Cluster lb policies: %s", cluster.getContext().getLoadBalancingPolicies()));
+        ConsistencyLevel cl;
+        log.info(String.format("Consistency level: %s", cassandraConfig.getConsistency()));
+        if (cassandraConfig.getConsistency().equals("ONE")) {
+          log.info("Serving with read consistency ONE");
+          cl = ConsistencyLevel.ONE;
+        } else {
+          log.info("Serving with read consistency TWO");
+          cl = ConsistencyLevel.TWO;
+        }
         servingService =
             new CassandraServingService(
                 cluster,
                 cassandraConfig.getKeyspace(),
                 cassandraConfig.getTableName(),
+                cassandraConfig.getVersionless(),
+                cl,
                 specService,
                 tracer);
         break;

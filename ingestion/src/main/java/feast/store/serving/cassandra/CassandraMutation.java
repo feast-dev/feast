@@ -83,7 +83,8 @@ public final class CassandraMutation implements Serializable {
     return ttl;
   }
 
-  static String keyFromFeatureRow(FeatureSetSpec featureSetSpec, FeatureRow featureRow) {
+  static String keyFromFeatureRow(
+      FeatureSetSpec featureSetSpec, FeatureRow featureRow, Boolean versionless) {
     List<String> entityNames =
         featureSetSpec.getEntitiesList().stream()
             .map(EntitySpec::getName)
@@ -95,7 +96,13 @@ public final class CassandraMutation implements Serializable {
         entities.put(entityNames.get(entityNames.indexOf(field.getName())), field);
       }
     }
-    return featureRow.getFeatureSet()
+    String fsName;
+    if (versionless) {
+      fsName = featureRow.getFeatureSet().split(":")[0];
+    } else {
+      fsName = featureRow.getFeatureSet();
+    }
+    return fsName
         + ":"
         + entityNames.stream()
             .map(

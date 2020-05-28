@@ -24,11 +24,21 @@ from typing import (
     Iterable as typing___Iterable,
     Optional as typing___Optional,
     Text as typing___Text,
+    Union as typing___Union,
 )
 
 from typing_extensions import (
     Literal as typing_extensions___Literal,
 )
+
+
+builtin___bool = bool
+builtin___bytes = bytes
+builtin___float = float
+builtin___int = int
+if sys.version_info < (3,):
+    builtin___buffer = buffer
+    builtin___unicode = unicode
 
 
 class FeatureRow(google___protobuf___message___Message):
@@ -47,13 +57,14 @@ class FeatureRow(google___protobuf___message___Message):
         event_timestamp : typing___Optional[google___protobuf___timestamp_pb2___Timestamp] = None,
         feature_set : typing___Optional[typing___Text] = None,
         ) -> None: ...
-    @classmethod
-    def FromString(cls, s: bytes) -> FeatureRow: ...
+    if sys.version_info >= (3,):
+        @classmethod
+        def FromString(cls, s: builtin___bytes) -> FeatureRow: ...
+    else:
+        @classmethod
+        def FromString(cls, s: typing___Union[builtin___bytes, builtin___buffer, builtin___unicode]) -> FeatureRow: ...
     def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
-    if sys.version_info >= (3,):
-        def HasField(self, field_name: typing_extensions___Literal[u"event_timestamp"]) -> bool: ...
-        def ClearField(self, field_name: typing_extensions___Literal[u"event_timestamp",u"feature_set",u"fields"]) -> None: ...
-    else:
-        def HasField(self, field_name: typing_extensions___Literal[u"event_timestamp",b"event_timestamp"]) -> bool: ...
-        def ClearField(self, field_name: typing_extensions___Literal[u"event_timestamp",b"event_timestamp",u"feature_set",b"feature_set",u"fields",b"fields"]) -> None: ...
+    def HasField(self, field_name: typing_extensions___Literal[u"event_timestamp",b"event_timestamp"]) -> builtin___bool: ...
+    def ClearField(self, field_name: typing_extensions___Literal[u"event_timestamp",b"event_timestamp",u"feature_set",b"feature_set",u"fields",b"fields"]) -> None: ...
+global___FeatureRow = FeatureRow

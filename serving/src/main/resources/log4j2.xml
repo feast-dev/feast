@@ -33,7 +33,7 @@
         </Console>
     </Appenders>
     <Loggers>
-        <Logger name="feast.serving" level="debug" additivity="false">
+        <Logger name="feast.serving" level="${LOG_LEVEL}" additivity="false">
             <AppenderRef ref="${APPENDER_TYPE}Appender"/>
         </Logger>
         <Root level="${LOG_LEVEL}">

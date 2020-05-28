@@ -66,6 +66,8 @@ public class CassandraServingService implements ServingService {
   private final CqlSession session;
   private final String keyspace;
   private final String tableName;
+  private final Boolean versionless;
+  private final ConsistencyLevel consistency;
   private final Tracer tracer;
   private final PreparedStatement query;
   private final CachedSpecService specService;
@@ -74,6 +76,8 @@ public class CassandraServingService implements ServingService {
       CqlSession session,
       String keyspace,
       String tableName,
+      Boolean versionless,
+      ConsistencyLevel consistency,
       CachedSpecService specService,
       Tracer tracer) {
     this.session = session;
@@ -87,6 +91,8 @@ public class CassandraServingService implements ServingService {
                 keyspace, tableName));
     this.query = query;
     this.specService = specService;
+    this.versionless = versionless;
+    this.consistency = consistency;
   }
 
   /** {@inheritDoc} */
@@ -120,11 +126,11 @@ public class CassandraServingService implements ServingService {
                 .collect(Collectors.toList());
 
         List<String> cassandraKeys =
-            createLookupKeys(featureSetEntityNames, entityRows, featureSetRequest);
+            createLookupKeys(featureSetEntityNames, entityRows, featureSetRequest, versionless);
         try {
           getAndProcessAll(cassandraKeys, entityRows, featureValuesMap, featureSetRequest);
         } catch (Exception e) {
-          log.info(e.getStackTrace().toString());
+          log.error(e.getStackTrace().toString());
           throw Status.INTERNAL
               .withDescription("Unable to parse cassandra response/ while retrieving feature")
               .withCause(e)
@@ -155,11 +161,17 @@ public class CassandraServingService implements ServingService {
   List<String> createLookupKeys(
       List<String> featureSetEntityNames,
       List<EntityRow> entityRows,
-      FeatureSetRequest featureSetRequest) {
+      FeatureSetRequest featureSetRequest,
+      Boolean versionless) {
     try (Scope scope = tracer.buildSpan("Cassandra-makeCassandraKeys").startActive(true)) {
       FeatureSetSpec fsSpec = featureSetRequest.getSpec();
-      String featureSetId =
-          String.format("%s/%s:%s", fsSpec.getProject(), fsSpec.getName(), fsSpec.getVersion());
+      String featureSetId;
+      if (versionless) {
+        featureSetId = String.format("%s/%s", fsSpec.getProject(), fsSpec.getName());
+      } else {
+        featureSetId =
+            String.format("%s/%s:%s", fsSpec.getProject(), fsSpec.getName(), fsSpec.getVersion());
+      }
       return entityRows.stream()
           .map(row -> createCassandraKey(featureSetId, featureSetEntityNames, row))
           .collect(Collectors.toList());
@@ -181,7 +193,6 @@ public class CassandraServingService implements ServingService {
     List<ResultSet> results = sendMultiGet(keys);
     long startTime = System.currentTimeMillis();
     try (Scope scope = tracer.buildSpan("Cassandra-processResponse").startActive(true)) {
-      log.debug("Found {} results", results.size());
       int foundResults = 0;
       while (true) {
         if (foundResults == results.size()) {
@@ -198,6 +209,15 @@ public class CassandraServingService implements ServingService {
           }
           List<ExecutionInfo> ee = queryRows.getExecutionInfos();
           foundResults += 1;
+          if (queryRows.getAvailableWithoutFetching() == 0) {
+            log.warn(String.format("Failed to find a row for the key %s", keys.get(i)));
+            log.warn(
+                String.format(
+                    "Incoming Payload: %s", queryRows.getExecutionInfo().getIncomingPayload()));
+            log.warn(String.format("Errors: %s", queryRows.getExecutionInfo().getErrors()));
+            log.warn(
+                String.format("Coordinator: %s", queryRows.getExecutionInfo().getCoordinator()));
+          }
           while (queryRows.getAvailableWithoutFetching() > 0) {
             Row row = queryRows.one();
             ee = queryRows.getExecutionInfos();
@@ -208,7 +228,6 @@ public class CassandraServingService implements ServingService {
                     TimeUnit.MICROSECONDS.toSeconds(microSeconds),
                     TimeUnit.MICROSECONDS.toNanos(
                         Math.floorMod(microSeconds, TimeUnit.SECONDS.toMicros(1))));
-            log.debug(String.format("Found the query row: %s", row.toString()));
             try {
               fields.add(
                   Field.newBuilder()
@@ -325,7 +344,7 @@ public class CassandraServingService implements ServingService {
         for (String key : keys) {
           results.add(
               session.execute(
-                  query.bind(key).setTracing(false).setConsistencyLevel(ConsistencyLevel.TWO)));
+                  query.bind(key).setTracing(false).setConsistencyLevel(this.consistency)));
         }
         return results;
       } catch (Exception e) {

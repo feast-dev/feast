@@ -14,7 +14,7 @@
 #  limitations under the License.
 #
 REGISTRY := gcr.io/pm-registry/feast
-VERSION := v0.4-cassandra-ordered-notrace
+VERSION := v0.4-cassandra-versionless-10
 PROJECT_ROOT 	:= $(shell git rev-parse --show-toplevel)
 
 test:

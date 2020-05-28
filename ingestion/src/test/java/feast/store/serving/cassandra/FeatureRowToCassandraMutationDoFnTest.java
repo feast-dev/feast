@@ -84,7 +84,8 @@ public class FeatureRowToCassandraMutationDoFnTest implements Serializable {
                             FeatureSet.newBuilder().setSpec(featureSetSpec).build());
                       }
                     },
-                    Duration.newBuilder().setSeconds(0).build())));
+                    Duration.newBuilder().setSeconds(0).build(),
+                    false)));
 
     CassandraMutation[] expected =
         new CassandraMutation[] {
@@ -152,7 +153,8 @@ public class FeatureRowToCassandraMutationDoFnTest implements Serializable {
                             FeatureSet.newBuilder().setSpec(featureSetSpec).build());
                       }
                     },
-                    Duration.newBuilder().setSeconds(0).build())));
+                    Duration.newBuilder().setSeconds(0).build(),
+                    false)));
 
     CassandraMutation[] expected =
         new CassandraMutation[] {
@@ -222,7 +224,8 @@ public class FeatureRowToCassandraMutationDoFnTest implements Serializable {
                             FeatureSet.newBuilder().setSpec(featureSetSpec).build());
                       }
                     },
-                    defaultTtl)));
+                    defaultTtl,
+                    false)));
 
     CassandraMutation[] expected =
         new CassandraMutation[] {

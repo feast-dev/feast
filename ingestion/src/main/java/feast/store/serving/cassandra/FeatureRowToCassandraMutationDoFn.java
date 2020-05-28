@@ -39,14 +39,17 @@ public class FeatureRowToCassandraMutationDoFn extends DoFn<FeatureRow, Cassandr
       org.slf4j.LoggerFactory.getLogger(FeatureRowToCassandraMutationDoFn.class);
   private Map<String, FeatureSet> featureSets;
   private Map<String, Integer> maxAges;
+  private Boolean versionless;
 
   public FeatureRowToCassandraMutationDoFn(
-      Map<String, FeatureSet> featureSets, Duration defaultTtl) {
+      Map<String, FeatureSet> featureSets, Duration defaultTtl, Boolean versionless) {
     this.featureSets = featureSets;
     this.maxAges = new HashMap<>();
+    this.versionless = versionless;
     for (FeatureSet set : featureSets.values()) {
       FeatureSetSpec spec = set.getSpec();
-      String featureSetName = spec.getProject() + "/" + spec.getName() + ":" + spec.getVersion();
+      String featureSetName;
+      featureSetName = spec.getProject() + "/" + spec.getName() + ":" + spec.getVersion();
       if (spec.getMaxAge() != null && spec.getMaxAge().getSeconds() > 0) {
         maxAges.put(featureSetName, Math.toIntExact(spec.getMaxAge().getSeconds()));
       } else {
@@ -65,16 +68,20 @@ public class FeatureRowToCassandraMutationDoFn extends DoFn<FeatureRow, Cassandr
           featureSetSpec.getFeaturesList().stream()
               .map(FeatureSpec::getName)
               .collect(Collectors.toSet());
-      String key = CassandraMutation.keyFromFeatureRow(featureSetSpec, featureRow);
+      String key = CassandraMutation.keyFromFeatureRow(featureSetSpec, featureRow, versionless);
 
       Collection<CassandraMutation> mutations = new ArrayList<>();
       for (Field field : featureRow.getFieldsList()) {
         if (featureNames.contains(field.getName())) {
+          ByteBuffer value = ByteBuffer.wrap(field.getValue().toByteArray());
+          if (!value.hasRemaining()) {
+            continue;
+          }
           mutations.add(
               new CassandraMutation(
                   key,
                   field.getName(),
-                  ByteBuffer.wrap(field.getValue().toByteArray()),
+                  value,
                   Timestamps.toMicros(featureRow.getEventTimestamp()),
                   maxAges.get(featureRow.getFeatureSet())));
         }

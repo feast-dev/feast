@@ -29,9 +29,12 @@ import org.apache.beam.sdk.io.cassandra.Mapper;
 public class CassandraMutationMapper implements Mapper<CassandraMutation>, Serializable {
 
   private com.datastax.driver.mapping.Mapper<CassandraMutation> mapper;
+  private Boolean tracing;
 
-  CassandraMutationMapper(com.datastax.driver.mapping.Mapper<CassandraMutation> mapper) {
+  CassandraMutationMapper(
+      com.datastax.driver.mapping.Mapper<CassandraMutation> mapper, Boolean tracing) {
     this.mapper = mapper;
+    this.tracing = tracing;
   }
 
   @Override
@@ -57,7 +60,7 @@ public class CassandraMutationMapper implements Mapper<CassandraMutation>, Seria
         entityClass,
         Option.timestamp(entityClass.getWriteTime()),
         Option.ttl(entityClass.getTtl()),
-        Option.consistencyLevel(ConsistencyLevel.ALL),
-        Option.tracing(false));
+        Option.consistencyLevel(ConsistencyLevel.ONE),
+        Option.tracing(tracing));
   }
 }

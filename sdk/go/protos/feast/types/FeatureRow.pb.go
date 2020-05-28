@@ -29,7 +29,7 @@ type FeatureRow struct {
 	// will use to perform joins, determine latest values, and coalesce rows.
 	EventTimestamp *timestamp.Timestamp `protobuf:"bytes,3,opt,name=event_timestamp,json=eventTimestamp,proto3" json:"event_timestamp,omitempty"`
 	// Complete reference to the featureSet this featureRow belongs to, in the form of
-	// featureSetName:version. This value will be used by the feast ingestion job to filter
+	// <project>/<feature-set-name>:<version>. This value will be used by the feast ingestion job to filter
 	// rows, and write the values to the correct tables.
 	FeatureSet           string   `protobuf:"bytes,6,opt,name=feature_set,json=featureSet,proto3" json:"feature_set,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -87,7 +87,9 @@ func init() {
 	proto.RegisterType((*FeatureRow)(nil), "feast.types.FeatureRow")
 }
 
-func init() { proto.RegisterFile("feast/types/FeatureRow.proto", fileDescriptor_fbbea9c89787d1c7) }
+func init() {
+	proto.RegisterFile("feast/types/FeatureRow.proto", fileDescriptor_fbbea9c89787d1c7)
+}
 
 var fileDescriptor_fbbea9c89787d1c7 = []byte{
 	// 238 bytes of a gzipped FileDescriptorProto

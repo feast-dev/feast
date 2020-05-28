@@ -28,7 +28,7 @@ option go_package = "github.com/gojek/feast/sdk/go/protos/feast/core";
 // The way FeatureRow is encoded and decoded when it is written to and read from
 // the Store depends on the type of the Store.
 //
-// For example, a FeatureRow will materialize as a row in a table in 
+// For example, a FeatureRow will materialize as a row in a table in
 // BigQuery but it will materialize as a key, value pair element in Redis.
 //
 message Store {
@@ -41,30 +41,30 @@ message Store {
     // The Redis data types used (https://redis.io/topics/data-types):
     // - key: STRING
     // - value: STRING
-    // 
+    //
     // Encodings:
     // - key: byte array of RedisKey (refer to feast.storage.RedisKey)
     // - value: byte array of FeatureRow (refer to feast.types.FeatureRow)
-    // 
+    //
     REDIS = 1;
 
     // BigQuery stores a FeatureRow element as a row in a BigQuery table.
-    // 
+    //
     // Table name is derived from the feature set name and version as:
-    // [feature_set_name]_v[feature_set_version] 
-    // 
+    // [feature_set_name]_v[feature_set_version]
+    //
     // For example:
     // A feature row for feature set "driver" and version "1" will be written
     // to table "driver_v1".
-    // 
-    // The entities and features in a FeatureSetSpec corresponds to the 
-    // fields in the BigQuery table (these make up the BigQuery schema). 
-    // The name of the entity spec and feature spec corresponds to the column 
-    // names, and the value_type of entity spec and feature spec corresponds 
-    // to BigQuery standard SQL data type of the column. 
-    // 
-    // The following BigQuery fields are reserved for Feast internal use. 
-    // Ingestion of entity or feature spec with names identical 
+    //
+    // The entities and features in a FeatureSetSpec corresponds to the
+    // fields in the BigQuery table (these make up the BigQuery schema).
+    // The name of the entity spec and feature spec corresponds to the column
+    // names, and the value_type of entity spec and feature spec corresponds
+    // to BigQuery standard SQL data type of the column.
+    //
+    // The following BigQuery fields are reserved for Feast internal use.
+    // Ingestion of entity or feature spec with names identical
     // to the following field names will raise an exception during ingestion.
     //
     //   column_name       | column_data_type | description
@@ -77,21 +77,21 @@ message Store {
     // of the FeatureRow (https://cloud.google.com/bigquery/docs/partitioned-tables).
     //
     // Since newer version of feature set can introduce breaking, non backward-
-    // compatible BigQuery schema updates, incrementing the version of a 
+    // compatible BigQuery schema updates, incrementing the version of a
     // feature set will result in the creation of a new empty BigQuery table
     // with the new schema.
-    // 
-    // The following table shows how ValueType in Feast is mapped to 
-    // BigQuery Standard SQL data types 
+    //
+    // The following table shows how ValueType in Feast is mapped to
+    // BigQuery Standard SQL data types
     // (https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types):
     //
-    // BYTES       : BYTES 
-    // STRING      : STRING 
+    // BYTES       : BYTES
+    // STRING      : STRING
     // INT32       : INT64
-    // INT64       : IN64 
+    // INT64       : IN64
     // DOUBLE      : FLOAT64
-    // FLOAT       : FLOAT64 
-    // BOOL        : BOOL 
+    // FLOAT       : FLOAT64
+    // BOOL        : BOOL
     // BYTES_LIST  : ARRAY
     // STRING_LIST : ARRAY
     // INT32_LIST  : ARRAY
@@ -154,6 +154,9 @@ message Store {
     // Default expiration in seconds to use when FeatureSetSpec does not have max_age defined.
     // Specify 0 for no default expiration
     google.protobuf.Duration default_ttl = 6;
+    bool versionless = 7;
+    string consistency = 8;
+    bool tracing = 9;
   }
 
   message Subscription {

@@ -940,7 +940,9 @@ func init() {
 	proto.RegisterType((*ListProjectsResponse)(nil), "feast.core.ListProjectsResponse")
 }
 
-func init() { proto.RegisterFile("feast/core/CoreService.proto", fileDescriptor_d9be266444105411) }
+func init() {
+	proto.RegisterFile("feast/core/CoreService.proto", fileDescriptor_d9be266444105411)
+}
 
 var fileDescriptor_d9be266444105411 = []byte{
 	// 762 bytes of a gzipped FileDescriptorProto
@@ -996,11 +998,11 @@ var fileDescriptor_d9be266444105411 = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConn
+var _ grpc.ClientConnInterface
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
+const _ = grpc.SupportPackageIsVersion6
 
 // CoreServiceClient is the client API for CoreService service.
 //
@@ -1048,10 +1050,10 @@ type CoreServiceClient interface {
 }
 
 type coreServiceClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewCoreServiceClient(cc *grpc.ClientConn) CoreServiceClient {
+func NewCoreServiceClient(cc grpc.ClientConnInterface) CoreServiceClient {
 	return &coreServiceClient{cc}
 }
 

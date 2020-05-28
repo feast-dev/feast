@@ -664,7 +664,9 @@ func init() {
 	proto.RegisterType((*BoolList)(nil), "feast.types.BoolList")
 }
 
-func init() { proto.RegisterFile("feast/types/Value.proto", fileDescriptor_47c504407d284ecc) }
+func init() {
+	proto.RegisterFile("feast/types/Value.proto", fileDescriptor_47c504407d284ecc)
+}
 
 var fileDescriptor_47c504407d284ecc = []byte{
 	// 600 bytes of a gzipped FileDescriptorProto

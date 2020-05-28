@@ -25,7 +25,8 @@ type RedisKey struct {
 	// FeatureSet this row belongs to, this is defined as featureSetName:version.
 	FeatureSet string `protobuf:"bytes,2,opt,name=feature_set,json=featureSet,proto3" json:"feature_set,omitempty"`
 	// List of fields containing entity names and their respective values
-	// contained within this feature row.
+	// contained within this feature row. The entities should be sorted
+	// by the entity name alphabetically in ascending order.
 	Entities             []*types.Field `protobuf:"bytes,3,rep,name=entities,proto3" json:"entities,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
@@ -75,7 +76,9 @@ func init() {
 	proto.RegisterType((*RedisKey)(nil), "feast.storage.RedisKey")
 }
 
-func init() { proto.RegisterFile("feast/storage/Redis.proto", fileDescriptor_64e898a359fc9e5d) }
+func init() {
+	proto.RegisterFile("feast/storage/Redis.proto", fileDescriptor_64e898a359fc9e5d)
+}
 
 var fileDescriptor_64e898a359fc9e5d = []byte{
 	// 193 bytes of a gzipped FileDescriptorProto

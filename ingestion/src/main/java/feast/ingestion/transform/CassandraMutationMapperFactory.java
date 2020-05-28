@@ -26,9 +26,11 @@ public class CassandraMutationMapperFactory implements SerializableFunction<Sess
 
   private transient MappingManager mappingManager;
   private Class<CassandraMutation> entityClass;
+  private boolean tracing;
 
-  public CassandraMutationMapperFactory(Class<CassandraMutation> entityClass) {
+  public CassandraMutationMapperFactory(Class<CassandraMutation> entityClass, Boolean tracing) {
     this.entityClass = entityClass;
+    this.tracing = tracing;
   }
 
   @Override
@@ -37,6 +39,6 @@ public class CassandraMutationMapperFactory implements SerializableFunction<Sess
       this.mappingManager = new MappingManager(session);
     }
 
-    return new CassandraMutationMapper(mappingManager.mapper(entityClass));
+    return new CassandraMutationMapper(mappingManager.mapper(entityClass), this.tracing);
   }
 }

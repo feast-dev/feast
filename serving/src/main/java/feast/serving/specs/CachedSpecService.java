@@ -138,7 +138,6 @@ public class CachedSpecService {
                         .setSpec(featureSetSpec)
                         .addAllFeatureReferences(requestedFeatures)
                         .build();
-                log.info("FS Request {}", featureSetRequest.getFeatureReferences());
                 featureSetRequests.add(featureSetRequest);
               } catch (ExecutionException e) {
                 throw new SpecRetrievalException(

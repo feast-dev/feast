@@ -176,7 +176,9 @@ func init() {
 	proto.RegisterType((*KafkaSourceConfig)(nil), "feast.core.KafkaSourceConfig")
 }
 
-func init() { proto.RegisterFile("feast/core/Source.proto", fileDescriptor_4d161c4e53091468) }
+func init() {
+	proto.RegisterFile("feast/core/Source.proto", fileDescriptor_4d161c4e53091468)
+}
 
 var fileDescriptor_4d161c4e53091468 = []byte{
 	// 273 bytes of a gzipped FileDescriptorProto
