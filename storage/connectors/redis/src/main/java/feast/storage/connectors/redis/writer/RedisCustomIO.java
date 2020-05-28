@@ -19,7 +19,7 @@ package feast.storage.connectors.redis.writer;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
-import feast.proto.core.StoreProto.Store.RedisConfig;
+import feast.proto.core.StoreProto.Store.*;
 import feast.proto.storage.RedisProto.RedisKey;
 import feast.proto.storage.RedisProto.RedisKey.Builder;
 import feast.proto.types.FeatureRowProto.FeatureRow;
@@ -28,7 +28,7 @@ import feast.proto.types.ValueProto;
 import feast.storage.api.writer.FailedElement;
 import feast.storage.api.writer.WriteResult;
 import feast.storage.common.retry.Retriable;
-import io.lettuce.core.RedisConnectionException;
+import io.lettuce.core.RedisException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -63,21 +63,22 @@ public class RedisCustomIO {
 
   private RedisCustomIO() {}
 
-  public static Write write(RedisConfig redisConfig, Map<String, FeatureSetSpec> featureSetSpecs) {
-    return new Write(redisConfig, featureSetSpecs);
+  public static Write write(
+      RedisIngestionClient redisIngestionClient, Map<String, FeatureSetSpec> featureSetSpecs) {
+    return new Write(redisIngestionClient, featureSetSpecs);
   }
 
   /** ServingStoreWrite data to a Redis server. */
   public static class Write extends PTransform<PCollection<FeatureRow>, WriteResult> {
 
     private Map<String, FeatureSetSpec> featureSetSpecs;
-    private RedisConfig redisConfig;
+    private RedisIngestionClient redisIngestionClient;
     private int batchSize;
     private int timeout;
 
-    public Write(RedisConfig redisConfig, Map<String, FeatureSetSpec> featureSetSpecs) {
-
-      this.redisConfig = redisConfig;
+    public Write(
+        RedisIngestionClient redisIngestionClient, Map<String, FeatureSetSpec> featureSetSpecs) {
+      this.redisIngestionClient = redisIngestionClient;
       this.featureSetSpecs = featureSetSpecs;
     }
 
@@ -95,7 +96,7 @@ public class RedisCustomIO {
     public WriteResult expand(PCollection<FeatureRow> input) {
       PCollectionTuple redisWrite =
           input.apply(
-              ParDo.of(new WriteDoFn(redisConfig, featureSetSpecs))
+              ParDo.of(new WriteDoFn(redisIngestionClient, featureSetSpecs))
                   .withOutputTags(successfulInsertsTag, TupleTagList.of(failedInsertsTupleTag)));
       return WriteResult.in(
           input.getPipeline(),
@@ -111,9 +112,10 @@ public class RedisCustomIO {
       private int timeout = DEFAULT_TIMEOUT;
       private RedisIngestionClient redisIngestionClient;
 
-      WriteDoFn(RedisConfig config, Map<String, FeatureSetSpec> featureSetSpecs) {
+      WriteDoFn(
+          RedisIngestionClient redisIngestionClient, Map<String, FeatureSetSpec> featureSetSpecs) {
 
-        this.redisIngestionClient = new RedisStandaloneIngestionClient(config);
+        this.redisIngestionClient = redisIngestionClient;
         this.featureSetSpecs = featureSetSpecs;
       }
 
@@ -140,7 +142,7 @@ public class RedisCustomIO {
       public void startBundle() {
         try {
           redisIngestionClient.connect();
-        } catch (RedisConnectionException e) {
+        } catch (RedisException e) {
           log.error("Connection to redis cannot be established ", e);
         }
         featureRows.clear();
@@ -165,7 +167,7 @@ public class RedisCustomIO {
 
                   @Override
                   public Boolean isExceptionRetriable(Exception e) {
-                    return e instanceof RedisConnectionException;
+                    return e instanceof RedisException;
                   }
 
                   @Override

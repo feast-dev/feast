@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.storage.connectors.rediscluster.writer;
+package feast.storage.connectors.redis.writer;
 
 import static feast.storage.common.testing.TestUtil.field;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -67,7 +67,7 @@ public class RedisClusterFeatureSinkTest {
   private RedisClusterClient redisClusterClient;
   private RedisClusterCommands<byte[], byte[]> redisClusterCommands;
 
-  private RedisClusterFeatureSink redisClusterFeatureSink;
+  private RedisFeatureSink redisClusterFeatureSink;
 
   @Before
   public void setUp() throws IOException {
@@ -123,7 +123,7 @@ public class RedisClusterFeatureSinkTest {
             .build();
 
     redisClusterFeatureSink =
-        RedisClusterFeatureSink.builder()
+        RedisFeatureSink.builder()
             .setFeatureSetSpecs(specMap)
             .setRedisClusterConfig(redisClusterConfig)
             .build();
@@ -141,8 +141,8 @@ public class RedisClusterFeatureSinkTest {
 
   @After
   public void teardown() {
-    redisClusterClient.shutdown();
     redisCluster.stop();
+    redisClusterClient.shutdown();
     deleteDirectory(new File(String.valueOf(Paths.get(System.getProperty("user.dir"), ".redis"))));
   }
 
@@ -259,7 +259,7 @@ public class RedisClusterFeatureSinkTest {
             .build();
     Map<String, FeatureSetSpec> specMap = ImmutableMap.of("myproject/fs", spec1);
     redisClusterFeatureSink =
-        RedisClusterFeatureSink.builder()
+        RedisFeatureSink.builder()
             .setFeatureSetSpecs(specMap)
             .setRedisClusterConfig(redisClusterConfig)
             .build();
