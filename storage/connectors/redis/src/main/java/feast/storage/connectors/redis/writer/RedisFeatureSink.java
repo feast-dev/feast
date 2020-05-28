@@ -20,6 +20,7 @@ import com.google.auto.value.AutoValue;
 import feast.proto.core.FeatureSetProto.FeatureSet;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.StoreProto;
+import feast.proto.core.StoreProto.Store.RedisClusterConfig;
 import feast.proto.core.StoreProto.Store.RedisConfig;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.storage.api.writer.FeatureSink;
@@ -28,6 +29,7 @@ import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisConnectionException;
 import io.lettuce.core.RedisURI;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -46,7 +48,16 @@ public abstract class RedisFeatureSink implements FeatureSink {
     return builder().setFeatureSetSpecs(featureSetSpecs).setRedisConfig(redisConfig).build();
   }
 
+  public static FeatureSink fromConfig(
+      RedisClusterConfig redisConfig, Map<String, FeatureSetSpec> featureSetSpecs) {
+    return builder().setFeatureSetSpecs(featureSetSpecs).setRedisClusterConfig(redisConfig).build();
+  }
+
+  @Nullable
   public abstract RedisConfig getRedisConfig();
+
+  @Nullable
+  public abstract RedisClusterConfig getRedisClusterConfig();
 
   public abstract Map<String, FeatureSetSpec> getFeatureSetSpecs();
 
@@ -60,6 +71,8 @@ public abstract class RedisFeatureSink implements FeatureSink {
   public abstract static class Builder {
     public abstract Builder setRedisConfig(RedisConfig redisConfig);
 
+    public abstract Builder setRedisClusterConfig(RedisClusterConfig redisConfig);
+
     public abstract Builder setFeatureSetSpecs(Map<String, FeatureSetSpec> featureSetSpecs);
 
     public abstract RedisFeatureSink build();
@@ -67,22 +80,36 @@ public abstract class RedisFeatureSink implements FeatureSink {
 
   @Override
   public void prepareWrite(FeatureSet featureSet) {
-
-    RedisClient redisClient =
-        RedisClient.create(RedisURI.create(getRedisConfig().getHost(), getRedisConfig().getPort()));
-    try {
-      redisClient.connect();
-    } catch (RedisConnectionException e) {
+    if (getRedisConfig() != null) {
+      RedisClient redisClient =
+          RedisClient.create(
+              RedisURI.create(getRedisConfig().getHost(), getRedisConfig().getPort()));
+      try {
+        redisClient.connect();
+      } catch (RedisConnectionException e) {
+        throw new RuntimeException(
+            String.format(
+                "Failed to connect to Redis at host: '%s' port: '%d'. Please check that your Redis is running and accessible from Feast.",
+                getRedisConfig().getHost(), getRedisConfig().getPort()));
+      }
+      redisClient.shutdown();
+    } else if (getRedisClusterConfig() == null) {
       throw new RuntimeException(
-          String.format(
-              "Failed to connect to Redis at host: '%s' port: '%d'. Please check that your Redis is running and accessible from Feast.",
-              getRedisConfig().getHost(), getRedisConfig().getPort()));
+          "At least one RedisConfig or RedisClusterConfig must be provided to Redis Sink");
     }
-    redisClient.shutdown();
   }
 
   @Override
   public PTransform<PCollection<FeatureRow>, WriteResult> writer() {
-    return new RedisCustomIO.Write(getRedisConfig(), getFeatureSetSpecs());
+    if (getRedisClusterConfig() != null) {
+      return new RedisCustomIO.Write(
+          new RedisClusterIngestionClient(getRedisClusterConfig()), getFeatureSetSpecs());
+    } else if (getRedisConfig() != null) {
+      return new RedisCustomIO.Write(
+          new RedisStandaloneIngestionClient(getRedisConfig()), getFeatureSetSpecs());
+    } else {
+      throw new RuntimeException(
+          "At least one RedisConfig or RedisClusterConfig must be provided to Redis Sink");
+    }
   }
 }
