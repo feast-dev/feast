@@ -23,18 +23,17 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Value class containing the application-default configuration for a runner.
- * When a job is started by core, all fields in the object will be converted into
- * --key=value args to seed the beam pipeline options.
- *
+ * Value class containing the application-default configuration for a runner. When a job is started
+ * by core, all fields in the object will be converted into --key=value args to seed the beam
+ * pipeline options.
  */
 public abstract class RunnerConfig {
 
   /**
-   * Converts the fields in this class to a list of --key=value args to be
-   * passed to a {@link org.apache.beam.sdk.options.PipelineOptionsFactory}.
+   * Converts the fields in this class to a list of --key=value args to be passed to a {@link
+   * org.apache.beam.sdk.options.PipelineOptionsFactory}.
    *
-   * Ignores values that are proto-default (e.g. empty string, 0).
+   * <p>Ignores values that are proto-default (e.g. empty string, 0).
    *
    * @return Array of string args in the format --key=value.
    * @throws IllegalAccessException
