@@ -8,10 +8,10 @@ The following is a YAML representation of a feature specification. This specific
 
 {% code title="total\_trips\_feature.yaml" %}
 ```yaml
-# Entity name
+# Feature name
 name: total_trips_24h
 
-# Entity value type
+# Feature value type
 value_type: INT64
 ```
 {% endcode %}

@@ -12,7 +12,7 @@ Feature sets are a grouping of feature sets based on how they are loaded into Fe
 
 ## Customer Transactions Example
 
-Below is an example of a basic `customer transactions` feature set that has been exported to YAML:
+Below is an example specification of a basic `customer transactions` feature set that has been exported to YAML:
 
 {% tabs %}
 {% tab title="customer\_transactions\_feature\_set.yaml" %}
@@ -48,7 +48,44 @@ customer_df = pd.read_csv("customer_data.csv")
 # Create feature set from YAML (using YAML is optional)
 cust_trans_fs = FeatureSet.from_yaml("customer_transactions_feature_set.yaml")
 
+# Apply new feature set
+client.apply(cust_trans_fs)
+
 # Load feature data into Feast for this specific feature set
 client.ingest(cust_trans_fs, customer_data)
 ```
+
+{% hint style="info" %}
+When applying a Feature Set without specifying a project in its specification, Feast creates/updates the Feature Set in the `default` project. To create a Feature Set in another project, specify the project of choice in the Feature Set specification's project field.
+{% endhint %}
+
+### **Making changes to Feature Sets**
+
+In order to facilitate the need for feature set definitions to change over time, a limited set of changes can be made to existing feature sets. 
+
+To apply changes to a feature set:
+
+```python
+# With existing feature set
+cust_trans_fs = FeatureSet.from_yaml("customer_transactions_feature_set.yaml")
+
+# Add new feature, avg_basket_size
+cust_trans_fs.add(Feature(name="avg_basket_size", dtype=ValueType.INT32))
+
+# Apply changed feature set
+client.apply(cust_trans_fs)
+```
+
+Permitted changes include:
+
+* Adding new features
+* Deleting existing features \(note that features are tombstoned and remain on record, rather than removed completely; as a result, new features will not be able to take the names of these deleted features\)
+* Changing features' TFX schemas
+* Changing the feature set's source and max age
+
+Note that the following are **not** allowed:
+
+* Changes to project or name of the feature set.
+* Changes to entities.
+* Changes to names and types of existing features.
 

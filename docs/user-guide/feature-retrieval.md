@@ -31,6 +31,10 @@ features = [
 target = 'churn'
 ```
 
+{% hint style="info" %}
+Where the Features from different Feature Sets use the same name, the Feature Set name `feature-set` is required to disambiguate which feature is specified.
+{% endhint %}
+
 Feature references only apply to a single `project`. Features cannot be retrieved across projects in a single request.
 
 ## 3. Historical feature retrieval
@@ -53,6 +57,10 @@ dataset = client.get_batch_features(
 # Alternatively it is possible to use a file reference if the data is too large
 df = dataset.to_dataframe()
 ```
+
+{% hint style="info" %}
+When no project is specified when retrieving features with `get_batch_features()`, Feast infers that the features specified belong to the `default` project. To retrieve from another project, specify the `default` parameter when retrieving features.
+{% endhint %}
 
 In the above example, Feast does a point in time correct query from a single feature set. For each timestamp and entity key combination that is provided by `entity_df`, Feast determines the values of all the features in the `features` list at that respective point in time and then joins features values to that specific entity value and timestamp, and repeats this process for all timestamps.
 
@@ -111,6 +119,10 @@ data = client.get_online_features(
         entity_rows=entity_rows, # Contains only entities (driver ids)
     )
 ```
+
+{% hint style="info" %}
+When no project is specified when retrieving features with `get_online_feature()`, Feast infers that the features specified belong to the `default` project. To retrieve from another project, specify the `project` parameter when retrieving features.
+{% endhint %}
 
 Online serving with Feast is built to be very low latency. Feast Serving provides a [gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html) that is backed by [Redis](https://redis.io/). We also provide support for [Python](https://api.docs.feast.dev/python/), [Go](https://godoc.org/github.com/gojek/feast/sdk/go), and Java clients.
 

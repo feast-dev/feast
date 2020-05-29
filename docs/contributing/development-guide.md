@@ -32,7 +32,7 @@ The following components/services are required to develop Feast:
 * **Feast Core:** Requires PostgreSQL \(version 11 and above\) to store state, and requires a Kafka \(tested on version 2.x\) setup to allow for ingestion of FeatureRows.
 * **Feast Serving:** Requires Redis \(tested on version 5.x\).
 
-These services should be running before starting development. The following snippet will start the services using Docker. For the
+These services should be running before starting development. The following snippet will start the services using Docker:
 
 ```bash
 # Start Postgres
@@ -269,20 +269,6 @@ store {
 
 ### 4.5 Registering a FeatureSet
 
-Before registering a new FeatureSet, a project is required.
-
-```text
-grpc_cli call localhost:6565 CreateProject '
-  name: "your_project_name"
-'
-```
-
-When a feature set is successfully registered, Feast Core will start an **ingestion** job that listens for new features in the feature set.
-
-{% hint style="info" %}
-Note that Feast currently only supports source of type `KAFKA`, so you must have access to a running Kafka broker to register a FeatureSet successfully. It is possible to omit the `source` from a Feature Set, but Feast Core will still use Kafka behind the scenes, it is simply abstracted away from the user.
-{% endhint %}
-
 Create a new FeatureSet in Feast by sending a request to Feast Core:
 
 ```text
@@ -293,7 +279,6 @@ Create a new FeatureSet in Feast by sending a request to Feast Core:
 grpc_cli call localhost:6565 ApplyFeatureSet '
 feature_set {
   spec {
-    project: "your_project_name"
     name: "driver"
     version: 1
 
@@ -325,7 +310,6 @@ Verify that the FeatureSet has been registered correctly.
 # To check that the FeatureSet has been registered correctly.
 # You should also see logs from Feast Core of the ingestion job being started
 grpc_cli call localhost:6565 GetFeatureSet '
-  project: "your_project_name"
   name: "driver"
 '
 ```
@@ -335,12 +319,17 @@ Or alternatively, list all feature sets
 ```text
 grpc_cli call localhost:6565 ListFeatureSets '
   filter {
-    project: "your_project_name"
     feature_set_name: "driver"
     feature_set_version: "1"
   }
 '
 ```
+
+When a feature set is successfully registered, Feast Core will start an **ingestion** job that listens for new features in the feature set.
+
+{% hint style="info" %}
+Note that Feast currently only supports source of type `KAFKA`, so you must have access to a running Kafka broker to register a FeatureSet successfully. It is possible to omit the `source` from a Feature Set, but Feast Core will still use Kafka behind the scenes, it is simply abstracted away from the user.
+{% endhint %}
 
 ### 4.6 Ingestion and Population of Feature Values
 
@@ -403,7 +392,6 @@ Ensure that Feast Serving returns results for the feature value for the specific
 ```text
 grpc_cli call localhost:6566 GetOnlineFeatures '
 features {
-  project: "your_project_name"
   name: "city"
   version: 1
   max_age {
@@ -430,7 +418,7 @@ field_values {
     }
   }
   fields {
-    key: "your_project_name/city:1"
+    key: "city"
     value {
       string_val: "JAKARTA"
     }

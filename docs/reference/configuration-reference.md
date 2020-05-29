@@ -33,7 +33,9 @@ The following list is a subset of all configuration properties. Please see [this
     </tr>
   </thead>
   <tbody></tbody>
-</table>| `PROJECT` | Default Feast project to use | `default` |
+</table>
+
+| `PROJECT` | Default Feast project to use | `default` |
 | :--- | :--- | :--- |
 
 
