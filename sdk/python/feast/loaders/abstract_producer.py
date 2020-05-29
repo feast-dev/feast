@@ -60,7 +60,6 @@ class AbstractProducer:
         print("Ingestion complete!")
 
         print(f"\nIngestion statistics:" f"\nSuccess: {self.pbar.n}/{self.row_count}")
-        return None
 
 
 class ConfluentProducer(AbstractProducer):

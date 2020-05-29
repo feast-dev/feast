@@ -806,6 +806,8 @@ class Client:
                 break
             time.sleep(3)
 
+        print("Starting ingestion...")
+
         if timeout is not None:
             timeout = timeout - int(time.time() - current_time)
 
@@ -834,11 +836,10 @@ class Client:
                     for serialized_row in chunk:
                         produce(topic=topic, value=serialized_row)
 
-                    # Force a flush after each chunk
-                    flush(timeout=timeout)
-
                     # Remove chunk from memory
                     del chunk
+
+                flush(timeout=timeout)
 
             else:
                 raise Exception(
