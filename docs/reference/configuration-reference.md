@@ -128,7 +128,9 @@ The following list is a subset of all configuration properties. Please see [this
       </td>
     </tr>
   </tbody>
-</table>### Usage
+</table>
+
+### Usage
 
 #### Configuration File
 

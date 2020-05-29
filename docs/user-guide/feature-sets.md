@@ -12,7 +12,7 @@ Feature sets are a grouping of feature sets based on how they are loaded into Fe
 
 ### Customer Transactions Example
 
-Below is an example of a basic `customer transactions` feature set that has been exported to YAML:
+Below is an example specification of a basic `customer transactions` feature set that has been exported to YAML:
 
 {% tabs %}
 {% tab title="customer\_transactions\_feature\_set.yaml" %}
@@ -30,7 +30,7 @@ features:
 {% endtab %}
 {% endtabs %}
 
-The dataframe below \(`customer_data.csv`\) contains the features and entities of the above feature set
+The dataframe below \(`customer_data.csv`\) contains the features and entities of the above feature set.
 
 | datetime | customer\_id | daily\_transactions | total\_tra**nsactions** |
 | :--- | :--- | :--- | :--- |
@@ -48,9 +48,16 @@ customer_df = pd.read_csv("customer_data.csv")
 # Create feature set from YAML (using YAML is optional)
 cust_trans_fs = FeatureSet.from_yaml("customer_transactions_feature_set.yaml")
 
+# Apply new feature set
+client.apply(cust_trans_fs)
+
 # Load feature data into Feast for this specific feature set
 client.ingest(cust_trans_fs, customer_data)
 ```
+
+{% hint style="info" %}
+When applying a Feature Set without specifying a project in its specification, Feast creates/updates the Feature Set in the `default` project. To create a Feature Set in another project, specify the project of choice in the Feature Set specification's project field.
+{% endhint %}
 
 ### **Making changes to Feature Sets**
 
