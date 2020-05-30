@@ -30,6 +30,7 @@ import uuid
 FLOAT_TOLERANCE = 0.00001
 PROJECT_NAME = 'basic_' + uuid.uuid4().hex.upper()[0:6]
 
+
 @pytest.fixture(scope='module')
 def core_url(pytestconfig):
     return pytestconfig.getoption("core_url")
@@ -62,6 +63,7 @@ def client(core_url, serving_url, allow_dirty):
 
     return client
 
+
 def basic_dataframe(entities, features, ingest_time, n_size):
     offset = random.randint(1000, 100000)  # ensure a unique key space is used
     df_dict = {
@@ -79,6 +81,7 @@ def basic_dataframe(entities, features, ingest_time, n_size):
 def ingest_time():
     return datetime.utcnow()
 
+
 @pytest.fixture(scope="module")
 def cust_trans_df(ingest_time):
     return basic_dataframe(entities=["customer_id"],
@@ -86,12 +89,20 @@ def cust_trans_df(ingest_time):
                            ingest_time=ingest_time,
                            n_size=5)
 
+
 @pytest.fixture(scope="module")
 def driver_df(ingest_time):
     return basic_dataframe(entities=["driver_id"],
                            features=["rating", "cost"],
                            ingest_time=ingest_time,
                            n_size=5)
+
+
+def test_version_returns_results(client):
+    version_info = client.version()
+    assert not version_info['core'] is 'not configured'
+    assert not version_info['serving'] is 'not configured'
+
 
 @pytest.mark.timeout(45)
 @pytest.mark.run(order=10)
@@ -116,6 +127,7 @@ def test_basic_register_feature_set_success(client):
 
     # reset client's project for other tests
     client.set_project()
+
 
 @pytest.mark.timeout(300)
 @pytest.mark.run(order=11)
@@ -157,16 +169,16 @@ def test_basic_retrieve_online_success(client, cust_trans_df):
 
         returned_daily_transactions = float(
             response.field_values[0]
-            .fields["daily_transactions"]
-            .float_val
+                .fields["daily_transactions"]
+                .float_val
         )
         sent_daily_transactions = float(
             cust_trans_df.iloc[0]["daily_transactions"])
 
         if math.isclose(
-            sent_daily_transactions,
-            returned_daily_transactions,
-            abs_tol=FLOAT_TOLERANCE,
+                sent_daily_transactions,
+                returned_daily_transactions,
+                abs_tol=FLOAT_TOLERANCE,
         ):
             break
 
@@ -206,8 +218,8 @@ def test_basic_retrieve_online_multiple_featureset(client, cust_trans_df, driver
         def check_response(ingest_df, response, feature_ref):
             returned_value = float(
                 response.field_values[0]
-                .fields[feature_ref]
-                .float_val
+                    .fields[feature_ref]
+                    .float_val
             )
             feature_ref_splits = feature_ref.split(":")
             if len(feature_ref_splits) == 1:
@@ -223,8 +235,10 @@ def test_basic_retrieve_online_multiple_featureset(client, cust_trans_df, driver
                 returned_value,
                 abs_tol=FLOAT_TOLERANCE,
             )
+
         if all([check_response(df, response, ref) for ref, df in feature_ref_df_mapping]):
             break
+
 
 @pytest.mark.timeout(300)
 @pytest.mark.run(order=19)
