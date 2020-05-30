@@ -13,6 +13,10 @@ test -z ${JOBS_STAGING_LOCATION} && JOBS_STAGING_LOCATION="gs://${TEMP_BUCKET}/s
 export FEAST_BUILD_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
 echo Building version: $FEAST_BUILD_VERSION
 
+# Get Feast project repository root and scripts directory
+export PROJECT_ROOT_DIR=$(git rev-parse --show-toplevel)
+export SCRIPTS_DIR=${PROJECT_ROOT_DIR}/infra/scripts
+
 echo "
 This script will run end-to-end tests for Feast Core and Online Serving.
 
@@ -23,7 +27,7 @@ This script will run end-to-end tests for Feast Core and Online Serving.
    tests/e2e via pytest.
 "
 
-source setup-common-functions.sh
+source ${SCRIPTS_DIR}/setup-common-functions.sh
 
 install_test_tools
 install_and_start_local_redis

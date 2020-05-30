@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# Get Feast project repository root and scripts directory
+export PROJECT_ROOT_DIR=$(git rev-parse --show-toplevel)
+export SCRIPTS_DIR=${PROJECT_ROOT_DIR}/infra/scripts
+
 install_test_tools() {
   apt-get -qq update
   apt-get -y install wget netcat kafkacat build-essential
@@ -74,7 +78,7 @@ start_feast_core() {
   fi
 
   nohup java -jar core/target/feast-core-$FEAST_BUILD_VERSION.jar $CONFIG_ARG &> /var/log/feast-core.log &
-  ./wait-for-it.sh localhost:6565 --timeout=90
+  ${SCRIPTS_DIR}/wait-for-it.sh localhost:6565 --timeout=90
 
   tail -n10 /var/log/feast-core.log
   nc -w2 localhost 6565 </dev/null
@@ -89,7 +93,7 @@ start_feast_serving() {
   fi
 
   nohup java -jar serving/target/feast-serving-$FEAST_BUILD_VERSION.jar $CONFIG_ARG &>/var/log/feast-serving-online.log &
-  ./wait-for-it.sh localhost:6566 --timeout=60
+  ${SCRIPTS_DIR}/wait-for-it.sh localhost:6566 --timeout=60
 
   tail -n100 /var/log/feast-serving-online.log
   nc -w2 localhost 6566 </dev/null
