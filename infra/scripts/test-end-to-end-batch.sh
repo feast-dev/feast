@@ -24,8 +24,12 @@ test -z ${TEMP_BUCKET} && TEMP_BUCKET="feast-templocation-kf-feast"
 test -z ${JOBS_STAGING_LOCATION} && JOBS_STAGING_LOCATION="gs://${TEMP_BUCKET}/staging-location"
 
 # Get the current build version using maven (and pom.xml)
-FEAST_BUILD_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+export FEAST_BUILD_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
 echo Building version: $FEAST_BUILD_VERSION
+
+# Get Feast project repository root and scripts directory
+export PROJECT_ROOT_DIR=$(git rev-parse --show-toplevel)
+export SCRIPTS_DIR=${PROJECT_ROOT_DIR}/infra/scripts
 
 echo "
 This script will run end-to-end tests for Feast Core and Batch Serving.
@@ -38,152 +42,24 @@ This script will run end-to-end tests for Feast Core and Batch Serving.
    tests/e2e via pytest.
 "
 
-apt-get -qq update
-apt-get -y install wget netcat kafkacat build-essential
+source ${SCRIPTS_DIR}/setup-common-functions.sh
 
-
-echo "
-============================================================
-Installing gcloud SDK
-============================================================
-"
-if [[ ! $(command -v gsutil) ]]; then
-  CURRENT_DIR=$(dirname "$BASH_SOURCE")
-  . "${CURRENT_DIR}"/install-google-cloud-sdk.sh
-fi
-
-export GOOGLE_APPLICATION_CREDENTIALS
-gcloud auth activate-service-account --key-file ${GOOGLE_APPLICATION_CREDENTIALS}
-
-
-
-echo "
-============================================================
-Installing Redis at localhost:6379
-============================================================
-"
-# Allow starting serving in this Maven Docker image. Default set to not allowed.
-echo "exit 0" > /usr/sbin/policy-rc.d
-apt-get -y install redis-server > /var/log/redis.install.log
-redis-server --daemonize yes
-redis-cli ping
-
-echo "
-============================================================
-Installing Postgres at localhost:5432
-============================================================
-"
-apt-get -y install postgresql > /var/log/postgresql.install.log
-service postgresql start
-# Initialize with database: 'postgres', user: 'postgres', password: 'password'
-cat <<EOF > /tmp/update-postgres-role.sh
-psql -c "ALTER USER postgres PASSWORD 'password';"
-EOF
-chmod +x /tmp/update-postgres-role.sh
-su -s /bin/bash -c /tmp/update-postgres-role.sh postgres
-export PGPASSWORD=password
-pg_isready
-
-echo "
-============================================================
-Installing Zookeeper at localhost:2181
-Installing Kafka at localhost:9092
-============================================================
-"
-wget -qO- https://www-eu.apache.org/dist/kafka/2.3.0/kafka_2.12-2.3.0.tgz | tar xz
-mv kafka_2.12-2.3.0/ /tmp/kafka
-nohup /tmp/kafka/bin/zookeeper-server-start.sh /tmp/kafka/config/zookeeper.properties &> /var/log/zookeeper.log 2>&1 &
-sleep 5
-tail -n10 /var/log/zookeeper.log
-nohup /tmp/kafka/bin/kafka-server-start.sh /tmp/kafka/config/server.properties &> /var/log/kafka.log 2>&1 &
-sleep 20
-tail -n10 /var/log/kafka.log
-kafkacat -b localhost:9092 -L
+install_test_tools
+install_gcloud_sdk
+install_and_start_local_redis
+install_and_start_local_postgres
+install_and_start_local_zookeeper_and_kafka
 
 if [[ ${SKIP_BUILD_JARS} != "true" ]]; then
-  echo "
-  ============================================================
-  Building jars for Feast
-  ============================================================
-  "
-
-  infra/scripts/download-maven-cache.sh \
-      --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
-      --output-dir /root/
-
-  # Build jars for Feast
-  mvn --quiet --batch-mode --define skipTests=true clean package
-
-  ls -lh core/target/*jar
-  ls -lh serving/target/*jar
+  build_feast_core_and_serving
 else
   echo "[DEBUG] Skipping building jars"
 fi
 
-echo "
-============================================================
-Starting Feast Core
-============================================================
-"
-# Start Feast Core in background
-cat <<EOF > /tmp/core.application.yml
-grpc:
-  port: 6565
-  enable-reflection: true
-
-feast:
-  jobs:
-    polling_interval_milliseconds: 10000
-    job_update_timeout_seconds: 240
-
-    active_runner: direct
-
-    runners:
-      - name: direct
-        type: DirectRunner
-        options: {}
-
-    metrics:
-      enabled: false
-
-  stream:
-    type: kafka
-    options:
-      topic: feast-features
-      bootstrapServers: localhost:9092
-      replicationFactor: 1
-      partitions: 1
-
-spring:
-  jpa:
-    properties.hibernate:
-      format_sql: true
-      event:
-        merge:
-          entity_copy_observer: allow
-    hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
-    hibernate.ddl-auto: update
-  datasource:
-    url: jdbc:postgresql://localhost:5432/postgres
-    username: postgres
-    password: password
-EOF
-
-nohup java -jar core/target/feast-core-${FEAST_BUILD_VERSION}.jar \
-  --spring.config.location=file:///tmp/core.application.yml \
-  &> /var/log/feast-core.log &
-sleep 35
-tail -n10 /var/log/feast-core.log
-nc -w2 localhost 6565 < /dev/null
-
-echo "
-============================================================
-Starting Feast Warehouse Serving
-============================================================
-"
+export FEAST_JOBS_POLLING_INTERVAL_MILLISECONDS=10000
+start_feast_core
 
 DATASET_NAME=feast_$(date +%s)
-
 bq --location=US --project_id=${GOOGLE_CLOUD_PROJECT} mk \
   --dataset \
   --default_table_expiration 86400 \
@@ -232,35 +108,11 @@ server:
 
 EOF
 
-nohup java -jar serving/target/feast-serving-${FEAST_BUILD_VERSION}.jar \
-  --spring.config.location=file:///tmp/serving.warehouse.application.yml \
-  &> /var/log/feast-serving-warehouse.log &
-sleep 15
-tail -n100 /var/log/feast-serving-warehouse.log
-nc -w2 localhost 6566 < /dev/null
+start_feast_serving /tmp/serving.warehouse.application.yml
 
-echo "
-============================================================
-Installing Python 3.7 with Miniconda and Feast SDK
-============================================================
-"
-# Install Python 3.7 with Miniconda
-wget -q https://repo.continuum.io/miniconda/Miniconda3-4.7.12-Linux-x86_64.sh \
-   -O /tmp/miniconda.sh
-bash /tmp/miniconda.sh -b -p /root/miniconda -f
-/root/miniconda/bin/conda init
-source ~/.bashrc
+install_python_with_miniconda_and_feast_sdk
 
-# Install Feast Python SDK and test requirements
-make compile-protos-python
-pip install -qe sdk/python
-pip install -qr tests/e2e/requirements.txt
-
-echo "
-============================================================
-Running end-to-end tests with pytest at 'tests/e2e'
-============================================================
-"
+print_banner "Running end-to-end tests with pytest at 'tests/e2e'"
 # Default artifact location setting in Prow jobs
 LOGS_ARTIFACT_PATH=/logs/artifacts
 
@@ -282,12 +134,7 @@ fi
 
 cd ${ORIGINAL_DIR}
 
-echo "
-============================================================
-Cleaning up
-============================================================
-"
+print_banner "Cleaning up"
 
 bq rm -r -f ${GOOGLE_CLOUD_PROJECT}:${DATASET_NAME}
-
 exit ${TEST_EXIT_CODE}
