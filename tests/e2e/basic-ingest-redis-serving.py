@@ -100,8 +100,8 @@ def driver_df(ingest_time):
 
 def test_version_returns_results(client):
     version_info = client.version()
-    assert not version_info['core'] is 'not connected'
-    assert not version_info['serving'] is 'not connected'
+    assert not version_info['core'] is 'not configured'
+    assert not version_info['serving'] is 'not configured'
 
 
 @pytest.mark.timeout(45)
