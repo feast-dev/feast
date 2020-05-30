@@ -29,6 +29,13 @@ install_and_start_local_redis() {
   redis-cli ping
 }
 
+install_and_start_local_redis_cluster() {
+  print_banner "Installing Redis at localhost:6379"
+  echo "exit 0" >/usr/sbin/policy-rc.d
+  ${SCRIPTS_DIR}/setup-redis-cluster.sh
+  redis-cli -c -p 7000 ping
+}
+
 install_and_start_local_postgres() {
   print_banner "Installing and starting Postgres at localhost:5432"
   apt-get -y install postgresql >/var/log/postgresql.install.log
@@ -77,7 +84,7 @@ start_feast_core() {
     export CONFIG_ARG="--spring.config.location=file://$1"
   fi
 
-  nohup java -jar core/target/feast-core-$FEAST_BUILD_VERSION.jar $CONFIG_ARG &> /var/log/feast-core.log &
+  nohup java -jar core/target/feast-core-$FEAST_BUILD_VERSION.jar $CONFIG_ARG &>/var/log/feast-core.log &
   ${SCRIPTS_DIR}/wait-for-it.sh localhost:6565 --timeout=90
 
   tail -n10 /var/log/feast-core.log
