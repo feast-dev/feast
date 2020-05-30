@@ -195,7 +195,13 @@ class Client:
         """
         Returns version information from Feast Core and Feast Serving
         """
-        result = {}
+        import pkg_resources
+
+        result = {
+            "sdk": {"version": pkg_resources.get_distribution("feast").version},
+            "serving": "not configured",
+            "core": "not configured",
+        }
 
         if self.serving_url:
             self._connect_serving()

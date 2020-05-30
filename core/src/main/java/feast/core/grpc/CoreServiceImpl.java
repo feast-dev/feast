@@ -18,6 +18,7 @@ package feast.core.grpc;
 
 import com.google.api.gax.rpc.InvalidArgumentException;
 import com.google.protobuf.InvalidProtocolBufferException;
+import feast.core.config.FeastProperties;
 import feast.core.exception.RetrievalException;
 import feast.core.grpc.interceptors.MonitoringInterceptor;
 import feast.core.model.Project;
@@ -64,6 +65,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 @GRpcService(interceptors = {MonitoringInterceptor.class})
 public class CoreServiceImpl extends CoreServiceImplBase {
 
+  private final FeastProperties feastProperties;
   private SpecService specService;
   private AccessManagementService accessManagementService;
   private JobService jobService;
@@ -72,17 +74,28 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public CoreServiceImpl(
       SpecService specService,
       AccessManagementService accessManagementService,
-      JobService jobService) {
+      JobService jobService,
+      FeastProperties feastProperties) {
     this.specService = specService;
     this.accessManagementService = accessManagementService;
     this.jobService = jobService;
+    this.feastProperties = feastProperties;
   }
 
   @Override
   public void getFeastCoreVersion(
       GetFeastCoreVersionRequest request,
       StreamObserver<GetFeastCoreVersionResponse> responseObserver) {
-    super.getFeastCoreVersion(request, responseObserver);
+    try {
+      GetFeastCoreVersionResponse response =
+          GetFeastCoreVersionResponse.newBuilder().setVersion(feastProperties.getVersion()).build();
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (RetrievalException | StatusRuntimeException e) {
+      log.error("Could not determine Feast Core version: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
   }
 
   @Override
