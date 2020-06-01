@@ -1,15 +1,18 @@
 package feast.core.job.databricks;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.gson.Gson;
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.config.FeastProperties.MetricsProperties;
-import feast.core.job.JobManager;
-import feast.core.job.Runner;
-import feast.core.model.FeatureSet;
-import feast.core.model.Job;
-import feast.core.model.JobStatus;
 import feast.core.FeatureSetProto;
 import feast.core.SourceProto;
 import feast.core.StoreProto;
+import feast.core.config.FeastProperties.MetricsProperties;
+import feast.core.job.JobManager;
+import feast.core.job.Runner;
+import feast.core.model.*;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
@@ -20,9 +23,11 @@ import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class DatabricksJobManager implements JobManager {
+    private static Gson gson = new Gson();
 
     private final Runner RUNNER_TYPE = Runner.DATABRICKS;
 
@@ -37,8 +42,8 @@ public class DatabricksJobManager implements JobManager {
             MetricsProperties metricsProperties,
             String token) {
 
-        DatabricksRunnerConfig config = new DatabricksRunnerConfig(runnerConfigOptions);
-        this.databricksHost = config.databricksService;
+        DatabricksJobConfig config = new DatabricksJobConfig("", "");
+        this.databricksHost = config.getDatabricksHost();
         this.defaultOptions = runnerConfigOptions;
         this.metricsProperties = metricsProperties;
         this.httpClient = HttpClient.newHttpClient();
@@ -58,16 +63,15 @@ public class DatabricksJobManager implements JobManager {
             for (FeatureSet featureSet : job.getFeatureSets()) {
                 featureSetProtos.add(featureSet.toProto());
             }
-            String extId =
-                    submitDatabricksJob(
-                            job.getId(),
-                            featureSetProtos,
-                            job.getSource().toProto(),
-                            job.getStore().toProto(),
-                            false);
-            job.setExtId(extId);
-            return job;
 
+            String idempotencyToken = "123";
+
+            return runDatabricksJob(
+                    job.getId(),
+                    idempotencyToken,
+                    featureSetProtos,
+                    job.getSource().toProto(),
+                    job.getStore().toProto());
         } catch (InvalidProtocolBufferException e) {
             log.error(e.getMessage());
             throw new IllegalArgumentException(
@@ -105,25 +109,46 @@ public class DatabricksJobManager implements JobManager {
     public JobStatus getJobStatus(Job job) {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(String.format("%s/api/2.0/jobs/get?job_id=%s", this.databricksHost, job.getExtId())))
-                .header("Authorization", String.format("%s %s","Bearer" ,this.databricksToken))
+                .header("Authorization", String.format("%s %s", "Bearer", this.databricksToken))
                 .build();
         HttpResponse<String> response = this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
         //todo add mapping logic
         return JobStatus.UNKNOWN;
     }
 
-    private String submitDatabricksJob(
-            String jobName,
+    @SneakyThrows
+    private Job runDatabricksJob(
+            String jobId,
+            String idempotencyToken,
             List<FeatureSetProto.FeatureSet> featureSetProtos,
             SourceProto.Source source,
-            StoreProto.Store sink,
-            boolean update) {
+            StoreProto.Store sink) {
 
-        return "EXT_ID";
+        List<FeatureSet> featureSets =
+                featureSetProtos.stream().map(FeatureSet::fromProto).collect(Collectors.toList());
+
+        ObjectMapper mapper = new ObjectMapper();
+        ArrayNode jarParams = mapper.createArrayNode();
+        ObjectNode body = mapper.createObjectNode();
+        body.put("job_id", jobId);
+        body.set("jar_params", jarParams);
+        body.put("idempotency_token", idempotencyToken);
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(String.format("%s/api/2.0/jobs/run-now", this.databricksHost)))
+                .header("Authorization", String.format("%s %s", "Bearer", this.databricksToken))
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
+                .build();
+
+        HttpResponse<String> response = this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        JsonNode parent= new ObjectMapper().readTree(response.body());
+        String runId = parent.path("run_id").asText();
+
+        Job job = new Job(jobId, runId, getRunnerType().name(), Source.fromProto(source), Store.fromProto(sink), featureSets, JobStatus.PENDING);
+        job.setExtId(runId);
+
+        return job;
     }
 
-
-
-
-    }
+}
