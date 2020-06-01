@@ -1,10 +1,8 @@
-import tempfile
 from typing import List
 from urllib.parse import urlparse
 
 import fastavro
 import pandas as pd
-from google.cloud import storage
 from google.protobuf.json_format import MessageToJson
 
 from feast.constants import CONFIG_TIMEOUT_KEY
@@ -26,6 +24,15 @@ from feast.source import Source
 from feast.wait import wait_retry_backoff
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
+from feast.staging.staging_strategy import StagingStrategy
+
+# Maximum no of seconds to wait until the retrieval jobs status is DONE in Feast
+# Currently set to the maximum query execution time limit in BigQuery
+DEFAULT_TIMEOUT_SEC: int = 21600
+
+# Maximum no of seconds to wait before reloading the job status in Feast
+MAX_WAIT_INTERVAL_SEC: int = 60
+
 
 class RetrievalJob:
     """
@@ -42,8 +49,7 @@ class RetrievalJob:
         """
         self.job_proto = job_proto
         self.serving_stub = serving_stub
-        # TODO: abstract away GCP depedency
-        self.gcs_client = storage.Client(project=None)
+        self.staging_strategy = StagingStrategy()
 
     @property
     def id(self):
@@ -117,16 +123,7 @@ class RetrievalJob:
         """
         uris = self.get_avro_files(timeout_sec)
         for file_uri in uris:
-            if file_uri.scheme == "gs":
-                file_obj = tempfile.TemporaryFile()
-                self.gcs_client.download_blob_to_file(file_uri.geturl(), file_obj)
-            elif file_uri.scheme == "file":
-                file_obj = open(file_uri.path, "rb")
-            else:
-                raise Exception(
-                    f"Could not identify file URI {file_uri}. Only gs:// and file:// supported"
-                )
-
+            file_obj = self.staging_strategy.execute_file_download(file_uri)
             file_obj.seek(0)
             avro_reader = fastavro.reader(file_obj)
 
