@@ -34,6 +34,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "projects")
 public class Project {
+  public static final String DEFAULT_NAME = "default";
 
   // Name of the project
   @Id

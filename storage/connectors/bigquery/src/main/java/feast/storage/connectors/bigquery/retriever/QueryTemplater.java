@@ -20,9 +20,9 @@ import com.google.cloud.bigquery.TableId;
 import com.google.protobuf.Duration;
 import com.mitchellbosecke.pebble.PebbleEngine;
 import com.mitchellbosecke.pebble.template.PebbleTemplate;
-import feast.core.FeatureSetProto.EntitySpec;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.serving.ServingAPIProto.FeatureReference;
+import feast.proto.core.FeatureSetProto.EntitySpec;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.storage.api.retriever.FeatureSetRequest;
 import java.io.IOException;
 import java.io.StringWriter;
@@ -79,19 +79,10 @@ public class QueryTemplater {
       Duration maxAge = spec.getMaxAge();
       List<String> fsEntities =
           spec.getEntitiesList().stream().map(EntitySpec::getName).collect(Collectors.toList());
-      List<String> features =
-          featureSetRequest.getFeatureReferences().stream()
-              .map(FeatureReference::getName)
-              .collect(Collectors.toList());
+      List<FeatureReference> features = featureSetRequest.getFeatureReferences().asList();
       featureSetInfos.add(
           new FeatureSetQueryInfo(
-              spec.getProject(),
-              spec.getName(),
-              spec.getVersion(),
-              maxAge.getSeconds(),
-              fsEntities,
-              features,
-              ""));
+              spec.getProject(), spec.getName(), maxAge.getSeconds(), fsEntities, features, ""));
     }
     return featureSetInfos;
   }

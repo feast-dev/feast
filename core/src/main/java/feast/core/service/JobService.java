@@ -17,24 +17,25 @@
 package feast.core.service;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.CoreServiceProto.ListFeatureSetsRequest;
-import feast.core.CoreServiceProto.ListFeatureSetsResponse;
-import feast.core.CoreServiceProto.ListIngestionJobsRequest;
-import feast.core.CoreServiceProto.ListIngestionJobsResponse;
-import feast.core.CoreServiceProto.RestartIngestionJobRequest;
-import feast.core.CoreServiceProto.RestartIngestionJobResponse;
-import feast.core.CoreServiceProto.StopIngestionJobRequest;
-import feast.core.CoreServiceProto.StopIngestionJobResponse;
-import feast.core.FeatureSetReferenceProto.FeatureSetReference;
-import feast.core.IngestionJobProto;
 import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
+import feast.core.job.Runner;
 import feast.core.log.Action;
 import feast.core.log.AuditLogger;
 import feast.core.log.Resource;
 import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
+import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
+import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.proto.core.CoreServiceProto.ListIngestionJobsRequest;
+import feast.proto.core.CoreServiceProto.ListIngestionJobsResponse;
+import feast.proto.core.CoreServiceProto.RestartIngestionJobRequest;
+import feast.proto.core.CoreServiceProto.RestartIngestionJobResponse;
+import feast.proto.core.CoreServiceProto.StopIngestionJobRequest;
+import feast.proto.core.CoreServiceProto.StopIngestionJobResponse;
+import feast.proto.core.FeatureSetReferenceProto.FeatureSetReference;
+import feast.proto.core.IngestionJobProto;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -50,13 +51,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Defines a Job Managemenent Service that allows users to manage feast ingestion jobs. */
+/** A Job Management Service that allows users to manage Feast ingestion jobs. */
 @Slf4j
 @Service
 public class JobService {
-  private JobRepository jobRepository;
-  private SpecService specService;
-  private Map<String, JobManager> jobManagers;
+  private final JobRepository jobRepository;
+  private final SpecService specService;
+  private final Map<Runner, JobManager> jobManagers;
 
   @Autowired
   public JobService(
@@ -66,13 +67,13 @@ public class JobService {
 
     this.jobManagers = new HashMap<>();
     for (JobManager manager : jobManagerList) {
-      this.jobManagers.put(manager.getRunnerType().name(), manager);
+      this.jobManagers.put(manager.getRunnerType(), manager);
     }
   }
 
   /* Job Service API */
   /**
-   * List Ingestion Jobs in feast matching the given request. See CoreService protobuf documentation
+   * List Ingestion Jobs in Feast matching the given request. See CoreService protobuf documentation
    * for more detailed documentation.
    *
    * @param request list ingestion jobs request specifying which jobs to include
@@ -158,6 +159,7 @@ public class JobService {
     // check job exists
     Optional<Job> getJob = this.jobRepository.findById(request.getId());
     if (getJob.isEmpty()) {
+      // FIXME: if getJob.isEmpty then constructing this error message will always throw an error...
       throw new NoSuchElementException(
           "Attempted to stop nonexistent job with id: " + getJob.get().getId());
     }
@@ -165,9 +167,7 @@ public class JobService {
     // check job status is valid for restarting
     Job job = getJob.get();
     JobStatus status = job.getStatus();
-    if (JobStatus.getTransitionalStates().contains(status)
-        || JobStatus.getTerminalState().contains(status)
-        || status.equals(JobStatus.UNKNOWN)) {
+    if (status.isTransitional() || status.isTerminal() || status == JobStatus.UNKNOWN) {
       throw new UnsupportedOperationException(
           "Restarting a job with a transitional, terminal or unknown status is unsupported");
     }
@@ -208,11 +208,10 @@ public class JobService {
     // check job status is valid for stopping
     Job job = getJob.get();
     JobStatus status = job.getStatus();
-    if (JobStatus.getTerminalState().contains(status)) {
+    if (status.isTerminal()) {
       // do nothing - job is already stopped
       return StopIngestionJobResponse.newBuilder().build();
-    } else if (JobStatus.getTransitionalStates().contains(status)
-        || status.equals(JobStatus.UNKNOWN)) {
+    } else if (status.isTransitional() || status == JobStatus.UNKNOWN) {
       throw new UnsupportedOperationException(
           "Stopping a job with a transitional or unknown status is unsupported");
     }
@@ -249,7 +248,6 @@ public class JobService {
     // match featuresets using contents of featureset reference
     String fsName = fsReference.getName();
     String fsProject = fsReference.getProject();
-    Integer fsVersion = fsReference.getVersion();
 
     // construct list featureset request filter using feature set reference
     // for proto3, default value for missing values:
@@ -259,7 +257,6 @@ public class JobService {
         ListFeatureSetsRequest.Filter.newBuilder()
             .setFeatureSetName((fsName != "") ? fsName : "*")
             .setProject((fsProject != "") ? fsProject : "*")
-            .setFeatureSetVersion((fsVersion != 0) ? fsVersion.toString() : "*")
             .build();
 
     return filter;

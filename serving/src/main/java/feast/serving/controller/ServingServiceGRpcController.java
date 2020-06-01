@@ -16,19 +16,21 @@
  */
 package feast.serving.controller;
 
-import feast.serving.FeastProperties;
-import feast.serving.ServingAPIProto.GetBatchFeaturesRequest;
-import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
-import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
-import feast.serving.ServingAPIProto.GetFeastServingInfoResponse;
-import feast.serving.ServingAPIProto.GetJobRequest;
-import feast.serving.ServingAPIProto.GetJobResponse;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
-import feast.serving.ServingServiceGrpc.ServingServiceImplBase;
+import feast.proto.serving.ServingAPIProto.GetBatchFeaturesRequest;
+import feast.proto.serving.ServingAPIProto.GetBatchFeaturesResponse;
+import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
+import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
+import feast.proto.serving.ServingAPIProto.GetJobRequest;
+import feast.proto.serving.ServingAPIProto.GetJobResponse;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
+import feast.proto.serving.ServingServiceGrpc.ServingServiceImplBase;
+import feast.serving.config.FeastProperties;
+import feast.serving.exception.SpecRetrievalException;
 import feast.serving.interceptors.GrpcMonitoringInterceptor;
 import feast.serving.service.ServingService;
 import feast.serving.util.RequestHelper;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import io.opentracing.Scope;
 import io.opentracing.Span;
@@ -74,6 +76,10 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       GetOnlineFeaturesResponse onlineFeatures = servingService.getOnlineFeatures(request);
       responseObserver.onNext(onlineFeatures);
       responseObserver.onCompleted();
+    } catch (SpecRetrievalException e) {
+      log.error("Failed to retrieve specs in SpecService", e);
+      responseObserver.onError(
+          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asException());
     } catch (Exception e) {
       log.warn("Failed to get Online Features", e);
       responseObserver.onError(e);
@@ -89,6 +95,10 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       GetBatchFeaturesResponse batchFeatures = servingService.getBatchFeatures(request);
       responseObserver.onNext(batchFeatures);
       responseObserver.onCompleted();
+    } catch (SpecRetrievalException e) {
+      log.error("Failed to retrieve specs in SpecService", e);
+      responseObserver.onError(
+          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asException());
     } catch (Exception e) {
       log.warn("Failed to get Batch Features", e);
       responseObserver.onError(e);

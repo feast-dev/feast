@@ -29,15 +29,6 @@ import com.google.common.collect.Lists;
 import com.google.protobuf.Duration;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
-import feast.core.FeatureSetProto;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.SourceProto;
-import feast.core.SourceProto.KafkaSourceConfig;
-import feast.core.SourceProto.SourceType;
-import feast.core.StoreProto;
-import feast.core.StoreProto.Store.RedisConfig;
-import feast.core.StoreProto.Store.StoreType;
-import feast.core.StoreProto.Store.Subscription;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.job.Runner;
 import feast.core.job.option.FeatureSetJsonByteConverter;
@@ -49,11 +40,19 @@ import feast.core.model.Store;
 import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.options.OptionCompressor;
+import feast.proto.core.FeatureSetProto;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.RunnerProto.DirectRunnerConfigOptions;
+import feast.proto.core.SourceProto;
+import feast.proto.core.SourceProto.KafkaSourceConfig;
+import feast.proto.core.SourceProto.SourceType;
+import feast.proto.core.StoreProto;
+import feast.proto.core.StoreProto.Store.RedisConfig;
+import feast.proto.core.StoreProto.Store.StoreType;
+import feast.proto.core.StoreProto.Store.Subscription;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -71,12 +70,12 @@ public class DirectRunnerJobManagerTest {
   @Mock private DirectJobRegistry directJobRegistry;
 
   private DirectRunnerJobManager drJobManager;
-  private Map<String, String> defaults;
+  private DirectRunnerConfigOptions defaults;
 
   @Before
   public void setUp() {
     initMocks(this);
-    defaults = new HashMap<>();
+    defaults = DirectRunnerConfigOptions.newBuilder().setTargetParallelism(1).build();
     MetricsProperties metricsProperties = new MetricsProperties();
     metricsProperties.setEnabled(false);
 
@@ -91,8 +90,7 @@ public class DirectRunnerJobManagerTest {
             .setName("SERVING")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
-            .addSubscriptions(
-                Subscription.newBuilder().setProject("*").setName("*").setVersion("*").build())
+            .addSubscriptions(Subscription.newBuilder().setProject("*").setName("*").build())
             .build();
 
     SourceProto.Source source =
@@ -110,7 +108,6 @@ public class DirectRunnerJobManagerTest {
             .setSpec(
                 FeatureSetSpec.newBuilder()
                     .setName("featureSet")
-                    .setVersion(1)
                     .setMaxAge(Duration.newBuilder())
                     .setSource(source)
                     .build())
@@ -118,12 +115,14 @@ public class DirectRunnerJobManagerTest {
 
     Printer printer = JsonFormat.printer();
 
+    String expectedJobId = "feast-job-0";
     ImportOptions expectedPipelineOptions =
         PipelineOptionsFactory.fromArgs("").as(ImportOptions.class);
+    expectedPipelineOptions.setJobName(expectedJobId);
     expectedPipelineOptions.setAppName("DirectRunnerJobManager");
     expectedPipelineOptions.setRunner(DirectRunner.class);
     expectedPipelineOptions.setBlockOnRun(false);
-    expectedPipelineOptions.setProject("");
+    expectedPipelineOptions.setTargetParallelism(1);
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
     expectedPipelineOptions.setProject("");
 
@@ -132,7 +131,6 @@ public class DirectRunnerJobManagerTest {
     expectedPipelineOptions.setFeatureSetJson(
         featureSetJsonCompressor.compress(Collections.singletonList(featureSet)));
 
-    String expectedJobId = "feast-job-0";
     ArgumentCaptor<ImportOptions> pipelineOptionsCaptor =
         ArgumentCaptor.forClass(ImportOptions.class);
     ArgumentCaptor<DirectJob> directJobCaptor = ArgumentCaptor.forClass(DirectJob.class);
@@ -144,7 +142,7 @@ public class DirectRunnerJobManagerTest {
         new Job(
             expectedJobId,
             "",
-            Runner.DIRECT.name(),
+            Runner.DIRECT,
             Source.fromProto(source),
             Store.fromProto(store),
             Lists.newArrayList(FeatureSet.fromProto(featureSet)),

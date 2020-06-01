@@ -16,18 +16,19 @@
  */
 package feast.serving.specs;
 
-import feast.core.CoreServiceGrpc;
-import feast.core.CoreServiceProto.GetFeatureSetRequest;
-import feast.core.CoreServiceProto.GetFeatureSetResponse;
-import feast.core.CoreServiceProto.ListFeatureSetsRequest;
-import feast.core.CoreServiceProto.ListFeatureSetsResponse;
-import feast.core.CoreServiceProto.UpdateStoreRequest;
-import feast.core.CoreServiceProto.UpdateStoreResponse;
+import feast.proto.core.CoreServiceGrpc;
+import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
+import feast.proto.core.CoreServiceProto.GetFeatureSetResponse;
+import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
+import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.proto.core.CoreServiceProto.UpdateStoreRequest;
+import feast.proto.core.CoreServiceProto.UpdateStoreResponse;
+import feast.proto.core.StoreProto.Store;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.slf4j.Logger;
 
-/** Client for spec retrieval from core. */
+/** Client for interfacing with specs in Feast Core. */
 public class CoreSpecService {
 
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(CoreSpecService.class);
@@ -49,5 +50,25 @@ public class CoreSpecService {
 
   public UpdateStoreResponse updateStore(UpdateStoreRequest updateStoreRequest) {
     return blockingStub.updateStore(updateStoreRequest);
+  }
+
+  /**
+   * Register the given store entry in Feast Core. If store already exists in Feast Core, updates
+   * the store entry in feast core.
+   *
+   * @param store entry to register/update in Feast Core.
+   * @return The register/updated store entry
+   */
+  public Store registerStore(Store store) {
+    UpdateStoreRequest request = UpdateStoreRequest.newBuilder().setStore(store).build();
+    try {
+      UpdateStoreResponse updateStoreResponse = this.updateStore(request);
+      if (!updateStoreResponse.getStore().equals(store)) {
+        throw new RuntimeException("Core store config not matching current store config");
+      }
+      return updateStoreResponse.getStore();
+    } catch (Exception e) {
+      throw new RuntimeException("Unable to update store configuration", e);
+    }
   }
 }

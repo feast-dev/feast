@@ -19,8 +19,8 @@ package com.gojek.feast;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
-import feast.types.ValueProto.Value;
-import feast.types.ValueProto.Value.ValCase;
+import feast.proto.types.ValueProto.Value;
+import feast.proto.types.ValueProto.Value.ValCase;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -76,7 +76,7 @@ public class Row {
         fields.put(
             fieldName, Value.newBuilder().setBytesVal(ByteString.copyFrom((byte[]) value)).build());
         break;
-      case "feast.types.ValueProto.Value":
+      case "feast.proto.types.ValueProto.Value":
         fields.put(fieldName, (Value) value);
         break;
       default:

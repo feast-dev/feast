@@ -22,21 +22,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.googleapis.testing.auth.oauth2.MockGoogleCredential;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.common.collect.Lists;
 import com.google.protobuf.Duration;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
-import feast.core.FeatureSetProto;
-import feast.core.FeatureSetProto.FeatureSetMeta;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.SourceProto;
-import feast.core.SourceProto.KafkaSourceConfig;
-import feast.core.SourceProto.SourceType;
-import feast.core.StoreProto;
-import feast.core.StoreProto.Store.RedisConfig;
-import feast.core.StoreProto.Store.StoreType;
-import feast.core.StoreProto.Store.Subscription;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.Runner;
@@ -45,11 +37,21 @@ import feast.core.model.*;
 import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.options.OptionCompressor;
+import feast.proto.core.FeatureSetProto;
+import feast.proto.core.FeatureSetProto.FeatureSetMeta;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions;
+import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions.Builder;
+import feast.proto.core.SourceProto;
+import feast.proto.core.SourceProto.KafkaSourceConfig;
+import feast.proto.core.SourceProto.SourceType;
+import feast.proto.core.StoreProto;
+import feast.proto.core.StoreProto.Store.RedisConfig;
+import feast.proto.core.StoreProto.Store.StoreType;
+import feast.proto.core.StoreProto.Store.Subscription;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -68,18 +70,31 @@ public class DataflowJobManagerTest {
 
   @Mock private Dataflow dataflow;
 
-  private Map<String, String> defaults;
+  private DataflowRunnerConfigOptions defaults;
   private DataflowJobManager dfJobManager;
 
   @Before
   public void setUp() {
     initMocks(this);
-    defaults = new HashMap<>();
-    defaults.put("project", "project");
-    defaults.put("region", "region");
+    Builder optionsBuilder = DataflowRunnerConfigOptions.newBuilder();
+    optionsBuilder.setProject("project");
+    optionsBuilder.setRegion("region");
+    optionsBuilder.setZone("zone");
+    optionsBuilder.setTempLocation("tempLocation");
+    optionsBuilder.setNetwork("network");
+    optionsBuilder.setSubnetwork("subnetwork");
+    optionsBuilder.putLabels("orchestrator", "feast");
+    defaults = optionsBuilder.build();
     MetricsProperties metricsProperties = new MetricsProperties();
     metricsProperties.setEnabled(false);
-    dfJobManager = new DataflowJobManager(dataflow, defaults, metricsProperties);
+    Credential credential = null;
+    try {
+      credential = MockGoogleCredential.getApplicationDefault();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
+    dfJobManager = new DataflowJobManager(defaults, metricsProperties, credential);
     dfJobManager = spy(dfJobManager);
   }
 
@@ -90,8 +105,7 @@ public class DataflowJobManagerTest {
             .setName("SERVING")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
-            .addSubscriptions(
-                Subscription.newBuilder().setProject("*").setName("*").setVersion("*").build())
+            .addSubscriptions(Subscription.newBuilder().setProject("*").setName("*").build())
             .build();
 
     SourceProto.Source source =
@@ -111,7 +125,6 @@ public class DataflowJobManagerTest {
                 FeatureSetSpec.newBuilder()
                     .setSource(source)
                     .setName("featureSet")
-                    .setVersion(1)
                     .setMaxAge(Duration.newBuilder().build()))
             .build();
 
@@ -126,6 +139,7 @@ public class DataflowJobManagerTest {
     expectedPipelineOptions.setRegion("region");
     expectedPipelineOptions.setUpdate(false);
     expectedPipelineOptions.setAppName("DataflowJobManager");
+    expectedPipelineOptions.setLabels(defaults.getLabelsMap());
     expectedPipelineOptions.setJobName(jobName);
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
 
@@ -145,7 +159,7 @@ public class DataflowJobManagerTest {
         new Job(
             jobName,
             "",
-            Runner.DATAFLOW.name(),
+            Runner.DATAFLOW,
             Source.fromProto(source),
             Store.fromProto(store),
             Lists.newArrayList(FeatureSet.fromProto(featureSet)),
@@ -159,7 +173,7 @@ public class DataflowJobManagerTest {
         actualPipelineOptions.getOptionsId()); // avoid comparing this value
 
     // We only check that we are calling getFilesToStage() manually, because the automatic approach
-    // throws an error: https://github.com/gojek/feast/pull/291 i.e. do not check for the actual
+    // throws an error: https://github.com/feast-dev/feast/pull/291 i.e. do not check for the actual
     // files that are staged
     assertThat(
         "filesToStage in pipelineOptions should not be null, job manager should set it.",
@@ -207,12 +221,7 @@ public class DataflowJobManagerTest {
 
     FeatureSetProto.FeatureSet featureSet =
         FeatureSetProto.FeatureSet.newBuilder()
-            .setSpec(
-                FeatureSetSpec.newBuilder()
-                    .setName("featureSet")
-                    .setVersion(1)
-                    .setSource(source)
-                    .build())
+            .setSpec(FeatureSetSpec.newBuilder().setName("featureSet").setSource(source).build())
             .build();
 
     dfJobManager = Mockito.spy(dfJobManager);
@@ -226,7 +235,7 @@ public class DataflowJobManagerTest {
         new Job(
             "job",
             "",
-            Runner.DATAFLOW.name(),
+            Runner.DATAFLOW,
             Source.fromProto(source),
             Store.fromProto(store),
             Lists.newArrayList(FeatureSet.fromProto(featureSet)),

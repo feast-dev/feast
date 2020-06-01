@@ -17,7 +17,7 @@
 package feast.storage.api.writer;
 
 import com.google.common.collect.ImmutableMap;
-import feast.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FeatureRowProto.FeatureRow;
 import java.io.Serializable;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;

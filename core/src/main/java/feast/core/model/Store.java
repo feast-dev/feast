@@ -17,13 +17,14 @@
 package feast.core.model;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.StoreProto;
-import feast.core.StoreProto.Store.BigQueryConfig;
-import feast.core.StoreProto.Store.Builder;
-import feast.core.StoreProto.Store.CassandraConfig;
-import feast.core.StoreProto.Store.RedisConfig;
-import feast.core.StoreProto.Store.StoreType;
-import feast.core.StoreProto.Store.Subscription;
+import feast.proto.core.StoreProto;
+import feast.proto.core.StoreProto.Store.BigQueryConfig;
+import feast.proto.core.StoreProto.Store.Builder;
+import feast.proto.core.StoreProto.Store.CassandraConfig;
+import feast.proto.core.StoreProto.Store.RedisClusterConfig;
+import feast.proto.core.StoreProto.Store.RedisConfig;
+import feast.proto.core.StoreProto.Store.StoreType;
+import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -82,6 +83,9 @@ public class Store {
       case CASSANDRA:
         config = storeProto.getCassandraConfig().toByteArray();
         break;
+      case REDIS_CLUSTER:
+        config = storeProto.getRedisClusterConfig().toByteArray();
+        break;
       default:
         throw new IllegalArgumentException("Invalid store provided");
     }
@@ -106,6 +110,9 @@ public class Store {
       case CASSANDRA:
         CassandraConfig cassConfig = CassandraConfig.parseFrom(config);
         return storeProtoBuilder.setCassandraConfig(cassConfig).build();
+      case REDIS_CLUSTER:
+        RedisClusterConfig redisClusterConfig = RedisClusterConfig.parseFrom(config);
+        return storeProtoBuilder.setRedisClusterConfig(redisClusterConfig).build();
       default:
         throw new InvalidProtocolBufferException("Invalid store set");
     }
@@ -118,22 +125,18 @@ public class Store {
   }
 
   private static String convertSubscriptionToString(Subscription sub) {
-    if (sub.getVersion().isEmpty() || sub.getName().isEmpty() || sub.getProject().isEmpty()) {
+    if (sub.getName().isEmpty() || sub.getProject().isEmpty()) {
       throw new IllegalArgumentException(
           String.format("Missing arguments in subscription string: %s", sub.toString()));
     }
-    return String.format("%s:%s:%s", sub.getProject(), sub.getName(), sub.getVersion());
+    return String.format("%s:%s", sub.getProject(), sub.getName());
   }
 
   private Subscription convertStringToSubscription(String sub) {
     if (sub.equals("")) {
       return Subscription.newBuilder().build();
     }
-    String[] split = sub.split(":", 3);
-    return Subscription.newBuilder()
-        .setProject(split[0])
-        .setName(split[1])
-        .setVersion(split[2])
-        .build();
+    String[] split = sub.split(":", 2);
+    return Subscription.newBuilder().setProject(split[0]).setName(split[1]).build();
   }
 }

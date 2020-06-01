@@ -26,31 +26,23 @@ import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.CoreServiceProto.ListFeatureSetsRequest;
-import feast.core.CoreServiceProto.ListFeatureSetsResponse;
-import feast.core.CoreServiceProto.ListIngestionJobsRequest;
-import feast.core.CoreServiceProto.ListIngestionJobsResponse;
-import feast.core.CoreServiceProto.RestartIngestionJobRequest;
-import feast.core.CoreServiceProto.RestartIngestionJobResponse;
-import feast.core.CoreServiceProto.StopIngestionJobRequest;
-import feast.core.CoreServiceProto.StopIngestionJobResponse;
-import feast.core.FeatureSetProto.FeatureSetStatus;
-import feast.core.FeatureSetReferenceProto.FeatureSetReference;
-import feast.core.IngestionJobProto.IngestionJob;
-import feast.core.SourceProto.KafkaSourceConfig;
-import feast.core.SourceProto.SourceType;
-import feast.core.StoreProto.Store.RedisConfig;
-import feast.core.StoreProto.Store.StoreType;
 import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
-import feast.core.model.FeatureSet;
-import feast.core.model.Field;
-import feast.core.model.Job;
-import feast.core.model.JobStatus;
-import feast.core.model.Source;
-import feast.core.model.Store;
-import feast.types.ValueProto.ValueType.Enum;
+import feast.core.model.*;
+import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
+import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.proto.core.CoreServiceProto.ListIngestionJobsRequest;
+import feast.proto.core.CoreServiceProto.ListIngestionJobsResponse;
+import feast.proto.core.CoreServiceProto.RestartIngestionJobRequest;
+import feast.proto.core.CoreServiceProto.RestartIngestionJobResponse;
+import feast.proto.core.CoreServiceProto.StopIngestionJobRequest;
+import feast.proto.core.CoreServiceProto.StopIngestionJobResponse;
+import feast.proto.core.FeatureSetReferenceProto.FeatureSetReference;
+import feast.proto.core.IngestionJobProto.IngestionJob;
+import feast.proto.core.StoreProto.Store.RedisConfig;
+import feast.proto.core.StoreProto.Store.StoreType;
+import feast.proto.types.ValueProto.ValueType.Enum;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -77,21 +69,13 @@ public class JobServiceTest {
   // test target
   public JobService jobService;
 
-  /* unit test setup */
   @Before
   public void setup() {
     initMocks(this);
 
     // create mock objects for testing
     // fake data source
-    this.dataSource =
-        new Source(
-            SourceType.KAFKA,
-            KafkaSourceConfig.newBuilder()
-                .setBootstrapServers("kafka:9092")
-                .setTopic("my-topic")
-                .build(),
-            true);
+    this.dataSource = TestObjectFactory.defaultSource;
     // fake data store
     this.dataStore =
         new Store(
@@ -122,7 +106,6 @@ public class JobServiceTest {
         new JobService(this.jobRepository, this.specService, Arrays.asList(this.jobManager));
   }
 
-  // setup fake spec service
   public void setupSpecService() {
     try {
       ListFeatureSetsResponse response =
@@ -139,7 +122,6 @@ public class JobServiceTest {
     }
   }
 
-  // setup fake job repository
   public void setupJobRepository() {
     when(this.jobRepository.findById(this.job.getId())).thenReturn(Optional.of(this.job));
     when(this.jobRepository.findByStoreName(this.dataStore.getName()))
@@ -149,28 +131,19 @@ public class JobServiceTest {
     when(this.jobRepository.findAll()).thenReturn(Arrays.asList(this.job));
   }
 
-  // TODO: setup fake job manager
   public void setupJobManager() {
     when(this.jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
     when(this.jobManager.restartJob(this.job))
         .thenReturn(this.newDummyJob(this.job.getId(), this.job.getExtId(), JobStatus.PENDING));
   }
 
-  // dummy model constructorss
   private FeatureSet newDummyFeatureSet(String name, int version, String project) {
-    Field feature = new Field(name + "_feature", Enum.INT64);
-    Field entity = new Field(name + "_entity", Enum.STRING);
+    Feature feature = TestObjectFactory.CreateFeature(name + "_feature", Enum.INT64);
+    Entity entity = TestObjectFactory.CreateEntity(name + "_entity", Enum.STRING);
 
     FeatureSet fs =
-        new FeatureSet(
-            name,
-            project,
-            version,
-            100L,
-            Arrays.asList(entity),
-            Arrays.asList(feature),
-            this.dataSource,
-            FeatureSetStatus.STATUS_READY);
+        TestObjectFactory.CreateFeatureSet(
+            name, project, Arrays.asList(entity), Arrays.asList(feature));
     fs.setCreated(Date.from(Instant.ofEpochSecond(10L)));
     return fs;
   }
@@ -179,7 +152,7 @@ public class JobServiceTest {
     return new Job(
         id,
         extId,
-        Runner.DATAFLOW.name(),
+        Runner.DATAFLOW,
         this.dataSource,
         this.dataStore,
         Arrays.asList(this.featureSet),
@@ -190,7 +163,6 @@ public class JobServiceTest {
     return Arrays.asList(
         // all provided: name, version and project
         FeatureSetReference.newBuilder()
-            .setVersion(this.featureSet.getVersion())
             .setName(this.featureSet.getName())
             .setProject(this.featureSet.getProject().toString())
             .build(),
@@ -202,10 +174,7 @@ public class JobServiceTest {
             .build(),
 
         // name and version
-        FeatureSetReference.newBuilder()
-            .setName(this.featureSet.getName())
-            .setVersion(this.featureSet.getVersion())
-            .build());
+        FeatureSetReference.newBuilder().setName(this.featureSet.getName()).build());
   }
 
   private List<ListFeatureSetsRequest.Filter> newDummyListRequestFilters() {
@@ -214,25 +183,21 @@ public class JobServiceTest {
         ListFeatureSetsRequest.Filter.newBuilder()
             .setFeatureSetName(this.featureSet.getName())
             .setProject(this.featureSet.getProject().toString())
-            .setFeatureSetVersion(String.valueOf(this.featureSet.getVersion()))
             .build(),
 
         // name and project
         ListFeatureSetsRequest.Filter.newBuilder()
             .setFeatureSetName(this.featureSet.getName())
             .setProject(this.featureSet.getProject().toString())
-            .setFeatureSetVersion("*")
             .build(),
 
         // name and project
         ListFeatureSetsRequest.Filter.newBuilder()
             .setFeatureSetName(this.featureSet.getName())
             .setProject("*")
-            .setFeatureSetVersion(String.valueOf(this.featureSet.getVersion()))
             .build());
   }
 
-  /* unit tests */
   private ListIngestionJobsResponse tryListJobs(ListIngestionJobsRequest request) {
     ListIngestionJobsResponse response = null;
     try {
@@ -245,7 +210,6 @@ public class JobServiceTest {
     return response;
   }
 
-  // list jobs
   @Test
   public void testListJobsById() {
     ListIngestionJobsRequest.Filter filter =
@@ -304,7 +268,6 @@ public class JobServiceTest {
     assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
   }
 
-  // stop jobs
   private StopIngestionJobResponse tryStopJob(
       StopIngestionJobRequest request, boolean expectError) {
     StopIngestionJobResponse response = null;
@@ -341,10 +304,9 @@ public class JobServiceTest {
   }
 
   @Test
-  public void testStopAlreadyStop() {
+  public void testStopAlreadyStopped() {
     // check that stop jobs does not trying to stop jobs that are not already stopped
-    List<JobStatus> doNothingStatuses = new ArrayList<>();
-    doNothingStatuses.addAll(JobStatus.getTerminalState());
+    List<JobStatus> doNothingStatuses = new ArrayList<>(JobStatus.getTerminalStates());
 
     JobStatus prevStatus = this.job.getStatus();
     for (JobStatus status : doNothingStatuses) {

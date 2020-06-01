@@ -22,9 +22,9 @@ import yaml
 
 from feast.client import Client
 from feast.config import Config
+from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.feature_set import FeatureSet, FeatureSetRef
 from feast.loaders.yaml import yaml_loader
-from feast.core.IngestionJob_pb2 import IngestionJobStatus
 
 _logger = logging.getLogger(__name__)
 
@@ -128,15 +128,16 @@ def feature_set_list():
     feast_client = Client()  # type: Client
 
     table = []
-    for fs in feast_client.list_feature_sets():
-        table.append([fs.name, fs.version, repr(fs)])
+    for fs in feast_client.list_feature_sets(project="*", name="*"):
+        table.append([fs.name, repr(fs)])
 
     from tabulate import tabulate
 
-    print(tabulate(table, headers=["NAME", "VERSION", "REFERENCE"], tablefmt="plain"))
+    print(tabulate(table, headers=["NAME", "REFERENCE"], tablefmt="plain"))
 
 
 @feature_set.command("apply")
+# TODO: add project option to overwrite project setting.
 @click.option(
     "--filename",
     "-f",
@@ -155,17 +156,22 @@ def feature_set_create(filename):
 
 @feature_set.command("describe")
 @click.argument("name", type=click.STRING)
-@click.argument("version", type=click.INT)
-def feature_set_describe(name: str, version: int):
+@click.option(
+    "--project",
+    "-p",
+    help="Project that feature set belongs to",
+    type=click.STRING,
+    default="default",
+)
+def feature_set_describe(name: str, project: str):
     """
     Describe a feature set
     """
     feast_client = Client()  # type: Client
-    fs = feast_client.get_feature_set(name=name, version=version)
+    fs = feast_client.get_feature_set(name=name, project=project)
+
     if not fs:
-        print(
-            f'Feature set with name "{name}" and version "{version}" could not be found'
-        )
+        print(f'Feature set with name "{name}" could not be found')
         return
 
     print(yaml.dump(yaml.safe_load(str(fs)), default_flow_style=False, sort_keys=False))
@@ -330,9 +336,6 @@ def ingest_job_restart(job_id: str):
     "--name", "-n", help="Feature set name to ingest data into", required=True
 )
 @click.option(
-    "--version", "-v", help="Feature set version to ingest data into", type=int
-)
-@click.option(
     "--filename",
     "-f",
     help="Path to file to be ingested",
@@ -345,13 +348,13 @@ def ingest_job_restart(job_id: str):
     type=click.Choice(["CSV"], case_sensitive=False),
     help="Type of file to ingest. Defaults to CSV.",
 )
-def ingest(name, version, filename, file_type):
+def ingest(name, filename, file_type):
     """
     Ingest feature data into a feature set
     """
 
     feast_client = Client()  # type: Client
-    feature_set = feast_client.get_feature_set(name=name, version=version)
+    feature_set = feast_client.get_feature_set(name=name)
     feature_set.ingest_file(file_path=filename)
 
 

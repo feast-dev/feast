@@ -52,4 +52,4 @@ For developers, the publishing process is automated along with the Java SDK by
 it works. Artifacts are staged to Sonatype where a maintainer needs to take a
 release action for them to go live on Maven Central.
 
-[prow task]: https://github.com/gojek/feast/blob/17e7dca8238aae4dcbf0ff9f0db5d80ef8e035cf/.prow/config.yaml#L166-L192
+[prow task]: https://github.com/feast-dev/feast/blob/17e7dca8238aae4dcbf0ff9f0db5d80ef8e035cf/.prow/config.yaml#L166-L192

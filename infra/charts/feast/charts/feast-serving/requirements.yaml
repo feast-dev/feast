@@ -1,8 +1,0 @@
-dependencies:
-- name: redis
-  version: 9.5.0
-  repository: "@stable"
-  condition: redis.enabled
-- name: common
-  version: 0.0.5
-  repository: "@incubator"

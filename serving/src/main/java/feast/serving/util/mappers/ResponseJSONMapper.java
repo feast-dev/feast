@@ -16,9 +16,9 @@
  */
 package feast.serving.util.mappers;
 
-import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
-import feast.types.ValueProto.Value;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
+import feast.proto.types.ValueProto.Value;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;

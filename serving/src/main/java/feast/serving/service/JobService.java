@@ -16,7 +16,7 @@
  */
 package feast.serving.service;
 
-import feast.serving.ServingAPIProto.Job;
+import feast.proto.serving.ServingAPIProto.Job;
 import java.util.Optional;
 
 // JobService interface specifies the operations to manage Job instances internally in Feast

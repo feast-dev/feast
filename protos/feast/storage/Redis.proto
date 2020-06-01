@@ -21,14 +21,14 @@ import "feast/types/Field.proto";
 package feast.storage;
 
 option java_outer_classname = "RedisProto";
-option java_package = "feast.storage";
-option go_package = "github.com/gojek/feast/sdk/go/protos/feast/storage";
+option java_package = "feast.proto.storage";
+option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/storage";
 
 message RedisKey {
   // Field number 1 is reserved for a future distributing hash if needed
   // (for when redis is clustered).
 
-  // FeatureSet this row belongs to, this is defined as featureSetName:version.
+  // FeatureSet this row belongs to, this is defined as featureSetName.
   string feature_set = 2;
 
   // List of fields containing entity names and their respective values
