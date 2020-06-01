@@ -19,6 +19,7 @@ package feast.core.job;
 public enum Runner {
   DATAFLOW("DataflowRunner"),
   FLINK("FlinkRunner"),
+  DATABRICKS("DatabricksRunner"),
   DIRECT("DirectRunner");
 
   private final String name;
