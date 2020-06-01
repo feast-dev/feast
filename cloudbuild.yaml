@@ -64,7 +64,7 @@ steps:
 # SDK (GO)
 - id: compile-protos-go
   waitFor: ['-']
-  name: 'gcr.io/konnekt-core/protoc-go:3.6.1'
+  name: 'gcr.io/konnekt-core/protoc-go:3.10.0'
   entrypoint: make
   args: ['compile-protos-go']
 - id: unit-test-go-sdk-setup
