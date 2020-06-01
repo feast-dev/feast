@@ -70,4 +70,7 @@ message DataflowRunnerConfigOptions {
 
     /* BigQuery table specification, e.g. PROJECT_ID:DATASET_ID.PROJECT_ID */
     string deadLetterTableSpec = 12;
+
+    /* Labels to apply to the dataflow job */
+    map<string, string> labels = 13;
 }

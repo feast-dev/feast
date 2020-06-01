@@ -42,6 +42,7 @@ import feast.ingestion.options.ImportOptions;
 import feast.ingestion.options.OptionCompressor;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.RunnerProto.DirectRunnerConfigOptions;
 import feast.proto.core.SourceProto;
 import feast.proto.core.SourceProto.KafkaSourceConfig;
 import feast.proto.core.SourceProto.SourceType;
@@ -51,9 +52,7 @@ import feast.proto.core.StoreProto.Store.StoreType;
 import feast.proto.core.StoreProto.Store.Subscription;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -71,12 +70,12 @@ public class DirectRunnerJobManagerTest {
   @Mock private DirectJobRegistry directJobRegistry;
 
   private DirectRunnerJobManager drJobManager;
-  private Map<String, String> defaults;
+  private DirectRunnerConfigOptions defaults;
 
   @Before
   public void setUp() {
     initMocks(this);
-    defaults = new HashMap<>();
+    defaults = DirectRunnerConfigOptions.newBuilder().setTargetParallelism(1).build();
     MetricsProperties metricsProperties = new MetricsProperties();
     metricsProperties.setEnabled(false);
 
@@ -123,7 +122,7 @@ public class DirectRunnerJobManagerTest {
     expectedPipelineOptions.setAppName("DirectRunnerJobManager");
     expectedPipelineOptions.setRunner(DirectRunner.class);
     expectedPipelineOptions.setBlockOnRun(false);
-    expectedPipelineOptions.setProject("");
+    expectedPipelineOptions.setTargetParallelism(1);
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
     expectedPipelineOptions.setProject("");
 
