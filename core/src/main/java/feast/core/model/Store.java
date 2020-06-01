@@ -19,6 +19,7 @@ package feast.core.model;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.BigQueryConfig;
+import feast.proto.core.StoreProto.Store.BigtableConfig;
 import feast.proto.core.StoreProto.Store.Builder;
 import feast.proto.core.StoreProto.Store.CassandraConfig;
 import feast.proto.core.StoreProto.Store.RedisClusterConfig;
@@ -86,6 +87,9 @@ public class Store {
       case REDIS_CLUSTER:
         config = storeProto.getRedisClusterConfig().toByteArray();
         break;
+      case BIGTABLE:
+        config = storeProto.getBigtableConfig().toByteArray();
+        break;
       default:
         throw new IllegalArgumentException("Invalid store provided");
     }
@@ -113,6 +117,9 @@ public class Store {
       case REDIS_CLUSTER:
         RedisClusterConfig redisClusterConfig = RedisClusterConfig.parseFrom(config);
         return storeProtoBuilder.setRedisClusterConfig(redisClusterConfig).build();
+      case BIGTABLE:
+        BigtableConfig bigtableConfig = BigtableConfig.parseFrom(config);
+        return storeProtoBuilder.setBigtableConfig(bigtableConfig).build();
       default:
         throw new InvalidProtocolBufferException("Invalid store set");
     }

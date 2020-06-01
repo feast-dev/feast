@@ -70,6 +70,10 @@ public class ServingServiceConfig {
         HistoricalRetriever bqRetriever = BigQueryHistoricalRetriever.create(config);
         servingService = new HistoricalServingService(bqRetriever, specService, jobService);
         break;
+      //case BIGTABLE:
+      //  OnlineRetriever bigtableRetriever = BigtableOnlineRetriever.create(config);
+      //  servingService = new OnlineServingService(bigtableRetriever, specService, tracer);
+      //  break;
       case CASSANDRA:
       case UNRECOGNIZED:
       case INVALID:
