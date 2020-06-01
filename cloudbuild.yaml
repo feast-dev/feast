@@ -127,7 +127,7 @@ steps:
   - GOOGLE_CLOUD_PROJECT=dev-konnekt-data-deep-1
   - TEMP_BUCKET=${_TEST_BUCKET}
   - JOBS_STAGING_LOCATION=gs://${_TEST_BUCKET}/e2e-staging
-  - JAR_VERSION_SUFFIX=${SHORT_SHA}
+  - FEAST_BUILD_VERSION=ff-${SHORT_SHA}
 - id: test-end-to-end-batch
   waitFor: ['secrets', 'build-java', 'unit-test-go-sdk-report', 'install-python-sdk']
   name: 'maven:${_MAVEN_VERSION}'
@@ -139,7 +139,7 @@ steps:
   - GOOGLE_CLOUD_PROJECT=dev-konnekt-data-deep-1
   - TEMP_BUCKET=${_TEST_BUCKET}
   - JOBS_STAGING_LOCATION=gs://${_TEST_BUCKET}/e2e-staging
-  - JAR_VERSION_SUFFIX=${SHORT_SHA}
+  - FEAST_BUILD_VERSION=ff-${SHORT_SHA}
 
 # Docker Images
 - id: docker-build-core

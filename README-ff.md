@@ -82,13 +82,6 @@ $CLOUDBUILD_STEP \
     -c 'pip install -r requirements-ci.txt && pip install -e . && pytest --junitxml=/log/python-sdk-test-report.xml'
 ```
 
-### How-to: Run locally
-
-```bash
-mvn clean -Drevision=dev -DskipTests=true --batch-mode package
-docker-compose up --build
-```
-
 ### How-to: Run e2e locally
 ```bash
 mvn clean -Drevision=ff-$(git rev-parse --short HEAD)-dev -DskipTests=true --batch-mode package
@@ -100,9 +93,9 @@ docker run -it --name feast-e2e \
     -e GOOGLE_CLOUD_PROJECT=dev-konnekt-data-deep-1 \
     -e TEMP_BUCKET=dev-konnekt-data-deep-1-feast-tmp \
     -e JOBS_STAGING_LOCATION=gs://dev-konnekt-data-deep-1-feast-tmp/e2e-staging \
-    -e JAR_VERSION_SUFFIX=$(git rev-parse --short HEAD) \
+    -e FEAST_BUILD_VERSION=ff-$(git rev-parse --short HEAD)-dev \
     maven:3.6.2-jdk-11 \
-    bash
+    bash \
     infra/scripts/test-end-to-end-batch.sh
 ```
 
