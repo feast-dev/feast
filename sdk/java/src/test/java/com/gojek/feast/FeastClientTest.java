@@ -35,8 +35,9 @@ import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.grpc.testing.GrpcCleanupRule;
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -85,17 +86,20 @@ public class FeastClientTest {
   public void shouldGetOnlineFeatures() {
     List<Row> rows =
         this.client.getOnlineFeatures(
-            List.of("driver:name", "rating"),
-            List.of(
+            Arrays.asList("driver:name", "rating"),
+            Arrays.asList(
                 Row.create().set("driver_id", 1).setEntityTimestamp(Instant.ofEpochSecond(100))),
             "driver_project");
 
     assertEquals(
         rows.get(0).getFields(),
-        Map.of(
-            "driver_id", intValue(1),
-            "driver:name", strValue("david"),
-            "rating", intValue(3)));
+        new HashMap<String, Value>() {
+          {
+            put("driver_id", intValue(1));
+            put("driver:name", strValue("david"));
+            put("rating", intValue(3));
+          }
+        });
   }
 
   private static GetOnlineFeaturesRequest getFakeRequest() {
@@ -121,10 +125,13 @@ public class FeastClientTest {
         .addFieldValues(
             FieldValues.newBuilder()
                 .putAllFields(
-                    Map.of(
-                        "driver_id", intValue(1),
-                        "driver:name", strValue("david"),
-                        "rating", intValue(3)))
+                    new HashMap<String, Value>() {
+                      {
+                        put("driver_id", intValue(1));
+                        put("driver:name", strValue("david"));
+                        put("rating", intValue(3));
+                      }
+                    })
                 .build())
         .build();
   }
