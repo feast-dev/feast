@@ -98,6 +98,8 @@ message Store {
     CASSANDRA = 3;
 
     REDIS_CLUSTER = 4;
+
+    BIGTABLE = 5;
   }
 
   message RedisConfig {
@@ -124,6 +126,12 @@ message Store {
   message CassandraConfig {
     string host = 1;
     int32 port = 2;
+  }
+
+  message BigtableConfig {
+    string project_id = 1;
+    string instance_id = 2;
+    string table_id = 3;
   }
 
   message RedisClusterConfig {
@@ -175,5 +183,6 @@ message Store {
     BigQueryConfig bigquery_config = 12;
     CassandraConfig cassandra_config = 13;
     RedisClusterConfig redis_cluster_config = 14;
+    BigtableConfig bigtable_config = 15;
   }
 }
