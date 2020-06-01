@@ -27,7 +27,7 @@ CLOUDBUILD_STEP="docker run --rm --name feast-build \
                      -e GOPATH=/cache/go \
                      -e FEAST_VERSION=ff-$(git rev-parse --short HEAD)-dev \
                      -e MAVEN_OPTS=-Dmaven.repo.local=/cache/m2 \
-                     -e GOOGLE_APPLICATION_CREDENTIALS=/etc/service-account/service-account.json
+                     -e GOOGLE_APPLICATION_CREDENTIALS=/etc/service-account/service-account.json \
                      -e GOOGLE_CLOUD_PROJECT=dev-konnekt-data-deep-1 \
 "
 ```

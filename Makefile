@@ -86,7 +86,7 @@ install-go-ci-dependencies:
 
 compile-protos-go: install-go-ci-dependencies
 	cd ${ROOT_DIR}/protos; protoc -I/usr/include -I. --go_out=plugins=grpc,paths=source_relative:../sdk/go/protos/ tensorflow_metadata/proto/v0/*.proto
-	$(foreach dir,types serving core storage,cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go_out=plugins=grpc,paths=source_relative:../sdk/go/protos feast/$(dir)/*.proto;)
+	$(foreach dir,types serving core storage,cd ${ROOT_DIR}/protos; protoc -I/usr/include -I. --go_out=plugins=grpc,paths=source_relative:../sdk/go/protos feast/$(dir)/*.proto;)
 
 test-go:
 	cd ${ROOT_DIR}/sdk/go; go test ./...
