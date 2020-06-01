@@ -61,7 +61,7 @@ jobs:
     - name: Build Feast runtime and end-to-end test images
       run: |
         set -x
-        docker-compose -f infra/docker-compose/docker-compose.yml build --parallel end-to-end-tests core online-serving
+        docker-compose -f infra/docker-compose/docker-compose-ff.yml build --parallel end-to-end-tests core online-serving
       env:
         FEAST_VERSION: v${{ github.sha }}
         FEAST_CI_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-ci
@@ -70,13 +70,13 @@ jobs:
 
     # "docker-compose up" starts docker containers.
     # "--abort-on-container-exit" ensures that the containers are shutdown when end-to-end
-    # tests complete, and that the task exit status indicates failure if there are test failures.  
+    # tests complete, and that the task exit status indicates failure if there are test failures.
     # Images fetched from a repository, such as Kafka, will not be built, so this
     # step will only build the Feast Core image.
     - name: Run Feast end-to-end test with Docker compose
       run: |
         set -x
-        docker-compose -f infra/docker-compose/docker-compose.yml up --abort-on-container-exit end-to-end-tests
+        docker-compose -f infra/docker-compose/docker-compose-ff.yml up --abort-on-container-exit end-to-end-tests
       env:
         COMPOSE_PROJECT_NAME: feast
         FEAST_VERSION: v${{ github.sha }}
@@ -98,7 +98,7 @@ jobs:
     # Promote successfully tested container to Azure Container Registry.
     - name: Push image to ACR
       run: |
-        docker-compose -f infra/docker-compose/docker-compose.yml push core
+        docker-compose -f infra/docker-compose/docker-compose-ff.yml push core
       env:
         FEAST_VERSION: v${{ github.sha }}
         FEAST_CORE_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-core

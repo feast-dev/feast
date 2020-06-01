@@ -4,17 +4,8 @@
 
 FROM maven:3.6-jdk-11 as builder
 ARG REVISION=dev
-
+COPY  . /build
 WORKDIR /build
-
-COPY datatypes datatypes
-COPY storage storage
-COPY sdk/java sdk/java
-COPY core core
-COPY ingestion ingestion
-COPY protos protos
-COPY serving serving
-COPY pom.xml pom.xml
 
 # Trick to copy .m2 directory only if it exists.
 # The LICENSE file is any file that actually exists, to make sure the command doesn't fail.

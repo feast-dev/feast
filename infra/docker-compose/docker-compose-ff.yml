@@ -1,0 +1,161 @@
+version: "3.7"
+
+services:
+  core:
+    build:
+      context: ../..
+      dockerfile: infra/docker/core/Dockerfile
+    image: ${FEAST_CORE_IMAGE}:${FEAST_VERSION}
+    volumes:
+      - ./core/${FEAST_CORE_CONFIG}:/etc/feast/application.yml
+      - ./gcp-service-accounts/${FEAST_CORE_GCP_SERVICE_ACCOUNT_KEY}:/etc/gcloud/service-accounts/key.json
+    environment:
+      DB_HOST: db
+      GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
+    restart: on-failure
+    depends_on:
+      - db
+      - kafka
+    ports:
+      - 6565:6565
+    command:
+      - java
+      - -jar
+      - /opt/feast/feast-core.jar
+      - --spring.config.location=classpath:/application.yml,file:/etc/feast/application.yaml
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  online-serving:
+    build:
+      context: ../..
+      dockerfile: infra/docker/serving/Dockerfile
+    image: ${FEAST_SERVING_IMAGE}:${FEAST_VERSION}
+    volumes:
+      - ./serving/${FEAST_ONLINE_SERVING_CONFIG}:/etc/feast/application.yml
+      - ./serving/${FEAST_ONLINE_STORE_CONFIG}:/etc/feast/store.yml
+    depends_on:
+      - core
+      - redis
+    ports:
+      - 6566:6566
+    restart: on-failure
+    command:
+      - java
+      - -jar
+      - /opt/feast/feast-serving.jar
+      - --spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml
+
+  batch-serving:
+    build:
+      context: ../..
+      dockerfile: infra/docker/serving/Dockerfile
+    image: ${FEAST_SERVING_IMAGE}:${FEAST_VERSION}
+    volumes:
+      - ./serving/${FEAST_BATCH_SERVING_CONFIG}:/etc/feast/application.yml
+      - ./serving/${FEAST_BATCH_STORE_CONFIG}:/etc/feast/store.yml
+      - ./gcp-service-accounts/${FEAST_BATCH_SERVING_GCP_SERVICE_ACCOUNT_KEY}:/etc/gcloud/service-accounts/key.json
+    depends_on:
+      - core
+      - redis
+    ports:
+      - 6567:6567
+    restart: on-failure
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
+      FEAST_JOB_STAGING_LOCATION: ${FEAST_JOB_STAGING_LOCATION}
+    command:
+      - "java"
+      - "-Xms1024m"
+      - "-Xmx1024m"
+      - "-jar"
+      - "/opt/feast/feast-serving.jar"
+      - "--spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml"
+
+  jupyter:
+    image: jupyter/datascience-notebook:63d0df23b673
+    volumes:
+      - ./gcp-service-accounts/${FEAST_JUPYTER_GCP_SERVICE_ACCOUNT_KEY}:/etc/gcloud/service-accounts/key.json
+      - ./jupyter/startup.sh:/etc/startup.sh
+    depends_on:
+      - core
+      - online-serving
+    environment:
+      FEAST_CORE_URL: core:6565
+      FEAST_ONLINE_SERVING_URL: online-serving:6566
+      FEAST_BATCH_SERVING_URL: batch-serving:6567
+      GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
+      FEAST_REPOSITORY_VERSION: ${FEAST_REPOSITORY_VERSION}
+    ports:
+      - 8888:8888
+    command: ["/etc/startup.sh"]
+
+  redis:
+    image: redis:5-alpine
+    ports:
+      - "6379:6379"
+
+  kafka:
+    image: confluentinc/cp-kafka:5.2.1
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://kafka:9092,OUTSIDE://localhost:9094
+      KAFKA_LISTENERS: INSIDE://:9092,OUTSIDE://:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+    ports:
+      - "9092:9092"
+      - "9094:9094"
+
+    depends_on:
+      - zookeeper
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:5.2.1
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  db:
+    image: postgres:12-alpine
+    environment:
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5342"
+
+  end-to-end-tests:
+    build:
+      context: ../..
+      dockerfile: tests/e2e/Dockerfile
+      args:
+        FEAST_CI_IMAGE: ${FEAST_CI_IMAGE}:${FEAST_VERSION}
+    volumes:
+      - ../..:/feast
+    depends_on:
+      - core
+      - online-serving
+    command:
+      - bash
+      - -c
+      - |
+        set -ex
+        cd /feast
+
+        make compile-protos-python
+
+        # Ensure Feast Core is running and has initialized
+        for i in {1..60}; do curl -sf http://core:8080/healthz && break; echo "Waiting for Core..."; sleep 1; done
+        curl -f http://core:8080/healthz
+
+        # Run single end-to-end test
+        cd tests/e2e
+        pytest basic-ingest-redis-serving.py \
+          --core_url core:6565 \
+          --serving_url online-serving:6566 \
+          -k test_basic_register_feature_set_success  \
+          -sv \
+          --junitxml=build/junit.xml \
+          -o junit_family=xunit2
