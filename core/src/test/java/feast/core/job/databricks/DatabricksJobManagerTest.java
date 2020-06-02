@@ -65,8 +65,8 @@ public class DatabricksJobManagerTest {
     public void setUp() {
         initMocks(this);
         runnerConfigOptions = new HashMap<>();
-        runnerConfigOptions.put("databricksHost", "https://adb-8918595472279780.0.azuredatabricks.net");
-        token = "YOUR_TOKEN";
+        runnerConfigOptions.put("databricksHost", "https://databricks");
+        token = "TEST_TOKEN";
         MetricsProperties metricsProperties = new MetricsProperties();
         metricsProperties.setEnabled(false);
         dbJobManager = new DatabricksJobManager(runnerConfigOptions, metricsProperties, token, httpClient);
