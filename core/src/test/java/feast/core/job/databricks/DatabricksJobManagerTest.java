@@ -136,6 +136,7 @@ public class DatabricksJobManagerTest {
 
         assertThat( actual.getExtId(), equalTo("1"));
         assertThat( actual.getId(), equalTo(job.getId()));
+        // TODO: add testing on jar params when implemented.
 
     }
 }

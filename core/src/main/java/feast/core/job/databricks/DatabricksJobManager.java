@@ -10,11 +10,12 @@ import feast.core.FeatureSetProto;
 import feast.core.SourceProto;
 import feast.core.StoreProto;
 import feast.core.config.FeastProperties.MetricsProperties;
+import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
 import feast.core.model.*;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.http.HttpStatus;
 
 import java.io.IOException;
 import java.net.URI;
@@ -134,7 +135,6 @@ public class DatabricksJobManager implements JobManager {
         return JobStatus.UNKNOWN;
     }
 
-    @SneakyThrows
     private Job runDatabricksJob(
             String jobId,
             List<FeatureSetProto.FeatureSet> featureSetProtos,
@@ -156,17 +156,31 @@ public class DatabricksJobManager implements JobManager {
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
                 .build();
 
-        HttpResponse<String> response = this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        try {
+            HttpResponse<String> response = this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-        JsonNode parent = new ObjectMapper().readTree(response.body());
+            JsonNode parent = new ObjectMapper().readTree(response.body());
 
-        if (response.statusCode() == 200) {
-            String runId = parent.path("run_id").asText();
-            return new Job(jobId, runId, getRunnerType().name(), Source.fromProto(source), Store.fromProto(sink), featureSets, JobStatus.PENDING);
-        } else {
-            throw new RuntimeException(String.format("Failed running of job %s: %s", jobId, response.body())); // TODO: handle failure
+            if (response.statusCode() == HttpStatus.SC_OK) {
+                String runId = parent.path("run_id").asText();
+                return new Job(jobId, runId, getRunnerType().name(), Source.fromProto(source), Store.fromProto(sink), featureSets, JobStatus.PENDING);
+            } else {
+                throw new RuntimeException(String.format("Failed running of job %s: %s", jobId, response.body())); // TODO: change to handle failure
+            }
+        } catch (IOException | InterruptedException e) {
+            log.error(
+                    "Unable to run databricks job with id : {}\ncause: {}",
+                    jobId,
+                    e.getMessage());
+            throw new JobExecutionException(String.format("Unable to run databricks job with id : %s\ncause: %s", jobId, e), e);
+
         }
+
     }
+
+//    private String waitForJobToRun(String runId) {
+//
+//    }
 
 //    private ArrayNode getJarParams(SourceProto.Source source, StoreProto.Store sink, List<FeatureSetProto.FeatureSet> featureSets) {
 //
