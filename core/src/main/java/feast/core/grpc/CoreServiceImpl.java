@@ -60,6 +60,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     this.accessManagementService = accessManagementService;
     this.jobService = jobService;
     this.feastProperties = feastProperties;
+    this.statsService = statsService;
   }
 
   @Override
