@@ -24,6 +24,7 @@ import feast.ingestion.transform.FeatureRowToStoreAllocator;
 import feast.ingestion.transform.ProcessAndValidateFeatureRows;
 import feast.ingestion.transform.ReadFromSource;
 import feast.ingestion.transform.metrics.WriteFailureMetricsTransform;
+import feast.ingestion.transform.metrics.WriteInflightMetricsTransform;
 import feast.ingestion.transform.metrics.WriteSuccessMetricsTransform;
 import feast.ingestion.transform.specs.ReadFeatureSetSpecs;
 import feast.ingestion.transform.specs.WriteFeatureSetSpecAck;
@@ -147,13 +148,18 @@ public class ImportJob {
     for (Store store : stores) {
       FeatureSink featureSink = getFeatureSink(store, featureSetSpecs);
 
-      // Step 5. Write FeatureRow to the corresponding Store.
+      // Step 5. Write metrics of successfully validated rows
+      validatedRows
+          .get(FEATURE_ROW_OUT)
+          .apply("WriteInflightMetrics", WriteInflightMetricsTransform.create(store.getName()));
+
+      // Step 6. Write FeatureRow to the corresponding Store.
       WriteResult writeFeatureRows =
           storeAllocatedRows
               .get(storeTags.get(store))
               .apply("WriteFeatureRowToStore", featureSink.writer());
 
-      // Step 6. Write FailedElements to a dead letter table in BigQuery.
+      // Step 7. Write FailedElements to a dead letter table in BigQuery.
       if (options.getDeadLetterTableSpec() != null) {
         // TODO: make deadletter destination type configurable
         DeadletterSink deadletterSink =
@@ -172,7 +178,7 @@ public class ImportJob {
             .apply("WriteFailedElements_WriteFeatureRowToStore", deadletterSink.write());
       }
 
-      // Step 7. Write metrics to a metrics sink.
+      // Step 8. Write metrics to a metrics sink.
       writeFeatureRows
           .getSuccessfulInserts()
           .apply("WriteSuccessMetrics", WriteSuccessMetricsTransform.create(store.getName()));
@@ -182,7 +188,7 @@ public class ImportJob {
           .apply("WriteFailureMetrics", WriteFailureMetricsTransform.create(store.getName()));
     }
 
-    // Step 8. Send ack that FeatureSetSpec state is updated
+    // Step 9. Send ack that FeatureSetSpec state is updated
     featureSetSpecs.apply(
         "WriteAck",
         WriteFeatureSetSpecAck.newBuilder()

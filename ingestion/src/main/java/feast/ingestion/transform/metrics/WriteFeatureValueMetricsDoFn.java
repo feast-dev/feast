@@ -16,12 +16,7 @@
  */
 package feast.ingestion.transform.metrics;
 
-import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.FEATURE_SET_NAME_TAG_KEY;
-import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.FEATURE_SET_PROJECT_TAG_KEY;
-import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.FEATURE_TAG_KEY;
-import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.INGESTION_JOB_NAME_KEY;
-import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.METRIC_PREFIX;
-import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.STORE_TAG_KEY;
+import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.*;
 
 import com.google.auto.value.AutoValue;
 import com.timgroup.statsd.NonBlockingStatsDClient;
@@ -67,6 +62,8 @@ public abstract class WriteFeatureValueMetricsDoFn
 
   abstract int getStatsdPort();
 
+  abstract String getMetricsNamespace();
+
   static Builder newBuilder() {
     return new AutoValue_WriteFeatureValueMetricsDoFn.Builder();
   }
@@ -79,6 +76,8 @@ public abstract class WriteFeatureValueMetricsDoFn
     abstract Builder setStatsdHost(String statsdHost);
 
     abstract Builder setStatsdPort(int statsdPort);
+
+    abstract Builder setMetricsNamespace(String metricsNamespace);
 
     abstract WriteFeatureValueMetricsDoFn build();
   }
@@ -158,7 +157,8 @@ public abstract class WriteFeatureValueMetricsDoFn
         FEATURE_SET_PROJECT_TAG_KEY + ":" + projectName,
         FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
         FEATURE_TAG_KEY + ":" + featureName,
-        INGESTION_JOB_NAME_KEY + ":" + context.getPipelineOptions().getJobName()
+        INGESTION_JOB_NAME_KEY + ":" + context.getPipelineOptions().getJobName(),
+        METRICS_NAMESPACE_KEY + ":" + getMetricsNamespace(),
       };
 
       // stats can return non finite values when there is no element
