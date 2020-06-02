@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import com.google.api.Http;
 import com.google.common.collect.Lists;
 import com.google.api.services.dataflow.Dataflow;
 import feast.core.FeatureSetProto;
@@ -31,6 +32,8 @@ import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.job.databricks.DatabricksJobManager;
 
 import java.io.IOException;
+import java.net.http.HttpClient;
+import java.net.http.HttpResponse;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -51,6 +54,9 @@ public class DatabricksJobManagerTest {
     @Mock
     private Job job;
 
+    @Mock
+    private HttpClient httpClient;
+
     private Map<String, String> runnerConfigOptions;
     private DatabricksJobManager dbJobManager;
     private String token;
@@ -59,11 +65,11 @@ public class DatabricksJobManagerTest {
     public void setUp() {
         initMocks(this);
         runnerConfigOptions = new HashMap<>();
-        runnerConfigOptions.put("databricksHost", "https://adb-8918595472279780.0.azuredatabricks.net");
-        token = "";
+        runnerConfigOptions.put("databricksHost", "https://databricks");
+        token = "TEST_TOKEN";
         MetricsProperties metricsProperties = new MetricsProperties();
         metricsProperties.setEnabled(false);
-        dbJobManager = new DatabricksJobManager(runnerConfigOptions, metricsProperties, token);
+        dbJobManager = new DatabricksJobManager(runnerConfigOptions, metricsProperties, token, httpClient);
         dbJobManager = spy(dbJobManager);
     }
 
@@ -77,7 +83,7 @@ public class DatabricksJobManagerTest {
     }
 
     @Test
-    public void testStartJob() {
+    public void testStartJob() throws IOException, InterruptedException {
         StoreProto.Store store =
                 StoreProto.Store.newBuilder()
                         .setName("SERVING")
@@ -107,9 +113,29 @@ public class DatabricksJobManagerTest {
                                         .build())
                         .build();
 
+
+        HttpResponse httpResponse = mock(HttpResponse.class);
+        String responseBody = "{ \"run_id\" : \"1\" } ";
+        when(httpResponse.body()).thenReturn(responseBody);
+        when(httpResponse.statusCode()).thenReturn(200);
+
+        Mockito.when(httpClient.send(any(), any())).thenReturn(httpResponse);
+
+        HttpClient mockHttpClient = Mockito.mock(HttpClient.class);
+
+        MetricsProperties metricsProperties = new MetricsProperties();
+        metricsProperties.setEnabled(false);
+
+        dbJobManager = new DatabricksJobManager(runnerConfigOptions, metricsProperties, token, httpClient);
+        dbJobManager = spy(dbJobManager);
+
+        doReturn(httpResponse).when(mockHttpClient).send(any(), any());
+
         Job job = new Job("3", "", "Databricks", Source.fromProto(source), Store.fromProto(store), Lists.newArrayList(FeatureSet.fromProto(featureSet)), JobStatus.PENDING);
         Job actual = dbJobManager.startJob(job);
 
+        assertThat( actual.getExtId(), equalTo("1"));
+        assertThat( actual.getId(), equalTo(job.getId()));
 
     }
 }

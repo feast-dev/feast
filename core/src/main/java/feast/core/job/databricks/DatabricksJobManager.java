@@ -39,16 +39,18 @@ public class DatabricksJobManager implements JobManager {
     private final MetricsProperties metricsProperties;
     private final HttpClient httpClient;
 
+
     public DatabricksJobManager(
             Map<String, String> runnerConfigOptions,
             MetricsProperties metricsProperties,
-            String token) {
+            String token,
+            HttpClient httpClient) {
 
         DatabricksJobConfig config = new DatabricksJobConfig(runnerConfigOptions.get("databricksHost"));
         this.databricksHost = config.getDatabricksHost();
         this.defaultOptions = runnerConfigOptions;
         this.metricsProperties = metricsProperties;
-        this.httpClient = HttpClient.newHttpClient();
+        this.httpClient = httpClient;
         this.databricksToken = token;
 
     }
@@ -156,12 +158,18 @@ public class DatabricksJobManager implements JobManager {
         HttpResponse<String> response = this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         JsonNode parent = new ObjectMapper().readTree(response.body());
-        String runId = parent.path("run_id").asText();
 
-        Job job = new Job(jobId, runId, getRunnerType().name(), Source.fromProto(source), Store.fromProto(sink), featureSets, JobStatus.PENDING);
-        job.setExtId(runId);
-
-        return job;
+        if (response.statusCode() == 200) {
+            String runId = parent.path("run_id").asText();
+            return new Job(jobId, runId, getRunnerType().name(), Source.fromProto(source), Store.fromProto(sink), featureSets, JobStatus.PENDING);
+        } else {
+            throw new RuntimeException(String.format("Failed running of job %s: %s", jobId, response.body())); // TODO: handle failure
+        }
     }
+
+//    private ArrayNode getJarParams(SourceProto.Source source, StoreProto.Store sink, List<FeatureSetProto.FeatureSet> featureSets) {
+//
+//
+//    }
 
 }
