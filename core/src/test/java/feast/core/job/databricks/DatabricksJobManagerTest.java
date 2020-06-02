@@ -17,6 +17,7 @@
 package feast.core.job.databricks;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
@@ -59,7 +60,7 @@ public class DatabricksJobManagerTest {
         initMocks(this);
         runnerConfigOptions = new HashMap<>();
         runnerConfigOptions.put("databricksHost", "https://adb-8918595472279780.0.azuredatabricks.net");
-        token = "YOUR_TOKEN";
+        token = "";
         MetricsProperties metricsProperties = new MetricsProperties();
         metricsProperties.setEnabled(false);
         dbJobManager = new DatabricksJobManager(runnerConfigOptions, metricsProperties, token);
@@ -71,7 +72,8 @@ public class DatabricksJobManagerTest {
 //        FieldSetter.setField(job, job.getClass().getDeclaredField("extId"), "1");
         Mockito.when(job.getExtId()).thenReturn("1");
 
-        dbJobManager.getJobStatus(job);
+        JobStatus jobStatus = dbJobManager.getJobStatus(job);
+        assertThat(jobStatus, equalTo(JobStatus.ERROR));
     }
 
     @Test

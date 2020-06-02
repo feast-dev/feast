@@ -16,6 +16,7 @@ import feast.core.model.*;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -23,6 +24,7 @@ import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -102,15 +104,30 @@ public class DatabricksJobManager implements JobManager {
     }
 
 
-    @SneakyThrows
     @Override
     public JobStatus getJobStatus(Job job) {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(String.format("%s/api/2.0/jobs/get?job_id=%s", this.databricksHost, job.getExtId())))
+                .uri(URI.create(String.format("%s/api/2.0/jobs/runs/get?run_id=%s", this.databricksHost, job.getExtId())))
                 .header("Authorization", String.format("%s %s", "Bearer", this.databricksToken))
                 .build();
-        HttpResponse<String> response = this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        //todo add mapping logic
+        try {
+            HttpResponse<String> response = this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            JsonNode parent = new ObjectMapper().readTree(response.body());
+            Optional<String> resultState = Optional.of(parent.path("state").get("result_state").asText().toUpperCase());
+            String lifeCycleState = parent.path("state").path("life_cycle_state").asText().toUpperCase();
+
+            if (resultState.isPresent()) {
+                return DatabricksJobStateMapper.map(String.format("%s_%s", lifeCycleState, resultState.get()));
+            }
+
+            return DatabricksJobStateMapper.map(lifeCycleState);
+        } catch (IOException | InterruptedException ex) {
+            log.error(
+                    "Unable to retrieve status of a dabatricks run with id : {}\ncause: {}",
+                    job.getExtId(),
+                    ex.getMessage());
+        }
+
         return JobStatus.UNKNOWN;
     }
 
