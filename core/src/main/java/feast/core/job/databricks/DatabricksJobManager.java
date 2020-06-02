@@ -145,10 +145,14 @@ public class DatabricksJobManager implements JobManager {
         if (response.statusCode() == 200) {
             String runId = parent.path("run_id").asText();
             return new Job(jobId, runId, getRunnerType().name(), Source.fromProto(source), Store.fromProto(sink), featureSets, JobStatus.PENDING);
-        }
-        else {
-            throw new RuntimeException("Failed running of job..."); // TODO: handle failure
+        } else {
+            throw new RuntimeException(String.format("Failed running of job %s: %s", jobId, response.body())); // TODO: handle failure
         }
     }
+
+//    private ArrayNode getJarParams(SourceProto.Source source, StoreProto.Store sink, List<FeatureSetProto.FeatureSet> featureSets) {
+//
+//
+//    }
 
 }

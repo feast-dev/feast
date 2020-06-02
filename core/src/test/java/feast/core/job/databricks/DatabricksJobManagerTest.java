@@ -134,6 +134,7 @@ public class DatabricksJobManagerTest {
         Job actual = dbJobManager.startJob(job);
 
         assertThat( actual.getExtId(), equalTo("1"));
+        assertThat( actual.getId(), equalTo(job.getId()));
 
     }
 }
