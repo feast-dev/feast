@@ -82,7 +82,7 @@ public class DatabricksJobManager implements JobManager {
     }
 
     /**
-     * Update an existing Dataflow job.
+     * Update an existing Databricks job.
      *
      * @param job job of target job to change
      * @return Databricks-specific job id
