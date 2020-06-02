@@ -42,7 +42,7 @@ public class DatabricksJobManager implements JobManager {
             MetricsProperties metricsProperties,
             String token) {
 
-        DatabricksJobConfig config = new DatabricksJobConfig("", "");
+        DatabricksJobConfig config = new DatabricksJobConfig(runnerConfigOptions.get("databricksHost"));
         this.databricksHost = config.getDatabricksHost();
         this.defaultOptions = runnerConfigOptions;
         this.metricsProperties = metricsProperties;
@@ -64,11 +64,9 @@ public class DatabricksJobManager implements JobManager {
                 featureSetProtos.add(featureSet.toProto());
             }
 
-            String idempotencyToken = "123";
 
             return runDatabricksJob(
                     job.getId(),
-                    idempotencyToken,
                     featureSetProtos,
                     job.getSource().toProto(),
                     job.getStore().toProto());
@@ -119,7 +117,6 @@ public class DatabricksJobManager implements JobManager {
     @SneakyThrows
     private Job runDatabricksJob(
             String jobId,
-            String idempotencyToken,
             List<FeatureSetProto.FeatureSet> featureSetProtos,
             SourceProto.Source source,
             StoreProto.Store sink) {
@@ -132,7 +129,6 @@ public class DatabricksJobManager implements JobManager {
         ObjectNode body = mapper.createObjectNode();
         body.put("job_id", jobId);
         body.set("jar_params", jarParams);
-        body.put("idempotency_token", idempotencyToken);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(String.format("%s/api/2.0/jobs/run-now", this.databricksHost)))
@@ -142,7 +138,7 @@ public class DatabricksJobManager implements JobManager {
 
         HttpResponse<String> response = this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-        JsonNode parent= new ObjectMapper().readTree(response.body());
+        JsonNode parent = new ObjectMapper().readTree(response.body());
         String runId = parent.path("run_id").asText();
 
         Job job = new Job(jobId, runId, getRunnerType().name(), Source.fromProto(source), Store.fromProto(sink), featureSets, JobStatus.PENDING);
