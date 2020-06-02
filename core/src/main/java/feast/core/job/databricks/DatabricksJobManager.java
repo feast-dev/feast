@@ -93,7 +93,7 @@ public class DatabricksJobManager implements JobManager {
      */
     @Override
     public Job updateJob(Job job) {
-        return job;
+        return restartJob(job);
     }
 
     @Override
@@ -102,7 +102,8 @@ public class DatabricksJobManager implements JobManager {
 
     @Override
     public Job restartJob(Job job) {
-        return null;
+        abortJob(job.getExtId());
+        return startJob(job);
     }
 
 
