@@ -19,10 +19,10 @@ package feast.ingestion.transform.fn;
 import com.google.auto.value.AutoValue;
 import feast.ingestion.values.FeatureSet;
 import feast.ingestion.values.Field;
+import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FieldProto;
+import feast.proto.types.ValueProto.Value.ValCase;
 import feast.storage.api.writer.FailedElement;
-import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.FieldProto;
-import feast.types.ValueProto.Value.ValCase;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -58,14 +58,14 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
   public void processElement(ProcessContext context) {
     String error = null;
     FeatureRow featureRow = context.element();
-    FeatureSet featureSet = getFeatureSets().getOrDefault(featureRow.getFeatureSet(), null);
+    FeatureSet featureSet = getFeatureSets().get(featureRow.getFeatureSet());
     List<FieldProto.Field> fields = new ArrayList<>();
     if (featureSet != null) {
       for (FieldProto.Field field : featureRow.getFieldsList()) {
         Field fieldSpec = featureSet.getField(field.getName());
         if (fieldSpec == null) {
           // skip
-          break;
+          continue;
         }
         // If value is set in the FeatureRow, make sure the value type matches
         // that defined in FeatureSetSpec
@@ -99,13 +99,8 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
               .setPayload(featureRow.toString())
               .setErrorMessage(error);
       if (featureSet != null) {
-        String[] split = featureSet.getReference().split(":");
-        String[] nameSplit = split[0].split("/");
-        failedElement =
-            failedElement
-                .setProjectName(nameSplit[0])
-                .setFeatureSetName(nameSplit[1])
-                .setFeatureSetVersion(split[1]);
+        String[] split = featureSet.getReference().split("/");
+        failedElement = failedElement.setProjectName(split[0]).setFeatureSetName(split[1]);
       }
       context.output(getFailureTag(), failedElement.build());
     } else {

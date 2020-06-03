@@ -16,31 +16,23 @@
  */
 package feast.serving.util;
 
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.serving.ServingAPIProto.FeatureReference;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
 
 public class RefUtil {
   public static String generateFeatureStringRef(FeatureReference featureReference) {
-    String ref = String.format("%s/%s", featureReference.getProject(), featureReference.getName());
-    if (featureReference.getVersion() > 0) {
-      return ref + String.format(":%d", featureReference.getVersion());
+    String ref = featureReference.getName();
+    if (!featureReference.getFeatureSet().isEmpty()) {
+      ref = featureReference.getFeatureSet() + ":" + ref;
     }
-    return ref;
-  }
-
-  public static String generateFeatureStringRefWithoutProject(FeatureReference featureReference) {
-    String ref = String.format("%s", featureReference.getName());
-    if (featureReference.getVersion() > 0) {
-      return ref + String.format(":%d", featureReference.getVersion());
+    if (!featureReference.getProject().isEmpty()) {
+      ref = featureReference.getProject() + "/" + ref;
     }
     return ref;
   }
 
   public static String generateFeatureSetStringRef(FeatureSetSpec featureSetSpec) {
     String ref = String.format("%s/%s", featureSetSpec.getProject(), featureSetSpec.getName());
-    if (featureSetSpec.getVersion() > 0) {
-      return ref + String.format(":%d", featureSetSpec.getVersion());
-    }
     return ref;
   }
 }

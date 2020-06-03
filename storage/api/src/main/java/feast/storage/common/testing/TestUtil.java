@@ -18,12 +18,12 @@ package feast.storage.common.testing;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.util.Timestamps;
-import feast.core.FeatureSetProto.FeatureSet;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.FeatureRowProto.FeatureRow.Builder;
-import feast.types.FieldProto.Field;
-import feast.types.ValueProto.*;
+import feast.proto.core.FeatureSetProto.FeatureSet;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FeatureRowProto.FeatureRow.Builder;
+import feast.proto.types.FieldProto.Field;
+import feast.proto.types.ValueProto.*;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.commons.lang3.RandomStringUtils;
 
@@ -87,7 +87,7 @@ public class TestUtil {
 
   private static String getFeatureSetReference(FeatureSet featureSet) {
     FeatureSetSpec spec = featureSet.getSpec();
-    return String.format("%s/%s:%d", spec.getProject(), spec.getName(), spec.getVersion());
+    return String.format("%s/%s:%d", spec.getProject(), spec.getName());
   }
 
   /**

@@ -2,14 +2,30 @@
 # Build stage 1: Builder
 # ============================================================
 
-FROM maven:3.6-jdk-11-slim as builder
+FROM maven:3.6-jdk-11 as builder
 ARG REVISION=dev
+
+
+#
+# Download unarchiver
+#
+RUN apt-get -qq update && apt-get -y install unar
+
+#
+# Download grpc_health_probe to run health check for Feast Serving
+# https://kubernetes.io/blog/2018/10/01/health-checking-grpc-servers-on-kubernetes/
+#
+RUN wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.3.1/grpc_health_probe-linux-amd64 \
+         -O /usr/bin/grpc-health-probe && \
+    chmod +x /usr/bin/grpc-health-probe
+
 
 WORKDIR /build
 
 COPY datatypes datatypes
 COPY storage storage
 COPY sdk/java sdk/java
+COPY docs/coverage/java docs/coverage/java
 COPY core core
 COPY ingestion ingestion
 COPY protos protos
@@ -35,9 +51,8 @@ RUN mvn --also-make --projects core,ingestion -Drevision=$REVISION \
 # The final size of the production image will be bigger but it seems
 # a good tradeoff between speed and size.
 #
-# https://github.com/gojek/feast/pull/291
-RUN apt-get -qq update && apt-get -y install unar && \
-  unar /build/core/target/feast-core-$REVISION.jar -o /build/core/target/
+# https://github.com/feast-dev/feast/pull/291
+RUN unar /build/core/target/feast-core-$REVISION.jar -o /build/core/target/
 
 # ============================================================
 # Build stage 2: Production
@@ -45,9 +60,12 @@ RUN apt-get -qq update && apt-get -y install unar && \
 
 FROM openjdk:11-jre as production
 ARG REVISION=dev
-COPY --from=builder /build/core/target/feast-core-$REVISION.jar /opt/feast/feast-core.jar
+
 # Required for staging jar dependencies when submitting Dataflow jobs.
 COPY --from=builder /build/core/target/feast-core-$REVISION /opt/feast/feast-core
+COPY --from=builder /build/core/target/feast-core-$REVISION.jar /opt/feast/feast-core.jar
+COPY --from=builder /usr/bin/grpc-health-probe /usr/bin/grpc-health-probe
+
 CMD ["java",\
      "-Xms2048m",\
      "-Xmx2048m",\

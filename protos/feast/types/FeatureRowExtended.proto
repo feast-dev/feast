@@ -21,9 +21,9 @@ import "feast/types/FeatureRow.proto";
 
 package feast.types;
 
-option java_package = "feast.types";
+option java_package = "feast.proto.types";
 option java_outer_classname = "FeatureRowExtendedProto";
-option go_package = "github.com/gojek/feast/sdk/go/protos/feast/types";
+option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/types";
 
 message Error {
   string cause = 1; // exception class name

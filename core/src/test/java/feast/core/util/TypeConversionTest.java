@@ -19,16 +19,10 @@ package feast.core.util;
 import static com.jayway.jsonpath.matchers.JsonPathMatchers.hasJsonPath;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import com.google.protobuf.Timestamp;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import org.junit.Test;
 
 public class TypeConversionTest {
@@ -84,14 +78,8 @@ public class TypeConversionTest {
   }
 
   @Test
-  public void convertJsonStringToArgsShouldReturnCorrectListOfArgs() {
+  public void convertMapToJsonStringShouldReturnEmptyJsonForAnEmptyMap() {
     Map<String, String> input = new HashMap<>();
-    input.put("key", "value");
-    input.put("key2", "value2");
-
-    String[] expected = new String[] {"--key=value", "--key2=value2"};
-    String[] actual = TypeConversion.convertMapToArgs(input);
-    assertThat(actual.length, equalTo(expected.length));
-    assertTrue(Arrays.asList(actual).containsAll(Arrays.asList(expected)));
+    assertThat(TypeConversion.convertMapToJsonString(input), equalTo("{}"));
   }
 }

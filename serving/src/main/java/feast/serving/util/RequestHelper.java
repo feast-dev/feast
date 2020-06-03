@@ -16,9 +16,9 @@
  */
 package feast.serving.util;
 
-import feast.serving.ServingAPIProto.FeatureReference;
-import feast.serving.ServingAPIProto.GetBatchFeaturesRequest;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
+import feast.proto.serving.ServingAPIProto.GetBatchFeaturesRequest;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import io.grpc.Status;
 import java.util.Set;
 import java.util.stream.Collectors;

@@ -29,6 +29,13 @@ public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions,
 
   @Required
   @Description(
+      "Default feast project to apply to incoming rows that do not specify project in its feature set reference.")
+  String getDefaultFeastProject();
+
+  void setDefaultFeastProject(String defaultProject);
+
+  @Required
+  @Description(
       "JSON string representation of the FeatureSet that the import job will process, in BZip2 binary format."
           + "FeatureSet follows the format in feast.core.FeatureSet proto."
           + "Mutliple FeatureSetSpec can be passed by specifying '--featureSet={...}' multiple times"

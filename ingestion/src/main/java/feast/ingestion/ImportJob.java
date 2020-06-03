@@ -20,24 +20,24 @@ import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
 import static feast.ingestion.utils.StoreUtil.getFeatureSink;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.FeatureSetProto.FeatureSet;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.SourceProto.Source;
-import feast.core.StoreProto.Store;
 import feast.ingestion.options.BZip2Decompressor;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.options.StringListStreamConverter;
+import feast.ingestion.transform.ProcessAndValidateFeatureRows;
 import feast.ingestion.transform.ReadFromSource;
-import feast.ingestion.transform.ValidateFeatureRows;
 import feast.ingestion.transform.metrics.WriteFailureMetricsTransform;
 import feast.ingestion.transform.metrics.WriteSuccessMetricsTransform;
 import feast.ingestion.utils.SpecUtil;
+import feast.proto.core.FeatureSetProto.FeatureSet;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.SourceProto.Source;
+import feast.proto.core.StoreProto.Store;
+import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.storage.api.writer.DeadletterSink;
 import feast.storage.api.writer.FailedElement;
 import feast.storage.api.writer.FeatureSink;
 import feast.storage.api.writer.WriteResult;
 import feast.storage.connectors.bigquery.writer.BigQueryDeadletterSink;
-import feast.types.FeatureRowProto.FeatureRow;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -124,12 +124,13 @@ public class ImportJob {
                   .setFailureTag(DEADLETTER_OUT)
                   .build());
 
-      // Step 2. Validate incoming FeatureRows
+      // Step 2. Process and validate incoming FeatureRows
       PCollectionTuple validatedRows =
           convertedFeatureRows
               .get(FEATURE_ROW_OUT)
               .apply(
-                  ValidateFeatureRows.newBuilder()
+                  ProcessAndValidateFeatureRows.newBuilder()
+                      .setDefaultProject(options.getDefaultFeastProject())
                       .setFeatureSetSpecs(featureSetSpecsByKey)
                       .setSuccessTag(FEATURE_ROW_OUT)
                       .setFailureTag(DEADLETTER_OUT)
