@@ -17,9 +17,9 @@
 syntax = "proto3";
 package feast.core;
 
-option java_package = "feast.core";
+option java_package = "feast.proto.core";
 option java_outer_classname = "StoreProto";
-option go_package = "github.com/gojek/feast/sdk/go/protos/feast/core";
+option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 
 // Store provides a location where Feast reads and writes feature values.
 // Feature values will be written to the Store in the form of FeatureRow elements.
@@ -48,12 +48,7 @@ message Store {
 
     // BigQuery stores a FeatureRow element as a row in a BigQuery table.
     // 
-    // Table name is derived from the feature set name and version as:
-    // [feature_set_name]_v[feature_set_version] 
-    // 
-    // For example:
-    // A feature row for feature set "driver" and version "1" will be written
-    // to table "driver_v1".
+    // Table name is derived is the same as the feature set name.
     // 
     // The entities and features in a FeatureSetSpec corresponds to the 
     // fields in the BigQuery table (these make up the BigQuery schema). 
@@ -69,15 +64,11 @@ message Store {
     // ====================|==================|================================
     // - event_timestamp   | TIMESTAMP        | event time of the FeatureRow
     // - created_timestamp | TIMESTAMP        | processing time of the ingestion of the FeatureRow
+    // - ingestion_id      | STRING           | unique id identifying groups of rows that have been ingested together
     // - job_id            | STRING           | identifier for the job that writes the FeatureRow to the corresponding BigQuery table
     //
     // BigQuery table created will be partitioned by the field "event_timestamp"
     // of the FeatureRow (https://cloud.google.com/bigquery/docs/partitioned-tables).
-    //
-    // Since newer version of feature set can introduce breaking, non backward-
-    // compatible BigQuery schema updates, incrementing the version of a 
-    // feature set will result in the creation of a new empty BigQuery table
-    // with the new schema.
     // 
     // The following table shows how ValueType in Feast is mapped to 
     // BigQuery Standard SQL data types 
@@ -105,6 +96,8 @@ message Store {
 
     // Unsupported in Feast 0.3
     CASSANDRA = 3;
+
+    REDIS_CLUSTER = 4;
   }
 
   message RedisConfig {
@@ -120,11 +113,21 @@ message Store {
   message BigQueryConfig {
     string project_id = 1;
     string dataset_id = 2;
+    string staging_location = 3;
+    int32 initial_retry_delay_seconds = 4;
+    int32 total_timeout_seconds = 5;
   }
 
   message CassandraConfig {
     string host = 1;
     int32 port = 2;
+  }
+
+  message RedisClusterConfig {
+    // List of Redis Uri for all the nodes in Redis Cluster, comma separated. Eg. host1:6379, host2:6379
+    string connection_string = 1;
+    int32 initial_backoff_ms = 2;
+    int32 max_retries = 3;
   }
 
   message Subscription {
@@ -136,7 +139,6 @@ message Store {
     // pattern matching.
     string project = 3;
 
-
     // Name of the desired feature set. Asterisks can be used as wildcards in the name.
     // Matching on names is only permitted if a specific project is defined. It is disallowed
     // If the project name is set to "*"
@@ -146,13 +148,8 @@ message Store {
     // - my-feature-set-6 can be used to select a single feature set
     string name = 1;
 
-    // Versions of the given feature sets that will be returned.
-    // Valid options for version:
-    //     "latest": only the latest version is returned.
-    //     "*": Subscribe to all versions
-    //     [version number]: pin to a specific version. Project and feature set name must be
-    //                       explicitly defined if a specific version is pinned.
-    string version = 2;
+    // Feature set version was removed in v0.5.0.
+    reserved 2;
   }
 
   // Name of the store.
@@ -169,5 +166,6 @@ message Store {
     RedisConfig redis_config = 11;
     BigQueryConfig bigquery_config = 12;
     CassandraConfig cassandra_config = 13;
+    RedisClusterConfig redis_cluster_config = 14;
   }
 }

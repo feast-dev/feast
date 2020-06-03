@@ -18,7 +18,7 @@ package feast.ingestion.transform.metrics;
 
 import com.google.auto.value.AutoValue;
 import feast.ingestion.options.ImportOptions;
-import feast.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FeatureRowProto.FeatureRow;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.*;

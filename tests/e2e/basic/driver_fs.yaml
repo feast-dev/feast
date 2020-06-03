@@ -1,0 +1,12 @@
+kind: feature_set
+spec:
+  name: driver
+  entities:
+  - name: driver_id
+    valueType: INT64
+  features:
+  - name: rating
+    valueType: FLOAT
+  - name: cost
+    valueType: FLOAT
+  maxAge: 3600s

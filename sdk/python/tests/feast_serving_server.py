@@ -67,7 +67,6 @@ class ServingServicer(Serving.ServingServiceServicer):
             feature_data_sets=[
                 GetOnlineFeaturesResponse.FeatureDataSet(
                     name="feature_set_1",
-                    version="1",
                     feature_rows=[
                         FeatureRowProto.FeatureRow(
                             feature_set="feature_set_1",

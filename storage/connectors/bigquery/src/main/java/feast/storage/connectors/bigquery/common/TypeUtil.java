@@ -17,7 +17,7 @@
 package feast.storage.connectors.bigquery.common;
 
 import com.google.cloud.bigquery.StandardSQLTypeName;
-import feast.types.ValueProto;
+import feast.proto.types.ValueProto;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -54,7 +54,7 @@ public class TypeUtil {
   }
 
   /**
-   * Converts {@link feast.types.ValueProto.ValueType} to its corresponding {@link
+   * Converts {@link feast.proto.types.ValueProto.ValueType} to its corresponding {@link
    * StandardSQLTypeName}
    *
    * @param valueType value type to convert

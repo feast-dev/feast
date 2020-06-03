@@ -19,20 +19,24 @@ package feast.core.validators;
 import static feast.core.validators.Matchers.checkValidCharacters;
 
 import com.google.common.collect.Sets;
-import feast.core.FeatureSetProto.EntitySpec;
-import feast.core.FeatureSetProto.FeatureSet;
-import feast.core.FeatureSetProto.FeatureSpec;
+import feast.proto.core.FeatureSetProto.EntitySpec;
+import feast.proto.core.FeatureSetProto.FeatureSet;
+import feast.proto.core.FeatureSetProto.FeatureSpec;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class FeatureSetValidator {
+
   public static void validateSpec(FeatureSet featureSet) {
     if (featureSet.getSpec().getProject().isEmpty()) {
       throw new IllegalArgumentException("Project name must be provided");
     }
     if (featureSet.getSpec().getName().isEmpty()) {
       throw new IllegalArgumentException("Feature set name must be provided");
+    }
+    if (featureSet.getSpec().getLabelsMap().containsKey("")) {
+      throw new IllegalArgumentException("Feature set label keys must not be empty");
     }
 
     checkValidCharacters(featureSet.getSpec().getProject(), "project");
@@ -44,6 +48,9 @@ public class FeatureSetValidator {
     }
     for (FeatureSpec featureSpec : featureSet.getSpec().getFeaturesList()) {
       checkValidCharacters(featureSpec.getName(), "features::name");
+      if (featureSpec.getLabelsMap().containsKey("")) {
+        throw new IllegalArgumentException("Feature label keys must not be empty");
+      }
     }
   }
 

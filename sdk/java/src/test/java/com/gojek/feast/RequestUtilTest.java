@@ -19,12 +19,13 @@ package com.gojek.feast;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.google.common.collect.ImmutableList;
 import com.google.protobuf.TextFormat;
-import feast.serving.ServingAPIProto.FeatureReference;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -33,56 +34,27 @@ import org.junit.jupiter.params.provider.NullSource;
 
 class RequestUtilTest {
 
-  private static Stream<Arguments> provideValidFeatureIds() {
+  private static Stream<Arguments> provideValidFeatureRefs() {
     return Stream.of(
         Arguments.of(
-            Collections.singletonList("driver_project/driver_id:1"),
-            Collections.singletonList(
-                FeatureReference.newBuilder()
-                    .setProject("driver_project")
-                    .setName("driver_id")
-                    .setVersion(1)
-                    .build())),
-        Arguments.of(
-            Arrays.asList("driver_project/driver_id:1", "driver_project/driver_name:1"),
+            Arrays.asList("driver:driver_id", "driver_id"),
             Arrays.asList(
                 FeatureReference.newBuilder()
                     .setProject("driver_project")
-                    .setName("driver_id")
-                    .setVersion(1)
-                    .build(),
-                FeatureReference.newBuilder()
-                    .setProject("driver_project")
-                    .setName("driver_name")
-                    .setVersion(1)
-                    .build())),
-        Arguments.of(
-            Arrays.asList(
-                "driver_project/driver_id:1",
-                "driver_project/driver_name:1",
-                "booking_project/driver_name"),
-            Arrays.asList(
-                FeatureReference.newBuilder()
-                    .setProject("driver_project")
-                    .setVersion(1)
+                    .setFeatureSet("driver")
                     .setName("driver_id")
                     .build(),
                 FeatureReference.newBuilder()
                     .setProject("driver_project")
-                    .setVersion(1)
-                    .setName("driver_name")
-                    .build(),
-                FeatureReference.newBuilder()
-                    .setProject("booking_project")
-                    .setName("driver_name")
+                    .setName("driver_id")
                     .build())));
   }
 
   @ParameterizedTest
-  @MethodSource("provideValidFeatureIds")
-  void createFeatureSets_ShouldReturnFeatureSetsForValidFeatureIds(
+  @MethodSource("provideValidFeatureRefs")
+  void createFeatureSets_ShouldReturnFeatureSetsForValidFeatureRefs(
       List<String> input, List<FeatureReference> expected) {
-    List<FeatureReference> actual = RequestUtil.createFeatureRefs(input, "my-project");
+    List<FeatureReference> actual = RequestUtil.createFeatureRefs(input, "driver_project");
     // Order of the actual and expected featureSets do no not matter
     actual.sort(Comparator.comparing(FeatureReference::getName));
     expected.sort(Comparator.comparing(FeatureReference::getName));
@@ -94,23 +66,35 @@ class RequestUtilTest {
     }
   }
 
+  @ParameterizedTest
+  @MethodSource("provideValidFeatureRefs")
+  void renderFeatureRef_ShouldReturnFeatureRefString(
+      List<String> expected, List<FeatureReference> input) {
+    input =
+        input.stream()
+            .map(ref -> ref.toBuilder().clearProject().build())
+            .collect(Collectors.toList());
+    List<String> actual =
+        input.stream().map(ref -> RequestUtil.renderFeatureRef(ref)).collect(Collectors.toList());
+    assertEquals(expected.size(), actual.size());
+    for (int i = 0; i < expected.size(); i++) {
+      assertEquals(expected.get(i), actual.get(i));
+    }
+  }
+
   private static Stream<Arguments> provideInvalidFeatureRefs() {
-    return Stream.of(
-        Arguments.of(Collections.singletonList("missing:bad_version")),
-        Arguments.of(Collections.singletonList("")));
+    return Stream.of(Arguments.of(ImmutableList.of("project/feature", "")));
   }
 
   @ParameterizedTest
   @MethodSource("provideInvalidFeatureRefs")
   void createFeatureSets_ShouldThrowExceptionForInvalidFeatureRefs(List<String> input) {
-    assertThrows(
-        IllegalArgumentException.class, () -> RequestUtil.createFeatureRefs(input, "my-project"));
+    assertThrows(IllegalArgumentException.class, () -> RequestUtil.createFeatureRefs(input, ""));
   }
 
   @ParameterizedTest
   @NullSource
   void createFeatureSets_ShouldThrowExceptionForNullFeatureRefs(List<String> input) {
-    assertThrows(
-        IllegalArgumentException.class, () -> RequestUtil.createFeatureRefs(input, "my-project"));
+    assertThrows(IllegalArgumentException.class, () -> RequestUtil.createFeatureRefs(input, ""));
   }
 }

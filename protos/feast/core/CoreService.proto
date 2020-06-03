@@ -15,12 +15,11 @@
 //
 
 syntax = "proto3";
-
 package feast.core;
 
-option go_package = "github.com/gojek/feast/sdk/go/protos/feast/core";
+option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 option java_outer_classname = "CoreServiceProto";
-option java_package = "feast.core";
+option java_package = "feast.proto.core";
 
 import "feast/core/FeatureSet.proto";
 import "feast/core/Store.proto";
@@ -52,8 +51,11 @@ service CoreService {
     // Create or update and existing feature set.
     //
     // This function is idempotent - it will not create a new feature set if schema does not change.
-    // If an existing feature set is updated, core will advance the version number, which will be
-    // returned in response.
+    // Schema changes will update the feature set if the changes are valid.
+    // All changes except the following are valid:
+    // - Changes to feature set id (name, project)
+    // - Changes to entities
+    // - Changes to feature name and type
     rpc ApplyFeatureSet (ApplyFeatureSetRequest) returns (ApplyFeatureSetResponse);
 
     // Updates core with the configuration of the store.
@@ -63,8 +65,8 @@ service CoreService {
     rpc UpdateStore (UpdateStoreRequest) returns (UpdateStoreResponse);
 
     // Creates a project. Projects serve as namespaces within which resources like features will be
-    // created. Both feature set names as well as field names must be unique within a project. Project
-    // names themselves must be globally unique.
+    // created. Feature set names as must be unique within a project while field (Feature/Entity) names
+    // must be unique within a Feature Set. Project names themselves must be globally unique.
     rpc CreateProject (CreateProjectRequest) returns (CreateProjectResponse);
 
     // Archives a project. Archived projects will continue to exist and function, but won't be visible
@@ -97,14 +99,11 @@ service CoreService {
 
 // Request for a single feature set
 message GetFeatureSetRequest {
-    // Name of project the feature set belongs to (required)
+    // Name of project the feature set belongs to. If omitted will default to 'default' project.
     string project = 3;
 
     // Name of feature set (required).
     string name = 1;
-
-    // Version of feature set (optional). If omitted then latest feature set will be returned.
-    int32 version = 2;
 }
 
 // Response containing a single feature set
@@ -123,6 +122,7 @@ message ListFeatureSetsRequest {
         // If an asterisk is provided, filtering on projects will be disabled. All projects will
         // be matched. It is NOT possible to provide an asterisk with a string in order to do
         // pattern matching.
+        // If unspecified this field will default to the default project 'default'.
         string project = 3;
 
         // Name of the desired feature set. Asterisks can be used as wildcards in the name.
@@ -133,15 +133,6 @@ message ListFeatureSetsRequest {
         // - my-feature-set* can be used to match all features prefixed by "my-feature-set"
         // - my-feature-set-6 can be used to select a single feature set
         string feature_set_name = 1;
-
-
-        // Versions of the given feature sets that will be returned.
-        // Valid options for version:
-        //     "latest": only the latest version is returned.
-        //     "*": Subscribe to all versions
-        //     [version number]: pin to a specific version. Project and feature set name must be
-        //                       explicitly defined if a specific version is pinned.
-        string feature_set_version = 2;
     }
 }
 
@@ -163,23 +154,28 @@ message ListStoresResponse {
 }
 
 message ApplyFeatureSetRequest {
-    // Feature set version and source will be ignored
+    // Feature set version
+    // If project is unspecified, will default to 'default' project.
+    // If project specified does not exist, the project would be automatically created.
     feast.core.FeatureSet feature_set = 1;
 }
 
 message ApplyFeatureSetResponse {
+    // TODO: 0 should correspond to invalid rather than NO_CHANGE
     enum Status {
-        // Latest feature set version is consistent with provided feature set
+        // Latest feature set is consistent with provided feature set
         NO_CHANGE = 0;
 
-        // New feature set or feature set version created
+        // New feature set created
         CREATED = 1;
 
         // Error occurred while trying to apply changes
         ERROR = 2;
+
+        // Changes detected and updated successfully
+        UPDATED = 3;
     }
 
-    // Feature set response has been enriched with version and source information
     feast.core.FeatureSet feature_set = 1;
     Status status = 2;
 }

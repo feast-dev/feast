@@ -179,11 +179,12 @@ dmypy.json
 .flattened-pom.xml
 
 sdk/python/docs/html
-sdk/python/feast/core/
-sdk/python/feast/serving/
-sdk/python/feast/storage/
-sdk/python/feast/types/
-sdk/python/tensorflow_metadata
+
+# Generated python code
+*_pb2.py
+*_pb2.pyi
+*_pb2_grpc.py
+
 
 ### Farfetch ###
 

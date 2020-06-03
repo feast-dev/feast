@@ -18,10 +18,10 @@ package feast.core.model;
 
 import com.google.common.collect.Sets;
 import com.google.protobuf.Message;
-import feast.core.SourceProto;
-import feast.core.SourceProto.KafkaSourceConfig;
-import feast.core.SourceProto.Source.Builder;
-import feast.core.SourceProto.SourceType;
+import feast.proto.core.SourceProto;
+import feast.proto.core.SourceProto.KafkaSourceConfig;
+import feast.proto.core.SourceProto.Source.Builder;
+import feast.proto.core.SourceProto.SourceType;
 import io.grpc.Status;
 import java.util.Objects;
 import java.util.Set;

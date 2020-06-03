@@ -26,6 +26,7 @@ import org.junit.Test;
 import redis.embedded.RedisServer;
 
 public class RedisBackedJobServiceTest {
+
   private static Integer REDIS_PORT = 51235;
   private RedisServer redis;
 
@@ -41,7 +42,7 @@ public class RedisBackedJobServiceTest {
   }
 
   @Test
-  public void shouldRecoverIfRedisConnectionIsLost() throws IOException {
+  public void shouldRecoverIfRedisConnectionIsLost() {
     RedisClient client = RedisClient.create(RedisURI.create("localhost", REDIS_PORT));
     RedisBackedJobService jobService =
         new RedisBackedJobService(client.connect(new ByteArrayCodec()));

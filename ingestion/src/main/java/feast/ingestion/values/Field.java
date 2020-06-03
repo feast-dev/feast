@@ -16,13 +16,13 @@
  */
 package feast.ingestion.values;
 
-import feast.types.ValueProto.ValueType;
+import feast.proto.types.ValueProto.ValueType;
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 
 /**
- * Field class represents {@link feast.types.FieldProto.Field} but without value.
+ * Field class represents {@link feast.proto.types.FieldProto.Field} but without value.
  *
  * <p>The use for this class is mainly for validating the Fields in FeatureRow.
  */

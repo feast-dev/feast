@@ -16,76 +16,90 @@
  */
 package com.gojek.feast;
 
-import feast.serving.ServingAPIProto.FeatureReference;
-import java.util.ArrayList;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @SuppressWarnings("WeakerAccess")
 public class RequestUtil {
 
+  /**
+   * Create feature references protos from given string feature reference.
+   *
+   * @param featureRefStrings to create Feature Reference protos from
+   * @param project specifies to the project set in parsed Feature Reference protos otherwise ""
+   * @return List of parsed {@link FeatureReference} protos
+   */
   public static List<FeatureReference> createFeatureRefs(
-      List<String> featureRefStrings, String defaultProject) {
+      List<String> featureRefStrings, String project) {
     if (featureRefStrings == null) {
       throw new IllegalArgumentException("featureRefs cannot be null");
     }
 
-    List<FeatureReference> featureRefs = new ArrayList<>();
-
-    for (String featureRefString : featureRefStrings) {
-      String project;
-      String name;
-      int version = 0;
-      String[] featureSplit;
-      String[] projectSplit = featureRefString.split("/");
-
-      if (projectSplit.length == 2) {
-        project = projectSplit[0];
-        featureSplit = projectSplit[1].split(":");
-      } else if (projectSplit.length == 1) {
-        project = defaultProject;
-        featureSplit = projectSplit[0].split(":");
-      } else {
-        throw new IllegalArgumentException(
-            String.format(
-                "Feature id '%s' has invalid format. Expected format: <project>:<feature-name>:<feature-version>.",
-                featureRefString));
-      }
-
-      if (featureSplit.length == 2) {
-        name = featureSplit[0];
-        try {
-          version = Integer.parseInt(featureSplit[1]);
-        } catch (NumberFormatException e) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "Feature id '%s' contains invalid version. Expected format: <project>/<feature-name>:<feature-version>.",
-                  featureRefString));
-        }
-      } else if (featureSplit.length == 1) {
-        name = featureSplit[0];
-      } else {
-        throw new IllegalArgumentException(
-            String.format(
-                "Feature id '%s' has invalid format. Expected format: <project>/<feature-name>:<feature-version>.",
-                featureRefString));
-      }
-
-      if (project.isEmpty() || name.isEmpty() || version < 0) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Feature id '%s' has invalid format. Expected format: <project>/<feature-name>:<feature-version>.",
-                featureRefString));
-      }
-
-      featureRefs.add(
-          FeatureReference.newBuilder()
-              .setName(name)
-              .setProject(project)
-              .setVersion(version)
-              .build());
+    List<FeatureReference.Builder> featureRefs =
+        featureRefStrings.stream()
+            .map(refStr -> parseFeatureRef(refStr, false))
+            .collect(Collectors.toList());
+    // apply project override if specified
+    if (!project.isEmpty()) {
+      featureRefs =
+          featureRefs.stream().map(ref -> ref.setProject(project)).collect(Collectors.toList());
     }
 
-    ;
-    return featureRefs;
+    return featureRefs.stream().map(ref -> ref.build()).collect(Collectors.toList());
+  }
+
+  /**
+   * Parse a feature reference proto builder from the given featureRefString
+   *
+   * @param featureRefString string feature reference to parse from.
+   * @param ignoreProject If true, would ignore if project is specified in given ref string.
+   *     Otherwise, throwws a {@link IllegalArgumentException} if project is specified.
+   * @return a parsed {@link FeatureReference.Builder}
+   */
+  public static FeatureReference.Builder parseFeatureRef(
+      String featureRefString, boolean ignoreProject) {
+    featureRefString = featureRefString.trim();
+    if (featureRefString.isEmpty()) {
+      throw new IllegalArgumentException("Cannot parse a empty feature reference");
+    }
+    FeatureReference.Builder featureRef = FeatureReference.newBuilder();
+
+    // parse project if specified
+    if (featureRefString.contains("/")) {
+      if (ignoreProject) {
+        String[] projectSplit = featureRefString.split("/");
+        featureRefString = projectSplit[1];
+      } else {
+        throw new IllegalArgumentException(
+            String.format("Unsupported feature reference: %s", featureRefString));
+      }
+    }
+
+    // parse featureset if specified
+    if (featureRefString.contains(":")) {
+      String[] featureSetSplit = featureRefString.split(":");
+      featureRef.setFeatureSet(featureSetSplit[0]);
+      featureRefString = featureSetSplit[1];
+    }
+    featureRef.setName(featureRefString);
+    return featureRef;
+  }
+
+  /**
+   * Render a feature reference as string.
+   *
+   * @param featureReference to render as string
+   * @return string represenation of feature reference.
+   */
+  public static String renderFeatureRef(FeatureReference featureReference) {
+    String refStr = "";
+    // In protov3, unset string and int fields default to "" and 0 respectively
+    if (!featureReference.getFeatureSet().isEmpty()) {
+      refStr += featureReference.getFeatureSet() + ":";
+    }
+    refStr = refStr + featureReference.getName();
+
+    return refStr;
   }
 }

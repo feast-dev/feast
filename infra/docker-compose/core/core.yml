@@ -1,0 +1,14 @@
+feast:
+  jobs:
+    polling_interval_milliseconds: 30000
+    job_update_timeout_seconds: 240
+    active_runner: direct
+    runners:
+      - name: direct
+        type: DirectRunner
+        options: {}
+  stream:
+    type: kafka
+    options:
+      topic: feast-features
+      bootstrapServers: "kafka:9092,localhost:9094"
