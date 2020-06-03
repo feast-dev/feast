@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.gson.Gson;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto;
 import feast.core.SourceProto;
@@ -30,16 +29,14 @@ import java.util.stream.Collectors;
 
 @Slf4j
 public class DatabricksJobManager implements JobManager {
-    private static Gson gson = new Gson();
-
     private final Runner RUNNER_TYPE = Runner.DATABRICKS;
 
     private final String databricksHost;
     private final String databricksToken;
+    private final String databricksJobId;
     private final Map<String, String> defaultOptions;
     private final MetricsProperties metricsProperties;
     private final HttpClient httpClient;
-
 
     public DatabricksJobManager(
             Map<String, String> runnerConfigOptions,
@@ -47,8 +44,8 @@ public class DatabricksJobManager implements JobManager {
             String token,
             HttpClient httpClient) {
 
-        DatabricksJobConfig config = new DatabricksJobConfig(runnerConfigOptions.get("databricksHost"));
-        this.databricksHost = config.getDatabricksHost();
+        this.databricksHost = runnerConfigOptions.get("databricksHost");
+        this.databricksJobId = runnerConfigOptions.get("databricksJobId");
         this.defaultOptions = runnerConfigOptions;
         this.metricsProperties = metricsProperties;
         this.httpClient = httpClient;
@@ -147,7 +144,7 @@ public class DatabricksJobManager implements JobManager {
         ObjectMapper mapper = new ObjectMapper();
         ArrayNode jarParams = mapper.createArrayNode();
         ObjectNode body = mapper.createObjectNode();
-        body.put("job_id", jobId);
+        body.put("job_id", this.databricksJobId);
         body.set("jar_params", jarParams);
 
         HttpRequest request = HttpRequest.newBuilder()
