@@ -5,8 +5,7 @@ import (
 	"github.com/feast-dev/feast/sdk/go/protos/feast/serving"
 	"strings"
 
-	"github.com/gojek/feast/sdk/go/protos/feast/serving"
-	"github.com/gojek/feast/sdk/go/protos/feast/types"
+	"github.com/feast-dev/feast/sdk/go/protos/feast/types"
 )
 
 var (
@@ -56,7 +55,7 @@ func (r OnlineFeaturesRequest) buildRequest() (*serving.GetOnlineFeaturesRequest
 	}
 
 	return &serving.GetOnlineFeaturesRequest{
-		Features:                  features,
+		Features:                  featureRefs,
 		EntityRows:                entityRows,
 		OmitEntitiesInResponse:    r.OmitEntities,
 		IncludeMetadataInResponse: r.IncludeMeta,

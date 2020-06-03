@@ -23,20 +23,11 @@ require (
 	github.com/woop/protoc-gen-doc v1.3.0 // indirect
 	go.opencensus.io v0.22.3 // indirect
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
-<<<<<<< HEAD
 	golang.org/x/net v0.0.0-20200513185701-a91f0712d120
 	golang.org/x/sys v0.0.0-20200515095857-1151b9dac4a9 // indirect
-	golang.org/x/tools v0.0.0-20200521211927-2b542361a4fc // indirect
-	google.golang.org/genproto v0.0.0-20200515170657-fc4c6c6a6587 // indirect
+	golang.org/x/tools v0.0.0-20200601175630-2caf76543d99 // indirect
 	google.golang.org/grpc v1.29.1
 	google.golang.org/protobuf v1.24.0 // indirect
-=======
-	golang.org/x/net v0.0.0-20200320220750-118fecf932d8
-	golang.org/x/sys v0.0.0-20200321134203-328b4cd54aae // indirect
-	golang.org/x/tools v0.0.0-20200423205358-59e73619c742 // indirect
-	google.golang.org/genproto v0.0.0-20200319113533-08878b785e9c // indirect
-	google.golang.org/grpc v1.28.0
->>>>>>> Update go protobuf generated code for updated protobuf defintion
 	gopkg.in/russross/blackfriday.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.2.4
 	istio.io/gogo-genproto v0.0.0-20191212213402-78a529a42cd8 // indirect
