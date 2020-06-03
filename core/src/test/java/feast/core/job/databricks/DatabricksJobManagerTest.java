@@ -39,6 +39,7 @@ import java.util.Map;
 
 import feast.core.model.*;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -74,6 +75,7 @@ public class DatabricksJobManagerTest {
     }
 
     @Test
+    @Ignore("Test is not completed yet, please ignore")
     public void testGetCalltoDatabricks() throws NoSuchFieldException {
 //        FieldSetter.setField(job, job.getClass().getDeclaredField("extId"), "1");
         Mockito.when(job.getExtId()).thenReturn("1");
