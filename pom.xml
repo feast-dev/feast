@@ -35,6 +35,10 @@
         <module>core</module>
         <module>serving</module>
         <module>sdk/java</module>
+        <module>spark/databricks-emulator</module>
+        <module>spark/databricks-types</module>
+        <module>spark/spark-historical-retriever-job</module>
+        <module>spark/spark-ingestion-job</module>
     </modules>
 
     <properties>
