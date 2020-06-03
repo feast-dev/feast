@@ -24,7 +24,6 @@ import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
-import feast.proto.types.ValueProto.Value;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.HashSet;
@@ -62,7 +61,7 @@ public class FeastClient implements AutoCloseable {
   /**
    * Get online features from Feast from FeatureSets
    *
-   * <p>See {@link #getOnlineFeatures(List, List, String, boolean)}
+   * <p>See {@link #getOnlineFeatures(List, List, String, boolean, boolean)}
    *
    * @param featureRefs list of string feature references to retrieve in the following format
    *     featureSet:feature, where 'featureSet' and 'feature' refer to the FeatureSet and Feature
@@ -77,7 +76,7 @@ public class FeastClient implements AutoCloseable {
   /**
    * Get online features from Feast.
    *
-   * <p>See {@link #getOnlineFeatures(List, List, String, boolean)}
+   * <p>See {@link #getOnlineFeatures(List, List, String, boolean, boolean)}
    *
    * @param featureRefs list of string feature references to retrieve in the following format
    *     featureSet:feature, where 'featureSet' and 'feature' refer to the FeatureSet and Feature
@@ -118,9 +117,9 @@ public class FeastClient implements AutoCloseable {
    * @return list of {@link Row} containing retrieved data fields.
    */
   public List<Row> getOnlineFeatures(
-      List<String> featureRefs, 
-      List<Row> rows, String 
-      project, 
+      List<String> featureRefs,
+      List<Row> rows,
+      String project,
       boolean omitEntitiesInResponse,
       boolean includeMetadataInResponse) {
     List<FeatureReference> features = RequestUtil.createFeatureRefs(featureRefs, project);

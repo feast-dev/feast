@@ -136,7 +136,7 @@ public class RedisOnlineRetrieverTest {
         Lists.newArrayList(
             FeatureRow.newBuilder()
                 .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .setFeatureSet("project/featureSet:1")
+                .setFeatureSet("project/featureSet")
                 .addAllFields(
                     Lists.newArrayList(
                         Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
@@ -144,7 +144,7 @@ public class RedisOnlineRetrieverTest {
                 .build(),
             FeatureRow.newBuilder()
                 .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .setFeatureSet("project/featureSet:1")
+                .setFeatureSet("project/featureSet")
                 .addAllFields(
                     Lists.newArrayList(
                         Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
@@ -202,7 +202,7 @@ public class RedisOnlineRetrieverTest {
         Lists.newArrayList(
             FeatureRow.newBuilder()
                 .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .setFeatureSet("project/featureSet:1")
+                .setFeatureSet("project/featureSet")
                 .addAllFields(
                     Lists.newArrayList(
                         Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),

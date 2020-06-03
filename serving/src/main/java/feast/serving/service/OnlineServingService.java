@@ -16,14 +16,13 @@
  */
 package feast.serving.service;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import com.google.protobuf.Duration;
 import feast.proto.serving.ServingAPIProto.*;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.Field;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.Record;
+import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.ValueProto.Value;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.util.Metrics;
@@ -269,9 +268,7 @@ public class OnlineServingService implements ServingService {
               FeatureReference ref = es.getKey();
               Field field = es.getValue();
               if (field.getStatus() == FieldStatus.OUTSIDE_MAX_AGE) {
-                Metrics.staleKeyCount
-                    .labels(project, RefUtil.generateFeatureStringRefWithoutProject(ref))
-                    .inc();
+                Metrics.staleKeyCount.labels(project, RefUtil.generateFeatureStringRef(ref)).inc();
               }
             });
   }

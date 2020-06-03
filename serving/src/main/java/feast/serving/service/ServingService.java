@@ -56,8 +56,8 @@ public interface ServingService {
    *     feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow}s to join the
    *     retrieved values to.
    * @return {@link GetOnlineFeaturesResponse} with list of {@link
-   *     feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.Record} for each {@link
-   *     feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow} supplied.
+   *     feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.Record} for each {@link
+   *     feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow} supplied.
    */
   GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest getFeaturesRequest);
 
