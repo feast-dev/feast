@@ -2,24 +2,14 @@
 # Build stage 1: Builder
 # ============================================================
 
-FROM maven:3.6-jdk-11 as builder
+FROM maven:3.6-jdk-11-slim as builder
 ARG REVISION=dev
-
-#
-# Download grpc_health_probe to run health check for Feast Serving
-# https://kubernetes.io/blog/2018/10/01/health-checking-grpc-servers-on-kubernetes/
-#
-RUN wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.3.1/grpc_health_probe-linux-amd64 \
-         -O /usr/bin/grpc-health-probe && \
-    chmod +x /usr/bin/grpc-health-probe
-
 
 WORKDIR /build
 
 COPY datatypes datatypes
 COPY storage storage
 COPY sdk/java sdk/java
-COPY docs/coverage/java docs/coverage/java
 COPY core core
 COPY ingestion ingestion
 COPY protos protos
@@ -37,19 +27,31 @@ COPY LICENSE .m[2] .m2/
 # the existing .m2 directory to $FEAST_REPO_ROOT/.m2
 #
 ENV MAVEN_OPTS="-Dmaven.repo.local=/build/.m2/repository -DdependencyLocationsEnabled=false"
-RUN mvn --also-make --projects serving -Drevision=$REVISION \
+RUN mvn --also-make --projects spark/databricks-emulator -Drevision=$REVISION \
   -DskipTests=true --batch-mode clean package
 
 # ============================================================
 # Build stage 2: Production
 # ============================================================
 
-FROM openjdk:11-jre-slim as production
+FROM openjdk:8u252-jre as production
 ARG REVISION=dev
-COPY --from=builder /usr/bin/grpc-health-probe /usr/bin/grpc-health-probe
-COPY --from=builder /build/serving/target/feast-serving-$REVISION.jar /opt/feast/feast-serving.jar
+
+ARG SPARK_VERSION=2.4.5
+ARG HADOOP_VERSION=2.7
+
+# Install Spark runtime
+WORKDIR /
+
+RUN wget -q https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz \
+    && tar -zxf spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz \
+    && rm spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz
+
+ENV SPARK_HOME /spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}
+
+COPY --from=builder /build/spark/databricks-emulator/target/databricks-emulator-$REVISION.jar /opt/databricks-emulator.jar
 CMD ["java",\
-     "-Xms1024m",\
-     "-Xmx1024m",\
+     "-Xms2048m",\
+     "-Xmx2048m",\
      "-jar",\
-     "/opt/feast/feast-serving.jar"]
+     "/opt/databricks-emulator.jar"]
