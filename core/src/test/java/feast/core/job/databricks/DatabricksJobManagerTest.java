@@ -67,6 +67,7 @@ public class DatabricksJobManagerTest {
         initMocks(this);
         runnerConfigOptions = new HashMap<>();
         runnerConfigOptions.put("databricksHost", "https://databricks");
+        runnerConfigOptions.put("databricksJobId", "1");
         token = "TEST_TOKEN";
         MetricsProperties metricsProperties = new MetricsProperties();
         metricsProperties.setEnabled(false);
@@ -117,7 +118,7 @@ public class DatabricksJobManagerTest {
 
 
         HttpResponse httpResponse = mock(HttpResponse.class);
-        String responseBody = "{ \"run_id\" : \"1\" } ";
+        String responseBody = "{ \"run_id\" : \"2\" } ";
         when(httpResponse.body()).thenReturn(responseBody);
         when(httpResponse.statusCode()).thenReturn(200);
 
@@ -136,8 +137,9 @@ public class DatabricksJobManagerTest {
         Job job = new Job("3", "", "Databricks", Source.fromProto(source), Store.fromProto(store), Lists.newArrayList(FeatureSet.fromProto(featureSet)), JobStatus.PENDING);
         Job actual = dbJobManager.startJob(job);
 
-        assertThat( actual.getExtId(), equalTo("1"));
+        assertThat( actual.getExtId(), equalTo("2"));
         assertThat( actual.getId(), equalTo(job.getId()));
+        // TODO: add testing on jar params when implemented.
 
     }
 }

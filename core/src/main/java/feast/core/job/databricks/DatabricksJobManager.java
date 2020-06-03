@@ -4,17 +4,17 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.gson.Gson;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto;
 import feast.core.SourceProto;
 import feast.core.StoreProto;
 import feast.core.config.FeastProperties.MetricsProperties;
+import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
 import feast.core.model.*;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.http.HttpStatus;
 
 import java.io.IOException;
 import java.net.URI;
@@ -29,16 +29,14 @@ import java.util.stream.Collectors;
 
 @Slf4j
 public class DatabricksJobManager implements JobManager {
-    private static Gson gson = new Gson();
-
     private final Runner RUNNER_TYPE = Runner.DATABRICKS;
 
     private final String databricksHost;
     private final String databricksToken;
+    private final String databricksJobId;
     private final Map<String, String> defaultOptions;
     private final MetricsProperties metricsProperties;
     private final HttpClient httpClient;
-
 
     public DatabricksJobManager(
             Map<String, String> runnerConfigOptions,
@@ -46,8 +44,8 @@ public class DatabricksJobManager implements JobManager {
             String token,
             HttpClient httpClient) {
 
-        DatabricksJobConfig config = new DatabricksJobConfig(runnerConfigOptions.get("databricksHost"));
-        this.databricksHost = config.getDatabricksHost();
+        this.databricksHost = runnerConfigOptions.get("databricksHost");
+        this.databricksJobId = runnerConfigOptions.get("databricksJobId");
         this.defaultOptions = runnerConfigOptions;
         this.metricsProperties = metricsProperties;
         this.httpClient = httpClient;
@@ -134,7 +132,6 @@ public class DatabricksJobManager implements JobManager {
         return JobStatus.UNKNOWN;
     }
 
-    @SneakyThrows
     private Job runDatabricksJob(
             String jobId,
             List<FeatureSetProto.FeatureSet> featureSetProtos,
@@ -147,7 +144,7 @@ public class DatabricksJobManager implements JobManager {
         ObjectMapper mapper = new ObjectMapper();
         ArrayNode jarParams = mapper.createArrayNode();
         ObjectNode body = mapper.createObjectNode();
-        body.put("job_id", jobId);
+        body.put("job_id", this.databricksJobId);
         body.set("jar_params", jarParams);
 
         HttpRequest request = HttpRequest.newBuilder()
@@ -156,17 +153,30 @@ public class DatabricksJobManager implements JobManager {
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
                 .build();
 
-        HttpResponse<String> response = this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        try {
+            HttpResponse<String> response = this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-        JsonNode parent = new ObjectMapper().readTree(response.body());
+            if (response.statusCode() == HttpStatus.SC_OK) {
+                JsonNode parent = new ObjectMapper().readTree(response.body());
+                String runId = parent.path("run_id").asText();
+                return new Job(jobId, runId, getRunnerType().name(), Source.fromProto(source), Store.fromProto(sink), featureSets, JobStatus.PENDING);
+            } else {
+                throw new RuntimeException(String.format("Failed running of job %s: %s", jobId, response.body())); // TODO: change to handle failure
+            }
+        } catch (IOException | InterruptedException e) {
+            log.error(
+                    "Unable to run databricks job with id : {}\ncause: {}",
+                    jobId,
+                    e.getMessage());
+            throw new JobExecutionException(String.format("Unable to run databricks job with id : %s\ncause: %s", jobId, e), e);
 
-        if (response.statusCode() == 200) {
-            String runId = parent.path("run_id").asText();
-            return new Job(jobId, runId, getRunnerType().name(), Source.fromProto(source), Store.fromProto(sink), featureSets, JobStatus.PENDING);
-        } else {
-            throw new RuntimeException(String.format("Failed running of job %s: %s", jobId, response.body())); // TODO: handle failure
         }
+
     }
+
+//    private String waitForJobToRun(String runId) {
+//
+//    }
 
 //    private ArrayNode getJarParams(SourceProto.Source source, StoreProto.Store sink, List<FeatureSetProto.FeatureSet> featureSets) {
 //

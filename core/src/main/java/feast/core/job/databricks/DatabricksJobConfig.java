@@ -23,4 +23,5 @@ import lombok.Value;
 @Value
 public class DatabricksJobConfig {
     private String databricksHost;
+    private String databricksJobId;
 }
