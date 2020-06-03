@@ -47,45 +47,45 @@ public class DataflowRunnerConfig extends RunnerConfig {
   }
 
   /* Project id to use when launching jobs. */
-  @NotBlank String project;
+  @NotBlank public String project;
 
   /* The Google Compute Engine region for creating Dataflow jobs. */
-  @NotBlank String region;
+  @NotBlank public String region;
 
   /* GCP availability zone for operations. */
-  @NotBlank String zone;
+  @NotBlank public String zone;
 
   /* Run the job as a specific service account, instead of the default GCE robot. */
-  String serviceAccount;
+  public String serviceAccount;
 
   /* GCE network for launching workers. */
-  @NotBlank String network;
+  @NotBlank public String network;
 
   /* GCE subnetwork for launching workers. */
-  @NotBlank String subnetwork;
+  @NotBlank public String subnetwork;
 
   /* Machine type to create Dataflow worker VMs as. */
-  String workerMachineType;
+  public String workerMachineType;
 
   /* The autoscaling algorithm to use for the workerpool. */
-  String autoscalingAlgorithm;
+  public String autoscalingAlgorithm;
 
   /* Specifies whether worker pools should be started with public IP addresses. */
-  Boolean usePublicIps;
+  public Boolean usePublicIps;
 
   /**
    * A pipeline level default location for storing temporary files. Support Google Cloud Storage
    * locations, e.g. gs://bucket/object
    */
-  @NotBlank String tempLocation;
+  @NotBlank public String tempLocation;
 
   /* The maximum number of workers to use for the workerpool. */
-  Integer maxNumWorkers;
+  public Integer maxNumWorkers;
 
   /* BigQuery table specification, e.g. PROJECT_ID:DATASET_ID.PROJECT_ID */
-  String deadLetterTableSpec;
+  public String deadLetterTableSpec;
 
-  Map<String, String> labels;
+  public Map<String, String> labels;
 
   /** Validates Dataflow runner configuration options */
   public void validate() {
