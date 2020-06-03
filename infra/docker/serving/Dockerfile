@@ -14,6 +14,7 @@ COPY core core
 COPY ingestion ingestion
 COPY protos protos
 COPY serving serving
+COPY spark spark
 COPY pom.xml pom.xml
 
 # Trick to copy .m2 directory only if it exists.
