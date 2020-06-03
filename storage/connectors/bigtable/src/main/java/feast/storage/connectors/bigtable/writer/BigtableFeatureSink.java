@@ -33,7 +33,8 @@ import org.apache.beam.sdk.values.PCollection;
 public abstract class BigtableFeatureSink implements FeatureSink {
 
   /**
-   * Initialize a {@link BigtableFeatureSink.Builder} from a {@link StoreProto.Store.BigtableConfig}.
+   * Initialize a {@link BigtableFeatureSink.Builder} from a {@link
+   * StoreProto.Store.BigtableConfig}.
    *
    * @param bigtableConfig {@link BigtableConfig}
    * @param featureSetSpecs
@@ -65,15 +66,15 @@ public abstract class BigtableFeatureSink implements FeatureSink {
 
   @Override
   public void prepareWrite(FeatureSet featureSet) {
-
     try {
       BigtableDataClient bigtableClient =
-              BigtableDataClient.create(getBigtableConfig().getProjectId(), getBigtableConfig().getInstanceId());
+          BigtableDataClient.create(
+              getBigtableConfig().getProjectId(), getBigtableConfig().getInstanceId());
     } catch (Exception e) {
       throw new RuntimeException(
           String.format(
               "Failed to connect to Bigtable with project: '%s' instanceID: '%s'. Please check that your Bigtable is running and accessible from Feast.",
-              getBigtableConfig().getProject(), getBigtableConfig().getInstanceId()));
+              getBigtableConfig().getProjectId(), getBigtableConfig().getInstanceId()));
     }
   }
 

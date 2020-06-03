@@ -144,6 +144,12 @@
 
     <dependency>
       <groupId>dev.feast</groupId>
+      <artifactId>feast-storage-connector-bigtable</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>dev.feast</groupId>
       <artifactId>feast-common</artifactId>
       <version>${project.version}</version>
     </dependency>

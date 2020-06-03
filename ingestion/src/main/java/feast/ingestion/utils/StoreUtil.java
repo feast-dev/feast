@@ -86,8 +86,8 @@ public class StoreUtil {
         return RedisFeatureSink.fromConfig(store.getRedisConfig());
       case BIGQUERY:
         return BigQueryFeatureSink.fromConfig(store.getBigqueryConfig());
-      //case BIGTABLE:
-      //  return BigtableFeatureSink.fromConfig(store.getBigtableConfig());
+      // case BIGTABLE:
+      //  return BigtableFeatureSink.fromConfig(store.getBigtableConfig(), featureSetSpecs);
       default:
         throw new RuntimeException(String.format("Store type '%s' is unsupported", storeType));
     }

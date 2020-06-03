@@ -35,7 +35,7 @@ install-ci-dependencies: install-python-ci-dependencies install-go-ci-dependenci
 # Java
 
 install-java-ci-dependencies:
-	mvn verify clean --fail-never
+	mvn verify clean -U --fail-never
 
 format-java:
 	mvn spotless:apply

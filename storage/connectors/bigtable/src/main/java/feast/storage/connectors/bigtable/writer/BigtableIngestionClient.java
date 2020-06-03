@@ -16,6 +16,7 @@
  */
 package feast.storage.connectors.bigtable.writer;
 
+import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.storage.common.retry.BackOffExecutor;
 import java.io.Serializable;
 
@@ -27,23 +28,5 @@ public interface BigtableIngestionClient extends Serializable {
 
   void shutdown();
 
-  void connect();
-
-  boolean isConnected();
-
-  void sync();
-
-  void pexpire(byte[] key, Long expiryMillis);
-
-  void append(byte[] key, byte[] value);
-
-  void set(byte[] key, byte[] value);
-
-  void lpush(byte[] key, byte[] value);
-
-  void rpush(byte[] key, byte[] value);
-
-  void sadd(byte[] key, byte[] value);
-
-  void zadd(byte[] key, Long score, byte[] value);
+  void set(String key, FeatureRow value);
 }

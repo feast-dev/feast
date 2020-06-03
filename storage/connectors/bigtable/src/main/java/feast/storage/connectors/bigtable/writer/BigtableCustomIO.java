@@ -18,13 +18,11 @@ package feast.storage.connectors.bigtable.writer;
 
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
-import feast.proto.core.FeatureSetProto.FeatureSpec;
 import feast.proto.core.StoreProto.Store.BigtableConfig;
 import feast.proto.storage.BigtableProto.BigtableKey;
 import feast.proto.storage.BigtableProto.BigtableKey.Builder;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FieldProto.Field;
-import feast.proto.types.ValueProto;
 import feast.storage.api.writer.FailedElement;
 import feast.storage.api.writer.WriteResult;
 import feast.storage.common.retry.Retriable;
@@ -62,7 +60,8 @@ public class BigtableCustomIO {
 
   private BigtableCustomIO() {}
 
-  public static Write write(BigtableConfig bigtableConfig, Map<String, FeatureSetSpec> featureSetSpecs) {
+  public static Write write(
+      BigtableConfig bigtableConfig, Map<String, FeatureSetSpec> featureSetSpecs) {
     return new Write(bigtableConfig, featureSetSpecs);
   }
 
@@ -111,7 +110,6 @@ public class BigtableCustomIO {
       private BigtableIngestionClient bigtableIngestionClient;
 
       WriteDoFn(BigtableConfig config, Map<String, FeatureSetSpec> featureSetSpecs) {
-
         this.bigtableIngestionClient = new BigtableStandaloneIngestionClient(config);
         this.featureSetSpecs = featureSetSpecs;
       }
@@ -137,11 +135,6 @@ public class BigtableCustomIO {
 
       @StartBundle
       public void startBundle() {
-        try {
-          bigtableIngestionClient.connect();
-        } catch (BigtableConnectionException e) {
-          log.error("Connection to bigtable cannot be established ", e);
-        }
         featureRows.clear();
       }
 
@@ -152,19 +145,15 @@ public class BigtableCustomIO {
                 new Retriable() {
                   @Override
                   public void execute() throws ExecutionException, InterruptedException {
-                    if (!bigtableIngestionClient.isConnected()) {
-                      bigtableIngestionClient.connect();
-                    }
                     featureRows.forEach(
                         row -> {
-                          bigtableIngestionClient.set(getKey(row), getValue(row));
+                          bigtableIngestionClient.set(getKey(row), row);
                         });
-                    bigtableIngestionClient.sync();
                   }
 
                   @Override
                   public Boolean isExceptionRetriable(Exception e) {
-                    return e instanceof BigtableConnectionException;
+                    return e instanceof java.io.IOException;
                   }
 
                   @Override
@@ -183,7 +172,7 @@ public class BigtableCustomIO {
             .build();
       }
 
-      private byte[] getKey(FeatureRow featureRow) {
+      private String getKey(FeatureRow featureRow) {
         FeatureSetSpec featureSetSpec = featureSetSpecs.get(featureRow.getFeatureSet());
         List<String> entityNames =
             featureSetSpec.getEntitiesList().stream()
@@ -192,7 +181,8 @@ public class BigtableCustomIO {
                 .collect(Collectors.toList());
 
         Map<String, Field> entityFields = new HashMap<>();
-        Builder bigtableKeyBuilder = BigtableKey.newBuilder().setFeatureSet(featureRow.getFeatureSet());
+        Builder bigtableKeyBuilder =
+            BigtableKey.newBuilder().setFeatureSet(featureRow.getFeatureSet());
         for (Field field : featureRow.getFieldsList()) {
           if (entityNames.contains(field.getName())) {
             entityFields.putIfAbsent(
@@ -203,40 +193,7 @@ public class BigtableCustomIO {
         for (String entityName : entityNames) {
           bigtableKeyBuilder.addEntities(entityFields.get(entityName));
         }
-        return bigtableKeyBuilder.build().toByteArray();
-      }
-
-      private byte[] getValue(FeatureRow featureRow) {
-        FeatureSetSpec spec = featureSetSpecs.get(featureRow.getFeatureSet());
-
-        List<String> featureNames =
-            spec.getFeaturesList().stream().map(FeatureSpec::getName).collect(Collectors.toList());
-        Map<String, Field> fieldValueOnlyMap =
-            featureRow.getFieldsList().stream()
-                .filter(field -> featureNames.contains(field.getName()))
-                .distinct()
-                .collect(
-                    Collectors.toMap(
-                        Field::getName,
-                        field -> Field.newBuilder().setValue(field.getValue()).build()));
-
-        List<Field> values =
-            featureNames.stream()
-                .sorted()
-                .map(
-                    featureName ->
-                        fieldValueOnlyMap.getOrDefault(
-                            featureName,
-                            Field.newBuilder()
-                                .setValue(ValueProto.Value.getDefaultInstance())
-                                .build()))
-                .collect(Collectors.toList());
-
-        return FeatureRow.newBuilder()
-            .setEventTimestamp(featureRow.getEventTimestamp())
-            .addAllFields(values)
-            .build()
-            .toByteArray();
+        return bigtableKeyBuilder.build().toString();
       }
 
       @ProcessElement
