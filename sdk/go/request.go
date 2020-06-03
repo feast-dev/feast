@@ -2,37 +2,34 @@ package feast
 
 import (
 	"fmt"
-	"github.com/gojek/feast/sdk/go/protos/feast/serving"
-	"strconv"
+	"github.com/feast-dev/feast/sdk/go/protos/feast/serving"
 	"strings"
 )
 
 var (
-	// ErrInvalidFeatureName indicates that the user has provided a feature reference with the wrong structure or contents
-	ErrInvalidFeatureName = "invalid feature references %s provided, feature names must be in the format <project>/<feature>:<version>"
+	// ErrInvalidFeatureRef indicates that the user has provided a feature reference
+	// with the wrong structure or contents
+	ErrInvalidFeatureRef = "Invalid Feature Reference %s provided, " +
+		"feature reference must be in the format [featureset:]name"
 )
 
 // OnlineFeaturesRequest wrapper on feast.serving.GetOnlineFeaturesRequest.
 type OnlineFeaturesRequest struct {
 	// Features is the list of features to obtain from Feast. Each feature can be given as
-	// <feature-name>
-	// <feature-name>:<feature-version>
-	// <project-name>/<feature-name>
-	// <project-name>/<feature-name>:<feature-version>
-	// The only required components are the feature name and project.
+	// the format feature_set:feature, where "feature_set" & "feature" are feature set name
+	// and feature name respectively. The only required components is feature name.
 	Features []string
 
 	// Entities is the list of entity rows to retrieve features on. Each row is a map of entity name to entity value.
 	Entities []Row
 
-	// Project is the default project to use when looking up features. This is only used when a project is not found
-	// within the feature id.
+	// Project specifies the project would contain the feature sets where the requested features belong to.
 	Project string
 }
 
 // Builds the feast-specified request payload from the wrapper.
 func (r OnlineFeaturesRequest) buildRequest() (*serving.GetOnlineFeaturesRequest, error) {
-	features, err := buildFeatures(r.Features, r.Project)
+	featureRefs, err := buildFeatureRefs(r.Features, r.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -45,57 +42,74 @@ func (r OnlineFeaturesRequest) buildRequest() (*serving.GetOnlineFeaturesRequest
 		}
 	}
 	return &serving.GetOnlineFeaturesRequest{
-		Features:   features,
+		Features:   featureRefs,
 		EntityRows: entityRows,
 	}, nil
 }
 
-// buildFeatures create a slice of FeatureReferences from a slice of "<project>/<feature_name>:<feature-set-version>"
-// It returns an error when the format is invalid
-func buildFeatures(featureReferences []string, defaultProject string) ([]*serving.FeatureReference, error) {
-	var features []*serving.FeatureReference
+// Creates a slice of FeatureReferences from string representation in
+// the format featureset:feature.
+// featureRefStrs - string feature references to parse.
+// project - Optionally sets the project in parsed FeatureReferences. Otherwise pass ""
+// Returns parsed FeatureReferences.
+// Returns an error when the format of the string feature reference is invalid
+func buildFeatureRefs(featureRefStrs []string, project string) ([]*serving.FeatureReference, error) {
+	var featureRefs []*serving.FeatureReference
 
-	for _, featureRef := range featureReferences {
-		var project string
-		var name string
-		var version int
-		var featureSplit []string
-
-		projectSplit := strings.Split(featureRef, "/")
-
-		if len(projectSplit) == 2 {
-			project = projectSplit[0]
-			featureSplit = strings.Split(projectSplit[1], ":")
-		} else if len(projectSplit) == 1 {
-			project = defaultProject
-			featureSplit = strings.Split(projectSplit[0], ":")
-		} else {
-			return nil, fmt.Errorf(ErrInvalidFeatureName, featureRef)
+	for _, featureRefStr := range featureRefStrs {
+		featureRef, err := parseFeatureRef(featureRefStr, false)
+		if err != nil {
+			return nil, err
 		}
-
-		if len(featureSplit) == 2 {
-			name = featureSplit[0]
-			v, err := strconv.Atoi(featureSplit[1])
-			if err != nil {
-				return nil, fmt.Errorf(ErrInvalidFeatureName, featureRef)
-			}
-			version = v
-		} else if len(featureSplit) == 1 {
-			name = featureSplit[0]
-		} else {
-			return nil, fmt.Errorf(ErrInvalidFeatureName, featureRef)
+		// apply project if specified
+		if len(project) != 0 {
+			featureRef.Project = project
 		}
+		featureRefs = append(featureRefs, featureRef)
+	}
+	return featureRefs, nil
+}
 
-		if project == "" || name == "" || version < 0 {
-			return nil, fmt.Errorf(ErrInvalidFeatureName, featureRef)
-		}
-
-		features = append(features, &serving.FeatureReference{
-			Name:    name,
-			Version: int32(version),
-			Project: project,
-		})
+// Parses a string FeatureReference into FeatureReference proto
+// featureRefStr - the string feature reference to parse.
+// ignoreProject - if true would ignore if project is specified in the given featureRefStr
+// 				   Otherwise, would return an error if project is detected in featureRefStr.
+// Returns parsed FeatureReference.
+// Returns an error when the format of the string feature reference is invalid
+func parseFeatureRef(featureRefStr string, ignoreProject bool) (*serving.FeatureReference, error) {
+	if len(featureRefStr) == 0 {
+		return nil, fmt.Errorf(ErrInvalidFeatureRef, featureRefStr)
 	}
 
-	return features, nil
+	var featureRef serving.FeatureReference
+	if strings.Contains(featureRefStr, "/") {
+		if ignoreProject {
+			projectSplit := strings.Split(featureRefStr, "/")
+			featureRefStr = projectSplit[1]
+		} else {
+			return nil, fmt.Errorf(ErrInvalidFeatureRef, featureRefStr)
+		}
+	}
+	// parse featureset if specified
+	if strings.Contains(featureRefStr, ":") {
+		refSplit := strings.Split(featureRefStr, ":")
+		featureRef.FeatureSet, featureRefStr = refSplit[0], refSplit[1]
+	}
+	featureRef.Name = featureRefStr
+
+	return &featureRef, nil
+}
+
+// Converts a FeatureReference proto into a string
+// featureRef - The FeatureReference to render as string
+// Returns string representation of the given FeatureReference
+func toFeatureRefStr(featureRef *serving.FeatureReference) string {
+	refStr := ""
+	// In protov3, unset string and default to ""
+	if len(featureRef.FeatureSet) > 0 {
+		refStr += featureRef.FeatureSet + ":"
+	}
+	refStr += featureRef.Name
+
+	return refStr
 }

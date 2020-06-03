@@ -16,7 +16,7 @@
  */
 package feast.serving.service;
 
-import feast.serving.ServingAPIProto.Job;
+import feast.proto.serving.ServingAPIProto.Job;
 import java.util.Optional;
 
 // No-op implementation of the JobService, for online serving stores.

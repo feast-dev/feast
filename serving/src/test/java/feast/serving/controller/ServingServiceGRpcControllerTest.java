@@ -19,13 +19,13 @@ package feast.serving.controller;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.protobuf.Timestamp;
-import feast.serving.FeastProperties;
-import feast.serving.ServingAPIProto.FeatureReference;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
+import feast.proto.types.ValueProto.Value;
+import feast.serving.config.FeastProperties;
 import feast.serving.service.ServingService;
-import feast.types.ValueProto.Value;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.jaegertracing.Configuration;
@@ -51,18 +51,8 @@ public class ServingServiceGRpcControllerTest {
 
     validRequest =
         GetOnlineFeaturesRequest.newBuilder()
-            .addFeatures(
-                FeatureReference.newBuilder()
-                    .setName("feature1")
-                    .setVersion(1)
-                    .setProject("project")
-                    .build())
-            .addFeatures(
-                FeatureReference.newBuilder()
-                    .setName("feature2")
-                    .setVersion(1)
-                    .setProject("project")
-                    .build())
+            .addFeatures(FeatureReference.newBuilder().setName("feature1").build())
+            .addFeatures(FeatureReference.newBuilder().setName("feature2").build())
             .addEntityRows(
                 EntityRow.newBuilder()
                     .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))

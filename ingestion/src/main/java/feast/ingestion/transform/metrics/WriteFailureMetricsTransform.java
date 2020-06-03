@@ -19,6 +19,7 @@ package feast.ingestion.transform.metrics;
 import com.google.auto.value.AutoValue;
 import feast.ingestion.options.ImportOptions;
 import feast.storage.api.writer.FailedElement;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
@@ -46,6 +47,14 @@ public abstract class WriteFailureMetricsTransform
                   .setStatsdPort(options.getStatsdPort())
                   .setStoreName(getStoreName())
                   .build()));
+    } else {
+      input.apply(
+          "Noop",
+          ParDo.of(
+              new DoFn<FailedElement, Void>() {
+                @ProcessElement
+                public void processElement(ProcessContext c) {}
+              }));
     }
     return PDone.in(input.getPipeline());
   }

@@ -26,16 +26,17 @@ import com.google.common.collect.Lists;
 import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
-import feast.core.FeatureSetProto.EntitySpec;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.FeatureSetProto.FeatureSpec;
-import feast.serving.ServingAPIProto.FeatureReference;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
-import feast.storage.RedisProto.RedisKey;
+import feast.proto.core.FeatureSetProto.EntitySpec;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.FeatureSetProto.FeatureSpec;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
+import feast.proto.storage.RedisProto.RedisKey;
+import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FieldProto.Field;
+import feast.proto.types.ValueProto.Value;
 import feast.storage.api.retriever.FeatureSetRequest;
-import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.FieldProto.Field;
-import feast.types.ValueProto.Value;
+import feast.storage.api.retriever.OnlineRetriever;
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
@@ -52,25 +53,25 @@ public class RedisOnlineRetrieverTest {
 
   @Mock RedisCommands<byte[], byte[]> syncCommands;
 
-  private RedisOnlineRetriever redisOnlineRetriever;
+  private OnlineRetriever redisOnlineRetriever;
   private byte[][] redisKeyList;
 
   @Before
   public void setUp() {
     initMocks(this);
     when(connection.sync()).thenReturn(syncCommands);
-    redisOnlineRetriever = new RedisOnlineRetriever(connection);
+    redisOnlineRetriever = RedisOnlineRetriever.create(connection);
     redisKeyList =
         Lists.newArrayList(
                 RedisKey.newBuilder()
-                    .setFeatureSet("project/featureSet:1")
+                    .setFeatureSet("project/featureSet")
                     .addAllEntities(
                         Lists.newArrayList(
                             Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
                             Field.newBuilder().setName("entity2").setValue(strValue("a")).build()))
                     .build(),
                 RedisKey.newBuilder()
-                    .setFeatureSet("project/featureSet:1")
+                    .setFeatureSet("project/featureSet")
                     .addAllEntities(
                         Lists.newArrayList(
                             Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
@@ -88,17 +89,9 @@ public class RedisOnlineRetrieverTest {
         FeatureSetRequest.newBuilder()
             .setSpec(getFeatureSetSpec())
             .addFeatureReference(
-                FeatureReference.newBuilder()
-                    .setName("feature1")
-                    .setVersion(1)
-                    .setProject("project")
-                    .build())
+                FeatureReference.newBuilder().setName("feature1").setProject("project").build())
             .addFeatureReference(
-                FeatureReference.newBuilder()
-                    .setName("feature2")
-                    .setVersion(1)
-                    .setProject("project")
-                    .build())
+                FeatureReference.newBuilder().setName("feature2").setProject("project").build())
             .build();
     List<EntityRow> entityRows =
         ImmutableList.of(
@@ -135,16 +128,16 @@ public class RedisOnlineRetrieverTest {
             .map(x -> KeyValue.from(new byte[1], Optional.of(x.toByteArray())))
             .collect(Collectors.toList());
 
-    redisOnlineRetriever = new RedisOnlineRetriever(connection);
+    redisOnlineRetriever = RedisOnlineRetriever.create(connection);
     when(connection.sync()).thenReturn(syncCommands);
     when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
 
     List<List<FeatureRow>> expected =
-        List.of(
+        ImmutableList.of(
             Lists.newArrayList(
                 FeatureRow.newBuilder()
                     .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                    .setFeatureSet("project/featureSet:1")
+                    .setFeatureSet("project/featureSet")
                     .addAllFields(
                         Lists.newArrayList(
                             Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
@@ -152,7 +145,7 @@ public class RedisOnlineRetrieverTest {
                     .build(),
                 FeatureRow.newBuilder()
                     .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                    .setFeatureSet("project/featureSet:1")
+                    .setFeatureSet("project/featureSet")
                     .addAllFields(
                         Lists.newArrayList(
                             Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
@@ -160,7 +153,7 @@ public class RedisOnlineRetrieverTest {
                     .build()));
 
     List<List<FeatureRow>> actual =
-        redisOnlineRetriever.getOnlineFeatures(entityRows, List.of(featureSetRequest));
+        redisOnlineRetriever.getOnlineFeatures(entityRows, ImmutableList.of(featureSetRequest));
     assertThat(actual, equalTo(expected));
   }
 
@@ -170,17 +163,9 @@ public class RedisOnlineRetrieverTest {
         FeatureSetRequest.newBuilder()
             .setSpec(getFeatureSetSpec())
             .addFeatureReference(
-                FeatureReference.newBuilder()
-                    .setName("feature1")
-                    .setVersion(1)
-                    .setProject("project")
-                    .build())
+                FeatureReference.newBuilder().setName("feature1").setProject("project").build())
             .addFeatureReference(
-                FeatureReference.newBuilder()
-                    .setName("feature2")
-                    .setVersion(1)
-                    .setProject("project")
-                    .build())
+                FeatureReference.newBuilder().setName("feature2").setProject("project").build())
             .build();
     List<EntityRow> entityRows =
         ImmutableList.of(
@@ -211,23 +196,23 @@ public class RedisOnlineRetrieverTest {
             .collect(Collectors.toList());
     featureRowBytes.add(null);
 
-    redisOnlineRetriever = new RedisOnlineRetriever(connection);
+    redisOnlineRetriever = RedisOnlineRetriever.create(connection);
     when(connection.sync()).thenReturn(syncCommands);
     when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
 
     List<List<FeatureRow>> expected =
-        List.of(
+        ImmutableList.of(
             Lists.newArrayList(
                 FeatureRow.newBuilder()
                     .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                    .setFeatureSet("project/featureSet:1")
+                    .setFeatureSet("project/featureSet")
                     .addAllFields(
                         Lists.newArrayList(
                             Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
                             Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
                     .build(),
                 FeatureRow.newBuilder()
-                    .setFeatureSet("project/featureSet:1")
+                    .setFeatureSet("project/featureSet")
                     .addAllFields(
                         Lists.newArrayList(
                             Field.newBuilder().setName("feature1").build(),
@@ -235,7 +220,7 @@ public class RedisOnlineRetrieverTest {
                     .build()));
 
     List<List<FeatureRow>> actual =
-        redisOnlineRetriever.getOnlineFeatures(entityRows, List.of(featureSetRequest));
+        redisOnlineRetriever.getOnlineFeatures(entityRows, ImmutableList.of(featureSetRequest));
     assertThat(actual, equalTo(expected));
   }
 
@@ -251,7 +236,6 @@ public class RedisOnlineRetrieverTest {
     return FeatureSetSpec.newBuilder()
         .setProject("project")
         .setName("featureSet")
-        .setVersion(1)
         .addEntities(EntitySpec.newBuilder().setName("entity1"))
         .addEntities(EntitySpec.newBuilder().setName("entity2"))
         .addFeatures(FeatureSpec.newBuilder().setName("feature1"))

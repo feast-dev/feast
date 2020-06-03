@@ -16,14 +16,14 @@
  */
 package feast.serving.service;
 
-import feast.serving.ServingAPIProto.GetBatchFeaturesRequest;
-import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
-import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
-import feast.serving.ServingAPIProto.GetFeastServingInfoResponse;
-import feast.serving.ServingAPIProto.GetJobRequest;
-import feast.serving.ServingAPIProto.GetJobResponse;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
+import feast.proto.serving.ServingAPIProto.GetBatchFeaturesRequest;
+import feast.proto.serving.ServingAPIProto.GetBatchFeaturesResponse;
+import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
+import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
+import feast.proto.serving.ServingAPIProto.GetJobRequest;
+import feast.proto.serving.ServingAPIProto.GetJobResponse;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 
 public interface ServingService {
   /**
@@ -41,31 +41,31 @@ public interface ServingService {
 
   /**
    * Get features from an online serving store, given a list of {@link
-   * feast.serving.ServingAPIProto.FeatureReference}s to retrieve, and list of {@link
-   * feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow}s to join the retrieved values
-   * to.
+   * feast.proto.serving.ServingAPIProto.FeatureReference}s to retrieve, and list of {@link
+   * feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow}s to join the retrieved
+   * values to.
    *
    * <p>Features can be queried across feature sets, but each {@link
-   * feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow} must contain all entities for
-   * all feature sets included in the request.
+   * feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow} must contain all
+   * entities for all feature sets included in the request.
    *
    * <p>This request is fulfilled synchronously.
    *
    * @param getFeaturesRequest {@link GetOnlineFeaturesRequest} containing list of {@link
-   *     feast.serving.ServingAPIProto.FeatureReference}s to retrieve and list of {@link
-   *     feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow}s to join the retrieved
-   *     values to.
+   *     feast.proto.serving.ServingAPIProto.FeatureReference}s to retrieve and list of {@link
+   *     feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow}s to join the
+   *     retrieved values to.
    * @return {@link GetOnlineFeaturesResponse} with list of {@link
-   *     feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues} for each {@link
-   *     feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow} supplied.
+   *     feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues} for each {@link
+   *     feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow} supplied.
    */
   GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest getFeaturesRequest);
 
   /**
    * Get features from a batch serving store, given a list of {@link
-   * feast.serving.ServingAPIProto.FeatureReference}s to retrieve, and {@link
-   * feast.serving.ServingAPIProto.DatasetSource} pointing to remote location of dataset to join
-   * retrieved features to. All columns in the provided dataset will be preserved in the output
+   * feast.proto.serving.ServingAPIProto.FeatureReference}s to retrieve, and {@link
+   * feast.proto.serving.ServingAPIProto.DatasetSource} pointing to remote location of dataset to
+   * join retrieved features to. All columns in the provided dataset will be preserved in the output
    * dataset.
    *
    * <p>Due to the potential size of batch retrieval requests, this request is fulfilled
@@ -73,11 +73,11 @@ public interface ServingService {
    * #getJob(GetJobRequest)} will return the status of the retrieval job.
    *
    * @param getFeaturesRequest {@link GetBatchFeaturesRequest} containing a list of {@link
-   *     feast.serving.ServingAPIProto.FeatureReference}s to retrieve, and {@link
-   *     feast.serving.ServingAPIProto.DatasetSource} pointing to remote location of dataset to join
-   *     retrieved features to.
+   *     feast.proto.serving.ServingAPIProto.FeatureReference}s to retrieve, and {@link
+   *     feast.proto.serving.ServingAPIProto.DatasetSource} pointing to remote location of dataset
+   *     to join retrieved features to.
    * @return {@link GetBatchFeaturesResponse} containing reference to a retrieval {@link
-   *     feast.serving.ServingAPIProto.Job}.
+   *     feast.proto.serving.ServingAPIProto.Job}.
    */
   GetBatchFeaturesResponse getBatchFeatures(GetBatchFeaturesRequest getFeaturesRequest);
 

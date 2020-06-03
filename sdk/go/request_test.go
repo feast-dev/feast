@@ -2,8 +2,8 @@ package feast
 
 import (
 	"fmt"
-	"github.com/gojek/feast/sdk/go/protos/feast/serving"
-	"github.com/gojek/feast/sdk/go/protos/feast/types"
+	"github.com/feast-dev/feast/sdk/go/protos/feast/serving"
+	"github.com/feast-dev/feast/sdk/go/protos/feast/types"
 	json "github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"testing"
@@ -20,40 +20,27 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 		{
 			name: "valid",
 			req: OnlineFeaturesRequest{
-				Features: []string{"my_project_1/feature1:1", "my_project_2/feature1:1", "my_project_4/feature3", "feature2:2", "feature2"},
+				Features: []string{
+					"driver:driver_id",
+					"driver_id",
+				},
 				Entities: []Row{
 					{"entity1": Int64Val(1), "entity2": StrVal("bob")},
 					{"entity1": Int64Val(1), "entity2": StrVal("annie")},
 					{"entity1": Int64Val(1), "entity2": StrVal("jane")},
 				},
-				Project: "my_project_3",
+				Project: "driver_project",
 			},
 			want: &serving.GetOnlineFeaturesRequest{
 				Features: []*serving.FeatureReference{
 					{
-						Project: "my_project_1",
-						Name:    "feature1",
-						Version: 1,
+						Project:    "driver_project",
+						FeatureSet: "driver",
+						Name:       "driver_id",
 					},
 					{
-						Project: "my_project_2",
-						Name:    "feature1",
-						Version: 1,
-					},
-					{
-						Project: "my_project_4",
-						Name:    "feature3",
-						Version: 0,
-					},
-					{
-						Project: "my_project_3",
-						Name:    "feature2",
-						Version: 2,
-					},
-					{
-						Project: "my_project_3",
-						Name:    "feature2",
-						Version: 0,
+						Project: "driver_project",
+						Name:    "driver_id",
 					},
 				},
 				EntityRows: []*serving.GetOnlineFeaturesRequest_EntityRow{
@@ -82,52 +69,14 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 			err:     nil,
 		},
 		{
-			name: "valid_project_in_name",
-			req: OnlineFeaturesRequest{
-				Features: []string{"project/feature1"},
-				Entities: []Row{},
-			},
-			want: &serving.GetOnlineFeaturesRequest{
-				Features: []*serving.FeatureReference{
-					{
-						Project: "project",
-						Name:    "feature1",
-						Version: 0,
-					},
-				},
-				EntityRows:             []*serving.GetOnlineFeaturesRequest_EntityRow{},
-				OmitEntitiesInResponse: false,
-			},
-			wantErr: false,
-			err:     nil,
-		},
-		{
-			name: "no_project",
-			req: OnlineFeaturesRequest{
-				Features: []string{"feature1"},
-				Entities: []Row{},
-			},
-			wantErr: true,
-			err:     fmt.Errorf(ErrInvalidFeatureName, "feature1"),
-		},
-		{
 			name: "invalid_feature_name/wrong_format",
 			req: OnlineFeaturesRequest{
-				Features: []string{"fs1:3:feature1"},
+				Features: []string{"/fs1:feature1"},
 				Entities: []Row{},
 				Project:  "my_project",
 			},
 			wantErr: true,
-			err:     fmt.Errorf(ErrInvalidFeatureName, "fs1:3:feature1"),
-		},
-		{
-			name: "invalid_feature_name/invalid_version",
-			req: OnlineFeaturesRequest{
-				Features: []string{"project/a:feature1"},
-				Entities: []Row{},
-			},
-			wantErr: true,
-			err:     fmt.Errorf(ErrInvalidFeatureName, "project/a:feature1"),
+			err:     fmt.Errorf(ErrInvalidFeatureRef, "/fs1:feature1"),
 		},
 	}
 	for _, tc := range tt {

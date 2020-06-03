@@ -76,7 +76,6 @@ public abstract class WriteDeadletterRowMetricsDoFn extends DoFn<FailedElement, 
           STORE_TAG_KEY + ":" + getStoreName(),
           PROJECT_TAG_KEY + ":" + ignored.getProjectName(),
           FEATURE_SET_NAME_TAG_KEY + ":" + ignored.getFeatureSetName(),
-          FEATURE_SET_VERSION_TAG_KEY + ":" + ignored.getFeatureSetVersion(),
           INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
     } catch (StatsDClientException e) {
       log.warn("Unable to push metrics to server", e);

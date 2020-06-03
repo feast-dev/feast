@@ -28,7 +28,6 @@ grpc_cli call localhost:6566 GetFeastServingType ''
 grpc_cli call localhost:6565 ApplyFeatureSet '
 feature_set {
   name: "driver"
-  version: 1
   entities {
     name: "driver_id"
     value_type: STRING
@@ -53,14 +52,12 @@ feature_set {
 grpc_cli call localhost:6565 GetFeatureSets '
 filter {
   feature_set_name: "driver"
-  feature_set_version: "1"
 }
 '
 
 grpc_cli call localhost:6566 GetBatchFeatures '
 feature_sets {
   name: "driver"
-  version: 1
   feature_names: "booking_completed_count"
   max_age {
     seconds: 86400

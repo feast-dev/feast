@@ -16,16 +16,16 @@
  */
 package feast.ingestion.utils;
 
-import static feast.types.ValueProto.ValueType;
+import static feast.proto.types.ValueProto.ValueType;
 
 import com.google.cloud.bigquery.StandardSQLTypeName;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.StoreProto.Store;
-import feast.core.StoreProto.Store.StoreType;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.StoreProto.Store;
+import feast.proto.core.StoreProto.Store.StoreType;
+import feast.proto.types.ValueProto.ValueType.Enum;
 import feast.storage.api.writer.FeatureSink;
 import feast.storage.connectors.bigquery.writer.BigQueryFeatureSink;
 import feast.storage.connectors.redis.writer.RedisFeatureSink;
-import feast.types.ValueProto.ValueType.Enum;
 import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -82,15 +82,14 @@ public class StoreUtil {
       Store store, Map<String, FeatureSetSpec> featureSetSpecs) {
     StoreType storeType = store.getType();
     switch (storeType) {
+      case REDIS_CLUSTER:
+        return RedisFeatureSink.fromConfig(store.getRedisClusterConfig(), featureSetSpecs);
       case REDIS:
-        return RedisFeatureSink.builder()
-            .setRedisConfig(store.getRedisConfig())
-            .setFeatureSetSpecs(featureSetSpecs)
-            .build();
+        return RedisFeatureSink.fromConfig(store.getRedisConfig(), featureSetSpecs);
       case BIGQUERY:
-        return BigQueryFeatureSink.fromConfig(store.getBigqueryConfig());
+        return BigQueryFeatureSink.fromConfig(store.getBigqueryConfig(), featureSetSpecs);
       default:
-        throw new RuntimeException(String.format("Store type '{}' is unsupported", storeType));
+        throw new RuntimeException(String.format("Store type '%s' is unsupported", storeType));
     }
   }
 }

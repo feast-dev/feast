@@ -20,8 +20,8 @@ import static feast.ingestion.transform.metrics.WriteFeatureValueMetricsDoFnTest
 import static feast.ingestion.transform.metrics.WriteFeatureValueMetricsDoFnTest.readTestOutput;
 import static org.junit.Assert.fail;
 
+import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.test.TestUtil.DummyStatsDServer;
-import feast.types.FeatureRowProto.FeatureRow;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;

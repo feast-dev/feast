@@ -18,19 +18,22 @@ package feast.storage.connectors.redis.retriever;
 
 import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.FeatureSetProto.EntitySpec;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.serving.ServingAPIProto.FeatureReference;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
-import feast.storage.RedisProto.RedisKey;
+import feast.proto.core.FeatureSetProto.EntitySpec;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
+import feast.proto.storage.RedisProto.RedisKey;
+import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FieldProto.Field;
+import feast.proto.types.ValueProto.Value;
 import feast.storage.api.retriever.FeatureSetRequest;
 import feast.storage.api.retriever.OnlineRetriever;
-import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.FieldProto.Field;
-import feast.types.ValueProto.Value;
 import io.grpc.Status;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
+import io.lettuce.core.codec.ByteArrayCodec;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -41,8 +44,22 @@ public class RedisOnlineRetriever implements OnlineRetriever {
 
   private final RedisCommands<byte[], byte[]> syncCommands;
 
-  public RedisOnlineRetriever(StatefulRedisConnection<byte[], byte[]> connection) {
+  private RedisOnlineRetriever(StatefulRedisConnection<byte[], byte[]> connection) {
     this.syncCommands = connection.sync();
+  }
+
+  public static OnlineRetriever create(Map<String, String> config) {
+
+    StatefulRedisConnection<byte[], byte[]> connection =
+        RedisClient.create(
+                RedisURI.create(config.get("host"), Integer.parseInt(config.get("port"))))
+            .connect(new ByteArrayCodec());
+
+    return new RedisOnlineRetriever(connection);
+  }
+
+  public static OnlineRetriever create(StatefulRedisConnection<byte[], byte[]> connection) {
+    return new RedisOnlineRetriever(connection);
   }
 
   /**
@@ -51,8 +68,8 @@ public class RedisOnlineRetriever implements OnlineRetriever {
    * {@link EntityRow} provided by the user.
    *
    * @param entityRows list of entity rows in the feature request
-   * @param featureSetRequests Map of {@link feast.core.FeatureSetProto.FeatureSetSpec} to feature
-   *     references in the request tied to that feature set.
+   * @param featureSetRequests Map of {@link feast.proto.core.FeatureSetProto.FeatureSetSpec} to
+   *     feature references in the request tied to that feature set.
    * @return List of List of {@link FeatureRow}
    */
   @Override
@@ -95,7 +112,7 @@ public class RedisOnlineRetriever implements OnlineRetriever {
   /**
    * Create {@link RedisKey}
    *
-   * @param featureSet featureSet reference of the feature. E.g. feature_set_1:1
+   * @param featureSet featureSet reference of the feature. E.g. feature_set_1
    * @param featureSetEntityNames entity names that belong to the featureSet
    * @param entityRow entityRow to build the key from
    * @return {@link RedisKey}
@@ -196,9 +213,6 @@ public class RedisOnlineRetriever implements OnlineRetriever {
   // TODO: Refactor this out to common package?
   private static String generateFeatureSetStringRef(FeatureSetSpec featureSetSpec) {
     String ref = String.format("%s/%s", featureSetSpec.getProject(), featureSetSpec.getName());
-    if (featureSetSpec.getVersion() > 0) {
-      return ref + String.format(":%d", featureSetSpec.getVersion());
-    }
     return ref;
   }
 }

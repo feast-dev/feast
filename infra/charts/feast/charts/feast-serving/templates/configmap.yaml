@@ -10,25 +10,31 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 data:
-  application.yaml: |
-{{- toYaml (index .Values "application.yaml") | nindent 4 }}
-
-{{- if .Values.core.enabled }}
-  application-bundled-core.yaml: |
+  application-generated.yaml: |
+{{- if index .Values "application-generated.yaml" "enabled" }}
     feast:
-      core-host: {{ printf "%s-feast-core" .Release.Name }}
-{{- end }}
+      core-host: {{ .Release.Name }}-feast-core
 
-{{- if eq (include "bq_store_and_no_job_options" .) "true" }}
-  application-bundled-redis.yaml: |
-    feast:
-      jobs:
-        store-options:
-          host: {{ printf "%s-redis-headless" .Release.Name }}
+      stores:
+      - name: online
+        type: REDIS
+        config:
+          host: {{ .Release.Name }}-redis-master
           port: 6379
+        subscriptions:
+        - name: "*"
+          project: "*"
+          version: "*"
+
+      job_store:
+        redis_host: {{ .Release.Name }}-redis-master
+        redis_port: 6379
+
+    server:
+      port: {{ .Values.service.http.targetPort }}
 {{- end }}
 
-{{- range $name, $content := .Values.springConfigProfiles }}
-  application-{{ $name }}.yaml: |
-{{- toYaml $content | nindent 4 }}
+  application-override.yaml: |
+{{- if index .Values "application-override.yaml" "enabled" }}
+{{- toYaml (index .Values "application-override.yaml") | nindent 4 }}
 {{- end }}

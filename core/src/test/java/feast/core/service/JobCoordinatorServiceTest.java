@@ -25,21 +25,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
-import feast.core.CoreServiceProto.ListFeatureSetsResponse;
-import feast.core.CoreServiceProto.ListStoresResponse;
-import feast.core.FeatureSetProto;
-import feast.core.FeatureSetProto.FeatureSetMeta;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.SourceProto.KafkaSourceConfig;
-import feast.core.SourceProto.Source;
-import feast.core.SourceProto.SourceType;
-import feast.core.StoreProto;
-import feast.core.StoreProto.Store.RedisConfig;
-import feast.core.StoreProto.Store.StoreType;
-import feast.core.StoreProto.Store.Subscription;
-import feast.core.config.FeastProperties.JobUpdatesProperties;
+import feast.core.config.FeastProperties;
+import feast.core.config.FeastProperties.JobProperties;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
@@ -48,7 +37,21 @@ import feast.core.job.Runner;
 import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
+import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
+import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.proto.core.CoreServiceProto.ListStoresResponse;
+import feast.proto.core.FeatureSetProto;
+import feast.proto.core.FeatureSetProto.FeatureSetMeta;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.SourceProto.KafkaSourceConfig;
+import feast.proto.core.SourceProto.Source;
+import feast.proto.core.SourceProto.SourceType;
+import feast.proto.core.StoreProto;
+import feast.proto.core.StoreProto.Store.RedisConfig;
+import feast.proto.core.StoreProto.Store.StoreType;
+import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.junit.Before;
 import org.junit.Rule;
@@ -65,13 +68,15 @@ public class JobCoordinatorServiceTest {
   @Mock SpecService specService;
   @Mock FeatureSetRepository featureSetRepository;
 
-  private JobUpdatesProperties jobUpdatesProperties;
+  private FeastProperties feastProperties;
 
   @Before
   public void setUp() {
     initMocks(this);
-    jobUpdatesProperties = new JobUpdatesProperties();
-    jobUpdatesProperties.setTimeoutSeconds(5);
+    feastProperties = new FeastProperties();
+    JobProperties jobProperties = new JobProperties();
+    jobProperties.setJobUpdateTimeoutSeconds(5);
+    feastProperties.setJobs(jobProperties);
   }
 
   @Test
@@ -79,7 +84,7 @@ public class JobCoordinatorServiceTest {
     when(specService.listStores(any())).thenReturn(ListStoresResponse.newBuilder().build());
     JobCoordinatorService jcs =
         new JobCoordinatorService(
-            jobRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+            jobRepository, featureSetRepository, specService, jobManager, feastProperties);
     jcs.Poll();
     verify(jobRepository, times(0)).saveAndFlush(any());
   }
@@ -91,21 +96,16 @@ public class JobCoordinatorServiceTest {
             .setName("test")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().build())
-            .addSubscriptions(
-                Subscription.newBuilder().setProject("*").setName("*").setVersion("*").build())
+            .addSubscriptions(Subscription.newBuilder().setProject("*").setName("*").build())
             .build();
     when(specService.listStores(any()))
         .thenReturn(ListStoresResponse.newBuilder().addStore(store).build());
     when(specService.listFeatureSets(
-            Filter.newBuilder()
-                .setProject("*")
-                .setFeatureSetName("*")
-                .setFeatureSetVersion("*")
-                .build()))
+            Filter.newBuilder().setProject("*").setFeatureSetName("*").build()))
         .thenReturn(ListFeatureSetsResponse.newBuilder().build());
     JobCoordinatorService jcs =
         new JobCoordinatorService(
-            jobRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+            jobRepository, featureSetRepository, specService, jobManager, feastProperties);
     jcs.Poll();
     verify(jobRepository, times(0)).saveAndFlush(any());
   }
@@ -117,12 +117,7 @@ public class JobCoordinatorServiceTest {
             .setName("test")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().build())
-            .addSubscriptions(
-                Subscription.newBuilder()
-                    .setProject("project1")
-                    .setName("features")
-                    .setVersion("*")
-                    .build())
+            .addSubscriptions(Subscription.newBuilder().setProject("project1").setName("*").build())
             .build();
     Source source =
         Source.newBuilder()
@@ -134,60 +129,51 @@ public class JobCoordinatorServiceTest {
                     .build())
             .build();
 
-    FeatureSetProto.FeatureSet featureSet1 =
+    FeatureSetProto.FeatureSet featureSetProto1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
                 FeatureSetSpec.newBuilder()
                     .setSource(source)
                     .setProject("project1")
-                    .setName("features")
-                    .setVersion(1))
+                    .setName("features1"))
             .setMeta(FeatureSetMeta.newBuilder())
             .build();
-    FeatureSetProto.FeatureSet featureSet2 =
+    FeatureSet featureSet1 = FeatureSet.fromProto(featureSetProto1);
+    FeatureSetProto.FeatureSet featureSetProto2 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
                 FeatureSetSpec.newBuilder()
                     .setSource(source)
                     .setProject("project1")
-                    .setName("features")
-                    .setVersion(2))
+                    .setName("features2"))
             .setMeta(FeatureSetMeta.newBuilder())
             .build();
+    FeatureSet featureSet2 = FeatureSet.fromProto(featureSetProto2);
     String extId = "ext";
-    ArgumentCaptor<Job> jobArgCaptor = ArgumentCaptor.forClass(Job.class);
+    ArgumentCaptor<List<Job>> jobArgCaptor = ArgumentCaptor.forClass(List.class);
 
     Job expectedInput =
         new Job(
             "",
             "",
-            Runner.DATAFLOW.name(),
+            Runner.DATAFLOW,
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet1), FeatureSet.fromProto(featureSet2)),
+            Arrays.asList(featureSet1, featureSet2),
             JobStatus.PENDING);
 
     Job expected =
         new Job(
             "some_id",
             extId,
-            Runner.DATAFLOW.name(),
+            Runner.DATAFLOW,
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet1), FeatureSet.fromProto(featureSet2)),
+            Arrays.asList(featureSet1, featureSet2),
             JobStatus.RUNNING);
 
-    when(specService.listFeatureSets(
-            Filter.newBuilder()
-                .setProject("project1")
-                .setFeatureSetName("features")
-                .setFeatureSetVersion("*")
-                .build()))
-        .thenReturn(
-            ListFeatureSetsResponse.newBuilder()
-                .addFeatureSets(featureSet1)
-                .addFeatureSets(featureSet2)
-                .build());
+    when(featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc("%", "project1"))
+        .thenReturn(Lists.newArrayList(featureSet1, featureSet2));
     when(specService.listStores(any()))
         .thenReturn(ListStoresResponse.newBuilder().addStore(store).build());
 
@@ -196,11 +182,11 @@ public class JobCoordinatorServiceTest {
 
     JobCoordinatorService jcs =
         new JobCoordinatorService(
-            jobRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+            jobRepository, featureSetRepository, specService, jobManager, feastProperties);
     jcs.Poll();
-    verify(jobRepository, times(1)).saveAndFlush(jobArgCaptor.capture());
-    Job actual = jobArgCaptor.getValue();
-    assertThat(actual, equalTo(expected));
+    verify(jobRepository, times(1)).saveAll(jobArgCaptor.capture());
+    List<Job> actual = jobArgCaptor.getValue();
+    assertThat(actual, equalTo(Collections.singletonList(expected)));
   }
 
   @Test
@@ -210,12 +196,7 @@ public class JobCoordinatorServiceTest {
             .setName("test")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().build())
-            .addSubscriptions(
-                Subscription.newBuilder()
-                    .setProject("project1")
-                    .setName("features")
-                    .setVersion("*")
-                    .build())
+            .addSubscriptions(Subscription.newBuilder().setProject("project1").setName("*").build())
             .build();
     Source source1 =
         Source.newBuilder()
@@ -236,79 +217,72 @@ public class JobCoordinatorServiceTest {
                     .build())
             .build();
 
-    FeatureSetProto.FeatureSet featureSet1 =
+    FeatureSetProto.FeatureSet featureSetProto1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
                 FeatureSetSpec.newBuilder()
                     .setSource(source1)
                     .setProject("project1")
-                    .setName("features")
-                    .setVersion(1))
+                    .setName("features1"))
             .setMeta(FeatureSetMeta.newBuilder())
             .build();
-    FeatureSetProto.FeatureSet featureSet2 =
+    FeatureSet featureSet1 = FeatureSet.fromProto(featureSetProto1);
+
+    FeatureSetProto.FeatureSet featureSetProto2 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
                 FeatureSetSpec.newBuilder()
                     .setSource(source2)
                     .setProject("project1")
-                    .setName("features")
-                    .setVersion(2))
+                    .setName("features2"))
             .setMeta(FeatureSetMeta.newBuilder())
             .build();
+    FeatureSet featureSet2 = FeatureSet.fromProto(featureSetProto2);
 
     Job expectedInput1 =
         new Job(
             "name1",
             "",
-            Runner.DATAFLOW.name(),
+            Runner.DATAFLOW,
             feast.core.model.Source.fromProto(source1),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet1)),
+            Arrays.asList(featureSet1),
             JobStatus.PENDING);
 
     Job expected1 =
         new Job(
             "name1",
             "extId1",
-            Runner.DATAFLOW.name(),
+            Runner.DATAFLOW,
             feast.core.model.Source.fromProto(source1),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet1)),
+            Arrays.asList(featureSet1),
             JobStatus.RUNNING);
 
     Job expectedInput2 =
         new Job(
             "",
             "extId2",
-            Runner.DATAFLOW.name(),
+            Runner.DATAFLOW,
             feast.core.model.Source.fromProto(source2),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet2)),
+            Arrays.asList(featureSet2),
             JobStatus.PENDING);
 
     Job expected2 =
         new Job(
             "name2",
             "extId2",
-            Runner.DATAFLOW.name(),
+            Runner.DATAFLOW,
             feast.core.model.Source.fromProto(source2),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet2)),
+            Arrays.asList(featureSet2),
             JobStatus.RUNNING);
-    ArgumentCaptor<Job> jobArgCaptor = ArgumentCaptor.forClass(Job.class);
+    ArgumentCaptor<List<Job>> jobArgCaptor = ArgumentCaptor.forClass(List.class);
 
-    when(specService.listFeatureSets(
-            Filter.newBuilder()
-                .setProject("project1")
-                .setFeatureSetName("features")
-                .setFeatureSetVersion("*")
-                .build()))
-        .thenReturn(
-            ListFeatureSetsResponse.newBuilder()
-                .addFeatureSets(featureSet1)
-                .addFeatureSets(featureSet2)
-                .build());
+    when(featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc("%", "project1"))
+        .thenReturn(Lists.newArrayList(featureSet1, featureSet2));
+
     when(specService.listStores(any()))
         .thenReturn(ListStoresResponse.newBuilder().addStore(store).build());
 
@@ -318,11 +292,11 @@ public class JobCoordinatorServiceTest {
 
     JobCoordinatorService jcs =
         new JobCoordinatorService(
-            jobRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+            jobRepository, featureSetRepository, specService, jobManager, feastProperties);
     jcs.Poll();
 
-    verify(jobRepository, times(2)).saveAndFlush(jobArgCaptor.capture());
-    List<Job> actual = jobArgCaptor.getAllValues();
+    verify(jobRepository, times(1)).saveAll(jobArgCaptor.capture());
+    List<Job> actual = jobArgCaptor.getValue();
 
     assertThat(actual.get(0), equalTo(expected1));
     assertThat(actual.get(1), equalTo(expected2));

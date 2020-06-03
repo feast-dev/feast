@@ -18,9 +18,9 @@ package feast;
 
 import com.google.common.collect.Lists;
 import com.google.common.primitives.UnsignedBytes;
-import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
-import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.FieldProto.Field;
+import feast.proto.types.FeatureRowExtendedProto.FeatureRowExtended;
+import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FieldProto.Field;
 import java.util.List;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;

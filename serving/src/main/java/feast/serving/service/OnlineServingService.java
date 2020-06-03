@@ -16,18 +16,19 @@
  */
 package feast.serving.service;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.protobuf.Duration;
-import feast.serving.ServingAPIProto.*;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
+import feast.proto.serving.ServingAPIProto.*;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
+import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.ValueProto.Value;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.util.Metrics;
 import feast.serving.util.RefUtil;
 import feast.storage.api.retriever.FeatureSetRequest;
 import feast.storage.api.retriever.OnlineRetriever;
-import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.ValueProto.Value;
 import io.grpc.Status;
 import io.opentracing.Scope;
 import io.opentracing.Tracer;
@@ -75,6 +76,9 @@ public class OnlineServingService implements ServingService {
       // feature set request.
       List<List<FeatureRow>> featureRows =
           retriever.getOnlineFeatures(entityRows, featureSetRequests);
+      if (scope != null) {
+        scope.span().log(ImmutableMap.of("event", "featureRows", "value", featureRows));
+      }
 
       // For each feature set request, read the feature rows returned by the retriever, and
       // populate the featureValuesMap with the feature values corresponding to that entity row.
@@ -98,7 +102,6 @@ public class OnlineServingService implements ServingService {
           if (isStale(featureSetRequest, entityRow, featureRow)) {
             featureSetRequest
                 .getFeatureReferences()
-                .parallelStream()
                 .forEach(
                     ref -> {
                       populateStaleKeyCountMetrics(project, ref);
@@ -133,9 +136,7 @@ public class OnlineServingService implements ServingService {
   }
 
   private void populateStaleKeyCountMetrics(String project, FeatureReference ref) {
-    Metrics.staleKeyCount
-        .labels(project, RefUtil.generateFeatureStringRefWithoutProject(ref))
-        .inc();
+    Metrics.staleKeyCount.labels(project, ref.getName()).inc();
   }
 
   private void populateRequestCountMetrics(FeatureSetRequest featureSetRequest) {
@@ -143,11 +144,7 @@ public class OnlineServingService implements ServingService {
     featureSetRequest
         .getFeatureReferences()
         .parallelStream()
-        .forEach(
-            ref ->
-                Metrics.requestCount
-                    .labels(project, RefUtil.generateFeatureStringRefWithoutProject(ref))
-                    .inc());
+        .forEach(ref -> Metrics.requestCount.labels(project, ref.getName()).inc());
   }
 
   @Override

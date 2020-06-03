@@ -32,7 +32,7 @@ The following components/services are required to develop Feast:
 * **Feast Core:** Requires PostgreSQL \(version 11 and above\) to store state, and requires a Kafka \(tested on version 2.x\) setup to allow for ingestion of FeatureRows.
 * **Feast Serving:** Requires Redis \(tested on version 5.x\).
 
-These services should be running before starting development. The following snippet will start the services using Docker. For the
+These services should be running before starting development. The following snippet will start the services using Docker:
 
 ```bash
 # Start Postgres
@@ -77,7 +77,7 @@ $ mvn verify
 
 ### 3.3 Running components locally
 
-The `core` and `serving` modules are Spring Boot applications. These may be run as usual for [the Spring Boot Maven plugin](https://docs.spring.io/spring-boot/docs/current/maven-plugin/index.html):
+The `core` and `serving` modules are Spring Boot applications. These may be run as usual for the Spring Boot Maven plugin:
 
 ```text
 $ mvn --projects core spring-boot:run
@@ -119,7 +119,7 @@ The following section is a quick walk-through to test whether your local Feast d
 ### 4.2 Clone Feast
 
 ```bash
-git clone https://github.com/gojek/feast.git && cd feast && \
+git clone https://github.com/feast-dev/feast.git && cd feast && \
 export FEAST_HOME_DIR=$(pwd)
 ```
 
@@ -269,20 +269,6 @@ store {
 
 ### 4.5 Registering a FeatureSet
 
-Before registering a new FeatureSet, a project is required.
-
-```text
-grpc_cli call localhost:6565 CreateProject '
-  name: "your_project_name"
-'
-```
-
-When a feature set is successfully registered, Feast Core will start an **ingestion** job that listens for new features in the feature set.
-
-{% hint style="info" %}
-Note that Feast currently only supports source of type `KAFKA`, so you must have access to a running Kafka broker to register a FeatureSet successfully. It is possible to omit the `source` from a Feature Set, but Feast Core will still use Kafka behind the scenes, it is simply abstracted away from the user.
-{% endhint %}
-
 Create a new FeatureSet in Feast by sending a request to Feast Core:
 
 ```text
@@ -341,6 +327,12 @@ grpc_cli call localhost:6565 ListFeatureSets '
   }
 '
 ```
+
+When a feature set is successfully registered, Feast Core will start an **ingestion** job that listens for new features in the feature set.
+
+{% hint style="info" %}
+Note that Feast currently only supports source of type `KAFKA`, so you must have access to a running Kafka broker to register a FeatureSet successfully. It is possible to omit the `source` from a Feature Set, but Feast Core will still use Kafka behind the scenes, it is simply abstracted away from the user.
+{% endhint %}
 
 ### 4.6 Ingestion and Population of Feature Values
 
@@ -403,7 +395,6 @@ Ensure that Feast Serving returns results for the feature value for the specific
 ```text
 grpc_cli call localhost:6566 GetOnlineFeatures '
 features {
-  project: "your_project_name"
   name: "city"
   version: 1
   max_age {
@@ -430,7 +421,7 @@ field_values {
     }
   }
   fields {
-    key: "your_project_name/city:1"
+    key: "city"
     value {
       string_val: "JAKARTA"
     }
@@ -458,7 +449,7 @@ To have confidence in Beam stability and our users' ability to deploy Feast on a
 
 You do _not_ need a Java 8 SDK installed for development. Newer JDKs can build for the older platform, and Feast's Maven build does this automatically.
 
-See [Feast issue \#517](https://github.com/gojek/feast/issues/517) for discussion.
+See [Feast issue \#517](https://github.com/feast-dev/feast/issues/517) for discussion.
 
 ### 5.2 IntelliJ Tips and Troubleshooting
 

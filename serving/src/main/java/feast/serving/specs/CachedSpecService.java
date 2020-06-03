@@ -18,32 +18,27 @@ package feast.serving.specs;
 
 import static feast.serving.util.RefUtil.generateFeatureSetStringRef;
 import static feast.serving.util.RefUtil.generateFeatureStringRef;
-import static feast.serving.util.mappers.YamlToProtoMapper.yamlToStoreProto;
-import static java.util.Comparator.comparingInt;
 import static java.util.stream.Collectors.groupingBy;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import feast.core.CoreServiceProto.ListFeatureSetsRequest;
-import feast.core.CoreServiceProto.ListFeatureSetsResponse;
-import feast.core.CoreServiceProto.UpdateStoreRequest;
-import feast.core.CoreServiceProto.UpdateStoreResponse;
-import feast.core.FeatureSetProto.FeatureSet;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.FeatureSetProto.FeatureSpec;
-import feast.core.StoreProto.Store;
-import feast.core.StoreProto.Store.Subscription;
-import feast.serving.ServingAPIProto.FeatureReference;
+import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
+import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.proto.core.FeatureSetProto.FeatureSet;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.FeatureSetProto.FeatureSpec;
+import feast.proto.core.StoreProto;
+import feast.proto.core.StoreProto.Store;
+import feast.proto.core.StoreProto.Store.Subscription;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.serving.exception.SpecRetrievalException;
 import feast.storage.api.retriever.FeatureSetRequest;
 import io.grpc.StatusRuntimeException;
 import io.prometheus.client.Gauge;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -52,18 +47,20 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 
-/** In-memory cache of specs. */
+/** In-memory cache of specs hosted in Feast Core. */
 public class CachedSpecService {
 
   private static final int MAX_SPEC_COUNT = 1000;
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(CachedSpecService.class);
+  private static final String DEFAULT_PROJECT_NAME = "default";
+  // flag to signal that multiple featuresets match a specific
+  // string feature reference in the feature to featureset mapping.
+  private static final String FEATURE_SET_CONFLICT_FLAG = "##CONFLICT##";
 
   private final CoreSpecService coreService;
-  private final Path configPath;
 
-  private final Map<String, String> featureToFeatureSetMapping;
+  private Map<String, String> featureToFeatureSetMapping;
 
-  private final CacheLoader<String, FeatureSetSpec> featureSetCacheLoader;
   private final LoadingCache<String, FeatureSetSpec> featureSetCache;
   private Store store;
 
@@ -80,15 +77,14 @@ public class CachedSpecService {
           .help("epoch time of the last time the cache was updated")
           .register();
 
-  public CachedSpecService(CoreSpecService coreService, Path configPath) {
-    this.configPath = configPath;
+  public CachedSpecService(CoreSpecService coreService, StoreProto.Store store) {
     this.coreService = coreService;
-    this.store = updateStore(readConfig(configPath));
+    this.store = coreService.registerStore(store);
 
     Map<String, FeatureSetSpec> featureSets = getFeatureSetMap();
     featureToFeatureSetMapping =
         new ConcurrentHashMap<>(getFeatureToFeatureSetMapping(featureSets));
-    featureSetCacheLoader = CacheLoader.from(featureSets::get);
+    CacheLoader<String, FeatureSetSpec> featureSetCacheLoader = CacheLoader.from(featureSets::get);
     featureSetCache =
         CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(featureSetCacheLoader);
     featureSetCache.putAll(featureSets);
@@ -108,7 +104,9 @@ public class CachedSpecService {
   }
 
   /**
-   * Get FeatureSetSpecs for the given features.
+   * Get FeatureSetSpecs for the given features references. If the project is unspecified in the
+   * given references, autofills the default project. Throws a {@link SpecRetrievalException}. If
+   * multiple feature sets match given string reference,
    *
    * @return FeatureSetRequest containing the specs, and their respective feature references
    */
@@ -117,14 +115,22 @@ public class CachedSpecService {
     featureReferences.stream()
         .map(
             featureReference -> {
-              String featureSet =
-                  featureToFeatureSetMapping.getOrDefault(
-                      generateFeatureStringRef(featureReference), "");
-              if (featureSet.isEmpty()) {
+              // map feature reference to coresponding feature set name
+              String fsName =
+                  featureToFeatureSetMapping.get(generateFeatureStringRef(featureReference));
+              if (fsName == null) {
                 throw new SpecRetrievalException(
-                    String.format("Unable to retrieve feature %s", featureReference));
+                    String.format(
+                        "Unable to find Feature Set for the given Feature Reference: %s",
+                        generateFeatureStringRef(featureReference)));
+              } else if (fsName == FEATURE_SET_CONFLICT_FLAG) {
+                throw new SpecRetrievalException(
+                    String.format(
+                        "Given Feature Reference is amibigous as it matches multiple Feature Sets: %s."
+                            + "Please specify a more specific Feature Reference (ie specify the project or feature set)",
+                        generateFeatureStringRef(featureReference)));
               }
-              return Pair.of(featureSet, featureReference);
+              return Pair.of(fsName, featureReference);
             })
         .collect(groupingBy(Pair::getLeft))
         .forEach(
@@ -133,6 +139,19 @@ public class CachedSpecService {
                 FeatureSetSpec featureSetSpec = featureSetCache.get(fsName);
                 List<FeatureReference> requestedFeatures =
                     featureRefs.stream().map(Pair::getRight).collect(Collectors.toList());
+
+                // check that requested features reference point to different features in the
+                // featureset.
+                HashSet<String> featureNames = new HashSet<>();
+                requestedFeatures.forEach(
+                    ref -> {
+                      if (featureNames.contains(ref.getName())) {
+                        throw new SpecRetrievalException(
+                            "Multiple Feature References referencing the same feature in a featureset is not allowed.");
+                      }
+                      featureNames.add(ref.getName());
+                    });
+
                 FeatureSetRequest featureSetRequest =
                     FeatureSetRequest.newBuilder()
                         .setSpec(featureSetSpec)
@@ -141,7 +160,7 @@ public class CachedSpecService {
                 featureSetRequests.add(featureSetRequest);
               } catch (ExecutionException e) {
                 throw new SpecRetrievalException(
-                    String.format("Unable to retrieve featureSet with id %s", fsName), e);
+                    String.format("Unable to find featureSet with name: %s", fsName), e);
               }
             });
     return featureSetRequests;
@@ -152,10 +171,12 @@ public class CachedSpecService {
    * from core to preload the cache.
    */
   public void populateCache() {
-    this.store = updateStore(readConfig(configPath));
     Map<String, FeatureSetSpec> featureSetMap = getFeatureSetMap();
+
+    featureSetCache.invalidateAll();
     featureSetCache.putAll(featureSetMap);
-    featureToFeatureSetMapping.putAll(getFeatureToFeatureSetMapping(featureSetMap));
+
+    featureToFeatureSetMapping = getFeatureToFeatureSetMapping(featureSetMap);
 
     featureSetsCount.set(featureSetCache.size());
     cacheLastUpdated.set(System.currentTimeMillis());
@@ -180,8 +201,7 @@ public class CachedSpecService {
                     .setFilter(
                         ListFeatureSetsRequest.Filter.newBuilder()
                             .setProject(subscription.getProject())
-                            .setFeatureSetName(subscription.getName())
-                            .setFeatureSetVersion(subscription.getVersion()))
+                            .setFeatureSetName(subscription.getName()))
                     .build());
 
         for (FeatureSet featureSet : featureSetsResponse.getFeatureSetsList()) {
@@ -196,68 +216,81 @@ public class CachedSpecService {
     return featureSets;
   }
 
+  /**
+   * Generate a feature to feature set mapping from the given feature sets map. Accounts for
+   * variations (missing project, feature_set) in string feature references generated by creating
+   * multiple entries in the returned mapping for each variation.
+   *
+   * @param featureSets map of feature set name to feature set specs
+   * @return mapping of string feature references to name of feature sets
+   */
   private Map<String, String> getFeatureToFeatureSetMapping(
       Map<String, FeatureSetSpec> featureSets) {
-    HashMap<String, String> mapping = new HashMap<>();
+    Map<String, String> mapping = new HashMap<>();
 
     featureSets.values().stream()
-        .collect(groupingBy(featureSet -> Pair.of(featureSet.getProject(), featureSet.getName())))
         .forEach(
-            (group, groupedFeatureSets) -> {
-              groupedFeatureSets =
-                  groupedFeatureSets.stream()
-                      .sorted(comparingInt(FeatureSetSpec::getVersion))
-                      .collect(Collectors.toList());
-              for (int i = 0; i < groupedFeatureSets.size(); i++) {
-                FeatureSetSpec featureSetSpec = groupedFeatureSets.get(i);
-                for (FeatureSpec featureSpec : featureSetSpec.getFeaturesList()) {
-                  FeatureReference featureRef =
-                      FeatureReference.newBuilder()
-                          .setProject(featureSetSpec.getProject())
-                          .setName(featureSpec.getName())
-                          .setVersion(featureSetSpec.getVersion())
-                          .build();
-                  mapping.put(
-                      generateFeatureStringRef(featureRef),
-                      generateFeatureSetStringRef(featureSetSpec));
-                  if (i == groupedFeatureSets.size() - 1) {
-                    featureRef =
-                        FeatureReference.newBuilder()
-                            .setProject(featureSetSpec.getProject())
-                            .setName(featureSpec.getName())
-                            .build();
-                    mapping.put(
-                        generateFeatureStringRef(featureRef),
-                        generateFeatureSetStringRef(featureSetSpec));
+            featureSetSpec -> {
+              for (FeatureSpec featureSpec : featureSetSpec.getFeaturesList()) {
+                // Register the different permutations of string feature references
+                // that refers to this feature in the feature to featureset mapping.
+
+                // Features in FeatureSets in default project can be referenced without project.
+                boolean isInDefaultProject =
+                    featureSetSpec.getProject().equals(DEFAULT_PROJECT_NAME);
+
+                for (boolean hasProject : new boolean[] {true, false}) {
+                  if (!isInDefaultProject && !hasProject) continue;
+                  // Features can be referenced without a featureset if there are no conflicts.
+                  for (boolean hasFeatureSet : new boolean[] {true, false}) {
+                    // Get mapping between string feature reference and featureset
+                    Pair<String, String> singleMapping =
+                        this.generateFeatureToFeatureSetMapping(
+                            featureSpec, featureSetSpec, hasProject, hasFeatureSet);
+                    String featureRef = singleMapping.getKey();
+                    String featureSetRef = singleMapping.getValue();
+                    // Check if another feature set has already mapped to this
+                    // string feature reference. if so mark the conflict.
+                    if (mapping.containsKey(featureRef)) {
+                      mapping.put(featureRef, FEATURE_SET_CONFLICT_FLAG);
+                    } else {
+                      mapping.put(featureRef, featureSetRef);
+                    }
                   }
                 }
               }
             });
+
     return mapping;
   }
 
-  private Store readConfig(Path path) {
-    try {
-      List<String> fileContents = Files.readAllLines(path);
-      String yaml = fileContents.stream().reduce("", (l1, l2) -> l1 + "\n" + l2);
-      log.info("loaded store config at {}: \n{}", path.toString(), yaml);
-      return yamlToStoreProto(yaml);
-    } catch (IOException e) {
-      throw new RuntimeException(
-          String.format("Unable to read store config at %s", path.toAbsolutePath()), e);
+  /**
+   * Generate a single mapping between the given feature and the featureset. Maps a feature
+   * reference refering to the given feature to the corresponding featureset's name.
+   *
+   * @param featureSpec specifying the feature to create mapping for.
+   * @param featureSetSpec specifying the feature set to create mapping for.
+   * @param hasProject whether generated mapping's string feature ref has a project.
+   * @param hasFeatureSet whether generated mapping's string feature ref has a featureSet.
+   * @return a pair mapping a string feature reference to a featureset name.
+   */
+  private Pair<String, String> generateFeatureToFeatureSetMapping(
+      FeatureSpec featureSpec,
+      FeatureSetSpec featureSetSpec,
+      boolean hasProject,
+      boolean hasFeatureSet) {
+    FeatureReference.Builder featureRef =
+        FeatureReference.newBuilder()
+            .setProject(featureSetSpec.getProject())
+            .setFeatureSet(featureSetSpec.getName())
+            .setName(featureSpec.getName());
+    if (!hasProject) {
+      featureRef = featureRef.clearProject();
     }
-  }
-
-  private Store updateStore(Store store) {
-    UpdateStoreRequest request = UpdateStoreRequest.newBuilder().setStore(store).build();
-    try {
-      UpdateStoreResponse updateStoreResponse = coreService.updateStore(request);
-      if (!updateStoreResponse.getStore().equals(store)) {
-        throw new RuntimeException("Core store config not matching current store config");
-      }
-      return updateStoreResponse.getStore();
-    } catch (Exception e) {
-      throw new RuntimeException("Unable to update store configuration", e);
+    if (!hasFeatureSet) {
+      featureRef = featureRef.clearFeatureSet();
     }
+    return Pair.of(
+        generateFeatureStringRef(featureRef.build()), generateFeatureSetStringRef(featureSetSpec));
   }
 }

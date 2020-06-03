@@ -1,12 +1,13 @@
 approvers:
-  - zhilingc
-  - pradithya
-  - woop
-  - thirteen37
-  - davidheryanto
-reviewers:
-  - zhilingc
-  - woop
-  - thirteen37
   - davidheryanto
   - khorshuheng
+  - pyalex
+  - woop
+  - zhilingc
+reviewers:
+  - ches
+  - davidheryanto
+  - khorshuheng
+  - pyalex
+  - woop
+  - zhilingc

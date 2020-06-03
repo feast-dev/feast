@@ -28,12 +28,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 public class AccessManagementService {
-
   private ProjectRepository projectRepository;
 
   @Autowired
   public AccessManagementService(ProjectRepository projectRepository) {
     this.projectRepository = projectRepository;
+    // create default project if it does not yet exist.
+    if (!projectRepository.existsById(Project.DEFAULT_NAME)) {
+      this.createProject(Project.DEFAULT_NAME);
+    }
   }
 
   /**
@@ -60,6 +63,9 @@ public class AccessManagementService {
     Optional<Project> project = projectRepository.findById(name);
     if (!project.isPresent()) {
       throw new IllegalArgumentException(String.format("Could not find project: \"%s\"", name));
+    }
+    if (name.equals(Project.DEFAULT_NAME)) {
+      throw new UnsupportedOperationException("Archiving the default project is not allowed.");
     }
     Project p = project.get();
     p.setArchived(true);

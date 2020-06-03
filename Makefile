@@ -46,6 +46,9 @@ lint-java:
 test-java:
 	mvn test
 
+test-java-with-coverage:
+	mvn test jacoco:report-aggregate
+
 build-java:
 	mvn clean verify
 
@@ -82,7 +85,7 @@ install-go-ci-dependencies:
 	go get -u golang.org/x/lint/golint
 
 compile-protos-go: install-go-ci-dependencies
-	cd ${ROOT_DIR}/protos; protoc -I/usr/include -I. --go_out=plugins=grpc,paths=source_relative:../sdk/go/protos/ tensorflow_metadata/proto/v0/*.proto
+	cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go_out=plugins=grpc,paths=source_relative:../sdk/go/protos/ tensorflow_metadata/proto/v0/*.proto
 	$(foreach dir,types serving core storage,cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go_out=plugins=grpc,paths=source_relative:../sdk/go/protos feast/$(dir)/*.proto;)
 
 test-go:
