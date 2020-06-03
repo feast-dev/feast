@@ -37,9 +37,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import feast.databricks.types.RunsSubmitRequest;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpException;
 import org.apache.http.HttpStatus;
@@ -50,10 +52,10 @@ public class DatabricksJobManager implements JobManager {
 
   private final String databricksHost;
   private final String databricksToken;
-  private final String databricksJobId;
   private final Map<String, String> defaultOptions;
   private final MetricsProperties metricsProperties;
   private final HttpClient httpClient;
+  private final ObjectMapper mapper = new ObjectMapper();
 
   public DatabricksJobManager(
       Map<String, String> runnerConfigOptions,
@@ -62,11 +64,11 @@ public class DatabricksJobManager implements JobManager {
       HttpClient httpClient) {
 
     this.databricksHost = runnerConfigOptions.get("databricksHost");
-    this.databricksJobId = runnerConfigOptions.get("databricksJobId");
     this.defaultOptions = runnerConfigOptions;
     this.metricsProperties = metricsProperties;
     this.httpClient = httpClient;
     this.databricksToken = token;
+
   }
 
   @Override
@@ -129,7 +131,7 @@ public class DatabricksJobManager implements JobManager {
           this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
       if (response.statusCode() == HttpStatus.SC_OK) {
-        JsonNode parent = new ObjectMapper().readTree(response.body());
+        JsonNode parent = mapper.readTree(response.body());
         Optional<JsonNode> resultState =
             Optional.ofNullable(parent.path("state").get("result_state"));
         String lifeCycleState = parent.path("state").get("life_cycle_state").asText().toUpperCase();
@@ -154,6 +156,7 @@ public class DatabricksJobManager implements JobManager {
     return JobStatus.UNKNOWN;
   }
 
+  @SneakyThrows
   private Job runDatabricksJob(
       String jobId,
       List<FeatureSetProto.FeatureSet> featureSetProtos,
@@ -163,18 +166,19 @@ public class DatabricksJobManager implements JobManager {
     List<FeatureSet> featureSets =
         featureSetProtos.stream().map(FeatureSet::fromProto).collect(Collectors.toList());
 
-    ObjectMapper mapper = new ObjectMapper();
 
-    ArrayNode jarParams = mapper.createArrayNode();
-    ObjectNode body = mapper.createObjectNode();
-    body.put("job_id", this.databricksJobId);
-    body.set("jar_params", jarParams);
+    RunsSubmitRequest runsSubmitRequest = new RunsSubmitRequest();
+    runsSubmitRequest.setRun_name(jobId);
+
+    // TODO: build RunsSubmitRequest from the other types
+
+    String body = mapper.writeValueAsString(runsSubmitRequest);
 
     HttpRequest request =
         HttpRequest.newBuilder()
-            .uri(URI.create(String.format("%s/api/2.0/jobs/run-now", this.databricksHost)))
+            .uri(URI.create(String.format("%s/api/2.0/jobs/run-submit", this.databricksHost)))
             .header("Authorization", String.format("%s %s", "Bearer", this.databricksToken))
-            .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
+            .POST(HttpRequest.BodyPublishers.ofString(body))
             .build();
 
     try {
@@ -183,7 +187,8 @@ public class DatabricksJobManager implements JobManager {
 
       if (response.statusCode() == HttpStatus.SC_OK) {
         JsonNode parent = new ObjectMapper().readTree(response.body());
-        String runId = parent.path("run_id").asText();
+        String runId = parent.path("run_id").asText(); // TODO: use runsubmitresponse class
+        // wait for status running
         return new Job(
             jobId,
             runId,
@@ -191,7 +196,7 @@ public class DatabricksJobManager implements JobManager {
             Source.fromProto(source),
             Store.fromProto(sink),
             featureSets,
-            JobStatus.PENDING);
+            JobStatus.RUNNING);
       } else {
         throw new RuntimeException(
             String.format(
@@ -205,14 +210,6 @@ public class DatabricksJobManager implements JobManager {
     }
   }
 
-  //    private String waitForJobToRun(String runId) {
-  //
-  //    }
-
-  //    private ArrayNode getJarParams(SourceProto.Source source, StoreProto.Store sink,
-  // List<FeatureSetProto.FeatureSet> featureSets) {
-  //
-  //
-  //    }
+  // TODO: look into waitForRun to check job has started successfully.
 
 }
