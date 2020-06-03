@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import com.google.protobuf.ByteString;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -111,7 +112,6 @@ public class BigtableCustomIO {
       private BigtableIngestionClient bigtableIngestionClient;
 
       WriteDoFn(BigtableConfig config, Map<String, FeatureSetSpec> featureSetSpecs) {
-
         this.bigtableIngestionClient = new BigtableStandaloneIngestionClient(config);
         this.featureSetSpecs = featureSetSpecs;
       }
@@ -137,11 +137,6 @@ public class BigtableCustomIO {
 
       @StartBundle
       public void startBundle() {
-        try {
-          bigtableIngestionClient.connect();
-        } catch (BigtableConnectionException e) {
-          log.error("Connection to bigtable cannot be established ", e);
-        }
         featureRows.clear();
       }
 
@@ -152,19 +147,15 @@ public class BigtableCustomIO {
                 new Retriable() {
                   @Override
                   public void execute() throws ExecutionException, InterruptedException {
-                    if (!bigtableIngestionClient.isConnected()) {
-                      bigtableIngestionClient.connect();
-                    }
                     featureRows.forEach(
                         row -> {
                           bigtableIngestionClient.set(getKey(row), getValue(row));
                         });
-                    bigtableIngestionClient.sync();
                   }
 
                   @Override
                   public Boolean isExceptionRetriable(Exception e) {
-                    return e instanceof BigtableConnectionException;
+                    return e instanceof java.io.IOException;
                   }
 
                   @Override
@@ -183,7 +174,7 @@ public class BigtableCustomIO {
             .build();
       }
 
-      private byte[] getKey(FeatureRow featureRow) {
+      private String getKey(FeatureRow featureRow) {
         FeatureSetSpec featureSetSpec = featureSetSpecs.get(featureRow.getFeatureSet());
         List<String> entityNames =
             featureSetSpec.getEntitiesList().stream()
@@ -203,10 +194,10 @@ public class BigtableCustomIO {
         for (String entityName : entityNames) {
           bigtableKeyBuilder.addEntities(entityFields.get(entityName));
         }
-        return bigtableKeyBuilder.build().toByteArray();
+        return bigtableKeyBuilder.build().toString();
       }
 
-      private byte[] getValue(FeatureRow featureRow) {
+      private ByteString getValue(FeatureRow featureRow) {
         FeatureSetSpec spec = featureSetSpecs.get(featureRow.getFeatureSet());
 
         List<String> featureNames =
@@ -232,11 +223,10 @@ public class BigtableCustomIO {
                                 .build()))
                 .collect(Collectors.toList());
 
-        return FeatureRow.newBuilder()
+        return ByteString.copyFrom(FeatureRow.newBuilder()
             .setEventTimestamp(featureRow.getEventTimestamp())
             .addAllFields(values)
-            .build()
-            .toByteArray();
+            .build().toByteArray());
       }
 
       @ProcessElement

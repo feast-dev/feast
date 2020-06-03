@@ -14,44 +14,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.storage.connectors.redis.writer;
+package feast.storage.connectors.bigtable.writer;
 
 import com.google.common.collect.Lists;
+import com.google.cloud.bigtable.data.v2.BigtableDataClient;
+import com.google.cloud.bigtable.data.v2.models.RowMutation;
+import com.google.protobuf.ByteString;
 import feast.proto.core.StoreProto;
 import feast.storage.common.retry.BackOffExecutor;
-import io.lettuce.core.LettuceFutures;
-import io.lettuce.core.RedisClient;
-import io.lettuce.core.RedisFuture;
-import io.lettuce.core.RedisURI;
-import io.lettuce.core.api.StatefulRedisConnection;
-import io.lettuce.core.api.async.RedisAsyncCommands;
-import io.lettuce.core.codec.ByteArrayCodec;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.joda.time.Duration;
 
-public class RedisStandaloneIngestionClient implements RedisIngestionClient {
-  private final String host;
-  private final int port;
+public class BigtableStandaloneIngestionClient implements BigtableIngestionClient {
+  private final String projectId;
+  private final String instanceId;
+  private final String table;
+  private final Integer backoffMs;
   private final BackOffExecutor backOffExecutor;
-  private RedisClient redisclient;
+  private BigtableDataClient bigtableclient;
   private static final int DEFAULT_TIMEOUT = 2000;
-  private StatefulRedisConnection<byte[], byte[]> connection;
-  private RedisAsyncCommands<byte[], byte[]> commands;
-  private List<RedisFuture> futures = Lists.newArrayList();
 
-  public RedisStandaloneIngestionClient(StoreProto.Store.RedisConfig redisConfig) {
-    this.host = redisConfig.getHost();
-    this.port = redisConfig.getPort();
-    long backoffMs = redisConfig.getInitialBackoffMs() > 0 ? redisConfig.getInitialBackoffMs() : 1;
+  public BigtableStandaloneIngestionClient(StoreProto.Store.BigtableConfig bigtableConfig) {
+    this.projectId = bigtableConfig.getProjectId();
+    this.instanceId = bigtableConfig.getInstanceId();
+    this.table = bigtableConfig.getTableId();
+    long backoffMs = bigtableConfig.getInitialBackoffMs() > 0 ? bigtableConfig.getInitialBackoffMs() : 1;
     this.backOffExecutor =
-        new BackOffExecutor(redisConfig.getMaxRetries(), Duration.millis(backoffMs));
+            new BackOffExecutor(bigtableConfig.getMaxRetries(), Duration.millis(this.backoffMs));
   }
 
   @Override
   public void setup() {
-    this.redisclient =
-        RedisClient.create(new RedisURI(host, port, java.time.Duration.ofMillis(DEFAULT_TIMEOUT)));
+    this.bigtableclient = BigtableDataClient.create(projectId, instanceId);
+  }
+
+  @Override
+  public void shutdown() {
+    this.bigtableclient.close();
   }
 
   @Override
@@ -59,67 +59,12 @@ public class RedisStandaloneIngestionClient implements RedisIngestionClient {
     return this.backOffExecutor;
   }
 
-  @Override
-  public void shutdown() {
-    this.redisclient.shutdown();
+    @Override
+  public void set(String key, ByteString value) {
+    RowMutation rowMutation =
+            RowMutation.create(table, key)
+                    .setCell("feature", "", value);
+    this.bigtableclient.mutateRow(rowMutation);
   }
 
-  @Override
-  public void connect() {
-    if (!isConnected()) {
-      this.connection = this.redisclient.connect(new ByteArrayCodec());
-      this.commands = connection.async();
-    }
-  }
-
-  @Override
-  public boolean isConnected() {
-    return connection != null;
-  }
-
-  @Override
-  public void sync() {
-    // Wait for some time for futures to complete
-    // TODO: should this be configurable?
-    try {
-      LettuceFutures.awaitAll(60, TimeUnit.SECONDS, futures.toArray(new RedisFuture[0]));
-    } finally {
-      futures.clear();
-    }
-  }
-
-  @Override
-  public void pexpire(byte[] key, Long expiryMillis) {
-    commands.pexpire(key, expiryMillis);
-  }
-
-  @Override
-  public void append(byte[] key, byte[] value) {
-    futures.add(commands.append(key, value));
-  }
-
-  @Override
-  public void set(byte[] key, byte[] value) {
-    futures.add(commands.set(key, value));
-  }
-
-  @Override
-  public void lpush(byte[] key, byte[] value) {
-    futures.add(commands.lpush(key, value));
-  }
-
-  @Override
-  public void rpush(byte[] key, byte[] value) {
-    futures.add(commands.rpush(key, value));
-  }
-
-  @Override
-  public void sadd(byte[] key, byte[] value) {
-    futures.add(commands.sadd(key, value));
-  }
-
-  @Override
-  public void zadd(byte[] key, Long score, byte[] value) {
-    futures.add(commands.zadd(key, score, value));
-  }
 }

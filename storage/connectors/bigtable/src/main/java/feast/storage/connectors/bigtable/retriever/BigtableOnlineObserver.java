@@ -16,65 +16,127 @@
  */
 package feast.storage.connectors.bigtable.retriever;
 
+import com.google.api.gax.rpc.StreamController;
+import com.google.bigtable.v2.Cell;
+import com.google.cloud.bigtable.data.v2.BigtableDataClient;
+import com.google.cloud.bigtable.data.v2.models.Query;
+import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import com.google.api.gax.rpc.ResponseObserver;
 import com.google.cloud.bigtable.data.v2.models.Row;
+import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Descriptors;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
-import com.google.cloud.bigtable.data.v2.models.Query;
-import com.google.cloud.bigtable.data.v2.BigtableDataClient;
-import com.google.rpc.context.AttributeContext;
+import feast.proto.core.FeatureSetProto.FeatureSpec;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.FeatureSetReferenceProto.FeatureSetReference;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.storage.BigtableProto.BigtableKey;
 import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FeatureRowProto.FeatureRowOrBuilder;
+import feast.proto.types.FeatureRowProto.FeatureRow.Builder;
 import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.Value;
 import feast.storage.api.retriever.FeatureSetRequest;
 import feast.storage.api.retriever.OnlineRetriever;
 import io.grpc.Status;
 
-import java.io.IOException;
+import javax.print.DocFlavor;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-public class BigtableOnlineRetriever implements OnlineRetriever {
+public class BigtableOnlineObserver implements ResponseObserver<Row> {
 
-  private final BigtableDataClient dataClient;
-  private final String table;
+  private final List<BigtableKey> bigtableKeys;
+  private final FeatureSetSpec featureSetSpec;
+  private final List<FeatureReference> featureReferences;
+  private final HashMap<ByteString, Builder> resultMap;
+  private final HashMap<ByteString, Value> featureMap;
+  private final ByteString writeTime;
+  private final ByteString prefix;
+  private final ByteString feature;
+  private final ByteString version;
 
-  private BigtableOnlineRetriever(BigtableDataClient dataClient, String table) {
-    this.dataClient = dataClient;
-    this.table = table;
+  private BigtableOnlineObserver(List<BigtableKey> bigtableKeys, FeatureSetSpec featureSetSpec, List<FeatureReference> featureReferences, String version) {
+    this.bigtableKeys = bigtableKeys;
+    this.featureSetSpec = featureSetSpec;
+    this.featureReferences = featureReferences;
+    this.resultMap = new HashMap<>();
+    this.featureMap = new HashMap<>();
+    this.writeTime = ByteString.copyFromUtf8("writetime");
+    this.prefix = ByteString.copyFromUtf8("prefix");
+    this.feature = ByteString.copyFromUtf8("feature");
+    this.version = ByteString.copyFromUtf8(version);
   }
 
-  public static OnlineRetriever create(Map<String, String> config) {
-    BigtableDataClient dataClient = null;
-    try {
-      dataClient = BigtableDataClient.create(config.get("projectId"), config.get("instanceId"));
-    } catch (IOException e) {
-      e.printStackTrace();
-      throw new IllegalStateException("Unable to connect to bigtable with exception %s", e);
+  public static ResponseObserver create(List<BigtableKey> bigtableKeys, FeatureSetSpec featureSetSpec, List<FeatureReference> featureReferences) {
+    return new BigtableOnlineObserver(bigtableKeys, featureSetSpec, featureReferences, "latest");
+  }
+
+  @Override
+  public void onStart(StreamController streamController) {
+    List<FeatureSpec> featuresList = this.featureSetSpec.getFeaturesList();
+    HashMap<ByteString, Enum> allFeatureMap = new HashMap<>();
+    for (FeatureSpec spec : featuresList) {
+      allFeatureMap.put(ByteString.copyFromUtf8(spec.getName()), spec.getValueType());
     }
-    return new BigtableOnlineRetriever(dataClient, config.get("tableId"));
+    Builder nullFeatureRowBuilder =
+            FeatureRow.newBuilder().setFeatureSet(generateFeatureSetStringRef(featureSetSpec));
+    for (FeatureReference featureReference : featureReferences) {
+      nullFeatureRowBuilder.addFields(Field.newBuilder().setName(featureReference.getName()));
+      this.featureMap.put(ByteString.copyFromUtf8(featureReference.getName()),
+              
+    }
+    for (BigtableKey bigtableKey: bigtableKeys) {
+      this.resultMap.put(bigtableKey.toByteString(), nullFeatureRowBuilder);
+    }
   }
 
-  public static OnlineRetriever create(BigtableDataClient dataClient, String tableId) {
-    return new BigtableOnlineRetriever(dataClient, tableId);
+  @Override
+  public void onResponse(Row row) {
+    List<RowCell> metadata = row.getCells("metadata");
+    ByteString cellWriteTime = ByteString.EMPTY;
+    ByteString cellPrefix = ByteString.EMPTY;
+    ByteString cellFeature = ByteString.EMPTY;
+    for (RowCell rowCell: metadata) {
+      if (rowCell.getQualifier() == writeTime) {
+        cellWriteTime = rowCell.getValue();
+      } else if (rowCell.getQualifier() == prefix) {
+        cellPrefix = rowCell.getValue();
+      } else if (rowCell.getQualifier() == feature) {
+        cellFeature = rowCell.getValue();
+    }
+    if (cellPrefix.isEmpty() || !resultMap.containsKey(cellPrefix) || cellFeature.isEmpty()) {
+      throw Status.NOT_FOUND
+              .withDescription("Unable to retrieve prefix from bigtable")
+              .asRuntimeException();
+    } else {
+      Builder resultBuilder = resultMap.get(cellPrefix);
+      for (RowCell rowValues: row.getCells("value")) {
+        if (rowValues.getQualifier() == version) {
+          resultBuilder.addFields(Field.newBuilder().setName(cellFeature.toStringUtf8()).setValue(Value.newBuilder()..build()).build());
+        }
+    }
+    }
+
   }
+
+}
+
   /**
    * Gets online features from bigtable. This method returns a list of {@link FeatureRow}s
    * corresponding to each feature set spec. Each feature row in the list then corresponds to an
    * {@link EntityRow} provided by the user.
    *
    * @param entityRows list of entity rows in the feature request
-   * @param featureSetRequests Map of {@link feast.proto.core.FeatureSetProto.FeatureSetSpec} to
+   * @param featureSetRequests Map of {@link FeatureSetSpec} to
    *     feature references in the request tied to that feature set.
    * @return List of List of {@link FeatureRow}
    */
@@ -201,10 +263,16 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
                     .collect(Collectors.toList())
                     .toArray(new ByteString[0][0]);
     ByteStringRange keyRange = ByteStringRange.create(startSuffix, endSuffix).endClosed(endSuffix);
-    ResponseObserver<Row> multiGetObserver = BigtableResponseObserver.create();
     try {
-          dataClient.readRowsAsync(Query.create(table).range(keyRange), multiGetObserver).wait();
-          return multiGetObserver.getResult();
+      return dataClient.readRows(Query.create(table).range(keyRange)).wait()
+          .map(
+              keyValue -> {
+                if (keyValue == null) {
+                  return null;
+                }
+                return keyValue.getValueOrElse(null);
+              })
+          .collect(Collectors.toList());
     } catch (Exception e) {
       throw Status.NOT_FOUND
           .withDescription("Unable to retrieve feature from Bigtable")

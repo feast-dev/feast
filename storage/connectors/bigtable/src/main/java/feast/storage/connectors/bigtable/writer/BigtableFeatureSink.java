@@ -73,7 +73,7 @@ public abstract class BigtableFeatureSink implements FeatureSink {
       throw new RuntimeException(
           String.format(
               "Failed to connect to Bigtable with project: '%s' instanceID: '%s'. Please check that your Bigtable is running and accessible from Feast.",
-              getBigtableConfig().getProject(), getBigtableConfig().getInstanceId()));
+              getBigtableConfig().getProjectId(), getBigtableConfig().getInstanceId()));
     }
   }
 

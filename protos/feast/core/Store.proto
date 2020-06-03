@@ -129,6 +129,8 @@ message Store {
     string project_id = 1;
     string instance_id = 2;
     string table_id = 3;
+    int32 initial_backoff_ms = 4;
+    int32 max_retries = 5;
   }
 
   message RedisClusterConfig {
