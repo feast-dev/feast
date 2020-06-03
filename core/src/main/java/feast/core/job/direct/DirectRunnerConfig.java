@@ -24,10 +24,10 @@ public class DirectRunnerConfig extends RunnerConfig {
    * Controls the amount of target parallelism the DirectRunner will use. Defaults to the greater of
    * the number of available processors and 3. Must be a value greater than zero.
    */
-  Integer targetParallelism;
+  public Integer targetParallelism;
 
   /* BigQuery table specification, e.g. PROJECT_ID:DATASET_ID.PROJECT_ID */
-  String deadletterTableSpec;
+  public String deadletterTableSpec;
 
   public DirectRunnerConfig(DirectRunnerConfigOptions runnerConfigOptions) {
     this.deadletterTableSpec = runnerConfigOptions.getDeadLetterTableSpec();
