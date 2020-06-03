@@ -21,9 +21,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.FeatureSetProto;
-import feast.core.SourceProto;
-import feast.core.StoreProto;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
@@ -39,6 +36,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import feast.proto.core.FeatureSetProto;
+import feast.proto.core.SourceProto;
+import feast.proto.core.StoreProto;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpException;
 import org.apache.http.HttpStatus;
@@ -163,6 +164,7 @@ public class DatabricksJobManager implements JobManager {
         featureSetProtos.stream().map(FeatureSet::fromProto).collect(Collectors.toList());
 
     ObjectMapper mapper = new ObjectMapper();
+
     ArrayNode jarParams = mapper.createArrayNode();
     ObjectNode body = mapper.createObjectNode();
     body.put("job_id", this.databricksJobId);
@@ -185,7 +187,7 @@ public class DatabricksJobManager implements JobManager {
         return new Job(
             jobId,
             runId,
-            getRunnerType().name(),
+            getRunnerType(),
             Source.fromProto(source),
             Store.fromProto(sink),
             featureSets,
