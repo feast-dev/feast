@@ -16,12 +16,10 @@
  */
 package feast.core.job.databricks;
 
-import lombok.Data;
-import lombok.ToString;
 import lombok.Value;
 
 @Value
 public class DatabricksJobConfig {
-    private String databricksHost;
-    private String databricksJobId;
+  private String databricksHost;
+  private String databricksJobId;
 }
