@@ -52,7 +52,7 @@ object SparkIngestion {
       .option(subscribeType, topics)
       .load()
 
-    // Start running the query that prints the running counts to the console
+    // Start running the query that prints the data to the console
     val query = input.writeStream
       .outputMode("complete")
       .format("console")
