@@ -156,9 +156,8 @@ public class DatabricksJobManager implements JobManager {
         try {
             HttpResponse<String> response = this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            JsonNode parent = new ObjectMapper().readTree(response.body());
-
             if (response.statusCode() == HttpStatus.SC_OK) {
+                JsonNode parent = new ObjectMapper().readTree(response.body());
                 String runId = parent.path("run_id").asText();
                 return new Job(jobId, runId, getRunnerType().name(), Source.fromProto(source), Store.fromProto(sink), featureSets, JobStatus.PENDING);
             } else {
