@@ -71,8 +71,8 @@
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
-      <artifactId>spark-launcher_2.11</artifactId>
-      <version>2.4.5</version>
+      <artifactId>spark-launcher_${scala.compat.version}</artifactId>
+      <version>${spark.version}</version>
     </dependency>
 
     <dependency>
