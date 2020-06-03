@@ -18,37 +18,38 @@ package feast.core.grpc;
 
 import com.google.api.gax.rpc.InvalidArgumentException;
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.CoreServiceGrpc.CoreServiceImplBase;
-import feast.core.CoreServiceProto.ApplyFeatureSetRequest;
-import feast.core.CoreServiceProto.ApplyFeatureSetResponse;
-import feast.core.CoreServiceProto.ArchiveProjectRequest;
-import feast.core.CoreServiceProto.ArchiveProjectResponse;
-import feast.core.CoreServiceProto.CreateProjectRequest;
-import feast.core.CoreServiceProto.CreateProjectResponse;
-import feast.core.CoreServiceProto.GetFeastCoreVersionRequest;
-import feast.core.CoreServiceProto.GetFeastCoreVersionResponse;
-import feast.core.CoreServiceProto.GetFeatureSetRequest;
-import feast.core.CoreServiceProto.GetFeatureSetResponse;
-import feast.core.CoreServiceProto.ListFeatureSetsRequest;
-import feast.core.CoreServiceProto.ListFeatureSetsResponse;
-import feast.core.CoreServiceProto.ListIngestionJobsRequest;
-import feast.core.CoreServiceProto.ListIngestionJobsResponse;
-import feast.core.CoreServiceProto.ListProjectsRequest;
-import feast.core.CoreServiceProto.ListProjectsResponse;
-import feast.core.CoreServiceProto.ListStoresRequest;
-import feast.core.CoreServiceProto.ListStoresResponse;
-import feast.core.CoreServiceProto.RestartIngestionJobRequest;
-import feast.core.CoreServiceProto.RestartIngestionJobResponse;
-import feast.core.CoreServiceProto.StopIngestionJobRequest;
-import feast.core.CoreServiceProto.StopIngestionJobResponse;
-import feast.core.CoreServiceProto.UpdateStoreRequest;
-import feast.core.CoreServiceProto.UpdateStoreResponse;
+import feast.core.config.FeastProperties;
 import feast.core.exception.RetrievalException;
 import feast.core.grpc.interceptors.MonitoringInterceptor;
 import feast.core.model.Project;
 import feast.core.service.AccessManagementService;
 import feast.core.service.JobService;
 import feast.core.service.SpecService;
+import feast.proto.core.CoreServiceGrpc.CoreServiceImplBase;
+import feast.proto.core.CoreServiceProto.ApplyFeatureSetRequest;
+import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse;
+import feast.proto.core.CoreServiceProto.ArchiveProjectRequest;
+import feast.proto.core.CoreServiceProto.ArchiveProjectResponse;
+import feast.proto.core.CoreServiceProto.CreateProjectRequest;
+import feast.proto.core.CoreServiceProto.CreateProjectResponse;
+import feast.proto.core.CoreServiceProto.GetFeastCoreVersionRequest;
+import feast.proto.core.CoreServiceProto.GetFeastCoreVersionResponse;
+import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
+import feast.proto.core.CoreServiceProto.GetFeatureSetResponse;
+import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
+import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.proto.core.CoreServiceProto.ListIngestionJobsRequest;
+import feast.proto.core.CoreServiceProto.ListIngestionJobsResponse;
+import feast.proto.core.CoreServiceProto.ListProjectsRequest;
+import feast.proto.core.CoreServiceProto.ListProjectsResponse;
+import feast.proto.core.CoreServiceProto.ListStoresRequest;
+import feast.proto.core.CoreServiceProto.ListStoresResponse;
+import feast.proto.core.CoreServiceProto.RestartIngestionJobRequest;
+import feast.proto.core.CoreServiceProto.RestartIngestionJobResponse;
+import feast.proto.core.CoreServiceProto.StopIngestionJobRequest;
+import feast.proto.core.CoreServiceProto.StopIngestionJobResponse;
+import feast.proto.core.CoreServiceProto.UpdateStoreRequest;
+import feast.proto.core.CoreServiceProto.UpdateStoreResponse;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -64,6 +65,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 @GRpcService(interceptors = {MonitoringInterceptor.class})
 public class CoreServiceImpl extends CoreServiceImplBase {
 
+  private final FeastProperties feastProperties;
   private SpecService specService;
   private AccessManagementService accessManagementService;
   private JobService jobService;
@@ -72,17 +74,28 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public CoreServiceImpl(
       SpecService specService,
       AccessManagementService accessManagementService,
-      JobService jobService) {
+      JobService jobService,
+      FeastProperties feastProperties) {
     this.specService = specService;
     this.accessManagementService = accessManagementService;
     this.jobService = jobService;
+    this.feastProperties = feastProperties;
   }
 
   @Override
   public void getFeastCoreVersion(
       GetFeastCoreVersionRequest request,
       StreamObserver<GetFeastCoreVersionResponse> responseObserver) {
-    super.getFeastCoreVersion(request, responseObserver);
+    try {
+      GetFeastCoreVersionResponse response =
+          GetFeastCoreVersionResponse.newBuilder().setVersion(feastProperties.getVersion()).build();
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (RetrievalException | StatusRuntimeException e) {
+      log.error("Could not determine Feast Core version: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
   }
 
   @Override
@@ -183,6 +196,17 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       accessManagementService.archiveProject(request.getName());
       responseObserver.onNext(ArchiveProjectResponse.getDefaultInstance());
       responseObserver.onCompleted();
+    } catch (IllegalArgumentException e) {
+      log.error("Recieved an invalid request on calling archiveProject method:", e);
+      responseObserver.onError(
+          Status.INVALID_ARGUMENT
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
+    } catch (UnsupportedOperationException e) {
+      log.error("Attempted to archive an unsupported project:", e);
+      responseObserver.onError(
+          Status.UNIMPLEMENTED.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     } catch (Exception e) {
       log.error("Exception has occurred in the createProject method: ", e);
       responseObserver.onError(

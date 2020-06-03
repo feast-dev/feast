@@ -16,29 +16,27 @@
  */
 package feast.storage.connectors.bigquery.retriever;
 
+import feast.proto.serving.ServingAPIProto.FeatureReference;
 import java.util.List;
 
 public class FeatureSetQueryInfo {
 
   private final String project;
   private final String name;
-  private final int version;
   private final long maxAge;
   private final List<String> entities;
-  private final List<String> features;
+  private final List<FeatureReference> features;
   private final String table;
 
   public FeatureSetQueryInfo(
       String project,
       String name,
-      int version,
       long maxAge,
       List<String> entities,
-      List<String> features,
+      List<FeatureReference> features,
       String table) {
     this.project = project;
     this.name = name;
-    this.version = version;
     this.maxAge = maxAge;
     this.entities = entities;
     this.features = features;
@@ -49,7 +47,6 @@ public class FeatureSetQueryInfo {
 
     this.project = featureSetInfo.getProject();
     this.name = featureSetInfo.getName();
-    this.version = featureSetInfo.getVersion();
     this.maxAge = featureSetInfo.getMaxAge();
     this.entities = featureSetInfo.getEntities();
     this.features = featureSetInfo.getFeatures();
@@ -64,10 +61,6 @@ public class FeatureSetQueryInfo {
     return name;
   }
 
-  public int getVersion() {
-    return version;
-  }
-
   public long getMaxAge() {
     return maxAge;
   }
@@ -76,7 +69,7 @@ public class FeatureSetQueryInfo {
     return entities;
   }
 
-  public List<String> getFeatures() {
+  public List<FeatureReference> getFeatures() {
     return features;
   }
 

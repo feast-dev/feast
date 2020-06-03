@@ -18,30 +18,34 @@ package feast.core.job.dataflow;
 
 import static feast.core.util.PipelineUtil.detectClassPathResourcesToStage;
 
+import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.dataflow.Dataflow;
+import com.google.api.services.dataflow.DataflowScopes;
 import com.google.common.base.Strings;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-import feast.core.FeatureSetProto;
-import feast.core.SourceProto;
-import feast.core.StoreProto;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
 import feast.core.job.option.FeatureSetJsonByteConverter;
 import feast.core.model.*;
-import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
 import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.options.OptionCompressor;
+import feast.proto.core.FeatureSetProto;
+import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions;
+import feast.proto.core.SourceProto;
+import feast.proto.core.StoreProto;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -56,16 +60,48 @@ public class DataflowJobManager implements JobManager {
   private final String projectId;
   private final String location;
   private final Dataflow dataflow;
-  private final Map<String, String> defaultOptions;
+  private final DataflowRunnerConfig defaultOptions;
   private final MetricsProperties metrics;
 
   public DataflowJobManager(
-      Dataflow dataflow, Map<String, String> defaultOptions, MetricsProperties metricsProperties) {
-    this.defaultOptions = defaultOptions;
+      DataflowRunnerConfigOptions runnerConfigOptions, MetricsProperties metricsProperties) {
+    this(runnerConfigOptions, metricsProperties, getGoogleCredential());
+  }
+
+  public DataflowJobManager(
+      DataflowRunnerConfigOptions runnerConfigOptions,
+      MetricsProperties metricsProperties,
+      Credential credential) {
+
+    defaultOptions = new DataflowRunnerConfig(runnerConfigOptions);
+    Dataflow dataflow = null;
+    try {
+      dataflow =
+          new Dataflow(
+              GoogleNetHttpTransport.newTrustedTransport(),
+              JacksonFactory.getDefaultInstance(),
+              credential);
+    } catch (GeneralSecurityException e) {
+      throw new IllegalStateException("Security exception while connecting to Dataflow API", e);
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to initialize DataflowJobManager", e);
+    }
+
     this.dataflow = dataflow;
     this.metrics = metricsProperties;
-    this.projectId = defaultOptions.get("project");
-    this.location = defaultOptions.get("region");
+    this.projectId = defaultOptions.getProject();
+    this.location = defaultOptions.getRegion();
+  }
+
+  private static Credential getGoogleCredential() {
+    GoogleCredential credential = null;
+    try {
+      credential = GoogleCredential.getApplicationDefault().createScoped(DataflowScopes.all());
+    } catch (IOException e) {
+      throw new IllegalStateException(
+          "Unable to find credential required for Dataflow monitoring API", e);
+    }
+    return credential;
   }
 
   @Override
@@ -80,12 +116,15 @@ public class DataflowJobManager implements JobManager {
       for (FeatureSet featureSet : job.getFeatureSets()) {
         featureSetProtos.add(featureSet.toProto());
       }
-      return submitDataflowJob(
-          job.getId(),
-          featureSetProtos,
-          job.getSource().toProto(),
-          job.getStore().toProto(),
-          false);
+      String extId =
+          submitDataflowJob(
+              job.getId(),
+              featureSetProtos,
+              job.getSource().toProto(),
+              job.getStore().toProto(),
+              false);
+      job.setExtId(extId);
+      return job;
 
     } catch (InvalidProtocolBufferException e) {
       log.error(e.getMessage());
@@ -110,8 +149,18 @@ public class DataflowJobManager implements JobManager {
       for (FeatureSet featureSet : job.getFeatureSets()) {
         featureSetProtos.add(featureSet.toProto());
       }
-      return submitDataflowJob(
-          job.getId(), featureSetProtos, job.getSource().toProto(), job.getStore().toProto(), true);
+
+      String extId =
+          submitDataflowJob(
+              job.getId(),
+              featureSetProtos,
+              job.getSource().toProto(),
+              job.getStore().toProto(),
+              true);
+
+      job.setExtId(extId);
+      job.setStatus(JobStatus.PENDING);
+      return job;
     } catch (InvalidProtocolBufferException e) {
       log.error(e.getMessage());
       throw new IllegalArgumentException(
@@ -153,16 +202,15 @@ public class DataflowJobManager implements JobManager {
   }
 
   /**
-   * Restart a restart dataflow job. Dataflow should ensure continuity between during the restart,
-   * so no data should be lost during the restart operation.
+   * Restart a Dataflow job. Dataflow should ensure continuity such that no data should be lost
+   * during the restart operation.
    *
    * @param job job to restart
    * @return the restarted job
    */
   @Override
   public Job restartJob(Job job) {
-    JobStatus status = job.getStatus();
-    if (JobStatus.getTerminalState().contains(status)) {
+    if (job.getStatus().isTerminal()) {
       // job yet not running: just start job
       return this.startJob(job);
     } else {
@@ -180,7 +228,7 @@ public class DataflowJobManager implements JobManager {
    */
   @Override
   public JobStatus getJobStatus(Job job) {
-    if (!Runner.DATAFLOW.name().equals(job.getRunner())) {
+    if (job.getRunner() != RUNNER_TYPE) {
       return job.getStatus();
     }
 
@@ -197,7 +245,7 @@ public class DataflowJobManager implements JobManager {
     return JobStatus.UNKNOWN;
   }
 
-  private Job submitDataflowJob(
+  private String submitDataflowJob(
       String jobName,
       List<FeatureSetProto.FeatureSet> featureSetProtos,
       SourceProto.Source source,
@@ -206,17 +254,8 @@ public class DataflowJobManager implements JobManager {
     try {
       ImportOptions pipelineOptions = getPipelineOptions(jobName, featureSetProtos, sink, update);
       DataflowPipelineJob pipelineResult = runPipeline(pipelineOptions);
-      List<FeatureSet> featureSets =
-          featureSetProtos.stream().map(FeatureSet::fromProto).collect(Collectors.toList());
       String jobId = waitForJobToRun(pipelineResult);
-      return new Job(
-          jobName,
-          jobId,
-          getRunnerType().name(),
-          Source.fromProto(source),
-          Store.fromProto(sink),
-          featureSets,
-          JobStatus.PENDING);
+      return jobId;
     } catch (Exception e) {
       log.error("Error submitting job", e);
       throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
@@ -228,9 +267,9 @@ public class DataflowJobManager implements JobManager {
       List<FeatureSetProto.FeatureSet> featureSets,
       StoreProto.Store sink,
       boolean update)
-      throws IOException {
-    String[] args = TypeConversion.convertMapToArgs(defaultOptions);
-    ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);
+      throws IOException, IllegalAccessException {
+    ImportOptions pipelineOptions =
+        PipelineOptionsFactory.fromArgs(defaultOptions.toArgs()).as(ImportOptions.class);
 
     OptionCompressor<List<FeatureSetProto.FeatureSet>> featureSetJsonCompressor =
         new BZip2Compressor<>(new FeatureSetJsonByteConverter());
@@ -238,6 +277,7 @@ public class DataflowJobManager implements JobManager {
     pipelineOptions.setFeatureSetJson(featureSetJsonCompressor.compress(featureSets));
     pipelineOptions.setStoreJson(Collections.singletonList(JsonFormat.printer().print(sink)));
     pipelineOptions.setProject(projectId);
+    pipelineOptions.setDefaultFeastProject(Project.DEFAULT_NAME);
     pipelineOptions.setUpdate(update);
     pipelineOptions.setRunner(DataflowRunner.class);
     pipelineOptions.setJobName(jobName);

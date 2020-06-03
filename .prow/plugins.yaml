@@ -1,5 +1,5 @@
 plugins:
-  gojek/feast:
+  feast-dev/feast:
   - approve      
   - assign
   - help
@@ -12,6 +12,7 @@ plugins:
   - wip         
   - trigger
   - config-updater
+  - require-matching-label
 
 config_updater:
   maps:
@@ -19,7 +20,14 @@ config_updater:
       name: config
 
 external_plugins:
-  gojek/feast:
+  feast-dev/feast:
   - name: needs-rebase
     events:
     - pull_request
+
+require_matching_label:
+- missing_label: needs-kind
+  org: feast-dev
+  repo: feast
+  prs: true
+  regexp: ^kind/

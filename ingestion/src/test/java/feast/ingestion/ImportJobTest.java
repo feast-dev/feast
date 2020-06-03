@@ -19,26 +19,26 @@ package feast.ingestion;
 import com.google.common.io.Files;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-import feast.core.FeatureSetProto.EntitySpec;
-import feast.core.FeatureSetProto.FeatureSet;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.FeatureSetProto.FeatureSpec;
-import feast.core.SourceProto.KafkaSourceConfig;
-import feast.core.SourceProto.Source;
-import feast.core.SourceProto.SourceType;
-import feast.core.StoreProto.Store;
-import feast.core.StoreProto.Store.RedisConfig;
-import feast.core.StoreProto.Store.StoreType;
-import feast.core.StoreProto.Store.Subscription;
 import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
-import feast.storage.RedisProto.RedisKey;
+import feast.proto.core.FeatureSetProto.EntitySpec;
+import feast.proto.core.FeatureSetProto.FeatureSet;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.FeatureSetProto.FeatureSpec;
+import feast.proto.core.SourceProto.KafkaSourceConfig;
+import feast.proto.core.SourceProto.Source;
+import feast.proto.core.SourceProto.SourceType;
+import feast.proto.core.StoreProto.Store;
+import feast.proto.core.StoreProto.Store.RedisConfig;
+import feast.proto.core.StoreProto.Store.StoreType;
+import feast.proto.core.StoreProto.Store.Subscription;
+import feast.proto.storage.RedisProto.RedisKey;
+import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FieldProto;
+import feast.proto.types.ValueProto.ValueType.Enum;
 import feast.test.TestUtil;
 import feast.test.TestUtil.LocalKafka;
 import feast.test.TestUtil.LocalRedis;
-import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.FieldProto;
-import feast.types.ValueProto.ValueType.Enum;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
@@ -120,7 +120,6 @@ public class ImportJobTest {
     FeatureSetSpec spec =
         FeatureSetSpec.newBuilder()
             .setName("feature_set")
-            .setVersion(3)
             .setProject("myproject")
             .addEntities(
                 EntitySpec.newBuilder()
@@ -164,7 +163,6 @@ public class ImportJobTest {
                 Subscription.newBuilder()
                     .setProject(spec.getProject())
                     .setName(spec.getName())
-                    .setVersion(String.valueOf(spec.getVersion()))
                     .build())
             .build();
 
@@ -178,6 +176,7 @@ public class ImportJobTest {
             });
     options.setFeatureSetJson(compressor.compress(spec));
     options.setStoreJson(Collections.singletonList(JsonFormat.printer().print(redis)));
+    options.setDefaultFeastProject("myproject");
     options.setProject("");
     options.setBlockOnRun(false);
 

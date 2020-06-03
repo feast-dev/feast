@@ -18,7 +18,6 @@ package feast.ingestion.transform.metrics;
 
 import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.FEATURE_SET_NAME_TAG_KEY;
 import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.FEATURE_SET_PROJECT_TAG_KEY;
-import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.FEATURE_SET_VERSION_TAG_KEY;
 import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.FEATURE_TAG_KEY;
 import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.INGESTION_JOB_NAME_KEY;
 import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.METRIC_PREFIX;
@@ -27,9 +26,9 @@ import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.STORE_TAG_KE
 import com.google.auto.value.AutoValue;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
-import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.FieldProto.Field;
-import feast.types.ValueProto.Value;
+import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FieldProto.Field;
+import feast.proto.types.ValueProto.Value;
 import java.util.ArrayList;
 import java.util.DoubleSummaryStatistics;
 import java.util.HashMap;
@@ -131,25 +130,17 @@ public abstract class WriteFeatureValueMetricsDoFn
           "Feature set reference in the feature row is null. Please check the input feature rows from previous steps");
       return;
     }
-    String[] colonSplits = featureSetRef.split(":");
-    if (colonSplits.length != 2) {
-      log.error(
-          "Skip writing feature value metrics because the feature set reference '{}' does not"
-              + "follow the required format <project>/<feature_set_name>:<version>",
-          featureSetRef);
-      return;
-    }
-    String[] slashSplits = colonSplits[0].split("/");
+
+    String[] slashSplits = featureSetRef.split("/");
     if (slashSplits.length != 2) {
       log.error(
           "Skip writing feature value metrics because the feature set reference '{}' does not"
-              + "follow the required format <project>/<feature_set_name>:<version>",
+              + "follow the required format <project>/<feature_set_name>",
           featureSetRef);
       return;
     }
     String projectName = slashSplits[0];
     String featureSetName = slashSplits[1];
-    String version = colonSplits[1];
 
     Map<String, DoubleSummaryStatistics> featureNameToStats = new HashMap<>();
     Map<String, List<Double>> featureNameToValues = new HashMap<>();
@@ -166,7 +157,6 @@ public abstract class WriteFeatureValueMetricsDoFn
         STORE_TAG_KEY + ":" + getStoreName(),
         FEATURE_SET_PROJECT_TAG_KEY + ":" + projectName,
         FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
-        FEATURE_SET_VERSION_TAG_KEY + ":" + version,
         FEATURE_TAG_KEY + ":" + featureName,
         INGESTION_JOB_NAME_KEY + ":" + context.getPipelineOptions().getJobName()
       };

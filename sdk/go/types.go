@@ -1,7 +1,7 @@
 package feast
 
 import (
-	"github.com/gojek/feast/sdk/go/protos/feast/types"
+	"github.com/feast-dev/feast/sdk/go/protos/feast/types"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -21,12 +21,12 @@ func (r Row) equalTo(other Row) bool {
 	return true
 }
 
-// StrVal is a int64 type feast value
+// StrVal is a string type feast value
 func StrVal(val string) *types.Value {
 	return &types.Value{Val: &types.Value_StringVal{StringVal: val}}
 }
 
-// Int32Val is a int64 type feast value
+// Int32Val is a int32 type feast value
 func Int32Val(val int32) *types.Value {
 	return &types.Value{Val: &types.Value_Int32Val{Int32Val: val}}
 }

@@ -18,8 +18,6 @@ package feast.core.job.direct;
 
 import com.google.common.base.Strings;
 import com.google.protobuf.util.JsonFormat;
-import feast.core.FeatureSetProto;
-import feast.core.StoreProto;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
@@ -28,16 +26,18 @@ import feast.core.job.option.FeatureSetJsonByteConverter;
 import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
-import feast.core.util.TypeConversion;
+import feast.core.model.Project;
 import feast.ingestion.ImportJob;
 import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.options.OptionCompressor;
+import feast.proto.core.FeatureSetProto;
+import feast.proto.core.RunnerProto.DirectRunnerConfigOptions;
+import feast.proto.core.StoreProto;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.PipelineResult;
@@ -48,15 +48,15 @@ public class DirectRunnerJobManager implements JobManager {
 
   private final Runner RUNNER_TYPE = Runner.DIRECT;
 
-  protected Map<String, String> defaultOptions;
+  private DirectRunnerConfig defaultOptions;
   private final DirectJobRegistry jobs;
   private MetricsProperties metrics;
 
   public DirectRunnerJobManager(
-      Map<String, String> defaultOptions,
+      DirectRunnerConfigOptions directRunnerConfigOptions,
       DirectJobRegistry jobs,
       MetricsProperties metricsProperties) {
-    this.defaultOptions = defaultOptions;
+    this.defaultOptions = new DirectRunnerConfig(directRunnerConfigOptions);
     this.jobs = jobs;
     this.metrics = metricsProperties;
   }
@@ -79,7 +79,7 @@ public class DirectRunnerJobManager implements JobManager {
         featureSetProtos.add(featureSet.toProto());
       }
       ImportOptions pipelineOptions =
-          getPipelineOptions(featureSetProtos, job.getStore().toProto());
+          getPipelineOptions(job.getId(), featureSetProtos, job.getStore().toProto());
       PipelineResult pipelineResult = runPipeline(pipelineOptions);
       DirectJob directJob = new DirectJob(job.getId(), pipelineResult);
       jobs.add(directJob);
@@ -93,16 +93,19 @@ public class DirectRunnerJobManager implements JobManager {
   }
 
   private ImportOptions getPipelineOptions(
-      List<FeatureSetProto.FeatureSet> featureSets, StoreProto.Store sink) throws IOException {
-    String[] args = TypeConversion.convertMapToArgs(defaultOptions);
-    ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);
+      String jobName, List<FeatureSetProto.FeatureSet> featureSets, StoreProto.Store sink)
+      throws IOException, IllegalAccessException {
+    ImportOptions pipelineOptions =
+        PipelineOptionsFactory.fromArgs(defaultOptions.toArgs()).as(ImportOptions.class);
 
     OptionCompressor<List<FeatureSetProto.FeatureSet>> featureSetJsonCompressor =
         new BZip2Compressor<>(new FeatureSetJsonByteConverter());
 
     pipelineOptions.setFeatureSetJson(featureSetJsonCompressor.compress(featureSets));
+    pipelineOptions.setJobName(jobName);
     pipelineOptions.setStoreJson(Collections.singletonList(JsonFormat.printer().print(sink)));
     pipelineOptions.setRunner(DirectRunner.class);
+    pipelineOptions.setDefaultFeastProject(Project.DEFAULT_NAME);
     pipelineOptions.setProject(""); // set to default value to satisfy validation
     if (metrics.isEnabled()) {
       pipelineOptions.setMetricsExporterType(metrics.getType());
@@ -166,8 +169,7 @@ public class DirectRunnerJobManager implements JobManager {
    */
   @Override
   public Job restartJob(Job job) {
-    JobStatus status = job.getStatus();
-    if (JobStatus.getTerminalState().contains(status)) {
+    if (job.getStatus().isTerminal()) {
       // job yet not running: just start job
       return this.startJob(job);
     } else {

@@ -1,0 +1,116 @@
+{{- if and (index .Values "feast-core" "enabled") (index .Values "feast-batch-serving" "enabled") }}
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ .Release.Name }}-feast-batch-serving-test"
+  annotations:
+    "helm.sh/hook": test-success
+  namespace: {{ .Release.Namespace }}
+spec:
+  containers:
+  - name: main
+    image: python:3.7
+    command: 
+    - bash
+    - -c
+    - |
+      pip install -U feast==0.4.*
+
+      cat <<EOF > featureset.yaml
+      kind: feature_set
+      spec:
+        name: customer_transactions
+        entities:
+        - name: customer_id
+          valueType: INT64
+        features:
+        - name: daily_transactions
+          valueType: FLOAT
+        - name: total_transactions
+          valueType: FLOAT
+        maxAge: 3600s
+      EOF
+
+      python <<EOF
+      
+      from feast import Client
+      from feast import FeatureSet
+      import pandas as pd
+      import os, pytz, time, pandavro
+      from datetime import datetime
+      import numpy as np
+      from feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest
+      from feast.types.Value_pb2 import Value
+      pd.set_option("display.max_columns", 10)
+
+      client = Client(core_url=os.getenv("FEAST_CORE_ADDR"), serving_url=os.getenv("FEAST_SERVING_ADDR"))
+      project = f"testproject_{int(time.time() / 3600)}"
+      if project not in client.list_projects():
+        client.create_project(project)
+      client.set_project(project)
+      
+      feature_set = FeatureSet.from_yaml("featureset.yaml")
+      client.apply(feature_set)
+
+      df = pd.DataFrame(
+          {
+              "datetime": [datetime.utcnow().replace(tzinfo=pytz.utc) for _ in
+                           range(5)],
+              "customer_id": [i for i in range(5)],
+              "daily_transactions": [np.random.rand() for _ in range(5)],
+              "total_transactions": [i for i in range(5)],
+          }
+      )
+      client.ingest(feature_set, df, timeout=240)
+      print("Ingested dataframe: ")
+      print(df)
+      time.sleep(20)
+
+      entity_rows_df = df.copy(deep=True).rename(columns={"datetime": "event_timestamp"})[["event_timestamp", "customer_id"]]
+      pandavro.to_avro("entity_rows.avro", entity_rows_df)
+
+      batch_serving_job = client.get_batch_features(
+          entity_rows="file://entity_rows.avro", 
+          feature_refs=[
+              f"{project}/daily_transactions:1",
+              f"{project}/total_transactions:1",
+          ]
+      )
+      result_df = batch_serving_job.to_dataframe()
+
+      print("Retrieved dataframe: ")
+      print(result_df)
+
+      EOF
+    env:
+    - name: FEAST_CORE_ADDR
+      value: {{ .Release.Name }}-feast-core:6565
+    - name: FEAST_SERVING_ADDR
+      value: {{ .Release.Name }}-feast-batch-serving:6566
+    {{- if index .Values "feast-batch-serving" "gcpServiceAccount" "enabled" }}
+    - name: GOOGLE_APPLICATION_CREDENTIALS
+      value: /etc/secrets/google/{{ index .Values "feast-batch-serving" "gcpServiceAccount" "existingSecret" "key" }}
+    {{- end }}
+    volumeMounts:
+    {{- if index .Values "feast-batch-serving" "gcpServiceAccount" "enabled" }}
+    - name: service-account
+      mountPath: /etc/secrets/google
+      readOnly: true
+    {{- end }}
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        memory: 512Mi
+  volumes:
+  {{- if index .Values "feast-batch-serving" "gcpServiceAccount" "enabled" }}
+  - name: service-account 
+    secret:
+      secretName: {{ index .Values "feast-batch-serving" "gcpServiceAccount" "existingSecret" "name" }}
+  {{- end}}
+
+  restartPolicy: Never
+
+{{- end }}

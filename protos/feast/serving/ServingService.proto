@@ -19,12 +19,11 @@ syntax = "proto3";
 package feast.serving;
 
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/duration.proto";
 import "feast/types/Value.proto";
 
-option java_package = "feast.serving";
+option java_package = "feast.proto.serving";
 option java_outer_classname = "ServingAPIProto";
-option go_package = "github.com/gojek/feast/sdk/go/protos/feast/serving";
+option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/serving";
 
 service ServingService {
     // Get information about this Feast serving.
@@ -63,21 +62,19 @@ message GetFeastServingInfoResponse {
 }
 
 message FeatureReference {
-    // Project name
+    // Project name. This field is optional, if unspecified will default to 'default'.
     string project = 1;
 
     // Feature name
     string name = 2;
 
-    // Feature version
-    int32 version = 3;
+    // Feature set name specifying the feature set of this referenced feature.
+    // This field is optional if the feature referenced is unique across the project
+    // in which case the feature set would be automatically infered
+    string feature_set = 5;
 
-    // The features will be retrieved if:
-    // entity_timestamp - max_age  <= event_timestamp <= entity_timestamp
-    //
-    // If unspecified the default max_age specified in FeatureSetSpec will
-    // be used.
-    google.protobuf.Duration max_age = 4;
+    // Feature version and max_age was removed in v0.5.0
+    reserved 3, 4;
 }
 
 message GetOnlineFeaturesRequest {

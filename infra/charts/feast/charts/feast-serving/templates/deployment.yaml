@@ -19,14 +19,11 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
-        {{- if .Values.springSecretProfiles }}
+        checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
-        {{- end }}
       {{- if .Values.prometheus.enabled }}
-      {{ $config := index .Values "application.yaml" }}
         prometheus.io/path: /metrics
-        prometheus.io/port: "{{ $config.server.port }}"
+        prometheus.io/port: "{{ .Values.service.http.targetPort }}"
         prometheus.io/scrape: "true"
       {{- end }}
       labels:
@@ -41,33 +38,31 @@ spec:
 
       volumes:
       - name: {{ template "feast-serving.fullname" . }}-config
-        projected:
-          sources:
-            - configMap:
-                name: {{ template "feast-serving.fullname" . }}
-            - configMap:
-                name: {{ template "feast-serving.fullname" . }}-store
-            {{- if .Values.springSecretProfiles }}
-            - secret:
-                name: {{ template "feast-serving.fullname" . }}
-            {{- end }}
-      {{- if .Values.gcpServiceAccount.useExistingSecret }}
-      - name: {{ template "feast-serving.fullname" . }}-gcpserviceaccount
+        configMap:
+          name: {{ template "feast-serving.fullname" . }}
+      - name: {{ template "feast-serving.fullname" . }}-secret
+        secret:
+          secretName: {{ template "feast-serving.fullname" . }}
+      {{- if .Values.gcpServiceAccount.enabled }}
+      - name: {{ template "feast-serving.fullname" . }}-gcp-service-account
         secret:
           secretName: {{ .Values.gcpServiceAccount.existingSecret.name }}
       {{- end }}
 
       containers:
       - name: {{ .Chart.Name }}
-        image: '{{ .Values.image.repository }}:{{ required "No .image.tag found. This must be provided as input."  .Values.image.tag }}'
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
 
         volumeMounts:
         - name: {{ template "feast-serving.fullname" . }}-config
-          mountPath: "{{ .Values.springConfigMountPath }}"
-        {{- if .Values.gcpServiceAccount.useExistingSecret }}
-        - name: {{ template "feast-serving.fullname" . }}-gcpserviceaccount
-          mountPath: {{ .Values.gcpServiceAccount.mountPath }}
+          mountPath: /etc/feast
+        - name: {{ template "feast-serving.fullname" . }}-secret
+          mountPath: /etc/secrets/feast
+          readOnly: true
+        {{- if .Values.gcpServiceAccount.enabled }}
+        - name: {{ template "feast-serving.fullname" . }}-gcp-service-account
+          mountPath: /etc/secrets/google
           readOnly: true
         {{- end }}
 
@@ -77,31 +72,43 @@ spec:
         - name: LOG_LEVEL
           value: {{ .Values.logLevel | quote }}
 
-        {{- if .Values.gcpServiceAccount.useExistingSecret }}
+        {{- if .Values.gcpServiceAccount.enabled }}
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: {{ .Values.gcpServiceAccount.mountPath }}/{{ .Values.gcpServiceAccount.existingSecret.key }}
+          value: /etc/secrets/google/{{ .Values.gcpServiceAccount.existingSecret.key }}
         {{- end }}
+
         {{- if .Values.gcpProjectId }}
         - name: GOOGLE_CLOUD_PROJECT
           value: {{ .Values.gcpProjectId | quote }}
         {{- end }}
 
+        {{- if .Values.javaOpts }}
+        - name: JAVA_TOOL_OPTIONS
+          value: {{ .Values.javaOpts }}
+        {{- end }}
+
+        {{- range $key, $value := .Values.envOverrides }}
+        - name: {{ printf "%s" $key | replace "." "_" | upper | quote }}
+          value: {{ $value | quote }}
+        {{- end }}
+
         command:
         - java
-        {{- range .Values.jvmOptions }}
-        - {{ . | quote }}
-        {{- end }}
         - -jar
-        - {{ .Values.jarPath | quote }}
-        - "--spring.config.location=file:{{ .Values.springConfigMountPath }}/"
-        {{- $combinedProfiles := printf "%s,%s" .Values.springConfigProfilesActive .Values.springSecretProfilesActive -}}
-        {{- $profilesArray := splitList "," $combinedProfiles -}}
-        {{- $profilesArray = append $profilesArray (.Values.core.enabled | ternary "bundled-core" "") -}}
-        {{- $profilesArray = append $profilesArray (eq (include "bq_store_and_no_job_options" .) "true" | ternary "bundled-redis" "") -}}
-        {{- $profilesArray = compact $profilesArray -}}
-        {{- if $profilesArray }}
-        - "--spring.profiles.active={{ join "," $profilesArray }}"
-        {{- end }}
+        - /opt/feast/feast-serving.jar
+        - --spring.config.location=
+          {{- if index .Values "application.yaml" "enabled" -}}
+          classpath:/application.yml
+          {{- end }}
+          {{- if index .Values "application-generated.yaml" "enabled" -}}
+          ,file:/etc/feast/application-generated.yaml
+          {{- end }}
+          {{- if index .Values "application-secret.yaml" "enabled" -}}
+          ,file:/etc/secrets/feast/application-secret.yaml
+          {{- end }}
+          {{- if index .Values "application-override.yaml" "enabled" -}}
+          ,file:/etc/feast/application-override.yaml
+          {{- end }}
 
         ports:
         - name: http

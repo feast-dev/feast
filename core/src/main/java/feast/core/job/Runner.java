@@ -16,34 +16,38 @@
  */
 package feast.core.job;
 
+import java.util.NoSuchElementException;
+
+/**
+ * An Apache Beam Runner, for which Feast Core supports managing ingestion jobs.
+ *
+ * @see <a href="https://beam.apache.org/documentation/#runners">Beam Runners</a>
+ */
 public enum Runner {
   DATAFLOW("DataflowRunner"),
   FLINK("FlinkRunner"),
   DATABRICKS("DatabricksRunner"),
   DIRECT("DirectRunner");
 
-  private final String name;
+  private final String humanName;
 
-  Runner(String name) {
-    this.name = name;
+  Runner(String humanName) {
+    this.humanName = humanName;
   }
 
-  /**
-   * Get the human readable name of this runner. Returns a human readable name of the runner that
-   * can be used for logging/config files/etc.
-   */
+  /** Returns the human readable name of this runner, usable in logging, config files, etc. */
   @Override
   public String toString() {
-    return name;
+    return humanName;
   }
 
   /** Parses a runner from its human readable name. */
-  public static Runner fromString(String runner) {
+  public static Runner fromString(String humanName) {
     for (Runner r : Runner.values()) {
-      if (r.toString().equals(runner)) {
+      if (r.toString().equals(humanName)) {
         return r;
       }
     }
-    throw new IllegalArgumentException("Unknown value: " + runner);
+    throw new NoSuchElementException("Unknown Runner value: " + humanName);
   }
 }

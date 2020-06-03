@@ -17,8 +17,8 @@
 package feast.storage.api.retriever;
 
 import com.google.auto.value.AutoValue;
-import feast.serving.ServingAPIProto.DataFormat;
-import feast.serving.ServingAPIProto.JobStatus;
+import feast.proto.serving.ServingAPIProto.DataFormat;
+import feast.proto.serving.ServingAPIProto.JobStatus;
 import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;

@@ -35,11 +35,12 @@
         <module>core</module>
         <module>serving</module>
         <module>sdk/java</module>
+        <module>docs/coverage/java</module>
     </modules>
 
     <properties>
-        <revision>0.5-SNAPSHOT</revision>
-        <github.url>https://github.com/gojek/feast</github.url>
+        <revision>0.6-SNAPSHOT</revision>
+        <github.url>https://github.com/feast-dev/feast</github.url>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -53,6 +54,7 @@
         <io.prometheus.version>0.8.0</io.prometheus.version>
         <byte-buddy.version>1.9.10</byte-buddy.version>
         <hamcrest.version>1.3</hamcrest.version>
+        <hibernate.version>5.3.6.Final</hibernate.version>
         <kafka.version>2.3.0</kafka.version>
         <mockito.version>2.28.2</mockito.version>
         <!-- OpenCensus is used in grpc and Google's HTTP client libs in Cloud SDKs -->
@@ -86,7 +88,7 @@
     <scm>
         <url>${github.url}</url>
         <connection>scm:git:${github.url}.git</connection>
-        <developerConnection>scm:git:git@github.com:gojek/feast.git</developerConnection>
+        <developerConnection>scm:git:git@github.com:feast-dev/feast.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
 
@@ -247,6 +249,11 @@
                 <groupId>org.apache.kafka</groupId>
                 <artifactId>kafka-clients</artifactId>
                 <version>${kafka.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.hibernate</groupId>
+                <artifactId>hibernate-core</artifactId>
+                <version>${hibernate.version}</version>
             </dependency>
             <dependency>
                 <groupId>net.bytebuddy</groupId>
@@ -410,7 +417,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <release>11</release>
+                    <!-- Our leaf applications target 11, except Ingestion and its deps remain on 8 for Beam -->
+                    <release>8</release>
                 </configuration>
             </plugin>
             <plugin>
@@ -471,9 +479,9 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.22.1</version>
+                <version>3.0.0-M4</version>
                 <configuration>
-                    <argLine>-Xms2048m -Xmx2048m -Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
+                    <argLine>@{argLine} -Xms2048m -Xmx2048m -Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
                     <excludes>
                         <groups>IntegrationTest</groups>
                     </excludes>
@@ -486,6 +494,14 @@
                     <!-- Parent POM isn't a Spring Boot app, don't try to discover main classes. -->
                     <skip>true</skip>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>build-info</id>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <!-- nexus-staging-maven-plugin configures Maven to deploy to OSSRH Nexus Repository Manager -->
             <plugin>
@@ -605,6 +621,18 @@
                     <configuration>
                         <cleanupDaemonThreads>false</cleanupDaemonThreads>
                     </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>0.8.5</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>prepare-agent</goal>
+                            </goals>
+                        </execution>
+                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>org.springframework.boot</groupId>

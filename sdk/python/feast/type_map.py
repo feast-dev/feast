@@ -147,7 +147,7 @@ def convert_df_to_feature_rows(dataframe: pd.DataFrame, feature_set):
             event_timestamp=_pd_datetime_to_timestamp_proto(
                 dataframe[DATETIME_COLUMN].dtype, row[DATETIME_COLUMN]
             ),
-            feature_set=feature_set.name + ":" + str(feature_set.version),
+            feature_set=feature_set.project + "/" + feature_set.name,
         )
 
         for field_name, field in feature_set.fields.items():
@@ -185,11 +185,7 @@ def convert_dict_to_proto_values(
         event_timestamp=_pd_datetime_to_timestamp_proto(
             df_datetime_dtype, row[DATETIME_COLUMN]
         ),
-        feature_set=feature_set.project
-        + "/"
-        + feature_set.name
-        + ":"
-        + str(feature_set.version),
+        feature_set=f"{feature_set.project}/{feature_set.name}",
     )
 
     for field_name, field in feature_set.fields.items():

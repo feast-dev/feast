@@ -19,12 +19,12 @@ package feast.storage.connectors.bigquery.writer;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.bigquery.*;
 import com.google.common.collect.ImmutableMap;
-import feast.core.FeatureSetProto;
-import feast.core.StoreProto.Store.BigQueryConfig;
+import feast.proto.core.FeatureSetProto;
+import feast.proto.core.StoreProto.Store.BigQueryConfig;
+import feast.proto.types.FeatureRowProto;
 import feast.storage.api.writer.FeatureSink;
 import feast.storage.api.writer.WriteResult;
 import feast.storage.connectors.bigquery.common.TypeUtil;
-import feast.types.FeatureRowProto;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +42,8 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
       "Event time for the FeatureRow";
   public static final String BIGQUERY_CREATED_TIMESTAMP_FIELD_DESCRIPTION =
       "Processing time of the FeatureRow ingestion in Feast\"";
+  public static final String BIGQUERY_INGESTION_ID_FIELD_DESCRIPTION =
+      "Unique id identifying groups of rows that have been ingested together";
   public static final String BIGQUERY_JOB_ID_FIELD_DESCRIPTION =
       "Feast import job ID for the FeatureRow";
 
@@ -57,9 +59,11 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
    * your own client.
    *
    * @param config {@link BigQueryConfig}
+   * @param featureSetSpecs
    * @return {@link BigQueryFeatureSink.Builder}
    */
-  public static BigQueryFeatureSink fromConfig(BigQueryConfig config) {
+  public static FeatureSink fromConfig(
+      BigQueryConfig config, Map<String, FeatureSetProto.FeatureSetSpec> featureSetSpecs) {
     return builder()
         .setDatasetId(config.getDatasetId())
         .setProjectId(config.getProjectId())
@@ -96,20 +100,20 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
       bigquery.create(DatasetInfo.of(datasetId));
     }
     String tableName =
-        String.format(
-                "%s_%s_v%d",
-                featureSetSpec.getProject(), featureSetSpec.getName(), featureSetSpec.getVersion())
+        String.format("%s_%s", featureSetSpec.getProject(), featureSetSpec.getName())
             .replaceAll("-", "_");
     TableId tableId = TableId.of(datasetId.getProject(), datasetId.getDataset(), tableName);
 
-    // Return if there is an existing table
     Table table = bigquery.getTable(tableId);
+    TableDefinition tableDefinition = createBigQueryTableDefinition(table, featureSet.getSpec());
+    TableInfo tableInfo = TableInfo.of(tableId, tableDefinition);
     if (table != null) {
       log.info(
-          "Writing to existing BigQuery table '{}:{}.{}'",
-          getProjectId(),
+          "Updating and writing to existing BigQuery table '{}:{}.{}'",
+          datasetId.getProject(),
           datasetId.getDataset(),
           tableName);
+      bigquery.update(tableInfo);
       return;
     }
 
@@ -118,8 +122,6 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
         tableId.getTable(),
         datasetId.getDataset(),
         datasetId.getProject());
-    TableDefinition tableDefinition = createBigQueryTableDefinition(featureSet.getSpec());
-    TableInfo tableInfo = TableInfo.of(tableId, tableDefinition);
     bigquery.create(tableInfo);
   }
 
@@ -127,8 +129,18 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
   public PTransform<PCollection<FeatureRowProto.FeatureRow>, WriteResult> writer() {
     return new BigQueryWrite(DatasetId.of(getProjectId(), getDatasetId()));
   }
-
-  private TableDefinition createBigQueryTableDefinition(FeatureSetProto.FeatureSetSpec spec) {
+  /**
+   * Creates a BigQuery {@link TableDefinition} based on the provided FeatureSetSpec and the
+   * existing table, if any. If a table already exists, existing fields will be retained, and new
+   * fields present in the feature set will be appended to the existing FieldsList.
+   *
+   * @param existingTable existing {@link Table} retrieved using bigquery.GetTable(). If the table
+   *     does not exist, will be null.
+   * @param spec FeatureSet spec that this table is for
+   * @return {@link TableDefinition} containing all tombstoned and active fields.
+   */
+  private TableDefinition createBigQueryTableDefinition(
+      Table existingTable, FeatureSetProto.FeatureSetSpec spec) {
     List<Field> fields = new ArrayList<>();
     log.info("Table will have the following fields:");
 
@@ -164,6 +176,8 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
                 "created_timestamp",
                 Pair.of(
                     StandardSQLTypeName.TIMESTAMP, BIGQUERY_CREATED_TIMESTAMP_FIELD_DESCRIPTION),
+                "ingestion_id",
+                Pair.of(StandardSQLTypeName.STRING, BIGQUERY_INGESTION_ID_FIELD_DESCRIPTION),
                 "job_id",
                 Pair.of(StandardSQLTypeName.STRING, BIGQUERY_JOB_ID_FIELD_DESCRIPTION));
     for (Map.Entry<String, Pair<StandardSQLTypeName, String>> entry :
@@ -180,9 +194,21 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
         TimePartitioning.newBuilder(TimePartitioning.Type.DAY).setField("event_timestamp").build();
     log.info("Table partitioning: " + timePartitioning.toString());
 
+    List<Field> fieldsList = new ArrayList<>();
+    if (existingTable != null) {
+      Schema existingSchema = existingTable.getDefinition().getSchema();
+      fieldsList.addAll(existingSchema.getFields());
+    }
+
+    for (Field field : fields) {
+      if (!fieldsList.contains(field)) {
+        fieldsList.add(field);
+      }
+    }
+
     return StandardTableDefinition.newBuilder()
         .setTimePartitioning(timePartitioning)
-        .setSchema(Schema.of(fields))
+        .setSchema(Schema.of(FieldList.of(fieldsList)))
         .build();
   }
 }

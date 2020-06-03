@@ -1,262 +1,35 @@
-# Feast deployment installs the following components:
-# - Feast Core
-# - Feast Serving Online
-# - Feast Serving Batch
-# - Prometheus StatsD Exporter
-#
-# The configuration for different components can be referenced from:
-# - charts/feast-core/values.yaml
-# - charts/feast-serving/values.yaml
-# - charts/prometheus-statsd-exporter/values.yaml
-#
-# Note that "feast-serving-online" and "feast-serving-batch" are
-# aliases to "feast-serving" chart since in typical scenario two instances
-# of Feast Serving: online and batch will be deployed. Both described
-# using the same chart "feast-serving".
-#
-# Note that the import job by default uses DirectRunner
-# https://beam.apache.org/documentation/runners/direct/
-# in this configuration since it allows Feast to run in more environments
-# (unlike DataflowRunner which requires Google Cloud services).
-#
-# A secret containing Google Cloud service account JSON key is required
-# in this configuration.
-# https://cloud.google.com/iam/docs/creating-managing-service-accounts
-#
-# The Google Cloud service account must have the following roles:
-# - bigquery.dataEditor
-# - bigquery.jobUser
-#
-# Assuming a service account JSON key file has been downloaded to
-# (please name the file key.json):
-# /home/user/key.json
-#
-# Run the following command to create the secret in your Kubernetes cluster:
-#
-# kubectl create secret generic feast-gcp-service-account \
-#   --from-file=/home/user/key.json
-#
-# Replace every instance of EXTERNAL_IP with the external IP of your GKE cluster
-
-# ============================================================
-# Feast Core
-# ============================================================
-
 feast-core:
-  # If enabled specifies whether to install Feast Core component.
-  #
-  # Normally, this is set to "false" when Feast users need access to low latency
-  # Feast Serving, by deploying multiple instances of Feast Serving closest
-  # to the client. These instances of Feast Serving however can still use
-  # the same shared Feast Core.
+  # feast-core.enabled -- Flag to install Feast Core
   enabled: true
 
-  # Specify which image tag to use. Keep this consistent for all components
-  image:
-    tag: "0.4.4"
-
-  # jvmOptions are options that will be passed to the Java Virtual Machine (JVM)
-  # running Feast Core.
-  #
-  # For example, it is good practice to set min and max heap size in JVM.
-  # https://stackoverflow.com/questions/6902135/side-effect-for-increasing-maxpermsize-and-max-heap-size
-  jvmOptions:
-  - -Xms1024m
-  - -Xmx1024m
-
-  # resources that should be allocated to Feast Core.
-  resources:
-    requests:
-      cpu: 1000m
-      memory: 1024Mi
-    limits:
-      memory: 2048Mi
-
-  # gcpServiceAccount is the Google service account that Feast Core will use.
-  gcpServiceAccount:
-    # useExistingSecret specifies Feast to use an existing secret containing
-    # Google Cloud service account JSON key file.
-    #
-    # This is the only supported option for now to use a service account JSON.
-    # Feast admin is expected to create this secret before deploying Feast.
-    useExistingSecret: true
-    existingSecret:
-      # name is the secret name of the existing secret for the service account.
-      name: feast-gcp-service-account
-      # key is the secret key of the existing secret for the service account.
-      # key is normally derived from the file name of the JSON key file.
-      key: key.json
-  # Setting service.type to NodePort exposes feast-core service at a static port
-  service:
-    type: NodePort
-    grpc:
-      # this is the port that is exposed outside of the cluster
-      nodePort: 32090
-  # Make kafka externally accessible using NodePort
-  # Please set EXTERNAL_IP to your cluster's external IP
-  kafka:
-    external:
-      enabled: true
-      type: NodePort
-      domain: EXTERNAL_IP
-    configurationOverrides:
-      "advertised.listeners": |-
-        EXTERNAL://EXTERNAL_IP:$((31090 + ${KAFKA_BROKER_ID}))
-      "listener.security.protocol.map": |-
-        PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
-  application.yaml:
-    feast:
-      stream:
-        options:
-          # Point to one of your Kafka brokers
-          # Please set EXTERNAL_IP to your cluster's external IP
-          bootstrapServers: EXTERNAL_IP:31090
-
-# ============================================================
-# Feast Serving Online
-# ============================================================
-
-feast-serving-online:
-  # enabled specifies whether to install Feast Serving Online component.
+feast-online-serving:
+  # feast-online-serving.enabled -- Flag to install Feast Online Serving
   enabled: true
-  # Specify what image tag to use. Keep this consistent for all components
-  image:
-    tag: "0.4.4"
-  # redis.enabled specifies whether Redis should be installed as part of Feast Serving.
-  #
-  # If enabled is set to "false", Feast admin has to ensure there is an
-  # existing Redis running outside Feast, that Feast Serving can connect to.
-  # master.service.type set to NodePort exposes Redis to outside of the cluster
-  redis:
-    enabled: true
-    master:
-      service:
-        nodePort: 32101
-        type: NodePort
-  # jvmOptions are options that will be passed to the Feast Serving JVM.
-  jvmOptions:
-  - -Xms1024m
-  - -Xmx1024m
-  # resources that should be allocated to Feast Serving.
-  resources:
-    requests:
-      cpu: 500m
-      memory: 1024Mi
-    limits:
-      memory: 2048Mi
-  # Make service accessible to outside of cluster using NodePort
-  service:
-    type: NodePort
-    grpc:
-      nodePort: 32091
-  # store.yaml is the configuration for Feast Store.
-  #
-  # Refer to this link for more description:
-  # https://github.com/gojek/feast/blob/79eb4ab5fa3d37102c1dca9968162a98690526ba/protos/feast/core/Store.proto
-  store.yaml:
-    name: redis
-    type: REDIS
-    redis_config:
-      # If redis.enabled is set to false, Feast admin should uncomment and
-      # set the host value to an "existing" Redis instance Feast will use as
-      # online Store. Also use the correct port for that existing instance.
-      #
-      # Else, if redis.enabled is set to true, replace EXTERNAL_IP with your
-      # cluster's external IP.
-      # host: redis-host
-      host: EXTERNAL_IP
-      port: 32101
-    subscriptions:
-    - name: "*"
-      project: "*"
-      version: "*"
 
-# ============================================================
-# Feast Serving Batch
-# ============================================================
+feast-batch-serving:
+  # feast-batch-serving.enabled -- Flag to install Feast Batch Serving
+  enabled: false
 
-feast-serving-batch:
-  # enabled specifies whether to install Feast Serving Batch component.
+postgresql:
+  # postgresql.enabled -- Flag to install Postgresql
   enabled: true
-  # Specify what image tag to use. Keep this consistent for all components
-  image:
-    tag: "0.4.4"
-  # redis.enabled specifies whether Redis should be installed as part of Feast Serving.
-  #
-  # This is usually set to "false" for Feast Serving Batch because the default
-  # store is BigQuery.
-  redis:
-    enabled: false
-  # jvmOptions are options that will be passed to the Feast Serving JVM.
-  jvmOptions:
-  - -Xms1024m
-  - -Xmx1024m
-  # resources that should be allocated to Feast Serving.
-  resources:
-    requests:
-      cpu: 500m
-      memory: 1024Mi
-    limits:
-      memory: 2048Mi
-  # Make service accessible to outside of cluster using NodePort
-  service:
-    type: NodePort
-    grpc:
-      nodePort: 32092
-  # gcpServiceAccount is the service account that Feast Serving will use.
-  gcpServiceAccount:
-    # useExistingSecret specifies Feast to use an existing secret containing
-    # Google Cloud service account JSON key file.
-    #
-    # This is the only supported option for now to use a service account JSON.
-    # Feast admin is expected to create this secret before deploying Feast.
-    useExistingSecret: true
-    existingSecret:
-      # name is the secret name of the existing secret for the service account.
-      name: feast-gcp-service-account
-      # key is the secret key of the existing secret for the service account.
-      # key is normally derived from the file name of the JSON key file.
-      key: key.json
-  # application.yaml is the main configuration for Feast Serving application.
-  #
-  # Feast Core is a Spring Boot app which uses this yaml configuration file.
-  # Refer to https://github.com/gojek/feast/blob/79eb4ab5fa3d37102c1dca9968162a98690526ba/serving/src/main/resources/application.yml
-  # for a complete list and description of the configuration.
-  application.yaml:
-    feast:
-      jobs:
-        # staging-location specifies the URI to store intermediate files for
-        # batch serving (required if using BigQuery as Store).
-        #
-        # Please set the value to an "existing" Google Cloud Storage URI that
-        # Feast serving has write access to.
-        staging-location: gs://YOUR_BUCKET_NAME/serving/batch
-        # Type of store to store job metadata.
-        #
-        # This default configuration assumes that Feast Serving Online is
-        # enabled as well. So Feast Serving Batch will share the same
-        # Redis instance to store job statuses.
-        store-type: REDIS
-        # Default to use the internal hostname of the redis instance deployed by Online service,
-        # otherwise use externally exposed by setting EXTERNAL_IP to your cluster's external IP
-        # store-options:
-          # host: EXTERNAL_IP
-          # port: 32101
-  # store.yaml is the configuration for Feast Store.
-  #
-  # Refer to this link for more description:
-  # https://github.com/gojek/feast/blob/79eb4ab5fa3d37102c1dca9968162a98690526ba/protos/feast/core/Store.proto
-  store.yaml:
-    name: bigquery
-    type: BIGQUERY
-    bigquery_config:
-      # project_id specifies the Google Cloud Project. Please set this to the
-      # project id you are using BigQuery in.
-      project_id: PROJECT_ID
-      # dataset_id specifies an "existing" BigQuery dataset Feast Serving Batch
-      # will use. Please ensure this dataset is created beforehand.
-      dataset_id: DATASET_ID
-    subscriptions:
-    - name: "*"
-      project: "*"
-      version: "*"
+
+kafka:
+  # kafka.enabled -- Flag to install Kafka
+  enabled: true
+
+redis:
+  # redis.enabled -- Flag to install Redis
+  enabled: true
+
+prometheus-statsd-exporter:
+  # prometheus-statsd-exporter.enabled -- Flag to install StatsD to Prometheus Exporter
+  enabled: true
+
+prometheus:
+  # prometheus.enabled -- Flag to install Prometheus
+  enabled: true
+
+grafana:
+  # grafana.enabled -- Flag to install Grafana
+  enabled: true

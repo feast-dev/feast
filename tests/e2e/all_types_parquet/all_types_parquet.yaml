@@ -6,7 +6,7 @@ spec:
       valueType: INT64
   features:
     - name: int32_feature_parquet
-      valueType: INT64
+      valueType: INT32
     - name: int64_feature_parquet
       valueType: INT64
     - name: float_feature_parquet

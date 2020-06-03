@@ -1,0 +1,76 @@
+name: ci
+
+on:
+  # Trigger the workflow on push or pull request,
+  # but only for the master branch
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+
+jobs:
+
+  build-and-test:
+
+    # Run the job on a self-hosted agent VM. The VM will cache Docker layers, which considerably speeds up the build.
+    runs-on: self-hosted
+    steps:
+
+    # Delete any files left from the previous build, including files owned by root created by Docker in mounted volumes.
+    - name: Clean current directory
+      run: shopt -s dotglob; sudo rm -rf *
+
+    # Checkout sources from Git
+    - uses: actions/checkout@v2
+
+    # Cache the Maven repository across runs.
+    - name: Cache Maven repository
+      id: cache-maven
+      uses: actions/cache@v1
+      with:
+        path: .m2
+        key: ${{ runner.os }}-mavenr-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-mavenr-
+
+    # Generate the Maven cache if needed by running a throwaway build of Feast.
+    # --user: run as the host user, to avoid writing .m2 files to the host as root.
+    # -e MAVEN_CONFIG: See https://github.com/carlossg/docker-maven#running-as-non-root
+    # -v $PWD:/build: mount the current directory to write .m2 files onto the host.
+    - name: Generate Maven cache
+      if: steps.cache-maven.outputs.cache-hit != 'true'
+      run: docker run --rm --user $(id -u):$(id -g) -e MAVEN_CONFIG=/build/.m2 -v $PWD:/build maven:3.6-jdk-11 bash -c "cp -R /build /tmp && mvn -f /tmp/build -Dmaven.repo.local=/build/.m2/repository -Dgpg.skip=true -B clean verify -DskipTests"
+
+    # Build images in parallel.
+    - name: Build Feast runtime images
+      run: docker-compose -f infra/docker-compose/docker-compose.yml -f infra/docker-compose/docker-compose.online.yml build --parallel core online-serving
+      env:
+        FEAST_VERSION: v${{ github.sha }}
+        FEAST_CORE_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-core
+        FEAST_SERVING_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-serving
+
+    - name: test docker compose
+      run: ./infra/scripts/test-docker-compose.sh
+      env:
+        COMPOSE_PROJECT_NAME: feast
+        FEAST_VERSION: v${{ github.sha }}
+        FEAST_CORE_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-core
+        FEAST_SERVING_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-serving
+
+    # Login to Azure Container Registry.
+    - name: Login to Azure Container Registry
+      uses: azure/docker-login@v1
+      with:
+        login-server: ${{ secrets.CONTAINERREGISTRY_URL }}
+        username: ${{ secrets.CONTAINERREGISTRY_USERNAME }}
+        password: ${{ secrets.CONTAINERREGISTRY_PASSWORD }}
+
+    # Promote successfully tested container to Azure Container Registry.
+    - name: Push image to ACR
+      run: |
+        docker-compose -f infra/docker-compose/docker-compose.yml push core
+      env:
+        FEAST_VERSION: v${{ github.sha }}
+        FEAST_CORE_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-core
