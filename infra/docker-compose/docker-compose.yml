@@ -2,6 +2,9 @@ version: "3.7"
 
 services:
   core:
+    build:
+      context: ../..
+      dockerfile: infra/docker/core/Dockerfile
     image: ${FEAST_CORE_IMAGE}:${FEAST_VERSION}
     volumes:
       - ./core/${FEAST_CORE_CONFIG}:/etc/feast/application.yml

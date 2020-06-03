@@ -25,27 +25,15 @@ jobs:
     # Checkout sources from Git
     - uses: actions/checkout@v2
 
-    # Build base CI image, with dependencies such as Go and Python.
-    # This image seldom changes, so thanks to layer caching this usually completes in seconds.
-    - name: Build CI image
-      uses: docker/build-push-action@v1
-      with:
-        username: ${{ secrets.CONTAINERREGISTRY_USERNAME }}
-        password: ${{ secrets.CONTAINERREGISTRY_PASSWORD }}
-        repository: ${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-ci
-        registry: ${{ secrets.CONTAINERREGISTRY_URL }}
-        dockerfile: infra/docker/ci/Dockerfile
-        tags: v${{ github.sha }}
-
     # Cache the Maven repository across runs.
     - name: Cache Maven repository
       id: cache-maven
       uses: actions/cache@v1
       with:
         path: .m2
-        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        key: ${{ runner.os }}-mavenr-${{ hashFiles('**/pom.xml') }}
         restore-keys: |
-          ${{ runner.os }}-maven-
+          ${{ runner.os }}-mavenr-
 
     # Generate the Maven cache if needed by running a throwaway build of Feast.
     # --user: run as the host user, to avoid writing .m2 files to the host as root.
@@ -53,39 +41,23 @@ jobs:
     # -v $PWD:/build: mount the current directory to write .m2 files onto the host.
     - name: Generate Maven cache
       if: steps.cache-maven.outputs.cache-hit != 'true'
-      run: docker run --rm --user $(id -u):$(id -g) -e MAVEN_CONFIG=/build/.m2 -v $PWD:/build $IMAGE bash -c "cd /build && mvn -Dmaven.repo.local=/build/.m2/repository -Dgpg.skip=true -B clean verify -DskipTests"
-      env:
-        IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-ci:v${{ github.sha }}
+      run: docker run --rm --user $(id -u):$(id -g) -e MAVEN_CONFIG=/build/.m2 -v $PWD:/build maven:3.6-jdk-11 bash -c "cp -R /build /tmp && mvn -f /tmp/build -Dmaven.repo.local=/build/.m2/repository -Dgpg.skip=true -B clean verify -DskipTests"
 
     # Build images in parallel.
-    - name: Build Feast runtime and end-to-end test images
-      run: |
-        set -x
-        docker-compose -f infra/docker-compose/docker-compose-ff.yml build --parallel end-to-end-tests core online-serving
+    - name: Build Feast runtime images
+      run: docker-compose -f infra/docker-compose/docker-compose.yml -f infra/docker-compose/docker-compose.online.yml build --parallel core online-serving
       env:
         FEAST_VERSION: v${{ github.sha }}
-        FEAST_CI_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-ci
         FEAST_CORE_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-core
         FEAST_SERVING_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-serving
 
-    # "docker-compose up" starts docker containers.
-    # "--abort-on-container-exit" ensures that the containers are shutdown when end-to-end
-    # tests complete, and that the task exit status indicates failure if there are test failures.
-    # Images fetched from a repository, such as Kafka, will not be built, so this
-    # step will only build the Feast Core image.
-    - name: Run Feast end-to-end test with Docker compose
-      run: |
-        set -x
-        docker-compose -f infra/docker-compose/docker-compose-ff.yml up --abort-on-container-exit end-to-end-tests
+    - name: test docker compose
+      run: ./infra/scripts/test-docker-compose.sh
       env:
         COMPOSE_PROJECT_NAME: feast
         FEAST_VERSION: v${{ github.sha }}
-        FEAST_CI_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-ci
         FEAST_CORE_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-core
         FEAST_SERVING_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-serving
-        FEAST_CORE_CONFIG: direct-runner.yml
-        FEAST_ONLINE_SERVING_CONFIG: online-serving.yml
-        FEAST_ONLINE_STORE_CONFIG: redis-store.yml
 
     # Login to Azure Container Registry.
     - name: Login to Azure Container Registry
@@ -98,7 +70,7 @@ jobs:
     # Promote successfully tested container to Azure Container Registry.
     - name: Push image to ACR
       run: |
-        docker-compose -f infra/docker-compose/docker-compose-ff.yml push core
+        docker-compose -f infra/docker-compose/docker-compose.yml push core
       env:
         FEAST_VERSION: v${{ github.sha }}
         FEAST_CORE_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-core

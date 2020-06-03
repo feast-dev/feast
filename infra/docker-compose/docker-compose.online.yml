@@ -2,6 +2,9 @@ version: "3.7"
 
 services:
   online-serving:
+    build:
+      context: ../..
+      dockerfile: infra/docker/serving/Dockerfile
     image: ${FEAST_SERVING_IMAGE}:${FEAST_VERSION}
     volumes:
       - ./serving/${FEAST_ONLINE_SERVING_CONFIG}:/etc/feast/application.yml

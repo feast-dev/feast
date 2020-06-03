@@ -36,7 +36,6 @@ docker-compose -f docker-compose.yml -f docker-compose.online.yml up -d
 export JUPYTER_DOCKER_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_jupyter_1)
 
 # Print Jupyter container information
-docker inspect feast_jupyter_1
 docker logs feast_jupyter_1
 
 # Wait for Jupyter Notebook Container to come online

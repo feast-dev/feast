@@ -4,8 +4,27 @@
 
 FROM maven:3.6-jdk-11 as builder
 ARG REVISION=dev
-COPY  . /build
+
+#
+# Download grpc_health_probe to run health check for Feast Serving
+# https://kubernetes.io/blog/2018/10/01/health-checking-grpc-servers-on-kubernetes/
+#
+RUN wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.3.1/grpc_health_probe-linux-amd64 \
+         -O /usr/bin/grpc-health-probe && \
+    chmod +x /usr/bin/grpc-health-probe
+
+
 WORKDIR /build
+
+COPY datatypes datatypes
+COPY storage storage
+COPY sdk/java sdk/java
+COPY docs/coverage/java docs/coverage/java
+COPY core core
+COPY ingestion ingestion
+COPY protos protos
+COPY serving serving
+COPY pom.xml pom.xml
 
 # Trick to copy .m2 directory only if it exists.
 # The LICENSE file is any file that actually exists, to make sure the command doesn't fail.
@@ -19,13 +38,6 @@ COPY LICENSE .m[2] .m2/
 ENV MAVEN_OPTS="-Dmaven.repo.local=/build/.m2/repository -DdependencyLocationsEnabled=false"
 RUN mvn --also-make --projects serving -Drevision=$REVISION \
   -DskipTests=true --batch-mode clean package
-#
-# Download grpc_health_probe to run health check for Feast Serving
-# https://kubernetes.io/blog/2018/10/01/health-checking-grpc-servers-on-kubernetes/
-#
-RUN wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.3.1/grpc_health_probe-linux-amd64 \
-         -O /usr/bin/grpc-health-probe && \
-    chmod +x /usr/bin/grpc-health-probe
 
 # ============================================================
 # Build stage 2: Production
@@ -33,8 +45,8 @@ RUN wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/downloa
 
 FROM openjdk:11-jre-slim as production
 ARG REVISION=dev
-COPY --from=builder /build/serving/target/feast-serving-$REVISION.jar /opt/feast/feast-serving.jar
 COPY --from=builder /usr/bin/grpc-health-probe /usr/bin/grpc-health-probe
+COPY --from=builder /build/serving/target/feast-serving-$REVISION.jar /opt/feast/feast-serving.jar
 CMD ["java",\
      "-Xms1024m",\
      "-Xmx1024m",\
