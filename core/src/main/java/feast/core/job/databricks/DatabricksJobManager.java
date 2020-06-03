@@ -14,6 +14,7 @@ import feast.core.job.JobManager;
 import feast.core.job.Runner;
 import feast.core.model.*;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.http.HttpException;
 import org.apache.http.HttpStatus;
 
 import java.io.IOException;
@@ -113,16 +114,21 @@ public class DatabricksJobManager implements JobManager {
                 .build();
         try {
             HttpResponse<String> response = this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            JsonNode parent = new ObjectMapper().readTree(response.body());
-            Optional<String> resultState = Optional.of(parent.path("state").get("result_state").asText().toUpperCase());
-            String lifeCycleState = parent.path("state").path("life_cycle_state").asText().toUpperCase();
 
-            if (resultState.isPresent()) {
-                return DatabricksJobStateMapper.map(String.format("%s_%s", lifeCycleState, resultState.get()));
+            if (response.statusCode() == HttpStatus.SC_OK) {
+                JsonNode parent = new ObjectMapper().readTree(response.body());
+                Optional<JsonNode> resultState = Optional.ofNullable(parent.path("state").get("result_state"));
+                String lifeCycleState = parent.path("state").get("life_cycle_state").asText().toUpperCase();
+
+                if (resultState.isPresent()) {
+                    return DatabricksJobStateMapper.map(String.format("%s_%s", lifeCycleState, resultState.get().asText().toUpperCase()));
+                }
+
+                return DatabricksJobStateMapper.map(lifeCycleState);
+            } else {
+                throw new HttpException(String.format("Databricks returned with unexpected code: %s", response.statusCode()));
             }
-
-            return DatabricksJobStateMapper.map(lifeCycleState);
-        } catch (IOException | InterruptedException ex) {
+        } catch (IOException | InterruptedException | HttpException ex) {
             log.error(
                     "Unable to retrieve status of a dabatricks run with id : {}\ncause: {}",
                     job.getExtId(),

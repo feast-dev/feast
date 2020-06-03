@@ -76,13 +76,38 @@ public class DatabricksJobManagerTest {
     }
 
     @Test
-    @Ignore("Test is not completed yet, please ignore")
-    public void testGetCalltoDatabricks() throws NoSuchFieldException {
-//        FieldSetter.setField(job, job.getClass().getDeclaredField("extId"), "1");
+    public void testGetCalltoDatabricksWithOnlyLifeCycle() throws IOException, InterruptedException {
         Mockito.when(job.getExtId()).thenReturn("1");
+        HttpResponse httpResponse = mock(HttpResponse.class);
+        String responseBody = "{ \"state\": {\"life_cycle_state\" : \"INTERNAL_ERROR\"} } ";
+        when(httpResponse.body()).thenReturn(responseBody);
+        when(httpResponse.statusCode()).thenReturn(200);
+
+        Mockito.when(httpClient.send(any(), any())).thenReturn(httpResponse);
+        MetricsProperties metricsProperties = new MetricsProperties();
+        metricsProperties.setEnabled(false);
+        dbJobManager = new DatabricksJobManager(runnerConfigOptions, metricsProperties, token, httpClient);
+        dbJobManager = spy(dbJobManager);
 
         JobStatus jobStatus = dbJobManager.getJobStatus(job);
         assertThat(jobStatus, equalTo(JobStatus.ERROR));
+    }
+    @Test
+    public void testGetCalltoDatabricksWithLifeCycleAndRunState() throws IOException, InterruptedException {
+        Mockito.when(job.getExtId()).thenReturn("1");
+        HttpResponse httpResponse = mock(HttpResponse.class);
+        String responseBody = "{ \"state\": {\"life_cycle_state\" : \"TERMINATED\", \"result_state\": \"success\" } } ";
+        when(httpResponse.body()).thenReturn(responseBody);
+        when(httpResponse.statusCode()).thenReturn(200);
+
+        Mockito.when(httpClient.send(any(), any())).thenReturn(httpResponse);
+        MetricsProperties metricsProperties = new MetricsProperties();
+        metricsProperties.setEnabled(false);
+        dbJobManager = new DatabricksJobManager(runnerConfigOptions, metricsProperties, token, httpClient);
+        dbJobManager = spy(dbJobManager);
+
+        JobStatus jobStatus = dbJobManager.getJobStatus(job);
+        assertThat(jobStatus, equalTo(JobStatus.COMPLETED));
     }
 
     @Test
