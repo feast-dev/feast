@@ -16,22 +16,38 @@
  */
 package feast.databricks.types;
 
-import lombok.Getter;
-import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.auto.value.AutoValue;
 
-@Getter
-@Setter
-public class RunState {
-  public RunState(RunLifeCycleState life_cycle_state) {
-    this.life_cycle_state = life_cycle_state;
+@AutoValue
+@JsonDeserialize(builder = AutoValue_RunState.Builder.class)
+public abstract class RunState {
+
+  @JsonProperty("life_cycle_state")
+  public abstract RunLifeCycleState getLifeCycleState();
+
+  @JsonProperty("result_state")
+  public abstract RunResultState getResultState();
+
+  @JsonProperty("state_message")
+  public abstract String getStateMessage();
+
+  public static Builder builder() {
+    return new AutoValue_RunState.Builder();
   }
 
-  public RunState(RunLifeCycleState life_cycle_state, RunResultState result_state) {
-    this.life_cycle_state = life_cycle_state;
-    this.result_state = result_state;
-  }
+  @AutoValue.Builder
+  public abstract static class Builder {
+    @JsonProperty("life_cycle_state")
+    public abstract Builder setLifeCycleState(RunLifeCycleState value);
 
-  private RunLifeCycleState life_cycle_state;
-  private RunResultState result_state;
-  private String state_message;
+    @JsonProperty("result_state")
+    public abstract Builder setResultState(RunResultState value);
+
+    @JsonProperty("state_message")
+    public abstract Builder setStateMessage(String value);
+
+    public abstract RunState build();
+  }
 }

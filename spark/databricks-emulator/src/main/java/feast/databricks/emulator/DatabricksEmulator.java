@@ -20,8 +20,16 @@ import static spark.Spark.get;
 import static spark.Spark.port;
 import static spark.Spark.post;
 
-import com.google.gson.Gson;
-import feast.databricks.types.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import feast.databricks.types.Library;
+import feast.databricks.types.RunLifeCycleState;
+import feast.databricks.types.RunResultState;
+import feast.databricks.types.RunState;
+import feast.databricks.types.RunsGetResponse;
+import feast.databricks.types.RunsSubmitRequest;
+import feast.databricks.types.RunsSubmitResponse;
+import feast.databricks.types.SparkJarTask;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +44,7 @@ import spark.ResponseTransformer;
 
 public class DatabricksEmulator {
 
-  private static Gson gson = new Gson();
+  ObjectMapper objectMapper = new ObjectMapper();
 
   public static void main(String[] args) {
     port(8080);
@@ -52,9 +60,11 @@ public class DatabricksEmulator {
 
   public static class JsonTransformer implements ResponseTransformer {
 
+    ObjectMapper objectMapper = new ObjectMapper();
+
     @Override
-    public String render(Object model) {
-      return gson.toJson(model);
+    public String render(Object model) throws JsonProcessingException {
+      return objectMapper.writeValueAsString(model);
     }
   }
 
@@ -84,66 +94,71 @@ public class DatabricksEmulator {
 
     SparkAppFactory appFactory = new SparkAppFactory();
 
+    ObjectMapper objectMapper = new ObjectMapper();
+
     RunsGetResponse runsGet(Request request, Response response) throws Exception {
       long runId = Long.valueOf(request.queryParams("run_id"));
 
       RunState state = getRunState(runId);
-      return new RunsGetResponse(state);
+      return RunsGetResponse.builder().setState(state).build();
     }
 
     private RunState getRunState(long runId) {
       SparkAppHandle handle = runTracker.getRun(runId);
 
-      RunState state;
+      RunState.Builder state = RunState.builder();
 
       switch (handle.getState()) {
         case CONNECTED:
-          state = new RunState(RunLifeCycleState.PENDING);
+          state.setLifeCycleState(RunLifeCycleState.PENDING);
           break;
         case FAILED:
-          state = new RunState(RunLifeCycleState.TERMINATED, RunResultState.FAILED);
+          state.setLifeCycleState(RunLifeCycleState.TERMINATED);
+          state.setResultState(RunResultState.FAILED);
           break;
         case FINISHED:
-          state = new RunState(RunLifeCycleState.TERMINATED, RunResultState.SUCCESS);
+          state.setLifeCycleState(RunLifeCycleState.TERMINATED);
+          state.setResultState(RunResultState.SUCCESS);
           break;
         case KILLED:
-          state = new RunState(RunLifeCycleState.TERMINATED, RunResultState.CANCELED);
+          state.setLifeCycleState(RunLifeCycleState.TERMINATED);
+          state.setResultState(RunResultState.CANCELED);
           break;
         case LOST:
-          state = new RunState(RunLifeCycleState.INTERNAL_ERROR);
+          state.setLifeCycleState(RunLifeCycleState.INTERNAL_ERROR);
           break;
         case RUNNING:
-          state = new RunState(RunLifeCycleState.RUNNING);
+          state.setLifeCycleState(RunLifeCycleState.RUNNING);
           break;
         case SUBMITTED:
-          state = new RunState(RunLifeCycleState.PENDING);
+          state.setLifeCycleState(RunLifeCycleState.PENDING);
           break;
         case UNKNOWN:
-          state = new RunState(RunLifeCycleState.PENDING);
+          state.setLifeCycleState(RunLifeCycleState.PENDING);
           break;
         default:
           throw new IllegalStateException("Unexpected job state: " + handle.getState());
       }
 
-      state.setState_message(handle.getState().toString());
+      state.setStateMessage(handle.getState().toString());
 
-      return state;
+      return state.build();
     }
 
     RunsSubmitResponse runsSubmit(Request request, Response response) throws Exception {
-      RunsSubmitRequest req = gson.fromJson(request.body(), RunsSubmitRequest.class);
+      RunsSubmitRequest req = objectMapper.readValue(request.body(), RunsSubmitRequest.class);
 
       List<String> jars = new ArrayList<>();
       for (Library library : req.getLibraries()) {
         jars.add(library.getJar());
       }
 
-      SparkJarTask task = req.getSpark_jar_task();
+      SparkJarTask task = req.getSparkJarTask();
       SparkAppHandle handle =
-          appFactory.createApp(jars, task.getMain_class_name(), task.getParameters());
+          appFactory.createApp(jars, task.getMainClassName(), task.getParameters());
 
       long run_id = runTracker.addRun(handle);
-      return new RunsSubmitResponse(run_id);
+      return RunsSubmitResponse.builder().setRunId(run_id).build();
     }
   }
 

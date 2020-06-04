@@ -16,18 +16,52 @@
  */
 package feast.databricks.types;
 
-import java.util.Collections;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.auto.value.AutoValue;
 import java.util.List;
-import lombok.Getter;
-import lombok.Setter;
+import java.util.Optional;
 
-@Getter
-@Setter
-public class RunsSubmitRequest {
-  private NewCluster new_cluster;
-  private SparkJarTask spark_jar_task;
-  private String run_name = "Untitled";
-  private List<Library> libraries = Collections.emptyList();
-  private int timeout_seconds;
-  private String idempotency_token;
+@AutoValue
+@JsonDeserialize(builder = AutoValue_RunsSubmitRequest.Builder.class)
+public abstract class RunsSubmitRequest {
+
+  @JsonProperty("new_cluster")
+  public abstract NewCluster getNewCluster();
+
+  @JsonProperty("spark_jar_task")
+  public abstract SparkJarTask getSparkJarTask();
+
+  @JsonProperty("run_name")
+  public abstract String getRunName();
+
+  @JsonProperty("libraries")
+  public abstract List<Library> getLibraries();
+
+  @JsonProperty("timeout_seconds")
+  public abstract Optional<Integer> getTimeoutSeconds();
+
+  public static Builder builder() {
+    return new AutoValue_RunsSubmitRequest.Builder();
+  }
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+    @JsonProperty("new_cluster")
+    public abstract Builder setNewCluster(NewCluster value);
+
+    @JsonProperty("spark_jar_task")
+    public abstract Builder setSparkJarTask(SparkJarTask value);
+
+    @JsonProperty("run_name")
+    public abstract Builder setRunName(String value);
+
+    @JsonProperty("libraries")
+    public abstract Builder setLibraries(List<Library> value);
+
+    @JsonProperty("timeout_seconds")
+    public abstract Builder setTimeoutSeconds(Optional<Integer> value);
+
+    public abstract RunsSubmitRequest build();
+  }
 }

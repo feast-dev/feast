@@ -16,11 +16,26 @@
  */
 package feast.databricks.types;
 
-import lombok.Getter;
-import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.auto.value.AutoValue;
 
-@Getter
-@Setter
-public class Library {
-  private String jar;
+@AutoValue
+@JsonDeserialize(builder = AutoValue_Library.Builder.class)
+public abstract class Library {
+  @JsonProperty("jar")
+  public abstract String getJar();
+
+  public static Builder builder() {
+    return new AutoValue_Library.Builder();
+  }
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+
+    @JsonProperty("jar")
+    public abstract Builder setJar(String value);
+
+    public abstract Library build();
+  }
 }

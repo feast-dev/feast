@@ -102,8 +102,8 @@ public class DatabricksEmulatorTest {
     RunsSubmitResponse result2 = emulator.runsSubmit(request, response);
 
     // Assert
-    assertThat(result1.getRun_id(), equalTo(1L));
-    assertThat(result2.getRun_id(), equalTo(2L));
+    assertThat(result1.getRunId(), equalTo(1L));
+    assertThat(result2.getRunId(), equalTo(2L));
   }
 
   @Test
@@ -119,7 +119,7 @@ public class DatabricksEmulatorTest {
     RunsGetResponse result1 = emulator.runsGet(request, response);
 
     // Assert
-    assertThat(result1.getState().getLife_cycle_state(), equalTo(RunLifeCycleState.TERMINATED));
-    assertThat(result1.getState().getResult_state(), equalTo(RunResultState.SUCCESS));
+    assertThat(result1.getState().getLifeCycleState(), equalTo(RunLifeCycleState.TERMINATED));
+    assertThat(result1.getState().getResultState(), equalTo(RunResultState.SUCCESS));
   }
 }

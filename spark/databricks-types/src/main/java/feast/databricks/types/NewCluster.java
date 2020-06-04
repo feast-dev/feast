@@ -16,13 +16,37 @@
  */
 package feast.databricks.types;
 
-import lombok.Getter;
-import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.auto.value.AutoValue;
 
-@Getter
-@Setter
-public class NewCluster {
-  int num_workers;
-  String spark_version;
-  String node_type_id;
+@AutoValue
+@JsonDeserialize(builder = AutoValue_NewCluster.Builder.class)
+public abstract class NewCluster {
+  @JsonProperty("num_workers")
+  public abstract int numWorkers();
+
+  @JsonProperty("spark_version")
+  public abstract String sparkVersion();
+
+  @JsonProperty("node_type_id")
+  public abstract String nodeTypeId();
+
+  public static Builder builder() {
+    return new AutoValue_NewCluster.Builder();
+  }
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+    @JsonProperty("num_workers")
+    public abstract Builder setNumWorkers(int value);
+
+    @JsonProperty("spark_version")
+    public abstract Builder setSparkVersion(String value);
+
+    @JsonProperty("node_type_id")
+    public abstract Builder setNodeTypeId(String value);
+
+    public abstract NewCluster build();
+  }
 }
