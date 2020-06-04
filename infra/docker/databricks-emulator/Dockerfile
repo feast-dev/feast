@@ -2,7 +2,18 @@
 # Build stage 1: Builder
 # ============================================================
 
-FROM maven:3.6-jdk-11-slim as builder
+FROM maven:3.6-jdk-11 as builder
+
+ARG SPARK_VERSION=2.4.5
+ARG HADOOP_VERSION=2.7
+
+# Install Spark runtime
+WORKDIR /
+
+RUN wget -q https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz \
+    && tar -zxf spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz \
+    && mv spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} spark
+
 ARG REVISION=dev
 
 WORKDIR /build
@@ -37,18 +48,9 @@ RUN mvn --also-make --projects spark/databricks-emulator -Drevision=$REVISION \
 FROM openjdk:8u252-jre as production
 ARG REVISION=dev
 
-ARG SPARK_VERSION=2.4.5
-ARG HADOOP_VERSION=2.7
+ENV SPARK_HOME /spark
 
-# Install Spark runtime
-WORKDIR /
-
-RUN wget -q https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz \
-    && tar -zxf spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz \
-    && rm spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz
-
-ENV SPARK_HOME /spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}
-
+COPY --from=builder /spark /spark
 COPY --from=builder /build/spark/databricks-emulator/target/databricks-emulator-$REVISION.jar /opt/databricks-emulator.jar
 CMD ["java",\
      "-Xms2048m",\
