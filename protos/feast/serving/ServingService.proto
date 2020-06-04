@@ -105,32 +105,26 @@ message GetOnlineFeaturesRequest {
 }
 
 message GetOnlineFeaturesResponse {
-    // Data records retrieved from the online feast store.
-    // Each record represents the data retrieved for an entity row in the request.
-    repeated Record records = 1;
+    // Feature values retrieved from feast.
+    repeated FieldValues field_values = 1;
 
-    message Record {
-        // Map of field name to data fields stored in this data record.
-        // Each field represents an individual feature in the data record.
-        map<string, Field> fields = 1;
+    message FieldValues {
+        // Map of feature or entity name to feature/entity values.
+        // Timestamps are not returned in this response.
+        map<string, feast.types.Value> fields = 1;
+        // Map of feature or entity name to feature/entity statuses/metadata.
+        map<string, FieldStatus> statuses = 2;
     }
-
-    message Field {
-        // Value of this field.
-        feast.types.Value value = 1;
-        // Status of this field.
-        FieldStatus status = 2;
-    }
-
+   
     enum FieldStatus {
         // Status is unset for this field.
         INVALID = 0;
 
-        // Field value is present for this field and within maximum allowable range.
+        // Field value is present for this field and within maximum allowable range               
         PRESENT = 1;
 
         // Values could be found for entity key within the maximum allowable range, but
-        // this field value is assigned a null value on ingestion into feast.
+        // this field value is assigned a value on ingestion into feast.
         NULL_VALUE = 2;
 
         // Entity key did not return any values as they do not exist in Feast.
@@ -139,7 +133,7 @@ message GetOnlineFeaturesResponse {
         NOT_FOUND = 3;
 
         // Values could be found for entity key, but field values are outside the maximum 
-        // allowable range: values are older than max age.
+        // allowable range.
         OUTSIDE_MAX_AGE = 4;
     }
 }
