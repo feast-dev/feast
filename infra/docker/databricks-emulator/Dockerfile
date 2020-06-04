@@ -14,6 +14,15 @@ RUN wget -q https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-$
     && tar -zxf spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz \
     && mv spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} spark
 
+RUN cd spark/jars && for jar in \
+        org/apache/spark/spark-sql-kafka-0-10_2.11/2.4.5/spark-sql-kafka-0-10_2.11-2.4.5.jar \
+        org/apache/kafka/kafka-clients/2.3.0/kafka-clients-2.3.0.jar \
+        ; do \
+      wget https://repo1.maven.org/maven2/$jar; \
+    done
+
+RUN mv spark/conf/log4j.properties.template spark/conf/log4j.properties
+
 ARG REVISION=dev
 
 WORKDIR /build

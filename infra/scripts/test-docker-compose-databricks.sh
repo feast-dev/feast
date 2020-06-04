@@ -34,6 +34,9 @@ cp .env.sample .env
 export FEAST_CORE_CONFIG=${FEAST_CORE_CONFIG:-databricks.yml}
 export FEAST_DATABRICKS_EMULATOR_IMAGE=${FEAST_DATABRICKS_EMULATOR_IMAGE:-gcr.io/kf-feast/feast-databricks-emulator}
 
+# Build Databricks emulator image
+docker-compose -f docker-compose.databricks.yml build
+
 # Start Docker Compose containers
 docker-compose $COMPOSE_ARGS up -d
 
