@@ -26,17 +26,14 @@ import com.google.common.collect.Lists;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.job.Runner;
 import feast.core.model.*;
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.util.HashMap;
-import java.util.Map;
-
 import feast.proto.core.FeatureSetProto;
+import feast.proto.core.RunnerProto.DatabricksRunnerConfigOptions;
 import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
+import java.io.IOException;
+import java.net.http.HttpClient;
+import java.net.http.HttpResponse;
+import java.util.Map;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,15 +56,8 @@ public class DatabricksJobManagerTest {
   @Before
   public void setUp() {
     initMocks(this);
-    runnerConfigOptions = new HashMap<>();
-    runnerConfigOptions.put("databricksHost", "https://databricks");
-    runnerConfigOptions.put("databricksJobId", "1");
-    token = "TEST_TOKEN";
     MetricsProperties metricsProperties = new MetricsProperties();
     metricsProperties.setEnabled(false);
-    dbJobManager =
-        new DatabricksJobManager(runnerConfigOptions, metricsProperties, token, httpClient);
-    dbJobManager = spy(dbJobManager);
   }
 
   @Test
@@ -81,8 +71,11 @@ public class DatabricksJobManagerTest {
     Mockito.when(httpClient.send(any(), any())).thenReturn(httpResponse);
     MetricsProperties metricsProperties = new MetricsProperties();
     metricsProperties.setEnabled(false);
+    DatabricksRunnerConfigOptions.Builder databricksRunnerConfigOptions =
+        DatabricksRunnerConfigOptions.newBuilder();
     dbJobManager =
-        new DatabricksJobManager(runnerConfigOptions, metricsProperties, token, httpClient);
+        new DatabricksJobManager(
+            databricksRunnerConfigOptions.build(), metricsProperties, httpClient);
     dbJobManager = spy(dbJobManager);
 
     JobStatus jobStatus = dbJobManager.getJobStatus(job);
@@ -102,8 +95,12 @@ public class DatabricksJobManagerTest {
     Mockito.when(httpClient.send(any(), any())).thenReturn(httpResponse);
     MetricsProperties metricsProperties = new MetricsProperties();
     metricsProperties.setEnabled(false);
+
+    DatabricksRunnerConfigOptions.Builder databricksRunnerConfigOptions =
+        DatabricksRunnerConfigOptions.newBuilder();
     dbJobManager =
-        new DatabricksJobManager(runnerConfigOptions, metricsProperties, token, httpClient);
+        new DatabricksJobManager(
+            databricksRunnerConfigOptions.build(), metricsProperties, httpClient);
     dbJobManager = spy(dbJobManager);
 
     JobStatus jobStatus = dbJobManager.getJobStatus(job);
@@ -122,10 +119,7 @@ public class DatabricksJobManagerTest {
                     .setPort(6379)
                     .build())
             .addSubscriptions(
-                StoreProto.Store.Subscription.newBuilder()
-                    .setProject("*")
-                    .setName("*")
-                    .build())
+                StoreProto.Store.Subscription.newBuilder().setProject("*").setName("*").build())
             .build();
 
     SourceProto.Source source =
@@ -152,7 +146,10 @@ public class DatabricksJobManagerTest {
     String runNowResponseBody = "{ \"run_id\" : \"10\" } ";
     String jobStatusResponseBody = "{ \"state\": {\"life_cycle_state\" : \"RUNNING\"} } ";
 
-    when(httpResponse.body()).thenReturn(createResponseBody).thenReturn(runNowResponseBody).thenReturn(jobStatusResponseBody);
+    when(httpResponse.body())
+        .thenReturn(createResponseBody)
+        .thenReturn(runNowResponseBody)
+        .thenReturn(jobStatusResponseBody);
     when(httpResponse.statusCode()).thenReturn(200);
 
     Mockito.when(httpClient.send(any(), any())).thenReturn(httpResponse);
@@ -169,9 +166,11 @@ public class DatabricksJobManagerTest {
 
     MetricsProperties metricsProperties = new MetricsProperties();
     metricsProperties.setEnabled(false);
-
+    DatabricksRunnerConfigOptions.Builder databricksRunnerConfigOptions =
+        DatabricksRunnerConfigOptions.newBuilder();
     dbJobManager =
-        new DatabricksJobManager(runnerConfigOptions, metricsProperties, token, httpClient);
+        new DatabricksJobManager(
+            databricksRunnerConfigOptions.build(), metricsProperties, httpClient);
     dbJobManager = spy(dbJobManager);
 
     doReturn(httpResponse).when(mockHttpClient).send(any(), any());
@@ -189,6 +188,5 @@ public class DatabricksJobManagerTest {
 
     assertThat(actual.getExtId(), equalTo("10"));
     assertThat(actual.getId(), equalTo(job.getId()));
-
   }
 }

@@ -24,10 +24,10 @@ import lombok.Setter;
 @Getter
 @Setter
 public class CreateRequest {
-    private NewCluster new_cluster;
-    private SparkJarTask spark_jar_task;
-    private String name = "Untitled";
-    private List<Library> libraries = Collections.emptyList();
-    private int timeout_seconds;
-    private int max_retries;
+  private NewCluster new_cluster;
+  private SparkJarTask spark_jar_task;
+  private String name = "Untitled";
+  private List<Library> libraries = Collections.emptyList();
+  private int timeout_seconds;
+  private int max_retries;
 }

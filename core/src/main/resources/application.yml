@@ -54,6 +54,15 @@ feast:
           usePublicIps: false
           workerMachineType: n1-standard-1
           deadLetterTableSpec: project_id:dataset_id.table_id
+      - name: databricks
+        type: Databricks
+        options:
+          host: databricks_host
+          token:  ${DATABRICKS_TOKEN}
+          jarFile: jar_file
+          sparkSubmitParams: []
+          jarParams: []
+
 
     # Configuration options for metric collection for all ingestion jobs
     metrics:

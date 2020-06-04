@@ -74,3 +74,38 @@ message DataflowRunnerConfigOptions {
     /* Labels to apply to the dataflow job */
     map<string, string> labels = 13;
 }
+
+message DatabricksRunnerConfigOptions {
+
+    message DatabricksNewClusterOptions{
+
+        string sparkVersion = 1;
+
+        string nodeTypeId = 2;
+
+        int32 numWorkers = 3;
+    }
+
+    message DatabricksSparkJarTaskOptions{
+
+        string mainClassName = 1;
+    }
+
+    /* Databricks host */
+    string host = 1;
+
+    /* Databricks token */
+    string token = 2;
+
+    string jarFile = 3;
+
+    repeated string sparkSubmitParams = 4;
+
+    repeated string jarParams = 5;
+
+    DatabricksNewClusterOptions newCluster = 6;
+
+    DatabricksSparkJarTaskOptions sparkJarTask = 7;
+
+
+}
