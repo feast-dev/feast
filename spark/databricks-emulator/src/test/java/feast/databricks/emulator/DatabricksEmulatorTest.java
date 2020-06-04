@@ -49,7 +49,8 @@ public class DatabricksEmulatorTest {
           + "    }\n"
           + "  ],\n"
           + "  \"spark_jar_task\": {\n"
-          + "    \"main_class_name\": \"org.apache.spark.examples.SparkPi\"\n"
+          + "    \"main_class_name\": \"org.apache.spark.examples.SparkPi\",\n"
+          + "    \"parameters\": [\"100\"]\n"
           + "  }\n"
           + "}\n"
           + "";
