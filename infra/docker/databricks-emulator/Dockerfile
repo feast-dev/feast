@@ -38,7 +38,7 @@ COPY LICENSE .m[2] .m2/
 # the existing .m2 directory to $FEAST_REPO_ROOT/.m2
 #
 ENV MAVEN_OPTS="-Dmaven.repo.local=/build/.m2/repository -DdependencyLocationsEnabled=false"
-RUN mvn --also-make --projects spark/databricks-emulator -Drevision=$REVISION \
+RUN mvn --also-make --projects spark/databricks-emulator,spark/spark-ingestion-job -Drevision=$REVISION \
   -DskipTests=true --batch-mode clean package
 
 # ============================================================
@@ -52,6 +52,7 @@ ENV SPARK_HOME /spark
 
 COPY --from=builder /spark /spark
 COPY --from=builder /build/spark/databricks-emulator/target/databricks-emulator-$REVISION.jar /opt/databricks-emulator.jar
+COPY --from=builder /build/spark/spark-ingestion-job/target/spark-ingestion-job-$REVISION.jar /opt/spark-ingestion-job.jar
 CMD ["java",\
      "-Xms2048m",\
      "-Xmx2048m",\
