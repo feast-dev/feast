@@ -31,7 +31,7 @@ object SparkIngestion {
       System.exit(1)
     }
 
-    val Array(bootstrapServers, subscribeType, topics, _*) = args
+    val Array(bootstrapServers, topics, _*) = args
     val checkpointLocation =
       if (args.length > 2) args(2) else "/tmp/temporary-" + UUID.randomUUID.toString
 
@@ -49,12 +49,11 @@ object SparkIngestion {
       .readStream
       .format("kafka")
       .option("kafka.bootstrap.servers", bootstrapServers)
-      .option(subscribeType, topics)
+      .option("subscribe", topics)
       .load()
 
     // Start running the query that prints the data to the console
     val query = input.writeStream
-      .outputMode("complete")
       .format("console")
       .option("checkpointLocation", checkpointLocation)
       .start()
