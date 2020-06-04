@@ -236,7 +236,7 @@ public class DatabricksJobManager implements JobManager {
                 throw new HttpException(
                         String.format("Databricks returned with unexpected code: %s", response.statusCode()));
             }
-        } catch (IOException | InterruptedException | HttpException e) {
+        } catch (Exception e) {
             log.error("Unable to run databricks job with id : {}\ncause: {}", databricksJobId, e.getMessage());
             throw new JobExecutionException(
                     String.format("Unable to run databricks job with id : %s\ncause: %s", databricksJobId, e), e);
@@ -245,11 +245,16 @@ public class DatabricksJobManager implements JobManager {
     }
 
     private RunNowRequest getRunNowRequest(String databricksJobId) {
-        // TODO: investigate whats required for spark submit + jar params.
+        // TODO: investigate whats required for spark submit + jar params. (store config + featureset proto definitions?)
 
         RunNowRequest runNowRequest = new RunNowRequest();
         SparkSubmitParams sparkSubmitParams = new SparkSubmitParams();
         JarParams jarParams = new JarParams();
+
+        sparkSubmitParams.setMain_class_name(this.defaultOptions.get("sparkMainClassName"));
+        jarParams.setKafka_broker(this.defaultOptions.get("kafkaBroker"));
+        jarParams.setTopic_name(this.defaultOptions.get("kafkaTopicName"));
+
 
         runNowRequest.setJob_id(Integer.parseInt(databricksJobId));
         runNowRequest.setSpark_submit_params(sparkSubmitParams);
@@ -260,17 +265,17 @@ public class DatabricksJobManager implements JobManager {
 
     private CreateRequest getJobRequest(String jobId) {
         NewCluster newCluster = new NewCluster();
-        newCluster.setNum_workers(this.defaultOptions.get("num_workers"));
-        newCluster.setSpark_version(this.defaultOptions.get("spark_version"));
-        newCluster.setNode_type_id(this.defaultOptions.get("node_type_id"));
+        newCluster.setNum_workers(this.defaultOptions.get("sparkNumWorkers"));
+        newCluster.setSpark_version(this.defaultOptions.get("sparkVersion"));
+        newCluster.setNode_type_id(this.defaultOptions.get("sparkNodeTypeId"));
 
         List<Library> libraries = new ArrayList<>();
         Library library = new Library();
-        library.setJar(this.defaultOptions.get("jar"));
+        library.setJar(this.defaultOptions.get("jarLocation"));
         libraries.add(library);
 
         SparkJarTask sparkJarTask = new SparkJarTask();
-        sparkJarTask.setMain_class_name(this.defaultOptions.get("main_class_name"));
+        sparkJarTask.setMain_class_name(this.defaultOptions.get("sparkMainClassName"));
 
         CreateRequest createRequest = new CreateRequest();
         createRequest.setName(jobId);
@@ -281,14 +286,13 @@ public class DatabricksJobManager implements JobManager {
         return createRequest;
     }
 
-    @SneakyThrows
-    private String waitForJobToRun(Job job) {
+    private void waitForJobToRun(Job job) throws InterruptedException {
         while (true) {
             JobStatus jobStatus = this.getJobStatus(job);
             if (jobStatus.isTerminal()) {
                 throw new RuntimeException();
             } else if (jobStatus.equals(JobStatus.RUNNING)) {
-                return job.getExtId();
+                break;
             }
             Thread.sleep(2000);
 
