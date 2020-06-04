@@ -16,15 +16,11 @@
  */
 package feast.storage.connectors.bigtable.retriever;
 
-import com.google.api.gax.rpc.ResponseObserver;
-import com.google.cloud.bigtable.data.v2.models.Row;
+import com.google.cloud.bigtable.data.v2.BigtableDataClient;
+import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
-import com.google.cloud.bigtable.data.v2.models.Query;
-import com.google.cloud.bigtable.data.v2.BigtableDataClient;
-import com.google.rpc.context.AttributeContext;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
@@ -36,7 +32,6 @@ import feast.proto.types.ValueProto.Value;
 import feast.storage.api.retriever.FeatureSetRequest;
 import feast.storage.api.retriever.OnlineRetriever;
 import io.grpc.Status;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -102,7 +97,8 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
     return featureRows;
   }
 
-  private List<BigtableKey> buildBigtableKeys(List<EntityRow> entityRows, FeatureSetSpec featureSetSpec) {
+  private List<BigtableKey> buildBigtableKeys(
+      List<EntityRow> entityRows, FeatureSetSpec featureSetSpec) {
     String featureSetRef = generateFeatureSetStringRef(featureSetSpec);
     List<String> featureSetEntityNames =
         featureSetSpec.getEntitiesList().stream()
@@ -152,9 +148,11 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
       List<FeatureReference> featureReferences)
       throws InvalidProtocolBufferException, ExecutionException {
 
-
-    List<ByteString> refs = featureReferences.stream().map(featureReference -> ByteString.copyFromUtf8(featureReference.getName())).collect(Collectors.toList());
-    List<byte[]> values = sendMultiGet(bigtableKeys, refs.get(0), refs.get(refs.size()-1));
+    List<ByteString> refs =
+        featureReferences.stream()
+            .map(featureReference -> ByteString.copyFromUtf8(featureReference.getName()))
+            .collect(Collectors.toList());
+    List<byte[]> values = sendMultiGet(bigtableKeys, refs.get(0), refs.get(refs.size() - 1));
     List<FeatureRow> featureRows = new ArrayList<>();
 
     FeatureRow.Builder nullFeatureRowBuilder =
@@ -192,25 +190,29 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
    * Send a list of get request as an mget
    *
    * @param keys list of {@link BigtableKey}
-   * @return list of {@link FeatureRow} in primitive byte representation for each {@link BigtableKey}
+   * @return list of {@link FeatureRow} in primitive byte representation for each {@link
+   *     BigtableKey}
    */
-  private List<byte[]> sendMultiGet(List<BigtableKey> keys, ByteString startSuffix, ByteString endSuffix) {
+  private List<byte[]> sendMultiGet(
+      List<BigtableKey> keys, ByteString startSuffix, ByteString endSuffix) {
     ByteString[][] binaryKeys =
-            keys.stream()
-                    .map(AbstractMessageLite::toByteString)
-                    .collect(Collectors.toList())
-                    .toArray(new ByteString[0][0]);
+        keys.stream()
+            .map(AbstractMessageLite::toByteString)
+            .collect(Collectors.toList())
+            .toArray(new ByteString[0][0]);
     ByteStringRange keyRange = ByteStringRange.create(startSuffix, endSuffix).endClosed(endSuffix);
-    ResponseObserver<Row> multiGetObserver = BigtableResponseObserver.create();
+    // ResponseObserver<Row> multiGetObserver = BigtableResponseObserver.create();
     try {
-          dataClient.readRowsAsync(Query.create(table).range(keyRange), multiGetObserver).wait();
-          return multiGetObserver.getResult();
+      // dataClient.readRowsAsync(Query.create(table).range(keyRange), multiGetObserver).wait();
+      // return multiGetObserver.getResult();
+      System.out.println("hello");
     } catch (Exception e) {
       throw Status.NOT_FOUND
           .withDescription("Unable to retrieve feature from Bigtable")
           .withCause(e)
           .asRuntimeException();
     }
+    return new ArrayList<>();
   }
 
   // TODO: Refactor this out to common package?

@@ -16,6 +16,7 @@
  */
 package feast.storage.connectors.bigtable.writer;
 
+import com.google.protobuf.ByteString;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
@@ -35,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-import com.google.protobuf.ByteString;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -63,7 +63,8 @@ public class BigtableCustomIO {
 
   private BigtableCustomIO() {}
 
-  public static Write write(BigtableConfig bigtableConfig, Map<String, FeatureSetSpec> featureSetSpecs) {
+  public static Write write(
+      BigtableConfig bigtableConfig, Map<String, FeatureSetSpec> featureSetSpecs) {
     return new Write(bigtableConfig, featureSetSpecs);
   }
 
@@ -183,7 +184,8 @@ public class BigtableCustomIO {
                 .collect(Collectors.toList());
 
         Map<String, Field> entityFields = new HashMap<>();
-        Builder bigtableKeyBuilder = BigtableKey.newBuilder().setFeatureSet(featureRow.getFeatureSet());
+        Builder bigtableKeyBuilder =
+            BigtableKey.newBuilder().setFeatureSet(featureRow.getFeatureSet());
         for (Field field : featureRow.getFieldsList()) {
           if (entityNames.contains(field.getName())) {
             entityFields.putIfAbsent(
@@ -223,10 +225,12 @@ public class BigtableCustomIO {
                                 .build()))
                 .collect(Collectors.toList());
 
-        return ByteString.copyFrom(FeatureRow.newBuilder()
-            .setEventTimestamp(featureRow.getEventTimestamp())
-            .addAllFields(values)
-            .build().toByteArray());
+        return ByteString.copyFrom(
+            FeatureRow.newBuilder()
+                .setEventTimestamp(featureRow.getEventTimestamp())
+                .addAllFields(values)
+                .build()
+                .toByteArray());
       }
 
       @ProcessElement

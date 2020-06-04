@@ -16,14 +16,13 @@
  */
 package feast.storage.connectors.bigtable.writer;
 
-import com.google.common.collect.Lists;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.protobuf.ByteString;
 import feast.proto.core.StoreProto;
 import feast.storage.common.retry.BackOffExecutor;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
+import io.grpc.Status;
+import java.io.IOException;
 import org.joda.time.Duration;
 
 public class BigtableStandaloneIngestionClient implements BigtableIngestionClient {
@@ -39,14 +38,22 @@ public class BigtableStandaloneIngestionClient implements BigtableIngestionClien
     this.projectId = bigtableConfig.getProjectId();
     this.instanceId = bigtableConfig.getInstanceId();
     this.table = bigtableConfig.getTableId();
-    long backoffMs = bigtableConfig.getInitialBackoffMs() > 0 ? bigtableConfig.getInitialBackoffMs() : 1;
+    this.backoffMs =
+        bigtableConfig.getInitialBackoffMs() > 0 ? bigtableConfig.getInitialBackoffMs() : 1;
     this.backOffExecutor =
-            new BackOffExecutor(bigtableConfig.getMaxRetries(), Duration.millis(this.backoffMs));
+        new BackOffExecutor(bigtableConfig.getMaxRetries(), Duration.millis(this.backoffMs));
   }
 
   @Override
   public void setup() {
-    this.bigtableclient = BigtableDataClient.create(projectId, instanceId);
+    try {
+      this.bigtableclient = BigtableDataClient.create(projectId, instanceId);
+    } catch (IOException e) {
+      throw Status.UNAVAILABLE
+          .withDescription("Unable to set up the BigtableDataClient")
+          .withCause(e)
+          .asRuntimeException();
+    }
   }
 
   @Override
@@ -59,12 +66,10 @@ public class BigtableStandaloneIngestionClient implements BigtableIngestionClien
     return this.backOffExecutor;
   }
 
-    @Override
+  @Override
   public void set(String key, ByteString value) {
     RowMutation rowMutation =
-            RowMutation.create(table, key)
-                    .setCell("feature", "", value);
+        RowMutation.create(table, key).setCell("feature", ByteString.copyFromUtf8("latest"), value);
     this.bigtableclient.mutateRow(rowMutation);
   }
-
 }
