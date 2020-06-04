@@ -138,8 +138,9 @@ public class DatabricksEmulator {
         jars.add(library.getJar());
       }
 
+      SparkJarTask task = req.getSpark_jar_task();
       SparkAppHandle handle =
-          appFactory.createApp(jars, req.getSpark_jar_task().getMain_class_name());
+          appFactory.createApp(jars, task.getMain_class_name(), task.getParameters());
 
       long run_id = runTracker.addRun(handle);
       return new RunsSubmitResponse(run_id);
@@ -148,7 +149,8 @@ public class DatabricksEmulator {
 
   public static class SparkAppFactory {
 
-    SparkAppHandle createApp(List<String> jars, String mainClassName) throws IOException {
+    SparkAppHandle createApp(List<String> jars, String mainClassName, List<String> parameters)
+        throws IOException {
       SparkLauncher launcher = new SparkLauncher();
       String appResource = null;
       for (String jar : jars) {
@@ -160,6 +162,7 @@ public class DatabricksEmulator {
           .setMaster("local") //
           .setAppResource(appResource) //
           .setConf(SparkLauncher.DRIVER_MEMORY, "1g") //
+          .addAppArgs((String[]) parameters.toArray(new String[parameters.size()]))
           .startApplication();
     }
   }

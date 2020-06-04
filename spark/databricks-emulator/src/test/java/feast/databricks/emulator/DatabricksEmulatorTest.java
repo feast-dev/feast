@@ -23,6 +23,7 @@ import static org.mockito.MockitoAnnotations.*;
 
 import feast.databricks.emulator.DatabricksEmulator.*;
 import feast.databricks.types.*;
+import java.util.Arrays;
 import java.util.Collections;
 import org.apache.spark.launcher.SparkAppHandle;
 import org.apache.spark.launcher.SparkAppHandle.State;
@@ -70,7 +71,7 @@ public class DatabricksEmulatorTest {
     initMocks(this);
     emulator = new EmulatorService();
     emulator.appFactory = appFactory;
-    when(appFactory.createApp(anyList(), anyString())).thenReturn(handle);
+    when(appFactory.createApp(anyList(), anyString(), anyList())).thenReturn(handle);
   }
 
   @Test
@@ -86,7 +87,8 @@ public class DatabricksEmulatorTest {
         .createApp(
             Collections.singletonList(
                 "/spark-2.4.5-bin-hadoop2.7/examples/jars/spark-examples_2.11-2.4.5.jar"),
-            "org.apache.spark.examples.SparkPi");
+            "org.apache.spark.examples.SparkPi",
+            Arrays.asList("100"));
   }
 
   @Test
