@@ -17,8 +17,7 @@
 package feast.serving.util.mappers;
 
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.Field;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.Record;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.proto.types.ValueProto.Value;
 import java.util.List;
 import java.util.Map;
@@ -29,18 +28,17 @@ public class ResponseJSONMapper {
 
   public static List<Map<String, Object>> mapGetOnlineFeaturesResponse(
       GetOnlineFeaturesResponse response) {
-    return response.getRecordsList().stream()
-        .map(fieldValue -> convertToMap(fieldValue))
+    return response.getFieldValuesList().stream()
+        .map(fieldValues -> convertFieldValuesToMap(fieldValues))
         .collect(Collectors.toList());
   }
 
-  private static Map<String, Object> convertToMap(Record record) {
-    return record.getFieldsMap().entrySet().stream()
-        .collect(Collectors.toMap(es -> es.getKey(), es -> extractField(es.getValue())));
+  private static Map<String, Object> convertFieldValuesToMap(FieldValues fieldValues) {
+    return fieldValues.getFieldsMap().entrySet().stream()
+        .collect(Collectors.toMap(es -> es.getKey(), es -> extractValue(es.getValue())));
   }
 
-  private static Object extractField(Field field) {
-    Value value = field.getValue();
+  private static Object extractValue(Value value) {
     switch (value.getValCase().getNumber()) {
       case 1:
         return value.getBytesVal();
