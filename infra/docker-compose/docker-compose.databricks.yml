@@ -1,0 +1,13 @@
+version: "3.7"
+
+services:
+  databricks-emulator:
+    build:
+      context: ../..
+      dockerfile: infra/docker/databricks-emulator/Dockerfile
+    image: ${FEAST_DATABRICKS_EMULATOR_IMAGE}:${FEAST_VERSION}
+    volumes:
+      - ./temp/databricks-emulator-storage:/mnt/storage
+    restart: on-failure
+    ports:
+      - 8080:8080

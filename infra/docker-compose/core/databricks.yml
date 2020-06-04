@@ -1,0 +1,16 @@
+feast:
+  jobs:
+    polling_interval_milliseconds: 30000
+    job_update_timeout_seconds: 240
+    # TODO replace with DatabricksRunner
+    active_runner: direct
+    runners:
+      # TODO replace with DatabricksRunner
+      - name: direct
+        type: DirectRunner
+        options: {}
+  stream:
+    type: kafka
+    options:
+      topic: feast-features
+      bootstrapServers: "kafka:9092,localhost:9094"
