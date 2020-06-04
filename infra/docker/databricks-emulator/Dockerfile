@@ -48,7 +48,7 @@ COPY LICENSE .m[2] .m2/
 #
 ENV MAVEN_OPTS="-Dmaven.repo.local=/build/.m2/repository -DdependencyLocationsEnabled=false"
 RUN mvn --also-make --projects spark/databricks-emulator,spark/spark-ingestion-job -Drevision=$REVISION \
-  -DskipTests=true --batch-mode clean package
+  --batch-mode clean package
 
 # ============================================================
 # Build stage 2: Production
