@@ -245,7 +245,16 @@ public class DatabricksJobManager implements JobManager {
     }
 
     private RunNowRequest getRunNowRequest(String databricksJobId) {
-        return new RunNowRequest();
+        // TODO: investigate whats required for spark submit + jar params.
+
+        RunNowRequest runNowRequest = new RunNowRequest();
+        SparkSubmitParams sparkSubmitParams = new SparkSubmitParams();
+        JarParams jarParams = new JarParams();
+
+        runNowRequest.setJob_id(Integer.parseInt(databricksJobId));
+        runNowRequest.setSpark_submit_params(sparkSubmitParams);
+        runNowRequest.setJar_params(jarParams);
+        return runNowRequest;
     }
 
 
@@ -268,6 +277,7 @@ public class DatabricksJobManager implements JobManager {
         createRequest.setNew_cluster(newCluster);
         createRequest.setLibraries(libraries);
         createRequest.setSpark_jar_task(sparkJarTask);
+        createRequest.setMax_retries(maxRetries);
         return createRequest;
     }
 
