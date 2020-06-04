@@ -16,13 +16,18 @@
  */
 package feast.databricks.types;
 
+import java.util.Collections;
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
-public class NewCluster {
-  String num_workers;
-  String spark_version;
-  String node_type_id;
+public class CreateRequest {
+    private NewCluster new_cluster;
+    private SparkJarTask spark_jar_task;
+    private String name = "Untitled";
+    private List<Library> libraries = Collections.emptyList();
+    private int timeout_seconds;
+    private int max_retries;
 }
