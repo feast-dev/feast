@@ -6,5 +6,5 @@ import lombok.Setter;
 @Getter
 @Setter
 public class RunNowResponse {
-    private int runId;
+    private int run_id;
 }

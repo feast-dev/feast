@@ -222,7 +222,7 @@ public class DatabricksJobManager implements JobManager {
                 RunNowResponse runNowResponse = mapper.readValue(response.body(), RunNowResponse.class);
                 Job job = new Job(
                         jobId,
-                        String.valueOf(runNowResponse.getRunId()),
+                        String.valueOf(runNowResponse.getRun_id()),
                         getRunnerType(),
                         Source.fromProto(source),
                         Store.fromProto(sink),

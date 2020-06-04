@@ -27,7 +27,9 @@ import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.job.Runner;
 import feast.core.model.*;
 import java.io.IOException;
+import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.HashMap;
 import java.util.Map;
@@ -146,11 +148,22 @@ public class DatabricksJobManagerTest {
             .build();
 
     HttpResponse httpResponse = mock(HttpResponse.class);
-    String responseBody = "{ \"run_id\" : \"2\" } ";
-    when(httpResponse.body()).thenReturn(responseBody);
+    String createResponseBody = "{ \"job_id\" : \"5\" } ";
+    String runNowResponseBody = "{ \"run_id\" : \"10\" } ";
+    String jobStatusResponseBody = "{ \"state\": {\"life_cycle_state\" : \"RUNNING\"} } ";
+
+    when(httpResponse.body()).thenReturn(createResponseBody).thenReturn(runNowResponseBody).thenReturn(jobStatusResponseBody);
     when(httpResponse.statusCode()).thenReturn(200);
 
     Mockito.when(httpClient.send(any(), any())).thenReturn(httpResponse);
+
+    runnerConfigOptions.put("sparkMainClassName", "spark_main_class_name");
+    runnerConfigOptions.put("kafkaBroker", "kafka_broker");
+    runnerConfigOptions.put("kafkaTopic", "kafka_topic_name");
+    runnerConfigOptions.put("sparkNumWorkers", "spark_num_workers");
+    runnerConfigOptions.put("sparkVersion", "spark_version");
+    runnerConfigOptions.put("sparkNodeTypeId", "spark_node_type_id");
+    runnerConfigOptions.put("jarLocation", "jar_location");
 
     HttpClient mockHttpClient = Mockito.mock(HttpClient.class);
 
@@ -174,9 +187,8 @@ public class DatabricksJobManagerTest {
             JobStatus.PENDING);
     Job actual = dbJobManager.startJob(job);
 
-//    TODO fix test when implementation corrected.
-//    assertThat(actual.getExtId(), equalTo("2"));
-//    assertThat(actual.getId(), equalTo(job.getId()));
+    assertThat(actual.getExtId(), equalTo("10"));
+    assertThat(actual.getId(), equalTo(job.getId()));
 
   }
 }
