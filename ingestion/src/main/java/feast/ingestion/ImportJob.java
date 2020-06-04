@@ -46,8 +46,8 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.values.*;
 import org.slf4j.Logger;
 
 public class ImportJob {
@@ -104,7 +104,20 @@ public class ImportJob {
                 featureSetSpecsByKey.put(ref, fs.getSpec());
               });
 
-      FeatureSink featureSink = getFeatureSink(store, featureSetSpecsByKey);
+      PCollection<KV<String, FeatureSetSpec>> staticSpecs =
+          pipeline
+              .apply(Create.of(""))
+              .apply(
+                  "TemporarySpecSource",
+                  ParDo.of(
+                      new DoFn<String, KV<String, FeatureSetSpec>>() {
+                        @ProcessElement
+                        public void process(ProcessContext c) {
+                          featureSetSpecsByKey.forEach((key, value) -> c.output(KV.of(key, value)));
+                        }
+                      }));
+
+      FeatureSink featureSink = getFeatureSink(store, staticSpecs);
 
       // TODO: make the source part of the job initialisation options
       Source source = subscribedFeatureSets.get(0).getSpec().getSource();

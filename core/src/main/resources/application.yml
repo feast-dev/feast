@@ -38,7 +38,8 @@ feast:
     runners:
       - name: direct
         type: DirectRunner
-        options: {}
+        options:
+          tempLocation: gs://bucket/tempLocation
 
       - name: dataflow
         type: DataflowRunner

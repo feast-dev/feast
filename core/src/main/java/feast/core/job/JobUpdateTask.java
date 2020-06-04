@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 
 /**
  * JobUpdateTask is a callable that starts or updates a job given a set of featureSetSpecs, as well
@@ -172,8 +173,11 @@ public class JobUpdateTask implements Callable<Job> {
 
   String createJobId(String sourceId, String storeName) {
     String dateSuffix = String.valueOf(Instant.now().toEpochMilli());
-    String sourceIdTrunc = sourceId.split("/")[0].toLowerCase();
-    String jobId = String.format("%s-to-%s", sourceIdTrunc, storeName) + dateSuffix;
+    String[] sourceParts = sourceId.split("/", 2);
+    String sourceType = sourceParts[0].toLowerCase();
+    String sourceHash =
+        Hashing.murmur3_128().hashUnencodedChars(sourceParts[1]).toString().substring(0, 10);
+    String jobId = String.format("%s-%s-to-%s-%s", sourceType, sourceHash, storeName, dateSuffix);
     return jobId.replaceAll("_", "-");
   }
 

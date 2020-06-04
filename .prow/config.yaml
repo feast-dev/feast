@@ -255,8 +255,8 @@ presubmits:
         secret:
           secretName: feast-e2e-service-account
       - name: docker-socket
-          hostPath:
-            path: /var/run/docker.sock
+        hostPath:
+          path: /var/run/docker.sock
       containers:
       - image: google/cloud-sdk:273.0.0
         command: ["infra/scripts/test-end-to-end-batch-dataflow.sh"]

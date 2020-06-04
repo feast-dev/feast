@@ -137,38 +137,15 @@ public class DataflowJobManager implements JobManager {
   }
 
   /**
-   * Update an existing Dataflow job.
+   * Drain existing job. Replacement will be created on next run (when job gracefully stop)
    *
    * @param job job of target job to change
-   * @return Dataflow-specific job id
+   * @return same job as input
    */
   @Override
   public Job updateJob(Job job) {
-    try {
-      List<FeatureSetProto.FeatureSet> featureSetProtos = new ArrayList<>();
-      for (FeatureSet featureSet : job.getFeatureSets()) {
-        featureSetProtos.add(featureSet.toProto());
-      }
-
-      String extId =
-          submitDataflowJob(
-              job.getId(),
-              featureSetProtos,
-              job.getSource().toProto(),
-              job.getStore().toProto(),
-              true);
-
-      job.setExtId(extId);
-      job.setStatus(JobStatus.PENDING);
-      return job;
-    } catch (InvalidProtocolBufferException e) {
-      log.error(e.getMessage());
-      throw new IllegalArgumentException(
-          String.format(
-              "DataflowJobManager failed to UPDATE job with id '%s' because the job"
-                  + "has an invalid spec. Please check the FeatureSet, Source and Store specs. Actual error message: %s",
-              job.getId(), e.getMessage()));
-    }
+    abortJob(job.getExtId());
+    return job;
   }
 
   /**
@@ -283,7 +260,6 @@ public class DataflowJobManager implements JobManager {
     pipelineOptions.setJobName(jobName);
     pipelineOptions.setFilesToStage(
         detectClassPathResourcesToStage(DataflowRunner.class.getClassLoader()));
-
     if (metrics.isEnabled()) {
       pipelineOptions.setMetricsExporterType(metrics.getType());
       if (metrics.getType().equals("statsd")) {
