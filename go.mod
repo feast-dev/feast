@@ -25,7 +25,8 @@ require (
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
 	golang.org/x/net v0.0.0-20200513185701-a91f0712d120
 	golang.org/x/sys v0.0.0-20200515095857-1151b9dac4a9 // indirect
-	golang.org/x/tools v0.0.0-20200528185414-6be401e3f76e // indirect
+	golang.org/x/tools v0.0.0-20200521211927-2b542361a4fc // indirect
+	google.golang.org/genproto v0.0.0-20200515170657-fc4c6c6a6587 // indirect
 	google.golang.org/grpc v1.29.1
 	google.golang.org/protobuf v1.24.0 // indirect
 	gopkg.in/russross/blackfriday.v2 v2.0.0 // indirect

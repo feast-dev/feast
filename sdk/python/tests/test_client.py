@@ -47,11 +47,12 @@ from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.core.Source_pb2 import KafkaSourceConfig, Source, SourceType
 from feast.core.Store_pb2 import Store
 from feast.entity import Entity
-from feast.feature_set import Feature, FeatureSet, FeatureSetRef
+from feast.feature import Feature
+from feast.feature_set import FeatureSet, FeatureSetRef
 from feast.job import IngestJob
+from feast.serving.ServingService_pb2 import DataFormat, FeastServingType
+from feast.serving.ServingService_pb2 import FeatureReference as FeatureRefProto
 from feast.serving.ServingService_pb2 import (
-    DataFormat,
-    FeastServingType,
     GetBatchFeaturesResponse,
     GetFeastServingInfoResponse,
     GetJobResponse,
@@ -210,42 +211,50 @@ class TestClient:
         def int_val(x):
             return ValueProto.Value(int64_val=x)
 
-        # serving can return feature references with projects,
-        # get_online_features() should strip the project part.
-        field_values = GetOnlineFeaturesResponse.FieldValues(
-            fields={
-                "driver_project/driver:driver_id": int_val(1),
-                "driver_project/driver_id": int_val(9),
-            }
+        request = GetOnlineFeaturesRequest()
+        request.features.extend(
+            [
+                FeatureRefProto(
+                    project="driver_project", feature_set="driver", name="age"
+                ),
+                FeatureRefProto(project="driver_project", name="rating"),
+            ]
         )
-
-        response = GetOnlineFeaturesResponse()
-        entity_rows = []
+        recieve_response = GetOnlineFeaturesResponse()
         for row_number in range(1, ROW_COUNT + 1):
-            response.field_values.append(field_values)
-            entity_rows.append(
+            request.entity_rows.append(
                 GetOnlineFeaturesRequest.EntityRow(
-                    fields={"customer_id": int_val(row_number)}
+                    fields={"driver_id": int_val(row_number)}
                 )
+            ),
+            field_values = GetOnlineFeaturesResponse.FieldValues(
+                fields={
+                    "driver_id": int_val(row_number),
+                    "driver_project/driver:age": int_val(1),
+                    "driver_project/rating": int_val(9),
+                }
             )
+            recieve_response.field_values.append(field_values)
 
         mocker.patch.object(
             mocked_client._serving_service_stub,
             "GetOnlineFeatures",
-            return_value=response,
+            return_value=recieve_response,
         )
-
-        # NOTE: Feast Serving does not allow for feature references
-        # that specify the same feature in the same request
-        response = mocked_client.get_online_features(
-            entity_rows=entity_rows,
-            feature_refs=["driver:driver_id", "driver_id"],
+        got_response = mocked_client.get_online_features(
+            entity_rows=request.entity_rows,
+            feature_refs=["driver:age", "rating"],
             project="driver_project",
         )  # type: GetOnlineFeaturesResponse
+        mocked_client._serving_service_stub.GetOnlineFeatures.assert_called_with(
+            request
+        )
 
+        got_fields = got_response.field_values[0].fields
         assert (
-            response.field_values[0].fields["driver:driver_id"].int64_val == 1
-            and response.field_values[0].fields["driver_id"].int64_val == 9
+            got_fields["driver_id"] == int_val(1)
+            and got_fields["driver:age"] == int_val(1)
+            and got_fields["rating"] == int_val(9)
         )
 
     @pytest.mark.parametrize(
@@ -635,7 +644,7 @@ class TestClient:
         )
 
         with pytest.raises(exception):
-            test_client.ingest("driver-feature-set", dataframe)
+            test_client.ingest("driver-feature-set", dataframe, timeout=1)
 
     @pytest.mark.parametrize(
         "dataframe,exception,test_client",
