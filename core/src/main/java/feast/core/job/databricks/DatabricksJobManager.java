@@ -162,7 +162,7 @@ public class DatabricksJobManager implements JobManager {
 
   private String createDatabricksJob(String jobId) {
 
-    CreateRequest createRequest = getJobRequest(jobId);
+    JobsCreateRequest createRequest = getJobRequest(jobId);
 
     try {
       String body = mapper.writeValueAsString(createRequest);
@@ -178,9 +178,9 @@ public class DatabricksJobManager implements JobManager {
           this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
       if (response.statusCode() == HttpStatus.SC_OK) {
-        CreateResponse createResponse = mapper.readValue(response.body(), CreateResponse.class);
+        JobsCreateResponse createResponse = mapper.readValue(response.body(), JobsCreateResponse.class);
 
-        return String.valueOf(createResponse.getJob_id());
+        return String.valueOf(createResponse.getJobId());
       } else {
         throw new HttpException(
             String.format("Databricks returned with unexpected code: %s", response.statusCode()));
@@ -223,7 +223,7 @@ public class DatabricksJobManager implements JobManager {
         Job job =
             new Job(
                 jobId,
-                String.valueOf(runNowResponse.getRun_id()),
+                String.valueOf(runNowResponse.getRunId()),
                 getRunnerType(),
                 Source.fromProto(source),
                 Store.fromProto(sink),
@@ -247,43 +247,40 @@ public class DatabricksJobManager implements JobManager {
   }
 
   private RunNowRequest getRunNowRequest(String databricksJobId) {
-    // TODO: investigate whats required for spark submit + jar params. (store config + featureset
-    // proto definitions?)
+    SparkSubmitParams.builder().setMainClassName(jarFile).build();
+    RunNowRequest runNowRequest = RunNowRequest.builder().build();
 
-    RunNowRequest runNowRequest = new RunNowRequest();
-    SparkSubmitParams sparkSubmitParams = new SparkSubmitParams();
-    JarParams jarParams = new JarParams();
+    SparkSubmitParams sparkSubmitParams = SparkSubmitParams.builder().setMainClassName(this.sparkJarTaskOptions.getMainClassName()).build();
 
-    sparkSubmitParams.setMain_class_name(this.sparkJarTaskOptions.getMainClassName());
+    JarParams jarParams = JarParams.builder().build();
+
     //    jarParams.setKafka_broker(this.defaultOptions.get("kafkaBroker"));
     //    jarParams.setTopic_name(this.defaultOptions.get("kafkaTopicName"));
 
-    runNowRequest.setJob_id(Integer.parseInt(databricksJobId));
-    runNowRequest.setSpark_submit_params(sparkSubmitParams);
-    runNowRequest.setJar_params(jarParams);
     return runNowRequest;
   }
 
-  private CreateRequest getJobRequest(String jobId) {
-    NewCluster newCluster = new NewCluster();
-    newCluster.setNum_workers(String.valueOf(this.newClusterConfigOptions.getNumWorkers()));
-    newCluster.setSpark_version(this.newClusterConfigOptions.getSparkVersion());
-    newCluster.setNode_type_id(this.newClusterConfigOptions.getNodeTypeId());
+  private JobsCreateRequest getJobRequest(String jobId) {
+    NewCluster newCluster = NewCluster.builder()
+            .setNumWorkers(this.newClusterConfigOptions.getNumWorkers())
+            .setNodeTypeId(this.newClusterConfigOptions.getNodeTypeId())
+            .setSparkVersion(this.newClusterConfigOptions.getSparkVersion())
+            .build();
 
     List<Library> libraries = new ArrayList<>();
-    Library library = new Library();
-    library.setJar(this.jarFile);
+    Library library = Library.builder().setJar(jarFile).build();
     libraries.add(library);
 
-    SparkJarTask sparkJarTask = new SparkJarTask();
-    sparkJarTask.setMain_class_name(this.sparkJarTaskOptions.getMainClassName());
+    SparkJarTask sparkJarTask = SparkJarTask.builder().setMainClassName(this.sparkJarTaskOptions.getMainClassName()).build();
 
-    CreateRequest createRequest = new CreateRequest();
-    createRequest.setName(jobId);
-    createRequest.setNew_cluster(newCluster);
-    createRequest.setLibraries(libraries);
-    createRequest.setSpark_jar_task(sparkJarTask);
-    createRequest.setMax_retries(maxRetries);
+    JobsCreateRequest createRequest = JobsCreateRequest.builder()
+            .setLibraries(libraries)
+            .setMaxRetries(maxRetries)
+            .setName(jobId)
+            .setNewCluster(newCluster)
+            .setSparkJarTask(sparkJarTask)
+            .build();
+
     return createRequest;
   }
 
