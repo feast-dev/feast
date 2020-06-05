@@ -77,8 +77,7 @@ func (fc *GrpcClient) GetOnlineFeatures(ctx context.Context, req *OnlineFeatures
 			stripFields[stripRefStr] = fieldValues.Fields[refStr]
 			stripStatuses[stripRefStr] = fieldValues.Statuses[refStr]
 		}
-		fieldValues.Fields = stripFields
-		fieldValues.Statuses = stripStatuses
+		fieldValues.Fields, fieldValues.Statuses = stripFields, stripStatuses
 	}
 
 	return &OnlineFeaturesResponse{RawResponse: resp}, err

@@ -25,9 +25,9 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 					"driver_id",
 				},
 				Entities: []Row{
-					{"entity1": Field(Int64Val(1)), "entity2": Field(StrVal("bob"))},
-					{"entity1": Field(Int64Val(1)), "entity2": Field(StrVal("annie"))},
-					{"entity1": Field(Int64Val(1)), "entity2": Field(StrVal("jane"))},
+					{"entity1": Int64Val(1), "entity2": StrVal("bob")},
+					{"entity1": Int64Val(1), "entity2": StrVal("annie")},
+					{"entity1": Int64Val(1), "entity2": StrVal("jane")},
 				},
 				Project: "driver_project",
 			},

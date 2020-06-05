@@ -10,20 +10,25 @@ import (
 
 var response = OnlineFeaturesResponse{
 	RawResponse: &serving.GetOnlineFeaturesResponse{
-		Records: []*serving.GetOnlineFeaturesResponse_Record{
+		FieldValues: []*serving.GetOnlineFeaturesResponse_FieldValues{
 			{
-				Fields: map[string]*serving.GetOnlineFeaturesResponse_Field{
-					"project1/feature1": Field(Int64Val(1)),
-					"project1/feature2": &serving.GetOnlineFeaturesResponse_Field{
-						Value:  &types.Value{},
-						Status: serving.GetOnlineFeaturesResponse_NULL_VALUE,
-					},
+				Fields: map[string]*types.Value{
+					"project1/feature1": Int64Val(1),
+					"project1/feature2": {},
+				},
+				Statuses: map[string]serving.GetOnlineFeaturesResponse_FieldStatus{
+					"project1/feature1": serving.GetOnlineFeaturesResponse_PRESENT,
+					"project1/feature2": serving.GetOnlineFeaturesResponse_NULL_VALUE,
 				},
 			},
 			{
-				Fields: map[string]*serving.GetOnlineFeaturesResponse_Field{
-					"project1/feature1": Field(Int64Val(2)),
-					"project1/feature2": Field(Int64Val(2)),
+				Fields: map[string]*types.Value{
+					"project1/feature1": Int64Val(2),
+					"project1/feature2": Int64Val(2),
+				},
+				Statuses: map[string]serving.GetOnlineFeaturesResponse_FieldStatus{
+					"project1/feature1": serving.GetOnlineFeaturesResponse_PRESENT,
+					"project1/feature2": serving.GetOnlineFeaturesResponse_PRESENT,
 				},
 			},
 		},
@@ -33,23 +38,36 @@ var response = OnlineFeaturesResponse{
 func TestOnlineFeaturesResponseToRow(t *testing.T) {
 	actual := response.Rows()
 	expected := []Row{
-		{
-			"project1/feature1": Field(Int64Val(1)),
-			"project1/feature2": &serving.GetOnlineFeaturesResponse_Field{
-				Value:  &types.Value{},
-				Status: serving.GetOnlineFeaturesResponse_NULL_VALUE,
-			},
-		},
-		{
-			"project1/feature1": Field(Int64Val(2)),
-			"project1/feature2": Field(Int64Val(2)),
-		},
+		{"project1/feature1": Int64Val(1), "project1/feature2": &types.Value{}},
+		{"project1/feature1": Int64Val(2), "project1/feature2": Int64Val(2)},
 	}
 	if len(expected) != len(actual) {
 		t.Errorf("expected: %v, got: %v", expected, actual)
 	}
 	for i := range expected {
 		if !expected[i].equalTo(actual[i]) {
+			t.Errorf("expected: %v, got: %v", expected, actual)
+		}
+	}
+}
+
+func TestOnlineFeaturesResponseoToStatuses(t *testing.T) {
+	actual := response.Statuses()
+	expected := []map[string]serving.GetOnlineFeaturesResponse_FieldStatus{
+		{
+			"project1/feature1": serving.GetOnlineFeaturesResponse_PRESENT,
+			"project1/feature2": serving.GetOnlineFeaturesResponse_NULL_VALUE,
+		},
+		{
+			"project1/feature1": serving.GetOnlineFeaturesResponse_PRESENT,
+			"project1/feature2": serving.GetOnlineFeaturesResponse_PRESENT,
+		},
+	}
+	if len(expected) != len(actual) {
+		t.Errorf("expected: %v, got: %v", expected, actual)
+	}
+	for i := range expected {
+		if !cmp.Equal(expected[i], actual[i]) {
 			t.Errorf("expected: %v, got: %v", expected, actual)
 		}
 	}
@@ -76,7 +94,6 @@ func TestOnlineFeaturesResponseToInt64Array(t *testing.T) {
 			want:    [][]int64{{-1, 1}, {2, 2}},
 			wantErr: false,
 		},
-
 		{
 			name: "length mismatch",
 			args: args{

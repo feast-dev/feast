@@ -151,14 +151,16 @@ public class FeastClient implements AutoCloseable {
             fieldValues -> {
               Row row = Row.create();
               for (String fieldName : fieldValues.getFieldsMap().keySet()) {
-                if (entityRefs.contains(fieldName)) continue;
-                // Strip project from string Feature References from returned from serving
-                FeatureReference featureRef = RequestUtil.parseFeatureRef(fieldName, true).build();
-                String stripFieldName = RequestUtil.renderFeatureRef(featureRef);
-                row.set(
-                    stripFieldName,
-                    fieldValues.getFieldsMap().get(fieldName),
-                    fieldValues.getStatusesMap().get(fieldName));
+                String stripFieldName = fieldName;
+                if (!entityRefs.contains(fieldName)) {
+                  // Strip project from string Feature References from returned from serving
+                  FeatureReference featureRef = RequestUtil.parseFeatureRef(fieldName, true).build();
+                  stripFieldName = RequestUtil.renderFeatureRef(featureRef);
+                  row.set(
+                      stripFieldName,
+                      fieldValues.getFieldsMap().get(fieldName),
+                      fieldValues.getStatusesMap().get(fieldName));
+                }
               }
               return row;
             })
