@@ -28,6 +28,7 @@ services:
     image: jupyter/minimal-notebook:619e9cc2fc07
     volumes:
       - ./gcp-service-accounts/${FEAST_JUPYTER_GCP_SERVICE_ACCOUNT_KEY}:/etc/gcloud/service-accounts/key.json
+      - ../../:/home/jovyan/feast
       - ./jupyter/startup.sh:/etc/startup.sh
     depends_on:
       - core
