@@ -146,16 +146,16 @@ public class FeastClient implements AutoCloseable {
                 .setIncludeMetadataInResponse(includeMetadataInResponse)
                 .build());
 
-    return response.getRecordsList().stream()
+    return response.getFieldValuesList().stream()
         .map(
-            record -> {
+            fieldValues -> {
               Row row = Row.create();
-              record
-                  .getFieldsMap()
-                  .forEach(
-                      (name, field) -> {
-                        row.set(name, field.getValue(), field.getStatus());
-                      });
+              for (String fieldName : fieldValues.getFieldsMap().keySet()) {
+                row.set(
+                    fieldName,
+                    fieldValues.getFieldsMap().get(fieldName),
+                    fieldValues.getStatusesMap().get(fieldName));
+              }
               return row;
             })
         .collect(Collectors.toList());
