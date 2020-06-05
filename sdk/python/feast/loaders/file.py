@@ -44,12 +44,14 @@ def export_source_to_staging_location(
                 * Pandas DataFrame
                 * Local Avro file
                 * GCS Avro file
+                * S3 Avro file
 
 
         staging_location_uri (str):
             Remote staging location where DataFrame should be written.
             Examples:
                 * gs://bucket/path/
+                * s3://bucket/path/
                 * file:///data/subfolder/
 
     Returns:
