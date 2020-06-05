@@ -1,13 +1,12 @@
 package feast
 
 import (
-	"github.com/feast-dev/feast/sdk/go/protos/feast/serving"
 	"github.com/feast-dev/feast/sdk/go/protos/feast/types"
 	"github.com/golang/protobuf/proto"
 )
 
 // Row is a map of fields
-type Row map[string]*serving.GetOnlineFeaturesResponse_Field
+type Row map[string]*types.Value
 
 func (r Row) equalTo(other Row) bool {
 	for k, field := range r {
@@ -53,12 +52,4 @@ func BoolVal(val bool) *types.Value {
 // BytesVal is a bytes type feast value
 func BytesVal(val []byte) *types.Value {
 	return &types.Value{Val: &types.Value_BytesVal{BytesVal: val}}
-}
-
-// constructs a response field from the given value
-func Field(value *types.Value) *serving.GetOnlineFeaturesResponse_Field {
-	return &serving.GetOnlineFeaturesResponse_Field{
-		Value:  value,
-		Status: serving.GetOnlineFeaturesResponse_PRESENT,
-	}
 }

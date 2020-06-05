@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"github.com/feast-dev/feast/sdk/go/protos/feast/serving"
 	"strings"
-
-	"github.com/feast-dev/feast/sdk/go/protos/feast/types"
 )
 
 var (
@@ -45,12 +43,8 @@ func (r OnlineFeaturesRequest) buildRequest() (*serving.GetOnlineFeaturesRequest
 	// build request entity rows from native entities
 	entityRows := make([]*serving.GetOnlineFeaturesRequest_EntityRow, len(r.Entities))
 	for i, entity := range r.Entities {
-		fieldMap := make(map[string]*types.Value)
-		for key, field := range entity {
-			fieldMap[key] = field.Value
-		}
 		entityRows[i] = &serving.GetOnlineFeaturesRequest_EntityRow{
-			Fields: fieldMap,
+			Fields: entity,
 		}
 	}
 
