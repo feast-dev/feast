@@ -17,6 +17,7 @@ RUN wget -q https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-$
 RUN cd spark/jars && for jar in \
         org/apache/spark/spark-sql-kafka-0-10_2.11/2.4.5/spark-sql-kafka-0-10_2.11-2.4.5.jar \
         org/apache/kafka/kafka-clients/2.3.0/kafka-clients-2.3.0.jar \
+        io/delta/delta-core_2.11/0.6.1/delta-core_2.11-0.6.1.jar \
         ; do \
       wget https://repo1.maven.org/maven2/$jar; \
     done
