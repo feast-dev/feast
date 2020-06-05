@@ -21,12 +21,14 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.auto.value.AutoValue;
 
 @AutoValue
-@JsonDeserialize(builder = AutoValue_RunsSubmitResponse.Builder.class)
-public abstract class RunsSubmitResponse {
+@JsonDeserialize(builder = AutoValue_RunsCancelRequest.Builder.class)
+public abstract class RunsCancelRequest {
+
+  @JsonProperty("run_id")
   public abstract long getRunId();
 
   public static Builder builder() {
-    return new AutoValue_RunsSubmitResponse.Builder();
+    return new AutoValue_RunsCancelRequest.Builder();
   }
 
   @AutoValue.Builder
@@ -34,6 +36,6 @@ public abstract class RunsSubmitResponse {
     @JsonProperty("run_id")
     public abstract Builder setRunId(long value);
 
-    public abstract RunsSubmitResponse build();
+    public abstract RunsCancelRequest build();
   }
 }

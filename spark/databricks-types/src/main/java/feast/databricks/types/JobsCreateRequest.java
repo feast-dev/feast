@@ -23,8 +23,8 @@ import java.util.List;
 import java.util.Optional;
 
 @AutoValue
-@JsonDeserialize(builder = AutoValue_RunsSubmitRequest.Builder.class)
-public abstract class RunsSubmitRequest {
+@JsonDeserialize(builder = AutoValue_JobsCreateRequest.Builder.class)
+public abstract class JobsCreateRequest {
 
   @JsonProperty("new_cluster")
   public abstract NewCluster getNewCluster();
@@ -32,17 +32,20 @@ public abstract class RunsSubmitRequest {
   @JsonProperty("spark_jar_task")
   public abstract SparkJarTask getSparkJarTask();
 
-  @JsonProperty("run_name")
-  public abstract String getRunName();
+  @JsonProperty("name")
+  public abstract Optional<String> getName();
 
   @JsonProperty("libraries")
-  public abstract List<Library> getLibraries();
+  public abstract Optional<List<Library>> getLibraries();
 
   @JsonProperty("timeout_seconds")
   public abstract Optional<Integer> getTimeoutSeconds();
 
+  @JsonProperty("max_retries")
+  public abstract Optional<Integer> getMaxRetries();
+
   public static Builder builder() {
-    return new AutoValue_RunsSubmitRequest.Builder();
+    return new AutoValue_JobsCreateRequest.Builder();
   }
 
   @AutoValue.Builder
@@ -53,15 +56,18 @@ public abstract class RunsSubmitRequest {
     @JsonProperty("spark_jar_task")
     public abstract Builder setSparkJarTask(SparkJarTask value);
 
-    @JsonProperty("run_name")
-    public abstract Builder setRunName(String value);
+    @JsonProperty("name")
+    public abstract Builder setName(String value);
 
     @JsonProperty("libraries")
     public abstract Builder setLibraries(List<Library> value);
 
     @JsonProperty("timeout_seconds")
-    public abstract Builder setTimeoutSeconds(Optional<Integer> value);
+    public abstract Builder setTimeoutSeconds(Integer value);
 
-    public abstract RunsSubmitRequest build();
+    @JsonProperty("max_retries")
+    public abstract Builder setMaxRetries(Integer value);
+
+    public abstract JobsCreateRequest build();
   }
 }

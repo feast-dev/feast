@@ -19,30 +19,21 @@ package feast.databricks.types;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.auto.value.AutoValue;
-import java.util.List;
-import java.util.Optional;
 
 @AutoValue
-@JsonDeserialize(builder = AutoValue_SparkJarTask.Builder.class)
-public abstract class SparkJarTask {
-  @JsonProperty("main_class_name")
-  public abstract String getMainClassName();
-
-  @JsonProperty("parameters")
-  public abstract Optional<List<String>> getParameters();
+@JsonDeserialize(builder = AutoValue_RunNowResponse.Builder.class)
+public abstract class RunNowResponse {
+  public abstract long getRunId();
 
   public static Builder builder() {
-    return new AutoValue_SparkJarTask.Builder();
+    return new AutoValue_RunNowResponse.Builder();
   }
 
   @AutoValue.Builder
   public abstract static class Builder {
-    @JsonProperty("main_class_name")
-    public abstract Builder setMainClassName(String value);
+    @JsonProperty("run_id")
+    public abstract Builder setRunId(long value);
 
-    @JsonProperty("parameters")
-    public abstract Builder setParameters(List<String> value);
-
-    public abstract SparkJarTask build();
+    public abstract RunNowResponse build();
   }
 }

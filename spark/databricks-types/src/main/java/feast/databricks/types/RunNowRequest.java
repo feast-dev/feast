@@ -23,26 +23,27 @@ import java.util.List;
 import java.util.Optional;
 
 @AutoValue
-@JsonDeserialize(builder = AutoValue_SparkJarTask.Builder.class)
-public abstract class SparkJarTask {
-  @JsonProperty("main_class_name")
-  public abstract String getMainClassName();
+@JsonDeserialize(builder = AutoValue_RunNowRequest.Builder.class)
+public abstract class RunNowRequest {
 
-  @JsonProperty("parameters")
-  public abstract Optional<List<String>> getParameters();
+  @JsonProperty("job_id")
+  public abstract long getJobId();
+
+  @JsonProperty("jar_params")
+  public abstract Optional<List<String>> getJarParams();
 
   public static Builder builder() {
-    return new AutoValue_SparkJarTask.Builder();
+    return new AutoValue_RunNowRequest.Builder();
   }
 
   @AutoValue.Builder
-  public abstract static class Builder {
-    @JsonProperty("main_class_name")
-    public abstract Builder setMainClassName(String value);
+  abstract static class Builder {
+    @JsonProperty("job_id")
+    abstract Builder setJobId(long value);
 
-    @JsonProperty("parameters")
-    public abstract Builder setParameters(List<String> value);
+    @JsonProperty("jar_params")
+    abstract Builder setJarParams(List<String> value);
 
-    public abstract SparkJarTask build();
+    abstract RunNowRequest build();
   }
 }

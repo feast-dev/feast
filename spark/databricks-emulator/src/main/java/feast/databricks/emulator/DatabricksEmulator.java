@@ -22,16 +22,21 @@ import static spark.Spark.post;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import feast.databricks.types.JobsCreateRequest;
+import feast.databricks.types.JobsCreateResponse;
+import feast.databricks.types.JobsDeleteRequest;
 import feast.databricks.types.Library;
 import feast.databricks.types.RunLifeCycleState;
+import feast.databricks.types.RunNowRequest;
+import feast.databricks.types.RunNowResponse;
 import feast.databricks.types.RunResultState;
 import feast.databricks.types.RunState;
+import feast.databricks.types.RunsCancelRequest;
 import feast.databricks.types.RunsGetResponse;
-import feast.databricks.types.RunsSubmitRequest;
-import feast.databricks.types.RunsSubmitResponse;
 import feast.databricks.types.SparkJarTask;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -44,8 +49,6 @@ import spark.ResponseTransformer;
 
 public class DatabricksEmulator {
 
-  ObjectMapper objectMapper = new ObjectMapper();
-
   public static void main(String[] args) {
     port(8080);
 
@@ -53,9 +56,15 @@ public class DatabricksEmulator {
 
     JsonTransformer json = new JsonTransformer();
 
-    post("/2.0/jobs/runs/submit", emulator::runsSubmit, json);
+    post("/2.0/jobs/create", emulator::jobsCreate, json);
+
+    post("/2.0/jobs/delete", emulator::jobsDelete, json);
+
+    post("/2.0/jobs/run-now", emulator::runNow, json);
 
     get("/2.0/jobs/runs/get", emulator::runsGet, json);
+
+    get("/2.0/jobs/runs/cancel", emulator::runsCancel, json);
   }
 
   public static class JsonTransformer implements ResponseTransformer {
@@ -68,29 +77,37 @@ public class DatabricksEmulator {
     }
   }
 
-  public static class RunTracker {
-    private ConcurrentMap<Long, SparkAppHandle> runs =
-        new ConcurrentHashMap<Long, SparkAppHandle>();
-    private AtomicLong lastRunId = new AtomicLong(0L);
+  public static class ItemTracker<T> {
+    private ConcurrentMap<Long, T> items = new ConcurrentHashMap<Long, T>();
+    private AtomicLong lastId = new AtomicLong(0L);
 
-    public SparkAppHandle getRun(long runId) {
-      SparkAppHandle h = runs.get(runId);
-      if (h == null) {
-        throw new IllegalArgumentException("Run ID: " + runId);
+    public T getItem(long id) {
+      T item = items.get(id);
+      if (item == null) {
+        throw new IllegalArgumentException("ID does not exist: " + id);
       }
-      return h;
+      return item;
     }
 
-    public long addRun(SparkAppHandle handle) {
-      long runId = lastRunId.incrementAndGet();
-      runs.put(runId, handle);
-      return runId;
+    public long addItem(T job) {
+      long id = lastId.incrementAndGet();
+      items.put(id, job);
+      return id;
+    }
+
+    public void deleteItem(long id) {
+      T item = items.remove(id);
+      if (item == null) {
+        throw new IllegalArgumentException("ID does not exist: " + id);
+      }
     }
   }
 
   public static class EmulatorService {
 
-    RunTracker runTracker = new RunTracker();
+    ItemTracker<JobsCreateRequest> jobTracker = new ItemTracker<>();
+
+    ItemTracker<SparkAppHandle> runTracker = new ItemTracker<>();
 
     SparkAppFactory appFactory = new SparkAppFactory();
 
@@ -104,7 +121,7 @@ public class DatabricksEmulator {
     }
 
     private RunState getRunState(long runId) {
-      SparkAppHandle handle = runTracker.getRun(runId);
+      SparkAppHandle handle = runTracker.getItem(runId);
 
       RunState.Builder state = RunState.builder();
 
@@ -145,20 +162,49 @@ public class DatabricksEmulator {
       return state.build();
     }
 
-    RunsSubmitResponse runsSubmit(Request request, Response response) throws Exception {
-      RunsSubmitRequest req = objectMapper.readValue(request.body(), RunsSubmitRequest.class);
+    JobsCreateResponse jobsCreate(Request request, Response response) throws Exception {
+      JobsCreateRequest req = objectMapper.readValue(request.body(), JobsCreateRequest.class);
+      long jobId = jobTracker.addItem(req);
+      return JobsCreateResponse.builder().setJobId(jobId).build();
+    }
+
+    JobsDeleteRequest jobsDelete(Request request, Response response) throws Exception {
+      JobsDeleteRequest req = objectMapper.readValue(request.body(), JobsDeleteRequest.class);
+      jobTracker.deleteItem(req.getJobId());
+      return req;
+    }
+
+    RunNowResponse runNow(Request request, Response response) throws Exception {
+      RunNowRequest req = objectMapper.readValue(request.body(), RunNowRequest.class);
+
+      JobsCreateRequest job = jobTracker.getItem(req.getJobId());
 
       List<String> jars = new ArrayList<>();
-      for (Library library : req.getLibraries()) {
-        jars.add(library.getJar());
-      }
+      job.getLibraries()
+          .ifPresent(
+              libs -> {
+                for (Library library : libs) {
+                  jars.add(library.getJar());
+                }
+              });
 
-      SparkJarTask task = req.getSparkJarTask();
-      SparkAppHandle handle =
-          appFactory.createApp(jars, task.getMainClassName(), task.getParameters());
+      SparkJarTask task = job.getSparkJarTask();
+      List<String> params =
+          req.getJarParams().orElse(task.getParameters().orElse(Collections.emptyList()));
+      SparkAppHandle handle = appFactory.createApp(jars, task.getMainClassName(), params);
 
-      long run_id = runTracker.addRun(handle);
-      return RunsSubmitResponse.builder().setRunId(run_id).build();
+      long runId = runTracker.addItem(handle);
+      return RunNowResponse.builder().setRunId(runId).build();
+    }
+
+    RunsCancelRequest runsCancel(Request request, Response response) throws Exception {
+      RunsCancelRequest req = objectMapper.readValue(request.body(), RunsCancelRequest.class);
+
+      SparkAppHandle run = runTracker.getItem(req.getRunId());
+
+      run.stop();
+
+      return req;
     }
   }
 
@@ -172,11 +218,11 @@ public class DatabricksEmulator {
         launcher.addJar(jar);
         appResource = jar;
       }
-      return launcher //
-          .setMainClass(mainClassName) //
-          .setMaster("local") //
-          .setAppResource(appResource) //
-          .setConf(SparkLauncher.DRIVER_MEMORY, "1g") //
+      return launcher
+          .setMainClass(mainClassName)
+          .setMaster("local")
+          .setAppResource(appResource)
+          .setConf(SparkLauncher.DRIVER_MEMORY, "1g")
           .addAppArgs((String[]) parameters.toArray(new String[parameters.size()]))
           .startApplication();
     }
