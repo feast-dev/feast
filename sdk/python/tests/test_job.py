@@ -10,7 +10,7 @@ from pandas.testing import assert_frame_equal
 from pytest import fixture, raises
 
 import feast.serving.ServingService_pb2_grpc as Serving
-from feast.job import RetrievalJob, JobProto
+from feast.job import JobProto, RetrievalJob
 from feast.serving.ServingService_pb2 import DataFormat, GetJobResponse
 from feast.serving.ServingService_pb2 import Job as BatchRetrievalJob
 from feast.serving.ServingService_pb2 import JobStatus, JobType
