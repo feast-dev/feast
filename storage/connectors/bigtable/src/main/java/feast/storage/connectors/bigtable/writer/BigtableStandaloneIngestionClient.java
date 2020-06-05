@@ -20,6 +20,8 @@ import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.protobuf.ByteString;
 import feast.proto.core.StoreProto;
+import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FieldProto.Field;
 import feast.storage.common.retry.BackOffExecutor;
 import io.grpc.Status;
 import java.io.IOException;
@@ -32,7 +34,12 @@ public class BigtableStandaloneIngestionClient implements BigtableIngestionClien
   private final Integer backoffMs;
   private final BackOffExecutor backOffExecutor;
   private BigtableDataClient bigtableclient;
-  private static final int DEFAULT_TIMEOUT = 2000;
+  private static final String METADATA_CF = "metadata";
+  private static final String FEATURES_CF = "features";
+  private static final ByteString FEATURE_SET_QUALIFIER = ByteString.copyFromUtf8("feature_set");
+  private static final ByteString INGESTION_ID_QUALIFIER = ByteString.copyFromUtf8("ingestion_id");
+  private static final ByteString EVENT_TIMESTAMP_QUALIFIER =
+      ByteString.copyFromUtf8("event_timestamp");
 
   public BigtableStandaloneIngestionClient(StoreProto.Store.BigtableConfig bigtableConfig) {
     this.projectId = bigtableConfig.getProjectId();
@@ -67,9 +74,15 @@ public class BigtableStandaloneIngestionClient implements BigtableIngestionClien
   }
 
   @Override
-  public void set(String key, ByteString value) {
-    RowMutation rowMutation =
-        RowMutation.create(table, key).setCell("feature", ByteString.copyFromUtf8("latest"), value);
+  public void set(String key, FeatureRow value) {
+    RowMutation rowMutation = RowMutation.create(table, key);
+    rowMutation.setCell(METADATA_CF, FEATURE_SET_QUALIFIER, value.getFeatureSetBytes());
+    rowMutation.setCell(METADATA_CF, INGESTION_ID_QUALIFIER, value.getIngestionIdBytes());
+    rowMutation.setCell(
+        METADATA_CF, EVENT_TIMESTAMP_QUALIFIER, value.getEventTimestamp().toByteString());
+    for (Field field : value.getFieldsList()) {
+      rowMutation.setCell(FEATURES_CF, field.getNameBytes(), field.getValue().toByteString());
+    }
     this.bigtableclient.mutateRow(rowMutation);
   }
 }

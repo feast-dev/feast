@@ -16,8 +16,11 @@
  */
 package feast.storage.connectors.bigtable.retriever;
 
+import com.google.api.gax.rpc.ResponseObserver;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
+import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
+import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -34,6 +37,7 @@ import feast.storage.api.retriever.OnlineRetriever;
 import io.grpc.Status;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -78,9 +82,15 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
       List<EntityRow> entityRows, List<FeatureSetRequest> featureSetRequests) {
 
     List<List<FeatureRow>> featureRows = new ArrayList<>();
+    HashMap<FeatureSetRequest, List<BigtableKey>> keyMap = new HashMap<>();
     for (FeatureSetRequest featureSetRequest : featureSetRequests) {
+      System.out.printf("Computing Bigtable Keys");
       List<BigtableKey> bigtableKeys = buildBigtableKeys(entityRows, featureSetRequest.getSpec());
+      keyMap.put(featureSetRequest, bigtableKeys);
       try {
+        System.out.printf("Sending multi get with %s", featureSetRequest.getSpec().toString());
+        System.out.printf("Feature References %s", featureSetRequest.getFeatureReferences().toString());
+        System.out.printf("Bigtable Keys %s", bigtableKeys.toString());
         List<FeatureRow> featureRowsForFeatureSet =
             sendAndProcessMultiGet(
                 bigtableKeys,
@@ -147,42 +157,11 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
       FeatureSetSpec featureSetSpec,
       List<FeatureReference> featureReferences)
       throws InvalidProtocolBufferException, ExecutionException {
-
     List<ByteString> refs =
         featureReferences.stream()
             .map(featureReference -> ByteString.copyFromUtf8(featureReference.getName()))
             .collect(Collectors.toList());
-    List<byte[]> values = sendMultiGet(bigtableKeys, refs.get(0), refs.get(refs.size() - 1));
-    List<FeatureRow> featureRows = new ArrayList<>();
-
-    FeatureRow.Builder nullFeatureRowBuilder =
-        FeatureRow.newBuilder().setFeatureSet(generateFeatureSetStringRef(featureSetSpec));
-    for (FeatureReference featureReference : featureReferences) {
-      nullFeatureRowBuilder.addFields(Field.newBuilder().setName(featureReference.getName()));
-    }
-
-    for (int i = 0; i < values.size(); i++) {
-
-      byte[] value = values.get(i);
-      if (value == null) {
-        featureRows.add(nullFeatureRowBuilder.build());
-        continue;
-      }
-
-      FeatureRow featureRow = FeatureRow.parseFrom(value);
-      String featureSetRef = bigtableKeys.get(i).getFeatureSet();
-      FeatureRowDecoder decoder = new FeatureRowDecoder(featureSetRef, featureSetSpec);
-      if (decoder.isEncoded(featureRow)) {
-        if (decoder.isEncodingValid(featureRow)) {
-          featureRow = decoder.decode(featureRow);
-        } else {
-          featureRows.add(nullFeatureRowBuilder.build());
-          continue;
-        }
-      }
-
-      featureRows.add(featureRow);
-    }
+    List<FeatureRow> featureRows = sendMultiGet(bigtableKeys, featureSetSpec, featureReferences);
     return featureRows;
   }
 
@@ -193,26 +172,31 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
    * @return list of {@link FeatureRow} in primitive byte representation for each {@link
    *     BigtableKey}
    */
-  private List<byte[]> sendMultiGet(
-      List<BigtableKey> keys, ByteString startSuffix, ByteString endSuffix) {
+  private List<FeatureRow> sendMultiGet(
+      List<BigtableKey> keys,
+      FeatureSetSpec featureSetSpec,
+      List<FeatureReference> featureReferences) {
     ByteString[][] binaryKeys =
         keys.stream()
             .map(AbstractMessageLite::toByteString)
             .collect(Collectors.toList())
             .toArray(new ByteString[0][0]);
-    ByteStringRange keyRange = ByteStringRange.create(startSuffix, endSuffix).endClosed(endSuffix);
-    // ResponseObserver<Row> multiGetObserver = BigtableResponseObserver.create();
+    List<FeatureRow> result = new ArrayList<>();
+    ResponseObserver<Row> multiGetObserver = BigtableOnlineObserver.create(keys, featureSetSpec, featureReferences, result);
     try {
-      // dataClient.readRowsAsync(Query.create(table).range(keyRange), multiGetObserver).wait();
-      // return multiGetObserver.getResult();
-      System.out.println("hello");
+      Query multiGet = Query.create(table);
+      for (BigtableKey key: keys) {
+        multiGet.rowKey(key.toByteString());
+      }
+      dataClient.readRowsAsync(multiGet, multiGetObserver);
+      multiGetObserver.wait();
+      return result;
     } catch (Exception e) {
       throw Status.NOT_FOUND
           .withDescription("Unable to retrieve feature from Bigtable")
           .withCause(e)
           .asRuntimeException();
     }
-    return new ArrayList<>();
   }
 
   // TODO: Refactor this out to common package?

@@ -40,10 +40,12 @@ public class BigtableOnlineObserver implements ResponseObserver<Row> {
   private final List<BigtableKey> bigtableKeys;
   private final FeatureSetSpec featureSetSpec;
   private final List<FeatureReference> featureReferences;
-  private final ByteString writeTime;
-  private final ByteString prefix;
-  private final ByteString feature;
-  private final ByteString version;
+  private static final String METADATA_CF = "metadata";
+  private static final String FEATURES_CF = "features";
+  private static final ByteString FEATURE_SET_QUALIFIER = ByteString.copyFromUtf8("feature_set");
+  private static final ByteString INGESTION_ID_QUALIFIER = ByteString.copyFromUtf8("ingestion_id");
+  private static final ByteString EVENT_TIMESTAMP_QUALIFIER =
+      ByteString.copyFromUtf8("event_timestamp");
   private HashMap<ByteString, Builder> resultMap;
   private HashMap<ByteString, Descriptor> featureMap;
   private List<FeatureRow> result;
@@ -52,24 +54,25 @@ public class BigtableOnlineObserver implements ResponseObserver<Row> {
       List<BigtableKey> bigtableKeys,
       FeatureSetSpec featureSetSpec,
       List<FeatureReference> featureReferences,
-      String version) {
+      List<FeatureRow> result) {
     this.bigtableKeys = bigtableKeys;
     this.featureSetSpec = featureSetSpec;
     this.featureReferences = featureReferences;
     this.resultMap = new HashMap<>();
     this.featureMap = new HashMap<>();
-    this.writeTime = ByteString.copyFromUtf8("writetime");
-    this.prefix = ByteString.copyFromUtf8("prefix");
-    this.feature = ByteString.copyFromUtf8("feature");
-    this.version = ByteString.copyFromUtf8(version);
-    this.result = new ArrayList<>();
+    this.result = result;
   }
 
   public static ResponseObserver create(
       List<BigtableKey> bigtableKeys,
       FeatureSetSpec featureSetSpec,
-      List<FeatureReference> featureReferences) {
-    return new BigtableOnlineObserver(bigtableKeys, featureSetSpec, featureReferences, "latest");
+      List<FeatureReference> featureReferences,
+      List<FeatureRow> result) {
+    return new BigtableOnlineObserver(bigtableKeys, featureSetSpec, featureReferences, result);
+  }
+
+  public List<FeatureRow> getResult() {
+    return this.result;
   }
 
   @Override
@@ -95,40 +98,29 @@ public class BigtableOnlineObserver implements ResponseObserver<Row> {
 
   @Override
   public void onResponse(Row row) {
-    List<RowCell> metadata = row.getCells("metadata");
-    ByteString cellWriteTime = ByteString.EMPTY;
-    ByteString cellPrefix = ByteString.EMPTY;
-    ByteString cellFeature = ByteString.EMPTY;
-    for (RowCell rowCell : metadata) {
-      if (rowCell.getQualifier() == writeTime) {
-        cellWriteTime = rowCell.getValue();
-      } else if (rowCell.getQualifier() == prefix) {
-        cellPrefix = rowCell.getValue();
-      } else if (rowCell.getQualifier() == feature) {
-        cellFeature = rowCell.getValue();
-      }
-    }
-    if (cellPrefix.isEmpty() || !resultMap.containsKey(cellPrefix) || cellFeature.isEmpty()) {
-      throw Status.FAILED_PRECONDITION
-          .withDescription("Cell missing important metadata such as prefix or feature name.")
-          .asRuntimeException();
-    } else {
-      Builder resultBuilder = resultMap.get(cellPrefix);
-      for (RowCell rowValues : row.getCells("value")) {
-        if (rowValues.getQualifier() == version) {
+    List<RowCell> metadata = row.getCells(METADATA_CF);
+    Builder resultBuilder = resultMap.get(row.getKey());
+    for (RowCell rowValues : row.getCells(FEATURES_CF)) {
+      try {
+        if (featureMap.containsKey(rowValues.getQualifier())) {
           resultBuilder.addFields(
               Field.newBuilder()
-                  .setName(cellFeature.toStringUtf8())
+                  .setNameBytes(rowValues.getQualifier())
                   .setValue(
                       Value.newBuilder()
                           .setField(
                               featureMap
-                                  .get(cellFeature)
-                                  .findFieldByName(cellFeature.toStringUtf8()),
+                                  .get(rowValues.getQualifier())
+                                  .findFieldByName(rowValues.getQualifier().toStringUtf8()),
                               rowValues.getValue())
                           .build())
                   .build());
         }
+      } catch (Exception e) {
+        throw Status.NOT_FOUND
+            .withCause(e)
+            .withDescription("There was a problem getting the right cells")
+            .asRuntimeException();
       }
     }
   }

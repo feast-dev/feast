@@ -16,7 +16,7 @@
  */
 package feast.storage.connectors.bigtable.writer;
 
-import com.google.protobuf.ByteString;
+import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.storage.common.retry.BackOffExecutor;
 import java.io.Serializable;
 
@@ -28,5 +28,5 @@ public interface BigtableIngestionClient extends Serializable {
 
   void shutdown();
 
-  void set(String key, ByteString value);
+  void set(String key, FeatureRow value);
 }

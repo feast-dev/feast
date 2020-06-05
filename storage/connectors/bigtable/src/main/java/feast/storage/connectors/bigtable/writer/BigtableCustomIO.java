@@ -16,16 +16,13 @@
  */
 package feast.storage.connectors.bigtable.writer;
 
-import com.google.protobuf.ByteString;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
-import feast.proto.core.FeatureSetProto.FeatureSpec;
 import feast.proto.core.StoreProto.Store.BigtableConfig;
 import feast.proto.storage.BigtableProto.BigtableKey;
 import feast.proto.storage.BigtableProto.BigtableKey.Builder;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FieldProto.Field;
-import feast.proto.types.ValueProto;
 import feast.storage.api.writer.FailedElement;
 import feast.storage.api.writer.WriteResult;
 import feast.storage.common.retry.Retriable;
@@ -150,7 +147,7 @@ public class BigtableCustomIO {
                   public void execute() throws ExecutionException, InterruptedException {
                     featureRows.forEach(
                         row -> {
-                          bigtableIngestionClient.set(getKey(row), getValue(row));
+                          bigtableIngestionClient.set(getKey(row), row);
                         });
                   }
 
@@ -197,40 +194,6 @@ public class BigtableCustomIO {
           bigtableKeyBuilder.addEntities(entityFields.get(entityName));
         }
         return bigtableKeyBuilder.build().toString();
-      }
-
-      private ByteString getValue(FeatureRow featureRow) {
-        FeatureSetSpec spec = featureSetSpecs.get(featureRow.getFeatureSet());
-
-        List<String> featureNames =
-            spec.getFeaturesList().stream().map(FeatureSpec::getName).collect(Collectors.toList());
-        Map<String, Field> fieldValueOnlyMap =
-            featureRow.getFieldsList().stream()
-                .filter(field -> featureNames.contains(field.getName()))
-                .distinct()
-                .collect(
-                    Collectors.toMap(
-                        Field::getName,
-                        field -> Field.newBuilder().setValue(field.getValue()).build()));
-
-        List<Field> values =
-            featureNames.stream()
-                .sorted()
-                .map(
-                    featureName ->
-                        fieldValueOnlyMap.getOrDefault(
-                            featureName,
-                            Field.newBuilder()
-                                .setValue(ValueProto.Value.getDefaultInstance())
-                                .build()))
-                .collect(Collectors.toList());
-
-        return ByteString.copyFrom(
-            FeatureRow.newBuilder()
-                .setEventTimestamp(featureRow.getEventTimestamp())
-                .addAllFields(values)
-                .build()
-                .toByteArray());
       }
 
       @ProcessElement
