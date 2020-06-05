@@ -34,6 +34,8 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.streaming.StreamingQuery;
+import org.junit.Assume;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -41,10 +43,13 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.test.rule.KafkaEmbedded;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
 
 public class SparkIngestionTest {
+  private static final Logger LOGGER = LoggerFactory.getLogger(SparkIngestionTest.class.getName());
 
   private static final String TOPIC = "spring";
 
@@ -53,6 +58,12 @@ public class SparkIngestionTest {
   @Rule public TemporaryFolder folder = new TemporaryFolder();
 
   @Rule public final SparkSessionRule spark = new SparkSessionRule();
+
+  @Before
+  public void beforeMethod() {
+    // Spark 2 only runs on Java 8. Skip tests on Java 11.
+    Assume.assumeThat(System.getProperty("java.version"), startsWith("1.8"));
+  }
 
   @Test
   public void streamingQueryShouldWriteKafkaPayloadAsDeltaLake() throws Exception {
@@ -66,7 +77,6 @@ public class SparkIngestionTest {
     assertThat(rowSentBeforeQuery, not(rowSentAfterQueryStart));
 
     Path deltaPath = folder.getRoot().toPath().resolve("delta");
-    System.out.println(deltaPath);
     Dataset<Row> data = null;
     try (KafkaProducer<Void, byte[]> producer = new KafkaProducer<>(senderProps)) {
 
@@ -80,12 +90,13 @@ public class SparkIngestionTest {
               new ProducerRecord<Void, byte[]>(TOPIC, rowSentAfterQueryStart.toByteArray()));
           if (Files.exists(deltaPath)) {
             data = spark.session.read().format("delta").load(deltaPath.toString());
-            if (data.count() > 0) {
+            long count = data.count();
+            LOGGER.info("Delta directory contains {} records.", count);
+            if (count > 0) {
               break;
             }
-            System.out.println(data.count());
           } else {
-            System.out.println("wait");
+            LOGGER.info("Delta directory not yet created.");
           }
           Thread.sleep(1000);
         }

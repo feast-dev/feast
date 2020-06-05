@@ -20,6 +20,14 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <!-- Spark 2 only runs on Java 8 -->
+          <release>8</release>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <argLine>-Xmx1024m -XX:MaxPermSize=256m</argLine>
@@ -71,7 +79,7 @@
   </build>
 
   <dependencies>
-  
+
     <dependency>
       <groupId>dev.feast</groupId>
       <artifactId>datatypes-java</artifactId>
