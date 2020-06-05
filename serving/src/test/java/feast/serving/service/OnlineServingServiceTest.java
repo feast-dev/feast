@@ -30,9 +30,8 @@ import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.Field;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.Record;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FieldProto;
 import feast.proto.types.ValueProto.Value;
@@ -70,7 +69,6 @@ public class OnlineServingServiceTest {
     GetOnlineFeaturesRequest request =
         GetOnlineFeaturesRequest.newBuilder()
             .setOmitEntitiesInResponse(false)
-            .setIncludeMetadataInResponse(true)
             .addFeatures(FeatureReference.newBuilder().setName("feature1").build())
             .addFeatures(
                 FeatureReference.newBuilder().setName("feature2").setProject("project").build())
@@ -147,18 +145,28 @@ public class OnlineServingServiceTest {
 
     GetOnlineFeaturesResponse expected =
         GetOnlineFeaturesResponse.newBuilder()
-            .addRecords(
-                Record.newBuilder()
-                    .putFields("entity1", intField(1))
-                    .putFields("entity2", strField("a"))
-                    .putFields("feature1", intField(1))
-                    .putFields("project/feature2", intField(1)))
-            .addRecords(
-                Record.newBuilder()
-                    .putFields("entity1", intField(2))
-                    .putFields("entity2", strField("b"))
-                    .putFields("feature1", intField(2))
-                    .putFields("project/feature2", intField(2)))
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(1))
+                    .putStatuses("entity1", FieldStatus.PRESENT)
+                    .putFields("entity2", strValue("a"))
+                    .putStatuses("entity2", FieldStatus.PRESENT)
+                    .putFields("feature1", intValue(1))
+                    .putStatuses("feature1", FieldStatus.PRESENT)
+                    .putFields("project/feature2", intValue(1))
+                    .putStatuses("project/feature2", FieldStatus.PRESENT)
+                    .build())
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(2))
+                    .putStatuses("entity1", FieldStatus.PRESENT)
+                    .putFields("entity2", strValue("b"))
+                    .putStatuses("entity2", FieldStatus.PRESENT)
+                    .putFields("feature1", intValue(2))
+                    .putStatuses("feature1", FieldStatus.PRESENT)
+                    .putFields("project/feature2", intValue(2))
+                    .putStatuses("project/feature2", FieldStatus.PRESENT)
+                    .build())
             .build();
     GetOnlineFeaturesResponse actual = onlineServingService.getOnlineFeatures(request);
     assertThat(actual, equalTo(expected));
@@ -217,28 +225,28 @@ public class OnlineServingServiceTest {
 
     GetOnlineFeaturesResponse expected =
         GetOnlineFeaturesResponse.newBuilder()
-            .addRecords(
-                Record.newBuilder()
-                    .putFields("entity1", intField(1))
-                    .putFields("entity2", strField("a"))
-                    .putFields("feature1", intField(1))
-                    .putFields("project/feature2", intField(1)))
-            .addRecords(
-                Record.newBuilder()
-                    .putFields("entity1", intField(2))
-                    .putFields("entity2", strField("b"))
-                    .putFields(
-                        "feature1",
-                        Field.newBuilder()
-                            .setValue(Value.newBuilder().build())
-                            .setStatus(FieldStatus.NOT_FOUND)
-                            .build())
-                    .putFields(
-                        "project/feature2",
-                        Field.newBuilder()
-                            .setValue(Value.newBuilder().build())
-                            .setStatus(FieldStatus.NOT_FOUND)
-                            .build()))
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(1))
+                    .putStatuses("entity1", FieldStatus.PRESENT)
+                    .putFields("entity2", strValue("a"))
+                    .putStatuses("entity2", FieldStatus.PRESENT)
+                    .putFields("feature1", intValue(1))
+                    .putStatuses("feature1", FieldStatus.PRESENT)
+                    .putFields("project/feature2", intValue(1))
+                    .putStatuses("project/feature2", FieldStatus.PRESENT)
+                    .build())
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(2))
+                    .putStatuses("entity1", FieldStatus.PRESENT)
+                    .putFields("entity2", strValue("b"))
+                    .putStatuses("entity2", FieldStatus.PRESENT)
+                    .putFields("feature1", Value.newBuilder().build())
+                    .putStatuses("feature1", FieldStatus.NOT_FOUND)
+                    .putFields("project/feature2", Value.newBuilder().build())
+                    .putStatuses("project/feature2", FieldStatus.NOT_FOUND)
+                    .build())
             .build();
     GetOnlineFeaturesResponse actual = onlineServingService.getOnlineFeatures(request);
     assertThat(actual, equalTo(expected));
@@ -330,28 +338,27 @@ public class OnlineServingServiceTest {
 
     GetOnlineFeaturesResponse expected =
         GetOnlineFeaturesResponse.newBuilder()
-            .addRecords(
-                Record.newBuilder()
-                    .putFields("entity1", intField(1))
-                    .putFields("entity2", strField("a"))
-                    .putFields("feature1", intField(1))
-                    .putFields("project/feature2", intField(1)))
-            .addRecords(
-                Record.newBuilder()
-                    .putFields("entity1", intField(2))
-                    .putFields("entity2", strField("b"))
-                    .putFields(
-                        "feature1",
-                        Field.newBuilder()
-                            .setValue(Value.newBuilder().build())
-                            .setStatus(FieldStatus.OUTSIDE_MAX_AGE)
-                            .build())
-                    .putFields(
-                        "project/feature2",
-                        Field.newBuilder()
-                            .setValue(Value.newBuilder().build())
-                            .setStatus(FieldStatus.OUTSIDE_MAX_AGE)
-                            .build())
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(1))
+                    .putStatuses("entity1", FieldStatus.PRESENT)
+                    .putFields("entity2", strValue("a"))
+                    .putStatuses("entity2", FieldStatus.PRESENT)
+                    .putFields("feature1", intValue(1))
+                    .putStatuses("feature1", FieldStatus.PRESENT)
+                    .putFields("project/feature2", intValue(1))
+                    .putStatuses("project/feature2", FieldStatus.PRESENT)
+                    .build())
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(2))
+                    .putStatuses("entity1", FieldStatus.PRESENT)
+                    .putFields("entity2", strValue("b"))
+                    .putStatuses("entity2", FieldStatus.PRESENT)
+                    .putFields("feature1", Value.newBuilder().build())
+                    .putStatuses("feature1", FieldStatus.OUTSIDE_MAX_AGE)
+                    .putFields("project/feature2", Value.newBuilder().build())
+                    .putStatuses("project/feature2", FieldStatus.OUTSIDE_MAX_AGE)
                     .build())
             .build();
     GetOnlineFeaturesResponse actual = onlineServingService.getOnlineFeatures(request);
@@ -439,16 +446,24 @@ public class OnlineServingServiceTest {
 
     GetOnlineFeaturesResponse expected =
         GetOnlineFeaturesResponse.newBuilder()
-            .addRecords(
-                Record.newBuilder()
-                    .putFields("entity1", intField(1))
-                    .putFields("entity2", strField("a"))
-                    .putFields("feature1", intField(1)))
-            .addRecords(
-                Record.newBuilder()
-                    .putFields("entity1", intField(2))
-                    .putFields("entity2", strField("b"))
-                    .putFields("feature1", intField(2)))
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(1))
+                    .putStatuses("entity1", FieldStatus.PRESENT)
+                    .putFields("entity2", strValue("a"))
+                    .putStatuses("entity2", FieldStatus.PRESENT)
+                    .putFields("feature1", intValue(1))
+                    .putStatuses("feature1", FieldStatus.PRESENT)
+                    .build())
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(2))
+                    .putStatuses("entity1", FieldStatus.PRESENT)
+                    .putFields("entity2", strValue("b"))
+                    .putStatuses("entity2", FieldStatus.PRESENT)
+                    .putFields("feature1", intValue(2))
+                    .putStatuses("feature1", FieldStatus.PRESENT)
+                    .build())
             .build();
     GetOnlineFeaturesResponse actual = onlineServingService.getOnlineFeatures(request);
     assertThat(actual, equalTo(expected));
@@ -460,14 +475,6 @@ public class OnlineServingServiceTest {
 
   private Value strValue(String val) {
     return Value.newBuilder().setStringVal(val).build();
-  }
-
-  private Field intField(int val) {
-    return Field.newBuilder().setValue(intValue(val)).setStatus(FieldStatus.PRESENT).build();
-  }
-
-  private Field strField(String val) {
-    return Field.newBuilder().setValue(strValue(val)).setStatus(FieldStatus.PRESENT).build();
   }
 
   private FeatureSetSpec getFeatureSetSpec() {

@@ -19,9 +19,8 @@ package feast.serving.service;
 import com.google.protobuf.Duration;
 import feast.proto.serving.ServingAPIProto.*;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.Field;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.Record;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.ValueProto.Value;
 import feast.serving.specs.CachedSpecService;
@@ -64,16 +63,20 @@ public class OnlineServingService implements ServingService {
   public GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest request) {
     try (Scope scope = tracer.buildSpan("getOnlineFeatures").startActive(true)) {
       List<EntityRow> entityRows = request.getEntityRowsList();
-      boolean includeMetadata = request.getIncludeMetadataInResponse();
-      // Collect the response fields for each entity row in entityFieldsMap.
-      Map<EntityRow, Map<String, Field>> entityFieldsMap =
+      // Collect the feature/entity value for each entity row in entityValueMap
+      Map<EntityRow, Map<String, Value>> entityValuesMap =
+          entityRows.stream().collect(Collectors.toMap(row -> row, row -> new HashMap<>()));
+      // Collect the feature/entity status metadata for each entity row in entityValueMap
+      Map<EntityRow, Map<String, FieldStatus>> entityStatusesMap =
           entityRows.stream().collect(Collectors.toMap(row -> row, row -> new HashMap<>()));
 
       if (!request.getOmitEntitiesInResponse()) {
         // Add entity row's fields as response fields
         entityRows.forEach(
             entityRow -> {
-              entityFieldsMap.get(entityRow).putAll(this.unpackFields(entityRow, includeMetadata));
+              Map<String, Value> valueMap = entityRow.getFieldsMap();
+              entityValuesMap.get(entityRow).putAll(valueMap);
+              entityStatusesMap.get(entityRow).putAll(this.getMetadataMap(valueMap, false, false));
             });
       }
 
@@ -82,6 +85,7 @@ public class OnlineServingService implements ServingService {
       for (FeatureSetRequest featureSetRequest : featureSetRequests) {
         // Pull feature rows for given entity rows from the feature/featureset specified in feature
         // set request.
+        // from the configured online
         List<FeatureRow> featureRows = retriever.getOnlineFeatures(entityRows, featureSetRequest);
         // Check that feature row returned corresponds to a given entity row.
         if (featureRows.size() != entityRows.size()) {
@@ -95,138 +99,113 @@ public class OnlineServingService implements ServingService {
         for (var i = 0; i < entityRows.size(); i++) {
           FeatureRow featureRow = featureRows.get(i);
           EntityRow entityRow = entityRows.get(i);
-          // Unpack feature response fields from feature row
-          Map<FeatureReference, Field> fields =
-              this.unpackFields(featureRow, entityRow, featureSetRequest, includeMetadata);
-          // Merge feature response fields into entityFieldsMap
-          entityFieldsMap
-              .get(entityRow)
-              .putAll(
-                  fields.entrySet().stream()
-                      .collect(
-                          Collectors.toMap(
-                              es -> RefUtil.generateFeatureStringRef(es.getKey()),
-                              es -> es.getValue())));
+          // Unpack feature field values and merge into entityValueMap
+          boolean isStaleValues = this.isStale(featureSetRequest, entityRow, featureRow);
+          Map<String, Value> valueMap =
+              this.unpackValueMap(featureRow, featureSetRequest, isStaleValues);
+          entityValuesMap.get(entityRow).putAll(valueMap);
+
+          // Generate metadata for feature values and merge into entityFieldsMap
+          boolean isNotFound = featureRow == null;
+          Map<String, FieldStatus> statusMap =
+              this.getMetadataMap(valueMap, isNotFound, isStaleValues);
+          entityStatusesMap.get(entityRow).putAll(statusMap);
 
           // Populate metrics
-          this.populateStaleKeyCountMetrics(fields, featureSetRequest);
+          this.populateStaleKeyCountMetrics(statusMap, featureSetRequest);
         }
         this.populateRequestCountMetrics(featureSetRequest);
       }
 
-      // Build response records from entityFieldsMap.
-      // Records should be in the same order as the entityRows provided by the user.
-      List<Record> records =
+      // Build response field values from entityValuesMap and entityStatusesMap
+      // Reponse field values should be in the same order as the entityRows provided by the user.
+      List<FieldValues> fieldValuesList =
           entityRows.stream()
               .map(
-                  entityRow ->
-                      Record.newBuilder().putAllFields(entityFieldsMap.get(entityRow)).build())
+                  entityRow -> {
+                    return FieldValues.newBuilder()
+                        .putAllFields(entityValuesMap.get(entityRow))
+                        .putAllStatuses(entityStatusesMap.get(entityRow))
+                        .build();
+                  })
               .collect(Collectors.toList());
-      return GetOnlineFeaturesResponse.newBuilder().addAllRecords(records).build();
+      return GetOnlineFeaturesResponse.newBuilder().addAllFieldValues(fieldValuesList).build();
     }
   }
 
   /**
-   * Unpack response fields from the given entity row's fields.
+   * Unpack feature values using data from the given feature row for features specified in the given
+   * feature set request.
    *
-   * @param entityRow to unpack for response fields
-   * @param includeMetadata whether metadata should be included in the response fields
-   * @return Map mapping of name of field to response field.
-   */
-  private Map<String, Field> unpackFields(EntityRow entityRow, boolean includeMetadata) {
-    return entityRow.getFieldsMap().entrySet().stream()
-        .collect(
-            Collectors.toMap(
-                es -> es.getKey(),
-                es -> {
-                  Field.Builder field = Field.newBuilder().setValue(es.getValue());
-                  if (includeMetadata) {
-                    field.setStatus(FieldStatus.PRESENT);
-                  }
-                  return field.build();
-                }));
-  }
-
-  /**
-   * Unpack response fields using data from the given feature row for features specified in the
-   * given feature set request.
-   *
-   * @param featureRow to unpack for response fields.
-   * @param entityRow for which the feature row was retrieved for.
+   * @param featureRow to unpack for feature values.
    * @param featureSetRequest for which the feature row was retrieved.
-   * @param includeMetadata whether metadata should be included in the response fields
-   * @return Map mapping of feature ref to response field
+   * @param isStaleValues whether which the feature row contains stale values.
+   * @return valueMap mapping string feature reference to feature valuyesaq
    */
-  private Map<FeatureReference, Field> unpackFields(
-      FeatureRow featureRow,
-      EntityRow entityRow,
-      FeatureSetRequest featureSetRequest,
-      boolean includeMetadata) {
+  private Map<String, Value> unpackValueMap(
+      FeatureRow featureRow, FeatureSetRequest featureSetRequest, boolean isStaleValues) {
+    Map<String, Value> valueMap = new HashMap<>();
     // In order to return values containing the same feature references provided by the user,
     // we reuse the feature references in the request as the keys in field builder map
-    Map<String, FeatureReference> refsByName = featureSetRequest.getFeatureRefsByName();
-    Map<FeatureReference, Field.Builder> fields = new HashMap<>();
-
-    boolean hasStaleValues = this.isStale(featureSetRequest, entityRow, featureRow);
+    Map<String, FeatureReference> nameRefMap = featureSetRequest.getFeatureRefsByName();
     if (featureRow != null) {
-      // unpack feature row's field's values & populate field map
-      Map<FeatureReference, Field.Builder> featureFields =
+      // unpack feature row's feature values and populate value map
+      Map<String, Value> featureValueMap =
           featureRow.getFieldsList().stream()
-              .filter(featureRowField -> refsByName.containsKey(featureRowField.getName()))
+              .filter(featureRowField -> nameRefMap.containsKey(featureRowField.getName()))
               .collect(
                   Collectors.toMap(
-                      featureRowField -> refsByName.get(featureRowField.getName()),
                       featureRowField -> {
-                        // omit stale feature values.
-                        if (hasStaleValues) {
-                          return Field.newBuilder().setValue(Value.newBuilder().build());
+                        FeatureReference featureRef = nameRefMap.get(featureRowField.getName());
+                        return RefUtil.generateFeatureStringRef(featureRef);
+                      },
+                      featureRowField -> {
+                        // drop stale feature values.
+                        if (isStaleValues) {
+                          return Value.newBuilder().build();
                         } else {
-                          return Field.newBuilder().setValue(featureRowField.getValue());
+                          return featureRowField.getValue();
                         }
                       }));
-      fields.putAll(featureFields);
+      valueMap.putAll(featureValueMap);
     }
 
-    // create empty response fields for features specified in request but not present in feature
-    // row.
-    Set<FeatureReference> missingFeatures = new HashSet<>(refsByName.values());
-    missingFeatures.removeAll(fields.keySet());
-    missingFeatures.forEach(
-        ref -> fields.put(ref, Field.newBuilder().setValue(Value.newBuilder().build())));
+    // create empty values for features specified in request but not present in feature row.
+    Set<String> missingFeatures =
+        nameRefMap.values().stream()
+            .map(ref -> RefUtil.generateFeatureStringRef(ref))
+            .collect(Collectors.toSet());
+    missingFeatures.removeAll(valueMap.keySet());
+    missingFeatures.forEach(refString -> valueMap.put(refString, Value.newBuilder().build()));
 
-    // attach metadata to the feature response fields & build response field
-    return fields.entrySet().stream()
+    return valueMap;
+  }
+
+  /**
+   * Generate Field level Status metadata for the given valueMap.
+   *
+   * @param isNotFound whether the given valueMap represents values that were not found in the
+   *     online retriever.
+   * @param isStaleValues whether the given valueMap contains stale values.
+   * @return a 1:1 map containing field status metadata instead of values in the valueMap.
+   */
+  private Map<String, FieldStatus> getMetadataMap(
+      Map<String, Value> valueMap, boolean isNotFound, boolean isStaleValues) {
+    return valueMap.entrySet().stream()
         .collect(
             Collectors.toMap(
                 es -> es.getKey(),
                 es -> {
-                  Field.Builder field = es.getValue();
-                  if (includeMetadata) {
-                    field = this.attachMetadata(field, featureRow, hasStaleValues);
+                  Value fieldValue = es.getValue();
+                  if (isNotFound) {
+                    return FieldStatus.NOT_FOUND;
+                  } else if (isStaleValues) {
+                    return FieldStatus.OUTSIDE_MAX_AGE;
+                  } else if (fieldValue.getValCase().equals(Value.ValCase.VAL_NOT_SET)) {
+                    return FieldStatus.NULL_VALUE;
                   }
-                  return field.build();
+                  return FieldStatus.PRESENT;
                 }));
-  }
-
-  /**
-   * Attach metadata to the given response field. Attaches field status to the response providing
-   * metadata for the field.
-   *
-   * @param featureRow where the field was unpacked from.
-   * @param hasStaleValue whether the field contains a stale value
-   */
-  private Field.Builder attachMetadata(
-      Field.Builder field, FeatureRow featureRow, boolean hasStaleValue) {
-    FieldStatus fieldStatus = FieldStatus.PRESENT;
-    if (featureRow == null) {
-      fieldStatus = FieldStatus.NOT_FOUND;
-    } else if (hasStaleValue) {
-      fieldStatus = FieldStatus.OUTSIDE_MAX_AGE;
-    } else if (field.getValue().getValCase() == Value.ValCase.VAL_NOT_SET) {
-      fieldStatus = FieldStatus.NULL_VALUE;
-    }
-
-    return field.setStatus(fieldStatus);
   }
 
   /**
@@ -259,16 +238,16 @@ public class OnlineServingService implements ServingService {
   }
 
   private void populateStaleKeyCountMetrics(
-      Map<FeatureReference, Field> fields, FeatureSetRequest featureSetRequest) {
+      Map<String, FieldStatus> statusMap, FeatureSetRequest featureSetRequest) {
     String project = featureSetRequest.getSpec().getProject();
-    fields
+    statusMap
         .entrySet()
         .forEach(
             es -> {
-              FeatureReference ref = es.getKey();
-              Field field = es.getValue();
-              if (field.getStatus() == FieldStatus.OUTSIDE_MAX_AGE) {
-                Metrics.staleKeyCount.labels(project, RefUtil.generateFeatureStringRef(ref)).inc();
+              String featureRefString = es.getKey();
+              FieldStatus status = es.getValue();
+              if (status == FieldStatus.OUTSIDE_MAX_AGE) {
+                Metrics.staleKeyCount.labels(project, featureRefString).inc();
               }
             });
   }
