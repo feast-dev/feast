@@ -21,33 +21,21 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.auto.value.AutoValue;
 
 @AutoValue
-@JsonDeserialize(builder = AutoValue_RunState.Builder.class)
-public abstract class RunState {
+@JsonDeserialize(builder = AutoValue_JobsDeleteRequest.Builder.class)
+public abstract class JobsDeleteRequest {
 
-  @JsonProperty("life_cycle_state")
-  public abstract RunLifeCycleState getLifeCycleState();
-
-  @JsonProperty("result_state")
-  public abstract RunResultState getResultState();
-
-  @JsonProperty("state_message")
-  public abstract String getStateMessage();
+  @JsonProperty("job_id")
+  public abstract long getJobId();
 
   public static Builder builder() {
-    return new AutoValue_RunState.Builder();
+    return new AutoValue_JobsDeleteRequest.Builder();
   }
 
   @AutoValue.Builder
   public abstract static class Builder {
-    @JsonProperty("life_cycle_state")
-    public abstract Builder setLifeCycleState(RunLifeCycleState value);
+    @JsonProperty("job_id")
+    public abstract Builder setJobId(long value);
 
-    @JsonProperty("result_state")
-    public abstract Builder setResultState(RunResultState value);
-
-    @JsonProperty("state_message")
-    public abstract Builder setStateMessage(String value);
-
-    public abstract RunState build();
+    public abstract JobsDeleteRequest build();
   }
 }

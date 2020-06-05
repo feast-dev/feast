@@ -19,35 +19,31 @@ package feast.databricks.types;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.auto.value.AutoValue;
+import java.util.List;
+import java.util.Optional;
 
 @AutoValue
-@JsonDeserialize(builder = AutoValue_RunState.Builder.class)
-public abstract class RunState {
+@JsonDeserialize(builder = AutoValue_RunNowRequest.Builder.class)
+public abstract class RunNowRequest {
 
-  @JsonProperty("life_cycle_state")
-  public abstract RunLifeCycleState getLifeCycleState();
+  @JsonProperty("job_id")
+  public abstract long getJobId();
 
-  @JsonProperty("result_state")
-  public abstract RunResultState getResultState();
-
-  @JsonProperty("state_message")
-  public abstract String getStateMessage();
+  @JsonProperty("jar_params")
+  public abstract Optional<List<String>> getJarParams();
 
   public static Builder builder() {
-    return new AutoValue_RunState.Builder();
+    return new AutoValue_RunNowRequest.Builder();
   }
 
   @AutoValue.Builder
-  public abstract static class Builder {
-    @JsonProperty("life_cycle_state")
-    public abstract Builder setLifeCycleState(RunLifeCycleState value);
+  abstract static class Builder {
+    @JsonProperty("job_id")
+    abstract Builder setJobId(long value);
 
-    @JsonProperty("result_state")
-    public abstract Builder setResultState(RunResultState value);
+    @JsonProperty("jar_params")
+    abstract Builder setJarParams(List<String> value);
 
-    @JsonProperty("state_message")
-    public abstract Builder setStateMessage(String value);
-
-    public abstract RunState build();
+    abstract RunNowRequest build();
   }
 }

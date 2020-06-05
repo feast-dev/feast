@@ -16,18 +16,26 @@
  */
 package feast.databricks.types;
 
-import java.util.Collections;
-import java.util.List;
-import lombok.Getter;
-import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.auto.value.AutoValue;
 
-@Getter
-@Setter
-public class RunsSubmitRequest {
-  private NewCluster new_cluster;
-  private SparkJarTask spark_jar_task;
-  private String run_name = "Untitled";
-  private List<Library> libraries = Collections.emptyList();
-  private int timeout_seconds;
-  private String idempotency_token;
+@AutoValue
+@JsonDeserialize(builder = AutoValue_RunsCancelRequest.Builder.class)
+public abstract class RunsCancelRequest {
+
+  @JsonProperty("run_id")
+  public abstract long getRunId();
+
+  public static Builder builder() {
+    return new AutoValue_RunsCancelRequest.Builder();
+  }
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+    @JsonProperty("run_id")
+    public abstract Builder setRunId(long value);
+
+    public abstract RunsCancelRequest build();
+  }
 }

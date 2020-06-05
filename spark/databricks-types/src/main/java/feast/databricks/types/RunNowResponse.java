@@ -16,11 +16,24 @@
  */
 package feast.databricks.types;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.auto.value.AutoValue;
 
-@Getter
-@AllArgsConstructor
-public class RunsSubmitResponse {
-  private long run_id;
+@AutoValue
+@JsonDeserialize(builder = AutoValue_RunNowResponse.Builder.class)
+public abstract class RunNowResponse {
+  public abstract long getRunId();
+
+  public static Builder builder() {
+    return new AutoValue_RunNowResponse.Builder();
+  }
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+    @JsonProperty("run_id")
+    public abstract Builder setRunId(long value);
+
+    public abstract RunNowResponse build();
+  }
 }

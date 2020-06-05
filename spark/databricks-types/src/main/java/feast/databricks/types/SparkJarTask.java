@@ -16,14 +16,33 @@
  */
 package feast.databricks.types;
 
-import java.util.Collections;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.auto.value.AutoValue;
 import java.util.List;
-import lombok.Getter;
-import lombok.Setter;
+import java.util.Optional;
 
-@Getter
-@Setter
-public class SparkJarTask {
-  private String main_class_name;
-  private List<String> parameters = Collections.emptyList();
+@AutoValue
+@JsonDeserialize(builder = AutoValue_SparkJarTask.Builder.class)
+public abstract class SparkJarTask {
+  @JsonProperty("main_class_name")
+  public abstract String getMainClassName();
+
+  @JsonProperty("parameters")
+  public abstract Optional<List<String>> getParameters();
+
+  public static Builder builder() {
+    return new AutoValue_SparkJarTask.Builder();
+  }
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+    @JsonProperty("main_class_name")
+    public abstract Builder setMainClassName(String value);
+
+    @JsonProperty("parameters")
+    public abstract Builder setParameters(List<String> value);
+
+    public abstract SparkJarTask build();
+  }
 }
