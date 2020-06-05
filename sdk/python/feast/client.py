@@ -716,15 +716,19 @@ class Client:
             strip_field_values = []
             for field_value in response.field_values:
                 # strip the project part the string feature references returned from serving
-                strip_fields = {}
-                for ref_str, value in field_value.fields.items():
-                    if ref_str not in entity_refs:
-                        ref_str = repr(
+                strip_fields, strip_statuses = {}, {}
+                for ref_str in field_value.fields.keys():
+                    strip_ref_str = ref_str
+                    if not ref_str in entity_refs:
+                        strip_ref_str = repr(
                             FeatureRef.from_str(ref_str, ignore_project=True)
                         )
-                    strip_fields[ref_str] = value
+                    strip_fields[strip_ref_str] = field_value.fields[ref_str]
+                    strip_statuses[strip_ref_str] = field_value.statuses[ref_str]
                 strip_field_values.append(
-                    GetOnlineFeaturesResponse.FieldValues(fields=strip_fields)
+                    GetOnlineFeaturesResponse.FieldValues(
+                        fields=strip_fields, statuses=strip_statuses,
+                    )
                 )
 
             del response.field_values[:]
