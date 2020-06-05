@@ -59,21 +59,26 @@ func (fc *GrpcClient) GetOnlineFeatures(ctx context.Context, req *OnlineFeatures
 		}
 	}
 
-	// strip projects from to projects
+	// strip projects from feature refs recieved
 	for _, fieldValues := range resp.GetFieldValues() {
 		stripFields := make(map[string]*types.Value, len(fieldValues.Fields))
-		for refStr, value := range fieldValues.Fields {
+		stripStatuses := make(map[string]serving.GetOnlineFeaturesResponse_FieldStatus, len(fieldValues.Statuses))
+		for refStr, _ := range fieldValues.Fields {
 			_, isEntity := entityRefs[refStr]
+			stripRefStr := refStr
 			if !isEntity { // is feature ref
 				featureRef, err := parseFeatureRef(refStr, true)
 				if err != nil {
 					return nil, err
 				}
-				refStr = toFeatureRefStr(featureRef)
+				stripRefStr = toFeatureRefStr(featureRef)
 			}
-			stripFields[refStr] = value
+
+			stripFields[stripRefStr] = fieldValues.Fields[refStr]
+			stripStatuses[stripRefStr] = fieldValues.Statuses[refStr]
 		}
 		fieldValues.Fields = stripFields
+		fieldValues.Statuses = stripStatuses
 	}
 
 	return &OnlineFeaturesResponse{RawResponse: resp}, err
