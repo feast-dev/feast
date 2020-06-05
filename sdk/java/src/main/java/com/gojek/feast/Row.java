@@ -57,6 +57,10 @@ public class Row {
     return this;
   }
 
+  public Row set(String fieldName, Object value) {
+    return this.set(fieldName, value, FieldStatus.PRESENT);
+  }
+
   public Row set(String fieldName, Object value, FieldStatus status) {
     String valueType = value.getClass().getCanonicalName();
     switch (valueType) {
@@ -121,11 +125,11 @@ public class Row {
     return getValue(fieldName).map(Value::getBytesVal).map(ByteString::toByteArray).orElse(null);
   }
 
-  public Map<String, FieldStatus> getFieldStatuses() {
+  public Map<String, FieldStatus> getStatuses() {
     return fieldStatuses;
   }
 
-  public FieldStatus getFieldStatus(String fieldName) {
+  public FieldStatus getStatus(String fieldName) {
     return fieldStatuses.get(fieldName);
   }
 

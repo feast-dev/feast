@@ -25,6 +25,7 @@ import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceImplBase;
 import feast.proto.types.ValueProto.Value;
@@ -98,6 +99,17 @@ public class FeastClientTest {
             put("driver_id", intValue(1));
             put("driver:name", strValue("david"));
             put("rating", intValue(3));
+            put("null_value", Value.newBuilder().build());
+          }
+        });
+    assertEquals(
+        rows.get(0).getStatuses(),
+        new HashMap<String, FieldStatus>() {
+          {
+            put("driver_id", FieldStatus.PRESENT);
+            put("driver:name", FieldStatus.PRESENT);
+            put("rating", FieldStatus.PRESENT);
+            put("null_value", FieldStatus.NULL_VALUE);
           }
         });
   }
@@ -124,14 +136,14 @@ public class FeastClientTest {
     return GetOnlineFeaturesResponse.newBuilder()
         .addFieldValues(
             FieldValues.newBuilder()
-                .putAllFields(
-                    new HashMap<String, Value>() {
-                      {
-                        put("driver_id", intValue(1));
-                        put("driver:name", strValue("david"));
-                        put("rating", intValue(3));
-                      }
-                    })
+                .putFields("driver_id", intValue(1))
+                .putStatuses("driver_id", FieldStatus.PRESENT)
+                .putFields("driver:name", strValue("david"))
+                .putStatuses("driver:name", FieldStatus.PRESENT)
+                .putFields("rating", intValue(3))
+                .putStatuses("rating", FieldStatus.PRESENT)
+                .putFields("null_value", Value.newBuilder().build())
+                .putStatuses("null_value", FieldStatus.NULL_VALUE)
                 .build())
         .build();
   }
