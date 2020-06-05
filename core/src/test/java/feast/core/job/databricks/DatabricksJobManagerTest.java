@@ -73,6 +73,9 @@ public class DatabricksJobManagerTest {
     metricsProperties.setEnabled(false);
     DatabricksRunnerConfigOptions.Builder databricksRunnerConfigOptions =
         DatabricksRunnerConfigOptions.newBuilder();
+
+    databricksRunnerConfigOptions.setHost("https://databricks");
+
     dbJobManager =
         new DatabricksJobManager(
             databricksRunnerConfigOptions.build(), metricsProperties, httpClient);
@@ -98,6 +101,9 @@ public class DatabricksJobManagerTest {
 
     DatabricksRunnerConfigOptions.Builder databricksRunnerConfigOptions =
         DatabricksRunnerConfigOptions.newBuilder();
+
+    databricksRunnerConfigOptions.setHost("https://databricks");
+
     dbJobManager =
         new DatabricksJobManager(
             databricksRunnerConfigOptions.build(), metricsProperties, httpClient);
@@ -153,21 +159,15 @@ public class DatabricksJobManagerTest {
     when(httpResponse.statusCode()).thenReturn(200);
 
     Mockito.when(httpClient.send(any(), any())).thenReturn(httpResponse);
-
-    runnerConfigOptions.put("sparkMainClassName", "spark_main_class_name");
-    runnerConfigOptions.put("kafkaBroker", "kafka_broker");
-    runnerConfigOptions.put("kafkaTopic", "kafka_topic_name");
-    runnerConfigOptions.put("sparkNumWorkers", "spark_num_workers");
-    runnerConfigOptions.put("sparkVersion", "spark_version");
-    runnerConfigOptions.put("sparkNodeTypeId", "spark_node_type_id");
-    runnerConfigOptions.put("jarLocation", "jar_location");
-
     HttpClient mockHttpClient = Mockito.mock(HttpClient.class);
 
     MetricsProperties metricsProperties = new MetricsProperties();
     metricsProperties.setEnabled(false);
     DatabricksRunnerConfigOptions.Builder databricksRunnerConfigOptions =
         DatabricksRunnerConfigOptions.newBuilder();
+
+    databricksRunnerConfigOptions.setHost("https://databricks");
+
     dbJobManager =
         new DatabricksJobManager(
             databricksRunnerConfigOptions.build(), metricsProperties, httpClient);
