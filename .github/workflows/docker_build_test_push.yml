@@ -52,7 +52,7 @@ jobs:
         FEAST_SERVING_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-serving
 
     - name: test docker compose
-      run: ./infra/scripts/test-docker-compose.sh
+      run: ./infra/scripts/test-docker-compose-databricks.sh
       env:
         COMPOSE_PROJECT_NAME: feast
         FEAST_VERSION: v${{ github.sha }}

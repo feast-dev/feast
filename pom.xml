@@ -35,7 +35,10 @@
         <module>core</module>
         <module>serving</module>
         <module>sdk/java</module>
-        <module>docs/coverage/java</module>
+        <module>spark/databricks-emulator</module>
+        <module>spark/databricks-types</module>
+        <module>spark/spark-historical-retriever-job</module>
+        <module>spark/spark-ingestion-job</module>
     </modules>
 
     <properties>
@@ -61,6 +64,8 @@
         <opencensus.version>0.21.0</opencensus.version>
         <!-- Force log4j2 to 2.11+ to support objectMessageAsJsonObject -->
         <log4jVersion>2.12.1</log4jVersion>
+        <spark.version>2.4.5</spark.version>
+        <scala.compat.version>2.11</scala.compat.version>
     </properties>
 
     <organization>
