@@ -54,8 +54,9 @@ public class FeastClientTest {
                 public void getOnlineFeatures(
                     GetOnlineFeaturesRequest request,
                     StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
+
                   if (!request.equals(FeastClientTest.getFakeRequest())) {
-                    responseObserver.onError(Status.UNKNOWN.asRuntimeException());
+                    responseObserver.onError(Status.FAILED_PRECONDITION.asRuntimeException());
                   }
 
                   responseObserver.onNext(FeastClientTest.getFakeResponse());
@@ -87,7 +88,7 @@ public class FeastClientTest {
   public void shouldGetOnlineFeatures() {
     List<Row> rows =
         this.client.getOnlineFeatures(
-            Arrays.asList("driver:name", "rating"),
+            Arrays.asList("driver:name", "rating", "null_value"),
             Arrays.asList(
                 Row.create().set("driver_id", 1).setEntityTimestamp(Instant.ofEpochSecond(100))),
             "driver_project");
@@ -125,6 +126,11 @@ public class FeastClientTest {
                 .build())
         .addFeatures(
             FeatureReference.newBuilder().setProject("driver_project").setName("rating").build())
+        .addFeatures(
+            FeatureReference.newBuilder()
+                .setProject("driver_project")
+                .setName("null_value")
+                .build())
         .addEntityRows(
             EntityRow.newBuilder()
                 .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
@@ -136,14 +142,14 @@ public class FeastClientTest {
     return GetOnlineFeaturesResponse.newBuilder()
         .addFieldValues(
             FieldValues.newBuilder()
-                .putFields("driver_id", intValue(1))
-                .putStatuses("driver_id", FieldStatus.PRESENT)
-                .putFields("driver:name", strValue("david"))
-                .putStatuses("driver:name", FieldStatus.PRESENT)
-                .putFields("rating", intValue(3))
-                .putStatuses("rating", FieldStatus.PRESENT)
-                .putFields("null_value", Value.newBuilder().build())
-                .putStatuses("null_value", FieldStatus.NULL_VALUE)
+                .putFields("driver_project/driver_id", intValue(1))
+                .putStatuses("driver_project/driver_id", FieldStatus.PRESENT)
+                .putFields("driver_project/driver:name", strValue("david"))
+                .putStatuses("driver_project/driver:name", FieldStatus.PRESENT)
+                .putFields("driver_project/rating", intValue(3))
+                .putStatuses("driver_project/rating", FieldStatus.PRESENT)
+                .putFields("driver_project/null_value", Value.newBuilder().build())
+                .putStatuses("driver_project/null_value", FieldStatus.NULL_VALUE)
                 .build())
         .build();
   }
