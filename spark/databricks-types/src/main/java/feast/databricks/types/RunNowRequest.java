@@ -37,13 +37,13 @@ public abstract class RunNowRequest {
   }
 
   @AutoValue.Builder
-  abstract static class Builder {
+  public abstract static class Builder {
     @JsonProperty("job_id")
-    abstract Builder setJobId(long value);
+    public abstract Builder setJobId(long value);
 
     @JsonProperty("jar_params")
-    abstract Builder setJarParams(List<String> value);
+    public abstract Builder setJarParams(List<String> value);
 
-    abstract RunNowRequest build();
+    public abstract RunNowRequest build();
   }
 }
