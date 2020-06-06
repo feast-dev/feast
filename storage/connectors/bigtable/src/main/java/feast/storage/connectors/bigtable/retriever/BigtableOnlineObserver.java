@@ -31,7 +31,6 @@ import feast.proto.types.FeatureRowProto.FeatureRow.Builder;
 import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.Value;
 import io.grpc.Status;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 

@@ -75,6 +75,8 @@ public class BigtableStandaloneIngestionClient implements BigtableIngestionClien
 
   @Override
   public void set(String key, FeatureRow value) {
+    System.out.printf("Setting the key: %s", key);
+    System.out.printf("value: %s", value);
     RowMutation rowMutation = RowMutation.create(table, key);
     rowMutation.setCell(METADATA_CF, FEATURE_SET_QUALIFIER, value.getFeatureSetBytes());
     rowMutation.setCell(METADATA_CF, INGESTION_ID_QUALIFIER, value.getIngestionIdBytes());

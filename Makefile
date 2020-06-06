@@ -1,12 +1,12 @@
-# 
+#
 #  Copyright 2019 The Feast Authors
-# 
+#
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
 #  You may obtain a copy of the License at
-# 
+#
 #      https://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 #  Unless required by applicable law or agreed to in writing, software
 #  distributed under the License is distributed on an "AS IS" BASIS,
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -35,7 +35,7 @@ install-ci-dependencies: install-python-ci-dependencies install-go-ci-dependenci
 # Java
 
 install-java-ci-dependencies:
-	mvn verify clean --fail-never
+	mvn verify clean -U --fail-never
 
 format-java:
 	mvn spotless:apply
@@ -104,7 +104,7 @@ build-push-docker:
 	@$(MAKE) push-core-docker registry=$(REGISTRY) version=$(VERSION)
 	@$(MAKE) push-serving-docker registry=$(REGISTRY) version=$(VERSION)
 	@$(MAKE) push-ci-docker registry=$(REGISTRY)
-	
+
 build-docker: build-core-docker build-serving-docker build-ci-docker
 
 push-core-docker:

@@ -19,7 +19,6 @@ package feast.storage.connectors.bigtable.retriever;
 import com.google.api.gax.rpc.ResponseObserver;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.models.Query;
-import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.ByteString;
@@ -89,7 +88,8 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
       keyMap.put(featureSetRequest, bigtableKeys);
       try {
         System.out.printf("Sending multi get with %s", featureSetRequest.getSpec().toString());
-        System.out.printf("Feature References %s", featureSetRequest.getFeatureReferences().toString());
+        System.out.printf(
+            "Feature References %s", featureSetRequest.getFeatureReferences().toString());
         System.out.printf("Bigtable Keys %s", bigtableKeys.toString());
         List<FeatureRow> featureRowsForFeatureSet =
             sendAndProcessMultiGet(
@@ -182,10 +182,11 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
             .collect(Collectors.toList())
             .toArray(new ByteString[0][0]);
     List<FeatureRow> result = new ArrayList<>();
-    ResponseObserver<Row> multiGetObserver = BigtableOnlineObserver.create(keys, featureSetSpec, featureReferences, result);
+    ResponseObserver<Row> multiGetObserver =
+        BigtableOnlineObserver.create(keys, featureSetSpec, featureReferences, result);
     try {
       Query multiGet = Query.create(table);
-      for (BigtableKey key: keys) {
+      for (BigtableKey key : keys) {
         multiGet.rowKey(key.toByteString());
       }
       dataClient.readRowsAsync(multiGet, multiGetObserver);
