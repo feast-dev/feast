@@ -1,14 +1,14 @@
 dependencies:
 - name: feast-core
-  version: 0.5.0-alpha.1
+  version: 0.5.1
   condition: feast-core.enabled
 - name: feast-serving
   alias: feast-online-serving
-  version: 0.5.0-alpha.1
+  version: 0.5.1
   condition: feast-online-serving.enabled
 - name: feast-serving
   alias: feast-batch-serving
-  version: 0.5.0-alpha.1
+  version: 0.5.1
   condition: feast-batch-serving.enabled
 - name: postgresql
   version: 8.6.1

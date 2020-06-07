@@ -1,7 +1,7 @@
 feast
 ===== 
 
-Feature store for machine learning. Current chart version is `0.5.0-alpha.1`
+Feature store for machine learning. Current chart version is `0.5.1`
 
 ## TL;DR;
 
@@ -32,9 +32,9 @@ This chart install Feast deployment on a Kubernetes cluster using the [Helm](htt
 
 | Repository | Name | Version |
 |------------|------|---------|
-|  | feast-core | 0.5.0-alpha.1 |
-|  | feast-serving | 0.5.0-alpha.1 |
-|  | feast-serving | 0.5.0-alpha.1 |
+|  | feast-core | 0.5.1 |
+|  | feast-serving | 0.5.1 |
+|  | feast-serving | 0.5.1 |
 |  | prometheus-statsd-exporter | 0.1.2 |
 | https://kubernetes-charts-incubator.storage.googleapis.com/ | kafka | 0.20.8 |
 | https://kubernetes-charts.storage.googleapis.com/ | grafana | 5.0.5 |
