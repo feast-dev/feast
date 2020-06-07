@@ -17,9 +17,10 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 import pyarrow as pa
+import yaml
 from google.protobuf import json_format
 from google.protobuf.duration_pb2 import Duration
-from google.protobuf.json_format import MessageToJson
+from google.protobuf.json_format import MessageToDict, MessageToJson
 from google.protobuf.message import Message
 from pandas.api.types import is_datetime64_ns_dtype
 from pyarrow.lib import TimestampType
@@ -84,6 +85,9 @@ class FeatureSet:
             or self.project != other.project
             or self.max_age != other.max_age
         ):
+            return False
+
+        if self.source != other.source:
             return False
         return True
 
@@ -827,6 +831,30 @@ class FeatureSet:
         )
 
         return FeatureSetProto(spec=spec, meta=meta)
+
+    def to_dict(self) -> Dict:
+        """
+        Converts feature set to dict
+
+        :return: Dictionary object representation of feature set
+        """
+        return MessageToDict(self.to_proto())
+
+    def to_yaml(self, path: str = None):
+        """
+        Converts a feature set to a YAML file. If a file path is provided the YAML will be written to disk, otherwise it
+        will be returned as a string.
+
+        :param path: Optional file path to export feature set to
+        :return: Feature set string returned in YAML format if no file path provided
+        """
+        feature_set_dict = self.to_dict()
+        if path:
+            # Export to YAML file
+            yaml.dump(feature_set_dict, path)
+        else:
+            # Return YAML as string
+            return yaml.dump(feature_set_dict, allow_unicode=True)
 
 
 class FeatureSetRef:
