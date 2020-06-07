@@ -847,7 +847,11 @@ class FeatureSet:
         :return: Dictionary object representation of feature set
         """
         feature_set_dict = MessageToDict(self.to_proto())
-        del feature_set_dict["meta"]
+
+        # Remove meta when empty for more readable exports
+        if feature_set_dict["meta"] == {}:
+            del feature_set_dict["meta"]
+
         return feature_set_dict
 
     def to_yaml(self):
