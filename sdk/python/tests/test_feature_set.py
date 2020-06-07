@@ -257,10 +257,14 @@ class TestFeatureSet:
             ],
         )
 
+        # Create a string YAML representation of the feature set
         string_yaml = test_feature_set.to_yaml()
-        print(string_yaml)
-        actual_feature_set = FeatureSet.from_yaml(string_yaml)
-        assert test_feature_set == actual_feature_set
+
+        # Create a new feature set object from the YAML string
+        actual_feature_set_from_string = FeatureSet.from_yaml(string_yaml)
+
+        # Ensure equality is upheld to original feature set
+        assert test_feature_set == actual_feature_set_from_string
 
 
 def make_tfx_schema_domain_info_inline(schema):

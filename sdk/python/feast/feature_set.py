@@ -80,6 +80,9 @@ class FeatureSet:
             if key not in other.fields.keys() or self.fields[key] != other.fields[key]:
                 return False
 
+            if self.fields[key] != other.fields[key]:
+                return False
+
         if (
             self.name != other.name
             or self.project != other.project
@@ -787,13 +790,17 @@ class FeatureSet:
             entities=[
                 Entity.from_proto(entity) for entity in feature_set_proto.spec.entities
             ],
-            max_age=feature_set_proto.spec.max_age,
+            max_age=(
+                None
+                if feature_set_proto.spec.max_age.seconds == 0 and feature_set_proto.spec.max_age.nanos == 0
+                else feature_set_proto.spec.max_age
+            ),
             source=(
                 None
                 if feature_set_proto.spec.source.type == 0
                 else Source.from_proto(feature_set_proto.spec.source)
             ),
-            project=feature_set_proto.spec.project
+            project=None
             if len(feature_set_proto.spec.project) == 0
             else feature_set_proto.spec.project,
         )
@@ -840,21 +847,14 @@ class FeatureSet:
         """
         return MessageToDict(self.to_proto())
 
-    def to_yaml(self, path: str = None):
+    def to_yaml(self):
         """
-        Converts a feature set to a YAML file. If a file path is provided the YAML will be written to disk, otherwise it
-        will be returned as a string.
+        Converts a feature set to a YAML string.
 
-        :param path: Optional file path to export feature set to
-        :return: Feature set string returned in YAML format if no file path provided
+        :return: Feature set string returned in YAML format
         """
         feature_set_dict = self.to_dict()
-        if path:
-            # Export to YAML file
-            yaml.dump(feature_set_dict, path)
-        else:
-            # Return YAML as string
-            return yaml.dump(feature_set_dict, allow_unicode=True)
+        return yaml.dump(feature_set_dict, allow_unicode=True)
 
 
 class FeatureSetRef:
