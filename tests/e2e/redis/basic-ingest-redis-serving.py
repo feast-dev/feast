@@ -84,7 +84,6 @@ def basic_dataframe(entities, features, ingest_time, n_size):
 def ingest_time():
     return datetime.utcnow()
 
-None
 @pytest.fixture(scope="module")
 def cust_trans_df(ingest_time):
     return basic_dataframe(entities=["customer_id"],

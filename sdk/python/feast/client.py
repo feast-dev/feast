@@ -26,10 +26,10 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import grpc
 import pandas as pd
-from google.protobuf.timestamp_pb2 import Timestamp
-
 import pyarrow as pa
 import pyarrow.parquet as pq
+from google.protobuf.timestamp_pb2 import Timestamp
+
 from feast.config import Config
 from feast.constants import (
     CONFIG_CORE_SECURE_KEY,

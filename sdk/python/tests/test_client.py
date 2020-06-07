@@ -242,7 +242,7 @@ class TestClient:
                     "driver_project/driver:age": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
                     "driver_project/rating": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
                     "driver_project/null_value": GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE,
-                }
+                },
             )
             recieve_response.field_values.append(field_values)
 
@@ -256,19 +256,24 @@ class TestClient:
             feature_refs=["driver:age", "rating", "null_value"],
             project="driver_project",
         )  # type: GetOnlineFeaturesResponse
-        mocked_client._serving_service_stub.GetOnlineFeatures.assert_called_with(request)
+        mocked_client._serving_service_stub.GetOnlineFeatures.assert_called_with(
+            request
+        )
 
         got_fields = got_response.field_values[0].fields
         got_statuses = got_response.field_values[0].statuses
         assert (
             got_fields["driver_id"] == int_val(1)
-            and got_statuses["driver_id"] == GetOnlineFeaturesResponse.FieldStatus.PRESENT
+            and got_statuses["driver_id"]
+            == GetOnlineFeaturesResponse.FieldStatus.PRESENT
             and got_fields["driver:age"] == int_val(1)
-            and got_statuses["driver:age"] == GetOnlineFeaturesResponse.FieldStatus.PRESENT
+            and got_statuses["driver:age"]
+            == GetOnlineFeaturesResponse.FieldStatus.PRESENT
             and got_fields["rating"] == int_val(9)
             and got_statuses["rating"] == GetOnlineFeaturesResponse.FieldStatus.PRESENT
             and got_fields["null_value"] == ValueProto.Value()
-            and got_statuses["null_value"] == GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE
+            and got_statuses["null_value"]
+            == GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE
         )
 
     @pytest.mark.parametrize(

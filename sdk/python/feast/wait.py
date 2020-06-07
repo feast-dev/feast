@@ -16,10 +16,13 @@ import time
 from datetime import datetime, timedelta
 from typing import Callable, Optional
 
-def wait_retry_backoff(retry_fn: Callable[[], bool],
-                       timeout_secs :Optional[int]=None,
-                       timeout_msg :Optional[str]="Timeout while waiting for retry_fn() to return True",
-                       max_wait_secs: Optional[int]=None):
+
+def wait_retry_backoff(
+    retry_fn: Callable[[], bool],
+    timeout_secs: Optional[int] = None,
+    timeout_msg: Optional[str] = "Timeout while waiting for retry_fn() to return True",
+    max_wait_secs: Optional[int] = None,
+):
     """
     Repeated try calling given go_func until it returns True.
     Waits with a exponentiall backoff between retries
