@@ -493,15 +493,6 @@ postsubmits:
           mv /tmp/linux-amd64/helm /usr/bin/helm
           helm init --client-only
 
-          sed -i "/version: /c\version: ${PULL_BASE_REF:1}" infra/charts/feast/Chart.yaml
-          sed -i "/  version: /c\  version: ${PULL_BASE_REF:1}" infra/charts/feast/requirements.yaml
-
-          sed -i "/version: /c\version: ${PULL_BASE_REF:1}" infra/charts/feast/charts/feast-core/Chart.yaml
-          sed -i "/  tag: /c\  tag: ${PULL_BASE_REF:1}" infra/charts/feast/charts/feast-core/values.yaml
-
-          sed -i "/version: /c\version: ${PULL_BASE_REF:1}" infra/charts/feast/charts/feast-serving/Chart.yaml
-          sed -i "/  tag: /c\  tag: ${PULL_BASE_REF:1}" infra/charts/feast/charts/feast-serving/values.yaml
-
           infra/scripts/sync-helm-charts.sh
         volumeMounts:
         - name: service-account
