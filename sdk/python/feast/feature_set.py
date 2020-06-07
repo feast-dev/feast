@@ -792,7 +792,8 @@ class FeatureSet:
             ],
             max_age=(
                 None
-                if feature_set_proto.spec.max_age.seconds == 0 and feature_set_proto.spec.max_age.nanos == 0
+                if feature_set_proto.spec.max_age.seconds == 0
+                and feature_set_proto.spec.max_age.nanos == 0
                 else feature_set_proto.spec.max_age
             ),
             source=(
@@ -845,7 +846,9 @@ class FeatureSet:
 
         :return: Dictionary object representation of feature set
         """
-        return MessageToDict(self.to_proto())
+        feature_set_dict = MessageToDict(self.to_proto())
+        del feature_set_dict["meta"]
+        return feature_set_dict
 
     def to_yaml(self):
         """
@@ -854,7 +857,7 @@ class FeatureSet:
         :return: Feature set string returned in YAML format
         """
         feature_set_dict = self.to_dict()
-        return yaml.dump(feature_set_dict, allow_unicode=True)
+        return yaml.dump(feature_set_dict, allow_unicode=True, sort_keys=False)
 
 
 class FeatureSetRef:

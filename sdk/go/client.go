@@ -54,7 +54,7 @@ func (fc *GrpcClient) GetOnlineFeatures(ctx context.Context, req *OnlineFeatures
 	// collect unqiue entity refs from entity rows
 	entityRefs := make(map[string]struct{})
 	for _, entityRows := range req.Entities {
-		for ref, _ := range entityRows {
+		for ref := range entityRows {
 			entityRefs[ref] = struct{}{}
 		}
 	}
