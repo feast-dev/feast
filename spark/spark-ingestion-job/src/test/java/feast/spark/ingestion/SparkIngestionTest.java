@@ -58,7 +58,6 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -179,12 +178,13 @@ public class SparkIngestionTest {
 
     describedAs("Should consume", is(true), query.status().isDataAvailable());
 
-    LOGGER.info("Publishing {} Feature Row messages to Kafka ...", inputForRedis.size()  +inputForDelta.size());
+    LOGGER.info(
+        "Publishing {} Feature Row messages to Kafka ...",
+        inputForRedis.size() + inputForDelta.size());
     TestUtil.publishFeatureRowsToKafka(
         KAFKA_BOOTSTRAP_SERVERS,
         KAFKA_TOPIC,
         Stream.concat(inputForRedis.stream(), inputForDelta.stream()).collect(Collectors.toList()),
-        inputForRedis,
         ByteArraySerializer.class,
         KAFKA_PUBLISH_TIMEOUT_SEC);
 
