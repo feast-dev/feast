@@ -16,9 +16,12 @@
  */
 package feast.databricks.types;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.auto.value.AutoValue;
+
+import java.util.Optional;
 
 @AutoValue
 @JsonDeserialize(builder = AutoValue_RunState.Builder.class)
@@ -27,8 +30,9 @@ public abstract class RunState {
   @JsonProperty("life_cycle_state")
   public abstract RunLifeCycleState getLifeCycleState();
 
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   @JsonProperty("result_state")
-  public abstract RunResultState getResultState();
+  public abstract Optional<RunResultState> getResultState();
 
   @JsonProperty("state_message")
   public abstract String getStateMessage();
