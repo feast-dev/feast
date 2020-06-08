@@ -16,6 +16,8 @@ class PROTOCOL(Enum):
 
     GS = "gs"
     S3 = "s3"
+    WASB = "wasb"
+    WASBS = "wasbs"
     LOCAL_FILE = "file"
 
 
@@ -50,11 +52,16 @@ class StagingStrategy:
         if "*" in uri.path:
             protocol = self._get_staging_protocol(uri.scheme)
             return protocol.list_files(bucket=uri.hostname, uri=uri)
-        elif PROTOCOL(uri.scheme) in [PROTOCOL.S3, PROTOCOL.GS]:
+        elif PROTOCOL(uri.scheme) in [
+            PROTOCOL.S3,
+            PROTOCOL.GS,
+            PROTOCOL.WASB,
+            PROTOCOL.WASBS,
+        ]:
             return [source]
         else:
             raise Exception(
-                f"Could not identify file protocol {uri.scheme}. Only gs:// and file:// and s3:// supported"
+                f"Could not identify file protocol {uri.scheme}. Only gs:// and file:// and s3:// and wasb:// and wasbs:// supported"
             )
 
     def execute_file_upload(
@@ -87,11 +94,15 @@ class StagingStrategy:
                 self._protocol_dict[protocol] = GCSProtocol()
             elif PROTOCOL(protocol) == PROTOCOL.S3:
                 self._protocol_dict[protocol] = S3Protocol()
+            elif PROTOCOL(protocol) == PROTOCOL.WASB:
+                self._protocol_dict[protocol] = AzureBlobProtocol("http")
+            elif PROTOCOL(protocol) == PROTOCOL.WASBS:
+                self._protocol_dict[protocol] = AzureBlobProtocol("https")
             elif PROTOCOL(protocol) == PROTOCOL.LOCAL_FILE:
                 self._protocol_dict[protocol] = LocalFSProtocol()
             else:
                 raise Exception(
-                    f"Could not identify file protocol {protocol}. Only gs:// and file:// and s3:// supported"
+                    f"Could not identify file protocol {protocol}. Only gs:// and file:// and s3:// and wasb:// and wasbs:// supported"
                 )
             return self._protocol_dict[protocol]
 
@@ -240,6 +251,90 @@ class S3Protocol(AbstractStagingProtocol):
         """
         with open(local_path, "rb") as file:
             self.s3_client.upload_fileobj(file, bucket, remote_path)
+
+
+class AzureBlobProtocol(AbstractStagingProtocol):
+    """
+       Implementation of AbstractStagingProtocol for Azure storage
+    """
+
+    def __init__(self, protocol: str):
+        from azure.common.credentials import get_azure_cli_credentials
+
+        credential, subscription = get_azure_cli_credentials()
+        self.protocol = protocol
+        self.credential = credential
+
+    def download_file(self, uri: ParseResult) -> TemporaryFile:
+        """
+        Downloads a file from Azure Blob storage and returns a TemporaryFile object
+
+        :param uri: Parsed uri of the file ex: urlparse("wasb://account/container/file.avro")
+        :return: TemporaryFile object
+        """
+        from azure.storage.blob import BlobClient
+
+        file_obj = TemporaryFile()
+        client = BlobClient.from_blob_url(
+            f"{self.protocol}://{uri.hostname}{uri.path}", credential=self.credential
+        )
+
+        client.download_blob().readinto(file_obj)
+        file_obj.flush()
+        return file_obj
+
+    def list_files(self, bucket: str, uri: ParseResult) -> List[str]:
+        """
+        Lists all the files under a directory in Azure store if path has wildcard(*) character.
+
+        :param bucket: Azure store bucket name
+        :param uri: parsed uri of location in Azure storage. ex: urlparse("wasb://account/container/file.avro")
+        :return: List[str]
+                    Returns a list containing the full path to the file(s) in the
+                    remote staging location.
+        """
+        from azure.storage.blob import ContainerClient
+
+        path_items = uri.path.split("/")
+        container = path_items[1]
+        path = "/".join(path_items[2:])
+
+        client = ContainerClient.from_container_url(
+            f"{self.protocol}://{uri.hostname}/{container}", credential=self.credential
+        )
+
+        if "*" in path:
+            regex = re.compile(path.replace("*", ".*?").strip("/"))
+            blob_list = client.list_blobs(name_starts_with=path.split("*")[0])
+            # File path should not be in path (file path must be longer than path)
+            return [
+                f"{uri.scheme}://{uri.hostname}/{container}/{file}"
+                for file in [x.name for x in blob_list]
+                if re.match(regex, file) and file not in path
+            ]
+        else:
+            raise Exception(f"{path} is not a wildcard path")
+
+    def upload_file(self, local_path: str, bucket: str, remote_path: str):
+        """
+        Uploads file to Azure Blob.
+
+        :param local_path: Path to the local file that needs to be uploaded/staged
+        :param bucket: Azure Blob account name
+        :param remote_path: relative path to the folder to which the files need to be uploaded
+        :return: None
+        """
+        from azure.storage.blob import ContainerClient
+
+        path_items = remote_path.split("/")
+        container = path_items[0]
+        path = "/".join(path_items[1:])
+        client = ContainerClient(
+            f"{self.protocol}://{bucket}", container, credential=self.credential
+        )
+
+        with open(local_path, "rb") as file:
+            client.upload_blob(name=path, data=file)
 
 
 class LocalFSProtocol(AbstractStagingProtocol):

@@ -5,6 +5,7 @@ import grpc
 import pandas as pd
 import pandavro
 import pytest
+from unittest.mock import patch, Mock
 from moto import mock_s3
 from pandas.testing import assert_frame_equal
 from pytest import fixture, raises
@@ -16,6 +17,9 @@ from feast.serving.ServingService_pb2 import Job as BatchRetrievalJob
 from feast.serving.ServingService_pb2 import JobStatus, JobType
 
 BUCKET = "test_bucket"
+
+ACCOUNT = "testaccount.blob.core.windows.net"
+CONTAINER = "test_container"
 
 TEST_DATA_FRAME = pd.DataFrame(
     {
@@ -61,7 +65,7 @@ class TestRetrievalJob:
             ),
         )
         retrived_df = retrieve_job.to_dataframe()
-        assert_frame_equal(TEST_DATA_FRAME, retrived_df)
+        assert_frame_equal(TEST_DATA_FRAME, retrived_df, check_like=True)
 
     @mock_s3
     def test_to_dataframe_s3_file_staging_should_pass(
@@ -87,7 +91,7 @@ class TestRetrievalJob:
             ),
         )
         retrived_df = retrieve_job.to_dataframe()
-        assert_frame_equal(TEST_DATA_FRAME, retrived_df)
+        assert_frame_equal(TEST_DATA_FRAME, retrived_df, check_like=True)
 
     @pytest.mark.parametrize(
         "job_proto,exception",
@@ -126,3 +130,40 @@ class TestRetrievalJob:
         )
         with raises(exception):
             retrieve_job.to_dataframe()
+
+    @patch("azure.common.credentials.get_azure_cli_credentials")
+    @patch("azure.storage.blob.BlobClient")
+    def test_to_dataframe_azure_file_staging_should_pass(
+        self, client, get_credentials, retrieve_job, avro_data_path, mocker
+    ):
+        client2 = Mock()
+        client.from_blob_url.return_value = client2
+        credential = Mock()
+        get_credentials.return_value = credential, Mock()
+        target = "test_proj/test_features.avro"
+
+        mocker.patch.object(
+            retrieve_job.serving_stub,
+            "GetJob",
+            return_value=GetJobResponse(
+                job=BatchRetrievalJob(
+                    id="123",
+                    type=JobType.JOB_TYPE_DOWNLOAD,
+                    status=JobStatus.JOB_STATUS_DONE,
+                    file_uris=[f"wasbs://{ACCOUNT}/{CONTAINER}/{target}"],
+                    data_format=DataFormat.DATA_FORMAT_AVRO,
+                )
+            ),
+        )
+
+        def read_into(dest):
+            with open(avro_data_path, "rb") as data:
+                dest.write(data.read(-1))
+
+        client2.download_blob().readinto.side_effect = read_into
+        retrived_df = retrieve_job.to_dataframe()
+        assert_frame_equal(TEST_DATA_FRAME, retrived_df, check_like=True)
+        client.from_blob_url.assert_called_with(
+            f"https://{ACCOUNT}/{CONTAINER}/test_proj/test_features.avro",
+            credential=credential,
+        )
