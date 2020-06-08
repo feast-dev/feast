@@ -192,25 +192,24 @@ public class DatabricksJobManagerTest {
     assertThat(actual.getId(), equalTo(job.getId()));
   }
 
-
   @Test
-  public void testAbortJob()
-          throws IOException, InterruptedException {
+  public void testAbortJob() throws IOException, InterruptedException {
     Mockito.when(job.getExtId()).thenReturn("run-id"); // TODO: replace with a valid tun id to run
 
     MetricsProperties metricsProperties = new MetricsProperties();
     metricsProperties.setEnabled(false);
 
     DatabricksRunnerConfigOptions.Builder databricksRunnerConfigOptions =
-            DatabricksRunnerConfigOptions.newBuilder();
+        DatabricksRunnerConfigOptions.newBuilder();
 
     databricksRunnerConfigOptions.setHost("https://adb-8918595472279780.0.azuredatabricks.net");
 
-    databricksRunnerConfigOptions.setToken("TOKEN"); // TODO: replace with a valid databricks token to run
+    databricksRunnerConfigOptions.setToken(
+        "TOKEN"); // TODO: replace with a valid databricks token to run
 
     dbJobManager =
-            new DatabricksJobManager(
-                    databricksRunnerConfigOptions.build(), metricsProperties, httpClient);
+        new DatabricksJobManager(
+            databricksRunnerConfigOptions.build(), metricsProperties, httpClient);
     dbJobManager = spy(dbJobManager);
 
     dbJobManager.abortJob(job.getExtId());
