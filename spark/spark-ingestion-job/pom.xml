@@ -107,9 +107,17 @@
       <scope>provided</scope>
     </dependency>
 
+    <!-- To run actual Redis for ingestion integration test -->
     <dependency>
-      <groupId>org.springframework.kafka</groupId>
-      <artifactId>spring-kafka-test</artifactId>
+      <groupId>com.github.kstyrc</groupId>
+      <artifactId>embedded-redis</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- To run actual Kafka for ingestion integration test -->
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka_${scala.compat.version}</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -118,6 +126,11 @@
       <artifactId>kafka-clients</artifactId>
       <version>1.0.2</version>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.lettuce</groupId>
+      <artifactId>lettuce-core</artifactId>
     </dependency>
 
     <dependency>
