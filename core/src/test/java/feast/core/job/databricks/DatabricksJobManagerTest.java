@@ -64,7 +64,8 @@ public class DatabricksJobManagerTest {
   public void testGetCalltoDatabricksWithOnlyLifeCycle() throws IOException, InterruptedException {
     Mockito.when(job.getExtId()).thenReturn("1");
     HttpResponse httpResponse = mock(HttpResponse.class);
-    String responseBody = "{ \"state\": {\"life_cycle_state\" : \"INTERNAL_ERROR\", \"state_message\": \"a state message\"} } ";
+    String responseBody =
+        "{ \"state\": {\"life_cycle_state\" : \"INTERNAL_ERROR\", \"state_message\": \"a state message\"} } ";
     when(httpResponse.body()).thenReturn(responseBody);
     when(httpResponse.statusCode()).thenReturn(200);
 
@@ -150,7 +151,8 @@ public class DatabricksJobManagerTest {
     HttpResponse httpResponse = mock(HttpResponse.class);
     String createResponseBody = "{ \"job_id\" : \"5\" } ";
     String runNowResponseBody = "{ \"run_id\" : \"10\" } ";
-    String jobStatusResponseBody = "{ \"state\": {\"life_cycle_state\" : \"RUNNING\", \"state_message\": \"a state message\"} } ";
+    String jobStatusResponseBody =
+        "{ \"state\": {\"life_cycle_state\" : \"RUNNING\", \"state_message\": \"a state message\"} } ";
 
     when(httpResponse.body())
         .thenReturn(createResponseBody)
@@ -188,5 +190,29 @@ public class DatabricksJobManagerTest {
 
     assertThat(actual.getExtId(), equalTo("10"));
     assertThat(actual.getId(), equalTo(job.getId()));
+  }
+
+
+  @Test
+  public void testAbortJob()
+          throws IOException, InterruptedException {
+    Mockito.when(job.getExtId()).thenReturn("run-id"); // TODO: replace with a valid tun id to run
+
+    MetricsProperties metricsProperties = new MetricsProperties();
+    metricsProperties.setEnabled(false);
+
+    DatabricksRunnerConfigOptions.Builder databricksRunnerConfigOptions =
+            DatabricksRunnerConfigOptions.newBuilder();
+
+    databricksRunnerConfigOptions.setHost("https://adb-8918595472279780.0.azuredatabricks.net");
+
+    databricksRunnerConfigOptions.setToken("TOKEN"); // TODO: replace with a valid databricks token to run
+
+    dbJobManager =
+            new DatabricksJobManager(
+                    databricksRunnerConfigOptions.build(), metricsProperties, httpClient);
+    dbJobManager = spy(dbJobManager);
+
+    dbJobManager.abortJob(job.getExtId());
   }
 }

@@ -16,7 +16,6 @@
  */
 package feast.core.job.databricks;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.config.FeastProperties.MetricsProperties;
@@ -37,7 +36,6 @@ import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpException;
 import org.apache.http.HttpStatus;
@@ -113,7 +111,35 @@ public class DatabricksJobManager implements JobManager {
   }
 
   @Override
-  public void abortJob(String jobId) {}
+  public void abortJob(String runId) {
+
+    try {
+    RunsCancelRequest runsCancelRequest =
+            RunsCancelRequest.builder()
+                    .setRunId(Integer.parseInt(runId))
+                    .build();
+    String body = mapper.writeValueAsString(runsCancelRequest);
+
+    HttpRequest request =
+            HttpRequest.newBuilder()
+                    .uri(
+                            URI.create(
+                                    String.format(
+                                            "%s/api/2.0/jobs/runs/cancel/", this.databricksHost)))
+                    .header("Authorization", String.format("%s %s", "Bearer", this.databricksToken))
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+
+      HttpResponse<String> response =
+              this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+    } catch (IOException | InterruptedException e) {
+      log.error(
+              "Unable to abort databricks job with run id : {}\ncause: {}", runId, e.getMessage());
+      throw new JobExecutionException(
+              String.format("Unable to abort databricks job with run id : %s\ncause: %s", runId, e), e);
+    }
+  }
 
   @Override
   public Job restartJob(Job job) {
