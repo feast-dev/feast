@@ -54,7 +54,7 @@ def test_export_source_to_staging_location_dataframe_to_s3_should_pass(get_file_
     file_obj.seek(0)
     avro_reader = fastavro.reader(file_obj)
     retrived_df = pd.DataFrame.from_records([r for r in avro_reader])
-    assert_frame_equal(retrived_df, TEST_DATA_FRAME)
+    assert_frame_equal(retrived_df, TEST_DATA_FRAME, check_like=True)
     assert get_file_name.call_count == 1
 
 

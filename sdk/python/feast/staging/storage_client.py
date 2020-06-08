@@ -5,9 +5,6 @@ from tempfile import TemporaryFile
 from typing import List
 from urllib.parse import ParseResult, urlparse
 
-import boto3
-from google.cloud import storage
-
 
 class PROTOCOL(Enum):
     """
@@ -19,7 +16,7 @@ class PROTOCOL(Enum):
     LOCAL_FILE = "file"
 
 
-class StagingStrategy:
+class StorageClient:
     """
     Class for handling different staging protocols currently s3, gs and local file are supported.
     """
@@ -31,8 +28,10 @@ class StagingStrategy:
         """
         Downloads a file from the uri location and returns a TemporaryFile object
 
-        :param file_uri: Parsed uri of the file ex: urlparse("gs://bucket/file.avro")
-        :return: TemporaryFile object
+        Args:
+            file_uri (urllib.parse.ParseResult): Parsed uri of the file ex: urlparse("gs://bucket/file.avro")
+        Returns:
+            TemporaryFile object
         """
         protocol = self._get_staging_protocol(file_uri.scheme)
         return protocol.download_file(file_uri)
@@ -41,10 +40,10 @@ class StagingStrategy:
         """
         Lists all the files under a directory if path has wildcard(*) character.
 
-        :param source: File path with the protocol ex: gs://bucket/* or gs://bucket/file.avro
-        :return: List[str]
-                    Returns a list containing the full path to the file(s) in the
-                    remote staging location.
+        Args:
+            source (str): File path with the protocol ex: gs://bucket/* or gs://bucket/file.avro
+        Returns:
+            List[str]: A list containing the full path to the file(s) in the remote staging location.
         """
         uri = urlparse(source)
         if "*" in uri.path:
@@ -63,11 +62,11 @@ class StagingStrategy:
         """
         Uploads file to a cloud storage, currently s3 and gs are supported
 
-        :param scheme: uri scheme: s3 or gs
-        :param local_path: Path to the local file that needs to be uploaded/staged
-        :param bucket: s3 or gs Bucket name
-        :param remote_path: relative path to the folder to which the files need to be uploaded
-        :return: None
+        Args:
+            scheme (str): uri scheme: s3 or gs
+            local_path (str): Path to the local file that needs to be uploaded/staged
+            bucket (str): s3 or gs Bucket name
+            remote_path (str): relative path to the folder to which the files need to be uploaded
         """
         protocol = self._get_staging_protocol(scheme)
         return protocol.upload_file(local_path, bucket, remote_path)
@@ -77,8 +76,11 @@ class StagingStrategy:
         Lazy initialization of a specific protocol object(GCSProtocol, S3Protocol etc.) w
         hen the 1st instance is encountered.
 
-        :param protocol: uri scheme: s3, gs or file
-        :return: returns a concrete implementation of AbstractStagingProtocol
+        Args:
+            protocol (str): uri scheme: s3, gs or file
+
+        Returns:
+            An object of concrete implementation of AbstractStagingProtocol
         """
         if protocol in self._protocol_dict:
             return self._protocol_dict[protocol]
@@ -126,14 +128,24 @@ class GCSProtocol(AbstractStagingProtocol):
     """
 
     def __init__(self):
+        try:
+            from google.cloud import storage
+        except ImportError:
+            raise ImportError(
+                "Install package google-cloud-storage==1.20.* for gcs staging support"
+                "run ```pip install google-cloud-storage==1.20.*```"
+            )
         self.gcs_client = storage.Client(project=None)
 
     def download_file(self, uri: ParseResult) -> TemporaryFile:
         """
         Downloads a file from google cloud storage and returns a TemporaryFile object
 
-        :param uri: Parsed uri of the file ex: urlparse("gs://bucket/file.avro")
-        :return: TemporaryFile object
+        Args:
+            uri (urllib.parse.ParseResult): Parsed uri of the file ex: urlparse("gs://bucket/file.avro")
+
+        Returns:
+             TemporaryFile object
         """
         url = uri.geturl()
         file_obj = TemporaryFile()
@@ -144,10 +156,12 @@ class GCSProtocol(AbstractStagingProtocol):
         """
         Lists all the files under a directory in google cloud storage if path has wildcard(*) character.
 
-        :param bucket: google cloud storage bucket name
-        :param uri: parsed uri of location in google cloud storage. ex: urlparse("gs://bucket/file.avro")
-        :return: List[str]
-                    Returns a list containing the full path to the file(s) in the
+        Args:
+            bucket (str): google cloud storage bucket name
+            uri (urllib.parse.ParseResult): parsed uri of location in google cloud storage. ex: urlparse("gs://bucket/file.avro")
+
+        Returns:
+            List[str]: A list containing the full path to the file(s) in the
                     remote staging location.
         """
 
@@ -172,10 +186,10 @@ class GCSProtocol(AbstractStagingProtocol):
         """
         Uploads file to google cloud storage.
 
-        :param local_path: Path to the local file that needs to be uploaded/staged
-        :param bucket: s3 gs Bucket name
-        :param remote_path: relative path to the folder to which the files need to be uploaded
-        :return: None
+        Args:
+            local_path (str): Path to the local file that needs to be uploaded/staged
+            bucket (str): gs Bucket name
+            remote_path (str): relative path to the folder to which the files need to be uploaded
         """
         bucket = self.gcs_client.get_bucket(bucket)
         blob = bucket.blob(remote_path)
@@ -188,16 +202,25 @@ class S3Protocol(AbstractStagingProtocol):
     """
 
     def __init__(self):
+        try:
+            import boto3
+        except ImportError:
+            raise ImportError(
+                "Install package boto3 for s3 staging support"
+                "run ```pip install boto3```"
+            )
         self.s3_client = boto3.client("s3")
 
     def download_file(self, uri: ParseResult) -> TemporaryFile:
         """
         Downloads a file from AWS s3 storage and returns a TemporaryFile object
 
-        :param uri: Parsed uri of the file ex: urlparse("s3://bucket/file.avro")
-        :return: TemporaryFile object
+        Args:
+            uri (urllib.parse.ParseResult): Parsed uri of the file ex: urlparse("s3://bucket/file.avro")
+        Returns:
+            TemporaryFile object
         """
-        url = uri.path[1:]  # removing leading / from the path
+        url = uri.path.lstrip("/")
         bucket = uri.hostname
         file_obj = TemporaryFile()
         self.s3_client.download_fileobj(bucket, url, file_obj)
@@ -207,10 +230,12 @@ class S3Protocol(AbstractStagingProtocol):
         """
         Lists all the files under a directory in s3 if path has wildcard(*) character.
 
-        :param bucket: s3 bucket name
-        :param uri: parsed uri of location in s3. ex: urlparse("s3://bucket/file.avro")
-        :return: List[str]
-                    Returns a list containing the full path to the file(s) in the
+        Args:
+            bucket (str): s3 bucket name
+            uri (urllib.parse.ParseResult): parsed uri of location in s3. ex: urlparse("s3://bucket/file.avro")
+
+        Returns:
+            List[str]: A list containing the full path to the file(s) in the
                     remote staging location.
         """
         path = uri.path
@@ -233,10 +258,10 @@ class S3Protocol(AbstractStagingProtocol):
         """
         Uploads file to s3.
 
-        :param local_path: Path to the local file that needs to be uploaded/staged
-        :param bucket: s3 Bucket name
-        :param remote_path: relative path to the folder to which the files need to be uploaded
-        :return: None
+        Args:
+            local_path (str): Path to the local file that needs to be uploaded/staged
+            bucket (str): s3 Bucket name
+            remote_path (str): relative path to the folder to which the files need to be uploaded
         """
         with open(local_path, "rb") as file:
             self.s3_client.upload_fileobj(file, bucket, remote_path)
@@ -255,8 +280,10 @@ class LocalFSProtocol(AbstractStagingProtocol):
         """
         Reads a local file from the disk
 
-        :param uri: Parsed uri of the file ex: urlparse("file://folder/file.avro")
-        :return: TemporaryFile object
+        Args:
+            uri (urllib.parse.ParseResult): Parsed uri of the file ex: urlparse("file://folder/file.avro")
+        Returns:
+            TemporaryFile object
         """
         url = uri.path
         file_obj = open(url, "rb")

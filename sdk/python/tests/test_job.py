@@ -61,7 +61,7 @@ class TestRetrievalJob:
             ),
         )
         retrived_df = retrieve_job.to_dataframe()
-        assert_frame_equal(TEST_DATA_FRAME, retrived_df)
+        assert_frame_equal(TEST_DATA_FRAME, retrived_df, check_like=True)
 
     @mock_s3
     def test_to_dataframe_s3_file_staging_should_pass(
@@ -87,7 +87,7 @@ class TestRetrievalJob:
             ),
         )
         retrived_df = retrieve_job.to_dataframe()
-        assert_frame_equal(TEST_DATA_FRAME, retrived_df)
+        assert_frame_equal(TEST_DATA_FRAME, retrived_df, check_like=True)
 
     @pytest.mark.parametrize(
         "job_proto,exception",

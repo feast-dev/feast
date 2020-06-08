@@ -23,7 +23,7 @@ from urllib.parse import urlparse
 import pandas as pd
 from pandavro import to_avro
 
-from feast.staging.staging_strategy import StagingStrategy
+from feast.staging.storage_client import StorageClient
 
 
 def export_source_to_staging_location(
@@ -60,7 +60,7 @@ def export_source_to_staging_location(
             remote staging location.
     """
 
-    staging_strategy = StagingStrategy()
+    storage_client = StorageClient()
     uri = urlparse(staging_location_uri)
 
     # Prepare Avro file to be exported to staging location
@@ -83,7 +83,7 @@ def export_source_to_staging_location(
             )
         else:
             # gs, s3 file provided as a source.
-            return staging_strategy.execute_get_source_files(source)
+            return storage_client.execute_get_source_files(source)
     else:
         raise Exception(
             f"Only string and DataFrame types are allowed as a "
@@ -91,7 +91,7 @@ def export_source_to_staging_location(
         )
 
     # Push data to required staging location
-    staging_strategy.execute_file_upload(
+    storage_client.execute_file_upload(
         uri.scheme,
         source_path,
         uri.hostname,
