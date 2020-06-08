@@ -47,7 +47,7 @@ public class DatabricksJobManager implements JobManager {
   private final Runner RUNNER_TYPE = Runner.DATABRICKS;
 
   private final String databricksHost;
-  private final String databricksToken;
+  private final byte[] databricksToken;
   private final String jarFile;
   private final DatabricksRunnerConfigOptions.DatabricksNewClusterOptions newClusterConfigOptions;
   private final DatabricksRunnerConfigOptions.DatabricksSparkJarTaskOptions sparkJarTaskOptions;
@@ -62,7 +62,7 @@ public class DatabricksJobManager implements JobManager {
       HttpClient httpClient) {
 
     this.databricksHost = runnerConfigOptions.getHost();
-    this.databricksToken = runnerConfigOptions.getToken();
+    this.databricksToken = runnerConfigOptions.getToken().getBytes();
     this.metricsProperties = metricsProperties;
     this.httpClient = httpClient;
     this.sparkJarTaskOptions = runnerConfigOptions.getSparkJarTask();
@@ -128,23 +128,22 @@ public class DatabricksJobManager implements JobManager {
             .uri(
                 URI.create(
                     String.format(
-                        "%s/api/2.0/jobs/runs/get?run_id=%s", this.databricksHost, job.getExtId())))
-            .header("Authorization", String.format("%s %s", "Bearer", this.databricksToken))
+                        "%s/api/2.0/jobs/runs/get?run_id=%s", databricksHost, job.getExtId())))
+            .header("Authorization", getAuthorizationHeader())
             .build();
     try {
-      HttpResponse<String> response =
-          this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
       if (response.statusCode() == HttpStatus.SC_OK) {
         RunsGetResponse runsGetResponse = mapper.readValue(response.body(), RunsGetResponse.class);
         RunState runState = runsGetResponse.getState();
+        String lifeCycleState = runState.getLifeCycleState().toString();
 
-        if (runState.getResultState().isPresent()) {
-          return DatabricksJobStateMapper.map(
-              String.format("%s_%s", runState.getLifeCycleState().toString(), runState.getResultState().get().toString()));
-        }
+        return runState.getResultState()
+                .map(runResultState -> DatabricksJobStateMapper.map(String.format("%s_%s", lifeCycleState, runResultState.toString())))
+                .orElseGet(() -> DatabricksJobStateMapper.map(lifeCycleState));
 
-        return DatabricksJobStateMapper.map(runState.getLifeCycleState().toString());
+
       } else {
         throw new HttpException(
             String.format("Databricks returned with unexpected code: %s", response.statusCode()));
@@ -159,6 +158,10 @@ public class DatabricksJobManager implements JobManager {
     return JobStatus.UNKNOWN;
   }
 
+  private String getAuthorizationHeader() {
+    return String.format("%s %s", "Bearer", Arrays.toString(databricksToken));
+  }
+
   private long createDatabricksJob(String jobId) {
 
     JobsCreateRequest createRequest = getJobRequest(jobId);
@@ -168,13 +171,12 @@ public class DatabricksJobManager implements JobManager {
 
       HttpRequest request =
           HttpRequest.newBuilder()
-              .uri(URI.create(String.format("%s/api/2.0/jobs/create", this.databricksHost)))
-              .header("Authorization", String.format("%s %s", "Bearer", this.databricksToken))
+              .uri(URI.create(String.format("%s/api/2.0/jobs/create", databricksHost)))
+              .header("Authorization", getAuthorizationHeader())
               .POST(HttpRequest.BodyPublishers.ofString(body))
               .build();
 
-      HttpResponse<String> response =
-          this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
       if (response.statusCode() == HttpStatus.SC_OK) {
         JobsCreateResponse createResponse =
@@ -210,13 +212,12 @@ public class DatabricksJobManager implements JobManager {
 
       HttpRequest request =
           HttpRequest.newBuilder()
-              .uri(URI.create(String.format("%s/api/2.0/jobs/run-now", this.databricksHost)))
-              .header("Authorization", String.format("%s %s", "Bearer", this.databricksToken))
+              .uri(URI.create(String.format("%s/api/2.0/jobs/run-now", databricksHost)))
+              .header("Authorization", getAuthorizationHeader())
               .POST(HttpRequest.BodyPublishers.ofString(body))
               .build();
 
-      HttpResponse<String> response =
-          this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
       if (response.statusCode() == HttpStatus.SC_OK) {
         RunNowResponse runNowResponse = mapper.readValue(response.body(), RunNowResponse.class);
@@ -253,8 +254,7 @@ public class DatabricksJobManager implements JobManager {
     List<String> jarParams =
         Arrays.asList(kafkaSourceConfig.getBootstrapServers(), kafkaSourceConfig.getTopic());
 
-    RunNowRequest runNowRequest =
-        RunNowRequest.builder().setJobId(databricksJobId).setJarParams(jarParams).build();
+    RunNowRequest runNowRequest = RunNowRequest.builder().setJobId(databricksJobId).setJarParams(jarParams).build();
 
     return runNowRequest;
   }
@@ -262,9 +262,9 @@ public class DatabricksJobManager implements JobManager {
   private JobsCreateRequest getJobRequest(String jobId) {
     NewCluster newCluster =
         NewCluster.builder()
-            .setNumWorkers(this.newClusterConfigOptions.getNumWorkers())
-            .setNodeTypeId(this.newClusterConfigOptions.getNodeTypeId())
-            .setSparkVersion(this.newClusterConfigOptions.getSparkVersion())
+            .setNumWorkers(newClusterConfigOptions.getNumWorkers())
+            .setNodeTypeId(newClusterConfigOptions.getNodeTypeId())
+            .setSparkVersion(newClusterConfigOptions.getSparkVersion())
             .build();
 
     List<Library> libraries = new ArrayList<>();
@@ -273,7 +273,7 @@ public class DatabricksJobManager implements JobManager {
 
     SparkJarTask sparkJarTask =
         SparkJarTask.builder()
-            .setMainClassName(this.sparkJarTaskOptions.getMainClassName())
+            .setMainClassName(sparkJarTaskOptions.getMainClassName())
             .build();
 
     JobsCreateRequest createRequest =
@@ -290,7 +290,7 @@ public class DatabricksJobManager implements JobManager {
 
   private void waitForJobToRun(Job job) throws InterruptedException {
     while (true) {
-      JobStatus jobStatus = this.getJobStatus(job);
+      JobStatus jobStatus = getJobStatus(job);
       if (jobStatus.isTerminal()) {
         throw new RuntimeException();
       } else if (jobStatus.equals(JobStatus.RUNNING)) {
