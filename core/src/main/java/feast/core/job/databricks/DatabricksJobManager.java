@@ -136,17 +136,15 @@ public class DatabricksJobManager implements JobManager {
           this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
       if (response.statusCode() == HttpStatus.SC_OK) {
-        JsonNode parent = mapper.readTree(response.body());
-        Optional<JsonNode> resultState =
-            Optional.ofNullable(parent.path("state").get("result_state"));
-        String lifeCycleState = parent.path("state").get("life_cycle_state").asText().toUpperCase();
+        RunsGetResponse runsGetResponse = mapper.readValue(response.body(), RunsGetResponse.class);
+        RunState runState = runsGetResponse.getState();
 
-        if (resultState.isPresent()) {
+        if (runState.getResultState().isPresent()) {
           return DatabricksJobStateMapper.map(
-              String.format("%s_%s", lifeCycleState, resultState.get().asText().toUpperCase()));
+              String.format("%s_%s", runState.getLifeCycleState().toString(), runState.getResultState().get().toString()));
         }
 
-        return DatabricksJobStateMapper.map(lifeCycleState);
+        return DatabricksJobStateMapper.map(runState.getLifeCycleState().toString());
       } else {
         throw new HttpException(
             String.format("Databricks returned with unexpected code: %s", response.statusCode()));

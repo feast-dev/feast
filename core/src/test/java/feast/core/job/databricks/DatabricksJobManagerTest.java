@@ -64,7 +64,7 @@ public class DatabricksJobManagerTest {
   public void testGetCalltoDatabricksWithOnlyLifeCycle() throws IOException, InterruptedException {
     Mockito.when(job.getExtId()).thenReturn("1");
     HttpResponse httpResponse = mock(HttpResponse.class);
-    String responseBody = "{ \"state\": {\"life_cycle_state\" : \"INTERNAL_ERROR\"} } ";
+    String responseBody = "{ \"state\": {\"life_cycle_state\" : \"INTERNAL_ERROR\", \"state_message\": \"a state message\"} } ";
     when(httpResponse.body()).thenReturn(responseBody);
     when(httpResponse.statusCode()).thenReturn(200);
 
@@ -91,7 +91,7 @@ public class DatabricksJobManagerTest {
     Mockito.when(job.getExtId()).thenReturn("1");
     HttpResponse httpResponse = mock(HttpResponse.class);
     String responseBody =
-        "{ \"state\": {\"life_cycle_state\" : \"TERMINATED\", \"result_state\": \"success\" } } ";
+        "{ \"state\": {\"life_cycle_state\" : \"TERMINATED\", \"result_state\": \"SUCCESS\", \"state_message\": \"a state message\" } } ";
     when(httpResponse.body()).thenReturn(responseBody);
     when(httpResponse.statusCode()).thenReturn(200);
 
@@ -150,7 +150,7 @@ public class DatabricksJobManagerTest {
     HttpResponse httpResponse = mock(HttpResponse.class);
     String createResponseBody = "{ \"job_id\" : \"5\" } ";
     String runNowResponseBody = "{ \"run_id\" : \"10\" } ";
-    String jobStatusResponseBody = "{ \"state\": {\"life_cycle_state\" : \"RUNNING\"} } ";
+    String jobStatusResponseBody = "{ \"state\": {\"life_cycle_state\" : \"RUNNING\", \"state_message\": \"a state message\"} } ";
 
     when(httpResponse.body())
         .thenReturn(createResponseBody)
