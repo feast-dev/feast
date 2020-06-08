@@ -65,7 +65,6 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.streaming.StreamingQuery;
 import org.junit.AfterClass;
 import org.junit.Assume;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -106,6 +105,7 @@ public class SparkIngestionTest {
 
   @BeforeClass
   public static void setup() throws IOException, InterruptedException {
+    assumeJava8();
     LocalKafka.start(
         KAFKA_HOST,
         KAFKA_PORT,
@@ -121,8 +121,7 @@ public class SparkIngestionTest {
     LocalKafka.stop();
   }
 
-  @Before
-  public void beforeMethod() {
+  private static void assumeJava8() {
     // Spark 2 only runs on Java 8. Skip tests on Java 11.
     Assume.assumeThat(System.getProperty("java.version"), startsWith("1.8"));
   }
@@ -353,6 +352,7 @@ public class SparkIngestionTest {
       return new Statement() {
         @Override
         public void evaluate() throws Throwable {
+          assumeJava8();
           session =
               SparkSession.builder().appName(getClass().getName()).master("local").getOrCreate();
           try {
