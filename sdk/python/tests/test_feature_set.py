@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import pathlib
 from concurrent import futures
 from datetime import datetime
@@ -243,6 +244,27 @@ class TestFeatureSet:
         assert len(actual_schema.feature) == len(expected_schema.feature)
         for actual, expected in zip(actual_schema.feature, expected_schema.feature):
             assert actual.SerializeToString() == expected.SerializeToString()
+
+    def test_feature_set_import_export_yaml(self):
+
+        test_feature_set = FeatureSet(
+            name="bikeshare",
+            entities=[Entity(name="station_id", dtype=ValueType.INT64)],
+            features=[
+                Feature(name="name", dtype=ValueType.STRING),
+                Feature(name="longitude", dtype=ValueType.FLOAT),
+                Feature(name="location", dtype=ValueType.STRING),
+            ],
+        )
+
+        # Create a string YAML representation of the feature set
+        string_yaml = test_feature_set.to_yaml()
+
+        # Create a new feature set object from the YAML string
+        actual_feature_set_from_string = FeatureSet.from_yaml(string_yaml)
+
+        # Ensure equality is upheld to original feature set
+        assert test_feature_set == actual_feature_set_from_string
 
 
 def make_tfx_schema_domain_info_inline(schema):

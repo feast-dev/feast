@@ -17,9 +17,10 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 import pyarrow as pa
+import yaml
 from google.protobuf import json_format
 from google.protobuf.duration_pb2 import Duration
-from google.protobuf.json_format import MessageToJson
+from google.protobuf.json_format import MessageToDict, MessageToJson
 from google.protobuf.message import Message
 from pandas.api.types import is_datetime64_ns_dtype
 from pyarrow.lib import TimestampType
@@ -79,11 +80,17 @@ class FeatureSet:
             if key not in other.fields.keys() or self.fields[key] != other.fields[key]:
                 return False
 
+            if self.fields[key] != other.fields[key]:
+                return False
+
         if (
             self.name != other.name
             or self.project != other.project
             or self.max_age != other.max_age
         ):
+            return False
+
+        if self.source != other.source:
             return False
         return True
 
@@ -783,13 +790,18 @@ class FeatureSet:
             entities=[
                 Entity.from_proto(entity) for entity in feature_set_proto.spec.entities
             ],
-            max_age=feature_set_proto.spec.max_age,
+            max_age=(
+                None
+                if feature_set_proto.spec.max_age.seconds == 0
+                and feature_set_proto.spec.max_age.nanos == 0
+                else feature_set_proto.spec.max_age
+            ),
             source=(
                 None
                 if feature_set_proto.spec.source.type == 0
                 else Source.from_proto(feature_set_proto.spec.source)
             ),
-            project=feature_set_proto.spec.project
+            project=None
             if len(feature_set_proto.spec.project) == 0
             else feature_set_proto.spec.project,
         )
@@ -827,6 +839,29 @@ class FeatureSet:
         )
 
         return FeatureSetProto(spec=spec, meta=meta)
+
+    def to_dict(self) -> Dict:
+        """
+        Converts feature set to dict
+
+        :return: Dictionary object representation of feature set
+        """
+        feature_set_dict = MessageToDict(self.to_proto())
+
+        # Remove meta when empty for more readable exports
+        if feature_set_dict["meta"] == {}:
+            del feature_set_dict["meta"]
+
+        return feature_set_dict
+
+    def to_yaml(self):
+        """
+        Converts a feature set to a YAML string.
+
+        :return: Feature set string returned in YAML format
+        """
+        feature_set_dict = self.to_dict()
+        return yaml.dump(feature_set_dict, allow_unicode=True, sort_keys=False)
 
 
 class FeatureSetRef:
