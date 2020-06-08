@@ -27,7 +27,6 @@ import feast.databricks.types.*;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
-
 import org.apache.spark.launcher.SparkAppHandle;
 import org.apache.spark.launcher.SparkAppHandle.State;
 import org.junit.Before;
