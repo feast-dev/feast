@@ -94,9 +94,5 @@ message DatabricksRunnerConfigOptions {
 
     string jarFile = 3;
 
-    repeated string sparkSubmitParams = 4;
-
-    repeated string jarParams = 5;
-
     DatabricksNewClusterOptions newCluster = 6;
 }

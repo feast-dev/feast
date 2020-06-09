@@ -65,7 +65,7 @@ public class DatabricksJobManager implements JobManager {
       HttpClient httpClient) {
 
     this.databricksHost = runnerConfigOptions.getHost();
-    this.databricksToken = runnerConfigOptions.getToken().getBytes();
+    this.databricksToken = runnerConfigOptions.getToken().getBytes(StandardCharsets.UTF_8);
     this.metricsProperties = metricsProperties;
     this.httpClient = httpClient;
     this.newClusterConfigOptions = runnerConfigOptions.getNewCluster();
@@ -121,8 +121,8 @@ public class DatabricksJobManager implements JobManager {
 
       HttpRequest request =
           HttpRequest.newBuilder()
-              .uri(URI.create(String.format("%s/api/2.0/jobs/runs/cancel/", this.databricksHost)))
-              .header("Authorization", String.format("%s %s", "Bearer", this.databricksToken))
+              .uri(URI.create(String.format("%s/api/2.0/jobs/runs/cancel/", databricksHost)))
+              .header("Authorization", getAuthorizationHeader())
               .POST(HttpRequest.BodyPublishers.ofString(body))
               .build();
 
