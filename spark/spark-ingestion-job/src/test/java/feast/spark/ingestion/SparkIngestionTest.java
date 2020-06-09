@@ -190,7 +190,7 @@ public class SparkIngestionTest {
 
     try {
       for (int i = 0; i < 60; i++) {
-        Path deltaTablePath = ingestion.getDeltaTablePath(deltaPath.toString(), specForDelta);
+        Path deltaTablePath = SparkDeltaSink.getDeltaTablePath(deltaPath.toString(), specForDelta);
         if (Files.isDirectory().apply(deltaTablePath.toFile())) {
           data = spark.session.read().format("delta").load(deltaTablePath.toString());
           long count = data.count();
