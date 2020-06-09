@@ -41,9 +41,10 @@ import io.lettuce.core.api.async.RedisAsyncCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -53,7 +54,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import org.apache.commons.codec.Charsets;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.VoidFunction2;
 import org.apache.spark.broadcast.Broadcast;
@@ -81,12 +81,12 @@ import org.slf4j.LoggerFactory;
  *
  */
 public class SparkIngestion {
-  private static final Logger LOGGER = LoggerFactory.getLogger(SparkIngestion.class.getName());
+  private static final Logger log = LoggerFactory.getLogger(SparkIngestion.class.getName());
   private static final int DEFAULT_TIMEOUT = 2000;
-  private String jobId;
-  private String defaultFeastProject;
-  private List<FeatureSet> featureSets;
-  private List<Store> stores;
+  private final String jobId;
+  private final String defaultFeastProject;
+  private final List<FeatureSet> featureSets;
+  private final List<Store> stores;
 
   public static void main(String[] args) throws Exception {
     SparkIngestion ingestion = new SparkIngestion(args);
@@ -108,8 +108,8 @@ public class SparkIngestion {
     featureSets =
         SpecUtil.parseFeatureSetSpecJsonList(Arrays.asList(featureSetSpecsJson.split("\n")));
     stores = SpecUtil.parseStoreJsonList(Arrays.asList(storesJson.split("\n")));
-    LOGGER.info("Feature sets: {}", featureSets);
-    LOGGER.info("Stores: {}", stores);
+    log.info("Feature sets: {}", featureSets);
+    log.info("Stores: {}", stores);
   }
 
   public StreamingQuery createQuery() {
@@ -144,13 +144,11 @@ public class SparkIngestion {
                   List<FeatureSet> subscribedFeatureSets =
                       SpecUtil.getSubscribedFeatureSets(store.getSubscriptionsList(), featureSets);
 
-                  Map<String, FeatureSetSpec> featureSetSpecsByKey = new HashMap<>();
-                  subscribedFeatureSets.stream()
-                      .forEach(
-                          fs -> {
-                            String ref = getFeatureSetReference(fs.getSpec());
-                            featureSetSpecsByKey.put(ref, fs.getSpec());
-                          });
+                  Map<String, FeatureSetSpec> featureSetSpecsByKey =
+                      subscribedFeatureSets.stream()
+                          .collect(
+                              Collectors.toMap(
+                                  fs -> getFeatureSetReference(fs.getSpec()), fs -> fs.getSpec()));
 
                   switch (store.getType()) {
                     case DELTA:
@@ -185,7 +183,7 @@ public class SparkIngestion {
                     try {
                       c.call(batchDF, batchId);
                     } catch (Exception e) {
-                      LOGGER.error("Error invoking sink", e);
+                      log.error("Error invoking sink", e);
                       throw new RuntimeException(e);
                     }
                   });
@@ -199,13 +197,13 @@ public class SparkIngestion {
     private final String key;
     private final FeatureSetSpec spec;
     private final StructType schema;
-    private final String table;
+    private final String tablePath;
 
-    private FeatureSetInfo(String key, FeatureSetSpec spec, StructType schema, String table) {
+    private FeatureSetInfo(String key, FeatureSetSpec spec, StructType schema, Path tablePath) {
       this.key = key;
       this.spec = spec;
       this.schema = schema;
-      this.table = table;
+      this.tablePath = tablePath.toString();
     }
   }
 
@@ -222,17 +220,17 @@ public class SparkIngestion {
     for (Entry<String, FeatureSetSpec> spec : featureSetSpecsByKey.entrySet()) {
 
       StructType schema = mapper.buildSchema(spec.getValue());
-      LOGGER.info("Table: {} schema: {}", spec.getKey(), schema);
+      log.info("Table: {} schema: {}", spec.getKey(), schema);
 
       // Initialize Delta table if needed
-      String deltaTablePath = getDeltaTablePath(deltaPath, spec.getValue());
+      Path deltaTablePath = getDeltaTablePath(deltaPath, spec.getValue());
       spark
           .createDataFrame(Collections.emptyList(), schema)
           .write()
           .format("delta")
           .partitionBy(FeatureRowToSparkRow.EVENT_TIMESTAMP_DAY_COLUMN)
           .mode("append")
-          .save(deltaTablePath);
+          .save(deltaTablePath.toString());
 
       featureSetInfos.add(
           new FeatureSetInfo(spec.getKey(), spec.getValue(), schema, deltaTablePath));
@@ -255,28 +253,26 @@ public class SparkIngestion {
 
     @Override
     public void call(Dataset<byte[]> batchDF, Long batchId) throws Exception {
-      LOGGER.info("{} entries", featureSetInfos.size());
+      log.info("{} entries", featureSetInfos.size());
       for (FeatureSetInfo fsInfo : featureSetInfos) {
         StructType schema = fsInfo.schema;
-        if (!deltaTables.containsKey(fsInfo.table)) {
-          deltaTables.put(fsInfo.table, DeltaTable.forPath(fsInfo.table));
-        }
-        DeltaTable deltaTable = deltaTables.get(fsInfo.table);
+        deltaTables.putIfAbsent(fsInfo.tablePath, DeltaTable.forPath(fsInfo.tablePath));
+        DeltaTable deltaTable = deltaTables.get(fsInfo.tablePath);
 
         Dataset<Row> rows =
             batchDF.flatMap(
                 r -> {
                   FeatureRow featureRow = FeatureRow.parseFrom(r);
-                  LOGGER.debug(
-                      "Comparing key '{}' and '{}'", fsInfo.key, featureRow.getFeatureSet());
+                  log.debug("Comparing key '{}' and '{}'", fsInfo.key, featureRow.getFeatureSet());
                   if (!fsInfo.key.equals(featureRow.getFeatureSet())) {
                     return Collections.emptyIterator();
                   }
-                  return Arrays.asList(mapper.apply(fsInfo.spec, featureRow)).iterator();
+                  return Collections.singletonList(mapper.apply(fsInfo.spec, featureRow))
+                      .iterator();
                 },
                 RowEncoder.apply(schema));
         if (rows.isEmpty()) {
-          LOGGER.info("No rows for {}", fsInfo.key);
+          log.info("No rows for {}", fsInfo.key);
           return;
         }
 
@@ -311,16 +307,10 @@ public class SparkIngestion {
     }
   }
 
-  public String getDeltaTablePath(String deltaPath, FeatureSetSpec featureSetSpec) {
-    return deltaPath
-        + "/"
-        + sanitize(featureSetSpec.getProject())
-        + "/"
-        + sanitize(SpecUtil.getFeatureSetReference(featureSetSpec));
-  }
-
-  private String sanitize(String unsafeString) {
-    return Base64.getEncoder().encodeToString(unsafeString.getBytes(Charsets.UTF_8));
+  public Path getDeltaTablePath(String deltaPath, FeatureSetSpec featureSetSpec) {
+    return Paths.get(deltaPath)
+        .resolve(featureSetSpec.getProject())
+        .resolve(SpecUtil.getFeatureSetReference(featureSetSpec));
   }
 
   private VoidFunction2<Dataset<byte[]>, Long> redisSink(

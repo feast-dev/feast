@@ -50,6 +50,7 @@ import feast.test.TestUtil;
 import feast.test.TestUtil.LocalKafka;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
@@ -175,7 +176,7 @@ public class SparkIngestionTest {
       Thread.sleep(1000);
     }
 
-    describedAs("Should consume", is(true), query.status().isDataAvailable());
+    assertThat("Should consume", query.status().isDataAvailable(), is(true));
 
     LOGGER.info(
         "Publishing {} Feature Row messages to Kafka ...",
@@ -189,8 +190,8 @@ public class SparkIngestionTest {
 
     try {
       for (int i = 0; i < 60; i++) {
-        String deltaTablePath = ingestion.getDeltaTablePath(deltaPath.toString(), specForDelta);
-        if (Files.isDirectory().apply(new File(deltaTablePath))) {
+        Path deltaTablePath = ingestion.getDeltaTablePath(deltaPath.toString(), specForDelta);
+        if (Files.isDirectory().apply(deltaTablePath.toFile())) {
           data = spark.session.read().format("delta").load(deltaTablePath.toString());
           long count = data.count();
           LOGGER.info("Delta table contains {} records.", count);
@@ -206,8 +207,8 @@ public class SparkIngestionTest {
       query.stop();
     }
 
-    describedAs("Should have returned data", notNullValue(), data);
-    describedAs("Should have returned data", greaterThan(0L), data.count());
+    assertThat("Should have returned data", data, notNullValue());
+    assertThat("Should have returned data", data.count(), greaterThan(0L));
 
     TestUtil.validateRedis(featureSetForRedis, inputForRedis, redisConfig);
 

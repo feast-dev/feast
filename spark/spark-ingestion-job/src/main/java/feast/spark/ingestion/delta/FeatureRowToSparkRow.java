@@ -16,6 +16,8 @@
  */
 package feast.spark.ingestion.delta;
 
+import com.google.protobuf.ByteString;
+import com.google.protobuf.util.Timestamps;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
@@ -115,8 +117,7 @@ public class FeatureRowToSparkRow implements Serializable {
 
     com.google.protobuf.Timestamp ts = featureRow.getEventTimestamp();
     // EVENT_TIMESTAMP_DAY_COLUMN
-    values[p++] =
-        new java.sql.Date(Instant.ofEpochSecond(ts.getSeconds(), ts.getNanos()).toEpochMilli());
+    values[p++] = new java.sql.Date(Timestamps.toMillis(ts));
     // EVENT_TIMESTAMP_COLUMN
     values[p++] = java.sql.Timestamp.from(Instant.ofEpochSecond(ts.getSeconds(), ts.getNanos()));
     // CREATED_TIMESTAMP_COLUMN
@@ -154,9 +155,8 @@ public class FeatureRowToSparkRow implements Serializable {
       case BOOL_VAL:
         return value.getBoolVal();
       case BYTES_LIST_VAL:
-        // TODO test
         return value.getBytesListVal().getValList().stream()
-            .map(s -> s.toByteArray())
+            .map(ByteString::toByteArray)
             .toArray(byte[][]::new);
       case STRING_LIST_VAL:
         return value.getStringListVal().getValList().toArray(new String[0]);
