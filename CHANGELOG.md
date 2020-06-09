@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.6.0](https://github.com/feast-dev/feast/tree/v0.6.0) (2020-MM-DD)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.5.1...v0.6.0)
+
+**Implemented enhancements:**
+- Add support for staging files on S3 [\#706](https://github.com/feast-dev/feast/pull/769) ([jmelinav](https://github.com/jmelinav))
+
 ## [0.5.1](https://github.com/feast-dev/feast/tree/0.5.1) (2020-06-06)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.5.0...v0.5.1)
