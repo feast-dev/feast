@@ -21,6 +21,9 @@ import com.google.cloud.bigquery.DatasetId;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 
 public class BigQuerySinkHelpers {
+
+  public static final String DEFAULT_PROJECT_NAME = "default";
+
   /**
    * Generating BQ table destination from dataset reference and featuresSet's project and name. If
    * project is undefined "default" would be selected
@@ -37,7 +40,7 @@ public class BigQuerySinkHelpers {
       projectName = splitName[0];
       setName = splitName[1];
     } else {
-      projectName = "default";
+      projectName = DEFAULT_PROJECT_NAME;
       setName = splitName[0];
     }
 
