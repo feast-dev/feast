@@ -83,7 +83,7 @@ import org.slf4j.LoggerFactory;
 public class SparkIngestion {
   private static final Logger LOGGER = LoggerFactory.getLogger(SparkIngestion.class.getName());
   private static final int DEFAULT_TIMEOUT = 2000;
-  private String jobName;
+  private String jobId;
   private String defaultFeastProject;
   private List<FeatureSet> featureSets;
   private List<Store> stores;
@@ -100,12 +100,13 @@ public class SparkIngestion {
     }
 
     int index = 0;
-    jobName = args[index++];
+    jobId = args[index++];
     defaultFeastProject = args[index++];
-    String featureSetJson = args[index++];
+    String featureSetSpecsJson = args[index++];
     String storesJson = args[index++];
 
-    featureSets = SpecUtil.parseFeatureSetSpecJsonList(Arrays.asList(featureSetJson.split("\n")));
+    featureSets =
+        SpecUtil.parseFeatureSetSpecJsonList(Arrays.asList(featureSetSpecsJson.split("\n")));
     stores = SpecUtil.parseStoreJsonList(Arrays.asList(storesJson.split("\n")));
     LOGGER.info("Feature sets: {}", featureSets);
     LOGGER.info("Stores: {}", stores);
@@ -214,7 +215,7 @@ public class SparkIngestion {
       Map<String, FeatureSetSpec> featureSetSpecsByKey) {
     String deltaPath = deltaConfig.getPath();
 
-    FeatureRowToSparkRow mapper = new FeatureRowToSparkRow(jobName);
+    FeatureRowToSparkRow mapper = new FeatureRowToSparkRow(jobId);
 
     List<FeatureSetInfo> featureSetInfos = new ArrayList<FeatureSetInfo>();
 

@@ -127,7 +127,7 @@ public class SparkIngestionTest {
   }
 
   @Test
-  public void streamingQueryShouldWriteKafkaPayloadAsDeltaLake() throws Exception {
+  public void streamingQueryShouldWriteKafkaPayloadAsDeltaLakeAndRedis() throws Exception {
     KafkaSourceConfig kafka =
         KafkaSourceConfig.newBuilder()
             .setBootstrapServers(KAFKA_HOST + ":" + KAFKA_PORT)
