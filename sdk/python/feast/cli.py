@@ -156,7 +156,7 @@ def feature_set_list(project: str, name: str, labels: str):
         for k, v in zip(labels_kv[0::2], labels_kv[1::2]):
             labels_dict[k] = v
     else:
-        print(f"Uneven key-value label pairs were entered")
+        print("Uneven key-value label pairs were entered")
         return
 
     table = []
