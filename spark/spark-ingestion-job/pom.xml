@@ -65,6 +65,21 @@
               <mainClass>feast.spark.ingestion.SparkIngestion</mainClass>
             </transformer>
           </transformers>
+              <!-- Relocate packages that conflict with JARs distributed in Spark. -->
+              <relocations>
+                <relocation>
+                  <pattern>com.google.code.gson</pattern>
+                  <shadedPattern>vendor.feast.com.google.code.gson</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.google.guava</pattern>
+                  <shadedPattern>vendor.feast.com.google.guava</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.google.protobuf</pattern>
+                  <shadedPattern>vendor.feast.com.google.protobuf</shadedPattern>
+                </relocation>
+              </relocations>
         </configuration>
         <executions>
           <execution>
