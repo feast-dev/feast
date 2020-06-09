@@ -35,10 +35,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpException;
@@ -300,9 +297,8 @@ public class DatabricksJobManager implements JobManager {
             .setSparkVersion(newClusterConfigOptions.getSparkVersion())
             .build();
 
-    List<Library> libraries = new ArrayList<>();
     Library library = Library.builder().setJar(jarFile).build();
-    libraries.add(library);
+    List<Library> libraries = Collections.singletonList(library);
 
     SparkJarTask sparkJarTask =
         SparkJarTask.builder()
