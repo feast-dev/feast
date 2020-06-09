@@ -29,8 +29,11 @@ public class DirectRunnerConfig extends RunnerConfig {
   /* BigQuery table specification, e.g. PROJECT_ID:DATASET_ID.PROJECT_ID */
   public String deadletterTableSpec;
 
+  public String tempLocation;
+
   public DirectRunnerConfig(DirectRunnerConfigOptions runnerConfigOptions) {
     this.deadletterTableSpec = runnerConfigOptions.getDeadLetterTableSpec();
     this.targetParallelism = runnerConfigOptions.getTargetParallelism();
+    this.tempLocation = runnerConfigOptions.getTempLocation();
   }
 }

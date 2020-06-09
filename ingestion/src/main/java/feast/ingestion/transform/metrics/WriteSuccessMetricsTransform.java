@@ -68,10 +68,11 @@ public abstract class WriteSuccessMetricsTransform
             input
                 .apply(
                     "FixedWindow",
-                    Window.into(
-                        FixedWindows.of(
-                            Duration.standardSeconds(
-                                options.getWindowSizeInSecForFeatureValueMetric()))))
+                    Window.<FeatureRow>into(
+                            FixedWindows.of(
+                                Duration.standardSeconds(
+                                    options.getWindowSizeInSecForFeatureValueMetric())))
+                        .withAllowedLateness(Duration.millis(0)))
                 .apply(
                     "ConvertToKV_FeatureSetRefToFeatureRow",
                     ParDo.of(
