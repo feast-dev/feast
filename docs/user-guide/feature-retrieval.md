@@ -101,6 +101,10 @@ print(dataset.to_dataframe())
 
 Feast is able to intelligently join feature data with different timestamps to a single basis table in a point-in-time-correct way. This allows users to join daily batch data with high-frequency event data transparently. They simply need to know the feature names.
 
+{% hint style="info" %}
+Feast can retrieve features from any amount of feature sets, as long as they occur on the same entities.
+{% endhint %}
+
 Point-in-time-correct joins also prevents the occurrence of feature leakage by trying to accurate the state of the world at a single point in time, instead of just joining features based on the nearest timestamps.
 
 ## Online feature retrieval
@@ -121,7 +125,7 @@ data = client.get_online_features(
 ```
 
 {% hint style="info" %}
-When no project is specified when retrieving features with `get_online_feature()`, Feast infers that the features specified belong to the `default` project. To retrieve from another project, specify the `project` parameter when retrieving features.
+When no project is specified when retrieving features with get\_online\_feature\(\), Feast infers that the features specified belong to the default project. To retrieve from another project, specify the project parameter when retrieving features.
 {% endhint %}
 
 Online serving with Feast is built to be very low latency. Feast Serving provides a [gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html) that is backed by [Redis](https://redis.io/). We also provide support for [Python](https://api.docs.feast.dev/python/), [Go](https://godoc.org/github.com/gojek/feast/sdk/go), and Java clients.
