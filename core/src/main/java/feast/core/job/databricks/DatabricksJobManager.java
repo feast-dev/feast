@@ -197,11 +197,11 @@ public class DatabricksJobManager implements JobManager {
 
     String jobName = String.format("Feast ingestion job %s", job.getId());
     String defaultFeastProject = Project.DEFAULT_NAME;
-    List<FeatureSetProto.FeatureSet> featureSetProtos = new ArrayList<>();
+    List<FeatureSetProto.FeatureSetSpec> featureSetSpecsProtos = new ArrayList<>();
     StoreProto.Store store;
     try {
       for (FeatureSet featureSet : job.getFeatureSets()) {
-        featureSetProtos.add(featureSet.toProto());
+        featureSetSpecsProtos.add(featureSet.toProto().getSpec());
       }
       store = job.getStore().toProto();
     } catch (InvalidProtocolBufferException e) {
@@ -214,7 +214,7 @@ public class DatabricksJobManager implements JobManager {
     }
 
     String storesJson = toJsonLine(store);
-    String featureSetsJson = toJsonLines(featureSetProtos);
+    String featureSetsJson = toJsonLines(featureSetSpecsProtos);
 
     JobsCreateRequest createRequest =
         getJobRequest(
