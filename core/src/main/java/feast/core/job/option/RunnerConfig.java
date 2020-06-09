@@ -30,8 +30,8 @@ import java.util.Map;
 public abstract class RunnerConfig {
 
   /**
-   * Converts the fields in this class to a list of --key=value args to be passed to a {@link
-   * org.apache.beam.sdk.options.PipelineOptionsFactory}.
+   * Converts the public-access fields in this class to a list of --key=value args to be passed to a
+   * {@link org.apache.beam.sdk.options.PipelineOptionsFactory}.
    *
    * <p>Ignores values that are proto-default (e.g. empty string, 0).
    *
