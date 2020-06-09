@@ -140,6 +140,8 @@ message ListFeatureSetsRequest {
         // - my-feature-set* can be used to match all features prefixed by "my-feature-set"
         // - my-feature-set-6 can be used to select a single feature set
         string feature_set_name = 1;
+
+        map<string,string> labels = 4;
     }
 }
 
