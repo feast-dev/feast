@@ -28,6 +28,9 @@ public abstract class RunNowResponse {
   @JsonProperty("run_id")
   public abstract long getRunId();
 
+  @JsonProperty("number_in_job")
+  public abstract int getNumberInJob();
+
   public static Builder builder() {
     return new AutoValue_RunNowResponse.Builder();
   }
@@ -36,6 +39,9 @@ public abstract class RunNowResponse {
   public abstract static class Builder {
     @JsonProperty("run_id")
     public abstract Builder setRunId(long value);
+
+    @JsonProperty("number_in_job")
+    public abstract Builder setNumberInJob(int value);
 
     public abstract RunNowResponse build();
   }
