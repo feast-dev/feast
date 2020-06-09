@@ -47,6 +47,7 @@ import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -133,6 +134,7 @@ public class SpecService {
       throws InvalidProtocolBufferException {
     String name = filter.getFeatureSetName();
     String project = filter.getProject();
+    Map<String, String> labels = filter.getLabelsMap();
 
     if (name.isEmpty()) {
       throw new IllegalArgumentException(
@@ -189,7 +191,17 @@ public class SpecService {
     ListFeatureSetsResponse.Builder response = ListFeatureSetsResponse.newBuilder();
     if (featureSets.size() > 0) {
       for (FeatureSet featureSet : featureSets) {
-        response.addFeatureSets(featureSet.toProto());
+        if (labels != null && !labels.isEmpty()) {
+          Map<String, String> tempLabels = featureSet.toProto().getSpec().getLabelsMap();
+          for (Map.Entry<String, String> entry : labels.entrySet()) {
+            if (tempLabels.containsKey(entry.getKey())
+                && tempLabels.get(entry.getKey()).equals(entry.getValue())) {
+              response.addFeatureSets(featureSet.toProto());
+            }
+          }
+        } else {
+          response.addFeatureSets(featureSet.toProto());
+        }
       }
     }
 

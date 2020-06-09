@@ -96,7 +96,7 @@ public class SpecServiceTest {
   // TODO: Updates update features in place, so if tests follow the wrong order they might break.
   // Refactor this maybe?
   @Before
-  public void setUp() {
+  public void setUp() throws InvalidProtocolBufferException {
     initMocks(this);
     defaultSource = TestObjectFactory.defaultSource;
 
@@ -111,7 +111,50 @@ public class SpecServiceTest {
             "f3", "project1", Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1));
 
     FeatureSet featureSet4 = newDummyFeatureSet("f4", Project.DEFAULT_NAME);
-    featureSets = Arrays.asList(featureSet1, featureSet2, featureSet3, featureSet4);
+    Map<String, String> singleFeatureSetLabels =
+        new HashMap<>() {
+          {
+            put("fsLabel1", "fsValue1");
+          }
+        };
+    Map<String, String> duoFeatureSetLabels =
+        new HashMap<>() {
+          {
+            put("fsLabel1", "fsValue1");
+            put("fsLabel2", "fsValue2");
+          }
+        };
+    FeatureSet featureSet5 = newDummyFeatureSet("f5", Project.DEFAULT_NAME);
+    FeatureSet featureSet6 = newDummyFeatureSet("f6", Project.DEFAULT_NAME);
+    FeatureSetSpec featureSetSpec5 = featureSet5.toProto().getSpec().toBuilder().build();
+    FeatureSetSpec featureSetSpec6 = featureSet6.toProto().getSpec().toBuilder().build();
+    FeatureSetProto.FeatureSet fs5 =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                featureSetSpec5
+                    .toBuilder()
+                    .setSource(defaultSource.toProto())
+                    .putAllLabels(singleFeatureSetLabels)
+                    .build())
+            .build();
+    FeatureSetProto.FeatureSet fs6 =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                featureSetSpec6
+                    .toBuilder()
+                    .setSource(defaultSource.toProto())
+                    .putAllLabels(duoFeatureSetLabels)
+                    .build())
+            .build();
+
+    featureSets =
+        Arrays.asList(
+            featureSet1,
+            featureSet2,
+            featureSet3,
+            featureSet4,
+            FeatureSet.fromProto(fs5),
+            FeatureSet.fromProto(fs6));
 
     when(featureSetRepository.findAll()).thenReturn(featureSets);
     when(featureSetRepository.findAllByOrderByNameAsc()).thenReturn(featureSets);
@@ -624,6 +667,23 @@ public class SpecServiceTest {
     var appliedLabels = appliedFeatureSetSpec.getLabelsMap();
 
     assertEquals(featureSetLabels, appliedLabels);
+  }
+
+  @Test
+  public void shouldFilterByFeatureSetLabels() throws InvalidProtocolBufferException {
+    ListFeatureSetsResponse actual =
+        specService.listFeatureSets(
+            Filter.newBuilder()
+                .setFeatureSetName("*")
+                .setProject("*")
+                .putLabels("fsLabel2", "fsValue2")
+                .build());
+    List<FeatureSetProto.FeatureSet> list = new ArrayList<>();
+    list.add(featureSets.get(featureSets.size() - 1).toProto());
+
+    ListFeatureSetsResponse expected =
+        ListFeatureSetsResponse.newBuilder().addAllFeatureSets(list).build();
+    assertThat(actual, equalTo(expected));
   }
 
   @Test
