@@ -34,7 +34,7 @@ import org.junit.Test;
 import org.mockito.Mock;
 import spark.*;
 
-/** Unit test for simple App. */
+/** Unit test for Databricks Emulator. */
 public class DatabricksEmulatorTest {
 
   private static final String SAMPLE_JOB_JSON =

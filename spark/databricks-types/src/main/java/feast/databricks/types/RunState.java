@@ -24,17 +24,17 @@ import java.util.Optional;
 
 @AutoValue
 @JsonDeserialize(builder = AutoValue_RunState.Builder.class)
+@JsonInclude(JsonInclude.Include.NON_ABSENT)
 public abstract class RunState {
 
   @JsonProperty("life_cycle_state")
   public abstract RunLifeCycleState getLifeCycleState();
 
-  @JsonInclude(JsonInclude.Include.NON_NULL)
   @JsonProperty("result_state")
   public abstract Optional<RunResultState> getResultState();
 
   @JsonProperty("state_message")
-  public abstract String getStateMessage();
+  public abstract Optional<String> getStateMessage();
 
   public static Builder builder() {
     return new AutoValue_RunState.Builder();

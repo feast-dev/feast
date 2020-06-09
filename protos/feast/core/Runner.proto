@@ -86,11 +86,6 @@ message DatabricksRunnerConfigOptions {
         int32 numWorkers = 3;
     }
 
-    message DatabricksSparkJarTaskOptions{
-
-        string mainClassName = 1;
-    }
-
     /* Databricks host */
     string host = 1;
 
@@ -104,8 +99,4 @@ message DatabricksRunnerConfigOptions {
     repeated string jarParams = 5;
 
     DatabricksNewClusterOptions newCluster = 6;
-
-    DatabricksSparkJarTaskOptions sparkJarTask = 7;
-
-
 }
