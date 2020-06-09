@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import pathlib
+from collections import OrderedDict
 from concurrent import futures
 from datetime import datetime
 
@@ -62,7 +63,7 @@ class TestFeatureSet:
         assert len(fs.features) == 1 and fs.features[0].name == "my-feature-2"
 
     def test_remove_feature_failure(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(KeyError):
             fs = FeatureSet("my-feature-set")
             fs.drop(name="my-feature-1")
 
@@ -285,6 +286,98 @@ def make_tfx_schema_domain_info_inline(schema):
                 feature.float_domain.MergeFrom(domain_ref_to_float_domain[domain_ref])
             elif domain_ref in domain_ref_to_int_domain:
                 feature.int_domain.MergeFrom(domain_ref_to_int_domain[domain_ref])
+
+
+def test_feature_set_class_contains_labels():
+    fs = FeatureSet("my-feature-set", labels={"key1": "val1", "key2": "val2"})
+    assert "key1" in fs.labels.keys() and fs.labels["key1"] == "val1"
+    assert "key2" in fs.labels.keys() and fs.labels["key2"] == "val2"
+
+
+def test_feature_class_contains_labels():
+    fs = FeatureSet("my-feature-set", labels={"key1": "val1", "key2": "val2"})
+    fs.add(
+        Feature(
+            name="my-feature-1",
+            dtype=ValueType.INT64,
+            labels={"feature_key1": "feature_val1"},
+        )
+    )
+    assert "feature_key1" in fs.features[0].labels.keys()
+    assert fs.features[0].labels["feature_key1"] == "feature_val1"
+
+
+def test_feature_set_without_labels_empty_dict():
+    fs = FeatureSet("my-feature-set")
+    assert fs.labels == OrderedDict()
+    assert len(fs.labels) == 0
+
+
+def test_feature_without_labels_empty_dict():
+    f = Feature("my feature", dtype=ValueType.INT64)
+    assert f.labels == OrderedDict()
+    assert len(f.labels) == 0
+
+
+def test_set_label_feature_set():
+    fs = FeatureSet("my-feature-set")
+    fs.set_label("k1", "v1")
+    assert fs.labels["k1"] == "v1"
+
+
+def test_set_labels_overwrites_existing():
+    fs = FeatureSet("my-feature-set")
+    fs.set_label("k1", "v1")
+    fs.set_label("k1", "v2")
+    assert fs.labels["k1"] == "v2"
+
+
+def test_remove_labels_empty_failure():
+    fs = FeatureSet("my-feature-set")
+    with pytest.raises(KeyError):
+        fs.remove_label("key1")
+
+
+def test_remove_labels_invalid_key_failure():
+    fs = FeatureSet("my-feature-set")
+    fs.set_label("k1", "v1")
+    with pytest.raises(KeyError):
+        fs.remove_label("key1")
+
+
+def test_unequal_feature_based_on_labels():
+    f1 = Feature(name="feature-1", dtype=ValueType.INT64, labels={"k1": "v1"})
+    f2 = Feature(name="feature-1", dtype=ValueType.INT64, labels={"k1": "v1"})
+    assert f1 == f2
+    f3 = Feature(name="feature-1", dtype=ValueType.INT64)
+    assert f1 != f3
+    f4 = Feature(name="feature-1", dtype=ValueType.INT64, labels={"k1": "notv1"})
+    assert f1 != f4
+
+
+def test_unequal_feature_set_based_on_labels():
+    fs1 = FeatureSet("my-feature-set")
+    fs2 = FeatureSet("my-feature-set")
+    assert fs1 == fs2
+    fs1.set_label("k1", "v1")
+    fs2.set_label("k1", "v1")
+    assert fs1 == fs2
+    fs2.set_label("k1", "unequal")
+    assert not fs1 == fs2
+
+
+def test_unequal_feature_set_other_has_no_labels():
+    fs1 = FeatureSet("my-feature-set")
+    fs2 = FeatureSet("my-feature-set")
+    assert fs1 == fs2
+    fs1.set_label("k1", "v1")
+    assert not fs1 == fs2
+
+
+def test_unequal_feature_other_has_no_labels():
+    f1 = Feature(name="feature-1", dtype=ValueType.INT64, labels={"k1": "v1"})
+    f2 = Feature(name="feature-1", dtype=ValueType.INT64)
+    assert f1 != f2
 
 
 class TestFeatureSetRef:

@@ -13,7 +13,7 @@
 # limitations under the License.
 import warnings
 from collections import OrderedDict
-from typing import Dict, List, Optional
+from typing import Dict, List, MutableMapping, Optional
 
 import pandas as pd
 from google.protobuf import json_format
@@ -56,6 +56,7 @@ class FeatureSet:
         entities: List[Entity] = None,
         source: Source = None,
         max_age: Optional[Duration] = None,
+        labels: Optional[MutableMapping[str, str]] = None,
     ):
         self._name = name
         self._project = project
@@ -68,6 +69,10 @@ class FeatureSet:
             self._source = None
         else:
             self._source = source
+        if labels is None:
+            self._labels = OrderedDict()
+        else:
+            self._labels = labels
         self._max_age = max_age
         self._status = None
         self._created_timestamp = None
@@ -84,7 +89,8 @@ class FeatureSet:
                 return False
 
         if (
-            self.name != other.name
+            self.labels != other.labels
+            or self.name != other.name
             or self.project != other.project
             or self.max_age != other.max_age
         ):
@@ -218,6 +224,21 @@ class FeatureSet:
         self._max_age = max_age
 
     @property
+    def labels(self):
+        """
+        Returns the labels of this feature set. This is the user defined metadata
+        defined as a dictionary.
+        """
+        return self._labels
+
+    @labels.setter
+    def labels(self, labels: MutableMapping[str, str]):
+        """
+        Set the labels for this feature set
+        """
+        self._labels = labels
+
+    @property
     def status(self):
         """
         Returns the status of this feature set
@@ -244,6 +265,18 @@ class FeatureSet:
         Sets the status of this feature set
         """
         self._created_timestamp = created_timestamp
+
+    def set_label(self, key: str, value: str):
+        """
+        Sets the label value for a given key
+        """
+        self.labels[key] = value
+
+    def remove_label(self, key: str):
+        """
+        Removes a label based on key
+        """
+        del self.labels[key]
 
     def add(self, resource):
         """
@@ -279,11 +312,7 @@ class FeatureSet:
         Args:
             name: Name of Feature or Entity to be removed
         """
-        if name not in self._fields:
-            raise ValueError("Could not find field " + name + ", no action taken")
-        if name in self._fields:
-            del self._fields[name]
-            return
+        del self._fields[name]
 
     def _add_fields(self, fields: List[Field]):
         """
@@ -796,6 +825,7 @@ class FeatureSet:
                 and feature_set_proto.spec.max_age.nanos == 0
                 else feature_set_proto.spec.max_age
             ),
+            labels=feature_set_proto.spec.labels,
             source=(
                 None
                 if feature_set_proto.spec.source.type == 0
@@ -825,6 +855,7 @@ class FeatureSet:
             name=self.name,
             project=self.project,
             max_age=self.max_age,
+            labels=self.labels,
             source=self.source.to_proto() if self.source is not None else None,
             features=[
                 field.to_proto()
