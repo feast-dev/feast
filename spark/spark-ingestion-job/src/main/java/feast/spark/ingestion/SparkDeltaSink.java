@@ -16,7 +16,6 @@
  */
 package feast.spark.ingestion;
 
-
 import feast.ingestion.utils.SpecUtil;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
