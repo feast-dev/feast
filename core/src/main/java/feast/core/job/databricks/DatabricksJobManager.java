@@ -18,6 +18,8 @@ package feast.core.job.databricks;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.MessageOrBuilder;
+import com.google.protobuf.util.JsonFormat;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
@@ -26,7 +28,6 @@ import feast.core.model.*;
 import feast.databricks.types.*;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.RunnerProto.DatabricksRunnerConfigOptions;
-import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
 import java.io.IOException;
 import java.net.URI;
@@ -35,23 +36,26 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpException;
 import org.apache.http.HttpStatus;
 
 @Slf4j
 public class DatabricksJobManager implements JobManager {
+  private static final String SPARK_INGESTION_CLASS = "feast.spark.ingestion.SparkIngestion";
+
   private final Runner RUNNER_TYPE = Runner.DATABRICKS;
 
   private final String databricksHost;
   private final byte[] databricksToken;
   private final String jarFile;
   private final DatabricksRunnerConfigOptions.DatabricksNewClusterOptions newClusterConfigOptions;
-  private final DatabricksRunnerConfigOptions.DatabricksSparkJarTaskOptions sparkJarTaskOptions;
   private final MetricsProperties metricsProperties;
   private final HttpClient httpClient;
-  private final ObjectMapper mapper = new ObjectMapper();
+  private static final ObjectMapper mapper = ObjectMapperFactory.createObjectMapper();
   private final int maxRetries = -1;
 
   public DatabricksJobManager(
@@ -63,7 +67,6 @@ public class DatabricksJobManager implements JobManager {
     this.databricksToken = runnerConfigOptions.getToken().getBytes();
     this.metricsProperties = metricsProperties;
     this.httpClient = httpClient;
-    this.sparkJarTaskOptions = runnerConfigOptions.getSparkJarTask();
     this.newClusterConfigOptions = runnerConfigOptions.getNewCluster();
     this.jarFile = runnerConfigOptions.getJarFile();
   }
@@ -75,28 +78,25 @@ public class DatabricksJobManager implements JobManager {
 
   @Override
   public Job startJob(Job job) {
-    try {
-      List<FeatureSetProto.FeatureSet> featureSetProtos = new ArrayList<>();
-      for (FeatureSet featureSet : job.getFeatureSets()) {
-        featureSetProtos.add(featureSet.toProto());
-      }
+    String jobId = job.getId();
 
-      long databricksJobId = createDatabricksJob(job.getId());
-      return runDatabricksJob(
-          job.getId(),
-          databricksJobId,
-          featureSetProtos,
-          job.getSource().toProto(),
-          job.getStore().toProto());
+    long databricksJobId = createDatabricksJob(job);
 
-    } catch (InvalidProtocolBufferException e) {
-      log.error(e.getMessage());
-      throw new IllegalArgumentException(
-          String.format(
-              "DatabricksJobManager failed to START job with id '%s' because the job"
-                  + "has an invalid spec. Please check the FeatureSet, Source and Store specs. Actual error message: %s",
-              job.getId(), e.getMessage()));
-    }
+    log.info("Created job for Feast job {} (Databricks JobId {})", jobId, databricksJobId);
+
+    long databricksRunId = runDatabricksJob(databricksJobId);
+
+    log.info("Setting job status for job {} (Databricks RunId {})", jobId, databricksRunId);
+    job.setExtId(Long.toString(databricksRunId));
+
+    log.info(
+        "Waiting for job {} to start (Databricks JobId {} RunId {})",
+        jobId,
+        databricksJobId,
+        databricksRunId);
+    waitForJobToRun(job);
+
+    return job;
   }
 
   /**
@@ -144,6 +144,7 @@ public class DatabricksJobManager implements JobManager {
 
   @Override
   public JobStatus getJobStatus(Job job) {
+    log.info("Getting job status for job {} (Databricks RunId {})", job.getId(), job.getExtId());
     HttpRequest request =
         HttpRequest.newBuilder()
             .uri(
@@ -160,6 +161,12 @@ public class DatabricksJobManager implements JobManager {
         RunsGetResponse runsGetResponse = mapper.readValue(response.body(), RunsGetResponse.class);
         RunState runState = runsGetResponse.getState();
         String lifeCycleState = runState.getLifeCycleState().toString();
+
+        log.info(
+            "Databricks job state for job {} (Databricks RunId {}) is {}",
+            job.getId(),
+            job.getExtId(),
+            runState);
 
         return runState
             .getResultState()
@@ -187,9 +194,33 @@ public class DatabricksJobManager implements JobManager {
     return String.format("%s %s", "Bearer", Arrays.toString(databricksToken));
   }
 
-  private long createDatabricksJob(String jobId) {
+  private long createDatabricksJob(Job job) {
+    log.info("Starting job id {} for sink {}", job.getId(), job.getSinkName());
 
-    JobsCreateRequest createRequest = getJobRequest(jobId);
+    String jobName = String.format("Feast ingestion job %s", job.getId());
+    String defaultFeastProject = Project.DEFAULT_NAME;
+    List<FeatureSetProto.FeatureSet> featureSetProtos = new ArrayList<>();
+    StoreProto.Store store;
+    try {
+      for (FeatureSet featureSet : job.getFeatureSets()) {
+        featureSetProtos.add(featureSet.toProto());
+      }
+      store = job.getStore().toProto();
+    } catch (InvalidProtocolBufferException e) {
+      log.error(e.getMessage());
+      throw new IllegalArgumentException(
+          String.format(
+              "DatabricksJobManager failed to START job with id '%s' because the job"
+                  + "has an invalid spec. Please check the FeatureSet, Source and Store specs. Actual error message: %s",
+              job.getId(), e.getMessage()));
+    }
+
+    String storesJson = toJsonLine(store);
+    String featureSetsJson = toJsonLines(featureSetProtos);
+
+    JobsCreateRequest createRequest =
+        getJobRequest(
+            jobName, Arrays.asList(job.getId(), defaultFeastProject, featureSetsJson, storesJson));
 
     try {
       String body = mapper.writeValueAsString(createRequest);
@@ -214,24 +245,16 @@ public class DatabricksJobManager implements JobManager {
             String.format("Databricks returned with unexpected code: %s", response.statusCode()));
       }
     } catch (IOException | InterruptedException | HttpException e) {
-      log.error("Unable to run databricks job with id : {}\ncause: {}", jobId, e.getMessage());
+      log.error("Unable to run databricks job : {}\ncause: {}", jobName, e.getMessage());
       throw new JobExecutionException(
-          String.format("Unable to run databricks job with id : %s\ncause: %s", jobId, e), e);
+          String.format("Unable to run databricks job : %s\ncause: %s", jobName, e), e);
     }
   }
 
-  private Job runDatabricksJob(
-      String jobId,
-      long databricksJobId,
-      List<FeatureSetProto.FeatureSet> featureSetProtos,
-      SourceProto.Source source,
-      StoreProto.Store sink) {
-    RunNowRequest runNowRequest = getRunNowRequest(databricksJobId, source);
+  private long runDatabricksJob(long databricksJobId) {
+    log.info("Starting run for Databricks JobId {}", databricksJobId);
 
-    List<FeatureSet> featureSets = new ArrayList<>();
-    for (FeatureSetProto.FeatureSet featureSetProto : featureSetProtos) {
-      featureSets.add(FeatureSet.fromProto(featureSetProto));
-    }
+    RunNowRequest runNowRequest = getRunNowRequest(databricksJobId);
 
     try {
       String body = mapper.writeValueAsString(runNowRequest);
@@ -248,19 +271,7 @@ public class DatabricksJobManager implements JobManager {
 
       if (response.statusCode() == HttpStatus.SC_OK) {
         RunNowResponse runNowResponse = mapper.readValue(response.body(), RunNowResponse.class);
-        Job job =
-            new Job(
-                jobId,
-                String.valueOf(runNowResponse.getRunId()),
-                getRunnerType(),
-                Source.fromProto(source),
-                Store.fromProto(sink),
-                featureSets,
-                JobStatus.RUNNING);
-
-        waitForJobToRun(job);
-
-        return job;
+        return runNowResponse.getRunId();
       } else {
         throw new HttpException(
             String.format("Databricks returned with unexpected code: %s", response.statusCode()));
@@ -274,20 +285,13 @@ public class DatabricksJobManager implements JobManager {
     }
   }
 
-  private RunNowRequest getRunNowRequest(long databricksJobId, SourceProto.Source source) {
-
-    SourceProto.KafkaSourceConfig kafkaSourceConfig = source.getKafkaSourceConfig();
-
-    List<String> jarParams =
-        Arrays.asList(kafkaSourceConfig.getBootstrapServers(), kafkaSourceConfig.getTopic());
-
-    RunNowRequest runNowRequest =
-        RunNowRequest.builder().setJobId(databricksJobId).setJarParams(jarParams).build();
+  private RunNowRequest getRunNowRequest(long databricksJobId) {
+    RunNowRequest runNowRequest = RunNowRequest.builder().setJobId(databricksJobId).build();
 
     return runNowRequest;
   }
 
-  private JobsCreateRequest getJobRequest(String jobId) {
+  private JobsCreateRequest getJobRequest(String jobName, List<String> params) {
     NewCluster newCluster =
         NewCluster.builder()
             .setNumWorkers(newClusterConfigOptions.getNumWorkers())
@@ -300,13 +304,16 @@ public class DatabricksJobManager implements JobManager {
     libraries.add(library);
 
     SparkJarTask sparkJarTask =
-        SparkJarTask.builder().setMainClassName(sparkJarTaskOptions.getMainClassName()).build();
+        SparkJarTask.builder()
+            .setMainClassName(SPARK_INGESTION_CLASS)
+            .setParameters(params)
+            .build();
 
     JobsCreateRequest createRequest =
         JobsCreateRequest.builder()
             .setLibraries(libraries)
             .setMaxRetries(maxRetries)
-            .setName(jobId)
+            .setName(jobName)
             .setNewCluster(newCluster)
             .setSparkJarTask(sparkJarTask)
             .build();
@@ -314,15 +321,36 @@ public class DatabricksJobManager implements JobManager {
     return createRequest;
   }
 
-  private void waitForJobToRun(Job job) throws InterruptedException {
+  private void waitForJobToRun(Job job) {
     while (true) {
       JobStatus jobStatus = getJobStatus(job);
       if (jobStatus.isTerminal()) {
-        throw new RuntimeException();
+        throw new RuntimeException(
+            String.format(
+                "Failed to submit Databricks job, job state is %s", jobStatus.toString()));
       } else if (jobStatus.equals(JobStatus.RUNNING)) {
         break;
       }
-      Thread.sleep(2000);
+      try {
+        Thread.sleep(2000);
+      } catch (InterruptedException e) {
+        // no action
+      }
+    }
+  }
+
+  private static <T extends MessageOrBuilder> String toJsonLines(Collection<T> items) {
+    return items.stream().map(DatabricksJobManager::toJsonLine).collect(Collectors.joining("\n"));
+  }
+
+  private static <T extends MessageOrBuilder> String toJsonLine(T item) {
+    try {
+      return JsonFormat.printer()
+          .omittingInsignificantWhitespace()
+          .printingEnumsAsInts()
+          .print(item);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(e);
     }
   }
 }
