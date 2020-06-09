@@ -33,9 +33,11 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpException;
 import org.apache.http.HttpStatus;
@@ -185,7 +187,7 @@ public class DatabricksJobManager implements JobManager {
   }
 
   private String getAuthorizationHeader() {
-    return String.format("%s %s", "Bearer", Arrays.toString(databricksToken));
+    return String.format("%s %s", "Bearer", new String(databricksToken, StandardCharsets.UTF_8));
   }
 
   private long createDatabricksJob(String jobId) {
