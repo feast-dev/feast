@@ -26,6 +26,7 @@ import feast.databricks.emulator.DatabricksEmulator.*;
 import feast.databricks.types.*;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Optional;
 import org.apache.spark.launcher.SparkAppHandle;
 import org.apache.spark.launcher.SparkAppHandle.State;
 import org.junit.Before;
@@ -154,7 +155,7 @@ public class DatabricksEmulatorTest {
 
     // Assert
     assertThat(result1.getState().getLifeCycleState(), equalTo(RunLifeCycleState.TERMINATED));
-    assertThat(result1.getState().getResultState(), equalTo(RunResultState.SUCCESS));
+    assertThat(result1.getState().getResultState(), equalTo(Optional.of(RunResultState.SUCCESS)));
   }
 
   @Test

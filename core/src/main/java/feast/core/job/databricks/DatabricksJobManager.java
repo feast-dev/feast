@@ -116,30 +116,25 @@ public class DatabricksJobManager implements JobManager {
   public void abortJob(String runId) {
 
     try {
-    RunsCancelRequest runsCancelRequest =
-            RunsCancelRequest.builder()
-                    .setRunId(Integer.parseInt(runId))
-                    .build();
-    String body = mapper.writeValueAsString(runsCancelRequest);
+      RunsCancelRequest runsCancelRequest =
+          RunsCancelRequest.builder().setRunId(Integer.parseInt(runId)).build();
+      String body = mapper.writeValueAsString(runsCancelRequest);
 
-    HttpRequest request =
-            HttpRequest.newBuilder()
-                    .uri(
-                            URI.create(
-                                    String.format(
-                                            "%s/api/2.0/jobs/runs/cancel/", this.databricksHost)))
-                    .header("Authorization", String.format("%s %s", "Bearer", this.databricksToken))
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .build();
+      HttpRequest request =
+          HttpRequest.newBuilder()
+              .uri(URI.create(String.format("%s/api/2.0/jobs/runs/cancel/", this.databricksHost)))
+              .header("Authorization", String.format("%s %s", "Bearer", this.databricksToken))
+              .POST(HttpRequest.BodyPublishers.ofString(body))
+              .build();
 
       HttpResponse<String> response =
-              this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+          this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
     } catch (IOException | InterruptedException e) {
       log.error(
-              "Unable to abort databricks job with run id : {}\ncause: {}", runId, e.getMessage());
+          "Unable to abort databricks job with run id : {}\ncause: {}", runId, e.getMessage());
       throw new JobExecutionException(
-              String.format("Unable to abort databricks job with run id : %s\ncause: %s", runId, e), e);
+          String.format("Unable to abort databricks job with run id : %s\ncause: %s", runId, e), e);
     }
   }
 
@@ -160,17 +155,21 @@ public class DatabricksJobManager implements JobManager {
             .header("Authorization", getAuthorizationHeader())
             .build();
     try {
-      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+      HttpResponse<String> response =
+          httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
       if (response.statusCode() == HttpStatus.SC_OK) {
         RunsGetResponse runsGetResponse = mapper.readValue(response.body(), RunsGetResponse.class);
         RunState runState = runsGetResponse.getState();
         String lifeCycleState = runState.getLifeCycleState().toString();
 
-        return runState.getResultState()
-                .map(runResultState -> DatabricksJobStateMapper.map(String.format("%s_%s", lifeCycleState, runResultState.toString())))
-                .orElseGet(() -> DatabricksJobStateMapper.map(lifeCycleState));
-
+        return runState
+            .getResultState()
+            .map(
+                runResultState ->
+                    DatabricksJobStateMapper.map(
+                        String.format("%s_%s", lifeCycleState, runResultState.toString())))
+            .orElseGet(() -> DatabricksJobStateMapper.map(lifeCycleState));
 
       } else {
         throw new HttpException(
@@ -204,7 +203,8 @@ public class DatabricksJobManager implements JobManager {
               .POST(HttpRequest.BodyPublishers.ofString(body))
               .build();
 
-      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+      HttpResponse<String> response =
+          httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
       if (response.statusCode() == HttpStatus.SC_OK) {
         JobsCreateResponse createResponse =
@@ -245,7 +245,8 @@ public class DatabricksJobManager implements JobManager {
               .POST(HttpRequest.BodyPublishers.ofString(body))
               .build();
 
-      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+      HttpResponse<String> response =
+          httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
       if (response.statusCode() == HttpStatus.SC_OK) {
         RunNowResponse runNowResponse = mapper.readValue(response.body(), RunNowResponse.class);
@@ -282,7 +283,8 @@ public class DatabricksJobManager implements JobManager {
     List<String> jarParams =
         Arrays.asList(kafkaSourceConfig.getBootstrapServers(), kafkaSourceConfig.getTopic());
 
-    RunNowRequest runNowRequest = RunNowRequest.builder().setJobId(databricksJobId).setJarParams(jarParams).build();
+    RunNowRequest runNowRequest =
+        RunNowRequest.builder().setJobId(databricksJobId).setJarParams(jarParams).build();
 
     return runNowRequest;
   }
@@ -300,9 +302,7 @@ public class DatabricksJobManager implements JobManager {
     libraries.add(library);
 
     SparkJarTask sparkJarTask =
-        SparkJarTask.builder()
-            .setMainClassName(sparkJarTaskOptions.getMainClassName())
-            .build();
+        SparkJarTask.builder().setMainClassName(sparkJarTaskOptions.getMainClassName()).build();
 
     JobsCreateRequest createRequest =
         JobsCreateRequest.builder()

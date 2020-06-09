@@ -243,8 +243,7 @@
         <dependency>
             <groupId>dev.feast</groupId>
             <artifactId>databricks-types</artifactId>
-            <version>0.6-SNAPSHOT</version>
-            <scope>compile</scope>
+            <version>${project.version}</version>
         </dependency>
 
     </dependencies>
