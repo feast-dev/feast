@@ -84,7 +84,7 @@ public class DatabricksEmulatorTest {
 
     when(jobRequest.body()).thenReturn(SAMPLE_JOB_JSON);
     job = emulator.jobsCreate(jobRequest, response);
-    runSubmitJson = String.format("{\"job_id\":%s}", job.getJobId());
+    runSubmitJson = createRunSubmitJson(job);
   }
 
   @Test
@@ -142,6 +142,26 @@ public class DatabricksEmulatorTest {
   }
 
   @Test
+  public void runNowShouldReturnIncrementingNumberInJobPerJob() throws Exception {
+    // Arrange
+    when(request.body()).thenReturn(runSubmitJson);
+
+    // Act
+    RunNowResponse job1run1 = emulator.runNow(request, response);
+    RunNowResponse job1run2 = emulator.runNow(request, response);
+
+    JobsCreateResponse job2 = emulator.jobsCreate(jobRequest, response);
+    String job2runSubmitJson = createRunSubmitJson(job2);
+    when(request.body()).thenReturn(job2runSubmitJson);
+    RunNowResponse job2run1 = emulator.runNow(request, response);
+
+    // Assert
+    assertThat(job1run1.getNumberInJob(), equalTo(1L));
+    assertThat(job1run2.getNumberInJob(), equalTo(2L));
+    assertThat(job2run1.getNumberInJob(), equalTo(1L));
+  }
+
+  @Test
   public void runsGetShouldReturnJobState() throws Exception {
     // Arrange
     when(request.queryParams("run_id")).thenReturn("45");
@@ -186,5 +206,9 @@ public class DatabricksEmulatorTest {
 
     // Assert
     verify(handle).stop();
+  }
+
+  private static String createRunSubmitJson(JobsCreateResponse job) {
+    return String.format("{\"job_id\":%s}", job.getJobId());
   }
 }

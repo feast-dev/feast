@@ -132,6 +132,8 @@ public class DatabricksEmulator {
 
     ItemTracker<SparkAppHandle> runTracker = new ItemTracker<>();
 
+    ConcurrentMap<Long, AtomicLong> runCountTracker = new ConcurrentHashMap<Long, AtomicLong>();
+
     SparkAppFactory appFactory = new SparkAppFactory();
 
     RunsGetResponse runsGet(Request request, Response response) throws Exception {
@@ -222,8 +224,12 @@ public class DatabricksEmulator {
       SparkAppHandle handle = appFactory.createApp(jars, task.getMainClassName(), params);
 
       long runId = runTracker.addItem(handle);
-      log.info("Started job run {} for job {}", runId, jobId);
-      return RunNowResponse.builder().setRunId(runId).build();
+
+      runCountTracker.putIfAbsent(jobId, new AtomicLong(0L));
+      long numberInJob = runCountTracker.get(jobId).incrementAndGet();
+
+      log.info("Started job run {} for job {} (numberInJob: {})", runId, jobId, numberInJob);
+      return RunNowResponse.builder().setRunId(runId).setNumberInJob(numberInJob).build();
     }
 
     RunsCancelRequest runsCancel(Request request, Response response) throws Exception {
