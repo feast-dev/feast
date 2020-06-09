@@ -56,7 +56,27 @@ else
   echo "[DEBUG] Skipping building jars"
 fi
 
-cat <<EOF > /tmp/core.warehouse.application.yml
+echo "
+============================================================
+Starting Feast Core
+============================================================
+"
+# Start Feast Core in background
+cat <<EOF > /tmp/core.application.yml
+grpc:
+  server:
+    port: 6565
+    security:
+      enabled: false
+
+security:
+    authentication:
+      enabled: false
+      provider: None
+    authorization:
+      enabled: false
+      provider: None
+
 feast:
   jobs:
     polling_interval_milliseconds: 10000
@@ -66,6 +86,11 @@ feast:
         type: DirectRunner
         options:
           tempLocation: gs://${TEMP_BUCKET}/tempLocation
+grpc:
+  server:
+    port: 6565
+    security:
+      enabled: false
 
 EOF
 

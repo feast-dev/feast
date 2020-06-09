@@ -15,13 +15,6 @@
 #
 #
 
-grpc:
-  # The port number Feast Serving GRPC service should listen on
-  port: 6565
-  # This allows client to discover GRPC endpoints easily
-  # https://github.com/grpc/grpc-java/blob/master/documentation/server-reflection-tutorial.md
-  enable-reflection: true
-
 feast:
   jobs:
     # Job update polling interval in milliseconds: how often Feast checks if new jobs should be sent to the runner.
@@ -77,12 +70,30 @@ feast:
       bootstrapServers: localhost:9092
       replicationFactor: 1
       partitions: 1
-
     specsOptions:
       specsTopic: feast-specs
       specsAckTopic: feast-specs-ack
       notifyIntervalMilliseconds: 1000
+      
+  security:
+    authentication:
+      enabled: false
+      provider: GoogleOpenID
+    authorization:
+      enabled: false
+      provider: KetoAuthorization
+      options:
+        basePath: http://localhost:3000
 
+grpc:
+  server:
+    # The port that Feast Core gRPC service listens on
+    port: 6565
+    security:
+      enabled: false
+      certificateChainPath: server.crt
+      privateKeyPath: server.key
+      
 spring:
   jpa:
     properties.hibernate:

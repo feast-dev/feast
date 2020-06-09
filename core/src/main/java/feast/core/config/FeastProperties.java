@@ -59,6 +59,7 @@ public class FeastProperties {
   @NotNull
   /* Feast Kafka stream properties */
   private StreamProperties stream;
+  private SecurityProperties security;
 
   /** Feast job properties. These properties are used for ingestion jobs. */
   @Getter
@@ -253,6 +254,42 @@ public class FeastProperties {
                 + ". Make sure it is a valid IP address or DNS hostname e.g. localhost or 10.128.10.40. Error detail: "
                 + e.getMessage());
       }
+    }
+  }
+
+  @Getter
+  @Setter
+  public static class SecurityProperties {
+
+    private AuthenticationProperties authentication;
+    private AuthorizationProperties authorization;
+
+    @Getter
+    @Setter
+    public static class AuthenticationProperties {
+
+      // Enable authentication
+      private boolean enabled;
+
+      // Named authentication provider to use
+      private String provider;
+
+      // K/V options to initialize the provider with
+      private Map<String, String> options;
+    }
+
+    @Getter
+    @Setter
+    public static class AuthorizationProperties {
+
+      // Enable authorization. Authentication must be enabled if authorization is enabled.
+      private boolean enabled;
+
+      // Named authorization provider to use.
+      private String provider;
+
+      // K/V options to initialize the provider with
+      private Map<String, String> options;
     }
   }
 }

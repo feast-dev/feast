@@ -66,7 +66,11 @@ from feast.serving.ServingService_pb2 import JobStatus, JobType
 from feast.source import KafkaSource
 from feast.types import Value_pb2 as ValueProto
 from feast.value_type import ValueType
-from feast_core_server import CoreServicer
+from feast_core_server import (
+    AllowAuthInterceptor,
+    CoreServicer,
+    DisallowAuthInterceptor,
+)
 from feast_serving_server import ServingServicer
 
 CORE_URL = "core.feast.example.com"
@@ -74,28 +78,29 @@ SERVING_URL = "serving.example.com"
 _PRIVATE_KEY_RESOURCE_PATH = "data/localhost.key"
 _CERTIFICATE_CHAIN_RESOURCE_PATH = "data/localhost.pem"
 _ROOT_CERTIFICATE_RESOURCE_PATH = "data/localhost.crt"
+_FAKE_JWT_TOKEN = (
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0N"
+    "TY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDI"
+    "yfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+)
 
 
 class TestClient:
     @pytest.fixture
-    def secure_mock_client(self, mocker):
+    def secure_mock_client(self):
         client = Client(
             core_url=CORE_URL,
             serving_url=SERVING_URL,
-            core_secure=True,
-            serving_secure=True,
+            core_enable_ssl=True,
+            serving_enable_ssl=True,
         )
-        mocker.patch.object(client, "_connect_core")
-        mocker.patch.object(client, "_connect_serving")
         client._core_url = CORE_URL
         client._serving_url = SERVING_URL
         return client
 
     @pytest.fixture
-    def mock_client(self, mocker):
+    def mock_client(self):
         client = Client(core_url=CORE_URL, serving_url=SERVING_URL)
-        mocker.patch.object(client, "_connect_core")
-        mocker.patch.object(client, "_connect_serving")
         client._core_url = CORE_URL
         client._serving_url = SERVING_URL
         return client
@@ -137,8 +142,43 @@ class TestClient:
     def secure_serving_server(self, server_credentials):
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         Serving.add_ServingServiceServicer_to_server(ServingServicer(), server)
-
         server.add_secure_port("[::]:50054", server_credentials)
+        server.start()
+        yield server
+        server.stop(0)
+
+    @pytest.fixture
+    def secure_core_server_with_auth(self, server_credentials):
+        server = grpc.server(
+            futures.ThreadPoolExecutor(max_workers=10),
+            interceptors=(AllowAuthInterceptor(),),
+        )
+        Core.add_CoreServiceServicer_to_server(CoreServicer(), server)
+        server.add_secure_port("[::]:50055", server_credentials)
+        server.start()
+        yield server
+        server.stop(0)
+
+    @pytest.fixture
+    def insecure_core_server_with_auth(self, server_credentials):
+        server = grpc.server(
+            futures.ThreadPoolExecutor(max_workers=10),
+            interceptors=(AllowAuthInterceptor(),),
+        )
+        Core.add_CoreServiceServicer_to_server(CoreServicer(), server)
+        server.add_insecure_port("[::]:50056")
+        server.start()
+        yield server
+        server.stop(0)
+
+    @pytest.fixture
+    def insecure_core_server_that_blocks_auth(self, server_credentials):
+        server = grpc.server(
+            futures.ThreadPoolExecutor(max_workers=10),
+            interceptors=(DisallowAuthInterceptor(),),
+        )
+        Core.add_CoreServiceServicer_to_server(CoreServicer(), server)
+        server.add_insecure_port("[::]:50057")
         server.start()
         yield server
         server.stop(0)
@@ -148,7 +188,7 @@ class TestClient:
         root_certificate_credentials = pkgutil.get_data(
             __name__, _ROOT_CERTIFICATE_RESOURCE_PATH
         )
-        # this is needed to establish a secure connection using self-signed certificates, for the purpose of the test
+
         ssl_channel_credentials = grpc.ssl_channel_credentials(
             root_certificates=root_certificate_credentials
         )
@@ -159,8 +199,27 @@ class TestClient:
             yield Client(
                 core_url="localhost:50053",
                 serving_url="localhost:50054",
-                core_secure=True,
-                serving_secure=True,
+                core_enable_ssl=True,
+                serving_enable_ssl=True,
+            )
+
+    @pytest.fixture
+    def secure_core_client_with_auth(self, secure_core_server_with_auth):
+        root_certificate_credentials = pkgutil.get_data(
+            __name__, _ROOT_CERTIFICATE_RESOURCE_PATH
+        )
+        ssl_channel_credentials = grpc.ssl_channel_credentials(
+            root_certificates=root_certificate_credentials
+        )
+        with mock.patch(
+            "grpc.ssl_channel_credentials",
+            MagicMock(return_value=ssl_channel_credentials),
+        ):
+            yield Client(
+                core_url="localhost:50055",
+                core_enable_ssl=True,
+                core_enable_auth=True,
+                core_auth_token=_FAKE_JWT_TOKEN,
             )
 
     @pytest.fixture
@@ -892,7 +951,7 @@ class TestClient:
         test_client.apply(all_types_fs)
 
         mocker.patch.object(
-            test_client._core_service_stub,
+            test_client._core_service,
             "GetFeatureSet",
             return_value=GetFeatureSetResponse(feature_set=all_types_fs.to_proto()),
         )
@@ -907,15 +966,15 @@ class TestClient:
         client = Client(
             core_url="localhost:50051",
             serving_url="localhost:50052",
-            serving_secure=True,
-            core_secure=True,
+            serving_enable_ssl=True,
+            core_enable_ssl=True,
         )
         with mock.patch("grpc.secure_channel") as _grpc_mock, mock.patch(
             "grpc.ssl_channel_credentials", MagicMock(return_value="test")
         ) as _mocked_credentials:
-            client._connect_serving()
+            _ = client._serving_service
             _grpc_mock.assert_called_with(
-                client.serving_url, _mocked_credentials.return_value
+                client.serving_url, credentials=_mocked_credentials.return_value
             )
 
     @mock.patch("grpc.channel_ready_future")
@@ -926,9 +985,9 @@ class TestClient:
         with mock.patch("grpc.secure_channel") as _grpc_mock, mock.patch(
             "grpc.ssl_channel_credentials", MagicMock(return_value="test")
         ) as _mocked_credentials:
-            client._connect_serving()
+            _ = client._serving_service
             _grpc_mock.assert_called_with(
-                client.serving_url, _mocked_credentials.return_value
+                client.serving_url, credentials=_mocked_credentials.return_value
             )
 
     @patch("grpc.channel_ready_future")
@@ -937,7 +996,29 @@ class TestClient:
         with mock.patch("grpc.secure_channel") as _grpc_mock, mock.patch(
             "grpc.ssl_channel_credentials", MagicMock(return_value="test")
         ) as _mocked_credentials:
-            client._connect_core()
+            _ = client._core_service
             _grpc_mock.assert_called_with(
-                client.core_url, _mocked_credentials.return_value
+                client.core_url, credentials=_mocked_credentials.return_value
             )
+
+    @mock.patch("grpc.channel_ready_future")
+    def test_auth_success_with_secure_channel_on_core_url(
+        self, secure_core_client_with_auth
+    ):
+        secure_core_client_with_auth.list_feature_sets()
+
+    def test_auth_success_with_insecure_channel_on_core_url(
+        self, insecure_core_server_with_auth
+    ):
+        client = Client(
+            core_url="localhost:50056",
+            core_enable_auth=True,
+            core_auth_token=_FAKE_JWT_TOKEN,
+        )
+        client.list_feature_sets()
+
+    def test_no_auth_sent_when_auth_disabled(
+        self, insecure_core_server_that_blocks_auth
+    ):
+        client = Client(core_url="localhost:50057")
+        client.list_feature_sets()

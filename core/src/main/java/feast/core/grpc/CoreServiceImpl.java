@@ -22,8 +22,8 @@ import feast.core.config.FeastProperties;
 import feast.core.exception.RetrievalException;
 import feast.core.grpc.interceptors.MonitoringInterceptor;
 import feast.core.model.Project;
-import feast.core.service.AccessManagementService;
 import feast.core.service.JobService;
+import feast.core.service.ProjectService;
 import feast.core.service.SpecService;
 import feast.core.service.StatsService;
 import feast.proto.core.CoreServiceGrpc.CoreServiceImplBase;
@@ -35,29 +35,28 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.lognet.springboot.grpc.GRpcService;
+import net.devh.boot.grpc.server.service.GrpcService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 /** Implementation of the feast core GRPC service. */
 @Slf4j
-@GRpcService(interceptors = {MonitoringInterceptor.class})
+@GrpcService(interceptors = {MonitoringInterceptor.class})
 public class CoreServiceImpl extends CoreServiceImplBase {
 
   private final FeastProperties feastProperties;
   private SpecService specService;
-  private AccessManagementService accessManagementService;
   private JobService jobService;
   private StatsService statsService;
+  private ProjectService projectService;
 
   @Autowired
   public CoreServiceImpl(
       SpecService specService,
-      AccessManagementService accessManagementService,
       StatsService statsService,
       JobService jobService,
       FeastProperties feastProperties) {
     this.specService = specService;
-    this.accessManagementService = accessManagementService;
     this.jobService = jobService;
     this.feastProperties = feastProperties;
     this.statsService = statsService;
@@ -176,6 +175,10 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   @Override
   public void applyFeatureSet(
       ApplyFeatureSetRequest request, StreamObserver<ApplyFeatureSetResponse> responseObserver) {
+
+    projectService.checkIfProjectMember(
+        SecurityContextHolder.getContext(), request.getFeatureSet().getSpec().getProject());
+
     try {
       ApplyFeatureSetResponse response = specService.applyFeatureSet(request.getFeatureSet());
       responseObserver.onNext(response);
@@ -212,7 +215,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public void createProject(
       CreateProjectRequest request, StreamObserver<CreateProjectResponse> responseObserver) {
     try {
-      accessManagementService.createProject(request.getName());
+      projectService.createProject(request.getName());
       responseObserver.onNext(CreateProjectResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (Exception e) {
@@ -225,8 +228,11 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   @Override
   public void archiveProject(
       ArchiveProjectRequest request, StreamObserver<ArchiveProjectResponse> responseObserver) {
+
+    projectService.checkIfProjectMember(SecurityContextHolder.getContext(), request.getName());
+
     try {
-      accessManagementService.archiveProject(request.getName());
+      projectService.archiveProject(request.getName());
       responseObserver.onNext(ArchiveProjectResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (IllegalArgumentException e) {
@@ -251,7 +257,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public void listProjects(
       ListProjectsRequest request, StreamObserver<ListProjectsResponse> responseObserver) {
     try {
-      List<Project> projects = accessManagementService.listProjects();
+      List<Project> projects = projectService.listProjects();
       responseObserver.onNext(
           ListProjectsResponse.newBuilder()
               .addAllProjects(projects.stream().map(Project::getName).collect(Collectors.toList()))
