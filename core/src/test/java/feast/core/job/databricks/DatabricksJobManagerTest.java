@@ -150,7 +150,7 @@ public class DatabricksJobManagerTest {
 
     HttpResponse httpResponse = mock(HttpResponse.class);
     String createResponseBody = "{ \"job_id\" : \"5\" } ";
-    String runNowResponseBody = "{ \"run_id\" : \"10\" } ";
+    String runNowResponseBody = "{ \"run_id\" : \"10\", \"number_in_job\" : \"10\"} ";
     String jobStatusResponseBody =
         "{ \"state\": {\"life_cycle_state\" : \"RUNNING\", \"state_message\": \"a state message\"} } ";
 
@@ -194,7 +194,7 @@ public class DatabricksJobManagerTest {
 
   @Test
   public void testAbortJob() throws IOException, InterruptedException {
-    Mockito.when(job.getExtId()).thenReturn("run-id"); // TODO: replace with a valid tun id to run
+    Mockito.when(job.getExtId()).thenReturn("1"); // TODO: replace with a valid tun id to run
 
     MetricsProperties metricsProperties = new MetricsProperties();
     metricsProperties.setEnabled(false);
