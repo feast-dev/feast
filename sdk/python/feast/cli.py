@@ -121,14 +121,48 @@ def feature_set():
 
 
 @feature_set.command(name="list")
-def feature_set_list():
+@click.option(
+    "--project",
+    "-p",
+    help="Project that feature set belongs to",
+    type=click.STRING,
+    default="*",
+)
+@click.option(
+    "--name",
+    "-n",
+    help="Name that feature set belongs to, may include * to match multiple feature sets eg. driver_*",
+    type=click.STRING,
+    default="*",
+)
+@click.option(
+    "--labels",
+    "-l",
+    help="Labels to filter for feature sets",
+    type=click.STRING,
+    default="",
+)
+def feature_set_list(project: str, name: str, labels: str):
     """
     List all feature sets
     """
     feast_client = Client()  # type: Client
 
+    labels_kv = labels.split(",")
+    labels_dict = {}
+    if labels == "":
+        pass
+    elif len(labels_kv) % 2 == 0:
+        for k, v in zip(labels_kv[0::2], labels_kv[1::2]):
+            labels_dict[k] = v
+    else:
+        print(f"Uneven key-value label pairs were entered")
+        return
+
     table = []
-    for fs in feast_client.list_feature_sets(project="*", name="*"):
+    for fs in feast_client.list_feature_sets(
+        project=project, name=name, labels=labels_dict
+    ):
         table.append([fs.name, repr(fs)])
 
     from tabulate import tabulate
