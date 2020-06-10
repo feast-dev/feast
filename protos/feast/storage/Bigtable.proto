@@ -28,12 +28,11 @@ message BigtableKey {
   // Field number 1 is reserved for a future distributing hash if needed
   // (for when redis is clustered).
 
+  // FeatureSet this row belongs to, this is defined as featureSetName.
+  string feature_set = 2;
 
   // List of fields containing entity names and their respective values
   // contained within this feature row. The entities should be sorted 
   // by the entity name alphabetically in ascending order.
-  repeated feast.types.Field entities = 2;
-
-  // FeatureSet this row belongs to, this is defined as featureSetName.
-  string feature_set = 3;
+  repeated feast.types.Field entities = 3;
 }
