@@ -19,41 +19,24 @@ package feast.core.job.databricks;
 import static feast.core.job.databricks.DatabricksJobState.*;
 
 import feast.core.model.JobStatus;
-import java.util.HashMap;
 import java.util.Map;
 
 public class DatabricksJobStateMapper {
-  private DatabricksJobStateMapper() {
-  }
+  private DatabricksJobStateMapper() {}
 
-  private static final Map<DatabricksJobState, JobStatus> DATABRICKS_TO_FEAST_JOB_STATUS = Map.of(
-      PENDING, JobStatus.PENDING,
-      RUNNING, JobStatus.RUNNING,
-//      JOB_STATE_UNKNOWN, JobStatus.UNKNOWN
-      TERMINATING, JobStatus.ABORTING,
-      TERMINATED_SUCCESS, JobStatus.COMPLETED,
-      TERMINATED_FAILED, JobStatus.ERROR,
-      TERMINATED_TIMEDOUT, JobStatus.ABORTED,
-      TERMINATED_CANCELED, JobStatus.ABORTED,
-      SKIPPED, JobStatus.ABORTED,
-      INTERNAL_ERROR, JobStatus.ERROR,
-      INTERNAL_ERROR_FAILED, JobStatus.ERROR);
-
-  static {
-    DATABRICKS_TO_FEAST_JOB_STATUS = new HashMap<>();
-    DATABRICKS_TO_FEAST_JOB_STATUS.put(PENDING, JobStatus.PENDING);
-    DATABRICKS_TO_FEAST_JOB_STATUS.put(RUNNING, JobStatus.RUNNING);
-    //        DATABRICKS_TO_FEAST_JOB_STATUS.put(JOB_STATE_UNKNOWN, JobStatus.UNKNOWN);
-    DATABRICKS_TO_FEAST_JOB_STATUS.put(TERMINATING, JobStatus.ABORTING);
-    DATABRICKS_TO_FEAST_JOB_STATUS.put(TERMINATED_SUCCESS, JobStatus.COMPLETED);
-    DATABRICKS_TO_FEAST_JOB_STATUS.put(TERMINATED_FAILED, JobStatus.ERROR);
-    DATABRICKS_TO_FEAST_JOB_STATUS.put(TERMINATED_TIMEDOUT, JobStatus.ABORTED);
-    DATABRICKS_TO_FEAST_JOB_STATUS.put(TERMINATED_CANCELED, JobStatus.ABORTED);
-    DATABRICKS_TO_FEAST_JOB_STATUS.put(SKIPPED, JobStatus.ABORTED);
-    DATABRICKS_TO_FEAST_JOB_STATUS.put(INTERNAL_ERROR, JobStatus.ERROR);
-    DATABRICKS_TO_FEAST_JOB_STATUS.put(INTERNAL_ERROR_FAILED, JobStatus.ERROR);
-  }
-
+  private static final Map<DatabricksJobState, JobStatus> DATABRICKS_TO_FEAST_JOB_STATUS =
+      Map.of(
+          PENDING, JobStatus.PENDING,
+          RUNNING, JobStatus.RUNNING,
+          //      JOB_STATE_UNKNOWN, JobStatus.UNKNOWN
+          TERMINATING, JobStatus.ABORTING,
+          TERMINATED_SUCCESS, JobStatus.COMPLETED,
+          TERMINATED_FAILED, JobStatus.ERROR,
+          TERMINATED_TIMEDOUT, JobStatus.ABORTED,
+          TERMINATED_CANCELED, JobStatus.ABORTED,
+          SKIPPED, JobStatus.ABORTED,
+          INTERNAL_ERROR, JobStatus.ERROR,
+          INTERNAL_ERROR_FAILED, JobStatus.ERROR);
   /**
    * Map a string containing Databricks' JobState into Feast's JobStatus
    *

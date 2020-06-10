@@ -33,89 +33,27 @@ import feast.proto.core.StoreProto;
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
-import java.util.Map;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 
 public class DatabricksJobManagerTest {
 
   @Rule public final ExpectedException expectedException = ExpectedException.none();
 
-  @Mock private Job job;
-
   @Mock private HttpClient httpClient;
 
-  private Map<String, String> runnerConfigOptions;
+  @Mock private HttpResponse httpResponse;
+
   private DatabricksJobManager dbJobManager;
-  private String token;
+  private Job job;
 
   @Before
   public void setUp() {
     initMocks(this);
-    MetricsProperties metricsProperties = new MetricsProperties();
-    metricsProperties.setEnabled(false);
-  }
 
-  @Test
-  public void testGetCalltoDatabricksWithOnlyLifeCycle() throws IOException, InterruptedException {
-    Mockito.when(job.getExtId()).thenReturn("1");
-    HttpResponse httpResponse = mock(HttpResponse.class);
-    String responseBody =
-        "{ \"state\": {\"life_cycle_state\" : \"INTERNAL_ERROR\", \"state_message\": \"a state message\"} } ";
-    when(httpResponse.body()).thenReturn(responseBody);
-    when(httpResponse.statusCode()).thenReturn(200);
-
-    Mockito.when(httpClient.send(any(), any())).thenReturn(httpResponse);
-    MetricsProperties metricsProperties = new MetricsProperties();
-    metricsProperties.setEnabled(false);
-    DatabricksRunnerConfigOptions.Builder databricksRunnerConfigOptions =
-        DatabricksRunnerConfigOptions.newBuilder();
-
-    databricksRunnerConfigOptions.setHost("https://databricks");
-
-    dbJobManager =
-        new DatabricksJobManager(
-            databricksRunnerConfigOptions.build(), metricsProperties, httpClient);
-    dbJobManager = spy(dbJobManager);
-
-    JobStatus jobStatus = dbJobManager.getJobStatus(job);
-    assertThat(jobStatus, equalTo(JobStatus.ERROR));
-  }
-
-  @Test
-  public void testGetCalltoDatabricksWithLifeCycleAndRunState()
-      throws IOException, InterruptedException {
-    Mockito.when(job.getExtId()).thenReturn("1");
-    HttpResponse httpResponse = mock(HttpResponse.class);
-    String responseBody =
-        "{ \"state\": {\"life_cycle_state\" : \"TERMINATED\", \"result_state\": \"SUCCESS\", \"state_message\": \"a state message\" } } ";
-    when(httpResponse.body()).thenReturn(responseBody);
-    when(httpResponse.statusCode()).thenReturn(200);
-
-    Mockito.when(httpClient.send(any(), any())).thenReturn(httpResponse);
-    MetricsProperties metricsProperties = new MetricsProperties();
-    metricsProperties.setEnabled(false);
-
-    DatabricksRunnerConfigOptions.Builder databricksRunnerConfigOptions =
-        DatabricksRunnerConfigOptions.newBuilder();
-
-    databricksRunnerConfigOptions.setHost("https://databricks");
-
-    dbJobManager =
-        new DatabricksJobManager(
-            databricksRunnerConfigOptions.build(), metricsProperties, httpClient);
-    dbJobManager = spy(dbJobManager);
-
-    JobStatus jobStatus = dbJobManager.getJobStatus(job);
-    assertThat(jobStatus, equalTo(JobStatus.COMPLETED));
-  }
-
-  @Test
-  public void testStartJob() throws IOException, InterruptedException {
     StoreProto.Store store =
         StoreProto.Store.newBuilder()
             .setName("SERVING")
@@ -148,7 +86,57 @@ public class DatabricksJobManagerTest {
                     .build())
             .build();
 
-    HttpResponse httpResponse = mock(HttpResponse.class);
+    MetricsProperties metricsProperties = new MetricsProperties();
+    metricsProperties.setEnabled(false);
+
+    DatabricksRunnerConfigOptions.Builder databricksRunnerConfigOptions =
+        DatabricksRunnerConfigOptions.newBuilder();
+
+    databricksRunnerConfigOptions.setToken("TOKEN");
+    databricksRunnerConfigOptions.setHost("https://databricks");
+
+    this.job =
+        new Job(
+            "1",
+            "",
+            Runner.DATABRICKS,
+            Source.fromProto(source),
+            Store.fromProto(store),
+            Lists.newArrayList(FeatureSet.fromProto(featureSet)),
+            JobStatus.PENDING);
+    dbJobManager =
+        new DatabricksJobManager(
+            databricksRunnerConfigOptions.build(), metricsProperties, httpClient);
+  }
+
+  @Test
+  public void testGetCalltoDatabricksWithOnlyLifeCycle() throws IOException, InterruptedException {
+    String responseBody =
+        "{ \"state\": {\"life_cycle_state\" : \"INTERNAL_ERROR\", \"state_message\": \"a state message\"} } ";
+    when(httpResponse.body()).thenReturn(responseBody);
+    when(httpResponse.statusCode()).thenReturn(200);
+    when(httpClient.send(any(), any())).thenReturn(httpResponse);
+
+    JobStatus jobStatus = dbJobManager.getJobStatus(job);
+    assertThat(jobStatus, equalTo(JobStatus.ERROR));
+  }
+
+  @Test
+  public void testGetCalltoDatabricksWithLifeCycleAndRunState()
+      throws IOException, InterruptedException {
+    String responseBody =
+        "{ \"state\": {\"life_cycle_state\" : \"TERMINATED\", \"result_state\": \"SUCCESS\", \"state_message\": \"a state message\" } } ";
+
+    when(httpResponse.body()).thenReturn(responseBody);
+    when(httpResponse.statusCode()).thenReturn(200);
+    when(httpClient.send(any(), any())).thenReturn(httpResponse);
+
+    JobStatus jobStatus = dbJobManager.getJobStatus(job);
+    assertThat(jobStatus, equalTo(JobStatus.COMPLETED));
+  }
+
+  @Test
+  public void testStartJob() throws IOException, InterruptedException {
     String createResponseBody = "{ \"job_id\" : \"5\" } ";
     String runNowResponseBody = "{ \"run_id\" : \"10\", \"number_in_job\" : \"10\"} ";
     String jobStatusResponseBody =
@@ -159,59 +147,12 @@ public class DatabricksJobManagerTest {
         .thenReturn(runNowResponseBody)
         .thenReturn(jobStatusResponseBody);
     when(httpResponse.statusCode()).thenReturn(200);
+    when(httpClient.send(any(), any())).thenReturn(httpResponse);
+    doReturn(httpResponse).when(httpClient).send(any(), any());
 
-    Mockito.when(httpClient.send(any(), any())).thenReturn(httpResponse);
-    HttpClient mockHttpClient = Mockito.mock(HttpClient.class);
-
-    MetricsProperties metricsProperties = new MetricsProperties();
-    metricsProperties.setEnabled(false);
-    DatabricksRunnerConfigOptions.Builder databricksRunnerConfigOptions =
-        DatabricksRunnerConfigOptions.newBuilder();
-
-    databricksRunnerConfigOptions.setHost("https://databricks");
-
-    dbJobManager =
-        new DatabricksJobManager(
-            databricksRunnerConfigOptions.build(), metricsProperties, httpClient);
-    dbJobManager = spy(dbJobManager);
-
-    doReturn(httpResponse).when(mockHttpClient).send(any(), any());
-
-    Job job =
-        new Job(
-            "3",
-            "",
-            Runner.DATABRICKS,
-            Source.fromProto(source),
-            Store.fromProto(store),
-            Lists.newArrayList(FeatureSet.fromProto(featureSet)),
-            JobStatus.PENDING);
     Job actual = dbJobManager.startJob(job);
 
     assertThat(actual.getExtId(), equalTo("10"));
     assertThat(actual.getId(), equalTo(job.getId()));
-  }
-
-  @Test
-  public void testAbortJob() throws IOException, InterruptedException {
-    Mockito.when(job.getExtId()).thenReturn("1"); // TODO: replace with a valid tun id to run
-
-    MetricsProperties metricsProperties = new MetricsProperties();
-    metricsProperties.setEnabled(false);
-
-    DatabricksRunnerConfigOptions.Builder databricksRunnerConfigOptions =
-        DatabricksRunnerConfigOptions.newBuilder();
-
-    databricksRunnerConfigOptions.setHost("https://adb-8918595472279780.0.azuredatabricks.net");
-
-    databricksRunnerConfigOptions.setToken(
-        "TOKEN"); // TODO: replace with a valid databricks token to run
-
-    dbJobManager =
-        new DatabricksJobManager(
-            databricksRunnerConfigOptions.build(), metricsProperties, httpClient);
-    dbJobManager = spy(dbJobManager);
-
-    dbJobManager.abortJob(job.getExtId());
   }
 }
