@@ -39,7 +39,7 @@ helm repo update
 Install Feast release with minimal features, without batch serving and persistency:
 ```bash
 RELEASE_NAME=demo
-helm install feast-charts/feast --name $RELEASE_NAME --version 0.3.2 -f values-demo.yaml
+helm install feast-charts/feast --name $RELEASE_NAME --version 0.3.8 -f values-demo.yaml
 ```
 
 Install Feast release for typical use cases, with batch and online serving:
@@ -60,7 +60,7 @@ PROJECT_ID=google-cloud-project-id
 DATASET_ID=bigquery-dataset-id
 
 # Install the Helm release using default values.yaml
-helm install feast-charts/feast --name feast --version 0.3.2 \
+helm install feast-charts/feast --name feast --version 0.3.8 \
   --set feast-serving-batch."application\.yaml".feast.jobs.staging-location=$STAGING_LOCATION \
   --set feast-serving-batch."store\.yaml".bigquery_config.project_id=$PROJECT_ID \
   --set feast-serving-batch."store\.yaml".bigquery_config.dataset_id=$DATASET_ID
@@ -83,7 +83,7 @@ The following table lists the configurable parameters of the Feast chart and the
 | `feast-core.kafka.topics[0].partitions` |  No of partitions for the topic | `1`
 | `feast-core.replicaCount` | No of pods to create | `1`
 | `feast-core.image.repository` | Repository for Feast Core Docker image | `gcr.io/kf-feast/feast-core`
-| `feast-core.image.tag` | Tag for Feast Core Docker image | `0.3.2`
+| `feast-core.image.tag` | Tag for Feast Core Docker image | `0.3.8`
 | `feast-core.image.pullPolicy` | Image pull policy for Feast Core Docker image | `IfNotPresent`
 | `feast-core.application.yaml` | Configuration for Feast Core application | Refer to this [link](charts/feast-core/values.yaml) 
 | `feast-core.springConfigMountPath` | Directory to mount application.yaml | `/etc/feast/feast-core`
@@ -116,7 +116,7 @@ The following table lists the configurable parameters of the Feast chart and the
 | `feast-serving-online.core.enabled` | Flag for Feast Serving to use Feast Core in the same Helm release | `true`
 | `feast-serving-online.replicaCount` | No of pods to create  | `1`
 | `feast-serving-online.image.repository` | Repository for Feast Serving Docker image | `gcr.io/kf-feast/feast-serving`
-| `feast-serving-online.image.tag` | Tag for Feast Serving Docker image | `0.3.2`
+| `feast-serving-online.image.tag` | Tag for Feast Serving Docker image | `0.3.8`
 | `feast-serving-online.image.pullPolicy` | Image pull policy for Feast Serving Docker image | `IfNotPresent`
 | `feast-serving-online.application.yaml` | Application configuration for Feast Serving | Refer to this [link](charts/feast-serving/values.yaml) 
 | `feast-serving-online.store.yaml` | Store configuration for Feast Serving | Refer to this [link](charts/feast-serving/values.yaml) 
@@ -150,7 +150,7 @@ The following table lists the configurable parameters of the Feast chart and the
 | `feast-serving-batch.core.enabled` | Flag for Feast Serving to use Feast Core in the same Helm release | `true`
 | `feast-serving-batch.replicaCount` | No of pods to create  | `1`
 | `feast-serving-batch.image.repository` | Repository for Feast Serving Docker image | `gcr.io/kf-feast/feast-serving`
-| `feast-serving-batch.image.tag` | Tag for Feast Serving Docker image | `0.3.2`
+| `feast-serving-batch.image.tag` | Tag for Feast Serving Docker image | `0.3.8`
 | `feast-serving-batch.image.pullPolicy` | Image pull policy for Feast Serving Docker image | `IfNotPresent`
 | `feast-serving-batch.application.yaml` | Application configuration for Feast Serving | Refer to this [link](charts/feast-serving/values.yaml) 
 | `feast-serving-batch.store.yaml` | Store configuration for Feast Serving | Refer to this [link](charts/feast-serving/values.yaml) 
