@@ -126,6 +126,19 @@ def test_basic_register_feature_set_success(client):
                                                   project=PROJECT_NAME)
     assert cust_trans_fs_actual == cust_trans_fs_expected
 
+    # Register feature set with labels
+    driver_fs_expected = FeatureSet.from_yaml(f"{DIR_PATH}/basic/driver_fs.yaml")
+    driver_fs_labeled_expected = FeatureSet.from_yaml(
+        f"{DIR_PATH}/basic/driver_labels_fs.yaml"
+    )
+    client.set_project(PROJECT_NAME)
+    client.apply(driver_fs_expected)
+    client.apply(driver_fs_labeled_expected)
+    driver_fs_actual = client.list_feature_sets(
+        project=PROJECT_NAME, labels={"key1": "val1"}
+    )[0]
+    assert driver_fs_actual == driver_fs_labeled_expected
+
     # reset client's project for other tests
     client.set_project()
 

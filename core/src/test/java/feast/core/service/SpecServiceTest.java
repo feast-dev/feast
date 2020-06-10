@@ -671,19 +671,31 @@ public class SpecServiceTest {
 
   @Test
   public void shouldFilterByFeatureSetLabels() throws InvalidProtocolBufferException {
-    ListFeatureSetsResponse actual =
+    List<FeatureSetProto.FeatureSet> list = new ArrayList<>();
+    ListFeatureSetsResponse actual1 =
         specService.listFeatureSets(
             Filter.newBuilder()
                 .setFeatureSetName("*")
                 .setProject("*")
                 .putLabels("fsLabel2", "fsValue2")
                 .build());
-    List<FeatureSetProto.FeatureSet> list = new ArrayList<>();
-    list.add(featureSets.get(featureSets.size() - 1).toProto());
-
-    ListFeatureSetsResponse expected =
+    list.add(featureSets.get(5).toProto());
+    ListFeatureSetsResponse expected1 =
         ListFeatureSetsResponse.newBuilder().addAllFeatureSets(list).build();
-    assertThat(actual, equalTo(expected));
+
+    ListFeatureSetsResponse actual2 =
+        specService.listFeatureSets(
+            Filter.newBuilder()
+                .setFeatureSetName("*")
+                .setProject("*")
+                .putLabels("fsLabel1", "fsValue1")
+                .build());
+    list.add(0, featureSets.get(4).toProto());
+    ListFeatureSetsResponse expected2 =
+        ListFeatureSetsResponse.newBuilder().addAllFeatureSets(list).build();
+
+    assertThat(actual1, equalTo(expected1));
+    assertThat(actual2, equalTo(expected2));
   }
 
   @Test
