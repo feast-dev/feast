@@ -23,21 +23,21 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class DatabricksJobStateMapper {
-  private DatabricksJobStateMapper() {
-  }
+  private DatabricksJobStateMapper() {}
 
-  private static final Map<DatabricksJobState, JobStatus> DATABRICKS_TO_FEAST_JOB_STATUS = Map.of(
-      PENDING, JobStatus.PENDING,
-      RUNNING, JobStatus.RUNNING,
-//      JOB_STATE_UNKNOWN, JobStatus.UNKNOWN
-      TERMINATING, JobStatus.ABORTING,
-      TERMINATED_SUCCESS, JobStatus.COMPLETED,
-      TERMINATED_FAILED, JobStatus.ERROR,
-      TERMINATED_TIMEDOUT, JobStatus.ABORTED,
-      TERMINATED_CANCELED, JobStatus.ABORTED,
-      SKIPPED, JobStatus.ABORTED,
-      INTERNAL_ERROR, JobStatus.ERROR,
-      INTERNAL_ERROR_FAILED, JobStatus.ERROR);
+  private static final Map<DatabricksJobState, JobStatus> DATABRICKS_TO_FEAST_JOB_STATUS =
+      Map.of(
+          PENDING, JobStatus.PENDING,
+          RUNNING, JobStatus.RUNNING,
+          //      JOB_STATE_UNKNOWN, JobStatus.UNKNOWN
+          TERMINATING, JobStatus.ABORTING,
+          TERMINATED_SUCCESS, JobStatus.COMPLETED,
+          TERMINATED_FAILED, JobStatus.ERROR,
+          TERMINATED_TIMEDOUT, JobStatus.ABORTED,
+          TERMINATED_CANCELED, JobStatus.ABORTED,
+          SKIPPED, JobStatus.ABORTED,
+          INTERNAL_ERROR, JobStatus.ERROR,
+          INTERNAL_ERROR_FAILED, JobStatus.ERROR);
 
   static {
     DATABRICKS_TO_FEAST_JOB_STATUS = new HashMap<>();
