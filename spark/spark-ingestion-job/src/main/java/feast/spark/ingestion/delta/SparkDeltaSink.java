@@ -22,7 +22,6 @@ import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.StoreProto.Store.DeltaConfig;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.spark.ingestion.SparkSink;
-import feast.spark.ingestion.delta.FeatureRowToSparkRow;
 import io.delta.tables.DeltaTable;
 import java.io.Serializable;
 import java.nio.file.Path;

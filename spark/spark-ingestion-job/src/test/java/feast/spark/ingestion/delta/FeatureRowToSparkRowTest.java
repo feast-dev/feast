@@ -43,7 +43,6 @@ import feast.proto.types.ValueProto.Value;
 import feast.proto.types.ValueProto.ValueType.Enum;
 import java.sql.Timestamp;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.expressions.IsNull;
 import org.apache.spark.sql.types.*;
 import org.junit.Before;
 import org.junit.Test;
@@ -181,7 +180,9 @@ public class FeatureRowToSparkRowTest {
     builder.addFields(
         Field.newBuilder()
             .setName("f_STRING_LIST")
-            .setValue(Value.newBuilder().setStringListVal(StringList.newBuilder().addVal("dolor").addVal("amet"))));
+            .setValue(
+                Value.newBuilder()
+                    .setStringListVal(StringList.newBuilder().addVal("dolor").addVal("amet"))));
     builder.addFields(
         Field.newBuilder()
             .setName("f_INT32_LIST")
@@ -252,7 +253,7 @@ public class FeatureRowToSparkRowTest {
     return featureOfType(type, "f_" + type.name());
   }
 
-private static FeatureSpec featureOfType(Enum type, String name) {
-	return FeatureSpec.newBuilder().setName(name).setValueType(type).build();
-}
+  private static FeatureSpec featureOfType(Enum type, String name) {
+    return FeatureSpec.newBuilder().setName(name).setValueType(type).build();
+  }
 }
