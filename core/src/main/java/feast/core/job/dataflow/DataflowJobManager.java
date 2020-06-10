@@ -31,21 +31,16 @@ import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
-import feast.core.job.option.FeatureSetJsonByteConverter;
 import feast.core.model.*;
 import feast.ingestion.ImportJob;
-import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
-import feast.ingestion.options.OptionCompressor;
-import feast.proto.core.FeatureSetProto;
+import feast.proto.core.IngestionJobProto;
 import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions;
 import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -62,15 +57,19 @@ public class DataflowJobManager implements JobManager {
   private final Dataflow dataflow;
   private final DataflowRunnerConfig defaultOptions;
   private final MetricsProperties metrics;
+  private final IngestionJobProto.SpecsStreamingUpdateConfig specsStreamingUpdateConfig;
 
   public DataflowJobManager(
-      DataflowRunnerConfigOptions runnerConfigOptions, MetricsProperties metricsProperties) {
-    this(runnerConfigOptions, metricsProperties, getGoogleCredential());
+      DataflowRunnerConfigOptions runnerConfigOptions,
+      MetricsProperties metricsProperties,
+      IngestionJobProto.SpecsStreamingUpdateConfig specsStreamingUpdateConfig) {
+    this(runnerConfigOptions, metricsProperties, specsStreamingUpdateConfig, getGoogleCredential());
   }
 
   public DataflowJobManager(
       DataflowRunnerConfigOptions runnerConfigOptions,
       MetricsProperties metricsProperties,
+      IngestionJobProto.SpecsStreamingUpdateConfig specsStreamingUpdateConfig,
       Credential credential) {
 
     defaultOptions = new DataflowRunnerConfig(runnerConfigOptions);
@@ -91,6 +90,7 @@ public class DataflowJobManager implements JobManager {
     this.metrics = metricsProperties;
     this.projectId = defaultOptions.getProject();
     this.location = defaultOptions.getRegion();
+    this.specsStreamingUpdateConfig = specsStreamingUpdateConfig;
   }
 
   private static Credential getGoogleCredential() {
@@ -112,17 +112,9 @@ public class DataflowJobManager implements JobManager {
   @Override
   public Job startJob(Job job) {
     try {
-      List<FeatureSetProto.FeatureSet> featureSetProtos = new ArrayList<>();
-      for (FeatureSet featureSet : job.getFeatureSets()) {
-        featureSetProtos.add(featureSet.toProto());
-      }
       String extId =
           submitDataflowJob(
-              job.getId(),
-              featureSetProtos,
-              job.getSource().toProto(),
-              job.getStore().toProto(),
-              false);
+              job.getId(), job.getSource().toProto(), job.getStore().toProto(), false);
       job.setExtId(extId);
       return job;
 
@@ -223,13 +215,9 @@ public class DataflowJobManager implements JobManager {
   }
 
   private String submitDataflowJob(
-      String jobName,
-      List<FeatureSetProto.FeatureSet> featureSetProtos,
-      SourceProto.Source source,
-      StoreProto.Store sink,
-      boolean update) {
+      String jobName, SourceProto.Source source, StoreProto.Store sink, boolean update) {
     try {
-      ImportOptions pipelineOptions = getPipelineOptions(jobName, featureSetProtos, sink, update);
+      ImportOptions pipelineOptions = getPipelineOptions(jobName, source, sink, update);
       DataflowPipelineJob pipelineResult = runPipeline(pipelineOptions);
       String jobId = waitForJobToRun(pipelineResult);
       return jobId;
@@ -240,19 +228,17 @@ public class DataflowJobManager implements JobManager {
   }
 
   private ImportOptions getPipelineOptions(
-      String jobName,
-      List<FeatureSetProto.FeatureSet> featureSets,
-      StoreProto.Store sink,
-      boolean update)
+      String jobName, SourceProto.Source source, StoreProto.Store sink, boolean update)
       throws IOException, IllegalAccessException {
     ImportOptions pipelineOptions =
         PipelineOptionsFactory.fromArgs(defaultOptions.toArgs()).as(ImportOptions.class);
 
-    OptionCompressor<List<FeatureSetProto.FeatureSet>> featureSetJsonCompressor =
-        new BZip2Compressor<>(new FeatureSetJsonByteConverter());
+    JsonFormat.Printer jsonPrinter = JsonFormat.printer();
 
-    pipelineOptions.setFeatureSetJson(featureSetJsonCompressor.compress(featureSets));
-    pipelineOptions.setStoreJson(Collections.singletonList(JsonFormat.printer().print(sink)));
+    pipelineOptions.setSpecsStreamingUpdateConfigJson(
+        jsonPrinter.print(specsStreamingUpdateConfig));
+    pipelineOptions.setSourceJson(jsonPrinter.print(source));
+    pipelineOptions.setStoreJson(Collections.singletonList(jsonPrinter.print(sink)));
     pipelineOptions.setProject(projectId);
     pipelineOptions.setDefaultFeastProject(Project.DEFAULT_NAME);
     pipelineOptions.setUpdate(update);

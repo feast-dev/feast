@@ -63,6 +63,10 @@ message FeatureSetSpec {
 
     // User defined metadata
     map<string,string> labels = 8;
+
+    // Read-only self-incrementing version that increases monotonically
+    // when changes are made to a feature set
+    int32 version = 9;
 }
 
 message EntitySpec {
@@ -149,4 +153,9 @@ enum FeatureSetStatus {
     STATUS_PENDING = 1;
     STATUS_JOB_STARTING = 3;
     STATUS_READY = 2;
+}
+
+enum FeatureSetJobDeliveryStatus {
+    STATUS_IN_PROGRESS = 0;
+    STATUS_DELIVERED = 1;
 }

@@ -137,6 +137,11 @@ public class JobService {
     List<IngestionJobProto.IngestionJob> ingestJobs = new ArrayList<>();
     for (String jobId : matchingJobIds) {
       Job job = this.jobRepository.findById(jobId).get();
+      // job that failed on start won't be converted toProto successfully
+      // and they're irrelevant here
+      if (job.getStatus() == JobStatus.ERROR) {
+        continue;
+      }
       ingestJobs.add(job.toProto());
     }
 

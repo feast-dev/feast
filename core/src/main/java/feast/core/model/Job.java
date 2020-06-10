@@ -21,7 +21,9 @@ import feast.core.job.Runner;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.IngestionJobProto;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import javax.persistence.*;
 import javax.persistence.Entity;
 import lombok.AllArgsConstructor;
@@ -59,17 +61,9 @@ public class Job extends AbstractTimestampEntity {
   @JoinColumn(name = "store_name")
   private Store store;
 
-  // FeatureSets populated by the job
-  @ManyToMany(cascade = CascadeType.ALL)
-  @JoinTable(
-      name = "jobs_feature_sets",
-      joinColumns = @JoinColumn(name = "job_id"),
-      inverseJoinColumns = @JoinColumn(name = "feature_sets_id"),
-      indexes = {
-        @Index(name = "idx_jobs_feature_sets_job_id", columnList = "job_id"),
-        @Index(name = "idx_jobs_feature_sets_feature_sets_id", columnList = "feature_sets_id")
-      })
-  private List<FeatureSet> featureSets;
+  // FeatureSets populated by the job via intermediate FeatureSetJobStatus model
+  @OneToMany(mappedBy = "job", cascade = CascadeType.ALL)
+  private Set<FeatureSetJobStatus> featureSetJobStatuses = new HashSet<>();
 
   @Enumerated(EnumType.STRING)
   @Column(name = "status", length = 16)
@@ -100,8 +94,8 @@ public class Job extends AbstractTimestampEntity {
 
     // convert featuresets of job to protos
     List<FeatureSetProto.FeatureSet> featureSetProtos = new ArrayList<>();
-    for (FeatureSet featureSet : this.getFeatureSets()) {
-      featureSetProtos.add(featureSet.toProto());
+    for (FeatureSetJobStatus featureSet : this.getFeatureSetJobStatuses()) {
+      featureSetProtos.add(featureSet.getFeatureSet().toProto());
     }
 
     // build ingestion job proto with job data
@@ -110,9 +104,9 @@ public class Job extends AbstractTimestampEntity {
             .setId(this.getId())
             .setExternalId(this.getExtId())
             .setStatus(this.getStatus().toProto())
-            .addAllFeatureSets(featureSetProtos)
             .setSource(this.getSource().toProto())
             .setStore(this.getStore().toProto())
+            .addAllFeatureSets(featureSetProtos)
             .build();
 
     return ingestJob;

@@ -16,6 +16,7 @@
  */
 package feast.core.service;
 
+import static feast.core.util.ModelHelpers.makeFeatureSetJobStatus;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.fail;
@@ -155,7 +156,7 @@ public class JobServiceTest {
         Runner.DATAFLOW,
         this.dataSource,
         this.dataStore,
-        Arrays.asList(this.featureSet),
+        makeFeatureSetJobStatus(this.featureSet),
         status);
   }
 

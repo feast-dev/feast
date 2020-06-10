@@ -16,6 +16,7 @@
  */
 package feast.core.job.direct;
 
+import static feast.core.util.ModelHelpers.makeFeatureSetJobStatus;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.any;
@@ -31,17 +32,15 @@ import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.job.Runner;
-import feast.core.job.option.FeatureSetJsonByteConverter;
 import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
 import feast.core.model.Source;
 import feast.core.model.Store;
-import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
-import feast.ingestion.options.OptionCompressor;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.IngestionJobProto;
 import feast.proto.core.RunnerProto.DirectRunnerConfigOptions;
 import feast.proto.core.SourceProto;
 import feast.proto.core.SourceProto.KafkaSourceConfig;
@@ -51,8 +50,6 @@ import feast.proto.core.StoreProto.Store.RedisConfig;
 import feast.proto.core.StoreProto.Store.StoreType;
 import feast.proto.core.StoreProto.Store.Subscription;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
 import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -71,6 +68,7 @@ public class DirectRunnerJobManagerTest {
 
   private DirectRunnerJobManager drJobManager;
   private DirectRunnerConfigOptions defaults;
+  private IngestionJobProto.SpecsStreamingUpdateConfig specsStreamingUpdateConfig;
 
   @Before
   public void setUp() {
@@ -79,7 +77,18 @@ public class DirectRunnerJobManagerTest {
     MetricsProperties metricsProperties = new MetricsProperties();
     metricsProperties.setEnabled(false);
 
-    drJobManager = new DirectRunnerJobManager(defaults, directJobRegistry, metricsProperties);
+    specsStreamingUpdateConfig =
+        IngestionJobProto.SpecsStreamingUpdateConfig.newBuilder()
+            .setSource(
+                KafkaSourceConfig.newBuilder()
+                    .setTopic("specs_topic")
+                    .setBootstrapServers("servers:9092")
+                    .build())
+            .build();
+
+    drJobManager =
+        new DirectRunnerJobManager(
+            defaults, directJobRegistry, metricsProperties, specsStreamingUpdateConfig);
     drJobManager = Mockito.spy(drJobManager);
   }
 
@@ -125,11 +134,7 @@ public class DirectRunnerJobManagerTest {
     expectedPipelineOptions.setTargetParallelism(1);
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
     expectedPipelineOptions.setProject("");
-
-    OptionCompressor<List<FeatureSetProto.FeatureSet>> featureSetJsonCompressor =
-        new BZip2Compressor<>(new FeatureSetJsonByteConverter());
-    expectedPipelineOptions.setFeatureSetJson(
-        featureSetJsonCompressor.compress(Collections.singletonList(featureSet)));
+    expectedPipelineOptions.setSourceJson(printer.print(source));
 
     ArgumentCaptor<ImportOptions> pipelineOptionsCaptor =
         ArgumentCaptor.forClass(ImportOptions.class);
@@ -145,7 +150,7 @@ public class DirectRunnerJobManagerTest {
             Runner.DIRECT,
             Source.fromProto(source),
             Store.fromProto(store),
-            Lists.newArrayList(FeatureSet.fromProto(featureSet)),
+            makeFeatureSetJobStatus(FeatureSet.fromProto(featureSet)),
             JobStatus.PENDING);
     Job actual = drJobManager.startJob(job);
     verify(drJobManager, times(1)).runPipeline(pipelineOptionsCaptor.capture());
@@ -157,9 +162,6 @@ public class DirectRunnerJobManagerTest {
         actualPipelineOptions.getOptionsId()); // avoid comparing this value
 
     assertThat(
-        actualPipelineOptions.getFeatureSetJson(),
-        equalTo(expectedPipelineOptions.getFeatureSetJson()));
-    assertThat(
         actualPipelineOptions.getDeadLetterTableSpec(),
         equalTo(expectedPipelineOptions.getDeadLetterTableSpec()));
     assertThat(
@@ -169,6 +171,11 @@ public class DirectRunnerJobManagerTest {
         equalTo(expectedPipelineOptions.getMetricsExporterType()));
     assertThat(
         actualPipelineOptions.getStoreJson(), equalTo(expectedPipelineOptions.getStoreJson()));
+    assertThat(
+        actualPipelineOptions.getSourceJson(), equalTo(expectedPipelineOptions.getSourceJson()));
+    assertThat(
+        actualPipelineOptions.getSpecsStreamingUpdateConfigJson(),
+        equalTo(printer.print(specsStreamingUpdateConfig)));
 
     assertThat(jobStarted.getPipelineResult(), equalTo(mockPipelineResult));
     assertThat(jobStarted.getJobId(), equalTo(expectedJobId));

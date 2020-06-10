@@ -14,6 +14,8 @@ test -z ${K8_CLUSTER_NAME} && K8_CLUSTER_NAME="feast-e2e-dataflow"
 test -z ${HELM_RELEASE_NAME} && HELM_RELEASE_NAME="pr-$PULL_NUMBER"
 test -z ${HELM_COMMON_NAME} && HELM_COMMON_NAME="deps"
 test -z ${DATASET_NAME} && DATASET_NAME=feast_e2e_$(date +%s)
+test -z ${SPECS_TOPIC} && SPECS_TOPIC=feast-specs-$(date +%s)
+
 
 feast_kafka_1_ip_name="feast-kafka-1"
 feast_kafka_2_ip_name="feast-kafka-2"
@@ -209,8 +211,9 @@ export GCLOUD_SUBNET=$GCLOUD_SUBNET
 export GCLOUD_REGION=$GCLOUD_REGION
 export HELM_COMMON_NAME=$HELM_COMMON_NAME
 export IMAGE_TAG=${PULL_PULL_SHA:1}
+export SPECS_TOPIC=$SPECS_TOPIC
 
-envsubst $'$TEMP_BUCKET $DATASET_NAME $GCLOUD_PROJECT $GCLOUD_NETWORK \
+envsubst $'$TEMP_BUCKET $DATASET_NAME $GCLOUD_PROJECT $GCLOUD_NETWORK $SPECS_TOPIC \
   $GCLOUD_SUBNET $GCLOUD_REGION $IMAGE_TAG $HELM_COMMON_NAME $feast_kafka_1_ip
   $feast_kafka_2_ip $feast_kafka_3_ip $feast_redis_ip $feast_statsd_ip' < $ORIGINAL_DIR/infra/scripts/test-templates/values-end-to-end-batch-dataflow.yaml > $ORIGINAL_DIR/infra/charts/feast/values-end-to-end-batch-dataflow-updated.yaml
 
