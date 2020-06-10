@@ -89,7 +89,7 @@ public class DatabricksEmulator {
 
     get("/api/2.0/jobs/runs/get", emulator::runsGet, json);
 
-    get("/api/2.0/jobs/runs/cancel", emulator::runsCancel, json);
+    post("/api/2.0/jobs/runs/cancel", emulator::runsCancel, json);
   }
 
   public static class JsonTransformer implements ResponseTransformer {

@@ -110,15 +110,16 @@ public class DatabricksJobManager implements JobManager {
 
   @Override
   public void abortJob(String runId) {
+    log.info("Aborting job (Databricks RunId {})", runId);
 
     try {
       RunsCancelRequest runsCancelRequest =
-          RunsCancelRequest.builder().setRunId(Integer.parseInt(runId)).build();
+          RunsCancelRequest.builder().setRunId(Long.parseLong(runId)).build();
       String body = mapper.writeValueAsString(runsCancelRequest);
 
       HttpRequest request =
           HttpRequest.newBuilder()
-              .uri(URI.create(String.format("%s/api/2.0/jobs/runs/cancel/", databricksHost)))
+              .uri(URI.create(String.format("%s/api/2.0/jobs/runs/cancel", databricksHost)))
               .header("Authorization", getAuthorizationHeader())
               .POST(HttpRequest.BodyPublishers.ofString(body))
               .build();
@@ -160,19 +161,23 @@ public class DatabricksJobManager implements JobManager {
         RunState runState = runsGetResponse.getState();
         String lifeCycleState = runState.getLifeCycleState().toString();
 
+        JobStatus status =
+            runState
+                .getResultState()
+                .map(
+                    runResultState ->
+                        DatabricksJobStateMapper.map(
+                            String.format("%s_%s", lifeCycleState, runResultState.toString())))
+                .orElseGet(() -> DatabricksJobStateMapper.map(lifeCycleState));
+
         log.info(
-            "Databricks job state for job {} (Databricks RunId {}) is {}",
+            "Databricks job state for job {} (Databricks RunId {}) is {} (mapped from {})",
             job.getId(),
             job.getExtId(),
-            runState);
+            runState,
+            status);
 
-        return runState
-            .getResultState()
-            .map(
-                runResultState ->
-                    DatabricksJobStateMapper.map(
-                        String.format("%s_%s", lifeCycleState, runResultState.toString())))
-            .orElseGet(() -> DatabricksJobStateMapper.map(lifeCycleState));
+        return status;
 
       } else {
         throw new HttpException(
@@ -180,7 +185,7 @@ public class DatabricksJobManager implements JobManager {
       }
     } catch (IOException | InterruptedException | HttpException ex) {
       log.error(
-          "Unable to retrieve status of a dabatricks run with id : {}\ncause: {}",
+          "Unable to retrieve status of a databricks run with id : {}\ncause: {}",
           job.getExtId(),
           ex.getMessage());
     }
