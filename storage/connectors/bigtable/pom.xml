@@ -13,9 +13,10 @@
     <name>Feast Storage Connector for Bigtable</name>
 
     <dependencies>
+        <!-- https://mvnrepository.com/artifact/com.google.cloud.bigtable/bigtable-hbase-beam -->
         <dependency>
-            <groupId>com.google.cloud</groupId>
-            <artifactId>google-cloud-bigtable</artifactId>
+            <groupId>com.google.cloud.bigtable</groupId>
+            <artifactId>bigtable-hbase-beam</artifactId>
             <version>1.13.0</version>
         </dependency>
 
@@ -76,6 +77,11 @@
             <artifactId>junit</artifactId>
             <version>4.12</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.cloud.bigtable</groupId>
+            <artifactId>bigtable-hbase-1.x-shaded</artifactId>
+            <version>1.13.0</version>
         </dependency>
     </dependencies>
 

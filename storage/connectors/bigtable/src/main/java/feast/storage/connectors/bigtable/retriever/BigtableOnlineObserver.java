@@ -16,10 +16,10 @@
  */
 package feast.storage.connectors.bigtable.retriever;
 
-import com.google.api.gax.rpc.ResponseObserver;
-import com.google.api.gax.rpc.StreamController;
-import com.google.cloud.bigtable.data.v2.models.Row;
-import com.google.cloud.bigtable.data.v2.models.RowCell;
+import com.google.bigtable.repackaged.com.google.api.gax.rpc.ResponseObserver;
+import com.google.bigtable.repackaged.com.google.api.gax.rpc.StreamController;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.Row;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
@@ -33,6 +33,7 @@ import feast.proto.types.ValueProto.Value;
 import io.grpc.Status;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 
 public class BigtableOnlineObserver implements ResponseObserver<Row> {
 
@@ -47,13 +48,13 @@ public class BigtableOnlineObserver implements ResponseObserver<Row> {
       ByteString.copyFromUtf8("event_timestamp");
   private HashMap<ByteString, Builder> resultMap;
   private HashMap<ByteString, Descriptor> featureMap;
-  private List<FeatureRow> result;
+  private List<Optional<FeatureRow>> result;
 
   private BigtableOnlineObserver(
       List<BigtableKey> bigtableKeys,
       FeatureSetSpec featureSetSpec,
       List<FeatureReference> featureReferences,
-      List<FeatureRow> result) {
+      List<Optional<FeatureRow>> result) {
     this.bigtableKeys = bigtableKeys;
     this.featureSetSpec = featureSetSpec;
     this.featureReferences = featureReferences;
@@ -62,15 +63,15 @@ public class BigtableOnlineObserver implements ResponseObserver<Row> {
     this.result = result;
   }
 
-  public static ResponseObserver create(
+  public static BigtableOnlineObserver create(
       List<BigtableKey> bigtableKeys,
       FeatureSetSpec featureSetSpec,
       List<FeatureReference> featureReferences,
-      List<FeatureRow> result) {
+      List<Optional<FeatureRow>> result) {
     return new BigtableOnlineObserver(bigtableKeys, featureSetSpec, featureReferences, result);
   }
 
-  public List<FeatureRow> getResult() {
+  public List<Optional<FeatureRow>> getResult() {
     return this.result;
   }
 
@@ -104,7 +105,7 @@ public class BigtableOnlineObserver implements ResponseObserver<Row> {
         if (featureMap.containsKey(rowValues.getQualifier())) {
           resultBuilder.addFields(
               Field.newBuilder()
-                  .setNameBytes(rowValues.getQualifier())
+                  .setNameBytes(ByteString.copyFrom(rowValues.getQualifier().toByteArray()))
                   .setValue(
                       Value.newBuilder()
                           .setField(
@@ -141,7 +142,7 @@ public class BigtableOnlineObserver implements ResponseObserver<Row> {
             .asRuntimeException();
       } else {
         FeatureRow finalRow = resultMap.get(key).build();
-        result.add(finalRow);
+        result.add(Optional.of(finalRow));
       }
     }
   }

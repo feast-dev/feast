@@ -14,11 +14,6 @@ from bq.testutils import (
     clear_unsupported_agg_fields,
     clear_unsupported_fields,
 )
-from feast.client import Client
-from feast.entity import Entity
-from feast.feature import Feature
-from feast.feature_set import FeatureSet
-from feast.type_map import ValueType
 
 pd.set_option("display.max_columns", None)
 

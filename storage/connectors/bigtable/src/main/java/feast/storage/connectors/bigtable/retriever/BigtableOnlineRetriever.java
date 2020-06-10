@@ -16,10 +16,8 @@
  */
 package feast.storage.connectors.bigtable.retriever;
 
-import com.google.api.gax.rpc.ResponseObserver;
-import com.google.cloud.bigtable.data.v2.BigtableDataClient;
-import com.google.cloud.bigtable.data.v2.models.Query;
-import com.google.cloud.bigtable.data.v2.models.Row;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.BigtableDataClient;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -35,10 +33,7 @@ import feast.storage.api.retriever.FeatureSetRequest;
 import feast.storage.api.retriever.OnlineRetriever;
 import io.grpc.Status;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -66,43 +61,40 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
   public static OnlineRetriever create(BigtableDataClient dataClient, String tableId) {
     return new BigtableOnlineRetriever(dataClient, tableId);
   }
+
   /**
    * Gets online features from bigtable. This method returns a list of {@link FeatureRow}s
    * corresponding to each feature set spec. Each feature row in the list then corresponds to an
    * {@link EntityRow} provided by the user.
    *
    * @param entityRows list of entity rows in the feature request
-   * @param featureSetRequests Map of {@link feast.proto.core.FeatureSetProto.FeatureSetSpec} to
+   * @param featureSetRequest Map of {@link feast.proto.core.FeatureSetProto.FeatureSetSpec} to
    *     feature references in the request tied to that feature set.
    * @return List of List of {@link FeatureRow}
    */
   @Override
-  public List<List<FeatureRow>> getOnlineFeatures(
-      List<EntityRow> entityRows, List<FeatureSetRequest> featureSetRequests) {
-
-    List<List<FeatureRow>> featureRows = new ArrayList<>();
+  public List<Optional<FeatureRow>> getOnlineFeatures(
+      List<EntityRow> entityRows, FeatureSetRequest featureSetRequest) {
+    List<Optional<FeatureRow>> featureRows = new ArrayList<>();
     HashMap<FeatureSetRequest, List<BigtableKey>> keyMap = new HashMap<>();
-    for (FeatureSetRequest featureSetRequest : featureSetRequests) {
-      System.out.printf("Computing Bigtable Keys");
-      List<BigtableKey> bigtableKeys = buildBigtableKeys(entityRows, featureSetRequest.getSpec());
-      keyMap.put(featureSetRequest, bigtableKeys);
-      try {
-        System.out.printf("Sending multi get with %s", featureSetRequest.getSpec().toString());
-        System.out.printf(
-            "Feature References %s", featureSetRequest.getFeatureReferences().toString());
-        System.out.printf("Bigtable Keys %s", bigtableKeys.toString());
-        List<FeatureRow> featureRowsForFeatureSet =
-            sendAndProcessMultiGet(
-                bigtableKeys,
-                featureSetRequest.getSpec(),
-                featureSetRequest.getFeatureReferences().asList());
-        featureRows.add(featureRowsForFeatureSet);
-      } catch (InvalidProtocolBufferException | ExecutionException e) {
-        throw Status.INTERNAL
-            .withDescription("Unable to parse protobuf while retrieving feature")
-            .withCause(e)
-            .asRuntimeException();
-      }
+    System.out.printf("Computing Bigtable Keys");
+    List<BigtableKey> bigtableKeys = buildBigtableKeys(entityRows, featureSetRequest.getSpec());
+    keyMap.put(featureSetRequest, bigtableKeys);
+    try {
+      System.out.printf("Sending multi get with %s", featureSetRequest.getSpec().toString());
+      System.out.printf(
+          "Feature References %s", featureSetRequest.getFeatureReferences().toString());
+      System.out.printf("Bigtable Keys %s", bigtableKeys.toString());
+      featureRows =
+          sendAndProcessMultiGet(
+              bigtableKeys,
+              featureSetRequest.getSpec(),
+              featureSetRequest.getFeatureReferences().asList());
+    } catch (InvalidProtocolBufferException | ExecutionException e) {
+      throw Status.INTERNAL
+          .withDescription("Unable to parse protobuf while retrieving feature")
+          .withCause(e)
+          .asRuntimeException();
     }
     return featureRows;
   }
@@ -152,7 +144,7 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
     return builder.build();
   }
 
-  private List<FeatureRow> sendAndProcessMultiGet(
+  private List<Optional<FeatureRow>> sendAndProcessMultiGet(
       List<BigtableKey> bigtableKeys,
       FeatureSetSpec featureSetSpec,
       List<FeatureReference> featureReferences)
@@ -161,8 +153,7 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
         featureReferences.stream()
             .map(featureReference -> ByteString.copyFromUtf8(featureReference.getName()))
             .collect(Collectors.toList());
-    List<FeatureRow> featureRows = sendMultiGet(bigtableKeys, featureSetSpec, featureReferences);
-    return featureRows;
+    return sendMultiGet(bigtableKeys, featureSetSpec, featureReferences);
   }
 
   /**
@@ -172,7 +163,7 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
    * @return list of {@link FeatureRow} in primitive byte representation for each {@link
    *     BigtableKey}
    */
-  private List<FeatureRow> sendMultiGet(
+  private List<Optional<FeatureRow>> sendMultiGet(
       List<BigtableKey> keys,
       FeatureSetSpec featureSetSpec,
       List<FeatureReference> featureReferences) {
@@ -181,17 +172,17 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
             .map(AbstractMessageLite::toByteString)
             .collect(Collectors.toList())
             .toArray(new ByteString[0][0]);
-    List<FeatureRow> result = new ArrayList<>();
-    ResponseObserver<Row> multiGetObserver =
+    List<Optional<FeatureRow>> result = new ArrayList<>();
+    BigtableOnlineObserver multiGetObserver =
         BigtableOnlineObserver.create(keys, featureSetSpec, featureReferences, result);
     try {
       Query multiGet = Query.create(table);
       for (BigtableKey key : keys) {
-        multiGet.rowKey(key.toByteString());
+        multiGet.rowKey(key.toString());
       }
       dataClient.readRowsAsync(multiGet, multiGetObserver);
       multiGetObserver.wait();
-      return result;
+      return multiGetObserver.getResult();
     } catch (Exception e) {
       throw Status.NOT_FOUND
           .withDescription("Unable to retrieve feature from Bigtable")

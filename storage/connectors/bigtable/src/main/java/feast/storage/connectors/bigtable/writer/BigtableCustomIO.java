@@ -16,6 +16,8 @@
  */
 package feast.storage.connectors.bigtable.writer;
 
+import com.google.cloud.bigtable.beam.CloudBigtableIO;
+import com.google.cloud.bigtable.beam.CloudBigtableTableConfiguration;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.StoreProto.Store.BigtableConfig;
@@ -25,35 +27,35 @@ import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FieldProto.Field;
 import feast.storage.api.writer.FailedElement;
 import feast.storage.api.writer.WriteResult;
-import feast.storage.common.retry.Retriable;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.joda.time.Instant;
+import org.apache.hadoop.hbase.client.Mutation;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class BigtableCustomIO {
 
-  private static final int DEFAULT_BATCH_SIZE = 1000;
-  private static final int DEFAULT_TIMEOUT = 2000;
+  private static final String METADATA_CF = "metadata";
+  private static final String FEATURES_CF = "features";
+  private static final String FEATURE_SET_QUALIFIER = "feature_set";
+  private static final String INGESTION_ID_QUALIFIER = "ingestion_id";
+  private static final String EVENT_TIMESTAMP_QUALIFIER = "event_timestamp";
 
-  private static TupleTag<FeatureRow> successfulInsertsTag =
+  private static final TupleTag<FeatureRow> successfulInsertsTag =
       new TupleTag<FeatureRow>("successfulInserts") {};
-  private static TupleTag<FailedElement> failedInsertsTupleTag =
+  private static final TupleTag<FailedElement> failedInsertsTupleTag =
       new TupleTag<FailedElement>("failedInserts") {};
 
   private static final Logger log = LoggerFactory.getLogger(BigtableCustomIO.class);
@@ -68,97 +70,47 @@ public class BigtableCustomIO {
   /** ServingStoreWrite data to a Bigtable server. */
   public static class Write extends PTransform<PCollection<FeatureRow>, WriteResult> {
 
-    private Map<String, FeatureSetSpec> featureSetSpecs;
-    private BigtableConfig bigtableConfig;
-    private int batchSize;
-    private int timeout;
+    private final Map<String, FeatureSetSpec> featureSetSpecs;
+    private final CloudBigtableTableConfiguration bigtableConfig;
 
     public Write(BigtableConfig bigtableConfig, Map<String, FeatureSetSpec> featureSetSpecs) {
-
-      this.bigtableConfig = bigtableConfig;
+      this.bigtableConfig =
+          new CloudBigtableTableConfiguration.Builder()
+              .withProjectId(bigtableConfig.getProjectId())
+              .withInstanceId(bigtableConfig.getInstanceId())
+              .withTableId(bigtableConfig.getTableId())
+              .build();
       this.featureSetSpecs = featureSetSpecs;
-    }
-
-    public Write withBatchSize(int batchSize) {
-      this.batchSize = batchSize;
-      return this;
-    }
-
-    public Write withTimeout(int timeout) {
-      this.timeout = timeout;
-      return this;
     }
 
     @Override
     public WriteResult expand(PCollection<FeatureRow> input) {
-      PCollectionTuple bigtableWrite =
-          input.apply(
-              ParDo.of(new WriteDoFn(bigtableConfig, featureSetSpecs))
-                  .withOutputTags(successfulInsertsTag, TupleTagList.of(failedInsertsTupleTag)));
-      return WriteResult.in(
-          input.getPipeline(),
-          bigtableWrite.get(successfulInsertsTag),
-          bigtableWrite.get(failedInsertsTupleTag));
+      PCollection<Mutation> bigtableMutations =
+          input.apply(ParDo.of(new MutationDoFn(featureSetSpecs)));
+      bigtableMutations.apply(CloudBigtableIO.writeToTable(bigtableConfig));
+      // Since BigQueryIO does not support emitting failure writes, we set failedElements to
+      // an empty stream
+      PCollection<FailedElement> failedElements =
+          input
+              .getPipeline()
+              .apply(Create.of(""))
+              .apply(
+                  "dummy",
+                  ParDo.of(
+                      new DoFn<String, FailedElement>() {
+                        @ProcessElement
+                        public void processElement(ProcessContext context) {}
+                      }));
+      return WriteResult.in(input.getPipeline(), input, failedElements);
     }
 
-    public static class WriteDoFn extends DoFn<FeatureRow, FeatureRow> {
+    public static class MutationDoFn extends DoFn<FeatureRow, Mutation> {
 
       private final List<FeatureRow> featureRows = new ArrayList<>();
       private Map<String, FeatureSetSpec> featureSetSpecs;
-      private int batchSize = DEFAULT_BATCH_SIZE;
-      private int timeout = DEFAULT_TIMEOUT;
-      private BigtableIngestionClient bigtableIngestionClient;
 
-      WriteDoFn(BigtableConfig config, Map<String, FeatureSetSpec> featureSetSpecs) {
-        this.bigtableIngestionClient = new BigtableStandaloneIngestionClient(config);
+      MutationDoFn(Map<String, FeatureSetSpec> featureSetSpecs) {
         this.featureSetSpecs = featureSetSpecs;
-      }
-
-      public WriteDoFn withBatchSize(int batchSize) {
-        if (batchSize > 0) {
-          this.batchSize = batchSize;
-        }
-        return this;
-      }
-
-      public WriteDoFn withTimeout(int timeout) {
-        if (timeout > 0) {
-          this.timeout = timeout;
-        }
-        return this;
-      }
-
-      @Setup
-      public void setup() {
-        this.bigtableIngestionClient.setup();
-      }
-
-      @StartBundle
-      public void startBundle() {
-        featureRows.clear();
-      }
-
-      private void executeBatch() throws Exception {
-        this.bigtableIngestionClient
-            .getBackOffExecutor()
-            .execute(
-                new Retriable() {
-                  @Override
-                  public void execute() throws ExecutionException, InterruptedException {
-                    featureRows.forEach(
-                        row -> {
-                          bigtableIngestionClient.set(getKey(row), row);
-                        });
-                  }
-
-                  @Override
-                  public Boolean isExceptionRetriable(Exception e) {
-                    return e instanceof java.io.IOException;
-                  }
-
-                  @Override
-                  public void cleanUpAfterFailure() {}
-                });
       }
 
       private FailedElement toFailedElement(
@@ -172,6 +124,13 @@ public class BigtableCustomIO {
             .build();
       }
 
+      /**
+       * private FailedElement toFailedElement( FeatureRow featureRow, Exception exception, String
+       * jobName) { return FailedElement.newBuilder() .setJobName(jobName)
+       * .setTransformName("BigtableCustomIO") .setPayload(featureRow.toString())
+       * .setErrorMessage(exception.getMessage())
+       * .setStackTrace(ExceptionUtils.getStackTrace(exception)) .build(); } *
+       */
       private String getKey(FeatureRow featureRow) {
         FeatureSetSpec featureSetSpec = featureSetSpecs.get(featureRow.getFeatureSet());
         List<String> entityNames =
@@ -199,51 +158,44 @@ public class BigtableCustomIO {
       @ProcessElement
       public void processElement(ProcessContext context) {
         FeatureRow featureRow = context.element();
-        featureRows.add(featureRow);
-        if (featureRows.size() >= batchSize) {
-          try {
-            executeBatch();
-            featureRows.forEach(row -> context.output(successfulInsertsTag, row));
-            featureRows.clear();
-          } catch (Exception e) {
-            featureRows.forEach(
-                failedMutation -> {
-                  FailedElement failedElement =
-                      toFailedElement(failedMutation, e, context.getPipelineOptions().getJobName());
-                  context.output(failedInsertsTupleTag, failedElement);
-                });
-            featureRows.clear();
+        try {
+          String key = getKey(featureRow);
+          System.out.printf("Setting the key: %s", key);
+          System.out.printf("value: %s", featureRow);
+          long timestamp = System.currentTimeMillis();
+          Put row = new Put(Bytes.toBytes(key));
+          row.addColumn(
+              Bytes.toBytes(METADATA_CF),
+              Bytes.toBytes(FEATURE_SET_QUALIFIER),
+              timestamp,
+              Bytes.toBytes(featureRow.getFeatureSet()));
+          row.addColumn(
+              Bytes.toBytes(METADATA_CF),
+              Bytes.toBytes(INGESTION_ID_QUALIFIER),
+              timestamp,
+              Bytes.toBytes(featureRow.getIngestionId()));
+          row.addColumn(
+              Bytes.toBytes(METADATA_CF),
+              Bytes.toBytes(EVENT_TIMESTAMP_QUALIFIER),
+              timestamp,
+              featureRow.getEventTimestamp().toByteArray());
+          for (Field field : featureRow.getFieldsList()) {
+            row.addColumn(
+                Bytes.toBytes(FEATURES_CF),
+                field.getName().getBytes(),
+                timestamp,
+                field.getValue().toByteArray());
           }
+          context.output(successfulInsertsTag, featureRow);
+        } catch (Exception e) {
+          featureRows.forEach(
+              failedMutation -> {
+                FailedElement failedElement =
+                    toFailedElement(failedMutation, e, context.getPipelineOptions().getJobName());
+                context.output(failedInsertsTupleTag, failedElement);
+              });
+          featureRows.clear();
         }
-      }
-
-      @FinishBundle
-      public void finishBundle(FinishBundleContext context)
-          throws IOException, InterruptedException {
-        if (featureRows.size() > 0) {
-          try {
-            executeBatch();
-            featureRows.forEach(
-                row ->
-                    context.output(
-                        successfulInsertsTag, row, Instant.now(), GlobalWindow.INSTANCE));
-            featureRows.clear();
-          } catch (Exception e) {
-            featureRows.forEach(
-                failedMutation -> {
-                  FailedElement failedElement =
-                      toFailedElement(failedMutation, e, context.getPipelineOptions().getJobName());
-                  context.output(
-                      failedInsertsTupleTag, failedElement, Instant.now(), GlobalWindow.INSTANCE);
-                });
-            featureRows.clear();
-          }
-        }
-      }
-
-      @Teardown
-      public void teardown() {
-        bigtableIngestionClient.shutdown();
       }
     }
   }

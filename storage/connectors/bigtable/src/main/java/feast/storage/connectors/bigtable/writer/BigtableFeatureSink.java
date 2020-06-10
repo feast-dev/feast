@@ -17,8 +17,8 @@
 package feast.storage.connectors.bigtable.writer;
 
 import com.google.auto.value.AutoValue;
-import com.google.cloud.bigtable.data.v2.BigtableDataClient;
-import feast.proto.core.FeatureSetProto.FeatureSet;
+import com.google.cloud.bigtable.beam.CloudBigtableTableConfiguration;
+import feast.common.models.FeatureSetReference;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.BigtableConfig;
@@ -26,8 +26,10 @@ import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.storage.api.writer.FeatureSink;
 import feast.storage.api.writer.WriteResult;
 import java.util.Map;
-import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 
 @AutoValue
 public abstract class BigtableFeatureSink implements FeatureSink {
@@ -37,12 +39,10 @@ public abstract class BigtableFeatureSink implements FeatureSink {
    * StoreProto.Store.BigtableConfig}.
    *
    * @param bigtableConfig {@link BigtableConfig}
-   * @param featureSetSpecs
    * @return {@link BigtableFeatureSink.Builder}
    */
-  public static FeatureSink fromConfig(
-      BigtableConfig bigtableConfig, Map<String, FeatureSetSpec> featureSetSpecs) {
-    return builder().setFeatureSetSpecs(featureSetSpecs).setBigtableConfig(bigtableConfig).build();
+  public static FeatureSink fromConfig(BigtableConfig bigtableConfig) {
+    return builder().setBigtableConfig(bigtableConfig).build();
   }
 
   public abstract BigtableConfig getBigtableConfig();
@@ -64,22 +64,48 @@ public abstract class BigtableFeatureSink implements FeatureSink {
     public abstract BigtableFeatureSink build();
   }
 
+  PCollectionView<Map<String, Iterable<FeatureSetSpec>>> specsView;
+
+  public BigtableFeatureSink withSpecsView(
+      PCollectionView<Map<String, Iterable<FeatureSetSpec>>> specsView) {
+    this.specsView = specsView;
+    return this;
+  }
+
+  PCollectionView<Map<String, Iterable<FeatureSetSpec>>> getSpecsView() {
+    return specsView;
+  }
+
   @Override
-  public void prepareWrite(FeatureSet featureSet) {
+  public PCollection<FeatureSetReference> prepareWrite(
+      PCollection<KV<FeatureSetReference, FeatureSetSpec>> featureSetSpecs) {
     try {
-      BigtableDataClient bigtableClient =
-          BigtableDataClient.create(
-              getBigtableConfig().getProjectId(), getBigtableConfig().getInstanceId());
+      CloudBigtableTableConfiguration bigtableTableConfig =
+          new CloudBigtableTableConfiguration.Builder()
+              .withProjectId(getBigtableConfig().getProjectId())
+              .withInstanceId(getBigtableConfig().getInstanceId())
+              .withTableId(getBigtableConfig().getTableId())
+              .build();
     } catch (Exception e) {
       throw new RuntimeException(
           String.format(
               "Failed to connect to Bigtable with project: '%s' instanceID: '%s'. Please check that your Bigtable is running and accessible from Feast.",
               getBigtableConfig().getProjectId(), getBigtableConfig().getInstanceId()));
     }
+    specsView = featureSetSpecs.apply(ParDo.of(new ReferenceToString())).apply(View.asMultimap());
+    return featureSetSpecs.apply(Keys.create());
   }
 
   @Override
   public PTransform<PCollection<FeatureRow>, WriteResult> writer() {
     return new BigtableCustomIO.Write(getBigtableConfig(), getFeatureSetSpecs());
+  }
+
+  private static class ReferenceToString
+      extends DoFn<KV<FeatureSetReference, FeatureSetSpec>, KV<String, FeatureSetSpec>> {
+    @ProcessElement
+    public void process(ProcessContext c) {
+      c.output(KV.of(c.element().getKey().getReference(), c.element().getValue()));
+    }
   }
 }

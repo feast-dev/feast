@@ -194,11 +194,6 @@
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
     </dependency>
-    <!--compile 'joda-time:joda-time:2.9.9'-->
-    <dependency>
-      <groupId>joda-time</groupId>
-      <artifactId>joda-time</artifactId>
-    </dependency>
     <!--compile 'io.jaegertracing:jaeger-client:0.31.0'-->
     <dependency>
       <groupId>io.jaegertracing</groupId>
@@ -290,7 +285,6 @@
       <artifactId>embedded-redis</artifactId>
       <scope>test</scope>
     </dependency>
-
     <dependency>
       <groupId>jakarta.validation</groupId>
       <artifactId>jakarta.validation-api</artifactId>

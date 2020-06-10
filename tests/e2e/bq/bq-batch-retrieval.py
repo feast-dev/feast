@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 import pytz
 import tensorflow_data_validation as tfdv
+from bq.testutils import assert_stats_equal, clear_unsupported_fields
 from google.cloud import bigquery, storage
 from google.cloud.storage import Blob
 from google.protobuf.duration_pb2 import Duration
