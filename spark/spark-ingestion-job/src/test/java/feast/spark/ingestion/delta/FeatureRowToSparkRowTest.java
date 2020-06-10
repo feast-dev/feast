@@ -43,6 +43,7 @@ import feast.proto.types.ValueProto.Value;
 import feast.proto.types.ValueProto.ValueType.Enum;
 import java.sql.Timestamp;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.catalyst.expressions.IsNull;
 import org.apache.spark.sql.types.*;
 import org.junit.Before;
 import org.junit.Test;
@@ -92,6 +93,8 @@ public class FeatureRowToSparkRowTest {
             .addFeatures(featureOfType(Enum.DOUBLE_LIST))
             .addFeatures(featureOfType(Enum.FLOAT_LIST))
             .addFeatures(featureOfType(Enum.BOOL_LIST))
+            .addFeatures(featureOfType(Enum.BOOL_LIST, "f_BOOL_LIST_empty"))
+            .addFeatures(featureOfType(Enum.BOOL_LIST, "f_BOOL_LIST_unset"))
             .setSource(
                 Source.newBuilder().setType(SourceType.KAFKA).setKafkaSourceConfig(kafka).build())
             .build();
@@ -125,7 +128,9 @@ public class FeatureRowToSparkRowTest {
               createStructField("f_INT64_LIST", createArrayType(LongType, true), true),
               createStructField("f_DOUBLE_LIST", createArrayType(DoubleType, true), true),
               createStructField("f_FLOAT_LIST", createArrayType(FloatType, true), true),
-              createStructField("f_BOOL_LIST", createArrayType(BooleanType, true), true)
+              createStructField("f_BOOL_LIST", createArrayType(BooleanType, true), true),
+              createStructField("f_BOOL_LIST_empty", createArrayType(BooleanType, true), true),
+              createStructField("f_BOOL_LIST_unset", createArrayType(BooleanType, true), true)
             });
     assertThat(schema, is(expected));
   }
@@ -176,7 +181,7 @@ public class FeatureRowToSparkRowTest {
     builder.addFields(
         Field.newBuilder()
             .setName("f_STRING_LIST")
-            .setValue(Value.newBuilder().setStringListVal(StringList.newBuilder().addVal("amet"))));
+            .setValue(Value.newBuilder().setStringListVal(StringList.newBuilder().addVal("dolor").addVal("amet"))));
     builder.addFields(
         Field.newBuilder()
             .setName("f_INT32_LIST")
@@ -198,6 +203,10 @@ public class FeatureRowToSparkRowTest {
         Field.newBuilder()
             .setName("f_BOOL_LIST")
             .setValue(Value.newBuilder().setBoolListVal(BoolList.newBuilder().addVal(false))));
+    builder.addFields(
+        Field.newBuilder()
+            .setName("f_BOOL_LIST_empty")
+            .setValue(Value.newBuilder().setBoolListVal(BoolList.newBuilder())));
 
     // Apply
     Timestamp before = new java.sql.Timestamp(System.currentTimeMillis());
@@ -205,7 +214,7 @@ public class FeatureRowToSparkRowTest {
     Timestamp after = new java.sql.Timestamp(System.currentTimeMillis());
 
     // Assert
-    assertThat(row.length(), is(20));
+    assertThat(row.length(), is(22));
 
     int i = 0;
     // EVENT_TIMESTAMP_DAY_COLUMN
@@ -228,21 +237,22 @@ public class FeatureRowToSparkRowTest {
     assertThat(row.get(i++), is(3.1415));
     assertThat(row.get(i++), is(7.62f));
     assertThat(row.get(i++), is(true));
-    assertThat(row.get(i++), is(arrayOf("efg".getBytes())));
-    assertThat(row.get(i++), is(arrayOf("amet")));
-    assertThat(row.get(i++), is(arrayOf(64)));
-    assertThat(row.get(i++), is(arrayOf(256L)));
-    assertThat(row.get(i++), is(arrayOf(6.14156)));
-    assertThat(row.get(i++), is(arrayOf(8.62f)));
-    assertThat(row.get(i++), is(arrayOf(false)));
-  }
-
-  @SuppressWarnings("unchecked")
-  private <T> T[] arrayOf(T... value) {
-    return value;
+    assertThat(row.get(i++), is(new byte[][] {"efg".getBytes()}));
+    assertThat(row.get(i++), is(new String[] {"dolor", "amet"}));
+    assertThat(row.get(i++), is(new int[] {64}));
+    assertThat(row.get(i++), is(new long[] {256L}));
+    assertThat(row.get(i++), is(new double[] {6.14156}));
+    assertThat(row.get(i++), is(new float[] {8.62f}));
+    assertThat(row.get(i++), is(new boolean[] {false}));
+    assertThat(row.get(i++), is(new boolean[] {}));
+    assertNull(row.get(i++));
   }
 
   private static FeatureSpec featureOfType(Enum type) {
-    return FeatureSpec.newBuilder().setName("f_" + type.name()).setValueType(type).build();
+    return featureOfType(type, "f_" + type.name());
   }
+
+private static FeatureSpec featureOfType(Enum type, String name) {
+	return FeatureSpec.newBuilder().setName(name).setValueType(type).build();
+}
 }

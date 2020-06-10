@@ -46,6 +46,7 @@ import feast.proto.types.ValueProto.StringList;
 import feast.proto.types.ValueProto.Value;
 import feast.proto.types.ValueProto.ValueType;
 import feast.spark.ingestion.delta.FeatureRowToSparkRow;
+import feast.spark.ingestion.delta.SparkDeltaSink;
 import feast.test.TestUtil;
 import feast.test.TestUtil.LocalKafka;
 import java.io.File;

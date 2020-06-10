@@ -25,6 +25,9 @@ import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.SourceProto.KafkaSourceConfig;
 import feast.proto.core.StoreProto.Store;
 import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.spark.ingestion.delta.SparkDeltaSink;
+import feast.spark.ingestion.redis.SparkRedisSink;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -38,7 +41,7 @@ import org.apache.spark.sql.streaming.StreamingQuery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Consumes messages from one or more topics in Kafka and outputs them to the console. */
+/** Consumes messages from one or more topics in Kafka and outputs them to Delta/Redis using Spark. */
 /*
  * Usage:
  * SparkIngestion parameters
@@ -87,7 +90,7 @@ public class SparkIngestion {
 
   public StreamingQuery createQuery() {
 
-    // Create session with getOrCreate and do not call SparkContext.stop() at the end.
+    // Create session with getOrCreate and do not call SparkContext.stop() nor System.exit() at the end.
     // See https://docs.databricks.com/jobs.html#jar-job-tips
     SparkSession spark = SparkSession.builder().appName("SparkIngestion").getOrCreate();
 

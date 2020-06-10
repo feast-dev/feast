@@ -14,11 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.spark.ingestion;
+package feast.spark.ingestion.redis;
 
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.StoreProto.Store.RedisConfig;
 import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.spark.ingestion.SparkSink;
 import feast.storage.connectors.redis.writer.RedisCustomIO;
 import feast.storage.connectors.redis.writer.RedisCustomIO.Write;
 import io.lettuce.core.LettuceFutures;

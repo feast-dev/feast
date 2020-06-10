@@ -14,13 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.spark.ingestion;
+package feast.spark.ingestion.delta;
 
 import feast.ingestion.utils.SpecUtil;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.StoreProto.Store.DeltaConfig;
 import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.spark.ingestion.SparkSink;
 import feast.spark.ingestion.delta.FeatureRowToSparkRow;
 import io.delta.tables.DeltaTable;
 import java.io.Serializable;
