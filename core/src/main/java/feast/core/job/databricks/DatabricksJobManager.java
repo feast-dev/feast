@@ -127,7 +127,12 @@ public class DatabricksJobManager implements JobManager {
       HttpResponse<String> response =
           httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-    } catch (IOException | InterruptedException e) {
+      if (response.statusCode() != HttpStatus.SC_OK) {
+        throw new HttpException(
+            String.format("Databricks returned with unexpected code: %s", response.statusCode()));
+      }
+
+    } catch (IOException | InterruptedException | HttpException e) {
       log.error(
           "Unable to abort databricks job with run id : {}\ncause: {}", runId, e.getMessage());
       throw new JobExecutionException(
@@ -155,34 +160,33 @@ public class DatabricksJobManager implements JobManager {
     try {
       HttpResponse<String> response =
           httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-      if (response.statusCode() == HttpStatus.SC_OK) {
-        RunsGetResponse runsGetResponse = mapper.readValue(response.body(), RunsGetResponse.class);
-        RunState runState = runsGetResponse.getState();
-        String lifeCycleState = runState.getLifeCycleState().toString();
-
-        JobStatus status =
-            runState
-                .getResultState()
-                .map(
-                    runResultState ->
-                        DatabricksJobStateMapper.map(
-                            String.format("%s_%s", lifeCycleState, runResultState.toString())))
-                .orElseGet(() -> DatabricksJobStateMapper.map(lifeCycleState));
-
-        log.info(
-            "Databricks job state for job {} (Databricks RunId {}) is {} (mapped from {})",
-            job.getId(),
-            job.getExtId(),
-            runState,
-            status);
-
-        return status;
-
-      } else {
+      if (response.statusCode() != HttpStatus.SC_OK) {
         throw new HttpException(
             String.format("Databricks returned with unexpected code: %s", response.statusCode()));
       }
+
+      RunsGetResponse runsGetResponse = mapper.readValue(response.body(), RunsGetResponse.class);
+      RunState runState = runsGetResponse.getState();
+      String lifeCycleState = runState.getLifeCycleState().toString();
+
+      JobStatus status =
+          runState
+              .getResultState()
+              .map(
+                  runResultState ->
+                      DatabricksJobStateMapper.map(
+                          String.format("%s_%s", lifeCycleState, runResultState.toString())))
+              .orElseGet(() -> DatabricksJobStateMapper.map(lifeCycleState));
+
+      log.info(
+          "Databricks job state for job {} (Databricks RunId {}) is {} (mapped from {})",
+          job.getId(),
+          job.getExtId(),
+          runState,
+          status);
+
+      return status;
+
     } catch (IOException | InterruptedException | HttpException ex) {
       log.error(
           "Unable to retrieve status of a databricks run with id : {}\ncause: {}",
@@ -239,15 +243,15 @@ public class DatabricksJobManager implements JobManager {
       HttpResponse<String> response =
           httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-      if (response.statusCode() == HttpStatus.SC_OK) {
-        JobsCreateResponse createResponse =
-            mapper.readValue(response.body(), JobsCreateResponse.class);
-
-        return createResponse.getJobId();
-      } else {
+      if (response.statusCode() != HttpStatus.SC_OK) {
         throw new HttpException(
             String.format("Databricks returned with unexpected code: %s", response.statusCode()));
       }
+      JobsCreateResponse createResponse =
+          mapper.readValue(response.body(), JobsCreateResponse.class);
+
+      return createResponse.getJobId();
+
     } catch (IOException | InterruptedException | HttpException e) {
       log.error("Unable to run databricks job : {}\ncause: {}", jobName, e.getMessage());
       throw new JobExecutionException(
@@ -273,13 +277,13 @@ public class DatabricksJobManager implements JobManager {
       HttpResponse<String> response =
           httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-      if (response.statusCode() == HttpStatus.SC_OK) {
-        RunNowResponse runNowResponse = mapper.readValue(response.body(), RunNowResponse.class);
-        return runNowResponse.getRunId();
-      } else {
+      if (response.statusCode() != HttpStatus.SC_OK) {
         throw new HttpException(
             String.format("Databricks returned with unexpected code: %s", response.statusCode()));
       }
+
+      RunNowResponse runNowResponse = mapper.readValue(response.body(), RunNowResponse.class);
+      return runNowResponse.getRunId();
     } catch (Exception e) {
       log.error(
           "Unable to run databricks job with id : {}\ncause: {}", databricksJobId, e.getMessage());
