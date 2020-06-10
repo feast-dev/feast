@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.3.8](https://github.com/feast-dev/feast/tree/v0.3.8) (2020-06-10)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.3.7...v0.3.8)
+
+**Implemented enhancements:**
+
+- v0.3 backport: Add feature and feature set labels [\#737](https://github.com/feast-dev/feast/pull/737) ([ches](https://github.com/ches))
+
+**Merged pull requests:**
+
+- v0.3 backport: Add Java coverage reporting [\#734](https://github.com/feast-dev/feast/pull/734) ([ches](https://github.com/ches))
+
 ## [v0.3.7](https://github.com/gojek/feast/tree/v0.3.7) (2020-05-01)
 
 [Full Changelog](https://github.com/gojek/feast/compare/v0.3.6...v0.3.7)
