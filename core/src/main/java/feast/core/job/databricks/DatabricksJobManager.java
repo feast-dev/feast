@@ -45,7 +45,7 @@ import org.apache.http.HttpStatus;
 public class DatabricksJobManager implements JobManager {
   private static final String SPARK_INGESTION_CLASS = "feast.spark.ingestion.SparkIngestion";
 
-  private final Runner RUNNER_TYPE = Runner.DATABRICKS;
+  private static final Runner RUNNER_TYPE = Runner.DATABRICKS;
 
   private final String databricksHost;
   private final byte[] databricksToken;
@@ -54,7 +54,7 @@ public class DatabricksJobManager implements JobManager {
   private final MetricsProperties metricsProperties;
   private final HttpClient httpClient;
   private static final ObjectMapper mapper = ObjectMapperFactory.createObjectMapper();
-  private final int maxRetries = -1;
+  private static final int maxRetries = -1;
 
   public DatabricksJobManager(
       DatabricksRunnerConfigOptions runnerConfigOptions,
@@ -92,7 +92,7 @@ public class DatabricksJobManager implements JobManager {
         jobId,
         databricksJobId,
         databricksRunId);
-    waitForJobToRun(job);
+    waitForJobToStart(job);
 
     return job;
   }
@@ -124,7 +124,7 @@ public class DatabricksJobManager implements JobManager {
               .build();
 
       HttpResponse<String> response =
-          this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+          httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
     } catch (IOException | InterruptedException e) {
       log.error(
@@ -205,12 +205,13 @@ public class DatabricksJobManager implements JobManager {
       }
       store = job.getStore().toProto();
     } catch (InvalidProtocolBufferException e) {
-      log.error(e.getMessage());
+      log.error(e.getMessage(), e);
       throw new IllegalArgumentException(
           String.format(
               "DatabricksJobManager failed to START job with id '%s' because the job"
                   + "has an invalid spec. Please check the FeatureSet, Source and Store specs. Actual error message: %s",
-              job.getId(), e.getMessage()));
+              job.getId(), e.getMessage()),
+          e);
     }
 
     String storesJson = toJsonLine(store);
@@ -318,7 +319,7 @@ public class DatabricksJobManager implements JobManager {
     return createRequest;
   }
 
-  private void waitForJobToRun(Job job) {
+  private JobStatus waitForJobToStart(Job job) {
     while (true) {
       JobStatus jobStatus = getJobStatus(job);
       if (jobStatus.isTerminal()) {
@@ -326,7 +327,7 @@ public class DatabricksJobManager implements JobManager {
             String.format(
                 "Failed to submit Databricks job, job state is %s", jobStatus.toString()));
       } else if (jobStatus.equals(JobStatus.RUNNING)) {
-        break;
+        return jobStatus;
       }
       try {
         Thread.sleep(2000);
