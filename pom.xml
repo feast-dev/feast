@@ -37,7 +37,7 @@
     </modules>
 
     <properties>
-        <revision>0.3.8</revision>
+        <revision>0.3.9-SNAPSHOT</revision>
         <github.url>https://github.com/gojek/feast</github.url>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
