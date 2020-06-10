@@ -154,6 +154,11 @@
             </dependency>
             <dependency>
                 <groupId>io.grpc</groupId>
+                <artifactId>grpc-netty</artifactId>
+                <version>${grpcVersion}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
                 <artifactId>grpc-netty-shaded</artifactId>
                 <version>${grpcVersion}</version>
             </dependency>
