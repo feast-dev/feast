@@ -23,6 +23,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class DatabricksJobStateMapper {
+  private DatabricksJobStateMapper() {
+  }
+
   private static final Map<DatabricksJobState, JobStatus> DATABRICKS_TO_FEAST_JOB_STATUS = Map.of(
       PENDING, JobStatus.PENDING,
       RUNNING, JobStatus.RUNNING,
