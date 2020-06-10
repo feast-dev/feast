@@ -113,12 +113,12 @@ public class DatabricksJobManager implements JobManager {
 
     try {
       RunsCancelRequest runsCancelRequest =
-          RunsCancelRequest.builder().setRunId(Integer.parseInt(runId)).build();
+          RunsCancelRequest.builder().setRunId(Long.parseLong(runId)).build();
       String body = mapper.writeValueAsString(runsCancelRequest);
 
       HttpRequest request =
           HttpRequest.newBuilder()
-              .uri(URI.create(String.format("%s/api/2.0/jobs/runs/cancel/", databricksHost)))
+              .uri(URI.create(String.format("%s/api/2.0/jobs/runs/cancel", databricksHost)))
               .header("Authorization", getAuthorizationHeader())
               .POST(HttpRequest.BodyPublishers.ofString(body))
               .build();
