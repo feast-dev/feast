@@ -121,6 +121,17 @@ public class FeatureSet extends AbstractTimestampEntity {
     }
   }
 
+  public boolean hasAllLabels(Map<String, String> labels) throws InvalidProtocolBufferException {
+    Map<String, String> featureSetLabelsMap = this.toProto().getSpec().getLabelsMap();
+    for (String key : labels.keySet()) {
+      if (!featureSetLabelsMap.containsKey(key)
+          || !featureSetLabelsMap.get(key).equals(labels.get(key))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   public void setProject(Project project) {
     this.project = project;
   }

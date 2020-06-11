@@ -48,6 +48,7 @@ import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -115,9 +116,9 @@ public class SpecService {
   }
 
   /**
-   * Return a list of feature sets matching the feature set name and project provided in the filter.
-   * All fields are requried. Use '*' for all arguments in order to return all feature sets in all
-   * projects.
+   * Return a list of feature sets matching the feature set name, project and labels provided in the
+   * filter. All fields are required. Use '*' in feature set name and project, and empty map in
+   * labels in order to return all feature sets in all projects.
    *
    * <p>Project name can be explicitly provided, or an asterisk can be provided to match all
    * projects. It is not possible to provide a combination of asterisks/wildcards and text. If the
@@ -126,6 +127,9 @@ public class SpecService {
    * <p>The feature set name in the filter accepts an asterisk as a wildcard. All matching feature
    * sets will be returned. Regex is not supported. Explicitly defining a feature set name is not
    * possible if a project name is not set explicitly
+   *
+   * <p>The labels in the filter accepts a map. All feature sets which contain every provided label
+   * will be returned.
    *
    * @param filter filter containing the desired featureSet name
    * @return ListFeatureSetsResponse with list of featureSets found matching the filter
@@ -190,18 +194,21 @@ public class SpecService {
 
     ListFeatureSetsResponse.Builder response = ListFeatureSetsResponse.newBuilder();
     if (featureSets.size() > 0) {
+      featureSets =
+          featureSets.stream()
+              .filter(
+                  featureSet -> {
+                    boolean validFeatureSet = false;
+                    try {
+                      validFeatureSet = featureSet.hasAllLabels(labels);
+                    } catch (InvalidProtocolBufferException e) {
+                      e.printStackTrace();
+                    }
+                    return validFeatureSet;
+                  })
+              .collect(Collectors.toList());
       for (FeatureSet featureSet : featureSets) {
-        if (labels != null && !labels.isEmpty()) {
-          Map<String, String> tempLabels = featureSet.toProto().getSpec().getLabelsMap();
-          for (Map.Entry<String, String> entry : labels.entrySet()) {
-            if (tempLabels.containsKey(entry.getKey())
-                && tempLabels.get(entry.getKey()).equals(entry.getValue())) {
-              response.addFeatureSets(featureSet.toProto());
-            }
-          }
-        } else {
-          response.addFeatureSets(featureSet.toProto());
-        }
+        response.addFeatureSets(featureSet.toProto());
       }
     }
 
