@@ -17,7 +17,7 @@ clean_up () {
     docker-compose $COMPOSE_ARGS down
 
     # Remove configuration file
-    rm .env
+    rm -f .env
 
     exit $ARG
 }

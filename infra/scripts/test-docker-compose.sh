@@ -15,7 +15,7 @@ clean_up () {
     docker-compose -f docker-compose.yml -f docker-compose.online.yml down
 
     # Remove configuration file
-    rm .env
+    rm -f .env
 
     exit $ARG
 }
