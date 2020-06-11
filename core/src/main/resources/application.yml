@@ -55,7 +55,7 @@ feast:
           workerMachineType: n1-standard-1
           deadLetterTableSpec: project_id:dataset_id.table_id
       - name: databricks
-        type: Databricks
+        type: DatabricksRunner
         options:
           # URL to the databricks platform
           host: databricks_host
