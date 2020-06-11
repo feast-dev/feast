@@ -126,7 +126,7 @@ def _get_labels_dict(label_str: str):
     if label_str == "":
         return labels_dict
     if len(labels_kv) % 2 == 1:
-        return None
+        raise ValueError("Uneven key-value label pairs were entered")
     for k, v in zip(labels_kv[0::2], labels_kv[1::2]):
         labels_dict[k] = v
     return labels_dict
@@ -161,8 +161,6 @@ def feature_set_list(project: str, name: str, labels: str):
     feast_client = Client()  # type: Client
 
     labels_dict = _get_labels_dict(labels)
-    if labels_dict is None:
-        raise ValueError("Uneven key-value label pairs were entered")
 
     table = []
     for fs in feast_client.list_feature_sets(
