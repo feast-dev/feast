@@ -328,34 +328,26 @@ public class DatabricksJobManager implements JobManager {
   }
 
   private JobStatus waitForJobToStart(Job job) {
-    try {
-      return waitForJobStatus(job, Set.of(JobStatus.RUNNING), true);
-    } catch (RuntimeException ex) {
-      throw new RuntimeException(
-          String.format("Failed to submit Databricks job %s\n%s", job.getExtId(), ex.getMessage()));
+    JobStatus jobStatus = waitForJobStatus(job, Set.of(JobStatus.RUNNING));
+
+    if (jobStatus.isTerminal()) {
+      throw new JobExecutionException(
+          String.format(
+              "Error running ingestion job: Failed to submit Databricks job %s: status %s",
+              job.getExtId(), jobStatus.toString()));
     }
+    return jobStatus;
   }
 
   private JobStatus waitForJobToTerminate(Job job) {
-    try {
-      return waitForJobStatus(job, JobStatus.getTerminalStates(), false);
-    } catch (RuntimeException ex) {
-      throw new RuntimeException(
-          String.format(
-              "Failed to terminate Databricks job %s\n%s", job.getExtId(), ex.getMessage()));
-    }
+      return waitForJobStatus(job, JobStatus.getTerminalStates());
   }
 
-  private JobStatus waitForJobStatus(
-      Job job, Set<JobStatus> statusSet, boolean raiseOnTerminalStatus) throws RuntimeException {
+  private JobStatus waitForJobStatus(Job job, Set<JobStatus> statusSet) {
 
     while (true) {
       JobStatus jobStatus = getJobStatus(job);
-      if (raiseOnTerminalStatus && jobStatus.isTerminal()) {
-        throw new RuntimeException(
-            String.format(
-                "Job is not allowed to be in terminal state, state is %s", jobStatus.toString()));
-      } else if (statusSet.contains(jobStatus)) {
+      if (jobStatus.isTerminal() || statusSet.contains(jobStatus)) {
         return jobStatus;
       }
       try {
