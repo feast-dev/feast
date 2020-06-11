@@ -82,13 +82,9 @@ public class DatabricksEmulator {
 
     port(8080);
     post("/api/2.0/jobs/create", emulator::jobsCreate, json);
-
     post("/api/2.0/jobs/delete", emulator::jobsDelete, json);
-
     post("/api/2.0/jobs/run-now", emulator::runNow, json);
-
     get("/api/2.0/jobs/runs/get", emulator::runsGet, json);
-
     post("/api/2.0/jobs/runs/cancel", emulator::runsCancel, json);
   }
 

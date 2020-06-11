@@ -17,7 +17,7 @@ clean_up () {
     docker-compose $COMPOSE_ARGS down
 
     # Remove configuration file
-    rm .env
+    rm -f .env
 
     exit $ARG
 }
@@ -51,3 +51,6 @@ ${PROJECT_ROOT_DIR}/infra/scripts/wait-for-it.sh ${JUPYTER_DOCKER_CONTAINER_IP_A
 
 # Run e2e tests for Redis
 docker exec feast_jupyter_1 bash -c 'cd feast/tests/e2e/ && pytest -s basic-ingest-redis-serving.py --core_url core:6565 --serving_url=online-serving:6566 --databricks'
+
+# Run ingestion tests for FF Data Science scenarios
+docker exec feast_jupyter_1 bash -c 'cd feast/tests/ds_scenarios/ && pytest -s test-ingest.py --core_url core:6565 --serving_url=online-serving:6566'

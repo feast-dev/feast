@@ -47,7 +47,7 @@ test-java:
 	mvn test
 
 test-java-with-coverage:
-	mvn test jacoco:report-aggregate
+	mvn -B test jacoco:report-aggregate
 
 build-java:
 	mvn clean verify

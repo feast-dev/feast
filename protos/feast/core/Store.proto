@@ -98,6 +98,8 @@ message Store {
     CASSANDRA = 3;
 
     REDIS_CLUSTER = 4;
+
+    DELTA = 5;
   }
 
   message RedisConfig {
@@ -128,6 +130,10 @@ message Store {
     string connection_string = 1;
     int32 initial_backoff_ms = 2;
     int32 max_retries = 3;
+  }
+
+  message DeltaConfig {
+    string path = 1;
   }
 
   message Subscription {
@@ -167,5 +173,6 @@ message Store {
     BigQueryConfig bigquery_config = 12;
     CassandraConfig cassandra_config = 13;
     RedisClusterConfig redis_cluster_config = 14;
+    DeltaConfig delta_config = 15;
   }
 }

@@ -17,8 +17,9 @@ RUN wget -q https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-$
 RUN cd spark/jars && for jar in \
         org/apache/spark/spark-sql-kafka-0-10_2.11/2.4.5/spark-sql-kafka-0-10_2.11-2.4.5.jar \
         org/apache/kafka/kafka-clients/2.3.0/kafka-clients-2.3.0.jar \
+        io/delta/delta-core_2.11/0.6.1/delta-core_2.11-0.6.1.jar \
         ; do \
-      wget https://repo1.maven.org/maven2/$jar; \
+      wget -q https://repo1.maven.org/maven2/$jar; \
     done
 
 RUN mv spark/conf/log4j.properties.template spark/conf/log4j.properties
@@ -47,7 +48,7 @@ COPY LICENSE .m[2] .m2/
 # the existing .m2 directory to $FEAST_REPO_ROOT/.m2
 #
 ENV MAVEN_OPTS="-Dmaven.repo.local=/build/.m2/repository -DdependencyLocationsEnabled=false"
-RUN mvn --also-make --projects spark/databricks-emulator -Drevision=$REVISION \
+RUN mvn --also-make --projects spark/databricks-emulator,spark/spark-ingestion-job -Drevision=$REVISION \
   --batch-mode clean package
 
 # ============================================================
@@ -61,6 +62,7 @@ ENV SPARK_HOME /spark
 
 COPY --from=builder /spark /spark
 COPY --from=builder /build/spark/databricks-emulator/target/databricks-emulator-$REVISION.jar /opt/databricks-emulator.jar
+COPY --from=builder /build/spark/spark-ingestion-job/target/spark-ingestion-job-$REVISION.jar /opt/spark-ingestion-job.jar
 CMD ["java",\
      "-Xms2048m",\
      "-Xmx2048m",\

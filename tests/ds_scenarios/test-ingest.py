@@ -7,6 +7,9 @@ from ds_example_feature_data import (
     PRODUCT_IMAGE_FEATURE_SET, create_product_image_features_df,
     PRODUCT_TEXT_ATTRIBUTE_FEATURE_SET, create_product_text_attributes_df,
 )
+from ds_fraud_feature_data import (
+    FRAUD_COUNTS_FEATURE_SET, create_fraud_counts_df,
+)
 
 PROJECT_NAME = 'ds_' + uuid.uuid4().hex.upper()[0:6]
 
@@ -48,6 +51,7 @@ def client(core_url, serving_url, allow_dirty):
 @pytest.mark.parametrize("data_frame_generator,feature_set", [
     (create_product_image_features_df, PRODUCT_IMAGE_FEATURE_SET),
     (create_product_text_attributes_df, PRODUCT_TEXT_ATTRIBUTE_FEATURE_SET),
+    (create_fraud_counts_df, FRAUD_COUNTS_FEATURE_SET),
 ])
 def test_ingestion(client, data_frame_generator, feature_set):
     client.apply(feature_set)
