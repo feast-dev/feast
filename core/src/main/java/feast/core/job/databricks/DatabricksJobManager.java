@@ -55,8 +55,7 @@ public class DatabricksJobManager implements JobManager {
   private static final int maxRetries = -1;
 
   public DatabricksJobManager(
-          DatabricksRunnerConfigOptions runnerConfigOptions,
-          HttpClient httpClient) {
+      DatabricksRunnerConfigOptions runnerConfigOptions, HttpClient httpClient) {
 
     this.databricksHost = runnerConfigOptions.getHost();
     this.databricksToken = runnerConfigOptions.getToken().getBytes(StandardCharsets.UTF_8);
@@ -130,7 +129,10 @@ public class DatabricksJobManager implements JobManager {
 
     } catch (IOException | InterruptedException | HttpException e) {
       log.error(
-          "Unable to abort databricks job with run id : {}\ncause: {}", runId, e.getMessage(), e.getCause());
+          "Unable to abort databricks job with run id : {}\ncause: {}",
+          runId,
+          e.getMessage(),
+          e.getCause());
       throw new JobExecutionException(
           String.format("Unable to abort databricks job with run id : %s\ncause: %s", runId, e), e);
     }

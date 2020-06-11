@@ -104,9 +104,7 @@ public class DatabricksJobManagerTest {
             Store.fromProto(store),
             Lists.newArrayList(FeatureSet.fromProto(featureSet)),
             JobStatus.PENDING);
-    dbJobManager =
-        new DatabricksJobManager(
-            databricksRunnerConfigOptions.build(), httpClient);
+    dbJobManager = new DatabricksJobManager(databricksRunnerConfigOptions.build(), httpClient);
   }
 
   @Test
