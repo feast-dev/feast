@@ -138,7 +138,7 @@ public class SpecService {
       throws InvalidProtocolBufferException {
     String name = filter.getFeatureSetName();
     String project = filter.getProject();
-    Map<String, String> labels = filter.getLabelsMap();
+    Map<String, String> labelsFilter = filter.getLabelsMap();
 
     if (name.isEmpty()) {
       throw new IllegalArgumentException(
@@ -196,7 +196,7 @@ public class SpecService {
     if (featureSets.size() > 0) {
       featureSets =
           featureSets.stream()
-              .filter(featureSet -> featureSet.hasAllLabels(labels))
+              .filter(featureSet -> featureSet.hasAllLabels(labelsFilter))
               .collect(Collectors.toList());
       for (FeatureSet featureSet : featureSets) {
         response.addFeatureSets(featureSet.toProto());

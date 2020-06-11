@@ -121,11 +121,17 @@ public class FeatureSet extends AbstractTimestampEntity {
     }
   }
 
-  public boolean hasAllLabels(Map<String, String> labels) {
+  /**
+   * Return a boolean to facilitate streaming elements on the basis of given predicate.
+   *
+   * @param labelsFilter labels contain key-value mapping for labels attached to the FeatureSet
+   * @return boolean True if FeatureSet contains all labels in the labelsFilter
+   */
+  public boolean hasAllLabels(Map<String, String> labelsFilter) {
     Map<String, String> featureSetLabelsMap = this.getLabelsMap();
-    for (String key : labels.keySet()) {
+    for (String key : labelsFilter.keySet()) {
       if (!featureSetLabelsMap.containsKey(key)
-          || !featureSetLabelsMap.get(key).equals(labels.get(key))) {
+          || !featureSetLabelsMap.get(key).equals(labelsFilter.get(key))) {
         return false;
       }
     }

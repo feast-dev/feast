@@ -121,6 +121,9 @@ def feature_set():
 
 
 def _get_labels_dict(label_str: str):
+    """
+    Converts CLI input labels string to dictionary format if provided string is valid.
+    """
     labels_dict = {}
     labels_kv = label_str.split(",")
     if label_str == "":
@@ -143,7 +146,7 @@ def _get_labels_dict(label_str: str):
 @click.option(
     "--name",
     "-n",
-    help="Filters feature sets by name. Wildcards may be included to match multiple feature sets",
+    help="Filters feature sets by name. Wildcards (*) may be included to match multiple feature sets",
     type=click.STRING,
     default="*",
 )
