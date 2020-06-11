@@ -90,10 +90,7 @@ public class DatabricksJobManagerTest {
     metricsProperties.setEnabled(false);
 
     DatabricksRunnerConfigOptions.Builder databricksRunnerConfigOptions =
-        DatabricksRunnerConfigOptions.newBuilder();
-
-    databricksRunnerConfigOptions.setToken("TOKEN");
-    databricksRunnerConfigOptions.setHost("https://databricks");
+        DatabricksRunnerConfigOptions.newBuilder().setToken("TOKEN").setHost("https://databricks");
 
     this.job =
         new Job(
