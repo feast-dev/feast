@@ -17,7 +17,7 @@
 package feast.databricks.emulator;
 
 import static org.hamcrest.MatcherAssert.*;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.*;
@@ -195,6 +195,22 @@ public class DatabricksEmulatorTest {
   }
 
   @Test
+  // TODO should actually return 400 Bad Request
+  public void jobsDeleteShouldNotBeIdempotent() throws Exception {
+    // Arrange
+    when(request.body()).thenReturn(runSubmitJson);
+
+    // Act
+    emulator.jobsDelete(request, response);
+    try {
+      emulator.jobsDelete(request, response);
+      fail("Should have failed, as job was deleted");
+    } catch (IllegalArgumentException e) {
+      // expected
+    }
+  }
+
+  @Test
   public void runsCancelShouldStopSparkApplication() throws Exception {
     // Arrange
     when(request.body()).thenReturn(String.format("{\"run_id\":%s}", 45));
@@ -202,10 +218,39 @@ public class DatabricksEmulatorTest {
     when(runTracker.getItem(45)).thenReturn(handle);
 
     // Act
-    emulator.runsCancel(request, response);
+    RunsCancelResponse res = emulator.runsCancel(request, response);
 
     // Assert
     verify(handle).stop();
+    assertThat(res, is(RunsCancelResponse.builder().build()));
+  }
+
+  @Test
+  public void runsCancelShouldIgnoreSparkClientErrors() throws Exception {
+    // Arrange
+    when(request.body()).thenReturn(String.format("{\"run_id\":%s}", 45));
+    emulator.runTracker = runTracker;
+    when(runTracker.getItem(45)).thenReturn(handle);
+    doThrow(new IllegalStateException("Application is still not connected.")).when(handle).stop();
+
+    // Act
+    emulator.runsCancel(request, response);
+
+    // Assert: exception was not thrown
+  }
+
+  @Test
+  public void runsCancelShouldBeIdempotent() throws Exception {
+    // Arrange
+    when(request.body()).thenReturn(String.format("{\"run_id\":%s}", 45));
+    emulator.runTracker = runTracker;
+    when(runTracker.getItem(45)).thenReturn(handle);
+
+    // Act
+    emulator.runsCancel(request, response);
+    emulator.runsCancel(request, response);
+
+    // Assert: exception was not thrown
   }
 
   private static String createRunSubmitJson(JobsCreateResponse job) {

@@ -33,6 +33,7 @@ import feast.databricks.types.RunNowResponse;
 import feast.databricks.types.RunResultState;
 import feast.databricks.types.RunState;
 import feast.databricks.types.RunsCancelRequest;
+import feast.databricks.types.RunsCancelResponse;
 import feast.databricks.types.RunsGetResponse;
 import feast.databricks.types.SparkJarTask;
 import java.io.IOException;
@@ -228,7 +229,7 @@ public class DatabricksEmulator {
       return RunNowResponse.builder().setRunId(runId).setNumberInJob(numberInJob).build();
     }
 
-    RunsCancelRequest runsCancel(Request request, Response response) throws Exception {
+    RunsCancelResponse runsCancel(Request request, Response response) throws Exception {
       RunsCancelRequest req = objectMapper.readValue(request.body(), RunsCancelRequest.class);
 
       long runId = req.getRunId();
@@ -236,9 +237,13 @@ public class DatabricksEmulator {
 
       SparkAppHandle run = runTracker.getItem(runId);
 
-      run.stop();
+      try {
+        run.stop();
+      } catch (Exception e) {
+        log.info("Application stopping threw exception", e);
+      }
 
-      return req;
+      return RunsCancelResponse.builder().build();
     }
   }
 
