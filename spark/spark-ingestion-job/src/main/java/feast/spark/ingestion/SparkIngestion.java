@@ -69,7 +69,7 @@ public class SparkIngestion {
   /**
    * Build a Spark ingestion job.
    *
-   * @param args @see {@link #main(String[])}
+   * @param args List of Spark parameters.
    * @throws InvalidProtocolBufferException
    */
   public SparkIngestion(String[] args) throws InvalidProtocolBufferException {
