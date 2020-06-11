@@ -106,7 +106,7 @@ public class DatabricksJobManagerTest {
             JobStatus.PENDING);
     dbJobManager =
         new DatabricksJobManager(
-            databricksRunnerConfigOptions.build(), metricsProperties, httpClient);
+            databricksRunnerConfigOptions.build(), httpClient);
   }
 
   @Test

@@ -20,7 +20,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.util.JsonFormat;
-import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
@@ -51,19 +50,16 @@ public class DatabricksJobManager implements JobManager {
   private final byte[] databricksToken;
   private final String jarFile;
   private final DatabricksRunnerConfigOptions.DatabricksNewClusterOptions newClusterConfigOptions;
-  private final MetricsProperties metricsProperties;
   private final HttpClient httpClient;
   private static final ObjectMapper mapper = ObjectMapperFactory.createObjectMapper();
   private static final int maxRetries = -1;
 
   public DatabricksJobManager(
-      DatabricksRunnerConfigOptions runnerConfigOptions,
-      MetricsProperties metricsProperties,
-      HttpClient httpClient) {
+          DatabricksRunnerConfigOptions runnerConfigOptions,
+          HttpClient httpClient) {
 
     this.databricksHost = runnerConfigOptions.getHost();
     this.databricksToken = runnerConfigOptions.getToken().getBytes(StandardCharsets.UTF_8);
-    this.metricsProperties = metricsProperties;
     this.httpClient = httpClient;
     this.newClusterConfigOptions = runnerConfigOptions.getNewCluster();
     this.jarFile = runnerConfigOptions.getJarFile();
@@ -134,7 +130,7 @@ public class DatabricksJobManager implements JobManager {
 
     } catch (IOException | InterruptedException | HttpException e) {
       log.error(
-          "Unable to abort databricks job with run id : {}\ncause: {}", runId, e.getMessage());
+          "Unable to abort databricks job with run id : {}\ncause: {}", runId, e.getMessage(), e.getCause());
       throw new JobExecutionException(
           String.format("Unable to abort databricks job with run id : %s\ncause: %s", runId, e), e);
     }

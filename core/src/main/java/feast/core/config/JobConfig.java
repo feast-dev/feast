@@ -76,7 +76,7 @@ public class JobConfig {
             DatabricksRunnerConfigOptions.newBuilder();
         JsonFormat.parser().merge(configJson, databricksRunnerConfigOptions);
         return new DatabricksJobManager(
-            databricksRunnerConfigOptions.build(), metrics, HttpClient.newHttpClient());
+            databricksRunnerConfigOptions.build(), HttpClient.newHttpClient());
 
       default:
         throw new IllegalArgumentException("Unsupported runner: " + runner);
