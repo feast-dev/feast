@@ -143,6 +143,7 @@ public class DatabricksJobManager implements JobManager {
   @Override
   public Job restartJob(Job job) {
     abortJob(job.getExtId());
+    waitForJobToTerminate(job);
     return startJob(job);
   }
 
@@ -329,13 +330,34 @@ public class DatabricksJobManager implements JobManager {
   }
 
   private JobStatus waitForJobToStart(Job job) {
+    try {
+      return waitForJobStatus(job, Set.of(JobStatus.RUNNING), true);
+    } catch (RuntimeException ex) {
+      throw new RuntimeException(
+          String.format("Failed to submit Databricks job %s\n%s", job.getExtId(), ex.getMessage()));
+    }
+  }
+
+  private JobStatus waitForJobToTerminate(Job job) {
+    try {
+      return waitForJobStatus(job, JobStatus.getTerminalStates(), false);
+    } catch (RuntimeException ex) {
+      throw new RuntimeException(
+          String.format(
+              "Failed to terminate Databricks job %s\n%s", job.getExtId(), ex.getMessage()));
+    }
+  }
+
+  private JobStatus waitForJobStatus(
+      Job job, Set<JobStatus> statusSet, boolean raiseOnTerminalStatus) throws RuntimeException {
+
     while (true) {
       JobStatus jobStatus = getJobStatus(job);
-      if (jobStatus.isTerminal()) {
+      if (raiseOnTerminalStatus && jobStatus.isTerminal()) {
         throw new RuntimeException(
             String.format(
-                "Failed to submit Databricks job, job state is %s", jobStatus.toString()));
-      } else if (jobStatus.equals(JobStatus.RUNNING)) {
+                "Job is not allowed to be in terminal state, state is %s", jobStatus.toString()));
+      } else if (statusSet.contains(jobStatus)) {
         return jobStatus;
       }
       try {
