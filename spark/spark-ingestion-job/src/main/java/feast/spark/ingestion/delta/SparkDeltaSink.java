@@ -40,6 +40,7 @@ import org.apache.spark.sql.types.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** Sink for writing row data into Delta Lake. */
 public class SparkDeltaSink implements SparkSink {
   private static final Logger log = LoggerFactory.getLogger(SparkDeltaSink.class);
 

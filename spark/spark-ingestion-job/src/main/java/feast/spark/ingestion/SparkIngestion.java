@@ -54,11 +54,11 @@ public class SparkIngestion {
    * Run a Spark ingestion job.
    *
    * @param args List of parameters:
-   *     <p><job-name> Job name.
-   *     <p><default-project> Default feast project to apply to incoming rows that do not specify
+   *     <p>job-name Job name.
+   *     <p>default-project Default feast project to apply to incoming rows that do not specify
    *     project in its feature set reference.
-   *     <p><feature-sets-json> Feature set definitions (in JSON Lines text format).
-   *     <p><stores-json> Store set definitions (in JSON Lines text format).
+   *     <p>feature-sets-json Feature set definitions (in JSON Lines text format).
+   *     <p>stores-json Store set definitions (in JSON Lines text format).
    * @throws Exception
    */
   public static void main(String[] args) throws Exception {
