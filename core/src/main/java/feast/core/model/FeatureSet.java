@@ -280,7 +280,7 @@ public class FeatureSet extends AbstractTimestampEntity {
   }
 
   public Map<String, String> getLabelsMap() {
-    return TypeConversion.convertJsonStringToMap(this.labels);
+    return TypeConversion.convertJsonStringToMap(this.getLabels());
   }
 
   @Override
