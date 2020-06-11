@@ -120,6 +120,18 @@ def feature_set():
     pass
 
 
+def _get_labels_dict(label_str: str):
+    labels_dict = {}
+    labels_kv = label_str.split(",")
+    if label_str == "":
+        return labels_dict
+    if len(labels_kv) % 2 == 1:
+        return None
+    for k, v in zip(labels_kv[0::2], labels_kv[1::2]):
+        labels_dict[k] = v
+    return labels_dict
+
+
 @feature_set.command(name="list")
 @click.option(
     "--project",
@@ -131,7 +143,7 @@ def feature_set():
 @click.option(
     "--name",
     "-n",
-    help="Name that feature set belongs to, may include * to match multiple feature sets eg. driver_*",
+    help="Filters feature sets by name. Wildcards may be included to match multiple feature sets",
     type=click.STRING,
     default="*",
 )
@@ -148,16 +160,9 @@ def feature_set_list(project: str, name: str, labels: str):
     """
     feast_client = Client()  # type: Client
 
-    labels_kv = labels.split(",")
-    labels_dict = {}
-    if labels == "":
-        pass
-    elif len(labels_kv) % 2 == 0:
-        for k, v in zip(labels_kv[0::2], labels_kv[1::2]):
-            labels_dict[k] = v
-    else:
-        print("Uneven key-value label pairs were entered")
-        return
+    labels_dict = _get_labels_dict(labels)
+    if labels_dict is None:
+        raise ValueError("Uneven key-value label pairs were entered")
 
     table = []
     for fs in feast_client.list_feature_sets(
