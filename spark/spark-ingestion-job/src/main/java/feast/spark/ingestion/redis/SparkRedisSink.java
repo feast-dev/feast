@@ -38,6 +38,12 @@ import org.apache.spark.api.java.function.VoidFunction2;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.*;
 
+/**
+ * Sink for writing row data into Redis.
+ *
+ * <p>This sink does not use spark-redis as it replicates the custom serialization format of
+ * feast-storage-connector-redis.
+ */
 public class SparkRedisSink implements SparkSink {
 
   private static final int DEFAULT_TIMEOUT = 2000;

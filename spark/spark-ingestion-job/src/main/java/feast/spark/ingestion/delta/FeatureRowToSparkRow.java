@@ -38,6 +38,7 @@ import org.apache.spark.sql.types.*;
 //       i.e. that the value types in FeatureRow matches against those in FeatureSetSpec
 
 @SuppressWarnings("serial")
+/** Converts Protocol Buffers FeatureRow into Spark Rows. */
 public class FeatureRowToSparkRow implements Serializable {
   public static final String EVENT_TIMESTAMP_DAY_COLUMN = "event_timestamp_day";
   public static final String EVENT_TIMESTAMP_COLUMN = "event_timestamp";
@@ -49,6 +50,12 @@ public class FeatureRowToSparkRow implements Serializable {
     this.jobId = jobId;
   }
 
+  /**
+   * Builds a Spark DataFrame schema from a FeatureSetSpec.
+   *
+   * @param spec FeatureSetSpec to be mapped.
+   * @return A Spark DataFrame schema.
+   */
   public StructType buildSchema(FeatureSetSpec spec) {
     StructType schema =
         new StructType(
@@ -106,6 +113,14 @@ public class FeatureRowToSparkRow implements Serializable {
     }
   }
 
+  /**
+   * Generate a Spark DataFrame row based on a FeatureSetSpec and values from a FeatureRow. Missing
+   * or absent values in featureRow are mapped as null.
+   *
+   * @param spec FeatureSetSpec corresponding to featureRow.
+   * @param featureRow entity and feature values.
+   * @return a Spark DataFrame row.
+   */
   public Row apply(FeatureSetSpec spec, FeatureRow featureRow) {
 
     Map<String, ValueProto.Value> fields =
@@ -173,7 +188,7 @@ public class FeatureRowToSparkRow implements Serializable {
       case VAL_NOT_SET:
         return null;
       default:
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Unknown type: " + value.getValCase());
     }
   }
 }

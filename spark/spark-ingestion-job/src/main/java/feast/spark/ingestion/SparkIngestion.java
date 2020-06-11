@@ -18,6 +18,7 @@ package feast.spark.ingestion;
 
 import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import feast.ingestion.transform.fn.ProcessFeatureRowDoFn;
 import feast.ingestion.utils.SpecUtil;
 import feast.proto.core.FeatureSetProto.FeatureSet;
@@ -27,7 +28,6 @@ import feast.proto.core.StoreProto.Store;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.spark.ingestion.delta.SparkDeltaSink;
 import feast.spark.ingestion.redis.SparkRedisSink;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -43,21 +43,6 @@ import org.slf4j.LoggerFactory;
 /**
  * Consumes messages from one or more topics in Kafka and outputs them to Delta/Redis using Spark.
  */
-/*
- * Usage:
- * SparkIngestion parameters
- *
- * List of parameters:
- *
- * <job-name> Job name.
- *
- * <default-project> Default feast project to apply to incoming rows that do not specify project in its feature set reference.
- *
- * <feature-sets-json> Feature set definitions (in JSON Lines text format).
- *
- * <stores-json> Store set definitions (in JSON Lines text format).
- *
- */
 public class SparkIngestion {
   private static final Logger log = LoggerFactory.getLogger(SparkIngestion.class);
   private final String jobId;
@@ -65,12 +50,29 @@ public class SparkIngestion {
   private final List<FeatureSet> featureSets;
   private final List<Store> stores;
 
+  /**
+   * Run a Spark ingestion job.
+   *
+   * @param args List of parameters:
+   *     <p><job-name> Job name.
+   *     <p><default-project> Default feast project to apply to incoming rows that do not specify
+   *     project in its feature set reference.
+   *     <p><feature-sets-json> Feature set definitions (in JSON Lines text format).
+   *     <p><stores-json> Store set definitions (in JSON Lines text format).
+   * @throws Exception
+   */
   public static void main(String[] args) throws Exception {
     SparkIngestion ingestion = new SparkIngestion(args);
     ingestion.createQuery().awaitTermination();
   }
 
-  public SparkIngestion(String[] args) throws IOException {
+  /**
+   * Build a Spark ingestion job.
+   *
+   * @param args @see {@link #main(String[])}
+   * @throws InvalidProtocolBufferException
+   */
+  public SparkIngestion(String[] args) throws InvalidProtocolBufferException {
     int numArgs = 4;
     if (args.length != numArgs) {
       throw new IllegalArgumentException("Expecting " + numArgs + " arguments");
@@ -89,6 +91,11 @@ public class SparkIngestion {
     log.info("Stores: {}", stores);
   }
 
+  /**
+   * Creates a Spark Structured Streaming query.
+   *
+   * @return a Structured Streaming query mapping source into store data.
+   */
   public StreamingQuery createQuery() {
 
     // Create session with getOrCreate and do not call SparkContext.stop() nor System.exit() at the
