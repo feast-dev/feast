@@ -63,10 +63,6 @@ feast:
           token:  ${DATABRICKS_TOKEN}
           # Path to the Jar file on the databricks file system
           jarFile: jar_file
-          # Parameters for the spark submit job (here for more details https://docs.databricks.com/dev-tools/api/latest/jobs.html#request-structure/)
-          sparkSubmitParams: {}
-          # Parameters for the jar application (here for more details https://docs.databricks.com/dev-tools/api/latest/jobs.html#request-structure/)
-          jarParams: {}
           newCluster:
             # The platform version for scala and spark (e.g. 6.5.x-scala2.11)
             sparkVersion: your_spark_version
@@ -74,10 +70,6 @@ feast:
             nodeTypeId: my_node_id
             # How many workers to use in the cluster
             numWorkers: 2
-          sparkJarTask:
-            # The main entry point class for the spark application
-            mainClassName: org.apache.spark.examples.SparkPi
-
 
     # Configuration options for metric collection for all ingestion jobs
     metrics:
