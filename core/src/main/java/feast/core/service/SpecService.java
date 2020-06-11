@@ -196,16 +196,7 @@ public class SpecService {
     if (featureSets.size() > 0) {
       featureSets =
           featureSets.stream()
-              .filter(
-                  featureSet -> {
-                    boolean validFeatureSet = false;
-                    try {
-                      validFeatureSet = featureSet.hasAllLabels(labels);
-                    } catch (InvalidProtocolBufferException e) {
-                      e.printStackTrace();
-                    }
-                    return validFeatureSet;
-                  })
+              .filter(featureSet -> featureSet.hasAllLabels(labels))
               .collect(Collectors.toList());
       for (FeatureSet featureSet : featureSets) {
         response.addFeatureSets(featureSet.toProto());

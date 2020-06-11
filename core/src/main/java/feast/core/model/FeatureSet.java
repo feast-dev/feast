@@ -121,8 +121,8 @@ public class FeatureSet extends AbstractTimestampEntity {
     }
   }
 
-  public boolean hasAllLabels(Map<String, String> labels) throws InvalidProtocolBufferException {
-    Map<String, String> featureSetLabelsMap = this.toProto().getSpec().getLabelsMap();
+  public boolean hasAllLabels(Map<String, String> labels) {
+    Map<String, String> featureSetLabelsMap = this.getLabelsMap();
     for (String key : labels.keySet()) {
       if (!featureSetLabelsMap.containsKey(key)
           || !featureSetLabelsMap.get(key).equals(labels.get(key))) {
@@ -271,6 +271,10 @@ public class FeatureSet extends AbstractTimestampEntity {
             .setSource(source.toProto());
 
     return FeatureSetProto.FeatureSet.newBuilder().setMeta(meta).setSpec(spec).build();
+  }
+
+  public Map<String, String> getLabelsMap() {
+    return TypeConversion.convertJsonStringToMap(this.labels);
   }
 
   @Override
