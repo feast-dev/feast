@@ -11,3 +11,6 @@ pytest-ordering==0.6.*
 pandas==0.*
 mock==2.0.0
 pandavro==1.5.*
+moto
+azure-cli-core
+azure-storage-blob>=12
