@@ -65,6 +65,7 @@
         <!-- Force log4j2 to 2.11+ to support objectMessageAsJsonObject -->
         <log4jVersion>2.12.1</log4jVersion>
         <spark.version>2.4.5</spark.version>
+        <scala.version>2.11.12</scala.version>
         <scala.compat.version>2.11</scala.compat.version>
     </properties>
 
