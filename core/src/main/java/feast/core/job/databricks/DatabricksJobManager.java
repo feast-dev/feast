@@ -340,7 +340,7 @@ public class DatabricksJobManager implements JobManager {
   }
 
   private JobStatus waitForJobToTerminate(Job job) {
-      return waitForJobStatus(job, JobStatus.getTerminalStates());
+    return waitForJobStatus(job, JobStatus.getTerminalStates());
   }
 
   private JobStatus waitForJobStatus(Job job, Set<JobStatus> statusSet) {
