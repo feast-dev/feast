@@ -451,11 +451,18 @@ postsubmits:
             --file infra/docker/serving/Dockerfile \
             --google-service-account-file /etc/gcloud/service-account.json
 
-          docker tag gcr.io/kf-feast/feast-core:${PULL_BASE_REF:1} gcr.io/kf-feast/feast-core:latest
-          docker push gcr.io/kf-feast/feast-core:latest
 
-          docker tag gcr.io/kf-feast/feast-serving:${PULL_BASE_REF:1} gcr.io/kf-feast/feast-serving:latest
-          docker push gcr.io/kf-feast/feast-serving:latest
+          HIGHEST_SEMVER_TAG=$(git tag -l --sort -version:refname | head -n 1)
+          echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"
+
+          if [ "${PULL_BASE_REF:1}" == "${HIGHEST_SEMVER_TAG:1}" ]
+          then
+            docker tag gcr.io/kf-feast/feast-core:${PULL_BASE_REF:1} gcr.io/kf-feast/feast-core:latest
+            docker push gcr.io/kf-feast/feast-core:latest
+
+            docker tag gcr.io/kf-feast/feast-serving:${PULL_BASE_REF:1} gcr.io/kf-feast/feast-serving:latest
+            docker push gcr.io/kf-feast/feast-serving:latest
+          fi
 
           fi
         volumeMounts:
