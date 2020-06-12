@@ -709,25 +709,32 @@ class Client:
                 )
             )
 
-            entity_refs = {key for entity_row in entity_rows for key in entity_row.fields.keys()}
+            entity_refs = {
+                key for entity_row in entity_rows for key in entity_row.fields.keys()
+            }
+            # strip the project part the string feature references returned from serving
+            strip = (
+                lambda ref: repr(FeatureRef.from_str(ref, ignore_project=True))
+                if ref not in entity_refs
+                else ref
+            )
             strip_field_values = []
             for field_value in response.field_values:
-                # strip the project part the string feature references returned from serving
-                strip_fields, strip_statuses = {}, {}
-                for ref_str in field_value.fields.keys():
-                    strip_ref_str = ref_str
-                    if ref_str not in entity_refs:
-                        strip_ref_str = repr(
-                            FeatureRef.from_str(ref_str, ignore_project=True)
-                        )
-                    strip_fields[strip_ref_str] = field_value.fields[ref_str]
-                    strip_statuses[strip_ref_str] = field_value.statuses[ref_str]
+                keys, fields, statuses = (
+                    response.fields.keys(),
+                    response.fields,
+                    response.statuses,
+                )
+                fields_and_statuses = [
+                    (strip(key), fields[key], statuses[key]) for key in keys
+                ]
+                keys, fields, statuses = zip(*fields_and_statuses)
                 strip_field_values.append(
                     GetOnlineFeaturesResponse.FieldValues(
-                        fields=strip_fields, statuses=strip_statuses,
+                        fields=dict(zip(keys, fields)),
+                        statuses=dict(zip(keys, statuses)),
                     )
                 )
-
             del response.field_values[:]
             response.field_values.extend(strip_field_values)
 
