@@ -16,6 +16,7 @@ from feast.types.Value_pb2 import Value as Value
 from feast.client import Client
 from feast.feature_set import FeatureSet, FeatureSetRef
 from feast.type_map import ValueType
+from feast.wait import wait_retry_backoff
 from feast.constants import FEAST_DEFAULT_OPTIONS, CONFIG_PROJECT_KEY
 from google.protobuf.duration_pb2 import Duration
 from datetime import datetime
@@ -31,6 +32,56 @@ import uuid
 FLOAT_TOLERANCE = 0.00001
 PROJECT_NAME = 'basic_' + uuid.uuid4().hex.upper()[0:6]
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+
+def basic_dataframe(entities, features, ingest_time, n_size, null_features=[]):
+    """
+    Generate a basic feast-ingestable dataframe for testing.
+    Entity value incrementally increase from 1 to n_size
+    Features values are randomlly generated floats.
+    entities - names of entities
+    features - names of the features
+    ingest_time - ingestion timestamp
+    n_size - no. of rows in the generated dataframe.
+    null_features - names of features that contain null values
+    Returns the generated dataframe
+    """
+    offset = random.randint(1000, 100000)  # ensure a unique key space is used
+    df_dict = {
+        "datetime": [ingest_time.replace(tzinfo=pytz.utc) for _ in
+                     range(n_size)],
+    }
+    for entity_name in entities:
+        df_dict[entity_name] = list(range(1, n_size + 1))
+    for feature_name in features:
+        df_dict[feature_name] = [np.random.rand() for _ in range(n_size)]
+    for null_feature_name in null_features:
+        df_dict[null_feature_name] = [None for _ in range(n_size)]
+    return pd.DataFrame(df_dict)
+
+def check_online_response(feature_ref, ingest_df, response):
+    """
+    Check the feature value and status in the given online serving response.
+    feature_refs - string feature ref used to access feature in response
+    ingest_df - dataframe of ingested values
+    response - response to extract retrieved feature value and metadata
+    Returns True if given response has expected feature value and metadata, otherwise False.
+    """
+    feature_ref_splits = feature_ref.split(":")
+    if len(feature_ref_splits) == 1:
+        feature_name = feature_ref
+    else:
+        _, feature_name = feature_ref_splits
+
+    returned_status = response.field_values[0].statuses[feature_ref]
+    if ingest_df.loc[0, feature_name] is None:
+        return returned_status == GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE
+    else:
+        sent_value = float(ingest_df.iloc[0][feature_name])
+        returned_value = float(response.field_values[0].fields[feature_ref].float_val)
+        return (
+            math.isclose(sent_value, returned_value, abs_tol=FLOAT_TOLERANCE)
+            and returned_status == GetOnlineFeaturesResponse.FieldStatus.PRESENT
+        )
 
 
 @pytest.fixture(scope='module')
@@ -66,31 +117,18 @@ def client(core_url, serving_url, allow_dirty):
     return client
 
 
-def basic_dataframe(entities, features, ingest_time, n_size):
-    offset = random.randint(1000, 100000)  # ensure a unique key space is used
-    df_dict = {
-        "datetime": [ingest_time.replace(tzinfo=pytz.utc) for _ in
-                     range(n_size)],
-        "null_values": [ Value() for _ in range(n_size) ],
-    }
-    for entity_name in entities:
-        df_dict[entity_name] = list(range(1, n_size + 1))
-    for feature_name in features:
-        df_dict[feature_name] = [np.random.rand() for _ in range(n_size)]
-    return pd.DataFrame(df_dict)
-
-
 @pytest.fixture(scope="module")
 def ingest_time():
     return datetime.utcnow()
+
 
 @pytest.fixture(scope="module")
 def cust_trans_df(ingest_time):
     return basic_dataframe(entities=["customer_id"],
                            features=["daily_transactions", "total_transactions"],
+                           null_features=["null_values"],
                            ingest_time=ingest_time,
                            n_size=5)
-
 
 @pytest.fixture(scope="module")
 def driver_df(ingest_time):
@@ -98,7 +136,6 @@ def driver_df(ingest_time):
                            features=["rating", "cost"],
                            ingest_time=ingest_time,
                            n_size=5)
-
 
 def test_version_returns_results(client):
     version_info = client.version()
@@ -174,9 +211,13 @@ def test_basic_ingest_success(client, cust_trans_df, driver_df):
 @pytest.mark.timeout(90)
 @pytest.mark.run(order=12)
 def test_basic_retrieve_online_success(client, cust_trans_df):
+    feature_refs=[
+        "daily_transactions",
+        "total_transactions",
+        "null_values"
+    ]
     # Poll serving for feature values until the correct values are returned
-    while True:
-        time.sleep(1)
+    def try_get_features():
         response = client.get_online_features(
             entity_rows=[
                 GetOnlineFeaturesRequest.EntityRow(
@@ -187,52 +228,29 @@ def test_basic_retrieve_online_success(client, cust_trans_df):
                     }
                 )
             ],
-            # Test retrieve with different variations of the string feature refs
-            feature_refs=[
-                "daily_transactions",
-                "total_transactions",
-                "null_values"
-            ],
+            feature_refs=feature_refs,
             include_meta=True,
         )  # type: GetOnlineFeaturesResponse
+        is_ok = all([check_online_response(ref, cust_trans_df, response) for ref in feature_refs])
+        return response, is_ok
 
-        # unpack response & wait for ingested values
-        fields = response.records[0].fields
-        daily_transactions_field = fields[PROJECT_NAME + "/daily_transactions"]
-        null_value_field = fields[PROJECT_NAME + "/null_values"]
-        if (daily_transactions_field.status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND
-            or null_value_field.status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND):
-            print("test_basic_retrieve_online_success(): waiting for ingested values.")
-            continue
-        else:
-            break
-
-    # check values returned are correct
-    sent_daily_transactions = float(basic_dataframe.iloc[0]["daily_transactions"])
-    assert math.isclose(
-        sent_daily_transactions,
-        float(daily_transactions_field.value.float_val),
-        abs_tol=FLOAT_TOLERANCE,
-    )
-    assert null_value_field.value.WhichOneof("val") is None
-    # check field status metadata
-    assert daily_transactions_field.status == GetOnlineFeaturesResponse.FieldStatus.PRESENT
-    assert null_value_field.status == GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE
-
+    wait_retry_backoff(retry_fn=try_get_features,
+                       timeout_secs=90,
+                       timeout_msg="Timed out trying to get online feature values")
 
 @pytest.mark.timeout(90)
 @pytest.mark.run(order=13)
 def test_basic_retrieve_online_multiple_featureset(client, cust_trans_df, driver_df):
+    # Test retrieve with different variations of the string feature refs
+    # ie feature set inference for feature refs without specified feature set
+    feature_ref_df_mapping = [
+        ("customer_transactions:daily_transactions", cust_trans_df),
+        ("driver:rating", driver_df),
+        ("total_transactions", cust_trans_df),
+    ]
     # Poll serving for feature values until the correct values are returned
-    while True:
-        time.sleep(1)
-        # Test retrieve with different variations of the string feature refs
-        # ie feature set inference for feature refs without specified feature set
-        feature_ref_df_mapping = [
-            ("customer_transactions:daily_transactions", cust_trans_df),
-            ("driver:rating", driver_df),
-            ("total_transactions", cust_trans_df),
-        ]
+    def try_get_features():
+        feature_refs = [mapping[0] for mapping in feature_ref_df_mapping]
         response = client.get_online_features(
             entity_rows=[
                 GetOnlineFeaturesRequest.EntityRow(
@@ -246,35 +264,15 @@ def test_basic_retrieve_online_multiple_featureset(client, cust_trans_df, driver
                     }
                 )
             ],
-            feature_refs=[mapping[0] for mapping in feature_ref_df_mapping],
+            feature_refs=feature_refs,
         )  # type: GetOnlineFeaturesResponse
+        is_ok = all([check_online_response(ref, df, response)
+                     for ref, df in feature_ref_df_mapping])
+        return response, is_ok
 
-        if response is None:
-            continue
-
-        def check_response(ingest_df, response, feature_ref):
-            returned_value = float(
-                response.field_values[0]
-                    .fields[feature_ref]
-                    .float_val
-            )
-            feature_ref_splits = feature_ref.split(":")
-            if len(feature_ref_splits) == 1:
-                feature_name = feature_ref
-            else:
-                _, feature_name = feature_ref_splits
-
-            sent_value = float(
-                ingest_df.iloc[0][feature_name])
-
-            return math.isclose(
-                sent_value,
-                returned_value,
-                abs_tol=FLOAT_TOLERANCE,
-            )
-
-        if all([check_response(df, response, ref) for ref, df in feature_ref_df_mapping]):
-            break
+    wait_retry_backoff(retry_fn=try_get_features,
+                       timeout_secs=90,
+                       timeout_msg="Timed out trying to get online feature values")
 
 
 @pytest.mark.timeout(300)
@@ -413,10 +411,23 @@ def test_all_types_ingest_success(client, all_types_dataframe):
 @pytest.mark.timeout(90)
 @pytest.mark.run(order=22)
 def test_all_types_retrieve_online_success(client, all_types_dataframe):
-    # Poll serving for feature values until the correct values are returned
-    while True:
-        time.sleep(1)
-
+    # Poll serving for feature values until the correct values are returned_float_list
+    feature_refs = [
+        "float_feature",
+        "int64_feature",
+        "int32_feature",
+        "double_feature",
+        "string_feature",
+        "bool_feature",
+        "bytes_feature",
+        "float_list_feature",
+        "int64_list_feature",
+        "int32_list_feature",
+        "string_list_feature",
+        "bytes_list_feature",
+        "double_list_feature",
+    ]
+    def try_get_features():
         response = client.get_online_features(
             entity_rows=[
                 GetOnlineFeaturesRequest.EntityRow(
@@ -424,41 +435,23 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
                         int64_val=all_types_dataframe.iloc[0]["user_id"])}
                 )
             ],
-            feature_refs=[
-                "float_feature",
-                "int64_feature",
-                "int32_feature",
-                "string_feature",
-                "bytes_feature",
-                "bool_feature",
-                "double_feature",
-                "float_list_feature",
-                "int64_list_feature",
-                "int32_list_feature",
-                "string_list_feature",
-                "bytes_list_feature",
-                "double_list_feature",
-            ],
+            feature_refs=feature_refs,
             include_meta=True,
         )  # type: GetOnlineFeaturesResponse
+        is_ok = check_online_response("float_feature", all_types_dataframe, response)
+        return response, is_ok
 
-        # wait for and unpack response 
-        if response is None:
-            print("test_all_types_retrieve_online_success(): polling for response.")
-            continue
-        float_list_field = response.records[0].fields[PROJECT_NAME+"/float_list_feature"]
-        if float_list_field.status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND:
-            print("test_all_types_retrieve_online_success(): polling for ingested values.")
-            continue
-        else:
-            break
+    response = wait_retry_backoff(retry_fn=try_get_features,
+                                 timeout_secs=90,
+                                 timeout_msg="Timed out trying to get online feature values")
 
     # check returned values
-    returned_float_list = float_list_field.value.float_list_val.val
+    returned_float_list = response.field_values[0].fields["float_list_feature"].float_list_val.val
     sent_float_list = all_types_dataframe.iloc[0]["float_list_feature"]
     assert math.isclose(returned_float_list[0], sent_float_list[0], abs_tol=FLOAT_TOLERANCE)
     # check returned metadata
-    assert float_list_field.status == GetOnlineFeaturesResponse.FieldStatus.PRESENT
+    assert (response.field_values[0].statuses["float_list_feature"]
+            == GetOnlineFeaturesResponse.FieldStatus.PRESENT)
 
 @pytest.mark.timeout(300)
 @pytest.mark.run(order=29)
@@ -541,9 +534,11 @@ def test_large_volume_ingest_success(client, large_volume_dataframe):
 @pytest.mark.run(order=32)
 def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
     # Poll serving for feature values until the correct values are returned
+    feature_refs=[
+        "daily_transactions_large",
+        "total_transactions_large",
+    ]
     while True:
-        time.sleep(1)
-
         response = client.get_online_features(
             entity_rows=[
                 GetOnlineFeaturesRequest.EntityRow(
@@ -555,32 +550,15 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
                     }
                 )
             ],
-            feature_refs=[
-                "daily_transactions_large",
-                "total_transactions_large",
-            ],
+            feature_refs=feature_refs,
             include_meta=True,
         )  # type: GetOnlineFeaturesResponse
+        is_ok = all([check_online_response(ref, large_volume_dataframe, response) for ref in feature_refs])
+        return None, is_ok
 
-        # wait for and unpack response 
-        if response is None:
-            print("test_all_types_retrieve_online_success(): polling for response.")
-            continue
-        daily_transactions_field = response.records[0].fields[
-            PROJECT_NAME+"/daily_transactions_large"]
-        if daily_transactions_field.status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND:
-            print("test_all_types_retrieve_online_success(): polling for response.")
-            continue
-        else:
-            break
-
-    # check returned values
-    returned_daily_transactions = float(daily_transactions_field.value.float_val)
-    sent_daily_transactions = float(
-        large_volume_dataframe.iloc[0]["daily_transactions_large"])
-    assert math.isclose(sent_daily_transactions, returned_daily_transactions, abs_tol=FLOAT_TOLERANCE)
-    # check returned metadata
-    assert daily_transactions_field.status == GetOnlineFeaturesResponse.FieldStatus.PRESENT
+    wait_retry_backoff(retry_fn=try_get_features,
+                       timeout_secs=90,
+                       timeout_msg="Timed out trying to get online feature values")
 
 @pytest.fixture(scope='module')
 def all_types_parquet_file():

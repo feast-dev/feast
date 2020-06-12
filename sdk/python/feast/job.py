@@ -83,14 +83,13 @@ class RetrievalJob:
 
         def try_retrieve():
             self.reload()
-            return self.status == JOB_STATUS_DONE
+            return None, self.status == JOB_STATUS_DONE
 
         wait_retry_backoff(
             retry_fn=try_retrieve,
             timeout_secs=timeout_sec,
             timeout_msg="Timeout exceeded while waiting for result. Please retry "
             "this method or use a longer timeout value.",
-            max_wait_secs=int(defaults[CONFIG_MAX_WAIT_INTERVAL_KEY]),
         )
 
         if self.job_proto.error:
@@ -279,10 +278,9 @@ class IngestJob:
         """
         # poll & wait for job status to transition
         wait_retry_backoff(
-            retry_fn=(lambda: self.status == status),
+            retry_fn=(lambda: (None, self.status == status)),
             timeout_secs=timeout_secs,
             timeout_msg="Wait for IngestJob's status to transition timed out",
-            max_wait_secs=int(defaults[CONFIG_MAX_WAIT_INTERVAL_KEY]),
         )
 
     def __str__(self):
