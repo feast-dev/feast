@@ -12,7 +12,8 @@ func (r Row) equalTo(other Row) bool {
 	for k, field := range r {
 		if otherField, ok := other[k]; !ok {
 			return false
-		} else if !proto.Equal(field, otherField) {
+		} 
+		if !proto.Equal(field, otherField) {
 			return false
 		}
 	}
