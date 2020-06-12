@@ -721,9 +721,9 @@ class Client:
             strip_field_values = []
             for field_value in response.field_values:
                 keys, fields, statuses = (
-                    response.fields.keys(),
-                    response.fields,
-                    response.statuses,
+                    field_value.fields.keys(),
+                    field_value.fields,
+                    field_value.statuses,
                 )
                 fields_and_statuses = [
                     (strip(key), fields[key], statuses[key]) for key in keys

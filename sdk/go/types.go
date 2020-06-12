@@ -9,12 +9,13 @@ import (
 type Row map[string]*types.Value
 
 func (r Row) equalTo(other Row) bool {
-	for k, field := range r {
-		if otherField, ok := other[k]; !ok {
+	for k, v := range r {
+		if otherV, ok := other[k]; !ok {
 			return false
-		} 
-		if !proto.Equal(field, otherField) {
-			return false
+		} else {
+			if !proto.Equal(v, otherV) {
+				return false
+			}
 		}
 	}
 	return true
