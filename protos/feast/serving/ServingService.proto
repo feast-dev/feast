@@ -120,10 +120,10 @@ message GetOnlineFeaturesResponse {
         // Status is unset for this field.
         INVALID = 0;
 
-        // Field value is present for this field and within maximum allowable range               
+        // Field value is present for this field and age is within max age.
         PRESENT = 1;
 
-        // Values could be found for entity key within the maximum allowable range, but
+        // Values could be found for entity key and age is within max age, but
         // this field value is assigned a value on ingestion into feast.
         NULL_VALUE = 2;
 
