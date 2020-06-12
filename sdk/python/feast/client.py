@@ -708,11 +708,8 @@ class Client:
                     entity_rows=entity_rows,
                 )
             )
-            # collect entity row refs
-            entity_refs = set()
-            for entity_row in entity_rows:
-                entity_refs.update(entity_row.fields.keys())
 
+            entity_refs = {key for entity_row in entity_rows for key in entity_row.fields.keys()}
             strip_field_values = []
             for field_value in response.field_values:
                 # strip the project part the string feature references returned from serving
