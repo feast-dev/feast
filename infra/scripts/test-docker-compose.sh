@@ -8,11 +8,14 @@ Running Docker Compose tests with pytest at 'tests/e2e'
 ============================================================
 "
 
+COMPOSE_ARGS=${COMPOSE_ARGS:-"-f docker-compose.yml -f docker-compose.online.yml"}
+TEST_CMD=${TEST_CMD:-'cd feast/tests/e2e/ && pytest -s -rA -x basic-ingest-redis-serving.py --core_url core:6565 --serving_url=online-serving:6566'}
+
 clean_up () {
     ARG=$?
 
     # Shut down docker-compose images
-    docker-compose -f docker-compose.yml -f docker-compose.online.yml down
+    docker-compose $COMPOSE_ARGS down
 
     # Remove configuration file
     rm -f .env
@@ -29,8 +32,13 @@ export COMPOSE_INTERACTIVE_NO_CLI=1
 cd ${PROJECT_ROOT_DIR}/infra/docker-compose/
 cp .env.sample .env
 
+set -x
+# Build Docker Compose containers
+docker-compose $COMPOSE_ARGS build --parallel
+
 # Start Docker Compose containers
-docker-compose -f docker-compose.yml -f docker-compose.online.yml up -d
+docker-compose $COMPOSE_ARGS down --remove-orphans
+docker-compose $COMPOSE_ARGS up -d
 
 # Get Jupyter container IP address
 export JUPYTER_DOCKER_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_jupyter_1)
@@ -45,7 +53,4 @@ ${PROJECT_ROOT_DIR}/infra/scripts/wait-for-it.sh ${JUPYTER_DOCKER_CONTAINER_IP_A
 docker exec feast_core_1 grpc-health-probe -addr :6565 -connect-timeout 300s
 
 # Run e2e tests for Redis
-docker exec feast_jupyter_1 bash -c 'cd feast/tests/e2e/ && pytest -s basic-ingest-redis-serving.py --core_url core:6565 --serving_url=online-serving:6566'
-
-# Run ingestion tests for FF Data Science scenarios
-docker exec feast_jupyter_1 bash -c 'cd feast/tests/ds_scenarios/ && pytest -s test-ingest.py --core_url core:6565 --serving_url=online-serving:6566'
+docker exec feast_jupyter_1 bash -c "$TEST_CMD"
