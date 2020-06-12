@@ -151,3 +151,6 @@ nodeSelector: {}
 
 # envOverrides -- Extra environment variables to set
 envOverrides: {}
+
+# podLabels -- Labels to be added to Feast Core pods
+podLabels: {}
