@@ -1,6 +1,4 @@
 import tempfile
-import time
-from datetime import datetime, timedelta
 from typing import List
 from urllib.parse import urlparse
 
@@ -9,7 +7,7 @@ import pandas as pd
 from google.cloud import storage
 from google.protobuf.json_format import MessageToJson
 
-from feast.constants import CONFIG_MAX_WAIT_INTERVAL_KEY, CONFIG_TIMEOUT_KEY
+from feast.constants import CONFIG_TIMEOUT_KEY
 from feast.constants import FEAST_DEFAULT_OPTIONS as defaults
 from feast.core.CoreService_pb2 import ListIngestionJobsRequest
 from feast.core.CoreService_pb2_grpc import CoreServiceStub

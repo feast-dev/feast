@@ -23,7 +23,7 @@ def wait_retry_backoff(
     retry_fn: Callable[[], Tuple[Any, bool]],
     timeout_secs: Optional[int] = None,
     timeout_msg: Optional[str] = "Timeout while waiting for retry_fn() to return True",
-    max_interval_secs: Optional[int]=int(defaults[CONFIG_MAX_WAIT_INTERVAL_KEY]),
+    max_interval_secs: Optional[int] = int(defaults[CONFIG_MAX_WAIT_INTERVAL_KEY]),
 ) -> Any:
     """
     Repeatedly try calling given retry_fn until it returns a True boolean success flag.

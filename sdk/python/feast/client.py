@@ -719,7 +719,7 @@ class Client:
                 strip_fields, strip_statuses = {}, {}
                 for ref_str in field_value.fields.keys():
                     strip_ref_str = ref_str
-                    if not ref_str in entity_refs:
+                    if ref_str not in entity_refs:
                         strip_ref_str = repr(
                             FeatureRef.from_str(ref_str, ignore_project=True)
                         )
