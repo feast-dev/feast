@@ -398,9 +398,9 @@ class TestClient:
             feature_dtype_list.append(feature_proto.dtype)
 
         assert (
-            ref_str_list == ["driver_car:feature_1", "driver_car:feature_2"]
-            and feature_name_list == ["feature_1", "feature_2"]
-            and feature_dtype_list == [ValueType.FLOAT, ValueType.STRING]
+            set(ref_str_list) == set(["driver_car:feature_1", "driver_car:feature_2"])
+            and set(feature_name_list) == set(["feature_1", "feature_2"])
+            and set(feature_dtype_list) == set([ValueType.FLOAT, ValueType.STRING])
         )
 
     @pytest.mark.parametrize(
