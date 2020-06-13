@@ -108,6 +108,34 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   @Override
+  public void listFeatures(
+      ListFeaturesRequest request, StreamObserver<ListFeaturesResponse> responseObserver) {
+    try {
+      ListFeaturesResponse response = specService.listFeatures(request.getFilter());
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (RetrievalException | IllegalArgumentException | InvalidProtocolBufferException e) {
+      log.error("Exception has occurred in ListFeatures method: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void listEntities(
+      ListEntitiesRequest request, StreamObserver<ListEntitiesResponse> responseObserver) {
+    try {
+      ListEntitiesResponse response = specService.listEntities(request.getFilter());
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (RetrievalException | IllegalArgumentException | InvalidProtocolBufferException e) {
+      log.error("Exception has occurred in ListEntities method: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
+  @Override
   public void getFeatureStatistics(
       GetFeatureStatisticsRequest request,
       StreamObserver<GetFeatureStatisticsResponse> responseObserver) {

@@ -24,6 +24,7 @@ import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.ProjectRepository;
 import feast.core.dao.StoreRepository;
 import feast.core.exception.RetrievalException;
+import feast.core.model.Feature;
 import feast.core.model.FeatureSet;
 import feast.core.model.Project;
 import feast.core.model.Source;
@@ -33,20 +34,27 @@ import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse.Status;
 import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
 import feast.proto.core.CoreServiceProto.GetFeatureSetResponse;
+import feast.proto.core.CoreServiceProto.ListEntitiesRequest;
+import feast.proto.core.CoreServiceProto.ListEntitiesResponse;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.proto.core.CoreServiceProto.ListFeaturesRequest;
+import feast.proto.core.CoreServiceProto.ListFeaturesResponse;
 import feast.proto.core.CoreServiceProto.ListStoresRequest;
 import feast.proto.core.CoreServiceProto.ListStoresResponse;
 import feast.proto.core.CoreServiceProto.ListStoresResponse.Builder;
 import feast.proto.core.CoreServiceProto.UpdateStoreRequest;
 import feast.proto.core.CoreServiceProto.UpdateStoreResponse;
 import feast.proto.core.FeatureSetProto;
+import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetStatus;
 import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -190,6 +198,129 @@ public class SpecService {
     if (featureSets.size() > 0) {
       for (FeatureSet featureSet : featureSets) {
         response.addFeatureSets(featureSet.toProto());
+      }
+    }
+
+    return response.build();
+  }
+
+  /**
+   * Return a map of feature references and features matching the project, labels and entities
+   * provided in the filter. All fields are required.
+   *
+   * <p>Project name can be explicitly provided, or an asterisk can be provided to match all
+   * projects. A combination of asterisks/wildcards and text can be used to find features across
+   * multiple matching projects. If the project name is omitted, the default project would be used.
+   *
+   * <p>The entities in the filter accepts a list. All matching features will be returned. Regex is
+   * not supported. If no entities are provided, features will not be filtered by entities.
+   *
+   * <p>The labels in the filter accepts a map. All matching features will be returned. Regex is not
+   * supported. If no labels are provided, features will not be filtered by labels.
+   *
+   * @param filter filter containing the desired project name, entities and labels
+   * @return ListEntitiesResponse with map of feature references and features found matching the
+   *     filter
+   */
+  public ListFeaturesResponse listFeatures(ListFeaturesRequest.Filter filter)
+      throws InvalidProtocolBufferException {
+    String project = filter.getProject();
+    List<String> entities = filter.getEntitiesList();
+    Map<String, String> labels = filter.getLabelsMap();
+
+    checkValidCharactersAllowAsterisk(project, "projectName");
+
+    // Autofill default project if project not specified
+    if (project.isEmpty()) {
+      project = Project.DEFAULT_NAME;
+    }
+
+    // Currently defaults to all FeatureSets
+    List<FeatureSet> featureSets;
+
+    if (project.contains("*")) {
+      // Matching a wildcard project
+      featureSets =
+          featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc(
+              "%", project.replace('*', '%'));
+    } else if (!project.contains("*")) {
+      // Matching a specific project
+      featureSets =
+          featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc("%", project);
+    } else {
+      throw new IllegalArgumentException(
+          String.format(
+              "Invalid listFeaturesRequest. Project name cannot be a pattern. It may only be "
+                  + "a specific project name or an asterisk: \n%s",
+              filter.toString()));
+    }
+
+    ListFeaturesResponse.Builder response = ListFeaturesResponse.newBuilder();
+    if (featureSets.size() > 0) {
+      if (entities.size() > 0) {
+        featureSets =
+            featureSets.stream()
+                .filter(featureSet -> featureSet.hasAllEntities(entities))
+                .collect(Collectors.toList());
+      }
+
+      Map<String, Feature> featuresMap;
+      for (FeatureSet featureSet : featureSets) {
+        featuresMap = featureSet.getFeaturesByAllLabels(labels);
+        for (Map.Entry<String, Feature> entry : featuresMap.entrySet()) {
+          response.putFeatures(entry.getKey(), entry.getValue().toProto());
+        }
+      }
+    }
+    return response.build();
+  }
+
+  /**
+   * Return a map of entity references and entities matching the project provided in the filter. All
+   * fields are required.
+   *
+   * <p>Project name must be explicitly provided. It is not possible to provide a combination of
+   * asterisks/wildcards and text. If the project name is omitted, the default project would be
+   * used.
+   *
+   * @param filter filter containing the desired project name
+   * @return ListEntitiesResponse with map of entity references and entities found matching the
+   *     filter
+   */
+  public ListEntitiesResponse listEntities(ListEntitiesRequest.Filter filter)
+      throws InvalidProtocolBufferException {
+    String project = filter.getProject();
+
+    checkValidCharactersAllowAsterisk(project, "projectName");
+
+    // Autofill default project if project not specified
+    if (project.isEmpty()) {
+      project = Project.DEFAULT_NAME;
+    }
+
+    List<FeatureSet> featureSets;
+
+    if (!project.contains("*")) {
+      // Matching a specific project
+      featureSets =
+          featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc("%", project);
+    } else {
+      throw new IllegalArgumentException(
+          String.format(
+              "Invalid listEntitiesRequest. Project name cannot be a pattern. It may only be "
+                  + "a specific project name: \n%s",
+              filter.toString()));
+    }
+
+    ListEntitiesResponse.Builder response = ListEntitiesResponse.newBuilder();
+    if (featureSets.size() > 0) {
+      for (FeatureSet featureSet : featureSets) {
+        List<EntitySpec> allEntities = featureSet.toProto().getSpec().getEntitiesList();
+        for (EntitySpec entity : allEntities) {
+          if (!response.containsEntities(entity.getName())) {
+            response.putEntities(entity.getName(), entity);
+          }
+        }
       }
     }
 

@@ -121,6 +121,53 @@ public class FeatureSet extends AbstractTimestampEntity {
     }
   }
 
+  /**
+   * Return a boolean to facilitate streaming elements on the basis of given predicate.
+   *
+   * @param entitiesFilter contain entities that should be attached to the FeatureSet
+   * @return boolean True if FeatureSet contains all entities in the entitiesFilter
+   */
+  public boolean hasAllEntities(List<String> entitiesFilter) {
+    List<String> allEntitiesName =
+        this.entities.stream()
+            .map(entitySpec -> entitySpec.toProto().getName())
+            .collect(Collectors.toList());
+    for (String entity : entitiesFilter) {
+      if (!allEntitiesName.contains(entity)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Returns a map of Feature references and Features if FeatureSet's Feature contains all labels in
+   * the labelsFilter
+   *
+   * @param labelsFilter contain labels that should be attached to FeatureSet's features
+   * @return Map of Feature references and Features
+   */
+  public Map<String, Feature> getFeaturesByAllLabels(Map<String, String> labelsFilter) {
+    Map<String, Feature> validFeaturesMap = new HashMap<>();
+    List<Feature> validFeatures;
+    if (labelsFilter.size() > 0) {
+      validFeatures =
+          this.features.stream()
+              .filter(feature -> feature.hasAllLabels(labelsFilter))
+              .collect(Collectors.toList());
+      for (Feature feature : validFeatures) {
+        validFeaturesMap.put(
+            this.getProject().getName() + "/" + this.getName() + ":" + feature.getName(), feature);
+      }
+      return validFeaturesMap;
+    }
+    for (Feature feature : this.getFeatures()) {
+      validFeaturesMap.put(
+          this.getProject().getName() + "/" + this.getName() + ":" + feature.getName(), feature);
+    }
+    return validFeaturesMap;
+  }
+
   public void setProject(Project project) {
     this.project = project;
   }
