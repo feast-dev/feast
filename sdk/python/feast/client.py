@@ -51,6 +51,10 @@ from feast.core.CoreService_pb2 import (
     GetFeatureSetRequest,
     GetFeatureSetResponse,
     GetFeatureStatisticsRequest,
+    ListEntitiesRequest,
+    ListEntitiesResponse,
+    ListFeaturesRequest,
+    ListFeaturesResponse,
     ListFeatureSetsRequest,
     ListFeatureSetsResponse,
     ListIngestionJobsRequest,
@@ -61,7 +65,7 @@ from feast.core.CoreService_pb2 import (
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
-from feast.feature import FeatureRef
+from feast.feature import Feature, FeatureRef
 from feast.feature_set import Entity, FeatureSet, FeatureSetRef
 from feast.job import IngestJob, RetrievalJob
 from feast.loaders.abstract_producer import get_producer
@@ -493,17 +497,70 @@ class Client:
             raise grpc.RpcError(e.details())
         return FeatureSet.from_proto(get_feature_set_response.feature_set)
 
-    def list_entities(self) -> Dict[str, Entity]:
+    def list_features(
+        self,
+        project: str = None,
+        entities: List[str] = list(),
+        labels: Dict[str, str] = dict(),
+        return_as_dict=True,
+    ) -> Dict[FeatureRef, Feature]:
         """
-        Returns a dictionary of entities across all feature sets
+        Returns a list of features based on filters provided
+
+        Returns:
+            Dictionary of <feature references: features>
+        """
+        self._connect_core()
+
+        if project is None:
+            if self.project is not None:
+                project = self.project
+            else:
+                project = "*"
+
+        filter = ListFeaturesRequest.Filter(
+            project=project, entities=entities, labels=labels
+        )
+
+        feature_protos = self._core_service_stub.ListFeatures(
+            ListFeaturesRequest(filter=filter)
+        )  # type: ListFeaturesResponse
+
+        if return_as_dict:
+            features_dict = OrderedDict()
+            for ref_str, feature_proto in feature_protos.features.items():
+                feature_ref = FeatureRef.from_str(ref_str, ignore_project=True)
+                feature = Feature.from_proto(feature_proto)
+                features_dict[feature_ref] = feature
+
+        return features_dict
+
+    def list_entities(self, project: str = None) -> Dict[str, Entity]:
+        """
+        Returns a dictionary of entities based on project
 
         Returns:
             Dictionary of entities, indexed by name
         """
+        self._connect_core()
+
+        if project is None:
+            if self.project is not None:
+                project = self.project
+            else:
+                project = ""
+
+        filter = ListEntitiesRequest.Filter(project=project)
+
+        entity_protos = self._core_service_stub.ListEntities(
+            ListEntitiesRequest(filter=filter)
+        )  # type: ListEntitiesResponse
+
         entities_dict = OrderedDict()
-        for fs in self.list_feature_sets():
-            for entity in fs.entities:
-                entities_dict[entity.name] = entity
+        for ref_str, entity_proto in entity_protos.entities.items():
+            entity = Entity.from_proto(entity_proto)
+            entities_dict[ref_str] = entity
+
         return entities_dict
 
     def get_batch_features(
