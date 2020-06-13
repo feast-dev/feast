@@ -3,6 +3,7 @@ import math
 import random
 import time
 import grpc
+from collections import OrderedDict
 from feast.entity import Entity
 from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequest,
@@ -641,50 +642,57 @@ def test_all_types_infer_register_ingest_file_success(client,
 @pytest.mark.timeout(200)
 @pytest.mark.run(order=42)
 def test_list_entities_and_features(client):
+    customer_entity = Entity("customer_id", ValueType.INT64)
+    driver_entity = Entity("driver_id", ValueType.INT64)
 
-    entity_map_expected = {
-        "customer_id": Entity("customer_id", ValueType.INT64),
-        "driver_id": Entity("driver_id", ValueType.INT64)
-    }
+    customer_feature_rating = Feature(name="rating", dtype=ValueType.FLOAT, labels={"key1":"val1"})
+    customer_feature_cost = Feature(name="cost", dtype=ValueType.FLOAT)
+    driver_feature_rating = Feature(name="rating", dtype=ValueType.FLOAT)
+    driver_feature_cost = Feature(name="cost", dtype=ValueType.FLOAT, labels={"key1":"val1"})
 
-    filter_by_project_entity_labels_expected = {
-        "customer:rating": Feature(name="rating", dtype=ValueType.FLOAT, labels={"key1":"val1"})
-    }
+    entity_map_expected = OrderedDict([
+        ("customer_id", customer_entity),
+        ("driver_id", driver_entity)
+    ])
 
-    filter_by_project_entity_expected = {
-        "driver:rating": Feature(name="rating", dtype=ValueType.FLOAT),
-        "driver:cost": Feature(name="cost", dtype=ValueType.FLOAT, labels={"key1":"val1"})
-    }
+    filter_by_project_entity_labels_expected = OrderedDict([
+        ("customer:rating", customer_feature_rating)
+    ])
 
-    filter_by_project_labels_expected = {
-        "customer:rating": Feature(name="rating", dtype=ValueType.FLOAT, labels={"key1":"val1"}),
-        "driver:cost": Feature(name="cost", dtype=ValueType.FLOAT, labels={"key1":"val1"})
-    }
+    filter_by_project_entity_expected = OrderedDict([
+        ("driver:cost", driver_feature_cost),
+        ("driver:rating", driver_feature_rating)
+    ])
 
-    filter_by_project_expected = {
-        "customer:cost": Feature(name="cost", dtype=ValueType.FLOAT),
-        "customer:rating": Feature(name="rating", dtype=ValueType.FLOAT, labels={"key1":"val1"}),
-        "driver:cost": Feature(name="cost", dtype=ValueType.FLOAT, labels={"key1":"val1"}),
-        "driver:rating": Feature(name="rating", dtype=ValueType.FLOAT)
-    }
+    filter_by_project_labels_expected = OrderedDict([
+        ("customer:rating", customer_feature_rating),
+        ("driver:cost", driver_feature_cost)
+    ])
+
+    filter_by_project_expected = OrderedDict([
+        ("customer:cost", customer_feature_cost),
+        ("customer:rating", customer_feature_rating),
+        ("driver:cost", driver_feature_cost),
+        ("driver:rating", driver_feature_rating)
+    ])
 
     customer_fs = FeatureSet(
         "customer",
         features=[
-            Feature(name="rating", dtype=ValueType.FLOAT, labels={"key1":"val1"}),
-            Feature(name="cost", dtype=ValueType.FLOAT)
+            customer_feature_rating,
+            customer_feature_cost
         ],
-        entities=[Entity("customer_id", ValueType.INT64)],
+        entities=[customer_entity],
         max_age=Duration(seconds=100)
     )
 
     driver_fs = FeatureSet(
         "driver",
         features=[
-            Feature(name="rating", dtype=ValueType.FLOAT),
-            Feature(name="cost", dtype=ValueType.FLOAT, labels={"key1":"val1"})
+            driver_feature_rating,
+            driver_feature_cost
         ],
-        entities=[Entity("driver_id", ValueType.INT64)],
+        entities=[driver_entity],
         max_age=Duration(seconds=100)
     )
 
@@ -707,11 +715,11 @@ def test_list_entities_and_features(client):
     # Case 4: Filter by: project
     filter_by_project_actual = client.list_features(project=PROJECT_NAME)
 
-    assert entity_map_expected == entity_map_actual
-    assert filter_by_project_entity_labels_expected == filter_by_project_entity_labels_actual
-    assert filter_by_project_entity_expected == filter_by_project_entity_actual
-    assert filter_by_project_labels_expected == filter_by_project_labels_actual
-    assert filter_by_project_expected == filter_by_project_actual
+    assert set(entity_map_expected) == set(entity_map_actual)
+    assert set(filter_by_project_entity_labels_expected) == set(filter_by_project_entity_labels_actual)
+    assert set(filter_by_project_entity_expected) == set(filter_by_project_entity_actual)
+    assert set(filter_by_project_labels_expected) == set(filter_by_project_labels_actual)
+    assert set(filter_by_project_expected) == set(filter_by_project_actual)
 
 
 # TODO: rewrite these using python SDK once the labels are implemented there
