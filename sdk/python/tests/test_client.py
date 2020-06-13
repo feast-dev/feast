@@ -338,20 +338,6 @@ class TestClient:
             name="entity_1", value_type=ValueProto.ValueType.STRING
         )
 
-        feature_set_proto = FeatureSetProto(
-            spec=FeatureSetSpecProto(
-                project="test",
-                name="driver_car",
-                max_age=Duration(seconds=3600),
-                entities=[entity_proto],
-                features=[
-                    FeatureSpecProto(
-                        name="feature_1", value_type=ValueProto.ValueType.FLOAT
-                    )
-                ],
-            )
-        )
-
         mocker.patch.object(
             mocked_client._core_service_stub,
             "ListEntities",
@@ -367,6 +353,7 @@ class TestClient:
 
         assert (
             entity_to_check.name == "entity_1"
+            and ref_str_to_check == "entity_1"
             and entity_to_check.dtype == ValueType.STRING
         )
 
@@ -386,15 +373,6 @@ class TestClient:
         )
         feature2_proto = FeatureSpecProto(
             name="feature_2", value_type=ValueProto.ValueType.STRING
-        )
-
-        feature_set_proto = FeatureSetProto(
-            spec=FeatureSetSpecProto(
-                project="test",
-                name="driver_car",
-                max_age=Duration(seconds=3600),
-                features=[feature1_proto, feature2_proto],
-            )
         )
 
         mocker.patch.object(
