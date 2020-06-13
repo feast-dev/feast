@@ -34,6 +34,8 @@ from feast.client import Client
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionResponse,
     GetFeatureSetResponse,
+    ListEntitiesResponse,
+    ListFeaturesResponse,
     ListIngestionJobsResponse,
 )
 from feast.core.FeatureSet_pb2 import EntitySpec as EntitySpecProto
@@ -319,6 +321,108 @@ class TestClient:
             and feature_set.fields["my_entity_1"].dtype == ValueType.INT64
             and len(feature_set.features) == 2
             and len(feature_set.entities) == 1
+        )
+
+    @pytest.mark.parametrize(
+        "mocked_client",
+        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+    )
+    def test_list_entities(self, mocked_client, mocker):
+        mocker.patch.object(
+            mocked_client,
+            "_core_service_stub",
+            return_value=Core.CoreServiceStub(grpc.insecure_channel("")),
+        )
+
+        entity_proto = EntitySpecProto(
+            name="entity_1", value_type=ValueProto.ValueType.STRING
+        )
+
+        feature_set_proto = FeatureSetProto(
+            spec=FeatureSetSpecProto(
+                project="test",
+                name="driver_car",
+                max_age=Duration(seconds=3600),
+                entities=[entity_proto],
+                features=[
+                    FeatureSpecProto(
+                        name="feature_1", value_type=ValueProto.ValueType.FLOAT
+                    )
+                ],
+            )
+        )
+
+        mocker.patch.object(
+            mocked_client._core_service_stub,
+            "ListEntities",
+            return_value=ListEntitiesResponse(entities={"entity_1": entity_proto}),
+        )
+
+        entities = mocked_client.list_entities(project="test")
+        assert len(entities) == 1
+
+        for ref_str, entity_proto in entities.items():
+            ref_str_to_check = ref_str
+            entity_to_check = entity_proto
+
+        assert (
+            entity_to_check.name == "entity_1"
+            and entity_to_check.dtype == ValueType.STRING
+        )
+
+    @pytest.mark.parametrize(
+        "mocked_client",
+        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+    )
+    def test_list_features(self, mocked_client, mocker):
+        mocker.patch.object(
+            mocked_client,
+            "_core_service_stub",
+            return_value=Core.CoreServiceStub(grpc.insecure_channel("")),
+        )
+
+        feature1_proto = FeatureSpecProto(
+            name="feature_1", value_type=ValueProto.ValueType.FLOAT
+        )
+        feature2_proto = FeatureSpecProto(
+            name="feature_2", value_type=ValueProto.ValueType.STRING
+        )
+
+        feature_set_proto = FeatureSetProto(
+            spec=FeatureSetSpecProto(
+                project="test",
+                name="driver_car",
+                max_age=Duration(seconds=3600),
+                features=[feature1_proto, feature2_proto],
+            )
+        )
+
+        mocker.patch.object(
+            mocked_client._core_service_stub,
+            "ListFeatures",
+            return_value=ListFeaturesResponse(
+                features={
+                    "driver_car:feature_1": feature1_proto,
+                    "driver_car:feature_2": feature2_proto,
+                }
+            ),
+        )
+
+        features = mocked_client.list_features(project="test")
+        assert len(features) == 2
+
+        ref_str_list = []
+        feature_name_list = []
+        feature_dtype_list = []
+        for ref_str, feature_proto in features.items():
+            ref_str_list.append(ref_str)
+            feature_name_list.append(feature_proto.name)
+            feature_dtype_list.append(feature_proto.dtype)
+
+        assert (
+            ref_str_list == ["driver_car:feature_1", "driver_car:feature_2"]
+            and feature_name_list == ["feature_1", "feature_2"]
+            and feature_dtype_list == [ValueType.FLOAT, ValueType.STRING]
         )
 
     @pytest.mark.parametrize(

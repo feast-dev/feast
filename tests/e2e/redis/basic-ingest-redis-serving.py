@@ -638,6 +638,82 @@ def test_all_types_infer_register_ingest_file_success(client,
     client.ingest(feature_set=all_types_fs, source=all_types_parquet_file)
 
 
+@pytest.mark.timeout(200)
+@pytest.mark.run(order=42)
+def test_list_entities_and_features(client):
+
+    entity_map_expected = {
+        "customer_id": Entity("customer_id", ValueType.INT64),
+        "driver_id": Entity("driver_id", ValueType.INT64)
+    }
+
+    filter_by_project_entity_labels_expected = {
+        "customer:rating": Feature(name="rating", dtype=ValueType.FLOAT, labels={"key1":"val1"})
+    }
+
+    filter_by_project_entity_expected = {
+        "driver:rating": Feature(name="rating", dtype=ValueType.FLOAT),
+        "driver:cost": Feature(name="cost", dtype=ValueType.FLOAT, labels={"key1":"val1"})
+    }
+
+    filter_by_project_labels_expected = {
+        "customer:rating": Feature(name="rating", dtype=ValueType.FLOAT, labels={"key1":"val1"}),
+        "driver:cost": Feature(name="cost", dtype=ValueType.FLOAT, labels={"key1":"val1"})
+    }
+
+    filter_by_project_expected = {
+        "customer:cost": Feature(name="cost", dtype=ValueType.FLOAT),
+        "customer:rating": Feature(name="rating", dtype=ValueType.FLOAT, labels={"key1":"val1"}),
+        "driver:cost": Feature(name="cost", dtype=ValueType.FLOAT, labels={"key1":"val1"}),
+        "driver:rating": Feature(name="rating", dtype=ValueType.FLOAT)
+    }
+
+    customer_fs = FeatureSet(
+        "customer",
+        features=[
+            Feature(name="rating", dtype=ValueType.FLOAT, labels={"key1":"val1"}),
+            Feature(name="cost", dtype=ValueType.FLOAT)
+        ],
+        entities=[Entity("customer_id", ValueType.INT64)],
+        max_age=Duration(seconds=100)
+    )
+
+    driver_fs = FeatureSet(
+        "driver",
+        features=[
+            Feature(name="rating", dtype=ValueType.FLOAT),
+            Feature(name="cost", dtype=ValueType.FLOAT, labels={"key1":"val1"})
+        ],
+        entities=[Entity("driver_id", ValueType.INT64)],
+        max_age=Duration(seconds=100)
+    )
+
+    client.set_project(PROJECT_NAME)
+    client.apply(customer_fs)
+    client.apply(driver_fs)
+    # Test for entities in a specific project
+    entity_map_actual = client.list_entities(project=PROJECT_NAME)
+
+    # Test for listing of features
+    # Case 1: Filter by: project, entities and labels
+    filter_by_project_entity_labels_actual = client.list_features(project=PROJECT_NAME, entities=["customer_id"], labels={"key1":"val1"})
+    
+    # Case 2: Filter by: project, entities
+    filter_by_project_entity_actual = client.list_features(project=PROJECT_NAME, entities=["driver_id"])
+    
+    # Case 3: Filter by: project, labels
+    filter_by_project_labels_actual = client.list_features(project=PROJECT_NAME, labels={"key1":"val1"})
+    
+    # Case 4: Filter by: project
+    filter_by_project_actual = client.list_features(project=PROJECT_NAME)
+
+    assert entity_map_expected == entity_map_actual
+    assert filter_by_project_entity_labels_expected == filter_by_project_entity_labels_actual
+    assert filter_by_project_entity_expected == filter_by_project_entity_actual
+    assert filter_by_project_labels_expected == filter_by_project_labels_actual
+    assert filter_by_project_expected == filter_by_project_actual
+
+
 # TODO: rewrite these using python SDK once the labels are implemented there
 class TestsBasedOnGrpc:
     GRPC_CONNECTION_TIMEOUT = 3

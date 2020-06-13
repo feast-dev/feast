@@ -35,8 +35,12 @@ import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse.Status;
 import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
 import feast.proto.core.CoreServiceProto.GetFeatureSetResponse;
+import feast.proto.core.CoreServiceProto.ListEntitiesRequest;
+import feast.proto.core.CoreServiceProto.ListEntitiesResponse;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.proto.core.CoreServiceProto.ListFeaturesRequest;
+import feast.proto.core.CoreServiceProto.ListFeaturesResponse;
 import feast.proto.core.CoreServiceProto.ListStoresRequest;
 import feast.proto.core.CoreServiceProto.ListStoresResponse;
 import feast.proto.core.CoreServiceProto.UpdateStoreRequest;
@@ -90,6 +94,7 @@ public class SpecServiceTest {
 
   private SpecService specService;
   private List<FeatureSet> featureSets;
+  private List<Feature> features;
   private List<Store> stores;
   private Source defaultSource;
 
@@ -103,6 +108,11 @@ public class SpecServiceTest {
     FeatureSet featureSet1 = newDummyFeatureSet("f1", "project1");
     FeatureSet featureSet2 = newDummyFeatureSet("f2", "project1");
 
+    Map<String, String> featureLabels1 = Map.ofEntries(Map.entry("key1", "val1"));
+    Map<String, String> featureLabels2 = Map.ofEntries(Map.entry("key2", "val2"));
+    Map<String, String> dummyLabels = Map.ofEntries(Map.entry("key", "value"));
+
+    Feature dummyFeature = TestObjectFactory.CreateFeature("feature", Enum.STRING, dummyLabels);
     Feature f3f1 = TestObjectFactory.CreateFeature("f3f1", Enum.INT64);
     Feature f3f2 = TestObjectFactory.CreateFeature("f3f2", Enum.INT64);
     Entity f3e1 = TestObjectFactory.CreateEntity("f3e1", Enum.STRING);
@@ -111,7 +121,30 @@ public class SpecServiceTest {
             "f3", "project1", Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1));
 
     FeatureSet featureSet4 = newDummyFeatureSet("f4", Project.DEFAULT_NAME);
-    featureSets = Arrays.asList(featureSet1, featureSet2, featureSet3, featureSet4);
+
+    Entity f7e1 = TestObjectFactory.CreateEntity("f7e1", Enum.STRING);
+    Entity f9e1 = TestObjectFactory.CreateEntity("f9e1", Enum.STRING);
+    Feature f7f1 = TestObjectFactory.CreateFeature("f7f1", Enum.INT64, featureLabels1);
+    Feature f8f1 = TestObjectFactory.CreateFeature("f8f1", Enum.INT64, featureLabels2);
+    FeatureSet featureSet7 =
+        TestObjectFactory.CreateFeatureSet(
+            "f7", "project2", Arrays.asList(f7e1), Arrays.asList(f3f1, f3f2, f7f1));
+    FeatureSet featureSet8 =
+        TestObjectFactory.CreateFeatureSet(
+            "f8", "project2", Arrays.asList(f7e1), Arrays.asList(f3f1, f8f1));
+    FeatureSet featureSet9 =
+        TestObjectFactory.CreateFeatureSet(
+            "f9", "default", Arrays.asList(f9e1), Arrays.asList(f3f1, f8f1));
+    features = Arrays.asList(dummyFeature, f3f1, f3f2, f7f1, f8f1);
+    featureSets =
+        Arrays.asList(
+            featureSet1,
+            featureSet2,
+            featureSet3,
+            featureSet4,
+            featureSet7,
+            featureSet8,
+            featureSet9);
 
     when(featureSetRepository.findAll()).thenReturn(featureSets);
     when(featureSetRepository.findAllByOrderByNameAsc()).thenReturn(featureSets);
@@ -121,6 +154,10 @@ public class SpecServiceTest {
         .thenReturn(featureSets.get(1));
     when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc("f1", "project1"))
         .thenReturn(featureSets.subList(0, 1));
+    when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc("%", "default"))
+        .thenReturn(featureSets.subList(6, 7));
+    when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc("%", "project2"))
+        .thenReturn(featureSets.subList(4, 6));
     when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc("asd", "project1"))
         .thenReturn(Lists.newArrayList());
     when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc("f%", "project1"))
@@ -624,6 +661,188 @@ public class SpecServiceTest {
     var appliedLabels = appliedFeatureSetSpec.getLabelsMap();
 
     assertEquals(featureSetLabels, appliedLabels);
+  }
+
+  @Test
+  public void shouldFilterEntitiesByProject() throws InvalidProtocolBufferException {
+    ListEntitiesResponse actual =
+        specService.listEntities(
+            ListEntitiesRequest.Filter.newBuilder().setProject("project2").build());
+    EntitySpec entitySpec1 = featureSets.get(4).toProto().getSpec().getEntities(0);
+    Map<String, EntitySpec> expectedMap =
+        Map.ofEntries(Map.entry(entitySpec1.getName(), entitySpec1));
+    ListEntitiesResponse expected =
+        ListEntitiesResponse.newBuilder().putAllEntities(expectedMap).build();
+
+    assertThat(actual, equalTo(expected));
+  }
+
+  @Test
+  public void shouldFilterFeaturesByEntitiesAndLabels() throws InvalidProtocolBufferException {
+    // Case 1: Only filter by entities
+    List<String> entities = new ArrayList<>();
+    String currentProject = "project2";
+
+    entities.add("f7e1");
+    ListFeaturesResponse actual1 =
+        specService.listFeatures(
+            ListFeaturesRequest.Filter.newBuilder()
+                .setProject(currentProject)
+                .addAllEntities(entities)
+                .build());
+    Map<String, FeatureSpec> expectedMap1 =
+        Map.ofEntries(
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(4).getName()
+                    + ":"
+                    + features.get(1).getName(),
+                features.get(1).toProto()),
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(4).getName()
+                    + ":"
+                    + features.get(2).getName(),
+                features.get(2).toProto()),
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(4).getName()
+                    + ":"
+                    + features.get(3).getName(),
+                features.get(3).toProto()),
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(5).getName()
+                    + ":"
+                    + features.get(1).getName(),
+                features.get(1).toProto()),
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(5).getName()
+                    + ":"
+                    + features.get(4).getName(),
+                features.get(4).toProto()));
+    ListFeaturesResponse expected1 =
+        ListFeaturesResponse.newBuilder().putAllFeatures(expectedMap1).build();
+
+    // Case 2: Filter by entities and labels
+    Map<String, String> featureLabels1 = Map.ofEntries(Map.entry("key1", "val1"));
+    Map<String, String> featureLabels2 = Map.ofEntries(Map.entry("key2", "val2"));
+    ListFeaturesResponse actual2 =
+        specService.listFeatures(
+            ListFeaturesRequest.Filter.newBuilder()
+                .setProject(currentProject)
+                .addAllEntities(entities)
+                .putAllLabels(featureLabels1)
+                .build());
+    Map<String, FeatureSpec> expectedMap2 =
+        Map.ofEntries(
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(4).getName()
+                    + ":"
+                    + features.get(3).getName(),
+                features.get(3).toProto()));
+    ListFeaturesResponse expected2 =
+        ListFeaturesResponse.newBuilder().putAllFeatures(expectedMap2).build();
+
+    // Case 3: Filter by labels
+    ListFeaturesResponse actual3 =
+        specService.listFeatures(
+            ListFeaturesRequest.Filter.newBuilder()
+                .setProject(currentProject)
+                .putAllLabels(featureLabels2)
+                .build());
+    Map<String, FeatureSpec> expectedMap3 =
+        Map.ofEntries(
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(5).getName()
+                    + ":"
+                    + features.get(4).getName(),
+                features.get(4).toProto()));
+    ListFeaturesResponse expected3 =
+        ListFeaturesResponse.newBuilder().putAllFeatures(expectedMap3).build();
+
+    // Case 4: Filter by nothing, except project
+    ListFeaturesResponse actual4 =
+        specService.listFeatures(
+            ListFeaturesRequest.Filter.newBuilder().setProject(currentProject).build());
+    Map<String, FeatureSpec> expectedMap4 =
+        Map.ofEntries(
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(4).getName()
+                    + ":"
+                    + features.get(1).getName(),
+                features.get(1).toProto()),
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(4).getName()
+                    + ":"
+                    + features.get(2).getName(),
+                features.get(2).toProto()),
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(4).getName()
+                    + ":"
+                    + features.get(3).getName(),
+                features.get(3).toProto()),
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(5).getName()
+                    + ":"
+                    + features.get(1).getName(),
+                features.get(1).toProto()),
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(5).getName()
+                    + ":"
+                    + features.get(4).getName(),
+                features.get(4).toProto()));
+    ListFeaturesResponse expected4 =
+        ListFeaturesResponse.newBuilder().putAllFeatures(expectedMap4).build();
+
+    // Case 5: Filter by nothing; will use default project
+    currentProject = "default";
+    ListFeaturesResponse actual5 =
+        specService.listFeatures(ListFeaturesRequest.Filter.newBuilder().build());
+    Map<String, FeatureSpec> expectedMap5 =
+        Map.ofEntries(
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(6).getName()
+                    + ":"
+                    + features.get(1).getName(),
+                features.get(1).toProto()),
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(6).getName()
+                    + ":"
+                    + features.get(4).getName(),
+                features.get(4).toProto()));
+    ListFeaturesResponse expected5 =
+        ListFeaturesResponse.newBuilder().putAllFeatures(expectedMap5).build();
+
+    assertThat(actual1, equalTo(expected1));
+    assertThat(actual2, equalTo(expected2));
+    assertThat(actual3, equalTo(expected3));
+    assertThat(actual4, equalTo(expected4));
+    assertThat(actual5, equalTo(expected5));
   }
 
   @Test

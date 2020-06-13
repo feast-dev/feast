@@ -25,6 +25,7 @@ import feast.proto.core.SourceProto;
 import feast.proto.types.ValueProto;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class TestObjectFactory {
 
@@ -48,6 +49,16 @@ public class TestObjectFactory {
         defaultSource,
         new HashMap<>(),
         FeatureSetProto.FeatureSetStatus.STATUS_READY);
+  }
+
+  public static Feature CreateFeature(
+      String name, ValueProto.ValueType.Enum valueType, Map<String, String> labels) {
+    return Feature.fromProto(
+        FeatureSetProto.FeatureSpec.newBuilder()
+            .setName(name)
+            .setValueType(valueType)
+            .putAllLabels(labels)
+            .build());
   }
 
   public static Feature CreateFeature(String name, ValueProto.ValueType.Enum valueType) {
