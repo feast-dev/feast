@@ -669,13 +669,6 @@ def test_list_entities_and_features(client):
         ("driver:cost", driver_feature_cost)
     ])
 
-    filter_by_project_expected = OrderedDict([
-        ("customer:cost", customer_feature_cost),
-        ("customer:rating", customer_feature_rating),
-        ("driver:cost", driver_feature_cost),
-        ("driver:rating", driver_feature_rating)
-    ])
-
     customer_fs = FeatureSet(
         "customer",
         features=[
@@ -711,15 +704,11 @@ def test_list_entities_and_features(client):
     
     # Case 3: Filter by: project, labels
     filter_by_project_labels_actual = client.list_features(project=PROJECT_NAME, labels={"key1":"val1"})
-    
-    # Case 4: Filter by: project
-    filter_by_project_actual = client.list_features(project=PROJECT_NAME)
 
     assert set(entity_map_expected) == set(entity_map_actual)
     assert set(filter_by_project_entity_labels_expected) == set(filter_by_project_entity_labels_actual)
     assert set(filter_by_project_entity_expected) == set(filter_by_project_entity_actual)
     assert set(filter_by_project_labels_expected) == set(filter_by_project_labels_actual)
-    assert set(filter_by_project_expected) == set(filter_by_project_actual)
 
 
 # TODO: rewrite these using python SDK once the labels are implemented there
