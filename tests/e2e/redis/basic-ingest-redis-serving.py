@@ -650,10 +650,7 @@ def test_list_entities_and_features(client):
     driver_feature_rating = Feature(name="rating", dtype=ValueType.FLOAT)
     driver_feature_cost = Feature(name="cost", dtype=ValueType.FLOAT, labels={"key1":"val1"})
 
-    entity_map_expected = OrderedDict([
-        ("customer_id", customer_entity),
-        ("driver_id", driver_entity)
-    ])
+    entity_list_expected = [customer_entity, driver_entity]
 
     filter_by_project_entity_labels_expected = dict([
         ("customer:rating", customer_feature_rating)
@@ -693,7 +690,7 @@ def test_list_entities_and_features(client):
     client.apply(customer_fs)
     client.apply(driver_fs)
     # Test for entities in a specific project
-    entity_map_actual = client.list_entities(project=PROJECT_NAME)
+    entity_list_actual = client.list_entities(project=PROJECT_NAME)
 
     # Test for listing of features
     # Case 1: Filter by: project, entities and labels
@@ -705,7 +702,7 @@ def test_list_entities_and_features(client):
     # Case 3: Filter by: project, labels
     filter_by_project_labels_actual = client.list_features_by_ref(project=PROJECT_NAME, labels={"key1":"val1"})
 
-    assert set(entity_map_expected) == set(entity_map_actual)
+    assert entity_list_expected == entity_list_actual
     assert set(filter_by_project_entity_labels_expected) == set(filter_by_project_entity_labels_actual)
     assert set(filter_by_project_entity_expected) == set(filter_by_project_entity_actual)
     assert set(filter_by_project_labels_expected) == set(filter_by_project_labels_actual)

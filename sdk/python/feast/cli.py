@@ -135,12 +135,12 @@ def entities_list(project: str):
     feast_client = Client()  # type: Client
 
     table = []
-    for entity_ref, entity in feast_client.list_entities(project=project).items():
-        table.append([entity.name, entity_ref])
+    for entity in feast_client.list_entities(project=project):
+        table.append([entity.name])
 
     from tabulate import tabulate
 
-    print(tabulate(table, headers=["NAME", "REFERENCE"], tablefmt="plain"))
+    print(tabulate(table, headers=["NAME"], tablefmt="plain"))
 
 
 @cli.group(name="features")

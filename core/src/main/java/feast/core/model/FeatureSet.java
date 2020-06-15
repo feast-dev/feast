@@ -141,7 +141,7 @@ public class FeatureSet extends AbstractTimestampEntity {
    * @param labelsFilter contain labels that should be attached to FeatureSet's features
    * @return Map of Feature references and Features
    */
-  public Map<String, Feature> getFeaturesByAllLabels(Map<String, String> labelsFilter) {
+  public Map<String, Feature> getFeaturesByRef(Map<String, String> labelsFilter) {
     Map<String, Feature> validFeaturesMap = new HashMap<>();
     List<Feature> validFeatures;
     if (labelsFilter.size() > 0) {

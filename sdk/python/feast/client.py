@@ -20,7 +20,6 @@ import shutil
 import tempfile
 import time
 import uuid
-from collections import OrderedDict
 from math import ceil
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -545,15 +544,15 @@ class Client:
 
         return features_dict
 
-    def list_entities(self, project: str = None) -> Dict[str, Entity]:
+    def list_entities(self, project: str = None) -> List[Entity]:
         """
-        Returns a dictionary of entities based on project.
+        Returns a list of entities based on project.
 
         Args:
             project: Feast project that these entities belongs to
 
         Returns:
-            Dictionary of entities, indexed by name
+            List of entities
 
         Examples:
             >>> from feast import Client
@@ -576,12 +575,12 @@ class Client:
             ListEntitiesRequest(filter=filter)
         )  # type: ListEntitiesResponse
 
-        entities_dict = OrderedDict()
+        entities_list = []
         for ref_str, entity_proto in entity_protos.entities.items():
             entity = Entity.from_proto(entity_proto)
-            entities_dict[ref_str] = entity
+            entities_list.append(entity)
 
-        return entities_dict
+        return entities_list
 
     def get_batch_features(
         self,
