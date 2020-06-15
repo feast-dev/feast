@@ -20,6 +20,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.auto.value.AutoValue;
+import java.util.Map;
+import java.util.Optional;
 
 @AutoValue
 @JsonDeserialize(builder = AutoValue_NewCluster.Builder.class)
@@ -33,6 +35,9 @@ public abstract class NewCluster {
 
   @JsonProperty("node_type_id")
   public abstract String nodeTypeId();
+
+  @JsonProperty("spark_conf")
+  public abstract Optional<Map<String, String>> sparkConf();
 
   public static Builder builder() {
     return new AutoValue_NewCluster.Builder();
@@ -48,6 +53,9 @@ public abstract class NewCluster {
 
     @JsonProperty("node_type_id")
     public abstract Builder setNodeTypeId(String value);
+
+    @JsonProperty("spark_conf")
+    public abstract Builder setSparkConf(Map<String, String> value);
 
     public abstract NewCluster build();
   }

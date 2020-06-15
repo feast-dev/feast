@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -218,7 +219,10 @@ public class DatabricksEmulator {
       SparkJarTask task = job.getSparkJarTask();
       List<String> params =
           req.getJarParams().orElse(task.getParameters().orElse(Collections.emptyList()));
-      SparkAppHandle handle = appFactory.createApp(jars, task.getMainClassName(), params);
+      Map<String, String> sparkConf =
+          job.getNewCluster().sparkConf().orElse(Collections.emptyMap());
+      SparkAppHandle handle =
+          appFactory.createApp(jars, task.getMainClassName(), params, sparkConf);
 
       long runId = runTracker.addItem(handle);
 
@@ -249,7 +253,11 @@ public class DatabricksEmulator {
 
   public static class SparkAppFactory {
 
-    SparkAppHandle createApp(List<String> jars, String mainClassName, List<String> parameters)
+    SparkAppHandle createApp(
+        List<String> jars,
+        String mainClassName,
+        List<String> parameters,
+        Map<String, String> sparkConf)
         throws IOException {
       SparkLauncher launcher = new SparkLauncher();
       String appResource = null;
@@ -257,13 +265,15 @@ public class DatabricksEmulator {
         launcher.addJar(jar);
         appResource = jar;
       }
-      return launcher
-          .setMainClass(mainClassName)
-          .setMaster("local")
-          .setAppResource(appResource)
-          .setConf(SparkLauncher.DRIVER_MEMORY, "1g")
-          .addAppArgs((String[]) parameters.toArray(new String[parameters.size()]))
-          .startApplication();
+      SparkLauncher builder =
+          launcher
+              .setMainClass(mainClassName)
+              .setMaster("local")
+              .setAppResource(appResource)
+              .addAppArgs((String[]) parameters.toArray(new String[parameters.size()]))
+              .setConf(SparkLauncher.DRIVER_MEMORY, "1g");
+      sparkConf.forEach((k, v) -> builder.setConf(k, v));
+      return builder.startApplication();
     }
   }
 }

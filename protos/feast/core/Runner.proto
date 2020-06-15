@@ -84,6 +84,8 @@ message DatabricksRunnerConfigOptions {
         string nodeTypeId = 2;
 
         int32 numWorkers = 3;
+
+        string sparkConf = 4;
     }
 
     /* Databricks host */
@@ -94,5 +96,7 @@ message DatabricksRunnerConfigOptions {
 
     string jarFile = 3;
 
-    DatabricksNewClusterOptions newCluster = 6;
+    int32 maxRetries = 4;
+
+    DatabricksNewClusterOptions newCluster = 5;
 }

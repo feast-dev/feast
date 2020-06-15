@@ -52,7 +52,7 @@ public class DatabricksJobManager implements JobManager {
   private final DatabricksRunnerConfigOptions.DatabricksNewClusterOptions newClusterConfigOptions;
   private final HttpClient httpClient;
   private static final ObjectMapper mapper = ObjectMapperFactory.createObjectMapper();
-  private static final int maxRetries = -1;
+  private final int maxRetries;
 
   public DatabricksJobManager(
       DatabricksRunnerConfigOptions runnerConfigOptions, HttpClient httpClient) {
@@ -62,6 +62,7 @@ public class DatabricksJobManager implements JobManager {
     this.httpClient = httpClient;
     this.newClusterConfigOptions = runnerConfigOptions.getNewCluster();
     this.jarFile = runnerConfigOptions.getJarFile();
+    this.maxRetries = runnerConfigOptions.getMaxRetries();
   }
 
   @Override
@@ -112,20 +113,12 @@ public class DatabricksJobManager implements JobManager {
           RunsCancelRequest.builder().setRunId(Long.parseLong(runId)).build();
       String body = mapper.writeValueAsString(runsCancelRequest);
 
-      HttpRequest request =
+      HttpRequest.Builder request =
           HttpRequest.newBuilder()
               .uri(URI.create(String.format("%s/api/2.0/jobs/runs/cancel", databricksHost)))
-              .header("Authorization", getAuthorizationHeader())
-              .POST(HttpRequest.BodyPublishers.ofString(body))
-              .build();
+              .POST(HttpRequest.BodyPublishers.ofString(body));
 
-      HttpResponse<String> response =
-          httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-      if (response.statusCode() != HttpStatus.SC_OK) {
-        throw new HttpException(
-            String.format("Databricks returned with unexpected code: %s", response.statusCode()));
-      }
+      sendDatabricksRequest(request);
 
     } catch (IOException | InterruptedException | HttpException e) {
       log.error(
@@ -151,57 +144,65 @@ public class DatabricksJobManager implements JobManager {
   @Override
   public JobStatus getJobStatus(Job job) {
     log.info("Getting job status for job {} (Databricks RunId {})", job.getId(), job.getExtId());
-    HttpRequest request =
+    HttpRequest.Builder request =
         HttpRequest.newBuilder()
             .uri(
                 URI.create(
                     String.format(
-                        "%s/api/2.0/jobs/runs/get?run_id=%s", databricksHost, job.getExtId())))
-            .header("Authorization", getAuthorizationHeader())
-            .build();
+                        "%s/api/2.0/jobs/runs/get?run_id=%s", databricksHost, job.getExtId())));
     try {
-      HttpResponse<String> response =
-          httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-      if (response.statusCode() != HttpStatus.SC_OK) {
-        throw new HttpException(
-            String.format("Databricks returned with unexpected code: %s", response.statusCode()));
-      }
+      HttpResponse<String> response = sendDatabricksRequest(request);
 
       RunsGetResponse runsGetResponse = mapper.readValue(response.body(), RunsGetResponse.class);
       RunState runState = runsGetResponse.getState();
       String lifeCycleState = runState.getLifeCycleState().toString();
 
-      JobStatus status =
+      Optional<JobStatus> status =
           runState
               .getResultState()
               .map(
                   runResultState ->
-                      DatabricksJobStateMapper.map(
+                      DatabricksJobStateMapper.mapJobState(
                           String.format("%s_%s", lifeCycleState, runResultState.toString())))
-              .orElseGet(() -> DatabricksJobStateMapper.map(lifeCycleState));
+              .orElseGet(() -> DatabricksJobStateMapper.mapJobState(lifeCycleState));
 
       log.info(
-          "Databricks job state for job {} (Databricks RunId {}) is {} (mapped from {})",
+          "Databricks job state for job {} (Databricks RunId {}) is {} (mapped to {})",
           job.getId(),
           job.getExtId(),
           runState,
           status);
 
-      return status;
+      if (status.isEmpty()) {
+        log.error("Unknown status: %s", runState);
+        return JobStatus.UNKNOWN;
+      }
+
+      return status.get();
 
     } catch (IOException | InterruptedException | HttpException ex) {
-      log.error(
-          "Unable to retrieve status of a databricks run with id : {} \nmessage: {} \ncause: {}",
-          job.getExtId(),
-          ex.getMessage(),
-          ex.getCause());
+      log.error("Unable to retrieve status of a databricks run with id " + job.getExtId(), ex);
+      return JobStatus.UNKNOWN;
     }
-
-    return JobStatus.UNKNOWN;
   }
 
-  private String getAuthorizationHeader() {
-    return String.format("%s %s", "Bearer", new String(databricksToken, StandardCharsets.UTF_8));
+  private HttpResponse<String> sendDatabricksRequest(HttpRequest.Builder builder)
+      throws IOException, InterruptedException, HttpException {
+
+    String authorizationHeader =
+        String.format("%s %s", "Bearer", new String(databricksToken, StandardCharsets.UTF_8));
+
+    HttpRequest request = builder.header("Authorization", authorizationHeader).build();
+
+    HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+    if (response.statusCode() != HttpStatus.SC_OK) {
+      throw new HttpException(
+          String.format(
+              "Databricks returned with unexpected code: %s -- %s",
+              response.statusCode(), response.body()));
+    }
+    return response;
   }
 
   private long createDatabricksJob(Job job) {
@@ -217,6 +218,7 @@ public class DatabricksJobManager implements JobManager {
       }
       store = job.getStore().toProto();
     } catch (InvalidProtocolBufferException e) {
+      log.error("ERROR", e);
       log.error(e.getMessage(), e);
       throw new IllegalArgumentException(
           String.format(
@@ -236,26 +238,19 @@ public class DatabricksJobManager implements JobManager {
     try {
       String body = mapper.writeValueAsString(createRequest);
 
-      HttpRequest request =
+      HttpRequest.Builder request =
           HttpRequest.newBuilder()
               .uri(URI.create(String.format("%s/api/2.0/jobs/create", databricksHost)))
-              .header("Authorization", getAuthorizationHeader())
-              .POST(HttpRequest.BodyPublishers.ofString(body))
-              .build();
+              .POST(HttpRequest.BodyPublishers.ofString(body));
 
-      HttpResponse<String> response =
-          httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-      if (response.statusCode() != HttpStatus.SC_OK) {
-        throw new HttpException(
-            String.format("Databricks returned with unexpected code: %s", response.statusCode()));
-      }
+      HttpResponse<String> response = sendDatabricksRequest(request);
       JobsCreateResponse createResponse =
           mapper.readValue(response.body(), JobsCreateResponse.class);
 
       return createResponse.getJobId();
 
     } catch (IOException | InterruptedException | HttpException e) {
+      log.error("Unable to run databricks job" + jobName, e);
       throw new JobExecutionException(
           String.format(
               "Unable to run databricks job : %s \nmessage: %s\ncause: %s",
@@ -272,24 +267,17 @@ public class DatabricksJobManager implements JobManager {
     try {
       String body = mapper.writeValueAsString(runNowRequest);
 
-      HttpRequest request =
+      HttpRequest.Builder request =
           HttpRequest.newBuilder()
               .uri(URI.create(String.format("%s/api/2.0/jobs/run-now", databricksHost)))
-              .header("Authorization", getAuthorizationHeader())
-              .POST(HttpRequest.BodyPublishers.ofString(body))
-              .build();
+              .POST(HttpRequest.BodyPublishers.ofString(body));
 
-      HttpResponse<String> response =
-          httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-      if (response.statusCode() != HttpStatus.SC_OK) {
-        throw new HttpException(
-            String.format("Databricks returned with unexpected code: %s", response.statusCode()));
-      }
+      HttpResponse<String> response = sendDatabricksRequest(request);
 
       RunNowResponse runNowResponse = mapper.readValue(response.body(), RunNowResponse.class);
       return runNowResponse.getRunId();
     } catch (Exception e) {
+      log.error("Unable to run databricks job with id " + databricksJobId, e);
       throw new JobExecutionException(
           String.format(
               "Unable to run databricks job with id : %s \nmessage: %s\ncause: %s",
@@ -305,11 +293,23 @@ public class DatabricksJobManager implements JobManager {
   }
 
   private JobsCreateRequest getJobRequest(String jobName, List<String> params) {
+    log.info("sparkConf: [%s]", newClusterConfigOptions.getSparkConf());
+    Arrays.stream(newClusterConfigOptions.getSparkConf().strip().split("\n"))
+        .forEach(s -> log.info("sparkConf line: [%s]", s));
+    Arrays.stream(newClusterConfigOptions.getSparkConf().strip().split("\n"))
+        .map(s -> s.strip().split("\\s+", 2))
+        .forEach(s -> log.info("sparkConf line: [%s] + %d", s[0], s.length));
+    Map<String, String> sparkConf =
+        Arrays.stream(newClusterConfigOptions.getSparkConf().strip().split("\n"))
+            .map(s -> s.strip().split("\\s+", 2))
+            .collect(Collectors.toMap(s -> s[0], s -> s[1]));
+
     NewCluster newCluster =
         NewCluster.builder()
             .setNumWorkers(newClusterConfigOptions.getNumWorkers())
             .setNodeTypeId(newClusterConfigOptions.getNodeTypeId())
             .setSparkVersion(newClusterConfigOptions.getSparkVersion())
+            .setSparkConf(sparkConf)
             .build();
 
     Library library = Library.builder().setJar(jarFile).build();
@@ -375,6 +375,7 @@ public class DatabricksJobManager implements JobManager {
           .printingEnumsAsInts()
           .print(item);
     } catch (InvalidProtocolBufferException e) {
+      log.error("ERROR", e);
       throw new RuntimeException(e);
     }
   }

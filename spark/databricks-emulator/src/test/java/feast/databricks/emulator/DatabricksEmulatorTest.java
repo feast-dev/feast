@@ -26,6 +26,7 @@ import feast.databricks.emulator.DatabricksEmulator.*;
 import feast.databricks.types.*;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Optional;
 import org.apache.spark.launcher.SparkAppHandle;
 import org.apache.spark.launcher.SparkAppHandle.State;
@@ -43,7 +44,10 @@ public class DatabricksEmulatorTest {
           + "  \"new_cluster\": {\n"
           + "    \"spark_version\": \"5.3.x-scala2.11\",\n"
           + "    \"node_type_id\": \"Standard_DS1_v2\",\n"
-          + "    \"num_workers\": 10\n"
+          + "    \"num_workers\": 10,\n"
+          + "  \"spark_conf\": {\n"
+          + "  \"spark.driver.extraJavaOptions\": \"-verbose:gc -XX:+PrintGCDetails\""
+          + "  }\n"
           + "  },\n"
           + "  \"libraries\": [\n"
           + "    {\n"
@@ -75,16 +79,20 @@ public class DatabricksEmulatorTest {
 
   private String runSubmitJson;
 
+  private HashMap<String, String> sparkConf;
+
   @Before
   public void setUp() throws Exception {
     initMocks(this);
     emulator = new EmulatorService();
     emulator.appFactory = appFactory;
-    when(appFactory.createApp(anyList(), anyString(), anyList())).thenReturn(handle);
+    when(appFactory.createApp(anyList(), anyString(), anyList(), anyMap())).thenReturn(handle);
 
     when(jobRequest.body()).thenReturn(SAMPLE_JOB_JSON);
     job = emulator.jobsCreate(jobRequest, response);
     runSubmitJson = createRunSubmitJson(job);
+    sparkConf = new HashMap<>();
+    sparkConf.put("spark.driver.extraJavaOptions", "-verbose:gc -XX:+PrintGCDetails");
   }
 
   @Test
@@ -101,7 +109,8 @@ public class DatabricksEmulatorTest {
             Collections.singletonList(
                 "/spark-2.4.5-bin-hadoop2.7/examples/jars/spark-examples_2.11-2.4.5.jar"),
             "org.apache.spark.examples.SparkPi",
-            Arrays.asList("100"));
+            Arrays.asList("100"),
+            sparkConf);
   }
 
   @Test
@@ -114,7 +123,7 @@ public class DatabricksEmulatorTest {
     emulator.runNow(request, response);
 
     // Assert
-    verify(appFactory).createApp(anyList(), anyString(), eq(Arrays.asList("200")));
+    verify(appFactory).createApp(anyList(), anyString(), eq(Arrays.asList("200")), eq(sparkConf));
   }
 
   @Test

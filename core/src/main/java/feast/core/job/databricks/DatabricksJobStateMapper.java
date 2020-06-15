@@ -20,6 +20,7 @@ import static feast.core.job.databricks.DatabricksJobState.*;
 
 import feast.core.model.JobStatus;
 import java.util.Map;
+import java.util.Optional;
 
 public class DatabricksJobStateMapper {
   private DatabricksJobStateMapper() {}
@@ -44,11 +45,11 @@ public class DatabricksJobStateMapper {
    * @return JobStatus.
    * @throws IllegalArgumentException if jobState is invalid.
    */
-  public static JobStatus map(String jobState) {
+  public static Optional<JobStatus> mapJobState(String jobState) {
     DatabricksJobState dfJobState = DatabricksJobState.valueOf(jobState);
     if (DATABRICKS_TO_FEAST_JOB_STATUS.containsKey(dfJobState)) {
-      return DATABRICKS_TO_FEAST_JOB_STATUS.get(dfJobState);
+      return Optional.of(DATABRICKS_TO_FEAST_JOB_STATUS.get(dfJobState));
     }
-    throw new IllegalArgumentException("Unknown job state: " + jobState);
+    return Optional.empty();
   }
 }

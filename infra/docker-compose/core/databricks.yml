@@ -10,10 +10,13 @@ feast:
           host: http://databricks-emulator:8080
           token: unused
           jarFile: /opt/spark-ingestion-job.jar
+          maxRetries: 0
           newCluster:
             sparkVersion: 6.6.x-scala2.11
             nodeTypeId: Standard_F4s
             numWorkers: 2
+            sparkConf: |
+              spark.driver.memory 1G
   stream:
     type: kafka
     options:
