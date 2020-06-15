@@ -16,6 +16,7 @@
  */
 package feast.storage.connectors.bigquery.writer;
 
+import static feast.storage.common.testing.TestUtil.createRandomValue;
 import static feast.storage.common.testing.TestUtil.field;
 import static feast.storage.connectors.bigquery.writer.FeatureSetSpecToTableSchema.*;
 import static org.hamcrest.CoreMatchers.*;
@@ -34,17 +35,20 @@ import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
 import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FieldProto;
 import feast.proto.types.ValueProto;
 import feast.storage.api.writer.FeatureSink;
 import feast.storage.api.writer.WriteResult;
+import feast.storage.connectors.bigquery.compression.CompactFeatureRows;
+import feast.storage.connectors.bigquery.compression.FeatureRowsBatch;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
@@ -57,8 +61,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
@@ -114,13 +117,25 @@ public class BigQuerySinkTest {
     return options;
   }
 
-  public FeatureRow generateRow(String featureSet) {
-    return FeatureRow.newBuilder()
-        .setFeatureSet(featureSet)
-        .addFields(field("entity", rd.nextInt(), ValueProto.ValueType.Enum.INT64))
-        .addFields(
-            field("feature", String.format("%f", rd.nextFloat()), ValueProto.ValueType.Enum.STRING))
-        .build();
+  private FeatureRow generateRow(String featureSet) {
+    FeatureRow.Builder row =
+        FeatureRow.newBuilder()
+            .setFeatureSet(featureSet)
+            .addFields(field("entity", rd.nextInt(), ValueProto.ValueType.Enum.INT64));
+
+    for (ValueProto.ValueType.Enum type : ValueProto.ValueType.Enum.values()) {
+      if (type == ValueProto.ValueType.Enum.INVALID
+          || type == ValueProto.ValueType.Enum.UNRECOGNIZED) {
+        continue;
+      }
+      row.addFields(
+          FieldProto.Field.newBuilder()
+              .setName(String.format("feature_%d", type.getNumber()))
+              .setValue(createRandomValue(type, 5))
+              .build());
+    }
+
+    return row.build();
   }
 
   @Before
@@ -394,6 +409,38 @@ public class BigQuerySinkTest {
     expectedFields.addAll(commonFields);
 
     assertThat(loadConfiguration.getSchema().getFields(), is(expectedFields));
+  }
+
+  public static class ExtractKV extends DoFn<FeatureRow, KV<String, FeatureRow>> {
+    @ProcessElement
+    public void process(ProcessContext c) {
+      c.output(KV.of(c.element().getFeatureSet(), c.element()));
+    }
+  }
+
+  public static class FlatMap extends DoFn<KV<String, FeatureRowsBatch>, FeatureRow> {
+    @ProcessElement
+    public void process(ProcessContext c) {
+      c.element().getValue().getFeatureRows().forEachRemaining(c::output);
+    }
+  }
+
+  @Test
+  public void featureRowCompressShouldPackAndUnpackSuccessfully() {
+    Stream<FeatureRow> stream1 = IntStream.range(0, 1000).mapToObj(i -> generateRow("project/fs"));
+    Stream<FeatureRow> stream2 =
+        IntStream.range(0, 1000).mapToObj(i -> generateRow("project/fs_2"));
+
+    List<FeatureRow> input = Stream.concat(stream1, stream2).collect(Collectors.toList());
+
+    PCollection<FeatureRow> result =
+        p.apply(Create.of(input))
+            .apply("KV", ParDo.of(new ExtractKV()))
+            .apply(new CompactFeatureRows(1000))
+            .apply("Flat", ParDo.of(new FlatMap()));
+
+    PAssert.that(result).containsInAnyOrder(input);
+    p.run();
   }
 
   public static class TableAnswer implements Answer<Table>, Serializable {
