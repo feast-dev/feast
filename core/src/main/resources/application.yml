@@ -78,10 +78,10 @@ feast:
   security:
     authentication:
       enabled: false
-      provider: GoogleOpenID
+      provider: jwt
     authorization:
       enabled: false
-      provider: KetoAuthorization
+      provider: none
       options:
         basePath: http://localhost:3000
 

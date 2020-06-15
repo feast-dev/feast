@@ -86,7 +86,7 @@ public class Feature {
   // retrieved from or written to.
   private boolean archived = false;
 
-  private Feature(String name, ValueType.Enum type) {
+  public Feature(String name, ValueType.Enum type) {
     this.setName(name);
     this.setType(type.toString());
   }

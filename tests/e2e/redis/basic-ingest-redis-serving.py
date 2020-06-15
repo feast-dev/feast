@@ -1,6 +1,7 @@
-import pytest
 import math
+import os
 import random
+import tempfile
 import time
 import grpc
 from collections import OrderedDict
@@ -20,15 +21,28 @@ from feast.type_map import ValueType
 from feast.wait import wait_retry_backoff
 from feast.constants import FEAST_DEFAULT_OPTIONS, CONFIG_PROJECT_KEY
 from google.protobuf.duration_pb2 import Duration
-from datetime import datetime
-import pytz
-
-import pandas as pd
-import numpy as np
-import tempfile
-import os
-from feast.feature import Feature
 import uuid
+from datetime import datetime
+
+import grpc
+import numpy as np
+import pandas as pd
+import pytest
+import pytz
+from google.protobuf.duration_pb2 import Duration
+
+from feast.client import Client
+from feast.constants import CONFIG_PROJECT_KEY, FEAST_DEFAULT_OPTIONS
+from feast.core import CoreService_pb2
+from feast.core.CoreService_pb2_grpc import CoreServiceStub
+from feast.core.IngestionJob_pb2 import IngestionJobStatus
+from feast.entity import Entity
+from feast.feature import Feature
+from feast.feature_set import FeatureSet, FeatureSetRef
+from feast.serving.ServingService_pb2 import (GetOnlineFeaturesRequest,
+                                              GetOnlineFeaturesResponse)
+from feast.type_map import ValueType
+from feast.types.Value_pb2 import Value as Value
 
 FLOAT_TOLERANCE = 0.00001
 PROJECT_NAME = 'basic_' + uuid.uuid4().hex.upper()[0:6]

@@ -17,10 +17,10 @@
 package feast.core.auth.authorization.Keto;
 
 import feast.core.auth.authorization.AuthorizationProvider;
+import feast.core.auth.authorization.AuthorizationResult;
 import java.util.List;
 import java.util.Map;
 import org.hibernate.validator.internal.constraintvalidators.bv.EmailValidator;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 import sh.ory.keto.ApiClient;
@@ -50,15 +50,13 @@ public class KetoAuthorizationProvider implements AuthorizationProvider {
   }
 
   /**
-   * Validates whether a user is within a project. Throws an AccessDeniedException if user is not
-   * within the project.
+   * Validates whether a user has access to the project
    *
    * @param project Name of the Feast project
    * @param authentication Spring Security Authentication object
-   * @throws AccessDeniedException
+   * @return AuthorizationResult result of authorization query
    */
-  public void checkIfProjectMember(String project, Authentication authentication)
-      throws AccessDeniedException {
+  public AuthorizationResult checkAccess(String project, Authentication authentication) {
     String email = getEmailFromAuth(authentication);
     try {
       // Get all roles from Keto
@@ -70,7 +68,7 @@ public class KetoAuthorizationProvider implements AuthorizationProvider {
         // If the user has an admin or project specific role, return.
         if (("roles:admin").equals(role.getId())
             || (String.format("roles:feast:%s-member", project)).equals(role.getId())) {
-          return;
+          return AuthorizationResult.success();
         }
       }
     } catch (ApiException e) {
@@ -81,7 +79,7 @@ public class KetoAuthorizationProvider implements AuthorizationProvider {
       e.printStackTrace();
     }
     // Could not determine project membership, deny access.
-    throw new AccessDeniedException(
+    return AuthorizationResult.failed(
         String.format("Access denied to project %s for user %s", project, email));
   }
 

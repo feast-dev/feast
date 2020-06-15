@@ -17,32 +17,41 @@
 package feast.core.grpc;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.doThrow;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.CoreServiceProto.ApplyFeatureSetRequest;
-import feast.core.CoreServiceProto.ApplyFeatureSetResponse;
-import feast.core.FeatureSetProto;
-import feast.core.FeatureSetProto.FeatureSetStatus;
-import feast.core.SourceProto.KafkaSourceConfig;
-import feast.core.SourceProto.SourceType;
 import feast.core.auth.authorization.AuthorizationProvider;
+import feast.core.auth.authorization.AuthorizationResult;
 import feast.core.config.FeastProperties;
 import feast.core.config.FeastProperties.SecurityProperties;
 import feast.core.dao.ProjectRepository;
+import feast.core.model.Entity;
+import feast.core.model.Feature;
 import feast.core.model.FeatureSet;
-import feast.core.model.Field;
 import feast.core.model.Source;
+import feast.core.service.JobService;
 import feast.core.service.ProjectService;
 import feast.core.service.SpecService;
-import feast.types.ValueProto.ValueType.Enum;
+import feast.core.service.StatsService;
+import feast.proto.core.CoreServiceProto.ApplyFeatureSetRequest;
+import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse;
+import feast.proto.core.FeatureSetProto;
+import feast.proto.core.FeatureSetProto.FeatureSetStatus;
+import feast.proto.core.SourceProto.KafkaSourceConfig;
+import feast.proto.core.SourceProto.SourceType;
+import feast.proto.types.ValueProto.ValueType.Enum;
 import io.grpc.internal.testing.StreamRecorder;
 import java.sql.Date;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.HashMap;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -53,15 +62,16 @@ import org.springframework.security.core.context.SecurityContextHolder;
 class CoreServiceAuthTest {
 
   private CoreServiceImpl coreService;
-  private SpecService specService;
   private ProjectService projectService;
-  private ProjectRepository projectRepository;
-  private AuthorizationProvider authProvider;
+
+  @Mock private SpecService specService;
+  @Mock private ProjectRepository projectRepository;
+  @Mock private AuthorizationProvider authProvider;
+  @Mock private StatsService statsService;
+  @Mock private JobService jobService;
 
   CoreServiceAuthTest() {
-    specService = mock(SpecService.class);
-    projectRepository = mock(ProjectRepository.class);
-    authProvider = mock(AuthorizationProvider.class);
+    MockitoAnnotations.initMocks(this);
     FeastProperties.SecurityProperties.AuthorizationProperties authProp =
         new FeastProperties.SecurityProperties.AuthorizationProperties();
     authProp.setEnabled(true);
@@ -70,7 +80,8 @@ class CoreServiceAuthTest {
     FeastProperties feastProperties = new FeastProperties();
     feastProperties.setSecurity(sp);
     projectService = new ProjectService(feastProperties, projectRepository, authProvider);
-    coreService = new CoreServiceImpl(specService, projectService);
+    coreService =
+        new CoreServiceImpl(specService, projectService, statsService, jobService, feastProperties);
   }
 
   @Test
@@ -82,12 +93,14 @@ class CoreServiceAuthTest {
     SecurityContextHolder.setContext(context);
     when(context.getAuthentication()).thenReturn(auth);
 
-    doThrow(AccessDeniedException.class).when(authProvider).checkIfProjectMember(project, auth);
+    doReturn(AuthorizationResult.failed(null))
+        .when(authProvider)
+        .checkAccess(anyString(), any(Authentication.class));
 
     StreamRecorder<ApplyFeatureSetResponse> responseObserver = StreamRecorder.create();
     FeatureSetProto.FeatureSet incomingFeatureSet = newDummyFeatureSet("f2", 1, project).toProto();
     FeatureSetProto.FeatureSetSpec incomingFeatureSetSpec =
-        incomingFeatureSet.getSpec().toBuilder().clearVersion().build();
+        incomingFeatureSet.getSpec().toBuilder().build();
     FeatureSetProto.FeatureSet spec =
         FeatureSetProto.FeatureSet.newBuilder().setSpec(incomingFeatureSetSpec).build();
     ApplyFeatureSetRequest request =
@@ -105,11 +118,14 @@ class CoreServiceAuthTest {
     SecurityContext context = mock(SecurityContext.class);
     SecurityContextHolder.setContext(context);
     when(context.getAuthentication()).thenReturn(auth);
+    doReturn(AuthorizationResult.success())
+        .when(authProvider)
+        .checkAccess(anyString(), any(Authentication.class));
 
     StreamRecorder<ApplyFeatureSetResponse> responseObserver = StreamRecorder.create();
     FeatureSetProto.FeatureSet incomingFeatureSet = newDummyFeatureSet("f2", 1, project).toProto();
     FeatureSetProto.FeatureSetSpec incomingFeatureSetSpec =
-        incomingFeatureSet.getSpec().toBuilder().clearVersion().build();
+        incomingFeatureSet.getSpec().toBuilder().build();
     FeatureSetProto.FeatureSet spec =
         FeatureSetProto.FeatureSet.newBuilder().setSpec(incomingFeatureSetSpec).build();
     ApplyFeatureSetRequest request =
@@ -119,8 +135,8 @@ class CoreServiceAuthTest {
   }
 
   private FeatureSet newDummyFeatureSet(String name, int version, String project) {
-    Field feature = new Field("feature", Enum.INT64);
-    Field entity = new Field("entity", Enum.STRING);
+    Feature feature = new Feature("feature", Enum.INT64);
+    Entity entity = new Entity("entity", Enum.STRING);
 
     Source defaultSource =
         new Source(
@@ -135,11 +151,11 @@ class CoreServiceAuthTest {
         new FeatureSet(
             name,
             project,
-            version,
             100L,
             Arrays.asList(entity),
             Arrays.asList(feature),
             defaultSource,
+            new HashMap<String, String>(),
             FeatureSetStatus.STATUS_READY);
     fs.setCreated(Date.from(Instant.ofEpochSecond(10L)));
     return fs;

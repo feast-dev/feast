@@ -16,11 +16,11 @@
  */
 package feast.core.config;
 
-import feast.core.CoreServiceGrpc;
-import feast.core.auth.authentication.GoogleOID.GoogleOpenIDAuthenticationProvider;
+import feast.core.auth.authentication.DefaultJwtAuthenticationProvider;
 import feast.core.auth.authorization.AuthorizationProvider;
 import feast.core.auth.authorization.Keto.KetoAuthorizationProvider;
 import feast.core.config.FeastProperties.SecurityProperties;
+import feast.proto.core.CoreServiceGrpc;
 import java.util.ArrayList;
 import java.util.List;
 import net.devh.boot.grpc.server.security.authentication.BearerAuthenticationReader;
@@ -61,9 +61,9 @@ public class SecurityConfig {
 
     if (securityProperties.getAuthentication().isEnabled()) {
       switch (securityProperties.getAuthentication().getProvider()) {
-        case "GoogleOpenID":
+        case "jwt":
           providers.add(
-              new GoogleOpenIDAuthenticationProvider(
+              new DefaultJwtAuthenticationProvider(
                   securityProperties.getAuthentication().getOptions()));
           break;
         default:
@@ -132,7 +132,7 @@ public class SecurityConfig {
     if (securityProperties.getAuthentication().isEnabled()
         && securityProperties.getAuthorization().isEnabled()) {
       switch (securityProperties.getAuthorization().getProvider()) {
-        case "KetoAuthorization":
+        case "keto":
           return new KetoAuthorizationProvider(securityProperties.getAuthorization().getOptions());
         default:
           throw new IllegalArgumentException(

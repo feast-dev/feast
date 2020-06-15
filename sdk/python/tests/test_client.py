@@ -719,7 +719,7 @@ class TestClient:
                     }
                 ),
                 feature_refs=["driver:driver_id", "driver_id"],
-                project="driver_project",
+                default_project="driver_project",
             )  # Type: GetBatchFeaturesResponse
 
         assert response.id == "123" and response.status == JobStatus.JOB_STATUS_DONE

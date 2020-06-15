@@ -53,10 +53,12 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   @Autowired
   public CoreServiceImpl(
       SpecService specService,
+      ProjectService projectService,
       StatsService statsService,
       JobService jobService,
       FeastProperties feastProperties) {
     this.specService = specService;
+    this.projectService = projectService;
     this.jobService = jobService;
     this.feastProperties = feastProperties;
     this.statsService = statsService;

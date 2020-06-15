@@ -44,7 +44,7 @@ public class Entity {
 
   public Entity() {}
 
-  private Entity(String name, ValueType.Enum type) {
+  public Entity(String name, ValueType.Enum type) {
     this.setName(name);
     this.setType(type.toString());
   }

@@ -17,6 +17,7 @@
 package feast.core.service;
 
 import feast.core.auth.authorization.AuthorizationProvider;
+import feast.core.auth.authorization.AuthorizationResult;
 import feast.core.config.FeastProperties;
 import feast.core.config.FeastProperties.SecurityProperties;
 import feast.core.dao.ProjectRepository;
@@ -26,6 +27,7 @@ import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.stereotype.Service;
@@ -112,6 +114,9 @@ public class ProjectService {
     if (!this.securityProperties.getAuthorization().isEnabled()) {
       return;
     }
-    this.authorizationProvider.checkIfProjectMember(project, authentication);
+    AuthorizationResult result = this.authorizationProvider.checkAccess(project, authentication);
+    if (!result.allowed()) {
+      throw new AccessDeniedException(result.failureReason().orElse("AccessDenied"));
+    }
   }
 }

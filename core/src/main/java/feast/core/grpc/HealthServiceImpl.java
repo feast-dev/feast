@@ -16,7 +16,7 @@
  */
 package feast.core.grpc;
 
-import feast.core.service.AccessManagementService;
+import feast.core.service.ProjectService;
 import io.grpc.Status;
 import io.grpc.health.v1.HealthGrpc.HealthImplBase;
 import io.grpc.health.v1.HealthProto.HealthCheckRequest;
@@ -24,24 +24,24 @@ import io.grpc.health.v1.HealthProto.HealthCheckResponse;
 import io.grpc.health.v1.HealthProto.HealthCheckResponse.ServingStatus;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
-import org.lognet.springboot.grpc.GRpcService;
+import net.devh.boot.grpc.server.service.GrpcService;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Slf4j
-@GRpcService
+@GrpcService
 public class HealthServiceImpl extends HealthImplBase {
-  private final AccessManagementService accessManagementService;
+  private final ProjectService projectService;
 
   @Autowired
-  public HealthServiceImpl(AccessManagementService accessManagementService) {
-    this.accessManagementService = accessManagementService;
+  public HealthServiceImpl(ProjectService projectService) {
+    this.projectService = projectService;
   }
 
   @Override
   public void check(
       HealthCheckRequest request, StreamObserver<HealthCheckResponse> responseObserver) {
     try {
-      accessManagementService.listProjects();
+      projectService.listProjects();
       responseObserver.onNext(
           HealthCheckResponse.newBuilder().setStatus(ServingStatus.SERVING).build());
       responseObserver.onCompleted();

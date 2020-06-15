@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.auth.authentication.GoogleOID;
+package feast.core.auth.authentication;
 
 import java.util.Map;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -28,7 +28,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
  * Google Open ID Authentication Provider. This provider is used to validate incoming requests to
  * Feast Core.
  */
-public class GoogleOpenIDAuthenticationProvider implements AuthenticationProvider {
+public class DefaultJwtAuthenticationProvider implements AuthenticationProvider {
 
   private JwtAuthenticationProvider authProvider;
 
@@ -36,7 +36,7 @@ public class GoogleOpenIDAuthenticationProvider implements AuthenticationProvide
    * @param options String K/V pair of options to initialize the AuthenticationProvider with. Only
    *     one option is currently configurable, the jwkEndpointURI.
    */
-  public GoogleOpenIDAuthenticationProvider(Map<String, String> options) {
+  public DefaultJwtAuthenticationProvider(Map<String, String> options) {
 
     // Endpoint used to retrieve certificates to validate JWT token
     String jwkEndpointURI = "https://www.googleapis.com/oauth2/v3/certs";

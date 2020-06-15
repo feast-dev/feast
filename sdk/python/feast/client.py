@@ -68,8 +68,8 @@ from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
 from feast.feature import Feature, FeatureRef
 from feast.feature_set import Entity, FeatureSet, FeatureSetRef
-from feast.job import IngestJob, RetrievalJob
 from feast.grpc.grpc import create_grpc_channel
+from feast.job import IngestJob, RetrievalJob
 from feast.loaders.abstract_producer import get_producer
 from feast.loaders.file import export_source_to_staging_location
 from feast.loaders.ingest import KAFKA_CHUNK_PRODUCTION_TIMEOUT, get_feature_row_chunks
@@ -336,7 +336,6 @@ class Client:
             project: Name of project to archive
         """
 
-        self._connect_core()
         try:
             self._core_service_stub.ArchiveProject(
                 ArchiveProjectRequest(name=project),
@@ -440,7 +439,7 @@ class Client:
         feature_set_protos = self._core_service.ListFeatureSets(
             ListFeatureSetsRequest(filter=filter), metadata=self._get_grpc_metadata(),
         )  # type: ListFeatureSetsResponse
-        
+
         # Extract feature sets and return
         feature_sets = []
         for feature_set_proto in feature_set_protos.feature_sets:
@@ -589,7 +588,6 @@ class Client:
             >>> print(df)
         """
 
-        self._connect_serving()
         feature_references = _build_feature_references(
             feature_refs=feature_refs, default_project=default_project
         )
@@ -649,11 +647,11 @@ class Client:
 
         # Retrieve Feast Job object to manage life cycle of retrieval
         try:
-            response = self._serving_service_stub.GetBatchFeatures(request)
+            response = self._serving_service.GetBatchFeatures(request)
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 
-        return RetrievalJob(response.job, self._serving_service_stub)
+        return RetrievalJob(response.job, self._serving_service)
 
     def get_online_features(
         self,
@@ -685,7 +683,7 @@ class Client:
         """
 
         try:
-            response = self._serving_service_stub.GetOnlineFeatures(
+            response = self._serving_service.GetOnlineFeatures(
                 GetOnlineFeaturesRequest(
                     omit_entities_in_response=omit_entities,
                     features=_build_feature_references(
@@ -748,7 +746,6 @@ class Client:
         Returns:
             List of IngestJobs matching the given filters
         """
-        self._connect_core()
         # construct list request
         feature_set_ref = None
         list_filter = ListIngestionJobsRequest.Filter(
@@ -772,7 +769,6 @@ class Client:
         Args:
             job: IngestJob to restart
         """
-        self._connect_core()
         request = RestartIngestionJobRequest(id=job.id)
         try:
             self._core_service_stub.RestartIngestionJob(request)
@@ -789,7 +785,6 @@ class Client:
         Args:
             job: IngestJob to restart
         """
-        self._connect_core()
         request = StopIngestionJobRequest(id=job.id)
         try:
             self._core_service_stub.StopIngestionJob(request)
@@ -957,7 +952,6 @@ class Client:
            Returns a tensorflow DatasetFeatureStatisticsList containing TFDV featureStatistics.
         """
 
-        self._connect_core()
         if ingestion_ids is not None and (
             start_date is not None or end_date is not None
         ):
