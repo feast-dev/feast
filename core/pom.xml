@@ -50,6 +50,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <skip>false</skip>
+
                 </configuration>
                 <executions>
                     <execution>
@@ -58,6 +59,7 @@
                             <goal>build-info</goal>
                         </goals>
                     </execution>
+
                 </executions>
             </plugin>
         </plugins>

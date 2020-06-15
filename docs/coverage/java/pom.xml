@@ -55,6 +55,12 @@
 
     <dependency>
       <groupId>dev.feast</groupId>
+      <artifactId>feast-storage-connector-bigtable</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>dev.feast</groupId>
       <artifactId>feast-storage-connector-redis</artifactId>
       <version>${project.version}</version>
     </dependency>
