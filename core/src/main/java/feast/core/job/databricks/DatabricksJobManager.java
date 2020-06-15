@@ -134,7 +134,10 @@ public class DatabricksJobManager implements JobManager {
           e.getMessage(),
           e.getCause());
       throw new JobExecutionException(
-          String.format("Unable to abort databricks job with run id : %s\ncause: %s", runId, e), e);
+          String.format(
+              "Unable to abort databricks job with run id : %s \nmessage: %s\ncause: %s",
+              runId, e.getMessage(), e.getCause()),
+          e);
     }
   }
 
@@ -188,9 +191,10 @@ public class DatabricksJobManager implements JobManager {
 
     } catch (IOException | InterruptedException | HttpException ex) {
       log.error(
-          "Unable to retrieve status of a databricks run with id : {}\ncause: {}",
+          "Unable to retrieve status of a databricks run with id : {} \nmessage: {} \ncause: {}",
           job.getExtId(),
-          ex.getMessage());
+          ex.getMessage(),
+          ex.getCause());
     }
 
     return JobStatus.UNKNOWN;
@@ -252,9 +256,11 @@ public class DatabricksJobManager implements JobManager {
       return createResponse.getJobId();
 
     } catch (IOException | InterruptedException | HttpException e) {
-      log.error("Unable to run databricks job : {}\ncause: {}", jobName, e.getMessage());
       throw new JobExecutionException(
-          String.format("Unable to run databricks job : %s\ncause: %s", jobName, e), e);
+          String.format(
+              "Unable to run databricks job : %s \nmessage: %s\ncause: %s",
+              jobName, e, e.getCause()),
+          e);
     }
   }
 
@@ -284,10 +290,10 @@ public class DatabricksJobManager implements JobManager {
       RunNowResponse runNowResponse = mapper.readValue(response.body(), RunNowResponse.class);
       return runNowResponse.getRunId();
     } catch (Exception e) {
-      log.error(
-          "Unable to run databricks job with id : {}\ncause: {}", databricksJobId, e.getMessage());
       throw new JobExecutionException(
-          String.format("Unable to run databricks job with id : %s\ncause: %s", databricksJobId, e),
+          String.format(
+              "Unable to run databricks job with id : %s \nmessage: %s\ncause: %s",
+              databricksJobId, e.getMessage(), e.getCause()),
           e);
     }
   }
