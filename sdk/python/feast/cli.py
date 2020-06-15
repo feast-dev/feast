@@ -208,7 +208,7 @@ def feature_list(project: str, entities: str, labels: str):
     labels_dict = _get_features_labels_dict(labels)
 
     table = []
-    for feature_ref, feature in feast_client.list_features(
+    for feature_ref, feature in feast_client.list_features_by_ref(
         project=project, entities=entities_list, labels=labels_dict
     ).items():
         table.append([feature.name, feature.dtype, repr(feature_ref)])

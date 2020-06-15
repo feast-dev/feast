@@ -655,16 +655,16 @@ def test_list_entities_and_features(client):
         ("driver_id", driver_entity)
     ])
 
-    filter_by_project_entity_labels_expected = OrderedDict([
+    filter_by_project_entity_labels_expected = dict([
         ("customer:rating", customer_feature_rating)
     ])
 
-    filter_by_project_entity_expected = OrderedDict([
+    filter_by_project_entity_expected = dict([
         ("driver:cost", driver_feature_cost),
         ("driver:rating", driver_feature_rating)
     ])
 
-    filter_by_project_labels_expected = OrderedDict([
+    filter_by_project_labels_expected = dict([
         ("customer:rating", customer_feature_rating),
         ("driver:cost", driver_feature_cost)
     ])
@@ -697,13 +697,13 @@ def test_list_entities_and_features(client):
 
     # Test for listing of features
     # Case 1: Filter by: project, entities and labels
-    filter_by_project_entity_labels_actual = client.list_features(project=PROJECT_NAME, entities=["customer_id"], labels={"key1":"val1"})
+    filter_by_project_entity_labels_actual = client.list_features_by_ref(project=PROJECT_NAME, entities=["customer_id"], labels={"key1":"val1"})
     
     # Case 2: Filter by: project, entities
-    filter_by_project_entity_actual = client.list_features(project=PROJECT_NAME, entities=["driver_id"])
+    filter_by_project_entity_actual = client.list_features_by_ref(project=PROJECT_NAME, entities=["driver_id"])
     
     # Case 3: Filter by: project, labels
-    filter_by_project_labels_actual = client.list_features(project=PROJECT_NAME, labels={"key1":"val1"})
+    filter_by_project_labels_actual = client.list_features_by_ref(project=PROJECT_NAME, labels={"key1":"val1"})
 
     assert set(entity_map_expected) == set(entity_map_actual)
     assert set(filter_by_project_entity_labels_expected) == set(filter_by_project_entity_labels_actual)

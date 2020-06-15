@@ -497,18 +497,29 @@ class Client:
             raise grpc.RpcError(e.details())
         return FeatureSet.from_proto(get_feature_set_response.feature_set)
 
-    def list_features(
+    def list_features_by_ref(
         self,
         project: str = None,
         entities: List[str] = list(),
         labels: Dict[str, str] = dict(),
-        return_as_dict=True,
     ) -> Dict[FeatureRef, Feature]:
         """
-        Returns a list of features based on filters provided
+        Returns a list of features based on filters provided.
+
+        Args:
+            project: Feast project that these features belongs to
+            entities: Feast entity that these features are associated with
+            labels: Feast labels that these features are associated with
 
         Returns:
             Dictionary of <feature references: features>
+
+        Examples:
+            >>> from feast import Client
+            >>>
+            >>> feast_client = Client(core_url="localhost:6565")
+            >>> features = list_features_by_ref(project="test_project", entities=["driver_id"], labels={"key1":"val1","key2":"val2"})
+            >>> print(features)
         """
         self._connect_core()
 
@@ -516,7 +527,7 @@ class Client:
             if self.project is not None:
                 project = self.project
             else:
-                project = "*"
+                project = "default"
 
         filter = ListFeaturesRequest.Filter(
             project=project, entities=entities, labels=labels
@@ -526,21 +537,30 @@ class Client:
             ListFeaturesRequest(filter=filter)
         )  # type: ListFeaturesResponse
 
-        if return_as_dict:
-            features_dict = OrderedDict()
-            for ref_str, feature_proto in feature_protos.features.items():
-                feature_ref = FeatureRef.from_str(ref_str, ignore_project=True)
-                feature = Feature.from_proto(feature_proto)
-                features_dict[feature_ref] = feature
+        features_dict = {}
+        for ref_str, feature_proto in feature_protos.features.items():
+            feature_ref = FeatureRef.from_str(ref_str, ignore_project=True)
+            feature = Feature.from_proto(feature_proto)
+            features_dict[feature_ref] = feature
 
         return features_dict
 
     def list_entities(self, project: str = None) -> Dict[str, Entity]:
         """
-        Returns a dictionary of entities based on project
+        Returns a dictionary of entities based on project.
+
+        Args:
+            project: Feast project that these entities belongs to
 
         Returns:
             Dictionary of entities, indexed by name
+
+        Examples:
+            >>> from feast import Client
+            >>>
+            >>> feast_client = Client(core_url="localhost:6565")
+            >>> entities = list_entities(project="test_project")
+            >>> print(entities)
         """
         self._connect_core()
 

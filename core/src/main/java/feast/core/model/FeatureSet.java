@@ -23,6 +23,7 @@ import com.google.protobuf.Timestamp;
 import feast.core.util.TypeConversion;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.*;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
 import java.util.*;
 import java.util.stream.Collectors;
 import javax.persistence.*;
@@ -129,15 +130,8 @@ public class FeatureSet extends AbstractTimestampEntity {
    */
   public boolean hasAllEntities(List<String> entitiesFilter) {
     List<String> allEntitiesName =
-        this.entities.stream()
-            .map(entitySpec -> entitySpec.toProto().getName())
-            .collect(Collectors.toList());
-    for (String entity : entitiesFilter) {
-      if (!allEntitiesName.contains(entity)) {
-        return false;
-      }
-    }
-    return true;
+        this.getEntities().stream().map(entity -> entity.getName()).collect(Collectors.toList());
+    return allEntitiesName.equals(entitiesFilter);
   }
 
   /**
@@ -151,21 +145,61 @@ public class FeatureSet extends AbstractTimestampEntity {
     Map<String, Feature> validFeaturesMap = new HashMap<>();
     List<Feature> validFeatures;
     if (labelsFilter.size() > 0) {
-      validFeatures =
-          this.features.stream()
-              .filter(feature -> feature.hasAllLabels(labelsFilter))
-              .collect(Collectors.toList());
+      validFeatures = filterFeaturesByAllLabels(this.getFeatures(), labelsFilter);
       for (Feature feature : validFeatures) {
-        validFeaturesMap.put(
-            this.getProject().getName() + "/" + this.getName() + ":" + feature.getName(), feature);
+        FeatureReference featureRef =
+            FeatureReference.newBuilder()
+                .setProject(this.getProjectName())
+                .setFeatureSet(this.getName())
+                .setName(feature.getName())
+                .build();
+        validFeaturesMap.put(renderFeatureRef(featureRef), feature);
       }
       return validFeaturesMap;
     }
     for (Feature feature : this.getFeatures()) {
-      validFeaturesMap.put(
-          this.getProject().getName() + "/" + this.getName() + ":" + feature.getName(), feature);
+      FeatureReference featureRef =
+          FeatureReference.newBuilder()
+              .setProject(this.getProjectName())
+              .setFeatureSet(this.getName())
+              .setName(feature.getName())
+              .build();
+      validFeaturesMap.put(renderFeatureRef(featureRef), feature);
     }
     return validFeaturesMap;
+  }
+
+  /**
+   * Returns a list of Features if FeatureSet's Feature contains all labels in labelsFilter
+   *
+   * @param labelsFilter contain labels that should be attached to FeatureSet's features
+   * @return List of Features
+   */
+  public static List<Feature> filterFeaturesByAllLabels(
+      Set<Feature> features, Map<String, String> labelsFilter) {
+    List<Feature> validFeatures =
+        features.stream()
+            .filter(feature -> feature.hasAllLabels(labelsFilter))
+            .collect(Collectors.toList());
+
+    return validFeatures;
+  }
+
+  /**
+   * Render a feature reference as string.
+   *
+   * @param featureReference to render as string
+   * @return string representation of feature reference.
+   */
+  public static String renderFeatureRef(FeatureReference featureReference) {
+    String refStr =
+        featureReference.getProject()
+            + "/"
+            + featureReference.getFeatureSet()
+            + ":"
+            + featureReference.getName();
+
+    return refStr;
   }
 
   public void setProject(Project project) {

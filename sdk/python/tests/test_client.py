@@ -34,7 +34,6 @@ from feast.client import Client
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionResponse,
     GetFeatureSetResponse,
-    ListEntitiesResponse,
     ListFeaturesResponse,
     ListIngestionJobsResponse,
 )
@@ -327,40 +326,6 @@ class TestClient:
         "mocked_client",
         [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
     )
-    def test_list_entities(self, mocked_client, mocker):
-        mocker.patch.object(
-            mocked_client,
-            "_core_service_stub",
-            return_value=Core.CoreServiceStub(grpc.insecure_channel("")),
-        )
-
-        entity_proto = EntitySpecProto(
-            name="entity_1", value_type=ValueProto.ValueType.STRING
-        )
-
-        mocker.patch.object(
-            mocked_client._core_service_stub,
-            "ListEntities",
-            return_value=ListEntitiesResponse(entities={"entity_1": entity_proto}),
-        )
-
-        entities = mocked_client.list_entities(project="test")
-        assert len(entities) == 1
-
-        for ref_str, entity_proto in entities.items():
-            ref_str_to_check = ref_str
-            entity_to_check = entity_proto
-
-        assert (
-            entity_to_check.name == "entity_1"
-            and ref_str_to_check == "entity_1"
-            and entity_to_check.dtype == ValueType.STRING
-        )
-
-    @pytest.mark.parametrize(
-        "mocked_client",
-        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
-    )
     def test_list_features(self, mocked_client, mocker):
         mocker.patch.object(
             mocked_client,
@@ -386,7 +351,7 @@ class TestClient:
             ),
         )
 
-        features = mocked_client.list_features(project="test")
+        features = mocked_client.list_features_by_ref(project="test")
         assert len(features) == 2
 
         ref_str_list = []

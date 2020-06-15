@@ -107,6 +107,10 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     }
   }
 
+  /**
+   * Implementation of ListFeatures method in Feast Core gRPC service to return all features based
+   * on filters.
+   */
   @Override
   public void listFeatures(
       ListFeaturesRequest request, StreamObserver<ListFeaturesResponse> responseObserver) {
@@ -114,13 +118,28 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       ListFeaturesResponse response = specService.listFeatures(request.getFilter());
       responseObserver.onNext(response);
       responseObserver.onCompleted();
-    } catch (RetrievalException | IllegalArgumentException | InvalidProtocolBufferException e) {
+    } catch (IllegalArgumentException e) {
+      log.error("Illegal arguments provided to ListFeatures method: ", e);
+      responseObserver.onError(
+          Status.INVALID_ARGUMENT
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
+    } catch (RetrievalException e) {
+      log.error("Unable to fetch entities requested in ListFeatures method: ", e);
+      responseObserver.onError(
+          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    } catch (Exception e) {
       log.error("Exception has occurred in ListFeatures method: ", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
   }
 
+  /**
+   * Implementation of ListEntities method in Feast Core gRPC service to return all entities based
+   * on filters.
+   */
   @Override
   public void listEntities(
       ListEntitiesRequest request, StreamObserver<ListEntitiesResponse> responseObserver) {
@@ -128,7 +147,18 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       ListEntitiesResponse response = specService.listEntities(request.getFilter());
       responseObserver.onNext(response);
       responseObserver.onCompleted();
-    } catch (RetrievalException | IllegalArgumentException | InvalidProtocolBufferException e) {
+    } catch (IllegalArgumentException e) {
+      log.error("Illegal arguments provided to ListEntities method: ", e);
+      responseObserver.onError(
+          Status.INVALID_ARGUMENT
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
+    } catch (RetrievalException e) {
+      log.error("Unable to fetch entities requested in ListEntities method: ", e);
+      responseObserver.onError(
+          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    } catch (Exception e) {
       log.error("Exception has occurred in ListEntities method: ", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());

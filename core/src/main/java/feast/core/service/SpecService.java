@@ -208,9 +208,8 @@ public class SpecService {
    * Return a map of feature references and features matching the project, labels and entities
    * provided in the filter. All fields are required.
    *
-   * <p>Project name can be explicitly provided, or an asterisk can be provided to match all
-   * projects. A combination of asterisks/wildcards and text can be used to find features across
-   * multiple matching projects. If the project name is omitted, the default project would be used.
+   * <p>Project name must be explicitly provided or if the project name is omitted, the default
+   * project would be used. A combination of asterisks/wildcards and text is not allowed.
    *
    * <p>The entities in the filter accepts a list. All matching features will be returned. Regex is
    * not supported. If no entities are provided, features will not be filtered by entities.
@@ -222,41 +221,24 @@ public class SpecService {
    * @return ListEntitiesResponse with map of feature references and features found matching the
    *     filter
    */
-  public ListFeaturesResponse listFeatures(ListFeaturesRequest.Filter filter)
-      throws InvalidProtocolBufferException {
-    String project = filter.getProject();
-    List<String> entities = filter.getEntitiesList();
-    Map<String, String> labels = filter.getLabelsMap();
+  public ListFeaturesResponse listFeatures(ListFeaturesRequest.Filter filter) {
+    try {
+      String project = filter.getProject();
+      List<String> entities = filter.getEntitiesList();
+      Map<String, String> labels = filter.getLabelsMap();
 
-    checkValidCharactersAllowAsterisk(project, "projectName");
+      checkValidCharactersAllowAsterisk(project, "projectName");
 
-    // Autofill default project if project not specified
-    if (project.isEmpty()) {
-      project = Project.DEFAULT_NAME;
-    }
+      // Autofill default project if project not specified
+      if (project.isEmpty()) {
+        project = Project.DEFAULT_NAME;
+      }
 
-    // Currently defaults to all FeatureSets
-    List<FeatureSet> featureSets;
-
-    if (project.contains("*")) {
-      // Matching a wildcard project
-      featureSets =
-          featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc(
-              "%", project.replace('*', '%'));
-    } else if (!project.contains("*")) {
-      // Matching a specific project
-      featureSets =
+      // Currently defaults to all FeatureSets
+      List<FeatureSet> featureSets =
           featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc("%", project);
-    } else {
-      throw new IllegalArgumentException(
-          String.format(
-              "Invalid listFeaturesRequest. Project name cannot be a pattern. It may only be "
-                  + "a specific project name or an asterisk: \n%s",
-              filter.toString()));
-    }
 
-    ListFeaturesResponse.Builder response = ListFeaturesResponse.newBuilder();
-    if (featureSets.size() > 0) {
+      ListFeaturesResponse.Builder response = ListFeaturesResponse.newBuilder();
       if (entities.size() > 0) {
         featureSets =
             featureSets.stream()
@@ -271,49 +253,43 @@ public class SpecService {
           response.putFeatures(entry.getKey(), entry.getValue().toProto());
         }
       }
+
+      return response.build();
+    } catch (InvalidProtocolBufferException e) {
+      throw io.grpc.Status.NOT_FOUND
+          .withDescription("Unable to retrieve features")
+          .withCause(e)
+          .asRuntimeException();
     }
-    return response.build();
   }
 
   /**
    * Return a map of entity references and entities matching the project provided in the filter. All
    * fields are required.
    *
-   * <p>Project name must be explicitly provided. It is not possible to provide a combination of
-   * asterisks/wildcards and text. If the project name is omitted, the default project would be
-   * used.
+   * <p>Project name must be explicitly provided or if the project name is omitted, the default
+   * project would be used. It is not possible to provide a combination of asterisks/wildcards and
+   * text.
    *
    * @param filter filter containing the desired project name
    * @return ListEntitiesResponse with map of entity references and entities found matching the
    *     filter
    */
-  public ListEntitiesResponse listEntities(ListEntitiesRequest.Filter filter)
-      throws InvalidProtocolBufferException {
-    String project = filter.getProject();
+  public ListEntitiesResponse listEntities(ListEntitiesRequest.Filter filter) {
+    try {
+      String project = filter.getProject();
 
-    checkValidCharactersAllowAsterisk(project, "projectName");
+      checkValidCharactersAllowAsterisk(project, "projectName");
 
-    // Autofill default project if project not specified
-    if (project.isEmpty()) {
-      project = Project.DEFAULT_NAME;
-    }
+      // Autofill default project if project not specified
+      if (project.isEmpty()) {
+        project = Project.DEFAULT_NAME;
+      }
 
-    List<FeatureSet> featureSets;
-
-    if (!project.contains("*")) {
-      // Matching a specific project
-      featureSets =
+      List<FeatureSet> featureSets =
           featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc("%", project);
-    } else {
-      throw new IllegalArgumentException(
-          String.format(
-              "Invalid listEntitiesRequest. Project name cannot be a pattern. It may only be "
-                  + "a specific project name: \n%s",
-              filter.toString()));
-    }
 
-    ListEntitiesResponse.Builder response = ListEntitiesResponse.newBuilder();
-    if (featureSets.size() > 0) {
+      ListEntitiesResponse.Builder response = ListEntitiesResponse.newBuilder();
       for (FeatureSet featureSet : featureSets) {
         List<EntitySpec> allEntities = featureSet.toProto().getSpec().getEntitiesList();
         for (EntitySpec entity : allEntities) {
@@ -322,9 +298,14 @@ public class SpecService {
           }
         }
       }
-    }
 
-    return response.build();
+      return response.build();
+    } catch (InvalidProtocolBufferException e) {
+      throw io.grpc.Status.NOT_FOUND
+          .withDescription("Unable to retrieve entities")
+          .withCause(e)
+          .asRuntimeException();
+    }
   }
 
   /**
