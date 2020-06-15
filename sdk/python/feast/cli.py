@@ -112,37 +112,6 @@ def config_set(prop, value):
         sys.exit(1)
 
 
-@cli.group(name="entities")
-def entities():
-    """
-    Manage entities
-    """
-    pass
-
-
-@entities.command(name="list")
-@click.option(
-    "--project",
-    "-p",
-    help="Project that entity belongs to",
-    type=click.STRING,
-    default="default",
-)
-def entities_list(project: str):
-    """
-    List all entities
-    """
-    feast_client = Client()  # type: Client
-
-    table = []
-    for entity in feast_client.list_entities(project=project):
-        table.append([entity.name])
-
-    from tabulate import tabulate
-
-    print(tabulate(table, headers=["NAME"], tablefmt="plain"))
-
-
 @cli.group(name="features")
 def feature():
     """

@@ -20,6 +20,7 @@ import shutil
 import tempfile
 import time
 import uuid
+from collections import OrderedDict
 from math import ceil
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -50,8 +51,6 @@ from feast.core.CoreService_pb2 import (
     GetFeatureSetRequest,
     GetFeatureSetResponse,
     GetFeatureStatisticsRequest,
-    ListEntitiesRequest,
-    ListEntitiesResponse,
     ListFeaturesRequest,
     ListFeaturesResponse,
     ListFeatureSetsRequest,
@@ -544,43 +543,17 @@ class Client:
 
         return features_dict
 
-    def list_entities(self, project: str = None) -> List[Entity]:
+    def list_entities(self) -> Dict[str, Entity]:
         """
-        Returns a list of entities based on project.
-
-        Args:
-            project: Feast project that these entities belongs to
-
+        Returns a dictionary of entities across all feature sets
         Returns:
-            List of entities
-
-        Examples:
-            >>> from feast import Client
-            >>>
-            >>> feast_client = Client(core_url="localhost:6565")
-            >>> entities = list_entities(project="test_project")
-            >>> print(entities)
+            Dictionary of entities, indexed by name
         """
-        self._connect_core()
-
-        if project is None:
-            if self.project is not None:
-                project = self.project
-            else:
-                project = ""
-
-        filter = ListEntitiesRequest.Filter(project=project)
-
-        entity_protos = self._core_service_stub.ListEntities(
-            ListEntitiesRequest(filter=filter)
-        )  # type: ListEntitiesResponse
-
-        entities_list = []
-        for ref_str, entity_proto in entity_protos.entities.items():
-            entity = Entity.from_proto(entity_proto)
-            entities_list.append(entity)
-
-        return entities_list
+        entities_dict = OrderedDict()
+        for fs in self.list_feature_sets():
+            for entity in fs.entities:
+                entities_dict[entity.name] = entity
+        return entities_dict
 
     def get_batch_features(
         self,

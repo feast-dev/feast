@@ -35,8 +35,6 @@ import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse.Status;
 import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
 import feast.proto.core.CoreServiceProto.GetFeatureSetResponse;
-import feast.proto.core.CoreServiceProto.ListEntitiesRequest;
-import feast.proto.core.CoreServiceProto.ListEntitiesResponse;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.proto.core.CoreServiceProto.ListFeaturesRequest;
@@ -661,20 +659,6 @@ public class SpecServiceTest {
     var appliedLabels = appliedFeatureSetSpec.getLabelsMap();
 
     assertEquals(featureSetLabels, appliedLabels);
-  }
-
-  @Test
-  public void shouldFilterEntitiesByProject() throws InvalidProtocolBufferException {
-    ListEntitiesResponse actual =
-        specService.listEntities(
-            ListEntitiesRequest.Filter.newBuilder().setProject("project2").build());
-    EntitySpec entitySpec1 = featureSets.get(4).toProto().getSpec().getEntities(0);
-    Map<String, EntitySpec> expectedMap =
-        Map.ofEntries(Map.entry(entitySpec1.getName(), entitySpec1));
-    ListEntitiesResponse expected =
-        ListEntitiesResponse.newBuilder().putAllEntities(expectedMap).build();
-
-    assertThat(actual, equalTo(expected));
   }
 
   @Test

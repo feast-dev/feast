@@ -34,8 +34,6 @@ import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse.Status;
 import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
 import feast.proto.core.CoreServiceProto.GetFeatureSetResponse;
-import feast.proto.core.CoreServiceProto.ListEntitiesRequest;
-import feast.proto.core.CoreServiceProto.ListEntitiesResponse;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.proto.core.CoreServiceProto.ListFeaturesRequest;
@@ -46,7 +44,6 @@ import feast.proto.core.CoreServiceProto.ListStoresResponse.Builder;
 import feast.proto.core.CoreServiceProto.UpdateStoreRequest;
 import feast.proto.core.CoreServiceProto.UpdateStoreResponse;
 import feast.proto.core.FeatureSetProto;
-import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetStatus;
 import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
@@ -264,51 +261,6 @@ public class SpecService {
   }
 
   /**
-   * Return a map of entity references and entities matching the project provided in the filter. All
-   * fields are required.
-   *
-   * <p>Project name must be explicitly provided or if the project name is omitted, the default
-   * project would be used. It is not possible to provide a combination of asterisks/wildcards and
-   * text.
-   *
-   * @param filter filter containing the desired project name
-   * @return ListEntitiesResponse with map of entity references and entities found matching the
-   *     filter
-   */
-  public ListEntitiesResponse listEntities(ListEntitiesRequest.Filter filter) {
-    try {
-      String project = filter.getProject();
-
-      checkValidCharactersAllowAsterisk(project, "projectName");
-
-      // Autofill default project if project not specified
-      if (project.isEmpty()) {
-        project = Project.DEFAULT_NAME;
-      }
-
-      List<FeatureSet> featureSets =
-          featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc("%", project);
-
-      ListEntitiesResponse.Builder response = ListEntitiesResponse.newBuilder();
-      for (FeatureSet featureSet : featureSets) {
-        List<EntitySpec> allEntities = featureSet.toProto().getSpec().getEntitiesList();
-        for (EntitySpec entity : allEntities) {
-          if (!response.containsEntities(entity.getName())) {
-            response.putEntities(entity.getName(), entity);
-          }
-        }
-      }
-
-      return response.build();
-    } catch (InvalidProtocolBufferException e) {
-      throw io.grpc.Status.NOT_FOUND
-          .withDescription("Unable to retrieve entities")
-          .withCause(e)
-          .asRuntimeException();
-    }
-  }
-
-  /**
    * Get stores matching the store name provided in the filter. If the store name is not provided,
    * the method will return all stores currently registered to Feast.
    *
@@ -335,6 +287,7 @@ public class SpecService {
                           String.format("Store with name '%s' not found", name)));
       return ListStoresResponse.newBuilder().addStore(store.toProto()).build();
     } catch (InvalidProtocolBufferException e) {
+
       throw io.grpc.Status.NOT_FOUND
           .withDescription("Unable to retrieve stores")
           .withCause(e)

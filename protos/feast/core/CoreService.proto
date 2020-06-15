@@ -43,12 +43,6 @@ service CoreService {
     // sets currently stored in the registry.
     rpc ListFeatureSets (ListFeatureSetsRequest) returns (ListFeatureSetsResponse);
 
-    // Returns all entity references and respective entities matching that filter. If none are found
-    // an empty map will be returned
-    // If no filter is provided in the request, the response will contain all the entities
-    // currently stored in the default project.
-    rpc ListEntities (ListEntitiesRequest) returns (ListEntitiesResponse);
-
     // Returns all feature references and respective features matching that filter. If none are found
     // an empty map will be returned
     // If no filter is provided in the request, the response will contain all the features
@@ -171,18 +165,6 @@ message ListFeaturesRequest {
 
 message ListFeaturesResponse {
     map<string, feast.core.FeatureSpec> features = 1;
-}
-
-message ListEntitiesRequest {
-    message Filter {
-        string project = 3;
-    }
-
-    Filter filter = 1;
-}
-
-message ListEntitiesResponse {
-    map<string, feast.core.EntitySpec> entities = 1;
 }
 
 message ListStoresRequest {
