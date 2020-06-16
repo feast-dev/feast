@@ -5,12 +5,17 @@ import static org.apache.beam.vendor.grpc.v1p21p0.com.google.common.base.Precond
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.coders.*;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.windowing.*;
 import org.apache.beam.sdk.values.*;
@@ -23,7 +28,7 @@ import org.slf4j.LoggerFactory;
 @AutoValue
 public abstract class BatchLoadsWithResult<DestinationT>
     extends PTransform<
-        PCollection<KV<DestinationT, TableRow>>, PCollection<KV<TableDestination, String>>> {
+    PCollection<KV<DestinationT, TableRow>>, PCollection<KV<TableDestination, String>>> {
   static final Logger LOG = LoggerFactory.getLogger(BatchLoadsWithResult.class);
 
   @VisibleForTesting
@@ -38,6 +43,8 @@ public abstract class BatchLoadsWithResult<DestinationT>
   static final long DEFAULT_MAX_FILE_SIZE = 4 * (1L << 40);
 
   static final int DEFAULT_MAX_RETRY_JOBS = 3;
+
+  static final int FILE_TRIGGERING_RECORD_COUNT = 500000;
 
   @Nullable
   abstract BigQueryServices getBigQueryServices();
@@ -135,6 +142,12 @@ public abstract class BatchLoadsWithResult<DestinationT>
 
     PCollection<WriteBundlesToFiles.Result<DestinationT>> results =
         input
+            .apply("WindowWithTrigger",
+                Window.<KV<DestinationT, TableRow>>configure()
+                    .triggering(
+                        Repeatedly.forever(
+                            AfterPane.elementCountAtLeast(FILE_TRIGGERING_RECORD_COUNT)))
+                    .discardingFiredPanes())
             .apply(
                 "PutAllRowsInSingleShard",
                 ParDo.of(
@@ -150,8 +163,8 @@ public abstract class BatchLoadsWithResult<DestinationT>
             .apply(
                 "WriteGroupedRecords",
                 ParDo.of(
-                        new WriteGroupedRecordsToFiles<>(
-                            tempFilePrefixView, DEFAULT_MAX_FILE_SIZE, getRowWriterFactory()))
+                    new WriteGroupedRecordsToFiles<>(
+                        tempFilePrefixView, DEFAULT_MAX_FILE_SIZE, getRowWriterFactory()))
                     .withSideInputs(tempFilePrefixView))
             .setCoder(WriteBundlesToFiles.ResultCoder.of(getDestinationCoder()));
 
@@ -163,6 +176,10 @@ public abstract class BatchLoadsWithResult<DestinationT>
     // Copied from original BatchLoads
     PCollectionTuple partitions =
         results
+            .apply(
+                Window.<WriteBundlesToFiles.Result<DestinationT>>configure()
+                    .triggering(DefaultTrigger.of())
+            )
             .apply("AttachSingletonKey", WithKeys.of((Void) null))
             .setCoder(
                 KvCoder.of(
@@ -172,15 +189,15 @@ public abstract class BatchLoadsWithResult<DestinationT>
             .apply(
                 "WritePartitionTriggered",
                 ParDo.of(
-                        new WritePartition<>(
-                            false,
-                            getDynamicDestinations(),
-                            tempFilePrefixView,
-                            DEFAULT_MAX_FILES_PER_PARTITION,
-                            DEFAULT_MAX_BYTES_PER_PARTITION,
-                            multiPartitionsTag,
-                            singlePartitionTag,
-                            getRowWriterFactory()))
+                    new WritePartition<>(
+                        false,
+                        getDynamicDestinations(),
+                        tempFilePrefixView,
+                        DEFAULT_MAX_FILES_PER_PARTITION,
+                        DEFAULT_MAX_BYTES_PER_PARTITION,
+                        multiPartitionsTag,
+                        singlePartitionTag,
+                        getRowWriterFactory()))
                     .withSideInputs(tempFilePrefixView)
                     .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
 
@@ -203,31 +220,40 @@ public abstract class BatchLoadsWithResult<DestinationT>
     // So generated ids can be applied as side input
     return input
         .apply(
-            "JobIdWindow",
-            Window.<KV<DestinationT, TableRow>>configure()
-                .triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()))
-                .discardingFiredPanes())
-        .apply(
-            "JustDummyEvent",
+            "EraseKey",
             ParDo.of(
-                new DoFn<KV<DestinationT, TableRow>, KV<Void, Void>>() {
+                new DoFn<KV<DestinationT, TableRow>, KV<Void, TableRow>>() {
                   @ProcessElement
                   public void process(ProcessContext c) {
-                    c.output(KV.of((Void) null, (Void) null));
+                    c.output(KV.of(null, c.element().getValue()));
                   }
                 }))
-        .apply("OneEventPerWindow", GroupByKey.create())
         .apply(
             "CreateJobId",
             ParDo.of(
-                new DoFn<KV<Void, Iterable<Void>>, String>() {
+                new DoFn<KV<Void, TableRow>, String>() {
+                  @StateId("generatedForWindow")
+                  private final StateSpec<ValueState<Boolean>> generatedForWindow = StateSpecs.value(BooleanCoder.of());
+
                   @ProcessElement
-                  public void process(ProcessContext c, BoundedWindow w) {
+                  public void process(
+                      ProcessContext c,
+                      BoundedWindow w,
+                      @StateId("generatedForWindow") ValueState<Boolean> generatedForWindow) {
+
+                    if (generatedForWindow.read() != null) {
+                      return;
+                    }
+
+                    generatedForWindow.write(true);
+
                     c.output(
                         String.format(
                             "beam_load_%s_%s",
                             c.getPipelineOptions().getJobName().replaceAll("-", ""),
                             BigQueryHelpers.randomUUIDString()));
+
+                    LOG.info("Pane {}, start: {}, last: {}", c.pane().getIndex(), c.pane().isFirst(), c.pane().isLast());
                     LOG.info("[BQ] New window {}, {}", c.timestamp(), w.maxTimestamp());
                   }
                 }));
