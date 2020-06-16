@@ -23,24 +23,24 @@ import java.util.List;
 public interface StatisticsRetriever {
 
   /**
-   * Get feature set statistics for a single feature set, for a single dataset id.
+   * Get feature statistics for a single feature set, for a single dataset id.
    *
    * @param featureSetSpec feature set spec of the requested feature set
    * @param features subset of features to retrieve.
-   * @param dataset dataset id to filter the data by
-   * @return {@link FeatureSetStatistics} containing statistics for the requested features.
+   * @param ingestionId ingestion id to filter the data by
+   * @return {@link FeatureStatistics} containing statistics for the requested features.
    */
-  FeatureSetStatistics getFeatureStatistics(
-      FeatureSetSpec featureSetSpec, List<String> features, String dataset);
+  FeatureStatistics getFeatureStatistics(
+      FeatureSetSpec featureSetSpec, List<String> features, String ingestionId);
 
   /**
-   * Get feature set statistics for a single feature set, for a single day.
+   * Get feature statistics for a single feature set, for a single day.
    *
    * @param featureSetSpec feature set spec of the requested feature set
    * @param features subset of features to retrieve.
    * @param date date to filter the data by
-   * @return {@link FeatureSetStatistics} containing statistics for the requested features.
+   * @return {@link FeatureStatistics} containing statistics for the requested features.
    */
-  FeatureSetStatistics getFeatureStatistics(
+  FeatureStatistics getFeatureStatistics(
       FeatureSetSpec featureSetSpec, List<String> features, Timestamp date);
 }

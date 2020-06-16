@@ -24,6 +24,7 @@ from feast.serving.ServingService_pb2 import Job as JobProto
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.source import Source
 from feast.wait import wait_retry_backoff
+from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
 class RetrievalJob:
@@ -78,17 +79,7 @@ class RetrievalJob:
         Returns:
             str: Google Cloud Storage file uris of the returned Avro files.
         """
-
-        def try_retrieve():
-            self.reload()
-            return None, self.status == JOB_STATUS_DONE
-
-        wait_retry_backoff(
-            retry_fn=try_retrieve,
-            timeout_secs=timeout_sec,
-            timeout_msg="Timeout exceeded while waiting for result. Please retry "
-            "this method or use a longer timeout value.",
-        )
+        self._wait_for_completion(timeout_sec)
 
         if self.job_proto.error:
             raise Exception(self.job_proto.error)
@@ -192,6 +183,38 @@ class RetrievalJob:
 
     def __iter__(self):
         return iter(self.result())
+
+    def statistics(
+        self, timeout_sec: int = DEFAULT_TIMEOUT_SEC
+    ) -> statistics_pb2.DatasetFeatureStatisticsList:
+        """
+        Get statistics computed over the retrieved data set. Statistics will only be computed for
+        columns that are part of Feast, and not the columns that were provided.
+
+        Args:
+            timeout_sec (int):
+                Max no of seconds to wait until job is done. If "timeout_sec"
+                is exceeded, an exception will be raised.
+
+        Returns:
+            DatasetFeatureStatisticsList containing statistics of Feast features over the retrieved dataset.
+        """
+        self._wait_for_completion(timeout_sec)
+        if self.job_proto.error:
+            raise Exception(self.job_proto.error)
+        return self.job_proto.dataset_feature_statistics_list
+
+    def _wait_for_completion(self, timeout_sec: int = DEFAULT_TIMEOUT_SEC):
+        def try_retrieve():
+            self.reload()
+            return None, self.status == JOB_STATUS_DONE
+
+        wait_retry_backoff(
+            retry_fn=try_retrieve,
+            timeout_secs=timeout_sec,
+            timeout_msg="Timeout exceeded while waiting for result. Please retry "
+            "this method or use a longer timeout value.",
+        )
 
 
 class IngestJob:

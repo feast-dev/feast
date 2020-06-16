@@ -41,9 +41,13 @@ public interface HistoricalRetriever {
    *     entity columns.
    * @param featureSetRequests List of {@link FeatureSetRequest} to feature references in the
    *     request tied to that feature set.
+   * @param computeStatistics whether to compute statistics over the resultant dataset.
    * @return {@link HistoricalRetrievalResult} if successful, contains the location of the results,
    *     else contains the error to be returned to the user.
    */
   HistoricalRetrievalResult getHistoricalFeatures(
-      String retrievalId, DatasetSource datasetSource, List<FeatureSetRequest> featureSetRequests);
+      String retrievalId,
+      DatasetSource datasetSource,
+      List<FeatureSetRequest> featureSetRequests,
+      boolean computeStatistics);
 }

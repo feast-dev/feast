@@ -16,84 +16,70 @@
  */
 package feast.storage.connectors.bigquery.statistics;
 
-import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
+import feast.proto.types.ValueProto.ValueType;
 import feast.proto.types.ValueProto.ValueType.Enum;
+import java.util.HashMap;
+import java.util.Map;
+import org.tensorflow.metadata.v0.FeatureNameStatistics;
+import org.tensorflow.metadata.v0.FeatureNameStatistics.Type;
 
 /**
  * Value class for Features containing information necessary to template stats-retrieving queries.
  */
 public class FeatureStatisticsQueryInfo {
+  // Map converting Feast type to TFDV type
+  private static final Map<Enum, Type> TFDV_TYPE_MAP = new HashMap<>();
+
+  static {
+    TFDV_TYPE_MAP.put(ValueType.Enum.INT64, FeatureNameStatistics.Type.INT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.INT32, FeatureNameStatistics.Type.INT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.BOOL, FeatureNameStatistics.Type.INT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.FLOAT, FeatureNameStatistics.Type.FLOAT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.DOUBLE, FeatureNameStatistics.Type.FLOAT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.STRING, FeatureNameStatistics.Type.STRING);
+    TFDV_TYPE_MAP.put(ValueType.Enum.BYTES, FeatureNameStatistics.Type.BYTES);
+    TFDV_TYPE_MAP.put(ValueType.Enum.BYTES_LIST, FeatureNameStatistics.Type.STRUCT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.STRING_LIST, FeatureNameStatistics.Type.STRUCT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.INT32_LIST, FeatureNameStatistics.Type.STRUCT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.INT64_LIST, FeatureNameStatistics.Type.STRUCT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.BOOL_LIST, FeatureNameStatistics.Type.STRUCT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.FLOAT_LIST, FeatureNameStatistics.Type.STRUCT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.DOUBLE_LIST, FeatureNameStatistics.Type.STRUCT);
+  }
+
   // Name of the field
   private final String name;
 
-  // Type of the field
-  private final String type;
+  // Statistics Type to generate for the field
+  private final String statsType;
 
-  private FeatureStatisticsQueryInfo(String name, String type) {
+  // Value Type of the field
+  private final String valueType;
+
+  private FeatureStatisticsQueryInfo(
+      String name, StatsType.Enum statsType, FeatureNameStatistics.Type valueType) {
     this.name = name;
-    this.type = type;
+    this.statsType = statsType.toString();
+    this.valueType = valueType.toString();
   }
 
   public static FeatureStatisticsQueryInfo fromProto(FeatureSpec featureSpec) {
     Enum valueType = featureSpec.getValueType();
-    switch (valueType) {
-      case FLOAT:
-      case DOUBLE:
-      case INT32:
-      case INT64:
-      case BOOL:
-        return new FeatureStatisticsQueryInfo(featureSpec.getName(), "NUMERIC");
-      case STRING:
-        return new FeatureStatisticsQueryInfo(featureSpec.getName(), "CATEGORICAL");
-      case BYTES:
-        return new FeatureStatisticsQueryInfo(featureSpec.getName(), "BYTES");
-      case BYTES_LIST:
-      case BOOL_LIST:
-      case FLOAT_LIST:
-      case INT32_LIST:
-      case INT64_LIST:
-      case DOUBLE_LIST:
-      case STRING_LIST:
-        return new FeatureStatisticsQueryInfo(featureSpec.getName(), "LIST");
-      default:
-        throw new IllegalArgumentException(
-            String.format("Invalid feature type provided: %s", valueType));
-    }
-  }
-
-  public static FeatureStatisticsQueryInfo fromProto(EntitySpec entitySpec) {
-    Enum valueType = entitySpec.getValueType();
-    switch (valueType) {
-      case FLOAT:
-      case DOUBLE:
-      case INT32:
-      case INT64:
-      case BOOL:
-        return new FeatureStatisticsQueryInfo(entitySpec.getName(), "NUMERIC");
-      case STRING:
-        return new FeatureStatisticsQueryInfo(entitySpec.getName(), "CATEGORICAL");
-      case BYTES:
-        return new FeatureStatisticsQueryInfo(entitySpec.getName(), "BYTES");
-      case BYTES_LIST:
-      case BOOL_LIST:
-      case FLOAT_LIST:
-      case INT32_LIST:
-      case INT64_LIST:
-      case DOUBLE_LIST:
-      case STRING_LIST:
-        return new FeatureStatisticsQueryInfo(entitySpec.getName(), "LIST");
-      default:
-        throw new IllegalArgumentException(
-            String.format("Invalid entity type provided: %s", valueType));
-    }
+    StatsType.Enum statsType = StatsType.fromValueType(valueType);
+    return new FeatureStatisticsQueryInfo(
+        featureSpec.getName(), statsType, TFDV_TYPE_MAP.get(valueType));
   }
 
   public String getName() {
     return name;
   }
 
-  public String getType() {
-    return type;
+  public String getStatsType() {
+    return statsType;
+  }
+
+  public String getValueType() {
+    return valueType;
   }
 }

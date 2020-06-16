@@ -31,7 +31,7 @@ import feast.proto.core.CoreServiceProto.GetFeatureStatisticsRequest;
 import feast.proto.core.CoreServiceProto.GetFeatureStatisticsResponse;
 import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.StoreType;
-import feast.storage.api.statistics.FeatureSetStatistics;
+import feast.storage.api.statistics.FeatureStatistics;
 import feast.storage.api.statistics.StatisticsRetriever;
 import feast.storage.connectors.bigquery.statistics.BigQueryStatisticsRetriever;
 import java.io.IOException;
@@ -200,7 +200,7 @@ public class StatsService {
     // Else, add to the list of features we still need to retrieve statistics for.
     for (String featureName : features) {
       Feature feature = featureNameToFeature.get(featureName);
-      Optional<FeatureStatistics> cachedFeatureStatistics = Optional.empty();
+      Optional<feast.core.model.FeatureStatistics> cachedFeatureStatistics = Optional.empty();
       if (!forceRefresh) {
         cachedFeatureStatistics =
             featureStatisticsRepository.findFeatureStatisticsByFeatureAndDatasetId(
@@ -216,7 +216,7 @@ public class StatsService {
     // Retrieve the balance of statistics after checking the cache, and add it to the
     // list of FeatureNameStatistics.
     if (featuresMissingStats.size() > 0) {
-      FeatureSetStatistics featureSetStatistics =
+      FeatureStatistics featureSetStatistics =
           statisticsRetriever.getFeatureStatistics(
               featureSet.toProto().getSpec(), featuresMissingStats, datasetId);
 
@@ -226,9 +226,9 @@ public class StatsService {
           continue;
         }
         Feature feature = featureNameToFeature.get(stat.getName());
-        FeatureStatistics featureStatistics =
-            FeatureStatistics.createForDataset(feature, stat, datasetId);
-        Optional<FeatureStatistics> existingRecord =
+        feast.core.model.FeatureStatistics featureStatistics =
+            feast.core.model.FeatureStatistics.createForDataset(feature, stat, datasetId);
+        Optional<feast.core.model.FeatureStatistics> existingRecord =
             featureStatisticsRepository.findFeatureStatisticsByFeatureAndDatasetId(
                 featureStatistics.getFeature(), datasetId);
         existingRecord.ifPresent(statistics -> featureStatistics.setId(statistics.getId()));
@@ -270,7 +270,7 @@ public class StatsService {
     // Else, add to the list of features we still need to retrieve statistics for.
     for (String featureName : features) {
       Feature feature = featureNameToFeature.get(featureName);
-      Optional<FeatureStatistics> cachedFeatureStatistics = Optional.empty();
+      Optional<feast.core.model.FeatureStatistics> cachedFeatureStatistics = Optional.empty();
       if (!forceRefresh) {
         cachedFeatureStatistics =
             featureStatisticsRepository.findFeatureStatisticsByFeatureAndDate(feature, date);
@@ -285,7 +285,7 @@ public class StatsService {
     // Retrieve the balance of statistics after checking the cache, and add it to the
     // list of FeatureNameStatistics.
     if (featuresMissingStats.size() > 0) {
-      FeatureSetStatistics featureSetStatistics =
+      FeatureStatistics featureSetStatistics =
           statisticsRetriever.getFeatureStatistics(
               featureSet.toProto().getSpec(),
               featuresMissingStats,
@@ -297,8 +297,9 @@ public class StatsService {
           continue;
         }
         Feature feature = featureNameToFeature.get(stat.getName());
-        FeatureStatistics featureStatistics = FeatureStatistics.createForDate(feature, stat, date);
-        Optional<FeatureStatistics> existingRecord =
+        feast.core.model.FeatureStatistics featureStatistics =
+            feast.core.model.FeatureStatistics.createForDate(feature, stat, date);
+        Optional<feast.core.model.FeatureStatistics> existingRecord =
             featureStatisticsRepository.findFeatureStatisticsByFeatureAndDate(
                 featureStatistics.getFeature(), date);
         existingRecord.ifPresent(statistics -> featureStatistics.setId(statistics.getId()));
