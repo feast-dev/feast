@@ -122,7 +122,11 @@ public class JobService {
                   .collect(Collectors.toList());
 
           // find jobs for the matching featuresets
-          Collection<Job> matchingJobs = this.jobRepository.findByFeatureSetsIn(featureSets);
+          Collection<Job> matchingJobs =
+              this.jobRepository.findByFeatureSetJobStatusesIn(
+                  featureSets.stream()
+                      .flatMap(fs -> fs.getJobStatuses().stream())
+                      .collect(Collectors.toList()));
           List<String> jobIds = matchingJobs.stream().map(Job::getId).collect(Collectors.toList());
           matchingJobIds = this.mergeResults(matchingJobIds, jobIds);
         }

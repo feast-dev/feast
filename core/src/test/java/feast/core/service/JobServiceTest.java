@@ -26,6 +26,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
@@ -127,7 +128,8 @@ public class JobServiceTest {
     when(this.jobRepository.findById(this.job.getId())).thenReturn(Optional.of(this.job));
     when(this.jobRepository.findByStoreName(this.dataStore.getName()))
         .thenReturn(Arrays.asList(this.job));
-    when(this.jobRepository.findByFeatureSetsIn(Arrays.asList(this.featureSet)))
+    when(this.jobRepository.findByFeatureSetJobStatusesIn(
+            Lists.newArrayList((this.featureSet.getJobStatuses()))))
         .thenReturn(Arrays.asList(this.job));
     when(this.jobRepository.findAll()).thenReturn(Arrays.asList(this.job));
   }
