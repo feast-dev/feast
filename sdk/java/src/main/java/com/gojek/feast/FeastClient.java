@@ -61,7 +61,7 @@ public class FeastClient implements AutoCloseable {
   /**
    * Get online features from Feast from FeatureSets
    *
-   * <p>See {@link #getOnlineFeatures(List, List, String, boolean, boolean)}
+   * <p>See {@link #getOnlineFeatures(List, List, String, boolean)}
    *
    * @param featureRefs list of string feature references to retrieve in the following format
    *     featureSet:feature, where 'featureSet' and 'feature' refer to the FeatureSet and Feature
@@ -76,7 +76,7 @@ public class FeastClient implements AutoCloseable {
   /**
    * Get online features from Feast.
    *
-   * <p>See {@link #getOnlineFeatures(List, List, String, boolean, boolean)}
+   * <p>See {@link #getOnlineFeatures(List, List, String, boolean)}
    *
    * @param featureRefs list of string feature references to retrieve in the following format
    *     featureSet:feature, where 'featureSet' and 'feature' refer to the FeatureSet and Feature
@@ -87,7 +87,7 @@ public class FeastClient implements AutoCloseable {
    * @return list of {@link Row} containing retrieved data fields.
    */
   public List<Row> getOnlineFeatures(List<String> featureRefs, List<Row> rows, String project) {
-    return getOnlineFeatures(featureRefs, rows, project, false, false);
+    return getOnlineFeatures(featureRefs, rows, project, false);
   }
 
   /**
@@ -113,15 +113,10 @@ public class FeastClient implements AutoCloseable {
    *     Feature requested belong to.
    * @param omitEntitiesInResponse if true, the returned {@link Row} will not contain field and
    *     value for the entity
-   * @param includeMetadataInResponse if true, will include field status metadata in {@link Row}.
    * @return list of {@link Row} containing retrieved data fields.
    */
   public List<Row> getOnlineFeatures(
-      List<String> featureRefs,
-      List<Row> rows,
-      String project,
-      boolean omitEntitiesInResponse,
-      boolean includeMetadataInResponse) {
+      List<String> featureRefs, List<Row> rows, String project, boolean omitEntitiesInResponse) {
     List<FeatureReference> features = RequestUtil.createFeatureRefs(featureRefs, project);
     // build entity rows and collect entity references
     HashSet<String> entityRefs = new HashSet<>();
@@ -143,7 +138,6 @@ public class FeastClient implements AutoCloseable {
                 .addAllFeatures(features)
                 .addAllEntityRows(entityRows)
                 .setOmitEntitiesInResponse(omitEntitiesInResponse)
-                .setIncludeMetadataInResponse(includeMetadataInResponse)
                 .build());
 
     return response.getFieldValuesList().stream()

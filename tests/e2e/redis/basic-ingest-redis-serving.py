@@ -229,8 +229,7 @@ def test_basic_retrieve_online_success(client, cust_trans_df):
                 )
             ],
             feature_refs=feature_refs,
-            include_meta=True,
-        )  # type: GetOnlineFeaturesResponse
+            # type: GetOnlineFeaturesResponse 
         is_ok = all([check_online_response(ref, cust_trans_df, response) for ref in feature_refs])
         return response, is_ok
 
@@ -436,7 +435,6 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
                 )
             ],
             feature_refs=feature_refs,
-            include_meta=True,
         )  # type: GetOnlineFeaturesResponse
         is_ok = check_online_response("float_feature", all_types_dataframe, response)
         return response, is_ok
@@ -551,7 +549,6 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
                 )
             ],
             feature_refs=feature_refs,
-            include_meta=True,
         )  # type: GetOnlineFeaturesResponse
         is_ok = all([check_online_response(ref, large_volume_dataframe, response) for ref in feature_refs])
         return None, is_ok

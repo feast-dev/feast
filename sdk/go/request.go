@@ -28,9 +28,6 @@ type OnlineFeaturesRequest struct {
 
 	// whether to omit the entities fields in the response.
 	OmitEntities bool
-
-	// whether to include field status metadata in the response.
-	IncludeMeta bool
 }
 
 // Builds the feast-specified request payload from the wrapper.
@@ -52,7 +49,6 @@ func (r OnlineFeaturesRequest) buildRequest() (*serving.GetOnlineFeaturesRequest
 		Features:                  featureRefs,
 		EntityRows:                entityRows,
 		OmitEntitiesInResponse:    r.OmitEntities,
-		IncludeMetadataInResponse: r.IncludeMeta,
 	}, nil
 }
 

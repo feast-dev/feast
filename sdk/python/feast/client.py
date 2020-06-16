@@ -672,7 +672,6 @@ class Client:
         entity_rows: List[GetOnlineFeaturesRequest.EntityRow],
         project: Optional[str] = None,
         omit_entities: bool = False,
-        include_meta: bool = False,
     ) -> GetOnlineFeaturesResponse:
         """
         Retrieves the latest online feature data from Feast Serving
@@ -700,7 +699,6 @@ class Client:
             response = self._serving_service_stub.GetOnlineFeatures(
                 GetOnlineFeaturesRequest(
                     omit_entities_in_response=omit_entities,
-                    include_metadata_in_response=include_meta,
                     features=_build_feature_references(
                         feature_ref_strs=feature_refs,
                         project=project if project is not None else self.project,

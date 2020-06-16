@@ -177,7 +177,6 @@ public class OnlineServingServiceTest {
     // some keys not present, should have empty values
     GetOnlineFeaturesRequest request =
         GetOnlineFeaturesRequest.newBuilder()
-            .setIncludeMetadataInResponse(true)
             .addFeatures(FeatureReference.newBuilder().setName("feature1").build())
             .addFeatures(
                 FeatureReference.newBuilder().setName("feature2").setProject("project").build())
@@ -261,7 +260,6 @@ public class OnlineServingServiceTest {
             .addFeatures(
                 FeatureReference.newBuilder().setName("feature2").setProject("project").build())
             .setOmitEntitiesInResponse(false)
-            .setIncludeMetadataInResponse(true)
             .addEntityRows(
                 EntityRow.newBuilder()
                     .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
@@ -370,7 +368,6 @@ public class OnlineServingServiceTest {
     // requested rows less than the rows available in the featureset
     GetOnlineFeaturesRequest request =
         GetOnlineFeaturesRequest.newBuilder()
-            .setIncludeMetadataInResponse(true)
             .setOmitEntitiesInResponse(false)
             .addFeatures(FeatureReference.newBuilder().setName("feature1").build())
             .addEntityRows(
