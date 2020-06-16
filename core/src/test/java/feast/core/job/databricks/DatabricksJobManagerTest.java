@@ -88,9 +88,16 @@ public class DatabricksJobManagerTest {
 
     MetricsProperties metricsProperties = new MetricsProperties();
     metricsProperties.setEnabled(false);
+    DatabricksRunnerConfigOptions.DatabricksNewClusterOptions newClusterConfigOptions =
+        DatabricksRunnerConfigOptions.DatabricksNewClusterOptions.newBuilder()
+            .setSparkConf("spark.driver.memory 1G")
+            .build();
 
     DatabricksRunnerConfigOptions.Builder databricksRunnerConfigOptions =
-        DatabricksRunnerConfigOptions.newBuilder().setToken("TOKEN").setHost("https://databricks");
+        DatabricksRunnerConfigOptions.newBuilder()
+            .setNewCluster(newClusterConfigOptions)
+            .setToken("TOKEN")
+            .setHost("https://databricks");
 
     this.job =
         new Job(
