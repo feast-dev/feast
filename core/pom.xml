@@ -175,7 +175,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-configuration-processor</artifactId>
         </dependency>
-
         <!--compile "io.grpc:grpc-services:${grpcVersion}"-->
         <dependency>
             <groupId>io.grpc</groupId>

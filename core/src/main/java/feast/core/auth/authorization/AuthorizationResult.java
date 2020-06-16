@@ -16,26 +16,28 @@
  */
 package feast.core.auth.authorization;
 
-import com.google.auto.value.AutoValue;
 import java.util.Optional;
 import javax.annotation.Nullable;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 
-@AutoValue
-public abstract class AuthorizationResult {
+@Getter
+@AllArgsConstructor
+public class AuthorizationResult {
+
   public static AuthorizationResult create(
       @Nullable boolean allowed, @Nullable String failureReason) {
-    return new AutoValue_AuthorizationResult(allowed, Optional.ofNullable(failureReason));
+    return new AuthorizationResult(allowed, Optional.ofNullable(failureReason));
   }
 
   public static AuthorizationResult failed(@Nullable String failureReason) {
-    return new AutoValue_AuthorizationResult(false, Optional.ofNullable(failureReason));
+    return new AuthorizationResult(false, Optional.ofNullable(failureReason));
   }
 
   public static AuthorizationResult success() {
-    return new AutoValue_AuthorizationResult(true, Optional.empty());
+    return new AuthorizationResult(true, Optional.empty());
   }
 
-  public abstract boolean allowed();
-
-  public abstract Optional<String> failureReason();
+  private boolean allowed;
+  private Optional<String> failureReason;
 }

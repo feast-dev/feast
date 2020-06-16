@@ -107,6 +107,10 @@ class Client:
             project: Sets the active project. This field is optional.
             core_secure: Use client-side SSL/TLS for Core gRPC API
             serving_secure: Use client-side SSL/TLS for Serving gRPC API
+            core_enable_auth: Enable authentication and authorization
+            core_auth_provider: Authentication provider – "google" or "oauth"
+            if core_auth_provider is "oauth", the following fields are mandatory –
+            oauth_grant_type, oauth_client_id, oauth_client_secret, oauth_audience, oauth_token_request_url
 
         Args:
             options: Configuration options to initialize client with
@@ -583,13 +587,13 @@ class Client:
             >>>         }
             >>>     )
             >>> feature_retrieval_job = feast_client.get_batch_features(
-            >>>     feature_refs, entity_rows, default_project="my_project")
+            >>>     feature_refs, entity_rows, project="my_project")
             >>> df = feature_retrieval_job.to_dataframe()
             >>> print(df)
         """
 
         feature_references = _build_feature_references(
-            feature_refs=feature_refs, default_project=default_project
+            feature_ref_strs=feature_refs, project=project
         )
 
         # Retrieve serving information to determine store type and

@@ -51,12 +51,7 @@ class MockResponse:
         return self.json_data
 
 
-class GoogleSubprocessResponse:
-    def __init__(self, output):
-        self.stdout = output["stdout"]
-
-
-class GoogleDecodeResponse:
+class GoogleMockResponse:
     def __init__(self, stdout):
         self.stdout = stdout
 
@@ -130,6 +125,9 @@ def test_get_auth_metadata_plugin_oauth_should_pass(post, config_oauth):
     assert isinstance(auth_metadata_plugin, OAuthMetadataPlugin)
     assert post.call_count == 1
     assert post.call_args == call(AUTH_URL, headers=HEADERS, data=DATA)
+    assert auth_metadata_plugin.get_signed_meta() == (
+        ("authorization", "Bearer mock_token"),
+    )
 
 
 @patch(
@@ -152,16 +150,18 @@ def test_get_auth_metadata_plugin_oauth_should_raise_when_config_is_incorrect(
         get_auth_metadata_plugin(config_with_missing_variable)
 
 
-@patch("google.auth.jwt.decode", return_value=GoogleDecodeResponse("jwt_token"))
+@patch("google.auth.jwt.decode", return_value=GoogleMockResponse("jwt_token"))
 @patch(
-    "subprocess.run",
-    return_value=GoogleSubprocessResponse({"stdout": "std_output".encode("utf-8")}),
+    "subprocess.run", return_value=GoogleMockResponse("std_output".encode("utf-8")),
 )
 def test_get_auth_metadata_plugin_google_should_pass_with_token_from_gcloud_sdk(
     subprocess, jwt, config_google
 ):
     auth_metadata_plugin = get_auth_metadata_plugin(config_google)
     assert isinstance(auth_metadata_plugin, GoogleOpenIDAuthMetadataPlugin)
+    assert auth_metadata_plugin.get_signed_meta() == (
+        ("authorization", "Bearer std_output"),
+    )
 
 
 @patch(
@@ -172,14 +172,16 @@ def test_get_auth_metadata_plugin_google_should_pass_with_token_from_gcloud_sdk(
     ],
 )
 @patch(
-    "subprocess.run",
-    return_value=GoogleSubprocessResponse({"stdout": "std_output".encode("utf-8")}),
+    "subprocess.run", return_value=GoogleMockResponse("std_output".encode("utf-8")),
 )
 def test_get_auth_metadata_plugin_google_should_pass_with_token_from_google_auth_lib(
     subprocess, default, config_google
 ):
     auth_metadata_plugin = get_auth_metadata_plugin(config_google)
     assert isinstance(auth_metadata_plugin, GoogleOpenIDAuthMetadataPlugin)
+    assert auth_metadata_plugin.get_signed_meta() == (
+        ("authorization", "Bearer fake_token"),
+    )
 
 
 @patch(
@@ -190,8 +192,7 @@ def test_get_auth_metadata_plugin_google_should_pass_with_token_from_google_auth
     ],
 )
 @patch(
-    "subprocess.run",
-    return_value=GoogleSubprocessResponse({"stdout": "std_output".encode("utf-8")}),
+    "subprocess.run", return_value=GoogleMockResponse("std_output".encode("utf-8")),
 )
 def test_get_auth_metadata_plugin_google_should_raise_when_token_validation_fails(
     subprocess, default, config_google

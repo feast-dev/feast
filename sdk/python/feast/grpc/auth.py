@@ -78,8 +78,8 @@ class OAuthMetadataPlugin(grpc.AuthMetadataPlugin):
         # If provided, set a static token
         if config.exists(CONFIG_CORE_ENABLE_AUTH_TOKEN_KEY):
             self._static_token = config.get(CONFIG_CORE_ENABLE_AUTH_TOKEN_KEY)
-
-        if (
+            self._refresh_token(config)
+        elif (
             config.exists(CONFIG_OAUTH_GRANT_TYPE_KEY)
             and config.exists(CONFIG_OAUTH_CLIENT_ID_KEY)
             and config.exists(CONFIG_OAUTH_CLIENT_SECRET_KEY)
@@ -124,7 +124,7 @@ class OAuthMetadataPlugin(grpc.AuthMetadataPlugin):
             data=data_token,
         )
         if response_token.status_code == HTTPStatus.OK:
-            return response_token.json().get("access_token")
+            self._token = response_token.json().get("access_token")
         else:
             raise RuntimeError(
                 f"Could not fetch OAuth token, got response : {response_token.status_code}"
