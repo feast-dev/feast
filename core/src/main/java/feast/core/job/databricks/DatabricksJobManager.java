@@ -115,7 +115,7 @@ public class DatabricksJobManager implements JobManager {
 
       HttpRequest.Builder request =
           HttpRequest.newBuilder()
-              .uri(URI.create(String.format("%s/api/2.0/jobs/runs/cancel", databricksHost)))
+              .uri(getAbortUri())
               .POST(HttpRequest.BodyPublishers.ofString(body));
 
       sendDatabricksRequest(request);
@@ -134,6 +134,10 @@ public class DatabricksJobManager implements JobManager {
     }
   }
 
+  private URI getAbortUri() {
+    return URI.create(String.format("%s/api/2.0/jobs/runs/cancel", databricksHost));
+  }
+
   @Override
   public Job restartJob(Job job) {
     abortJob(job.getExtId());
@@ -144,9 +148,7 @@ public class DatabricksJobManager implements JobManager {
   @Override
   public JobStatus getJobStatus(Job job) {
     log.info("Getting job status for job {} (Databricks RunId {})", job.getId(), job.getExtId());
-    HttpRequest.Builder request =
-        HttpRequest.newBuilder()
-                .uri(getJobUri(job));
+    HttpRequest.Builder request = HttpRequest.newBuilder().uri(getJobUri(job));
     try {
       HttpResponse<String> response = sendDatabricksRequest(request);
 
@@ -185,8 +187,7 @@ public class DatabricksJobManager implements JobManager {
 
   private URI getJobUri(Job job) {
     return URI.create(
-        String.format(
-            "%s/api/2.0/jobs/runs/get?run_id=%s", databricksHost, job.getExtId()));
+        String.format("%s/api/2.0/jobs/runs/get?run_id=%s", databricksHost, job.getExtId()));
   }
 
   private HttpResponse<String> sendDatabricksRequest(HttpRequest.Builder builder)
@@ -243,7 +244,7 @@ public class DatabricksJobManager implements JobManager {
 
       HttpRequest.Builder request =
           HttpRequest.newBuilder()
-              .uri(URI.create(String.format("%s/api/2.0/jobs/create", databricksHost)))
+              .uri(getJobsCreateUri())
               .POST(HttpRequest.BodyPublishers.ofString(body));
 
       HttpResponse<String> response = sendDatabricksRequest(request);
@@ -262,6 +263,10 @@ public class DatabricksJobManager implements JobManager {
     }
   }
 
+  private URI getJobsCreateUri() {
+    return URI.create(String.format("%s/api/2.0/jobs/create", databricksHost));
+  }
+
   private long runDatabricksJob(long databricksJobId) {
     log.info("Starting run for Databricks JobId {}", databricksJobId);
 
@@ -272,7 +277,7 @@ public class DatabricksJobManager implements JobManager {
 
       HttpRequest.Builder request =
           HttpRequest.newBuilder()
-              .uri(URI.create(String.format("%s/api/2.0/jobs/run-now", databricksHost)))
+              .uri(getRunNowUri())
               .POST(HttpRequest.BodyPublishers.ofString(body));
 
       HttpResponse<String> response = sendDatabricksRequest(request);
@@ -287,6 +292,10 @@ public class DatabricksJobManager implements JobManager {
               databricksJobId, e.getMessage(), e.getCause()),
           e);
     }
+  }
+
+  private URI getRunNowUri() {
+    return URI.create(String.format("%s/api/2.0/jobs/run-now", databricksHost));
   }
 
   private RunNowRequest getRunNowRequest(long databricksJobId) {
