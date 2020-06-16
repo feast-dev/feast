@@ -146,10 +146,7 @@ public class DatabricksJobManager implements JobManager {
     log.info("Getting job status for job {} (Databricks RunId {})", job.getId(), job.getExtId());
     HttpRequest.Builder request =
         HttpRequest.newBuilder()
-            .uri(
-                URI.create(
-                    String.format(
-                        "%s/api/2.0/jobs/runs/get?run_id=%s", databricksHost, job.getExtId())));
+                .uri(getJobUri(job));
     try {
       HttpResponse<String> response = sendDatabricksRequest(request);
 
@@ -184,6 +181,12 @@ public class DatabricksJobManager implements JobManager {
       log.error("Unable to retrieve status of a databricks run with id " + job.getExtId(), ex);
       return JobStatus.UNKNOWN;
     }
+  }
+
+  private URI getJobUri(Job job) {
+    return URI.create(
+        String.format(
+            "%s/api/2.0/jobs/runs/get?run_id=%s", databricksHost, job.getExtId()));
   }
 
   private HttpResponse<String> sendDatabricksRequest(HttpRequest.Builder builder)
