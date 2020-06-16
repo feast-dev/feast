@@ -687,6 +687,7 @@ class Client:
                 retrieval. All entity types within a feature
             project: Specifies the project which contain the FeatureSets
                 which the requested features belong to.
+            omit_entities: If true will omit entity values in the returned feature data.
 
         Returns:
             GetOnlineFeaturesResponse containing the feature data in records.

@@ -16,6 +16,7 @@
  */
 package feast.serving.service;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Duration;
 import feast.proto.serving.ServingAPIProto.*;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
@@ -69,7 +70,9 @@ public class OnlineServingService implements ServingService {
       // Collect the feature/entity status metadata for each entity row in entityValueMap
       Map<EntityRow, Map<String, FieldStatus>> entityStatusesMap =
           entityRows.stream().collect(Collectors.toMap(row -> row, row -> new HashMap<>()));
-
+      // Collect featureRows retrieved for logging/tracing
+      List<List<FeatureRow>> logFeatureRows = new LinkedList<>();
+    
       if (!request.getOmitEntitiesInResponse()) {
         // Add entity row's fields as response fields
         entityRows.forEach(
@@ -100,7 +103,7 @@ public class OnlineServingService implements ServingService {
           FeatureRow featureRow = featureRows.get(i);
           EntityRow entityRow = entityRows.get(i);
           // Unpack feature field values and merge into entityValueMap
-          boolean isStaleValues = this.isStale(featureSetRequest, entityRow, featureRow);
+          boolean isStaleValues = this.isOutsideMaxAge(featureSetRequest, entityRow, featureRow);
           Map<String, Value> valueMap =
               this.unpackValueMap(featureRow, featureSetRequest, isStaleValues);
           entityValuesMap.get(entityRow).putAll(valueMap);
@@ -115,6 +118,11 @@ public class OnlineServingService implements ServingService {
           this.populateStaleKeyCountMetrics(statusMap, featureSetRequest);
         }
         this.populateRequestCountMetrics(featureSetRequest);
+      }
+    
+  
+      if (scope != null) {
+        scope.span().log(ImmutableMap.of("event", "featureRows", "value", logFeatureRows));
       }
 
       // Build response field values from entityValuesMap and entityStatusesMap
@@ -209,7 +217,7 @@ public class OnlineServingService implements ServingService {
   }
 
   /**
-   * Determine if the feature data in the given feature row is considered stale. Data is considered
+   * Determine if the feature data in the given feature row is outside maxAge. Data is outside maxAge
    * to be stale when difference ingestion time set in feature row and the retrieval time set in
    * entity row exceeds featureset max age.
    *
@@ -217,7 +225,7 @@ public class OnlineServingService implements ServingService {
    * @param entityRow contains the retrieval timing of when features are pulled.
    * @param featureRow contains the ingestion timing and feature data.
    */
-  private boolean isStale(
+  private boolean isOutsideMaxAge(
       FeatureSetRequest featureSetRequest, EntityRow entityRow, FeatureRow featureRow) {
     Duration maxAge = featureSetRequest.getSpec().getMaxAge();
     if (featureRow == null) {
