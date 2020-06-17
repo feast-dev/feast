@@ -63,3 +63,18 @@ enum IngestionJobStatus {
     // job has been suspended
     SUSPENDED = 8;
 }
+
+// Config for bi-directional communication channel between Core Service and Ingestion Job
+message SpecsStreamingUpdateConfig {
+    // out-channel for publishing new FeatureSetSpecs (by Core).
+    // IngestionJob use it as source of existing FeatureSetSpecs and new real-time updates
+    feast.core.KafkaSourceConfig source = 1;
+    // ack-channel for sending acknowledgments when new FeatureSetSpecs is installed in Job
+    feast.core.KafkaSourceConfig ack = 2;
+}
+
+message FeatureSetSpecAck {
+    string feature_set_reference = 1;
+    int32 feature_set_version = 2;
+    string job_name = 3;
+}

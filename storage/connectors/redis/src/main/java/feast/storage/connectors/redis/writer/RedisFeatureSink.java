@@ -31,7 +31,10 @@ import io.lettuce.core.RedisURI;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 
 @AutoValue
 public abstract class RedisFeatureSink implements FeatureSink {
@@ -40,16 +43,16 @@ public abstract class RedisFeatureSink implements FeatureSink {
    * Initialize a {@link RedisFeatureSink.Builder} from a {@link StoreProto.Store.RedisConfig}.
    *
    * @param redisConfig {@link RedisConfig}
-   * @param featureSetSpecs
+   * @param featureSetSpecs input stream of featureSet specs with featureSet name as key
    * @return {@link RedisFeatureSink.Builder}
    */
   public static FeatureSink fromConfig(
-      RedisConfig redisConfig, Map<String, FeatureSetSpec> featureSetSpecs) {
+      RedisConfig redisConfig, PCollection<KV<String, FeatureSetSpec>> featureSetSpecs) {
     return builder().setFeatureSetSpecs(featureSetSpecs).setRedisConfig(redisConfig).build();
   }
 
   public static FeatureSink fromConfig(
-      RedisClusterConfig redisConfig, Map<String, FeatureSetSpec> featureSetSpecs) {
+      RedisClusterConfig redisConfig, PCollection<KV<String, FeatureSetSpec>> featureSetSpecs) {
     return builder().setFeatureSetSpecs(featureSetSpecs).setRedisClusterConfig(redisConfig).build();
   }
 
@@ -59,7 +62,7 @@ public abstract class RedisFeatureSink implements FeatureSink {
   @Nullable
   public abstract RedisClusterConfig getRedisClusterConfig();
 
-  public abstract Map<String, FeatureSetSpec> getFeatureSetSpecs();
+  public abstract PCollection<KV<String, FeatureSetSpec>> getFeatureSetSpecs();
 
   public abstract Builder toBuilder();
 
@@ -73,7 +76,8 @@ public abstract class RedisFeatureSink implements FeatureSink {
 
     public abstract Builder setRedisClusterConfig(RedisClusterConfig redisConfig);
 
-    public abstract Builder setFeatureSetSpecs(Map<String, FeatureSetSpec> featureSetSpecs);
+    public abstract Builder setFeatureSetSpecs(
+        PCollection<KV<String, FeatureSetSpec>> featureSetSpecs);
 
     public abstract RedisFeatureSink build();
   }
@@ -101,12 +105,16 @@ public abstract class RedisFeatureSink implements FeatureSink {
 
   @Override
   public PTransform<PCollection<FeatureRow>, WriteResult> writer() {
+
+    PCollectionView<Map<String, Iterable<FeatureSetSpec>>> specsView =
+        getFeatureSetSpecs().apply(View.asMultimap());
+
     if (getRedisClusterConfig() != null) {
       return new RedisCustomIO.Write(
-          new RedisClusterIngestionClient(getRedisClusterConfig()), getFeatureSetSpecs());
+          new RedisClusterIngestionClient(getRedisClusterConfig()), specsView);
     } else if (getRedisConfig() != null) {
       return new RedisCustomIO.Write(
-          new RedisStandaloneIngestionClient(getRedisConfig()), getFeatureSetSpecs());
+          new RedisStandaloneIngestionClient(getRedisConfig()), specsView);
     } else {
       throw new RuntimeException(
           "At least one RedisConfig or RedisClusterConfig must be provided to Redis Sink");

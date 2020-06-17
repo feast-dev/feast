@@ -40,6 +40,8 @@ feast:
         initial_retry_delay_seconds: 1
         # BigQuery timeout for retrieval jobs
         total_timeout_seconds: 21600
+        # BigQuery sink write frequency
+        write_triggering_frequency_seconds: 600
       subscriptions:
         - name: "*"
           project: "*"

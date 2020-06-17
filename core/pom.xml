@@ -171,8 +171,8 @@
         </dependency>
 
         <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-clients</artifactId>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
         </dependency>
 
         <!--compileOnly 'org.projectlombok:lombok:1.18.2'-->

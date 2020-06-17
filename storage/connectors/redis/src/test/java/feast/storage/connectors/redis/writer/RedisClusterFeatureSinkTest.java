@@ -32,6 +32,7 @@ import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.Value;
 import feast.proto.types.ValueProto.ValueType.Enum;
+import feast.storage.api.writer.FailedElement;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
@@ -49,6 +50,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.windowing.*;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
 import org.junit.Before;
@@ -124,7 +126,7 @@ public class RedisClusterFeatureSinkTest {
 
     redisClusterFeatureSink =
         RedisFeatureSink.builder()
-            .setFeatureSetSpecs(specMap)
+            .setFeatureSetSpecs(p.apply("Specs", Create.of(specMap)))
             .setRedisClusterConfig(redisClusterConfig)
             .build();
   }
@@ -217,6 +219,7 @@ public class RedisClusterFeatureSinkTest {
         p.apply(Create.of(featureRows))
             .apply(redisClusterFeatureSink.writer())
             .getFailedInserts()
+            .apply(Window.<FailedElement>into(new GlobalWindows()).triggering(Never.ever()))
             .apply(Count.globally());
 
     redisCluster.stop();
@@ -260,7 +263,7 @@ public class RedisClusterFeatureSinkTest {
     Map<String, FeatureSetSpec> specMap = ImmutableMap.of("myproject/fs", spec1);
     redisClusterFeatureSink =
         RedisFeatureSink.builder()
-            .setFeatureSetSpecs(specMap)
+            .setFeatureSetSpecs(p.apply("Specs-2", Create.of(specMap)))
             .setRedisClusterConfig(redisClusterConfig)
             .build();
     redisCluster.stop();
@@ -277,6 +280,7 @@ public class RedisClusterFeatureSinkTest {
         p.apply(Create.of(featureRows))
             .apply(redisClusterFeatureSink.writer())
             .getFailedInserts()
+            .apply(Window.<FailedElement>into(new GlobalWindows()).triggering(Never.ever()))
             .apply(Count.globally());
 
     PAssert.that(failedElementCount).containsInAnyOrder(1L);

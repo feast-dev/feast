@@ -22,22 +22,15 @@ import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
-import feast.core.job.option.FeatureSetJsonByteConverter;
-import feast.core.model.FeatureSet;
-import feast.core.model.Job;
-import feast.core.model.JobStatus;
-import feast.core.model.Project;
+import feast.core.model.*;
 import feast.ingestion.ImportJob;
-import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
-import feast.ingestion.options.OptionCompressor;
-import feast.proto.core.FeatureSetProto;
+import feast.proto.core.IngestionJobProto;
 import feast.proto.core.RunnerProto.DirectRunnerConfigOptions;
+import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.PipelineResult;
@@ -51,14 +44,17 @@ public class DirectRunnerJobManager implements JobManager {
   private DirectRunnerConfig defaultOptions;
   private final DirectJobRegistry jobs;
   private MetricsProperties metrics;
+  private final IngestionJobProto.SpecsStreamingUpdateConfig specsStreamingUpdateConfig;
 
   public DirectRunnerJobManager(
       DirectRunnerConfigOptions directRunnerConfigOptions,
       DirectJobRegistry jobs,
-      MetricsProperties metricsProperties) {
+      MetricsProperties metricsProperties,
+      IngestionJobProto.SpecsStreamingUpdateConfig specsStreamingUpdateConfig) {
     this.defaultOptions = new DirectRunnerConfig(directRunnerConfigOptions);
     this.jobs = jobs;
     this.metrics = metricsProperties;
+    this.specsStreamingUpdateConfig = specsStreamingUpdateConfig;
   }
 
   @Override
@@ -74,12 +70,8 @@ public class DirectRunnerJobManager implements JobManager {
   @Override
   public Job startJob(Job job) {
     try {
-      List<FeatureSetProto.FeatureSet> featureSetProtos = new ArrayList<>();
-      for (FeatureSet featureSet : job.getFeatureSets()) {
-        featureSetProtos.add(featureSet.toProto());
-      }
       ImportOptions pipelineOptions =
-          getPipelineOptions(job.getId(), featureSetProtos, job.getStore().toProto());
+          getPipelineOptions(job.getId(), job.getSource().toProto(), job.getStore().toProto());
       PipelineResult pipelineResult = runPipeline(pipelineOptions);
       DirectJob directJob = new DirectJob(job.getId(), pipelineResult);
       jobs.add(directJob);
@@ -93,15 +85,14 @@ public class DirectRunnerJobManager implements JobManager {
   }
 
   private ImportOptions getPipelineOptions(
-      String jobName, List<FeatureSetProto.FeatureSet> featureSets, StoreProto.Store sink)
+      String jobName, SourceProto.Source source, StoreProto.Store sink)
       throws IOException, IllegalAccessException {
     ImportOptions pipelineOptions =
         PipelineOptionsFactory.fromArgs(defaultOptions.toArgs()).as(ImportOptions.class);
 
-    OptionCompressor<List<FeatureSetProto.FeatureSet>> featureSetJsonCompressor =
-        new BZip2Compressor<>(new FeatureSetJsonByteConverter());
-
-    pipelineOptions.setFeatureSetJson(featureSetJsonCompressor.compress(featureSets));
+    pipelineOptions.setSpecsStreamingUpdateConfigJson(
+        JsonFormat.printer().print(specsStreamingUpdateConfig));
+    pipelineOptions.setSourceJson(JsonFormat.printer().print(source));
     pipelineOptions.setJobName(jobName);
     pipelineOptions.setStoreJson(Collections.singletonList(JsonFormat.printer().print(sink)));
     pipelineOptions.setRunner(DirectRunner.class);

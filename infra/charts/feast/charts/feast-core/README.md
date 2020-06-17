@@ -12,7 +12,7 @@ Current chart version is `0.5.0-alpha.1`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| "application-generated.yaml".enabled | bool | `true` | Flag to include Helm generated configuration for Feast database URL, Kafka bootstrap servers and jobs metrics host. This is useful for deployment that uses default configuration for Kafka, Postgres and StatsD exporter. Please set `application-override.yaml` to override this configuration. |
+| "application-generated.yaml".enabled | bool | `true` | Flag to include Helm generated configuration for http port, Feast database URL, Kafka bootstrap servers and jobs metrics host. This is useful for deployment that uses default configuration for Kafka, Postgres and StatsD exporter. Please set `application-override.yaml` to override this configuration. |
 | "application-override.yaml" | object | `{"enabled":true}` | Configuration to override the default [application.yaml](https://github.com/feast-dev/feast/blob/master/core/src/main/resources/application.yml). Will be created as a ConfigMap. `application-override.yaml` has a higher precedence than `application-secret.yaml` |
 | "application-secret.yaml" | object | `{"enabled":true}` | Configuration to override the default [application.yaml](https://github.com/feast-dev/feast/blob/master/core/src/main/resources/application.yml). Will be created as a Secret. `application-override.yaml` has a higher precedence than `application-secret.yaml`. It is recommended to either set `application-override.yaml` or `application-secret.yaml` only to simplify config management. |
 | "application.yaml".enabled | bool | `true` | Flag to include the default [configuration](https://github.com/feast-dev/feast/blob/master/core/src/main/resources/application.yml). Please set `application-override.yaml` to override this configuration. |
@@ -42,7 +42,7 @@ Current chart version is `0.5.0-alpha.1`
 | ingress.http.https.secretNames | object | `{}` | Map of hostname to TLS secret name |
 | ingress.http.whitelist | string | `""` | Allowed client IP source ranges |
 | javaOpts | string | `nil` | [JVM options](https://docs.oracle.com/cd/E22289_01/html/821-1274/configuring-the-default-jvm-and-java-arguments.html). For better performance, it is advised to set the min and max heap: <br> `-Xms2048m -Xmx2048m` |
-| livenessProbe.enabled | bool | `true` | Flag to enabled the probe |
+| livenessProbe.enabled | bool | `false` | Flag to enabled the probe |
 | livenessProbe.failureThreshold | int | `5` | Min consecutive failures for the probe to be considered failed |
 | livenessProbe.initialDelaySeconds | int | `60` | Delay before the probe is initiated |
 | livenessProbe.periodSeconds | int | `10` | How often to perform the probe |
@@ -51,6 +51,7 @@ Current chart version is `0.5.0-alpha.1`
 | logLevel | string | `"WARN"` | Default log level, use either one of `DEBUG`, `INFO`, `WARN` or `ERROR` |
 | logType | string | `"Console"` | Log format, either `JSON` or `Console` |
 | nodeSelector | object | `{}` | Node labels for pod assignment |
+| podLabels | object | `{}` | Labels to be added to Feast Core pods |
 | postgresql.existingSecret | string | `""` | Existing secret to use for authenticating to Postgres |
 | prometheus.enabled | bool | `true` | Flag to enable scraping of Feast Core metrics |
 | readinessProbe.enabled | bool | `true` | Flag to enabled the probe |
