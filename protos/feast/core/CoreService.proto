@@ -159,8 +159,17 @@ message ListFeatureSetsResponse {
 
 message ListFeaturesRequest {
     message Filter {
+        // User defined metadata for feature.
+        // Features with all matching labels will be returned.
         map<string,string> labels = 1;
+
+        // List of entities contained within the featureSet that the feature belongs to.
+        // Only feature sets with these entities will be searched for features.
         repeated string entities = 2;
+
+        // Name of project that the feature sets belongs to. Filtering on projects is disabled. 
+        // It is NOT possible to provide an asterisk with a string in order to do pattern matching.
+        // If unspecified this field will default to the default project 'default'.
         string project = 3;
     }
 
