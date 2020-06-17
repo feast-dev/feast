@@ -228,7 +228,7 @@ def test_basic_retrieve_online_success(client, cust_trans_df):
                     }
                 )
             ],
-            feature_refs=feature_refs,
+            feature_refs=feature_refs)
             # type: GetOnlineFeaturesResponse 
         is_ok = all([check_online_response(ref, cust_trans_df, response) for ref in feature_refs])
         return response, is_ok
