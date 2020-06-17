@@ -16,16 +16,14 @@
  */
 package feast.core.service;
 
-import feast.core.model.Entity;
-import feast.core.model.Feature;
-import feast.core.model.FeatureSet;
-import feast.core.model.Source;
+import feast.core.model.*;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.SourceProto;
 import feast.proto.types.ValueProto;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public class TestObjectFactory {
 
@@ -72,5 +70,20 @@ public class TestObjectFactory {
   public static Entity CreateEntity(String name, ValueProto.ValueType.Enum valueType) {
     return Entity.fromProto(
         FeatureSetProto.EntitySpec.newBuilder().setName(name).setValueType(valueType).build());
+  }
+
+  public static FeatureSetJobStatus CreateFeatureSetJobStatusWithJob(
+      JobStatus status, FeatureSetProto.FeatureSetJobDeliveryStatus deliveryStatus, int version) {
+    Job job = new Job();
+    job.setStatus(status);
+    job.setId(UUID.randomUUID().toString());
+
+    FeatureSetJobStatus featureSetJobStatus = new FeatureSetJobStatus();
+    featureSetJobStatus.setJob(job);
+
+    featureSetJobStatus.setDeliveryStatus(deliveryStatus);
+    featureSetJobStatus.setVersion(version);
+
+    return featureSetJobStatus;
   }
 }
