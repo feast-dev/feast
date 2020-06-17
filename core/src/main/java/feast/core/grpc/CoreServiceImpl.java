@@ -108,8 +108,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   /**
-   * Implementation of ListFeatures method in Feast Core gRPC service to return all features based
-   * on filters.
+   * Retrieve a list of features
    */
   @Override
   public void listFeatures(
