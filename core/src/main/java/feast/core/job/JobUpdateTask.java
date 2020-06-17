@@ -20,12 +20,8 @@ import com.google.common.collect.Sets;
 import feast.core.log.Action;
 import feast.core.log.AuditLogger;
 import feast.core.log.Resource;
-import feast.core.model.FeatureSet;
-import feast.core.model.Job;
-import feast.core.model.JobStatus;
-import feast.core.model.Source;
-import feast.core.model.Store;
-import feast.proto.core.FeatureSetProto.FeatureSetStatus;
+import feast.core.model.*;
+import feast.proto.core.FeatureSetProto;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -103,16 +99,12 @@ public class JobUpdateTask implements Callable<Job> {
   }
 
   boolean requiresUpdate(Job job) {
-    // If set of feature sets has changed
-    if (!Sets.newHashSet(featureSets).equals(Sets.newHashSet(job.getFeatureSets()))) {
+    // if store subscriptions have changed
+    if (!Sets.newHashSet(store.getSubscriptions())
+        .equals(Sets.newHashSet(job.getStore().getSubscriptions()))) {
       return true;
     }
-    // If any of the incoming feature sets were updated
-    for (FeatureSet featureSet : featureSets) {
-      if (featureSet.getStatus() == FeatureSetStatus.STATUS_PENDING) {
-        return true;
-      }
-    }
+
     return false;
   }
 
@@ -123,10 +115,15 @@ public class JobUpdateTask implements Callable<Job> {
 
   /** Start or update the job to ingest data to the sink. */
   private Job startJob(String jobId) {
+    Job job = new Job();
+    job.setId(jobId);
+    job.setRunner(jobManager.getRunnerType());
+    job.setSource(source);
+    job.setStore(store);
+    job.setStatus(JobStatus.PENDING);
 
-    Job job =
-        new Job(
-            jobId, "", jobManager.getRunnerType(), source, store, featureSets, JobStatus.PENDING);
+    updateFeatureSets(job);
+
     try {
       logAudit(Action.SUBMIT, job, "Building graph and submitting to %s", runnerName);
 
@@ -151,9 +148,19 @@ public class JobUpdateTask implements Callable<Job> {
     }
   }
 
+  private void updateFeatureSets(Job job) {
+    for (FeatureSet fs : featureSets) {
+      FeatureSetJobStatus status = new FeatureSetJobStatus();
+      status.setFeatureSet(fs);
+      status.setJob(job);
+      status.setDeliveryStatus(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS);
+      job.getFeatureSetJobStatuses().add(status);
+    }
+  }
+
   /** Update the given job */
   private Job updateJob(Job job) {
-    job.setFeatureSets(featureSets);
+    updateFeatureSets(job);
     job.setStore(store);
     logAudit(Action.UPDATE, job, "Updating job %s for runner %s", job.getId(), runnerName);
     return jobManager.updateJob(job);

@@ -34,7 +34,9 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Rule;
 import org.junit.Test;
@@ -104,6 +106,9 @@ public class ProcessAndValidateFeatureRowsTest {
 
     input.add(FeatureRow.newBuilder().setFeatureSet("invalid").build());
 
+    PCollectionView<Map<String, Iterable<FeatureSetSpec>>> specsView =
+        p.apply("StaticSpecs", Create.of(featureSetSpecs)).apply(View.asMultimap());
+
     PCollectionTuple output =
         p.apply(Create.of(input))
             .setCoder(ProtoCoder.of(FeatureRow.class))
@@ -112,7 +117,7 @@ public class ProcessAndValidateFeatureRowsTest {
                     .setDefaultProject("myproject")
                     .setFailureTag(FAILURE_TAG)
                     .setSuccessTag(SUCCESS_TAG)
-                    .setFeatureSetSpecs(featureSetSpecs)
+                    .setFeatureSetSpecs(specsView)
                     .build());
 
     PAssert.that(output.get(SUCCESS_TAG)).containsInAnyOrder(expected);
@@ -154,6 +159,9 @@ public class ProcessAndValidateFeatureRowsTest {
     randomRow = randomRow.toBuilder().setFeatureSet("myproject/feature_set:1").build();
     input.add(randomRow);
 
+    PCollectionView<Map<String, Iterable<FeatureSetSpec>>> specsView =
+        p.apply("StaticSpecs", Create.of(featureSetSpecs)).apply(View.asMultimap());
+
     PCollectionTuple output =
         p.apply(Create.of(input))
             .setCoder(ProtoCoder.of(FeatureRow.class))
@@ -162,7 +170,7 @@ public class ProcessAndValidateFeatureRowsTest {
                     .setDefaultProject("myproject")
                     .setFailureTag(FAILURE_TAG)
                     .setSuccessTag(SUCCESS_TAG)
-                    .setFeatureSetSpecs(featureSetSpecs)
+                    .setFeatureSetSpecs(specsView)
                     .build());
 
     PAssert.that(output.get(SUCCESS_TAG)).containsInAnyOrder(expected);
@@ -203,6 +211,9 @@ public class ProcessAndValidateFeatureRowsTest {
     randomRow = randomRow.toBuilder().setFeatureSet("feature_set").build();
     input.add(randomRow);
 
+    PCollectionView<Map<String, Iterable<FeatureSetSpec>>> specsView =
+        p.apply("StaticSpecs", Create.of(featureSetSpecs)).apply(View.asMultimap());
+
     PCollectionTuple output =
         p.apply(Create.of(input))
             .setCoder(ProtoCoder.of(FeatureRow.class))
@@ -211,7 +222,7 @@ public class ProcessAndValidateFeatureRowsTest {
                     .setDefaultProject("myproject")
                     .setFailureTag(FAILURE_TAG)
                     .setSuccessTag(SUCCESS_TAG)
-                    .setFeatureSetSpecs(featureSetSpecs)
+                    .setFeatureSetSpecs(specsView)
                     .build());
 
     PAssert.that(output.get(SUCCESS_TAG)).containsInAnyOrder(expected);
@@ -241,8 +252,8 @@ public class ProcessAndValidateFeatureRowsTest {
                 FeatureSpec.newBuilder().setName("feature_2").setValueType(Enum.INT64).build())
             .build();
 
-    Map<String, FeatureSetSpec> featureSets = new HashMap<>();
-    featureSets.put("myproject/feature_set", fs1);
+    Map<String, FeatureSetSpec> featureSetSpecs = new HashMap<>();
+    featureSetSpecs.put("myproject/feature_set", fs1);
 
     List<FeatureRow> input = new ArrayList<>();
     List<FeatureRow> expected = new ArrayList<>();
@@ -258,6 +269,9 @@ public class ProcessAndValidateFeatureRowsTest {
                     .setValue(Value.newBuilder().setStringVal("hello")))
             .build());
 
+    PCollectionView<Map<String, Iterable<FeatureSetSpec>>> specsView =
+        p.apply("StaticSpecs", Create.of(featureSetSpecs)).apply(View.asMultimap());
+
     PCollectionTuple output =
         p.apply(Create.of(input))
             .setCoder(ProtoCoder.of(FeatureRow.class))
@@ -266,7 +280,7 @@ public class ProcessAndValidateFeatureRowsTest {
                     .setDefaultProject("myproject")
                     .setFailureTag(FAILURE_TAG)
                     .setSuccessTag(SUCCESS_TAG)
-                    .setFeatureSetSpecs(featureSets)
+                    .setFeatureSetSpecs(specsView)
                     .build());
 
     PAssert.that(output.get(SUCCESS_TAG)).containsInAnyOrder(expected);

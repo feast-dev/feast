@@ -16,20 +16,20 @@
  */
 package feast.ingestion;
 
-import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
 import static feast.ingestion.utils.StoreUtil.getFeatureSink;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.ingestion.options.BZip2Decompressor;
 import feast.ingestion.options.ImportOptions;
-import feast.ingestion.options.StringListStreamConverter;
+import feast.ingestion.transform.FeatureRowToStoreAllocator;
 import feast.ingestion.transform.ProcessAndValidateFeatureRows;
 import feast.ingestion.transform.ReadFromSource;
 import feast.ingestion.transform.metrics.WriteFailureMetricsTransform;
 import feast.ingestion.transform.metrics.WriteSuccessMetricsTransform;
+import feast.ingestion.transform.specs.ReadFeatureSetSpecs;
+import feast.ingestion.transform.specs.WriteFeatureSetSpecAck;
 import feast.ingestion.utils.SpecUtil;
-import feast.proto.core.FeatureSetProto.FeatureSet;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.IngestionJobProto.SpecsStreamingUpdateConfig;
 import feast.proto.core.SourceProto.Source;
 import feast.proto.core.StoreProto.Store;
 import feast.proto.types.FeatureRowProto.FeatureRow;
@@ -39,15 +39,16 @@ import feast.storage.api.writer.FeatureSink;
 import feast.storage.api.writer.WriteResult;
 import feast.storage.connectors.bigquery.writer.BigQueryDeadletterSink;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.*;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 
 public class ImportJob {
@@ -73,11 +74,14 @@ public class ImportJob {
   public static PipelineResult runPipeline(ImportOptions options) throws IOException {
     /*
      * Steps:
-     * 1. Read messages from Feast Source as FeatureRow
-     * 2. Validate the feature rows to ensure the schema matches what is registered to the system
-     * 3. Write FeatureRow to the corresponding Store
-     * 4. Write elements that failed to be processed to a dead letter queue.
-     * 5. Write metrics to a metrics sink
+     * 1. Read FeatureSetSpec messages from kafka
+     * 2. Read messages from Feast Source as FeatureRow
+     * 3. Validate the feature rows to ensure the schema matches what is registered to the system
+     * 4. Distribute rows across stores by subscription
+     * 5. Write FeatureRow to the corresponding Store
+     * 6. Write elements that failed to be processed to a dead letter queue.
+     * 7. Write metrics to a metrics sink
+     * 8. Send ack on receiving FeatureSetSpec
      */
 
     PipelineOptionsValidator.validate(ImportOptions.class, options);
@@ -85,75 +89,71 @@ public class ImportJob {
 
     log.info("Starting import job with settings: \n{}", options.toString());
 
-    BZip2Decompressor<List<String>> decompressor =
-        new BZip2Decompressor<>(new StringListStreamConverter());
-    List<String> featureSetJson = decompressor.decompress(options.getFeatureSetJson());
-    List<FeatureSet> featureSets = SpecUtil.parseFeatureSetSpecJsonList(featureSetJson);
     List<Store> stores = SpecUtil.parseStoreJsonList(options.getStoreJson());
+    Source source = SpecUtil.parseSourceJson(options.getSourceJson());
+    SpecsStreamingUpdateConfig specsStreamingUpdateConfig =
+        SpecUtil.parseSpecsStreamingUpdateConfig(options.getSpecsStreamingUpdateConfigJson());
+
+    // Step 1. Read FeatureSetSpecs from Spec source
+    PCollection<KV<String, FeatureSetSpec>> featureSetSpecs =
+        pipeline.apply(
+            "ReadFeatureSetSpecs",
+            ReadFeatureSetSpecs.newBuilder()
+                .setSource(source)
+                .setStores(stores)
+                .setSpecsStreamingUpdateConfig(specsStreamingUpdateConfig)
+                .build());
+
+    PCollectionView<Map<String, Iterable<FeatureSetSpec>>> globalSpecView =
+        featureSetSpecs.apply("GlobalSpecView", View.asMultimap());
+
+    // Step 2. Read messages from Feast Source as FeatureRow.
+    PCollectionTuple convertedFeatureRows =
+        pipeline.apply(
+            "ReadFeatureRowFromSource",
+            ReadFromSource.newBuilder()
+                .setSource(source)
+                .setSuccessTag(FEATURE_ROW_OUT)
+                .setFailureTag(DEADLETTER_OUT)
+                .build());
+
+    // Step 3. Process and validate incoming FeatureRows
+    PCollectionTuple validatedRows =
+        convertedFeatureRows
+            .get(FEATURE_ROW_OUT)
+            .apply(
+                ProcessAndValidateFeatureRows.newBuilder()
+                    .setDefaultProject(options.getDefaultFeastProject())
+                    .setFeatureSetSpecs(globalSpecView)
+                    .setSuccessTag(FEATURE_ROW_OUT)
+                    .setFailureTag(DEADLETTER_OUT)
+                    .build());
+
+    Map<Store, TupleTag<FeatureRow>> storeTags =
+        stores.stream()
+            .map(s -> Pair.of(s, new TupleTag<FeatureRow>()))
+            .collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
+
+    // Step 4. Allocate validated rows to stores by store subscription
+    PCollectionTuple storeAllocatedRows =
+        validatedRows
+            .get(FEATURE_ROW_OUT)
+            .apply(
+                FeatureRowToStoreAllocator.newBuilder()
+                    .setStores(stores)
+                    .setStoreTags(storeTags)
+                    .build());
 
     for (Store store : stores) {
-      List<FeatureSet> subscribedFeatureSets =
-          SpecUtil.getSubscribedFeatureSets(store.getSubscriptionsList(), featureSets);
+      FeatureSink featureSink = getFeatureSink(store, featureSetSpecs);
 
-      // Generate tags by key
-      Map<String, FeatureSetSpec> featureSetSpecsByKey = new HashMap<>();
-      subscribedFeatureSets.stream()
-          .forEach(
-              fs -> {
-                String ref = getFeatureSetReference(fs.getSpec());
-                featureSetSpecsByKey.put(ref, fs.getSpec());
-              });
-
-      PCollection<KV<String, FeatureSetSpec>> staticSpecs =
-          pipeline
-              .apply(Create.of(""))
-              .apply(
-                  "TemporarySpecSource",
-                  ParDo.of(
-                      new DoFn<String, KV<String, FeatureSetSpec>>() {
-                        @ProcessElement
-                        public void process(ProcessContext c) {
-                          featureSetSpecsByKey.forEach((key, value) -> c.output(KV.of(key, value)));
-                        }
-                      }));
-
-      FeatureSink featureSink = getFeatureSink(store, staticSpecs);
-
-      // TODO: make the source part of the job initialisation options
-      Source source = subscribedFeatureSets.get(0).getSpec().getSource();
-
-      for (FeatureSet featureSet : subscribedFeatureSets) {
-        // Ensure Store has valid configuration and Feast can access it.
-        featureSink.prepareWrite(featureSet);
-      }
-
-      // Step 1. Read messages from Feast Source as FeatureRow.
-      PCollectionTuple convertedFeatureRows =
-          pipeline.apply(
-              "ReadFeatureRowFromSource",
-              ReadFromSource.newBuilder()
-                  .setSource(source)
-                  .setSuccessTag(FEATURE_ROW_OUT)
-                  .setFailureTag(DEADLETTER_OUT)
-                  .build());
-
-      // Step 2. Process and validate incoming FeatureRows
-      PCollectionTuple validatedRows =
-          convertedFeatureRows
-              .get(FEATURE_ROW_OUT)
-              .apply(
-                  ProcessAndValidateFeatureRows.newBuilder()
-                      .setDefaultProject(options.getDefaultFeastProject())
-                      .setFeatureSetSpecs(featureSetSpecsByKey)
-                      .setSuccessTag(FEATURE_ROW_OUT)
-                      .setFailureTag(DEADLETTER_OUT)
-                      .build());
-
-      // Step 3. Write FeatureRow to the corresponding Store.
+      // Step 5. Write FeatureRow to the corresponding Store.
       WriteResult writeFeatureRows =
-          validatedRows.get(FEATURE_ROW_OUT).apply("WriteFeatureRowToStore", featureSink.writer());
+          storeAllocatedRows
+              .get(storeTags.get(store))
+              .apply("WriteFeatureRowToStore", featureSink.writer());
 
-      // Step 4. Write FailedElements to a dead letter table in BigQuery.
+      // Step 6. Write FailedElements to a dead letter table in BigQuery.
       if (options.getDeadLetterTableSpec() != null) {
         // TODO: make deadletter destination type configurable
         DeadletterSink deadletterSink =
@@ -172,7 +172,7 @@ public class ImportJob {
             .apply("WriteFailedElements_WriteFeatureRowToStore", deadletterSink.write());
       }
 
-      // Step 5. Write metrics to a metrics sink.
+      // Step 7. Write metrics to a metrics sink.
       writeFeatureRows
           .getSuccessfulInserts()
           .apply("WriteSuccessMetrics", WriteSuccessMetricsTransform.create(store.getName()));
@@ -181,6 +181,13 @@ public class ImportJob {
           .getFailedInserts()
           .apply("WriteFailureMetrics", WriteFailureMetricsTransform.create(store.getName()));
     }
+
+    // Step 8. Send ack that FeatureSetSpec state is updated
+    featureSetSpecs.apply(
+        "WriteAck",
+        WriteFeatureSetSpecAck.newBuilder()
+            .setSpecsStreamingUpdateConfig(specsStreamingUpdateConfig)
+            .build());
 
     return pipeline.run();
   }

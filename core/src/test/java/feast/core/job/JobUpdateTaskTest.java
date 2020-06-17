@@ -24,11 +24,8 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import feast.core.model.FeatureSet;
-import feast.core.model.Job;
-import feast.core.model.JobStatus;
-import feast.core.model.Source;
-import feast.core.model.Store;
+import feast.core.model.*;
+import feast.core.util.ModelHelpers;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.FeatureSetMeta;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
@@ -92,7 +89,14 @@ public class JobUpdateTaskTest {
   }
 
   Job makeJob(String extId, List<FeatureSet> featureSets, JobStatus status) {
-    return new Job("job", extId, RUNNER, source, store, featureSets, status);
+    return new Job(
+        "job",
+        extId,
+        RUNNER,
+        source,
+        store,
+        ModelHelpers.makeFeatureSetJobStatus(featureSets),
+        status);
   }
 
   JobUpdateTask makeTask(List<FeatureSet> featureSets, Optional<Job> currentJob) {

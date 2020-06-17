@@ -122,7 +122,11 @@ public class JobService {
                   .collect(Collectors.toList());
 
           // find jobs for the matching featuresets
-          Collection<Job> matchingJobs = this.jobRepository.findByFeatureSetsIn(featureSets);
+          Collection<Job> matchingJobs =
+              this.jobRepository.findByFeatureSetJobStatusesIn(
+                  featureSets.stream()
+                      .flatMap(fs -> fs.getJobStatuses().stream())
+                      .collect(Collectors.toList()));
           List<String> jobIds = matchingJobs.stream().map(Job::getId).collect(Collectors.toList());
           matchingJobIds = this.mergeResults(matchingJobIds, jobIds);
         }
@@ -137,6 +141,11 @@ public class JobService {
     List<IngestionJobProto.IngestionJob> ingestJobs = new ArrayList<>();
     for (String jobId : matchingJobIds) {
       Job job = this.jobRepository.findById(jobId).get();
+      // job that failed on start won't be converted toProto successfully
+      // and they're irrelevant here
+      if (job.getStatus() == JobStatus.ERROR) {
+        continue;
+      }
       ingestJobs.add(job.toProto());
     }
 

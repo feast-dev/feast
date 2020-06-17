@@ -24,8 +24,10 @@ import feast.core.job.JobManager;
 import feast.core.job.dataflow.DataflowJobManager;
 import feast.core.job.direct.DirectJobRegistry;
 import feast.core.job.direct.DirectRunnerJobManager;
+import feast.proto.core.IngestionJobProto;
 import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions;
 import feast.proto.core.RunnerProto.DirectRunnerConfigOptions;
+import feast.proto.core.SourceProto;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,13 +41,39 @@ public class JobConfig {
   private final Gson gson = new Gson();
 
   /**
+   * Create SpecsStreamingUpdateConfig, which is used to set up communications (bi-directional
+   * channel) to send new FeatureSetSpec to IngestionJob and receive acknowledgments.
+   *
+   * @param feastProperties feast config properties
+   */
+  @Bean
+  public IngestionJobProto.SpecsStreamingUpdateConfig createSpecsStreamingUpdateConfig(
+      FeastProperties feastProperties) {
+    FeastProperties.StreamProperties streamProperties = feastProperties.getStream();
+
+    return IngestionJobProto.SpecsStreamingUpdateConfig.newBuilder()
+        .setSource(
+            SourceProto.KafkaSourceConfig.newBuilder()
+                .setBootstrapServers(streamProperties.getOptions().getBootstrapServers())
+                .setTopic(streamProperties.getSpecsOptions().getSpecsTopic())
+                .build())
+        .setAck(
+            SourceProto.KafkaSourceConfig.newBuilder()
+                .setBootstrapServers(streamProperties.getOptions().getBootstrapServers())
+                .setTopic(streamProperties.getSpecsOptions().getSpecsAckTopic()))
+        .build();
+  }
+
+  /**
    * Get a JobManager according to the runner type and Dataflow configuration.
    *
    * @param feastProperties feast config properties
    */
   @Bean
   @Autowired
-  public JobManager getJobManager(FeastProperties feastProperties)
+  public JobManager getJobManager(
+      FeastProperties feastProperties,
+      IngestionJobProto.SpecsStreamingUpdateConfig specsStreamingUpdateConfig)
       throws InvalidProtocolBufferException {
 
     JobProperties jobProperties = feastProperties.getJobs();
@@ -60,13 +88,17 @@ public class JobConfig {
         DataflowRunnerConfigOptions.Builder dataflowRunnerConfigOptions =
             DataflowRunnerConfigOptions.newBuilder();
         JsonFormat.parser().merge(configJson, dataflowRunnerConfigOptions);
-        return new DataflowJobManager(dataflowRunnerConfigOptions.build(), metrics);
+        return new DataflowJobManager(
+            dataflowRunnerConfigOptions.build(), metrics, specsStreamingUpdateConfig);
       case DIRECT:
         DirectRunnerConfigOptions.Builder directRunnerConfigOptions =
             DirectRunnerConfigOptions.newBuilder();
         JsonFormat.parser().merge(configJson, directRunnerConfigOptions);
         return new DirectRunnerJobManager(
-            directRunnerConfigOptions.build(), new DirectJobRegistry(), metrics);
+            directRunnerConfigOptions.build(),
+            new DirectJobRegistry(),
+            metrics,
+            specsStreamingUpdateConfig);
       default:
         throw new IllegalArgumentException("Unsupported runner: " + runner);
     }

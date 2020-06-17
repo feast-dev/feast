@@ -78,6 +78,10 @@ feast:
       replicationFactor: 1
       partitions: 1
 
+    specsOptions:
+      specsTopic: feast-specs
+      specsAckTopic: feast-specs-ack
+
 spring:
   jpa:
     properties.hibernate:
