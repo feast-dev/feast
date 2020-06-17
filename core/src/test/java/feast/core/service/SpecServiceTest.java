@@ -164,7 +164,7 @@ public class SpecServiceTest {
                     .putAllLabels(duoFeatureSetLabels)
                     .build())
             .build();
-    
+
     Entity f7e1 = TestObjectFactory.CreateEntity("f7e1", Enum.STRING);
     Entity f9e1 = TestObjectFactory.CreateEntity("f9e1", Enum.STRING);
     Feature f7f1 = TestObjectFactory.CreateFeature("f7f1", Enum.INT64, featureLabels1);

@@ -208,10 +208,10 @@ public class FeatureSet extends AbstractTimestampEntity {
 
     return refStr;
   }
-  
-  /** 
+
+  /**
    * Return a boolean to facilitate streaming elements on the basis of given predicate.
-   * 
+   *
    * @param labelsFilter labels contain key-value mapping for labels attached to the FeatureSet
    * @return boolean True if FeatureSet contains all labels in the labelsFilter
    */
