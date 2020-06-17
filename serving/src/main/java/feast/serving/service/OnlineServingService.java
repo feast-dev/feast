@@ -23,6 +23,7 @@ import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.Value;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.util.Metrics;
@@ -73,7 +74,7 @@ public class OnlineServingService implements ServingService {
       Map<EntityRow, Map<String, FieldStatus>> entityStatusesMap =
           entityRows.stream().collect(Collectors.toMap(row -> row, row -> new HashMap<>()));
       // Collect featureRows retrieved for logging/tracing
-      List<List<FeatureRow>> logFeatureRows = new LinkedList<>();
+      List<List<Optional<FeatureRow>>> logFeatureRows = new LinkedList<>();
 
       if (!request.getOmitEntitiesInResponse()) {
         // Add entity row's fields as response fields
@@ -91,7 +92,8 @@ public class OnlineServingService implements ServingService {
         // Pull feature rows for given entity rows from the feature/featureset specified in feature
         // set request.
         // from the configured online
-        List<FeatureRow> featureRows = retriever.getOnlineFeatures(entityRows, featureSetRequest);
+        List<Optional<FeatureRow>> featureRows =
+            retriever.getOnlineFeatures(entityRows, featureSetRequest);
         // Check that feature row returned corresponds to a given entity row.
         if (featureRows.size() != entityRows.size()) {
           throw Status.INTERNAL
@@ -105,7 +107,7 @@ public class OnlineServingService implements ServingService {
             .forEach(
                 entityFeaturePair -> {
                   EntityRow entityRow = entityFeaturePair.getLeft();
-                  FeatureRow featureRow = entityFeaturePair.getRight();
+                  Optional<FeatureRow> featureRow = entityFeaturePair.getRight();
                   // Unpack feature field values and merge into entityValueMap
                   boolean isOutsideMaxAge =
                       checkOutsideMaxAge(featureSetRequest, entityRow, featureRow);
@@ -114,7 +116,7 @@ public class OnlineServingService implements ServingService {
                   entityValuesMap.get(entityRow).putAll(valueMap);
 
                   // Generate metadata for feature values and merge into entityFieldsMap
-                  boolean isNotFound = featureRow == null;
+                  boolean isNotFound = featureRow.isEmpty();
                   Map<String, FieldStatus> statusMap =
                       getMetadataMap(valueMap, isNotFound, isOutsideMaxAge);
                   entityStatusesMap.get(entityRow).putAll(statusMap);
@@ -126,7 +128,7 @@ public class OnlineServingService implements ServingService {
         logFeatureRows.add(featureRows);
       }
       if (scope != null) {
-        scope.span().log(ImmutableMap.of("event", "featureRows", "value", logFeatureRows));
+        logFeatureRowTrace(scope, logFeatureRows, featureSetRequests);
       }
 
       // Build response field values from entityValuesMap and entityStatusesMap
@@ -149,22 +151,24 @@ public class OnlineServingService implements ServingService {
    * Unpack feature values using data from the given feature row for features specified in the given
    * feature set request.
    *
-   * @param featureRow to unpack for feature values.
+   * @param featureRow optional to unpack for feature values.
    * @param featureSetRequest for which the feature row was retrieved.
    * @param isOutsideMaxAge whether which the feature row contains values that is outside max age.
    * @return valueMap mapping string feature name to feature value for the given feature set
    *     request.
    */
   private static Map<String, Value> unpackValueMap(
-      FeatureRow featureRow, FeatureSetRequest featureSetRequest, boolean isOutsideMaxAge) {
+      Optional<FeatureRow> featureRow,
+      FeatureSetRequest featureSetRequest,
+      boolean isOutsideMaxAge) {
     Map<String, Value> valueMap = new HashMap<>();
     // In order to return values containing the same feature references provided by the user,
     // we reuse the feature references in the request as the keys in field builder map
     Map<String, FeatureReference> nameRefMap = featureSetRequest.getFeatureRefsByName();
-    if (featureRow != null) {
+    if (featureRow.isPresent()) {
       // unpack feature row's feature values and populate value map
       Map<String, Value> featureValueMap =
-          featureRow.getFieldsList().stream()
+          featureRow.get().getFieldsList().stream()
               .filter(featureRowField -> nameRefMap.containsKey(featureRowField.getName()))
               .collect(
                   Collectors.toMap(
@@ -180,7 +184,6 @@ public class OnlineServingService implements ServingService {
                       }));
       valueMap.putAll(featureValueMap);
     }
-
     // create empty values for features specified in request but not present in feature row.
     Set<String> missingFeatures =
         nameRefMap.values().stream()
@@ -232,9 +235,9 @@ public class OnlineServingService implements ServingService {
    * @param featureRow contains the ingestion timing and feature data.
    */
   private static boolean checkOutsideMaxAge(
-      FeatureSetRequest featureSetRequest, EntityRow entityRow, FeatureRow featureRow) {
+      FeatureSetRequest featureSetRequest, EntityRow entityRow, Optional<FeatureRow> featureRow) {
     Duration maxAge = featureSetRequest.getSpec().getMaxAge();
-    if (featureRow == null) { // no data to consider
+    if (featureRow.isEmpty()) { // no data to consider
       return false;
     }
     if (maxAge.equals(Duration.getDefaultInstance())) { // max age is not set
@@ -245,8 +248,43 @@ public class OnlineServingService implements ServingService {
     if (givenTimestamp == 0) {
       givenTimestamp = System.currentTimeMillis() / 1000;
     }
-    long timeDifference = givenTimestamp - featureRow.getEventTimestamp().getSeconds();
+    long timeDifference = givenTimestamp - featureRow.get().getEventTimestamp().getSeconds();
     return timeDifference > maxAge.getSeconds();
+  }
+
+  /** TODO: docs */
+  private void logFeatureRowTrace(
+      Scope scope,
+      List<List<Optional<FeatureRow>>> logFeatureRows,
+      List<FeatureSetRequest> featureSetRequests) {
+    List<List<FeatureRow>> loggableFeatureRows =
+        Streams.zip(
+                logFeatureRows.stream(),
+                featureSetRequests.stream(),
+                (featureRows, featureSetRequest) -> {
+                  // log null feature row when feature row is missing
+                  FeatureRow.Builder nullFeatureRowBuilder =
+                      FeatureRow.newBuilder()
+                          .setFeatureSet(
+                              RefUtil.generateFeatureSetStringRef(featureSetRequest.getSpec()));
+                  for (FeatureReference featureReference :
+                      featureSetRequest.getFeatureReferences()) {
+                    nullFeatureRowBuilder.addFields(
+                        Field.newBuilder().setName(featureReference.getName()));
+                  }
+
+                  return featureRows.stream()
+                      .map(
+                          featureRow -> {
+                            return (featureRow.isPresent())
+                                ? nullFeatureRowBuilder.build()
+                                : featureRow.get();
+                          })
+                      .collect(Collectors.toList());
+                })
+            .collect(Collectors.toList());
+
+    scope.span().log(ImmutableMap.of("event", "featureRows", "value", loggableFeatureRows));
   }
 
   private void populateStaleKeyCountMetrics(

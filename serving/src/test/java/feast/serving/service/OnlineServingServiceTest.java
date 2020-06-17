@@ -42,6 +42,7 @@ import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
@@ -84,52 +85,54 @@ public class OnlineServingServiceTest {
                     .putFields("entity2", strValue("b")))
             .build();
 
-    List<FeatureRow> featureRows =
+    List<Optional<FeatureRow>> featureRows =
         Lists.newArrayList(
-            FeatureRow.newBuilder()
-                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .addAllFields(
-                    Lists.newArrayList(
-                        FieldProto.Field.newBuilder()
-                            .setName("entity1")
-                            .setValue(intValue(1))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("entity2")
-                            .setValue(strValue("a"))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("feature1")
-                            .setValue(intValue(1))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("feature2")
-                            .setValue(intValue(1))
-                            .build()))
-                .setFeatureSet("featureSet")
-                .build(),
-            FeatureRow.newBuilder()
-                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .addAllFields(
-                    Lists.newArrayList(
-                        FieldProto.Field.newBuilder()
-                            .setName("entity1")
-                            .setValue(intValue(2))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("entity2")
-                            .setValue(strValue("b"))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("feature1")
-                            .setValue(intValue(2))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("feature2")
-                            .setValue(intValue(2))
-                            .build()))
-                .setFeatureSet("featureSet")
-                .build());
+            Optional.of(
+                FeatureRow.newBuilder()
+                    .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .addAllFields(
+                        Lists.newArrayList(
+                            FieldProto.Field.newBuilder()
+                                .setName("entity1")
+                                .setValue(intValue(1))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("entity2")
+                                .setValue(strValue("a"))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("feature1")
+                                .setValue(intValue(1))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("feature2")
+                                .setValue(intValue(1))
+                                .build()))
+                    .setFeatureSet("featureSet")
+                    .build()),
+            Optional.of(
+                FeatureRow.newBuilder()
+                    .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .addAllFields(
+                        Lists.newArrayList(
+                            FieldProto.Field.newBuilder()
+                                .setName("entity1")
+                                .setValue(intValue(2))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("entity2")
+                                .setValue(strValue("b"))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("feature1")
+                                .setValue(intValue(2))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("feature2")
+                                .setValue(intValue(2))
+                                .build()))
+                    .setFeatureSet("featureSet")
+                    .build()));
 
     FeatureSetRequest featureSetRequest =
         FeatureSetRequest.newBuilder()
@@ -198,23 +201,24 @@ public class OnlineServingServiceTest {
             .setSpec(getFeatureSetSpec())
             .build();
 
-    List<FeatureRow> featureRows =
+    List<Optional<FeatureRow>> featureRows =
         Lists.newArrayList(
-            FeatureRow.newBuilder()
-                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .setFeatureSet("project/featureSet")
-                .addAllFields(
-                    Lists.newArrayList(
-                        FieldProto.Field.newBuilder()
-                            .setName("feature1")
-                            .setValue(intValue(1))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("feature2")
-                            .setValue(intValue(1))
-                            .build()))
-                .build(),
-            null);
+            Optional.of(
+                FeatureRow.newBuilder()
+                    .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .setFeatureSet("project/featureSet")
+                    .addAllFields(
+                        Lists.newArrayList(
+                            FieldProto.Field.newBuilder()
+                                .setName("feature1")
+                                .setValue(intValue(1))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("feature2")
+                                .setValue(intValue(1))
+                                .build()))
+                    .build()),
+            Optional.empty());
 
     when(specService.getFeatureSets(request.getFeaturesList()))
         .thenReturn(Collections.singletonList(featureSetRequest));
@@ -272,53 +276,55 @@ public class OnlineServingServiceTest {
                     .putFields("entity2", strValue("b")))
             .build();
 
-    List<FeatureRow> featureRows =
+    List<Optional<FeatureRow>> featureRows =
         Lists.newArrayList(
-            FeatureRow.newBuilder()
-                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .addAllFields(
-                    Lists.newArrayList(
-                        FieldProto.Field.newBuilder()
-                            .setName("entity1")
-                            .setValue(intValue(1))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("entity2")
-                            .setValue(strValue("a"))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("feature1")
-                            .setValue(intValue(1))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("feature2")
-                            .setValue(intValue(1))
-                            .build()))
-                .setFeatureSet("project/featureSet")
-                .build(),
-            FeatureRow.newBuilder()
-                .setEventTimestamp(
-                    Timestamp.newBuilder().setSeconds(50)) // this value should be nulled
-                .addAllFields(
-                    Lists.newArrayList(
-                        FieldProto.Field.newBuilder()
-                            .setName("entity1")
-                            .setValue(intValue(2))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("entity2")
-                            .setValue(strValue("b"))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("feature1")
-                            .setValue(intValue(2))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("project/feature2")
-                            .setValue(intValue(2))
-                            .build()))
-                .setFeatureSet("project/featureSet")
-                .build());
+            Optional.of(
+                FeatureRow.newBuilder()
+                    .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .addAllFields(
+                        Lists.newArrayList(
+                            FieldProto.Field.newBuilder()
+                                .setName("entity1")
+                                .setValue(intValue(1))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("entity2")
+                                .setValue(strValue("a"))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("feature1")
+                                .setValue(intValue(1))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("feature2")
+                                .setValue(intValue(1))
+                                .build()))
+                    .setFeatureSet("project/featureSet")
+                    .build()),
+            Optional.of(
+                FeatureRow.newBuilder()
+                    .setEventTimestamp(
+                        Timestamp.newBuilder().setSeconds(50)) // this value should be nulled
+                    .addAllFields(
+                        Lists.newArrayList(
+                            FieldProto.Field.newBuilder()
+                                .setName("entity1")
+                                .setValue(intValue(2))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("entity2")
+                                .setValue(strValue("b"))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("feature1")
+                                .setValue(intValue(2))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("project/feature2")
+                                .setValue(intValue(2))
+                                .build()))
+                    .setFeatureSet("project/featureSet")
+                    .build()));
 
     FeatureSetSpec spec =
         getFeatureSetSpec().toBuilder().setMaxAge(Duration.newBuilder().setSeconds(1)).build();
@@ -382,52 +388,54 @@ public class OnlineServingServiceTest {
                     .putFields("entity2", strValue("b")))
             .build();
 
-    List<FeatureRow> featureRows =
+    List<Optional<FeatureRow>> featureRows =
         Lists.newArrayList(
-            FeatureRow.newBuilder()
-                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .addAllFields(
-                    Lists.newArrayList(
-                        FieldProto.Field.newBuilder()
-                            .setName("entity1")
-                            .setValue(intValue(1))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("entity2")
-                            .setValue(strValue("a"))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("feature1")
-                            .setValue(intValue(1))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("feature2")
-                            .setValue(intValue(1))
-                            .build()))
-                .setFeatureSet("featureSet")
-                .build(),
-            FeatureRow.newBuilder()
-                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .addAllFields(
-                    Lists.newArrayList(
-                        FieldProto.Field.newBuilder()
-                            .setName("entity1")
-                            .setValue(intValue(2))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("entity2")
-                            .setValue(strValue("b"))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("feature1")
-                            .setValue(intValue(2))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("feature2")
-                            .setValue(intValue(2))
-                            .build()))
-                .setFeatureSet("featureSet")
-                .build());
+            Optional.of(
+                FeatureRow.newBuilder()
+                    .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .addAllFields(
+                        Lists.newArrayList(
+                            FieldProto.Field.newBuilder()
+                                .setName("entity1")
+                                .setValue(intValue(1))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("entity2")
+                                .setValue(strValue("a"))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("feature1")
+                                .setValue(intValue(1))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("feature2")
+                                .setValue(intValue(1))
+                                .build()))
+                    .setFeatureSet("featureSet")
+                    .build()),
+            Optional.of(
+                FeatureRow.newBuilder()
+                    .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .addAllFields(
+                        Lists.newArrayList(
+                            FieldProto.Field.newBuilder()
+                                .setName("entity1")
+                                .setValue(intValue(2))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("entity2")
+                                .setValue(strValue("b"))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("feature1")
+                                .setValue(intValue(2))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("feature2")
+                                .setValue(intValue(2))
+                                .build()))
+                    .setFeatureSet("featureSet")
+                    .build()));
 
     FeatureSetRequest featureSetRequest =
         FeatureSetRequest.newBuilder()

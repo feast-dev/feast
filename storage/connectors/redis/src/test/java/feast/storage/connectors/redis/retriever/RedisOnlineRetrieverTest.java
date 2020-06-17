@@ -132,26 +132,29 @@ public class RedisOnlineRetrieverTest {
     when(connection.sync()).thenReturn(syncCommands);
     when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
 
-    List<FeatureRow> expected =
+    List<Optional<FeatureRow>> expected =
         Lists.newArrayList(
-            FeatureRow.newBuilder()
-                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .setFeatureSet("project/featureSet")
-                .addAllFields(
-                    Lists.newArrayList(
-                        Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
-                        Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
-                .build(),
-            FeatureRow.newBuilder()
-                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .setFeatureSet("project/featureSet")
-                .addAllFields(
-                    Lists.newArrayList(
-                        Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
-                        Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
-                .build());
+            Optional.of(
+                FeatureRow.newBuilder()
+                    .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .setFeatureSet("project/featureSet")
+                    .addAllFields(
+                        Lists.newArrayList(
+                            Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
+                            Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
+                    .build()),
+            Optional.of(
+                FeatureRow.newBuilder()
+                    .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .setFeatureSet("project/featureSet")
+                    .addAllFields(
+                        Lists.newArrayList(
+                            Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
+                            Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
+                    .build()));
 
-    List<FeatureRow> actual = redisOnlineRetriever.getOnlineFeatures(entityRows, featureSetRequest);
+    List<Optional<FeatureRow>> actual =
+        redisOnlineRetriever.getOnlineFeatures(entityRows, featureSetRequest);
     assertThat(actual, equalTo(expected));
   }
 
@@ -190,7 +193,7 @@ public class RedisOnlineRetrieverTest {
 
     List<KeyValue<byte[], byte[]>> featureRowBytes =
         featureRows.stream()
-            .map(x -> KeyValue.from(new byte[1], Optional.of(x.toByteArray())))
+            .map(row -> KeyValue.from(new byte[1], Optional.of(row.toByteArray())))
             .collect(Collectors.toList());
     featureRowBytes.add(null);
 
@@ -198,18 +201,20 @@ public class RedisOnlineRetrieverTest {
     when(connection.sync()).thenReturn(syncCommands);
     when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
 
-    List<FeatureRow> expected =
+    List<Optional<FeatureRow>> expected =
         Lists.newArrayList(
-            FeatureRow.newBuilder()
-                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .setFeatureSet("project/featureSet")
-                .addAllFields(
-                    Lists.newArrayList(
-                        Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
-                        Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
-                .build(),
-            null);
-    List<FeatureRow> actual = redisOnlineRetriever.getOnlineFeatures(entityRows, featureSetRequest);
+            Optional.of(
+                FeatureRow.newBuilder()
+                    .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .setFeatureSet("project/featureSet")
+                    .addAllFields(
+                        Lists.newArrayList(
+                            Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
+                            Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
+                    .build()),
+            Optional.empty());
+    List<Optional<FeatureRow>> actual =
+        redisOnlineRetriever.getOnlineFeatures(entityRows, featureSetRequest);
     assertThat(actual, equalTo(expected));
   }
 

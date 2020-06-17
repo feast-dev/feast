@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -71,7 +72,7 @@ public class RedisClusterOnlineRetriever implements OnlineRetriever {
 
   /** {@inheritDoc} */
   @Override
-  public List<FeatureRow> getOnlineFeatures(
+  public List<Optional<FeatureRow>> getOnlineFeatures(
       List<EntityRow> entityRows, FeatureSetRequest featureSetRequest) {
 
     // get features for this features/featureset in featureset request
@@ -79,7 +80,7 @@ public class RedisClusterOnlineRetriever implements OnlineRetriever {
     List<RedisKey> redisKeys = buildRedisKeys(entityRows, featureSetSpec);
     FeatureRowDecoder decoder =
         new FeatureRowDecoder(generateFeatureSetStringRef(featureSetSpec), featureSetSpec);
-    List<FeatureRow> featureRows = new ArrayList<>();
+    List<Optional<FeatureRow>> featureRows = new ArrayList<>();
     try {
       featureRows = getFeaturesFromRedis(redisKeys, decoder);
     } catch (InvalidProtocolBufferException | ExecutionException e) {
@@ -140,17 +141,18 @@ public class RedisClusterOnlineRetriever implements OnlineRetriever {
    *
    * @param redisKeys keys used to retrieve data from Redis for a specific featureset.
    * @param decoder used to decode the data retrieved from Redis for a specific featureset.
-   * @return List of {@link FeatureRow}s
+   * @return List of {@link FeatureRow} optionals
    */
-  private List<FeatureRow> getFeaturesFromRedis(List<RedisKey> redisKeys, FeatureRowDecoder decoder)
+  private List<Optional<FeatureRow>> getFeaturesFromRedis(
+      List<RedisKey> redisKeys, FeatureRowDecoder decoder)
       throws InvalidProtocolBufferException, ExecutionException {
     // pull feature row data bytes from redis using given redis keys
     List<byte[]> featureRowsBytes = sendMultiGet(redisKeys);
-    List<FeatureRow> featureRows = new ArrayList<>();
+    List<Optional<FeatureRow>> featureRows = new ArrayList<>();
 
     for (byte[] featureRowBytes : featureRowsBytes) {
       if (featureRowBytes == null) {
-        featureRows.add(null);
+        featureRows.add(Optional.empty());
         continue;
       }
 
@@ -168,7 +170,7 @@ public class RedisClusterOnlineRetriever implements OnlineRetriever {
               .asRuntimeException();
         }
       }
-      featureRows.add(featureRow);
+      featureRows.add(Optional.of(featureRow));
     }
     return featureRows;
   }
