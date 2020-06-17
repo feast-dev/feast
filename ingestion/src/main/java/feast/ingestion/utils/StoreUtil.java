@@ -28,6 +28,8 @@ import feast.storage.connectors.bigquery.writer.BigQueryFeatureSink;
 import feast.storage.connectors.redis.writer.RedisFeatureSink;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 
 // TODO: Create partitioned table by default
@@ -79,7 +81,7 @@ public class StoreUtil {
   }
 
   public static FeatureSink getFeatureSink(
-      Store store, Map<String, FeatureSetSpec> featureSetSpecs) {
+      Store store, PCollection<KV<String, FeatureSetSpec>> featureSetSpecs) {
     StoreType storeType = store.getType();
     switch (storeType) {
       case REDIS_CLUSTER:

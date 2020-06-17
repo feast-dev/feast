@@ -22,21 +22,12 @@ The docker compose setup uses Direct Runner for the Apache Beam jobs that popula
 ### 0. Requirements
 
 * [Docker compose](https://docs.docker.com/compose/install/) must be installed.
-* The following list of TCP ports must be free:
-  * 6565, 6566, 8888, and 9094.
-  * Alternatively it is possible to modify port mappings in  `/docker-compose/docker-compose.yml`.
 * \(for batch serving only\) For batch serving you will also need a [GCP service account key](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) that has access to [Google Cloud Storage](https://cloud.google.com/storage) and [BigQuery](https://cloud.google.com/bigquery).
-* \(for batch serving only\) [Google Cloud SDK ](https://cloud.google.com/sdk/install)installed, authenticated, and configured to the project you will use.
+* \(for batch serving only\) [Google Cloud SDK ](https://cloud.google.com/sdk/install)installed, authenticated, and configured to the GCP project you will use.
 
 ## 1. Set up environment
 
-Clone the [Feast repository](https://github.com/feast-dev/feast/) and navigate to the `docker-compose` sub-directory:
-
-```bash
-git clone https://github.com/feast-dev/feast.git && \
-cd feast && export FEAST_HOME_DIR=$(pwd) && \
-cd infra/docker-compose
-```
+Clone the [Feast repository](https://github.com/gojek/feast/) and navigate to the `infra/docker-compose` sub-directory:
 
 Make a copy of the `.env.sample` file:
 
@@ -44,19 +35,43 @@ Make a copy of the `.env.sample` file:
 cp .env.sample .env
 ```
 
-## 2. Docker Compose for Online Serving Only
-
-### 2.1 Start Feast \(without batch retrieval support\)
-
-If you do not require batch serving, then its possible to simply bring up Feast:
+The following command will bring up a Feast deployment with a single Feast Core instance without any online stores:
 
 ```javascript
 docker-compose up -d
 ```
 
-A Jupyter Notebook environment is now available to use Feast:
+## 2. Docker Compose for Online Serving
 
-[http://localhost:8888/tree/feast/examples](http://localhost:8888/tree/feast/examples)
+Run the following command if you would like to start both Feast Core and Feast Serving at the same time. The Feast Serving online deployment will use Redis as its database.
+
+```javascript
+docker-compose \
+-f docker-compose.yml \
+-f docker-compose.online.yml \
+up -d
+```
+
+If you already have Feast Core running \(externally or from the earlier section\), then you can optionally bring up only the Feast Serving online deployment for Redis.
+
+```javascript
+docker-compose -f docker-compose.online.yml up -d
+```
+
+Your Feast deployment should now be starting up. Have a look at the docker logs, especially that of the Jupyter container:
+
+```text
+docker logs feast_jupyter_1
+```
+
+Once it is ready you should be able to connect to a local notebook that contains Feast examples. This may take a few minutes.
+
+```text
+[I 05:50:22.991 NotebookApp] The Jupyter Notebook is running at:
+[I 05:50:22.991 NotebookApp] http://localhost:8888/
+```
+
+{% embed url="http://localhost:8888/tree/feast/examples" caption="" %}
 
 ## 3. Docker Compose for Online and Batch Serving
 
@@ -103,10 +118,14 @@ We will also need to configure the `bq-store.yml` file inside `infra/docker-comp
 Start Feast:
 
 ```javascript
-docker-compose up -d
+docker-compose \
+-f docker-compose.yml \
+-f docker-compose.online.yml \
+-f docker-compose.batch.yml \
+up -d
 ```
 
-A Jupyter Notebook environment is now available to use Feast:
+A Jupyter Notebook environment should become available within a few minutes:
 
-[http://localhost:8888/tree/feast/examples](http://localhost:8888/tree/feast/examples)
+{% embed url="http://localhost:8888/tree/feast/examples" %}
 

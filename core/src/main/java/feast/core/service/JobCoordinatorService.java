@@ -23,13 +23,9 @@ import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
 import feast.core.job.JobUpdateTask;
-import feast.core.model.FeatureSet;
-import feast.core.model.Job;
-import feast.core.model.Source;
-import feast.core.model.Store;
+import feast.core.model.*;
 import feast.proto.core.CoreServiceProto.ListStoresRequest.Filter;
 import feast.proto.core.CoreServiceProto.ListStoresResponse;
-import feast.proto.core.FeatureSetProto.FeatureSetStatus;
 import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.ArrayList;
@@ -121,9 +117,6 @@ public class JobCoordinatorService {
 
     log.info("Creating/Updating {} jobs...", jobUpdateTasks.size());
     startOrUpdateJobs(jobUpdateTasks);
-
-    log.info("Updating feature set status");
-    updateFeatureSetStatuses(jobUpdateTasks);
   }
 
   void startOrUpdateJobs(List<JobUpdateTask> tasks) {
@@ -146,35 +139,6 @@ public class JobCoordinatorService {
     }
     jobRepository.saveAll(startedJobs);
     executorService.shutdown();
-  }
-
-  // TODO: make this more efficient
-  private void updateFeatureSetStatuses(List<JobUpdateTask> jobUpdateTasks) {
-    Set<FeatureSet> ready = new HashSet<>();
-    Set<FeatureSet> pending = new HashSet<>();
-    for (JobUpdateTask task : jobUpdateTasks) {
-      getJob(task.getSource(), task.getStore())
-          .ifPresent(
-              job -> {
-                if (job.isRunning()) {
-                  ready.addAll(job.getFeatureSets());
-                } else {
-                  pending.addAll(job.getFeatureSets());
-                }
-              });
-    }
-    ready.removeAll(pending);
-    ready.forEach(
-        fs -> {
-          fs.setStatus(FeatureSetStatus.STATUS_READY);
-          featureSetRepository.save(fs);
-        });
-    pending.forEach(
-        fs -> {
-          fs.setStatus(FeatureSetStatus.STATUS_JOB_STARTING);
-          featureSetRepository.save(fs);
-        });
-    featureSetRepository.flush();
   }
 
   @Transactional

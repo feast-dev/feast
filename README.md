@@ -9,7 +9,7 @@
 [![Docker Compose Tests](https://github.com/feast-dev/feast/workflows/docker%20compose%20tests/badge.svg?branch=master)](https://github.com/feast-dev/feast/actions?query=workflow%3A%22docker+compose+tests%22+branch%3Amaster)
 [![Code Standards](https://github.com/feast-dev/feast/workflows/code%20standards/badge.svg?branch=master)](https://github.com/feast-dev/feast/actions?query=workflow%3A%22code+standards%22+branch%3Amaster)
 [![Docs Latest](https://img.shields.io/badge/docs-latest-blue.svg)](https://docs.feast.dev/)
-[![GitHub Release](https://img.shields.io/github/release/feast-dev/feast.svg?style=flat)](https://github.com/feast-dev/feast/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/feast-dev/feast.svg?style=flat&sort=semver&color=blue)](https://github.com/feast-dev/feast/releases)
 
 ## Overview
 

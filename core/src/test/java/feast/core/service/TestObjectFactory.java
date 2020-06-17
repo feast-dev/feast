@@ -40,15 +40,18 @@ public class TestObjectFactory {
 
   public static FeatureSet CreateFeatureSet(
       String name, String project, List<Entity> entities, List<Feature> features) {
-    return new FeatureSet(
-        name,
-        project,
-        100L,
-        entities,
-        features,
-        defaultSource,
-        new HashMap<>(),
-        FeatureSetProto.FeatureSetStatus.STATUS_READY);
+    FeatureSet fs =
+        new FeatureSet(
+            name,
+            project,
+            100L,
+            entities,
+            features,
+            defaultSource,
+            new HashMap<>(),
+            FeatureSetProto.FeatureSetStatus.STATUS_READY);
+    fs.setVersion(1);
+    return fs;
   }
 
   public static Feature CreateFeature(

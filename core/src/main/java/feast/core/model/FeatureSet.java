@@ -30,6 +30,7 @@ import javax.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.springframework.data.util.Pair;
 import org.tensorflow.metadata.v0.*;
 
 @Getter
@@ -84,6 +85,12 @@ public class FeatureSet extends AbstractTimestampEntity {
   // User defined metadata
   @Column(name = "labels", columnDefinition = "text")
   private String labels;
+
+  @Column(name = "version", columnDefinition = "integer default 0")
+  private int version;
+
+  @OneToMany(mappedBy = "featureSet", cascade = CascadeType.ALL)
+  private Set<FeatureSetJobStatus> jobStatuses = new HashSet<>();
 
   public FeatureSet() {
     super();
@@ -201,9 +208,49 @@ public class FeatureSet extends AbstractTimestampEntity {
 
     return refStr;
   }
+  
+  /** 
+   * Return a boolean to facilitate streaming elements on the basis of given predicate.
+   * 
+   * @param labelsFilter labels contain key-value mapping for labels attached to the FeatureSet
+   * @return boolean True if FeatureSet contains all labels in the labelsFilter
+   */
+  public boolean hasAllLabels(Map<String, String> labelsFilter) {
+    Map<String, String> featureSetLabelsMap = this.getLabelsMap();
+    for (String key : labelsFilter.keySet()) {
+      if (!featureSetLabelsMap.containsKey(key)
+          || !featureSetLabelsMap.get(key).equals(labelsFilter.get(key))) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   public void setProject(Project project) {
     this.project = project;
+  }
+
+  public String getReference() {
+    return String.format("%s/%s", getProjectName(), getName());
+  }
+
+  /** @return Pair &lt;ProjectName, FeatureSetName&gt; */
+  public static Pair<String, String> parseReference(String reference) {
+    String[] split = reference.split("/", 2);
+    if (split.length == 1) {
+      return Pair.of(Project.DEFAULT_NAME, split[0]);
+    }
+
+    if (split.length > 2) {
+      throw new RuntimeException(
+          "FeatureSet reference must have the format <project-name>/<feature-set-name>");
+    }
+
+    return Pair.of(split[0], split[1]);
+  }
+
+  public int incVersion() {
+    return ++version;
   }
 
   public static FeatureSet fromProto(FeatureSetProto.FeatureSet featureSetProto) {
@@ -338,9 +385,14 @@ public class FeatureSet extends AbstractTimestampEntity {
             .addAllEntities(entitySpecs)
             .addAllFeatures(featureSpecs)
             .putAllLabels(TypeConversion.convertJsonStringToMap(labels))
-            .setSource(source.toProto());
+            .setSource(source.toProto())
+            .setVersion(version);
 
     return FeatureSetProto.FeatureSet.newBuilder().setMeta(meta).setSpec(spec).build();
+  }
+
+  public Map<String, String> getLabelsMap() {
+    return TypeConversion.convertJsonStringToMap(this.getLabels());
   }
 
   @Override
@@ -378,6 +430,10 @@ public class FeatureSet extends AbstractTimestampEntity {
     }
 
     if (maxAgeSeconds != other.maxAgeSeconds) {
+      return false;
+    }
+
+    if (version != other.version) {
       return false;
     }
 

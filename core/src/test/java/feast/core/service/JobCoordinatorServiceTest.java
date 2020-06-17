@@ -34,9 +34,8 @@ import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
 import feast.core.job.JobMatcher;
 import feast.core.job.Runner;
-import feast.core.model.FeatureSet;
-import feast.core.model.Job;
-import feast.core.model.JobStatus;
+import feast.core.model.*;
+import feast.core.util.ModelHelpers;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.proto.core.CoreServiceProto.ListStoresResponse;
@@ -50,7 +49,6 @@ import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.RedisConfig;
 import feast.proto.core.StoreProto.Store.StoreType;
 import feast.proto.core.StoreProto.Store.Subscription;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.junit.Before;
@@ -159,7 +157,7 @@ public class JobCoordinatorServiceTest {
             Runner.DATAFLOW,
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(featureSet1, featureSet2),
+            ModelHelpers.makeFeatureSetJobStatus(featureSet1, featureSet2),
             JobStatus.PENDING);
 
     Job expected =
@@ -169,7 +167,7 @@ public class JobCoordinatorServiceTest {
             Runner.DATAFLOW,
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(featureSet1, featureSet2),
+            ModelHelpers.makeFeatureSetJobStatus(featureSet1, featureSet2),
             JobStatus.RUNNING);
 
     when(featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc("%", "project1"))
@@ -246,7 +244,7 @@ public class JobCoordinatorServiceTest {
             Runner.DATAFLOW,
             feast.core.model.Source.fromProto(source1),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(featureSet1),
+            ModelHelpers.makeFeatureSetJobStatus(featureSet1),
             JobStatus.PENDING);
 
     Job expected1 =
@@ -256,7 +254,7 @@ public class JobCoordinatorServiceTest {
             Runner.DATAFLOW,
             feast.core.model.Source.fromProto(source1),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(featureSet1),
+            ModelHelpers.makeFeatureSetJobStatus(featureSet1),
             JobStatus.RUNNING);
 
     Job expectedInput2 =
@@ -266,7 +264,7 @@ public class JobCoordinatorServiceTest {
             Runner.DATAFLOW,
             feast.core.model.Source.fromProto(source2),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(featureSet2),
+            ModelHelpers.makeFeatureSetJobStatus(featureSet2),
             JobStatus.PENDING);
 
     Job expected2 =
@@ -276,7 +274,7 @@ public class JobCoordinatorServiceTest {
             Runner.DATAFLOW,
             feast.core.model.Source.fromProto(source2),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(featureSet2),
+            ModelHelpers.makeFeatureSetJobStatus(featureSet2),
             JobStatus.RUNNING);
     ArgumentCaptor<List<Job>> jobArgCaptor = ArgumentCaptor.forClass(List.class);
 

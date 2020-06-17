@@ -26,20 +26,19 @@ import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.testing.auth.oauth2.MockGoogleCredential;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.protobuf.Duration;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.Runner;
-import feast.core.job.option.FeatureSetJsonByteConverter;
 import feast.core.model.*;
-import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
-import feast.ingestion.options.OptionCompressor;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.FeatureSetMeta;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.IngestionJobProto;
 import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions;
 import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions.Builder;
 import feast.proto.core.SourceProto;
@@ -50,8 +49,6 @@ import feast.proto.core.StoreProto.Store.RedisConfig;
 import feast.proto.core.StoreProto.Store.StoreType;
 import feast.proto.core.StoreProto.Store.Subscription;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -71,6 +68,7 @@ public class DataflowJobManagerTest {
   @Mock private Dataflow dataflow;
 
   private DataflowRunnerConfigOptions defaults;
+  private IngestionJobProto.SpecsStreamingUpdateConfig specsStreamingUpdateConfig;
   private DataflowJobManager dfJobManager;
 
   @Before
@@ -94,7 +92,17 @@ public class DataflowJobManagerTest {
       e.printStackTrace();
     }
 
-    dfJobManager = new DataflowJobManager(defaults, metricsProperties, credential);
+    specsStreamingUpdateConfig =
+        IngestionJobProto.SpecsStreamingUpdateConfig.newBuilder()
+            .setSource(
+                KafkaSourceConfig.newBuilder()
+                    .setTopic("specs_topic")
+                    .setBootstrapServers("servers:9092")
+                    .build())
+            .build();
+
+    dfJobManager =
+        new DataflowJobManager(defaults, metricsProperties, specsStreamingUpdateConfig, credential);
     dfJobManager = spy(dfJobManager);
   }
 
@@ -142,11 +150,7 @@ public class DataflowJobManagerTest {
     expectedPipelineOptions.setLabels(defaults.getLabelsMap());
     expectedPipelineOptions.setJobName(jobName);
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
-
-    OptionCompressor<List<FeatureSetProto.FeatureSet>> featureSetJsonCompressor =
-        new BZip2Compressor<>(new FeatureSetJsonByteConverter());
-    expectedPipelineOptions.setFeatureSetJson(
-        featureSetJsonCompressor.compress(Collections.singletonList(featureSet)));
+    expectedPipelineOptions.setSourceJson(printer.print(source));
 
     ArgumentCaptor<ImportOptions> captor = ArgumentCaptor.forClass(ImportOptions.class);
 
@@ -155,6 +159,10 @@ public class DataflowJobManagerTest {
     when(mockPipelineResult.getJobId()).thenReturn(expectedExtJobId);
 
     doReturn(mockPipelineResult).when(dfJobManager).runPipeline(any());
+
+    FeatureSetJobStatus featureSetJobStatus = new FeatureSetJobStatus();
+    featureSetJobStatus.setFeatureSet(FeatureSet.fromProto(featureSet));
+
     Job job =
         new Job(
             jobName,
@@ -162,7 +170,7 @@ public class DataflowJobManagerTest {
             Runner.DATAFLOW,
             Source.fromProto(source),
             Store.fromProto(store),
-            Lists.newArrayList(FeatureSet.fromProto(featureSet)),
+            Sets.newHashSet(featureSetJobStatus),
             JobStatus.PENDING);
     Job actual = dfJobManager.startJob(job);
 
@@ -185,9 +193,6 @@ public class DataflowJobManagerTest {
     expectedPipelineOptions.setFilesToStage(actualPipelineOptions.getFilesToStage());
 
     assertThat(
-        actualPipelineOptions.getFeatureSetJson(),
-        equalTo(expectedPipelineOptions.getFeatureSetJson()));
-    assertThat(
         actualPipelineOptions.getDeadLetterTableSpec(),
         equalTo(expectedPipelineOptions.getDeadLetterTableSpec()));
     assertThat(
@@ -197,6 +202,11 @@ public class DataflowJobManagerTest {
         equalTo(expectedPipelineOptions.getMetricsExporterType()));
     assertThat(
         actualPipelineOptions.getStoreJson(), equalTo(expectedPipelineOptions.getStoreJson()));
+    assertThat(
+        actualPipelineOptions.getSourceJson(), equalTo(expectedPipelineOptions.getSourceJson()));
+    assertThat(
+        actualPipelineOptions.getSpecsStreamingUpdateConfigJson(),
+        equalTo(printer.print(specsStreamingUpdateConfig)));
     assertThat(actual.getExtId(), equalTo(expectedExtJobId));
   }
 
@@ -231,6 +241,9 @@ public class DataflowJobManagerTest {
 
     doReturn(mockPipelineResult).when(dfJobManager).runPipeline(any());
 
+    FeatureSetJobStatus featureSetJobStatus = new FeatureSetJobStatus();
+    featureSetJobStatus.setFeatureSet(FeatureSet.fromProto(featureSet));
+
     Job job =
         new Job(
             "job",
@@ -238,7 +251,7 @@ public class DataflowJobManagerTest {
             Runner.DATAFLOW,
             Source.fromProto(source),
             Store.fromProto(store),
-            Lists.newArrayList(FeatureSet.fromProto(featureSet)),
+            Sets.newHashSet(featureSetJobStatus),
             JobStatus.PENDING);
 
     expectedException.expect(JobExecutionException.class);

@@ -35,6 +35,7 @@ from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionResponse,
     GetFeatureSetResponse,
     ListFeaturesResponse,
+    ListFeatureSetsResponse,
     ListIngestionJobsResponse,
 )
 from feast.core.FeatureSet_pb2 import EntitySpec as EntitySpecProto
@@ -320,6 +321,67 @@ class TestClient:
             and feature_set.fields["my_entity_1"].dtype == ValueType.INT64
             and len(feature_set.features) == 2
             and len(feature_set.entities) == 1
+        )
+
+    @pytest.mark.parametrize(
+        "mocked_client",
+        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+    )
+    def test_list_feature_sets(self, mocked_client, mocker):
+        mocker.patch.object(
+            mocked_client,
+            "_core_service_stub",
+            return_value=Core.CoreServiceStub(grpc.insecure_channel("")),
+        )
+
+        feature_set_1_proto = FeatureSetProto(
+            spec=FeatureSetSpecProto(
+                project="test",
+                name="driver_car",
+                max_age=Duration(seconds=3600),
+                labels={"key1": "val1", "key2": "val2"},
+                features=[
+                    FeatureSpecProto(
+                        name="feature_1", value_type=ValueProto.ValueType.FLOAT
+                    )
+                ],
+            )
+        )
+        feature_set_2_proto = FeatureSetProto(
+            spec=FeatureSetSpecProto(
+                project="test",
+                name="driver_ride",
+                max_age=Duration(seconds=3600),
+                labels={"key1": "val1"},
+                features=[
+                    FeatureSpecProto(
+                        name="feature_1", value_type=ValueProto.ValueType.FLOAT
+                    )
+                ],
+            )
+        )
+
+        mocker.patch.object(
+            mocked_client._core_service_stub,
+            "ListFeatureSets",
+            return_value=ListFeatureSetsResponse(
+                feature_sets=[feature_set_1_proto, feature_set_2_proto]
+            ),
+        )
+
+        feature_sets = mocked_client.list_feature_sets(labels={"key1": "val1"})
+        assert len(feature_sets) == 2
+
+        feature_set = feature_sets[0]
+        assert (
+            feature_set.name == "driver_car"
+            and "key1" in feature_set.labels
+            and feature_set.labels["key1"] == "val1"
+            and "key2" in feature_set.labels
+            and feature_set.labels["key2"] == "val2"
+            and feature_set.fields["feature_1"].name == "feature_1"
+            and feature_set.fields["feature_1"].dtype == ValueType.FLOAT
+            and len(feature_set.features) == 1
         )
 
     @pytest.mark.parametrize(

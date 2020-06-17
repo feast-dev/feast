@@ -64,6 +64,22 @@ def client(core_url, serving_url, allow_dirty):
     return client
 
 
+def wait_for(fn, timeout: timedelta, sleep=5):
+    until = datetime.now() + timeout
+    last_exc = None
+
+    while datetime.now() <= until:
+        try:
+            fn()
+        except Exception as exc:
+            last_exc = exc
+        else:
+            return
+        time.sleep(sleep)
+
+    raise last_exc
+
+
 @pytest.mark.first
 @pytest.mark.direct_runner
 @pytest.mark.dataflow_runner
@@ -151,6 +167,12 @@ def test_batch_get_batch_features_with_file(client):
             "feature_value1": [f"{i}" for i in range(N_ROWS)],
         }
     )
+
+    # feature set may be ready (direct runner set ready  right after job submitted),
+    # but kafka consumer is not configured
+    # give some time to warm up ingestion job
+    time.sleep(20)
+
     client.ingest(file_fs1, features_1_df, timeout=480)
 
     # Rename column (datetime -> event_timestamp)
@@ -162,20 +184,24 @@ def test_batch_get_batch_features_with_file(client):
         file_path_or_buffer="file_feature_set.avro",
     )
 
-    time.sleep(15)
-    feature_retrieval_job = client.get_batch_features(
-        entity_rows="file://file_feature_set.avro",
-        feature_refs=["feature_value1"],
-        project=PROJECT_NAME,
-    )
+    time.sleep(10)
 
-    output = feature_retrieval_job.to_dataframe()
-    clean_up_remote_files(feature_retrieval_job.get_avro_files())
-    print(output.head())
+    def check():
+        feature_retrieval_job = client.get_batch_features(
+            entity_rows="file://file_feature_set.avro",
+            feature_refs=["feature_value1"],
+            project=PROJECT_NAME,
+        )
 
-    assert output["entity_id"].to_list() == [
-        int(i) for i in output["feature_value1"].to_list()
-    ]
+        output = feature_retrieval_job.to_dataframe(timeout_sec=180)
+        print(output.head())
+
+        assert output["entity_id"].to_list() == [
+            int(i) for i in output["feature_value1"].to_list()
+        ]
+        clean_up_remote_files(feature_retrieval_job.get_avro_files())
+
+    wait_for(check, timedelta(minutes=10))
 
 
 @pytest.mark.direct_runner
@@ -217,21 +243,23 @@ def test_batch_get_batch_features_with_gs_path(client, gcs_path):
     blob = bucket.blob(remote_path)
     blob.upload_from_filename(file_name)
 
-    time.sleep(15)
-    feature_retrieval_job = client.get_batch_features(
-        entity_rows=f"{gcs_path}{ts}/*",
-        feature_refs=["feature_value2"],
-        project=PROJECT_NAME,
-    )
+    def check():
+        feature_retrieval_job = client.get_batch_features(
+            entity_rows=f"{gcs_path}{ts}/*",
+            feature_refs=["feature_value2"],
+            project=PROJECT_NAME,
+        )
 
-    output = feature_retrieval_job.to_dataframe()
-    clean_up_remote_files(feature_retrieval_job.get_avro_files())
-    blob.delete()
-    print(output.head())
+        output = feature_retrieval_job.to_dataframe(timeout_sec=180)
+        print(output.head())
+        assert output["entity_id"].to_list() == [
+            int(i) for i in output["feature_value2"].to_list()
+        ]
 
-    assert output["entity_id"].to_list() == [
-        int(i) for i in output["feature_value2"].to_list()
-    ]
+        clean_up_remote_files(feature_retrieval_job.get_avro_files())
+        blob.delete()
+
+    wait_for(check, timedelta(minutes=5))
 
 
 @pytest.mark.direct_runner
@@ -258,16 +286,21 @@ def test_batch_order_by_creation_time(client):
     client.ingest(proc_time_fs, incorrect_df)
     time.sleep(15)
     client.ingest(proc_time_fs, correct_df)
-    feature_retrieval_job = client.get_batch_features(
-        entity_rows=incorrect_df[["datetime", "entity_id"]],
-        feature_refs=["feature_value3"],
-        project=PROJECT_NAME,
-    )
-    output = feature_retrieval_job.to_dataframe()
-    clean_up_remote_files(feature_retrieval_job.get_avro_files())
-    print(output.head())
 
-    assert output["feature_value3"].to_list() == ["CORRECT"] * N_ROWS
+    def check():
+        feature_retrieval_job = client.get_batch_features(
+            entity_rows=incorrect_df[["datetime", "entity_id"]],
+            feature_refs=["feature_value3"],
+            project=PROJECT_NAME,
+        )
+        output = feature_retrieval_job.to_dataframe(timeout_sec=180)
+        print(output.head())
+
+        assert output["feature_value3"].to_list() == ["CORRECT"] * N_ROWS
+
+        clean_up_remote_files(feature_retrieval_job.get_avro_files())
+
+    wait_for(check, timedelta(minutes=5))
 
 
 @pytest.mark.direct_runner
@@ -295,24 +328,26 @@ def test_batch_additional_columns_in_entity_table(client):
         }
     )
 
-    time.sleep(15)
-    feature_retrieval_job = client.get_batch_features(
-        entity_rows=entity_df,
-        feature_refs=["feature_value4"],
-        project=PROJECT_NAME,
-    )
-    output = feature_retrieval_job.to_dataframe().sort_values(by=["entity_id"])
-    clean_up_remote_files(feature_retrieval_job.get_avro_files())
-    print(output.head(10))
+    def check():
+        feature_retrieval_job = client.get_batch_features(
+            entity_rows=entity_df,
+            feature_refs=["feature_value4"],
+            project=PROJECT_NAME,
+        )
+        output = feature_retrieval_job.to_dataframe(timeout_sec=180).sort_values(by=["entity_id"])
+        print(output.head(10))
 
-    assert np.allclose(
-        output["additional_float_col"], entity_df["additional_float_col"]
-    )
-    assert (
-        output["additional_string_col"].to_list()
-        == entity_df["additional_string_col"].to_list()
-    )
-    assert output["feature_value4"].to_list() == features_df["feature_value4"].to_list()
+        assert np.allclose(
+            output["additional_float_col"], entity_df["additional_float_col"]
+        )
+        assert (
+            output["additional_string_col"].to_list()
+            == entity_df["additional_string_col"].to_list()
+        )
+        assert output["feature_value4"].to_list() == features_df["feature_value4"].to_list()
+        clean_up_remote_files(feature_retrieval_job.get_avro_files())
+
+    wait_for(check, timedelta(minutes=5))
 
 
 @pytest.mark.direct_runner
@@ -343,17 +378,19 @@ def test_batch_point_in_time_correctness_join(client):
 
     client.ingest(historical_fs, historical_df)
 
-    time.sleep(15)
-    feature_retrieval_job = client.get_batch_features(
-        entity_rows=entity_df,
-        feature_refs=["feature_value5"],
-        project=PROJECT_NAME,
-    )
-    output = feature_retrieval_job.to_dataframe()
-    clean_up_remote_files(feature_retrieval_job.get_avro_files())
-    print(output.head())
+    def check():
+        feature_retrieval_job = client.get_batch_features(
+            entity_rows=entity_df,
+            feature_refs=["feature_value5"],
+            project=PROJECT_NAME,
+        )
+        output = feature_retrieval_job.to_dataframe(timeout_sec=180)
+        print(output.head())
 
-    assert output["feature_value5"].to_list() == ["CORRECT"] * N_EXAMPLES
+        assert output["feature_value5"].to_list() == ["CORRECT"] * N_EXAMPLES
+        clean_up_remote_files(feature_retrieval_job.get_avro_files())
+
+    wait_for(check, timedelta(minutes=5))
 
 
 @pytest.mark.direct_runner
@@ -390,27 +427,29 @@ def test_batch_multiple_featureset_joins(client):
         }
     )
 
-    time.sleep(15)
     # Test retrieve with different variations of the string feature refs
     # ie feature set inference for feature refs without specified feature set
-    feature_retrieval_job = client.get_batch_features(
-        entity_rows=entity_df,
-        feature_refs=[
-            "feature_value6",
-            "feature_set_2:other_feature_value7",
-        ],
-        project=PROJECT_NAME,
-    )
-    output = feature_retrieval_job.to_dataframe()
-    clean_up_remote_files(feature_retrieval_job.get_avro_files())
-    print(output.head())
+    def check():
+        feature_retrieval_job = client.get_batch_features(
+            entity_rows=entity_df,
+            feature_refs=[
+                "feature_value6",
+                "feature_set_2:other_feature_value7",
+            ],
+            project=PROJECT_NAME,
+        )
+        output = feature_retrieval_job.to_dataframe(timeout_sec=180)
+        print(output.head())
 
-    assert output["entity_id"].to_list() == [
-        int(i) for i in output["feature_value6"].to_list()
-    ]
-    assert (
-        output["other_entity_id"].to_list() == output["feature_set_2__other_feature_value7"].to_list()
-    )
+        assert output["entity_id"].to_list() == [
+            int(i) for i in output["feature_value6"].to_list()
+        ]
+        assert (
+            output["other_entity_id"].to_list() == output["feature_set_2__other_feature_value7"].to_list()
+        )
+        clean_up_remote_files(feature_retrieval_job.get_avro_files())
+
+    wait_for(check, timedelta(minutes=5))
 
 
 @pytest.mark.direct_runner
@@ -429,18 +468,21 @@ def test_batch_no_max_age(client):
     )
     client.ingest(no_max_age_fs, features_8_df)
 
-    time.sleep(15)
-    feature_retrieval_job = client.get_batch_features(
-        entity_rows=features_8_df[["datetime", "entity_id"]],
-        feature_refs=["feature_value8"],
-        project=PROJECT_NAME,
-    )
+    def check():
+        feature_retrieval_job = client.get_batch_features(
+            entity_rows=features_8_df[["datetime", "entity_id"]],
+            feature_refs=["feature_value8"],
+            project=PROJECT_NAME,
+        )
 
-    output = feature_retrieval_job.to_dataframe()
-    clean_up_remote_files(feature_retrieval_job.get_avro_files())
-    print(output.head())
+        output = feature_retrieval_job.to_dataframe(timeout_sec=180)
+        print(output.head())
 
-    assert output["entity_id"].to_list() == output["feature_value8"].to_list()
+        assert output["entity_id"].to_list() == output["feature_value8"].to_list()
+
+        clean_up_remote_files(feature_retrieval_job.get_avro_files())
+
+    wait_for(check, timedelta(minutes=5))
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -510,22 +552,25 @@ def test_update_featureset_apply_featureset_and_ingest_first_subset(
 
     client.ingest(feature_set=update_fs, source=subset_df)
 
-    time.sleep(15)
-    feature_retrieval_job = client.get_batch_features(
-        entity_rows=update_featureset_dataframe[["datetime", "entity_id"]].iloc[:5],
-        feature_refs=[
-            "update_feature1",
-            "update_feature2",
-        ],
-        project=PROJECT_NAME
-    )
+    def check():
+        feature_retrieval_job = client.get_batch_features(
+            entity_rows=update_featureset_dataframe[["datetime", "entity_id"]].iloc[:5],
+            feature_refs=[
+                "update_feature1",
+                "update_feature2",
+            ],
+            project=PROJECT_NAME
+        )
 
-    output = feature_retrieval_job.to_dataframe().sort_values(by=["entity_id"])
-    clean_up_remote_files(feature_retrieval_job.get_avro_files())
-    print(output.head())
+        output = feature_retrieval_job.to_dataframe(timeout_sec=180).sort_values(by=["entity_id"])
+        print(output.head())
 
-    assert output["update_feature1"].to_list() == subset_df["update_feature1"].to_list()
-    assert output["update_feature2"].to_list() == subset_df["update_feature2"].to_list()
+        assert output["update_feature1"].to_list() == subset_df["update_feature1"].to_list()
+        assert output["update_feature2"].to_list() == subset_df["update_feature2"].to_list()
+
+        clean_up_remote_files(feature_retrieval_job.get_avro_files())
+
+    wait_for(check, timedelta(minutes=5))
 
 
 @pytest.mark.fs_update
@@ -565,23 +610,26 @@ def test_update_featureset_update_featureset_and_ingest_second_subset(
         )
         time.sleep(30)
 
-    feature_retrieval_job = client.get_batch_features(
-        entity_rows=update_featureset_dataframe[["datetime", "entity_id"]].iloc[5:],
-        feature_refs=[
-            "update_feature1",
-            "update_feature3",
-            "update_feature4",
-        ],
-        project=PROJECT_NAME,
-    )
+    def check():
+        feature_retrieval_job = client.get_batch_features(
+            entity_rows=update_featureset_dataframe[["datetime", "entity_id"]].iloc[5:],
+            feature_refs=[
+                "update_feature1",
+                "update_feature3",
+                "update_feature4",
+            ],
+            project=PROJECT_NAME,
+        )
 
-    output = feature_retrieval_job.to_dataframe().sort_values(by=["entity_id"])
-    clean_up_remote_files(feature_retrieval_job.get_avro_files())
-    print(output.head())
+        output = feature_retrieval_job.to_dataframe(timeout_sec=180).sort_values(by=["entity_id"])
+        print(output.head())
 
-    assert output["update_feature1"].to_list() == subset_df["update_feature1"].to_list()
-    assert output["update_feature3"].to_list() == subset_df["update_feature3"].to_list()
-    assert output["update_feature4"].to_list() == subset_df["update_feature4"].to_list()
+        assert output["update_feature1"].to_list() == subset_df["update_feature1"].to_list()
+        assert output["update_feature3"].to_list() == subset_df["update_feature3"].to_list()
+        assert output["update_feature4"].to_list() == subset_df["update_feature4"].to_list()
+        clean_up_remote_files(feature_retrieval_job.get_avro_files())
+
+    wait_for(check, timedelta(minutes=5))
 
 
 @pytest.mark.fs_update
@@ -613,7 +661,7 @@ def test_update_featureset_retrieve_valid_fields(client, update_featureset_dataf
         ],
         project=PROJECT_NAME,
     )
-    output = feature_retrieval_job.to_dataframe().sort_values(by=["entity_id"])
+    output = feature_retrieval_job.to_dataframe(timeout_sec=180).sort_values(by=["entity_id"])
     clean_up_remote_files(feature_retrieval_job.get_avro_files())
     print(output.head(10))
     assert (

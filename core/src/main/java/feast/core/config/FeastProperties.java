@@ -139,6 +139,10 @@ public class FeastProperties {
     /* Feature stream options */
     @NotNull private FeatureStreamOptions options;
 
+    /* FeatureSetSpec stream options - communication channel between SpecService and IngestionJob
+     * to update Spec inside job w/o restart */
+    @NotNull private FeatureSetSpecStreamProperties specsOptions;
+
     /** Feature stream options */
     @Getter
     @Setter
@@ -158,6 +162,16 @@ public class FeastProperties {
 
       /* Number of Kafka partitions to to use for managed feature stream. */
       @Positive private int partitions = 1;
+    }
+
+    @Getter
+    @Setter
+    public static class FeatureSetSpecStreamProperties {
+      /* Kafka topic to send feature set spec to ingestion streaming job */
+      @NotBlank private String specsTopic = "feast-feature-set-specs";
+
+      /* Kafka topic to receive acknowledgment from ingestion job on successful processing of new specs */
+      @NotBlank private String specsAckTopic = "feast-feature-set-specs-ack";
     }
   }
 

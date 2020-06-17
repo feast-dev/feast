@@ -116,6 +116,7 @@ message Store {
     string staging_location = 3;
     int32 initial_retry_delay_seconds = 4;
     int32 total_timeout_seconds = 5;
+    int32 write_triggering_frequency_seconds = 6;
   }
 
   message CassandraConfig {

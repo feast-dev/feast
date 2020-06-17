@@ -195,15 +195,55 @@ def feature_set():
     pass
 
 
+def _get_labels_dict(label_str: str):
+    """
+    Converts CLI input labels string to dictionary format if provided string is valid.
+    """
+    labels_dict = {}
+    labels_kv = label_str.split(",")
+    if label_str == "":
+        return labels_dict
+    if len(labels_kv) % 2 == 1:
+        raise ValueError("Uneven key-value label pairs were entered")
+    for k, v in zip(labels_kv[0::2], labels_kv[1::2]):
+        labels_dict[k] = v
+    return labels_dict
+
+
 @feature_set.command(name="list")
-def feature_set_list():
+@click.option(
+    "--project",
+    "-p",
+    help="Project that feature set belongs to",
+    type=click.STRING,
+    default="*",
+)
+@click.option(
+    "--name",
+    "-n",
+    help="Filters feature sets by name. Wildcards (*) may be included to match multiple feature sets",
+    type=click.STRING,
+    default="*",
+)
+@click.option(
+    "--labels",
+    "-l",
+    help="Labels to filter for feature sets",
+    type=click.STRING,
+    default="",
+)
+def feature_set_list(project: str, name: str, labels: str):
     """
     List all feature sets
     """
     feast_client = Client()  # type: Client
 
+    labels_dict = _get_labels_dict(labels)
+
     table = []
-    for fs in feast_client.list_feature_sets(project="*", name="*"):
+    for fs in feast_client.list_feature_sets(
+        project=project, name=name, labels=labels_dict
+    ):
         table.append([fs.name, repr(fs)])
 
     from tabulate import tabulate
