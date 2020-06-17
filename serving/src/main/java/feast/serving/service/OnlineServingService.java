@@ -34,7 +34,6 @@ import io.opentracing.Scope;
 import io.opentracing.Tracer;
 import java.util.*;
 import java.util.stream.Collectors;
-
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.common.collect.Streams;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -82,7 +81,7 @@ public class OnlineServingService implements ServingService {
             entityRow -> {
               Map<String, Value> valueMap = entityRow.getFieldsMap();
               entityValuesMap.get(entityRow).putAll(valueMap);
-              entityStatusesMap.get(entityRow).putAll(this.getMetadataMap(valueMap, false, false));
+              entityStatusesMap.get(entityRow).putAll(getMetadataMap(valueMap, false, false));
             });
       }
 
@@ -102,25 +101,27 @@ public class OnlineServingService implements ServingService {
               .asRuntimeException();
         }
 
-        Streams.zip(entityRows.stream(), featureRows.stream(), Pair::of).forEach(entityFeaturePair -> { 
-          EntityRow entityRow = entityFeaturePair.getLeft();
-          FeatureRow featureRow = entityFeaturePair.getRight();
-          // Unpack feature field values and merge into entityValueMap
-          boolean isStaleValues = this.isOutsideMaxAge(featureSetRequest, entityRow, featureRow);
-          Map<String, Value> valueMap =
-              this.unpackValueMap(featureRow, featureSetRequest, isStaleValues);
-          entityValuesMap.get(entityRow).putAll(valueMap);
+        Streams.zip(entityRows.stream(), featureRows.stream(), Pair::of)
+            .forEach(
+                entityFeaturePair -> {
+                  EntityRow entityRow = entityFeaturePair.getLeft();
+                  FeatureRow featureRow = entityFeaturePair.getRight();
+                  // Unpack feature field values and merge into entityValueMap
+                  boolean isStaleValues = isOutsideMaxAge(featureSetRequest, entityRow, featureRow);
+                  Map<String, Value> valueMap =
+                      this.unpackValueMap(featureRow, featureSetRequest, isStaleValues);
+                  entityValuesMap.get(entityRow).putAll(valueMap);
 
-          // Generate metadata for feature values and merge into entityFieldsMap
-          boolean isNotFound = featureRow == null;
-          Map<String, FieldStatus> statusMap =
-              this.getMetadataMap(valueMap, isNotFound, isStaleValues);
-          entityStatusesMap.get(entityRow).putAll(statusMap);
+                  // Generate metadata for feature values and merge into entityFieldsMap
+                  boolean isNotFound = featureRow == null;
+                  Map<String, FieldStatus> statusMap =
+                      this.getMetadataMap(valueMap, isNotFound, isStaleValues);
+                  entityStatusesMap.get(entityRow).putAll(statusMap);
 
-          // Populate metrics
-          this.populateStaleKeyCountMetrics(statusMap, featureSetRequest);
-        });
-        this.populateRequestCountMetrics(featureSetRequest);
+                  // Populate metrics
+                  populateStaleKeyCountMetrics(statusMap, featureSetRequest);
+                });
+        populateRequestCountMetrics(featureSetRequest);
         logFeatureRows.add(featureRows);
       }
       if (scope != null) {
@@ -150,9 +151,10 @@ public class OnlineServingService implements ServingService {
    * @param featureRow to unpack for feature values.
    * @param featureSetRequest for which the feature row was retrieved.
    * @param isStaleValues whether which the feature row contains stale values.
-   * @return valueMap mapping string feature name to feature value for the given feature set request.
+   * @return valueMap mapping string feature name to feature value for the given feature set
+   *     request.
    */
-  private Map<String, Value> unpackValueMap(
+  private static Map<String, Value> unpackValueMap(
       FeatureRow featureRow, FeatureSetRequest featureSetRequest, boolean isStaleValues) {
     Map<String, Value> valueMap = new HashMap<>();
     // In order to return values containing the same feature references provided by the user,
@@ -171,7 +173,9 @@ public class OnlineServingService implements ServingService {
                       },
                       featureRowField -> {
                         // drop stale feature values.
-                        return (isStaleValues) ?  Value.newBuilder().build() : featureRowField.getValue();
+                        return (isStaleValues)
+                            ? Value.newBuilder().build()
+                            : featureRowField.getValue();
                       }));
       valueMap.putAll(featureValueMap);
     }
@@ -194,9 +198,10 @@ public class OnlineServingService implements ServingService {
    * @param isNotFound whether the given valueMap represents values that were not found in the
    *     online retriever.
    * @param isStaleValues whether the given valueMap contains stale values.
-   * @return a 1:1 map keyed by field name containing field status metadata instead of values in the given valueMap.
+   * @return a 1:1 map keyed by field name containing field status metadata instead of values in the
+   *     given valueMap.
    */
-  private Map<String, FieldStatus> getMetadataMap(
+  private static Map<String, FieldStatus> getMetadataMap(
       Map<String, Value> valueMap, boolean isNotFound, boolean isStaleValues) {
     return valueMap.entrySet().stream()
         .collect(
@@ -224,7 +229,7 @@ public class OnlineServingService implements ServingService {
    * @param entityRow contains the retrieval timing of when features are pulled.
    * @param featureRow contains the ingestion timing and feature data.
    */
-  private boolean isOutsideMaxAge(
+  private static boolean isOutsideMaxAge(
       FeatureSetRequest featureSetRequest, EntityRow entityRow, FeatureRow featureRow) {
     Duration maxAge = featureSetRequest.getSpec().getMaxAge();
     if (featureRow == null) {
