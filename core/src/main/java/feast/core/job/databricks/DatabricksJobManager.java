@@ -338,6 +338,7 @@ public class DatabricksJobManager implements JobManager {
         JobsCreateRequest.builder()
             .setLibraries(libraries)
             .setMaxRetries(maxRetries)
+            .setTimeoutSeconds(timeoutSeconds)
             .setName(jobName)
             .setNewCluster(newCluster)
             .setSparkJarTask(sparkJarTask)

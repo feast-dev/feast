@@ -11,6 +11,7 @@ feast:
           token: unused
           jarFile: /opt/spark-ingestion-job.jar
           maxRetries: 0
+          timeoutSeconds: -1
           newCluster:
             sparkVersion: 6.6.x-scala2.11
             nodeTypeId: Standard_F4s

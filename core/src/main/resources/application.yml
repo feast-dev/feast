@@ -65,6 +65,8 @@ feast:
           jarFile: jar_file
           # Maximum number of retries for a Databricks job, or -1 for unlimited
           maxRetries: -1
+          # Timeout in seconds for Databricks jobs, or -1 for unlimited
+          timeoutSeconds: -1
           newCluster:
             # The platform version for scala and spark (e.g. 6.5.x-scala2.11)
             sparkVersion: your_spark_version
