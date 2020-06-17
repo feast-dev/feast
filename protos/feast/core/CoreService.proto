@@ -141,6 +141,8 @@ message ListFeatureSetsRequest {
         // - my-feature-set-6 can be used to select a single feature set
         string feature_set_name = 1;
 
+        // User defined metadata for feature set.
+        // Feature sets with all matching labels will be returned.
         map<string,string> labels = 4;
     }
 }
