@@ -128,7 +128,7 @@ public class OnlineServingService implements ServingService {
         logFeatureRows.add(featureRows);
       }
       if (scope != null) {
-        logFeatureRowTrace(scope, logFeatureRows, featureSetRequests);
+        logFeatureRowsTrace(scope, logFeatureRows, featureSetRequests);
       }
 
       // Build response field values from entityValuesMap and entityStatusesMap
@@ -252,8 +252,7 @@ public class OnlineServingService implements ServingService {
     return timeDifference > maxAge.getSeconds();
   }
 
-  /** TODO: docs */
-  private void logFeatureRowTrace(
+  private void logFeatureRowsTrace(
       Scope scope,
       List<List<Optional<FeatureRow>>> logFeatureRows,
       List<FeatureSetRequest> featureSetRequests) {
@@ -262,7 +261,6 @@ public class OnlineServingService implements ServingService {
                 logFeatureRows.stream(),
                 featureSetRequests.stream(),
                 (featureRows, featureSetRequest) -> {
-                  // log null feature row when feature row is missing
                   FeatureRow.Builder nullFeatureRowBuilder =
                       FeatureRow.newBuilder()
                           .setFeatureSet(
@@ -273,10 +271,11 @@ public class OnlineServingService implements ServingService {
                         Field.newBuilder().setName(featureReference.getName()));
                   }
 
+                  // log null feature row when feature row is empty
                   return featureRows.stream()
                       .map(
                           featureRow -> {
-                            return (featureRow.isPresent())
+                            return (featureRow.isEmpty())
                                 ? nullFeatureRowBuilder.build()
                                 : featureRow.get();
                           })
