@@ -107,9 +107,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     }
   }
 
-  /**
-   * Retrieve a list of features
-   */
+  /** Retrieve a list of features */
   @Override
   public void listFeatures(
       ListFeaturesRequest request, StreamObserver<ListFeaturesResponse> responseObserver) {
