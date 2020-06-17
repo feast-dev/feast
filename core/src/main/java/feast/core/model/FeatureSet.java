@@ -128,6 +128,23 @@ public class FeatureSet extends AbstractTimestampEntity {
     }
   }
 
+  /**
+   * Return a boolean to facilitate streaming elements on the basis of given predicate.
+   *
+   * @param labelsFilter labels contain key-value mapping for labels attached to the FeatureSet
+   * @return boolean True if FeatureSet contains all labels in the labelsFilter
+   */
+  public boolean hasAllLabels(Map<String, String> labelsFilter) {
+    Map<String, String> featureSetLabelsMap = this.getLabelsMap();
+    for (String key : labelsFilter.keySet()) {
+      if (!featureSetLabelsMap.containsKey(key)
+          || !featureSetLabelsMap.get(key).equals(labelsFilter.get(key))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   public void setProject(Project project) {
     this.project = project;
   }
@@ -291,6 +308,10 @@ public class FeatureSet extends AbstractTimestampEntity {
             .setVersion(version);
 
     return FeatureSetProto.FeatureSet.newBuilder().setMeta(meta).setSpec(spec).build();
+  }
+
+  public Map<String, String> getLabelsMap() {
+    return TypeConversion.convertJsonStringToMap(this.getLabels());
   }
 
   @Override

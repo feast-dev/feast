@@ -425,7 +425,7 @@ class Client:
         feature_set._update_from_feature_set(applied_fs)
 
     def list_feature_sets(
-        self, project: str = None, name: str = None,
+        self, project: str = None, name: str = None, labels: Dict[str, str] = dict()
     ) -> List[FeatureSet]:
         """
         Retrieve a list of feature sets from Feast Core
@@ -448,7 +448,9 @@ class Client:
         if name is None:
             name = "*"
 
-        filter = ListFeatureSetsRequest.Filter(project=project, feature_set_name=name)
+        filter = ListFeatureSetsRequest.Filter(
+            project=project, feature_set_name=name, labels=labels
+        )
 
         # Get latest feature sets from Feast Core
         feature_set_protos = self._core_service_stub.ListFeatureSets(
