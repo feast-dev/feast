@@ -107,18 +107,19 @@ public class OnlineServingService implements ServingService {
                   EntityRow entityRow = entityFeaturePair.getLeft();
                   FeatureRow featureRow = entityFeaturePair.getRight();
                   // Unpack feature field values and merge into entityValueMap
-                  boolean isStaleValues = isOutsideMaxAge(featureSetRequest, entityRow, featureRow);
+                  boolean isOutsideMaxAge =
+                      checkOutsideMaxAge(featureSetRequest, entityRow, featureRow);
                   Map<String, Value> valueMap =
-                      this.unpackValueMap(featureRow, featureSetRequest, isStaleValues);
+                      unpackValueMap(featureRow, featureSetRequest, isOutsideMaxAge);
                   entityValuesMap.get(entityRow).putAll(valueMap);
 
                   // Generate metadata for feature values and merge into entityFieldsMap
                   boolean isNotFound = featureRow == null;
                   Map<String, FieldStatus> statusMap =
-                      this.getMetadataMap(valueMap, isNotFound, isStaleValues);
+                      getMetadataMap(valueMap, isNotFound, isOutsideMaxAge);
                   entityStatusesMap.get(entityRow).putAll(statusMap);
 
-                  // Populate metrics
+                  // Populate metrics/log request
                   populateStaleKeyCountMetrics(statusMap, featureSetRequest);
                 });
         populateRequestCountMetrics(featureSetRequest);
@@ -150,12 +151,12 @@ public class OnlineServingService implements ServingService {
    *
    * @param featureRow to unpack for feature values.
    * @param featureSetRequest for which the feature row was retrieved.
-   * @param isStaleValues whether which the feature row contains stale values.
+   * @param isOutsideMaxAge whether which the feature row contains values that is outside max age.
    * @return valueMap mapping string feature name to feature value for the given feature set
    *     request.
    */
   private static Map<String, Value> unpackValueMap(
-      FeatureRow featureRow, FeatureSetRequest featureSetRequest, boolean isStaleValues) {
+      FeatureRow featureRow, FeatureSetRequest featureSetRequest, boolean isOutsideMaxAge) {
     Map<String, Value> valueMap = new HashMap<>();
     // In order to return values containing the same feature references provided by the user,
     // we reuse the feature references in the request as the keys in field builder map
@@ -172,8 +173,8 @@ public class OnlineServingService implements ServingService {
                         return RefUtil.generateFeatureStringRef(featureRef);
                       },
                       featureRowField -> {
-                        // drop stale feature values.
-                        return (isStaleValues)
+                        // drop feature values with an age outside feature set's max age.
+                        return (isOutsideMaxAge)
                             ? Value.newBuilder().build()
                             : featureRowField.getValue();
                       }));
@@ -197,12 +198,13 @@ public class OnlineServingService implements ServingService {
    * @param valueMap map of field name to value to generate metadata for.
    * @param isNotFound whether the given valueMap represents values that were not found in the
    *     online retriever.
-   * @param isStaleValues whether the given valueMap contains stale values.
+   * @param isOutsideMaxAge whether the given valueMap contains values with age outside feature
+   *     set's max age.
    * @return a 1:1 map keyed by field name containing field status metadata instead of values in the
    *     given valueMap.
    */
   private static Map<String, FieldStatus> getMetadataMap(
-      Map<String, Value> valueMap, boolean isNotFound, boolean isStaleValues) {
+      Map<String, Value> valueMap, boolean isNotFound, boolean isOutsideMaxAge) {
     return valueMap.entrySet().stream()
         .collect(
             Collectors.toMap(
@@ -211,7 +213,7 @@ public class OnlineServingService implements ServingService {
                   Value fieldValue = es.getValue();
                   if (isNotFound) {
                     return FieldStatus.NOT_FOUND;
-                  } else if (isStaleValues) {
+                  } else if (isOutsideMaxAge) {
                     return FieldStatus.OUTSIDE_MAX_AGE;
                   } else if (fieldValue.getValCase().equals(Value.ValCase.VAL_NOT_SET)) {
                     return FieldStatus.NULL_VALUE;
@@ -222,22 +224,20 @@ public class OnlineServingService implements ServingService {
 
   /**
    * Determine if the feature data in the given feature row is outside maxAge. Data is outside
-   * maxAge to be stale when difference ingestion time set in feature row and the retrieval time set
+   * maxAge to be when the difference ingestion time set in feature row and the retrieval time set
    * in entity row exceeds featureset max age.
    *
    * @param featureSetRequest contains the spec where feature's max age is extracted.
    * @param entityRow contains the retrieval timing of when features are pulled.
    * @param featureRow contains the ingestion timing and feature data.
    */
-  private static boolean isOutsideMaxAge(
+  private static boolean checkOutsideMaxAge(
       FeatureSetRequest featureSetRequest, EntityRow entityRow, FeatureRow featureRow) {
     Duration maxAge = featureSetRequest.getSpec().getMaxAge();
-    if (featureRow == null) {
-      // no data to consider: not stale
+    if (featureRow == null) { // no data to consider
       return false;
     }
-    if (maxAge.equals(Duration.getDefaultInstance())) {
-      // max age is not set: stale detection disabled
+    if (maxAge.equals(Duration.getDefaultInstance())) { // max age is not set
       return false;
     }
 
