@@ -53,6 +53,7 @@ public class DatabricksJobManager implements JobManager {
   private final HttpClient httpClient;
   private static final ObjectMapper mapper = ObjectMapperFactory.createObjectMapper();
   private final int maxRetries;
+  private final int timeoutSeconds;
 
   public DatabricksJobManager(
       DatabricksRunnerConfigOptions runnerConfigOptions, HttpClient httpClient) {
@@ -63,6 +64,7 @@ public class DatabricksJobManager implements JobManager {
     this.newClusterConfigOptions = runnerConfigOptions.getNewCluster();
     this.jarFile = runnerConfigOptions.getJarFile();
     this.maxRetries = runnerConfigOptions.getMaxRetries();
+    this.timeoutSeconds = runnerConfigOptions.getTimeoutSeconds();
   }
 
   @Override
@@ -154,16 +156,8 @@ public class DatabricksJobManager implements JobManager {
 
       RunsGetResponse runsGetResponse = mapper.readValue(response.body(), RunsGetResponse.class);
       RunState runState = runsGetResponse.getState();
-      String lifeCycleState = runState.getLifeCycleState().toString();
 
-      Optional<JobStatus> status =
-          runState
-              .getResultState()
-              .map(
-                  runResultState ->
-                      DatabricksJobStateMapper.mapJobState(
-                          String.format("%s_%s", lifeCycleState, runResultState.toString())))
-              .orElseGet(() -> DatabricksJobStateMapper.mapJobState(lifeCycleState));
+      JobStatus status = DatabricksRunStateMapper.mapJobState(runState);
 
       log.info(
           "Databricks job state for job {} (Databricks RunId {}) is {} (mapped to {})",
@@ -171,13 +165,7 @@ public class DatabricksJobManager implements JobManager {
           job.getExtId(),
           runState,
           status);
-
-      if (status.isEmpty()) {
-        log.error("Unknown status: %s", runState);
-        return JobStatus.UNKNOWN;
-      }
-
-      return status.get();
+      return status;
 
     } catch (IOException | InterruptedException | HttpException ex) {
       log.error("Unable to retrieve status of a databricks run with id " + job.getExtId(), ex);
@@ -222,8 +210,7 @@ public class DatabricksJobManager implements JobManager {
       }
       store = job.getStore().toProto();
     } catch (InvalidProtocolBufferException e) {
-      log.error("ERROR", e);
-      log.error(e.getMessage(), e);
+      log.error("Invalid job specification", e);
       throw new IllegalArgumentException(
           String.format(
               "DatabricksJobManager failed to START job with id '%s' because the job"
@@ -305,13 +292,9 @@ public class DatabricksJobManager implements JobManager {
   }
 
   private JobsCreateRequest getJobRequest(String jobName, List<String> params) {
-    log.info("sparkConf: [%s]", newClusterConfigOptions.getSparkConf());
+    Arrays.stream(newClusterConfigOptions.getSparkConf().strip().split("\n"));
     Arrays.stream(newClusterConfigOptions.getSparkConf().strip().split("\n"))
-        .forEach(s -> log.info("sparkConf line: [%s]", s));
-    Arrays.stream(newClusterConfigOptions.getSparkConf().strip().split("\n"))
-        .map(s -> s.strip().split("\\s+", 2))
-        .forEach(s -> log.info("sparkConf line: [%s] + %d", s[0], s.length));
-    log.info(newClusterConfigOptions.getSparkConf().strip());
+        .map(s -> s.strip().split("\\s+", 2));
     Map<String, String> sparkConf =
         Arrays.stream(newClusterConfigOptions.getSparkConf().strip().split("\n"))
             .map(s -> s.strip().split("\\s+", 2))
