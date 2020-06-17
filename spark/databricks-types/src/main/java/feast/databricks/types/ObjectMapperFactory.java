@@ -16,28 +16,14 @@
  */
 package feast.databricks.types;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.auto.value.AutoValue;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 
-@AutoValue
-@JsonDeserialize(builder = AutoValue_Library.Builder.class)
-@JsonInclude(JsonInclude.Include.NON_ABSENT)
-public abstract class Library {
-  @JsonProperty("jar")
-  public abstract String getJar();
+public class ObjectMapperFactory {
 
-  public static Builder builder() {
-    return new AutoValue_Library.Builder();
-  }
-
-  @AutoValue.Builder
-  public abstract static class Builder {
-
-    @JsonProperty("jar")
-    public abstract Builder setJar(String value);
-
-    public abstract Library build();
+  public static ObjectMapper createObjectMapper() {
+    ObjectMapper mapper = new ObjectMapper();
+    mapper.registerModule(new Jdk8Module());
+    return mapper;
   }
 }

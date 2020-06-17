@@ -16,6 +16,7 @@
  */
 package feast.databricks.types;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.auto.value.AutoValue;
@@ -24,6 +25,7 @@ import java.util.Optional;
 
 @AutoValue
 @JsonDeserialize(builder = AutoValue_JobsCreateRequest.Builder.class)
+@JsonInclude(JsonInclude.Include.NON_ABSENT)
 public abstract class JobsCreateRequest {
 
   @JsonProperty("new_cluster")

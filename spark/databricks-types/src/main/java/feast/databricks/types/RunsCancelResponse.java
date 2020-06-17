@@ -16,36 +16,22 @@
  */
 package feast.databricks.types;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.auto.value.AutoValue;
-import java.util.List;
-import java.util.Optional;
 
 @AutoValue
-@JsonDeserialize(builder = AutoValue_RunNowRequest.Builder.class)
+@JsonDeserialize(builder = AutoValue_RunsCancelResponse.Builder.class)
 @JsonInclude(JsonInclude.Include.NON_ABSENT)
-public abstract class RunNowRequest {
-
-  @JsonProperty("job_id")
-  public abstract long getJobId();
-
-  @JsonProperty("jar_params")
-  public abstract Optional<List<String>> getJarParams();
-
+public abstract class RunsCancelResponse {
   public static Builder builder() {
-    return new AutoValue_RunNowRequest.Builder();
+    return new AutoValue_RunsCancelResponse.Builder();
   }
 
   @AutoValue.Builder
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public abstract static class Builder {
-    @JsonProperty("job_id")
-    public abstract Builder setJobId(long value);
-
-    @JsonProperty("jar_params")
-    public abstract Builder setJarParams(List<String> value);
-
-    public abstract RunNowRequest build();
+    public abstract RunsCancelResponse build();
   }
 }

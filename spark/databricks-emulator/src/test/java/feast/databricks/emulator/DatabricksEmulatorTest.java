@@ -17,7 +17,7 @@
 package feast.databricks.emulator;
 
 import static org.hamcrest.MatcherAssert.*;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.*;
@@ -26,6 +26,8 @@ import feast.databricks.emulator.DatabricksEmulator.*;
 import feast.databricks.types.*;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Optional;
 import org.apache.spark.launcher.SparkAppHandle;
 import org.apache.spark.launcher.SparkAppHandle.State;
 import org.junit.Before;
@@ -33,7 +35,7 @@ import org.junit.Test;
 import org.mockito.Mock;
 import spark.*;
 
-/** Unit test for simple App. */
+/** Unit test for Databricks Emulator. */
 public class DatabricksEmulatorTest {
 
   private static final String SAMPLE_JOB_JSON =
@@ -42,7 +44,10 @@ public class DatabricksEmulatorTest {
           + "  \"new_cluster\": {\n"
           + "    \"spark_version\": \"5.3.x-scala2.11\",\n"
           + "    \"node_type_id\": \"Standard_DS1_v2\",\n"
-          + "    \"num_workers\": 10\n"
+          + "    \"num_workers\": 10,\n"
+          + "  \"spark_conf\": {\n"
+          + "  \"spark.driver.extraJavaOptions\": \"-verbose:gc -XX:+PrintGCDetails\""
+          + "  }\n"
           + "  },\n"
           + "  \"libraries\": [\n"
           + "    {\n"
@@ -74,16 +79,20 @@ public class DatabricksEmulatorTest {
 
   private String runSubmitJson;
 
+  private HashMap<String, String> sparkConf;
+
   @Before
   public void setUp() throws Exception {
     initMocks(this);
     emulator = new EmulatorService();
     emulator.appFactory = appFactory;
-    when(appFactory.createApp(anyList(), anyString(), anyList())).thenReturn(handle);
+    when(appFactory.createApp(anyList(), anyString(), anyList(), anyMap())).thenReturn(handle);
 
     when(jobRequest.body()).thenReturn(SAMPLE_JOB_JSON);
     job = emulator.jobsCreate(jobRequest, response);
-    runSubmitJson = String.format("{\"job_id\":%s}", job.getJobId());
+    runSubmitJson = createRunSubmitJson(job);
+    sparkConf = new HashMap<>();
+    sparkConf.put("spark.driver.extraJavaOptions", "-verbose:gc -XX:+PrintGCDetails");
   }
 
   @Test
@@ -100,7 +109,8 @@ public class DatabricksEmulatorTest {
             Collections.singletonList(
                 "/spark-2.4.5-bin-hadoop2.7/examples/jars/spark-examples_2.11-2.4.5.jar"),
             "org.apache.spark.examples.SparkPi",
-            Arrays.asList("100"));
+            Arrays.asList("100"),
+            sparkConf);
   }
 
   @Test
@@ -113,7 +123,7 @@ public class DatabricksEmulatorTest {
     emulator.runNow(request, response);
 
     // Assert
-    verify(appFactory).createApp(anyList(), anyString(), eq(Arrays.asList("200")));
+    verify(appFactory).createApp(anyList(), anyString(), eq(Arrays.asList("200")), eq(sparkConf));
   }
 
   @Test
@@ -141,6 +151,26 @@ public class DatabricksEmulatorTest {
   }
 
   @Test
+  public void runNowShouldReturnIncrementingNumberInJobPerJob() throws Exception {
+    // Arrange
+    when(request.body()).thenReturn(runSubmitJson);
+
+    // Act
+    RunNowResponse job1run1 = emulator.runNow(request, response);
+    RunNowResponse job1run2 = emulator.runNow(request, response);
+
+    JobsCreateResponse job2 = emulator.jobsCreate(jobRequest, response);
+    String job2runSubmitJson = createRunSubmitJson(job2);
+    when(request.body()).thenReturn(job2runSubmitJson);
+    RunNowResponse job2run1 = emulator.runNow(request, response);
+
+    // Assert
+    assertThat(job1run1.getNumberInJob(), equalTo(1L));
+    assertThat(job1run2.getNumberInJob(), equalTo(2L));
+    assertThat(job2run1.getNumberInJob(), equalTo(1L));
+  }
+
+  @Test
   public void runsGetShouldReturnJobState() throws Exception {
     // Arrange
     when(request.queryParams("run_id")).thenReturn("45");
@@ -154,7 +184,7 @@ public class DatabricksEmulatorTest {
 
     // Assert
     assertThat(result1.getState().getLifeCycleState(), equalTo(RunLifeCycleState.TERMINATED));
-    assertThat(result1.getState().getResultState(), equalTo(RunResultState.SUCCESS));
+    assertThat(result1.getState().getResultState(), equalTo(Optional.of(RunResultState.SUCCESS)));
   }
 
   @Test
@@ -174,6 +204,22 @@ public class DatabricksEmulatorTest {
   }
 
   @Test
+  // TODO should actually return 400 Bad Request
+  public void jobsDeleteShouldNotBeIdempotent() throws Exception {
+    // Arrange
+    when(request.body()).thenReturn(runSubmitJson);
+
+    // Act
+    emulator.jobsDelete(request, response);
+    try {
+      emulator.jobsDelete(request, response);
+      fail("Should have failed, as job was deleted");
+    } catch (IllegalArgumentException e) {
+      // expected
+    }
+  }
+
+  @Test
   public void runsCancelShouldStopSparkApplication() throws Exception {
     // Arrange
     when(request.body()).thenReturn(String.format("{\"run_id\":%s}", 45));
@@ -181,9 +227,42 @@ public class DatabricksEmulatorTest {
     when(runTracker.getItem(45)).thenReturn(handle);
 
     // Act
-    emulator.runsCancel(request, response);
+    RunsCancelResponse res = emulator.runsCancel(request, response);
 
     // Assert
     verify(handle).stop();
+    assertThat(res, is(RunsCancelResponse.builder().build()));
+  }
+
+  @Test
+  public void runsCancelShouldIgnoreSparkClientErrors() throws Exception {
+    // Arrange
+    when(request.body()).thenReturn(String.format("{\"run_id\":%s}", 45));
+    emulator.runTracker = runTracker;
+    when(runTracker.getItem(45)).thenReturn(handle);
+    doThrow(new IllegalStateException("Application is still not connected.")).when(handle).stop();
+
+    // Act
+    emulator.runsCancel(request, response);
+
+    // Assert: exception was not thrown
+  }
+
+  @Test
+  public void runsCancelShouldBeIdempotent() throws Exception {
+    // Arrange
+    when(request.body()).thenReturn(String.format("{\"run_id\":%s}", 45));
+    emulator.runTracker = runTracker;
+    when(runTracker.getItem(45)).thenReturn(handle);
+
+    // Act
+    emulator.runsCancel(request, response);
+    emulator.runsCancel(request, response);
+
+    // Assert: exception was not thrown
+  }
+
+  private static String createRunSubmitJson(JobsCreateResponse job) {
+    return String.format("{\"job_id\":%s}", job.getJobId());
   }
 }

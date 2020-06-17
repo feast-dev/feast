@@ -16,14 +16,20 @@
  */
 package feast.databricks.types;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.auto.value.AutoValue;
 
 @AutoValue
 @JsonDeserialize(builder = AutoValue_RunNowResponse.Builder.class)
+@JsonInclude(JsonInclude.Include.NON_ABSENT)
 public abstract class RunNowResponse {
+  @JsonProperty("run_id")
   public abstract long getRunId();
+
+  @JsonProperty("number_in_job")
+  public abstract long getNumberInJob();
 
   public static Builder builder() {
     return new AutoValue_RunNowResponse.Builder();
@@ -33,6 +39,9 @@ public abstract class RunNowResponse {
   public abstract static class Builder {
     @JsonProperty("run_id")
     public abstract Builder setRunId(long value);
+
+    @JsonProperty("number_in_job")
+    public abstract Builder setNumberInJob(long value);
 
     public abstract RunNowResponse build();
   }

@@ -141,7 +141,6 @@ def test_basic_ingest_success(client, cust_trans_df, driver_df):
     time.sleep(5)
 
 
-@pytest.mark.databricks_skip
 @pytest.mark.timeout(90)
 @pytest.mark.run(order=12)
 def test_basic_retrieve_online_success(client, cust_trans_df):
@@ -184,7 +183,6 @@ def test_basic_retrieve_online_success(client, cust_trans_df):
             break
 
 
-@pytest.mark.databricks_skip
 @pytest.mark.timeout(90)
 @pytest.mark.run(order=13)
 def test_basic_retrieve_online_multiple_featureset(client, cust_trans_df, driver_df):
@@ -501,7 +499,6 @@ def test_large_volume_ingest_success(client, large_volume_dataframe):
     client.ingest(cust_trans_fs, large_volume_dataframe)
 
 
-@pytest.mark.databricks_skip
 @pytest.mark.timeout(90)
 @pytest.mark.run(order=32)
 def test_large_volume_retrieve_online_success(client, large_volume_dataframe):

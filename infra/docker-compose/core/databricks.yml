@@ -2,13 +2,22 @@ feast:
   jobs:
     polling_interval_milliseconds: 30000
     job_update_timeout_seconds: 240
-    # TODO replace with DatabricksRunner
-    active_runner: direct
+    active_runner: databricks
     runners:
-      # TODO replace with DatabricksRunner
-      - name: direct
-        type: DirectRunner
-        options: {}
+      - name: databricks
+        type: DatabricksRunner
+        options:
+          host: http://databricks-emulator:8080
+          token: unused
+          jarFile: /opt/spark-ingestion-job.jar
+          maxRetries: 0
+          timeoutSeconds: -1
+          newCluster:
+            sparkVersion: 6.6.x-scala2.11
+            nodeTypeId: Standard_F4s
+            numWorkers: 2
+            sparkConf: |
+              spark.driver.memory 1G
   stream:
     type: kafka
     options:

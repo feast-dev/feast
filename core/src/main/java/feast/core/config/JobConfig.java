@@ -21,11 +21,14 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.config.FeastProperties.JobProperties;
 import feast.core.job.JobManager;
+import feast.core.job.databricks.DatabricksJobManager;
 import feast.core.job.dataflow.DataflowJobManager;
 import feast.core.job.direct.DirectJobRegistry;
 import feast.core.job.direct.DirectRunnerJobManager;
+import feast.proto.core.RunnerProto.DatabricksRunnerConfigOptions;
 import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions;
 import feast.proto.core.RunnerProto.DirectRunnerConfigOptions;
+import java.net.http.HttpClient;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +39,7 @@ import org.springframework.context.annotation.Configuration;
 @Slf4j
 @Configuration
 public class JobConfig {
+
   private final Gson gson = new Gson();
 
   /**
@@ -67,6 +71,13 @@ public class JobConfig {
         JsonFormat.parser().merge(configJson, directRunnerConfigOptions);
         return new DirectRunnerJobManager(
             directRunnerConfigOptions.build(), new DirectJobRegistry(), metrics);
+      case DATABRICKS:
+        DatabricksRunnerConfigOptions.Builder databricksRunnerConfigOptions =
+            DatabricksRunnerConfigOptions.newBuilder();
+        JsonFormat.parser().merge(configJson, databricksRunnerConfigOptions);
+        return new DatabricksJobManager(
+            databricksRunnerConfigOptions.build(), HttpClient.newHttpClient());
+
       default:
         throw new IllegalArgumentException("Unsupported runner: " + runner);
     }

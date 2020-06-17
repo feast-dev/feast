@@ -240,6 +240,11 @@
             <artifactId>hibernate-validator-annotation-processor</artifactId>
             <version>6.1.2.Final</version>
         </dependency>
+        <dependency>
+            <groupId>dev.feast</groupId>
+            <artifactId>databricks-types</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
     </dependencies>
 </project>

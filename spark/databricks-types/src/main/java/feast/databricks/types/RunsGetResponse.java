@@ -16,13 +16,17 @@
  */
 package feast.databricks.types;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.auto.value.AutoValue;
 
 @AutoValue
 @JsonDeserialize(builder = AutoValue_RunsGetResponse.Builder.class)
+@JsonInclude(JsonInclude.Include.NON_ABSENT)
 public abstract class RunsGetResponse {
+  @JsonProperty("state")
   public abstract RunState getState();
 
   public static Builder builder() {
@@ -30,6 +34,7 @@ public abstract class RunsGetResponse {
   }
 
   @AutoValue.Builder
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public abstract static class Builder {
     @JsonProperty("state")
     public abstract Builder setState(RunState value);

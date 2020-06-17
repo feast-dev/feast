@@ -54,6 +54,29 @@ feast:
           usePublicIps: false
           workerMachineType: n1-standard-1
           deadLetterTableSpec: project_id:dataset_id.table_id
+      - name: databricks
+        type: DatabricksRunner
+        options:
+          # URL to the databricks platform
+          host: databricks_host
+          # Token for authentication
+          token:  ${DATABRICKS_TOKEN}
+          # Path to the Jar file on the databricks file system
+          jarFile: jar_file
+          # Maximum number of retries for a Databricks job, or -1 for unlimited
+          maxRetries: -1
+          # Timeout in seconds for Databricks jobs, or -1 for unlimited
+          timeoutSeconds: -1
+          newCluster:
+            # The platform version for scala and spark (e.g. 6.5.x-scala2.11)
+            sparkVersion: your_spark_version
+            # Which type of workers to provision (e.g. Standard_DS3_v2)
+            nodeTypeId: my_node_id
+            # How many workers to use in the cluster
+            numWorkers: 2
+            # Spark configuration
+            sparkConf: |
+              spark.driver.memory 1G
 
     # Configuration options for metric collection for all ingestion jobs
     metrics:
