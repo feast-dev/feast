@@ -451,6 +451,11 @@ postsubmits:
             --file infra/docker/serving/Dockerfile \
             --google-service-account-file /etc/gcloud/service-account.json
 
+          infra/scripts/publish-docker-image.sh \
+            --repository gcr.io/kf-feast/feast-jupyter \
+            --tag latest \
+            --file infra/docker/jupyter/Dockerfile \
+            --google-service-account-file /etc/gcloud/service-account.json
 
           HIGHEST_SEMVER_TAG=$(git tag -l --sort -version:refname | head -n 1)
           echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"

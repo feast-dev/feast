@@ -7,5 +7,5 @@ RUN git clone https://github.com/feast-dev/feast.git && \
     rm -rf feast/
 
 # Install startup script
-COPY startup.sh /etc/startup.sh
+COPY infra/docker/jupyter/startup.sh /etc/startup.sh
 CMD ["/etc/startup.sh"]
