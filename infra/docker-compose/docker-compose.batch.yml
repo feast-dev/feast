@@ -13,7 +13,6 @@ services:
     restart: on-failure
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
-      FEAST_JOB_STAGING_LOCATION: ${FEAST_BATCH_JOB_STAGING_LOCATION}
     command:
       - "java"
       - "-Xms1024m"

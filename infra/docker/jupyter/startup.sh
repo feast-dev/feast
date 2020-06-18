@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+[[ -z "$FEAST_REPOSITORY_VERSION" ]] && {
+  echo "FEAST_REPOSITORY_VERSION is not set"
+  exit 1
+}
+
 set -ex
 
 # Clone Feast repository into Jupyter container
