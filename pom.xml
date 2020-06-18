@@ -36,6 +36,7 @@
         <module>serving</module>
         <module>sdk/java</module>
         <module>docs/coverage/java</module>
+        <module>common</module>
     </modules>
 
     <properties>
