@@ -5,7 +5,7 @@ image:
   # image.repository -- Docker image repository
   repository: gcr.io/kf-feast/feast-serving
   # image.tag -- Image tag
-  tag: dev
+  tag: latest
   # image.pullPolicy -- Image pull policy
   pullPolicy: IfNotPresent
 
