@@ -25,11 +25,13 @@ services:
       - --spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml
 
   jupyter:
-    image: jupyter/minimal-notebook:619e9cc2fc07
+    build:
+      context: ../..
+      dockerfile: infra/docker/jupyter/Dockerfile
+    image: ${FEAST_JUPYTER_IMAGE}:${FEAST_VERSION}
     volumes:
       - ./gcp-service-accounts/${FEAST_JUPYTER_GCP_SERVICE_ACCOUNT_KEY}:/etc/gcloud/service-accounts/key.json
       - ../../:/home/jovyan/feast
-      - ./jupyter/startup.sh:/etc/startup.sh
     depends_on:
       - core
     environment:
@@ -40,7 +42,6 @@ services:
       FEAST_REPOSITORY_VERSION: ${FEAST_REPOSITORY_VERSION}
     ports:
       - 8888:8888
-    command: ["/etc/startup.sh"]
 
   kafka:
     image: confluentinc/cp-kafka:5.2.1

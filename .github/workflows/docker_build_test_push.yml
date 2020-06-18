@@ -45,11 +45,12 @@ jobs:
 
     # Build images in parallel.
     - name: Build Feast runtime images
-      run: docker-compose -f infra/docker-compose/docker-compose.yml -f infra/docker-compose/docker-compose.online.yml build --parallel core online-serving
+      run: docker-compose -f infra/docker-compose/docker-compose.yml -f infra/docker-compose/docker-compose.online.yml build --parallel core online-serving jupyter
       env:
         FEAST_VERSION: v${{ github.sha }}
         FEAST_CORE_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-core
         FEAST_SERVING_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-serving
+        FEAST_JUPYTER_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-jupyter
 
     - name: test docker compose
       run: ./infra/scripts/test-docker-compose-databricks.sh
@@ -58,6 +59,7 @@ jobs:
         FEAST_VERSION: v${{ github.sha }}
         FEAST_CORE_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-core
         FEAST_SERVING_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-serving
+        FEAST_JUPYTER_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-jupyter
 
     # Login to Azure Container Registry.
     - name: Login to Azure Container Registry
