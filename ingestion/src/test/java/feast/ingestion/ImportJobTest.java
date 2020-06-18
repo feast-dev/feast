@@ -16,12 +16,11 @@
  */
 package feast.ingestion;
 
-import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
-
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
+import feast.common.function.StringUtils;
 import feast.ingestion.options.ImportOptions;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSet;
@@ -238,7 +237,7 @@ public class ImportJobTest {
     TestUtil.publishToKafka(
         KAFKA_BOOTSTRAP_SERVERS,
         KAFKA_SPECS_TOPIC,
-        ImmutableList.of(Pair.of(getFeatureSetReference(spec), spec)),
+        ImmutableList.of(Pair.of(StringUtils.getFeatureSetStringRef(spec), spec)),
         ByteArraySerializer.class,
         KAFKA_PUBLISH_TIMEOUT_SEC);
     TestUtil.publishToKafka(

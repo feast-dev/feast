@@ -19,7 +19,7 @@ package feast.ingestion.transform;
 import static feast.ingestion.utils.SpecUtil.parseFeatureSetReference;
 
 import com.google.auto.value.AutoValue;
-import feast.ingestion.utils.SpecUtil;
+import feast.common.function.StringUtils;
 import feast.proto.core.StoreProto;
 import feast.proto.types.FeatureRowProto;
 import java.util.List;
@@ -75,7 +75,7 @@ public abstract class FeatureRowToStoreAllocator
                     getStores().stream()
                         .filter(
                             s ->
-                                SpecUtil.isSubscribedToFeatureSet(
+                                StringUtils.isSubscribedToFeatureSet(
                                     s.getSubscriptionsList(),
                                     projectAndSetNames.getLeft(),
                                     projectAndSetNames.getRight()))

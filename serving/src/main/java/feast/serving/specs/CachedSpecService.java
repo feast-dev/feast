@@ -16,13 +16,12 @@
  */
 package feast.serving.specs;
 
-import static feast.serving.util.RefUtil.generateFeatureSetStringRef;
-import static feast.serving.util.RefUtil.generateFeatureStringRef;
 import static java.util.stream.Collectors.groupingBy;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import feast.common.function.StringUtils;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.proto.core.FeatureSetProto.FeatureSet;
@@ -117,18 +116,19 @@ public class CachedSpecService {
             featureReference -> {
               // map feature reference to coresponding feature set name
               String fsName =
-                  featureToFeatureSetMapping.get(generateFeatureStringRef(featureReference));
+                  featureToFeatureSetMapping.get(
+                      StringUtils.getFeatureStringRef(featureReference, false));
               if (fsName == null) {
                 throw new SpecRetrievalException(
                     String.format(
                         "Unable to find Feature Set for the given Feature Reference: %s",
-                        generateFeatureStringRef(featureReference)));
+                        StringUtils.getFeatureStringRef(featureReference, false)));
               } else if (fsName == FEATURE_SET_CONFLICT_FLAG) {
                 throw new SpecRetrievalException(
                     String.format(
                         "Given Feature Reference is amibigous as it matches multiple Feature Sets: %s."
                             + "Please specify a more specific Feature Reference (ie specify the project or feature set)",
-                        generateFeatureStringRef(featureReference)));
+                        StringUtils.getFeatureStringRef(featureReference, false)));
               }
               return Pair.of(fsName, featureReference);
             })
@@ -195,18 +195,20 @@ public class CachedSpecService {
 
     for (Subscription subscription : this.store.getSubscriptionsList()) {
       try {
-        ListFeatureSetsResponse featureSetsResponse =
-            coreService.listFeatureSets(
-                ListFeatureSetsRequest.newBuilder()
-                    .setFilter(
-                        ListFeatureSetsRequest.Filter.newBuilder()
-                            .setProject(subscription.getProject())
-                            .setFeatureSetName(subscription.getName()))
-                    .build());
+        if (!subscription.getExclude()) {
+          ListFeatureSetsResponse featureSetsResponse =
+              coreService.listFeatureSets(
+                  ListFeatureSetsRequest.newBuilder()
+                      .setFilter(
+                          ListFeatureSetsRequest.Filter.newBuilder()
+                              .setProject(subscription.getProject())
+                              .setFeatureSetName(subscription.getName()))
+                      .build());
 
-        for (FeatureSet featureSet : featureSetsResponse.getFeatureSetsList()) {
-          FeatureSetSpec spec = featureSet.getSpec();
-          featureSets.put(generateFeatureSetStringRef(spec), spec);
+          for (FeatureSet featureSet : featureSetsResponse.getFeatureSetsList()) {
+            FeatureSetSpec spec = featureSet.getSpec();
+            featureSets.put(StringUtils.getFeatureSetStringRef(spec), spec);
+          }
         }
       } catch (StatusRuntimeException e) {
         throw new RuntimeException(
@@ -291,6 +293,7 @@ public class CachedSpecService {
       featureRef = featureRef.clearFeatureSet();
     }
     return Pair.of(
-        generateFeatureStringRef(featureRef.build()), generateFeatureSetStringRef(featureSetSpec));
+        StringUtils.getFeatureStringRef(featureRef.build(), false),
+        StringUtils.getFeatureSetStringRef(featureSetSpec));
   }
 }

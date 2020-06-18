@@ -26,20 +26,14 @@ import feast.proto.core.IngestionJobProto;
 import feast.proto.core.IngestionJobProto.SpecsStreamingUpdateConfig;
 import feast.proto.core.SourceProto.Source;
 import feast.proto.core.StoreProto.Store;
-import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class SpecUtil {
   public static String PROJECT_DEFAULT_NAME = "default";
-
-  public static String getFeatureSetReference(FeatureSetSpec featureSetSpec) {
-    return String.format("%s/%s", featureSetSpec.getProject(), featureSetSpec.getName());
-  }
 
   public static Pair<String, String> parseFeatureSetReference(String reference) {
     String[] split = reference.split("/", 2);
@@ -48,44 +42,6 @@ public class SpecUtil {
     } else {
       return Pair.of(split[0], split[1]);
     }
-  }
-
-  /** Get only feature set specs that matches the subscription */
-  public static boolean isSubscribedToFeatureSet(
-      List<Subscription> subscriptions, String projectName, String featureSetName) {
-
-    for (Subscription sub : subscriptions) {
-      // If configuration missing, fail
-      if (sub.getProject().isEmpty() || sub.getName().isEmpty()) {
-        throw new IllegalArgumentException(
-            String.format("Subscription is missing arguments: %s", sub.toString()));
-      }
-
-      // If all wildcards, subscribe to everything
-      if (sub.getProject().equals("*") || sub.getName().equals("*")) {
-        return true;
-      }
-
-      // Match project name
-      if (!projectName.equals(sub.getProject())) {
-        continue;
-      }
-
-      // Convert wildcard to regex
-      String subName = sub.getName();
-      if (!sub.getName().contains(".*")) {
-        subName = subName.replace("*", ".*");
-      }
-
-      // Match feature set name to pattern
-      Pattern pattern = Pattern.compile(subName);
-      if (!pattern.matcher(featureSetName).matches()) {
-        continue;
-      }
-      return true;
-    }
-
-    return false;
   }
 
   public static List<Store> parseStoreJsonList(List<String> jsonList)

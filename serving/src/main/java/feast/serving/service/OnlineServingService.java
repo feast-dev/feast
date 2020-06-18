@@ -19,6 +19,7 @@ package feast.serving.service;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.protobuf.Duration;
+import feast.common.function.StringUtils;
 import feast.proto.serving.ServingAPIProto.*;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
@@ -26,7 +27,6 @@ import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.ValueProto.Value;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.util.Metrics;
-import feast.serving.util.RefUtil;
 import feast.storage.api.retriever.FeatureSetRequest;
 import feast.storage.api.retriever.OnlineRetriever;
 import io.grpc.Status;
@@ -107,7 +107,9 @@ public class OnlineServingService implements ServingService {
                       populateStaleKeyCountMetrics(project, ref);
                       featureValuesMap
                           .get(entityRow)
-                          .put(RefUtil.generateFeatureStringRef(ref), Value.newBuilder().build());
+                          .put(
+                              StringUtils.getFeatureStringRef(ref, false),
+                              Value.newBuilder().build());
                     });
 
           } else {
@@ -120,7 +122,7 @@ public class OnlineServingService implements ServingService {
                 .forEach(
                     field -> {
                       FeatureReference ref = refsByName.get(field.getName());
-                      String id = RefUtil.generateFeatureStringRef(ref);
+                      String id = StringUtils.getFeatureStringRef(ref, false);
                       featureValuesMap.get(entityRow).put(id, field.getValue());
                     });
           }

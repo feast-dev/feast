@@ -16,13 +16,12 @@
  */
 package feast.test;
 
-import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
-
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.Timestamps;
+import feast.common.function.StringUtils;
 import feast.ingestion.transform.metrics.WriteSuccessMetricsTransform;
 import feast.proto.core.FeatureSetProto.FeatureSet;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
@@ -220,7 +219,7 @@ public class TestUtil {
       FeatureSetSpec featureSetSpec, int randomStringSize) {
     Builder builder =
         FeatureRow.newBuilder()
-            .setFeatureSet(getFeatureSetReference(featureSetSpec))
+            .setFeatureSet(StringUtils.getFeatureSetStringRef(featureSetSpec))
             .setEventTimestamp(Timestamps.fromMillis(System.currentTimeMillis()));
 
     featureSetSpec
@@ -330,7 +329,7 @@ public class TestUtil {
    */
   public static RedisKey createRedisKey(FeatureSetSpec featureSetSpec, FeatureRow row) {
     RedisKey.Builder builder =
-        RedisKey.newBuilder().setFeatureSet(getFeatureSetReference(featureSetSpec));
+        RedisKey.newBuilder().setFeatureSet(StringUtils.getFeatureSetStringRef(featureSetSpec));
     featureSetSpec
         .getEntitiesList()
         .forEach(

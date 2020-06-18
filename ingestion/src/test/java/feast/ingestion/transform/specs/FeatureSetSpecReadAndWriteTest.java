@@ -16,7 +16,6 @@
  */
 package feast.ingestion.transform.specs;
 
-import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 
@@ -24,6 +23,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.google.protobuf.InvalidProtocolBufferException;
+import feast.common.function.StringUtils;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.IngestionJobProto;
 import feast.proto.core.SourceProto;
@@ -223,7 +223,7 @@ public class FeatureSetSpecReadAndWriteTest {
     TestUtil.publishToKafka(
         KAFKA_BOOTSTRAP_SERVERS,
         KAFKA_SPECS_TOPIC,
-        ImmutableList.of(Pair.of(getFeatureSetReference(spec), spec)),
+        ImmutableList.of(Pair.of(StringUtils.getFeatureSetStringRef(spec), spec)),
         ByteArraySerializer.class,
         KAFKA_PUBLISH_TIMEOUT_SEC);
   }

@@ -92,7 +92,7 @@ public class JobCoordinatorService {
       Set<FeatureSet> featureSets = new HashSet<>();
       Store store = Store.fromProto(storeSpec);
 
-      for (Subscription subscription : store.getSubscriptions()) {
+      for (Subscription subscription : store.getSubscriptionsByStr(true)) {
         List<FeatureSet> featureSetsForSub =
             featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc(
                 subscription.getName().replace('*', '%'),

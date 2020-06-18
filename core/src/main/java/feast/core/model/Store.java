@@ -17,6 +17,7 @@
 package feast.core.model;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import feast.common.function.StringUtils;
 import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.BigQueryConfig;
 import feast.proto.core.StoreProto.Store.Builder;
@@ -26,9 +27,7 @@ import feast.proto.core.StoreProto.Store.RedisConfig;
 import feast.proto.core.StoreProto.Store.StoreType;
 import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
@@ -70,7 +69,7 @@ public class Store {
   public static Store fromProto(StoreProto.Store storeProto) throws IllegalArgumentException {
     List<String> subs = new ArrayList<>();
     for (Subscription s : storeProto.getSubscriptionsList()) {
-      subs.add(convertSubscriptionToString(s));
+      subs.add(StringUtils.convertSubscriptionToString(s));
     }
     byte[] config;
     switch (storeProto.getType()) {
@@ -94,7 +93,7 @@ public class Store {
   }
 
   public StoreProto.Store toProto() throws InvalidProtocolBufferException {
-    List<Subscription> subscriptionProtos = getSubscriptions();
+    List<Subscription> subscriptionProtos = getSubscriptionsByStr(false);
     Builder storeProtoBuilder =
         StoreProto.Store.newBuilder()
             .setName(name)
@@ -118,25 +117,18 @@ public class Store {
     }
   }
 
-  public List<Subscription> getSubscriptions() {
-    return Arrays.stream(subscriptions.split(","))
-        .map(this::convertStringToSubscription)
-        .collect(Collectors.toList());
-  }
+  /**
+   * Returns a List of Subscriptions based on whether to include those with excluded flag.
+   * Currently, store's subscriptions string will store ALL subscriptions, but during retrieval for
+   * subscriptions, the exclude flag provided by this function will be used for filtering.
+   *
+   * @param exclude boolean flag to signify whether to return subscriptions which have excluded flag
+   * @return List of Subscription that based on exclusion filter
+   */
+  public List<Subscription> getSubscriptionsByStr(boolean exclude) {
+    List<Subscription> subscriptions =
+        StringUtils.getSubscriptionsByStr(this.getSubscriptions(), exclude);
 
-  private static String convertSubscriptionToString(Subscription sub) {
-    if (sub.getName().isEmpty() || sub.getProject().isEmpty()) {
-      throw new IllegalArgumentException(
-          String.format("Missing arguments in subscription string: %s", sub.toString()));
-    }
-    return String.format("%s:%s", sub.getProject(), sub.getName());
-  }
-
-  private Subscription convertStringToSubscription(String sub) {
-    if (sub.equals("")) {
-      return Subscription.newBuilder().build();
-    }
-    String[] split = sub.split(":", 2);
-    return Subscription.newBuilder().setProject(split[0]).setName(split[1]).build();
+    return subscriptions;
   }
 }
