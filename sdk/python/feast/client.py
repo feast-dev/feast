@@ -506,8 +506,6 @@ class Client:
             >>> features = list_features_by_ref(project="test_project", entities=["driver_id"], labels={"key1":"val1","key2":"val2"})
             >>> print(features)
         """
-        self._connect_core()
-
         if project is None:
             if self.project is not None:
                 project = self.project
@@ -518,7 +516,7 @@ class Client:
             project=project, entities=entities, labels=labels
         )
 
-        feature_protos = self._core_service_stub.ListFeatures(
+        feature_protos = self._core_service.ListFeatures(
             ListFeaturesRequest(filter=filter)
         )  # type: ListFeaturesResponse
 
