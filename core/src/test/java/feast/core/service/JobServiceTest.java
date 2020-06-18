@@ -46,11 +46,7 @@ import feast.proto.core.StoreProto.Store.RedisConfig;
 import feast.proto.core.StoreProto.Store.StoreType;
 import feast.proto.types.ValueProto.ValueType.Enum;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -87,7 +83,7 @@ public class JobServiceTest {
             "*:*:*");
 
     // fake featureset & job
-    this.featureSet = this.newDummyFeatureSet("food", 2, "hunger");
+    this.featureSet = this.newDummyFeatureSet("food", "hunger");
     this.job = this.newDummyJob("kafka-to-redis", "job-1111", JobStatus.PENDING);
     try {
       this.ingestionJob = this.job.toProto();
@@ -140,7 +136,7 @@ public class JobServiceTest {
         .thenReturn(this.newDummyJob(this.job.getId(), this.job.getExtId(), JobStatus.PENDING));
   }
 
-  private FeatureSet newDummyFeatureSet(String name, int version, String project) {
+  private FeatureSet newDummyFeatureSet(String name, String project) {
     Feature feature = TestObjectFactory.CreateFeature(name + "_feature", Enum.INT64);
     Entity entity = TestObjectFactory.CreateEntity(name + "_entity", Enum.STRING);
 
@@ -242,7 +238,7 @@ public class JobServiceTest {
 
   @Test
   public void testListIngestionJobByFeatureSetReference() {
-    // list job by feature set reference: name and version and project
+    // list job by feature set reference: name and project
     ListIngestionJobsRequest.Filter filter =
         ListIngestionJobsRequest.Filter.newBuilder()
             .setFeatureSetReference(this.fsReferences.get(0))
@@ -281,7 +277,7 @@ public class JobServiceTest {
         fail("Expected exception, but none was thrown");
       }
     } catch (Exception e) {
-      if (expectError != true) {
+      if (!expectError) {
         // unexpected exception
         e.printStackTrace();
         fail("Caught Unexpected exception trying to restart job");
@@ -330,8 +326,7 @@ public class JobServiceTest {
     // check for UnsupportedOperationException when trying to stop jobs are
     // in an in unknown or in a transitional state
     JobStatus prevStatus = this.job.getStatus();
-    List<JobStatus> unsupportedStatuses = new ArrayList<>();
-    unsupportedStatuses.addAll(JobStatus.getTransitionalStates());
+    List<JobStatus> unsupportedStatuses = new ArrayList<>(JobStatus.getTransitionalStates());
     unsupportedStatuses.add(JobStatus.UNKNOWN);
 
     for (JobStatus status : unsupportedStatuses) {
@@ -345,6 +340,12 @@ public class JobServiceTest {
     this.job.setStatus(prevStatus);
   }
 
+  @Test(expected = NoSuchElementException.class)
+  public void testStopJobForUnknownId() {
+    var request = StopIngestionJobRequest.newBuilder().setId("bogusJobId").build();
+    jobService.stopJob(request);
+  }
+
   // restart jobs
   private RestartIngestionJobResponse tryRestartJob(
       RestartIngestionJobRequest request, boolean expectError) {
@@ -356,7 +357,7 @@ public class JobServiceTest {
         fail("Expected exception, but none was thrown");
       }
     } catch (Exception e) {
-      if (expectError != true) {
+      if (!expectError) {
         // unexpected exception
         e.printStackTrace();
         fail("Caught Unexpected exception trying to stop job");
@@ -392,8 +393,7 @@ public class JobServiceTest {
     // check for UnsupportedOperationException when trying to restart jobs are
     // in an in unknown or in a transitional state
     JobStatus prevStatus = this.job.getStatus();
-    List<JobStatus> unsupportedStatuses = new ArrayList<>();
-    unsupportedStatuses.addAll(JobStatus.getTransitionalStates());
+    List<JobStatus> unsupportedStatuses = new ArrayList<>(JobStatus.getTransitionalStates());
     unsupportedStatuses.add(JobStatus.UNKNOWN);
 
     for (JobStatus status : unsupportedStatuses) {
