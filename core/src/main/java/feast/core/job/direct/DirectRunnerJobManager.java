@@ -121,30 +121,32 @@ public class DirectRunnerJobManager implements JobManager {
    */
   @Override
   public Job updateJob(Job job) {
-    String jobId = job.getExtId();
-    abortJob(jobId);
     try {
-      return startJob(job);
+      return startJob(abortJob(job));
     } catch (JobExecutionException e) {
       throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
     }
   }
 
   /**
-   * Abort the direct runner job with the given id, then remove it from the direct jobs registry.
+   * Abort the direct runner job,removing it from the direct jobs registry.
    *
-   * @param extId runner specific job id.
+   * @param job to abort.
+   * @return The aborted Job
    */
   @Override
-  public void abortJob(String extId) {
-    DirectJob job = jobs.get(extId);
+  public Job abortJob(Job job) {
+    DirectJob directJob = jobs.get(job.getExtId());
     try {
-      job.abort();
+      directJob.abort();
     } catch (IOException e) {
       throw new RuntimeException(
-          Strings.lenientFormat("Unable to abort DirectRunner job %s", extId), e);
+          Strings.lenientFormat("Unable to abort DirectRunner job %s", job.getExtId(), e));
     }
-    jobs.remove(extId);
+    jobs.remove(job.getExtId());
+
+    job.setStatus(JobStatus.ABORTING);
+    return job;
   }
 
   public PipelineResult runPipeline(ImportOptions pipelineOptions) throws IOException {

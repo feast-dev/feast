@@ -30,7 +30,7 @@ import javax.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
-import org.springframework.data.util.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.tensorflow.metadata.v0.*;
 
 @Getter

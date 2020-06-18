@@ -28,6 +28,7 @@ import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -138,5 +139,28 @@ public class Store {
     }
     String[] split = sub.split(":", 2);
     return Subscription.newBuilder().setProject(split[0]).setName(split[1]).build();
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.name, this.type, this.subscriptions) ^ Arrays.hashCode(this.config);
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) return true;
+    if (getClass() != obj.getClass()) return false;
+    Store other = (Store) obj;
+
+    if (!name.equals(other.name)) {
+      return false;
+    } else if (!type.equals(other.type)) {
+      return false;
+    } else if (!Arrays.equals(config, config)) {
+      return false;
+    } else if (!subscriptions.equals(other.subscriptions)) {
+      return false;
+    }
+    return true;
   }
 }

@@ -17,7 +17,10 @@
 package feast.core.dao;
 
 import feast.core.model.Source;
+import feast.proto.core.SourceProto.SourceType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /** JPA repository supplying Source objects keyed by id. */
-public interface SourceRepository extends JpaRepository<Source, String> {}
+public interface SourceRepository extends JpaRepository<Source, String> {
+  Source findFirstByTypeAndConfigOrderByIdAsc(SourceType type, String config);
+}

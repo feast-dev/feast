@@ -188,8 +188,8 @@ public class JobService {
         String.format(
             "Restarted job (id: %s, extId: %s runner: %s)",
             job.getId(), job.getExtId(), job.getRunner()));
-    // sync job status & update job model in job repository
-    job = this.syncJobStatus(jobManager, job);
+    this.logStatusChange(job, currentStatus, job.getStatus());
+    // update job model in job repository
     this.jobRepository.saveAndFlush(job);
 
     return RestartIngestionJobResponse.newBuilder().build();
@@ -220,21 +220,21 @@ public class JobService {
     if (status.isTerminal()) {
       // do nothing - job is already stopped
       return StopIngestionJobResponse.newBuilder().build();
-    } else if (status.isTransitional() || status == JobStatus.UNKNOWN) {
+    } else if (currentStatus.isTransitional() || currentStatus == JobStatus.UNKNOWN) {
       throw new UnsupportedOperationException(
           "Stopping a job with a transitional or unknown status is unsupported");
     }
+    this.logStatusChange(job, currentStatus, job.getStatus());
 
     // stop job with job manager
     JobManager jobManager = this.jobManagers.get(job.getRunner());
-    jobManager.abortJob(job.getExtId());
+    job = jobManager.abortJob(job);
     log.info(
         String.format(
-            "Restarted job (id: %s, extId: %s runner: %s)",
+            "Aborted job (id: %s, extId: %s runner: %s)",
             job.getId(), job.getExtId(), job.getRunner()));
-
-    // sync job status & update job model in job repository
-    job = this.syncJobStatus(jobManager, job);
+    this.logStatusChange(job, currentStatus, job.getStatus());
+    // update job model in job repository
     this.jobRepository.saveAndFlush(job);
 
     return StopIngestionJobResponse.newBuilder().build();
@@ -270,20 +270,14 @@ public class JobService {
         .build();
   }
 
-  /** sync job status using job manager */
-  private Job syncJobStatus(JobManager jobManager, Job job) {
-    JobStatus newStatus = jobManager.getJobStatus(job);
-    // log job status transition
-    if (newStatus != job.getStatus()) {
-      AuditLogger.log(
-          Resource.JOB,
-          job.getId(),
-          Action.STATUS_CHANGE,
-          "Job status transition: changed from %s to %s",
-          job.getStatus(),
-          newStatus);
-      job.setStatus(newStatus);
-    }
-    return job;
+  /** log job status using job manager */
+  private void logStatusChange(Job job, JobStatus oldStatus, JobStatus newStatus) {
+    AuditLogger.log(
+        Resource.JOB,
+        job.getId(),
+        Action.STATUS_CHANGE,
+        "Job status transition: changed from %s to %s",
+        oldStatus,
+        newStatus);
   }
 }
