@@ -55,6 +55,7 @@ def client(core_url, serving_url, allow_dirty):
     # Get client for core and serving
     client = Client(core_url=core_url, serving_url=serving_url)
     client.create_project(PROJECT_NAME)
+    client.set_project(PROJECT_NAME)
 
     # Ensure Feast core is active, but empty
     if not allow_dirty:
@@ -686,64 +687,80 @@ def test_update_featureset_retrieve_valid_fields(client, update_featureset_dataf
 
 @pytest.mark.direct_runner
 @pytest.mark.run(order=31)
+@pytest.mark.timeout(600)
 def test_batch_dataset_statistics(client):
     fs1 = client.get_feature_set(name="feature_set_1")
     fs2 = client.get_feature_set(name="feature_set_2")
     id_offset = 20
 
-    N_ROWS = 10
+    N_ROWS = 20
     time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
     features_1_df = pd.DataFrame(
         {
             "datetime": [time_offset] * N_ROWS,
             "entity_id": [id_offset + i for i in range(N_ROWS)],
-            "feature_value6": [f"{i}" for i in range(N_ROWS)],
+            "feature_value6": ["a" for i in range(N_ROWS)],
         }
     )
-    client.ingest(fs1, features_1_df)
+    ingestion_id1 = client.ingest(fs1, features_1_df)
 
     features_2_df = pd.DataFrame(
         {
             "datetime": [time_offset] * N_ROWS,
             "other_entity_id": [id_offset + i for i in range(N_ROWS)],
-            "other_feature_value7": [i for i in range(N_ROWS)],
+            "other_feature_value7": [int(i) % 10 for i in range(N_ROWS)],
         }
     )
-    client.ingest(fs2, features_2_df)
+    ingestion_id2 = client.ingest(fs2, features_2_df)
 
     entity_df = pd.DataFrame(
         {
             "datetime": [time_offset] * N_ROWS,
             "entity_id": [id_offset + i for i in range(N_ROWS)],
-            "other_entity_id": [N_ROWS - 1 - i for i in range(N_ROWS)],
+            "other_entity_id": [id_offset + i for i in range(N_ROWS)],
         }
     )
 
-    # Test retrieve with different variations of the string feature refs
-    # ie feature set inference for feature refs without specified feature set
-    def check():
-        feature_retrieval_job = client.get_batch_features(
-            entity_rows=entity_df,
-            feature_refs=[
-                "feature_value6",
-                "feature_set_2:other_feature_value7",
-            ],
-            project=PROJECT_NAME,
-            compute_statistics=True,
-        )
-        output = feature_retrieval_job.to_dataframe(timeout_sec=180)
-        print(output.head(10))
-        stats = feature_retrieval_job.statistics(timeout_sec=180)
+    time.sleep(15)  # wait for rows to get written to bq
+    while True:
+        rows_ingested = get_rows_ingested(client, fs1, ingestion_id1)
+        if rows_ingested == len(features_1_df):
+            print(f"Number of rows successfully ingested: {rows_ingested}. Continuing.")
+            break
+        rows_ingested = get_rows_ingested(client, fs2, ingestion_id2)
+        if rows_ingested == len(features_2_df):
+            print(f"Number of rows successfully ingested: {rows_ingested}. Continuing.")
+            break
+        time.sleep(30)
 
-        expected_stats = tfdv.generate_statistics_from_dataframe(
-            output[["feature_value6", "feature_set_2__other_feature_value7"]]
-        )
-        clear_unsupported_fields(expected_stats)
-        assert_stats_equal(expected_stats, stats)
+    feature_retrieval_job = client.get_batch_features(
+        entity_rows=entity_df,
+        feature_refs=[
+            "feature_value6",
+            "feature_set_2:other_feature_value7",
+        ],
+        project=PROJECT_NAME,
+        compute_statistics=True,
+    )
+    output = feature_retrieval_job.to_dataframe(timeout_sec=180)
+    print(output.head(10))
+    stats = feature_retrieval_job.statistics(timeout_sec=180)
 
-        clean_up_remote_files(feature_retrieval_job.get_avro_files())
+    expected_stats = tfdv.generate_statistics_from_dataframe(
+        output[["feature_value6", "feature_set_2__other_feature_value7"]]
+    )
+    clear_unsupported_fields(expected_stats)
 
-    wait_for(check, timedelta(minutes=5))
+    # Since TFDV computes population std dev
+    for feature in expected_stats.datasets[0].features:
+        if feature.HasField("num_stats"):
+            name = feature.path.step[0]
+            std = output[name].std()
+            feature.num_stats.std_dev = std
+    clear_unsupported_fields(stats)
+    assert_stats_equal(expected_stats, stats)
+
+    clean_up_remote_files(feature_retrieval_job.get_avro_files())
 
 
 def get_rows_ingested(

@@ -215,7 +215,8 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
           DatasetFeatureStatisticsList.newBuilder()
               .addDatasets(
                   DatasetFeatureStatistics.newBuilder()
-                      .addAllFeatures(featureStatistics.getFeatureNameStatistics()))
+                      .addAllFeatures(featureStatistics.getFeatureNameStatistics())
+                      .setNumExamples(featureStatistics.getNumExamples()))
               .build();
       result = result.withStats(datasetFeatureStatisticsList);
     }

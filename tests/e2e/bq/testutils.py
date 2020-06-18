@@ -8,7 +8,7 @@ def clear_unsupported_fields(datasets):
         if feature.HasField("num_stats"):
             feature.num_stats.common_stats.ClearField("num_values_histogram")
             for hist in feature.num_stats.histograms:
-                sorted_buckets = sorted(hist.buckets, key=lambda k: k["highValue"])
+                sorted_buckets = sorted(hist.buckets, key=lambda k: k.high_value)
                 del hist.buckets[:]
                 hist.buckets.extend(sorted_buckets)
         elif feature.HasField("string_stats"):
@@ -50,5 +50,5 @@ def assert_stats_equal(left, right):
 
     left_features = sorted(left_stats["features"], key=lambda k: k["path"]["step"][0])
     right_features = sorted(right_stats["features"], key=lambda k: k["path"]["step"][0])
-    diff = DeepDiff(left_features, right_features, significant_digits=4)
+    diff = DeepDiff(left_features, right_features, significant_digits=3)
     assert len(diff) == 0, f"Feature statistics do not match: \nwanted: {left_features}\n got: {right_features}"

@@ -79,7 +79,17 @@ class RetrievalJob:
         Returns:
             str: Google Cloud Storage file uris of the returned Avro files.
         """
-        self._wait_for_completion(timeout_sec)
+
+        def try_retrieve():
+            self.reload()
+            return None, self.status == JOB_STATUS_DONE
+
+        wait_retry_backoff(
+            retry_fn=try_retrieve,
+            timeout_secs=timeout_sec,
+            timeout_msg="Timeout exceeded while waiting for result. Please retry "
+            "this method or use a longer timeout value.",
+        )
 
         if self.job_proto.error:
             raise Exception(self.job_proto.error)
@@ -185,7 +195,7 @@ class RetrievalJob:
         return iter(self.result())
 
     def statistics(
-        self, timeout_sec: int = DEFAULT_TIMEOUT_SEC
+        self, timeout_sec: int = int(defaults[CONFIG_TIMEOUT_KEY])
     ) -> statistics_pb2.DatasetFeatureStatisticsList:
         """
         Get statistics computed over the retrieved data set. Statistics will only be computed for
@@ -199,22 +209,10 @@ class RetrievalJob:
         Returns:
             DatasetFeatureStatisticsList containing statistics of Feast features over the retrieved dataset.
         """
-        self._wait_for_completion(timeout_sec)
+        self.get_avro_files(timeout_sec)  # wait for job completion
         if self.job_proto.error:
             raise Exception(self.job_proto.error)
         return self.job_proto.dataset_feature_statistics_list
-
-    def _wait_for_completion(self, timeout_sec: int = DEFAULT_TIMEOUT_SEC):
-        def try_retrieve():
-            self.reload()
-            return None, self.status == JOB_STATUS_DONE
-
-        wait_retry_backoff(
-            retry_fn=try_retrieve,
-            timeout_secs=timeout_sec,
-            timeout_msg="Timeout exceeded while waiting for result. Please retry "
-            "this method or use a longer timeout value.",
-        )
 
 
 class IngestJob:

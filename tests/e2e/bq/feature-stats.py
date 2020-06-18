@@ -13,7 +13,7 @@ from feast.feature_set import FeatureSet
 from feast.type_map import ValueType
 from google.protobuf.duration_pb2 import Duration
 import tensorflow_data_validation as tfdv
-from .testutils import *
+from bq.testutils import *
 
 
 pd.set_option("display.max_columns", None)
@@ -48,6 +48,7 @@ def client(core_url, allow_dirty):
     # Get client for core and serving
     client = Client(core_url=core_url)
     client.create_project(PROJECT_NAME)
+    client.set_project(PROJECT_NAME)
 
     # Ensure Feast core is active, but empty
     if not allow_dirty:
