@@ -76,7 +76,7 @@ public class Row {
         fields.put(
             fieldName, Value.newBuilder().setBytesVal(ByteString.copyFrom((byte[]) value)).build());
         break;
-      case "feast.types.ValueProto.Value":
+      case "feast.proto.types.ValueProto.Value":
         fields.put(fieldName, (Value) value);
         break;
       default:

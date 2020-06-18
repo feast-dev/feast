@@ -1,6 +1,9 @@
 name: docker compose tests
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
 
 jobs:
   basic-redis-e2e-tests-docker-compose:

@@ -17,7 +17,7 @@ from feast.feature import FeatureRef
 
 class TestFeatureRef:
     def test_str_ref(self):
-        original_ref = FeatureRef(project="test", name="test")
+        original_ref = FeatureRef(feature_set="test", name="test")
         ref_str = repr(original_ref)
         parsed_ref = FeatureRef.from_str(ref_str)
         assert original_ref == parsed_ref

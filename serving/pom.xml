@@ -112,12 +112,6 @@
 
     <dependency>
       <groupId>dev.feast</groupId>
-      <artifactId>feast-storage-connector-redis-cluster</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>dev.feast</groupId>
       <artifactId>feast-storage-connector-bigquery</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -265,13 +259,6 @@
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <scope>test</scope>
-    </dependency>
-
-    <!-- Hibernate for formatting SQL string -->
-    <dependency>
-      <groupId>org.hibernate</groupId>
-      <artifactId>hibernate-core</artifactId>
-      <version>5.4.5.Final</version>
     </dependency>
 
     <!-- Utilities -->

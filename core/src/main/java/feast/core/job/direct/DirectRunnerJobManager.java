@@ -27,18 +27,17 @@ import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
 import feast.core.model.Project;
-import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
 import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.options.OptionCompressor;
 import feast.proto.core.FeatureSetProto;
+import feast.proto.core.RunnerProto.DirectRunnerConfigOptions;
 import feast.proto.core.StoreProto;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.PipelineResult;
@@ -49,15 +48,15 @@ public class DirectRunnerJobManager implements JobManager {
 
   private final Runner RUNNER_TYPE = Runner.DIRECT;
 
-  protected Map<String, String> defaultOptions;
+  private DirectRunnerConfig defaultOptions;
   private final DirectJobRegistry jobs;
   private MetricsProperties metrics;
 
   public DirectRunnerJobManager(
-      Map<String, String> defaultOptions,
+      DirectRunnerConfigOptions directRunnerConfigOptions,
       DirectJobRegistry jobs,
       MetricsProperties metricsProperties) {
-    this.defaultOptions = defaultOptions;
+    this.defaultOptions = new DirectRunnerConfig(directRunnerConfigOptions);
     this.jobs = jobs;
     this.metrics = metricsProperties;
   }
@@ -95,9 +94,9 @@ public class DirectRunnerJobManager implements JobManager {
 
   private ImportOptions getPipelineOptions(
       String jobName, List<FeatureSetProto.FeatureSet> featureSets, StoreProto.Store sink)
-      throws IOException {
-    String[] args = TypeConversion.convertMapToArgs(defaultOptions);
-    ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);
+      throws IOException, IllegalAccessException {
+    ImportOptions pipelineOptions =
+        PipelineOptionsFactory.fromArgs(defaultOptions.toArgs()).as(ImportOptions.class);
 
     OptionCompressor<List<FeatureSetProto.FeatureSet>> featureSetJsonCompressor =
         new BZip2Compressor<>(new FeatureSetJsonByteConverter());

@@ -16,6 +16,7 @@
  */
 package feast.serving.service;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.protobuf.Duration;
 import feast.proto.serving.ServingAPIProto.*;
@@ -75,6 +76,9 @@ public class OnlineServingService implements ServingService {
       // feature set request.
       List<List<FeatureRow>> featureRows =
           retriever.getOnlineFeatures(entityRows, featureSetRequests);
+      if (scope != null) {
+        scope.span().log(ImmutableMap.of("event", "featureRows", "value", featureRows));
+      }
 
       // For each feature set request, read the feature rows returned by the retriever, and
       // populate the featureValuesMap with the feature values corresponding to that entity row.

@@ -74,16 +74,4 @@ public class TypeConversionTest {
     Map<String, String> input = new HashMap<>();
     assertThat(TypeConversion.convertMapToJsonString(input), equalTo("{}"));
   }
-
-  @Test
-  public void convertJsonStringToArgsShouldReturnCorrectListOfArgs() {
-    Map<String, String> input = new HashMap<>();
-    input.put("key", "value");
-    input.put("key2", "value2");
-
-    String[] expected = new String[] {"--key=value", "--key2=value2"};
-    String[] actual = TypeConversion.convertMapToArgs(input);
-    assertThat(actual.length, equalTo(expected.length));
-    assertTrue(Arrays.asList(actual).containsAll(Arrays.asList(expected)));
-  }
 }

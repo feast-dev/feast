@@ -26,7 +26,6 @@ import feast.proto.types.ValueProto.ValueType.Enum;
 import feast.storage.api.writer.FeatureSink;
 import feast.storage.connectors.bigquery.writer.BigQueryFeatureSink;
 import feast.storage.connectors.redis.writer.RedisFeatureSink;
-import feast.storage.connectors.rediscluster.writer.RedisClusterFeatureSink;
 import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -84,7 +83,7 @@ public class StoreUtil {
     StoreType storeType = store.getType();
     switch (storeType) {
       case REDIS_CLUSTER:
-        return RedisClusterFeatureSink.fromConfig(store.getRedisClusterConfig(), featureSetSpecs);
+        return RedisFeatureSink.fromConfig(store.getRedisClusterConfig(), featureSetSpecs);
       case REDIS:
         return RedisFeatureSink.fromConfig(store.getRedisConfig(), featureSetSpecs);
       case BIGQUERY:

@@ -33,12 +33,12 @@ import feast.core.job.JobManager;
 import feast.core.job.Runner;
 import feast.core.job.option.FeatureSetJsonByteConverter;
 import feast.core.model.*;
-import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
 import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.options.OptionCompressor;
 import feast.proto.core.FeatureSetProto;
+import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions;
 import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
 import java.io.IOException;
@@ -46,7 +46,6 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -61,21 +60,20 @@ public class DataflowJobManager implements JobManager {
   private final String projectId;
   private final String location;
   private final Dataflow dataflow;
-  private final Map<String, String> defaultOptions;
+  private final DataflowRunnerConfig defaultOptions;
   private final MetricsProperties metrics;
 
   public DataflowJobManager(
-      Map<String, String> runnerConfigOptions, MetricsProperties metricsProperties) {
+      DataflowRunnerConfigOptions runnerConfigOptions, MetricsProperties metricsProperties) {
     this(runnerConfigOptions, metricsProperties, getGoogleCredential());
   }
 
   public DataflowJobManager(
-      Map<String, String> runnerConfigOptions,
+      DataflowRunnerConfigOptions runnerConfigOptions,
       MetricsProperties metricsProperties,
       Credential credential) {
 
-    DataflowRunnerConfig config = new DataflowRunnerConfig(runnerConfigOptions);
-
+    defaultOptions = new DataflowRunnerConfig(runnerConfigOptions);
     Dataflow dataflow = null;
     try {
       dataflow =
@@ -89,11 +87,10 @@ public class DataflowJobManager implements JobManager {
       throw new IllegalStateException("Unable to initialize DataflowJobManager", e);
     }
 
-    this.defaultOptions = runnerConfigOptions;
     this.dataflow = dataflow;
     this.metrics = metricsProperties;
-    this.projectId = config.getProject();
-    this.location = config.getRegion();
+    this.projectId = defaultOptions.getProject();
+    this.location = defaultOptions.getRegion();
   }
 
   private static Credential getGoogleCredential() {
@@ -270,9 +267,9 @@ public class DataflowJobManager implements JobManager {
       List<FeatureSetProto.FeatureSet> featureSets,
       StoreProto.Store sink,
       boolean update)
-      throws IOException {
-    String[] args = TypeConversion.convertMapToArgs(defaultOptions);
-    ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);
+      throws IOException, IllegalAccessException {
+    ImportOptions pipelineOptions =
+        PipelineOptionsFactory.fromArgs(defaultOptions.toArgs()).as(ImportOptions.class);
 
     OptionCompressor<List<FeatureSetProto.FeatureSet>> featureSetJsonCompressor =
         new BZip2Compressor<>(new FeatureSetJsonByteConverter());

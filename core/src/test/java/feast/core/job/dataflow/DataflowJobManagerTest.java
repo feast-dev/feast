@@ -40,6 +40,8 @@ import feast.ingestion.options.OptionCompressor;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.FeatureSetMeta;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions;
+import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions.Builder;
 import feast.proto.core.SourceProto;
 import feast.proto.core.SourceProto.KafkaSourceConfig;
 import feast.proto.core.SourceProto.SourceType;
@@ -49,9 +51,7 @@ import feast.proto.core.StoreProto.Store.StoreType;
 import feast.proto.core.StoreProto.Store.Subscription;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -70,19 +70,21 @@ public class DataflowJobManagerTest {
 
   @Mock private Dataflow dataflow;
 
-  private Map<String, String> defaults;
+  private DataflowRunnerConfigOptions defaults;
   private DataflowJobManager dfJobManager;
 
   @Before
   public void setUp() {
     initMocks(this);
-    defaults = new HashMap<>();
-    defaults.put("project", "project");
-    defaults.put("region", "region");
-    defaults.put("zone", "zone");
-    defaults.put("tempLocation", "tempLocation");
-    defaults.put("network", "network");
-    defaults.put("subnetwork", "subnetwork");
+    Builder optionsBuilder = DataflowRunnerConfigOptions.newBuilder();
+    optionsBuilder.setProject("project");
+    optionsBuilder.setRegion("region");
+    optionsBuilder.setZone("zone");
+    optionsBuilder.setTempLocation("tempLocation");
+    optionsBuilder.setNetwork("network");
+    optionsBuilder.setSubnetwork("subnetwork");
+    optionsBuilder.putLabels("orchestrator", "feast");
+    defaults = optionsBuilder.build();
     MetricsProperties metricsProperties = new MetricsProperties();
     metricsProperties.setEnabled(false);
     Credential credential = null;
@@ -137,6 +139,7 @@ public class DataflowJobManagerTest {
     expectedPipelineOptions.setRegion("region");
     expectedPipelineOptions.setUpdate(false);
     expectedPipelineOptions.setAppName("DataflowJobManager");
+    expectedPipelineOptions.setLabels(defaults.getLabelsMap());
     expectedPipelineOptions.setJobName(jobName);
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
 

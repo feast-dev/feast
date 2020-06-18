@@ -156,12 +156,20 @@ def feature_set_create(filename):
 
 @feature_set.command("describe")
 @click.argument("name", type=click.STRING)
-def feature_set_describe(name: str):
+@click.option(
+    "--project",
+    "-p",
+    help="Project that feature set belongs to",
+    type=click.STRING,
+    default="default",
+)
+def feature_set_describe(name: str, project: str):
     """
     Describe a feature set
     """
     feast_client = Client()  # type: Client
-    fs = feast_client.get_feature_set(name=name)
+    fs = feast_client.get_feature_set(name=name, project=project)
+
     if not fs:
         print(f'Feature set with name "{name}" could not be found')
         return

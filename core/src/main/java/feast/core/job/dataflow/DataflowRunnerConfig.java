@@ -16,9 +16,9 @@
  */
 package feast.core.job.dataflow;
 
-import java.lang.reflect.Field;
-import java.util.Map;
-import java.util.Set;
+import feast.core.job.option.RunnerConfig;
+import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions;
+import java.util.*;
 import javax.validation.*;
 import javax.validation.constraints.NotBlank;
 import lombok.Getter;
@@ -27,36 +27,22 @@ import lombok.Setter;
 /** DataflowRunnerConfig contains configuration fields for the Dataflow job runner. */
 @Getter
 @Setter
-public class DataflowRunnerConfig {
+public class DataflowRunnerConfig extends RunnerConfig {
 
-  public DataflowRunnerConfig(Map<String, String> runnerConfigOptions) {
-
-    // Try to find all fields in DataflowRunnerConfig inside the runnerConfigOptions and map it into
-    // this object
-    for (Field field : DataflowRunnerConfig.class.getFields()) {
-      String fieldName = field.getName();
-      try {
-        if (!runnerConfigOptions.containsKey(fieldName)) {
-          continue;
-        }
-        String value = runnerConfigOptions.get(fieldName);
-
-        if (Boolean.class.equals(field.getType())) {
-          field.set(this, Boolean.valueOf(value));
-          continue;
-        }
-        if (field.getType() == Integer.class) {
-          field.set(this, Integer.valueOf(value));
-          continue;
-        }
-        field.set(this, value);
-      } catch (IllegalAccessException e) {
-        throw new RuntimeException(
-            String.format(
-                "Could not successfully convert DataflowRunnerConfig for key: %s", fieldName),
-            e);
-      }
-    }
+  public DataflowRunnerConfig(DataflowRunnerConfigOptions runnerConfigOptions) {
+    this.project = runnerConfigOptions.getProject();
+    this.region = runnerConfigOptions.getRegion();
+    this.zone = runnerConfigOptions.getZone();
+    this.serviceAccount = runnerConfigOptions.getServiceAccount();
+    this.network = runnerConfigOptions.getNetwork();
+    this.subnetwork = runnerConfigOptions.getSubnetwork();
+    this.workerMachineType = runnerConfigOptions.getWorkerMachineType();
+    this.autoscalingAlgorithm = runnerConfigOptions.getAutoscalingAlgorithm();
+    this.usePublicIps = runnerConfigOptions.getUsePublicIps();
+    this.tempLocation = runnerConfigOptions.getTempLocation();
+    this.maxNumWorkers = runnerConfigOptions.getMaxNumWorkers();
+    this.deadLetterTableSpec = runnerConfigOptions.getDeadLetterTableSpec();
+    this.labels = runnerConfigOptions.getLabelsMap();
     validate();
   }
 
@@ -98,6 +84,8 @@ public class DataflowRunnerConfig {
 
   /* BigQuery table specification, e.g. PROJECT_ID:DATASET_ID.PROJECT_ID */
   public String deadLetterTableSpec;
+
+  public Map<String, String> labels;
 
   /** Validates Dataflow runner configuration options */
   public void validate() {

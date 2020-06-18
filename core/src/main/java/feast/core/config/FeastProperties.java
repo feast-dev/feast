@@ -103,7 +103,7 @@ public class FeastProperties {
        * Job runner configuration options. See the following for options
        * https://api.docs.feast.dev/grpc/feast.core.pb.html#Runner
        */
-      Map<String, String> options = new HashMap<>();
+      Map<String, Object> options = new HashMap<>();
 
       /**
        * Gets the job runner type as an enum.

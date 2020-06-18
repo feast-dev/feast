@@ -70,6 +70,13 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>net.ishiis.redis</groupId>
+            <artifactId>redis-unit</artifactId>
+            <version>1.0.3</version>
+            <scope>test</scope>
+        </dependency>
+
 
         <dependency>
             <groupId>junit</groupId>
