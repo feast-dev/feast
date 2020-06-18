@@ -16,6 +16,8 @@
  */
 package feast.core.job;
 
+import static feast.proto.core.FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_DELIVERED;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertThat;
@@ -57,6 +59,7 @@ public class JobUpdateTaskTest {
   private Store store;
   private Source source;
   private FeatureSet featureSet1;
+  private FeatureSet featureSet2;
 
   @Before
   public void setUp() {
@@ -85,7 +88,11 @@ public class JobUpdateTaskTest {
 
     featureSet1 =
         FeatureSet.fromProto(fsBuilder.setSpec(specBuilder.setName("featureSet1")).build());
+    featureSet2 =
+        FeatureSet.fromProto(fsBuilder.setSpec(specBuilder.setName("featureSet2")).build());
     featureSet1.setSource(source);
+    featureSet2.setStatus(FeatureSetProto.FeatureSetStatus.STATUS_READY);
+    featureSet2.setVersion(5);
   }
 
   Job makeJob(String extId, List<FeatureSet> featureSets, JobStatus status) {
@@ -175,5 +182,56 @@ public class JobUpdateTaskTest {
 
     Job actual = jobUpdateTask.call();
     assertThat(actual, is(IsNull.nullValue()));
+  }
+
+  @Test
+  public void featureSetsShouldBeUpdated() {
+    Job job = makeJob("", Collections.emptyList(), JobStatus.RUNNING);
+
+    when(jobManager.getJobStatus(job)).thenReturn(JobStatus.RUNNING);
+
+    JobUpdateTask jobUpdateTask =
+        new JobUpdateTask(
+            Collections.singletonList(featureSet1),
+            source,
+            store,
+            Optional.of(job),
+            jobManager,
+            0L);
+
+    jobUpdateTask.call();
+
+    FeatureSetJobStatus expectedStatus1 = new FeatureSetJobStatus();
+    expectedStatus1.setJob(job);
+    expectedStatus1.setFeatureSet(featureSet1);
+    expectedStatus1.setVersion(0);
+    expectedStatus1.setDeliveryStatus(
+        FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS);
+
+    assertThat(job.getFeatureSetJobStatuses(), containsInAnyOrder(expectedStatus1));
+
+    expectedStatus1.setDeliveryStatus(STATUS_DELIVERED);
+    job.getFeatureSetJobStatuses().forEach(j -> j.setDeliveryStatus(STATUS_DELIVERED));
+
+    JobUpdateTask jobUpdateTask2 =
+        new JobUpdateTask(
+            Arrays.asList(featureSet1, featureSet2),
+            source,
+            store,
+            Optional.of(job),
+            jobManager,
+            0L);
+
+    jobUpdateTask2.call();
+
+    FeatureSetJobStatus expectedStatus2 = new FeatureSetJobStatus();
+    expectedStatus2.setJob(job);
+    expectedStatus2.setFeatureSet(featureSet2);
+    expectedStatus2.setVersion(featureSet2.getVersion());
+    expectedStatus2.setDeliveryStatus(
+        FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS);
+
+    assertThat(
+        job.getFeatureSetJobStatuses(), containsInAnyOrder(expectedStatus1, expectedStatus2));
   }
 }

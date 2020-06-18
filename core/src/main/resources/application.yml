@@ -81,6 +81,7 @@ feast:
     specsOptions:
       specsTopic: feast-specs
       specsAckTopic: feast-specs-ack
+      notifyIntervalMilliseconds: 1000
 
 spring:
   jpa:

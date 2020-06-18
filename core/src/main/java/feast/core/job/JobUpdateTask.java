@@ -24,6 +24,7 @@ import feast.core.model.*;
 import feast.proto.core.FeatureSetProto;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -32,6 +33,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
@@ -149,10 +151,24 @@ public class JobUpdateTask implements Callable<Job> {
   }
 
   private void updateFeatureSets(Job job) {
+    Map<FeatureSet, FeatureSetJobStatus> alreadyConnected =
+        job.getFeatureSetJobStatuses().stream()
+            .collect(Collectors.toMap(FeatureSetJobStatus::getFeatureSet, s -> s));
+
     for (FeatureSet fs : featureSets) {
+      if (alreadyConnected.containsKey(fs)) {
+        continue;
+      }
+
       FeatureSetJobStatus status = new FeatureSetJobStatus();
       status.setFeatureSet(fs);
       status.setJob(job);
+      if (fs.getStatus() == FeatureSetProto.FeatureSetStatus.STATUS_READY) {
+        // Feature Set was already delivered to previous generation of the job
+        // (another words, it exists in kafka)
+        // so we expect Job will ack latest version based on history from kafka topic
+        status.setVersion(fs.getVersion());
+      }
       status.setDeliveryStatus(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS);
       job.getFeatureSetJobStatuses().add(status);
     }
@@ -175,6 +191,7 @@ public class JobUpdateTask implements Callable<Job> {
     }
 
     job.setStatus(newStatus);
+    updateFeatureSets(job);
     return job;
   }
 

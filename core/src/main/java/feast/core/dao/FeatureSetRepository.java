@@ -17,6 +17,7 @@
 package feast.core.dao;
 
 import feast.core.model.FeatureSet;
+import feast.proto.core.FeatureSetProto;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -37,4 +38,7 @@ public interface FeatureSetRepository extends JpaRepository<FeatureSet, String> 
   // find all feature sets matching the given name pattern and project pattern
   List<FeatureSet> findAllByNameLikeAndProject_NameLikeOrderByNameAsc(
       String name, String project_name);
+
+  // find all feature sets matching given status
+  List<FeatureSet> findAllByStatus(FeatureSetProto.FeatureSetStatus status);
 }
