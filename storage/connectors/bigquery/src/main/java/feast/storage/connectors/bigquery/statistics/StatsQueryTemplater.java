@@ -36,17 +36,17 @@ public class StatsQueryTemplater {
    * Generate the query for getting basic statistics for a given set of features
    *
    * @param features Information about the features necessary for the query templating
-   * @param dataset query selecting subset of data to compute statistics over
+   * @param statsDataset query selecting subset of data to compute statistics over
    * @return point in time correctness join BQ SQL query
    * @throws IOException
    */
   public static String createGetFeaturesStatsQuery(
-      List<FeatureStatisticsQueryInfo> features, Dataset dataset) throws IOException {
+      List<FeatureStatisticsQueryInfo> features, StatsDataset statsDataset) throws IOException {
 
     PebbleTemplate template = engine.getTemplate(BASIC_STATS_TEMPLATE_NAME);
     Map<String, Object> context = new HashMap<>();
     context.put("features", features);
-    context.put("dataset", generateDataSubsetQuery(dataset));
+    context.put("dataset", generateDataSubsetQuery(statsDataset));
 
     Writer writer = new StringWriter();
     template.evaluate(writer, context);
@@ -57,17 +57,17 @@ public class StatsQueryTemplater {
    * Generate the query for getting histograms for given set of features
    *
    * @param features Information about the features necessary for the query templating
-   * @param dataset query selecting subset of data to compute statistics over
+   * @param statsDataset query selecting subset of data to compute statistics over
    * @return point in time correctness join BQ SQL query
    * @throws IOException
    */
   public static String createGetFeaturesHistQuery(
-      List<FeatureStatisticsQueryInfo> features, Dataset dataset) throws IOException {
+      List<FeatureStatisticsQueryInfo> features, StatsDataset statsDataset) throws IOException {
 
     PebbleTemplate template = engine.getTemplate(HIST_STATS_TEMPLATE_NAME);
     Map<String, Object> context = new HashMap<>();
     context.put("features", features);
-    context.put("dataset", generateDataSubsetQuery(dataset));
+    context.put("dataset", generateDataSubsetQuery(statsDataset));
 
     Writer writer = new StringWriter();
     template.evaluate(writer, context);
@@ -77,15 +77,15 @@ public class StatsQueryTemplater {
   /**
    * generate the query to subset the data to compute statistics over
    *
-   * @param dataset {@link Dataset} describing the subset of data
+   * @param statsDataset {@link StatsDataset} describing the subset of data
    * @return BigQuery query selecting the data
    * @throws IOException
    */
-  private static String generateDataSubsetQuery(Dataset dataset) throws IOException {
+  private static String generateDataSubsetQuery(StatsDataset statsDataset) throws IOException {
     PebbleTemplate template = engine.getTemplate(DATA_SUBSET_TEMPLATE_NAME);
 
     Writer writer = new StringWriter();
-    template.evaluate(writer, dataset.getMap());
+    template.evaluate(writer, statsDataset.getMap());
     return writer.toString();
   }
 }

@@ -35,8 +35,8 @@ import feast.storage.api.retriever.HistoricalRetrievalResult;
 import feast.storage.api.retriever.HistoricalRetriever;
 import feast.storage.api.statistics.FeatureStatistics;
 import feast.storage.connectors.bigquery.statistics.BigQueryStatisticsRetriever;
-import feast.storage.connectors.bigquery.statistics.Dataset;
 import feast.storage.connectors.bigquery.statistics.FeatureStatisticsQueryInfo;
+import feast.storage.connectors.bigquery.statistics.StatsDataset;
 import io.grpc.Status;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -210,7 +210,7 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
           buildFeatureStatisticsQuery(featureSetRequests);
       FeatureStatistics featureStatistics =
           statsRetriever.getFeatureStatistics(
-              featureStatisticsQueryInfos, new Dataset(queryConfig.getDestinationTable()));
+              featureStatisticsQueryInfos, new StatsDataset(queryConfig.getDestinationTable()));
       DatasetFeatureStatisticsList datasetFeatureStatisticsList =
           DatasetFeatureStatisticsList.newBuilder()
               .addDatasets(

@@ -26,19 +26,19 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 /**
- * Dataset represents a subset of data within a table to retrieve statistics over. Data can be
+ * StatsDataset represents a subset of data within a table to retrieve statistics over. Data can be
  * subset by either ingestionId or date.
  */
-public class Dataset {
+public class StatsDataset {
   private final String table;
   private String ingestionId = "";
   private String date = "";
 
-  public Dataset(String project, String bigqueryDataset, String table) {
+  public StatsDataset(String project, String bigqueryDataset, String table) {
     this.table = generateTableName(project, bigqueryDataset, table);
   }
 
-  public Dataset(TableId tableId) {
+  public StatsDataset(TableId tableId) {
     this.table = generateTableName(tableId.getProject(), tableId.getDataset(), tableId.getTable());
   }
 

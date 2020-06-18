@@ -72,9 +72,7 @@ public abstract class BigQueryStatisticsRetriever implements StatisticsRetriever
   @Override
   public FeatureStatistics getFeatureStatistics(
       FeatureSetSpec featureSetSpec, List<String> features, String ingestionId) {
-    String featureSetTableName =
-        String.format("%s_%s", featureSetSpec.getProject(), featureSetSpec.getName());
-    Dataset queryDataset = new Dataset(projectId(), datasetId(), featureSetTableName);
+    StatsDataset queryDataset = buildStatsDataset(featureSetSpec);
     queryDataset.subsetByIngestionId(ingestionId);
     List<FeatureStatisticsQueryInfo> featureStatisticsQueryInfos =
         featureSetSpec.getFeaturesList().stream()
@@ -87,9 +85,7 @@ public abstract class BigQueryStatisticsRetriever implements StatisticsRetriever
   @Override
   public FeatureStatistics getFeatureStatistics(
       FeatureSetSpec featureSetSpec, List<String> features, Timestamp date) {
-    String featureSetTableName =
-        String.format("%s_%s", featureSetSpec.getProject(), featureSetSpec.getName());
-    Dataset queryDataset = new Dataset(projectId(), datasetId(), featureSetTableName);
+    StatsDataset queryDataset = buildStatsDataset(featureSetSpec);
     queryDataset.subsetByDate(date);
     List<FeatureStatisticsQueryInfo> featureStatisticsQueryInfos =
         featureSetSpec.getFeaturesList().stream()
@@ -100,18 +96,19 @@ public abstract class BigQueryStatisticsRetriever implements StatisticsRetriever
   }
 
   public FeatureStatistics getFeatureStatistics(
-      List<FeatureStatisticsQueryInfo> features, Dataset dataset) throws RuntimeException {
+      List<FeatureStatisticsQueryInfo> features, StatsDataset statsDataset)
+      throws RuntimeException {
     try {
       // Generate SQL for and retrieve non-histogram statistics
       String getFeatureSetStatsQuery =
-          StatsQueryTemplater.createGetFeaturesStatsQuery(features, dataset);
+          StatsQueryTemplater.createGetFeaturesStatsQuery(features, statsDataset);
       QueryJobConfiguration queryJobConfiguration =
           QueryJobConfiguration.newBuilder(getFeatureSetStatsQuery).build();
       TableResult basicStats = bigquery().query(queryJobConfiguration);
 
       // Generate SQL for and retrieve histogram statistics
       String getFeatureSetHistQuery =
-          StatsQueryTemplater.createGetFeaturesHistQuery(features, dataset);
+          StatsQueryTemplater.createGetFeaturesHistQuery(features, statsDataset);
       queryJobConfiguration = QueryJobConfiguration.newBuilder(getFeatureSetHistQuery).build();
       TableResult hist = bigquery().query(queryJobConfiguration);
 
@@ -154,5 +151,11 @@ public abstract class BigQueryStatisticsRetriever implements StatisticsRetriever
             Collectors.toMap(
                 fieldValueList -> fieldValueList.get(0).getStringValue(),
                 fieldValueList -> fieldValueList));
+  }
+
+  private StatsDataset buildStatsDataset(FeatureSetSpec featureSetSpec) {
+    String featureSetTableName =
+        String.format("%s_%s", featureSetSpec.getProject(), featureSetSpec.getName());
+    return new StatsDataset(projectId(), datasetId(), featureSetTableName);
   }
 }

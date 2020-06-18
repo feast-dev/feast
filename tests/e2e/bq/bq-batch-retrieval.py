@@ -23,7 +23,7 @@ from google.cloud.storage import Blob
 from google.protobuf.duration_pb2 import Duration
 from pandavro import to_avro
 import tensorflow_data_validation as tfdv
-from .testutils import *
+from bq.testutils import *
 
 pd.set_option("display.max_columns", None)
 
@@ -687,31 +687,56 @@ def test_update_featureset_retrieve_valid_fields(client, update_featureset_dataf
 @pytest.mark.direct_runner
 @pytest.mark.run(order=31)
 def test_batch_dataset_statistics(client):
-    proc_time_fs = client.get_feature_set(name="processing_time")
-
-    time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
+    fs1 = client.get_feature_set(name="feature_set_1")
+    fs2 = client.get_feature_set(name="feature_set_2")
     id_offset = 20
+
     N_ROWS = 10
-    df = pd.DataFrame(
+    time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
+    features_1_df = pd.DataFrame(
         {
             "datetime": [time_offset] * N_ROWS,
-            "entity_id": [i + id_offset for i in range(N_ROWS)],
-            "feature_value3": ["CORRECT"] * N_ROWS,
+            "entity_id": [id_offset + i for i in range(N_ROWS)],
+            "feature_value6": [f"{i}" for i in range(N_ROWS)],
         }
     )
-    client.ingest(proc_time_fs, df)
+    client.ingest(fs1, features_1_df)
 
+    features_2_df = pd.DataFrame(
+        {
+            "datetime": [time_offset] * N_ROWS,
+            "other_entity_id": [id_offset + i for i in range(N_ROWS)],
+            "other_feature_value7": [i for i in range(N_ROWS)],
+        }
+    )
+    client.ingest(fs2, features_2_df)
+
+    entity_df = pd.DataFrame(
+        {
+            "datetime": [time_offset] * N_ROWS,
+            "entity_id": [id_offset + i for i in range(N_ROWS)],
+            "other_entity_id": [N_ROWS - 1 - i for i in range(N_ROWS)],
+        }
+    )
+
+    # Test retrieve with different variations of the string feature refs
+    # ie feature set inference for feature refs without specified feature set
     def check():
         feature_retrieval_job = client.get_batch_features(
-            entity_rows=df[["datetime", "entity_id"]],
-            feature_refs=["feature_value3"],
+            entity_rows=entity_df,
+            feature_refs=[
+                "feature_value6",
+                "feature_set_2:other_feature_value7",
+            ],
             project=PROJECT_NAME,
-            compute_statistics=True
+            compute_statistics=True,
         )
+        output = feature_retrieval_job.to_dataframe(timeout_sec=180)
+        print(output.head(10))
         stats = feature_retrieval_job.statistics(timeout_sec=180)
 
         expected_stats = tfdv.generate_statistics_from_dataframe(
-            df[["feature_value3"]]
+            output[["feature_value6", "feature_set_2__other_feature_value7"]]
         )
         clear_unsupported_fields(expected_stats)
         assert_stats_equal(expected_stats, stats)
