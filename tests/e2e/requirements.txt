@@ -9,5 +9,5 @@ pytest-timeout==1.3.3
 pytest-ordering==0.6.*
 tensorflow-data-validation==0.21.2
 deepdiff==4.3.2
-tensorflow==2.2.0
+tensorflow==2.1.0
 tfx-bsl==0.21.* # lock to 0.21

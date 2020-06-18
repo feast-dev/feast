@@ -157,7 +157,7 @@ presubmits:
     
   - name: test-end-to-end-auth
     decorate: true
-    always_run: false
+    always_run: true
     spec:
       containers:
       - image: maven:3.6-jdk-11

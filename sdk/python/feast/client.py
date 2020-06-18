@@ -592,10 +592,6 @@ class Client:
             >>> print(df)
         """
 
-        feature_references = _build_feature_references(
-            feature_ref_strs=feature_refs, project=project
-        )
-
         # Retrieve serving information to determine store type and
         # staging location
         serving_info = self._serving_service.GetFeastServingInfo(

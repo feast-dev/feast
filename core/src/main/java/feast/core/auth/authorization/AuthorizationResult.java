@@ -21,19 +21,42 @@ import javax.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+/**
+ * Implementation of AuthorizationProvider will return AuthorizationResult after validating incoming
+ * requests to Feast Core. AuthorizationResult provides methods to check if user is authorized to
+ * perform an action or not.
+ */
 @Getter
 @AllArgsConstructor
 public class AuthorizationResult {
 
+  /**
+   * Method to create AuthorizationResult Object.
+   *
+   * @param allowed True If user is authorized, False otherwise.
+   * @param failureReason Reason for authorization failure, if any
+   * @return AuthorizationResult Object.
+   */
   public static AuthorizationResult create(
       @Nullable boolean allowed, @Nullable String failureReason) {
     return new AuthorizationResult(allowed, Optional.ofNullable(failureReason));
   }
 
+  /**
+   * Method to create failed AuthorizationResult Object.
+   *
+   * @param failureReason Reason for authorization failure, if any or Null
+   * @return AuthorizationResult Object.
+   */
   public static AuthorizationResult failed(@Nullable String failureReason) {
     return new AuthorizationResult(false, Optional.ofNullable(failureReason));
   }
 
+  /**
+   * Method to create Success AuthorizationResult Object.
+   *
+   * @return AuthorizationResult Object.
+   */
   public static AuthorizationResult success() {
     return new AuthorizationResult(true, Optional.empty());
   }
