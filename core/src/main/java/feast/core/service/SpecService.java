@@ -33,6 +33,8 @@ import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
 import feast.proto.core.CoreServiceProto.GetFeatureSetResponse;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.proto.core.CoreServiceProto.ListFeaturesRequest;
+import feast.proto.core.CoreServiceProto.ListFeaturesResponse;
 import feast.proto.core.CoreServiceProto.ListStoresRequest;
 import feast.proto.core.CoreServiceProto.ListStoresResponse;
 import feast.proto.core.CoreServiceProto.ListStoresResponse.Builder;
@@ -216,6 +218,65 @@ public class SpecService {
   }
 
   /**
+   * Return a map of feature references and features matching the project, labels and entities
+   * provided in the filter. All fields are required.
+   *
+   * <p>Project name must be explicitly provided or if the project name is omitted, the default
+   * project would be used. A combination of asterisks/wildcards and text is not allowed.
+   *
+   * <p>The entities in the filter accepts a list. All matching features will be returned. Regex is
+   * not supported. If no entities are provided, features will not be filtered by entities.
+   *
+   * <p>The labels in the filter accepts a map. All matching features will be returned. Regex is not
+   * supported. If no labels are provided, features will not be filtered by labels.
+   *
+   * @param filter filter containing the desired project name, entities and labels
+   * @return ListEntitiesResponse with map of feature references and features found matching the
+   *     filter
+   */
+  public ListFeaturesResponse listFeatures(ListFeaturesRequest.Filter filter) {
+    try {
+      String project = filter.getProject();
+      List<String> entities = filter.getEntitiesList();
+      Map<String, String> labels = filter.getLabelsMap();
+
+      checkValidCharactersAllowAsterisk(project, "projectName");
+
+      // Autofill default project if project not specified
+      if (project.isEmpty()) {
+        project = Project.DEFAULT_NAME;
+      }
+
+      // Currently defaults to all FeatureSets
+      List<FeatureSet> featureSets =
+          featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc("%", project);
+
+      ListFeaturesResponse.Builder response = ListFeaturesResponse.newBuilder();
+      if (entities.size() > 0) {
+        featureSets =
+            featureSets.stream()
+                .filter(featureSet -> featureSet.hasAllEntities(entities))
+                .collect(Collectors.toList());
+      }
+
+      Map<String, Feature> featuresMap;
+      for (FeatureSet featureSet : featureSets) {
+        featuresMap = featureSet.getFeaturesByRef(labels);
+        for (Map.Entry<String, Feature> entry : featuresMap.entrySet()) {
+          response.putFeatures(entry.getKey(), entry.getValue().toProto());
+        }
+      }
+
+      return response.build();
+    } catch (InvalidProtocolBufferException e) {
+      throw io.grpc.Status.NOT_FOUND
+          .withDescription("Unable to retrieve features")
+          .withCause(e)
+          .asRuntimeException();
+    }
+  }
+
+  /**
    * Get stores matching the store name provided in the filter. If the store name is not provided,
    * the method will return all stores currently registered to Feast.
    *
@@ -242,6 +303,7 @@ public class SpecService {
                           String.format("Store with name '%s' not found", name)));
       return ListStoresResponse.newBuilder().addStore(store.toProto()).build();
     } catch (InvalidProtocolBufferException e) {
+
       throw io.grpc.Status.NOT_FOUND
           .withDescription("Unable to retrieve stores")
           .withCause(e)

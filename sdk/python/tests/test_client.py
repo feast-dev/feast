@@ -34,6 +34,7 @@ from feast.client import Client
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionResponse,
     GetFeatureSetResponse,
+    ListFeaturesResponse,
     ListFeatureSetsResponse,
     ListIngestionJobsResponse,
 )
@@ -381,6 +382,52 @@ class TestClient:
             and feature_set.fields["feature_1"].name == "feature_1"
             and feature_set.fields["feature_1"].dtype == ValueType.FLOAT
             and len(feature_set.features) == 1
+        )
+
+    @pytest.mark.parametrize(
+        "mocked_client",
+        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+    )
+    def test_list_features(self, mocked_client, mocker):
+        mocker.patch.object(
+            mocked_client,
+            "_core_service_stub",
+            return_value=Core.CoreServiceStub(grpc.insecure_channel("")),
+        )
+
+        feature1_proto = FeatureSpecProto(
+            name="feature_1", value_type=ValueProto.ValueType.FLOAT
+        )
+        feature2_proto = FeatureSpecProto(
+            name="feature_2", value_type=ValueProto.ValueType.STRING
+        )
+
+        mocker.patch.object(
+            mocked_client._core_service_stub,
+            "ListFeatures",
+            return_value=ListFeaturesResponse(
+                features={
+                    "driver_car:feature_1": feature1_proto,
+                    "driver_car:feature_2": feature2_proto,
+                }
+            ),
+        )
+
+        features = mocked_client.list_features_by_ref(project="test")
+        assert len(features) == 2
+
+        ref_str_list = []
+        feature_name_list = []
+        feature_dtype_list = []
+        for ref_str, feature_proto in features.items():
+            ref_str_list.append(ref_str)
+            feature_name_list.append(feature_proto.name)
+            feature_dtype_list.append(feature_proto.dtype)
+
+        assert (
+            set(ref_str_list) == set(["driver_car:feature_1", "driver_car:feature_2"])
+            and set(feature_name_list) == set(["feature_1", "feature_2"])
+            and set(feature_dtype_list) == set([ValueType.FLOAT, ValueType.STRING])
         )
 
     @pytest.mark.parametrize(

@@ -43,6 +43,12 @@ service CoreService {
     // sets currently stored in the registry.
     rpc ListFeatureSets (ListFeatureSetsRequest) returns (ListFeatureSetsResponse);
 
+    // Returns all feature references and respective features matching that filter. If none are found
+    // an empty map will be returned
+    // If no filter is provided in the request, the response will contain all the features
+    // currently stored in the default project.
+    rpc ListFeatures (ListFeaturesRequest) returns (ListFeaturesResponse);
+
     // Get feature statistics computed over the data in the batch stores.
     //
     // Returns a dataset containing TFDV statistics mapped to each valid historical store.
@@ -149,6 +155,29 @@ message ListFeatureSetsRequest {
 
 message ListFeatureSetsResponse {
     repeated feast.core.FeatureSet feature_sets = 1;
+}
+
+message ListFeaturesRequest {
+    message Filter {
+        // User defined metadata for feature.
+        // Features with all matching labels will be returned.
+        map<string,string> labels = 1;
+
+        // List of entities contained within the featureSet that the feature belongs to.
+        // Only feature sets with these entities will be searched for features.
+        repeated string entities = 2;
+
+        // Name of project that the feature sets belongs to. Filtering on projects is disabled. 
+        // It is NOT possible to provide an asterisk with a string in order to do pattern matching.
+        // If unspecified this field will default to the default project 'default'.
+        string project = 3;
+    }
+
+    Filter filter = 1;
+}
+
+message ListFeaturesResponse {
+    map<string, feast.core.FeatureSpec> features = 1;
 }
 
 message ListStoresRequest {

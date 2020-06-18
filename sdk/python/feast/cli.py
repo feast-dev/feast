@@ -112,6 +112,81 @@ def config_set(prop, value):
         sys.exit(1)
 
 
+@cli.group(name="features")
+def feature():
+    """
+    Manage feature
+    """
+    pass
+
+
+def _get_features_labels_dict(label_str: str):
+    """
+    Converts CLI input labels string to dictionary format if provided string is valid.
+    """
+    labels_dict = {}
+    labels_kv = label_str.split(",")
+    if label_str == "":
+        return labels_dict
+    if len(labels_kv) % 2 == 1:
+        raise ValueError("Uneven key-value label pairs were entered")
+    for k, v in zip(labels_kv[0::2], labels_kv[1::2]):
+        labels_dict[k] = v
+    return labels_dict
+
+
+def _get_features_entities(entities_str: str):
+    """
+    Converts CLI input entities string to list format if provided string is valid.
+    """
+    entities_list = []
+    if entities_str == "":
+        return entities_list
+    return entities_str.split(",")
+
+
+@feature.command(name="list")
+@click.option(
+    "--project",
+    "-p",
+    help="Project that feature belongs to",
+    type=click.STRING,
+    default="*",
+)
+@click.option(
+    "--entities",
+    "-n",
+    help="Entities to filter for features",
+    type=click.STRING,
+    default="",
+)
+@click.option(
+    "--labels",
+    "-l",
+    help="Labels to filter for features",
+    type=click.STRING,
+    default="",
+)
+def feature_list(project: str, entities: str, labels: str):
+    """
+    List all features
+    """
+    feast_client = Client()  # type: Client
+
+    entities_list = _get_features_entities(entities)
+    labels_dict = _get_features_labels_dict(labels)
+
+    table = []
+    for feature_ref, feature in feast_client.list_features_by_ref(
+        project=project, entities=entities_list, labels=labels_dict
+    ).items():
+        table.append([feature.name, feature.dtype, repr(feature_ref)])
+
+    from tabulate import tabulate
+
+    print(tabulate(table, headers=["NAME", "DTYPE", "REFERENCE"], tablefmt="plain"))
+
+
 @cli.group(name="feature-sets")
 def feature_set():
     """

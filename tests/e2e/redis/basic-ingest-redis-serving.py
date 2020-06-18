@@ -3,6 +3,7 @@ import math
 import random
 import time
 import grpc
+from collections import OrderedDict
 from feast.entity import Entity
 from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequest,
@@ -664,6 +665,70 @@ def test_all_types_infer_register_ingest_file_success(client,
 
     # Ingest user embedding data
     client.ingest(feature_set=all_types_fs, source=all_types_parquet_file)
+
+
+@pytest.mark.timeout(200)
+@pytest.mark.run(order=42)
+def test_list_entities_and_features(client):
+    customer_entity = Entity("customer_id", ValueType.INT64)
+    driver_entity = Entity("driver_id", ValueType.INT64)
+
+    customer_feature_rating = Feature(name="rating", dtype=ValueType.FLOAT, labels={"key1":"val1"})
+    customer_feature_cost = Feature(name="cost", dtype=ValueType.FLOAT)
+    driver_feature_rating = Feature(name="rating", dtype=ValueType.FLOAT)
+    driver_feature_cost = Feature(name="cost", dtype=ValueType.FLOAT, labels={"key1":"val1"})
+
+    filter_by_project_entity_labels_expected = dict([
+        ("customer:rating", customer_feature_rating)
+    ])
+
+    filter_by_project_entity_expected = dict([
+        ("driver:cost", driver_feature_cost),
+        ("driver:rating", driver_feature_rating)
+    ])
+
+    filter_by_project_labels_expected = dict([
+        ("customer:rating", customer_feature_rating),
+        ("driver:cost", driver_feature_cost)
+    ])
+
+    customer_fs = FeatureSet(
+        "customer",
+        features=[
+            customer_feature_rating,
+            customer_feature_cost
+        ],
+        entities=[customer_entity],
+        max_age=Duration(seconds=100)
+    )
+
+    driver_fs = FeatureSet(
+        "driver",
+        features=[
+            driver_feature_rating,
+            driver_feature_cost
+        ],
+        entities=[driver_entity],
+        max_age=Duration(seconds=100)
+    )
+
+    client.set_project(PROJECT_NAME)
+    client.apply(customer_fs)
+    client.apply(driver_fs)
+
+    # Test for listing of features
+    # Case 1: Filter by: project, entities and labels
+    filter_by_project_entity_labels_actual = client.list_features_by_ref(project=PROJECT_NAME, entities=["customer_id"], labels={"key1":"val1"})
+    
+    # Case 2: Filter by: project, entities
+    filter_by_project_entity_actual = client.list_features_by_ref(project=PROJECT_NAME, entities=["driver_id"])
+    
+    # Case 3: Filter by: project, labels
+    filter_by_project_labels_actual = client.list_features_by_ref(project=PROJECT_NAME, labels={"key1":"val1"})
+
+    assert set(filter_by_project_entity_labels_expected) == set(filter_by_project_entity_labels_actual)
+    assert set(filter_by_project_entity_expected) == set(filter_by_project_entity_actual)
+    assert set(filter_by_project_labels_expected) == set(filter_by_project_labels_actual)
 
 
 # TODO: rewrite these using python SDK once the labels are implemented there
