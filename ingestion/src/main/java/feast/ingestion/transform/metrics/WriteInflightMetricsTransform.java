@@ -31,18 +31,18 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
 
 @AutoValue
-public abstract class WriteSuccessMetricsTransform
+public abstract class WriteInflightMetricsTransform
     extends PTransform<PCollection<FeatureRow>, PDone> {
 
-  public static final String METRIC_NAMESPACE = "WriteToStoreSuccess";
-  public static final String ELEMENTS_WRITTEN_METRIC = "elements_written";
-  private static final Counter elementsWritten =
+  public static final String METRIC_NAMESPACE = "Inflight";
+  public static final String ELEMENTS_WRITTEN_METRIC = "elements_count";
+  private static final Counter elements_count =
       Metrics.counter(METRIC_NAMESPACE, ELEMENTS_WRITTEN_METRIC);
 
   public abstract String getStoreName();
 
-  public static WriteSuccessMetricsTransform create(String storeName) {
-    return new AutoValue_WriteSuccessMetricsTransform(storeName);
+  public static WriteInflightMetricsTransform create(String storeName) {
+    return new AutoValue_WriteInflightMetricsTransform(storeName);
   }
 
   @Override
@@ -50,11 +50,11 @@ public abstract class WriteSuccessMetricsTransform
     ImportOptions options = input.getPipeline().getOptions().as(ImportOptions.class);
 
     input.apply(
-        "IncrementSuccessfulWriteToStoreElementsWrittenCounter",
+        "IncrementInflightElementsCounter",
         MapElements.into(TypeDescriptors.booleans())
             .via(
                 (FeatureRow row) -> {
-                  elementsWritten.inc();
+                  elements_count.inc();
                   return true;
                 }));
 
@@ -64,15 +64,14 @@ public abstract class WriteSuccessMetricsTransform
         // Fixed window is applied so the metric collector will not be overwhelmed with the metrics
         // data. For validation, only summaries of the values are usually required vs the actual
         // values.
-        PCollection<KV<String, Iterable<FeatureRow>>> validRowsGroupedByRef =
+        PCollection<KV<String, Iterable<FeatureRow>>> rowsGroupedByRef =
             input
                 .apply(
                     "FixedWindow",
-                    Window.<FeatureRow>into(
-                            FixedWindows.of(
-                                Duration.standardSeconds(
-                                    options.getWindowSizeInSecForFeatureValueMetric())))
-                        .withAllowedLateness(Duration.millis(0)))
+                    Window.into(
+                        FixedWindows.of(
+                            Duration.standardSeconds(
+                                options.getWindowSizeInSecForFeatureValueMetric()))))
                 .apply(
                     "ConvertToKV_FeatureSetRefToFeatureRow",
                     ParDo.of(
@@ -85,8 +84,8 @@ public abstract class WriteSuccessMetricsTransform
                         }))
                 .apply("GroupByFeatureSetRef", GroupByKey.create());
 
-        validRowsGroupedByRef.apply(
-            "WriteRowMetrics",
+        rowsGroupedByRef.apply(
+            "WriteInflightRowMetrics",
             ParDo.of(
                 WriteRowMetricsDoFn.newBuilder()
                     .setStatsdHost(options.getStatsdHost())
@@ -95,8 +94,8 @@ public abstract class WriteSuccessMetricsTransform
                     .setMetricsNamespace(METRIC_NAMESPACE)
                     .build()));
 
-        validRowsGroupedByRef.apply(
-            "WriteFeatureValueMetrics",
+        rowsGroupedByRef.apply(
+            "WriteInflightFeatureValueMetrics",
             ParDo.of(
                 WriteFeatureValueMetricsDoFn.newBuilder()
                     .setStatsdHost(options.getStatsdHost())
