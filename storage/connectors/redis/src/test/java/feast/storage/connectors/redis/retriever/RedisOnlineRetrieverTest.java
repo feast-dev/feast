@@ -132,9 +132,9 @@ public class RedisOnlineRetrieverTest {
     when(connection.sync()).thenReturn(syncCommands);
     when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
 
-    List<List<FeatureRow>> expected =
-        ImmutableList.of(
-            Lists.newArrayList(
+    List<Optional<FeatureRow>> expected =
+        Lists.newArrayList(
+            Optional.of(
                 FeatureRow.newBuilder()
                     .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
                     .setFeatureSet("project/featureSet")
@@ -142,7 +142,8 @@ public class RedisOnlineRetrieverTest {
                         Lists.newArrayList(
                             Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
                             Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
-                    .build(),
+                    .build()),
+            Optional.of(
                 FeatureRow.newBuilder()
                     .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
                     .setFeatureSet("project/featureSet")
@@ -152,13 +153,13 @@ public class RedisOnlineRetrieverTest {
                             Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
                     .build()));
 
-    List<List<FeatureRow>> actual =
-        redisOnlineRetriever.getOnlineFeatures(entityRows, ImmutableList.of(featureSetRequest));
+    List<Optional<FeatureRow>> actual =
+        redisOnlineRetriever.getOnlineFeatures(entityRows, featureSetRequest);
     assertThat(actual, equalTo(expected));
   }
 
   @Test
-  public void shouldReturnResponseWithUnsetValuesIfKeysNotPresent() {
+  public void shouldReturnNullIfKeysNotPresent() {
     FeatureSetRequest featureSetRequest =
         FeatureSetRequest.newBuilder()
             .setSpec(getFeatureSetSpec())
@@ -192,7 +193,7 @@ public class RedisOnlineRetrieverTest {
 
     List<KeyValue<byte[], byte[]>> featureRowBytes =
         featureRows.stream()
-            .map(x -> KeyValue.from(new byte[1], Optional.of(x.toByteArray())))
+            .map(row -> KeyValue.from(new byte[1], Optional.of(row.toByteArray())))
             .collect(Collectors.toList());
     featureRowBytes.add(null);
 
@@ -200,9 +201,9 @@ public class RedisOnlineRetrieverTest {
     when(connection.sync()).thenReturn(syncCommands);
     when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
 
-    List<List<FeatureRow>> expected =
-        ImmutableList.of(
-            Lists.newArrayList(
+    List<Optional<FeatureRow>> expected =
+        Lists.newArrayList(
+            Optional.of(
                 FeatureRow.newBuilder()
                     .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
                     .setFeatureSet("project/featureSet")
@@ -210,17 +211,10 @@ public class RedisOnlineRetrieverTest {
                         Lists.newArrayList(
                             Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
                             Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
-                    .build(),
-                FeatureRow.newBuilder()
-                    .setFeatureSet("project/featureSet")
-                    .addAllFields(
-                        Lists.newArrayList(
-                            Field.newBuilder().setName("feature1").build(),
-                            Field.newBuilder().setName("feature2").build()))
-                    .build()));
-
-    List<List<FeatureRow>> actual =
-        redisOnlineRetriever.getOnlineFeatures(entityRows, ImmutableList.of(featureSetRequest));
+                    .build()),
+            Optional.empty());
+    List<Optional<FeatureRow>> actual =
+        redisOnlineRetriever.getOnlineFeatures(entityRows, featureSetRequest);
     assertThat(actual, equalTo(expected));
   }
 

@@ -25,6 +25,9 @@ type OnlineFeaturesRequest struct {
 
 	// Project specifies the project would contain the feature sets where the requested features belong to.
 	Project string
+
+	// whether to omit the entities fields in the response.
+	OmitEntities bool
 }
 
 // Builds the feast-specified request payload from the wrapper.
@@ -34,16 +37,18 @@ func (r OnlineFeaturesRequest) buildRequest() (*serving.GetOnlineFeaturesRequest
 		return nil, err
 	}
 
+	// build request entity rows from native entities
 	entityRows := make([]*serving.GetOnlineFeaturesRequest_EntityRow, len(r.Entities))
-
-	for i := range r.Entities {
+	for i, entity := range r.Entities {
 		entityRows[i] = &serving.GetOnlineFeaturesRequest_EntityRow{
-			Fields: r.Entities[i],
+			Fields: entity,
 		}
 	}
+
 	return &serving.GetOnlineFeaturesRequest{
-		Features:   featureRefs,
-		EntityRows: entityRows,
+		Features:                  featureRefs,
+		EntityRows:                entityRows,
+		OmitEntitiesInResponse:    r.OmitEntities,
 	}, nil
 }
 

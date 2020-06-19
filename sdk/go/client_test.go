@@ -27,6 +27,7 @@ func TestGetOnlineFeatures(t *testing.T) {
 				Features: []string{
 					"driver:rating",
 					"rating",
+					"null_value",
 				},
 				Entities: []Row{
 					{"driver_id": Int64Val(1)},
@@ -41,6 +42,12 @@ func TestGetOnlineFeatures(t *testing.T) {
 							Fields: map[string]*types.Value{
 								"driver_project/driver:rating": Int64Val(1),
 								"driver_project/rating":        Int64Val(1),
+								"driver_project/null_value":    {},
+							},
+							Statuses: map[string]serving.GetOnlineFeaturesResponse_FieldStatus{
+								"driver_project/driver:rating": serving.GetOnlineFeaturesResponse_PRESENT,
+								"driver_project/rating":        serving.GetOnlineFeaturesResponse_PRESENT,
+								"driver_project/null_value":    serving.GetOnlineFeaturesResponse_NULL_VALUE,
 							},
 						},
 					},
@@ -53,6 +60,12 @@ func TestGetOnlineFeatures(t *testing.T) {
 							Fields: map[string]*types.Value{
 								"driver:rating": Int64Val(1),
 								"rating":        Int64Val(1),
+								"null_value":    {},
+							},
+							Statuses: map[string]serving.GetOnlineFeaturesResponse_FieldStatus{
+								"driver:rating": serving.GetOnlineFeaturesResponse_PRESENT,
+								"rating":        serving.GetOnlineFeaturesResponse_PRESENT,
+								"null_value":    serving.GetOnlineFeaturesResponse_NULL_VALUE,
 							},
 						},
 					},

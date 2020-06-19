@@ -132,9 +132,9 @@ public class RedisClusterOnlineRetrieverTest {
     when(connection.sync()).thenReturn(syncCommands);
     when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
 
-    List<List<FeatureRow>> expected =
-        ImmutableList.of(
-            Lists.newArrayList(
+    List<Optional<FeatureRow>> expected =
+        Lists.newArrayList(
+            Optional.of(
                 FeatureRow.newBuilder()
                     .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
                     .setFeatureSet("project/featureSet")
@@ -142,7 +142,8 @@ public class RedisClusterOnlineRetrieverTest {
                         Lists.newArrayList(
                             Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
                             Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
-                    .build(),
+                    .build()),
+            Optional.of(
                 FeatureRow.newBuilder()
                     .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
                     .setFeatureSet("project/featureSet")
@@ -152,14 +153,13 @@ public class RedisClusterOnlineRetrieverTest {
                             Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
                     .build()));
 
-    List<List<FeatureRow>> actual =
-        redisClusterOnlineRetriever.getOnlineFeatures(
-            entityRows, ImmutableList.of(featureSetRequest));
+    List<Optional<FeatureRow>> actual =
+        redisClusterOnlineRetriever.getOnlineFeatures(entityRows, featureSetRequest);
     assertThat(actual, equalTo(expected));
   }
 
   @Test
-  public void shouldReturnResponseWithUnsetValuesIfKeysNotPresent() {
+  public void shouldReturnNullIfKeysNotPresent() {
     FeatureSetRequest featureSetRequest =
         FeatureSetRequest.newBuilder()
             .setSpec(getFeatureSetSpec())
@@ -201,9 +201,9 @@ public class RedisClusterOnlineRetrieverTest {
     when(connection.sync()).thenReturn(syncCommands);
     when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
 
-    List<List<FeatureRow>> expected =
-        ImmutableList.of(
-            Lists.newArrayList(
+    List<Optional<FeatureRow>> expected =
+        Lists.newArrayList(
+            Optional.of(
                 FeatureRow.newBuilder()
                     .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
                     .setFeatureSet("project/featureSet")
@@ -211,18 +211,11 @@ public class RedisClusterOnlineRetrieverTest {
                         Lists.newArrayList(
                             Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
                             Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
-                    .build(),
-                FeatureRow.newBuilder()
-                    .setFeatureSet("project/featureSet")
-                    .addAllFields(
-                        Lists.newArrayList(
-                            Field.newBuilder().setName("feature1").build(),
-                            Field.newBuilder().setName("feature2").build()))
-                    .build()));
+                    .build()),
+            Optional.empty());
 
-    List<List<FeatureRow>> actual =
-        redisClusterOnlineRetriever.getOnlineFeatures(
-            entityRows, ImmutableList.of(featureSetRequest));
+    List<Optional<FeatureRow>> actual =
+        redisClusterOnlineRetriever.getOnlineFeatures(entityRows, featureSetRequest);
     assertThat(actual, equalTo(expected));
   }
 
