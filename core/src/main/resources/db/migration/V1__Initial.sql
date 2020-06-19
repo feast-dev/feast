@@ -85,9 +85,6 @@ CREATE TABLE jobs_feature_sets (
 );
 
 
-ALTER TABLE jobs_feature_sets OWNER TO postgres;
-
-
 CREATE TABLE projects (
     name character varying(255) NOT NULL,
     archived boolean NOT NULL
