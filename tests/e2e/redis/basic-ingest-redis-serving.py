@@ -121,7 +121,7 @@ def enable_auth(pytestconfig):
         
         
 @pytest.fixture(scope='module')
-def client(core_url, serving_url, allow_dirty):
+def client(core_url, serving_url, allow_dirty, enable_auth):
     # Get client for core and serving
     # if enable_auth is True, Google Id token will be 
     # passed in the metadata for authentication. 
