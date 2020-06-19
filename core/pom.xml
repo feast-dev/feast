@@ -235,5 +235,10 @@
             <version>6.1.2.Final</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+            <version>${flyway.version}</version>
+        </dependency>
     </dependencies>
 </project>
