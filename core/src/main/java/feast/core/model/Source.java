@@ -36,8 +36,25 @@ import lombok.Setter;
 @Table(name = "sources")
 public class Source {
 
-  /** Source Id. Internal use only, do not use to identify the source. */
-  @Id @GeneratedValue private long id;
+  /**
+   * Source Id. Internal use only, do not use to identify the source.
+   * */
+  @Id
+  @GeneratedValue
+  @Column(name = "pk")
+  private Integer id;
+
+  @Deprecated
+  @Column(name = "id")
+  private String deprecatedId;
+
+  @Deprecated
+  @Column(name = "bootstrap_servers")
+  private String bootstrapServers;
+
+  @Deprecated
+  @Column(name = "topics")
+  private String topics;
 
   /** Type of the source */
   @Enumerated(EnumType.STRING)
@@ -53,6 +70,17 @@ public class Source {
 
   public Source() {
     super();
+  }
+
+  public String getConfig() {
+    if ((config == null || config.isEmpty()) && bootstrapServers != null && topics != null) {
+      config = KafkaSourceConfig.newBuilder()
+          .setBootstrapServers(bootstrapServers)
+          .setTopic(topics)
+          .build().toString();
+    }
+
+    return config;
   }
 
   /**

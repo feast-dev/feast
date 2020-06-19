@@ -66,6 +66,7 @@ public class Job extends AbstractTimestampEntity {
   private Runner runner;
 
   // Source type and config, derieved from job's source and stored as inline fields.
+  @Enumerated(EnumType.STRING)
   @Column(name = "source_type")
   private SourceType sourceType;
 

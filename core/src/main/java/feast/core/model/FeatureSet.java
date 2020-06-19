@@ -74,8 +74,12 @@ public class FeatureSet extends AbstractTimestampEntity {
 
   // Source on which feature rows can be found
   @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-  @JoinColumn(name = "source")
+  @JoinColumn(name = "source_id", referencedColumnName = "pk")
   private Source source;
+
+  @Deprecated
+  @Column(name = "source")
+  private String deprecatedSource;
 
   // Status of the feature set
   @Enumerated(EnumType.STRING)
