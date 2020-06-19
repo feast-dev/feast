@@ -25,6 +25,7 @@ import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceImplBase;
 import feast.proto.types.ValueProto.Value;
@@ -53,8 +54,9 @@ public class FeastClientTest {
                 public void getOnlineFeatures(
                     GetOnlineFeaturesRequest request,
                     StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
+
                   if (!request.equals(FeastClientTest.getFakeRequest())) {
-                    responseObserver.onError(Status.UNKNOWN.asRuntimeException());
+                    responseObserver.onError(Status.FAILED_PRECONDITION.asRuntimeException());
                   }
 
                   responseObserver.onNext(FeastClientTest.getFakeResponse());
@@ -86,7 +88,7 @@ public class FeastClientTest {
   public void shouldGetOnlineFeatures() {
     List<Row> rows =
         this.client.getOnlineFeatures(
-            Arrays.asList("driver:name", "rating"),
+            Arrays.asList("driver:name", "rating", "null_value"),
             Arrays.asList(
                 Row.create().set("driver_id", 1).setEntityTimestamp(Instant.ofEpochSecond(100))),
             "driver_project");
@@ -98,6 +100,17 @@ public class FeastClientTest {
             put("driver_id", intValue(1));
             put("driver:name", strValue("david"));
             put("rating", intValue(3));
+            put("null_value", Value.newBuilder().build());
+          }
+        });
+    assertEquals(
+        rows.get(0).getStatuses(),
+        new HashMap<String, FieldStatus>() {
+          {
+            put("driver_id", FieldStatus.PRESENT);
+            put("driver:name", FieldStatus.PRESENT);
+            put("rating", FieldStatus.PRESENT);
+            put("null_value", FieldStatus.NULL_VALUE);
           }
         });
   }
@@ -113,6 +126,11 @@ public class FeastClientTest {
                 .build())
         .addFeatures(
             FeatureReference.newBuilder().setProject("driver_project").setName("rating").build())
+        .addFeatures(
+            FeatureReference.newBuilder()
+                .setProject("driver_project")
+                .setName("null_value")
+                .build())
         .addEntityRows(
             EntityRow.newBuilder()
                 .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
@@ -124,14 +142,14 @@ public class FeastClientTest {
     return GetOnlineFeaturesResponse.newBuilder()
         .addFieldValues(
             FieldValues.newBuilder()
-                .putAllFields(
-                    new HashMap<String, Value>() {
-                      {
-                        put("driver_id", intValue(1));
-                        put("driver:name", strValue("david"));
-                        put("rating", intValue(3));
-                      }
-                    })
+                .putFields("driver_project/driver_id", intValue(1))
+                .putStatuses("driver_project/driver_id", FieldStatus.PRESENT)
+                .putFields("driver_project/driver:name", strValue("david"))
+                .putStatuses("driver_project/driver:name", FieldStatus.PRESENT)
+                .putFields("driver_project/rating", intValue(3))
+                .putStatuses("driver_project/rating", FieldStatus.PRESENT)
+                .putFields("driver_project/null_value", Value.newBuilder().build())
+                .putStatuses("driver_project/null_value", FieldStatus.NULL_VALUE)
                 .build())
         .build();
   }

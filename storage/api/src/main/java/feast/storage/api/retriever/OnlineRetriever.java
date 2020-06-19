@@ -19,22 +19,25 @@ package feast.storage.api.retriever;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import java.util.List;
+import java.util.Optional;
 
-/**
- * An online retriever is a feature retriever that retrieves the latest feature data corresponding
- * to provided entities.
- */
+/** An online retriever is a feature retriever that retrieves the latest feature data. */
 public interface OnlineRetriever {
 
   /**
-   * Get all values corresponding to the request.
+   * Get online features for the given entity rows using data retrieved from the feature/featureset
+   * specified in feature set request.
    *
-   * @param entityRows list of entity rows in the feature request
-   * @param featureSetRequests List of {@link FeatureSetRequest} to feature references in the
-   *     request tied to that feature set.
-   * @return list of lists of {@link FeatureRow}s corresponding to each feature set request and
-   *     entity row.
+   * <p>Each {@link FeatureRow} optional in the returned list then corresponds to an {@link
+   * EntityRow} provided by the user. If feature for a given entity row is not found, will return an
+   * empty optional instead. The no. of {@link FeatureRow} returned should match the no. of given
+   * {@link EntityRow}s
+   *
+   * @param entityRows list of entity rows to request features for.
+   * @param featureSetRequest specifies the features/feature set to retrieve data from
+   * @return list of {@link FeatureRow}s corresponding to data retrieved for each entity row from
+   *     feature/featureset specified in featureset request.
    */
-  List<List<FeatureRow>> getOnlineFeatures(
-      List<EntityRow> entityRows, List<FeatureSetRequest> featureSetRequests);
+  List<Optional<FeatureRow>> getOnlineFeatures(
+      List<EntityRow> entityRows, FeatureSetRequest featureSetRequest);
 }

@@ -20,7 +20,6 @@ import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
-import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.storage.RedisProto.RedisKey;
 import feast.proto.types.FeatureRowProto.FeatureRow;
@@ -38,9 +37,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+/** Defines a storage retriever */
 public class RedisClusterOnlineRetriever implements OnlineRetriever {
 
   private final RedisAdvancedClusterCommands<byte[], byte[]> syncCommands;
@@ -69,36 +70,24 @@ public class RedisClusterOnlineRetriever implements OnlineRetriever {
     return new RedisClusterOnlineRetriever(connection);
   }
 
-  /**
-   * Gets online features from redis. This method returns a list of {@link FeatureRow}s
-   * corresponding to each feature set spec. Each feature row in the list then corresponds to an
-   * {@link EntityRow} provided by the user.
-   *
-   * @param entityRows list of entity rows in the feature request
-   * @param featureSetRequests Map of {@link FeatureSetSpec} to feature references in the request
-   *     tied to that feature set.
-   * @return List of List of {@link FeatureRow}
-   */
+  /** {@inheritDoc} */
   @Override
-  public List<List<FeatureRow>> getOnlineFeatures(
-      List<EntityRow> entityRows, List<FeatureSetRequest> featureSetRequests) {
+  public List<Optional<FeatureRow>> getOnlineFeatures(
+      List<EntityRow> entityRows, FeatureSetRequest featureSetRequest) {
 
-    List<List<FeatureRow>> featureRows = new ArrayList<>();
-    for (FeatureSetRequest featureSetRequest : featureSetRequests) {
-      List<RedisKey> redisKeys = buildRedisKeys(entityRows, featureSetRequest.getSpec());
-      try {
-        List<FeatureRow> featureRowsForFeatureSet =
-            sendAndProcessMultiGet(
-                redisKeys,
-                featureSetRequest.getSpec(),
-                featureSetRequest.getFeatureReferences().asList());
-        featureRows.add(featureRowsForFeatureSet);
-      } catch (InvalidProtocolBufferException | ExecutionException e) {
-        throw Status.INTERNAL
-            .withDescription("Unable to parse protobuf while retrieving feature")
-            .withCause(e)
-            .asRuntimeException();
-      }
+    // get features for this features/featureset in featureset request
+    FeatureSetSpec featureSetSpec = featureSetRequest.getSpec();
+    List<RedisKey> redisKeys = buildRedisKeys(entityRows, featureSetSpec);
+    FeatureRowDecoder decoder =
+        new FeatureRowDecoder(generateFeatureSetStringRef(featureSetSpec), featureSetSpec);
+    List<Optional<FeatureRow>> featureRows = new ArrayList<>();
+    try {
+      featureRows = getFeaturesFromRedis(redisKeys, decoder);
+    } catch (InvalidProtocolBufferException | ExecutionException e) {
+      throw Status.INTERNAL
+          .withDescription("Unable to parse protobuf while retrieving feature")
+          .withCause(e)
+          .asRuntimeException();
     }
     return featureRows;
   }
@@ -147,49 +136,51 @@ public class RedisClusterOnlineRetriever implements OnlineRetriever {
     return builder.build();
   }
 
-  private List<FeatureRow> sendAndProcessMultiGet(
-      List<RedisKey> redisKeys,
-      FeatureSetSpec featureSetSpec,
-      List<FeatureReference> featureReferences)
+  /**
+   * Get features from data pulled from the Redis for a specific featureset.
+   *
+   * @param redisKeys keys used to retrieve data from Redis for a specific featureset.
+   * @param decoder used to decode the data retrieved from Redis for a specific featureset.
+   * @return List of {@link FeatureRow} optionals
+   */
+  private List<Optional<FeatureRow>> getFeaturesFromRedis(
+      List<RedisKey> redisKeys, FeatureRowDecoder decoder)
       throws InvalidProtocolBufferException, ExecutionException {
+    // pull feature row data bytes from redis using given redis keys
+    List<byte[]> featureRowsBytes = sendMultiGet(redisKeys);
+    List<Optional<FeatureRow>> featureRows = new ArrayList<>();
 
-    List<byte[]> values = sendMultiGet(redisKeys);
-    List<FeatureRow> featureRows = new ArrayList<>();
-
-    FeatureRow.Builder nullFeatureRowBuilder =
-        FeatureRow.newBuilder().setFeatureSet(generateFeatureSetStringRef(featureSetSpec));
-    for (FeatureReference featureReference : featureReferences) {
-      nullFeatureRowBuilder.addFields(Field.newBuilder().setName(featureReference.getName()));
-    }
-
-    for (int i = 0; i < values.size(); i++) {
-
-      byte[] value = values.get(i);
-      if (value == null) {
-        featureRows.add(nullFeatureRowBuilder.build());
+    for (byte[] featureRowBytes : featureRowsBytes) {
+      if (featureRowBytes == null) {
+        featureRows.add(Optional.empty());
         continue;
       }
 
-      FeatureRow featureRow = FeatureRow.parseFrom(value);
-      String featureSetRef = redisKeys.get(i).getFeatureSet();
-      FeatureRowDecoder decoder = new FeatureRowDecoder(featureSetRef, featureSetSpec);
-      if (decoder.isEncodingValid(featureRow)) {
-        featureRow = decoder.decode(featureRow);
-      } else {
-        featureRows.add(nullFeatureRowBuilder.build());
-        continue;
+      // decode feature rows from data bytes using decoder.
+      FeatureRow featureRow = FeatureRow.parseFrom(featureRowBytes);
+      if (decoder.isEncoded(featureRow)) {
+        if (decoder.isEncodingValid(featureRow)) {
+          featureRow = decoder.decode(featureRow);
+        } else {
+          // decoding feature row failed: data corruption could have occurred
+          throw Status.DATA_LOSS
+              .withDescription(
+                  "Failed to decode FeatureRow from bytes retrieved from redis"
+                      + ": Possible data corruption")
+              .asRuntimeException();
+        }
       }
-
-      featureRows.add(featureRow);
+      featureRows.add(Optional.of(featureRow));
     }
     return featureRows;
   }
 
   /**
-   * Send a list of get request as an mget
+   * Pull the data stored in Redis at the given keys as bytes using the mget command. If no data is
+   * stored at a given key in Redis, will subsitute the data with null.
    *
-   * @param keys list of {@link RedisKey}
-   * @return list of {@link FeatureRow} in primitive byte representation for each {@link RedisKey}
+   * @param keys list of {@link RedisKey} to pull from redis.
+   * @return list of data bytes or null pulled from redis for each given key.
    */
   private List<byte[]> sendMultiGet(List<RedisKey> keys) {
     try {

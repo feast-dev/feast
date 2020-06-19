@@ -25,10 +25,20 @@ type OnlineFeaturesResponse struct {
 // Rows retrieves the result of the request as a list of Rows.
 func (r OnlineFeaturesResponse) Rows() []Row {
 	rows := make([]Row, len(r.RawResponse.FieldValues))
-	for i, val := range r.RawResponse.FieldValues {
-		rows[i] = val.Fields
+	for i, fieldValues := range r.RawResponse.FieldValues {
+		rows[i] = fieldValues.Fields
 	}
 	return rows
+}
+
+// Statuses retrieves field level status metadata for each row in Rows().
+// Each status map returned maps status 1:1 to each returned row from Rows()
+func (r OnlineFeaturesResponse) Statuses() []map[string]serving.GetOnlineFeaturesResponse_FieldStatus {
+	statuses := make([]map[string]serving.GetOnlineFeaturesResponse_FieldStatus, len(r.RawResponse.FieldValues))
+	for i, fieldValues := range r.RawResponse.FieldValues {
+		statuses[i] = fieldValues.Statuses
+	}
+	return statuses
 }
 
 // Int64Arrays retrieves the result of the request as a list of int64 slices. Any missing values will be filled
@@ -38,17 +48,17 @@ func (r OnlineFeaturesResponse) Int64Arrays(order []string, fillNa []int64) ([][
 	if len(fillNa) != len(order) {
 		return nil, fmt.Errorf(ErrLengthMismatch, len(fillNa), len(order))
 	}
-	for i, val := range r.RawResponse.FieldValues {
+	for i, fieldValues := range r.RawResponse.FieldValues {
 		rows[i] = make([]int64, len(order))
 		for j, fname := range order {
-			fValue, exists := val.Fields[fname]
+			value, exists := fieldValues.Fields[fname]
 			if !exists {
 				return nil, fmt.Errorf(ErrFeatureNotFound, fname)
 			}
-			val := fValue.GetVal()
-			if val == nil {
+			valType := value.GetVal()
+			if valType == nil {
 				rows[i][j] = fillNa[j]
-			} else if int64Val, ok := val.(*types.Value_Int64Val); ok {
+			} else if int64Val, ok := valType.(*types.Value_Int64Val); ok {
 				rows[i][j] = int64Val.Int64Val
 			} else {
 				return nil, fmt.Errorf(ErrTypeMismatch, "int64")
@@ -65,17 +75,17 @@ func (r OnlineFeaturesResponse) Float64Arrays(order []string, fillNa []float64) 
 	if len(fillNa) != len(order) {
 		return nil, fmt.Errorf(ErrLengthMismatch, len(fillNa), len(order))
 	}
-	for i, val := range r.RawResponse.FieldValues {
+	for i, records := range r.RawResponse.FieldValues {
 		rows[i] = make([]float64, len(order))
 		for j, fname := range order {
-			fValue, exists := val.Fields[fname]
+			value, exists := records.Fields[fname]
 			if !exists {
 				return nil, fmt.Errorf(ErrFeatureNotFound, fname)
 			}
-			val := fValue.GetVal()
-			if val == nil {
+			valType := value.GetVal()
+			if valType == nil {
 				rows[i][j] = fillNa[j]
-			} else if doubleVal, ok := val.(*types.Value_DoubleVal); ok {
+			} else if doubleVal, ok := valType.(*types.Value_DoubleVal); ok {
 				rows[i][j] = doubleVal.DoubleVal
 			} else {
 				return nil, fmt.Errorf(ErrTypeMismatch, "float64")

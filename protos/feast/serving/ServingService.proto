@@ -91,12 +91,46 @@ message GetOnlineFeaturesRequest {
     bool omit_entities_in_response = 3;
 
     message EntityRow {
-        // Request timestamp of this row. This value will be used, together with maxAge,
-        // to determine feature staleness.
+        // Request timestamp of this row. This value will be used, 
+        // together with maxAge, to determine feature staleness.
         google.protobuf.Timestamp entity_timestamp = 1;
 
         // Map containing mapping of entity name to entity value.
         map<string,feast.types.Value> fields = 2;
+    }
+}
+
+message GetOnlineFeaturesResponse {
+    // Feature values retrieved from feast.
+    repeated FieldValues field_values = 1;
+
+    message FieldValues {
+        // Map of feature or entity name to feature/entity values.
+        // Timestamps are not returned in this response.
+        map<string, feast.types.Value> fields = 1;
+        // Map of feature or entity name to feature/entity statuses/metadata.
+        map<string, FieldStatus> statuses = 2;
+    }
+   
+    enum FieldStatus {
+        // Status is unset for this field.
+        INVALID = 0;
+
+        // Field value is present for this field and age is within max age.
+        PRESENT = 1;
+
+        // Values could be found for entity key and age is within max age, but
+        // this field value is assigned a value on ingestion into feast.
+        NULL_VALUE = 2;
+
+        // Entity key did not return any values as they do not exist in Feast.
+        // This could suggest that the feature values have not yet been ingested
+        // into feast or the ingestion failed.
+        NOT_FOUND = 3;
+
+        // Values could be found for entity key, but field values are outside the maximum 
+        // allowable range.
+        OUTSIDE_MAX_AGE = 4;
     }
 }
 
@@ -107,17 +141,6 @@ message GetBatchFeaturesRequest {
     // Source of the entity dataset containing the timestamps and entity keys to retrieve
     // features for.
     DatasetSource dataset_source = 2;
-}
-
-message GetOnlineFeaturesResponse {
-    // Feature values retrieved from feast.
-    repeated FieldValues field_values = 1;
-
-    message FieldValues {
-        // Map of feature or entity name to feature/entity values.
-        // Timestamps are not returned in this response.
-        map<string,feast.types.Value> fields = 1;
-    }
 }
 
 message GetBatchFeaturesResponse {

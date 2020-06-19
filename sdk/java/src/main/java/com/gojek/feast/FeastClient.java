@@ -24,7 +24,6 @@ import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
-import feast.proto.types.ValueProto.Value;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.HashSet;
@@ -143,20 +142,21 @@ public class FeastClient implements AutoCloseable {
 
     return response.getFieldValuesList().stream()
         .map(
-            field -> {
+            fieldValues -> {
               Row row = Row.create();
-              field
-                  .getFieldsMap()
-                  .forEach(
-                      (String name, Value value) -> {
-                        // Strip project from string Feature References from returned from serving
-                        if (!entityRefs.contains(name)) {
-                          FeatureReference featureRef =
-                              RequestUtil.parseFeatureRef(name, true).build();
-                          name = RequestUtil.renderFeatureRef(featureRef);
-                        }
-                        row.set(name, value);
-                      });
+              for (String fieldName : fieldValues.getFieldsMap().keySet()) {
+                String stripFieldName = fieldName;
+                if (!entityRefs.contains(fieldName)) {
+                  // Strip project from string Feature References from returned from serving
+                  FeatureReference featureRef =
+                      RequestUtil.parseFeatureRef(fieldName, true).build();
+                  stripFieldName = RequestUtil.renderFeatureRef(featureRef);
+                  row.set(
+                      stripFieldName,
+                      fieldValues.getFieldsMap().get(fieldName),
+                      fieldValues.getStatusesMap().get(fieldName));
+                }
+              }
               return row;
             })
         .collect(Collectors.toList());

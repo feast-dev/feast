@@ -9,4 +9,6 @@ spec:
     valueType: FLOAT
   - name: total_transactions
     valueType: FLOAT
+  - name: null_values
+    valueType: FLOAT
   maxAge: 3600s

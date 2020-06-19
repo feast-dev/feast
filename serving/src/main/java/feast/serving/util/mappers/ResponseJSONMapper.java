@@ -29,7 +29,7 @@ public class ResponseJSONMapper {
   public static List<Map<String, Object>> mapGetOnlineFeaturesResponse(
       GetOnlineFeaturesResponse response) {
     return response.getFieldValuesList().stream()
-        .map(fieldValue -> convertFieldValuesToMap(fieldValue))
+        .map(fieldValues -> convertFieldValuesToMap(fieldValues))
         .collect(Collectors.toList());
   }
 
