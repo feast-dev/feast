@@ -50,9 +50,21 @@ def allow_dirty(pytestconfig):
 
 
 @pytest.fixture(scope='module')
+def enable_auth(pytestconfig):
+    return True if pytestconfig.getoption(
+        "enable_auth").lower() == "true" else False
+        
+        
+@pytest.fixture(scope='module')
 def client(core_url, serving_url, allow_dirty):
     # Get client for core and serving
     client = Client(core_url=core_url, serving_url=serving_url)
+    # if enable_auth is True, Google Id token will be 
+    # passed in the metadata for authentication. 
+    client = Client(core_url=core_url, 
+                serving_url=serving_url,
+                core_enable_auth=enable_auth, 
+                core_auth_provider="google")
     client.create_project(PROJECT_NAME)
 
     # Ensure Feast core is active, but empty
