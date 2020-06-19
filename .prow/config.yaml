@@ -453,7 +453,7 @@ postsubmits:
 
           infra/scripts/publish-docker-image.sh \
             --repository gcr.io/kf-feast/feast-jupyter \
-            --tag latest \
+            --tag ${PULL_BASE_REF:1} \
             --file infra/docker/jupyter/Dockerfile \
             --google-service-account-file /etc/gcloud/service-account.json
 
@@ -467,6 +467,9 @@ postsubmits:
 
             docker tag gcr.io/kf-feast/feast-serving:${PULL_BASE_REF:1} gcr.io/kf-feast/feast-serving:latest
             docker push gcr.io/kf-feast/feast-serving:latest
+
+            docker tag gcr.io/kf-feast/feast-jupyter:${PULL_BASE_REF:1} gcr.io/kf-feast/feast-jupyter:latest
+            docker push gcr.io/kf-feast/feast-jupyter:latest
           fi
 
           fi

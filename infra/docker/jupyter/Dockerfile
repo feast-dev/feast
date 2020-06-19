@@ -1,11 +1,27 @@
 FROM jupyter/minimal-notebook:619e9cc2fc07
 
-RUN git clone https://github.com/feast-dev/feast.git && \
-    make -C feast/ compile-protos-python && \
-    pip install -r feast/sdk/python/requirements-ci.txt && \
-    pip install -e feast/sdk/python -U && \
-    rm -rf feast/
+USER root
+WORKDIR /feast
 
-# Install startup script
-COPY infra/docker/jupyter/startup.sh /etc/startup.sh
-CMD ["/etc/startup.sh"]
+# .git (required by SDK setup.py)
+COPY .git .git
+COPY sdk/python sdk/python
+COPY Makefile Makefile
+COPY protos protos
+COPY tests tests
+COPY README.md README.md
+
+# Install Python dependencies
+RUN make compile-protos-python
+
+# Install CI requirements (only needed for running tests)
+RUN pip install -r sdk/python/requirements-ci.txt
+
+# Install Feast SDK
+RUN pip install -e sdk/python -U
+
+# Switch back to original user and workdir
+USER $NB_UID
+WORKDIR $HOME
+
+CMD start-notebook.sh --NotebookApp.token=''
