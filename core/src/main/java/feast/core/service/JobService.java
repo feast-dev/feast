@@ -188,7 +188,7 @@ public class JobService {
         String.format(
             "Restarted job (id: %s, extId: %s runner: %s)",
             job.getId(), job.getExtId(), job.getRunner()));
-    this.logStatusChange(job, currentStatus, job.getStatus());
+    this.logStatusChange(job, status, job.getStatus());
     // update job model in job repository
     this.jobRepository.saveAndFlush(job);
 
@@ -220,11 +220,11 @@ public class JobService {
     if (status.isTerminal()) {
       // do nothing - job is already stopped
       return StopIngestionJobResponse.newBuilder().build();
-    } else if (currentStatus.isTransitional() || currentStatus == JobStatus.UNKNOWN) {
+    } else if (status.isTransitional() || status == JobStatus.UNKNOWN) {
       throw new UnsupportedOperationException(
           "Stopping a job with a transitional or unknown status is unsupported");
     }
-    this.logStatusChange(job, currentStatus, job.getStatus());
+    this.logStatusChange(job, status, job.getStatus());
 
     // stop job with job manager
     JobManager jobManager = this.jobManagers.get(job.getRunner());
@@ -233,7 +233,7 @@ public class JobService {
         String.format(
             "Aborted job (id: %s, extId: %s runner: %s)",
             job.getId(), job.getExtId(), job.getRunner()));
-    this.logStatusChange(job, currentStatus, job.getStatus());
+    this.logStatusChange(job, status, job.getStatus());
     // update job model in job repository
     this.jobRepository.saveAndFlush(job);
 

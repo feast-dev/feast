@@ -114,7 +114,6 @@ public class JobServiceTest {
 
       when(this.specService.listFeatureSets(this.listFilters.get(1))).thenReturn(response);
 
-      when(this.specService.listFeatureSets(this.listFilters.get(2))).thenReturn(response);
     } catch (InvalidProtocolBufferException e) {
       e.printStackTrace();
       fail("Unexpected exception");
@@ -137,7 +136,7 @@ public class JobServiceTest {
         .thenReturn(this.newDummyJob(this.job.getId(), this.job.getExtId(), JobStatus.PENDING));
   }
 
-  private FeatureSet newDummyFeatureSet(String name, int version, String project) {
+  private FeatureSet newDummyFeatureSet(String name, String project) {
     Feature feature = TestUtil.CreateFeature(name + "_feature", Enum.INT64);
     Entity entity = TestUtil.CreateEntity(name + "_entity", Enum.STRING);
 
@@ -161,37 +160,25 @@ public class JobServiceTest {
 
   private List<FeatureSetReference> newDummyFeatureSetReferences() {
     return Arrays.asList(
-        // all provided: name, version and project
-        FeatureSetReference.newBuilder()
-            .setName(this.featureSet.getName())
-            .setProject(this.featureSet.getProject().toString())
-            .build(),
-
         // name and project
         FeatureSetReference.newBuilder()
             .setName(this.featureSet.getName())
             .setProject(this.featureSet.getProject().toString())
             .build(),
 
-        // name and version
+        // name only
         FeatureSetReference.newBuilder().setName(this.featureSet.getName()).build());
   }
 
   private List<ListFeatureSetsRequest.Filter> newDummyListRequestFilters() {
     return Arrays.asList(
-        // all provided: name, version and project
-        ListFeatureSetsRequest.Filter.newBuilder()
-            .setFeatureSetName(this.featureSet.getName())
-            .setProject(this.featureSet.getProject().toString())
-            .build(),
-
         // name and project
         ListFeatureSetsRequest.Filter.newBuilder()
             .setFeatureSetName(this.featureSet.getName())
             .setProject(this.featureSet.getProject().toString())
             .build(),
 
-        // name and project
+        // name  only
         ListFeatureSetsRequest.Filter.newBuilder()
             .setFeatureSetName(this.featureSet.getName())
             .setProject("*")
@@ -249,19 +236,10 @@ public class JobServiceTest {
         ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
     assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
 
-    // list job by feature set reference: name and version
+    // list job by feature set reference: name
     filter =
         ListIngestionJobsRequest.Filter.newBuilder()
             .setFeatureSetReference(this.fsReferences.get(1))
-            .setId(this.job.getId())
-            .build();
-    request = ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
-    assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
-
-    // list job by feature set reference: name and project
-    filter =
-        ListIngestionJobsRequest.Filter.newBuilder()
-            .setFeatureSetReference(this.fsReferences.get(2))
             .setId(this.job.getId())
             .build();
     request = ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
