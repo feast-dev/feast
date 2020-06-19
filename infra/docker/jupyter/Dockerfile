@@ -3,13 +3,10 @@ FROM jupyter/minimal-notebook:619e9cc2fc07
 USER root
 WORKDIR /feast
 
-# .git (required by SDK setup.py)
-COPY .git .git
 COPY sdk/python sdk/python
 COPY Makefile Makefile
 COPY protos protos
 COPY tests tests
-COPY README.md README.md
 
 # Install Python dependencies
 RUN make compile-protos-python
@@ -18,6 +15,8 @@ RUN make compile-protos-python
 RUN pip install -r sdk/python/requirements-ci.txt
 
 # Install Feast SDK
+COPY .git .git
+COPY README.md README.md
 RUN pip install -e sdk/python -U
 
 # Switch back to original user and workdir
