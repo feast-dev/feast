@@ -117,8 +117,7 @@ def allow_dirty(pytestconfig):
 
 @pytest.fixture(scope='module')
 def enable_auth(pytestconfig):
-    return True if pytestconfig.getoption(
-        "enable_auth").lower() == "true" else False
+    return pytestconfig.getoption("enable_auth")
         
         
 @pytest.fixture(scope='module')
