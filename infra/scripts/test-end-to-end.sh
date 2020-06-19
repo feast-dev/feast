@@ -45,11 +45,6 @@ else
   echo "[DEBUG] Skipping building jars"
 fi
 
-echo "
-============================================================
-Starting Feast Core
-============================================================
-"
 # Start Feast Core with auth if enabled
 cat <<EOF > /tmp/core.warehouse.application.yml
 feast:
@@ -59,7 +54,12 @@ feast:
     runners:
       - name: direct
         type: DirectRunner
-        options:{}
+        options: {}
+  stream:
+    type: kafka
+    options:
+      topic: feast-features
+      bootstrapServers: "kafka:9092,localhost:9094"
   security:
     authentication:
       enabled: true
