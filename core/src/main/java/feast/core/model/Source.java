@@ -36,9 +36,7 @@ import lombok.Setter;
 @Table(name = "sources")
 public class Source {
 
-  /**
-   * Source Id. Internal use only, do not use to identify the source.
-   * */
+  /** Source Id. Internal use only, do not use to identify the source. */
   @Id
   @GeneratedValue
   @Column(name = "pk")
@@ -74,10 +72,12 @@ public class Source {
 
   public String getConfig() {
     if ((config == null || config.isEmpty()) && bootstrapServers != null && topics != null) {
-      config = KafkaSourceConfig.newBuilder()
-          .setBootstrapServers(bootstrapServers)
-          .setTopic(topics)
-          .build().toString();
+      config =
+          KafkaSourceConfig.newBuilder()
+              .setBootstrapServers(bootstrapServers)
+              .setTopic(topics)
+              .build()
+              .toString();
     }
 
     return config;
