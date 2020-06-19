@@ -24,7 +24,6 @@ import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
 import feast.proto.core.FeatureSetReferenceProto.FeatureSetReference;
-import feast.proto.core.StoreProto.Store;
 import feast.proto.core.StoreProto.Store.Subscription;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.types.ValueProto;
@@ -38,12 +37,12 @@ import org.tensorflow.metadata.v0.FixedShape;
 import org.tensorflow.metadata.v0.IntDomain;
 import org.tensorflow.metadata.v0.ValueCount;
 
-public class StringUtilsTest {
+public class CommonFunctionsTest {
 
   private List<EntitySpec> entitySpecs;
   private List<FeatureSpec> featureSpecs;
   private List<Subscription> allSubscriptions;
-  private Store store;
+  private feast.proto.core.StoreProto.Store store;
 
   @Before
   public void setUp() {
@@ -89,7 +88,10 @@ public class StringUtilsTest {
     allSubscriptions =
         Arrays.asList(emptySubscription, subscription1, subscription2, subscription3);
 
-    store = Store.newBuilder().addAllSubscriptions(allSubscriptions).build();
+    store =
+        feast.proto.core.StoreProto.Store.newBuilder()
+            .addAllSubscriptions(allSubscriptions)
+            .build();
   }
 
   @Test
@@ -108,8 +110,8 @@ public class StringUtilsTest {
             .setProject(featureSetSpec.getProject())
             .build();
 
-    String actualFeatureSetStringRef1 = StringUtils.getFeatureSetStringRef(featureSetSpec);
-    String actualFeatureSetStringRef2 = StringUtils.getFeatureSetStringRef(featureSetReference);
+    String actualFeatureSetStringRef1 = FeatureSet.getFeatureSetStringRef(featureSetSpec);
+    String actualFeatureSetStringRef2 = FeatureSet.getFeatureSetStringRef(featureSetReference);
     String expectedFeatureSetStringRef = "project1/featureSetWithConstraints";
 
     assertThat(actualFeatureSetStringRef1, equalTo(expectedFeatureSetStringRef));
@@ -133,9 +135,9 @@ public class StringUtilsTest {
             .setName(featureSetSpec.getFeatures(0).getName())
             .build();
 
-    String actualFeatureStringRef = StringUtils.getFeatureStringRef(featureReference, false);
+    String actualFeatureStringRef = Feature.getFeatureStringRef(featureReference, false);
     String actualFeatureIgnoreProjectStringRef =
-        StringUtils.getFeatureStringRef(featureReference, true);
+        Feature.getFeatureStringRef(featureReference, true);
     String expectedFeatureStringRef = "project1/featureSetWithConstraints:feature1";
     String expectedFeatureIgnoreProjectStringRef = "featureSetWithConstraints:feature1";
 
@@ -146,10 +148,10 @@ public class StringUtilsTest {
   @Test
   public void shouldReturnSubscriptionsBasedOnStr() {
     String subscriptions = "project1:fs_1:true,project1:fs_2";
-    List<Subscription> actual1 = StringUtils.getSubscriptionsByStr(subscriptions, false);
+    List<Subscription> actual1 = Store.parseSubscriptionFrom(subscriptions, false);
     List<Subscription> expected1 = Arrays.asList(allSubscriptions.get(2), allSubscriptions.get(3));
 
-    List<Subscription> actual2 = StringUtils.getSubscriptionsByStr(subscriptions, true);
+    List<Subscription> actual2 = Store.parseSubscriptionFrom(subscriptions, true);
     List<Subscription> expected2 = Arrays.asList(allSubscriptions.get(0), allSubscriptions.get(2));
 
     assertTrue(actual1.containsAll(expected1) && expected1.containsAll(actual1));
@@ -159,12 +161,12 @@ public class StringUtilsTest {
   @Test
   public void shouldReturnStringBasedOnSubscription() {
     // Case: default exclude should be false
-    String actual1 = StringUtils.convertSubscriptionToString(allSubscriptions.get(2));
+    String actual1 = Store.parseSubscriptionFrom(allSubscriptions.get(2));
     Subscription sub1 = allSubscriptions.get(2);
     String expected1 = sub1.getProject() + ":" + sub1.getName() + ":" + sub1.getExclude();
 
     // Case: explicit setting of exclude to true
-    String actual2 = StringUtils.convertSubscriptionToString(allSubscriptions.get(3));
+    String actual2 = Store.parseSubscriptionFrom(allSubscriptions.get(3));
     Subscription sub2 = allSubscriptions.get(3);
     String expected2 = sub2.getProject() + ":" + sub2.getName() + ":" + sub2.getExclude();
 
@@ -176,16 +178,16 @@ public class StringUtilsTest {
   public void shouldSubscribeToFeatureSet() {
     allSubscriptions = allSubscriptions.subList(2, 4);
     // Case: excluded flag = true
-    boolean actual1 = StringUtils.isSubscribedToFeatureSet(allSubscriptions, "project1", "fs_1");
+    boolean actual1 = Store.isSubscribedToFeatureSet(allSubscriptions, "project1", "fs_1");
     boolean expected1 = false;
 
     // Case: excluded flag = false
-    boolean actual2 = StringUtils.isSubscribedToFeatureSet(allSubscriptions, "project1", "fs_2");
+    boolean actual2 = Store.isSubscribedToFeatureSet(allSubscriptions, "project1", "fs_2");
     boolean expected2 = true;
 
     // Case: featureset does not exist
     boolean actual3 =
-        StringUtils.isSubscribedToFeatureSet(allSubscriptions, "project1", "fs_nonexistent");
+        Store.isSubscribedToFeatureSet(allSubscriptions, "project1", "fs_nonexistent");
     boolean expected3 = false;
 
     assertThat(actual1, equalTo(expected1));

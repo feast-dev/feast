@@ -16,12 +16,13 @@
  */
 package feast.serving.specs;
 
+import static feast.common.function.Feature.getFeatureStringRef;
+import static feast.common.function.FeatureSet.getFeatureSetStringRef;
 import static java.util.stream.Collectors.groupingBy;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import feast.common.function.StringUtils;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.proto.core.FeatureSetProto.FeatureSet;
@@ -116,19 +117,18 @@ public class CachedSpecService {
             featureReference -> {
               // map feature reference to coresponding feature set name
               String fsName =
-                  featureToFeatureSetMapping.get(
-                      StringUtils.getFeatureStringRef(featureReference, false));
+                  featureToFeatureSetMapping.get(getFeatureStringRef(featureReference, false));
               if (fsName == null) {
                 throw new SpecRetrievalException(
                     String.format(
                         "Unable to find Feature Set for the given Feature Reference: %s",
-                        StringUtils.getFeatureStringRef(featureReference, false)));
+                        getFeatureStringRef(featureReference, false)));
               } else if (fsName == FEATURE_SET_CONFLICT_FLAG) {
                 throw new SpecRetrievalException(
                     String.format(
                         "Given Feature Reference is amibigous as it matches multiple Feature Sets: %s."
                             + "Please specify a more specific Feature Reference (ie specify the project or feature set)",
-                        StringUtils.getFeatureStringRef(featureReference, false)));
+                        getFeatureStringRef(featureReference, false)));
               }
               return Pair.of(fsName, featureReference);
             })
@@ -207,7 +207,7 @@ public class CachedSpecService {
 
           for (FeatureSet featureSet : featureSetsResponse.getFeatureSetsList()) {
             FeatureSetSpec spec = featureSet.getSpec();
-            featureSets.put(StringUtils.getFeatureSetStringRef(spec), spec);
+            featureSets.put(getFeatureSetStringRef(spec), spec);
           }
         }
       } catch (StatusRuntimeException e) {
@@ -293,7 +293,6 @@ public class CachedSpecService {
       featureRef = featureRef.clearFeatureSet();
     }
     return Pair.of(
-        StringUtils.getFeatureStringRef(featureRef.build(), false),
-        StringUtils.getFeatureSetStringRef(featureSetSpec));
+        getFeatureStringRef(featureRef.build(), false), getFeatureSetStringRef(featureSetSpec));
   }
 }

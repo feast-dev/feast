@@ -16,7 +16,7 @@
  */
 package com.gojek.feast;
 
-import feast.common.function.StringUtils;
+import feast.common.function.Feature;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
@@ -154,7 +154,7 @@ public class FeastClient implements AutoCloseable {
                         if (!entityRefs.contains(name)) {
                           FeatureReference featureRef =
                               RequestUtil.parseFeatureRef(name, true).build();
-                          name = StringUtils.getFeatureStringRef(featureRef, true);
+                          name = Feature.getFeatureStringRef(featureRef, true);
                         }
                         row.set(name, value);
                       });

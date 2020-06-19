@@ -16,62 +16,14 @@
  */
 package feast.common.function;
 
-import feast.proto.core.FeatureSetProto.FeatureSetSpec;
-import feast.proto.core.FeatureSetReferenceProto.FeatureSetReference;
 import feast.proto.core.StoreProto;
-import feast.proto.serving.ServingAPIProto.FeatureReference;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-public class StringUtils {
+public class Store {
 
-  private static String PROJECT_DEFAULT_NAME = "default";
-
-  // FeatureSet-related functionality
-  /**
-   * Accepts FeatureSetSpec object and returns its reference in String "project/featureset_name".
-   *
-   * @param featureSetSpec
-   * @return String format of FeatureSetReference
-   */
-  public static String getFeatureSetStringRef(FeatureSetSpec featureSetSpec) {
-    return String.format("%s/%s", featureSetSpec.getProject(), featureSetSpec.getName());
-  }
-
-  /**
-   * Accepts FeatureSetReference object and returns its reference in String
-   * "project/featureset_name".
-   *
-   * @param featureSetReference
-   * @return String format of FeatureSetReference
-   */
-  public static String getFeatureSetStringRef(FeatureSetReference featureSetReference) {
-    return String.format("%s/%s", featureSetReference.getProject(), featureSetReference.getName());
-  }
-
-  // Feature-related functionality
-  /**
-   * Accepts FeatureReference object and returns its reference in String
-   * "project/featureset_name:feature_name".
-   *
-   * @param featureReference
-   * @return String format of FeatureReference
-   */
-  public static String getFeatureStringRef(
-      FeatureReference featureReference, boolean ignoreProject) {
-    String ref = featureReference.getName();
-    if (!featureReference.getFeatureSet().isEmpty()) {
-      ref = featureReference.getFeatureSet() + ":" + ref;
-    }
-    if (!featureReference.getProject().isEmpty() && !ignoreProject) {
-      ref = featureReference.getProject() + "/" + ref;
-    }
-    return ref;
-  }
-
-  // Subscription-related functionality
   /**
    * Accepts a comma-delimited Subscriptions that is string-formatted and converts it to a list of
    * Subscription class objects.
@@ -80,7 +32,7 @@ public class StringUtils {
    * @param exclude flag to determine if subscriptions with exclusion flag should be returned
    * @return List of Subscription class objects
    */
-  public static List<StoreProto.Store.Subscription> getSubscriptionsByStr(
+  public static List<StoreProto.Store.Subscription> parseSubscriptionFrom(
       String subscriptions, boolean exclude) {
     return Arrays.stream(subscriptions.split(","))
         .map(subscriptionStr -> convertStringToSubscription(subscriptionStr, exclude))
@@ -93,7 +45,7 @@ public class StringUtils {
    * @param sub Subscription class to be converted to string format
    * @return String formatted Subscription class
    */
-  public static String convertSubscriptionToString(StoreProto.Store.Subscription sub) {
+  public static String parseSubscriptionFrom(StoreProto.Store.Subscription sub) {
     if (sub.getName().isEmpty() || sub.getProject().isEmpty()) {
       throw new IllegalArgumentException(
           String.format("Missing arguments in subscription string: %s", sub.toString()));
@@ -109,7 +61,7 @@ public class StringUtils {
    * @param exclude flag to determine if subscriptions with exclusion flag should be returned
    * @return Subscription class with its respective attributes
    */
-  public static StoreProto.Store.Subscription convertStringToSubscription(
+  private static StoreProto.Store.Subscription convertStringToSubscription(
       String sub, boolean exclude) {
     if (sub.equals("")) {
       return StoreProto.Store.Subscription.newBuilder().build();

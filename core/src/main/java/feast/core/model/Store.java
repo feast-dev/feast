@@ -16,8 +16,9 @@
  */
 package feast.core.model;
 
+import static feast.common.function.Store.parseSubscriptionFrom;
+
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.common.function.StringUtils;
 import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.BigQueryConfig;
 import feast.proto.core.StoreProto.Store.Builder;
@@ -69,7 +70,7 @@ public class Store {
   public static Store fromProto(StoreProto.Store storeProto) throws IllegalArgumentException {
     List<String> subs = new ArrayList<>();
     for (Subscription s : storeProto.getSubscriptionsList()) {
-      subs.add(StringUtils.convertSubscriptionToString(s));
+      subs.add(parseSubscriptionFrom(s));
     }
     byte[] config;
     switch (storeProto.getType()) {
@@ -126,8 +127,7 @@ public class Store {
    * @return List of Subscription that based on exclusion filter
    */
   public List<Subscription> getSubscriptionsByStr(boolean exclude) {
-    List<Subscription> subscriptions =
-        StringUtils.getSubscriptionsByStr(this.getSubscriptions(), exclude);
+    List<Subscription> subscriptions = parseSubscriptionFrom(this.getSubscriptions(), exclude);
 
     return subscriptions;
   }

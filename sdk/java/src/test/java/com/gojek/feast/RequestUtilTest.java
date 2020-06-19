@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.TextFormat;
-import feast.common.function.StringUtils;
+import feast.common.function.Feature;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -77,7 +77,7 @@ class RequestUtilTest {
             .collect(Collectors.toList());
     List<String> actual =
         input.stream()
-            .map(ref -> StringUtils.getFeatureStringRef(ref, true))
+            .map(ref -> Feature.getFeatureStringRef(ref, true))
             .collect(Collectors.toList());
     assertEquals(expected.size(), actual.size());
     for (int i = 0; i < expected.size(); i++) {
