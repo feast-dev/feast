@@ -28,7 +28,9 @@ import feast.proto.core.StoreProto.Store.RedisConfig;
 import feast.proto.core.StoreProto.Store.StoreType;
 import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
@@ -130,5 +132,28 @@ public class Store {
     List<Subscription> subscriptions = parseSubscriptionFrom(this.getSubscriptions(), exclude);
 
     return subscriptions;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.name, this.type, this.subscriptions) ^ Arrays.hashCode(this.config);
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) return true;
+    if (getClass() != obj.getClass()) return false;
+    Store other = (Store) obj;
+
+    if (!name.equals(other.name)) {
+      return false;
+    } else if (!type.equals(other.type)) {
+      return false;
+    } else if (!Arrays.equals(config, config)) {
+      return false;
+    } else if (!subscriptions.equals(other.subscriptions)) {
+      return false;
+    }
+    return true;
   }
 }

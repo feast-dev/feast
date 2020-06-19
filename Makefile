@@ -41,13 +41,13 @@ format-java:
 	mvn spotless:apply
 
 lint-java:
-	mvn spotless:check
+	mvn --no-transfer-progress spotless:check
 
 test-java:
-	mvn test
+	mvn --no-transfer-progress test
 
 test-java-with-coverage:
-	mvn test jacoco:report-aggregate
+	mvn --no-transfer-progress test jacoco:report-aggregate
 
 build-java:
 	mvn clean verify

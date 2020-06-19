@@ -107,6 +107,32 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     }
   }
 
+  /** Retrieve a list of features */
+  @Override
+  public void listFeatures(
+      ListFeaturesRequest request, StreamObserver<ListFeaturesResponse> responseObserver) {
+    try {
+      ListFeaturesResponse response = specService.listFeatures(request.getFilter());
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (IllegalArgumentException e) {
+      log.error("Illegal arguments provided to ListFeatures method: ", e);
+      responseObserver.onError(
+          Status.INVALID_ARGUMENT
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
+    } catch (RetrievalException e) {
+      log.error("Unable to fetch entities requested in ListFeatures method: ", e);
+      responseObserver.onError(
+          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    } catch (Exception e) {
+      log.error("Exception has occurred in ListFeatures method: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
   @Override
   public void getFeatureStatistics(
       GetFeatureStatisticsRequest request,

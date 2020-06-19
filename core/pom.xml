@@ -180,7 +180,7 @@
             <artifactId>spring-kafka</artifactId>
         </dependency>
 
-        <!--compileOnly 'org.projectlombok:lombok:1.18.2'-->
+        <!--compileOnly 'org.projectlombok:lombok:1.18.12'-->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

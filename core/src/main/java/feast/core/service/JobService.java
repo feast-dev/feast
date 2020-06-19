@@ -71,7 +71,8 @@ public class JobService {
     }
   }
 
-  /* Job Service API */
+  // region Job Service API
+
   /**
    * List Ingestion Jobs in Feast matching the given request. See CoreService protobuf documentation
    * for more detailed documentation.
@@ -88,16 +89,16 @@ public class JobService {
 
     // check that filter specified and not empty
     if (request.hasFilter()
-        && !(request.getFilter().getId() == ""
-            && request.getFilter().getStoreName() == ""
-            && request.getFilter().hasFeatureSetReference() == false)) {
+        && !(request.getFilter().getId().isEmpty()
+            && request.getFilter().getStoreName().isEmpty()
+            && !request.getFilter().hasFeatureSetReference())) {
       // filter jobs based on request filter
       ListIngestionJobsRequest.Filter filter = request.getFilter();
 
       // for proto3, default value for missing values:
       // - numeric values (ie int) is zero
       // - strings is empty string
-      if (filter.getId() != "") {
+      if (!filter.getId().isEmpty()) {
         // get by id: no more filters required: found job
         Optional<Job> job = this.jobRepository.findById(filter.getId());
         if (job.isPresent()) {
@@ -105,7 +106,7 @@ public class JobService {
         }
       } else {
         // multiple filters can apply together in an 'and' operation
-        if (filter.getStoreName() != "") {
+        if (!filter.getStoreName().isEmpty()) {
           // find jobs by name
           List<Job> jobs = this.jobRepository.findByStoreName(filter.getStoreName());
           Set<String> jobIds = jobs.stream().map(Job::getId).collect(Collectors.toSet());
@@ -140,7 +141,7 @@ public class JobService {
     // convert matching job models to ingestion job protos
     List<IngestionJobProto.IngestionJob> ingestJobs = new ArrayList<>();
     for (String jobId : matchingJobIds) {
-      Job job = this.jobRepository.findById(jobId).get();
+      Job job = this.jobRepository.findById(jobId).orElseThrow();
       // job that failed on start won't be converted toProto successfully
       // and they're irrelevant here
       if (job.getStatus() == JobStatus.ERROR) {
@@ -160,21 +161,20 @@ public class JobService {
    * @param request restart ingestion job request specifying which job to stop
    * @throws NoSuchElementException when restart job request requests to restart a nonexistent job.
    * @throws UnsupportedOperationException when job to be restarted is in an unsupported status
-   * @throws InvalidProtocolBufferException on error when constructing response protobuf
    */
   @Transactional
-  public RestartIngestionJobResponse restartJob(RestartIngestionJobRequest request)
-      throws InvalidProtocolBufferException {
-    // check job exists
-    Optional<Job> getJob = this.jobRepository.findById(request.getId());
-    if (getJob.isEmpty()) {
-      // FIXME: if getJob.isEmpty then constructing this error message will always throw an error...
-      throw new NoSuchElementException(
-          "Attempted to stop nonexistent job with id: " + getJob.get().getId());
-    }
+  public RestartIngestionJobResponse restartJob(RestartIngestionJobRequest request) {
+    String jobId = request.getId();
+
+    Job job =
+        this.jobRepository
+            .findById(jobId)
+            .orElseThrow(
+                () ->
+                    new NoSuchElementException(
+                        "Attempted to restart nonexistent job with id: " + jobId));
 
     // check job status is valid for restarting
-    Job job = getJob.get();
     JobStatus status = job.getStatus();
     if (status.isTransitional() || status.isTerminal() || status == JobStatus.UNKNOWN) {
       throw new UnsupportedOperationException(
@@ -188,8 +188,8 @@ public class JobService {
         String.format(
             "Restarted job (id: %s, extId: %s runner: %s)",
             job.getId(), job.getExtId(), job.getRunner()));
-    // sync job status & update job model in job repository
-    job = this.syncJobStatus(jobManager, job);
+    this.logStatusChange(job, status, job.getStatus());
+    // update job model in job repository
     this.jobRepository.saveAndFlush(job);
 
     return RestartIngestionJobResponse.newBuilder().build();
@@ -202,20 +202,20 @@ public class JobService {
    * @param request stop ingestion job request specifying which job to stop
    * @throws NoSuchElementException when stop job request requests to stop a nonexistent job.
    * @throws UnsupportedOperationException when job to be stopped is in an unsupported status
-   * @throws InvalidProtocolBufferException on error when constructing response protobuf
    */
   @Transactional
-  public StopIngestionJobResponse stopJob(StopIngestionJobRequest request)
-      throws InvalidProtocolBufferException {
-    // check job exists
-    Optional<Job> getJob = this.jobRepository.findById(request.getId());
-    if (getJob.isEmpty()) {
-      throw new NoSuchElementException(
-          "Attempted to stop nonexistent job with id: " + getJob.get().getId());
-    }
+  public StopIngestionJobResponse stopJob(StopIngestionJobRequest request) {
+    String jobId = request.getId();
+
+    Job job =
+        this.jobRepository
+            .findById(jobId)
+            .orElseThrow(
+                () ->
+                    new NoSuchElementException(
+                        "Attempted to stop nonexistent job with id: " + jobId));
 
     // check job status is valid for stopping
-    Job job = getJob.get();
     JobStatus status = job.getStatus();
     if (status.isTerminal()) {
       // do nothing - job is already stopped
@@ -224,23 +224,25 @@ public class JobService {
       throw new UnsupportedOperationException(
           "Stopping a job with a transitional or unknown status is unsupported");
     }
+    this.logStatusChange(job, status, job.getStatus());
 
     // stop job with job manager
     JobManager jobManager = this.jobManagers.get(job.getRunner());
-    jobManager.abortJob(job.getExtId());
+    job = jobManager.abortJob(job);
     log.info(
         String.format(
-            "Restarted job (id: %s, extId: %s runner: %s)",
+            "Aborted job (id: %s, extId: %s runner: %s)",
             job.getId(), job.getExtId(), job.getRunner()));
-
-    // sync job status & update job model in job repository
-    job = this.syncJobStatus(jobManager, job);
+    this.logStatusChange(job, status, job.getStatus());
+    // update job model in job repository
     this.jobRepository.saveAndFlush(job);
 
     return StopIngestionJobResponse.newBuilder().build();
   }
 
-  /* Private Utility Methods */
+  // endregion
+  // region Private Utility Methods
+
   private <T> Set<T> mergeResults(Set<T> results, Collection<T> newResults) {
     if (results.size() <= 0) {
       // no existing results: copy over new results
@@ -252,7 +254,7 @@ public class JobService {
     return results;
   }
 
-  // converts feature set reference to a list feature set filter
+  /** converts feature set reference to a list feature set filter */
   private ListFeatureSetsRequest.Filter toListFeatureSetFilter(FeatureSetReference fsReference) {
     // match featuresets using contents of featureset reference
     String fsName = fsReference.getName();
@@ -262,29 +264,20 @@ public class JobService {
     // for proto3, default value for missing values:
     // - numeric values (ie int) is zero
     // - strings is empty string
-    ListFeatureSetsRequest.Filter filter =
-        ListFeatureSetsRequest.Filter.newBuilder()
-            .setFeatureSetName((fsName != "") ? fsName : "*")
-            .setProject((fsProject != "") ? fsProject : "*")
-            .build();
-
-    return filter;
+    return ListFeatureSetsRequest.Filter.newBuilder()
+        .setFeatureSetName(fsName.isEmpty() ? "*" : fsName)
+        .setProject(fsProject.isEmpty() ? "*" : fsProject)
+        .build();
   }
 
-  // sync job status using job manager
-  private Job syncJobStatus(JobManager jobManager, Job job) {
-    JobStatus newStatus = jobManager.getJobStatus(job);
-    // log job status transition
-    if (newStatus != job.getStatus()) {
-      AuditLogger.log(
-          Resource.JOB,
-          job.getId(),
-          Action.STATUS_CHANGE,
-          "Job status transition: changed from %s to %s",
-          job.getStatus(),
-          newStatus);
-      job.setStatus(newStatus);
-    }
-    return job;
+  /** log job status using job manager */
+  private void logStatusChange(Job job, JobStatus oldStatus, JobStatus newStatus) {
+    AuditLogger.log(
+        Resource.JOB,
+        job.getId(),
+        Action.STATUS_CHANGE,
+        "Job status transition: changed from %s to %s",
+        oldStatus,
+        newStatus);
   }
 }

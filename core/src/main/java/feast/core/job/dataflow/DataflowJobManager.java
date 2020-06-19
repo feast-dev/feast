@@ -116,6 +116,7 @@ public class DataflowJobManager implements JobManager {
           submitDataflowJob(
               job.getId(), job.getSource().toProto(), job.getStore().toProto(), false);
       job.setExtId(extId);
+      job.setStatus(JobStatus.RUNNING);
       return job;
 
     } catch (InvalidProtocolBufferException e) {
@@ -136,25 +137,27 @@ public class DataflowJobManager implements JobManager {
    */
   @Override
   public Job updateJob(Job job) {
-    abortJob(job.getExtId());
+    abortJob(job);
     return job;
   }
 
   /**
    * Abort an existing Dataflow job. Streaming Dataflow jobs are always drained, not cancelled.
    *
-   * @param dataflowJobId Dataflow-specific job id (not the job name)
+   * @param job to abort.
+   * @return The aborted Job.
    */
   @Override
-  public void abortJob(String dataflowJobId) {
+  public Job abortJob(Job job) {
+    String dataflowJobId = job.getExtId();
     try {
-      com.google.api.services.dataflow.model.Job job =
+      com.google.api.services.dataflow.model.Job dataflowJob =
           dataflow.projects().locations().jobs().get(projectId, location, dataflowJobId).execute();
       com.google.api.services.dataflow.model.Job content =
           new com.google.api.services.dataflow.model.Job();
-      if (job.getType().equals(DataflowJobType.JOB_TYPE_BATCH.toString())) {
+      if (dataflowJob.getType().equals(DataflowJobType.JOB_TYPE_BATCH.toString())) {
         content.setRequestedState(DataflowJobState.JOB_STATE_CANCELLED.toString());
-      } else if (job.getType().equals(DataflowJobType.JOB_TYPE_STREAMING.toString())) {
+      } else if (dataflowJob.getType().equals(DataflowJobType.JOB_TYPE_STREAMING.toString())) {
         content.setRequestedState(DataflowJobState.JOB_STATE_DRAINING.toString());
       }
       dataflow
@@ -168,6 +171,9 @@ public class DataflowJobManager implements JobManager {
       throw new RuntimeException(
           Strings.lenientFormat("Unable to drain job with id: %s", dataflowJobId), e);
     }
+
+    job.setStatus(JobStatus.ABORTING);
+    return job;
   }
 
   /**

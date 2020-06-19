@@ -172,6 +172,10 @@ public class FeastProperties {
 
       /* Kafka topic to receive acknowledgment from ingestion job on successful processing of new specs */
       @NotBlank private String specsAckTopic = "feast-feature-set-specs-ack";
+
+      /* Notify jobs interval in millisecond.
+      How frequently Feast will check on Pending FeatureSets and publish them to kafka. */
+      @Positive private long notifyIntervalMilliseconds;
     }
   }
 

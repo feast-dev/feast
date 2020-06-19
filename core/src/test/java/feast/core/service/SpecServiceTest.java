@@ -16,12 +16,9 @@
  */
 package feast.core.service;
 
-import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
 
@@ -32,12 +29,15 @@ import feast.core.dao.ProjectRepository;
 import feast.core.dao.StoreRepository;
 import feast.core.exception.RetrievalException;
 import feast.core.model.*;
+import feast.core.util.TestUtil;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse.Status;
 import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
 import feast.proto.core.CoreServiceProto.GetFeatureSetResponse;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.proto.core.CoreServiceProto.ListFeaturesRequest;
+import feast.proto.core.CoreServiceProto.ListFeaturesResponse;
 import feast.proto.core.CoreServiceProto.ListStoresRequest;
 import feast.proto.core.CoreServiceProto.ListStoresResponse;
 import feast.proto.core.CoreServiceProto.UpdateStoreRequest;
@@ -46,21 +46,16 @@ import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
-import feast.proto.core.IngestionJobProto;
 import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.RedisConfig;
 import feast.proto.core.StoreProto.Store.StoreType;
 import feast.proto.core.StoreProto.Store.Subscription;
 import feast.proto.types.ValueProto.ValueType.Enum;
-import io.grpc.StatusRuntimeException;
 import java.sql.Date;
 import java.time.Instant;
 import java.util.*;
 import java.util.Map.Entry;
-import java.util.concurrent.CancellationException;
 import java.util.stream.Collectors;
-import lombok.SneakyThrows;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -68,8 +63,6 @@ import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.scheduling.annotation.AsyncResult;
 import org.tensorflow.metadata.v0.BoolDomain;
 import org.tensorflow.metadata.v0.FeaturePresence;
 import org.tensorflow.metadata.v0.FeaturePresenceWithinGroup;
@@ -94,34 +87,96 @@ public class SpecServiceTest {
 
   @Mock private ProjectRepository projectRepository;
 
-  @Mock private KafkaTemplate<String, FeatureSetSpec> kafkaTemplate;
-
   @Rule public final ExpectedException expectedException = ExpectedException.none();
 
   private SpecService specService;
   private List<FeatureSet> featureSets;
+  private List<Feature> features;
   private List<Store> stores;
   private Source defaultSource;
 
   // TODO: Updates update features in place, so if tests follow the wrong order they might break.
   // Refactor this maybe?
   @Before
-  public void setUp() {
+  public void setUp() throws InvalidProtocolBufferException {
     initMocks(this);
-    defaultSource = TestObjectFactory.defaultSource;
+    defaultSource = TestUtil.defaultSource;
 
     FeatureSet featureSet1 = newDummyFeatureSet("f1", "project1");
     FeatureSet featureSet2 = newDummyFeatureSet("f2", "project1");
 
-    Feature f3f1 = TestObjectFactory.CreateFeature("f3f1", Enum.INT64);
-    Feature f3f2 = TestObjectFactory.CreateFeature("f3f2", Enum.INT64);
-    Entity f3e1 = TestObjectFactory.CreateEntity("f3e1", Enum.STRING);
+    Map<String, String> featureLabels1 = Map.ofEntries(Map.entry("key1", "val1"));
+    Map<String, String> featureLabels2 = Map.ofEntries(Map.entry("key2", "val2"));
+    Map<String, String> dummyLabels = Map.ofEntries(Map.entry("key", "value"));
+
+    Feature dummyFeature = TestUtil.CreateFeature("feature", Enum.STRING, dummyLabels);
+    Feature f3f1 = TestUtil.CreateFeature("f3f1", Enum.INT64);
+    Feature f3f2 = TestUtil.CreateFeature("f3f2", Enum.INT64);
+    Entity f3e1 = TestUtil.CreateEntity("f3e1", Enum.STRING);
     FeatureSet featureSet3 =
-        TestObjectFactory.CreateFeatureSet(
-            "f3", "project1", Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1));
+        TestUtil.CreateFeatureSet("f3", "project1", Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1));
 
     FeatureSet featureSet4 = newDummyFeatureSet("f4", Project.DEFAULT_NAME);
-    featureSets = Arrays.asList(featureSet1, featureSet2, featureSet3, featureSet4);
+    Map<String, String> singleFeatureSetLabels =
+        new HashMap<>() {
+          {
+            put("fsLabel1", "fsValue1");
+          }
+        };
+    Map<String, String> duoFeatureSetLabels =
+        new HashMap<>() {
+          {
+            put("fsLabel1", "fsValue1");
+            put("fsLabel2", "fsValue2");
+          }
+        };
+    FeatureSet featureSet5 = newDummyFeatureSet("f5", Project.DEFAULT_NAME);
+    FeatureSet featureSet6 = newDummyFeatureSet("f6", Project.DEFAULT_NAME);
+    FeatureSetSpec featureSetSpec5 = featureSet5.toProto().getSpec().toBuilder().build();
+    FeatureSetSpec featureSetSpec6 = featureSet6.toProto().getSpec().toBuilder().build();
+    FeatureSetProto.FeatureSet fs5 =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                featureSetSpec5
+                    .toBuilder()
+                    .setSource(defaultSource.toProto())
+                    .putAllLabels(singleFeatureSetLabels)
+                    .build())
+            .build();
+    FeatureSetProto.FeatureSet fs6 =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                featureSetSpec6
+                    .toBuilder()
+                    .setSource(defaultSource.toProto())
+                    .putAllLabels(duoFeatureSetLabels)
+                    .build())
+            .build();
+
+    Entity f7e1 = TestUtil.CreateEntity("f7e1", Enum.STRING);
+    Entity f9e1 = TestUtil.CreateEntity("f9e1", Enum.STRING);
+    Feature f7f1 = TestUtil.CreateFeature("f7f1", Enum.INT64, featureLabels1);
+    Feature f8f1 = TestUtil.CreateFeature("f8f1", Enum.INT64, featureLabels2);
+    FeatureSet featureSet7 =
+        TestUtil.CreateFeatureSet(
+            "f7", "project2", Arrays.asList(f7e1), Arrays.asList(f3f1, f3f2, f7f1));
+    FeatureSet featureSet8 =
+        TestUtil.CreateFeatureSet("f8", "project2", Arrays.asList(f7e1), Arrays.asList(f3f1, f8f1));
+    FeatureSet featureSet9 =
+        TestUtil.CreateFeatureSet("f9", "default", Arrays.asList(f9e1), Arrays.asList(f3f1, f8f1));
+    features = Arrays.asList(dummyFeature, f3f1, f3f2, f7f1, f8f1);
+
+    featureSets =
+        Arrays.asList(
+            featureSet1,
+            featureSet2,
+            featureSet3,
+            featureSet4,
+            FeatureSet.fromProto(fs5),
+            FeatureSet.fromProto(fs6),
+            featureSet7,
+            featureSet8,
+            featureSet9);
 
     when(featureSetRepository.findAll()).thenReturn(featureSets);
     when(featureSetRepository.findAllByOrderByNameAsc()).thenReturn(featureSets);
@@ -131,6 +186,10 @@ public class SpecServiceTest {
         .thenReturn(featureSets.get(1));
     when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc("f1", "project1"))
         .thenReturn(featureSets.subList(0, 1));
+    when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc("%", "default"))
+        .thenReturn(featureSets.subList(8, 9));
+    when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc("%", "project2"))
+        .thenReturn(featureSets.subList(6, 8));
     when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc("asd", "project1"))
         .thenReturn(Lists.newArrayList());
     when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc("f%", "project1"))
@@ -153,11 +212,8 @@ public class SpecServiceTest {
     when(storeRepository.findById("SERVING")).thenReturn(Optional.of(store1));
     when(storeRepository.findById("NOTFOUND")).thenReturn(Optional.empty());
 
-    when(kafkaTemplate.sendDefault(any(), any())).thenReturn(new AsyncResult<>(null));
-
     specService =
-        new SpecService(
-            featureSetRepository, storeRepository, projectRepository, defaultSource, kafkaTemplate);
+        new SpecService(featureSetRepository, storeRepository, projectRepository, defaultSource);
   }
 
   @Test
@@ -339,72 +395,6 @@ public class SpecServiceTest {
         FeatureSet.fromProto(expected));
 
     assertThat(applyFeatureSetResponse.getFeatureSet().getSpec().getVersion(), equalTo(2));
-    verify(kafkaTemplate)
-        .sendDefault(eq(featureSets.get(0).getReference()), any(FeatureSetSpec.class));
-  }
-
-  @Test
-  @SneakyThrows
-  public void applyFeatureSetShouldNotWorkWithoutKafkaAck() {
-    FeatureSet fsInTest = featureSets.get(1);
-    FeatureSetProto.FeatureSet incomingFeatureSet = fsInTest.toProto();
-    CancellationException exc = new CancellationException();
-    when(kafkaTemplate.sendDefault(eq(fsInTest.getReference()), any()).get()).thenThrow(exc);
-
-    incomingFeatureSet =
-        incomingFeatureSet
-            .toBuilder()
-            .setMeta(incomingFeatureSet.getMeta())
-            .setSpec(
-                incomingFeatureSet
-                    .getSpec()
-                    .toBuilder()
-                    .addFeatures(
-                        FeatureSpec.newBuilder().setName("feature2").setValueType(Enum.STRING))
-                    .build())
-            .build();
-
-    expectedException.expect(StatusRuntimeException.class);
-    specService.applyFeatureSet(incomingFeatureSet);
-    verify(featureSetRepository, never()).saveAndFlush(ArgumentMatchers.any(FeatureSet.class));
-  }
-
-  @Test
-  @SneakyThrows
-  public void applyFeatureSetShouldUpdateDeliveryStatuses() {
-    FeatureSet fsInTest = featureSets.get(1);
-    FeatureSetJobStatus j1 =
-        newJob(
-            fsInTest,
-            JobStatus.RUNNING,
-            FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_DELIVERED);
-    FeatureSetJobStatus j2 =
-        newJob(
-            fsInTest,
-            JobStatus.ABORTED,
-            FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_DELIVERED);
-
-    fsInTest.getJobStatuses().addAll(Arrays.asList(j1, j2));
-
-    FeatureSetProto.FeatureSet incomingFeatureSet = fsInTest.toProto();
-    incomingFeatureSet =
-        incomingFeatureSet
-            .toBuilder()
-            .setMeta(incomingFeatureSet.getMeta())
-            .setSpec(
-                incomingFeatureSet
-                    .getSpec()
-                    .toBuilder()
-                    .addFeatures(
-                        FeatureSpec.newBuilder().setName("feature2").setValueType(Enum.STRING))
-                    .build())
-            .build();
-
-    specService.applyFeatureSet(incomingFeatureSet);
-    assertThat(
-        j1.getDeliveryStatus(), is(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS));
-    assertThat(
-        j2.getDeliveryStatus(), is(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_DELIVERED));
   }
 
   @Test
@@ -576,12 +566,11 @@ public class SpecServiceTest {
   @Test
   public void applyFeatureSetShouldCreateProjectWhenNotAlreadyExists()
       throws InvalidProtocolBufferException {
-    Feature f3f1 = TestObjectFactory.CreateFeature("f3f1", Enum.INT64);
-    Feature f3f2 = TestObjectFactory.CreateFeature("f3f2", Enum.INT64);
-    Entity f3e1 = TestObjectFactory.CreateEntity("f3e1", Enum.STRING);
+    Feature f3f1 = TestUtil.CreateFeature("f3f1", Enum.INT64);
+    Feature f3f2 = TestUtil.CreateFeature("f3f2", Enum.INT64);
+    Entity f3e1 = TestUtil.CreateEntity("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
-        TestObjectFactory.CreateFeatureSet(
-                "f3", "project", Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1))
+        TestUtil.CreateFeatureSet("f3", "project", Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1))
             .toProto();
 
     ApplyFeatureSetResponse applyFeatureSetResponse =
@@ -595,13 +584,13 @@ public class SpecServiceTest {
   @Test
   public void applyFeatureSetShouldUsedDefaultProjectIfUnspecified()
       throws InvalidProtocolBufferException {
-    Feature f3f1 = TestObjectFactory.CreateFeature("f3f1", Enum.INT64);
-    Feature f3f2 = TestObjectFactory.CreateFeature("f3f2", Enum.INT64);
-    Entity f3e1 = TestObjectFactory.CreateEntity("f3e1", Enum.STRING);
+    Feature f3f1 = TestUtil.CreateFeature("f3f1", Enum.INT64);
+    Feature f3f2 = TestUtil.CreateFeature("f3f2", Enum.INT64);
+    Entity f3e1 = TestUtil.CreateEntity("f3e1", Enum.STRING);
 
     // In protov3, unspecified project defaults to ""
     FeatureSetProto.FeatureSet incomingFeatureSet =
-        TestObjectFactory.CreateFeatureSet("f3", "", Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1))
+        TestUtil.CreateFeatureSet("f3", "", Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1))
             .toProto();
     ApplyFeatureSetResponse applyFeatureSetResponse =
         specService.applyFeatureSet(incomingFeatureSet);
@@ -615,11 +604,11 @@ public class SpecServiceTest {
   @Test
   public void applyFeatureSetShouldFailWhenProjectIsArchived()
       throws InvalidProtocolBufferException {
-    Feature f3f1 = TestObjectFactory.CreateFeature("f3f1", Enum.INT64);
-    Feature f3f2 = TestObjectFactory.CreateFeature("f3f2", Enum.INT64);
-    Entity f3e1 = TestObjectFactory.CreateEntity("f3e1", Enum.STRING);
+    Feature f3f1 = TestUtil.CreateFeature("f3f1", Enum.INT64);
+    Feature f3f2 = TestUtil.CreateFeature("f3f2", Enum.INT64);
+    Entity f3e1 = TestUtil.CreateEntity("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
-        TestObjectFactory.CreateFeatureSet(
+        TestUtil.CreateFeatureSet(
                 "f3", "archivedproject", Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1))
             .toProto();
 
@@ -714,6 +703,202 @@ public class SpecServiceTest {
   }
 
   @Test
+  public void shouldFilterFeaturesByEntitiesAndLabels() throws InvalidProtocolBufferException {
+    // Case 1: Only filter by entities
+    List<String> entities = new ArrayList<>();
+    String currentProject = "project2";
+
+    entities.add("f7e1");
+    ListFeaturesResponse actual1 =
+        specService.listFeatures(
+            ListFeaturesRequest.Filter.newBuilder()
+                .setProject(currentProject)
+                .addAllEntities(entities)
+                .build());
+    Map<String, FeatureSpec> expectedMap1 =
+        Map.ofEntries(
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(6).getName()
+                    + ":"
+                    + features.get(1).getName(),
+                features.get(1).toProto()),
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(6).getName()
+                    + ":"
+                    + features.get(2).getName(),
+                features.get(2).toProto()),
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(6).getName()
+                    + ":"
+                    + features.get(3).getName(),
+                features.get(3).toProto()),
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(7).getName()
+                    + ":"
+                    + features.get(1).getName(),
+                features.get(1).toProto()),
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(7).getName()
+                    + ":"
+                    + features.get(4).getName(),
+                features.get(4).toProto()));
+    ListFeaturesResponse expected1 =
+        ListFeaturesResponse.newBuilder().putAllFeatures(expectedMap1).build();
+
+    // Case 2: Filter by entities and labels
+    Map<String, String> featureLabels1 = Map.ofEntries(Map.entry("key1", "val1"));
+    Map<String, String> featureLabels2 = Map.ofEntries(Map.entry("key2", "val2"));
+    ListFeaturesResponse actual2 =
+        specService.listFeatures(
+            ListFeaturesRequest.Filter.newBuilder()
+                .setProject(currentProject)
+                .addAllEntities(entities)
+                .putAllLabels(featureLabels1)
+                .build());
+    Map<String, FeatureSpec> expectedMap2 =
+        Map.ofEntries(
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(6).getName()
+                    + ":"
+                    + features.get(3).getName(),
+                features.get(3).toProto()));
+    ListFeaturesResponse expected2 =
+        ListFeaturesResponse.newBuilder().putAllFeatures(expectedMap2).build();
+
+    // Case 3: Filter by labels
+    ListFeaturesResponse actual3 =
+        specService.listFeatures(
+            ListFeaturesRequest.Filter.newBuilder()
+                .setProject(currentProject)
+                .putAllLabels(featureLabels2)
+                .build());
+    Map<String, FeatureSpec> expectedMap3 =
+        Map.ofEntries(
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(7).getName()
+                    + ":"
+                    + features.get(4).getName(),
+                features.get(4).toProto()));
+    ListFeaturesResponse expected3 =
+        ListFeaturesResponse.newBuilder().putAllFeatures(expectedMap3).build();
+
+    // Case 4: Filter by nothing, except project
+    ListFeaturesResponse actual4 =
+        specService.listFeatures(
+            ListFeaturesRequest.Filter.newBuilder().setProject(currentProject).build());
+    Map<String, FeatureSpec> expectedMap4 =
+        Map.ofEntries(
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(6).getName()
+                    + ":"
+                    + features.get(1).getName(),
+                features.get(1).toProto()),
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(6).getName()
+                    + ":"
+                    + features.get(2).getName(),
+                features.get(2).toProto()),
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(6).getName()
+                    + ":"
+                    + features.get(3).getName(),
+                features.get(3).toProto()),
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(7).getName()
+                    + ":"
+                    + features.get(1).getName(),
+                features.get(1).toProto()),
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(7).getName()
+                    + ":"
+                    + features.get(4).getName(),
+                features.get(4).toProto()));
+    ListFeaturesResponse expected4 =
+        ListFeaturesResponse.newBuilder().putAllFeatures(expectedMap4).build();
+
+    // Case 5: Filter by nothing; will use default project
+    currentProject = "default";
+    ListFeaturesResponse actual5 =
+        specService.listFeatures(ListFeaturesRequest.Filter.newBuilder().build());
+    Map<String, FeatureSpec> expectedMap5 =
+        Map.ofEntries(
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(8).getName()
+                    + ":"
+                    + features.get(1).getName(),
+                features.get(1).toProto()),
+            Map.entry(
+                currentProject
+                    + "/"
+                    + featureSets.get(8).getName()
+                    + ":"
+                    + features.get(4).getName(),
+                features.get(4).toProto()));
+    ListFeaturesResponse expected5 =
+        ListFeaturesResponse.newBuilder().putAllFeatures(expectedMap5).build();
+
+    assertThat(actual1, equalTo(expected1));
+    assertThat(actual2, equalTo(expected2));
+    assertThat(actual3, equalTo(expected3));
+    assertThat(actual4, equalTo(expected4));
+    assertThat(actual5, equalTo(expected5));
+  }
+
+  public void shouldFilterByFeatureSetLabels() throws InvalidProtocolBufferException {
+    List<FeatureSetProto.FeatureSet> list = new ArrayList<>();
+    ListFeatureSetsResponse actual1 =
+        specService.listFeatureSets(
+            Filter.newBuilder()
+                .setFeatureSetName("*")
+                .setProject("*")
+                .putLabels("fsLabel2", "fsValue2")
+                .build());
+    list.add(featureSets.get(5).toProto());
+    ListFeatureSetsResponse expected1 =
+        ListFeatureSetsResponse.newBuilder().addAllFeatureSets(list).build();
+
+    ListFeatureSetsResponse actual2 =
+        specService.listFeatureSets(
+            Filter.newBuilder()
+                .setFeatureSetName("*")
+                .setProject("*")
+                .putLabels("fsLabel1", "fsValue1")
+                .build());
+    list.add(0, featureSets.get(4).toProto());
+    ListFeatureSetsResponse expected2 =
+        ListFeatureSetsResponse.newBuilder().addAllFeatureSets(list).build();
+
+    assertThat(actual1, equalTo(expected1));
+    assertThat(actual2, equalTo(expected2));
+  }
+
+  @Test
   public void shouldUpdateStoreIfConfigChanges() throws InvalidProtocolBufferException {
     when(storeRepository.findById("SERVING")).thenReturn(Optional.of(stores.get(0)));
     StoreProto.Store newStore =
@@ -768,70 +953,6 @@ public class SpecServiceTest {
     assertThat(listResponse.getFeatureSetsList(), equalTo(Arrays.asList(expected.toProto())));
   }
 
-  @Test
-  public void specAckListenerShouldDoNothingWhenMessageIsOutdated() {
-    FeatureSet fsInTest = featureSets.get(1);
-    FeatureSetJobStatus j1 =
-        newJob(
-            fsInTest,
-            JobStatus.RUNNING,
-            FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS);
-    FeatureSetJobStatus j2 =
-        newJob(
-            fsInTest,
-            JobStatus.RUNNING,
-            FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS);
-
-    fsInTest.getJobStatuses().addAll(Arrays.asList(j1, j2));
-
-    specService.listenAckFromJobs(newAckMessage("project/invalid", 0, j1.getJob().getId()));
-    specService.listenAckFromJobs(newAckMessage(fsInTest.getReference(), 0, ""));
-    specService.listenAckFromJobs(newAckMessage(fsInTest.getReference(), -1, j1.getJob().getId()));
-
-    assertThat(
-        j1.getDeliveryStatus(), is(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS));
-    assertThat(
-        j2.getDeliveryStatus(), is(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS));
-  }
-
-  @Test
-  public void specAckListenerShouldUpdateFeatureSetStatus() {
-    FeatureSet fsInTest = featureSets.get(1);
-    fsInTest.setStatus(FeatureSetProto.FeatureSetStatus.STATUS_PENDING);
-
-    FeatureSetJobStatus j1 =
-        newJob(
-            fsInTest,
-            JobStatus.RUNNING,
-            FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS);
-    FeatureSetJobStatus j2 =
-        newJob(
-            fsInTest,
-            JobStatus.RUNNING,
-            FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS);
-    FeatureSetJobStatus j3 =
-        newJob(
-            fsInTest,
-            JobStatus.ABORTED,
-            FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS);
-
-    fsInTest.getJobStatuses().addAll(Arrays.asList(j1, j2, j3));
-
-    specService.listenAckFromJobs(
-        newAckMessage(fsInTest.getReference(), fsInTest.getVersion(), j1.getJob().getId()));
-
-    assertThat(
-        j1.getDeliveryStatus(), is(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_DELIVERED));
-    assertThat(fsInTest.getStatus(), is(FeatureSetProto.FeatureSetStatus.STATUS_PENDING));
-
-    specService.listenAckFromJobs(
-        newAckMessage(fsInTest.getReference(), fsInTest.getVersion(), j2.getJob().getId()));
-
-    assertThat(
-        j2.getDeliveryStatus(), is(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_DELIVERED));
-    assertThat(fsInTest.getStatus(), is(FeatureSetProto.FeatureSetStatus.STATUS_READY));
-  }
-
   private FeatureSet newDummyFeatureSet(String name, String project) {
     FeatureSpec f1 =
         FeatureSpec.newBuilder()
@@ -840,40 +961,12 @@ public class SpecServiceTest {
             .putLabels("key", "value")
             .build();
     Feature feature = Feature.fromProto(f1);
-    Entity entity = TestObjectFactory.CreateEntity("entity", Enum.STRING);
+    Entity entity = TestUtil.CreateEntity("entity", Enum.STRING);
 
     FeatureSet fs =
-        TestObjectFactory.CreateFeatureSet(
-            name, project, Arrays.asList(entity), Arrays.asList(feature));
+        TestUtil.CreateFeatureSet(name, project, Arrays.asList(entity), Arrays.asList(feature));
     fs.setCreated(Date.from(Instant.ofEpochSecond(10L)));
     return fs;
-  }
-
-  private FeatureSetJobStatus newJob(
-      FeatureSet fs, JobStatus status, FeatureSetProto.FeatureSetJobDeliveryStatus deliveryStatus) {
-    Job job = new Job();
-    job.setStatus(status);
-    job.setId(UUID.randomUUID().toString());
-
-    FeatureSetJobStatus featureSetJobStatus = new FeatureSetJobStatus();
-    featureSetJobStatus.setJob(job);
-    featureSetJobStatus.setFeatureSet(fs);
-    featureSetJobStatus.setDeliveryStatus(deliveryStatus);
-
-    return featureSetJobStatus;
-  }
-
-  private ConsumerRecord<String, IngestionJobProto.FeatureSetSpecAck> newAckMessage(
-      String key, int version, String jobName) {
-    return new ConsumerRecord<>(
-        "topic",
-        0,
-        0,
-        key,
-        IngestionJobProto.FeatureSetSpecAck.newBuilder()
-            .setFeatureSetVersion(version)
-            .setJobName(jobName)
-            .build());
   }
 
   private Store newDummyStore(String name) {

@@ -3,7 +3,9 @@ import math
 import random
 import time
 import grpc
+from collections import OrderedDict
 from feast.entity import Entity
+from feast.source import KafkaSource
 from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequest,
     GetOnlineFeaturesResponse,
@@ -11,7 +13,7 @@ from feast.serving.ServingService_pb2 import (
 from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core import CoreService_pb2
-from feast.types.Value_pb2 import Value as Value
+from feast.types.Value_pb2 import Value
 from feast.client import Client
 from feast.feature_set import FeatureSet, FeatureSetRef
 from feast.type_map import ValueType
@@ -49,9 +51,20 @@ def allow_dirty(pytestconfig):
 
 
 @pytest.fixture(scope='module')
+def enable_auth(pytestconfig):
+    return True if pytestconfig.getoption(
+        "enable_auth").lower() == "true" else False
+        
+        
+@pytest.fixture(scope='module')
 def client(core_url, serving_url, allow_dirty):
     # Get client for core and serving
-    client = Client(core_url=core_url, serving_url=serving_url)
+    # if enable_auth is True, Google Id token will be 
+    # passed in the metadata for authentication. 
+    client = Client(core_url=core_url, 
+                serving_url=serving_url,
+                core_enable_auth=enable_auth, 
+                core_auth_provider="google")
     client.create_project(PROJECT_NAME)
 
     # Ensure Feast core is active, but empty
@@ -125,6 +138,34 @@ def test_basic_register_feature_set_success(client):
     cust_trans_fs_actual = client.get_feature_set("customer_transactions",
                                                   project=PROJECT_NAME)
     assert cust_trans_fs_actual == cust_trans_fs_expected
+
+    # Register feature set with labels
+    driver_unlabelled_fs = FeatureSet(
+        "driver_unlabelled",
+        features=[
+            Feature("rating", ValueType.FLOAT),
+            Feature("cost", ValueType.FLOAT)
+        ],
+        entities=[Entity("entity_id", ValueType.INT64)],
+        max_age=Duration(seconds=100)
+    )
+    driver_labeled_fs_expected = FeatureSet(
+        "driver_labeled",
+        features=[
+            Feature("rating", ValueType.FLOAT),
+            Feature("cost", ValueType.FLOAT)
+        ],
+        entities=[Entity("entity_id", ValueType.INT64)],
+        max_age=Duration(seconds=100),
+        labels={"key1":"val1"}
+    )
+    client.set_project(PROJECT_NAME)
+    client.apply(driver_unlabelled_fs)
+    client.apply(driver_labeled_fs_expected)
+    driver_fs_actual = client.list_feature_sets(
+        project=PROJECT_NAME, labels={"key1": "val1"}
+    )[0]
+    assert driver_fs_actual == driver_labeled_fs_expected
 
     # reset client's project for other tests
     client.set_project()
@@ -636,6 +677,114 @@ def test_all_types_infer_register_ingest_file_success(client,
 
     # Ingest user embedding data
     client.ingest(feature_set=all_types_fs, source=all_types_parquet_file)
+
+
+@pytest.mark.timeout(200)
+@pytest.mark.run(order=42)
+def test_list_entities_and_features(client):
+    customer_entity = Entity("customer_id", ValueType.INT64)
+    driver_entity = Entity("driver_id", ValueType.INT64)
+
+    customer_feature_rating = Feature(name="rating", dtype=ValueType.FLOAT, labels={"key1":"val1"})
+    customer_feature_cost = Feature(name="cost", dtype=ValueType.FLOAT)
+    driver_feature_rating = Feature(name="rating", dtype=ValueType.FLOAT)
+    driver_feature_cost = Feature(name="cost", dtype=ValueType.FLOAT, labels={"key1":"val1"})
+
+    filter_by_project_entity_labels_expected = dict([
+        ("customer:rating", customer_feature_rating)
+    ])
+
+    filter_by_project_entity_expected = dict([
+        ("driver:cost", driver_feature_cost),
+        ("driver:rating", driver_feature_rating)
+    ])
+
+    filter_by_project_labels_expected = dict([
+        ("customer:rating", customer_feature_rating),
+        ("driver:cost", driver_feature_cost)
+    ])
+
+    customer_fs = FeatureSet(
+        "customer",
+        features=[
+            customer_feature_rating,
+            customer_feature_cost
+        ],
+        entities=[customer_entity],
+        max_age=Duration(seconds=100)
+    )
+
+    driver_fs = FeatureSet(
+        "driver",
+        features=[
+            driver_feature_rating,
+            driver_feature_cost
+        ],
+        entities=[driver_entity],
+        max_age=Duration(seconds=100)
+    )
+
+    client.set_project(PROJECT_NAME)
+    client.apply(customer_fs)
+    client.apply(driver_fs)
+
+    # Test for listing of features
+    # Case 1: Filter by: project, entities and labels
+    filter_by_project_entity_labels_actual = client.list_features_by_ref(project=PROJECT_NAME, entities=["customer_id"], labels={"key1":"val1"})
+    
+    # Case 2: Filter by: project, entities
+    filter_by_project_entity_actual = client.list_features_by_ref(project=PROJECT_NAME, entities=["driver_id"])
+    
+    # Case 3: Filter by: project, labels
+    filter_by_project_labels_actual = client.list_features_by_ref(project=PROJECT_NAME, labels={"key1":"val1"})
+
+    assert set(filter_by_project_entity_labels_expected) == set(filter_by_project_entity_labels_actual)
+    assert set(filter_by_project_entity_expected) == set(filter_by_project_entity_actual)
+    assert set(filter_by_project_labels_expected) == set(filter_by_project_labels_actual)
+
+@pytest.mark.timeout(900)
+@pytest.mark.run(order=50)
+def test_sources_deduplicate_ingest_jobs(client):
+    source = KafkaSource("localhost:9092", "feast-features")
+    alt_source = KafkaSource("localhost:9092", "feast-data")
+
+    def get_running_jobs():
+        return [ job for job in client.list_ingest_jobs() if job.status == IngestionJobStatus.RUNNING ]
+
+    # stop all ingest jobs
+    ingest_jobs = client.list_ingest_jobs()
+    for ingest_job in ingest_jobs:
+        client.stop_ingest_job(ingest_job)
+    for ingest_job in ingest_jobs:
+        ingest_job.wait(IngestionJobStatus.ABORTED)
+
+    # register multiple featuresets with the same source
+    # only one ingest job should spawned due to test ingest job deduplication
+    cust_trans_fs = FeatureSet.from_yaml(f"{DIR_PATH}/basic/cust_trans_fs.yaml")
+    driver_fs = FeatureSet.from_yaml(f"{DIR_PATH}/basic/driver_fs.yaml")
+    cust_trans_fs.source, driver_fs.source = source, source
+    client.apply(cust_trans_fs)
+    client.apply(driver_fs)
+
+    while len(get_running_jobs()) != 1:
+        assert 0 <= len(get_running_jobs()) <= 1
+        time.sleep(1)
+
+    # update feature sets with different sources, should spawn 2 ingest jobs
+    driver_fs.source = alt_source
+    client.apply(driver_fs)
+
+    while len(get_running_jobs()) != 2:
+        assert 1 <= len(get_running_jobs()) <= 2
+        time.sleep(1)
+
+    # update feature sets with same source again, should spawn only 1 ingest job
+    driver_fs.source = source
+    client.apply(driver_fs)
+
+    while len(get_running_jobs()) != 1:
+        assert 1 <= len(get_running_jobs()) <= 2
+        time.sleep(1)
 
 
 # TODO: rewrite these using python SDK once the labels are implemented there

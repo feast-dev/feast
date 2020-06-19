@@ -91,8 +91,13 @@ training, access to BigQuery is required. First, create a [service account](http
 will provide the credentials to access BigQuery. Grant the service account `editor` 
 role so it has write permissions to BigQuery and Cloud Storage.
 
-> In production, it is advised to give only the required [permissions](foo-feast-batch-serving-test) for the 
-> the service account, versus `editor` role which is very permissive.
+> In production, it is advised to grant these specific roles, versus `editor`
+> role which is very permissive:
+> - **Dataflow Admin**: Permissions to create and manage Dataflow jobs
+> - **Service Account User**: Permissions to set a service account on Dataflow workers
+> - **Storage Admin**: Permissions to write files into Google Cloud Storage
+> - **BigQuery Data Editor**: Permissions to write data into BigQuery
+> - **BigQuery Job User**: Permisssions to run query in BigQuery
 
 Create a Kubernetes secret for the service account JSON file:
 ```bash

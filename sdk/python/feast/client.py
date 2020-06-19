@@ -26,10 +26,10 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import grpc
 import pandas as pd
-from google.protobuf.timestamp_pb2 import Timestamp
-
 import pyarrow as pa
 import pyarrow.parquet as pq
+from google.protobuf.timestamp_pb2 import Timestamp
+
 from feast.config import Config
 from feast.constants import (
     CONFIG_CORE_SECURE_KEY,
@@ -51,6 +51,8 @@ from feast.core.CoreService_pb2 import (
     GetFeatureSetRequest,
     GetFeatureSetResponse,
     GetFeatureStatisticsRequest,
+    ListFeaturesRequest,
+    ListFeaturesResponse,
     ListFeatureSetsRequest,
     ListFeatureSetsResponse,
     ListIngestionJobsRequest,
@@ -61,7 +63,7 @@ from feast.core.CoreService_pb2 import (
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
-from feast.feature import FeatureRef
+from feast.feature import Feature, FeatureRef
 from feast.feature_set import Entity, FeatureSet, FeatureSetRef
 from feast.job import IngestJob, RetrievalJob
 from feast.loaders.abstract_producer import get_producer
@@ -425,7 +427,7 @@ class Client:
         feature_set._update_from_feature_set(applied_fs)
 
     def list_feature_sets(
-        self, project: str = None, name: str = None,
+        self, project: str = None, name: str = None, labels: Dict[str, str] = dict()
     ) -> List[FeatureSet]:
         """
         Retrieve a list of feature sets from Feast Core
@@ -448,7 +450,9 @@ class Client:
         if name is None:
             name = "*"
 
-        filter = ListFeatureSetsRequest.Filter(project=project, feature_set_name=name)
+        filter = ListFeatureSetsRequest.Filter(
+            project=project, feature_set_name=name, labels=labels
+        )
 
         # Get latest feature sets from Feast Core
         feature_set_protos = self._core_service_stub.ListFeatureSets(
@@ -493,10 +497,57 @@ class Client:
             raise grpc.RpcError(e.details())
         return FeatureSet.from_proto(get_feature_set_response.feature_set)
 
+    def list_features_by_ref(
+        self,
+        project: str = None,
+        entities: List[str] = list(),
+        labels: Dict[str, str] = dict(),
+    ) -> Dict[FeatureRef, Feature]:
+        """
+        Returns a list of features based on filters provided.
+
+        Args:
+            project: Feast project that these features belongs to
+            entities: Feast entity that these features are associated with
+            labels: Feast labels that these features are associated with
+
+        Returns:
+            Dictionary of <feature references: features>
+
+        Examples:
+            >>> from feast import Client
+            >>>
+            >>> feast_client = Client(core_url="localhost:6565")
+            >>> features = list_features_by_ref(project="test_project", entities=["driver_id"], labels={"key1":"val1","key2":"val2"})
+            >>> print(features)
+        """
+        self._connect_core()
+
+        if project is None:
+            if self.project is not None:
+                project = self.project
+            else:
+                project = "default"
+
+        filter = ListFeaturesRequest.Filter(
+            project=project, entities=entities, labels=labels
+        )
+
+        feature_protos = self._core_service_stub.ListFeatures(
+            ListFeaturesRequest(filter=filter)
+        )  # type: ListFeaturesResponse
+
+        features_dict = {}
+        for ref_str, feature_proto in feature_protos.features.items():
+            feature_ref = FeatureRef.from_str(ref_str, ignore_project=True)
+            feature = Feature.from_proto(feature_proto)
+            features_dict[feature_ref] = feature
+
+        return features_dict
+
     def list_entities(self) -> Dict[str, Entity]:
         """
         Returns a dictionary of entities across all feature sets
-
         Returns:
             Dictionary of entities, indexed by name
         """

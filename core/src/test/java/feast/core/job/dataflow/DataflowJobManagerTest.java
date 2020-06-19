@@ -164,14 +164,15 @@ public class DataflowJobManagerTest {
     featureSetJobStatus.setFeatureSet(FeatureSet.fromProto(featureSet));
 
     Job job =
-        new Job(
-            jobName,
-            "",
-            Runner.DATAFLOW,
-            Source.fromProto(source),
-            Store.fromProto(store),
-            Sets.newHashSet(featureSetJobStatus),
-            JobStatus.PENDING);
+        Job.builder()
+            .setId(jobName)
+            .setExtId("")
+            .setRunner(Runner.DATAFLOW)
+            .setSource(Source.fromProto(source))
+            .setStore(Store.fromProto(store))
+            .setFeatureSetJobStatuses(Sets.newHashSet(featureSetJobStatus))
+            .setStatus(JobStatus.PENDING)
+            .build();
     Job actual = dfJobManager.startJob(job);
 
     verify(dfJobManager, times(1)).runPipeline(captor.capture());
@@ -208,6 +209,7 @@ public class DataflowJobManagerTest {
         actualPipelineOptions.getSpecsStreamingUpdateConfigJson(),
         equalTo(printer.print(specsStreamingUpdateConfig)));
     assertThat(actual.getExtId(), equalTo(expectedExtJobId));
+    assertThat(actual.getStatus(), equalTo(JobStatus.RUNNING));
   }
 
   @Test
@@ -245,14 +247,15 @@ public class DataflowJobManagerTest {
     featureSetJobStatus.setFeatureSet(FeatureSet.fromProto(featureSet));
 
     Job job =
-        new Job(
-            "job",
-            "",
-            Runner.DATAFLOW,
-            Source.fromProto(source),
-            Store.fromProto(store),
-            Sets.newHashSet(featureSetJobStatus),
-            JobStatus.PENDING);
+        Job.builder()
+            .setId("job")
+            .setExtId("")
+            .setRunner(Runner.DATAFLOW)
+            .setSource(Source.fromProto(source))
+            .setStore(Store.fromProto(store))
+            .setFeatureSetJobStatuses(Sets.newHashSet(featureSetJobStatus))
+            .setStatus(JobStatus.PENDING)
+            .build();
 
     expectedException.expect(JobExecutionException.class);
     dfJobManager.startJob(job);
