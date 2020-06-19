@@ -77,6 +77,7 @@ public class WriteFeatureValueMetricsDoFnTest {
                     .setStatsdHost("localhost")
                     .setStatsdPort(STATSD_SERVER_PORT)
                     .setStoreName("store")
+                    .setMetricsNamespace("test")
                     .build()));
     pipeline.run(pipelineOptions).waitUntilFinish();
     // Wait until StatsD has finished processed all messages, 3 sec is a reasonable duration

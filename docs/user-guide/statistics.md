@@ -160,4 +160,5 @@ The metrics are tagged with and can be aggregated by the following keys:
 | feast\_featureSet\_name | feature set name |
 | feast\_feature\_name | feature name |
 | ingestion\_job\_name | id of the population job writing the feature values. |
+| metrics\_namespace | either `Inflight` or `WriteToStoreSuccess` |
 
