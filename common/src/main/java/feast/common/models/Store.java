@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.common.function;
+package feast.common.models;
 
 import feast.proto.core.StoreProto;
 import java.util.Arrays;
@@ -34,53 +34,52 @@ public class Store {
    */
   public static List<StoreProto.Store.Subscription> parseSubscriptionFrom(
       String subscriptions, boolean exclude) {
-    return Arrays.stream(subscriptions.split(","))
-        .map(subscriptionStr -> convertStringToSubscription(subscriptionStr, exclude))
-        .collect(Collectors.toList());
+    List<StoreProto.Store.Subscription> allSubscriptions =
+        Arrays.stream(subscriptions.split(","))
+            .map(subscriptionStr -> convertStringToSubscription(subscriptionStr))
+            .collect(Collectors.toList());
+
+    if (exclude) {
+      allSubscriptions =
+          allSubscriptions.stream().filter(sub -> !sub.getExclude()).collect(Collectors.toList());
+    }
+
+    return allSubscriptions;
   }
 
   /**
    * Accepts a Subscription class object and returns it in string format
    *
-   * @param sub Subscription class to be converted to string format
+   * @param subscription Subscription class to be converted to string format
    * @return String formatted Subscription class
    */
-  public static String parseSubscriptionFrom(StoreProto.Store.Subscription sub) {
-    if (sub.getName().isEmpty() || sub.getProject().isEmpty()) {
+  public static String parseSubscriptionFrom(StoreProto.Store.Subscription subscription) {
+    if (subscription.getName().isEmpty() || subscription.getProject().isEmpty()) {
       throw new IllegalArgumentException(
-          String.format("Missing arguments in subscription string: %s", sub.toString()));
+          String.format("Missing arguments in subscription string: %s", subscription.toString()));
     }
 
-    return String.format("%s:%s:%s", sub.getProject(), sub.getName(), sub.getExclude());
+    return String.format(
+        "%s:%s:%s", subscription.getProject(), subscription.getName(), subscription.getExclude());
   }
 
   /**
    * Accepts a exclude parameter to determine whether to return subscriptions that are excluded.
    *
-   * @param sub String formatted Subscription to be converted to Subscription class
-   * @param exclude flag to determine if subscriptions with exclusion flag should be returned
+   * @param subscription String formatted Subscription to be converted to Subscription class
    * @return Subscription class with its respective attributes
    */
-  private static StoreProto.Store.Subscription convertStringToSubscription(
-      String sub, boolean exclude) {
-    if (sub.equals("")) {
+  public static StoreProto.Store.Subscription convertStringToSubscription(String subscription) {
+    if (subscription.equals("")) {
       return StoreProto.Store.Subscription.newBuilder().build();
     }
-    String[] split = sub.split(":");
+    String[] split = subscription.split(":");
     if (split.length == 2) {
       // Backward compatibility check
       return StoreProto.Store.Subscription.newBuilder()
           .setProject(split[0])
           .setName(split[1])
-          .setExclude(false)
           .build();
-    }
-
-    if (split.length == 3) {
-      // If exclusion flag is set to true
-      if (exclude && Boolean.parseBoolean(split[2])) {
-        return StoreProto.Store.Subscription.newBuilder().build();
-      }
     }
     return StoreProto.Store.Subscription.newBuilder()
         .setProject(split[0])

@@ -16,7 +16,7 @@
  */
 package feast.test;
 
-import static feast.common.function.FeatureSet.getFeatureSetStringRef;
+import static feast.common.models.FeatureSet.getFeatureSetStringRef;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;

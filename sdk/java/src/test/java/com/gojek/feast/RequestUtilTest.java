@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.TextFormat;
-import feast.common.function.Feature;
+import feast.common.models.Feature;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
 import java.util.Arrays;
 import java.util.Comparator;

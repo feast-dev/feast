@@ -16,8 +16,8 @@
  */
 package feast.serving.specs;
 
-import static feast.common.function.Feature.getFeatureStringRef;
-import static feast.common.function.FeatureSet.getFeatureSetStringRef;
+import static feast.common.models.Feature.getFeatureStringRef;
+import static feast.common.models.FeatureSet.getFeatureSetStringRef;
 import static java.util.stream.Collectors.groupingBy;
 
 import com.google.common.cache.CacheBuilder;

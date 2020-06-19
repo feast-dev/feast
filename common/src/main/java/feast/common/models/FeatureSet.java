@@ -14,20 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.common.function;
+package feast.common.models;
 
-import feast.proto.core.FeatureSetProto;
-import feast.proto.core.FeatureSetReferenceProto;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.FeatureSetReferenceProto.FeatureSetReference;
 
 public class FeatureSet {
 
   /**
    * Accepts FeatureSetSpec object and returns its reference in String "project/featureset_name".
    *
-   * @param featureSetSpec
+   * @param featureSetSpec {@link FeatureSetSpec}
    * @return String format of FeatureSetReference
    */
-  public static String getFeatureSetStringRef(FeatureSetProto.FeatureSetSpec featureSetSpec) {
+  public static String getFeatureSetStringRef(FeatureSetSpec featureSetSpec) {
     return String.format("%s/%s", featureSetSpec.getProject(), featureSetSpec.getName());
   }
 
@@ -35,11 +35,10 @@ public class FeatureSet {
    * Accepts FeatureSetReference object and returns its reference in String
    * "project/featureset_name".
    *
-   * @param featureSetReference
+   * @param featureSetReference {@link FeatureSetReference}
    * @return String format of FeatureSetReference
    */
-  public static String getFeatureSetStringRef(
-      FeatureSetReferenceProto.FeatureSetReference featureSetReference) {
+  public static String getFeatureSetStringRef(FeatureSetReference featureSetReference) {
     return String.format("%s/%s", featureSetReference.getProject(), featureSetReference.getName());
   }
 }

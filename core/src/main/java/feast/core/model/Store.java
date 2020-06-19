@@ -16,7 +16,8 @@
  */
 package feast.core.model;
 
-import static feast.common.function.Store.parseSubscriptionFrom;
+import static feast.common.models.Store.convertStringToSubscription;
+import static feast.common.models.Store.parseSubscriptionFrom;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.proto.core.StoreProto;
@@ -31,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
@@ -96,7 +98,7 @@ public class Store {
   }
 
   public StoreProto.Store toProto() throws InvalidProtocolBufferException {
-    List<Subscription> subscriptionProtos = getSubscriptionsByStr(false);
+    List<Subscription> subscriptionProtos = getSubscriptions();
     Builder storeProtoBuilder =
         StoreProto.Store.newBuilder()
             .setName(name)
@@ -121,17 +123,14 @@ public class Store {
   }
 
   /**
-   * Returns a List of Subscriptions based on whether to include those with excluded flag.
-   * Currently, store's subscriptions string will store ALL subscriptions, but during retrieval for
-   * subscriptions, the exclude flag provided by this function will be used for filtering.
+   * Returns a List of Subscriptions.
    *
-   * @param exclude boolean flag to signify whether to return subscriptions which have excluded flag
-   * @return List of Subscription that based on exclusion filter
+   * @return List of Subscription
    */
-  public List<Subscription> getSubscriptionsByStr(boolean exclude) {
-    List<Subscription> subscriptions = parseSubscriptionFrom(this.getSubscriptions(), exclude);
-
-    return subscriptions;
+  public List<Subscription> getSubscriptions() {
+    return Arrays.stream(subscriptions.split(","))
+        .map(s -> convertStringToSubscription(s))
+        .collect(Collectors.toList());
   }
 
   @Override

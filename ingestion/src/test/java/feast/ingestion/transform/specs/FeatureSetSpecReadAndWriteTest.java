@@ -16,7 +16,7 @@
  */
 package feast.ingestion.transform.specs;
 
-import static feast.common.function.FeatureSet.getFeatureSetStringRef;
+import static feast.common.models.FeatureSet.getFeatureSetStringRef;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 

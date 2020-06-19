@@ -16,7 +16,7 @@
  */
 package com.gojek.feast;
 
-import feast.common.function.Feature;
+import feast.common.models.Feature;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;

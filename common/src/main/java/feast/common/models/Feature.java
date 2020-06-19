@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.common.function;
+package feast.common.models;
 
-import feast.proto.serving.ServingAPIProto;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
 
 public class Feature {
 
@@ -24,11 +24,11 @@ public class Feature {
    * Accepts FeatureReference object and returns its reference in String
    * "project/featureset_name:feature_name".
    *
-   * @param featureReference
+   * @param featureReference {@link FeatureReference}
    * @return String format of FeatureReference
    */
   public static String getFeatureStringRef(
-      ServingAPIProto.FeatureReference featureReference, boolean ignoreProject) {
+      FeatureReference featureReference, boolean ignoreProject) {
     String ref = featureReference.getName();
     if (!featureReference.getFeatureSet().isEmpty()) {
       ref = featureReference.getFeatureSet() + ":" + ref;

@@ -253,7 +253,7 @@ public class JobCoordinatorService {
    */
   @Transactional
   private List<FeatureSet> getFeatureSetsForStore(Store store) {
-    return store.getSubscriptionsByStr(true).stream()
+    return store.getSubscriptions().stream()
         .flatMap(
             subscription ->
                 featureSetRepository

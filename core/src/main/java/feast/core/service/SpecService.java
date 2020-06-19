@@ -393,9 +393,8 @@ public class SpecService {
   public UpdateStoreResponse updateStore(UpdateStoreRequest updateStoreRequest)
       throws InvalidProtocolBufferException {
     StoreProto.Store newStoreProto = updateStoreRequest.getStore();
-    Store store = Store.fromProto(newStoreProto);
 
-    List<Subscription> subs = store.getSubscriptionsByStr(false);
+    List<Subscription> subs = newStoreProto.getSubscriptionsList();
     for (Subscription sub : subs) {
       // Ensure that all fields in a subscription contain values
       if ((sub.getName().isEmpty()) || sub.getProject().isEmpty()) {

@@ -18,8 +18,8 @@ package feast.serving.service;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Duration;
-import feast.common.function.Feature;
-import feast.common.function.FeatureSet;
+import feast.common.models.Feature;
+import feast.common.models.FeatureSet;
 import feast.proto.serving.ServingAPIProto.*;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
