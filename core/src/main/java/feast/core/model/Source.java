@@ -177,9 +177,4 @@ public class Source {
   public String getTypeString() {
     return this.getType().getValueDescriptor().getName();
   }
-
-  @Override
-  public String toString() {
-    return String.format("%s-%d", this.getTypeString(), this.id);
-  }
 }

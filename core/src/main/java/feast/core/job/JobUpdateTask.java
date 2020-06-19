@@ -26,6 +26,7 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -233,8 +234,11 @@ public class JobUpdateTask implements Callable<Job> {
 
   String createJobId(Source source, String storeName) {
     String dateSuffix = String.valueOf(Instant.now().toEpochMilli());
-    String jobId = String.format("%s-to-%s-%s", store, storeName, dateSuffix);
-    return jobId.replaceAll("_", "-");
+    String jobId =
+        String.format(
+            "%s-%d-to-%s-%s",
+            source.getTypeString(), Objects.hashCode(source.getConfig()), storeName, dateSuffix);
+    return jobId.replaceAll("_store", "-");
   }
 
   private void logAudit(Action action, Job job, String detail, Object... args) {
