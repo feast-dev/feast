@@ -16,9 +16,7 @@
  */
 package feast.core.config;
 
-import com.google.common.base.Strings;
 import feast.core.config.FeastProperties.StreamProperties;
-import feast.core.exception.TopicExistsException;
 import feast.core.model.Source;
 import feast.core.util.KafkaSerialization;
 import feast.proto.core.FeatureSetProto;
@@ -26,14 +24,10 @@ import feast.proto.core.IngestionJobProto;
 import feast.proto.core.SourceProto;
 import feast.proto.core.SourceProto.KafkaSourceConfig;
 import feast.proto.core.SourceProto.SourceType;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
-import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -146,31 +140,6 @@ public class FeatureStreamConfig {
       case KAFKA:
         String bootstrapServers = streamProperties.getOptions().getBootstrapServers();
         String topicName = streamProperties.getOptions().getTopic();
-        Map<String, Object> map = new HashMap<>();
-        map.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        map.put(
-            AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, DEFAULT_KAFKA_REQUEST_TIMEOUT_MS_CONFIG);
-        AdminClient client = AdminClient.create(map);
-
-        NewTopic newTopic =
-            new NewTopic(
-                topicName,
-                streamProperties.getOptions().getPartitions(),
-                streamProperties.getOptions().getReplicationFactor());
-        CreateTopicsResult createTopicsResult =
-            client.createTopics(Collections.singleton(newTopic));
-        try {
-          createTopicsResult.values().get(topicName).get();
-        } catch (InterruptedException | ExecutionException e) {
-          if (e.getCause().getClass().equals(TopicExistsException.class)) {
-            log.warn(
-                Strings.lenientFormat(
-                    "Unable to create topic %s in the feature stream, topic already exists, using existing topic.",
-                    topicName));
-          } else {
-            throw new RuntimeException(e.getMessage(), e);
-          }
-        }
 
         KafkaSourceConfig sourceConfig =
             KafkaSourceConfig.newBuilder()
