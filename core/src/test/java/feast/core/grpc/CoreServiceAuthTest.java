@@ -41,6 +41,7 @@ import feast.proto.core.CoreServiceProto.ApplyFeatureSetRequest;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.FeatureSetStatus;
+import feast.proto.core.SourceProto;
 import feast.proto.core.SourceProto.KafkaSourceConfig;
 import feast.proto.core.SourceProto.SourceType;
 import feast.proto.types.ValueProto.ValueType.Enum;
@@ -137,16 +138,16 @@ class CoreServiceAuthTest {
   private FeatureSet newDummyFeatureSet(String name, int version, String project) {
     Feature feature = new Feature("feature", Enum.INT64);
     Entity entity = new Entity("entity", Enum.STRING);
-
-    Source defaultSource =
-        new Source(
-            SourceType.KAFKA,
-            KafkaSourceConfig.newBuilder()
-                .setBootstrapServers("kafka:9092")
-                .setTopic("my-topic")
-                .build(),
-            true);
-
+    SourceProto.Source sourceSpec =
+        SourceProto.Source.newBuilder()
+            .setType(SourceType.KAFKA)
+            .setKafkaSourceConfig(
+                KafkaSourceConfig.newBuilder()
+                    .setBootstrapServers("kafka:9092")
+                    .setTopic("my-topic")
+                    .build())
+            .build();
+    Source defaultSource = Source.fromProto(sourceSpec);
     FeatureSet fs =
         new FeatureSet(
             name,
