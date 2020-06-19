@@ -29,6 +29,7 @@ import feast.core.dao.ProjectRepository;
 import feast.core.dao.StoreRepository;
 import feast.core.exception.RetrievalException;
 import feast.core.model.*;
+import feast.core.util.TestUtil;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse.Status;
 import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
@@ -99,7 +100,7 @@ public class SpecServiceTest {
   @Before
   public void setUp() throws InvalidProtocolBufferException {
     initMocks(this);
-    defaultSource = TestObjectFactory.defaultSource;
+    defaultSource = TestUtil.defaultSource;
 
     FeatureSet featureSet1 = newDummyFeatureSet("f1", "project1");
     FeatureSet featureSet2 = newDummyFeatureSet("f2", "project1");
@@ -108,13 +109,12 @@ public class SpecServiceTest {
     Map<String, String> featureLabels2 = Map.ofEntries(Map.entry("key2", "val2"));
     Map<String, String> dummyLabels = Map.ofEntries(Map.entry("key", "value"));
 
-    Feature dummyFeature = TestObjectFactory.CreateFeature("feature", Enum.STRING, dummyLabels);
-    Feature f3f1 = TestObjectFactory.CreateFeature("f3f1", Enum.INT64);
-    Feature f3f2 = TestObjectFactory.CreateFeature("f3f2", Enum.INT64);
-    Entity f3e1 = TestObjectFactory.CreateEntity("f3e1", Enum.STRING);
+    Feature dummyFeature = TestUtil.CreateFeature("feature", Enum.STRING, dummyLabels);
+    Feature f3f1 = TestUtil.CreateFeature("f3f1", Enum.INT64);
+    Feature f3f2 = TestUtil.CreateFeature("f3f2", Enum.INT64);
+    Entity f3e1 = TestUtil.CreateEntity("f3e1", Enum.STRING);
     FeatureSet featureSet3 =
-        TestObjectFactory.CreateFeatureSet(
-            "f3", "project1", Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1));
+        TestUtil.CreateFeatureSet("f3", "project1", Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1));
 
     FeatureSet featureSet4 = newDummyFeatureSet("f4", Project.DEFAULT_NAME);
     Map<String, String> singleFeatureSetLabels =
@@ -153,19 +153,17 @@ public class SpecServiceTest {
                     .build())
             .build();
 
-    Entity f7e1 = TestObjectFactory.CreateEntity("f7e1", Enum.STRING);
-    Entity f9e1 = TestObjectFactory.CreateEntity("f9e1", Enum.STRING);
-    Feature f7f1 = TestObjectFactory.CreateFeature("f7f1", Enum.INT64, featureLabels1);
-    Feature f8f1 = TestObjectFactory.CreateFeature("f8f1", Enum.INT64, featureLabels2);
+    Entity f7e1 = TestUtil.CreateEntity("f7e1", Enum.STRING);
+    Entity f9e1 = TestUtil.CreateEntity("f9e1", Enum.STRING);
+    Feature f7f1 = TestUtil.CreateFeature("f7f1", Enum.INT64, featureLabels1);
+    Feature f8f1 = TestUtil.CreateFeature("f8f1", Enum.INT64, featureLabels2);
     FeatureSet featureSet7 =
-        TestObjectFactory.CreateFeatureSet(
+        TestUtil.CreateFeatureSet(
             "f7", "project2", Arrays.asList(f7e1), Arrays.asList(f3f1, f3f2, f7f1));
     FeatureSet featureSet8 =
-        TestObjectFactory.CreateFeatureSet(
-            "f8", "project2", Arrays.asList(f7e1), Arrays.asList(f3f1, f8f1));
+        TestUtil.CreateFeatureSet("f8", "project2", Arrays.asList(f7e1), Arrays.asList(f3f1, f8f1));
     FeatureSet featureSet9 =
-        TestObjectFactory.CreateFeatureSet(
-            "f9", "default", Arrays.asList(f9e1), Arrays.asList(f3f1, f8f1));
+        TestUtil.CreateFeatureSet("f9", "default", Arrays.asList(f9e1), Arrays.asList(f3f1, f8f1));
     features = Arrays.asList(dummyFeature, f3f1, f3f2, f7f1, f8f1);
 
     featureSets =
@@ -568,12 +566,11 @@ public class SpecServiceTest {
   @Test
   public void applyFeatureSetShouldCreateProjectWhenNotAlreadyExists()
       throws InvalidProtocolBufferException {
-    Feature f3f1 = TestObjectFactory.CreateFeature("f3f1", Enum.INT64);
-    Feature f3f2 = TestObjectFactory.CreateFeature("f3f2", Enum.INT64);
-    Entity f3e1 = TestObjectFactory.CreateEntity("f3e1", Enum.STRING);
+    Feature f3f1 = TestUtil.CreateFeature("f3f1", Enum.INT64);
+    Feature f3f2 = TestUtil.CreateFeature("f3f2", Enum.INT64);
+    Entity f3e1 = TestUtil.CreateEntity("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
-        TestObjectFactory.CreateFeatureSet(
-                "f3", "project", Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1))
+        TestUtil.CreateFeatureSet("f3", "project", Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1))
             .toProto();
 
     ApplyFeatureSetResponse applyFeatureSetResponse =
@@ -587,13 +584,13 @@ public class SpecServiceTest {
   @Test
   public void applyFeatureSetShouldUsedDefaultProjectIfUnspecified()
       throws InvalidProtocolBufferException {
-    Feature f3f1 = TestObjectFactory.CreateFeature("f3f1", Enum.INT64);
-    Feature f3f2 = TestObjectFactory.CreateFeature("f3f2", Enum.INT64);
-    Entity f3e1 = TestObjectFactory.CreateEntity("f3e1", Enum.STRING);
+    Feature f3f1 = TestUtil.CreateFeature("f3f1", Enum.INT64);
+    Feature f3f2 = TestUtil.CreateFeature("f3f2", Enum.INT64);
+    Entity f3e1 = TestUtil.CreateEntity("f3e1", Enum.STRING);
 
     // In protov3, unspecified project defaults to ""
     FeatureSetProto.FeatureSet incomingFeatureSet =
-        TestObjectFactory.CreateFeatureSet("f3", "", Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1))
+        TestUtil.CreateFeatureSet("f3", "", Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1))
             .toProto();
     ApplyFeatureSetResponse applyFeatureSetResponse =
         specService.applyFeatureSet(incomingFeatureSet);
@@ -607,11 +604,11 @@ public class SpecServiceTest {
   @Test
   public void applyFeatureSetShouldFailWhenProjectIsArchived()
       throws InvalidProtocolBufferException {
-    Feature f3f1 = TestObjectFactory.CreateFeature("f3f1", Enum.INT64);
-    Feature f3f2 = TestObjectFactory.CreateFeature("f3f2", Enum.INT64);
-    Entity f3e1 = TestObjectFactory.CreateEntity("f3e1", Enum.STRING);
+    Feature f3f1 = TestUtil.CreateFeature("f3f1", Enum.INT64);
+    Feature f3f2 = TestUtil.CreateFeature("f3f2", Enum.INT64);
+    Entity f3e1 = TestUtil.CreateEntity("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
-        TestObjectFactory.CreateFeatureSet(
+        TestUtil.CreateFeatureSet(
                 "f3", "archivedproject", Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1))
             .toProto();
 
@@ -964,11 +961,10 @@ public class SpecServiceTest {
             .putLabels("key", "value")
             .build();
     Feature feature = Feature.fromProto(f1);
-    Entity entity = TestObjectFactory.CreateEntity("entity", Enum.STRING);
+    Entity entity = TestUtil.CreateEntity("entity", Enum.STRING);
 
     FeatureSet fs =
-        TestObjectFactory.CreateFeatureSet(
-            name, project, Arrays.asList(entity), Arrays.asList(feature));
+        TestUtil.CreateFeatureSet(name, project, Arrays.asList(entity), Arrays.asList(feature));
     fs.setCreated(Date.from(Instant.ofEpochSecond(10L)));
     return fs;
   }

@@ -21,6 +21,7 @@ import feast.core.model.Source;
 import feast.core.util.KafkaSerialization;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.IngestionJobProto;
+import feast.proto.core.SourceProto;
 import feast.proto.core.SourceProto.KafkaSourceConfig;
 import feast.proto.core.SourceProto.SourceType;
 import java.util.HashMap;
@@ -145,7 +146,12 @@ public class FeatureStreamConfig {
                 .setBootstrapServers(bootstrapServers)
                 .setTopic(topicName)
                 .build();
-        return new Source(featureStreamType, sourceConfig, true);
+        SourceProto.Source source =
+            SourceProto.Source.newBuilder()
+                .setType(featureStreamType)
+                .setKafkaSourceConfig(sourceConfig)
+                .build();
+        return Source.fromProto(source, true);
       default:
         throw new RuntimeException("Unsupported source stream, only [KAFKA] is supported");
     }

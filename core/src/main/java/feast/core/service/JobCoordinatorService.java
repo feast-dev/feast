@@ -23,27 +23,32 @@ import feast.core.config.FeastProperties;
 import feast.core.config.FeastProperties.JobProperties;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobRepository;
+import feast.core.dao.SourceRepository;
 import feast.core.job.JobManager;
 import feast.core.job.JobUpdateTask;
+import feast.core.job.JobUpdateTask.JobTargetStatus;
 import feast.core.model.*;
+import feast.core.model.FeatureSet;
+import feast.core.model.Job;
+import feast.core.model.JobStatus;
+import feast.core.model.Source;
+import feast.core.model.Store;
 import feast.proto.core.CoreServiceProto.ListStoresRequest.Filter;
 import feast.proto.core.CoreServiceProto.ListStoresResponse;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.IngestionJobProto;
-import feast.proto.core.StoreProto;
-import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Collection;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
-import javax.validation.constraints.Positive;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.util.Pair;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -58,6 +63,7 @@ public class JobCoordinatorService {
 
   private final JobRepository jobRepository;
   private final FeatureSetRepository featureSetRepository;
+  private final SourceRepository sourceRepository;
   private final SpecService specService;
   private final JobManager jobManager;
   private final JobProperties jobProperties;
@@ -67,12 +73,14 @@ public class JobCoordinatorService {
   public JobCoordinatorService(
       JobRepository jobRepository,
       FeatureSetRepository featureSetRepository,
+      SourceRepository sourceRepository,
       SpecService specService,
       JobManager jobManager,
       FeastProperties feastProperties,
       KafkaTemplate<String, FeatureSetProto.FeatureSetSpec> specPublisher) {
     this.jobRepository = jobRepository;
     this.featureSetRepository = featureSetRepository;
+    this.sourceRepository = sourceRepository;
     this.specService = specService;
     this.jobManager = jobManager;
     this.jobProperties = feastProperties.getJobs();
@@ -84,7 +92,7 @@ public class JobCoordinatorService {
    *
    * <p>1) Checks DB and extracts jobs that have to run based on the specs available
    *
-   * <p>2) Does a diff with the current set of jobs, starts/updates job(s) if necessary
+   * <p>2) Does a diff with the current set of jobs, starts/updates/stops job(s) if necessary
    *
    * <p>3) Updates job object in DB with status, feature sets
    *
@@ -94,32 +102,9 @@ public class JobCoordinatorService {
   @Scheduled(fixedDelayString = "${feast.jobs.polling_interval_milliseconds}")
   public void Poll() throws InvalidProtocolBufferException {
     log.info("Polling for new jobs...");
-    @Positive long updateTimeout = jobProperties.getJobUpdateTimeoutSeconds();
-    List<JobUpdateTask> jobUpdateTasks = new ArrayList<>();
-    ListStoresResponse listStoresResponse = specService.listStores(Filter.newBuilder().build());
+    List<Pair<Source, Store>> sourceStoreMappings = getSourceToStoreMappings();
+    List<JobUpdateTask> jobUpdateTasks = makeJobUpdateTasks(sourceStoreMappings);
 
-    for (StoreProto.Store storeSpec : listStoresResponse.getStoreList()) {
-      Set<FeatureSet> featureSets = new HashSet<>();
-      Store store = Store.fromProto(storeSpec);
-
-      for (Subscription subscription : store.getSubscriptions()) {
-        List<FeatureSet> featureSetsForSub =
-            featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc(
-                subscription.getName().replace('*', '%'),
-                subscription.getProject().replace('*', '%'));
-        featureSets.addAll(featureSetsForSub);
-      }
-
-      featureSets.stream()
-          .collect(Collectors.groupingBy(FeatureSet::getSource))
-          .forEach(
-              (source, setsForSource) -> {
-                Optional<Job> originalJob = getJob(source, store);
-                jobUpdateTasks.add(
-                    new JobUpdateTask(
-                        setsForSource, source, store, originalJob, jobManager, updateTimeout));
-              });
-    }
     if (jobUpdateTasks.isEmpty()) {
       log.info("No jobs found.");
       return;
@@ -151,17 +136,133 @@ public class JobCoordinatorService {
     executorService.shutdown();
   }
 
+  /**
+   * Makes Job Update Tasks required to reconcile the current ingestion jobs with the given source
+   * to store map. Compares the current ingestion jobs and source to store mapping to determine
+   * which whether jobs have started/stopped/updated in terms of Job Update tasks. Only tries to
+   * stop ingestion jobs its the required ingestions to maintained ingestion jobs are already
+   * RUNNING.
+   *
+   * @param sourceStoreMappings a list of source to store pairs where ingestion jobs would have to
+   *     be maintained for ingestion to work correctly.
+   * @return list of job update tasks required to reconcile the current ingestion jobs to the state
+   *     that is defined by sourceStoreMap.
+   */
+  private List<JobUpdateTask> makeJobUpdateTasks(List<Pair<Source, Store>> sourceStoreMappings) {
+    List<JobUpdateTask> jobUpdateTasks = new LinkedList<>();
+    // Ensure a running job for each source to store mapping
+    long updateTimeout = jobProperties.getJobUpdateTimeoutSeconds();
+    List<Job> requiredJobs = new LinkedList<>();
+    boolean isSafeToStopJobs = true;
+    for (Pair<Source, Store> mapping : sourceStoreMappings) {
+      Source source = mapping.getLeft();
+      Store store = mapping.getRight();
+
+      Optional<Job> sourceToStoreJob = getJob(source, store);
+      if (sourceToStoreJob.isPresent()) {
+        Job job = sourceToStoreJob.get();
+        // Record the job as required to safeguard it from getting stopped
+        requiredJobs.add(sourceToStoreJob.get());
+        if (!job.isRunning()) {
+          // Mark that it is not safe to stop jobs without disrupting ingestion
+          isSafeToStopJobs = false;
+        }
+      }
+
+      jobUpdateTasks.add(
+          new JobUpdateTask(
+              getFeatureSetsForStore(store),
+              source,
+              store,
+              sourceToStoreJob,
+              jobManager,
+              updateTimeout,
+              JobTargetStatus.RUNNING));
+    }
+    // Stop extra jobs that are not required to mantain ingestion when safe
+    if (isSafeToStopJobs) {
+      getExtraJobs(requiredJobs)
+          .forEach(
+              extraJob -> {
+                jobUpdateTasks.add(
+                    new JobUpdateTask(
+                        extraJob.getFeatureSets(),
+                        extraJob.getSource(),
+                        extraJob.getStore(),
+                        Optional.of(extraJob),
+                        jobManager,
+                        updateTimeout,
+                        JobTargetStatus.ABORTED));
+              });
+    }
+
+    return jobUpdateTasks;
+  }
+
+  /** Get the non terminated ingestion job ingesting between source and source if exists. */
   @Transactional
   public Optional<Job> getJob(Source source, Store store) {
-    List<Job> jobs =
-        jobRepository.findBySourceIdAndStoreNameOrderByLastUpdatedDesc(
-            source.getId(), store.getName());
-    jobs = jobs.stream().filter(job -> !job.hasTerminated()).collect(Collectors.toList());
-    if (jobs.isEmpty()) {
-      return Optional.empty();
-    }
-    // return the latest
-    return Optional.of(jobs.get(0));
+    return jobRepository
+        .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
+            source.getType(), source.getConfig(), store.getName(), JobStatus.getTerminalStates());
+  }
+
+  /** Get running extra ingestion jobs that have ids not in keepJobs */
+  @Transactional
+  private Collection<Job> getExtraJobs(List<Job> keepJobs) {
+    List<Job> runningJobs = jobRepository.findByStatus(JobStatus.RUNNING);
+    Map<String, Job> extraJobMap =
+        runningJobs.stream().collect(Collectors.toMap(job -> job.getId(), job -> job));
+    keepJobs.forEach(job -> extraJobMap.remove(job.getId()));
+    return extraJobMap.values();
+  }
+
+  /**
+   * Generate a source to store mapping. The mapping maps the source/store pairs in which ingestion
+   * jobs would have to be maintained for ingestion to work correctly.
+   *
+   * @return a list of pairs signifying a mapping from source to store.
+   */
+  private List<Pair<Source, Store>> getSourceToStoreMappings() {
+    ListStoresResponse listStoresResponse = specService.listStores(Filter.newBuilder().build());
+    List<Store> stores =
+        listStoresResponse.getStoreList().stream()
+            .map(storeSpec -> Store.fromProto(storeSpec))
+            .collect(Collectors.toList());
+
+    // build mapping from source to store.
+    // compile a set of sources via subscribed FeatureSets of stores.
+    List<Pair<Source, Store>> sourceStoreMappings =
+        stores.stream()
+            .flatMap(
+                store ->
+                    getFeatureSetsForStore(store).stream()
+                        .map(featureSet -> featureSet.getSource())
+                        .map(source -> Pair.of(source, store)))
+            .distinct()
+            .collect(Collectors.toList());
+
+    return sourceStoreMappings;
+  }
+
+  /**
+   * Get the FeatureSets that the given store subscribes to.
+   *
+   * @param store to get subscribed FeatureSets for
+   * @return list of FeatureSets that the store subscribes to.
+   */
+  @Transactional
+  private List<FeatureSet> getFeatureSetsForStore(Store store) {
+    return store.getSubscriptions().stream()
+        .flatMap(
+            subscription ->
+                featureSetRepository
+                    .findAllByNameLikeAndProject_NameLikeOrderByNameAsc(
+                        subscription.getName().replace('*', '%'),
+                        subscription.getProject().replace('*', '%'))
+                    .stream())
+        .distinct()
+        .collect(Collectors.toList());
   }
 
   @Transactional
@@ -238,7 +339,7 @@ public class JobCoordinatorService {
     Pair<String, String> projectAndSetName = parseReference(setReference);
     FeatureSet featureSet =
         featureSetRepository.findFeatureSetByNameAndProject_Name(
-            projectAndSetName.getSecond(), projectAndSetName.getFirst());
+            projectAndSetName.getRight(), projectAndSetName.getLeft());
     if (featureSet == null) {
       log.warn(
           String.format("ACKListener received message for unknown FeatureSet %s", setReference));

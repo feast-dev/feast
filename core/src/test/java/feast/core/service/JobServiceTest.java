@@ -16,7 +16,7 @@
  */
 package feast.core.service;
 
-import static feast.core.util.ModelHelpers.makeFeatureSetJobStatus;
+import static feast.core.util.TestUtil.makeFeatureSetJobStatus;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.fail;
@@ -32,6 +32,7 @@ import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
 import feast.core.model.*;
+import feast.core.util.TestUtil;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.proto.core.CoreServiceProto.ListIngestionJobsRequest;
@@ -73,7 +74,7 @@ public class JobServiceTest {
 
     // create mock objects for testing
     // fake data source
-    this.dataSource = TestObjectFactory.defaultSource;
+    this.dataSource = TestUtil.defaultSource;
     // fake data store
     this.dataStore =
         new Store(
@@ -113,7 +114,6 @@ public class JobServiceTest {
 
       when(this.specService.listFeatureSets(this.listFilters.get(1))).thenReturn(response);
 
-      when(this.specService.listFeatureSets(this.listFilters.get(2))).thenReturn(response);
     } catch (InvalidProtocolBufferException e) {
       e.printStackTrace();
       fail("Unexpected exception");
@@ -137,60 +137,48 @@ public class JobServiceTest {
   }
 
   private FeatureSet newDummyFeatureSet(String name, String project) {
-    Feature feature = TestObjectFactory.CreateFeature(name + "_feature", Enum.INT64);
-    Entity entity = TestObjectFactory.CreateEntity(name + "_entity", Enum.STRING);
+    Feature feature = TestUtil.CreateFeature(name + "_feature", Enum.INT64);
+    Entity entity = TestUtil.CreateEntity(name + "_entity", Enum.STRING);
 
     FeatureSet fs =
-        TestObjectFactory.CreateFeatureSet(
-            name, project, Arrays.asList(entity), Arrays.asList(feature));
+        TestUtil.CreateFeatureSet(name, project, Arrays.asList(entity), Arrays.asList(feature));
     fs.setCreated(Date.from(Instant.ofEpochSecond(10L)));
     return fs;
   }
 
   private Job newDummyJob(String id, String extId, JobStatus status) {
-    return new Job(
-        id,
-        extId,
-        Runner.DATAFLOW,
-        this.dataSource,
-        this.dataStore,
-        makeFeatureSetJobStatus(this.featureSet),
-        status);
+    return job.builder()
+        .setId(id)
+        .setExtId(extId)
+        .setRunner(Runner.DATAFLOW)
+        .setSource(this.dataSource)
+        .setStore(this.dataStore)
+        .setFeatureSetJobStatuses(makeFeatureSetJobStatus(this.featureSet))
+        .setStatus(status)
+        .build();
   }
 
   private List<FeatureSetReference> newDummyFeatureSetReferences() {
     return Arrays.asList(
-        // all provided: name, version and project
-        FeatureSetReference.newBuilder()
-            .setName(this.featureSet.getName())
-            .setProject(this.featureSet.getProject().toString())
-            .build(),
-
         // name and project
         FeatureSetReference.newBuilder()
             .setName(this.featureSet.getName())
             .setProject(this.featureSet.getProject().toString())
             .build(),
 
-        // name and version
+        // name only
         FeatureSetReference.newBuilder().setName(this.featureSet.getName()).build());
   }
 
   private List<ListFeatureSetsRequest.Filter> newDummyListRequestFilters() {
     return Arrays.asList(
-        // all provided: name, version and project
-        ListFeatureSetsRequest.Filter.newBuilder()
-            .setFeatureSetName(this.featureSet.getName())
-            .setProject(this.featureSet.getProject().toString())
-            .build(),
-
         // name and project
         ListFeatureSetsRequest.Filter.newBuilder()
             .setFeatureSetName(this.featureSet.getName())
             .setProject(this.featureSet.getProject().toString())
             .build(),
 
-        // name and project
+        // name  only
         ListFeatureSetsRequest.Filter.newBuilder()
             .setFeatureSetName(this.featureSet.getName())
             .setProject("*")
@@ -248,19 +236,10 @@ public class JobServiceTest {
         ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
     assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
 
-    // list job by feature set reference: name and version
+    // list job by feature set reference: name
     filter =
         ListIngestionJobsRequest.Filter.newBuilder()
             .setFeatureSetReference(this.fsReferences.get(1))
-            .setId(this.job.getId())
-            .build();
-    request = ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
-    assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
-
-    // list job by feature set reference: name and project
-    filter =
-        ListIngestionJobsRequest.Filter.newBuilder()
-            .setFeatureSetReference(this.fsReferences.get(2))
             .setId(this.job.getId())
             .build();
     request = ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
@@ -294,8 +273,10 @@ public class JobServiceTest {
 
     StopIngestionJobRequest request =
         StopIngestionJobRequest.newBuilder().setId(this.job.getId()).build();
+    when(this.jobManager.abortJob(this.job))
+        .thenReturn(this.newDummyJob(job.getId(), job.getExtId(), JobStatus.ABORTING));
     this.tryStopJob(request, false);
-    verify(this.jobManager).abortJob(this.job.getExtId());
+    verify(this.jobManager).abortJob(this.job);
 
     // TODO: check that for job status change in featureset source
 
@@ -315,7 +296,7 @@ public class JobServiceTest {
           StopIngestionJobRequest.newBuilder().setId(this.job.getId()).build();
       this.tryStopJob(request, false);
 
-      verify(this.jobManager, never()).abortJob(this.job.getExtId());
+      verify(this.jobManager, never()).abortJob(this.job);
     }
 
     this.job.setStatus(prevStatus);

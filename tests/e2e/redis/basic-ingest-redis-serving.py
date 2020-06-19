@@ -5,6 +5,7 @@ import time
 import grpc
 from collections import OrderedDict
 from feast.entity import Entity
+from feast.source import KafkaSource
 from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequest,
     GetOnlineFeaturesResponse,
@@ -12,7 +13,7 @@ from feast.serving.ServingService_pb2 import (
 from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core import CoreService_pb2
-from feast.types.Value_pb2 import Value as Value
+from feast.types.Value_pb2 import Value
 from feast.client import Client
 from feast.feature_set import FeatureSet, FeatureSetRef
 from feast.type_map import ValueType
@@ -740,6 +741,50 @@ def test_list_entities_and_features(client):
     assert set(filter_by_project_entity_labels_expected) == set(filter_by_project_entity_labels_actual)
     assert set(filter_by_project_entity_expected) == set(filter_by_project_entity_actual)
     assert set(filter_by_project_labels_expected) == set(filter_by_project_labels_actual)
+
+@pytest.mark.timeout(900)
+@pytest.mark.run(order=50)
+def test_sources_deduplicate_ingest_jobs(client):
+    source = KafkaSource("localhost:9092", "feast-features")
+    alt_source = KafkaSource("localhost:9092", "feast-data")
+
+    def get_running_jobs():
+        return [ job for job in client.list_ingest_jobs() if job.status == IngestionJobStatus.RUNNING ]
+
+    # stop all ingest jobs
+    ingest_jobs = client.list_ingest_jobs()
+    for ingest_job in ingest_jobs:
+        client.stop_ingest_job(ingest_job)
+    for ingest_job in ingest_jobs:
+        ingest_job.wait(IngestionJobStatus.ABORTED)
+
+    # register multiple featuresets with the same source
+    # only one ingest job should spawned due to test ingest job deduplication
+    cust_trans_fs = FeatureSet.from_yaml(f"{DIR_PATH}/basic/cust_trans_fs.yaml")
+    driver_fs = FeatureSet.from_yaml(f"{DIR_PATH}/basic/driver_fs.yaml")
+    cust_trans_fs.source, driver_fs.source = source, source
+    client.apply(cust_trans_fs)
+    client.apply(driver_fs)
+
+    while len(get_running_jobs()) != 1:
+        assert 0 <= len(get_running_jobs()) <= 1
+        time.sleep(1)
+
+    # update feature sets with different sources, should spawn 2 ingest jobs
+    driver_fs.source = alt_source
+    client.apply(driver_fs)
+
+    while len(get_running_jobs()) != 2:
+        assert 1 <= len(get_running_jobs()) <= 2
+        time.sleep(1)
+
+    # update feature sets with same source again, should spawn only 1 ingest job
+    driver_fs.source = source
+    client.apply(driver_fs)
+
+    while len(get_running_jobs()) != 1:
+        assert 1 <= len(get_running_jobs()) <= 2
+        time.sleep(1)
 
 
 # TODO: rewrite these using python SDK once the labels are implemented there

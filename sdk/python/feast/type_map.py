@@ -17,9 +17,10 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-from google.protobuf.timestamp_pb2 import Timestamp
-
 import pyarrow as pa
+from google.protobuf.timestamp_pb2 import Timestamp
+from pyarrow.lib import TimestampType
+
 from feast.constants import DATETIME_COLUMN
 from feast.types import FeatureRow_pb2 as FeatureRowProto
 from feast.types import Field_pb2 as FieldProto
@@ -35,7 +36,6 @@ from feast.types.Value_pb2 import (
 from feast.types.Value_pb2 import Value as ProtoValue
 from feast.types.Value_pb2 import ValueType as ProtoValueType
 from feast.value_type import ValueType
-from pyarrow.lib import TimestampType
 
 
 def python_type_to_feast_value_type(
