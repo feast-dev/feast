@@ -18,7 +18,7 @@ Feature creators model the data within their organization into Feast through the
 
 Feature sets are specifications that contain both schema and data source information. They allow Feast to know how to interpret your data, and optionally where to find it. Feature sets allow users to define domain [entities](entities.md) along with the [features](features.md) that are available on these entities. Feature sets also allow users to define schemas that describe the properties of the data, which in turn can be used for validation purposes.
 
-Once a feature set has been registered, Feast will create the relevant schemas to store feature data within it's feature [stores](stores.md). These stores are then automatically populated by by jobs that ingest data from data [sources](sources.md), making it possible for Feast to provide access to features for training and serving. It is also possible for users to [ingest](data-ingestion.md) data into Feast instead of using an external source.
+Once a feature set has been registered, Feast will create the relevant schemas to store feature data within it's feature [stores](stores.md). These stores are then automatically populated by jobs that ingest data from data [sources](sources.md), making it possible for Feast to provide access to features for training and serving. It is also possible for users to [ingest](data-ingestion.md) data into Feast instead of using an external source.
 
 Read more about [feature sets](feature-sets.md).
 
