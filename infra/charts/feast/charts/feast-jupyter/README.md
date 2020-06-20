@@ -12,6 +12,9 @@ Current chart version is `0.5.2-SNAPSHOT`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| gcpServiceAccount.enabled | bool | `false` | Flag to use [service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) JSON key |
+| gcpServiceAccount.existingSecret.key | string | `"credentials.json"` | Key in the secret data (file name of the service account) |
+| gcpServiceAccount.existingSecret.name | string | `"feast-gcp-service-account"` | Name of the existing secret containing the service account |
 | image.pullPolicy | string | `"Always"` | Image pull policy |
 | image.repository | string | `"gcr.io/kf-feast/feast-jupyter"` | Docker image repository |
 | image.tag | string | `"latest"` | Image tag |

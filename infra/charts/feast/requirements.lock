@@ -30,4 +30,4 @@ dependencies:
   repository: https://kubernetes-charts.storage.googleapis.com/
   version: 5.0.5
 digest: sha256:a0598d7a98e32827d3ca7b7cf85f269d4feec41487b61b3c425156736b97af25
-generated: "2020-06-20T19:34:30.051052659+08:00"
+generated: "2020-06-21T00:11:26.605778969+08:00"
