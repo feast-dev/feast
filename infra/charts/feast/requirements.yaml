@@ -1,15 +1,18 @@
 dependencies:
 - name: feast-core
-  version: 0.5.1
+  version: 0.5.2-SNAPSHOT
   condition: feast-core.enabled
 - name: feast-serving
   alias: feast-online-serving
-  version: 0.5.1
+  version: 0.5.2-SNAPSHOT
   condition: feast-online-serving.enabled
 - name: feast-serving
   alias: feast-batch-serving
-  version: 0.5.1
+  version: 0.5.2-SNAPSHOT
   condition: feast-batch-serving.enabled
+- name: feast-jupyter
+  version: 0.5.2-SNAPSHOT
+  condition: feast-jupyter.enabled
 - name: postgresql
   version: 8.6.1
   repository: https://kubernetes-charts.storage.googleapis.com/

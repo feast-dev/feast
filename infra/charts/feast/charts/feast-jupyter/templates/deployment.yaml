@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "feast-jupyter.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "feast-jupyter.name" . }}
+    component: jupyter
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "feast-jupyter.name" . }}
+      component: jupyter
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "feast-jupyter.name" . }}
+        component: jupyter
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        - name: FEAST_CORE_URL
+          value: "{{ .Release.Name }}-feast-core:6565"
+        - name: FEAST_ONLINE_SERVING_URL
+          value: "{{ .Release.Name }}-feast-online-serving:6566"
+        - name: FEAST_BATCH_SERVING_URL
+          value: "{{ .Release.Name }}-feast-batch-serving:6566"
+        ports:
+        - name: http
+          containerPort: 8888

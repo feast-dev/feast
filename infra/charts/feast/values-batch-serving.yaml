@@ -27,3 +27,6 @@ feast-batch-serving:
 
 postgresql:
   existingSecret: feast-postgresql
+
+redis:
+  usePassword: false
