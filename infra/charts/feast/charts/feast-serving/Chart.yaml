@@ -1,4 +1,4 @@
 apiVersion: v1
 description: Feast Serving serves low-latency latest features and historical batch features.
 name: feast-serving
-version: 0.5.0-alpha.1
+version: 0.6-SNAPSHOT

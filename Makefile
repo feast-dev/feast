@@ -162,3 +162,7 @@ build-html: clean-html
 	$(MAKE) compile-protos-python
 	cd 	$(ROOT_DIR)/sdk/python/docs && $(MAKE) html
 	cp -r $(ROOT_DIR)/sdk/python/docs/html/* $(ROOT_DIR)/dist/python
+
+# Versions
+lint-versions:
+	./infra/scripts/validate-version-consistency.sh

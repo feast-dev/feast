@@ -30,3 +30,11 @@ jobs:
         run: make install-go-ci-dependencies
       - name: lint go
         run: make lint-go
+
+  lint-versions:
+    container: gcr.io/kf-feast/feast-ci:latest
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v2
+      - name: install dependencies
+        run: make lint-versions
