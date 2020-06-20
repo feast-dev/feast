@@ -10,6 +10,9 @@ dependencies:
   alias: feast-batch-serving
   version: 0.6-SNAPSHOT
   condition: feast-batch-serving.enabled
+- name: feast-jupyter
+  version: 0.6-SNAPSHOT
+  condition: feast-jupyter.enabled
 - name: postgresql
   version: 8.6.1
   repository: https://kubernetes-charts.storage.googleapis.com/

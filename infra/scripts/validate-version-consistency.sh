@@ -8,6 +8,7 @@ declare -a files_to_validate=(
   "infra/charts/feast/Chart.yaml"
   "infra/charts/feast/charts/feast-core/Chart.yaml"
   "infra/charts/feast/charts/feast-serving/Chart.yaml"
+  "infra/charts/feast/charts/feast-jupyter/Chart.yaml"
   "infra/charts/feast/requirements.yaml" # We are only testing for the version once
 )
 
