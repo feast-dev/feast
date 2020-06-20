@@ -49,6 +49,7 @@ This chart install Feast deployment on a Kubernetes cluster using the [Helm](htt
 |-----|------|---------|-------------|
 | feast-batch-serving.enabled | bool | `false` | Flag to install Feast Batch Serving |
 | feast-core.enabled | bool | `true` | Flag to install Feast Core |
+| feast-jupyter.enabled | bool | `true` | Flag to install Feast Jupyter Notebook with SDK |
 | feast-online-serving.enabled | bool | `true` | Flag to install Feast Online Serving |
 | grafana.enabled | bool | `true` | Flag to install Grafana |
 | kafka.enabled | bool | `true` | Flag to install Kafka |

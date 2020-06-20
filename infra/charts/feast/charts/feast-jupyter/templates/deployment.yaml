@@ -24,16 +24,32 @@ spec:
         release: {{ .Release.Name }}
     spec:
       containers:
-      - name: {{ .Chart.Name }}
-        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
-        env:
-        - name: FEAST_CORE_URL
-          value: "{{ .Release.Name }}-feast-core:6565"
-        - name: FEAST_ONLINE_SERVING_URL
-          value: "{{ .Release.Name }}-feast-online-serving:6566"
-        - name: FEAST_BATCH_SERVING_URL
-          value: "{{ .Release.Name }}-feast-batch-serving:6566"
-        ports:
-        - name: http
-          containerPort: 8888
+        - name: {{ .Chart.Name }}
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          volumeMounts:
+          {{- if .Values.gcpServiceAccount.enabled }}
+          - name: {{ template "feast-jupyter.fullname" . }}-gcp-service-account
+            mountPath: /etc/secrets/google
+            readOnly: true
+          {{- end }}
+          env:
+            - name: FEAST_CORE_URL
+              value: "{{ .Release.Name }}-feast-core:6565"
+            - name: FEAST_ONLINE_SERVING_URL
+              value: "{{ .Release.Name }}-feast-online-serving:6566"
+            - name: FEAST_BATCH_SERVING_URL
+              value: "{{ .Release.Name }}-feast-batch-serving:6566"
+            {{- if .Values.gcpServiceAccount.enabled }}
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /etc/secrets/google/{{ .Values.gcpServiceAccount.existingSecret.key }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 8888
+      volumes:
+      {{- if .Values.gcpServiceAccount.enabled }}
+      - name: {{ template "feast-jupyter.fullname" . }}-gcp-service-account
+        secret:
+          secretName: {{ .Values.gcpServiceAccount.existingSecret.name }}
+      {{- end }}

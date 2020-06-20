@@ -30,3 +30,11 @@ postgresql:
 
 redis:
   usePassword: false
+
+feast-jupyter:
+  enabled: true
+  gcpServiceAccount:
+    enabled: true
+    existingSecret:
+      name: feast-gcp-service-account
+      key: credentials.json
