@@ -29,6 +29,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 from google.protobuf.timestamp_pb2 import Timestamp
+
 import feast.grpc.auth as feast_auth
 from feast.config import Config
 from feast.constants import (

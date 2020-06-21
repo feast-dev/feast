@@ -219,7 +219,7 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
         # Raise exception otherwise
         raise RuntimeError(
             "Could not determine Google ID token. Please ensure that the Google Cloud SDK is installed and run: "
-            "\"gcloud auth application-default login\" or ensure that a service account can be found by setting"
+            '"gcloud auth application-default login" or ensure that a service account can be found by setting'
             " the GOOGLE_APPLICATION_CREDENTIALS environmental variable to its path."
         )
 
