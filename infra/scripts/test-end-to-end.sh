@@ -90,6 +90,7 @@ ORIGINAL_DIR=$(pwd)
 cd tests/e2e
 
 set +e
+export GOOGLE_APPLICATION_CREDENTIALS=/etc/gcloud/service-account.json
 pytest redis/* --enable_auth=${ENABLE_AUTH} --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 

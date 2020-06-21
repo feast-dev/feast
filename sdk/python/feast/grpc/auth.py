@@ -193,15 +193,15 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
         from google.auth import jwt
         import subprocess
 
-        cli_output = subprocess.run(
-            ["gcloud", "auth", "print-identity-token"], stdout=subprocess.PIPE
-        )
-        token = cli_output.stdout.decode("utf-8").strip()
         try:
+            cli_output = subprocess.run(
+                ["gcloud", "auth", "print-identity-token"], stdout=subprocess.PIPE
+            )
+            token = cli_output.stdout.decode("utf-8").strip()
             jwt.decode(token, verify=False)  # Ensure the token is valid
             self._token = token
             return
-        except ValueError:
+        except (ValueError, FileNotFoundError):
             pass  # GCloud command not successful
 
         # Try to use Google Auth library to find ID Token
@@ -218,10 +218,9 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
 
         # Raise exception otherwise
         raise RuntimeError(
-            "Could not determine Google ID token. Please ensure that the "
-            "Google Cloud SDK is installed or that a service account can be "
-            "found using the GOOGLE_APPLICATION_CREDENTIALS environmental "
-            "variable."
+            "Could not determine Google ID token. Please ensure that the Google Cloud SDK is installed and run: "
+            "\"gcloud auth application-default login\" or ensure that a service account can be found by setting"
+            " the GOOGLE_APPLICATION_CREDENTIALS environmental variable to its path."
         )
 
     def set_static_token(self, token):
