@@ -238,7 +238,7 @@ public class JobUpdateTask implements Callable<Job> {
         String.format(
             "%s-%d-to-%s-%s",
             source.getTypeString(), Objects.hashCode(source.getConfig()), storeName, dateSuffix);
-    return jobId.replaceAll("_store", "-");
+    return jobId.replaceAll("_store", "-").toLowerCase();
   }
 
   private void logAudit(Action action, Job job, String detail, Object... args) {

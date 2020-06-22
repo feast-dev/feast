@@ -59,6 +59,12 @@ public class FeatureSetSpecToTableSchema
   private static final Logger log =
       org.slf4j.LoggerFactory.getLogger(FeatureSetSpecToTableSchema.class);
 
+  // Reserved columns
+  public static final String EVENT_TIMESTAMP_COLUMN = "event_timestamp";
+  public static final String CREATED_TIMESTAMP_COLUMN = "created_timestamp";
+  public static final String INGESTION_ID_COLUMN = "ingestion_id";
+  public static final String JOB_ID_COLUMN = "job_id";
+
   // Column description for reserved fields
   public static final String BIGQUERY_EVENT_TIMESTAMP_FIELD_DESCRIPTION =
       "Event time for the FeatureRow";
@@ -109,7 +115,9 @@ public class FeatureSetSpecToTableSchema
 
   private void createTable(String specKey, Schema schema) {
     TimePartitioning timePartitioning =
-        TimePartitioning.newBuilder(TimePartitioning.Type.DAY).setField("event_timestamp").build();
+        TimePartitioning.newBuilder(TimePartitioning.Type.DAY)
+            .setField(EVENT_TIMESTAMP_COLUMN)
+            .build();
 
     StandardTableDefinition tableDefinition =
         StandardTableDefinition.newBuilder()
@@ -166,14 +174,14 @@ public class FeatureSetSpecToTableSchema
     Map<String, Pair<StandardSQLTypeName, String>>
         reservedFieldNameToPairOfStandardSQLTypeAndDescription =
             ImmutableMap.of(
-                "event_timestamp",
+                EVENT_TIMESTAMP_COLUMN,
                 Pair.of(StandardSQLTypeName.TIMESTAMP, BIGQUERY_EVENT_TIMESTAMP_FIELD_DESCRIPTION),
-                "created_timestamp",
+                CREATED_TIMESTAMP_COLUMN,
                 Pair.of(
                     StandardSQLTypeName.TIMESTAMP, BIGQUERY_CREATED_TIMESTAMP_FIELD_DESCRIPTION),
-                "ingestion_id",
+                INGESTION_ID_COLUMN,
                 Pair.of(StandardSQLTypeName.STRING, BIGQUERY_INGESTION_ID_FIELD_DESCRIPTION),
-                "job_id",
+                JOB_ID_COLUMN,
                 Pair.of(StandardSQLTypeName.STRING, BIGQUERY_JOB_ID_FIELD_DESCRIPTION));
     for (Map.Entry<String, Pair<StandardSQLTypeName, String>> entry :
         reservedFieldNameToPairOfStandardSQLTypeAndDescription.entrySet()) {
