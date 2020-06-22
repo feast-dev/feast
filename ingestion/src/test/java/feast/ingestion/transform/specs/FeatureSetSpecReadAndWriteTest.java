@@ -16,7 +16,7 @@
  */
 package feast.ingestion.transform.specs;
 
-import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
+import static feast.common.models.FeatureSet.getFeatureSetStringRef;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 
@@ -223,7 +223,7 @@ public class FeatureSetSpecReadAndWriteTest {
     TestUtil.publishToKafka(
         KAFKA_BOOTSTRAP_SERVERS,
         KAFKA_SPECS_TOPIC,
-        ImmutableList.of(Pair.of(getFeatureSetReference(spec), spec)),
+        ImmutableList.of(Pair.of(getFeatureSetStringRef(spec), spec)),
         ByteArraySerializer.class,
         KAFKA_PUBLISH_TIMEOUT_SEC);
   }

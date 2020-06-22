@@ -133,6 +133,12 @@
     </dependency>
 
     <dependency>
+      <groupId>dev.feast</groupId>
+      <artifactId>feast-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.auto.value</groupId>
       <artifactId>auto-value-annotations</artifactId>
       <version>1.6.6</version>

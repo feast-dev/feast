@@ -16,7 +16,7 @@
  */
 package feast.test;
 
-import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
+import static feast.common.models.FeatureSet.getFeatureSetStringRef;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
@@ -220,7 +220,7 @@ public class TestUtil {
       FeatureSetSpec featureSetSpec, int randomStringSize) {
     Builder builder =
         FeatureRow.newBuilder()
-            .setFeatureSet(getFeatureSetReference(featureSetSpec))
+            .setFeatureSet(getFeatureSetStringRef(featureSetSpec))
             .setEventTimestamp(Timestamps.fromMillis(System.currentTimeMillis()));
 
     featureSetSpec
@@ -330,7 +330,7 @@ public class TestUtil {
    */
   public static RedisKey createRedisKey(FeatureSetSpec featureSetSpec, FeatureRow row) {
     RedisKey.Builder builder =
-        RedisKey.newBuilder().setFeatureSet(getFeatureSetReference(featureSetSpec));
+        RedisKey.newBuilder().setFeatureSet(getFeatureSetStringRef(featureSetSpec));
     featureSetSpec
         .getEntitiesList()
         .forEach(

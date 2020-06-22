@@ -85,21 +85,4 @@ public class RequestUtil {
     featureRef.setName(featureRefString);
     return featureRef;
   }
-
-  /**
-   * Render a feature reference as string.
-   *
-   * @param featureReference to render as string
-   * @return string represenation of feature reference.
-   */
-  public static String renderFeatureRef(FeatureReference featureReference) {
-    String refStr = "";
-    // In protov3, unset string and int fields default to "" and 0 respectively
-    if (!featureReference.getFeatureSet().isEmpty()) {
-      refStr += featureReference.getFeatureSet() + ":";
-    }
-    refStr = refStr + featureReference.getName();
-
-    return refStr;
-  }
 }

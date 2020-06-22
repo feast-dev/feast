@@ -16,7 +16,7 @@
  */
 package feast.ingestion.transform.specs;
 
-import feast.ingestion.utils.SpecUtil;
+import feast.common.models.Store;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
@@ -43,7 +43,7 @@ public class FilterRelevantFunction
     return stores.stream()
             .anyMatch(
                 s ->
-                    SpecUtil.isSubscribedToFeatureSet(
+                    Store.isSubscribedToFeatureSet(
                         s.getSubscriptionsList(),
                         input.getValue().getProject(),
                         input.getValue().getName()))

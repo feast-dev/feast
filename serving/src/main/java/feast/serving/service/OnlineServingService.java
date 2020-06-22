@@ -18,6 +18,8 @@ package feast.serving.service;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Duration;
+import feast.common.models.Feature;
+import feast.common.models.FeatureSet;
 import feast.proto.serving.ServingAPIProto.*;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
@@ -27,7 +29,6 @@ import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.Value;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.util.Metrics;
-import feast.serving.util.RefUtil;
 import feast.storage.api.retriever.FeatureSetRequest;
 import feast.storage.api.retriever.OnlineRetriever;
 import io.grpc.Status;
@@ -174,7 +175,7 @@ public class OnlineServingService implements ServingService {
                   Collectors.toMap(
                       featureRowField -> {
                         FeatureReference featureRef = nameRefMap.get(featureRowField.getName());
-                        return RefUtil.generateFeatureStringRef(featureRef);
+                        return Feature.getFeatureStringRef(featureRef, false);
                       },
                       featureRowField -> {
                         // drop feature values with an age outside feature set's max age.
@@ -187,7 +188,7 @@ public class OnlineServingService implements ServingService {
     // create empty values for features specified in request but not present in feature row.
     Set<String> missingFeatures =
         nameRefMap.values().stream()
-            .map(ref -> RefUtil.generateFeatureStringRef(ref))
+            .map(ref -> Feature.getFeatureStringRef(ref, false))
             .collect(Collectors.toSet());
     missingFeatures.removeAll(valueMap.keySet());
     missingFeatures.forEach(refString -> valueMap.put(refString, Value.newBuilder().build()));
@@ -264,7 +265,7 @@ public class OnlineServingService implements ServingService {
                   FeatureRow.Builder nullFeatureRowBuilder =
                       FeatureRow.newBuilder()
                           .setFeatureSet(
-                              RefUtil.generateFeatureSetStringRef(featureSetRequest.getSpec()));
+                              FeatureSet.getFeatureSetStringRef(featureSetRequest.getSpec()));
                   for (FeatureReference featureReference :
                       featureSetRequest.getFeatureReferences()) {
                     nullFeatureRowBuilder.addFields(

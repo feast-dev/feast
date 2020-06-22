@@ -16,7 +16,7 @@
  */
 package feast.ingestion;
 
-import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
+import static feast.common.models.FeatureSet.getFeatureSetStringRef;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
@@ -238,7 +238,7 @@ public class ImportJobTest {
     TestUtil.publishToKafka(
         KAFKA_BOOTSTRAP_SERVERS,
         KAFKA_SPECS_TOPIC,
-        ImmutableList.of(Pair.of(getFeatureSetReference(spec), spec)),
+        ImmutableList.of(Pair.of(getFeatureSetStringRef(spec), spec)),
         ByteArraySerializer.class,
         KAFKA_PUBLISH_TIMEOUT_SEC);
     TestUtil.publishToKafka(

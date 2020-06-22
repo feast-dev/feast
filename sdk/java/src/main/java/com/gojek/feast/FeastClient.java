@@ -16,6 +16,7 @@
  */
 package com.gojek.feast;
 
+import feast.common.models.Feature;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
@@ -150,7 +151,7 @@ public class FeastClient implements AutoCloseable {
                   // Strip project from string Feature References from returned from serving
                   FeatureReference featureRef =
                       RequestUtil.parseFeatureRef(fieldName, true).build();
-                  stripFieldName = RequestUtil.renderFeatureRef(featureRef);
+                  stripFieldName = Feature.getFeatureStringRef(featureRef, true);
                   row.set(
                       stripFieldName,
                       fieldValues.getFieldsMap().get(fieldName),

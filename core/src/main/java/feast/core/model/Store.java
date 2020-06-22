@@ -16,6 +16,9 @@
  */
 package feast.core.model;
 
+import static feast.common.models.Store.convertStringToSubscription;
+import static feast.common.models.Store.parseSubscriptionFrom;
+
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.BigQueryConfig;
@@ -71,7 +74,7 @@ public class Store {
   public static Store fromProto(StoreProto.Store storeProto) throws IllegalArgumentException {
     List<String> subs = new ArrayList<>();
     for (Subscription s : storeProto.getSubscriptionsList()) {
-      subs.add(convertSubscriptionToString(s));
+      subs.add(parseSubscriptionFrom(s));
     }
     byte[] config;
     switch (storeProto.getType()) {
@@ -119,26 +122,15 @@ public class Store {
     }
   }
 
+  /**
+   * Returns a List of Subscriptions.
+   *
+   * @return List of Subscription
+   */
   public List<Subscription> getSubscriptions() {
     return Arrays.stream(subscriptions.split(","))
-        .map(this::convertStringToSubscription)
+        .map(s -> convertStringToSubscription(s))
         .collect(Collectors.toList());
-  }
-
-  private static String convertSubscriptionToString(Subscription sub) {
-    if (sub.getName().isEmpty() || sub.getProject().isEmpty()) {
-      throw new IllegalArgumentException(
-          String.format("Missing arguments in subscription string: %s", sub.toString()));
-    }
-    return String.format("%s:%s", sub.getProject(), sub.getName());
-  }
-
-  private Subscription convertStringToSubscription(String sub) {
-    if (sub.equals("")) {
-      return Subscription.newBuilder().build();
-    }
-    String[] split = sub.split(":", 2);
-    return Subscription.newBuilder().setProject(split[0]).setName(split[1]).build();
   }
 
   @Override

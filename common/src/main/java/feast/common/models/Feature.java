@@ -1,6 +1,6 @@
 /*
  * SPDX-License-Identifier: Apache-2.0
- * Copyright 2018-2019 The Feast Authors
+ * Copyright 2018-2020 The Feast Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,25 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.serving.util;
+package feast.common.models;
 
-import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
 
-public class RefUtil {
-  public static String generateFeatureStringRef(FeatureReference featureReference) {
+public class Feature {
+
+  /**
+   * Accepts FeatureReference object and returns its reference in String
+   * "project/featureset_name:feature_name".
+   *
+   * @param featureReference {@link FeatureReference}
+   * @param ignoreProject Flag whether to return FeatureReference with project name
+   * @return String format of FeatureReference
+   */
+  public static String getFeatureStringRef(
+      FeatureReference featureReference, boolean ignoreProject) {
     String ref = featureReference.getName();
     if (!featureReference.getFeatureSet().isEmpty()) {
       ref = featureReference.getFeatureSet() + ":" + ref;
     }
-    if (!featureReference.getProject().isEmpty()) {
+    if (!featureReference.getProject().isEmpty() && !ignoreProject) {
       ref = featureReference.getProject() + "/" + ref;
     }
-    return ref;
-  }
-
-  public static String generateFeatureSetStringRef(FeatureSetSpec featureSetSpec) {
-    String ref = String.format("%s/%s", featureSetSpec.getProject(), featureSetSpec.getName());
     return ref;
   }
 }
