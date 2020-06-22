@@ -149,6 +149,9 @@ message Store {
     // - my-feature-set-6 can be used to select a single feature set
     string name = 1;
 
+    // All matches with exclude enabled will be filtered out instead of added
+    bool exclude = 4;
+
     // Feature set version was removed in v0.5.0.
     reserved 2;
   }
