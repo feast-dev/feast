@@ -22,19 +22,32 @@ public class Feature {
 
   /**
    * Accepts FeatureReference object and returns its reference in String
-   * "project/featureset_name:feature_name".
+   * "featureset_name:feature_name".
    *
    * @param featureReference {@link FeatureReference}
-   * @param ignoreProject Flag whether to return FeatureReference with project name
    * @return String format of FeatureReference
    */
-  public static String getFeatureStringRef(
-      FeatureReference featureReference, boolean ignoreProject) {
+  public static String getFeatureStringRef(FeatureReference featureReference) {
     String ref = featureReference.getName();
     if (!featureReference.getFeatureSet().isEmpty()) {
       ref = featureReference.getFeatureSet() + ":" + ref;
     }
-    if (!featureReference.getProject().isEmpty() && !ignoreProject) {
+    return ref;
+  }
+
+  /**
+   * Accepts FeatureReference object and returns its reference with project included in String, eg.
+   * "project/featureset_name:feature_name".
+   *
+   * @param featureReference {@link FeatureReference}
+   * @return String format of FeatureReference
+   */
+  public static String getFeatureStringWithProjectRef(FeatureReference featureReference) {
+    String ref = featureReference.getName();
+    if (!featureReference.getFeatureSet().isEmpty()) {
+      ref = featureReference.getFeatureSet() + ":" + ref;
+    }
+    if (!featureReference.getProject().isEmpty()) {
       ref = featureReference.getProject() + "/" + ref;
     }
     return ref;

@@ -151,7 +151,7 @@ public class FeastClient implements AutoCloseable {
                   // Strip project from string Feature References from returned from serving
                   FeatureReference featureRef =
                       RequestUtil.parseFeatureRef(fieldName, true).build();
-                  stripFieldName = Feature.getFeatureStringRef(featureRef, true);
+                  stripFieldName = Feature.getFeatureStringRef(featureRef);
                   row.set(
                       stripFieldName,
                       fieldValues.getFieldsMap().get(fieldName),
