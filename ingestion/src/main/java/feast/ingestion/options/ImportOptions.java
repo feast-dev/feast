@@ -69,9 +69,9 @@ public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions,
           + "https://developers.google.com/protocol-buffers/docs/proto3#json"
           + "Please minify and remove all insignificant whitespace such as newline in the JSON string"
           + "to prevent error when parsing the options")
-  List<String> getStoreJson();
+  List<String> getStoresJson();
 
-  void setStoreJson(List<String> storeJson);
+  void setStoresJson(List<String> storeJson);
 
   @Description(
       "(Optional) Deadletter elements will be written to this BigQuery table."

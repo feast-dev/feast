@@ -16,6 +16,8 @@
  */
 package feast.core.model;
 
+import static feast.core.util.StreamUtil.wrapException;
+
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.job.Runner;
 import feast.proto.core.FeatureSetProto;
@@ -73,10 +75,21 @@ public class Job extends AbstractTimestampEntity {
   @Column(name = "source_config")
   private String sourceConfig;
 
-  // Sink id
-  @ManyToOne
-  @JoinColumn(name = "store_name")
-  private Store store;
+  // Sinks
+  @ManyToMany
+  @JoinTable(
+      name = "jobs_stores",
+      joinColumns = @JoinColumn(name = "job_id"),
+      inverseJoinColumns = @JoinColumn(name = "store_name"),
+      indexes = {
+        @Index(name = "idx_jobs_stores_job_id", columnList = "job_id"),
+        @Index(name = "idx_jobs_stores_store_name", columnList = "store_name")
+      })
+  private Set<Store> stores;
+
+  @Deprecated
+  @Column(name = "store_name")
+  String storeName;
 
   // FeatureSets populated by the job via intermediate FeatureSetJobStatus model
   @OneToMany(mappedBy = "job", cascade = CascadeType.ALL)
@@ -98,8 +111,8 @@ public class Job extends AbstractTimestampEntity {
     return getStatus() == JobStatus.RUNNING;
   }
 
-  public String getSinkName() {
-    return store.getName();
+  public boolean isDeployed() {
+    return getExtId() != null && !getExtId().isEmpty();
   }
 
   public List<FeatureSet> getFeatureSets() {
@@ -135,7 +148,10 @@ public class Job extends AbstractTimestampEntity {
             .setExternalId(this.getExtId())
             .setStatus(this.getStatus().toProto())
             .setSource(this.getSource().toProto())
-            .setStore(this.getStore().toProto())
+            .addAllStores(
+                this.getStores().stream()
+                    .map(wrapException(Store::toProto))
+                    .collect(Collectors.toSet()))
             .addAllFeatureSets(featureSetProtos)
             .build();
 
@@ -144,7 +160,7 @@ public class Job extends AbstractTimestampEntity {
 
   @Override
   public int hashCode() {
-    return Objects.hash(getSource(), this.store, this.runner);
+    return Objects.hash(getSource(), this.stores, this.runner);
   }
 
   @Override
@@ -157,7 +173,7 @@ public class Job extends AbstractTimestampEntity {
       return false;
     } else if (!getSource().equals(other.getSource())) {
       return false;
-    } else if (!store.equals(other.store)) {
+    } else if (!stores.equals(other.stores)) {
       return false;
     }
     return true;

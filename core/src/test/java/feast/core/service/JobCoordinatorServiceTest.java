@@ -16,6 +16,8 @@
  */
 package feast.core.service;
 
+import static feast.proto.core.FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_DELIVERED;
+import static feast.proto.core.FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -25,6 +27,8 @@ import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.config.FeastProperties;
@@ -32,8 +36,7 @@ import feast.core.config.FeastProperties.JobProperties;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobRepository;
 import feast.core.dao.SourceRepository;
-import feast.core.job.JobManager;
-import feast.core.job.Runner;
+import feast.core.job.*;
 import feast.core.model.*;
 import feast.core.util.TestUtil;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
@@ -48,11 +51,7 @@ import feast.proto.core.SourceProto.KafkaSourceConfig;
 import feast.proto.core.SourceProto.SourceType;
 import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.Subscription;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CancellationException;
 import lombok.SneakyThrows;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -167,7 +166,7 @@ public class JobCoordinatorServiceTest {
             .setExtId("")
             .setRunner(Runner.DATAFLOW)
             .setSource(source)
-            .setStore(store)
+            .setStores(ImmutableSet.of(store))
             .setFeatureSetJobStatuses(TestUtil.makeFeatureSetJobStatus(featureSet1, featureSet2))
             .setStatus(JobStatus.PENDING)
             .build();
@@ -220,7 +219,7 @@ public class JobCoordinatorServiceTest {
             .setExtId("")
             .setRunner(Runner.DATAFLOW)
             .setSource(source1)
-            .setStore(store)
+            .setStores(ImmutableSet.of(store))
             .setFeatureSetJobStatuses(TestUtil.makeFeatureSetJobStatus(featureSet1))
             .setStatus(JobStatus.PENDING)
             .build();
@@ -234,7 +233,7 @@ public class JobCoordinatorServiceTest {
             .setExtId("")
             .setRunner(Runner.DATAFLOW)
             .setSource(source2)
-            .setStore(store)
+            .setStores(ImmutableSet.of(store))
             .setFeatureSetJobStatuses(TestUtil.makeFeatureSetJobStatus(featureSet2))
             .setStatus(JobStatus.PENDING)
             .build();
@@ -307,7 +306,7 @@ public class JobCoordinatorServiceTest {
             .setId("id")
             .setExtId("")
             .setSource(source1)
-            .setStore(store)
+            .setStores(ImmutableSet.of(store))
             .setRunner(Runner.DATAFLOW)
             .setFeatureSetJobStatuses(TestUtil.makeFeatureSetJobStatus(featureSet1, featureSet2))
             .setStatus(JobStatus.PENDING)
@@ -369,7 +368,7 @@ public class JobCoordinatorServiceTest {
               .setId(String.format("id%d", i))
               .setExtId(String.format("extid%d", i))
               .setSource(source)
-              .setStore(store)
+              .setStores(ImmutableSet.of(store))
               .setRunner(Runner.DATAFLOW)
               .setFeatureSetJobStatuses(TestUtil.makeFeatureSetJobStatus(featureSet))
               .setStatus(JobStatus.RUNNING)
@@ -397,10 +396,7 @@ public class JobCoordinatorServiceTest {
 
     when(jobRepository
             .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
-                source.getType(),
-                source.getConfig(),
-                store.getName(),
-                JobStatus.getTerminalStates()))
+                source.getType(), source.getConfig(), null, JobStatus.getTerminalStates()))
         .thenReturn(Optional.of(inputJobs.get(0)));
     when(jobRepository.findByStatus(JobStatus.RUNNING)).thenReturn(inputJobs);
 
@@ -448,7 +444,7 @@ public class JobCoordinatorServiceTest {
             .setExtId("")
             .setRunner(Runner.DATAFLOW)
             .setSource(source1)
-            .setStore(store1)
+            .setStores(ImmutableSet.of(store1))
             .setFeatureSetJobStatuses(TestUtil.makeFeatureSetJobStatus(featureSet1))
             .setStatus(JobStatus.PENDING)
             .build();
@@ -462,7 +458,7 @@ public class JobCoordinatorServiceTest {
             .setExtId("")
             .setRunner(Runner.DATAFLOW)
             .setSource(source2)
-            .setStore(store2)
+            .setStores(ImmutableSet.of(store2))
             .setFeatureSetJobStatuses(TestUtil.makeFeatureSetJobStatus(featureSet2))
             .setStatus(JobStatus.PENDING)
             .build();
@@ -493,17 +489,11 @@ public class JobCoordinatorServiceTest {
     when(jobRepository.findByStatus(JobStatus.RUNNING)).thenReturn(List.of());
     when(jobRepository
             .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
-                source1.getType(),
-                source1.getConfig(),
-                store1.getName(),
-                JobStatus.getTerminalStates()))
+                source1.getType(), source1.getConfig(), null, JobStatus.getTerminalStates()))
         .thenReturn(Optional.empty());
     when(jobRepository
             .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
-                source2.getType(),
-                source1.getConfig(),
-                store2.getName(),
-                JobStatus.getTerminalStates()))
+                source2.getType(), source2.getConfig(), null, JobStatus.getTerminalStates()))
         .thenReturn(Optional.empty());
 
     jcs.Poll();
@@ -524,14 +514,11 @@ public class JobCoordinatorServiceTest {
     fs1.setVersion(2);
 
     FeatureSetJobStatus status1 =
-        TestUtil.CreateFeatureSetJobStatusWithJob(
-            JobStatus.RUNNING, FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_DELIVERED, 1);
+        TestUtil.CreateFeatureSetJobStatusWithJob(JobStatus.RUNNING, STATUS_DELIVERED, 1);
     FeatureSetJobStatus status2 =
-        TestUtil.CreateFeatureSetJobStatusWithJob(
-            JobStatus.RUNNING, FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_DELIVERED, 1);
+        TestUtil.CreateFeatureSetJobStatusWithJob(JobStatus.RUNNING, STATUS_DELIVERED, 1);
     FeatureSetJobStatus status3 =
-        TestUtil.CreateFeatureSetJobStatusWithJob(
-            JobStatus.ABORTED, FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_DELIVERED, 2);
+        TestUtil.CreateFeatureSetJobStatusWithJob(JobStatus.ABORTED, STATUS_DELIVERED, 2);
 
     // spec needs to be send
     fs1.getJobStatuses().addAll(ImmutableList.of(status1, status2, status3));
@@ -546,9 +533,7 @@ public class JobCoordinatorServiceTest {
         .addAll(
             ImmutableList.of(
                 TestUtil.CreateFeatureSetJobStatusWithJob(
-                    JobStatus.RUNNING,
-                    FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS,
-                    5)));
+                    JobStatus.RUNNING, STATUS_IN_PROGRESS, 5)));
 
     // feature set without running jobs attached
     FeatureSet fs3 =
@@ -558,9 +543,7 @@ public class JobCoordinatorServiceTest {
         .addAll(
             ImmutableList.of(
                 TestUtil.CreateFeatureSetJobStatusWithJob(
-                    JobStatus.ABORTED,
-                    FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS,
-                    5)));
+                    JobStatus.ABORTED, STATUS_IN_PROGRESS, 5)));
 
     when(featureSetRepository.findAllByStatus(FeatureSetProto.FeatureSetStatus.STATUS_PENDING))
         .thenReturn(ImmutableList.of(fs1, fs2, fs3));
@@ -572,19 +555,13 @@ public class JobCoordinatorServiceTest {
     verify(kafkaTemplate, never()).sendDefault(eq(fs3.getReference()), any(FeatureSetSpec.class));
 
     assertThat(status1.getVersion(), is(2));
-    assertThat(
-        status1.getDeliveryStatus(),
-        is(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS));
+    assertThat(status1.getDeliveryStatus(), is(STATUS_IN_PROGRESS));
 
     assertThat(status2.getVersion(), is(2));
-    assertThat(
-        status2.getDeliveryStatus(),
-        is(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS));
+    assertThat(status2.getDeliveryStatus(), is(STATUS_IN_PROGRESS));
 
     assertThat(status3.getVersion(), is(2));
-    assertThat(
-        status3.getDeliveryStatus(),
-        is(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_DELIVERED));
+    assertThat(status3.getDeliveryStatus(), is(STATUS_DELIVERED));
   }
 
   @Test
@@ -596,8 +573,7 @@ public class JobCoordinatorServiceTest {
     fsInTest.setVersion(2);
 
     FeatureSetJobStatus featureSetJobStatus =
-        TestUtil.CreateFeatureSetJobStatusWithJob(
-            JobStatus.RUNNING, FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_DELIVERED, 1);
+        TestUtil.CreateFeatureSetJobStatusWithJob(JobStatus.RUNNING, STATUS_DELIVERED, 1);
     fsInTest.getJobStatuses().add(featureSetJobStatus);
 
     CancellationException exc = new CancellationException();
@@ -615,11 +591,9 @@ public class JobCoordinatorServiceTest {
         TestUtil.CreateFeatureSet(
             "fs", "project", Collections.emptyList(), Collections.emptyList());
     FeatureSetJobStatus j1 =
-        TestUtil.CreateFeatureSetJobStatusWithJob(
-            JobStatus.RUNNING, FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS, 1);
+        TestUtil.CreateFeatureSetJobStatusWithJob(JobStatus.RUNNING, STATUS_IN_PROGRESS, 1);
     FeatureSetJobStatus j2 =
-        TestUtil.CreateFeatureSetJobStatusWithJob(
-            JobStatus.RUNNING, FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS, 1);
+        TestUtil.CreateFeatureSetJobStatusWithJob(JobStatus.RUNNING, STATUS_IN_PROGRESS, 1);
 
     fsInTest.getJobStatuses().addAll(Arrays.asList(j1, j2));
 
@@ -631,10 +605,8 @@ public class JobCoordinatorServiceTest {
     jcs.listenAckFromJobs(newAckMessage(fsInTest.getReference(), 0, ""));
     jcs.listenAckFromJobs(newAckMessage(fsInTest.getReference(), -1, j1.getJob().getId()));
 
-    assertThat(
-        j1.getDeliveryStatus(), is(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS));
-    assertThat(
-        j2.getDeliveryStatus(), is(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS));
+    assertThat(j1.getDeliveryStatus(), is(STATUS_IN_PROGRESS));
+    assertThat(j2.getDeliveryStatus(), is(STATUS_IN_PROGRESS));
   }
 
   @Test
@@ -645,14 +617,11 @@ public class JobCoordinatorServiceTest {
     fsInTest.setStatus(FeatureSetProto.FeatureSetStatus.STATUS_PENDING);
 
     FeatureSetJobStatus j1 =
-        TestUtil.CreateFeatureSetJobStatusWithJob(
-            JobStatus.RUNNING, FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS, 1);
+        TestUtil.CreateFeatureSetJobStatusWithJob(JobStatus.RUNNING, STATUS_IN_PROGRESS, 1);
     FeatureSetJobStatus j2 =
-        TestUtil.CreateFeatureSetJobStatusWithJob(
-            JobStatus.RUNNING, FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS, 1);
+        TestUtil.CreateFeatureSetJobStatusWithJob(JobStatus.RUNNING, STATUS_IN_PROGRESS, 1);
     FeatureSetJobStatus j3 =
-        TestUtil.CreateFeatureSetJobStatusWithJob(
-            JobStatus.ABORTED, FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS, 1);
+        TestUtil.CreateFeatureSetJobStatusWithJob(JobStatus.ABORTED, STATUS_IN_PROGRESS, 1);
 
     fsInTest.getJobStatuses().addAll(Arrays.asList(j1, j2, j3));
 
@@ -663,17 +632,122 @@ public class JobCoordinatorServiceTest {
     jcs.listenAckFromJobs(
         newAckMessage(fsInTest.getReference(), fsInTest.getVersion(), j1.getJob().getId()));
 
-    assertThat(
-        j1.getDeliveryStatus(), is(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_DELIVERED));
+    assertThat(j1.getDeliveryStatus(), is(STATUS_DELIVERED));
     assertThat(fsInTest.getStatus(), is(FeatureSetProto.FeatureSetStatus.STATUS_PENDING));
 
     jcs.listenAckFromJobs(
         newAckMessage(fsInTest.getReference(), fsInTest.getVersion(), j2.getJob().getId()));
 
-    assertThat(
-        j2.getDeliveryStatus(), is(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_DELIVERED));
+    assertThat(j2.getDeliveryStatus(), is(STATUS_DELIVERED));
 
     assertThat(fsInTest.getStatus(), is(FeatureSetProto.FeatureSetStatus.STATUS_READY));
+  }
+
+  @Test
+  public void featureSetsShouldBeAllocated() {
+    FeatureSetProto.FeatureSet.Builder fsBuilder =
+        FeatureSetProto.FeatureSet.newBuilder().setMeta(FeatureSetMeta.newBuilder());
+    FeatureSetSpec.Builder specBuilder = FeatureSetSpec.newBuilder();
+
+    FeatureSet featureSet1 =
+        FeatureSet.fromProto(fsBuilder.setSpec(specBuilder.setName("featureSet1")).build());
+    FeatureSet featureSet2 =
+        FeatureSet.fromProto(fsBuilder.setSpec(specBuilder.setName("featureSet2")).build());
+
+    featureSet2.setStatus(FeatureSetProto.FeatureSetStatus.STATUS_READY);
+    featureSet2.setVersion(5);
+
+    Job job = new Job();
+    jcs.allocateFeatureSets(job, ImmutableSet.of(featureSet1));
+
+    FeatureSetJobStatus expectedStatus1 = new FeatureSetJobStatus();
+    expectedStatus1.setJob(job);
+    expectedStatus1.setFeatureSet(featureSet1);
+    expectedStatus1.setVersion(0);
+    expectedStatus1.setDeliveryStatus(STATUS_IN_PROGRESS);
+
+    assertThat(job.getFeatureSetJobStatuses(), containsInAnyOrder(expectedStatus1));
+
+    expectedStatus1.setDeliveryStatus(STATUS_DELIVERED);
+    job.getFeatureSetJobStatuses().forEach(j -> j.setDeliveryStatus(STATUS_DELIVERED));
+
+    jcs.allocateFeatureSets(job, ImmutableSet.of(featureSet1, featureSet2));
+
+    FeatureSetJobStatus expectedStatus2 = new FeatureSetJobStatus();
+    expectedStatus2.setJob(job);
+    expectedStatus2.setFeatureSet(featureSet2);
+    expectedStatus2.setVersion(featureSet2.getVersion());
+    expectedStatus2.setDeliveryStatus(STATUS_IN_PROGRESS);
+
+    assertThat(
+        job.getFeatureSetJobStatuses(), containsInAnyOrder(expectedStatus1, expectedStatus2));
+  }
+
+  @Test
+  public void shouldCheckStatusOfAbortingJob() {
+    Source source = TestUtil.createKafkaSource("kafka:9092", "topic", false);
+    Store store = TestUtil.createStore("store", Collections.emptyList());
+
+    Job job =
+        Job.builder()
+            .setStatus(JobStatus.ABORTING)
+            .setFeatureSetJobStatuses(new HashSet<>())
+            .setExtId("extId")
+            .build();
+
+    when(jobRepository
+            .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
+                source.getType(), source.getConfig(), null, JobStatus.getTerminalStates()))
+        .thenReturn(Optional.of(job));
+
+    List<JobTask> tasks = jcs.makeJobUpdateTasks(ImmutableMap.of(source, ImmutableSet.of(store)));
+
+    assertThat("CheckStatus is expected", tasks.get(0) instanceof UpdateJobStatusTask);
+  }
+
+  @Test
+  public void shouldUpgradeJobWhenNeeded() {
+    Source source = TestUtil.createKafkaSource("kafka:9092", "topic", false);
+    Store store = TestUtil.createStore("store", Collections.emptyList());
+
+    Job job =
+        Job.builder()
+            .setStatus(JobStatus.RUNNING)
+            .setFeatureSetJobStatuses(new HashSet<>())
+            .setStores(new HashSet<>())
+            .setExtId("extId")
+            .build();
+
+    when(jobRepository
+            .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
+                source.getType(), source.getConfig(), null, JobStatus.getTerminalStates()))
+        .thenReturn(Optional.of(job));
+
+    List<JobTask> tasks = jcs.makeJobUpdateTasks(ImmutableMap.of(source, ImmutableSet.of(store)));
+
+    assertThat("UpgradeTask is expected", tasks.get(0) instanceof UpgradeJobTask);
+  }
+
+  @Test
+  public void shouldCreateJobIfNoRunning() {
+    Source source = TestUtil.createKafkaSource("kafka:9092", "topic", false);
+    Store store = TestUtil.createStore("store", Collections.emptyList());
+
+    Job job =
+        Job.builder()
+            .setStatus(JobStatus.ERROR)
+            .setFeatureSetJobStatuses(new HashSet<>())
+            .setExtId("")
+            .build();
+
+    when(jobRepository
+            .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
+                source.getType(), source.getConfig(), null, JobStatus.getTerminalStates()))
+        .thenReturn(Optional.of(job));
+
+    List<JobTask> tasks = jcs.makeJobUpdateTasks(ImmutableMap.of(source, ImmutableSet.of(store)));
+
+    assertThat("CreateTask is expected", tasks.get(0) instanceof CreateJobTask);
   }
 
   private ConsumerRecord<String, IngestionJobProto.FeatureSetSpecAck> newAckMessage(

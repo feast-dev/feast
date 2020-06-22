@@ -39,7 +39,7 @@ message IngestionJob {
     // Source this job is reading from.
     feast.core.Source source = 5;
     // Store this job is writing to.
-    feast.core.Store store = 6;
+    repeated feast.core.Store stores = 6;
 }
 
 // Status of a Feast Ingestion Job

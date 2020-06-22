@@ -18,15 +18,14 @@ package feast.core.service;
 
 import static feast.core.model.FeatureSet.parseReference;
 
+import com.google.common.collect.Sets;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.config.FeastProperties;
 import feast.core.config.FeastProperties.JobProperties;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobRepository;
 import feast.core.dao.SourceRepository;
-import feast.core.job.JobManager;
-import feast.core.job.JobUpdateTask;
-import feast.core.job.JobUpdateTask.JobTargetStatus;
+import feast.core.job.*;
 import feast.core.model.*;
 import feast.core.model.FeatureSet;
 import feast.core.model.Job;
@@ -37,12 +36,7 @@ import feast.proto.core.CoreServiceProto.ListStoresRequest.Filter;
 import feast.proto.core.CoreServiceProto.ListStoresResponse;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.IngestionJobProto;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -102,8 +96,8 @@ public class JobCoordinatorService {
   @Scheduled(fixedDelayString = "${feast.jobs.polling_interval_milliseconds}")
   public void Poll() throws InvalidProtocolBufferException {
     log.info("Polling for new jobs...");
-    List<Pair<Source, Store>> sourceStoreMappings = getSourceToStoreMappings();
-    List<JobUpdateTask> jobUpdateTasks = makeJobUpdateTasks(sourceStoreMappings);
+    Map<Source, Set<Store>> sourceStoreMappings = getSourceToStoreMappings();
+    List<JobTask> jobUpdateTasks = makeJobUpdateTasks(sourceStoreMappings);
 
     if (jobUpdateTasks.isEmpty()) {
       log.info("No jobs found.");
@@ -114,7 +108,7 @@ public class JobCoordinatorService {
     startOrUpdateJobs(jobUpdateTasks);
   }
 
-  void startOrUpdateJobs(List<JobUpdateTask> tasks) {
+  void startOrUpdateJobs(List<JobTask> tasks) {
     ExecutorService executorService = Executors.newFixedThreadPool(tasks.size());
     ExecutorCompletionService<Job> ecs = new ExecutorCompletionService<>(executorService);
     tasks.forEach(ecs::submit);
@@ -123,11 +117,11 @@ public class JobCoordinatorService {
     List<Job> startedJobs = new ArrayList<>();
     while (completedTasks < tasks.size()) {
       try {
-        Job job = ecs.take().get();
+        Job job = ecs.take().get(jobProperties.getJobUpdateTimeoutSeconds(), TimeUnit.SECONDS);
         if (job != null) {
           startedJobs.add(job);
         }
-      } catch (ExecutionException | InterruptedException e) {
+      } catch (ExecutionException | InterruptedException | TimeoutException e) {
         log.warn("Unable to start or update job: {}", e.getMessage());
       }
       completedTasks++;
@@ -143,68 +137,132 @@ public class JobCoordinatorService {
    * stop ingestion jobs its the required ingestions to maintained ingestion jobs are already
    * RUNNING.
    *
-   * @param sourceStoreMappings a list of source to store pairs where ingestion jobs would have to
+   * @param sourceStoresMappings a list of source to store pairs where ingestion jobs would have to
    *     be maintained for ingestion to work correctly.
    * @return list of job update tasks required to reconcile the current ingestion jobs to the state
    *     that is defined by sourceStoreMap.
    */
-  private List<JobUpdateTask> makeJobUpdateTasks(List<Pair<Source, Store>> sourceStoreMappings) {
-    List<JobUpdateTask> jobUpdateTasks = new LinkedList<>();
+  List<JobTask> makeJobUpdateTasks(Map<Source, Set<Store>> sourceStoresMappings) {
+    List<JobTask> jobTasks = new LinkedList<>();
     // Ensure a running job for each source to store mapping
-    long updateTimeout = jobProperties.getJobUpdateTimeoutSeconds();
-    List<Job> requiredJobs = new LinkedList<>();
+    List<Job> activeJobs = new LinkedList<>();
     boolean isSafeToStopJobs = true;
-    for (Pair<Source, Store> mapping : sourceStoreMappings) {
-      Source source = mapping.getLeft();
-      Store store = mapping.getRight();
 
-      Optional<Job> sourceToStoreJob = getJob(source, store);
-      if (sourceToStoreJob.isPresent()) {
-        Job job = sourceToStoreJob.get();
-        // Record the job as required to safeguard it from getting stopped
-        requiredJobs.add(sourceToStoreJob.get());
+    for (Map.Entry<Source, Set<Store>> mapping : sourceStoresMappings.entrySet()) {
+      Source source = mapping.getKey();
+      Set<Store> stores = mapping.getValue();
+      Set<FeatureSet> featureSets =
+          stores.stream()
+              .flatMap(s -> getFeatureSetsForStore(s).stream())
+              .collect(Collectors.toSet());
+
+      Job job = getOrCreateJob(source, stores);
+
+      if (job.isDeployed()) {
         if (!job.isRunning()) {
+          jobTasks.add(UpdateJobStatusTask.builder().setJob(job).setJobManager(jobManager).build());
+
           // Mark that it is not safe to stop jobs without disrupting ingestion
           isSafeToStopJobs = false;
+          continue;
         }
+
+        if (jobRequiresUpgrade(job, stores)) {
+          job.setStores(stores);
+
+          jobTasks.add(UpgradeJobTask.builder().setJob(job).setJobManager(jobManager).build());
+        } else {
+          jobTasks.add(UpdateJobStatusTask.builder().setJob(job).setJobManager(jobManager).build());
+        }
+      } else {
+        jobTasks.add(CreateJobTask.builder().setJob(job).setJobManager(jobManager).build());
       }
 
-      jobUpdateTasks.add(
-          new JobUpdateTask(
-              getFeatureSetsForStore(store),
-              source,
-              store,
-              sourceToStoreJob,
-              jobManager,
-              updateTimeout,
-              JobTargetStatus.RUNNING));
+      allocateFeatureSets(job, featureSets);
+
+      // Record the job as required to safeguard it from getting stopped
+      activeJobs.add(job);
     }
-    // Stop extra jobs that are not required to mantain ingestion when safe
+    // Stop extra jobs that are not required to maintain ingestion when safe
     if (isSafeToStopJobs) {
-      getExtraJobs(requiredJobs)
+      getExtraJobs(activeJobs)
           .forEach(
               extraJob -> {
-                jobUpdateTasks.add(
-                    new JobUpdateTask(
-                        extraJob.getFeatureSets(),
-                        extraJob.getSource(),
-                        extraJob.getStore(),
-                        Optional.of(extraJob),
-                        jobManager,
-                        updateTimeout,
-                        JobTargetStatus.ABORTED));
+                jobTasks.add(
+                    TerminateJobTask.builder().setJob(extraJob).setJobManager(jobManager).build());
               });
     }
 
-    return jobUpdateTasks;
+    return jobTasks;
   }
 
-  /** Get the non terminated ingestion job ingesting between source and source if exists. */
-  @Transactional
-  public Optional<Job> getJob(Source source, Store store) {
+  /**
+   * Decides whether we need to upgrade (restart) given job. Since we send updated FeatureSets to
+   * IngestionJob via Kafka, and there's only one source per job (if it change - new job would be
+   * created) the only things that can cause upgrade here are stores: new stores can be added, or
+   * existing stores will change subscriptions.
+   *
+   * @param job {@link Job} to check
+   * @param stores Set of {@link Store} new version of stores (vs current version job.getStores())
+   * @return boolean - need to upgrade
+   */
+  private boolean jobRequiresUpgrade(Job job, Set<Store> stores) {
+    // if store subscriptions have changed
+    if (!Sets.newHashSet(stores).equals(Sets.newHashSet(job.getStores()))) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Connects given {@link Job} with FeatureSets by creating {@link FeatureSetJobStatus}. This
+   * connection represents responsibility of the job to handle allocated FeatureSets. We use this
+   * connection {@link FeatureSetJobStatus} to monitor Ingestion of specific FeatureSet and Specs
+   * delivery status.
+   *
+   * <p>Only after this connection is created FeatureSetSpec could be sent to IngestionJob.
+   *
+   * @param job {@link Job} responsible job
+   * @param featureSets Set of {@link FeatureSet} featureSets to allocate to this job
+   */
+  void allocateFeatureSets(Job job, Set<FeatureSet> featureSets) {
+    Map<FeatureSet, FeatureSetJobStatus> alreadyConnected =
+        job.getFeatureSetJobStatuses().stream()
+            .collect(Collectors.toMap(FeatureSetJobStatus::getFeatureSet, s -> s));
+
+    for (FeatureSet fs : featureSets) {
+      if (alreadyConnected.containsKey(fs)) {
+        continue;
+      }
+
+      FeatureSetJobStatus status = new FeatureSetJobStatus();
+      status.setFeatureSet(fs);
+      status.setJob(job);
+      if (fs.getStatus() == FeatureSetProto.FeatureSetStatus.STATUS_READY) {
+        // Feature Set was already delivered to previous generation of the job
+        // (another words, it exists in kafka)
+        // so we expect Job will ack latest version based on history from kafka topic
+        status.setVersion(fs.getVersion());
+      }
+      status.setDeliveryStatus(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS);
+      job.getFeatureSetJobStatuses().add(status);
+    }
+  }
+
+  /** Get the non terminated ingestion job ingesting for given source. */
+  public Job getOrCreateJob(Source source, Set<Store> stores) {
     return jobRepository
         .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
-            source.getType(), source.getConfig(), store.getName(), JobStatus.getTerminalStates());
+            source.getType(), source.getConfig(), null, JobStatus.getTerminalStates())
+        .orElseGet(
+            () ->
+                Job.builder()
+                    .setRunner(jobManager.getRunnerType())
+                    .setSource(source)
+                    .setStores(stores)
+                    .setFeatureSetJobStatuses(new HashSet<>())
+                    .build());
   }
 
   /** Get running extra ingestion jobs that have ids not in keepJobs */
@@ -218,31 +276,31 @@ public class JobCoordinatorService {
   }
 
   /**
-   * Generate a source to store mapping. The mapping maps the source/store pairs in which ingestion
-   * jobs would have to be maintained for ingestion to work correctly.
+   * Generate a source to stores mapping. The mapping maps the source to Set-of-stores in which
+   * ingestion jobs would have to be maintained for ingestion to work correctly.
    *
-   * @return a list of pairs signifying a mapping from source to store.
+   * @return a Map from source to stores.
    */
-  private List<Pair<Source, Store>> getSourceToStoreMappings() {
+  private Map<Source, Set<Store>> getSourceToStoreMappings() {
     ListStoresResponse listStoresResponse = specService.listStores(Filter.newBuilder().build());
     List<Store> stores =
         listStoresResponse.getStoreList().stream()
-            .map(storeSpec -> Store.fromProto(storeSpec))
+            .map(Store::fromProto)
             .collect(Collectors.toList());
 
     // build mapping from source to store.
     // compile a set of sources via subscribed FeatureSets of stores.
-    List<Pair<Source, Store>> sourceStoreMappings =
-        stores.stream()
-            .flatMap(
-                store ->
-                    getFeatureSetsForStore(store).stream()
-                        .map(featureSet -> featureSet.getSource())
-                        .map(source -> Pair.of(source, store)))
-            .distinct()
-            .collect(Collectors.toList());
 
-    return sourceStoreMappings;
+    return stores.stream()
+        .flatMap(
+            store ->
+                getFeatureSetsForStore(store).stream()
+                    .map(FeatureSet::getSource)
+                    .map(source -> Pair.of(source, store)))
+        .distinct()
+        .collect(
+            Collectors.groupingBy(
+                Pair::getLeft, Collectors.mapping(Pair::getRight, Collectors.toSet())));
   }
 
   /**

@@ -17,6 +17,7 @@
 package feast.core.job.dataflow;
 
 import static feast.core.util.PipelineUtil.detectClassPathResourcesToStage;
+import static feast.core.util.StreamUtil.wrapException;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
@@ -40,7 +41,8 @@ import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.Collections;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -114,18 +116,27 @@ public class DataflowJobManager implements JobManager {
     try {
       String extId =
           submitDataflowJob(
-              job.getId(), job.getSource().toProto(), job.getStore().toProto(), false);
+              job.getId(),
+              job.getSource().toProto(),
+              job.getStores().stream()
+                  .map(wrapException(Store::toProto))
+                  .collect(Collectors.toSet()),
+              false);
       job.setExtId(extId);
       job.setStatus(JobStatus.RUNNING);
       return job;
 
-    } catch (InvalidProtocolBufferException e) {
+    } catch (RuntimeException e) {
       log.error(e.getMessage());
-      throw new IllegalArgumentException(
-          String.format(
-              "DataflowJobManager failed to START job with id '%s' because the job"
-                  + "has an invalid spec. Please check the FeatureSet, Source and Store specs. Actual error message: %s",
-              job.getId(), e.getMessage()));
+      if (e.getCause() instanceof InvalidProtocolBufferException) {
+        throw new IllegalArgumentException(
+            String.format(
+                "DataflowJobManager failed to START job with id '%s' because the job"
+                    + "has an invalid spec. Please check the FeatureSet, Source and Store specs. Actual error message: %s",
+                job.getId(), e.getMessage()));
+      }
+
+      throw e;
     }
   }
 
@@ -221,9 +232,9 @@ public class DataflowJobManager implements JobManager {
   }
 
   private String submitDataflowJob(
-      String jobName, SourceProto.Source source, StoreProto.Store sink, boolean update) {
+      String jobName, SourceProto.Source source, Set<StoreProto.Store> sinks, boolean update) {
     try {
-      ImportOptions pipelineOptions = getPipelineOptions(jobName, source, sink, update);
+      ImportOptions pipelineOptions = getPipelineOptions(jobName, source, sinks, update);
       DataflowPipelineJob pipelineResult = runPipeline(pipelineOptions);
       String jobId = waitForJobToRun(pipelineResult);
       return jobId;
@@ -234,7 +245,7 @@ public class DataflowJobManager implements JobManager {
   }
 
   private ImportOptions getPipelineOptions(
-      String jobName, SourceProto.Source source, StoreProto.Store sink, boolean update)
+      String jobName, SourceProto.Source source, Set<StoreProto.Store> sinks, boolean update)
       throws IOException, IllegalAccessException {
     ImportOptions pipelineOptions =
         PipelineOptionsFactory.fromArgs(defaultOptions.toArgs()).as(ImportOptions.class);
@@ -244,7 +255,8 @@ public class DataflowJobManager implements JobManager {
     pipelineOptions.setSpecsStreamingUpdateConfigJson(
         jsonPrinter.print(specsStreamingUpdateConfig));
     pipelineOptions.setSourceJson(jsonPrinter.print(source));
-    pipelineOptions.setStoreJson(Collections.singletonList(jsonPrinter.print(sink)));
+    pipelineOptions.setStoresJson(
+        sinks.stream().map(wrapException(jsonPrinter::print)).collect(Collectors.toList()));
     pipelineOptions.setProject(projectId);
     pipelineOptions.setDefaultFeastProject(Project.DEFAULT_NAME);
     pipelineOptions.setUpdate(update);

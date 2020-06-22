@@ -45,6 +45,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.transforms.*;
@@ -90,7 +91,7 @@ public class ImportJob {
 
     log.info("Starting import job with settings: \n{}", options.toString());
 
-    List<Store> stores = SpecUtil.parseStoreJsonList(options.getStoreJson());
+    List<Store> stores = SpecUtil.parseStoreJsonList(options.getStoresJson());
     Source source = SpecUtil.parseSourceJson(options.getSourceJson());
     SpecsStreamingUpdateConfig specsStreamingUpdateConfig =
         SpecUtil.parseSpecsStreamingUpdateConfig(options.getSpecsStreamingUpdateConfigJson());
@@ -157,6 +158,7 @@ public class ImportJob {
       WriteResult writeFeatureRows =
           storeAllocatedRows
               .get(storeTags.get(store))
+              .setCoder(ProtoCoder.of(FeatureRow.class))
               .apply("WriteFeatureRowToStore", featureSink.writer());
 
       // Step 7. Write FailedElements to a dead letter table in BigQuery.

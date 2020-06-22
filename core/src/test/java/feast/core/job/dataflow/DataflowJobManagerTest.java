@@ -25,6 +25,7 @@ import static org.mockito.MockitoAnnotations.initMocks;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.testing.auth.oauth2.MockGoogleCredential;
 import com.google.api.services.dataflow.Dataflow;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.protobuf.Duration;
@@ -149,7 +150,7 @@ public class DataflowJobManagerTest {
     expectedPipelineOptions.setAppName("DataflowJobManager");
     expectedPipelineOptions.setLabels(defaults.getLabelsMap());
     expectedPipelineOptions.setJobName(jobName);
-    expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
+    expectedPipelineOptions.setStoresJson(Lists.newArrayList(printer.print(store)));
     expectedPipelineOptions.setSourceJson(printer.print(source));
 
     ArgumentCaptor<ImportOptions> captor = ArgumentCaptor.forClass(ImportOptions.class);
@@ -169,7 +170,7 @@ public class DataflowJobManagerTest {
             .setExtId("")
             .setRunner(Runner.DATAFLOW)
             .setSource(Source.fromProto(source))
-            .setStore(Store.fromProto(store))
+            .setStores(ImmutableSet.of(Store.fromProto(store)))
             .setFeatureSetJobStatuses(Sets.newHashSet(featureSetJobStatus))
             .setStatus(JobStatus.PENDING)
             .build();
@@ -202,7 +203,7 @@ public class DataflowJobManagerTest {
         actualPipelineOptions.getMetricsExporterType(),
         equalTo(expectedPipelineOptions.getMetricsExporterType()));
     assertThat(
-        actualPipelineOptions.getStoreJson(), equalTo(expectedPipelineOptions.getStoreJson()));
+        actualPipelineOptions.getStoresJson(), equalTo(expectedPipelineOptions.getStoresJson()));
     assertThat(
         actualPipelineOptions.getSourceJson(), equalTo(expectedPipelineOptions.getSourceJson()));
     assertThat(
@@ -252,7 +253,7 @@ public class DataflowJobManagerTest {
             .setExtId("")
             .setRunner(Runner.DATAFLOW)
             .setSource(Source.fromProto(source))
-            .setStore(Store.fromProto(store))
+            .setStores(ImmutableSet.of(Store.fromProto(store)))
             .setFeatureSetJobStatuses(Sets.newHashSet(featureSetJobStatus))
             .setStatus(JobStatus.PENDING)
             .build();

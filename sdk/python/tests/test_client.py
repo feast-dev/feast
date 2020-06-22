@@ -480,7 +480,7 @@ class TestClient:
                                 bootstrap_servers="localhost:9092", topic="topic"
                             ),
                         ),
-                        store=Store(name="redis"),
+                        stores=[Store(name="redis")],
                     )
                 ]
             ),
