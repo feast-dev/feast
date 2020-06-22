@@ -11,6 +11,8 @@ ALTER TABLE jobs_feature_sets
 ALTER TABLE feature_sets
     ADD column version int4 default 0;
 
+UPDATE feature_sets SET version = 1;
+
 
 --- FeatureStatistics Creation
 
