@@ -76,9 +76,7 @@ class RequestUtilTest {
             .map(ref -> ref.toBuilder().clearProject().build())
             .collect(Collectors.toList());
     List<String> actual =
-        input.stream()
-            .map(ref -> Feature.getFeatureStringRef(ref, true))
-            .collect(Collectors.toList());
+        input.stream().map(ref -> Feature.getFeatureStringRef(ref)).collect(Collectors.toList());
     assertEquals(expected.size(), actual.size());
     for (int i = 0; i < expected.size(); i++) {
       assertEquals(expected.get(i), actual.get(i));

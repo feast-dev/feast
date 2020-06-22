@@ -175,7 +175,7 @@ public class OnlineServingService implements ServingService {
                   Collectors.toMap(
                       featureRowField -> {
                         FeatureReference featureRef = nameRefMap.get(featureRowField.getName());
-                        return Feature.getFeatureStringRef(featureRef, false);
+                        return Feature.getFeatureStringWithProjectRef(featureRef);
                       },
                       featureRowField -> {
                         // drop feature values with an age outside feature set's max age.
@@ -188,7 +188,7 @@ public class OnlineServingService implements ServingService {
     // create empty values for features specified in request but not present in feature row.
     Set<String> missingFeatures =
         nameRefMap.values().stream()
-            .map(ref -> Feature.getFeatureStringRef(ref, false))
+            .map(ref -> Feature.getFeatureStringWithProjectRef(ref))
             .collect(Collectors.toSet());
     missingFeatures.removeAll(valueMap.keySet());
     missingFeatures.forEach(refString -> valueMap.put(refString, Value.newBuilder().build()));

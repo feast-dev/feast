@@ -16,7 +16,7 @@
  */
 package feast.serving.specs;
 
-import static feast.common.models.Feature.getFeatureStringRef;
+import static feast.common.models.Feature.getFeatureStringWithProjectRef;
 import static feast.common.models.FeatureSet.getFeatureSetStringRef;
 import static java.util.stream.Collectors.groupingBy;
 
@@ -117,18 +117,18 @@ public class CachedSpecService {
             featureReference -> {
               // map feature reference to coresponding feature set name
               String fsName =
-                  featureToFeatureSetMapping.get(getFeatureStringRef(featureReference, false));
+                  featureToFeatureSetMapping.get(getFeatureStringWithProjectRef(featureReference));
               if (fsName == null) {
                 throw new SpecRetrievalException(
                     String.format(
                         "Unable to find Feature Set for the given Feature Reference: %s",
-                        getFeatureStringRef(featureReference, false)));
+                        getFeatureStringWithProjectRef(featureReference)));
               } else if (fsName == FEATURE_SET_CONFLICT_FLAG) {
                 throw new SpecRetrievalException(
                     String.format(
                         "Given Feature Reference is amibigous as it matches multiple Feature Sets: %s."
                             + "Please specify a more specific Feature Reference (ie specify the project or feature set)",
-                        getFeatureStringRef(featureReference, false)));
+                        getFeatureStringWithProjectRef(featureReference)));
               }
               return Pair.of(fsName, featureReference);
             })
@@ -291,6 +291,6 @@ public class CachedSpecService {
       featureRef = featureRef.clearFeatureSet();
     }
     return Pair.of(
-        getFeatureStringRef(featureRef.build(), false), getFeatureSetStringRef(featureSetSpec));
+        getFeatureStringWithProjectRef(featureRef.build()), getFeatureSetStringRef(featureSetSpec));
   }
 }

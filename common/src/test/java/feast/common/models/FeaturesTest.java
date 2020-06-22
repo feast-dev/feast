@@ -88,9 +88,8 @@ public class FeaturesTest {
             .setName(featureSetSpec.getFeatures(0).getName())
             .build();
 
-    String actualFeatureStringRef = Feature.getFeatureStringRef(featureReference, false);
-    String actualFeatureIgnoreProjectStringRef =
-        Feature.getFeatureStringRef(featureReference, true);
+    String actualFeatureStringRef = Feature.getFeatureStringWithProjectRef(featureReference);
+    String actualFeatureIgnoreProjectStringRef = Feature.getFeatureStringRef(featureReference);
     String expectedFeatureStringRef = "project1/featureSetWithConstraints:feature1";
     String expectedFeatureIgnoreProjectStringRef = "featureSetWithConstraints:feature1";
 
