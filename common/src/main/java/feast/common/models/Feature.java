@@ -25,6 +25,7 @@ public class Feature {
    * "project/featureset_name:feature_name".
    *
    * @param featureReference {@link FeatureReference}
+   * @param ignoreProject Flag whether to return FeatureReference with project name
    * @return String format of FeatureReference
    */
   public static String getFeatureStringRef(
