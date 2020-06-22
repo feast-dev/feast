@@ -35,6 +35,7 @@
 ## Administration
 
 * [Troubleshooting](administration/troubleshooting.md)
+* [Feast Upgrading](administration/upgrading.md)
 
 ## Reference
 

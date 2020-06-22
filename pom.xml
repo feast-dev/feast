@@ -62,6 +62,7 @@
         <opencensus.version>0.21.0</opencensus.version>
         <!-- Force log4j2 to 2.11+ to support objectMessageAsJsonObject -->
         <log4jVersion>2.12.1</log4jVersion>
+        <flyway.version>5.2.4</flyway.version>
     </properties>
 
     <organization>
