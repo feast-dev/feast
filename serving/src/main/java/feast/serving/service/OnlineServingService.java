@@ -123,6 +123,7 @@ public class OnlineServingService implements ServingService {
                   entityStatusesMap.get(entityRow).putAll(statusMap);
 
                   // Populate metrics/log request
+                  populateMissingKeyCountMetrics(statusMap, featureSetRequest);
                   populateStaleKeyCountMetrics(statusMap, featureSetRequest);
                 });
         populateRequestCountMetrics(featureSetRequest);
@@ -285,6 +286,21 @@ public class OnlineServingService implements ServingService {
             .collect(Collectors.toList());
 
     scope.span().log(ImmutableMap.of("event", "featureRows", "value", loggableFeatureRows));
+  }
+
+  private void populateMissingKeyCountMetrics(
+      Map<String, FieldStatus> statusMap, FeatureSetRequest featureSetRequest) {
+    String project = featureSetRequest.getSpec().getProject();
+    statusMap
+        .entrySet()
+        .forEach(
+            es -> {
+              String featureRefString = es.getKey();
+              FieldStatus status = es.getValue();
+              if (status == FieldStatus.NOT_FOUND) {
+                Metrics.missingKeyCount.labels(project, featureRefString).inc();
+              }
+            });
   }
 
   private void populateStaleKeyCountMetrics(

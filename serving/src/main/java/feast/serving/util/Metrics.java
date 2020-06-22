@@ -40,7 +40,7 @@ public class Metrics {
 
   public static final Counter missingKeyCount =
       Counter.build()
-          .name("missing_feature_count")
+          .name("not_found_feature_count")
           .subsystem("feast_serving")
           .help("number requested feature rows that were not found")
           .labelNames("project", "feature_name")
