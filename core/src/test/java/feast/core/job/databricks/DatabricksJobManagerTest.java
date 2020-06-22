@@ -24,6 +24,7 @@ import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.common.collect.Lists;
 import feast.core.config.FeastProperties.MetricsProperties;
+import feast.core.exception.JobExecutionException;
 import feast.core.job.Runner;
 import feast.core.model.*;
 import feast.proto.core.FeatureSetProto;
@@ -33,11 +34,13 @@ import feast.proto.core.StoreProto;
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
+import org.apache.http.HttpStatus;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 
 public class DatabricksJobManagerTest {
 
@@ -116,7 +119,7 @@ public class DatabricksJobManagerTest {
     String responseBody =
         "{ \"state\": {\"life_cycle_state\" : \"INTERNAL_ERROR\", \"state_message\": \"a state message\"} } ";
     when(httpResponse.body()).thenReturn(responseBody);
-    when(httpResponse.statusCode()).thenReturn(200);
+    when(httpResponse.statusCode()).thenReturn(HttpStatus.SC_OK);
     when(httpClient.send(any(), any())).thenReturn(httpResponse);
 
     JobStatus jobStatus = dbJobManager.getJobStatus(job);
@@ -130,7 +133,7 @@ public class DatabricksJobManagerTest {
         "{ \"state\": {\"life_cycle_state\" : \"TERMINATED\", \"result_state\": \"SUCCESS\", \"state_message\": \"a state message\" } } ";
 
     when(httpResponse.body()).thenReturn(responseBody);
-    when(httpResponse.statusCode()).thenReturn(200);
+    when(httpResponse.statusCode()).thenReturn(HttpStatus.SC_OK);
     when(httpClient.send(any(), any())).thenReturn(httpResponse);
 
     JobStatus jobStatus = dbJobManager.getJobStatus(job);
@@ -138,7 +141,7 @@ public class DatabricksJobManagerTest {
   }
 
   @Test
-  public void testStartJob() throws IOException, InterruptedException {
+  public void testStartJob_OK() throws IOException, InterruptedException {
     String createResponseBody = "{ \"job_id\" : \"5\" } ";
     String runNowResponseBody = "{ \"run_id\" : \"10\", \"number_in_job\" : \"10\"} ";
     String jobStatusResponseBody =
@@ -148,13 +151,46 @@ public class DatabricksJobManagerTest {
         .thenReturn(createResponseBody)
         .thenReturn(runNowResponseBody)
         .thenReturn(jobStatusResponseBody);
-    when(httpResponse.statusCode()).thenReturn(200);
+    when(httpResponse.statusCode()).thenReturn(HttpStatus.SC_OK);
     when(httpClient.send(any(), any())).thenReturn(httpResponse);
-    doReturn(httpResponse).when(httpClient).send(any(), any());
 
     Job actual = dbJobManager.startJob(job);
 
     assertThat(actual.getExtId(), equalTo("10"));
     assertThat(actual.getId(), equalTo(job.getId()));
+  }
+
+  @Test(expected = JobExecutionException.class)
+  public void testStartJob_BadRequest() throws IOException, InterruptedException {
+    when(httpResponse.statusCode()).thenReturn(HttpStatus.SC_BAD_REQUEST);
+    when(httpClient.send(any(), any())).thenReturn(httpResponse);
+
+    dbJobManager.startJob(job);
+
+    verify(httpClient, Mockito.times(1)).send(any(), any());
+  }
+
+  @Test
+  public void testAbortJob_OKRequest() throws IOException, InterruptedException {
+    String runId = "1";
+
+    when(httpResponse.statusCode()).thenReturn(HttpStatus.SC_OK);
+    when(httpClient.send(any(), any())).thenReturn(httpResponse);
+
+    dbJobManager.abortJob(runId);
+
+    verify(httpClient, Mockito.times(1)).send(any(), any());
+  }
+
+  @Test(expected = JobExecutionException.class)
+  public void testAbortJob_BadRequest() throws IOException, InterruptedException {
+    String runId = "1";
+
+    when(httpResponse.statusCode()).thenReturn(HttpStatus.SC_BAD_REQUEST);
+    when(httpClient.send(any(), any())).thenReturn(httpResponse);
+
+    dbJobManager.startJob(job);
+
+    verify(httpClient, Mockito.times(1)).send(any(), any());
   }
 }
