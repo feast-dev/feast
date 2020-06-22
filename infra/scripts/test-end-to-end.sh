@@ -35,6 +35,7 @@ This script will run end-to-end tests for Feast Core and Online Serving.
 source ${SCRIPTS_DIR}/setup-common-functions.sh
 
 install_test_tools
+install_gcloud_sdk
 install_and_start_local_redis
 install_and_start_local_postgres
 install_and_start_local_zookeeper_and_kafka
