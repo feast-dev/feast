@@ -195,20 +195,18 @@ public class CachedSpecService {
 
     for (Subscription subscription : this.store.getSubscriptionsList()) {
       try {
-        if (!subscription.getExclude()) {
-          ListFeatureSetsResponse featureSetsResponse =
-              coreService.listFeatureSets(
-                  ListFeatureSetsRequest.newBuilder()
-                      .setFilter(
-                          ListFeatureSetsRequest.Filter.newBuilder()
-                              .setProject(subscription.getProject())
-                              .setFeatureSetName(subscription.getName()))
-                      .build());
+        ListFeatureSetsResponse featureSetsResponse =
+            coreService.listFeatureSets(
+                ListFeatureSetsRequest.newBuilder()
+                    .setFilter(
+                        ListFeatureSetsRequest.Filter.newBuilder()
+                            .setProject(subscription.getProject())
+                            .setFeatureSetName(subscription.getName()))
+                    .build());
 
-          for (FeatureSet featureSet : featureSetsResponse.getFeatureSetsList()) {
-            FeatureSetSpec spec = featureSet.getSpec();
-            featureSets.put(getFeatureSetStringRef(spec), spec);
-          }
+        for (FeatureSet featureSet : featureSetsResponse.getFeatureSetsList()) {
+          FeatureSetSpec spec = featureSet.getSpec();
+          featureSets.put(getFeatureSetStringRef(spec), spec);
         }
       } catch (StatusRuntimeException e) {
         throw new RuntimeException(
