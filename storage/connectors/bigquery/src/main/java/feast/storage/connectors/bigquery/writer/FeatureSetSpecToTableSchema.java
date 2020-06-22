@@ -42,6 +42,14 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 
+/**
+ * Converts {@link feast.proto.core.FeatureSetProto.FeatureSetSpec} into BigQuery schema. Serializes
+ * it into json-like format {@link TableSchema}. Fetches existing schema to merge existing fields
+ * with new ones.
+ *
+ * <p>As a side effect this Operation may create bq table (if it doesn't exist) to make
+ * bootstrapping faster
+ */
 public class FeatureSetSpecToTableSchema
     extends DoFn<KV<String, FeatureSetProto.FeatureSetSpec>, KV<String, TableSchema>> {
   private BigQuery bqService;
@@ -50,6 +58,12 @@ public class FeatureSetSpecToTableSchema
 
   private static final Logger log =
       org.slf4j.LoggerFactory.getLogger(FeatureSetSpecToTableSchema.class);
+
+  // Reserved columns
+  public static final String EVENT_TIMESTAMP_COLUMN = "event_timestamp";
+  public static final String CREATED_TIMESTAMP_COLUMN = "created_timestamp";
+  public static final String INGESTION_ID_COLUMN = "ingestion_id";
+  public static final String JOB_ID_COLUMN = "job_id";
 
   // Column description for reserved fields
   public static final String BIGQUERY_EVENT_TIMESTAMP_FIELD_DESCRIPTION =
@@ -76,19 +90,44 @@ public class FeatureSetSpecToTableSchema
       @Element KV<String, FeatureSetProto.FeatureSetSpec> element,
       OutputReceiver<KV<String, TableSchema>> output,
       ProcessContext context) {
-    Schema schema = createSchemaFromSpec(element.getValue(), element.getKey());
-    output.output(KV.of(element.getKey(), serializeSchema(schema)));
+    String specKey = element.getKey();
+
+    Table existingTable = getExistingTable(specKey);
+    Schema schema = createSchemaFromSpec(element.getValue(), specKey, existingTable);
+
+    if (existingTable == null) {
+      createTable(specKey, schema);
+    }
+
+    output.output(KV.of(specKey, serializeSchema(schema)));
+  }
+
+  private TableId generateTableId(String specKey) {
+    TableDestination tableDestination = BigQuerySinkHelpers.getTableDestination(dataset, specKey);
+    TableReference tableReference = BigQueryHelpers.parseTableSpec(tableDestination.getTableSpec());
+    return TableId.of(
+        tableReference.getProjectId(), tableReference.getDatasetId(), tableReference.getTableId());
   }
 
   private Table getExistingTable(String specKey) {
-    TableDestination tableDestination = BigQuerySinkHelpers.getTableDestination(dataset, specKey);
-    TableReference tableReference = BigQueryHelpers.parseTableSpec(tableDestination.getTableSpec());
-    TableId tableId =
-        TableId.of(
-            tableReference.getProjectId(),
-            tableReference.getDatasetId(),
-            tableReference.getTableId());
-    return bqService.getTable(tableId);
+    return bqService.getTable(generateTableId(specKey));
+  }
+
+  private void createTable(String specKey, Schema schema) {
+    TimePartitioning timePartitioning =
+        TimePartitioning.newBuilder(TimePartitioning.Type.DAY)
+            .setField(EVENT_TIMESTAMP_COLUMN)
+            .build();
+
+    StandardTableDefinition tableDefinition =
+        StandardTableDefinition.newBuilder()
+            .setTimePartitioning(timePartitioning)
+            .setSchema(schema)
+            .build();
+
+    TableInfo tableInfo = TableInfo.of(generateTableId(specKey), tableDefinition);
+
+    bqService.create(tableInfo);
   }
 
   /**
@@ -98,12 +137,14 @@ public class FeatureSetSpecToTableSchema
    *
    * @param spec FeatureSet spec that this table is for
    * @param specKey String for retrieving existing table
+   * @param existingTable Table fetched from BQ. Fields from existing table used to merge with new
+   *     schema
    * @return {@link Schema} containing all tombstoned and active fields.
    */
-  private Schema createSchemaFromSpec(FeatureSetProto.FeatureSetSpec spec, String specKey) {
+  private Schema createSchemaFromSpec(
+      FeatureSetProto.FeatureSetSpec spec, String specKey, Table existingTable) {
     List<Field> fields = new ArrayList<>();
     log.info("Table {} will have the following fields:", specKey);
-    Table existingTable = getExistingTable(specKey);
 
     for (FeatureSetProto.EntitySpec entitySpec : spec.getEntitiesList()) {
       Field.Builder builder =
@@ -133,14 +174,14 @@ public class FeatureSetSpecToTableSchema
     Map<String, Pair<StandardSQLTypeName, String>>
         reservedFieldNameToPairOfStandardSQLTypeAndDescription =
             ImmutableMap.of(
-                "event_timestamp",
+                EVENT_TIMESTAMP_COLUMN,
                 Pair.of(StandardSQLTypeName.TIMESTAMP, BIGQUERY_EVENT_TIMESTAMP_FIELD_DESCRIPTION),
-                "created_timestamp",
+                CREATED_TIMESTAMP_COLUMN,
                 Pair.of(
                     StandardSQLTypeName.TIMESTAMP, BIGQUERY_CREATED_TIMESTAMP_FIELD_DESCRIPTION),
-                "ingestion_id",
+                INGESTION_ID_COLUMN,
                 Pair.of(StandardSQLTypeName.STRING, BIGQUERY_INGESTION_ID_FIELD_DESCRIPTION),
-                "job_id",
+                JOB_ID_COLUMN,
                 Pair.of(StandardSQLTypeName.STRING, BIGQUERY_JOB_ID_FIELD_DESCRIPTION));
     for (Map.Entry<String, Pair<StandardSQLTypeName, String>> entry :
         reservedFieldNameToPairOfStandardSQLTypeAndDescription.entrySet()) {
