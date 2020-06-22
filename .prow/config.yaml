@@ -166,6 +166,18 @@ presubmits:
           requests:
             cpu: "6"
             memory: "6144Mi"
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /etc/gcloud/service-account.json
+        volumeMounts:
+        - mountPath: /etc/gcloud/service-account.json
+          name: service-account
+          readOnly: true
+          subPath: service-account.json
+      volumes:
+      - name: service-account
+        secret:
+          secretName: feast-service-account
     skip_branches:
     - ^v0\.(3|4)-branch$
 
