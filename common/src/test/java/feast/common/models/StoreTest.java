@@ -46,10 +46,10 @@ public class StoreTest {
   @Test
   public void shouldReturnSubscriptionsBasedOnStr() {
     String subscriptions = "project1:fs_1:true,project1:fs_2";
-    List<Subscription> actual1 = Store.parseSubscriptionFrom(subscriptions, false);
+    List<Subscription> actual1 = Store.parseSubFromStr(subscriptions);
     List<Subscription> expected1 = Arrays.asList(allSubscriptions.get(2), allSubscriptions.get(3));
 
-    List<Subscription> actual2 = Store.parseSubscriptionFrom(subscriptions, true);
+    List<Subscription> actual2 = Store.parseSubFromStrWithoutExclusions(subscriptions);
     List<Subscription> expected2 = Arrays.asList(allSubscriptions.get(2));
 
     assertTrue(actual1.containsAll(expected1) && expected1.containsAll(actual1));

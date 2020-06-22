@@ -25,23 +25,35 @@ import java.util.stream.Collectors;
 public class Store {
 
   /**
-   * Accepts a comma-delimited Subscriptions that is string-formatted and converts it to a list of
-   * Subscription class objects.
+   * Accepts a comma-delimited string and converts it to a list of Subscription class objects.
    *
    * @param subscriptions String formatted Subscriptions, comma delimited.
-   * @param exclude flag to determine if subscriptions with exclusion flag should be returned
    * @return List of Subscription class objects
    */
-  public static List<Subscription> parseSubscriptionFrom(String subscriptions, boolean exclude) {
+  public static List<Subscription> parseSubFromStr(String subscriptions) {
     List<Subscription> allSubscriptions =
         Arrays.stream(subscriptions.split(","))
             .map(subscriptionStr -> convertStringToSubscription(subscriptionStr))
             .collect(Collectors.toList());
 
-    if (exclude) {
-      allSubscriptions =
-          allSubscriptions.stream().filter(sub -> !sub.getExclude()).collect(Collectors.toList());
-    }
+    return allSubscriptions;
+  }
+
+  /**
+   * Accepts a comma-delimited string and converts it to a list of Subscription class objects, with
+   * exclusions filtered out.
+   *
+   * @param subscriptions String formatted Subscriptions, comma delimited.
+   * @return List of Subscription class objects
+   */
+  public static List<Subscription> parseSubFromStrWithoutExclusions(String subscriptions) {
+    List<Subscription> allSubscriptions =
+        Arrays.stream(subscriptions.split(","))
+            .map(subscriptionStr -> convertStringToSubscription(subscriptionStr))
+            .collect(Collectors.toList());
+
+    allSubscriptions =
+        allSubscriptions.stream().filter(sub -> !sub.getExclude()).collect(Collectors.toList());
 
     return allSubscriptions;
   }
