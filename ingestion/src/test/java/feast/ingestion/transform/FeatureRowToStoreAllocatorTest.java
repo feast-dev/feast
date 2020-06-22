@@ -19,7 +19,10 @@ package feast.ingestion.transform;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import feast.proto.core.StoreProto;
+import feast.proto.core.StoreProto.Store.Subscription;
 import feast.proto.types.FeatureRowProto;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.testing.PAssert;
@@ -39,6 +42,10 @@ public class FeatureRowToStoreAllocatorTest {
         .addSubscriptions(
             StoreProto.Store.Subscription.newBuilder().setProject("project").setName(s).build())
         .build();
+  }
+
+  private StoreProto.Store newStore(List<StoreProto.Store.Subscription> subscriptionList) {
+    return StoreProto.Store.newBuilder().addAllSubscriptions(subscriptionList).build();
   }
 
   @Test
@@ -93,6 +100,57 @@ public class FeatureRowToStoreAllocatorTest {
                 .setCoder(ProtoCoder.of(FeatureRowProto.FeatureRow.class))
                 .apply("CountAll", Count.globally()))
         .containsInAnyOrder(5L);
+
+    p.run();
+  }
+
+  @Test
+  public void featureRowShouldBeAllocatedToStoreTagsAccordingToSubscriptionBlacklist() {
+    Subscription subscription1 = Subscription.newBuilder().setProject("*").setName("*").build();
+    Subscription subscription2 =
+        Subscription.newBuilder().setProject("project1").setName("fs_2").build();
+    Subscription subscription3 =
+        Subscription.newBuilder().setProject("project1").setName("fs_1").setExclude(true).build();
+    Subscription subscription4 =
+        Subscription.newBuilder().setProject("project2").setName("*").setExclude(true).build();
+
+    List<Subscription> testStoreSubscriptions1 =
+        Arrays.asList(subscription1, subscription2, subscription3);
+    StoreProto.Store testStore1 = newStore(testStoreSubscriptions1);
+
+    List<Subscription> testStoreSubscriptions2 = Arrays.asList(subscription1, subscription4);
+    StoreProto.Store testStore2 = newStore(testStoreSubscriptions2);
+
+    Map<StoreProto.Store, TupleTag<FeatureRowProto.FeatureRow>> storeTags =
+        ImmutableMap.of(
+            testStore1, new TupleTag<>(),
+            testStore2, new TupleTag<>());
+
+    PCollectionTuple allocatedRows =
+        p.apply(
+                Create.of(
+                    FeatureRowProto.FeatureRow.newBuilder().setFeatureSet("project1/fs_1").build(),
+                    FeatureRowProto.FeatureRow.newBuilder().setFeatureSet("project2/fs_1").build(),
+                    FeatureRowProto.FeatureRow.newBuilder().setFeatureSet("project2/fs_2").build()))
+            .apply(
+                FeatureRowToStoreAllocator.newBuilder()
+                    .setStoreTags(storeTags)
+                    .setStores(ImmutableList.of(testStore1, testStore2))
+                    .build());
+
+    PAssert.that(
+            allocatedRows
+                .get(storeTags.get(testStore1))
+                .setCoder(ProtoCoder.of(FeatureRowProto.FeatureRow.class))
+                .apply("CountStore1", Count.globally()))
+        .containsInAnyOrder(2L);
+
+    PAssert.that(
+            allocatedRows
+                .get(storeTags.get(testStore2))
+                .setCoder(ProtoCoder.of(FeatureRowProto.FeatureRow.class))
+                .apply("CountStore2", Count.globally()))
+        .containsInAnyOrder(1L);
 
     p.run();
   }
