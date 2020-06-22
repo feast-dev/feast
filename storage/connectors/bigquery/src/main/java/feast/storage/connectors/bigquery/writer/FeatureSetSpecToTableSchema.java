@@ -43,8 +43,8 @@ import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 
 /**
- * Converts {@link feast.proto.core.FeatureSetProto.FeatureSetSpec} into BigQuery schema Serializes
- * it into json-like format {@link TableSchema} Fetches existing schema to merge existing fields
+ * Converts {@link feast.proto.core.FeatureSetProto.FeatureSetSpec} into BigQuery schema. Serializes
+ * it into json-like format {@link TableSchema}. Fetches existing schema to merge existing fields
  * with new ones.
  *
  * <p>As a side effect this Operation may create bq table (if it doesn't exist) to make
