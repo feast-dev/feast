@@ -10,6 +10,7 @@ RUN git init .
 COPY sdk/python sdk/python
 COPY Makefile Makefile
 COPY protos protos
+COPY tests tests
 COPY README.md README.md
 
 # Install Python dependencies

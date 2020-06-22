@@ -9,7 +9,7 @@ feast:
         options:
           host: http://databricks-emulator:8080
           token: unused
-          jarFile: /opt/spark-ingestion-job.jar
+          jarFile: /opt/sparkjars/spark-ingestion-job.jar
           maxRetries: 0
           timeoutSeconds: -1
           newCluster:

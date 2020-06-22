@@ -172,6 +172,9 @@ def test_basic_retrieve_online_success(client, cust_trans_df):
                 .fields["daily_transactions"]
                 .float_val
         )
+        if not returned_daily_transactions:
+          continue
+
         sent_daily_transactions = float(
             cust_trans_df.iloc[0]["daily_transactions"])
 
@@ -413,6 +416,8 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
                 .fields["float_list_feature"]
                 .float_list_val.val
         )
+        if not returned_float_list:
+          continue
 
         sent_float_list = all_types_dataframe.iloc[0]["float_list_feature"]
 
@@ -531,6 +536,9 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
                 .fields["daily_transactions_large"]
                 .float_val
         )
+        if not returned_daily_transactions:
+          continue
+
         sent_daily_transactions = float(
             large_volume_dataframe.iloc[0]["daily_transactions_large"])
 

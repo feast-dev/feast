@@ -292,9 +292,6 @@ public class DatabricksJobManager implements JobManager {
   }
 
   private JobsCreateRequest getJobRequest(String jobName, List<String> params) {
-    Arrays.stream(newClusterConfigOptions.getSparkConf().strip().split("\n"));
-    Arrays.stream(newClusterConfigOptions.getSparkConf().strip().split("\n"))
-        .map(s -> s.strip().split("\\s+", 2));
     Map<String, String> sparkConf =
         Arrays.stream(newClusterConfigOptions.getSparkConf().strip().split("\n"))
             .map(s -> s.strip().split("\\s+", 2))

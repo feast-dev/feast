@@ -53,6 +53,8 @@ vendor
 
 .terraform/
 *.tfvars
+*.tfstate
+*.tfstate.backup
 
 # python
 # Byte-compiled / optimized / DLL files

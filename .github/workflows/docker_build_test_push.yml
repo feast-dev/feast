@@ -10,6 +10,32 @@ on:
     branches:
     - master
 
+env:
+  # - change per env
+  TF_VAR_project_name: fffeastcd
+  # - optionally change per env
+  TERRAFORM_BACKEND_STORAGE_ACCOUNT_RESOURCE_GROUP_NAME: fffeasttf
+  # - change per env
+  # - manually crate this storage account in the
+  #   resource group TERRAFORM_BACKEND_STORAGE_ACCOUNT_RESOURCE_GROUP_NAME
+  TERRAFORM_BACKEND_STORAGE_ACCOUNT_NAME: fffeastcdtf
+  # - manually create this container in the created storage account
+  TERRAFORM_BACKEND_CONTAINER_NAME: terraform
+
+  # no need to change those
+
+  # Base name for images published into ACR (with -core, -serving suffix)
+  CONTAINERREGISTRY_IMAGENAMEBASE: fffeast
+
+  # Blob names used to store state in Terraform backend
+  TERRAFORM_BACKEND_BLOB_PATH_INFRA: infra
+  TERRAFORM_BACKEND_BLOB_PATH_APP: app
+
+  # Name of end-to-end test pod
+  E2E_TEST_POD: e2e-test
+
+  DOCKER_COMPOSE: docker-compose -f infra/docker-compose/docker-compose.yml -f infra/docker-compose/docker-compose.online.yml -f infra/docker-compose/docker-compose.databricks.yml
+
 jobs:
 
   build-and-test:
@@ -24,6 +50,48 @@ jobs:
 
     # Checkout sources from Git
     - uses: actions/checkout@v2
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v1
+      with:
+        terraform_version: 0.12.24
+        terraform_wrapper: false
+
+    - name: Set Terraform variables infra
+      run: |
+        echo ::set-env name=ARM_CLIENT_ID::${{ secrets.ARM_CLIENT_ID }}
+        echo ::set-env name=ARM_CLIENT_SECRET::${{ secrets.ARM_CLIENT_SECRET }}
+        echo ::set-env name=ARM_SUBSCRIPTION_ID::${{ secrets.ARM_SUBSCRIPTION_ID }}
+        echo ::set-env name=ARM_TENANT_ID::${{ secrets.ARM_TENANT_ID }}
+
+    - name: Terraform init infra
+      # cache plugin locally to avoid re-downloading it at every run
+      run: TF_PLUGIN_CACHE_DIR=$HOME/.terraform.d/plugin-cache terraform init -input=false -backend-config=container_name="$TERRAFORM_BACKEND_CONTAINER_NAME" -backend-config=key="$TERRAFORM_BACKEND_BLOB_PATH_INFRA" -backend-config=storage_account_name="$TERRAFORM_BACKEND_STORAGE_ACCOUNT_NAME" -backend-config=resource_group_name="$TERRAFORM_BACKEND_STORAGE_ACCOUNT_RESOURCE_GROUP_NAME"
+      working-directory: infra/terraform/infra
+
+    - name: Terraform plan infra
+      run: terraform plan -out=tfplan -input=false
+      working-directory: infra/terraform/infra
+
+    - name: Terraform apply infra
+      run: terraform apply -input=false -auto-approve tfplan
+      working-directory: infra/terraform/infra
+
+    - name: Terraform outputs infra
+      run: |
+        # Set a TF_VAR_ environment variable for each terraform output.
+        # Mask any secret terraform output.
+        terraform output -json | jq -r '
+          . as $in
+          | keys[]
+          | ($in[.].value | tostring | gsub("\\\\"; "\\\\") | gsub("\n"; "\\n")) as $value
+          | ($in[.].sensitive | tostring) as $sensitive
+          | [
+            if $in[.].sensitive then "::add-mask::" + $value else "" end,  # mask value in console output
+            "::set-env name=TF_VAR_" + . + "::" + $value  # set value as environment variable
+            ]
+          | .[]'
+      working-directory: infra/terraform/infra
 
     # Cache the Maven repository across runs.
     - name: Cache Maven repository
@@ -43,36 +111,146 @@ jobs:
       if: steps.cache-maven.outputs.cache-hit != 'true'
       run: docker run --rm --user $(id -u):$(id -g) -e MAVEN_CONFIG=/build/.m2 -v $PWD:/build maven:3.6-jdk-11 bash -c "cp -R /build /tmp && mvn -f /tmp/build -Dmaven.repo.local=/build/.m2/repository -Dgpg.skip=true -B clean verify -DskipTests"
 
+    - name: Set image name and version settings for docker-compose
+      run: |
+        echo "::set-env name=COMPOSE_PROJECT_NAME::feast"
+        echo "::set-env name=FEAST_VERSION::v${{ github.sha }}"
+        echo "::set-env name=FEAST_CORE_IMAGE::$TF_VAR_acr_login_server/$CONTAINERREGISTRY_IMAGENAMEBASE-core"
+        echo "::set-env name=FEAST_SERVING_IMAGE::$TF_VAR_acr_login_server/$CONTAINERREGISTRY_IMAGENAMEBASE-serving"
+        echo "::set-env name=FEAST_JUPYTER_IMAGE::$TF_VAR_acr_login_server/$CONTAINERREGISTRY_IMAGENAMEBASE-jupyter"
+        echo "::set-env name=FEAST_DATABRICKS_EMULATOR_IMAGE::databricks-emulator-dev"
+
     # Build images in parallel.
     - name: Build Feast runtime images
-      run: docker-compose -f infra/docker-compose/docker-compose.yml -f infra/docker-compose/docker-compose.online.yml build --parallel core online-serving jupyter
-      env:
-        FEAST_VERSION: v${{ github.sha }}
-        FEAST_CORE_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-core
-        FEAST_SERVING_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-serving
-        FEAST_JUPYTER_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-jupyter
-
-    - name: test docker compose
-      run: ./infra/scripts/test-docker-compose-databricks.sh
-      env:
-        COMPOSE_PROJECT_NAME: feast
-        FEAST_VERSION: v${{ github.sha }}
-        FEAST_CORE_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-core
-        FEAST_SERVING_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-serving
-        FEAST_JUPYTER_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-jupyter
+      run: $DOCKER_COMPOSE build --parallel core online-serving jupyter databricks-emulator
 
     # Login to Azure Container Registry.
     - name: Login to Azure Container Registry
       uses: azure/docker-login@v1
       with:
-        login-server: ${{ secrets.CONTAINERREGISTRY_URL }}
-        username: ${{ secrets.CONTAINERREGISTRY_USERNAME }}
-        password: ${{ secrets.CONTAINERREGISTRY_PASSWORD }}
+        login-server: ${{ env.TF_VAR_acr_login_server }}
+        username: ${{ env.TF_VAR_acr_admin_username }}
+        password: ${{ env.TF_VAR_acr_admin_password }}
 
     # Promote successfully tested container to Azure Container Registry.
     - name: Push image to ACR
+      run: $DOCKER_COMPOSE push core online-serving jupyter
+
+    # Install python to enable Databricks CLI install (for workaround for
+    # databricks provider DBFS bug)
+    - uses: actions/setup-python@v2
+      with:
+        python-version: '2.x'
+
+    - name: Upload Spark JARs
       run: |
-        docker-compose -f infra/docker-compose/docker-compose.yml push core
+        set -ex
+        docker rm spark-jobs || true
+        docker create --name spark-jobs ${FEAST_DATABRICKS_EMULATOR_IMAGE}:${FEAST_VERSION}
+        mkdir -p sparkjars
+        docker cp spark-jobs:/opt/sparkjars sparkjars
+        docker rm spark-jobs
+        echo "::set-env name=TF_VAR_spark_job_jars::$PWD/sparkjars"
+
+    - name: Set kubeconfig
+      run: |
+        base64 -d <<<"$TF_VAR_kube_config" > kube_config
+        echo "::set-env name=KUBECONFIG::$PWD/kube_config"
+
+    - name: Install Terraform databricks provider
+      # TODO: should simply run this command:
+      # curl https://raw.githubusercontent.com/databrickslabs/databricks-terraform/master/godownloader-databricks-provider.sh | bash -xs -- -b $HOME/.terraform.d/plugins
+      # but blocked by issues:
+      # - https://github.com/databrickslabs/terraform-provider-databricks/issues/128
+      # - https://github.com/databrickslabs/terraform-provider-databricks/issues/123
+      run: |
+        PLUGINS=$HOME/.terraform.d/plugins
+        test -s $PLUGINS/terraform-provider-databricks_v0.2.0 && exit
+        wget -O databricks-provider.tgz https://github.com/databrickslabs/terraform-provider-databricks/releases/download/v0.2.0/databricks-terraform_0.2.0_Linux_64-bit.tar.gz
+        mkdir -p $PLUGINS
+        tar -C $PLUGINS -zxvf databricks-provider.tgz terraform-provider-databricks_v0.2.0
+
+    - name: Set Terraform variables app
+      run: |
+        echo "::set-env name=TF_VAR_feast_core_image_repository::$FEAST_CORE_IMAGE"
+        echo "::set-env name=TF_VAR_feast_serving_image_repository::$FEAST_SERVING_IMAGE"
+        echo "::set-env name=TF_VAR_feast_version::$FEAST_VERSION"
+        echo "::set-env name=TF_VAR_run_number::$GITHUB_RUN_NUMBER"
+
+    - name: Terraform init app
+      # cache plugin locally to avoid re-downloading it at every run
+      run: TF_PLUGIN_CACHE_DIR=$HOME/.terraform.d/plugin-cache terraform init -input=false -backend-config=container_name="$TERRAFORM_BACKEND_CONTAINER_NAME" -backend-config=key="$TERRAFORM_BACKEND_BLOB_PATH_APP" -backend-config=storage_account_name="$TERRAFORM_BACKEND_STORAGE_ACCOUNT_NAME" -backend-config=resource_group_name="$TERRAFORM_BACKEND_STORAGE_ACCOUNT_RESOURCE_GROUP_NAME"
+      working-directory: infra/terraform/app
+
+    - name: Terraform destroy app
+      run: terraform destroy -input=false -auto-approve
+      working-directory: infra/terraform/app
+
+    - name: Terraform plan app
+      run: terraform plan -out=tfplan -input=false
+      working-directory: infra/terraform/app
+
+    - name: Terraform apply app
+      run: terraform apply -input=false -auto-approve tfplan
+      working-directory: infra/terraform/app
       env:
-        FEAST_VERSION: v${{ github.sha }}
-        FEAST_CORE_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-core
+        # capture debugging info, see https://www.terraform.io/docs/internals/debugging.html
+        TF_LOG: debug
+
+    - name: Cancel any active Databricks runs
+      run: |
+        set -euo pipefail
+        export DATABRICKS_HOST="$TF_VAR_databricks_workspace_url"
+        export DATABRICKS_TOKEN=$(terraform output databricks_token)
+        set -x
+        pip install databricks-cli
+        databricks runs list --active-only | cut -f1 -d ' ' | xargs -tr -n1 databricks runs cancel --run-id
+      working-directory: infra/terraform/app
+
+    - uses: azure/setup-kubectl@v1
+
+    - name: Prepare e2e test pod and clear Redis data
+      run: |
+        set -ex
+        # Start e2e test pod
+        kubectl delete pod "$E2E_TEST_POD" || true
+        kubectl run "$E2E_TEST_POD" --restart=Never --image="$FEAST_JUPYTER_IMAGE:$FEAST_VERSION" --limits 'memory=4Gi'
+
+        # While the test pod is starting, clear all data from Redis
+        kubectl run -it --rm --restart=Never --image=redis redisflush$GITHUB_RUN_NUMBER --command -- redis-cli -h $TF_VAR_redis_hostname FLUSHALL
+
+        kubectl wait --timeout 45m --for=condition=ContainersReady pod "$E2E_TEST_POD"
+
+    - name: Run e2e tests for Redis
+      run: |
+        set -ex
+        kubectl exec "$E2E_TEST_POD" -- bash -c "
+          cd /feast/tests/e2e
+          pytest -x -rA -s basic-ingest-redis-serving.py --core_url feast-core:6565 --serving_url=feast-serving-feast-online-serving:6566
+        "
+
+    - name: Run ingestion tests for FF Data Science scenarios
+      run: |
+        set -ex
+        kubectl exec "$E2E_TEST_POD" -- bash -c "
+          cd /feast/tests/ds_scenarios
+          pytest -x -rA -s test-ingest.py --core_url feast-core:6565 --serving_url=feast-serving-feast-online-serving:6566
+        "
+
+    - name: Delete e2e test pod
+      run: kubectl delete pod "$E2E_TEST_POD"
+
+    - name: Output logs
+      if: ${{ always() }}
+      run: |
+        set +e
+        set -x
+        kubectl get event
+        kubectl logs svc/feast-core
+        kubectl logs svc/feast-serving-feast-online-serving
+        # Get number of Redis keys
+        kubectl run -it --rm --restart=Never --image=redis redisflush$GITHUB_RUN_NUMBER --command -- redis-cli -h $TF_VAR_redis_hostname DBSIZE
+        # Get consumer group offsets
+        kubectl exec -it svc/feast-services-kafka -- bash -c 'KCG="kafka-consumer-groups --bootstrap-server localhost:9092"; $KCG --list | xargs -rt -n1 $KCG --describe --group'
+        # Get Kafka offsets
+        kubectl exec -it svc/feast-services-kafka -- bash -c 'kafka-run-class kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic feast-features'

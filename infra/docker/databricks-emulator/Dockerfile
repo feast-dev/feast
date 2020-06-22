@@ -62,7 +62,7 @@ ENV SPARK_HOME /spark
 
 COPY --from=builder /spark /spark
 COPY --from=builder /build/spark/databricks-emulator/target/databricks-emulator-$REVISION.jar /opt/databricks-emulator.jar
-COPY --from=builder /build/spark/spark-ingestion-job/target/spark-ingestion-job-$REVISION.jar /opt/spark-ingestion-job.jar
+COPY --from=builder /build/spark/spark-ingestion-job/target/spark-ingestion-job-$REVISION.jar /opt/sparkjars/spark-ingestion-job.jar
 CMD ["java",\
      "-Xms2048m",\
      "-Xmx2048m",\
