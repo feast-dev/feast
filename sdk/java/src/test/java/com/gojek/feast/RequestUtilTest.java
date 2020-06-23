@@ -40,22 +40,15 @@ class RequestUtilTest {
         Arguments.of(
             Arrays.asList("driver:driver_id", "driver_id"),
             Arrays.asList(
-                FeatureReference.newBuilder()
-                    .setProject("driver_project")
-                    .setFeatureSet("driver")
-                    .setName("driver_id")
-                    .build(),
-                FeatureReference.newBuilder()
-                    .setProject("driver_project")
-                    .setName("driver_id")
-                    .build())));
+                FeatureReference.newBuilder().setFeatureSet("driver").setName("driver_id").build(),
+                FeatureReference.newBuilder().setName("driver_id").build())));
   }
 
   @ParameterizedTest
   @MethodSource("provideValidFeatureRefs")
   void createFeatureSets_ShouldReturnFeatureSetsForValidFeatureRefs(
       List<String> input, List<FeatureReference> expected) {
-    List<FeatureReference> actual = RequestUtil.createFeatureRefs(input, "driver_project");
+    List<FeatureReference> actual = RequestUtil.createFeatureRefs(input);
     // Order of the actual and expected featureSets do no not matter
     actual.sort(Comparator.comparing(FeatureReference::getName));
     expected.sort(Comparator.comparing(FeatureReference::getName));
@@ -90,12 +83,12 @@ class RequestUtilTest {
   @ParameterizedTest
   @MethodSource("provideInvalidFeatureRefs")
   void createFeatureSets_ShouldThrowExceptionForInvalidFeatureRefs(List<String> input) {
-    assertThrows(IllegalArgumentException.class, () -> RequestUtil.createFeatureRefs(input, ""));
+    assertThrows(IllegalArgumentException.class, () -> RequestUtil.createFeatureRefs(input));
   }
 
   @ParameterizedTest
   @NullSource
   void createFeatureSets_ShouldThrowExceptionForNullFeatureRefs(List<String> input) {
-    assertThrows(IllegalArgumentException.class, () -> RequestUtil.createFeatureRefs(input, ""));
+    assertThrows(IllegalArgumentException.class, () -> RequestUtil.createFeatureRefs(input));
   }
 }
