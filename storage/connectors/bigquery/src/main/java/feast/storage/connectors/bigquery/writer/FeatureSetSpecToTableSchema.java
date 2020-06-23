@@ -22,6 +22,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.*;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import feast.common.models.FeatureSetReference;
 import feast.proto.core.FeatureSetProto;
 import feast.storage.connectors.bigquery.common.TypeUtil;
 import java.io.IOException;
@@ -51,7 +52,9 @@ import org.slf4j.Logger;
  * bootstrapping faster
  */
 public class FeatureSetSpecToTableSchema
-    extends DoFn<KV<String, FeatureSetProto.FeatureSetSpec>, KV<String, TableSchema>> {
+    extends DoFn<
+        KV<FeatureSetReference, FeatureSetProto.FeatureSetSpec>,
+        KV<FeatureSetReference, TableSchema>> {
   private BigQuery bqService;
   private DatasetId dataset;
   private ValueProvider<BigQuery> bqProvider;
@@ -87,10 +90,10 @@ public class FeatureSetSpecToTableSchema
 
   @ProcessElement
   public void processElement(
-      @Element KV<String, FeatureSetProto.FeatureSetSpec> element,
-      OutputReceiver<KV<String, TableSchema>> output,
+      @Element KV<FeatureSetReference, FeatureSetProto.FeatureSetSpec> element,
+      OutputReceiver<KV<FeatureSetReference, TableSchema>> output,
       ProcessContext context) {
-    String specKey = element.getKey();
+    String specKey = element.getKey().getReference();
 
     Table existingTable = getExistingTable(specKey);
     Schema schema = createSchemaFromSpec(element.getValue(), specKey, existingTable);
@@ -99,7 +102,7 @@ public class FeatureSetSpecToTableSchema
       createTable(specKey, schema);
     }
 
-    output.output(KV.of(specKey, serializeSchema(schema)));
+    output.output(KV.of(element.getKey(), serializeSchema(schema)));
   }
 
   private TableId generateTableId(String specKey) {

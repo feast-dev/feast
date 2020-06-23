@@ -50,6 +50,11 @@
             <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>
+        <!--compileOnly 'org.projectlombok:lombok:1.18.12'-->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>

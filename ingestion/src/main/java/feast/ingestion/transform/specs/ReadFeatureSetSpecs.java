@@ -19,6 +19,8 @@ package feast.ingestion.transform.specs;
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import feast.common.models.FeatureSetReference;
+import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.IngestionJobProto;
 import feast.proto.core.SourceProto;
@@ -26,6 +28,9 @@ import feast.proto.core.StoreProto;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
@@ -50,7 +55,7 @@ import org.joda.time.Duration;
  */
 @AutoValue
 public abstract class ReadFeatureSetSpecs
-    extends PTransform<PBegin, PCollection<KV<String, FeatureSetSpec>>> {
+    extends PTransform<PBegin, PCollection<KV<FeatureSetReference, FeatureSetSpec>>> {
   public abstract IngestionJobProto.SpecsStreamingUpdateConfig getSpecsStreamingUpdateConfig();
 
   public abstract SourceProto.Source getSource();
@@ -74,7 +79,7 @@ public abstract class ReadFeatureSetSpecs
   }
 
   @Override
-  public PCollection<KV<String, FeatureSetSpec>> expand(PBegin input) {
+  public PCollection<KV<FeatureSetReference, FeatureSetSpec>> expand(PBegin input) {
     return input
         .apply(
             KafkaIO.readBytes()
@@ -102,6 +107,24 @@ public abstract class ReadFeatureSetSpecs
                       featureSetSpecs.sort(
                           Comparator.comparing(FeatureSetSpec::getVersion).reversed());
                       return featureSetSpecs.get(0);
-                    }));
+                    }))
+        .apply("FeatureSetReferenceKey", ParDo.of(new CreateFeatureSetReference()))
+        .setCoder(
+            KvCoder.of(
+                AvroCoder.of(FeatureSetReference.class), ProtoCoder.of(FeatureSetSpec.class)));
+  }
+
+  public static class CreateFeatureSetReference
+      extends DoFn<
+          KV<String, FeatureSetProto.FeatureSetSpec>,
+          KV<FeatureSetReference, FeatureSetProto.FeatureSetSpec>> {
+    @ProcessElement
+    public void process(
+        ProcessContext c, @Element KV<String, FeatureSetProto.FeatureSetSpec> input) {
+      c.output(
+          KV.of(
+              new FeatureSetReference(input.getKey(), input.getValue().getVersion()),
+              input.getValue()));
+    }
   }
 }

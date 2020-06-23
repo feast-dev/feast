@@ -17,7 +17,8 @@
 package feast.storage.connectors.redis.writer;
 
 import com.google.auto.value.AutoValue;
-import feast.proto.core.FeatureSetProto.FeatureSet;
+import feast.common.models.FeatureSetReference;
+import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.RedisClusterConfig;
@@ -30,8 +31,7 @@ import io.lettuce.core.RedisConnectionException;
 import io.lettuce.core.RedisURI;
 import java.util.Map;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -43,17 +43,14 @@ public abstract class RedisFeatureSink implements FeatureSink {
    * Initialize a {@link RedisFeatureSink.Builder} from a {@link StoreProto.Store.RedisConfig}.
    *
    * @param redisConfig {@link RedisConfig}
-   * @param featureSetSpecs input stream of featureSet specs with featureSet name as key
    * @return {@link RedisFeatureSink.Builder}
    */
-  public static FeatureSink fromConfig(
-      RedisConfig redisConfig, PCollection<KV<String, FeatureSetSpec>> featureSetSpecs) {
-    return builder().setFeatureSetSpecs(featureSetSpecs).setRedisConfig(redisConfig).build();
+  public static FeatureSink fromConfig(RedisConfig redisConfig) {
+    return builder().setRedisConfig(redisConfig).build();
   }
 
-  public static FeatureSink fromConfig(
-      RedisClusterConfig redisConfig, PCollection<KV<String, FeatureSetSpec>> featureSetSpecs) {
-    return builder().setFeatureSetSpecs(featureSetSpecs).setRedisClusterConfig(redisConfig).build();
+  public static FeatureSink fromConfig(RedisClusterConfig redisConfig) {
+    return builder().setRedisClusterConfig(redisConfig).build();
   }
 
   @Nullable
@@ -61,8 +58,6 @@ public abstract class RedisFeatureSink implements FeatureSink {
 
   @Nullable
   public abstract RedisClusterConfig getRedisClusterConfig();
-
-  public abstract PCollection<KV<String, FeatureSetSpec>> getFeatureSetSpecs();
 
   public abstract Builder toBuilder();
 
@@ -76,14 +71,24 @@ public abstract class RedisFeatureSink implements FeatureSink {
 
     public abstract Builder setRedisClusterConfig(RedisClusterConfig redisConfig);
 
-    public abstract Builder setFeatureSetSpecs(
-        PCollection<KV<String, FeatureSetSpec>> featureSetSpecs);
-
     public abstract RedisFeatureSink build();
   }
 
+  PCollectionView<Map<String, Iterable<FeatureSetSpec>>> specsView;
+
+  public RedisFeatureSink withSpecsView(
+      PCollectionView<Map<String, Iterable<FeatureSetSpec>>> specsView) {
+    this.specsView = specsView;
+    return this;
+  }
+
+  PCollectionView<Map<String, Iterable<FeatureSetSpec>>> getSpecsView() {
+    return specsView;
+  }
+
   @Override
-  public void prepareWrite(FeatureSet featureSet) {
+  public PCollection<FeatureSetReference> prepareWrite(
+      PCollection<KV<FeatureSetReference, FeatureSetProto.FeatureSetSpec>> featureSetSpecs) {
     if (getRedisConfig() != null) {
       RedisClient redisClient =
           RedisClient.create(
@@ -101,23 +106,29 @@ public abstract class RedisFeatureSink implements FeatureSink {
       throw new RuntimeException(
           "At least one RedisConfig or RedisClusterConfig must be provided to Redis Sink");
     }
+    specsView = featureSetSpecs.apply(ParDo.of(new ReferenceToString())).apply(View.asMultimap());
+    return featureSetSpecs.apply(Keys.create());
   }
 
   @Override
   public PTransform<PCollection<FeatureRow>, WriteResult> writer() {
-
-    PCollectionView<Map<String, Iterable<FeatureSetSpec>>> specsView =
-        getFeatureSetSpecs().apply(View.asMultimap());
-
     if (getRedisClusterConfig() != null) {
       return new RedisCustomIO.Write(
-          new RedisClusterIngestionClient(getRedisClusterConfig()), specsView);
+          new RedisClusterIngestionClient(getRedisClusterConfig()), getSpecsView());
     } else if (getRedisConfig() != null) {
       return new RedisCustomIO.Write(
-          new RedisStandaloneIngestionClient(getRedisConfig()), specsView);
+          new RedisStandaloneIngestionClient(getRedisConfig()), getSpecsView());
     } else {
       throw new RuntimeException(
           "At least one RedisConfig or RedisClusterConfig must be provided to Redis Sink");
+    }
+  }
+
+  private static class ReferenceToString
+      extends DoFn<KV<FeatureSetReference, FeatureSetSpec>, KV<String, FeatureSetSpec>> {
+    @ProcessElement
+    public void process(ProcessContext c) {
+      c.output(KV.of(c.element().getKey().getReference(), c.element().getValue()));
     }
   }
 }

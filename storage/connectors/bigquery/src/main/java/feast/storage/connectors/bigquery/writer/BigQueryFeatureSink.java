@@ -19,6 +19,7 @@ package feast.storage.connectors.bigquery.writer;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.bigquery.*;
+import feast.common.models.FeatureSetReference;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.StoreProto.Store.BigQueryConfig;
 import feast.proto.types.FeatureRowProto;
@@ -26,13 +27,11 @@ import feast.storage.api.writer.FeatureSink;
 import feast.storage.api.writer.WriteResult;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -52,7 +51,7 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
   @Nullable
   public abstract ValueProvider<BigQuery> getBQClient();
 
-  public abstract PCollection<KV<String, FeatureSetProto.FeatureSetSpec>> getFeatureSetSpecs();
+  private PCollectionView<Map<String, Iterable<TableSchema>>> schemasView;
 
   /**
    * Initialize a {@link BigQueryFeatureSink.Builder} from a {@link BigQueryConfig}. This method
@@ -60,16 +59,12 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
    * your own client.
    *
    * @param config {@link BigQueryConfig}
-   * @param featureSetSpecs input stream of featureSet specs
    * @return {@link BigQueryFeatureSink.Builder}
    */
-  public static FeatureSink fromConfig(
-      BigQueryConfig config,
-      PCollection<KV<String, FeatureSetProto.FeatureSetSpec>> featureSetSpecs) {
+  public static FeatureSink fromConfig(BigQueryConfig config) {
     return BigQueryFeatureSink.builder()
         .setDatasetId(config.getDatasetId())
         .setProjectId(config.getProjectId())
-        .setFeatureSetSpecs(featureSetSpecs)
         .setBQTestServices(null)
         .setBQClient(
             new ValueProvider<BigQuery>() {
@@ -105,30 +100,45 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
 
     public abstract Builder setBQClient(ValueProvider<BigQuery> bigQueryOptions);
 
-    public abstract Builder setFeatureSetSpecs(
-        PCollection<KV<String, FeatureSetProto.FeatureSetSpec>> featureSetSpecs);
-
     public abstract BigQueryFeatureSink build();
   }
 
-  /** @param featureSet Feature set to be written */
+  /** @param featureSetSpecs Feature set to be written */
   @Override
-  public void prepareWrite(FeatureSetProto.FeatureSet featureSet) {}
-
-  @Override
-  public PTransform<PCollection<FeatureRowProto.FeatureRow>, WriteResult> writer() {
-    PCollection<KV<String, FeatureSetProto.FeatureSetSpec>> fs = getFeatureSetSpecs();
-    PCollectionView<Map<String, Iterable<TableSchema>>> schemasView =
-        fs.apply(
+  public PCollection<FeatureSetReference> prepareWrite(
+      PCollection<KV<FeatureSetReference, FeatureSetProto.FeatureSetSpec>> featureSetSpecs) {
+    PCollection<KV<FeatureSetReference, TableSchema>> schemas =
+        featureSetSpecs
+            .apply(
+                "GenerateTableSchema",
                 ParDo.of(
                     new FeatureSetSpecToTableSchema(
                         DatasetId.of(getProjectId(), getDatasetId()), getBQClient())))
             .setCoder(
-                KvCoder.of(StringUtf8Coder.of(), FeatureSetSpecToTableSchema.TableSchemaCoder.of()))
-            .apply(View.asMultimap());
+                KvCoder.of(
+                    AvroCoder.of(FeatureSetReference.class),
+                    FeatureSetSpecToTableSchema.TableSchemaCoder.of()));
 
+    schemasView =
+        schemas
+            .apply("ReferenceString", ParDo.of(new ReferenceToString()))
+            .apply("View", View.asMultimap());
+
+    return schemas.apply("Ready", Keys.create());
+  }
+
+  @Override
+  public PTransform<PCollection<FeatureRowProto.FeatureRow>, WriteResult> writer() {
     return new BigQueryWrite(DatasetId.of(getProjectId(), getDatasetId()), schemasView)
         .withTriggeringFrequency(getTriggeringFrequency())
         .withTestServices(getBQTestServices());
+  }
+
+  private static class ReferenceToString
+      extends DoFn<KV<FeatureSetReference, TableSchema>, KV<String, TableSchema>> {
+    @ProcessElement
+    public void process(ProcessContext c) {
+      c.output(KV.of(c.element().getKey().getReference(), c.element().getValue()));
+    }
   }
 }

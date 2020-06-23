@@ -16,10 +16,12 @@
  */
 package feast.storage.api.writer;
 
+import feast.common.models.FeatureSetReference;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import java.io.Serializable;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /** Interface for implementing user defined feature sink functionality. */
@@ -40,9 +42,10 @@ public interface FeatureSink extends Serializable {
    * <p>If the storage backend is a key-value or a schema-less database, however, there may not be a
    * need to manage any schemas.
    *
-   * @param featureSet Feature set to be written
+   * @param featureSetSpecs Feature set to be written
    */
-  void prepareWrite(FeatureSetProto.FeatureSet featureSet);
+  PCollection<FeatureSetReference> prepareWrite(
+      PCollection<KV<FeatureSetReference, FeatureSetProto.FeatureSetSpec>> featureSetSpecs);
 
   /**
    * Get a {@link PTransform} that writes feature rows to the store, and returns a {@link
