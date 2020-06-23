@@ -97,18 +97,13 @@ class FeatureRef:
 
         Args:
             feature_ref_str: String representation of the feature reference
-            ignore_project: Ignore projects in given string feature reference
-                            instead throwing an error
 
         Returns:
             FeatureRef that refers to the given feature
         """
         proto = FeatureRefProto()
         if "/" in feature_ref_str:
-            if ignore_project:
-                _, feature_ref_str = feature_ref_str.split("/")
-            else:
-                raise ValueError(f"Unsupported feature reference: {feature_ref_str}")
+            raise ValueError(f"Unsupported feature reference: {feature_ref_str}")
 
         # parse feature set name if specified
         if ":" in feature_ref_str:

@@ -263,7 +263,7 @@ class TestClient:
         [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
     )
     def test_get_online_features(self, mocked_client, mocker):
-        ROW_COUNT = 300
+        ROW_COUNT = 1
 
         mocked_client._serving_service_stub = Serving.ServingServiceStub(
             grpc.insecure_channel("")
@@ -272,14 +272,12 @@ class TestClient:
         def int_val(x):
             return ValueProto.Value(int64_val=x)
 
-        request = GetOnlineFeaturesRequest()
+        request = GetOnlineFeaturesRequest(project="driver_project")
         request.features.extend(
             [
-                FeatureRefProto(
-                    project="driver_project", feature_set="driver", name="age"
-                ),
-                FeatureRefProto(project="driver_project", name="rating"),
-                FeatureRefProto(project="driver_project", name="null_value"),
+                FeatureRefProto(feature_set="driver", name="age"),
+                FeatureRefProto(name="rating"),
+                FeatureRefProto(name="null_value"),
             ]
         )
         recieve_response = GetOnlineFeaturesResponse()
@@ -292,15 +290,15 @@ class TestClient:
             field_values = GetOnlineFeaturesResponse.FieldValues(
                 fields={
                     "driver_id": int_val(row_number),
-                    "driver_project/driver:age": int_val(1),
-                    "driver_project/rating": int_val(9),
-                    "driver_project/null_value": ValueProto.Value(),
+                    "driver:age": int_val(1),
+                    "rating": int_val(9),
+                    "null_value": ValueProto.Value(),
                 },
                 statuses={
                     "driver_id": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
-                    "driver_project/driver:age": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
-                    "driver_project/rating": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
-                    "driver_project/null_value": GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE,
+                    "driver:age": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
+                    "rating": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
+                    "null_value": GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE,
                 },
             )
             recieve_response.field_values.append(field_values)
