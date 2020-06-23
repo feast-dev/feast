@@ -21,9 +21,8 @@ import com.google.cloud.bigquery.*;
 import com.google.common.collect.Streams;
 import com.google.protobuf.Timestamp;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
-import feast.proto.core.FeatureSetProto.FeatureSpec;
 import feast.proto.core.StoreProto.Store.BigQueryConfig;
-import feast.storage.api.statistics.FeatureSetStatistics;
+import feast.storage.api.statistics.FeatureStatistics;
 import feast.storage.api.statistics.StatisticsRetriever;
 import java.io.IOException;
 import java.util.List;
@@ -54,12 +53,12 @@ public abstract class BigQueryStatisticsRetriever implements StatisticsRetriever
         .build();
   }
 
-  static Builder newBuilder() {
+  public static Builder newBuilder() {
     return new AutoValue_BigQueryStatisticsRetriever.Builder();
   }
 
   @AutoValue.Builder
-  abstract static class Builder {
+  public abstract static class Builder {
 
     public abstract Builder setProjectId(String projectId);
 
@@ -71,51 +70,45 @@ public abstract class BigQueryStatisticsRetriever implements StatisticsRetriever
   }
 
   @Override
-  public FeatureSetStatistics getFeatureStatistics(
-      FeatureSetSpec featureSetSpec, List<String> features, String dataset) {
-    FeatureSetStatisticsQueryInfo featureSetStatisticsQueryInfo =
-        new FeatureSetStatisticsQueryInfo(
-            featureSetSpec.getProject(), featureSetSpec.getName(), dataset);
-    return getFeatureSetStatistics(featureSetSpec, features, featureSetStatisticsQueryInfo);
+  public FeatureStatistics getFeatureStatistics(
+      FeatureSetSpec featureSetSpec, List<String> features, String ingestionId) {
+    StatsDataset queryDataset = buildStatsDataset(featureSetSpec);
+    queryDataset.subsetByIngestionId(ingestionId);
+    List<FeatureStatisticsQueryInfo> featureStatisticsQueryInfos =
+        featureSetSpec.getFeaturesList().stream()
+            .filter(f -> features.contains(f.getName()))
+            .map(FeatureStatisticsQueryInfo::fromProto)
+            .collect(Collectors.toList());
+    return getFeatureStatistics(featureStatisticsQueryInfos, queryDataset);
   }
 
   @Override
-  public FeatureSetStatistics getFeatureStatistics(
+  public FeatureStatistics getFeatureStatistics(
       FeatureSetSpec featureSetSpec, List<String> features, Timestamp date) {
-    FeatureSetStatisticsQueryInfo featureSetStatisticsQueryInfo =
-        new FeatureSetStatisticsQueryInfo(
-            featureSetSpec.getProject(), featureSetSpec.getName(), date);
-    return getFeatureSetStatistics(featureSetSpec, features, featureSetStatisticsQueryInfo);
+    StatsDataset queryDataset = buildStatsDataset(featureSetSpec);
+    queryDataset.subsetByDate(date);
+    List<FeatureStatisticsQueryInfo> featureStatisticsQueryInfos =
+        featureSetSpec.getFeaturesList().stream()
+            .filter(f -> features.contains(f.getName()))
+            .map(FeatureStatisticsQueryInfo::fromProto)
+            .collect(Collectors.toList());
+    return getFeatureStatistics(featureStatisticsQueryInfos, queryDataset);
   }
 
-  private FeatureSetStatistics getFeatureSetStatistics(
-      FeatureSetSpec featureSetSpec,
-      List<String> features,
-      FeatureSetStatisticsQueryInfo featureSetStatisticsQueryInfo) {
-    List<FeatureSpec> featuresList = featureSetSpec.getFeaturesList();
-
-    FeatureSetSpec.Builder featureSetSpecBuilder = featureSetSpec.toBuilder().clearFeatures();
-    for (FeatureSpec featureSpec : featuresList) {
-      if (features.contains(featureSpec.getName())) {
-        featureSetStatisticsQueryInfo.addFeature(featureSpec);
-        featureSetSpecBuilder.addFeatures(featureSpec);
-      }
-    }
-    featureSetSpec = featureSetSpecBuilder.build();
-
+  public FeatureStatistics getFeatureStatistics(
+      List<FeatureStatisticsQueryInfo> features, StatsDataset statsDataset)
+      throws RuntimeException {
     try {
       // Generate SQL for and retrieve non-histogram statistics
       String getFeatureSetStatsQuery =
-          StatsQueryTemplater.createGetFeatureSetStatsQuery(
-              featureSetStatisticsQueryInfo, projectId(), datasetId());
+          StatsQueryTemplater.createGetFeaturesStatsQuery(features, statsDataset);
       QueryJobConfiguration queryJobConfiguration =
           QueryJobConfiguration.newBuilder(getFeatureSetStatsQuery).build();
       TableResult basicStats = bigquery().query(queryJobConfiguration);
 
       // Generate SQL for and retrieve histogram statistics
       String getFeatureSetHistQuery =
-          StatsQueryTemplater.createGetFeatureSetHistQuery(
-              featureSetStatisticsQueryInfo, projectId(), datasetId());
+          StatsQueryTemplater.createGetFeaturesHistQuery(features, statsDataset);
       queryJobConfiguration = QueryJobConfiguration.newBuilder(getFeatureSetHistQuery).build();
       TableResult hist = bigquery().query(queryJobConfiguration);
 
@@ -124,27 +117,30 @@ public abstract class BigQueryStatisticsRetriever implements StatisticsRetriever
       Map<String, FieldValueList> histValues = getTableResultByFeatureName(hist);
 
       int totalCountIndex = basicStats.getSchema().getFields().getIndex("total_count");
-      String ref = features.get(0);
-      FeatureSetStatistics.Builder featureSetStatisticsBuilder =
-          FeatureSetStatistics.newBuilder()
+      String ref = features.get(0).getName();
+      FeatureStatistics.Builder featureSetStatisticsBuilder =
+          FeatureStatistics.newBuilder()
               .setNumExamples(basicStatsValues.get(ref).get(totalCountIndex).getLongValue());
 
       // Convert BQ rows to FeatureNameStatistics
-      for (FeatureSpec featureSpec : featureSetSpec.getFeaturesList()) {
+      for (FeatureStatisticsQueryInfo featureInfo : features) {
         FeatureNameStatistics featureNameStatistics =
             StatsQueryResult.create()
                 .withBasicStatsResults(
-                    basicStats.getSchema(), basicStatsValues.get(featureSpec.getName()))
-                .withHistResults(hist.getSchema(), histValues.get(featureSpec.getName()))
-                .toFeatureNameStatistics(featureSpec.getValueType());
+                    basicStats.getSchema(), basicStatsValues.get(featureInfo.getName()))
+                .withHistResults(hist.getSchema(), histValues.get(featureInfo.getName()))
+                .toFeatureNameStatistics(featureInfo);
         featureSetStatisticsBuilder.addFeatureNameStatistics(featureNameStatistics);
       }
       return featureSetStatisticsBuilder.build();
     } catch (IOException | InterruptedException e) {
+      String featuresList =
+          features.stream()
+              .map(FeatureStatisticsQueryInfo::getName)
+              .collect(Collectors.joining(","));
       throw new RuntimeException(
           String.format(
-              "Unable to retrieve statistics from BigQuery for Feature set %s, features %s",
-              featureSetSpec.getName(), features),
+              "Unable to retrieve statistics from BigQuery for features %s", featuresList),
           e);
     }
   }
@@ -155,5 +151,11 @@ public abstract class BigQueryStatisticsRetriever implements StatisticsRetriever
             Collectors.toMap(
                 fieldValueList -> fieldValueList.get(0).getStringValue(),
                 fieldValueList -> fieldValueList));
+  }
+
+  private StatsDataset buildStatsDataset(FeatureSetSpec featureSetSpec) {
+    String featureSetTableName =
+        String.format("%s_%s", featureSetSpec.getProject(), featureSetSpec.getName());
+    return new StatsDataset(projectId(), datasetId(), featureSetTableName);
   }
 }

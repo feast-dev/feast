@@ -21,7 +21,6 @@ import com.google.cloud.bigquery.*;
 import com.google.cloud.bigquery.Schema;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Ordering;
-import feast.proto.types.ValueProto.ValueType;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,26 +33,6 @@ import org.tensorflow.metadata.v0.StringStatistics.FreqAndValue;
 
 @AutoValue
 public abstract class StatsQueryResult {
-  // Map converting Feast type to TFDV type
-  private static final Map<ValueType.Enum, FeatureNameStatistics.Type> TFDV_TYPE_MAP =
-      new HashMap<>();
-
-  static {
-    TFDV_TYPE_MAP.put(ValueType.Enum.INT64, FeatureNameStatistics.Type.INT);
-    TFDV_TYPE_MAP.put(ValueType.Enum.INT32, FeatureNameStatistics.Type.INT);
-    TFDV_TYPE_MAP.put(ValueType.Enum.BOOL, FeatureNameStatistics.Type.INT);
-    TFDV_TYPE_MAP.put(ValueType.Enum.FLOAT, FeatureNameStatistics.Type.FLOAT);
-    TFDV_TYPE_MAP.put(ValueType.Enum.DOUBLE, FeatureNameStatistics.Type.FLOAT);
-    TFDV_TYPE_MAP.put(ValueType.Enum.STRING, FeatureNameStatistics.Type.STRING);
-    TFDV_TYPE_MAP.put(ValueType.Enum.BYTES, FeatureNameStatistics.Type.BYTES);
-    TFDV_TYPE_MAP.put(ValueType.Enum.BYTES_LIST, FeatureNameStatistics.Type.STRUCT);
-    TFDV_TYPE_MAP.put(ValueType.Enum.STRING_LIST, FeatureNameStatistics.Type.STRUCT);
-    TFDV_TYPE_MAP.put(ValueType.Enum.INT32_LIST, FeatureNameStatistics.Type.STRUCT);
-    TFDV_TYPE_MAP.put(ValueType.Enum.INT64_LIST, FeatureNameStatistics.Type.STRUCT);
-    TFDV_TYPE_MAP.put(ValueType.Enum.BOOL_LIST, FeatureNameStatistics.Type.STRUCT);
-    TFDV_TYPE_MAP.put(ValueType.Enum.FLOAT_LIST, FeatureNameStatistics.Type.STRUCT);
-    TFDV_TYPE_MAP.put(ValueType.Enum.DOUBLE_LIST, FeatureNameStatistics.Type.STRUCT);
-  }
 
   // Schema of the table returned by the basic stats retrieval query
   @Nullable
@@ -129,10 +108,10 @@ public abstract class StatsQueryResult {
    * Convert BQ-retrieved statistics to the corresponding TFDV {@link FeatureNameStatistics}
    * specific to the feature type.
    *
-   * @param valueType {@link ValueType.Enum} denoting the value type of the feature
+   * @param featureInfo {@link FeatureStatisticsQueryInfo} containing information about the feature
    * @return {@link FeatureNameStatistics}
    */
-  public FeatureNameStatistics toFeatureNameStatistics(ValueType.Enum valueType) {
+  public FeatureNameStatistics toFeatureNameStatistics(FeatureStatisticsQueryInfo featureInfo) {
     Map<String, FieldValue> valuesMap = new HashMap<>();
 
     // Convert the table values to a map of field name : table value for easy retrieval
@@ -149,18 +128,14 @@ public abstract class StatsQueryResult {
     FeatureNameStatistics.Builder featureNameStatisticsBuilder =
         FeatureNameStatistics.newBuilder()
             .setPath(Path.newBuilder().addStep(valuesMap.get("feature_name").getStringValue()))
-            .setType(TFDV_TYPE_MAP.get(valueType));
+            .setType(FeatureNameStatistics.Type.valueOf(featureInfo.getValueType()));
 
-    switch (valueType) {
-      case FLOAT:
-      case BOOL:
-      case DOUBLE:
-      case INT32:
-      case INT64:
+    switch (StatsType.Enum.valueOf(featureInfo.getStatsType())) {
+      case NUMERIC:
         NumericStatistics numStats = getNumericStatistics(valuesMap);
         featureNameStatisticsBuilder.setNumStats(numStats);
         break;
-      case STRING:
+      case CATEGORICAL:
         StringStatistics stringStats = getStringStatistics(valuesMap);
         featureNameStatisticsBuilder.setStringStats(stringStats);
         break;
@@ -168,13 +143,7 @@ public abstract class StatsQueryResult {
         BytesStatistics bytesStats = getBytesStatistics(valuesMap);
         featureNameStatisticsBuilder.setBytesStats(bytesStats);
         break;
-      case BYTES_LIST:
-      case BOOL_LIST:
-      case FLOAT_LIST:
-      case INT32_LIST:
-      case INT64_LIST:
-      case DOUBLE_LIST:
-      case STRING_LIST:
+      case LIST:
         StructStatistics structStats = getStructStatistics(valuesMap);
         featureNameStatisticsBuilder.setStructStats(structStats);
         break;

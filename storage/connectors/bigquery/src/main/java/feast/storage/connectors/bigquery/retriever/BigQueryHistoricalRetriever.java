@@ -25,11 +25,18 @@ import com.google.cloud.bigquery.*;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
+import feast.proto.core.FeatureSetProto.FeatureSpec;
 import feast.proto.serving.ServingAPIProto;
+import feast.proto.serving.ServingAPIProto.DataFormat;
 import feast.proto.serving.ServingAPIProto.DatasetSource;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.storage.api.retriever.FeatureSetRequest;
 import feast.storage.api.retriever.HistoricalRetrievalResult;
 import feast.storage.api.retriever.HistoricalRetriever;
+import feast.storage.api.statistics.FeatureStatistics;
+import feast.storage.connectors.bigquery.statistics.BigQueryStatisticsRetriever;
+import feast.storage.connectors.bigquery.statistics.FeatureStatisticsQueryInfo;
+import feast.storage.connectors.bigquery.statistics.StatsDataset;
 import io.grpc.Status;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -39,6 +46,8 @@ import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
+import org.tensorflow.metadata.v0.DatasetFeatureStatistics;
+import org.tensorflow.metadata.v0.DatasetFeatureStatisticsList;
 import org.threeten.bp.Duration;
 
 @AutoValue
@@ -124,7 +133,10 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
 
   @Override
   public HistoricalRetrievalResult getHistoricalFeatures(
-      String retrievalId, DatasetSource datasetSource, List<FeatureSetRequest> featureSetRequests) {
+      String retrievalId,
+      DatasetSource datasetSource,
+      List<FeatureSetRequest> featureSetRequests,
+      boolean computeStatistics) {
     List<FeatureSetQueryInfo> featureSetQueryInfos =
         QueryTemplater.getFeatureSetInfos(featureSetRequests);
 
@@ -182,8 +194,55 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
 
     List<String> fileUris = parseOutputFileURIs(retrievalId);
 
-    return HistoricalRetrievalResult.success(
-        retrievalId, fileUris, ServingAPIProto.DataFormat.DATA_FORMAT_AVRO);
+    HistoricalRetrievalResult result =
+        HistoricalRetrievalResult.success(retrievalId, fileUris, DataFormat.DATA_FORMAT_AVRO);
+
+    // 6. If the user requested to compute statistics, compute them over the output table
+    if (computeStatistics) {
+      BigQueryStatisticsRetriever statsRetriever =
+          BigQueryStatisticsRetriever.newBuilder()
+              .setProjectId(projectId())
+              .setDatasetId(datasetId())
+              .setBigquery(bigquery())
+              .build();
+
+      List<FeatureStatisticsQueryInfo> featureStatisticsQueryInfos =
+          buildFeatureStatisticsQuery(featureSetRequests);
+      FeatureStatistics featureStatistics =
+          statsRetriever.getFeatureStatistics(
+              featureStatisticsQueryInfos, new StatsDataset(queryConfig.getDestinationTable()));
+      DatasetFeatureStatisticsList datasetFeatureStatisticsList =
+          DatasetFeatureStatisticsList.newBuilder()
+              .addDatasets(
+                  DatasetFeatureStatistics.newBuilder()
+                      .addAllFeatures(featureStatistics.getFeatureNameStatistics())
+                      .setNumExamples(featureStatistics.getNumExamples()))
+              .build();
+      result = result.withStats(datasetFeatureStatisticsList);
+    }
+    return result;
+  }
+
+  private List<FeatureStatisticsQueryInfo> buildFeatureStatisticsQuery(
+      List<FeatureSetRequest> featureSetRequests) {
+    List<FeatureStatisticsQueryInfo> featureStatisticsQueryInfos = new ArrayList<>();
+    for (FeatureSetRequest request : featureSetRequests) {
+      Map<String, FeatureReference> refsByName = request.getFeatureRefsByName();
+      for (FeatureSpec featureSpec : request.getSpec().getFeaturesList()) {
+        FeatureReference ref = refsByName.getOrDefault(featureSpec.getName(), null);
+        if (ref != null) {
+          if (!ref.getFeatureSet().equals("")) {
+            featureSpec =
+                featureSpec
+                    .toBuilder()
+                    .setName(String.format("%s__%s", ref.getFeatureSet(), ref.getName()))
+                    .build();
+          }
+          featureStatisticsQueryInfos.add(FeatureStatisticsQueryInfo.fromProto(featureSpec));
+        }
+      }
+    }
+    return featureStatisticsQueryInfos;
   }
 
   private TableId generateUUIDs(Table loadedEntityTable) {

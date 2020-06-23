@@ -1,12 +1,7 @@
 WITH subset AS (
-SELECT * FROM `{{ projectId }}.{{ datasetId }}.{{ featureSet.project }}_{{ featureSet.name }}`
-{% if featureSet.ingestionId == "" %}
-WHERE DATE(event_timestamp) = '{{ featureSet.date }}'
-{% else %}
-WHERE ingestion_id='{{ featureSet.ingestionId }}'
-{% endif %}
+{{ dataset }}
 )
-{% for feature in featureSet.features %}
+{% for feature in features %}
 SELECT
     "{{ feature.name }}" as feature_name,
     -- total count
@@ -15,7 +10,7 @@ SELECT
     COUNT({{ feature.name }}) as feature_count,
     -- missing
     COUNT(*) - COUNT({{ feature.name }}) as missing_count,
-    {% if feature.type equals "NUMERIC" %}
+    {% if feature.statsType equals "NUMERIC" %}
     -- mean
     AVG({{ feature.name }}) as mean,
     -- stdev
@@ -31,7 +26,7 @@ SELECT
     APPROX_QUANTILES(CAST({{ feature.name }} AS FLOAT64), 10) AS quantiles,
     -- unique
     null as unique
-    {% elseif feature.type equals "CATEGORICAL" %}
+    {% elseif feature.statsType equals "CATEGORICAL" %}
     -- mean
     AVG(LENGTH({{ feature.name }})) as mean,
     -- stdev
@@ -46,7 +41,7 @@ SELECT
     ARRAY<FLOAT64>[] AS quantiles,
     -- unique
     COUNT(DISTINCT({{ feature.name }})) as unique
-    {% elseif feature.type equals "BYTES" %}
+    {% elseif feature.statsType equals "BYTES" %}
     -- mean
     AVG(BIT_COUNT({{ feature.name }})) as mean,
     -- stdev
@@ -62,7 +57,7 @@ SELECT
     ARRAY<FLOAT64>[] AS quantiles,
     -- unique
     COUNT(DISTINCT({{ feature.name }})) as unique
-    {% elseif feature.type equals "LIST" %}
+    {% elseif feature.statsType equals "LIST" %}
     -- mean
     AVG(ARRAY_LENGTH({{ feature.name }})) as mean,
     -- stdev

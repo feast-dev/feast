@@ -107,6 +107,38 @@ Feast can retrieve features from any amount of feature sets, as long as they occ
 
 Point-in-time-correct joins also prevents the occurrence of feature leakage by trying to accurate the state of the world at a single point in time, instead of just joining features based on the nearest timestamps.
 
+### **Computing statistics over retrieved data**
+
+Feast is able to compute [TFDV](https://tensorflow.google.cn/tfx/tutorials/data_validation/tfdv_basic) compatible statistics over data retrieved from historical stores. The statistics can be used in conjunction with feature schemas and TFDV to verify the integrity of your retrieved dataset, or to [Facets](https://github.com/PAIR-code/facets) to visualize the distribution.
+
+The computation of statistics is not enabled by default. To indicate to Feast that the statistics are to be computed for a given historical retrieval request, pass `compute_statistics=True` to `get_batch_features`.
+
+```python
+dataset = client.get_batch_features(
+    feature_refs=features, 
+    entity_rows=entity_df 
+    compute_statistics=True
+)
+
+stats = dataset.statistics()
+```
+
+If a schema is already defined over the feature sets on question, tfdv can be used to detect anomalies over the dataset.
+
+```python
+# Build combined schema over retrieved dataset
+schema = schema_pb2.Schema()
+for feature_set in feature_sets:
+    fs_schema = feature_set.export_tfx_schema()
+    for feature_schema in fs_schema.feature:
+        if feature_schema.name in features:
+            schema.feature.append(feature_schema)
+
+# detect anomalies
+anomalies = tfdv.validate_statistics(statistics=stats, schema=schema)
+```
+
+
 ## Online feature retrieval
 
 Online feature retrieval works in much the same way as batch retrieval, with one important distinction: Online stores only maintain the current state of features. No historical data is served.

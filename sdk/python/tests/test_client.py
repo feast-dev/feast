@@ -34,8 +34,8 @@ from feast.client import Client
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionResponse,
     GetFeatureSetResponse,
-    ListFeaturesResponse,
     ListFeatureSetsResponse,
+    ListFeaturesResponse,
     ListIngestionJobsResponse,
 )
 from feast.core.FeatureSet_pb2 import EntitySpec as EntitySpecProto

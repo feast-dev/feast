@@ -20,6 +20,7 @@ package feast.serving;
 
 import "google/protobuf/timestamp.proto";
 import "feast/types/Value.proto";
+import "tensorflow_metadata/proto/v0/statistics.proto";
 
 option java_package = "feast.proto.serving";
 option java_outer_classname = "ServingAPIProto";
@@ -100,6 +101,18 @@ message GetOnlineFeaturesRequest {
     }
 }
 
+message GetBatchFeaturesRequest {
+    // List of features that are being retrieved
+    repeated FeatureReference features = 3;
+
+    // Source of the entity dataset containing the timestamps and entity keys to retrieve
+    // features for.
+    DatasetSource dataset_source = 2;
+
+    // Compute statistics for the dataset retrieved
+    bool compute_statistics = 4;
+}
+
 message GetOnlineFeaturesResponse {
     // Feature values retrieved from feast.
     repeated FieldValues field_values = 1;
@@ -132,15 +145,6 @@ message GetOnlineFeaturesResponse {
         // allowable range.
         OUTSIDE_MAX_AGE = 4;
     }
-}
-
-message GetBatchFeaturesRequest {
-    // List of features that are being retrieved
-    repeated FeatureReference features = 3;
-
-    // Source of the entity dataset containing the timestamps and entity keys to retrieve
-    // features for.
-    DatasetSource dataset_source = 2;
 }
 
 message GetBatchFeaturesResponse {
@@ -196,6 +200,9 @@ message Job {
     // Output only. The data format for all the files.
     // For CSV format, the files contain both feature values and a column header.
     DataFormat data_format = 6;
+    // Output only. The statistics computed over
+    // the retrieved dataset. Only available for BigQuery stores.
+    tensorflow.metadata.v0.DatasetFeatureStatisticsList dataset_feature_statistics_list = 7;
 }
 
 message DatasetSource {

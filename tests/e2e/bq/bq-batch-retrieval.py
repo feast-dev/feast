@@ -22,10 +22,13 @@ from google.cloud import storage, bigquery
 from google.cloud.storage import Blob
 from google.protobuf.duration_pb2 import Duration
 from pandavro import to_avro
+import tensorflow_data_validation as tfdv
+from bq.testutils import *
 
 pd.set_option("display.max_columns", None)
 
 PROJECT_NAME = "batch_" + uuid.uuid4().hex.upper()[0:6]
+
 
 @pytest.fixture(scope="module")
 def core_url(pytestconfig):
@@ -52,6 +55,7 @@ def client(core_url, serving_url, allow_dirty):
     # Get client for core and serving
     client = Client(core_url=core_url, serving_url=serving_url)
     client.create_project(PROJECT_NAME)
+    client.set_project(PROJECT_NAME)
 
     # Ensure Feast core is active, but empty
     if not allow_dirty:
@@ -341,8 +345,8 @@ def test_batch_additional_columns_in_entity_table(client):
             output["additional_float_col"], entity_df["additional_float_col"]
         )
         assert (
-            output["additional_string_col"].to_list()
-            == entity_df["additional_string_col"].to_list()
+                output["additional_string_col"].to_list()
+                == entity_df["additional_string_col"].to_list()
         )
         assert output["feature_value4"].to_list() == features_df["feature_value4"].to_list()
         clean_up_remote_files(feature_retrieval_job.get_avro_files())
@@ -360,11 +364,11 @@ def test_batch_point_in_time_correctness_join(client):
     historical_df = pd.DataFrame(
         {
             "datetime": [
-                time_offset - timedelta(seconds=50),
-                time_offset - timedelta(seconds=30),
-                time_offset - timedelta(seconds=10),
-            ]
-            * N_EXAMPLES,
+                            time_offset - timedelta(seconds=50),
+                            time_offset - timedelta(seconds=30),
+                            time_offset - timedelta(seconds=10),
+                        ]
+                        * N_EXAMPLES,
             "entity_id": [i for i in range(N_EXAMPLES) for _ in range(3)],
             "feature_value5": ["WRONG", "WRONG", "CORRECT"] * N_EXAMPLES,
         }
@@ -445,7 +449,7 @@ def test_batch_multiple_featureset_joins(client):
             int(i) for i in output["feature_value6"].to_list()
         ]
         assert (
-            output["other_entity_id"].to_list() == output["feature_set_2__other_feature_value7"].to_list()
+                output["other_entity_id"].to_list() == output["feature_set_2__other_feature_value7"].to_list()
         )
         clean_up_remote_files(feature_retrieval_job.get_avro_files())
 
@@ -508,7 +512,6 @@ def infra_teardown(pytestconfig, core_url, serving_url):
         print("Cleaning up not required")
 
 
-
 '''
 This suite of tests tests the apply feature set - update feature set - retrieve  
 event sequence. It ensures that when a feature set is updated, tombstoned features 
@@ -518,6 +521,7 @@ rows.
 It is marked separately because of the length of time required
 to perform this test, due to bigquery schema caching for streaming writes.
 '''
+
 
 @pytest.fixture(scope="module")
 def update_featureset_dataframe():
@@ -538,7 +542,7 @@ def update_featureset_dataframe():
 @pytest.mark.fs_update
 @pytest.mark.run(order=20)
 def test_update_featureset_apply_featureset_and_ingest_first_subset(
-    client, update_featureset_dataframe
+        client, update_featureset_dataframe
 ):
     subset_columns = ["datetime", "entity_id", "update_feature1", "update_feature2"]
     subset_df = update_featureset_dataframe.iloc[:5][subset_columns]
@@ -577,7 +581,7 @@ def test_update_featureset_apply_featureset_and_ingest_first_subset(
 @pytest.mark.timeout(600)
 @pytest.mark.run(order=21)
 def test_update_featureset_update_featureset_and_ingest_second_subset(
-    client, update_featureset_dataframe
+        client, update_featureset_dataframe
 ):
     subset_columns = [
         "datetime",
@@ -665,8 +669,8 @@ def test_update_featureset_retrieve_valid_fields(client, update_featureset_dataf
     clean_up_remote_files(feature_retrieval_job.get_avro_files())
     print(output.head(10))
     assert (
-        output["update_feature1"].to_list()
-        == update_featureset_dataframe["update_feature1"].to_list()
+            output["update_feature1"].to_list()
+            == update_featureset_dataframe["update_feature1"].to_list()
     )
     # we have to convert to float because the column contains np.NaN
     assert [math.isnan(i) for i in output["update_feature3"].to_list()[:5]] == [
@@ -676,13 +680,88 @@ def test_update_featureset_retrieve_valid_fields(client, update_featureset_dataf
         float(i) for i in update_featureset_dataframe["update_feature3"].to_list()[5:]
     ]
     assert (
-        output["update_feature4"].to_list()
-        == [None] * 5 + update_featureset_dataframe["update_feature4"].to_list()[5:]
+            output["update_feature4"].to_list()
+            == [None] * 5 + update_featureset_dataframe["update_feature4"].to_list()[5:]
     )
 
 
+@pytest.mark.direct_runner
+@pytest.mark.run(order=31)
+@pytest.mark.timeout(600)
+def test_batch_dataset_statistics(client):
+    fs1 = client.get_feature_set(name="feature_set_1")
+    fs2 = client.get_feature_set(name="feature_set_2")
+    id_offset = 20
+
+    N_ROWS = 21
+    time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
+    features_1_df = pd.DataFrame(
+        {
+            "datetime": [time_offset] * N_ROWS,
+            "entity_id": [id_offset + i for i in range(N_ROWS)],
+            "feature_value6": ["a" for i in range(N_ROWS)],
+        }
+    )
+    ingestion_id1 = client.ingest(fs1, features_1_df)
+
+    features_2_df = pd.DataFrame(
+        {
+            "datetime": [time_offset] * N_ROWS,
+            "other_entity_id": [id_offset + i for i in range(N_ROWS)],
+            "other_feature_value7": [int(i) % 10 for i in range(0, N_ROWS)],
+        }
+    )
+    ingestion_id2 = client.ingest(fs2, features_2_df)
+
+    entity_df = pd.DataFrame(
+        {
+            "datetime": [time_offset] * N_ROWS,
+            "entity_id": [id_offset + i for i in range(N_ROWS)],
+            "other_entity_id": [id_offset + i for i in range(N_ROWS)],
+        }
+    )
+
+    time.sleep(15)  # wait for rows to get written to bq
+    while True:
+        rows_ingested1 = get_rows_ingested(client, fs1, ingestion_id1)
+        rows_ingested2 = get_rows_ingested(client, fs2, ingestion_id2)
+        if rows_ingested1 == len(features_1_df) and rows_ingested2 == len(features_2_df):
+            print(f"Number of rows successfully ingested: {rows_ingested1}, {rows_ingested2}. Continuing.")
+            break
+        time.sleep(30)
+
+    feature_retrieval_job = client.get_batch_features(
+        entity_rows=entity_df,
+        feature_refs=[
+            "feature_value6",
+            "feature_set_2:other_feature_value7",
+        ],
+        project=PROJECT_NAME,
+        compute_statistics=True,
+    )
+    output = feature_retrieval_job.to_dataframe(timeout_sec=180)
+    print(output.head(10))
+    stats = feature_retrieval_job.statistics(timeout_sec=180)
+    clear_unsupported_fields(stats)
+
+    expected_stats = tfdv.generate_statistics_from_dataframe(
+        output[["feature_value6", "feature_set_2__other_feature_value7"]]
+    )
+    clear_unsupported_fields(expected_stats)
+
+    # Since TFDV computes population std dev
+    for feature in expected_stats.datasets[0].features:
+        if feature.HasField("num_stats"):
+            name = feature.path.step[0]
+            std = output[name].std()
+            feature.num_stats.std_dev = std
+
+    assert_stats_equal(expected_stats, stats)
+    clean_up_remote_files(feature_retrieval_job.get_avro_files())
+
+
 def get_rows_ingested(
-    client: Client, feature_set: FeatureSet, ingestion_id: str
+        client: Client, feature_set: FeatureSet, ingestion_id: str
 ) -> int:
     response = client._core_service_stub.ListStores(
         ListStoresRequest(filter=ListStoresRequest.Filter(name="historical"))
@@ -707,4 +786,3 @@ def clean_up_remote_files(files):
         if file_uri.scheme == "gs":
             blob = Blob.from_string(file_uri.geturl(), client=storage_client)
             blob.delete()
-

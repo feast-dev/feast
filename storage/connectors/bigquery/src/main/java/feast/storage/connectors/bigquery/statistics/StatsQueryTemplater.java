@@ -22,31 +22,31 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class StatsQueryTemplater {
 
-  private static final PebbleEngine engine = new PebbleEngine.Builder().build();
+  private static final PebbleEngine engine = new PebbleEngine.Builder().autoEscaping(false).build();
   private static final String BASIC_STATS_TEMPLATE_NAME = "templates/basic_stats.sql";
   private static final String HIST_STATS_TEMPLATE_NAME = "templates/hist_stats.sql";
+  private static final String DATA_SUBSET_TEMPLATE_NAME = "templates/data_subset.sql";
 
   /**
-   * Generate the query for getting basic statistics about a given feature set
+   * Generate the query for getting basic statistics for a given set of features
    *
-   * @param featureSetInfo Information about the feature set necessary for the query templating
-   * @param projectId google project ID
-   * @param datasetId feast bigquery dataset ID
+   * @param features Information about the features necessary for the query templating
+   * @param statsDataset query selecting subset of data to compute statistics over
    * @return point in time correctness join BQ SQL query
+   * @throws IOException
    */
-  public static String createGetFeatureSetStatsQuery(
-      FeatureSetStatisticsQueryInfo featureSetInfo, String projectId, String datasetId)
-      throws IOException {
+  public static String createGetFeaturesStatsQuery(
+      List<FeatureStatisticsQueryInfo> features, StatsDataset statsDataset) throws IOException {
 
     PebbleTemplate template = engine.getTemplate(BASIC_STATS_TEMPLATE_NAME);
     Map<String, Object> context = new HashMap<>();
-    context.put("featureSet", featureSetInfo);
-    context.put("projectId", projectId);
-    context.put("datasetId", datasetId);
+    context.put("features", features);
+    context.put("dataset", generateDataSubsetQuery(statsDataset));
 
     Writer writer = new StringWriter();
     template.evaluate(writer, context);
@@ -54,25 +54,38 @@ public class StatsQueryTemplater {
   }
 
   /**
-   * Generate the query for getting histograms for features in a given feature set
+   * Generate the query for getting histograms for given set of features
    *
-   * @param featureSetInfo Information about the feature set necessary for the query templating
-   * @param projectId google project ID
-   * @param datasetId feast bigquery dataset ID
+   * @param features Information about the features necessary for the query templating
+   * @param statsDataset query selecting subset of data to compute statistics over
    * @return point in time correctness join BQ SQL query
+   * @throws IOException
    */
-  public static String createGetFeatureSetHistQuery(
-      FeatureSetStatisticsQueryInfo featureSetInfo, String projectId, String datasetId)
-      throws IOException {
+  public static String createGetFeaturesHistQuery(
+      List<FeatureStatisticsQueryInfo> features, StatsDataset statsDataset) throws IOException {
 
     PebbleTemplate template = engine.getTemplate(HIST_STATS_TEMPLATE_NAME);
     Map<String, Object> context = new HashMap<>();
-    context.put("featureSet", featureSetInfo);
-    context.put("projectId", projectId);
-    context.put("datasetId", datasetId);
+    context.put("features", features);
+    context.put("dataset", generateDataSubsetQuery(statsDataset));
 
     Writer writer = new StringWriter();
     template.evaluate(writer, context);
+    return writer.toString();
+  }
+
+  /**
+   * generate the query to subset the data to compute statistics over
+   *
+   * @param statsDataset {@link StatsDataset} describing the subset of data
+   * @return BigQuery query selecting the data
+   * @throws IOException
+   */
+  private static String generateDataSubsetQuery(StatsDataset statsDataset) throws IOException {
+    PebbleTemplate template = engine.getTemplate(DATA_SUBSET_TEMPLATE_NAME);
+
+    Writer writer = new StringWriter();
+    template.evaluate(writer, statsDataset.getMap());
     return writer.toString();
   }
 }

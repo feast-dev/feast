@@ -24,6 +24,7 @@ from feast.serving.ServingService_pb2 import Job as JobProto
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.source import Source
 from feast.wait import wait_retry_backoff
+from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
 class RetrievalJob:
@@ -192,6 +193,26 @@ class RetrievalJob:
 
     def __iter__(self):
         return iter(self.result())
+
+    def statistics(
+        self, timeout_sec: int = int(defaults[CONFIG_TIMEOUT_KEY])
+    ) -> statistics_pb2.DatasetFeatureStatisticsList:
+        """
+        Get statistics computed over the retrieved data set. Statistics will only be computed for
+        columns that are part of Feast, and not the columns that were provided.
+
+        Args:
+            timeout_sec (int):
+                Max no of seconds to wait until job is done. If "timeout_sec"
+                is exceeded, an exception will be raised.
+
+        Returns:
+            DatasetFeatureStatisticsList containing statistics of Feast features over the retrieved dataset.
+        """
+        self.get_avro_files(timeout_sec)  # wait for job completion
+        if self.job_proto.error:
+            raise Exception(self.job_proto.error)
+        return self.job_proto.dataset_feature_statistics_list
 
 
 class IngestJob:

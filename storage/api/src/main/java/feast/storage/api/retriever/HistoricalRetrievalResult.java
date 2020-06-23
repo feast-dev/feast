@@ -22,6 +22,7 @@ import feast.proto.serving.ServingAPIProto.JobStatus;
 import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.tensorflow.metadata.v0.DatasetFeatureStatisticsList;
 
 /** Result of a historical feature retrieval request. */
 @AutoValue
@@ -39,6 +40,9 @@ public abstract class HistoricalRetrievalResult implements Serializable {
 
   @Nullable
   public abstract DataFormat getDataFormat();
+
+  @Nullable
+  public abstract DatasetFeatureStatisticsList getStats();
 
   /**
    * Instantiates a {@link HistoricalRetrievalResult} indicating that the retrieval was a failure,
@@ -75,8 +79,27 @@ public abstract class HistoricalRetrievalResult implements Serializable {
         .build();
   }
 
+  /**
+   * Adds statistics to the result
+   *
+   * @param stats {@link DatasetFeatureStatisticsList} for the retrieved dataset
+   * @return {@link HistoricalRetrievalResult}
+   */
+  public HistoricalRetrievalResult withStats(DatasetFeatureStatisticsList stats) {
+    return toBuilder().setStats(stats).build();
+  }
+
   static Builder newBuilder() {
     return new AutoValue_HistoricalRetrievalResult.Builder();
+  }
+
+  Builder toBuilder() {
+    return newBuilder()
+        .setId(getId())
+        .setStatus(getStatus())
+        .setFileUris(getFileUris())
+        .setError(getError())
+        .setDataFormat(getDataFormat());
   }
 
   @AutoValue.Builder
@@ -90,6 +113,8 @@ public abstract class HistoricalRetrievalResult implements Serializable {
     abstract Builder setFileUris(List<String> fileUris);
 
     abstract Builder setDataFormat(DataFormat dataFormat);
+
+    abstract Builder setStats(DatasetFeatureStatisticsList stats);
 
     abstract HistoricalRetrievalResult build();
   }

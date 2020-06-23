@@ -51,10 +51,10 @@ from feast.core.CoreService_pb2 import (
     GetFeatureSetRequest,
     GetFeatureSetResponse,
     GetFeatureStatisticsRequest,
-    ListFeaturesRequest,
-    ListFeaturesResponse,
     ListFeatureSetsRequest,
     ListFeatureSetsResponse,
+    ListFeaturesRequest,
+    ListFeaturesResponse,
     ListIngestionJobsRequest,
     ListProjectsRequest,
     ListProjectsResponse,
@@ -561,6 +561,7 @@ class Client:
         self,
         feature_refs: List[str],
         entity_rows: Union[pd.DataFrame, str],
+        compute_statistics: bool = False,
         project: str = None,
     ) -> RetrievalJob:
         """
@@ -577,6 +578,8 @@ class Client:
                 Each entity in a feature set must be present as a column in this
                 dataframe. The datetime column must contain timestamps in
                 datetime64 format.
+            compute_statistics (bool):
+                Indicates whether Feast should compute statistics over the retrieved dataset.
             project: Specifies the project which contain the FeatureSets
                 which the requested features belong to.
 
@@ -656,6 +659,7 @@ class Client:
                     file_uris=staged_files, data_format=DataFormat.DATA_FORMAT_AVRO
                 )
             ),
+            compute_statistics=compute_statistics,
         )
 
         # Retrieve Feast Job object to manage life cycle of retrieval

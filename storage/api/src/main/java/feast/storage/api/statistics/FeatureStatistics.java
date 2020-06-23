@@ -20,16 +20,16 @@ import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import org.tensorflow.metadata.v0.FeatureNameStatistics;
 
-/** Feature statistics for a feature set over a bounded set of data. */
+/** Feature statistics over a bounded set of data. */
 @AutoValue
-public abstract class FeatureSetStatistics {
+public abstract class FeatureStatistics {
 
   public abstract long getNumExamples();
 
   public abstract ImmutableList<FeatureNameStatistics> getFeatureNameStatistics();
 
   public static Builder newBuilder() {
-    return new AutoValue_FeatureSetStatistics.Builder();
+    return new AutoValue_FeatureStatistics.Builder();
   }
 
   @AutoValue.Builder
@@ -43,6 +43,6 @@ public abstract class FeatureSetStatistics {
       return this;
     }
 
-    public abstract FeatureSetStatistics build();
+    public abstract FeatureStatistics build();
   }
 }
