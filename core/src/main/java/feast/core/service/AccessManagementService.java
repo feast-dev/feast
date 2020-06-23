@@ -16,27 +16,52 @@
  */
 package feast.core.service;
 
+import feast.core.auth.authorization.AuthorizationProvider;
+import feast.core.auth.authorization.AuthorizationResult;
+import feast.core.config.FeastProperties;
+import feast.core.config.FeastProperties.SecurityProperties;
 import feast.core.dao.ProjectRepository;
 import feast.core.model.Project;
 import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
 public class AccessManagementService {
+
+  private SecurityProperties securityProperties;
+  private AuthorizationProvider authorizationProvider;
   private ProjectRepository projectRepository;
 
+  public AccessManagementService(
+      FeastProperties feastProperties,
+      ProjectRepository projectRepository,
+      AuthorizationProvider authorizationProvider) {
+    this.projectRepository = projectRepository;
+    this.authorizationProvider = authorizationProvider;
+    this.securityProperties = feastProperties.getSecurity();
+  }
+
   @Autowired
-  public AccessManagementService(ProjectRepository projectRepository) {
+  public AccessManagementService(
+      FeastProperties feastProperties,
+      ProjectRepository projectRepository,
+      ObjectProvider<AuthorizationProvider> authorizationProvider) {
     this.projectRepository = projectRepository;
     // create default project if it does not yet exist.
     if (!projectRepository.existsById(Project.DEFAULT_NAME)) {
       this.createProject(Project.DEFAULT_NAME);
     }
+    this.authorizationProvider = authorizationProvider.getIfUnique();
+    this.securityProperties = feastProperties.getSecurity();
   }
 
   /**
@@ -77,7 +102,25 @@ public class AccessManagementService {
    *
    * @return List of active projects
    */
+  @Transactional
   public List<Project> listProjects() {
     return projectRepository.findAllByArchivedIsFalse();
+  }
+
+  /**
+   * Determine whether a user belongs to a Project
+   *
+   * @param securityContext User's Spring Security Context. Used to identify user.
+   * @param project Name of the project for which membership should be tested.
+   */
+  public void checkIfProjectMember(SecurityContext securityContext, String project) {
+    Authentication authentication = securityContext.getAuthentication();
+    if (!this.securityProperties.getAuthorization().isEnabled()) {
+      return;
+    }
+    AuthorizationResult result = this.authorizationProvider.checkAccess(project, authentication);
+    if (!result.isAllowed()) {
+      throw new AccessDeniedException(result.getFailureReason().orElse("AccessDenied"));
+    }
   }
 }

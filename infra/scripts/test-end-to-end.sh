@@ -8,7 +8,7 @@ if [[ -n $1 ]]; then
 fi
 echo "Authenication enabled : ${ENABLE_AUTH}"
 
-test -z ${GOOGLE_APPLICATION_CREDENTIALS} && GOOGLE_APPLICATION_CREDENTIALS="/etc/service-account/service-account.json"
+test -z ${GOOGLE_APPLICATION_CREDENTIALS} && GOOGLE_APPLICATION_CREDENTIALS="/etc/gcloud/service-account.json"
 test -z ${SKIP_BUILD_JARS} && SKIP_BUILD_JARS="false"
 test -z ${GOOGLE_CLOUD_PROJECT} && GOOGLE_CLOUD_PROJECT="kf-feast"
 test -z ${TEMP_BUCKET} && TEMP_BUCKET="feast-templocation-kf-feast"
@@ -35,6 +35,7 @@ This script will run end-to-end tests for Feast Core and Online Serving.
 source ${SCRIPTS_DIR}/setup-common-functions.sh
 
 install_test_tools
+install_gcloud_sdk
 install_and_start_local_redis
 install_and_start_local_postgres
 install_and_start_local_zookeeper_and_kafka
@@ -45,11 +46,6 @@ else
   echo "[DEBUG] Skipping building jars"
 fi
 
-echo "
-============================================================
-Starting Feast Core
-============================================================
-"
 # Start Feast Core with auth if enabled
 cat <<EOF > /tmp/core.warehouse.application.yml
 feast:
@@ -59,7 +55,7 @@ feast:
     runners:
       - name: direct
         type: DirectRunner
-        options:{}
+        options: {}
   security:
     authentication:
       enabled: true
@@ -90,6 +86,7 @@ ORIGINAL_DIR=$(pwd)
 cd tests/e2e
 
 set +e
+export GOOGLE_APPLICATION_CREDENTIALS=/etc/gcloud/service-account.json
 pytest redis/* --enable_auth=${ENABLE_AUTH} --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 

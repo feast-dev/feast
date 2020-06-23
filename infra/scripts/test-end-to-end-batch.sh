@@ -56,6 +56,7 @@ else
   echo "[DEBUG] Skipping building jars"
 fi
 
+# Start Feast Core in background
 cat <<EOF > /tmp/core.warehouse.application.yml
 feast:
   jobs:

@@ -21,6 +21,37 @@ from feast.core.Source_pb2 import SourceType as SourceTypeProto
 _logger = logging.getLogger(__name__)
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
+_SIGNATURE_HEADER_KEY = "authorization"
+
+
+class DisallowAuthInterceptor(grpc.ServerInterceptor):
+    def __init__(self):
+        def abort(ignored_request, context):
+            context.abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid signature")
+
+        self._abortion = grpc.unary_unary_rpc_method_handler(abort)
+
+    def intercept_service(self, continuation, handler_call_details):
+        print(handler_call_details.invocation_metadata)
+        if "Bearer" in handler_call_details.invocation_metadata[0][1]:
+            return self._abortion
+        else:
+            return continuation(handler_call_details)
+
+
+class AllowAuthInterceptor(grpc.ServerInterceptor):
+    def __init__(self):
+        def abort(ignored_request, context):
+            context.abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid signature")
+
+        self._abortion = grpc.unary_unary_rpc_method_handler(abort)
+
+    def intercept_service(self, continuation, handler_call_details):
+        print(handler_call_details.invocation_metadata)
+        if "Bearer" in handler_call_details.invocation_metadata[0][1]:
+            return continuation(handler_call_details)
+        else:
+            return self._abortion
 
 
 class CoreServicer(Core.CoreServiceServicer):

@@ -3,14 +3,18 @@ import os
 import random
 import time
 import uuid
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
 import numpy as np
 import pandas as pd
 import pytest
 import pytz
+from google.cloud import bigquery, storage
+from google.cloud.storage import Blob
+from google.protobuf.duration_pb2 import Duration
+from pandavro import to_avro
+
 from feast.client import Client
 from feast.core.CoreService_pb2 import ListStoresRequest
 from feast.core.IngestionJob_pb2 import IngestionJobStatus

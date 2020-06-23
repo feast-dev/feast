@@ -16,7 +16,6 @@ import os
 from tempfile import mkstemp
 
 import pytest
-
 from feast.config import Config
 
 

@@ -35,19 +35,20 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.lognet.springboot.grpc.GRpcService;
+import net.devh.boot.grpc.server.service.GrpcService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 /** Implementation of the feast core GRPC service. */
 @Slf4j
-@GRpcService(interceptors = {MonitoringInterceptor.class})
+@GrpcService(interceptors = {MonitoringInterceptor.class})
 public class CoreServiceImpl extends CoreServiceImplBase {
 
   private final FeastProperties feastProperties;
   private SpecService specService;
-  private AccessManagementService accessManagementService;
   private JobService jobService;
   private StatsService statsService;
+  private AccessManagementService accessManagementService;
 
   @Autowired
   public CoreServiceImpl(
@@ -176,6 +177,10 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   @Override
   public void applyFeatureSet(
       ApplyFeatureSetRequest request, StreamObserver<ApplyFeatureSetResponse> responseObserver) {
+
+    accessManagementService.checkIfProjectMember(
+        SecurityContextHolder.getContext(), request.getFeatureSet().getSpec().getProject());
+
     try {
       ApplyFeatureSetResponse response = specService.applyFeatureSet(request.getFeatureSet());
       responseObserver.onNext(response);
@@ -225,6 +230,10 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   @Override
   public void archiveProject(
       ArchiveProjectRequest request, StreamObserver<ArchiveProjectResponse> responseObserver) {
+
+    accessManagementService.checkIfProjectMember(
+        SecurityContextHolder.getContext(), request.getName());
+
     try {
       accessManagementService.archiveProject(request.getName());
       responseObserver.onNext(ArchiveProjectResponse.getDefaultInstance());
