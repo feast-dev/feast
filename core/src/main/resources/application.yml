@@ -80,7 +80,7 @@ feast:
       enabled: false
       provider: jwt
       options:
-        jwkEndpointURI: "https://www.googleapis.com/oauth2/v3/certs";
+        jwkEndpointURI: "https://www.googleapis.com/oauth2/v3/certs"
 
     authorization:
       enabled: false
