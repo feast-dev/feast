@@ -38,7 +38,7 @@ public class Metrics {
           .labelNames("project", "feature_name")
           .register();
 
-  public static final Counter missingKeyCount =
+  public static final Counter notFoundKeyCount =
       Counter.build()
           .name("not_found_feature_count")
           .subsystem("feast_serving")

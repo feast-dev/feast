@@ -297,7 +297,7 @@ public class OnlineServingService implements ServingService {
               String featureRefString = es.getKey();
               FieldStatus status = es.getValue();
               if (status == FieldStatus.NOT_FOUND) {
-                Metrics.missingKeyCount.labels(project, featureRefString).inc();
+                Metrics.notFoundKeyCount.labels(project, featureRefString).inc();
               }
               if (status == FieldStatus.OUTSIDE_MAX_AGE) {
                 Metrics.staleKeyCount.labels(project, featureRefString).inc();
