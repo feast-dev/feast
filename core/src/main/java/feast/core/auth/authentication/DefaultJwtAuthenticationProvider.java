@@ -24,9 +24,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationProvider;
 
-/**
- * Json Web Token Authentication Provider used to validate incoming requests to Feast Core.
- */
+/** Json Web Token Authentication Provider used to validate incoming requests to Feast Core. */
 public class DefaultJwtAuthenticationProvider implements AuthenticationProvider {
 
   private JwtAuthenticationProvider authProvider;
