@@ -7,10 +7,9 @@ def clear_unsupported_fields(datasets):
     for feature in dataset.features:
         if feature.HasField("num_stats"):
             feature.num_stats.common_stats.ClearField("num_values_histogram")
-            for hist in feature.num_stats.histograms:
-                sorted_buckets = sorted(hist.buckets, key=lambda k: k.high_value)
-                del hist.buckets[:]
-                hist.buckets.extend(sorted_buckets)
+            # Since difference in how BQ and TFDV compute histogram values make them
+            # approximate but uncomparable
+            feature.num_stats.ClearField("histograms")
         elif feature.HasField("string_stats"):
             feature.string_stats.common_stats.ClearField("num_values_histogram")
             for bucket in feature.string_stats.rank_histogram.buckets:

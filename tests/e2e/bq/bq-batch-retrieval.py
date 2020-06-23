@@ -693,7 +693,7 @@ def test_batch_dataset_statistics(client):
     fs2 = client.get_feature_set(name="feature_set_2")
     id_offset = 20
 
-    N_ROWS = 20
+    N_ROWS = 21
     time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
     features_1_df = pd.DataFrame(
         {
@@ -708,7 +708,7 @@ def test_batch_dataset_statistics(client):
         {
             "datetime": [time_offset] * N_ROWS,
             "other_entity_id": [id_offset + i for i in range(N_ROWS)],
-            "other_feature_value7": [int(i) % 10 for i in range(N_ROWS)],
+            "other_feature_value7": [int(i) % 10 for i in range(0, N_ROWS)],
         }
     )
     ingestion_id2 = client.ingest(fs2, features_2_df)
@@ -723,13 +723,10 @@ def test_batch_dataset_statistics(client):
 
     time.sleep(15)  # wait for rows to get written to bq
     while True:
-        rows_ingested = get_rows_ingested(client, fs1, ingestion_id1)
-        if rows_ingested == len(features_1_df):
-            print(f"Number of rows successfully ingested: {rows_ingested}. Continuing.")
-            break
-        rows_ingested = get_rows_ingested(client, fs2, ingestion_id2)
-        if rows_ingested == len(features_2_df):
-            print(f"Number of rows successfully ingested: {rows_ingested}. Continuing.")
+        rows_ingested1 = get_rows_ingested(client, fs1, ingestion_id1)
+        rows_ingested2 = get_rows_ingested(client, fs2, ingestion_id2)
+        if rows_ingested1 == len(features_1_df) and rows_ingested2 == len(features_2_df):
+            print(f"Number of rows successfully ingested: {rows_ingested1}, {rows_ingested2}. Continuing.")
             break
         time.sleep(30)
 
@@ -745,6 +742,7 @@ def test_batch_dataset_statistics(client):
     output = feature_retrieval_job.to_dataframe(timeout_sec=180)
     print(output.head(10))
     stats = feature_retrieval_job.statistics(timeout_sec=180)
+    clear_unsupported_fields(stats)
 
     expected_stats = tfdv.generate_statistics_from_dataframe(
         output[["feature_value6", "feature_set_2__other_feature_value7"]]
@@ -757,9 +755,8 @@ def test_batch_dataset_statistics(client):
             name = feature.path.step[0]
             std = output[name].std()
             feature.num_stats.std_dev = std
-    clear_unsupported_fields(stats)
-    assert_stats_equal(expected_stats, stats)
 
+    assert_stats_equal(expected_stats, stats)
     clean_up_remote_files(feature_retrieval_job.get_avro_files())
 
 
