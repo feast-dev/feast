@@ -689,11 +689,6 @@ class Client:
                     project=project if project is not None else self.project,
                 )
             )
-
-            entity_refs = {
-                key for entity_row in entity_rows for key in entity_row.fields.keys()
-            }
-
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 
