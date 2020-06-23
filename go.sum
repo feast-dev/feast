@@ -78,6 +78,7 @@ github.com/evanphx/json-patch v0.0.0-20190203023257-5858425f7550/go.mod h1:50XU6
 github.com/evanphx/json-patch v4.2.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/feast-dev/feast/sdk/go v0.0.0-20200516052424-09ff3dda724c h1:jltCNN1tpaFxCslQtHUfU5u5qodH/D8rqPmxvRWGNWM=
 github.com/feast-dev/feast/sdk/go v0.0.0-20200516052424-09ff3dda724c/go.mod h1:F3sMDmJ9hxjlh0Z7fM6/atvMJd8moahKxUF1LCzVthQ=
+github.com/feast-dev/feast/sdk/go v0.5.0 h1:h4UiFgqeWrw9voPqigwiSYWl/vjUn2mgoUAFIa29s3A=
 github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/getkin/kin-openapi v0.1.1-0.20190507152207-d3180292eead/go.mod h1:V1z9xl9oF5Wt7v32ne4FmiF1alpS4dM6mNzoywPOXlk=

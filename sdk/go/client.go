@@ -6,7 +6,6 @@ import (
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/feast-dev/feast/sdk/go/protos/feast/serving"
-	"github.com/feast-dev/feast/sdk/go/protos/feast/types"
 	"google.golang.org/grpc"
 
 	"go.opencensus.io/plugin/ocgrpc"
@@ -58,28 +57,6 @@ func (fc *GrpcClient) GetOnlineFeatures(ctx context.Context, req *OnlineFeatures
 			entityRefs[ref] = struct{}{}
 		}
 	}
-
-	// strip projects from feature refs recieved
-	for _, fieldValues := range resp.GetFieldValues() {
-		stripFields := make(map[string]*types.Value, len(fieldValues.Fields))
-		stripStatuses := make(map[string]serving.GetOnlineFeaturesResponse_FieldStatus, len(fieldValues.Statuses))
-		for refStr, _ := range fieldValues.Fields {
-			_, isEntity := entityRefs[refStr]
-			stripRefStr := refStr
-			if !isEntity { // is feature ref
-				featureRef, err := parseFeatureRef(refStr, true)
-				if err != nil {
-					return nil, err
-				}
-				stripRefStr = toFeatureRefStr(featureRef)
-			}
-
-			stripFields[stripRefStr] = fieldValues.Fields[refStr]
-			stripStatuses[stripRefStr] = fieldValues.Statuses[refStr]
-		}
-		fieldValues.Fields, fieldValues.Statuses = stripFields, stripStatuses
-	}
-
 	return &OnlineFeaturesResponse{RawResponse: resp}, err
 }
 

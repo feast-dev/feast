@@ -34,13 +34,11 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 			want: &serving.GetOnlineFeaturesRequest{
 				Features: []*serving.FeatureReference{
 					{
-						Project:    "driver_project",
 						FeatureSet: "driver",
 						Name:       "driver_id",
 					},
 					{
-						Project: "driver_project",
-						Name:    "driver_id",
+						Name: "driver_id",
 					},
 				},
 				EntityRows: []*serving.GetOnlineFeaturesRequest_EntityRow{
@@ -64,6 +62,7 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 					},
 				},
 				OmitEntitiesInResponse: false,
+				Project:                "driver_project",
 			},
 			wantErr: false,
 			err:     nil,
