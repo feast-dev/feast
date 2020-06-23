@@ -22,9 +22,11 @@ import com.google.common.collect.Sets;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSet;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 
 public class FeatureSetValidator {
 
@@ -43,6 +45,7 @@ public class FeatureSetValidator {
     checkValidCharacters(featureSet.getSpec().getName(), "name");
     checkUniqueColumns(
         featureSet.getSpec().getEntitiesList(), featureSet.getSpec().getFeaturesList());
+    checkReservedColumns(featureSet.getSpec().getFeaturesList());
     for (EntitySpec entitySpec : featureSet.getSpec().getEntitiesList()) {
       checkValidCharacters(entitySpec.getName(), "entities::name");
     }
@@ -62,6 +65,20 @@ public class FeatureSetValidator {
     if (nameSet.size() != names.size()) {
       throw new IllegalArgumentException(
           String.format("fields within a featureset must be unique."));
+    }
+  }
+
+  private static void checkReservedColumns(List<FeatureSpec> featureSpecs) {
+    List<String> reservedNames =
+        Arrays.asList("created_timestamp", "event_timestamp", "ingestion_id", "job_id");
+    String reservedNamesString = StringUtils.join(reservedNames, ", ");
+    for (FeatureSpec featureSpec : featureSpecs) {
+      if (reservedNames.contains(featureSpec.getName())) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Reserved feature names have been used, which are not allowed. These names include %s.",
+                reservedNamesString));
+      }
     }
   }
 }
