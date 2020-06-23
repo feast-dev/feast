@@ -123,8 +123,7 @@ public class OnlineServingService implements ServingService {
                   entityStatusesMap.get(entityRow).putAll(statusMap);
 
                   // Populate metrics/log request
-                  populateMissingKeyCountMetrics(statusMap, featureSetRequest);
-                  populateStaleKeyCountMetrics(statusMap, featureSetRequest);
+                  populateCountMetrics(statusMap, featureSetRequest);
                 });
         populateRequestCountMetrics(featureSetRequest);
         logFeatureRows.add(featureRows);
@@ -288,7 +287,7 @@ public class OnlineServingService implements ServingService {
     scope.span().log(ImmutableMap.of("event", "featureRows", "value", loggableFeatureRows));
   }
 
-  private void populateMissingKeyCountMetrics(
+  private void populateCountMetrics(
       Map<String, FieldStatus> statusMap, FeatureSetRequest featureSetRequest) {
     String project = featureSetRequest.getSpec().getProject();
     statusMap
@@ -300,18 +299,6 @@ public class OnlineServingService implements ServingService {
               if (status == FieldStatus.NOT_FOUND) {
                 Metrics.missingKeyCount.labels(project, featureRefString).inc();
               }
-            });
-  }
-
-  private void populateStaleKeyCountMetrics(
-      Map<String, FieldStatus> statusMap, FeatureSetRequest featureSetRequest) {
-    String project = featureSetRequest.getSpec().getProject();
-    statusMap
-        .entrySet()
-        .forEach(
-            es -> {
-              String featureRefString = es.getKey();
-              FieldStatus status = es.getValue();
               if (status == FieldStatus.OUTSIDE_MAX_AGE) {
                 Metrics.staleKeyCount.labels(project, featureRefString).inc();
               }
