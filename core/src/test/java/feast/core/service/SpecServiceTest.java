@@ -56,6 +56,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -91,6 +92,7 @@ public class SpecServiceTest {
 
   private SpecService specService;
   private List<FeatureSet> featureSets;
+  private List<FeatureSet> invalidFeatureSets;
   private List<Feature> features;
   private List<Store> stores;
   private Source defaultSource;
@@ -214,6 +216,12 @@ public class SpecServiceTest {
 
     specService =
         new SpecService(featureSetRepository, storeRepository, projectRepository, defaultSource);
+
+    Feature invalidFeature1 = TestUtil.CreateFeature("created_timestamp", Enum.INT64);
+    FeatureSet invalidFeatureSet1 =
+        TestUtil.CreateFeatureSet(
+            "f1", "invalid", Arrays.asList(f3e1), Arrays.asList(invalidFeature1));
+    invalidFeatureSets = Arrays.asList(invalidFeatureSet1);
   }
 
   @Test
@@ -275,6 +283,22 @@ public class SpecServiceTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("No feature set name provided");
     specService.getFeatureSet(GetFeatureSetRequest.newBuilder().build());
+  }
+
+  @Test
+  public void shouldThrowExceptionGivenReservedFeatureName() throws InvalidProtocolBufferException {
+    List<String> reservedNames =
+        Arrays.asList("created_timestamp", "event_timestamp", "ingestion_id", "job_id");
+    String reservedNamesString = StringUtils.join(reservedNames, ", ");
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        String.format(
+            "Reserved feature names have been used, which are not allowed. These names include %s."
+                + "You've just used an invalid name, %s.",
+            reservedNamesString, "created_timestamp"));
+    FeatureSet invalidFeatureSet = invalidFeatureSets.get(0);
+
+    specService.applyFeatureSet(invalidFeatureSet.toProto());
   }
 
   @Test
