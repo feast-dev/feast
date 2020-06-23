@@ -262,6 +262,11 @@ public class FeastProperties {
               StoreProto.Store.CassandraConfig.newBuilder();
           JsonFormat.parser().merge(jsonWriter.writeValueAsString(config), cassandraConfig);
           return storeProtoBuilder.setCassandraConfig(cassandraConfig.build()).build();
+        case DELTA:
+          StoreProto.Store.DeltaConfig.Builder deltaConfig =
+              StoreProto.Store.DeltaConfig.newBuilder();
+          JsonFormat.parser().merge(jsonWriter.writeValueAsString(config), deltaConfig);
+          return storeProtoBuilder.setDeltaConfig(deltaConfig.build()).build();
         default:
           throw new InvalidProtocolBufferException("Invalid store set");
       }

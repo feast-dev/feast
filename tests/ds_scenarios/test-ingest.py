@@ -47,7 +47,7 @@ def client(core_url, serving_url, allow_dirty):
     return client
 
 
-@pytest.mark.timeout(600)
+@pytest.mark.timeout(1200)
 @pytest.mark.parametrize("data_frame_generator,feature_set", [
 #    (create_product_image_features_df, PRODUCT_IMAGE_FEATURE_SET),
     (create_product_text_attributes_df, PRODUCT_TEXT_ATTRIBUTE_FEATURE_SET),

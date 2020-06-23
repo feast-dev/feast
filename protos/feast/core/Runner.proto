@@ -86,6 +86,8 @@ message DatabricksRunnerConfigOptions {
         int32 numWorkers = 3;
 
         string sparkConf = 4;
+
+        string instancePoolId = 5;
     }
 
     /* Databricks host */

@@ -24,8 +24,6 @@ import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.spark.ingestion.SparkSink;
 import io.delta.tables.DeltaTable;
 import java.io.Serializable;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -74,7 +72,7 @@ public class SparkDeltaSink implements SparkSink {
       log.info("Table: {} schema: {}", spec.getKey(), schema);
 
       // Initialize Delta table if needed
-      Path deltaTablePath = getDeltaTablePath(deltaPath, spec.getValue());
+      String deltaTablePath = getDeltaTablePath(deltaPath, spec.getValue());
       spark
           .createDataFrame(Collections.emptyList(), schema)
           .write()
@@ -158,10 +156,10 @@ public class SparkDeltaSink implements SparkSink {
     }
   }
 
-  public static Path getDeltaTablePath(String deltaPath, FeatureSetSpec featureSetSpec) {
-    return Paths.get(deltaPath)
-        .resolve(featureSetSpec.getProject())
-        .resolve(SpecUtil.getFeatureSetReference(featureSetSpec));
+  public static String getDeltaTablePath(String deltaPath, FeatureSetSpec featureSetSpec) {
+    return String.format(
+        "%s/%s/%s",
+        deltaPath, featureSetSpec.getProject(), SpecUtil.getFeatureSetReference(featureSetSpec));
   }
 
   @SuppressWarnings("serial")
@@ -171,7 +169,7 @@ public class SparkDeltaSink implements SparkSink {
     private final StructType schema;
     private final String tablePath;
 
-    private FeatureSetInfo(String key, FeatureSetSpec spec, StructType schema, Path tablePath) {
+    private FeatureSetInfo(String key, FeatureSetSpec spec, StructType schema, String tablePath) {
       this.key = key;
       this.spec = spec;
       this.schema = schema;

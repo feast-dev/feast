@@ -35,8 +35,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpException;
 import org.apache.http.HttpStatus;
 
@@ -297,13 +299,14 @@ public class DatabricksJobManager implements JobManager {
             .map(s -> s.strip().split("\\s+", 2))
             .collect(Collectors.toMap(s -> s[0], s -> s[1]));
 
-    NewCluster newCluster =
+    NewCluster.Builder newCluster =
         NewCluster.builder()
             .setNumWorkers(newClusterConfigOptions.getNumWorkers())
-            .setNodeTypeId(newClusterConfigOptions.getNodeTypeId())
             .setSparkVersion(newClusterConfigOptions.getSparkVersion())
-            .setSparkConf(sparkConf)
-            .build();
+            .setSparkConf(sparkConf);
+
+    ifPresent(newClusterConfigOptions.getNodeTypeId(), newCluster::setNodeTypeId);
+    ifPresent(newClusterConfigOptions.getInstancePoolId(), newCluster::setInstancePoolId);
 
     Library library = Library.builder().setJar(jarFile).build();
     List<Library> libraries = Collections.singletonList(library);
@@ -320,11 +323,19 @@ public class DatabricksJobManager implements JobManager {
             .setMaxRetries(maxRetries)
             .setTimeoutSeconds(timeoutSeconds)
             .setName(jobName)
-            .setNewCluster(newCluster)
+            .setNewCluster(newCluster.build())
             .setSparkJarTask(sparkJarTask)
             .build();
 
     return createRequest;
+  }
+
+  private static void ifPresent(String nodeTypeId, Consumer<? super String> action) {
+    asOptional(nodeTypeId).ifPresent(action);
+  }
+
+  private static Optional<String> asOptional(String field) {
+    return Optional.ofNullable(StringUtils.trimToNull(field));
   }
 
   private JobStatus waitForJobToStart(Job job) {

@@ -13,6 +13,8 @@ locals {
   databricks_secret_datalake_key = "azure_account_key"
   databricks_dbfs_jar_folder     = "dbfs:/feast/run${var.run_number}"
   databricks_spark_version = "6.6.x-scala2.11"
+  databricks_vm_type = "Standard_D3_v2"
+  databricks_instance_pool_name = "Feast"
 }
 
 resource "azurerm_postgresql_database" "feast" {
@@ -26,6 +28,14 @@ resource "azurerm_postgresql_database" "feast" {
 resource "databricks_token" "feast" {
   lifetime_seconds = 315569520 # ten years
   comment          = "Token used by CI/CD pipeline"
+}
+
+resource "databricks_instance_pool" "feast" {
+  instance_pool_name = local.databricks_instance_pool_name
+  min_idle_instances = 2
+  max_capacity = 6
+  node_type_id = local.databricks_vm_type 
+  idle_instance_autotermination_minutes = 60
 }
 
 resource "databricks_secret_scope" "feast" {
@@ -150,7 +160,7 @@ feast-core:
         polling_interval_milliseconds: 5000
         # databricks job can take several minutes to start (on new clusters)
         job_update_timeout_seconds: 1200
-        active_runner: direct
+        active_runner: databricks
         runners:
           - name: direct
             type: DirectRunner
@@ -164,8 +174,8 @@ feast-core:
               maxRetries: 0
               timeoutSeconds: 1200
               newCluster:
-                nodeTypeId: "Standard_D3_v2"
                 sparkVersion: "${local.databricks_spark_version}"
+                instancePoolId: "${databricks_instance_pool.feast.id}"
                 numWorkers: 1
                 sparkConf: |
                   fs.azure.account.key.${var.datalake_name}.dfs.core.windows.net {{secrets/${local.databricks_secret_scope}/${local.databricks_secret_datalake_key}}}
@@ -240,8 +250,7 @@ feast-online-serving:
           project: "*"
 
 feast-batch-serving:
-  # TODO enable batch serving
-  enabled: false
+  enabled: true
   image:
     repository: ${var.feast_serving_image_repository}
     tag: ${var.feast_version}
@@ -256,6 +265,7 @@ feast-batch-serving:
   application-override.yaml:
     feast:
       core-host: "${var.feast_core_vnet_ip}"
+      active_store: delta
       stores:
         - name: delta
           type: DELTA

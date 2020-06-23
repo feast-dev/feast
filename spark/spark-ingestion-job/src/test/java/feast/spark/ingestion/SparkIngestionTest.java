@@ -51,7 +51,6 @@ import feast.test.TestUtil;
 import feast.test.TestUtil.LocalKafka;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
@@ -189,10 +188,12 @@ public class SparkIngestionTest {
         ByteArraySerializer.class,
         KAFKA_PUBLISH_TIMEOUT_SEC);
 
+    String deltaTablePath = SparkDeltaSink.getDeltaTablePath(deltaPath.toString(), specForDelta);
+    File deltaDirectory = new File(deltaTablePath);
+
     try {
       for (int i = 0; i < 60; i++) {
-        Path deltaTablePath = SparkDeltaSink.getDeltaTablePath(deltaPath.toString(), specForDelta);
-        if (Files.isDirectory().apply(deltaTablePath.toFile())) {
+        if (Files.isDirectory().apply(deltaDirectory)) {
           data = spark.session.read().format("delta").load(deltaTablePath.toString());
           long count = data.count();
           LOGGER.info("Delta table contains {} records.", count);
