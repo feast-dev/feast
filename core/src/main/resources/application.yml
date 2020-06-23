@@ -79,6 +79,9 @@ feast:
     authentication:
       enabled: false
       provider: jwt
+      options:
+        jwkEndpointURI: "https://www.googleapis.com/oauth2/v3/certs";
+
     authorization:
       enabled: false
       provider: none

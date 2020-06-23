@@ -283,6 +283,7 @@ public class FeastProperties {
       private boolean enabled;
 
       // Named authentication provider to use
+      @OneOfStrings({"jwt"})
       private String provider;
 
       // K/V options to initialize the provider with
@@ -297,6 +298,7 @@ public class FeastProperties {
       private boolean enabled;
 
       // Named authorization provider to use.
+      @OneOfStrings({"none", "keto"})
       private String provider;
 
       // K/V options to initialize the provider with

@@ -33,8 +33,8 @@ import feast.core.model.Entity;
 import feast.core.model.Feature;
 import feast.core.model.FeatureSet;
 import feast.core.model.Source;
+import feast.core.service.AccessManagementService;
 import feast.core.service.JobService;
-import feast.core.service.ProjectService;
 import feast.core.service.SpecService;
 import feast.core.service.StatsService;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetRequest;
@@ -63,7 +63,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 class CoreServiceAuthTest {
 
   private CoreServiceImpl coreService;
-  private ProjectService projectService;
+  private AccessManagementService accessManagementService;
 
   @Mock private SpecService specService;
   @Mock private ProjectRepository projectRepository;
@@ -80,9 +80,11 @@ class CoreServiceAuthTest {
     sp.setAuthorization(authProp);
     FeastProperties feastProperties = new FeastProperties();
     feastProperties.setSecurity(sp);
-    projectService = new ProjectService(feastProperties, projectRepository, authProvider);
+    accessManagementService =
+        new AccessManagementService(feastProperties, projectRepository, authProvider);
     coreService =
-        new CoreServiceImpl(specService, projectService, statsService, jobService, feastProperties);
+        new CoreServiceImpl(
+            specService, accessManagementService, statsService, jobService, feastProperties);
   }
 
   @Test

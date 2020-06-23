@@ -16,7 +16,7 @@
  */
 package feast.core.grpc;
 
-import feast.core.service.ProjectService;
+import feast.core.service.AccessManagementService;
 import io.grpc.Status;
 import io.grpc.health.v1.HealthGrpc.HealthImplBase;
 import io.grpc.health.v1.HealthProto.HealthCheckRequest;
@@ -30,18 +30,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 @Slf4j
 @GrpcService
 public class HealthServiceImpl extends HealthImplBase {
-  private final ProjectService projectService;
+  private final AccessManagementService accessManagementService;
 
   @Autowired
-  public HealthServiceImpl(ProjectService projectService) {
-    this.projectService = projectService;
+  public HealthServiceImpl(AccessManagementService accessManagementService) {
+    this.accessManagementService = accessManagementService;
   }
 
   @Override
   public void check(
       HealthCheckRequest request, StreamObserver<HealthCheckResponse> responseObserver) {
     try {
-      projectService.listProjects();
+      accessManagementService.listProjects();
       responseObserver.onNext(
           HealthCheckResponse.newBuilder().setStatus(ServingStatus.SERVING).build());
       responseObserver.onCompleted();

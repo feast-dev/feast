@@ -38,13 +38,13 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
 
-public class ProjectServiceTest {
+public class AccessManagementServiceTest {
 
   @Mock private ProjectRepository projectRepository;
 
   @Rule public final ExpectedException expectedException = ExpectedException.none();
 
-  private ProjectService projectService;
+  private AccessManagementService accessManagementService;
 
   @Before
   public void setUp() {
@@ -57,8 +57,9 @@ public class ProjectServiceTest {
     sp.setAuthorization(authProp);
     FeastProperties feastProperties = new FeastProperties();
     feastProperties.setSecurity(sp);
-    projectService =
-        new ProjectService(feastProperties, projectRepository, mock(AuthorizationProvider.class));
+    accessManagementService =
+        new AccessManagementService(
+            feastProperties, projectRepository, mock(AuthorizationProvider.class));
   }
 
   @Test
@@ -71,7 +72,7 @@ public class ProjectServiceTest {
     String projectName = "project1";
     Project project = new Project(projectName);
     when(projectRepository.saveAndFlush(any(Project.class))).thenReturn(project);
-    projectService.createProject(projectName);
+    accessManagementService.createProject(projectName);
     verify(projectRepository, times(1)).saveAndFlush(any());
   }
 
@@ -79,28 +80,28 @@ public class ProjectServiceTest {
   public void shouldNotCreateProjectIfItExist() {
     String projectName = "project1";
     when(projectRepository.existsById(projectName)).thenReturn(true);
-    projectService.createProject(projectName);
+    accessManagementService.createProject(projectName);
   }
 
   @Test
   public void shouldArchiveProjectIfItExists() {
     String projectName = "project1";
     when(projectRepository.findById(projectName)).thenReturn(Optional.of(new Project(projectName)));
-    projectService.archiveProject(projectName);
+    accessManagementService.archiveProject(projectName);
     verify(projectRepository, times(1)).saveAndFlush(any(Project.class));
   }
 
   @Test
   public void shouldNotArchiveDefaultProject() {
     expectedException.expect(IllegalArgumentException.class);
-    this.projectService.archiveProject(Project.DEFAULT_NAME);
+    this.accessManagementService.archiveProject(Project.DEFAULT_NAME);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void shouldNotArchiveProjectIfItIsAlreadyArchived() {
     String projectName = "project1";
     when(projectRepository.findById(projectName)).thenReturn(Optional.empty());
-    projectService.archiveProject(projectName);
+    accessManagementService.archiveProject(projectName);
   }
 
   @Test
@@ -109,7 +110,7 @@ public class ProjectServiceTest {
     Project project = new Project(projectName);
     List<Project> expected = Arrays.asList(project);
     when(projectRepository.findAllByArchivedIsFalse()).thenReturn(expected);
-    List<Project> actual = projectService.listProjects();
+    List<Project> actual = accessManagementService.listProjects();
     Assert.assertEquals(expected, actual);
   }
 }

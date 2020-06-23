@@ -22,8 +22,8 @@ import feast.core.config.FeastProperties;
 import feast.core.exception.RetrievalException;
 import feast.core.grpc.interceptors.MonitoringInterceptor;
 import feast.core.model.Project;
+import feast.core.service.AccessManagementService;
 import feast.core.service.JobService;
-import feast.core.service.ProjectService;
 import feast.core.service.SpecService;
 import feast.core.service.StatsService;
 import feast.proto.core.CoreServiceGrpc.CoreServiceImplBase;
@@ -48,17 +48,17 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   private SpecService specService;
   private JobService jobService;
   private StatsService statsService;
-  private ProjectService projectService;
+  private AccessManagementService accessManagementService;
 
   @Autowired
   public CoreServiceImpl(
       SpecService specService,
-      ProjectService projectService,
+      AccessManagementService accessManagementService,
       StatsService statsService,
       JobService jobService,
       FeastProperties feastProperties) {
     this.specService = specService;
-    this.projectService = projectService;
+    this.accessManagementService = accessManagementService;
     this.jobService = jobService;
     this.feastProperties = feastProperties;
     this.statsService = statsService;
@@ -178,7 +178,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public void applyFeatureSet(
       ApplyFeatureSetRequest request, StreamObserver<ApplyFeatureSetResponse> responseObserver) {
 
-    projectService.checkIfProjectMember(
+    accessManagementService.checkIfProjectMember(
         SecurityContextHolder.getContext(), request.getFeatureSet().getSpec().getProject());
 
     try {
@@ -217,7 +217,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public void createProject(
       CreateProjectRequest request, StreamObserver<CreateProjectResponse> responseObserver) {
     try {
-      projectService.createProject(request.getName());
+      accessManagementService.createProject(request.getName());
       responseObserver.onNext(CreateProjectResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (Exception e) {
@@ -231,10 +231,11 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public void archiveProject(
       ArchiveProjectRequest request, StreamObserver<ArchiveProjectResponse> responseObserver) {
 
-    projectService.checkIfProjectMember(SecurityContextHolder.getContext(), request.getName());
+    accessManagementService.checkIfProjectMember(
+        SecurityContextHolder.getContext(), request.getName());
 
     try {
-      projectService.archiveProject(request.getName());
+      accessManagementService.archiveProject(request.getName());
       responseObserver.onNext(ArchiveProjectResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (IllegalArgumentException e) {
@@ -259,7 +260,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public void listProjects(
       ListProjectsRequest request, StreamObserver<ListProjectsResponse> responseObserver) {
     try {
-      List<Project> projects = projectService.listProjects();
+      List<Project> projects = accessManagementService.listProjects();
       responseObserver.onNext(
           ListProjectsResponse.newBuilder()
               .addAllProjects(projects.stream().map(Project::getName).collect(Collectors.toList()))

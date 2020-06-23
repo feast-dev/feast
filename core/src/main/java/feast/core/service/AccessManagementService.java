@@ -31,16 +31,17 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-public class ProjectService {
+public class AccessManagementService {
 
   private SecurityProperties securityProperties;
   private AuthorizationProvider authorizationProvider;
   private ProjectRepository projectRepository;
 
-  public ProjectService(
+  public AccessManagementService(
       FeastProperties feastProperties,
       ProjectRepository projectRepository,
       AuthorizationProvider authorizationProvider) {
@@ -50,7 +51,7 @@ public class ProjectService {
   }
 
   @Autowired
-  public ProjectService(
+  public AccessManagementService(
       FeastProperties feastProperties,
       ProjectRepository projectRepository,
       ObjectProvider<AuthorizationProvider> authorizationProvider) {
@@ -68,6 +69,7 @@ public class ProjectService {
    *
    * @param name Name of project to be created
    */
+  @Transactional
   public void createProject(String name) {
     if (projectRepository.existsById(name)) {
       throw new IllegalArgumentException(String.format("Project already exists: %s", name));
@@ -81,6 +83,7 @@ public class ProjectService {
    *
    * @param name Name of the project to be archived
    */
+  @Transactional
   public void archiveProject(String name) {
     Optional<Project> project = projectRepository.findById(name);
     if (!project.isPresent()) {
@@ -99,6 +102,7 @@ public class ProjectService {
    *
    * @return List of active projects
    */
+  @Transactional
   public List<Project> listProjects() {
     return projectRepository.findAllByArchivedIsFalse();
   }

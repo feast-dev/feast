@@ -37,14 +37,10 @@ public class DefaultJwtAuthenticationProvider implements AuthenticationProvider 
    *     one option is currently configurable, the jwkEndpointURI.
    */
   public DefaultJwtAuthenticationProvider(Map<String, String> options) {
-
     // Endpoint used to retrieve certificates to validate JWT token
-    String jwkEndpointURI = "https://www.googleapis.com/oauth2/v3/certs";
+    String jwkEndpointURI = options.get("jwkEndpointURI");
 
     // Provide a custom endpoint to retrieve certificates
-    if (options != null) {
-      jwkEndpointURI = options.get("jwkEndpointURI");
-    }
     authProvider =
         new JwtAuthenticationProvider(NimbusJwtDecoder.withJwkSetUri(jwkEndpointURI).build());
     authProvider.setJwtAuthenticationConverter(new JwtAuthenticationConverter());

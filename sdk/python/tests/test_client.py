@@ -22,14 +22,13 @@ from unittest import mock
 import grpc
 import pandas as pd
 import pandavro
-import pytest
 from google.protobuf.duration_pb2 import Duration
-from mock import MagicMock, patch
 from pytz import timezone
 
 import dataframes
 import feast.core.CoreService_pb2_grpc as Core
 import feast.serving.ServingService_pb2_grpc as Serving
+import pytest
 from feast.client import Client
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionResponse,
@@ -72,6 +71,7 @@ from feast_core_server import (
     DisallowAuthInterceptor,
 )
 from feast_serving_server import ServingServicer
+from mock import MagicMock, patch
 
 CORE_URL = "core.feast.example.com"
 SERVING_URL = "serving.example.com"
