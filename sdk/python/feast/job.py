@@ -21,11 +21,10 @@ from feast.serving.ServingService_pb2 import (
 from feast.serving.ServingService_pb2 import Job as JobProto
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.source import Source
+from feast.staging.storage_client import StorageClient
 from feast.wait import wait_retry_backoff
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
-
-from feast.staging.storage_client import StorageClient
 # Maximum no of seconds to wait until the retrieval jobs status is DONE in Feast
 # Currently set to the maximum query execution time limit in BigQuery
 DEFAULT_TIMEOUT_SEC: int = 21600
