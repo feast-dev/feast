@@ -43,6 +43,7 @@ import io.opentracing.Tracer.SpanBuilder;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
@@ -302,9 +303,8 @@ public class OnlineServingServiceTest {
                     .setFeatureSet("project/featureSet")
                     .build()),
             Optional.of(
-                FeatureRow.newBuilder()
-                    .setEventTimestamp(
-                        Timestamp.newBuilder().setSeconds(50)) // this value should be nulled
+                FeatureRow.newBuilder() // this feature row should have its values nulled
+                    .setEventTimestamp(Timestamp.newBuilder().setSeconds(50))
                     .addAllFields(
                         Lists.newArrayList(
                             FieldProto.Field.newBuilder()
@@ -468,6 +468,83 @@ public class OnlineServingServiceTest {
                     .putStatuses("entity2", FieldStatus.PRESENT)
                     .putFields("feature1", intValue(2))
                     .putStatuses("feature1", FieldStatus.PRESENT)
+                    .build())
+            .build();
+    GetOnlineFeaturesResponse actual = onlineServingService.getOnlineFeatures(request);
+    assertThat(actual, equalTo(expected));
+  }
+
+  @Test
+  public void shouldApplyProjectOverrideInRequest() {
+    GetOnlineFeaturesRequest request =
+        GetOnlineFeaturesRequest.newBuilder()
+            .setOmitEntitiesInResponse(false)
+            .setProject("project")
+            .addFeatures(FeatureReference.newBuilder().setName("feature1").build())
+            .addFeatures(
+                FeatureReference.newBuilder().setName("feature2").setProject("project").build())
+            .addEntityRows(
+                EntityRow.newBuilder()
+                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .putFields("entity1", intValue(1))
+                    .putFields("entity2", strValue("a")))
+            .build();
+
+    List<Optional<FeatureRow>> featureRows =
+        Lists.newArrayList(
+            Optional.of(
+                FeatureRow.newBuilder()
+                    .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .addAllFields(
+                        Lists.newArrayList(
+                            FieldProto.Field.newBuilder()
+                                .setName("entity1")
+                                .setValue(intValue(1))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("entity2")
+                                .setValue(strValue("a"))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("feature1")
+                                .setValue(intValue(1))
+                                .build(),
+                            FieldProto.Field.newBuilder()
+                                .setName("feature2")
+                                .setValue(intValue(1))
+                                .build()))
+                    .setFeatureSet("default/featureSet")
+                    .build()));
+
+    List<FeatureReference> projectOverrideFeatureReferences =
+        request.getFeaturesList().stream()
+            .map(featureRef -> featureRef.toBuilder().setProject("project").build())
+            .collect(Collectors.toList());
+
+    FeatureSetRequest featureSetRequest =
+        FeatureSetRequest.newBuilder()
+            .addAllFeatureReferences(projectOverrideFeatureReferences)
+            .setSpec(getFeatureSetSpec())
+            .build();
+
+    when(specService.getFeatureSets(projectOverrideFeatureReferences))
+        .thenReturn(Collections.singletonList(featureSetRequest));
+    when(retriever.getOnlineFeatures(request.getEntityRowsList(), featureSetRequest))
+        .thenReturn(featureRows);
+    when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
+
+    GetOnlineFeaturesResponse expected =
+        GetOnlineFeaturesResponse.newBuilder()
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(1))
+                    .putStatuses("entity1", FieldStatus.PRESENT)
+                    .putFields("entity2", strValue("a"))
+                    .putStatuses("entity2", FieldStatus.PRESENT)
+                    .putFields("feature1", intValue(1))
+                    .putStatuses("feature1", FieldStatus.PRESENT)
+                    .putFields("project/feature2", intValue(1))
+                    .putStatuses("project/feature2", FieldStatus.PRESENT)
                     .build())
             .build();
     GetOnlineFeaturesResponse actual = onlineServingService.getOnlineFeatures(request);

@@ -110,8 +110,8 @@ public class FeastClient implements AutoCloseable {
    *     featureSet:feature, where 'featureSet' and 'feature' refer to the FeatureSet and Feature
    *     names respectively. Only the Feature name is required.
    * @param rows list of {@link Row} to select the entities to retrieve the features for
-   * @param project {@link String} Specifies the project which contains the FeatureSets which the
-   *     Feature requested belong to.
+   * @param project {@link String} Specifies the project override. If specifed uses the project for
+   *     retrieval. Overrides the projects set in Feature References if also specified.
    * @param omitEntitiesInResponse if true, the returned {@link Row} will not contain field and
    *     value for the entity
    * @return list of {@link Row} containing retrieved data fields.
