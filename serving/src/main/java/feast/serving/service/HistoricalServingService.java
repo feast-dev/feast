@@ -114,9 +114,8 @@ public class HistoricalServingService implements ServingService {
     if (result.hasError()) {
       return builder.setError(result.getError()).build();
     }
-    Builder jobBuilder = builder
-            .addAllFileUris(result.getFileUris())
-            .setDataFormat(result.getDataFormat());
+    Builder jobBuilder =
+        builder.addAllFileUris(result.getFileUris()).setDataFormat(result.getDataFormat());
     if (result.getStats() != null) {
       jobBuilder.setDatasetFeatureStatisticsList(result.getStats());
     }
