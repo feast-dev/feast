@@ -293,8 +293,9 @@ public class SpecServiceTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         String.format(
-            "Reserved feature names have been used, which are not allowed. These names include %s.",
-            reservedNamesString));
+            "Reserved feature names have been used, which are not allowed. These names include %s."
+                + "You've just used an invalid name, %s.",
+            reservedNamesString, "created_timestamp"));
     FeatureSet invalidFeatureSet = invalidFeatureSets.get(0);
 
     specService.applyFeatureSet(invalidFeatureSet.toProto());

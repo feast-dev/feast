@@ -30,6 +30,9 @@ import org.apache.commons.lang3.StringUtils;
 
 public class FeatureSetValidator {
 
+  private static List<String> reservedNames =
+      Arrays.asList("created_timestamp", "event_timestamp", "ingestion_id", "job_id");
+
   public static void validateSpec(FeatureSet featureSet) {
     if (featureSet.getSpec().getProject().isEmpty()) {
       throw new IllegalArgumentException("Project name must be provided");
@@ -69,15 +72,14 @@ public class FeatureSetValidator {
   }
 
   private static void checkReservedColumns(List<FeatureSpec> featureSpecs) {
-    List<String> reservedNames =
-        Arrays.asList("created_timestamp", "event_timestamp", "ingestion_id", "job_id");
     String reservedNamesString = StringUtils.join(reservedNames, ", ");
     for (FeatureSpec featureSpec : featureSpecs) {
       if (reservedNames.contains(featureSpec.getName())) {
         throw new IllegalArgumentException(
             String.format(
-                "Reserved feature names have been used, which are not allowed. These names include %s.",
-                reservedNamesString));
+                "Reserved feature names have been used, which are not allowed. These names include %s."
+                    + "You've just used an invalid name, %s.",
+                reservedNamesString, featureSpec.getName()));
       }
     }
   }
