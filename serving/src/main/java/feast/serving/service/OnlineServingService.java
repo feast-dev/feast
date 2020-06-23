@@ -123,7 +123,7 @@ public class OnlineServingService implements ServingService {
                   entityStatusesMap.get(entityRow).putAll(statusMap);
 
                   // Populate metrics/log request
-                  populateStaleKeyCountMetrics(statusMap, featureSetRequest);
+                  populateCountMetrics(statusMap, featureSetRequest);
                 });
         populateRequestCountMetrics(featureSetRequest);
         logFeatureRows.add(featureRows);
@@ -287,7 +287,7 @@ public class OnlineServingService implements ServingService {
     scope.span().log(ImmutableMap.of("event", "featureRows", "value", loggableFeatureRows));
   }
 
-  private void populateStaleKeyCountMetrics(
+  private void populateCountMetrics(
       Map<String, FieldStatus> statusMap, FeatureSetRequest featureSetRequest) {
     String project = featureSetRequest.getSpec().getProject();
     statusMap
@@ -296,6 +296,9 @@ public class OnlineServingService implements ServingService {
             es -> {
               String featureRefString = es.getKey();
               FieldStatus status = es.getValue();
+              if (status == FieldStatus.NOT_FOUND) {
+                Metrics.notFoundKeyCount.labels(project, featureRefString).inc();
+              }
               if (status == FieldStatus.OUTSIDE_MAX_AGE) {
                 Metrics.staleKeyCount.labels(project, featureRefString).inc();
               }

@@ -38,19 +38,11 @@ public class Metrics {
           .labelNames("project", "feature_name")
           .register();
 
-  public static final Counter missingKeyCount =
+  public static final Counter notFoundKeyCount =
       Counter.build()
-          .name("missing_feature_count")
+          .name("not_found_feature_count")
           .subsystem("feast_serving")
           .help("number requested feature rows that were not found")
-          .labelNames("project", "feature_name")
-          .register();
-
-  public static final Counter invalidEncodingCount =
-      Counter.build()
-          .name("invalid_encoding_feature_count")
-          .subsystem("feast_serving")
-          .help("number requested feature rows that were stored with the wrong encoding")
           .labelNames("project", "feature_name")
           .register();
 
