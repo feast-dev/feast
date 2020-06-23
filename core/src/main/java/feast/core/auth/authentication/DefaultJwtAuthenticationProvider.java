@@ -25,8 +25,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationProvider;
 
 /**
- * Google Open ID Authentication Provider. This provider is used to validate incoming requests to
- * Feast Core.
+ * Json Web Token Authentication Provider used to validate incoming requests to Feast Core.
  */
 public class DefaultJwtAuthenticationProvider implements AuthenticationProvider {
 
