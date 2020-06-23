@@ -56,11 +56,6 @@ feast:
       - name: direct
         type: DirectRunner
         options: {}
-  stream:
-    type: kafka
-    options:
-      topic: feast-features
-      bootstrapServers: "kafka:9092,localhost:9094"
   security:
     authentication:
       enabled: true
