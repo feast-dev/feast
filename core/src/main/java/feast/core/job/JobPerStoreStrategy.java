@@ -31,6 +31,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.tuple.Pair;
 
+/**
+ * In this strategy one job per Source-Store pair is created.
+ *
+ * <p>JobId is generated accordingly from Source (type+config) and StoreName.
+ */
 public class JobPerStoreStrategy implements JobGroupingStrategy {
   private final JobRepository jobRepository;
 

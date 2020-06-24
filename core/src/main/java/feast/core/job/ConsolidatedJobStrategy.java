@@ -30,6 +30,13 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.tuple.Pair;
 
+/**
+ * In this strategy one Ingestion Job per source is created. All stores that subscribed to
+ * FeatureSets from this source will be included as sinks in this consolidated Job.
+ *
+ * <p>JobId will contain only source parameters (type + config). StoreName will remain empty in Job
+ * table.
+ */
 public class ConsolidatedJobStrategy implements JobGroupingStrategy {
   private final JobRepository jobRepository;
 

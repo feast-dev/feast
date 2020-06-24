@@ -23,12 +23,16 @@ import java.util.Set;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.tuple.Pair;
 
+/**
+ * Strategy interface that defines how responsibility for sources and stores will be distributed
+ * across Ingestion Jobs.
+ */
 public interface JobGroupingStrategy {
   /** Get the non terminated ingestion job ingesting for given source and stores. */
   public Job getOrCreateJob(Source source, Set<Store> stores);
-
+  /** Create unique JobId that would be used as key in communications with JobRunner */
   public String createJobId(Job job);
-
+  /* Distribute given sources and stores across jobs. One yielded Pair - one created Job **/
   public Iterable<Pair<Source, Set<Store>>> collectSingleJobInput(
       Stream<Pair<Source, Store>> stream);
 }
