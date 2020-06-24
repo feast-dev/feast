@@ -194,7 +194,7 @@ public class ImportJobTest {
     options.setSpecsStreamingUpdateConfigJson(
         JsonFormat.printer().print(specsStreamingUpdateConfig));
     options.setSourceJson(JsonFormat.printer().print(featureSource));
-    options.setStoreJson(Collections.singletonList(JsonFormat.printer().print(redis)));
+    options.setStoresJson(Collections.singletonList(JsonFormat.printer().print(redis)));
     options.setDefaultFeastProject("myproject");
     options.setProject("");
     options.setBlockOnRun(false);

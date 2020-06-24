@@ -26,6 +26,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.protobuf.Duration;
 import com.google.protobuf.util.JsonFormat;
@@ -132,7 +133,7 @@ public class DirectRunnerJobManagerTest {
     expectedPipelineOptions.setRunner(DirectRunner.class);
     expectedPipelineOptions.setBlockOnRun(false);
     expectedPipelineOptions.setTargetParallelism(1);
-    expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
+    expectedPipelineOptions.setStoresJson(Lists.newArrayList(printer.print(store)));
     expectedPipelineOptions.setProject("");
     expectedPipelineOptions.setSourceJson(printer.print(source));
 
@@ -149,7 +150,7 @@ public class DirectRunnerJobManagerTest {
             .setExtId("")
             .setRunner(Runner.DIRECT)
             .setSource(Source.fromProto(source))
-            .setStore(Store.fromProto(store))
+            .setStores(ImmutableSet.of(Store.fromProto(store)))
             .setFeatureSetJobStatuses(makeFeatureSetJobStatus(FeatureSet.fromProto(featureSet)))
             .setStatus(JobStatus.PENDING)
             .build();
@@ -174,7 +175,7 @@ public class DirectRunnerJobManagerTest {
         actualPipelineOptions.getMetricsExporterType(),
         equalTo(expectedPipelineOptions.getMetricsExporterType()));
     assertThat(
-        actualPipelineOptions.getStoreJson(), equalTo(expectedPipelineOptions.getStoreJson()));
+        actualPipelineOptions.getStoresJson(), equalTo(expectedPipelineOptions.getStoresJson()));
     assertThat(
         actualPipelineOptions.getSourceJson(), equalTo(expectedPipelineOptions.getSourceJson()));
     assertThat(

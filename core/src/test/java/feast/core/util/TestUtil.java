@@ -64,8 +64,8 @@ public class TestUtil {
             .setType(SourceProto.SourceType.KAFKA)
             .setKafkaSourceConfig(
                 SourceProto.KafkaSourceConfig.newBuilder()
-                    .setBootstrapServers("kafka:9092")
-                    .setTopic("my-topic")
+                    .setBootstrapServers(boostrapServers)
+                    .setTopic(topic)
                     .build())
             .build(),
         true);
