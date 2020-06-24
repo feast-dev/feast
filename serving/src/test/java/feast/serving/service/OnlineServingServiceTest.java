@@ -43,7 +43,6 @@ import io.opentracing.Tracer.SpanBuilder;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
@@ -141,7 +140,7 @@ public class OnlineServingServiceTest {
             .setSpec(getFeatureSetSpec())
             .build();
 
-    when(specService.getFeatureSets(request.getFeaturesList()))
+    when(specService.getFeatureSets(request.getFeaturesList(), ""))
         .thenReturn(Collections.singletonList(featureSetRequest));
     when(retriever.getOnlineFeatures(request.getEntityRowsList(), featureSetRequest))
         .thenReturn(featureRows);
@@ -334,7 +333,7 @@ public class OnlineServingServiceTest {
             .setSpec(spec)
             .build();
 
-    when(specService.getFeatureSets(request.getFeaturesList()))
+    when(specService.getFeatureSets(request.getFeaturesList(), ""))
         .thenReturn(Collections.singletonList(featureSetRequest));
     when(retriever.getOnlineFeatures(request.getEntityRowsList(), featureSetRequest))
         .thenReturn(featureRows);
@@ -443,7 +442,7 @@ public class OnlineServingServiceTest {
             .setSpec(getFeatureSetSpec())
             .build();
 
-    when(specService.getFeatureSets(request.getFeaturesList()))
+    when(specService.getFeatureSets(request.getFeaturesList(), ""))
         .thenReturn(Collections.singletonList(featureSetRequest));
     when(retriever.getOnlineFeatures(request.getEntityRowsList(), featureSetRequest))
         .thenReturn(featureRows);
@@ -513,21 +512,16 @@ public class OnlineServingServiceTest {
                                 .setName("feature2")
                                 .setValue(intValue(1))
                                 .build()))
-                    .setFeatureSet("default/featureSet")
+                    .setFeatureSet("project/featureSet")
                     .build()));
-
-    List<FeatureReference> projectOverrideFeatureReferences =
-        request.getFeaturesList().stream()
-            .map(featureRef -> featureRef.toBuilder().setProject("project").build())
-            .collect(Collectors.toList());
 
     FeatureSetRequest featureSetRequest =
         FeatureSetRequest.newBuilder()
-            .addAllFeatureReferences(projectOverrideFeatureReferences)
+            .addAllFeatureReferences(request.getFeaturesList())
             .setSpec(getFeatureSetSpec())
             .build();
 
-    when(specService.getFeatureSets(projectOverrideFeatureReferences))
+    when(specService.getFeatureSets(request.getFeaturesList(), "project"))
         .thenReturn(Collections.singletonList(featureSetRequest));
     when(retriever.getOnlineFeatures(request.getEntityRowsList(), featureSetRequest))
         .thenReturn(featureRows);
@@ -564,7 +558,7 @@ public class OnlineServingServiceTest {
         .setName("featureSet")
         .addEntities(EntitySpec.newBuilder().setName("entity1"))
         .addEntities(EntitySpec.newBuilder().setName("entity2"))
-        .setMaxAge(Duration.newBuilder().setSeconds(30)) // default
+        .setMaxAge(Duration.newBuilder().setSeconds(30))
         .build();
   }
 }

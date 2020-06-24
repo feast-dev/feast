@@ -459,12 +459,8 @@ def test_batch_multiple_featureset_joins(client):
             int(i) for i in output["feature_value6"].to_list()
         ]
         assert (
-<<<<<<< HEAD
-                output["other_entity_id"].to_list() == output["feature_set_2__other_feature_value7"].to_list()
-=======
             output["other_entity_id"].to_list()
             == output["feature_set_2__other_feature_value7"].to_list()
->>>>>>> Reorder basic e2e tests to ensure that list features and entities tests do not interfere with otheer tests
         )
         clean_up_remote_files(feature_retrieval_job.get_avro_files())
 
@@ -527,21 +523,15 @@ def infra_teardown(pytestconfig, core_url, serving_url):
         print("Cleaning up not required")
 
 
-<<<<<<< HEAD
-'''
-=======
 """
->>>>>>> Reorder basic e2e tests to ensure that list features and entities tests do not interfere with otheer tests
-This suite of tests tests the apply feature set - update feature set - retrieve  
-event sequence. It ensures that when a feature set is updated, tombstoned features 
+This suite of tests tests the apply feature set - update feature set - retrieve
+event sequence. It ensures that when a feature set is updated, tombstoned features
 are no longer retrieved, and added features are null for previously ingested
 rows.
 
 It is marked separately because of the length of time required
 to perform this test, due to bigquery schema caching for streaming writes.
 """
-
-
 
 @pytest.fixture(scope="module")
 def update_featureset_dataframe():
