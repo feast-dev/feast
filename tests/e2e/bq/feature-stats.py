@@ -25,7 +25,7 @@ pd.set_option("display.max_columns", None)
 
 PROJECT_NAME = "batch_" + uuid.uuid4().hex.upper()[0:6]
 STORE_NAME = "historical"
-os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 @pytest.fixture(scope="module")
