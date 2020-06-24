@@ -60,6 +60,10 @@ feast:
       # Port of the metrics sink.
       port: 9125
 
+    # if true one job per source with many stores would be created
+    # if false one job per source-store pair would be created
+    consolidate-jobs-per-source: false
+
   stream:
     # Feature stream type. Only kafka is supported.
     type: kafka

@@ -20,7 +20,11 @@ import com.google.gson.Gson;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.config.FeastProperties.JobProperties;
+import feast.core.dao.JobRepository;
+import feast.core.job.ConsolidatedJobStrategy;
+import feast.core.job.JobGroupingStrategy;
 import feast.core.job.JobManager;
+import feast.core.job.JobPerStoreStrategy;
 import feast.core.job.dataflow.DataflowJobManager;
 import feast.core.job.direct.DirectJobRegistry;
 import feast.core.job.direct.DirectRunnerJobManager;
@@ -62,6 +66,16 @@ public class JobConfig {
                 .setBootstrapServers(streamProperties.getOptions().getBootstrapServers())
                 .setTopic(streamProperties.getSpecsOptions().getSpecsAckTopic()))
         .build();
+  }
+
+  @Bean
+  public JobGroupingStrategy getJobGroupingStrategy(
+      FeastProperties feastProperties, JobRepository jobRepository) {
+    if (feastProperties.getJobs().getConsolidateJobsPerSource()) {
+      return new ConsolidatedJobStrategy(jobRepository);
+    } else {
+      return new JobPerStoreStrategy(jobRepository);
+    }
   }
 
   /**

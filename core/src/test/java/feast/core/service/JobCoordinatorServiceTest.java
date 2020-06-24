@@ -27,7 +27,6 @@ import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -54,6 +53,7 @@ import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.*;
 import java.util.concurrent.CancellationException;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.Before;
 import org.junit.Rule;
@@ -89,10 +89,10 @@ public class JobCoordinatorServiceTest {
         new JobCoordinatorService(
             jobRepository,
             featureSetRepository,
-            sourceRepository,
             specService,
             jobManager,
             feastProperties,
+            new ConsolidatedJobStrategy(jobRepository),
             kafkaTemplate);
 
     when(kafkaTemplate.sendDefault(any(), any())).thenReturn(new AsyncResult<>(null));
@@ -700,7 +700,8 @@ public class JobCoordinatorServiceTest {
                 source.getType(), source.getConfig(), null, JobStatus.getTerminalStates()))
         .thenReturn(Optional.of(job));
 
-    List<JobTask> tasks = jcs.makeJobUpdateTasks(ImmutableMap.of(source, ImmutableSet.of(store)));
+    List<JobTask> tasks =
+        jcs.makeJobUpdateTasks(ImmutableList.of(Pair.of(source, ImmutableSet.of(store))));
 
     assertThat("CheckStatus is expected", tasks.get(0) instanceof UpdateJobStatusTask);
   }
@@ -723,7 +724,8 @@ public class JobCoordinatorServiceTest {
                 source.getType(), source.getConfig(), null, JobStatus.getTerminalStates()))
         .thenReturn(Optional.of(job));
 
-    List<JobTask> tasks = jcs.makeJobUpdateTasks(ImmutableMap.of(source, ImmutableSet.of(store)));
+    List<JobTask> tasks =
+        jcs.makeJobUpdateTasks(ImmutableList.of(Pair.of(source, ImmutableSet.of(store))));
 
     assertThat("UpgradeTask is expected", tasks.get(0) instanceof UpgradeJobTask);
   }
@@ -733,19 +735,13 @@ public class JobCoordinatorServiceTest {
     Source source = TestUtil.createKafkaSource("kafka:9092", "topic", false);
     Store store = TestUtil.createStore("store", Collections.emptyList());
 
-    Job job =
-        Job.builder()
-            .setStatus(JobStatus.ERROR)
-            .setFeatureSetJobStatuses(new HashSet<>())
-            .setExtId("")
-            .build();
-
     when(jobRepository
             .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
                 source.getType(), source.getConfig(), null, JobStatus.getTerminalStates()))
-        .thenReturn(Optional.of(job));
+        .thenReturn(Optional.empty());
 
-    List<JobTask> tasks = jcs.makeJobUpdateTasks(ImmutableMap.of(source, ImmutableSet.of(store)));
+    List<JobTask> tasks =
+        jcs.makeJobUpdateTasks(ImmutableList.of(Pair.of(source, ImmutableSet.of(store))));
 
     assertThat("CreateTask is expected", tasks.get(0) instanceof CreateJobTask);
   }
