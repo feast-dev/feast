@@ -31,18 +31,12 @@ public interface FeatureSink extends Serializable {
    * Set up storage backend for write. This method will be called once during pipeline
    * initialisation.
    *
-   * <p>Examples when schemas need to be updated:
+   * <p>Should create transformation that would update sink's state based on given FeatureSetSpec
+   * stream. Returning stream should notify subscribers about successful installation of new
+   * FeatureSetSpec referenced by {@link FeatureSetReference}.
    *
-   * <ul>
-   *   <li>when a new entity is registered, a table usually needs to be created
-   *   <li>when a new feature is registered, a column with appropriate data type usually needs to be
-   *       created
-   * </ul>
-   *
-   * <p>If the storage backend is a key-value or a schema-less database, however, there may not be a
-   * need to manage any schemas.
-   *
-   * @param featureSetSpecs Feature set to be written
+   * @param featureSetSpecs specs stream
+   * @return stream of state updated events
    */
   PCollection<FeatureSetReference> prepareWrite(
       PCollection<KV<FeatureSetReference, FeatureSetProto.FeatureSetSpec>> featureSetSpecs);

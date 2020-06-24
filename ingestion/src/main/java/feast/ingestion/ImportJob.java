@@ -108,15 +108,7 @@ public class ImportJob {
 
     PCollectionView<Map<String, Iterable<FeatureSetSpec>>> globalSpecView =
         featureSetSpecs
-            .apply(
-                MapElements.via(
-                    new SimpleFunction<
-                        KV<FeatureSetReference, FeatureSetSpec>, KV<String, FeatureSetSpec>>() {
-                      public KV<String, FeatureSetSpec> apply(
-                          KV<FeatureSetReference, FeatureSetSpec> input) {
-                        return KV.of(input.getKey().getReference(), input.getValue());
-                      }
-                    }))
+            .apply(MapElements.via(new ReferenceToString()))
             .apply("GlobalSpecView", View.asMultimap());
 
     // Step 2. Read messages from Feast Source as FeatureRow.
@@ -213,5 +205,12 @@ public class ImportJob {
                 .build());
 
     return pipeline.run();
+  }
+
+  private static class ReferenceToString
+      extends SimpleFunction<KV<FeatureSetReference, FeatureSetSpec>, KV<String, FeatureSetSpec>> {
+    public KV<String, FeatureSetSpec> apply(KV<FeatureSetReference, FeatureSetSpec> input) {
+      return KV.of(input.getKey().getReference(), input.getValue());
+    }
   }
 }

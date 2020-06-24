@@ -16,6 +16,8 @@
  */
 package feast.ingestion.transform.specs;
 
+import static feast.ingestion.utils.SpecUtil.parseFeatureSetReference;
+
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -40,6 +42,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.joda.time.Duration;
 
@@ -121,9 +124,11 @@ public abstract class ReadFeatureSetSpecs
     @ProcessElement
     public void process(
         ProcessContext c, @Element KV<String, FeatureSetProto.FeatureSetSpec> input) {
+      Pair<String, String> reference = parseFeatureSetReference(input.getKey());
       c.output(
           KV.of(
-              new FeatureSetReference(input.getKey(), input.getValue().getVersion()),
+              new FeatureSetReference(
+                  reference.getLeft(), reference.getRight(), input.getValue().getVersion()),
               input.getValue()));
     }
   }

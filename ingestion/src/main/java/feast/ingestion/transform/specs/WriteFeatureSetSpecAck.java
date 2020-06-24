@@ -32,9 +32,14 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.joda.time.Duration;
 
 /**
- * Converts input {@link feast.proto.core.FeatureSetProto.FeatureSetSpec} into {@link
+ * Collects output from sinks prepareWrite (several streams flatten into one). As soon as count of
+ * each FeatureSetReference reach getSinksCount() - it means that enough amount of sinks updated its
+ * state - ack is pushed.
+ *
+ * <p>Converts input {@link FeatureSetReference} into {@link
  * feast.proto.core.IngestionJobProto.FeatureSetSpecAck} message and writes it to kafka (ack-topic).
  */
 @AutoValue
@@ -61,18 +66,7 @@ public abstract class WriteFeatureSetSpecAck
   @Override
   public PDone expand(PCollection<FeatureSetReference> input) {
     return input
-        .apply(
-            "OnEveryElementTrigger",
-            Window.<FeatureSetReference>into(new GlobalWindows())
-                .accumulatingFiredPanes()
-                .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))))
-        .apply("CountingReadySinks", Count.perElement())
-        .apply(
-            "WhenAllReady",
-            Filter.by(
-                (SerializableFunction<KV<FeatureSetReference, Long>, Boolean>)
-                    count -> count.getValue() >= getSinksCount()))
-        .apply(Keys.create())
+        .apply("Prepare", new PrepareWrite(getSinksCount()))
         .apply("FeatureSetSpecToAckMessage", ParDo.of(new BuildAckMessage()))
         .apply(
             "ToKafka",
@@ -97,6 +91,37 @@ public abstract class WriteFeatureSetSpecAck
           .writeTo(encodedAck);
 
       c.output(KV.of(c.element().getReference(), encodedAck.toByteArray()));
+    }
+  }
+
+  /**
+   * Groups FeatureSetReference to generate ack only when amount of repeating elements reach
+   * sinksCount
+   */
+  static class PrepareWrite
+      extends PTransform<PCollection<FeatureSetReference>, PCollection<FeatureSetReference>> {
+    private final Integer sinksCount;
+
+    PrepareWrite(Integer sinksCount) {
+      this.sinksCount = sinksCount;
+    }
+
+    @Override
+    public PCollection<FeatureSetReference> expand(PCollection<FeatureSetReference> input) {
+      return input
+          .apply(
+              "OnEveryElementTrigger",
+              Window.<FeatureSetReference>into(new GlobalWindows())
+                  .accumulatingFiredPanes()
+                  .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                  .withAllowedLateness(Duration.ZERO))
+          .apply("CountingReadySinks", Count.perElement())
+          .apply(
+              "WhenAllReady",
+              Filter.by(
+                  (SerializableFunction<KV<FeatureSetReference, Long>, Boolean>)
+                      count -> count.getValue() >= sinksCount))
+          .apply(Keys.create());
     }
   }
 }

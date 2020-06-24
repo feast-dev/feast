@@ -23,10 +23,15 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class FeatureSetReference implements Serializable {
-  private String reference;
+  private String projectName;
+  private String featureSetName;
   private Integer version;
 
   // Empty constructor required for Avro decoding.
   @SuppressWarnings("unused")
   public FeatureSetReference() {}
+
+  public String getReference() {
+    return String.format("%s/%s", projectName, featureSetName);
+  }
 }
