@@ -87,8 +87,20 @@ public class OnlineServingService implements ServingService {
             });
       }
 
-      List<FeatureSetRequest> featureSetRequests = getFeatureSetRequests(request);
-      for (FeatureSetRequest featureSetRequest : getFeatureSetRequests(request)) {
+      List<FeatureSetRequest> featureSetRequests =
+          specService.getFeatureSets(request.getFeaturesList(), request.getProject());
+      for (FeatureSetRequest featureSetRequest : featureSetRequests) {
+        System.out.println("-------------------------------------------");
+        System.out.println(
+            "Feature Set: " + FeatureSet.getFeatureSetStringRef(featureSetRequest.getSpec()));
+        System.out.println("Feature references: ");
+        featureSetRequest
+            .getFeatureReferences()
+            .forEach(
+                featureRef -> {
+                  System.out.println(Feature.getFeatureStringRef(featureRef));
+                });
+
         // Pull feature rows for given entity rows from the feature/featureset specified in feature
         // set request.
         // from the configured online
@@ -112,7 +124,7 @@ public class OnlineServingService implements ServingService {
                   boolean isOutsideMaxAge =
                       checkOutsideMaxAge(featureSetRequest, entityRow, featureRow);
                   Map<String, Value> valueMap =
-                      unpackValueMap(featureRow, request, isOutsideMaxAge);
+                      unpackValueMap(featureRow, featureSetRequest, isOutsideMaxAge);
                   entityValuesMap.get(entityRow).putAll(valueMap);
 
                   // Generate metadata for feature values and merge into entityFieldsMap
@@ -148,45 +160,24 @@ public class OnlineServingService implements ServingService {
   }
 
   /**
-   * Compile {@link FeatureSetRequest}s from the given {@link GetOnlineFeaturesRequest}. Applies
-   * project override if specified and queries spec service to map features requested into feature
-   * set requests.
-   *
-   * @param request supplied by the client.
-   * @return list of{@link FeatureSetRequest}s compiled from the given online feature request.
-   */
-  private List<FeatureSetRequest> getFeatureSetRequests(GetOnlineFeaturesRequest request) {
-    List<FeatureReference> featureReferences =
-        request.getFeaturesList().stream()
-            .map(
-                featureRef -> {
-                  if (!request.getProject().isEmpty()) {
-                    return featureRef.toBuilder().setProject(request.getProject()).build();
-                  }
-                  return featureRef;
-                })
-            .collect(Collectors.toList());
-
-    return specService.getFeatureSets(featureReferences);
-  }
-
-  /**
    * Unpack feature values using data from the given feature row for features specified in the given
-   * online feature request.
+   * feature set request.
    *
    * @param featureRow optional to unpack for feature values.
-   * @param request online feature request for which the feature row was retrieved.
+   * @param featureSetRequest feature set request for which the feature row is retrieved for.
    * @param isOutsideMaxAge whether which the feature row contains values that is outside max age.
    * @return valueMap mapping string feature name to feature value for the given feature set
    *     request.
    */
   private static Map<String, Value> unpackValueMap(
-      Optional<FeatureRow> featureRow, GetOnlineFeaturesRequest request, boolean isOutsideMaxAge) {
+      Optional<FeatureRow> featureRow,
+      FeatureSetRequest featureSetRequest,
+      boolean isOutsideMaxAge) {
     Map<String, Value> valueMap = new HashMap<>();
     // In order to return values containing the same feature references provided by the user,
     // we reuse the feature references in the request as the keys in field builder map
     Map<String, FeatureReference> nameRefMap =
-        request.getFeaturesList().stream()
+        featureSetRequest.getFeatureReferences().stream()
             .collect(
                 Collectors.toMap(FeatureReference::getName, featureReference -> featureReference));
     if (featureRow.isPresent()) {
