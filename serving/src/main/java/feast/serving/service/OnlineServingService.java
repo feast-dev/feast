@@ -90,10 +90,6 @@ public class OnlineServingService implements ServingService {
       List<FeatureSetRequest> featureSetRequests =
           specService.getFeatureSets(request.getFeaturesList(), request.getProject());
       for (FeatureSetRequest featureSetRequest : featureSetRequests) {
-        System.out.println("-------------------------------------------");
-        System.out.println(
-            "Feature Set: " + FeatureSet.getFeatureSetStringRef(featureSetRequest.getSpec()));
-        System.out.println("Feature references: ");
         featureSetRequest
             .getFeatureReferences()
             .forEach(
@@ -176,10 +172,8 @@ public class OnlineServingService implements ServingService {
     Map<String, Value> valueMap = new HashMap<>();
     // In order to return values containing the same feature references provided by the user,
     // we reuse the feature references in the request as the keys in field builder map
-    Map<String, FeatureReference> nameRefMap =
-        featureSetRequest.getFeatureReferences().stream()
-            .collect(
-                Collectors.toMap(FeatureReference::getName, featureReference -> featureReference));
+    Map<String, FeatureReference> nameRefMap = featureSetRequest.getFeatureRefsByName();
+
     if (featureRow.isPresent()) {
       // unpack feature row's feature values and populate value map
       Map<String, Value> featureValueMap =
