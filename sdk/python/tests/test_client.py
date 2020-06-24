@@ -263,7 +263,7 @@ class TestClient:
         [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
     )
     def test_get_online_features(self, mocked_client, mocker):
-        ROW_COUNT = 1
+        ROW_COUNT = 300
 
         mocked_client._serving_service_stub = Serving.ServingServiceStub(
             grpc.insecure_channel("")
