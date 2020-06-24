@@ -684,7 +684,7 @@ class Client:
             response = self._serving_service.GetOnlineFeatures(
                 GetOnlineFeaturesRequest(
                     omit_entities_in_response=omit_entities,
-                    features=_build_feature_references(feature_ref_strs=feature_refs,),
+                    features=_build_feature_references(feature_ref_strs=feature_refs),
                     entity_rows=entity_rows,
                     project=project if project is not None else self.project,
                 )
