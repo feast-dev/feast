@@ -262,8 +262,8 @@ public class JobCoordinatorService {
   }
 
   /**
-   * Generate a source to stores mapping. The mapping maps the source to Set-of-stores in which
-   * ingestion jobs would have to be maintained for ingestion to work correctly.
+   * Generate a source to stores mapping. The resulting iterable yields pairs of Source and
+   * Set-of-stores to create one ingestion job per each pair.
    *
    * @return a Map from source to stores.
    */

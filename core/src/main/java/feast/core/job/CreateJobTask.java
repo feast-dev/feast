@@ -19,17 +19,13 @@ package feast.core.job;
 import feast.core.log.Action;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
-import feast.core.model.Source;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Task that starts recently created {@link Job} by using {@link JobManager}. Since it's new job its
- * Id being generated from attached {@link Source} and updated accordingly in-place.
- */
+/** Task that starts recently created {@link Job} by using {@link JobManager}. */
 @Getter
 @Setter
 @Builder(setterPrefix = "set")
