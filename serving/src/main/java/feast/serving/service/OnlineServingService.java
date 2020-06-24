@@ -90,13 +90,6 @@ public class OnlineServingService implements ServingService {
       List<FeatureSetRequest> featureSetRequests =
           specService.getFeatureSets(request.getFeaturesList(), request.getProject());
       for (FeatureSetRequest featureSetRequest : featureSetRequests) {
-        featureSetRequest
-            .getFeatureReferences()
-            .forEach(
-                featureRef -> {
-                  System.out.println(Feature.getFeatureStringRef(featureRef));
-                });
-
         // Pull feature rows for given entity rows from the feature/featureset specified in feature
         // set request.
         // from the configured online

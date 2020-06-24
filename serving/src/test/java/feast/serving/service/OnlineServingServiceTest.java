@@ -221,7 +221,7 @@ public class OnlineServingServiceTest {
                     .build()),
             Optional.empty());
 
-    when(specService.getFeatureSets(request.getFeaturesList()))
+    when(specService.getFeatureSets(request.getFeaturesList(), ""))
         .thenReturn(Collections.singletonList(featureSetRequest));
     when(retriever.getOnlineFeatures(request.getEntityRowsList(), featureSetRequest))
         .thenReturn(featureRows);
