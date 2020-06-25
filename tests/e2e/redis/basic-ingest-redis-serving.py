@@ -885,12 +885,12 @@ def test_basic_retrieve_online_dict(client, list_type_dataframe, entity_list_typ
         online_features_actual3 = client.get_online_features(entity_rows=online_request_entity3, feature_refs=online_request_features)
     
     # Case 4: List entity check with mixed types
-    with pytest.raises(TypeError) as excinfo2:
+    with pytest.raises(ValueError) as excinfo2:
         online_request_entity4 = [{"district_ids": [np.int64(1),np.int64(2),True]}]
         online_features_actual4 = client.get_online_features(entity_rows=online_request_entity4, feature_refs=online_request_features2)
 
     assert "Input entity customer_id has mixed types and that is not allowed." in str(excinfo.value)
-    assert "Input entity district_ids of List type has mixed types and that is not allowed." in str(excinfo2.value)
+    assert "Value \"True\" is of type <class 'bool'> not of type <class 'numpy.int64'>" in str(excinfo2.value)
 
 
 @pytest.mark.timeout(900)
