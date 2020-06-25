@@ -91,6 +91,11 @@ message GetOnlineFeaturesRequest {
     // values will be returned.
     bool omit_entities_in_response = 3;
 
+    // Optional field to specify project name override. If specified, uses the 
+    // given project for retrieval. Overrides the projects specified in
+    // Feature References if both are specified.
+    string project = 5;
+
     message EntityRow {
         // Request timestamp of this row. This value will be used, 
         // together with maxAge, to determine feature staleness.
