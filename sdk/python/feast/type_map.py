@@ -55,6 +55,8 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
     for k, v in field_value_dict.items():
         if k == "int64Val":
             return int(v)
+        if k == "bytesVal":
+            return bytes(v)
         if (k == "int64ListVal") or (k == "int32ListVal"):
             return [int(item) for item in v["val"]]
         if (k == "floatListVal") or (k == "doubleListVal"):
@@ -66,7 +68,13 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
         if k == "boolListVal":
             return [bool(item) for item in v["val"]]
 
-        return v
+        if k in ["int32Val", "floatVal", "doubleVal", "stringVal", "boolVal"]:
+            return v
+        else:
+            raise TypeError(
+                f"Casting to Python native type for type {k} failed. "
+                f"Type {k} not found"
+            )
 
 
 def python_type_to_feast_value_type(
@@ -87,6 +95,9 @@ def python_type_to_feast_value_type(
     """
 
     type_name = type(value).__name__
+    if isinstance(value, list):
+        type_name = "ndarray"
+        value = np.asarray(value)
 
     type_map = {
         "int": ValueType.INT64,

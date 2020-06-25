@@ -23,6 +23,7 @@ import uuid
 from collections import OrderedDict
 from math import ceil
 from typing import Any, Dict, List, Optional, Tuple, Union
+import warnings
 
 import grpc
 import pandas as pd
@@ -94,6 +95,8 @@ from feast.response import OnlineResponse
 _logger = logging.getLogger(__name__)
 
 CPU_COUNT = os.cpu_count()  # type: int
+
+warnings.simplefilter("always", DeprecationWarning)
 
 
 class Client:
@@ -687,7 +690,10 @@ class Client:
             Each EntityRow provided will yield one record, which contains
             data fields with data value and field status metadata (if included).
         """
-
+        warnings.warn(
+            "entity_rows parameter will only be accepting Dict format from v0.7 onwards",
+            DeprecationWarning,
+        )
         try:
             if entity_rows and isinstance(entity_rows[0], dict):
                 entity_rows = _infer_entity_rows(entity_rows)
@@ -1004,6 +1010,12 @@ class Client:
         return ()
 
 
+def _is_mixed_type(entity_list: List[Any]) -> bool:
+    iseq = iter(entity_list)
+    first_type = type(next(iseq))
+    return False if all((type(x) is first_type) for x in iseq) else True
+
+
 def _infer_entity_rows(
     entities: List[Dict[str, Any]]
 ) -> List[GetOnlineFeaturesRequest.EntityRow]:
@@ -1018,11 +1030,29 @@ def _infer_entity_rows(
         A list of EntityRow protos parsed from args.
     """
     entity_row_list = []
+    temp_dtype_storage = dict()
 
+    is_mixed_type = False
     for entity in entities:
         for key, value in entity.items():
+            if isinstance(value, list):
+                is_mixed_type = _is_mixed_type(value)
             # Infer the specific type for this row
             current_dtype = python_type_to_feast_value_type(name=key, value=value)
+
+            if is_mixed_type:
+                raise TypeError(
+                    f"Input entity {key} of List type has mixed types and that is not allowed. "
+                )
+            if key not in temp_dtype_storage:
+                temp_dtype_storage[key] = current_dtype
+            else:
+                if current_dtype == temp_dtype_storage[key]:
+                    pass
+                else:
+                    raise TypeError(
+                        f"Input entity {key} has mixed types and that is not allowed. "
+                    )
             proto_value = _python_value_to_proto_value(current_dtype, value)
             entity_row_list.append(
                 GetOnlineFeaturesRequest.EntityRow(fields={key: proto_value})
