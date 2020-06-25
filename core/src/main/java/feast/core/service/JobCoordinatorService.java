@@ -42,6 +42,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -50,6 +51,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
+@ConditionalOnProperty("feast.jobs.enabled")
 public class JobCoordinatorService {
 
   private final int SPEC_PUBLISHING_TIMEOUT_SECONDS = 5;

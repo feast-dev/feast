@@ -76,6 +76,8 @@ public class FeastProperties {
   @Getter
   @Setter
   public static class JobProperties {
+    /* Toggle for enabling/disabling job management */
+    private Boolean enabled = true;
 
     @NotBlank
     /* The active Apache Beam runner name. This name references one instance of the Runner class */
