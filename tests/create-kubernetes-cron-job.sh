@@ -50,4 +50,4 @@ printf "Long Running Tests are started, here is the ${GREEN}Cron Job ID: ${LIGHT
 
 printf "You can stop this session by calling the following command\n\n"
 
-printf "${YELLOW}./stop.sh $CRON_JOB_ID${NC}\n"
+printf "${YELLOW}./delete-kubernetes-cron-job.sh $CRON_JOB_ID${NC}\n"
