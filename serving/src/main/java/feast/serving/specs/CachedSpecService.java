@@ -148,12 +148,13 @@ public class CachedSpecService {
   }
 
   /**
-   * Build a Feature Set request from the Feature Set specified by given Feature Set reference 
-   * and given Feature References.
+   * Build a Feature Set request from the Feature Set specified by given Feature Set reference and
+   * given Feature References.
    *
-   * @param featureSetRefStr string feature set reference specifying the feature set that contains requested features
-   * @param featureReferences list of feature references specifying the containing feature set references.
-   *
+   * @param featureSetRefStr string feature set reference specifying the feature set that contains
+   *     requested features
+   * @param featureReferences list of feature references specifying the containing feature set
+   *     references.
    */
   private FeatureSetRequest buildFeatureSetRequest(
       String featureSetRefStr, List<FeatureReference> featureReferences) {
