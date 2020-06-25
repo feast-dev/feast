@@ -23,7 +23,7 @@ from urllib.parse import urlparse
 import pandas as pd
 from pandavro import to_avro
 
-from feast.staging.storage_client import StorageClient
+from feast.staging.storage_client import get_staging_client
 
 
 def export_source_to_staging_location(
@@ -60,7 +60,6 @@ def export_source_to_staging_location(
             remote staging location.
     """
 
-    storage_client = StorageClient()
     uri = urlparse(staging_location_uri)
 
     # Prepare Avro file to be exported to staging location
@@ -74,16 +73,19 @@ def export_source_to_staging_location(
             df=source, dir_path=uri_path
         )
     elif isinstance(source, str):
-        if urlparse(source).scheme in ["", "file"]:
+        source_uri = urlparse(source)
+        if source_uri.scheme in ["", "file"]:
             # Local file provided as a source
             dir_path = None
             file_name = os.path.basename(source)
             source_path = os.path.abspath(
-                os.path.join(urlparse(source).netloc, urlparse(source).path)
+                os.path.join(source_uri.netloc, source_uri.path)
             )
         else:
             # gs, s3 file provided as a source.
-            return storage_client.execute_get_source_files(source)
+            return get_staging_client(source_uri.scheme).list_files(
+                bucket=source_uri.hostname, path=source_uri.path
+            )
     else:
         raise Exception(
             f"Only string and DataFrame types are allowed as a "
@@ -91,11 +93,8 @@ def export_source_to_staging_location(
         )
 
     # Push data to required staging location
-    storage_client.execute_file_upload(
-        uri.scheme,
-        source_path,
-        uri.hostname,
-        str(uri.path).strip("/") + "/" + file_name,
+    get_staging_client(uri.scheme).upload_file(
+        source_path, uri.hostname, str(uri.path).strip("/") + "/" + file_name,
     )
 
     # Clean up, remove local staging file
