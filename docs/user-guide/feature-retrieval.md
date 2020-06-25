@@ -138,7 +138,6 @@ for feature_set in feature_sets:
 anomalies = tfdv.validate_statistics(statistics=stats, schema=schema)
 ```
 
-
 ## Online feature retrieval
 
 Online feature retrieval works in much the same way as batch retrieval, with one important distinction: Online stores only maintain the current state of features. No historical data is served.
