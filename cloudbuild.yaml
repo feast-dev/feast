@@ -66,7 +66,7 @@ steps:
   waitFor: ['-']
   name: 'gcr.io/konnekt-core/protoc-go:3.10.0'
   entrypoint: make
-  args: ['compile-protos-go']
+  args: ['--dry-run', 'compile-protos-go'] #TODO re-enable when we can
 - id: unit-test-go-sdk-setup
   waitFor: ['-']
   name: 'golang:1.13'
