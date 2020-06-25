@@ -116,21 +116,22 @@ public class CachedSpecService {
    * given references or project override, autofills the default project. Throws a {@link
    * SpecRetrievalException} if multiple feature sets match given string reference.
    *
-   * @param project name override. If specified would take the spec request in the context of the
-   *     given project only. Has higher precedence compared to project specifed in Feature Reference
-   *     if both are specified.
+   * @param projectOverride If specified would take the spec request in the context of the given
+   *     project only. Otherwise if "", will default to determining the project from the individual
+   *     references. Has higher precedence compared to project specifed in Feature Reference if both
+   *     are specified.
    * @return FeatureSetRequest containing the specs, and their respective feature references
    */
   public List<FeatureSetRequest> getFeatureSets(
-      List<FeatureReference> featureReferences, String project) {
+      List<FeatureReference> featureReferences, String projectOverride) {
     List<FeatureSetRequest> featureSetRequests = new ArrayList<>();
     featureReferences.stream()
         .map(
             featureReference -> {
               // apply project override when finding feature set for feature
               FeatureReference queryFeatureRef = featureReference;
-              if (!project.isEmpty()) {
-                queryFeatureRef = featureReference.toBuilder().setProject(project).build();
+              if (!projectOverride.isEmpty()) {
+                queryFeatureRef = featureReference.toBuilder().setProject(projectOverride).build();
               }
 
               String fsName = mapFeatureToFeatureSetName(queryFeatureRef);
@@ -146,7 +147,10 @@ public class CachedSpecService {
     return featureSetRequests;
   }
 
-  /** Build a Feature Set request from the Feature Set specified by name and Feature References */
+  /**
+   * Build a Feature Set request from the Feature Set specified by given name and givenFeature
+   * References
+   */
   private FeatureSetRequest buildFeatureSetRequest(
       String featureSetName, List<FeatureReference> featureReferences) {
     // get feature set for name

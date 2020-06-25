@@ -55,8 +55,10 @@ public class RequestUtil {
     }
     if (featureRefString.contains("/")) {
       throw new IllegalArgumentException(
-          String.format("Unsupported feature reference: Specifying project in string"
-            + " Feature References is not longer supported: %s", featureRefString));
+          String.format(
+              "Unsupported feature reference: Specifying project in string"
+                  + " Feature References is not longer supported: %s",
+              featureRefString));
     }
 
     FeatureReference.Builder featureRef = FeatureReference.newBuilder();
