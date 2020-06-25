@@ -2,7 +2,7 @@
 
 set -e
 
-# This script is starting Long Running Tests on AKS
+# This script is starting Long Running Tests on Kubernetes
 # by creating a CronJob that fires in every 10 minutes
 
 # CronJob uses 'jupyter' image to run tests
