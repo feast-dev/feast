@@ -18,14 +18,14 @@ package feast.core.service;
 
 import static feast.proto.core.FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_DELIVERED;
 import static feast.proto.core.FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS;
-import static org.hamcrest.CoreMatchers.hasItem;
-import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.beans.HasPropertyWithValue.hasProperty;
 import static org.hamcrest.core.StringContains.containsString;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
 
@@ -723,6 +723,7 @@ public class JobCoordinatorServiceTest {
         Job.builder()
             .setStatus(JobStatus.RUNNING)
             .setFeatureSetJobStatuses(new HashSet<>())
+            .setSource(source)
             .setStores(new HashSet<>())
             .setExtId("extId")
             .build();
@@ -736,7 +737,7 @@ public class JobCoordinatorServiceTest {
         jcsWithConsolidation.makeJobUpdateTasks(
             ImmutableList.of(Pair.of(source, ImmutableSet.of(store))));
 
-    assertThat("UpgradeTask is expected", tasks.get(0) instanceof UpgradeJobTask);
+    assertThat("CreateTask is expected", tasks.get(0) instanceof CreateJobTask);
   }
 
   @Test
@@ -824,6 +825,61 @@ public class JobCoordinatorServiceTest {
                 "id",
                 containsString(
                     String.format("kafka-%d-to-test-2", Objects.hashCode(source.getConfig()))))));
+  }
+
+  @Test
+  public void shouldCloneRunningJobOnUpgrade() throws InvalidProtocolBufferException {
+    Store store1 =
+        TestUtil.createStore(
+            "test-1", List.of(Subscription.newBuilder().setName("*").setProject("*").build()));
+    Store store2 =
+        TestUtil.createStore(
+            "test-2", List.of(Subscription.newBuilder().setName("*").setProject("*").build()));
+
+    Source source = TestUtil.createKafkaSource("kafka", "topic", false);
+
+    when(specService.listStores(any()))
+        .thenReturn(
+            ListStoresResponse.newBuilder()
+                .addStore(store1.toProto())
+                .addStore(store2.toProto())
+                .build());
+
+    when(featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc("%", "%"))
+        .thenReturn(ImmutableList.of(TestUtil.createEmptyFeatureSet("fs", source)));
+
+    Job existingJob =
+        Job.builder()
+            .setStores(ImmutableSet.of(store1))
+            .setSource(source)
+            .setExtId("extId")
+            .setId("some-id")
+            .setStatus(JobStatus.RUNNING)
+            .build();
+
+    when(jobRepository
+            .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
+                eq(source.getType()),
+                eq(source.getConfig()),
+                any(),
+                eq(JobStatus.getTerminalStates())))
+        .thenReturn(Optional.of(existingJob));
+
+    when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
+
+    jcsWithConsolidation.Poll();
+
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+
+    // not stopped yet
+    verify(jobManager, never()).abortJob(any());
+
+    verify(jobManager, times(1)).startJob(jobCaptor.capture());
+
+    Job actual = jobCaptor.getValue();
+    assertThat(actual.getId(), not("some-id"));
+    assertThat(actual.getSource(), equalTo(existingJob.getSource()));
+    assertThat(actual.getStores(), containsInAnyOrder(store1, store2));
   }
 
   private ConsumerRecord<String, IngestionJobProto.FeatureSetSpecAck> newAckMessage(

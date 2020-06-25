@@ -166,10 +166,18 @@ public class JobCoordinatorService {
           continue;
         }
 
-        if (jobRequiresUpgrade(job, stores)) {
+        if (jobRequiresUpgrade(job, stores) && job.isRunning()) {
+          // Since we want to upgrade job without downtime
+          // it would make sense to spawn clone of current job
+          // and terminate old version on the next Poll.
+          // Both jobs should be in the same consumer group and not conflict with each other
+          job = job.clone();
+          job.setId(groupingStrategy.createJobId(job));
           job.setStores(stores);
 
-          jobTasks.add(UpgradeJobTask.builder().setJob(job).setJobManager(jobManager).build());
+          isSafeToStopJobs = false;
+
+          jobTasks.add(CreateJobTask.builder().setJob(job).setJobManager(jobManager).build());
         } else {
           jobTasks.add(UpdateJobStatusTask.builder().setJob(job).setJobManager(jobManager).build());
         }
