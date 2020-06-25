@@ -21,7 +21,7 @@ CRON_JOB_ID=$3
 
 if [ -z "$CRON_JOB_ID" ]
 then
-  CRON_JOB_ID=`python -c 'import time; print int(time.time())'`
+  CRON_JOB_ID=$(date +%s)
 fi
 
 TEMPLATE="apiVersion: batch/v1beta1
