@@ -68,10 +68,20 @@ public class JobConfig {
         .build();
   }
 
+  /**
+   * Returns Grouping Strategy which is responsible for how Ingestion would be split across job
+   * instances (or how Sources and Stores would be grouped together). Choosing strategy depends on
+   * FeastProperties config "feast.jobs.consolidate-jobs-per-source".
+   *
+   * @param feastProperties feast config properties
+   * @param jobRepository repository required by strategy
+   * @return JobGroupingStrategy
+   */
   @Bean
   public JobGroupingStrategy getJobGroupingStrategy(
       FeastProperties feastProperties, JobRepository jobRepository) {
-    if (feastProperties.getJobs().getConsolidateJobsPerSource()) {
+    Boolean shouldConsolidateJobs = feastProperties.getJobs().getConsolidateJobsPerSource();
+    if (shouldConsolidateJobs) {
       return new ConsolidatedJobStrategy(jobRepository);
     } else {
       return new JobPerStoreStrategy(jobRepository);
