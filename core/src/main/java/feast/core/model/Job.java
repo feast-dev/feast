@@ -158,6 +158,18 @@ public class Job extends AbstractTimestampEntity {
     return ingestJob;
   }
 
+  public Job clone() {
+    return Job.builder()
+        .setStores(getStores())
+        .setStoreName(getStoreName())
+        .setSourceConfig(getSourceConfig())
+        .setSourceType(getSourceType())
+        .setFeatureSetJobStatuses(new HashSet<>())
+        .setRunner(getRunner())
+        .setStatus(JobStatus.UNKNOWN)
+        .build();
+  }
+
   @Override
   public int hashCode() {
     return Objects.hash(getSource(), this.stores, this.runner);
