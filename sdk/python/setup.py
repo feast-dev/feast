@@ -56,9 +56,12 @@ repo_root = (
     .rstrip()
     .decode("utf-8")
 )
-README_FILE = os.path.join(repo_root, "README.md")
-with open(os.path.join(README_FILE), "r") as f:
-    LONG_DESCRIPTION = f.read()
+try:
+    README_FILE = os.path.join(repo_root, "README.md")
+    with open(os.path.join(README_FILE), "r") as f:
+        LONG_DESCRIPTION = f.read()
+except Exception as e:
+    LONG_DESCRIPTION = "A python SDK for Feast"
 
 setup(
     name=NAME,
