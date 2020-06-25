@@ -741,6 +741,77 @@ def test_list_entities_and_features(client):
     assert set(filter_by_project_entity_expected) == set(filter_by_project_entity_actual)
     assert set(filter_by_project_labels_expected) == set(filter_by_project_labels_actual)
 
+
+@pytest.fixture(scope='module')
+def list_type_dataframe():
+    N_ROWS = 2
+    time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
+    customer_df = pd.DataFrame(
+        {
+            "datetime": [time_offset] * N_ROWS,
+            "customer_id": [i for i in range(N_ROWS)],
+            "rating": [i for i in range(N_ROWS)],
+            "cost": [float(i)+0.5 for i in range(N_ROWS)],
+            "past_transactions_int": [[i,i+2] for i in range(N_ROWS)],
+            "past_transactions_double": [[float(i)+0.5,float(i)+2] for i in range(N_ROWS)],
+            "past_transactions_float": [[float(i)+0.5,float(i)+2] for i in range(N_ROWS)],
+            "past_transactions_string": [['first_'+str(i),'second_'+str(i)] for i in range(N_ROWS)],
+            "past_transactions_bool": [[True,False] for _ in range(N_ROWS)]
+        }
+    )
+    return customer_df
+
+
+@pytest.mark.timeout(600)
+@pytest.mark.run(order=43)
+def test_basic_retrieve_online_dict(client, list_type_dataframe):
+    customer_fs = FeatureSet(
+        name="customer2",
+        features=[
+            Feature(name="rating", dtype=ValueType.INT64, labels={"key1":"val1"}),
+            Feature(name="cost", dtype=ValueType.FLOAT),
+            Feature(name="past_transactions_int", dtype=ValueType.INT64_LIST),
+            Feature(name="past_transactions_double", dtype=ValueType.DOUBLE_LIST),
+            Feature(name="past_transactions_float", dtype=ValueType.FLOAT_LIST),
+            Feature(name="past_transactions_string", dtype=ValueType.STRING_LIST),
+            Feature(name="past_transactions_bool", dtype=ValueType.BOOL_LIST)
+        ],
+        entities=[Entity("customer_id", ValueType.INT64)],
+        max_age=Duration(seconds=600)
+    )
+
+    client.set_project(PROJECT_NAME)
+    client.apply(customer_fs)
+
+    customer_fs = client.get_feature_set(name="customer2")
+    client.ingest(customer_fs, list_type_dataframe, timeout=300)
+    time.sleep(15)
+
+    online_request_entity = [{"customer_id": 1}]
+    online_request_features = [
+        "rating",
+        "cost",
+        "past_transactions_int",
+        "past_transactions_double",
+        "past_transactions_float",
+        "past_transactions_string",
+        "past_transactions_bool"
+    ]
+
+    online_features_actual = client.get_online_features(entity_rows=online_request_entity, feature_refs=online_request_features)
+    online_features_expected = {
+        "customer_id": 1,
+        "rating": 1,
+        "cost": 1.5,
+        "past_transactions_int": [1,3],
+        "past_transactions_double": [1.5,3.0],
+        "past_transactions_float": [1.5,3.0],
+        "past_transactions_string": ['first_1','second_1'],
+        "past_transactions_bool": [True,False]
+    }
+    assert online_features_actual.to_dict() == online_features_expected
+
+
 @pytest.mark.timeout(900)
 @pytest.mark.run(order=50)
 def test_sources_deduplicate_ingest_jobs(client):

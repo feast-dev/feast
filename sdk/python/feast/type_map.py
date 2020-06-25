@@ -13,12 +13,13 @@
 # limitations under the License.
 
 from datetime import datetime, timezone
-from typing import List
+from typing import Any, List
 
 import numpy as np
 import pandas as pd
 import pyarrow as pa
 from google.protobuf.timestamp_pb2 import Timestamp
+from google.protobuf.json_format import MessageToDict
 from pyarrow.lib import TimestampType
 
 from feast.constants import DATETIME_COLUMN
@@ -36,6 +37,36 @@ from feast.types.Value_pb2 import (
 from feast.types.Value_pb2 import Value as ProtoValue
 from feast.types.Value_pb2 import ValueType as ProtoValueType
 from feast.value_type import ValueType
+
+
+def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
+    """
+    Converts field value Proto to Dict and returns each field's Feast Value Type value
+    in their respective Python value.
+
+    Args:
+        field_value_proto: Field value Proto
+
+    Returns:
+        Python native type based on Feast Value Type
+    """
+    field_value_dict = MessageToDict(field_value_proto)
+
+    for k, v in field_value_dict.items():
+        if k == "int64Val":
+            return int(v)
+        if (k == "int64ListVal") or (k == "int32ListVal"):
+            return [int(item) for item in v["val"]]
+        if (k == "floatListVal") or (k == "doubleListVal"):
+            return [float(item) for item in v["val"]]
+        if k == "stringListVal":
+            return [str(item) for item in v["val"]]
+        if k == "bytesListVal":
+            return [bytes(item) for item in v["val"]]
+        if k == "boolListVal":
+            return [bool(item) for item in v["val"]]
+
+        return v
 
 
 def python_type_to_feast_value_type(
