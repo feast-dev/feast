@@ -201,7 +201,7 @@ public class BigQuerySinkTest {
             p.apply(
                 Create.of(
                     ImmutableMap.of(
-                        new FeatureSetReference(spec.getProject(), spec.getName(), 1), spec))));
+                        FeatureSetReference.of(spec.getProject(), spec.getName(), 1), spec))));
     PCollection<FeatureRow> successfulInserts =
         p.apply(featureRowTestStream).apply(sink.writer()).getSuccessfulInserts();
     PAssert.that(successfulInserts).containsInAnyOrder(row1, row2);
@@ -249,7 +249,7 @@ public class BigQuerySinkTest {
                 "StaticSpecs",
                 Create.of(
                     ImmutableMap.of(
-                        new FeatureSetReference(spec.getProject(), spec.getName(), 1), spec))));
+                        FeatureSetReference.of(spec.getProject(), spec.getName(), 1), spec))));
 
     p.apply(featureRowTestStream).apply(sink.writer());
     p.run();
@@ -281,7 +281,7 @@ public class BigQuerySinkTest {
                 "StaticSpecs",
                 Create.of(
                     ImmutableMap.of(
-                        new FeatureSetReference(spec.getProject(), spec.getName(), 1), spec))));
+                        FeatureSetReference.of(spec.getProject(), spec.getName(), 1), spec))));
 
     PTransform<PCollection<FeatureRow>, WriteResult> writer =
         ((BigQueryWrite) sink.writer()).withExpectingResultTime(Duration.standardSeconds(5));
@@ -328,7 +328,7 @@ public class BigQuerySinkTest {
             p.apply(
                 Create.of(
                     ImmutableMap.of(
-                        new FeatureSetReference(spec_fs_2.getProject(), spec_fs_2.getName(), 1),
+                        FeatureSetReference.of(spec_fs_2.getProject(), spec_fs_2.getName(), 1),
                         spec_fs_2))));
 
     TestStream<FeatureRow> featureRowTestStream =
@@ -383,10 +383,10 @@ public class BigQuerySinkTest {
                 KvCoder.of(
                     AvroCoder.of(FeatureSetReference.class), ProtoCoder.of(FeatureSetSpec.class)))
             .advanceWatermarkTo(Instant.now())
-            .addElements(KV.of(new FeatureSetReference("myproject", "fs", 1), spec))
+            .addElements(KV.of(FeatureSetReference.of("myproject", "fs", 1), spec))
             .advanceProcessingTime(Duration.standardSeconds(5))
             // .advanceWatermarkTo(Instant.now().plus(Duration.standardSeconds(5)))
-            .addElements(KV.of(new FeatureSetReference("myproject", "fs", 1), spec_fs_2))
+            .addElements(KV.of(FeatureSetReference.of("myproject", "fs", 1), spec_fs_2))
             .advanceWatermarkToInfinity();
 
     FeatureSink sink =

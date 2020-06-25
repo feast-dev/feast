@@ -119,8 +119,8 @@ public class RedisClusterFeatureSinkTest {
 
     Map<FeatureSetReference, FeatureSetSpec> specMap =
         ImmutableMap.of(
-            new FeatureSetReference("myproject", "fs", 1), spec1,
-            new FeatureSetReference("myproject", "feature_set", 1), spec2);
+            FeatureSetReference.of("myproject", "fs", 1), spec1,
+            FeatureSetReference.of("myproject", "feature_set", 1), spec2);
     RedisClusterConfig redisClusterConfig =
         RedisClusterConfig.newBuilder()
             .setConnectionString(CONNECTION_STRING)

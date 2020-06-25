@@ -112,8 +112,8 @@ public class RedisFeatureSinkTest {
 
     specMap =
         ImmutableMap.of(
-            new FeatureSetReference("myproject", "fs", 1), spec1,
-            new FeatureSetReference("myproject", "feature_set", 1), spec2);
+            FeatureSetReference.of("myproject", "fs", 1), spec1,
+            FeatureSetReference.of("myproject", "feature_set", 1), spec2);
     StoreProto.Store.RedisConfig redisConfig =
         StoreProto.Store.RedisConfig.newBuilder().setHost(REDIS_HOST).setPort(REDIS_PORT).build();
 

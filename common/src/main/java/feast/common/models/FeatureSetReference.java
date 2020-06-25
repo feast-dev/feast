@@ -20,18 +20,28 @@ import java.io.Serializable;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+/**
+ * FeatureSetReference is key that uniquely defines specific version of FeatureSet or FeatureSetSpec
+ */
 @Data
 @AllArgsConstructor
 public class FeatureSetReference implements Serializable {
+  /* Name of project to which this featureSet is assigned */
   private String projectName;
+  /* Name of FeatureSet */
   private String featureSetName;
+  /* Version of FeatureSet */
   private Integer version;
 
   // Empty constructor required for Avro decoding.
   @SuppressWarnings("unused")
   public FeatureSetReference() {}
 
+  public static FeatureSetReference of(String projectName, String featureSetName, Integer version) {
+    return new FeatureSetReference(projectName, featureSetName, version);
+  }
+
   public String getReference() {
-    return String.format("%s/%s", projectName, featureSetName);
+    return String.format("%s/%s", getProjectName(), getFeatureSetName());
   }
 }

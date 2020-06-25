@@ -111,7 +111,7 @@ public abstract class ReadFeatureSetSpecs
                           Comparator.comparing(FeatureSetSpec::getVersion).reversed());
                       return featureSetSpecs.get(0);
                     }))
-        .apply("FeatureSetReferenceKey", ParDo.of(new CreateFeatureSetReference()))
+        .apply("CreateFeatureSetReferenceKey", ParDo.of(new CreateFeatureSetReference()))
         .setCoder(
             KvCoder.of(
                 AvroCoder.of(FeatureSetReference.class), ProtoCoder.of(FeatureSetSpec.class)));
@@ -127,7 +127,7 @@ public abstract class ReadFeatureSetSpecs
       Pair<String, String> reference = parseFeatureSetReference(input.getKey());
       c.output(
           KV.of(
-              new FeatureSetReference(
+              FeatureSetReference.of(
                   reference.getLeft(), reference.getRight(), input.getValue().getVersion()),
               input.getValue()));
     }

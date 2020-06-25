@@ -37,21 +37,21 @@ public class WriteFeatureSetSpecAckTest {
   public void shouldSendAckWhenAllSinksReady() {
     TestStream<FeatureSetReference> sink1 =
         TestStream.create(AvroCoder.of(FeatureSetReference.class))
-            .addElements(new FeatureSetReference("project", "fs", 1))
-            .addElements(new FeatureSetReference("project", "fs", 2))
-            .addElements(new FeatureSetReference("project", "fs", 3))
+            .addElements(FeatureSetReference.of("project", "fs", 1))
+            .addElements(FeatureSetReference.of("project", "fs", 2))
+            .addElements(FeatureSetReference.of("project", "fs", 3))
             .advanceWatermarkToInfinity();
 
     TestStream<FeatureSetReference> sink2 =
         TestStream.create(AvroCoder.of(FeatureSetReference.class))
-            .addElements(new FeatureSetReference("project", "fs_2", 1))
-            .addElements(new FeatureSetReference("project", "fs", 3))
+            .addElements(FeatureSetReference.of("project", "fs_2", 1))
+            .addElements(FeatureSetReference.of("project", "fs", 3))
             .advanceWatermarkToInfinity();
 
     TestStream<FeatureSetReference> sink3 =
         TestStream.create(AvroCoder.of(FeatureSetReference.class))
             .advanceProcessingTime(Duration.standardSeconds(10))
-            .addElements(new FeatureSetReference("project", "fs", 3))
+            .addElements(FeatureSetReference.of("project", "fs", 3))
             .advanceWatermarkToInfinity();
 
     PCollectionList<FeatureSetReference> sinks =
@@ -64,7 +64,7 @@ public class WriteFeatureSetSpecAckTest {
 
     PAssert.that(grouped)
         .inOnTimePane(GlobalWindow.INSTANCE)
-        .containsInAnyOrder(new FeatureSetReference("project", "fs", 3));
+        .containsInAnyOrder(FeatureSetReference.of("project", "fs", 3));
 
     p.run();
   }
