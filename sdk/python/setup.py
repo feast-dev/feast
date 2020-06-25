@@ -19,7 +19,7 @@ from setuptools import find_packages, setup
 
 NAME = "feast"
 DESCRIPTION = "Python SDK for Feast"
-URL = "https://github.com/feast-dev/feast"
+URL = "https://github.com/gojek/feast"
 AUTHOR = "Feast"
 REQUIRES_PYTHON = ">=3.6.0"
 
@@ -46,7 +46,6 @@ REQUIRED = [
     "numpy",
     "google",
     "confluent_kafka",
-    'boto3'
 ]
 
 # README file from Feast repo root directory
@@ -56,9 +55,12 @@ repo_root = (
     .rstrip()
     .decode("utf-8")
 )
-README_FILE = os.path.join(repo_root, "README.md")
-with open(os.path.join(README_FILE), "r") as f:
-    LONG_DESCRIPTION = f.read()
+try:
+    README_FILE = os.path.join(repo_root, "README.md")
+    with open(os.path.join(README_FILE), "r") as f:
+        LONG_DESCRIPTION = f.read()
+except Exception as e:
+    LONG_DESCRIPTION = "A python SDK for Feast"
 
 setup(
     name=NAME,
