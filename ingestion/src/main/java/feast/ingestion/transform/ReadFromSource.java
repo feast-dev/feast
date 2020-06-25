@@ -99,8 +99,9 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
   }
 
   private String generateConsumerGroupId(String jobName) {
+    String[] split = jobName.split("-");
     String jobNameWithoutTimestamp =
-        Arrays.stream(jobName.split("-")).limit(4).collect(Collectors.joining("-"));
+        Arrays.stream(split).limit(split.length - 1).collect(Collectors.joining("-"));
     return "feast_import_job_" + jobNameWithoutTimestamp;
   }
 }

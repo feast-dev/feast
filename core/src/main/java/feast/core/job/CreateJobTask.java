@@ -19,19 +19,13 @@ package feast.core.job;
 import feast.core.log.Action;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
-import feast.core.model.Source;
-import java.time.Instant;
-import java.util.Objects;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Task that starts recently created {@link Job} by using {@link JobManager}. Since it's new job its
- * Id being generated from attached {@link Source} and updated accordingly in-place.
- */
+/** Task that starts recently created {@link Job} by using {@link JobManager}. */
 @Getter
 @Setter
 @Builder(setterPrefix = "set")
@@ -43,12 +37,10 @@ public class CreateJobTask implements JobTask {
 
   @Override
   public Job call() {
-    String jobId = createJobId(job.getSource());
     String runnerName = jobManager.getRunnerType().toString();
 
     job.setRunner(jobManager.getRunnerType());
     job.setStatus(JobStatus.PENDING);
-    job.setId(jobId);
 
     try {
       JobTask.logAudit(Action.SUBMIT, job, "Building graph and submitting to %s", runnerName);
@@ -72,13 +64,5 @@ public class CreateJobTask implements JobTask {
       job.setStatus(JobStatus.ERROR);
       return job;
     }
-  }
-
-  String createJobId(Source source) {
-    String dateSuffix = String.valueOf(Instant.now().toEpochMilli());
-    String jobId =
-        String.format(
-            "%s-%d-%s", source.getTypeString(), Objects.hashCode(source.getConfig()), dateSuffix);
-    return jobId.replaceAll("_store", "-").toLowerCase();
   }
 }

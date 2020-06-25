@@ -18,16 +18,18 @@ package feast.core.service;
 
 import static feast.proto.core.FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_DELIVERED;
 import static feast.proto.core.FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS;
+import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.beans.HasPropertyWithValue.hasProperty;
+import static org.hamcrest.core.StringContains.containsString;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -54,6 +56,7 @@ import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.*;
 import java.util.concurrent.CancellationException;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.Before;
 import org.junit.Rule;
@@ -75,7 +78,8 @@ public class JobCoordinatorServiceTest {
   @Mock SourceRepository sourceRepository;
 
   private FeastProperties feastProperties;
-  private JobCoordinatorService jcs;
+  private JobCoordinatorService jcsWithConsolidation;
+  private JobCoordinatorService jcsWithJobPerStore;
 
   @Before
   public void setUp() {
@@ -85,14 +89,24 @@ public class JobCoordinatorServiceTest {
     jobProperties.setJobUpdateTimeoutSeconds(5);
     feastProperties.setJobs(jobProperties);
 
-    jcs =
+    jcsWithConsolidation =
         new JobCoordinatorService(
             jobRepository,
             featureSetRepository,
-            sourceRepository,
             specService,
             jobManager,
             feastProperties,
+            new ConsolidatedJobStrategy(jobRepository),
+            kafkaTemplate);
+
+    jcsWithJobPerStore =
+        new JobCoordinatorService(
+            jobRepository,
+            featureSetRepository,
+            specService,
+            jobManager,
+            feastProperties,
+            new JobPerStoreStrategy(jobRepository),
             kafkaTemplate);
 
     when(kafkaTemplate.sendDefault(any(), any())).thenReturn(new AsyncResult<>(null));
@@ -101,7 +115,7 @@ public class JobCoordinatorServiceTest {
   @Test
   public void shouldDoNothingIfNoStoresFound() throws InvalidProtocolBufferException {
     when(specService.listStores(any())).thenReturn(ListStoresResponse.newBuilder().build());
-    jcs.Poll();
+    jcsWithConsolidation.Poll();
     verify(jobRepository, times(0)).saveAndFlush(any());
   }
 
@@ -117,7 +131,7 @@ public class JobCoordinatorServiceTest {
     when(specService.listFeatureSets(
             Filter.newBuilder().setProject("*").setFeatureSetName("*").build()))
         .thenReturn(ListFeatureSetsResponse.newBuilder().build());
-    jcs.Poll();
+    jcsWithConsolidation.Poll();
     verify(jobRepository, times(0)).saveAndFlush(any());
   }
 
@@ -194,7 +208,7 @@ public class JobCoordinatorServiceTest {
                 JobStatus.getTerminalStates()))
         .thenReturn(Optional.empty());
 
-    jcs.Poll();
+    jcsWithConsolidation.Poll();
     verify(jobRepository, times(1)).saveAll(jobArgCaptor.capture());
     List<Job> actual = jobArgCaptor.getValue();
     assertThat(actual, containsInAnyOrder(expected));
@@ -259,20 +273,14 @@ public class JobCoordinatorServiceTest {
     when(jobRepository.findByStatus(JobStatus.RUNNING)).thenReturn(List.of());
     when(jobRepository
             .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
-                source1.getType(),
-                source1.getConfig(),
-                storeSpec.getName(),
-                JobStatus.getTerminalStates()))
+                source1.getType(), source1.getConfig(), null, JobStatus.getTerminalStates()))
         .thenReturn(Optional.empty());
     when(jobRepository
             .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
-                source2.getType(),
-                source2.getConfig(),
-                storeSpec.getName(),
-                JobStatus.getTerminalStates()))
+                source2.getType(), source2.getConfig(), null, JobStatus.getTerminalStates()))
         .thenReturn(Optional.empty());
 
-    jcs.Poll();
+    jcsWithConsolidation.Poll();
 
     ArgumentCaptor<List<Job>> jobArgCaptor = ArgumentCaptor.forClass(List.class);
     verify(jobRepository, times(1)).saveAll(jobArgCaptor.capture());
@@ -332,15 +340,12 @@ public class JobCoordinatorServiceTest {
     when(jobRepository.findByStatus(JobStatus.RUNNING)).thenReturn(List.of());
     when(jobRepository
             .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
-                source1.getType(),
-                source1.getConfig(),
-                storeSpec.getName(),
-                JobStatus.getTerminalStates()))
+                source1.getType(), source1.getConfig(), null, JobStatus.getTerminalStates()))
         .thenReturn(Optional.empty());
 
     ArgumentCaptor<List<Job>> jobArgCaptor = ArgumentCaptor.forClass(List.class);
 
-    jcs.Poll();
+    jcsWithConsolidation.Poll();
     verify(jobRepository, times(1)).saveAll(jobArgCaptor.capture());
     List<Job> actual = jobArgCaptor.getValue();
     assertThat(actual, containsInAnyOrder(expected));
@@ -400,7 +405,7 @@ public class JobCoordinatorServiceTest {
         .thenReturn(Optional.of(inputJobs.get(0)));
     when(jobRepository.findByStatus(JobStatus.RUNNING)).thenReturn(inputJobs);
 
-    jcs.Poll();
+    jcsWithConsolidation.Poll();
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
 
@@ -496,7 +501,7 @@ public class JobCoordinatorServiceTest {
                 source2.getType(), source2.getConfig(), null, JobStatus.getTerminalStates()))
         .thenReturn(Optional.empty());
 
-    jcs.Poll();
+    jcsWithConsolidation.Poll();
 
     verify(jobRepository, times(1)).saveAll(jobArgCaptor.capture());
     List<Job> actual = jobArgCaptor.getValue();
@@ -548,7 +553,7 @@ public class JobCoordinatorServiceTest {
     when(featureSetRepository.findAllByStatus(FeatureSetProto.FeatureSetStatus.STATUS_PENDING))
         .thenReturn(ImmutableList.of(fs1, fs2, fs3));
 
-    jcs.notifyJobsWhenFeatureSetUpdated();
+    jcsWithConsolidation.notifyJobsWhenFeatureSetUpdated();
 
     verify(kafkaTemplate).sendDefault(eq(fs1.getReference()), any(FeatureSetSpec.class));
     verify(kafkaTemplate, never()).sendDefault(eq(fs2.getReference()), any(FeatureSetSpec.class));
@@ -581,7 +586,7 @@ public class JobCoordinatorServiceTest {
     when(featureSetRepository.findAllByStatus(FeatureSetProto.FeatureSetStatus.STATUS_PENDING))
         .thenReturn(ImmutableList.of(fsInTest));
 
-    jcs.notifyJobsWhenFeatureSetUpdated();
+    jcsWithConsolidation.notifyJobsWhenFeatureSetUpdated();
     assertThat(featureSetJobStatus.getVersion(), is(1));
   }
 
@@ -601,9 +606,11 @@ public class JobCoordinatorServiceTest {
             fsInTest.getName(), fsInTest.getProject().getName()))
         .thenReturn(fsInTest);
 
-    jcs.listenAckFromJobs(newAckMessage("project/invalid", 0, j1.getJob().getId()));
-    jcs.listenAckFromJobs(newAckMessage(fsInTest.getReference(), 0, ""));
-    jcs.listenAckFromJobs(newAckMessage(fsInTest.getReference(), -1, j1.getJob().getId()));
+    jcsWithConsolidation.listenAckFromJobs(
+        newAckMessage("project/invalid", 0, j1.getJob().getId()));
+    jcsWithConsolidation.listenAckFromJobs(newAckMessage(fsInTest.getReference(), 0, ""));
+    jcsWithConsolidation.listenAckFromJobs(
+        newAckMessage(fsInTest.getReference(), -1, j1.getJob().getId()));
 
     assertThat(j1.getDeliveryStatus(), is(STATUS_IN_PROGRESS));
     assertThat(j2.getDeliveryStatus(), is(STATUS_IN_PROGRESS));
@@ -629,13 +636,13 @@ public class JobCoordinatorServiceTest {
             fsInTest.getName(), fsInTest.getProject().getName()))
         .thenReturn(fsInTest);
 
-    jcs.listenAckFromJobs(
+    jcsWithConsolidation.listenAckFromJobs(
         newAckMessage(fsInTest.getReference(), fsInTest.getVersion(), j1.getJob().getId()));
 
     assertThat(j1.getDeliveryStatus(), is(STATUS_DELIVERED));
     assertThat(fsInTest.getStatus(), is(FeatureSetProto.FeatureSetStatus.STATUS_PENDING));
 
-    jcs.listenAckFromJobs(
+    jcsWithConsolidation.listenAckFromJobs(
         newAckMessage(fsInTest.getReference(), fsInTest.getVersion(), j2.getJob().getId()));
 
     assertThat(j2.getDeliveryStatus(), is(STATUS_DELIVERED));
@@ -658,7 +665,7 @@ public class JobCoordinatorServiceTest {
     featureSet2.setVersion(5);
 
     Job job = new Job();
-    jcs.allocateFeatureSets(job, ImmutableSet.of(featureSet1));
+    jcsWithConsolidation.allocateFeatureSets(job, ImmutableSet.of(featureSet1));
 
     FeatureSetJobStatus expectedStatus1 = new FeatureSetJobStatus();
     expectedStatus1.setJob(job);
@@ -671,7 +678,7 @@ public class JobCoordinatorServiceTest {
     expectedStatus1.setDeliveryStatus(STATUS_DELIVERED);
     job.getFeatureSetJobStatuses().forEach(j -> j.setDeliveryStatus(STATUS_DELIVERED));
 
-    jcs.allocateFeatureSets(job, ImmutableSet.of(featureSet1, featureSet2));
+    jcsWithConsolidation.allocateFeatureSets(job, ImmutableSet.of(featureSet1, featureSet2));
 
     FeatureSetJobStatus expectedStatus2 = new FeatureSetJobStatus();
     expectedStatus2.setJob(job);
@@ -700,7 +707,9 @@ public class JobCoordinatorServiceTest {
                 source.getType(), source.getConfig(), null, JobStatus.getTerminalStates()))
         .thenReturn(Optional.of(job));
 
-    List<JobTask> tasks = jcs.makeJobUpdateTasks(ImmutableMap.of(source, ImmutableSet.of(store)));
+    List<JobTask> tasks =
+        jcsWithConsolidation.makeJobUpdateTasks(
+            ImmutableList.of(Pair.of(source, ImmutableSet.of(store))));
 
     assertThat("CheckStatus is expected", tasks.get(0) instanceof UpdateJobStatusTask);
   }
@@ -723,7 +732,9 @@ public class JobCoordinatorServiceTest {
                 source.getType(), source.getConfig(), null, JobStatus.getTerminalStates()))
         .thenReturn(Optional.of(job));
 
-    List<JobTask> tasks = jcs.makeJobUpdateTasks(ImmutableMap.of(source, ImmutableSet.of(store)));
+    List<JobTask> tasks =
+        jcsWithConsolidation.makeJobUpdateTasks(
+            ImmutableList.of(Pair.of(source, ImmutableSet.of(store))));
 
     assertThat("UpgradeTask is expected", tasks.get(0) instanceof UpgradeJobTask);
   }
@@ -733,21 +744,86 @@ public class JobCoordinatorServiceTest {
     Source source = TestUtil.createKafkaSource("kafka:9092", "topic", false);
     Store store = TestUtil.createStore("store", Collections.emptyList());
 
-    Job job =
-        Job.builder()
-            .setStatus(JobStatus.ERROR)
-            .setFeatureSetJobStatuses(new HashSet<>())
-            .setExtId("")
-            .build();
-
     when(jobRepository
             .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
                 source.getType(), source.getConfig(), null, JobStatus.getTerminalStates()))
-        .thenReturn(Optional.of(job));
+        .thenReturn(Optional.empty());
 
-    List<JobTask> tasks = jcs.makeJobUpdateTasks(ImmutableMap.of(source, ImmutableSet.of(store)));
+    List<JobTask> tasks =
+        jcsWithConsolidation.makeJobUpdateTasks(
+            ImmutableList.of(Pair.of(source, ImmutableSet.of(store))));
 
     assertThat("CreateTask is expected", tasks.get(0) instanceof CreateJobTask);
+  }
+
+  @Test
+  public void shouldCreateJobPerStore() throws InvalidProtocolBufferException {
+    Store store1 =
+        TestUtil.createStore(
+            "test-1", List.of(Subscription.newBuilder().setName("*").setProject("*").build()));
+    Store store2 =
+        TestUtil.createStore(
+            "test-2", List.of(Subscription.newBuilder().setName("*").setProject("*").build()));
+
+    Source source = TestUtil.createKafkaSource("kafka", "topic", false);
+
+    when(specService.listStores(any()))
+        .thenReturn(
+            ListStoresResponse.newBuilder()
+                .addStore(store1.toProto())
+                .addStore(store2.toProto())
+                .build());
+
+    when(featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc("%", "%"))
+        .thenReturn(ImmutableList.of(TestUtil.createEmptyFeatureSet("fs", source)));
+
+    when(jobRepository
+            .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
+                eq(source.getType()),
+                eq(source.getConfig()),
+                any(),
+                eq(JobStatus.getTerminalStates())))
+        .thenReturn(Optional.empty());
+
+    Job expected1 =
+        Job.builder()
+            .setSource(source)
+            .setStores(ImmutableSet.of(store1))
+            .setRunner(Runner.DATAFLOW)
+            .build();
+
+    Job expected2 =
+        Job.builder()
+            .setSource(source)
+            .setStores(ImmutableSet.of(store2))
+            .setRunner(Runner.DATAFLOW)
+            .build();
+
+    when(jobManager.startJob(any())).thenReturn(new Job());
+    when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
+
+    jcsWithJobPerStore.Poll();
+
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+
+    verify(jobManager, times(2)).startJob(jobCaptor.capture());
+    List<Job> actual = jobCaptor.getAllValues();
+
+    assertThat(actual, containsInAnyOrder(expected1, expected2));
+    assertThat(
+        actual,
+        hasItem(
+            hasProperty(
+                "id",
+                containsString(
+                    String.format("kafka-%d-to-test-1", Objects.hashCode(source.getConfig()))))));
+    assertThat(
+        actual,
+        hasItem(
+            hasProperty(
+                "id",
+                containsString(
+                    String.format("kafka-%d-to-test-2", Objects.hashCode(source.getConfig()))))));
   }
 
   private ConsumerRecord<String, IngestionJobProto.FeatureSetSpecAck> newAckMessage(

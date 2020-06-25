@@ -19,12 +19,10 @@ package feast.core.service;
 import static feast.core.model.FeatureSet.parseReference;
 
 import com.google.common.collect.Sets;
-import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.config.FeastProperties;
 import feast.core.config.FeastProperties.JobProperties;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobRepository;
-import feast.core.dao.SourceRepository;
 import feast.core.job.*;
 import feast.core.model.*;
 import feast.core.model.FeatureSet;
@@ -39,6 +37,7 @@ import feast.proto.core.IngestionJobProto;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -57,28 +56,28 @@ public class JobCoordinatorService {
 
   private final JobRepository jobRepository;
   private final FeatureSetRepository featureSetRepository;
-  private final SourceRepository sourceRepository;
   private final SpecService specService;
   private final JobManager jobManager;
   private final JobProperties jobProperties;
+  private final JobGroupingStrategy groupingStrategy;
   private final KafkaTemplate<String, FeatureSetProto.FeatureSetSpec> specPublisher;
 
   @Autowired
   public JobCoordinatorService(
       JobRepository jobRepository,
       FeatureSetRepository featureSetRepository,
-      SourceRepository sourceRepository,
       SpecService specService,
       JobManager jobManager,
       FeastProperties feastProperties,
+      JobGroupingStrategy groupingStrategy,
       KafkaTemplate<String, FeatureSetProto.FeatureSetSpec> specPublisher) {
     this.jobRepository = jobRepository;
     this.featureSetRepository = featureSetRepository;
-    this.sourceRepository = sourceRepository;
     this.specService = specService;
     this.jobManager = jobManager;
     this.jobProperties = feastProperties.getJobs();
     this.specPublisher = specPublisher;
+    this.groupingStrategy = groupingStrategy;
   }
 
   /**
@@ -94,9 +93,9 @@ public class JobCoordinatorService {
    */
   @Transactional
   @Scheduled(fixedDelayString = "${feast.jobs.polling_interval_milliseconds}")
-  public void Poll() throws InvalidProtocolBufferException {
+  public void Poll() {
     log.info("Polling for new jobs...");
-    Map<Source, Set<Store>> sourceStoreMappings = getSourceToStoreMappings();
+    Iterable<Pair<Source, Set<Store>>> sourceStoreMappings = getSourceToStoreMappings();
     List<JobTask> jobUpdateTasks = makeJobUpdateTasks(sourceStoreMappings);
 
     if (jobUpdateTasks.isEmpty()) {
@@ -137,18 +136,18 @@ public class JobCoordinatorService {
    * stop ingestion jobs its the required ingestions to maintained ingestion jobs are already
    * RUNNING.
    *
-   * @param sourceStoresMappings a list of source to store pairs where ingestion jobs would have to
+   * @param sourceToStores a iterable of source to stores pairs where ingestion jobs would have to
    *     be maintained for ingestion to work correctly.
    * @return list of job update tasks required to reconcile the current ingestion jobs to the state
    *     that is defined by sourceStoreMap.
    */
-  List<JobTask> makeJobUpdateTasks(Map<Source, Set<Store>> sourceStoresMappings) {
+  List<JobTask> makeJobUpdateTasks(Iterable<Pair<Source, Set<Store>>> sourceToStores) {
     List<JobTask> jobTasks = new LinkedList<>();
     // Ensure a running job for each source to store mapping
     List<Job> activeJobs = new LinkedList<>();
     boolean isSafeToStopJobs = true;
 
-    for (Map.Entry<Source, Set<Store>> mapping : sourceStoresMappings.entrySet()) {
+    for (Pair<Source, Set<Store>> mapping : sourceToStores) {
       Source source = mapping.getKey();
       Set<Store> stores = mapping.getValue();
       Set<FeatureSet> featureSets =
@@ -156,7 +155,7 @@ public class JobCoordinatorService {
               .flatMap(s -> getFeatureSetsForStore(s).stream())
               .collect(Collectors.toSet());
 
-      Job job = getOrCreateJob(source, stores);
+      Job job = groupingStrategy.getOrCreateJob(source, stores);
 
       if (job.isDeployed()) {
         if (!job.isRunning()) {
@@ -175,6 +174,8 @@ public class JobCoordinatorService {
           jobTasks.add(UpdateJobStatusTask.builder().setJob(job).setJobManager(jobManager).build());
         }
       } else {
+        job.setId(groupingStrategy.createJobId(job));
+
         jobTasks.add(CreateJobTask.builder().setJob(job).setJobManager(jobManager).build());
       }
 
@@ -250,21 +251,6 @@ public class JobCoordinatorService {
     }
   }
 
-  /** Get the non terminated ingestion job ingesting for given source. */
-  public Job getOrCreateJob(Source source, Set<Store> stores) {
-    return jobRepository
-        .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
-            source.getType(), source.getConfig(), null, JobStatus.getTerminalStates())
-        .orElseGet(
-            () ->
-                Job.builder()
-                    .setRunner(jobManager.getRunnerType())
-                    .setSource(source)
-                    .setStores(stores)
-                    .setFeatureSetJobStatuses(new HashSet<>())
-                    .build());
-  }
-
   /** Get running extra ingestion jobs that have ids not in keepJobs */
   @Transactional
   private Collection<Job> getExtraJobs(List<Job> keepJobs) {
@@ -276,12 +262,12 @@ public class JobCoordinatorService {
   }
 
   /**
-   * Generate a source to stores mapping. The mapping maps the source to Set-of-stores in which
-   * ingestion jobs would have to be maintained for ingestion to work correctly.
+   * Generate a source to stores mapping. The resulting iterable yields pairs of Source and
+   * Set-of-stores to create one ingestion job per each pair.
    *
    * @return a Map from source to stores.
    */
-  private Map<Source, Set<Store>> getSourceToStoreMappings() {
+  private Iterable<Pair<Source, Set<Store>>> getSourceToStoreMappings() {
     ListStoresResponse listStoresResponse = specService.listStores(Filter.newBuilder().build());
     List<Store> stores =
         listStoresResponse.getStoreList().stream()
@@ -291,16 +277,15 @@ public class JobCoordinatorService {
     // build mapping from source to store.
     // compile a set of sources via subscribed FeatureSets of stores.
 
-    return stores.stream()
-        .flatMap(
-            store ->
-                getFeatureSetsForStore(store).stream()
-                    .map(FeatureSet::getSource)
-                    .map(source -> Pair.of(source, store)))
-        .distinct()
-        .collect(
-            Collectors.groupingBy(
-                Pair::getLeft, Collectors.mapping(Pair::getRight, Collectors.toSet())));
+    Stream<Pair<Source, Store>> distinctPairs =
+        stores.stream()
+            .flatMap(
+                store ->
+                    getFeatureSetsForStore(store).stream()
+                        .map(FeatureSet::getSource)
+                        .map(source -> Pair.of(source, store)))
+            .distinct();
+    return groupingStrategy.collectSingleJobInput(distinctPairs);
   }
 
   /**

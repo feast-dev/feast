@@ -81,6 +81,9 @@ public class FeastProperties {
     /* The active Apache Beam runner name. This name references one instance of the Runner class */
     private String activeRunner;
 
+    /* If true only one IngestionJob would be created per source with all subscribed stores in it */
+    private Boolean consolidateJobsPerSource = false;
+
     /** List of configured job runners. */
     private List<Runner> runners = new ArrayList<>();
 
