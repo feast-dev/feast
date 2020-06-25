@@ -19,6 +19,7 @@ package feast.ingestion;
 import static feast.ingestion.utils.StoreUtil.getFeatureSink;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import feast.common.models.FeatureSetReference;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.transform.FeatureRowToStoreAllocator;
 import feast.ingestion.transform.ProcessAndValidateFeatureRows;
@@ -97,7 +98,7 @@ public class ImportJob {
         SpecUtil.parseSpecsStreamingUpdateConfig(options.getSpecsStreamingUpdateConfigJson());
 
     // Step 1. Read FeatureSetSpecs from Spec source
-    PCollection<KV<String, FeatureSetSpec>> featureSetSpecs =
+    PCollection<KV<FeatureSetReference, FeatureSetSpec>> featureSetSpecs =
         pipeline.apply(
             "ReadFeatureSetSpecs",
             ReadFeatureSetSpecs.newBuilder()
@@ -107,7 +108,9 @@ public class ImportJob {
                 .build());
 
     PCollectionView<Map<String, Iterable<FeatureSetSpec>>> globalSpecView =
-        featureSetSpecs.apply("GlobalSpecView", View.asMultimap());
+        featureSetSpecs
+            .apply(MapElements.via(new ReferenceToString()))
+            .apply("GlobalSpecView", View.asMultimap());
 
     // Step 2. Read messages from Feast Source as FeatureRow.
     PCollectionTuple convertedFeatureRows =
@@ -146,8 +149,12 @@ public class ImportJob {
                     .setStoreTags(storeTags)
                     .build());
 
+    PCollectionList<FeatureSetReference> sinkReadiness = PCollectionList.empty(pipeline);
+
     for (Store store : stores) {
-      FeatureSink featureSink = getFeatureSink(store, featureSetSpecs);
+      FeatureSink featureSink = getFeatureSink(store);
+
+      sinkReadiness = sinkReadiness.and(featureSink.prepareWrite(featureSetSpecs));
 
       // Step 5. Write metrics of successfully validated rows
       validatedRows
@@ -190,13 +197,22 @@ public class ImportJob {
           .apply("WriteFailureMetrics", WriteFailureMetricsTransform.create(store.getName()));
     }
 
-    // Step 9. Send ack that FeatureSetSpec state is updated
-    featureSetSpecs.apply(
-        "WriteAck",
-        WriteFeatureSetSpecAck.newBuilder()
-            .setSpecsStreamingUpdateConfig(specsStreamingUpdateConfig)
-            .build());
+    sinkReadiness
+        .apply(Flatten.pCollections())
+        .apply(
+            "WriteAck",
+            WriteFeatureSetSpecAck.newBuilder()
+                .setSinksCount(stores.size())
+                .setSpecsStreamingUpdateConfig(specsStreamingUpdateConfig)
+                .build());
 
     return pipeline.run();
+  }
+
+  private static class ReferenceToString
+      extends SimpleFunction<KV<FeatureSetReference, FeatureSetSpec>, KV<String, FeatureSetSpec>> {
+    public KV<String, FeatureSetSpec> apply(KV<FeatureSetReference, FeatureSetSpec> input) {
+      return KV.of(input.getKey().getReference(), input.getValue());
+    }
   }
 }

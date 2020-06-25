@@ -23,6 +23,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Timestamp;
+import feast.common.models.FeatureSetReference;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
@@ -69,6 +70,7 @@ public class RedisFeatureSinkTest {
   private RedisStringCommands<byte[], byte[]> sync;
 
   private RedisFeatureSink redisFeatureSink;
+  private Map<FeatureSetReference, FeatureSetSpec> specMap;
 
   @Before
   public void setUp() throws IOException {
@@ -108,16 +110,15 @@ public class RedisFeatureSinkTest {
                 FeatureSpec.newBuilder().setName("feature_2").setValueType(Enum.INT64).build())
             .build();
 
-    Map<String, FeatureSetSpec> specMap =
-        ImmutableMap.of("myproject/fs", spec1, "myproject/feature_set", spec2);
+    specMap =
+        ImmutableMap.of(
+            FeatureSetReference.of("myproject", "fs", 1), spec1,
+            FeatureSetReference.of("myproject", "feature_set", 1), spec2);
     StoreProto.Store.RedisConfig redisConfig =
         StoreProto.Store.RedisConfig.newBuilder().setHost(REDIS_HOST).setPort(REDIS_PORT).build();
 
-    redisFeatureSink =
-        RedisFeatureSink.builder()
-            .setFeatureSetSpecs(p.apply("Specs-1", Create.of(specMap)))
-            .setRedisConfig(redisConfig)
-            .build();
+    redisFeatureSink = RedisFeatureSink.builder().setRedisConfig(redisConfig).build();
+    redisFeatureSink.prepareWrite(p.apply("Specs-1", Create.of(specMap)));
   }
 
   @After
@@ -181,7 +182,12 @@ public class RedisFeatureSinkTest {
             .setMaxRetries(4)
             .setInitialBackoffMs(2000)
             .build();
-    redisFeatureSink = redisFeatureSink.toBuilder().setRedisConfig(redisConfig).build();
+    redisFeatureSink =
+        redisFeatureSink
+            .toBuilder()
+            .setRedisConfig(redisConfig)
+            .build()
+            .withSpecsView(redisFeatureSink.getSpecsView());
 
     HashMap<RedisKey, FeatureRow> kvs = new LinkedHashMap<>();
     kvs.put(
@@ -235,7 +241,12 @@ public class RedisFeatureSinkTest {
 
     RedisConfig redisConfig =
         RedisConfig.newBuilder().setHost(REDIS_HOST).setPort(REDIS_PORT + 1).build();
-    redisFeatureSink = redisFeatureSink.toBuilder().setRedisConfig(redisConfig).build();
+    redisFeatureSink =
+        redisFeatureSink
+            .toBuilder()
+            .setRedisConfig(redisConfig)
+            .build()
+            .withSpecsView(redisFeatureSink.getSpecsView());
 
     HashMap<RedisKey, FeatureRow> kvs = new LinkedHashMap<>();
     kvs.put(
