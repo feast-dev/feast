@@ -40,6 +40,7 @@ import feast.storage.api.retriever.FeatureSetRequest;
 import feast.storage.connectors.redis.retriever.RedisOnlineRetriever;
 import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -67,74 +68,49 @@ public class OnlineServingServiceTest {
     onlineServingService = new OnlineServingService(retriever, specService, tracer);
 
     // create fake feature rows for testing.
-    testFeatureRows =
-        Lists.newArrayList(
-            FeatureRow.newBuilder()
-                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .addAllFields(
-                    Lists.newArrayList(
-                        FieldProto.Field.newBuilder()
-                            .setName("entity1")
-                            .setValue(intValue(1))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("entity2")
-                            .setValue(strValue("a"))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("feature1")
-                            .setValue(intValue(1))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("feature2")
-                            .setValue(intValue(1))
-                            .build()))
-                .setFeatureSet("featureSet")
-                .build(),
-            FeatureRow.newBuilder()
-                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .addAllFields(
-                    Lists.newArrayList(
-                        FieldProto.Field.newBuilder()
-                            .setName("entity1")
-                            .setValue(intValue(2))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("entity2")
-                            .setValue(strValue("b"))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("feature1")
-                            .setValue(intValue(2))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("feature2")
-                            .setValue(intValue(2))
-                            .build()))
-                .setFeatureSet("featureSet")
-                .build(),
-            FeatureRow.newBuilder()
-                .setEventTimestamp(Timestamp.newBuilder().setSeconds(50))
-                .addAllFields(
-                    Lists.newArrayList(
-                        FieldProto.Field.newBuilder()
-                            .setName("entity1")
-                            .setValue(intValue(2))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("entity2")
-                            .setValue(strValue("b"))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("feature1")
-                            .setValue(intValue(2))
-                            .build(),
-                        FieldProto.Field.newBuilder()
-                            .setName("feature2")
-                            .setValue(intValue(2))
-                            .build()))
-                .setFeatureSet("featureSet")
-                .build());
+    testFeatureRows = new ArrayList<>();
+    testFeatureRows.add(
+        FeatureRow.newBuilder()
+            .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+            .addAllFields(
+                Lists.newArrayList(
+                    FieldProto.Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
+                    FieldProto.Field.newBuilder()
+                        .setName("entity2")
+                        .setValue(strValue("a"))
+                        .build(),
+                    FieldProto.Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
+                    FieldProto.Field.newBuilder()
+                        .setName("feature2")
+                        .setValue(intValue(1))
+                        .build()))
+            .setFeatureSet("featureSet")
+            .build());
+
+    testFeatureRows.add(
+        FeatureRow.newBuilder()
+            .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+            .addAllFields(
+                Lists.newArrayList(
+                    FieldProto.Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
+                    FieldProto.Field.newBuilder()
+                        .setName("entity2")
+                        .setValue(strValue("b"))
+                        .build(),
+                    FieldProto.Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
+                    FieldProto.Field.newBuilder()
+                        .setName("feature2")
+                        .setValue(intValue(2))
+                        .build()))
+            .setFeatureSet("featureSet")
+            .build());
+
+    testFeatureRows.add(
+        testFeatureRows
+            .get(1)
+            .toBuilder()
+            .setEventTimestamp(Timestamp.newBuilder().setSeconds(50))
+            .build());
   }
 
   @Test
