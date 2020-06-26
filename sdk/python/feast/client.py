@@ -84,7 +84,6 @@ from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoRequest,
     GetFeastServingInfoResponse,
     GetOnlineFeaturesRequest,
-    GetOnlineFeaturesResponse,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from tensorflow_metadata.proto.v0 import statistics_pb2
