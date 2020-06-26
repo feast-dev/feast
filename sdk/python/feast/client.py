@@ -990,17 +990,17 @@ def _infer_entity_rows(
         A list of EntityRow protos parsed from args.
     """
     entity_row_list = []
-    temp_dtype_storage = dict()
+    entity_type_map = dict()
 
     for entity in entities:
         for key, value in entity.items():
             # Infer the specific type for this row
             current_dtype = python_type_to_feast_value_type(name=key, value=value)
 
-            if key not in temp_dtype_storage:
-                temp_dtype_storage[key] = current_dtype
+            if key not in entity_type_map:
+                entity_type_map[key] = current_dtype
             else:
-                if current_dtype != temp_dtype_storage[key]:
+                if current_dtype != entity_type_map[key]:
                     raise TypeError(
                         f"Input entity {key} has mixed types and that is not allowed. "
                     )

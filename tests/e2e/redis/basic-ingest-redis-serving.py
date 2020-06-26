@@ -300,7 +300,8 @@ def test_basic_retrieve_online_multiple_featureset(client, cust_trans_df, driver
 
 
 @pytest.fixture(scope='module')
-def list_type_dataframe():
+def nonlist_entity_dataframe():
+    # Dataframe setup for feature retrieval with entity provided not in list format
     N_ROWS = 2
     time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
     customer_df = pd.DataFrame(
@@ -319,7 +320,8 @@ def list_type_dataframe():
     return customer_df
 
 @pytest.fixture(scope='module')
-def entity_list_type_dataframe():
+def list_entity_dataframe():
+    # Dataframe setup for feature retrieval with entity provided in list format
     N_ROWS = 2
     time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
     customer_df = pd.DataFrame(
@@ -338,10 +340,11 @@ def entity_list_type_dataframe():
     return customer_df
 
 
+@pytest.mark.justtesting
 @pytest.mark.timeout(600)
 @pytest.mark.run(order=14)
-def test_basic_retrieve_online_dict(client, list_type_dataframe, entity_list_type_dataframe):
-    # Case 1: Multiple entities check
+def test_basic_retrieve_online_entity_nonlistform(client, nonlist_entity_dataframe, list_entity_dataframe):
+    # Case 1: Feature retrieval with multiple entities retrieval check
     customer_fs = FeatureSet(
         name="customer2",
         features=[
@@ -361,7 +364,7 @@ def test_basic_retrieve_online_dict(client, list_type_dataframe, entity_list_typ
     client.apply(customer_fs)
 
     customer_fs = client.get_feature_set(name="customer2")
-    client.ingest(customer_fs, list_type_dataframe, timeout=600)
+    client.ingest(customer_fs, nonlist_entity_dataframe, timeout=600)
     time.sleep(15)
 
     online_request_entity = [{"customer_id2": 0},{"customer_id2": 1}]
@@ -375,7 +378,16 @@ def test_basic_retrieve_online_dict(client, list_type_dataframe, entity_list_typ
         "customer2_past_transactions_bool"
     ]
 
-    online_features_actual = client.get_online_features(entity_rows=online_request_entity, feature_refs=online_request_features)
+    def try_get_features():
+        response = client.get_online_features(entity_rows=online_request_entity, feature_refs=online_request_features)
+        return response, True
+
+    online_features_actual = wait_retry_backoff(
+        retry_fn=try_get_features,
+        timeout_secs=90,
+        timeout_msg="Timed out trying to get online feature values"
+    )
+
     online_features_expected = {
         "customer_id2": [0,1],
         "customer2_rating": [0,1],
@@ -387,7 +399,20 @@ def test_basic_retrieve_online_dict(client, list_type_dataframe, entity_list_typ
         "customer2_past_transactions_bool": [[True,False],[True,False]]
     }
 
-    # Case 2: List entity check
+    assert online_features_actual.to_dict() == online_features_expected
+
+    # Case 2: Feature retrieval with multiple entities retrieval check with mixed types
+    with pytest.raises(TypeError) as excinfo:
+        online_request_entity2 = [{"customer_id": 0},{"customer_id": "error_pls"}]
+        online_features_actual2 = client.get_online_features(entity_rows=online_request_entity2, feature_refs=online_request_features)
+
+    assert "Input entity customer_id has mixed types and that is not allowed." in str(excinfo.value)
+
+
+@pytest.mark.timeout(600)
+@pytest.mark.run(order=15)
+def test_basic_retrieve_online_entity_listform(client, list_entity_dataframe):
+    # Case 1: Features retrieval with entity in list format check
     district_fs = FeatureSet(
         name="district",
         features=[
@@ -407,11 +432,11 @@ def test_basic_retrieve_online_dict(client, list_type_dataframe, entity_list_typ
     client.apply(district_fs)
 
     district_fs = client.get_feature_set(name="district")
-    client.ingest(district_fs, entity_list_type_dataframe, timeout=600)
+    client.ingest(district_fs, list_entity_dataframe, timeout=600)
     time.sleep(15)
 
-    online_request_entity2 = [{"district_ids": [np.int64(1),np.int64(2),np.int64(3)]}]
-    online_request_features2 = [
+    online_request_entity = [{"district_ids": [np.int64(1),np.int64(2),np.int64(3)]}]
+    online_request_features = [
         "district_rating",
         "district_cost",
         "district_past_transactions_int",
@@ -421,8 +446,17 @@ def test_basic_retrieve_online_dict(client, list_type_dataframe, entity_list_typ
         "district_past_transactions_bool"
     ]
 
-    online_features_actual2 = client.get_online_features(entity_rows=online_request_entity2, feature_refs=online_request_features2)
-    online_features_expected2 = {
+    def try_get_features():
+        response = client.get_online_features(entity_rows=online_request_entity, feature_refs=online_request_features)
+        return response, True
+
+    online_features_actual = wait_retry_backoff(
+        retry_fn=try_get_features,
+        timeout_secs=90,
+        timeout_msg="Timed out trying to get online feature values"
+    )
+
+    online_features_expected = {
         "district_ids": [[np.int64(1),np.int64(2),np.int64(3)]],
         "district_rating": [1],
         "district_cost": [1.5],
@@ -434,20 +468,13 @@ def test_basic_retrieve_online_dict(client, list_type_dataframe, entity_list_typ
     }
 
     assert online_features_actual.to_dict() == online_features_expected
-    assert online_features_actual2.to_dict() == online_features_expected2
 
-    # Case 3: Entity check with mixed types
-    with pytest.raises(TypeError) as excinfo:
-        online_request_entity3 = [{"customer_id": 0},{"customer_id": "error_pls"}]
-        online_features_actual3 = client.get_online_features(entity_rows=online_request_entity3, feature_refs=online_request_features)
-    
-    # Case 4: List entity check with mixed types
-    with pytest.raises(ValueError) as excinfo2:
-        online_request_entity4 = [{"district_ids": [np.int64(1),np.int64(2),True]}]
-        online_features_actual4 = client.get_online_features(entity_rows=online_request_entity4, feature_refs=online_request_features2)
+    # Case 2: Features retrieval with entity in list format check with mixed types
+    with pytest.raises(ValueError) as excinfo:
+        online_request_entity2 = [{"district_ids": [np.int64(1),np.int64(2),True]}]
+        online_features_actual2 = client.get_online_features(entity_rows=online_request_entity2, feature_refs=online_request_features)
 
-    assert "Input entity customer_id has mixed types and that is not allowed." in str(excinfo.value)
-    assert "Value \"True\" is of type <class 'bool'> not of type <class 'numpy.int64'>" in str(excinfo2.value)
+    assert "Value \"True\" is of type <class 'bool'> not of type <class 'numpy.int64'>" in str(excinfo.value)
 
 
 @pytest.mark.timeout(300)

@@ -43,8 +43,8 @@ class OnlineResponse:
         """
         Converts GetOnlineFeaturesResponse features into a dictionary form.
         """
-        features = [k for row in self.field_values for k, _ in row.fields.items()]
-        features_dict = {k: list() for k in features}
+        fields = [k for row in self.field_values for k, _ in row.fields.items()]
+        features_dict = {k: list() for k in fields}
 
         for row in self.field_values:
             for feature in features_dict.keys():

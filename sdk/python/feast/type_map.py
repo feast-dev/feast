@@ -48,7 +48,7 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
         field_value_proto: Field value Proto
 
     Returns:
-        Python native type based on Feast Value Type
+        Python native type representation/version of the given field_value_proto
     """
     field_value_dict = MessageToDict(field_value_proto)
 
@@ -95,9 +95,6 @@ def python_type_to_feast_value_type(
     """
 
     type_name = type(value).__name__
-    if isinstance(value, list):
-        type_name = "ndarray"
-        value = np.asarray(value)
 
     type_map = {
         "int": ValueType.INT64,
@@ -121,6 +118,10 @@ def python_type_to_feast_value_type(
 
     if type_name in type_map:
         return type_map[type_name]
+
+    if isinstance(value, list):
+        type_name = "ndarray"
+        value = np.asarray(value)
 
     if type_name == "ndarray":
         if recurse:
