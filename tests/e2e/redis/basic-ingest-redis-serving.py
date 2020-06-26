@@ -43,6 +43,7 @@ from feast.serving.ServingService_pb2 import (GetOnlineFeaturesRequest,
                                               GetOnlineFeaturesResponse)
 from feast.type_map import ValueType
 from feast.types.Value_pb2 import Value as Value
+from feast.types.Value_pb2 import Int64List
 
 FLOAT_TOLERANCE = 0.00001
 PROJECT_NAME = 'basic_' + uuid.uuid4().hex.upper()[0:6]
@@ -376,13 +377,24 @@ def test_basic_retrieve_online_entity_nonlistform(client, nonlist_entity_datafra
         "customer2_past_transactions_string",
         "customer2_past_transactions_bool"
     ]
+    online_request_entity2 = [{"customer_id2": Value(int64_val=0)},{"customer_id2": Value(int64_val=1)}]
 
-    def try_get_features():
+    def try_get_features1():
         response = client.get_online_features(entity_rows=online_request_entity, feature_refs=online_request_features)
         return response, True
 
-    online_features_actual = wait_retry_backoff(
-        retry_fn=try_get_features,
+    def try_get_features2():
+        response = client.get_online_features(entity_rows=online_request_entity2, feature_refs=online_request_features)
+        return response, True
+
+    online_features_actual1 = wait_retry_backoff(
+        retry_fn=try_get_features1,
+        timeout_secs=90,
+        timeout_msg="Timed out trying to get online feature values"
+    )
+
+    online_features_actual2 = wait_retry_backoff(
+        retry_fn=try_get_features2,
         timeout_secs=90,
         timeout_msg="Timed out trying to get online feature values"
     )
@@ -398,14 +410,15 @@ def test_basic_retrieve_online_entity_nonlistform(client, nonlist_entity_datafra
         "customer2_past_transactions_bool": [[True,False],[True,False]]
     }
 
-    assert online_features_actual.to_dict() == online_features_expected
+    assert online_features_actual1.to_dict() == online_features_expected
+    assert online_features_actual2.to_dict() == online_features_expected
 
     # Case 2: Feature retrieval with multiple entities retrieval check with mixed types
     with pytest.raises(TypeError) as excinfo:
         online_request_entity2 = [{"customer_id": 0},{"customer_id": "error_pls"}]
         online_features_actual2 = client.get_online_features(entity_rows=online_request_entity2, feature_refs=online_request_features)
 
-    assert "Input entity customer_id has mixed types and that is not allowed." in str(excinfo.value)
+    assert "Input entity customer_id has mixed types, ValueType.STRING and ValueType.INT64. That is not allowed." in str(excinfo.value)
 
 
 @pytest.mark.timeout(600)
@@ -444,13 +457,24 @@ def test_basic_retrieve_online_entity_listform(client, list_entity_dataframe):
         "district_past_transactions_string",
         "district_past_transactions_bool"
     ]
+    online_request_entity2 = [{"district_ids": Value(int64_list_val=Int64List(val=[1,2,3]))}]
 
-    def try_get_features():
+    def try_get_features1():
         response = client.get_online_features(entity_rows=online_request_entity, feature_refs=online_request_features)
         return response, True
 
+    def try_get_features2():
+        response = client.get_online_features(entity_rows=online_request_entity2, feature_refs=online_request_features)
+        return response, True
+
     online_features_actual = wait_retry_backoff(
-        retry_fn=try_get_features,
+        retry_fn=try_get_features1,
+        timeout_secs=90,
+        timeout_msg="Timed out trying to get online feature values"
+    )
+
+    online_features_actual2 = wait_retry_backoff(
+        retry_fn=try_get_features2,
         timeout_secs=90,
         timeout_msg="Timed out trying to get online feature values"
     )
@@ -467,6 +491,7 @@ def test_basic_retrieve_online_entity_listform(client, list_entity_dataframe):
     }
 
     assert online_features_actual.to_dict() == online_features_expected
+    assert online_features_actual2.to_dict() == online_features_expected
 
     # Case 2: Features retrieval with entity in list format check with mixed types
     with pytest.raises(ValueError) as excinfo:

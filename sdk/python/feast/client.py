@@ -1007,7 +1007,7 @@ def _infer_entity_rows(
                 else:
                     if current_dtype != entity_type_map[key]:
                         raise TypeError(
-                            f"Input entity {key} has mixed types and that is not allowed. "
+                            f"Input entity {key} has mixed types, {current_dtype} and {entity_type_map[key]}. That is not allowed. "
                         )
                 proto_value = _python_value_to_proto_value(current_dtype, value)
             entity_row_list.append(
