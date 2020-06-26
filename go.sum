@@ -78,6 +78,7 @@ github.com/evanphx/json-patch v0.0.0-20190203023257-5858425f7550/go.mod h1:50XU6
 github.com/evanphx/json-patch v4.2.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/feast-dev/feast/sdk/go v0.0.0-20200516052424-09ff3dda724c h1:jltCNN1tpaFxCslQtHUfU5u5qodH/D8rqPmxvRWGNWM=
 github.com/feast-dev/feast/sdk/go v0.0.0-20200516052424-09ff3dda724c/go.mod h1:F3sMDmJ9hxjlh0Z7fM6/atvMJd8moahKxUF1LCzVthQ=
+github.com/feast-dev/feast/sdk/go v0.5.0 h1:h4UiFgqeWrw9voPqigwiSYWl/vjUn2mgoUAFIa29s3A=
 github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/getkin/kin-openapi v0.1.1-0.20190507152207-d3180292eead/go.mod h1:V1z9xl9oF5Wt7v32ne4FmiF1alpS4dM6mNzoywPOXlk=
@@ -471,6 +472,8 @@ golang.org/x/tools v0.0.0-20200521211927-2b542361a4fc/go.mod h1:EkVYQZoAsY45+roY
 golang.org/x/tools v0.0.0-20200601175630-2caf76543d99/go.mod h1:EkVYQZoAsY45+roYkvgYkIh4xh/qjgUK9TdY2XT94GE=
 golang.org/x/tools v0.0.0-20200604042327-9b20fe4cabe8 h1:8Xr1qwxn90MXYKftwNxIO2g4J+26naghxFS5rYiTZww=
 golang.org/x/tools v0.0.0-20200604042327-9b20fe4cabe8/go.mod h1:EkVYQZoAsY45+roYkvgYkIh4xh/qjgUK9TdY2XT94GE=
+golang.org/x/tools v0.0.0-20200622203043-20e05c1c8ffa h1:mMXQKlWCw9mIWgVLLfiycDZjMHMMYqiuakI4E/l2xcA=
+golang.org/x/tools v0.0.0-20200622203043-20e05c1c8ffa/go.mod h1:EkVYQZoAsY45+roYkvgYkIh4xh/qjgUK9TdY2XT94GE=
 golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 h1:E7g+9GITq07hpfrRu66IVDexMakfv52eLZ2CXBWiKr4=

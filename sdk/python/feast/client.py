@@ -681,10 +681,9 @@ class Client:
                 OR
                 List of Dict[str, Union[bool,bytes,float,int,str,List[bool,bytes,float,int,str]]]]
                 where each key represents the entity name and value is feast.types.Value in Python native form.
-            project: Specifies the project which contain the FeatureSets
-                which the requested features belong to.
+            project: Optionally specify the the project override. If specified, uses given project for retrieval.
+                Overrides the projects specified in Feature References if also are specified.
             omit_entities: If true will omit entity values in the returned feature data.
-
         Returns:
             GetOnlineFeaturesResponse containing the feature data in records.
             Each EntityRow provided will yield one record, which contains
@@ -700,43 +699,11 @@ class Client:
             response = self._serving_service.GetOnlineFeatures(
                 GetOnlineFeaturesRequest(
                     omit_entities_in_response=omit_entities,
-                    features=_build_feature_references(
-                        feature_ref_strs=feature_refs,
-                        project=project if project is not None else self.project,
-                    ),
+                    features=_build_feature_references(feature_ref_strs=feature_refs),
                     entity_rows=entity_rows,
+                    project=project if project is not None else self.project,
                 )
             )
-
-            entity_refs = {
-                key for entity_row in entity_rows for key in entity_row.fields.keys()
-            }
-            # strip the project part the string feature references returned from serving
-            strip = (
-                lambda ref: repr(FeatureRef.from_str(ref, ignore_project=True))
-                if ref not in entity_refs
-                else ref
-            )
-            strip_field_values = []
-            for field_value in response.field_values:
-                keys, fields, statuses = (
-                    field_value.fields.keys(),
-                    field_value.fields,
-                    field_value.statuses,
-                )
-                fields_and_statuses = [
-                    (strip(key), fields[key], statuses[key]) for key in keys
-                ]
-                keys, fields, statuses = zip(*fields_and_statuses)
-                strip_field_values.append(
-                    GetOnlineFeaturesResponse.FieldValues(
-                        fields=dict(zip(keys, fields)),
-                        statuses=dict(zip(keys, statuses)),
-                    )
-                )
-            del response.field_values[:]
-            response.field_values.extend(strip_field_values)
-
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 

@@ -38,6 +38,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Keys;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -139,8 +140,10 @@ public class FeatureSetSpecReadAndWriteTest {
                 .setStores(ImmutableList.of(store))
                 .setSpecsStreamingUpdateConfig(specsStreamingUpdateConfig)
                 .build())
+        .apply(Keys.create())
         .apply(
             WriteFeatureSetSpecAck.newBuilder()
+                .setSinksCount(1)
                 .setSpecsStreamingUpdateConfig(specsStreamingUpdateConfig)
                 .build());
 

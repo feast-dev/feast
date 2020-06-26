@@ -88,7 +88,7 @@ public class OnlineServingService implements ServingService {
       }
 
       List<FeatureSetRequest> featureSetRequests =
-          specService.getFeatureSets(request.getFeaturesList());
+          specService.getFeatureSets(request.getFeaturesList(), request.getProject());
       for (FeatureSetRequest featureSetRequest : featureSetRequests) {
         // Pull feature rows for given entity rows from the feature/featureset specified in feature
         // set request.
@@ -153,7 +153,7 @@ public class OnlineServingService implements ServingService {
    * feature set request.
    *
    * @param featureRow optional to unpack for feature values.
-   * @param featureSetRequest for which the feature row was retrieved.
+   * @param featureSetRequest feature set request for which the feature row is retrieved for.
    * @param isOutsideMaxAge whether which the feature row contains values that is outside max age.
    * @return valueMap mapping string feature name to feature value for the given feature set
    *     request.
@@ -166,6 +166,7 @@ public class OnlineServingService implements ServingService {
     // In order to return values containing the same feature references provided by the user,
     // we reuse the feature references in the request as the keys in field builder map
     Map<String, FeatureReference> nameRefMap = featureSetRequest.getFeatureRefsByName();
+
     if (featureRow.isPresent()) {
       // unpack feature row's feature values and populate value map
       Map<String, Value> featureValueMap =

@@ -18,8 +18,6 @@ package feast.core.job;
 
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -107,10 +105,9 @@ public class JobTasksTest {
 
   @Test
   public void shouldCreateJobIfNotPresent() {
-    Job expectedInput = makeJob("", Collections.emptyList(), JobStatus.PENDING);
+    Job expectedInput = makeJob("ext", Collections.emptyList(), JobStatus.PENDING);
 
-    CreateJobTask task = spy(makeCreateTask(expectedInput));
-    doReturn("job").when(task).createJobId(source);
+    CreateJobTask task = makeCreateTask(expectedInput);
 
     Job expected = makeJob("ext", Collections.emptyList(), JobStatus.RUNNING);
 
@@ -135,8 +132,7 @@ public class JobTasksTest {
   public void shouldReturnJobWithErrorStatusIfFailedToSubmit() {
     Job expectedInput = makeJob("", Collections.emptyList(), JobStatus.PENDING);
 
-    CreateJobTask jobUpdateTask = spy(makeCreateTask(expectedInput));
-    doReturn("job").when(jobUpdateTask).createJobId(source);
+    CreateJobTask jobUpdateTask = makeCreateTask(expectedInput);
 
     Job expected = makeJob("", Collections.emptyList(), JobStatus.ERROR);
 

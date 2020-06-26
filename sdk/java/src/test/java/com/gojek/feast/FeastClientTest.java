@@ -118,23 +118,14 @@ public class FeastClientTest {
   private static GetOnlineFeaturesRequest getFakeRequest() {
     // setup mock serving service stub
     return GetOnlineFeaturesRequest.newBuilder()
-        .addFeatures(
-            FeatureReference.newBuilder()
-                .setProject("driver_project")
-                .setFeatureSet("driver")
-                .setName("name")
-                .build())
-        .addFeatures(
-            FeatureReference.newBuilder().setProject("driver_project").setName("rating").build())
-        .addFeatures(
-            FeatureReference.newBuilder()
-                .setProject("driver_project")
-                .setName("null_value")
-                .build())
+        .addFeatures(FeatureReference.newBuilder().setFeatureSet("driver").setName("name").build())
+        .addFeatures(FeatureReference.newBuilder().setName("rating").build())
+        .addFeatures(FeatureReference.newBuilder().setName("null_value").build())
         .addEntityRows(
             EntityRow.newBuilder()
                 .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
                 .putFields("driver_id", intValue(1)))
+        .setProject("driver_project")
         .build();
   }
 
@@ -142,14 +133,14 @@ public class FeastClientTest {
     return GetOnlineFeaturesResponse.newBuilder()
         .addFieldValues(
             FieldValues.newBuilder()
-                .putFields("driver_project/driver_id", intValue(1))
-                .putStatuses("driver_project/driver_id", FieldStatus.PRESENT)
-                .putFields("driver_project/driver:name", strValue("david"))
-                .putStatuses("driver_project/driver:name", FieldStatus.PRESENT)
-                .putFields("driver_project/rating", intValue(3))
-                .putStatuses("driver_project/rating", FieldStatus.PRESENT)
-                .putFields("driver_project/null_value", Value.newBuilder().build())
-                .putStatuses("driver_project/null_value", FieldStatus.NULL_VALUE)
+                .putFields("driver_id", intValue(1))
+                .putStatuses("driver_id", FieldStatus.PRESENT)
+                .putFields("driver:name", strValue("david"))
+                .putStatuses("driver:name", FieldStatus.PRESENT)
+                .putFields("rating", intValue(3))
+                .putStatuses("rating", FieldStatus.PRESENT)
+                .putFields("null_value", Value.newBuilder().build())
+                .putStatuses("null_value", FieldStatus.NULL_VALUE)
                 .build())
         .build();
   }

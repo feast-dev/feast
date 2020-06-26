@@ -19,7 +19,6 @@ package feast.ingestion.utils;
 import static feast.proto.types.ValueProto.ValueType;
 
 import com.google.cloud.bigquery.StandardSQLTypeName;
-import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.StoreProto.Store;
 import feast.proto.core.StoreProto.Store.StoreType;
 import feast.proto.types.ValueProto.ValueType.Enum;
@@ -28,8 +27,6 @@ import feast.storage.connectors.bigquery.writer.BigQueryFeatureSink;
 import feast.storage.connectors.redis.writer.RedisFeatureSink;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 
 // TODO: Create partitioned table by default
@@ -80,16 +77,15 @@ public class StoreUtil {
     VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.BOOL_LIST, StandardSQLTypeName.BOOL);
   }
 
-  public static FeatureSink getFeatureSink(
-      Store store, PCollection<KV<String, FeatureSetSpec>> featureSetSpecs) {
+  public static FeatureSink getFeatureSink(Store store) {
     StoreType storeType = store.getType();
     switch (storeType) {
       case REDIS_CLUSTER:
-        return RedisFeatureSink.fromConfig(store.getRedisClusterConfig(), featureSetSpecs);
+        return RedisFeatureSink.fromConfig(store.getRedisClusterConfig());
       case REDIS:
-        return RedisFeatureSink.fromConfig(store.getRedisConfig(), featureSetSpecs);
+        return RedisFeatureSink.fromConfig(store.getRedisConfig());
       case BIGQUERY:
-        return BigQueryFeatureSink.fromConfig(store.getBigqueryConfig(), featureSetSpecs);
+        return BigQueryFeatureSink.fromConfig(store.getBigqueryConfig());
       default:
         throw new RuntimeException(String.format("Store type '%s' is unsupported", storeType));
     }

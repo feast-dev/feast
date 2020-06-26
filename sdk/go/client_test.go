@@ -34,25 +34,6 @@ func TestGetOnlineFeatures(t *testing.T) {
 				},
 				Project: "driver_project",
 			},
-			// check GetOnlineFeatures() should strip projects returned from serving
-			recieve: OnlineFeaturesResponse{
-				RawResponse: &serving.GetOnlineFeaturesResponse{
-					FieldValues: []*serving.GetOnlineFeaturesResponse_FieldValues{
-						{
-							Fields: map[string]*types.Value{
-								"driver_project/driver:rating": Int64Val(1),
-								"driver_project/rating":        Int64Val(1),
-								"driver_project/null_value":    {},
-							},
-							Statuses: map[string]serving.GetOnlineFeaturesResponse_FieldStatus{
-								"driver_project/driver:rating": serving.GetOnlineFeaturesResponse_PRESENT,
-								"driver_project/rating":        serving.GetOnlineFeaturesResponse_PRESENT,
-								"driver_project/null_value":    serving.GetOnlineFeaturesResponse_NULL_VALUE,
-							},
-						},
-					},
-				},
-			},
 			want: OnlineFeaturesResponse{
 				RawResponse: &serving.GetOnlineFeaturesResponse{
 					FieldValues: []*serving.GetOnlineFeaturesResponse_FieldValues{
@@ -83,7 +64,7 @@ func TestGetOnlineFeatures(t *testing.T) {
 			ctx := context.Background()
 			_, traceCtx := opentracing.StartSpanFromContext(ctx, "get_online_features")
 			rawRequest, _ := tc.req.buildRequest()
-			resp := tc.recieve.RawResponse
+			resp := tc.want.RawResponse
 			cli.EXPECT().GetOnlineFeatures(traceCtx, rawRequest).Return(resp, nil).Times(1)
 
 			client := &GrpcClient{

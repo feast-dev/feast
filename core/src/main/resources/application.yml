@@ -17,6 +17,9 @@
 
 feast:
   jobs:
+    # Enabling JobManagement
+    enabled: true
+
     # Job update polling interval in milliseconds: how often Feast checks if new jobs should be sent to the runner.
     polling_interval_milliseconds: 60000
 
@@ -59,6 +62,10 @@ feast:
       host: localhost
       # Port of the metrics sink.
       port: 9125
+
+    # if true one job per source with many stores would be created
+    # if false one job per source-store pair would be created
+    consolidate-jobs-per-source: false
 
   stream:
     # Feature stream type. Only kafka is supported.

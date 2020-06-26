@@ -125,9 +125,9 @@ def client(core_url, serving_url, allow_dirty, enable_auth):
     # Get client for core and serving
     # if enable_auth is True, Google Id token will be 
     # passed in the metadata for authentication. 
-    client = Client(core_url=core_url, 
+    client = Client(core_url=core_url,
                 serving_url=serving_url,
-                core_enable_auth=enable_auth, 
+                core_enable_auth=enable_auth,
                 core_auth_provider="google")
     client.create_project(PROJECT_NAME)
 
@@ -253,8 +253,8 @@ def test_basic_retrieve_online_success(client, cust_trans_df):
                     }
                 )
             ],
-            feature_refs=feature_refs)
-            # type: GetOnlineFeaturesResponse 
+            feature_refs=feature_refs,
+        )# type: GetOnlineFeaturesResponse 
         is_ok = all([check_online_response(ref, cust_trans_df, response) for ref in feature_refs])
         return response, is_ok
 
@@ -679,7 +679,7 @@ def test_all_types_infer_register_ingest_file_success(client,
 
 
 @pytest.mark.timeout(200)
-@pytest.mark.run(order=42)
+@pytest.mark.run(order=50)
 def test_list_entities_and_features(client):
     customer_entity = Entity("customer_id", ValueType.INT64)
     driver_entity = Entity("driver_id", ValueType.INT64)
@@ -730,10 +730,10 @@ def test_list_entities_and_features(client):
     # Test for listing of features
     # Case 1: Filter by: project, entities and labels
     filter_by_project_entity_labels_actual = client.list_features_by_ref(project=PROJECT_NAME, entities=["customer_id"], labels={"key1":"val1"})
-    
+
     # Case 2: Filter by: project, entities
     filter_by_project_entity_actual = client.list_features_by_ref(project=PROJECT_NAME, entities=["driver_id"])
-    
+
     # Case 3: Filter by: project, labels
     filter_by_project_labels_actual = client.list_features_by_ref(project=PROJECT_NAME, labels={"key1":"val1"})
 
@@ -894,7 +894,7 @@ def test_basic_retrieve_online_dict(client, list_type_dataframe, entity_list_typ
 
 
 @pytest.mark.timeout(900)
-@pytest.mark.run(order=50)
+@pytest.mark.run(order=60)
 def test_sources_deduplicate_ingest_jobs(client):
     source = KafkaSource("localhost:9092", "feast-features")
     alt_source = KafkaSource("localhost:9092", "feast-data")
