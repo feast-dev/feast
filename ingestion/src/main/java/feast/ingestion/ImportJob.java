@@ -155,18 +155,16 @@ public class ImportJob {
       FeatureSink featureSink = getFeatureSink(store);
 
       sinkReadiness = sinkReadiness.and(featureSink.prepareWrite(featureSetSpecs));
+      PCollection<FeatureRow> rowsForStore =
+          storeAllocatedRows.get(storeTags.get(store)).setCoder(ProtoCoder.of(FeatureRow.class));
 
       // Step 5. Write metrics of successfully validated rows
-      validatedRows
-          .get(FEATURE_ROW_OUT)
-          .apply("WriteInflightMetrics", WriteInflightMetricsTransform.create(store.getName()));
+      rowsForStore.apply(
+          "WriteInflightMetrics", WriteInflightMetricsTransform.create(store.getName()));
 
       // Step 6. Write FeatureRow to the corresponding Store.
       WriteResult writeFeatureRows =
-          storeAllocatedRows
-              .get(storeTags.get(store))
-              .setCoder(ProtoCoder.of(FeatureRow.class))
-              .apply("WriteFeatureRowToStore", featureSink.writer());
+          rowsForStore.apply("WriteFeatureRowToStore", featureSink.writer());
 
       // Step 7. Write FailedElements to a dead letter table in BigQuery.
       if (options.getDeadLetterTableSpec() != null) {
