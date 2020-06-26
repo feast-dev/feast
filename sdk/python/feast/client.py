@@ -89,6 +89,7 @@ from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from tensorflow_metadata.proto.v0 import statistics_pb2
 from feast.type_map import python_type_to_feast_value_type, _python_value_to_proto_value
 from feast.response import OnlineResponse
+from feast.types.Value_pb2 import Value as Value
 
 
 _logger = logging.getLogger(__name__)
@@ -994,17 +995,21 @@ def _infer_entity_rows(
 
     for entity in entities:
         for key, value in entity.items():
-            # Infer the specific type for this row
-            current_dtype = python_type_to_feast_value_type(name=key, value=value)
-
-            if key not in entity_type_map:
-                entity_type_map[key] = current_dtype
+            # Allow for feast.types.Value
+            if isinstance(value, Value):
+                proto_value = value
             else:
-                if current_dtype != entity_type_map[key]:
-                    raise TypeError(
-                        f"Input entity {key} has mixed types and that is not allowed. "
-                    )
-            proto_value = _python_value_to_proto_value(current_dtype, value)
+                # Infer the specific type for this row
+                current_dtype = python_type_to_feast_value_type(name=key, value=value)
+
+                if key not in entity_type_map:
+                    entity_type_map[key] = current_dtype
+                else:
+                    if current_dtype != entity_type_map[key]:
+                        raise TypeError(
+                            f"Input entity {key} has mixed types and that is not allowed. "
+                        )
+                proto_value = _python_value_to_proto_value(current_dtype, value)
             entity_row_list.append(
                 GetOnlineFeaturesRequest.EntityRow(fields={key: proto_value})
             )

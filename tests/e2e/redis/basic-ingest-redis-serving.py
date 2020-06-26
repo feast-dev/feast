@@ -340,7 +340,6 @@ def list_entity_dataframe():
     return customer_df
 
 
-@pytest.mark.justtesting
 @pytest.mark.timeout(600)
 @pytest.mark.run(order=14)
 def test_basic_retrieve_online_entity_nonlistform(client, nonlist_entity_dataframe, list_entity_dataframe):
@@ -474,7 +473,7 @@ def test_basic_retrieve_online_entity_listform(client, list_entity_dataframe):
         online_request_entity2 = [{"district_ids": [np.int64(1),np.int64(2),True]}]
         online_features_actual2 = client.get_online_features(entity_rows=online_request_entity2, feature_refs=online_request_features)
 
-    assert "Value \"True\" is of type <class 'bool'> not of type <class 'numpy.int64'>" in str(excinfo.value)
+    assert "List value type for field district_ids is inconsistent. ValueType.INT64 different from ValueType.BOOL." in str(excinfo.value)
 
 
 @pytest.mark.timeout(300)

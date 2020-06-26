@@ -119,11 +119,7 @@ def python_type_to_feast_value_type(
     if type_name in type_map:
         return type_map[type_name]
 
-    if isinstance(value, list):
-        type_name = "ndarray"
-        value = np.asarray(value)
-
-    if type_name == "ndarray":
+    if type_name == "ndarray" or isinstance(value, list):
         if recurse:
 
             # Convert to list type
@@ -132,10 +128,15 @@ def python_type_to_feast_value_type(
             # This is the final type which we infer from the list
             common_item_value_type = None
             for item in list_items:
-                # Get the type from the current item, only one level deep
-                current_item_value_type = python_type_to_feast_value_type(
-                    name=name, value=item, recurse=False
-                )
+                if isinstance(item, ProtoValue):
+                    current_item_value_type = _proto_str_to_value_type(
+                        item.WhichOneof("val")
+                    )
+                else:
+                    # Get the type from the current item, only one level deep
+                    current_item_value_type = python_type_to_feast_value_type(
+                        name=name, value=item, recurse=False
+                    )
                 # Validate whether the type stays consistent
                 if (
                     common_item_value_type
@@ -394,6 +395,36 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
             return ProtoValue(bool_val=value)
 
     raise Exception(f"Unsupported data type: ${str(type(value))}")
+
+
+def _proto_str_to_value_type(proto_str: str) -> ValueType:
+    """
+    Returns Feast ValueType given Feast ValueType string.
+
+    Args:
+        proto_str: str
+
+    Returns:
+        A variant of ValueType.
+    """
+    type_map = {
+        "int32_val": ValueType.INT32,
+        "int64_val": ValueType.INT64,
+        "double_val": ValueType.DOUBLE,
+        "float_val": ValueType.FLOAT,
+        "string_val": ValueType.STRING,
+        "bytes_val": ValueType.BYTES,
+        "bool_val": ValueType.BOOL,
+        "int32_list_val": ValueType.INT32_LIST,
+        "int64_list_val": ValueType.INT64_LIST,
+        "double_list_val": ValueType.DOUBLE_LIST,
+        "float_list_val": ValueType.FLOAT_LIST,
+        "string_list_val": ValueType.STRING_LIST,
+        "bytes_list_val": ValueType.BYTES_LIST,
+        "bool_list_val": ValueType.BOOL_LIST,
+    }
+
+    return type_map[proto_str]
 
 
 def pa_to_feast_value_attr(pa_type: object):
