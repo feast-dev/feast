@@ -70,7 +70,7 @@ def client(core_url, serving_url, allow_dirty):
 
 def wait_for(fn, timeout: timedelta, sleep=5):
     until = datetime.now() + timeout
-    last_exc = None
+    last_exc = BaseException()
 
     while datetime.now() <= until:
         try:
@@ -781,7 +781,7 @@ def test_batch_dataset_statistics(client):
 def get_rows_ingested(
     client: Client, feature_set: FeatureSet, ingestion_id: str
 ) -> int:
-    response = client._core_service_stub.ListStores(
+    response = client._core_service.ListStores(
         ListStoresRequest(filter=ListStoresRequest.Filter(name="historical"))
     )
     bq_config = response.store[0].bigquery_config
@@ -794,8 +794,7 @@ def get_rows_ingested(
         f'SELECT COUNT(*) as count FROM `{project}.{dataset}.{table}` WHERE ingestion_id = "{ingestion_id}"'
     ).result()
 
-    for row in rows:
-        return row["count"]
+    return rows[0]
 
 
 def clean_up_remote_files(files):
