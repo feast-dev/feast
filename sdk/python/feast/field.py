@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from collections import OrderedDict
-from typing import MutableMapping, Optional, Union, Dict
+from typing import MutableMapping, Optional, Union
 
 from feast.core.FeatureSet_pb2 import FeatureSpec
 from feast.value_type import ValueType
@@ -39,22 +39,22 @@ class Field:
             self._labels = OrderedDict()  # type: MutableMapping
         else:
             self._labels = labels
-        self._presence : Optional[schema_pb2.FeaturePresence] = None
-        self._group_presence : Optional[schema_pb2.FeaturePresenceWithinGroup] = None
-        self._shape : Optional[schema_pb2.FixedShape] = None
-        self._value_count : Optional[schema_pb2.ValueCount] = None
-        self._domain : Optional[str] = None
-        self._int_domain : Optional[schema_pb2.IntDomain] = None
-        self._float_domain : Optional[schema_pb2.FloatDomain] = None
-        self._string_domain : Optional[schema_pb2.StringDomain] = None
-        self._bool_domain : Optional[schema_pb2.BoolDomain] = None
-        self._struct_domain : Optional[schema_pb2.StructDomain] = None
-        self._natural_language_domain : Optional[schema_pb2.NaturalLanguageDomain] = None
-        self._image_domain : Optional[schema_pb2.ImageDomain] = None
-        self._mid_domain : Optional[schema_pb2.MIDDomain] = None
-        self._url_domain : Optional[schema_pb2.URLDomain] = None
-        self._time_domain : Optional[schema_pb2.TimeDomain] = None
-        self._time_of_day_domain : Optional[schema_pb2.TimeOfDayDomain] = None
+        self._presence: Optional[schema_pb2.FeaturePresence] = None
+        self._group_presence: Optional[schema_pb2.FeaturePresenceWithinGroup] = None
+        self._shape: Optional[schema_pb2.FixedShape] = None
+        self._value_count: Optional[schema_pb2.ValueCount] = None
+        self._domain: Optional[str] = None
+        self._int_domain: Optional[schema_pb2.IntDomain] = None
+        self._float_domain: Optional[schema_pb2.FloatDomain] = None
+        self._string_domain: Optional[schema_pb2.StringDomain] = None
+        self._bool_domain: Optional[schema_pb2.BoolDomain] = None
+        self._struct_domain: Optional[schema_pb2.StructDomain] = None
+        self._natural_language_domain: Optional[schema_pb2.NaturalLanguageDomain] = None
+        self._image_domain: Optional[schema_pb2.ImageDomain] = None
+        self._mid_domain: Optional[schema_pb2.MIDDomain] = None
+        self._url_domain: Optional[schema_pb2.URLDomain] = None
+        self._time_domain: Optional[schema_pb2.TimeDomain] = None
+        self._time_of_day_domain: Optional[schema_pb2.TimeOfDayDomain] = None
 
     def __eq__(self, other):
         if (

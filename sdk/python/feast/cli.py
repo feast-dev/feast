@@ -163,7 +163,7 @@ def feature_list(project: str, entities: str, labels: str):
 
     table = []
     for feature_ref, feature in feast_client.list_features_by_ref(
-            project=project, entities=entities_list, labels=labels_dict
+        project=project, entities=entities_list, labels=labels_dict
     ).items():
         table.append([feature.name, feature.dtype, repr(feature_ref)])
 
@@ -227,7 +227,7 @@ def feature_set_list(project: str, name: str, labels: str):
 
     table = []
     for fs in feast_client.list_feature_sets(
-            project=project, name=name, labels=labels_dict
+        project=project, name=name, labels=labels_dict
     ):
         table.append([fs.name, repr(fs)])
 
@@ -354,7 +354,7 @@ def ingest_job_list(job_id, feature_set_ref, store_name):
     feast_client = Client()
     table = []
     for ingest_job in feast_client.list_ingest_jobs(
-            job_id=job_id, feature_set_ref=feature_set_ref, store_name=store_name
+        job_id=job_id, feature_set_ref=feature_set_ref, store_name=store_name
     ):
         table.append([ingest_job.id, IngestionJobStatus.Name(ingest_job.status)])
 

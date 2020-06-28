@@ -1,5 +1,5 @@
 import tempfile
-from typing import List, Union
+from typing import List
 from urllib.parse import urlparse
 
 import fastavro

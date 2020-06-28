@@ -17,13 +17,12 @@ from typing import Dict, List, MutableMapping, Optional
 
 import pandas as pd
 import pyarrow as pa
-from google.protobuf.timestamp_pb2 import Timestamp
-
 import yaml
 from google.protobuf import json_format
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToDict, MessageToJson
 from google.protobuf.message import Message
+from google.protobuf.timestamp_pb2 import Timestamp
 from pandas.api.types import is_datetime64_ns_dtype
 from pyarrow.lib import TimestampType
 

@@ -17,13 +17,14 @@ import json
 from http import HTTPStatus
 from unittest.mock import call, patch
 
+from pytest import fixture, raises
+
 from feast.config import Config
 from feast.grpc.auth import (
     GoogleOpenIDAuthMetadataPlugin,
     OAuthMetadataPlugin,
     get_auth_metadata_plugin,
 )
-from pytest import fixture, raises
 
 AUDIENCE = "https://testaudience.io/"
 

@@ -22,7 +22,7 @@ import time
 import uuid
 from collections import OrderedDict
 from math import ceil
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import grpc
 import pandas as pd
@@ -48,7 +48,9 @@ from feast.core.CoreService_pb2 import (
     ApplyFeatureSetRequest,
     ApplyFeatureSetResponse,
     ArchiveProjectRequest,
+    ArchiveProjectResponse,
     CreateProjectRequest,
+    CreateProjectResponse,
     GetFeastCoreVersionRequest,
     GetFeatureSetRequest,
     GetFeatureSetResponse,
