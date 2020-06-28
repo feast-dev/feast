@@ -18,6 +18,7 @@ import re
 from abc import ABC, ABCMeta, abstractmethod
 from tempfile import TemporaryFile
 from typing import List
+from typing.io import IO
 from urllib.parse import ParseResult
 
 GS = "gs"
@@ -37,7 +38,7 @@ class AbstractStagingClient(ABC):
         pass
 
     @abstractmethod
-    def download_file(self, uri: ParseResult) -> TemporaryFile:
+    def download_file(self, uri: ParseResult) -> IO[bytes]:
         pass
 
     @abstractmethod
@@ -64,9 +65,9 @@ class GCSClient(AbstractStagingClient):
             )
         self.gcs_client = storage.Client(project=None)
 
-    def download_file(self, uri: ParseResult) -> TemporaryFile:
+    def download_file(self, uri: ParseResult) -> IO[bytes]:
         """
-        Downloads a file from google cloud storage and returns a TemporaryFile object
+        Downloads a file from google cloud storageF and returns a TemporaryFile object
 
         Args:
             uri (urllib.parse.ParseResult): Parsed uri of the file ex: urlparse("gs://bucket/file.avro")
@@ -117,8 +118,8 @@ class GCSClient(AbstractStagingClient):
             bucket (str): gs Bucket name
             remote_path (str): relative path to the folder to which the files need to be uploaded
         """
-        bucket = self.gcs_client.get_bucket(bucket)
-        blob = bucket.blob(remote_path)
+        gs_bucket = self.gcs_client.get_bucket(bucket)
+        blob = gs_bucket.blob(remote_path)
         blob.upload_from_filename(local_path)
 
 
@@ -137,7 +138,7 @@ class S3Client(AbstractStagingClient):
             )
         self.s3_client = boto3.client("s3")
 
-    def download_file(self, uri: ParseResult) -> TemporaryFile:
+    def download_file(self, uri: ParseResult) -> IO[bytes]:
         """
         Downloads a file from AWS s3 storage and returns a TemporaryFile object
 
@@ -201,7 +202,7 @@ class LocalFSClient(AbstractStagingClient):
     def __init__(self):
         pass
 
-    def download_file(self, uri: ParseResult) -> TemporaryFile:
+    def download_file(self, uri: ParseResult) -> IO[bytes]:
         """
         Reads a local file from the disk
 
