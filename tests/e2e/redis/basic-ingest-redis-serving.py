@@ -15,6 +15,7 @@ from google.protobuf.duration_pb2 import Duration
 
 from feast.client import Client
 from feast.core import CoreService_pb2
+from feast.core.CoreService_pb2 import ApplyFeatureSetResponse, GetFeatureSetResponse
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.entity import Entity
@@ -28,10 +29,6 @@ from feast.source import KafkaSource
 from feast.type_map import ValueType
 from feast.types.Value_pb2 import Value as Value
 from feast.wait import wait_retry_backoff
-from sdk.python.feast.core.CoreService_pb2 import (
-    ApplyFeatureSetResponse,
-    GetFeatureSetResponse,
-)
 
 FLOAT_TOLERANCE = 0.00001
 PROJECT_NAME = "basic_" + uuid.uuid4().hex.upper()[0:6]
