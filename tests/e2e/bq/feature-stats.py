@@ -7,19 +7,18 @@ import pandas as pd
 import pytest
 import pytz
 from google.protobuf.duration_pb2 import Duration
-from google.protobuf.json_format import MessageToDict
 
 import tensorflow_data_validation as tfdv
-from deepdiff import DeepDiff
+from bq.testutils import (
+    assert_stats_equal,
+    clear_unsupported_agg_fields,
+    clear_unsupported_fields,
+)
 from feast.client import Client
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_set import FeatureSet
 from feast.type_map import ValueType
-from google.protobuf.duration_pb2 import Duration
-import tensorflow_data_validation as tfdv
-from bq.testutils import *
-
 
 pd.set_option("display.max_columns", None)
 
@@ -85,16 +84,16 @@ def feature_stats_feature_set(client):
 @pytest.fixture(scope="module")
 def feature_stats_dataset_basic(client, feature_stats_feature_set):
 
-    N_ROWS = 20
+    n_rows = 20
 
     time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
     df = pd.DataFrame(
         {
-            "datetime": [time_offset] * N_ROWS,
-            "entity_id": [i for i in range(N_ROWS)],
-            "strings": ["a", "b"] * int(N_ROWS / 2),
-            "ints": [int(i) for i in range(N_ROWS)],
-            "floats": [10.5 - i for i in range(N_ROWS)],
+            "datetime": [time_offset] * n_rows,
+            "entity_id": [i for i in range(n_rows)],
+            "strings": ["a", "b"] * int(n_rows / 2),
+            "ints": [int(i) for i in range(n_rows)],
+            "floats": [10.5 - i for i in range(n_rows)],
         }
     )
 
@@ -175,7 +174,7 @@ def feature_stats_dataset_agg(client, feature_stats_feature_set):
 
 def test_feature_stats_retrieval_by_single_dataset(client, feature_stats_dataset_basic):
     stats = client.get_statistics(
-        f"feature_stats",
+        "feature_stats",
         features=["strings", "ints", "floats"],
         store=STORE_NAME,
         ingestion_ids=[feature_stats_dataset_basic["id"]],

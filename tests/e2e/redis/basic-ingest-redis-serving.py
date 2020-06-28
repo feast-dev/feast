@@ -3,24 +3,6 @@ import os
 import random
 import tempfile
 import time
-import grpc
-from collections import OrderedDict
-from feast.entity import Entity
-from feast.source import KafkaSource
-from feast.serving.ServingService_pb2 import (
-    GetOnlineFeaturesRequest,
-    GetOnlineFeaturesResponse,
-)
-from feast.core.IngestionJob_pb2 import IngestionJobStatus
-from feast.core.CoreService_pb2_grpc import CoreServiceStub
-from feast.core import CoreService_pb2
-from feast.types.Value_pb2 import Value
-from feast.client import Client
-from feast.feature_set import FeatureSet, FeatureSetRef
-from feast.type_map import ValueType
-from feast.wait import wait_retry_backoff
-from feast.constants import FEAST_DEFAULT_OPTIONS, CONFIG_PROJECT_KEY
-from google.protobuf.duration_pb2 import Duration
 import uuid
 from datetime import datetime
 
@@ -32,21 +14,26 @@ import pytz
 from google.protobuf.duration_pb2 import Duration
 
 from feast.client import Client
-from feast.constants import CONFIG_PROJECT_KEY, FEAST_DEFAULT_OPTIONS
 from feast.core import CoreService_pb2
+from feast.core.CoreService_pb2 import ApplyFeatureSetResponse, GetFeatureSetResponse
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_set import FeatureSet, FeatureSetRef
-from feast.serving.ServingService_pb2 import (GetOnlineFeaturesRequest,
-                                              GetOnlineFeaturesResponse)
+from feast.serving.ServingService_pb2 import (
+    GetOnlineFeaturesRequest,
+    GetOnlineFeaturesResponse,
+)
+from feast.source import KafkaSource
 from feast.type_map import ValueType
 from feast.types.Value_pb2 import Value as Value
+from feast.wait import wait_retry_backoff
 
 FLOAT_TOLERANCE = 0.00001
-PROJECT_NAME = 'basic_' + uuid.uuid4().hex.upper()[0:6]
+PROJECT_NAME = "basic_" + uuid.uuid4().hex.upper()[0:6]
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+
 
 def basic_dataframe(entities, features, ingest_time, n_size, null_features=[]):
     """
@@ -60,10 +47,8 @@ def basic_dataframe(entities, features, ingest_time, n_size, null_features=[]):
     null_features - names of features that contain null values
     Returns the generated dataframe
     """
-    offset = random.randint(1000, 100000)  # ensure a unique key space is used
     df_dict = {
-        "datetime": [ingest_time.replace(tzinfo=pytz.utc) for _ in
-                     range(n_size)],
+        "datetime": [ingest_time.replace(tzinfo=pytz.utc) for _ in range(n_size)],
     }
     for entity_name in entities:
         df_dict[entity_name] = list(range(1, n_size + 1))
@@ -72,6 +57,7 @@ def basic_dataframe(entities, features, ingest_time, n_size, null_features=[]):
     for null_feature_name in null_features:
         df_dict[null_feature_name] = [None for _ in range(n_size)]
     return pd.DataFrame(df_dict)
+
 
 def check_online_response(feature_ref, ingest_df, response):
     """
@@ -99,36 +85,37 @@ def check_online_response(feature_ref, ingest_df, response):
         )
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def core_url(pytestconfig):
     return pytestconfig.getoption("core_url")
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def serving_url(pytestconfig):
     return pytestconfig.getoption("serving_url")
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def allow_dirty(pytestconfig):
-    return True if pytestconfig.getoption(
-        "allow_dirty").lower() == "true" else False
+    return True if pytestconfig.getoption("allow_dirty").lower() == "true" else False
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def enable_auth(pytestconfig):
     return pytestconfig.getoption("enable_auth")
-        
-        
-@pytest.fixture(scope='module')
+
+
+@pytest.fixture(scope="module")
 def client(core_url, serving_url, allow_dirty, enable_auth):
     # Get client for core and serving
-    # if enable_auth is True, Google Id token will be 
-    # passed in the metadata for authentication. 
-    client = Client(core_url=core_url,
-                serving_url=serving_url,
-                core_enable_auth=enable_auth,
-                core_auth_provider="google")
+    # if enable_auth is True, Google Id token will be
+    # passed in the metadata for authentication.
+    client = Client(
+        core_url=core_url,
+        serving_url=serving_url,
+        core_enable_auth=enable_auth,
+        core_auth_provider="google",
+    )
     client.create_project(PROJECT_NAME)
 
     # Ensure Feast core is active, but empty
@@ -149,30 +136,38 @@ def ingest_time():
 
 @pytest.fixture(scope="module")
 def cust_trans_df(ingest_time):
-    return basic_dataframe(entities=["customer_id"],
-                           features=["daily_transactions", "total_transactions"],
-                           null_features=["null_values"],
-                           ingest_time=ingest_time,
-                           n_size=5)
+    return basic_dataframe(
+        entities=["customer_id"],
+        features=["daily_transactions", "total_transactions"],
+        null_features=["null_values"],
+        ingest_time=ingest_time,
+        n_size=5,
+    )
+
 
 @pytest.fixture(scope="module")
 def driver_df(ingest_time):
-    return basic_dataframe(entities=["driver_id"],
-                           features=["rating", "cost"],
-                           ingest_time=ingest_time,
-                           n_size=5)
+    return basic_dataframe(
+        entities=["driver_id"],
+        features=["rating", "cost"],
+        ingest_time=ingest_time,
+        n_size=5,
+    )
+
 
 def test_version_returns_results(client):
     version_info = client.version()
-    assert not version_info['core'] is 'not configured'
-    assert not version_info['serving'] is 'not configured'
+    assert not version_info["core"] == "not configured"
+    assert not version_info["serving"] == "not configured"
 
 
 @pytest.mark.timeout(45)
 @pytest.mark.run(order=10)
 def test_basic_register_feature_set_success(client):
     # Register feature set without project
-    cust_trans_fs_expected = FeatureSet.from_yaml(f"{DIR_PATH}/basic/cust_trans_fs.yaml")
+    cust_trans_fs_expected = FeatureSet.from_yaml(
+        f"{DIR_PATH}/basic/cust_trans_fs.yaml"
+    )
     driver_fs_expected = FeatureSet.from_yaml(f"{DIR_PATH}/basic/driver_fs.yaml")
     client.apply(cust_trans_fs_expected)
     client.apply(driver_fs_expected)
@@ -182,32 +177,29 @@ def test_basic_register_feature_set_success(client):
     assert driver_fs_actual == driver_fs_expected
 
     # Register feature set with project
-    cust_trans_fs_expected = FeatureSet.from_yaml(f"{DIR_PATH}/basic/cust_trans_fs.yaml")
+    cust_trans_fs_expected = FeatureSet.from_yaml(
+        f"{DIR_PATH}/basic/cust_trans_fs.yaml"
+    )
     client.set_project(PROJECT_NAME)
     client.apply(cust_trans_fs_expected)
-    cust_trans_fs_actual = client.get_feature_set("customer_transactions",
-                                                  project=PROJECT_NAME)
+    cust_trans_fs_actual = client.get_feature_set(
+        "customer_transactions", project=PROJECT_NAME
+    )
     assert cust_trans_fs_actual == cust_trans_fs_expected
 
     # Register feature set with labels
     driver_unlabelled_fs = FeatureSet(
         "driver_unlabelled",
-        features=[
-            Feature("rating", ValueType.FLOAT),
-            Feature("cost", ValueType.FLOAT)
-        ],
+        features=[Feature("rating", ValueType.FLOAT), Feature("cost", ValueType.FLOAT)],
         entities=[Entity("entity_id", ValueType.INT64)],
-        max_age=Duration(seconds=100)
+        max_age=Duration(seconds=100),
     )
     driver_labeled_fs_expected = FeatureSet(
         "driver_labeled",
-        features=[
-            Feature("rating", ValueType.FLOAT),
-            Feature("cost", ValueType.FLOAT)
-        ],
+        features=[Feature("rating", ValueType.FLOAT), Feature("cost", ValueType.FLOAT)],
         entities=[Entity("entity_id", ValueType.INT64)],
         max_age=Duration(seconds=100),
-        labels={"key1":"val1"}
+        labels={"key1": "val1"},
     )
     client.set_project(PROJECT_NAME)
     client.apply(driver_unlabelled_fs)
@@ -236,11 +228,8 @@ def test_basic_ingest_success(client, cust_trans_df, driver_df):
 @pytest.mark.timeout(90)
 @pytest.mark.run(order=12)
 def test_basic_retrieve_online_success(client, cust_trans_df):
-    feature_refs=[
-        "daily_transactions",
-        "total_transactions",
-        "null_values"
-    ]
+    feature_refs = ["daily_transactions", "total_transactions", "null_values"]
+
     # Poll serving for feature values until the correct values are returned
     def try_get_features():
         response = client.get_online_features(
@@ -254,13 +243,21 @@ def test_basic_retrieve_online_success(client, cust_trans_df):
                 )
             ],
             feature_refs=feature_refs,
-        )# type: GetOnlineFeaturesResponse 
-        is_ok = all([check_online_response(ref, cust_trans_df, response) for ref in feature_refs])
+        )  # type: GetOnlineFeaturesResponse
+        is_ok = all(
+            [
+                check_online_response(ref, cust_trans_df, response)
+                for ref in feature_refs
+            ]
+        )
         return response, is_ok
 
-    wait_retry_backoff(retry_fn=try_get_features,
-                       timeout_secs=90,
-                       timeout_msg="Timed out trying to get online feature values")
+    wait_retry_backoff(
+        retry_fn=try_get_features,
+        timeout_secs=90,
+        timeout_msg="Timed out trying to get online feature values",
+    )
+
 
 @pytest.mark.timeout(90)
 @pytest.mark.run(order=13)
@@ -272,6 +269,7 @@ def test_basic_retrieve_online_multiple_featureset(client, cust_trans_df, driver
         ("driver:rating", driver_df),
         ("total_transactions", cust_trans_df),
     ]
+
     # Poll serving for feature values until the correct values are returned
     def try_get_features():
         feature_refs = [mapping[0] for mapping in feature_ref_df_mapping]
@@ -282,21 +280,25 @@ def test_basic_retrieve_online_multiple_featureset(client, cust_trans_df, driver
                         "customer_id": Value(
                             int64_val=cust_trans_df.iloc[0]["customer_id"]
                         ),
-                        "driver_id": Value(
-                            int64_val=driver_df.iloc[0]["driver_id"]
-                        )
+                        "driver_id": Value(int64_val=driver_df.iloc[0]["driver_id"]),
                     }
                 )
             ],
             feature_refs=feature_refs,
         )  # type: GetOnlineFeaturesResponse
-        is_ok = all([check_online_response(ref, df, response)
-                     for ref, df in feature_ref_df_mapping])
+        is_ok = all(
+            [
+                check_online_response(ref, df, response)
+                for ref, df in feature_ref_df_mapping
+            ]
+        )
         return response, is_ok
 
-    wait_retry_backoff(retry_fn=try_get_features,
-                       timeout_secs=90,
-                       timeout_msg="Timed out trying to get online feature values")
+    wait_retry_backoff(
+        retry_fn=try_get_features,
+        timeout_secs=90,
+        timeout_msg="Timed out trying to get online feature values",
+    )
 
 
 @pytest.mark.timeout(300)
@@ -305,9 +307,12 @@ def test_basic_ingest_jobs(client):
     # list ingestion jobs given featureset
     cust_trans_fs = client.get_feature_set(name="customer_transactions")
     ingest_jobs = client.list_ingest_jobs(
-        feature_set_ref=FeatureSetRef.from_feature_set(cust_trans_fs))
+        feature_set_ref=FeatureSetRef.from_feature_set(cust_trans_fs)
+    )
     # filter ingestion jobs to only those that are running
-    ingest_jobs = [job for job in ingest_jobs if job.status == IngestionJobStatus.RUNNING]
+    ingest_jobs = [
+        job for job in ingest_jobs if job.status == IngestionJobStatus.RUNNING
+    ]
     assert len(ingest_jobs) >= 1
 
     for ingest_job in ingest_jobs:
@@ -322,18 +327,16 @@ def test_basic_ingest_jobs(client):
         assert ingest_job.status == IngestionJobStatus.ABORTED
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def all_types_dataframe():
     return pd.DataFrame(
         {
-            "datetime": [datetime.utcnow().replace(tzinfo=pytz.utc) for _ in
-                         range(3)],
+            "datetime": [datetime.utcnow().replace(tzinfo=pytz.utc) for _ in range(3)],
             "user_id": [1001, 1002, 1003],
             "int32_feature": [np.int32(1), np.int32(2), np.int32(3)],
             "int64_feature": [np.int64(1), np.int64(2), np.int64(3)],
             "float_feature": [np.float(0.1), np.float(0.2), np.float(0.3)],
-            "double_feature": [np.float64(0.1), np.float64(0.2),
-                               np.float64(0.3)],
+            "double_feature": [np.float64(0.1), np.float64(0.2), np.float64(0.3)],
             "string_feature": ["one", "two", "three"],
             "bytes_feature": [b"one", b"two", b"three"],
             "bool_feature": [True, False, False],
@@ -395,8 +398,7 @@ def test_all_types_register_feature_set_success(client):
             Feature(name="float_list_feature", dtype=ValueType.FLOAT_LIST),
             Feature(name="int64_list_feature", dtype=ValueType.INT64_LIST),
             Feature(name="int32_list_feature", dtype=ValueType.INT32_LIST),
-            Feature(name="string_list_feature",
-                    dtype=ValueType.STRING_LIST),
+            Feature(name="string_list_feature", dtype=ValueType.STRING_LIST),
             Feature(name="bytes_list_feature", dtype=ValueType.BYTES_LIST),
         ],
         max_age=Duration(seconds=3600),
@@ -451,12 +453,16 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
         "bytes_list_feature",
         "double_list_feature",
     ]
+
     def try_get_features():
         response = client.get_online_features(
             entity_rows=[
                 GetOnlineFeaturesRequest.EntityRow(
-                    fields={"user_id": Value(
-                        int64_val=all_types_dataframe.iloc[0]["user_id"])}
+                    fields={
+                        "user_id": Value(
+                            int64_val=all_types_dataframe.iloc[0]["user_id"]
+                        )
+                    }
                 )
             ],
             feature_refs=feature_refs,
@@ -464,17 +470,26 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
         is_ok = check_online_response("float_feature", all_types_dataframe, response)
         return response, is_ok
 
-    response = wait_retry_backoff(retry_fn=try_get_features,
-                                 timeout_secs=90,
-                                 timeout_msg="Timed out trying to get online feature values")
+    response = wait_retry_backoff(
+        retry_fn=try_get_features,
+        timeout_secs=90,
+        timeout_msg="Timed out trying to get online feature values",
+    )
 
     # check returned values
-    returned_float_list = response.field_values[0].fields["float_list_feature"].float_list_val.val
+    returned_float_list = (
+        response.field_values[0].fields["float_list_feature"].float_list_val.val
+    )
     sent_float_list = all_types_dataframe.iloc[0]["float_list_feature"]
-    assert math.isclose(returned_float_list[0], sent_float_list[0], abs_tol=FLOAT_TOLERANCE)
+    assert math.isclose(
+        returned_float_list[0], sent_float_list[0], abs_tol=FLOAT_TOLERANCE
+    )
     # check returned metadata
-    assert (response.field_values[0].statuses["float_list_feature"]
-            == GetOnlineFeaturesResponse.FieldStatus.PRESENT)
+    assert (
+        response.field_values[0].statuses["float_list_feature"]
+        == GetOnlineFeaturesResponse.FieldStatus.PRESENT
+    )
+
 
 @pytest.mark.timeout(300)
 @pytest.mark.run(order=29)
@@ -482,9 +497,12 @@ def test_all_types_ingest_jobs(client, all_types_dataframe):
     # list ingestion jobs given featureset
     all_types_fs = client.get_feature_set(name="all_types")
     ingest_jobs = client.list_ingest_jobs(
-        feature_set_ref=FeatureSetRef.from_feature_set(all_types_fs))
+        feature_set_ref=FeatureSetRef.from_feature_set(all_types_fs)
+    )
     # filter ingestion jobs to only those that are running
-    ingest_jobs = [job for job in ingest_jobs if job.status == IngestionJobStatus.RUNNING]
+    ingest_jobs = [
+        job for job in ingest_jobs if job.status == IngestionJobStatus.RUNNING
+    ]
     assert len(ingest_jobs) >= 1
 
     for ingest_job in ingest_jobs:
@@ -499,15 +517,14 @@ def test_all_types_ingest_jobs(client, all_types_dataframe):
         assert ingest_job.status == IngestionJobStatus.ABORTED
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def large_volume_dataframe():
     ROW_COUNT = 100000
     offset = random.randint(1000000, 10000000)  # ensure a unique key space
     customer_data = pd.DataFrame(
         {
             "datetime": [
-                datetime.utcnow().replace(tzinfo=pytz.utc) for _ in
-                range(ROW_COUNT)
+                datetime.utcnow().replace(tzinfo=pytz.utc) for _ in range(ROW_COUNT)
             ],
             "customer_id": [offset + inc for inc in range(ROW_COUNT)],
             "daily_transactions_large": [np.random.rand() for _ in range(ROW_COUNT)],
@@ -521,7 +538,8 @@ def large_volume_dataframe():
 @pytest.mark.run(order=30)
 def test_large_volume_register_feature_set_success(client):
     cust_trans_fs_expected = FeatureSet.from_yaml(
-        f"{DIR_PATH}/large_volume/cust_trans_large_fs.yaml")
+        f"{DIR_PATH}/large_volume/cust_trans_large_fs.yaml"
+    )
 
     # Register feature set
     client.apply(cust_trans_fs_expected)
@@ -529,8 +547,7 @@ def test_large_volume_register_feature_set_success(client):
     # Feast Core needs some time to fully commit the FeatureSet applied
     # when there is no existing job yet for the Featureset
     time.sleep(10)
-    cust_trans_fs_actual = client.get_feature_set(
-        name="customer_transactions_large")
+    cust_trans_fs_actual = client.get_feature_set(name="customer_transactions_large")
 
     assert cust_trans_fs_actual == cust_trans_fs_expected
 
@@ -557,7 +574,7 @@ def test_large_volume_ingest_success(client, large_volume_dataframe):
 @pytest.mark.run(order=32)
 def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
     # Poll serving for feature values until the correct values are returned
-    feature_refs=[
+    feature_refs = [
         "daily_transactions_large",
         "total_transactions_large",
     ]
@@ -567,64 +584,63 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
                 GetOnlineFeaturesRequest.EntityRow(
                     fields={
                         "customer_id": Value(
-                            int64_val=large_volume_dataframe.iloc[0][
-                                "customer_id"]
+                            int64_val=large_volume_dataframe.iloc[0]["customer_id"]
                         )
                     }
                 )
             ],
             feature_refs=feature_refs,
         )  # type: GetOnlineFeaturesResponse
-        is_ok = all([check_online_response(ref, large_volume_dataframe, response) for ref in feature_refs])
+        is_ok = all(
+            [
+                check_online_response(ref, large_volume_dataframe, response)
+                for ref in feature_refs
+            ]
+        )
         return None, is_ok
 
-    wait_retry_backoff(retry_fn=try_get_features,
-                       timeout_secs=90,
-                       timeout_msg="Timed out trying to get online feature values")
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def all_types_parquet_file():
     COUNT = 20000
 
     df = pd.DataFrame(
         {
             "datetime": [datetime.utcnow() for _ in range(COUNT)],
-            "customer_id": [np.int32(random.randint(0, 10000)) for _ in
-                            range(COUNT)],
-            "int32_feature_parquet": [np.int32(random.randint(0, 10000)) for _ in
-                                      range(COUNT)],
-            "int64_feature_parquet": [np.int64(random.randint(0, 10000)) for _ in
-                                      range(COUNT)],
+            "customer_id": [np.int32(random.randint(0, 10000)) for _ in range(COUNT)],
+            "int32_feature_parquet": [
+                np.int32(random.randint(0, 10000)) for _ in range(COUNT)
+            ],
+            "int64_feature_parquet": [
+                np.int64(random.randint(0, 10000)) for _ in range(COUNT)
+            ],
             "float_feature_parquet": [np.float(random.random()) for _ in range(COUNT)],
-            "double_feature_parquet": [np.float64(random.random()) for _ in
-                                       range(COUNT)],
-            "string_feature_parquet": ["one" + str(random.random()) for _ in
-                                       range(COUNT)],
+            "double_feature_parquet": [
+                np.float64(random.random()) for _ in range(COUNT)
+            ],
+            "string_feature_parquet": [
+                "one" + str(random.random()) for _ in range(COUNT)
+            ],
             "bytes_feature_parquet": [b"one" for _ in range(COUNT)],
             "int32_list_feature_parquet": [
                 np.array([1, 2, 3, random.randint(0, 10000)], dtype=np.int32)
-                for _
-                in range(COUNT)
+                for _ in range(COUNT)
             ],
             "int64_list_feature_parquet": [
                 np.array([1, random.randint(0, 10000), 3, 4], dtype=np.int64)
-                for _
-                in range(COUNT)
+                for _ in range(COUNT)
             ],
             "float_list_feature_parquet": [
-                np.array([1.1, 1.2, 1.3, random.random()], dtype=np.float32) for
-                _
-                in range(COUNT)
+                np.array([1.1, 1.2, 1.3, random.random()], dtype=np.float32)
+                for _ in range(COUNT)
             ],
             "double_list_feature_parquet": [
-                np.array([1.1, 1.2, 1.3, random.random()], dtype=np.float64) for
-                _
-                in range(COUNT)
+                np.array([1.1, 1.2, 1.3, random.random()], dtype=np.float64)
+                for _ in range(COUNT)
             ],
             "string_list_feature_parquet": [
-                np.array(["one", "two" + str(random.random()), "three"]) for _
-                in
-                range(COUNT)
+                np.array(["one", "two" + str(random.random()), "three"])
+                for _ in range(COUNT)
             ],
             "bytes_list_feature_parquet": [
                 np.array([b"one", b"two", b"three"]) for _ in range(COUNT)
@@ -635,7 +651,7 @@ def all_types_parquet_file():
     # TODO: Boolean list is not being tested.
     #  https://github.com/feast-dev/feast/issues/341
 
-    file_path = os.path.join(tempfile.mkdtemp(), 'all_types.parquet')
+    file_path = os.path.join(tempfile.mkdtemp(), "all_types.parquet")
     df.to_parquet(file_path, allow_truncated_timestamps=True)
     return file_path
 
@@ -645,7 +661,8 @@ def all_types_parquet_file():
 def test_all_types_parquet_register_feature_set_success(client):
     # Load feature set from file
     all_types_parquet_expected = FeatureSet.from_yaml(
-        f"{DIR_PATH}/all_types_parquet/all_types_parquet.yaml")
+        f"{DIR_PATH}/all_types_parquet/all_types_parquet.yaml"
+    )
 
     # Register feature set
     client.apply(all_types_parquet_expected)
@@ -669,8 +686,7 @@ def test_all_types_parquet_register_feature_set_success(client):
 
 @pytest.mark.timeout(600)
 @pytest.mark.run(order=41)
-def test_all_types_infer_register_ingest_file_success(client,
-                                                      all_types_parquet_file):
+def test_all_types_infer_register_ingest_file_success(client, all_types_parquet_file):
     # Get feature set
     all_types_fs = client.get_feature_set(name="all_types_parquet")
 
@@ -684,43 +700,42 @@ def test_list_entities_and_features(client):
     customer_entity = Entity("customer_id", ValueType.INT64)
     driver_entity = Entity("driver_id", ValueType.INT64)
 
-    customer_feature_rating = Feature(name="rating", dtype=ValueType.FLOAT, labels={"key1":"val1"})
+    customer_feature_rating = Feature(
+        name="rating", dtype=ValueType.FLOAT, labels={"key1": "val1"}
+    )
     customer_feature_cost = Feature(name="cost", dtype=ValueType.FLOAT)
     driver_feature_rating = Feature(name="rating", dtype=ValueType.FLOAT)
-    driver_feature_cost = Feature(name="cost", dtype=ValueType.FLOAT, labels={"key1":"val1"})
+    driver_feature_cost = Feature(
+        name="cost", dtype=ValueType.FLOAT, labels={"key1": "val1"}
+    )
 
-    filter_by_project_entity_labels_expected = dict([
-        ("customer:rating", customer_feature_rating)
-    ])
+    filter_by_project_entity_labels_expected = dict(
+        [("customer:rating", customer_feature_rating)]
+    )
 
-    filter_by_project_entity_expected = dict([
-        ("driver:cost", driver_feature_cost),
-        ("driver:rating", driver_feature_rating)
-    ])
+    filter_by_project_entity_expected = dict(
+        [("driver:cost", driver_feature_cost), ("driver:rating", driver_feature_rating)]
+    )
 
-    filter_by_project_labels_expected = dict([
-        ("customer:rating", customer_feature_rating),
-        ("driver:cost", driver_feature_cost)
-    ])
+    filter_by_project_labels_expected = dict(
+        [
+            ("customer:rating", customer_feature_rating),
+            ("driver:cost", driver_feature_cost),
+        ]
+    )
 
     customer_fs = FeatureSet(
         "customer",
-        features=[
-            customer_feature_rating,
-            customer_feature_cost
-        ],
+        features=[customer_feature_rating, customer_feature_cost],
         entities=[customer_entity],
-        max_age=Duration(seconds=100)
+        max_age=Duration(seconds=100),
     )
 
     driver_fs = FeatureSet(
         "driver",
-        features=[
-            driver_feature_rating,
-            driver_feature_cost
-        ],
+        features=[driver_feature_rating, driver_feature_cost],
         entities=[driver_entity],
-        max_age=Duration(seconds=100)
+        max_age=Duration(seconds=100),
     )
 
     client.set_project(PROJECT_NAME)
@@ -729,17 +744,30 @@ def test_list_entities_and_features(client):
 
     # Test for listing of features
     # Case 1: Filter by: project, entities and labels
-    filter_by_project_entity_labels_actual = client.list_features_by_ref(project=PROJECT_NAME, entities=["customer_id"], labels={"key1":"val1"})
+    filter_by_project_entity_labels_actual = client.list_features_by_ref(
+        project=PROJECT_NAME, entities=["customer_id"], labels={"key1": "val1"}
+    )
 
     # Case 2: Filter by: project, entities
-    filter_by_project_entity_actual = client.list_features_by_ref(project=PROJECT_NAME, entities=["driver_id"])
+    filter_by_project_entity_actual = client.list_features_by_ref(
+        project=PROJECT_NAME, entities=["driver_id"]
+    )
 
     # Case 3: Filter by: project, labels
-    filter_by_project_labels_actual = client.list_features_by_ref(project=PROJECT_NAME, labels={"key1":"val1"})
+    filter_by_project_labels_actual = client.list_features_by_ref(
+        project=PROJECT_NAME, labels={"key1": "val1"}
+    )
 
-    assert set(filter_by_project_entity_labels_expected) == set(filter_by_project_entity_labels_actual)
-    assert set(filter_by_project_entity_expected) == set(filter_by_project_entity_actual)
-    assert set(filter_by_project_labels_expected) == set(filter_by_project_labels_actual)
+    assert set(filter_by_project_entity_labels_expected) == set(
+        filter_by_project_entity_labels_actual
+    )
+    assert set(filter_by_project_entity_expected) == set(
+        filter_by_project_entity_actual
+    )
+    assert set(filter_by_project_labels_expected) == set(
+        filter_by_project_labels_actual
+    )
+
 
 @pytest.mark.timeout(900)
 @pytest.mark.run(order=60)
@@ -748,7 +776,11 @@ def test_sources_deduplicate_ingest_jobs(client):
     alt_source = KafkaSource("localhost:9092", "feast-data")
 
     def get_running_jobs():
-        return [ job for job in client.list_ingest_jobs() if job.status == IngestionJobStatus.RUNNING ]
+        return [
+            job
+            for job in client.list_ingest_jobs()
+            if job.status == IngestionJobStatus.RUNNING
+        ]
 
     # stop all ingest jobs
     ingest_jobs = client.list_ingest_jobs()
@@ -795,14 +827,14 @@ class TestsBasedOnGrpc:
     @pytest.fixture(scope="module")
     def core_service_stub(self, core_url):
         if core_url.endswith(":443"):
-            core_channel = grpc.secure_channel(
-                core_url, grpc.ssl_channel_credentials()
-            )
+            core_channel = grpc.secure_channel(core_url, grpc.ssl_channel_credentials())
         else:
             core_channel = grpc.insecure_channel(core_url)
 
         try:
-            grpc.channel_ready_future(core_channel).result(timeout=self.GRPC_CONNECTION_TIMEOUT)
+            grpc.channel_ready_future(core_channel).result(
+                timeout=self.GRPC_CONNECTION_TIMEOUT
+            )
         except grpc.FutureTimeoutError:
             raise ConnectionError(
                 f"Connection timed out while attempting to connect to Feast "
