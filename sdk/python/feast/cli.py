@@ -121,26 +121,10 @@ def feature():
     pass
 
 
-def _get_features_labels_dict(label_str: str) -> Dict[str, str]:
-    """
-    Converts CLI input labels string to dictionary format if provided string is valid.
-    """
-    labels_dict = {}  # type: Dict[str,str]
-    labels_kv = label_str.split(",")
-    if label_str == "":
-        return labels_dict
-    if len(labels_kv) % 2 == 1:
-        raise ValueError("Uneven key-value label pairs were entered")
-    for k, v in zip(labels_kv[0::2], labels_kv[1::2]):
-        labels_dict[k] = v
-    return labels_dict
-
-
-def _get_features_entities(entities_str: str) -> List[str]:
+def _convert_entity_string_to_list(entities_str: str) -> List[str]:
     """
     Converts CLI input entities string to list format if provided string is valid.
     """
-    entities_list: List[str] = []
     if entities_str == "":
         return []
     return entities_str.split(",")
@@ -174,8 +158,8 @@ def feature_list(project: str, entities: str, labels: str):
     """
     feast_client = Client()  # type: Client
 
-    entities_list = _get_features_entities(entities)
-    labels_dict: Dict[str, str] = _get_features_labels_dict(labels)
+    entities_list = _convert_entity_string_to_list(entities)
+    labels_dict: Dict[str, str] = _get_labels_dict(labels)
 
     table = []
     for feature_ref, feature in feast_client.list_features_by_ref(
