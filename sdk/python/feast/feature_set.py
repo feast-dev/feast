@@ -28,6 +28,7 @@ from pyarrow.lib import TimestampType
 from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
 from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
 from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
+from feast.core.FeatureSet_pb2 import FeatureSetStatusValue
 from feast.core.FeatureSetReference_pb2 import (
     FeatureSetReference as FeatureSetReferenceProto,
 )
@@ -62,7 +63,7 @@ class FeatureSet:
         self._project = project
         self._fields = OrderedDict()  # type: Dict[str, Field]
         if features is not None:
-            self.features = features
+            self.features: Optional[List[Feature]] = features
         if entities is not None:
             self.entities = entities
         if source is None:
@@ -314,7 +315,7 @@ class FeatureSet:
         """
         del self._fields[name]
 
-    def _add_fields(self, fields: List[Field]):
+    def _add_fields(self, fields):
         """
         Adds multiple Fields to a Feature Set
 
@@ -379,8 +380,9 @@ class FeatureSet:
 
         # Create dictionary of fields that will not be inferred (manually set)
         provided_fields = OrderedDict()
+        fields = _create_field_list(entities, features)
 
-        for field in entities + features:
+        for field in fields:
             if not isinstance(field, Field):
                 raise Exception(f"Invalid field object type provided {type(field)}")
             if field.name not in provided_fields:
@@ -518,8 +520,9 @@ class FeatureSet:
 
         # Create dictionary of fields that will not be inferred (manually set)
         provided_fields = OrderedDict()
+        fields = _create_field_list(entities, features)
 
-        for field in entities + features:
+        for field in fields:
             if not isinstance(field, Field):
                 raise Exception(f"Invalid field object type provided {type(field)}")
             if field.name not in provided_fields:
@@ -1041,3 +1044,29 @@ def _infer_pd_column_type(column, series, rows_to_sample):
             dtype = current_dtype
 
     return dtype
+
+
+def _create_field_list(entities: List[Entity], features: List[Feature]) -> List[Field]:
+    """
+    Convert entities and features List to Field List
+
+    Args:
+        entities: List of Entity Objects
+        features: List of Features Objects
+
+
+    Returns:
+         List[Field]:
+            List of field from entities and features combined
+    """
+    fields: List[Field] = []
+
+    for entity in entities:
+        if isinstance(entity, Field):
+            fields.append(entity)
+
+    for feature in features:
+        if isinstance(feature, Field):
+            fields.append(feature)
+
+    return fields

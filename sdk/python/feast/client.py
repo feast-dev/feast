@@ -22,7 +22,7 @@ import time
 import uuid
 from collections import OrderedDict
 from math import ceil
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 import grpc
 import pandas as pd
@@ -48,9 +48,7 @@ from feast.core.CoreService_pb2 import (
     ApplyFeatureSetRequest,
     ApplyFeatureSetResponse,
     ArchiveProjectRequest,
-    ArchiveProjectResponse,
     CreateProjectRequest,
-    CreateProjectResponse,
     GetFeastCoreVersionRequest,
     GetFeatureSetRequest,
     GetFeatureSetResponse,
@@ -90,7 +88,7 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 
 _logger = logging.getLogger(__name__)
 
-CPU_COUNT = os.cpu_count()  # type: int
+CPU_COUNT: int = len(os.sched_getaffinity(0))
 
 
 class Client:
@@ -719,9 +717,9 @@ class Client:
         )
         request = ListIngestionJobsRequest(filter=list_filter)
         # make list request & unpack response
-        response = self._core_service_stub.ListIngestionJobs(request)
+        response = self._core_service_stub.ListIngestionJobs(request)  # type: ignore
         ingest_jobs = [
-            IngestJob(proto, self._core_service_stub) for proto in response.jobs
+            IngestJob(proto, self._core_service_stub) for proto in response.jobs  # type: ignore
         ]
         return ingest_jobs
 
@@ -735,9 +733,10 @@ class Client:
         Args:
             job: IngestJob to restart
         """
+        self._connect_core()  # ensures self._core_service_stub is defined
         request = RestartIngestionJobRequest(id=job.id)
         try:
-            self._core_service_stub.RestartIngestionJob(request)
+            self._core_service_stub.RestartIngestionJob(request)  # type: ignore
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 
@@ -751,9 +750,10 @@ class Client:
         Args:
             job: IngestJob to restart
         """
+        self._connect_core()  # ensures self._core_service_stub is defined
         request = StopIngestionJobRequest(id=job.id)
         try:
-            self._core_service_stub.StopIngestionJob(request)
+            self._core_service_stub.StopIngestionJob(request)  # type: ignore
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 
@@ -817,11 +817,12 @@ class Client:
         while True:
             if timeout is not None and time.time() - current_time >= timeout:
                 raise TimeoutError("Timed out waiting for feature set to be ready")
-            feature_set = self.get_feature_set(name)
+            fetched_feature_set: Optional[FeatureSet] = self.get_feature_set(name)
             if (
-                feature_set is not None
-                and feature_set.status == FeatureSetStatus.STATUS_READY
+                fetched_feature_set is not None
+                and fetched_feature_set.status == FeatureSetStatus.STATUS_READY
             ):
+                feature_set = fetched_feature_set
                 break
             time.sleep(3)
 

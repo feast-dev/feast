@@ -4,20 +4,12 @@ from concurrent import futures
 from typing import Dict
 
 import grpc
-from google.protobuf.timestamp_pb2 import Timestamp
 
 import feast.serving.ServingService_pb2_grpc as Serving
 from feast.core import FeatureSet_pb2 as FeatureSetProto
 from feast.core.CoreService_pb2 import ListFeatureSetsResponse
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
-from feast.serving.ServingService_pb2 import (
-    GetFeastServingInfoResponse,
-    GetOnlineFeaturesRequest,
-    GetOnlineFeaturesResponse,
-)
-from feast.types import FeatureRow_pb2 as FeatureRowProto
-from feast.types import Field_pb2 as FieldProto
-from feast.types import Value_pb2 as ValueProto
+from feast.serving.ServingService_pb2 import GetFeastServingInfoResponse
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
@@ -60,74 +52,6 @@ class ServingServicer(Serving.ServingServiceServicer):
 
     def GetFeastServingVersion(self, request, context):
         return GetFeastServingInfoResponse(version="0.3.2")
-
-    def GetOnlineFeatures(self, request: GetOnlineFeaturesRequest, context):
-
-        response = GetOnlineFeaturesResponse(
-            feature_data_sets=[
-                GetOnlineFeaturesResponse.FeatureDataSet(
-                    name="feature_set_1",
-                    feature_rows=[
-                        FeatureRowProto.FeatureRow(
-                            feature_set="feature_set_1",
-                            event_timestamp=Timestamp(),
-                            fields=[
-                                FieldProto.Field(
-                                    name="feature_1",
-                                    value=ValueProto.Value(float_val=1.2),
-                                ),
-                                FieldProto.Field(
-                                    name="feature_2",
-                                    value=ValueProto.Value(float_val=1.2),
-                                ),
-                                FieldProto.Field(
-                                    name="feature_3",
-                                    value=ValueProto.Value(float_val=1.2),
-                                ),
-                            ],
-                        ),
-                        FeatureRowProto.FeatureRow(
-                            feature_set="feature_set_1",
-                            event_timestamp=Timestamp(),
-                            fields=[
-                                FieldProto.Field(
-                                    name="feature_1",
-                                    value=ValueProto.Value(float_val=1.2),
-                                ),
-                                FieldProto.Field(
-                                    name="feature_2",
-                                    value=ValueProto.Value(float_val=1.2),
-                                ),
-                                FieldProto.Field(
-                                    name="feature_3",
-                                    value=ValueProto.Value(float_val=1.2),
-                                ),
-                            ],
-                        ),
-                        FeatureRowProto.FeatureRow(
-                            feature_set="feature_set_1",
-                            event_timestamp=Timestamp(),
-                            fields=[
-                                FieldProto.Field(
-                                    name="feature_1",
-                                    value=ValueProto.Value(float_val=1.2),
-                                ),
-                                FieldProto.Field(
-                                    name="feature_2",
-                                    value=ValueProto.Value(float_val=1.2),
-                                ),
-                                FieldProto.Field(
-                                    name="feature_3",
-                                    value=ValueProto.Value(float_val=1.2),
-                                ),
-                            ],
-                        ),
-                    ],
-                )
-            ]
-        )
-
-        return response
 
 
 def serve():
