@@ -794,7 +794,7 @@ def get_rows_ingested(
         f'SELECT COUNT(*) as count FROM `{project}.{dataset}.{table}` WHERE ingestion_id = "{ingestion_id}"'
     ).result()
 
-    return rows[0]
+    return rows[0]["count"]
 
 
 def clean_up_remote_files(files):
