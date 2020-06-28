@@ -22,6 +22,7 @@ from google.protobuf import json_format
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToDict, MessageToJson
 from google.protobuf.message import Message
+from google.protobuf.timestamp_pb2 import Timestamp
 from pandas.api.types import is_datetime64_ns_dtype
 from pyarrow.lib import TimestampType
 
@@ -62,7 +63,7 @@ class FeatureSet:
         self._project = project
         self._fields = OrderedDict()  # type: Dict[str, Field]
         if features is not None:
-            self.features = features
+            self.features: Optional[List[Feature]] = features
         if entities is not None:
             self.entities = entities
         if source is None:
@@ -70,12 +71,12 @@ class FeatureSet:
         else:
             self._source = source
         if labels is None:
-            self._labels = OrderedDict()
+            self._labels = OrderedDict()  # type: MutableMapping[str, str]
         else:
             self._labels = labels
         self._max_age = max_age
         self._status = None
-        self._created_timestamp = None
+        self._created_timestamp: Optional[Timestamp] = None
 
     def __eq__(self, other):
         if not isinstance(other, FeatureSet):
@@ -314,7 +315,7 @@ class FeatureSet:
         """
         del self._fields[name]
 
-    def _add_fields(self, fields: List[Field]):
+    def _add_fields(self, fields):
         """
         Adds multiple Fields to a Feature Set
 
@@ -379,8 +380,9 @@ class FeatureSet:
 
         # Create dictionary of fields that will not be inferred (manually set)
         provided_fields = OrderedDict()
+        fields = _create_field_list(entities, features)
 
-        for field in entities + features:
+        for field in fields:
             if not isinstance(field, Field):
                 raise Exception(f"Invalid field object type provided {type(field)}")
             if field.name not in provided_fields:
@@ -518,8 +520,9 @@ class FeatureSet:
 
         # Create dictionary of fields that will not be inferred (manually set)
         provided_fields = OrderedDict()
+        fields = _create_field_list(entities, features)
 
-        for field in entities + features:
+        for field in fields:
             if not isinstance(field, Field):
                 raise Exception(f"Invalid field object type provided {type(field)}")
             if field.name not in provided_fields:
@@ -835,7 +838,7 @@ class FeatureSet:
             if len(feature_set_proto.spec.project) == 0
             else feature_set_proto.spec.project,
         )
-        feature_set._status = feature_set_proto.meta.status
+        feature_set._status = feature_set_proto.meta.status  # type: ignore
         feature_set._created_timestamp = feature_set_proto.meta.created_timestamp
         return feature_set
 
@@ -1041,3 +1044,29 @@ def _infer_pd_column_type(column, series, rows_to_sample):
             dtype = current_dtype
 
     return dtype
+
+
+def _create_field_list(entities: List[Entity], features: List[Feature]) -> List[Field]:
+    """
+    Convert entities and features List to Field List
+
+    Args:
+        entities: List of Entity Objects
+        features: List of Features Objects
+
+
+    Returns:
+         List[Field]:
+            List of field from entities and features combined
+    """
+    fields: List[Field] = []
+
+    for entity in entities:
+        if isinstance(entity, Field):
+            fields.append(entity)
+
+    for feature in features:
+        if isinstance(feature, Field):
+            fields.append(feature)
+
+    return fields

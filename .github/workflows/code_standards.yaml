@@ -18,6 +18,8 @@ jobs:
       - uses: actions/checkout@v2
       - name: install dependencies
         run: make install-python-ci-dependencies
+      - name: compile protos
+        run: make compile-protos-python
       - name: lint python
         run: make lint-python
 

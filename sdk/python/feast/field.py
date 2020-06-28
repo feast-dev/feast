@@ -14,7 +14,7 @@
 from collections import OrderedDict
 from typing import MutableMapping, Optional, Union
 
-from feast.core.FeatureSet_pb2 import EntitySpec, FeatureSpec
+from feast.core.FeatureSet_pb2 import FeatureSpec
 from feast.value_type import ValueType
 from tensorflow_metadata.proto.v0 import schema_pb2
 
@@ -36,25 +36,25 @@ class Field:
             raise ValueError("dtype is not a valid ValueType")
         self._dtype = dtype
         if labels is None:
-            self._labels = OrderedDict()
+            self._labels = OrderedDict()  # type: MutableMapping
         else:
             self._labels = labels
-        self._presence = None
-        self._group_presence = None
-        self._shape = None
-        self._value_count = None
-        self._domain = None
-        self._int_domain = None
-        self._float_domain = None
-        self._string_domain = None
-        self._bool_domain = None
-        self._struct_domain = None
-        self._natural_language_domain = None
-        self._image_domain = None
-        self._mid_domain = None
-        self._url_domain = None
-        self._time_domain = None
-        self._time_of_day_domain = None
+        self._presence: Optional[schema_pb2.FeaturePresence] = None
+        self._group_presence: Optional[schema_pb2.FeaturePresenceWithinGroup] = None
+        self._shape: Optional[schema_pb2.FixedShape] = None
+        self._value_count: Optional[schema_pb2.ValueCount] = None
+        self._domain: Optional[str] = None
+        self._int_domain: Optional[schema_pb2.IntDomain] = None
+        self._float_domain: Optional[schema_pb2.FloatDomain] = None
+        self._string_domain: Optional[schema_pb2.StringDomain] = None
+        self._bool_domain: Optional[schema_pb2.BoolDomain] = None
+        self._struct_domain: Optional[schema_pb2.StructDomain] = None
+        self._natural_language_domain: Optional[schema_pb2.NaturalLanguageDomain] = None
+        self._image_domain: Optional[schema_pb2.ImageDomain] = None
+        self._mid_domain: Optional[schema_pb2.MIDDomain] = None
+        self._url_domain: Optional[schema_pb2.URLDomain] = None
+        self._time_domain: Optional[schema_pb2.TimeDomain] = None
+        self._time_of_day_domain: Optional[schema_pb2.TimeOfDayDomain] = None
 
     def __eq__(self, other):
         if (
@@ -87,7 +87,7 @@ class Field:
         return self._labels
 
     @property
-    def presence(self) -> schema_pb2.FeaturePresence:
+    def presence(self) -> Optional[schema_pb2.FeaturePresence]:
         """
         Getter for presence of this field
         """
@@ -104,7 +104,7 @@ class Field:
         self._presence = presence
 
     @property
-    def group_presence(self) -> schema_pb2.FeaturePresenceWithinGroup:
+    def group_presence(self) -> Optional[schema_pb2.FeaturePresenceWithinGroup]:
         """
         Getter for group_presence of this field
         """
@@ -121,7 +121,7 @@ class Field:
         self._group_presence = group_presence
 
     @property
-    def shape(self) -> schema_pb2.FixedShape:
+    def shape(self) -> Optional[schema_pb2.FixedShape]:
         """
         Getter for shape of this field
         """
@@ -138,7 +138,7 @@ class Field:
         self._shape = shape
 
     @property
-    def value_count(self) -> schema_pb2.ValueCount:
+    def value_count(self) -> Optional[schema_pb2.ValueCount]:
         """
         Getter for value_count of this field
         """
@@ -155,7 +155,7 @@ class Field:
         self._value_count = value_count
 
     @property
-    def domain(self) -> str:
+    def domain(self) -> Optional[str]:
         """
         Getter for domain of this field
         """
@@ -172,7 +172,7 @@ class Field:
         self._domain = domain
 
     @property
-    def int_domain(self) -> schema_pb2.IntDomain:
+    def int_domain(self) -> Optional[schema_pb2.IntDomain]:
         """
         Getter for int_domain of this field
         """
@@ -189,7 +189,7 @@ class Field:
         self._int_domain = int_domain
 
     @property
-    def float_domain(self) -> schema_pb2.FloatDomain:
+    def float_domain(self) -> Optional[schema_pb2.FloatDomain]:
         """
         Getter for float_domain of this field
         """
@@ -206,7 +206,7 @@ class Field:
         self._float_domain = float_domain
 
     @property
-    def string_domain(self) -> schema_pb2.StringDomain:
+    def string_domain(self) -> Optional[schema_pb2.StringDomain]:
         """
         Getter for string_domain of this field
         """
@@ -223,7 +223,7 @@ class Field:
         self._string_domain = string_domain
 
     @property
-    def bool_domain(self) -> schema_pb2.BoolDomain:
+    def bool_domain(self) -> Optional[schema_pb2.BoolDomain]:
         """
         Getter for bool_domain of this field
         """
@@ -240,7 +240,7 @@ class Field:
         self._bool_domain = bool_domain
 
     @property
-    def struct_domain(self) -> schema_pb2.StructDomain:
+    def struct_domain(self) -> Optional[schema_pb2.StructDomain]:
         """
         Getter for struct_domain of this field
         """
@@ -257,7 +257,7 @@ class Field:
         self._struct_domain = struct_domain
 
     @property
-    def natural_language_domain(self) -> schema_pb2.NaturalLanguageDomain:
+    def natural_language_domain(self) -> Optional[schema_pb2.NaturalLanguageDomain]:
         """
         Getter for natural_language_domain of this field
         """
@@ -278,7 +278,7 @@ class Field:
         self._natural_language_domain = natural_language_domain
 
     @property
-    def image_domain(self) -> schema_pb2.ImageDomain:
+    def image_domain(self) -> Optional[schema_pb2.ImageDomain]:
         """
         Getter for image_domain of this field
         """
@@ -295,7 +295,7 @@ class Field:
         self._image_domain = image_domain
 
     @property
-    def mid_domain(self) -> schema_pb2.MIDDomain:
+    def mid_domain(self) -> Optional[schema_pb2.MIDDomain]:
         """
         Getter for mid_domain of this field
         """
@@ -312,7 +312,7 @@ class Field:
         self._mid_domain = mid_domain
 
     @property
-    def url_domain(self) -> schema_pb2.URLDomain:
+    def url_domain(self) -> Optional[schema_pb2.URLDomain]:
         """
         Getter for url_domain of this field
         """
@@ -329,7 +329,7 @@ class Field:
         self.url_domain = url_domain
 
     @property
-    def time_domain(self) -> schema_pb2.TimeDomain:
+    def time_domain(self) -> Optional[schema_pb2.TimeDomain]:
         """
         Getter for time_domain of this field
         """
@@ -346,7 +346,7 @@ class Field:
         self._time_domain = time_domain
 
     @property
-    def time_of_day_domain(self) -> schema_pb2.TimeOfDayDomain:
+    def time_of_day_domain(self) -> Optional[schema_pb2.TimeOfDayDomain]:
         """
         Getter for time_of_day_domain of this field
         """
@@ -363,14 +363,14 @@ class Field:
         self._time_of_day_domain = time_of_day_domain
 
     def update_presence_constraints(
-        self, feature: Union[schema_pb2.Feature, EntitySpec, FeatureSpec]
+        self, feature: Union[schema_pb2.Feature, FeatureSpec]
     ) -> None:
         """
-        Update the presence constraints in this field from Tensorflow Feature,
-        Feast EntitySpec or FeatureSpec
+        Update the presence constraints in this field from Tensorflow Feature or
+        Feast FeatureSpec
 
         Args:
-            feature: Tensorflow Feature, Feast EntitySpec or FeatureSpec
+            feature: Tensorflow Feature or Feast FeatureSpec
 
         Returns: None
         """
@@ -381,14 +381,14 @@ class Field:
             self.group_presence = feature.group_presence
 
     def update_shape_type(
-        self, feature: Union[schema_pb2.Feature, EntitySpec, FeatureSpec]
+        self, feature: Union[schema_pb2.Feature, FeatureSpec]
     ) -> None:
         """
-        Update the shape type in this field from Tensorflow Feature,
-        Feast EntitySpec or FeatureSpec
+        Update the shape type in this field from Tensorflow Feature or
+        Feast FeatureSpec
 
         Args:
-            feature: Tensorflow Feature, Feast EntitySpec or FeatureSpec
+            feature: Tensorflow Feature or Feast FeatureSpec
 
         Returns: None
         """
@@ -399,14 +399,13 @@ class Field:
             self.value_count = feature.value_count
 
     def update_domain_info(
-        self, feature: Union[schema_pb2.Feature, EntitySpec, FeatureSpec]
+        self, feature: Union[schema_pb2.Feature, FeatureSpec]
     ) -> None:
         """
-        Update the domain info in this field from Tensorflow Feature, Feast EntitySpec
-        or FeatureSpec
+        Update the domain info in this field from Tensorflow Feature or Feast FeatureSpec
 
         Args:
-            feature: Tensorflow Feature, Feast EntitySpec or FeatureSpec
+            feature: Tensorflow Feature or Feast FeatureSpec
 
         Returns: None
         """

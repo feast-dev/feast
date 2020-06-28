@@ -19,12 +19,12 @@ from datetime import datetime
 
 import grpc
 import pandas as pd
+import pytest
 import pytz
 from google.protobuf import json_format
 
 import dataframes
 import feast.core.CoreService_pb2_grpc as Core
-import pytest
 from feast.client import Client
 from feast.entity import Entity
 from feast.feature_set import (

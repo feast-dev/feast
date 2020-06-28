@@ -178,8 +178,11 @@ class RetrievalJob:
             pd.DataFrame:
                 Pandas DataFrame of the feature values.
         """
+
+        # Object is Avro row type object, refer to self.result function for this type
+        records: List[dict] = []
+
         # Max chunk size defined by user
-        records = []
         for result in self.result(timeout_sec=timeout_sec):
             result.append(records)
             if len(records) == max_chunk_size:
@@ -257,7 +260,7 @@ class IngestJob:
         return self.proto.external_id
 
     @property
-    def status(self) -> IngestionJobStatus:
+    def status(self) -> IngestionJobStatus:  # type: ignore
         """
         Getter for IngestJob's status
         """
@@ -280,13 +283,13 @@ class IngestJob:
         return Source.from_proto(self.proto.source)
 
     @property
-    def store(self) -> Store:
+    def stores(self) -> List[Store]:
         """
         Getter for the IngestJob's target feast store.
         """
-        return self.proto.store
+        return list(self.proto.stores)
 
-    def wait(self, status: IngestionJobStatus, timeout_secs: float = 300):
+    def wait(self, status: IngestionJobStatus, timeout_secs: int = 300):  # type: ignore
         """
         Wait for this IngestJob to transtion to the given status.
         Raises TimeoutError if the wait operation times out.
@@ -297,7 +300,7 @@ class IngestJob:
         """
         # poll & wait for job status to transition
         wait_retry_backoff(
-            retry_fn=(lambda: (None, self.status == status)),
+            retry_fn=(lambda: (None, self.status == status)),  # type: ignore
             timeout_secs=timeout_secs,
             timeout_msg="Wait for IngestJob's status to transition timed out",
         )

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from datetime import datetime, timezone
-from typing import List
+from typing import Any, Dict, List, Union
 
 import numpy as np
 import pandas as pd
@@ -422,7 +422,7 @@ def pa_to_value_type(pa_type: object):
     return type_map[pa_type.__str__()]
 
 
-def pa_to_feast_value_type(value: object) -> ValueType:
+def pa_to_feast_value_type(value: pa.lib.ChunkedArray) -> ValueType:
     type_map = {
         "timestamp[ms]": ValueType.INT64,
         "int32": ValueType.INT32,
@@ -443,7 +443,7 @@ def pa_to_feast_value_type(value: object) -> ValueType:
     return type_map[value.type.__str__()]
 
 
-def pa_column_to_timestamp_proto_column(column: pa.lib.ChunkedArray) -> Timestamp:
+def pa_column_to_timestamp_proto_column(column: pa.lib.ChunkedArray) -> List[Timestamp]:
     if not isinstance(column.type, TimestampType):
         raise Exception("Only TimestampType columns are allowed")
 
@@ -456,9 +456,9 @@ def pa_column_to_timestamp_proto_column(column: pa.lib.ChunkedArray) -> Timestam
 
 
 def pa_column_to_proto_column(
-    feast_value_type, column: pa.lib.ChunkedArray
+    feast_value_type: ValueType, column: pa.lib.ChunkedArray
 ) -> List[ProtoValue]:
-    type_map = {
+    type_map: Dict[ValueType, Union[str, Dict[str, Any]]] = {
         ValueType.INT32: "int32_val",
         ValueType.INT64: "int64_val",
         ValueType.FLOAT: "float_val",
@@ -475,9 +475,9 @@ def pa_column_to_proto_column(
         ValueType.INT64_LIST: {"int64_list_val": Int64List},
     }
 
-    value = type_map[feast_value_type]
+    value: Union[str, Dict[str, Any]] = type_map[feast_value_type]
     # Process list types
-    if type(value) == dict:
+    if isinstance(value, dict):
         list_param_name = list(value.keys())[0]
         return [
             ProtoValue(**{list_param_name: value[list_param_name](val=x.as_py())})
