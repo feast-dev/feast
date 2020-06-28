@@ -92,11 +92,11 @@ class GCSClient(AbstractStagingClient):
                     remote staging location.
         """
 
-        bucket = self.gcs_client.get_bucket(bucket)
+        gs_bucket = self.gcs_client.get_bucket(bucket)
 
         if "*" in path:
             regex = re.compile(path.replace("*", ".*?").strip("/"))
-            blob_list = bucket.list_blobs(
+            blob_list = gs_bucket.list_blobs(
                 prefix=path.strip("/").split("*")[0], delimiter="/"
             )
             # File path should not be in path (file path must be longer than path)
