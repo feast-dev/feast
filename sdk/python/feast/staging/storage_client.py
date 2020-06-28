@@ -28,7 +28,7 @@ LOCAL_FILE = "file"
 
 class AbstractStagingClient(ABC):
     """
-    Abstract class for staging client, any new client should implement this class.
+    Client used to stage files in order to upload or download datasets into a historical store.
     """
 
     __metaclass__ = ABCMeta
@@ -39,14 +39,23 @@ class AbstractStagingClient(ABC):
 
     @abstractmethod
     def download_file(self, uri: ParseResult) -> IO[bytes]:
+        """
+        Downloads a file from an object store and returns a TemporaryFile object
+        """
         pass
 
     @abstractmethod
     def list_files(self, bucket: str, path: str) -> List[str]:
+        """
+        Lists all the files under a directory in an object store.
+        """
         pass
 
     @abstractmethod
     def upload_file(self, local_path: str, bucket: str, remote_path: str):
+        """
+        Uploads a file to an object store.
+        """
         pass
 
 
@@ -67,7 +76,7 @@ class GCSClient(AbstractStagingClient):
 
     def download_file(self, uri: ParseResult) -> IO[bytes]:
         """
-        Downloads a file from google cloud storageF and returns a TemporaryFile object
+        Downloads a file from google cloud storage and returns a TemporaryFile object
 
         Args:
             uri (urllib.parse.ParseResult): Parsed uri of the file ex: urlparse("gs://bucket/file.avro")
