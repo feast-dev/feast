@@ -17,6 +17,8 @@ from typing import Dict, List, MutableMapping, Optional
 
 import pandas as pd
 import pyarrow as pa
+from google.protobuf.timestamp_pb2 import Timestamp
+
 import yaml
 from google.protobuf import json_format
 from google.protobuf.duration_pb2 import Duration
@@ -70,12 +72,12 @@ class FeatureSet:
         else:
             self._source = source
         if labels is None:
-            self._labels = OrderedDict()
+            self._labels = OrderedDict()  # type: MutableMapping[str, str]
         else:
             self._labels = labels
         self._max_age = max_age
         self._status = None
-        self._created_timestamp = None
+        self._created_timestamp: Optional[Timestamp] = None
 
     def __eq__(self, other):
         if not isinstance(other, FeatureSet):
@@ -837,7 +839,7 @@ class FeatureSet:
             if len(feature_set_proto.spec.project) == 0
             else feature_set_proto.spec.project,
         )
-        feature_set._status = feature_set_proto.meta.status
+        feature_set._status = feature_set_proto.meta.status  # type: ignore
         feature_set._created_timestamp = feature_set_proto.meta.created_timestamp
         return feature_set
 

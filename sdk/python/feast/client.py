@@ -121,9 +121,9 @@ class Client:
             options = dict()
         self._config = Config(options={**options, **kwargs})
 
-        self._core_service_stub: CoreServiceStub = None
-        self._serving_service_stub: ServingServiceStub = None
-        self._auth_metadata = None
+        self._core_service_stub: Optional[CoreServiceStub] = None
+        self._serving_service_stub: Optional[ServingServiceStub] = None
+        self._auth_metadata: Optional[grpc.AuthMetadataPlugin] = None
 
         # Configure Auth Metadata Plugin if auth is enabled
         if self._config.getboolean(CONFIG_CORE_ENABLE_AUTH_KEY):
@@ -473,7 +473,7 @@ class Client:
                 raise ValueError("No project has been configured.")
 
         try:
-            get_feature_set_response = self._core_service_stub.GetFeatureSet(
+            get_feature_set_response = self._core_service.GetFeatureSet(
                 GetFeatureSetRequest(project=project, name=name.strip()),
                 metadata=self._get_grpc_metadata(),
             )  # type: GetFeatureSetResponse
@@ -943,7 +943,7 @@ class Client:
             if end_date is not None:
                 request.end_date.CopyFrom(Timestamp(seconds=int(end_date.timestamp())))
 
-        return self._core_service_stub.GetFeatureStatistics(
+        return self._core_service.GetFeatureStatistics(
             request
         ).dataset_feature_statistics_list
 

@@ -21,9 +21,9 @@ from feast.constants import FEAST_DEFAULT_OPTIONS as defaults
 
 def wait_retry_backoff(
     retry_fn: Callable[[], Tuple[Any, bool]],
-    timeout_secs: Optional[int] = None,
+    timeout_secs: int = 0,
     timeout_msg: Optional[str] = "Timeout while waiting for retry_fn() to return True",
-    max_interval_secs: Optional[int] = int(defaults[CONFIG_MAX_WAIT_INTERVAL_KEY]),
+    max_interval_secs: int = int(defaults[CONFIG_MAX_WAIT_INTERVAL_KEY]),
 ) -> Any:
     """
     Repeatedly try calling given retry_fn until it returns a True boolean success flag.
@@ -31,16 +31,16 @@ def wait_retry_backoff(
     Args:
         retry_fn: Callable that returns a result and a boolean success flag.
         timeout_secs: timeout in seconds to give up retrying and throw TimeoutError,
-                        or None to retry perpectually.
+                        or 0 to retry perpetually.
         timeout_msg: Message to use when throwing TimeoutError.
         max_interval_secs: max wait in seconds to wait between retries.
     Returns:
         Returned Result from retry_fn() if success flag is True.
     """
-    wait_secs, elapsed_secs = 1, 0
+    wait_secs, elapsed_secs = 1.0, 0.0
     result, is_success = retry_fn()
     wait_begin = time.time()
-    while not is_success and elapsed_secs <= timeout_secs:
+    while not is_success and (elapsed_secs <= timeout_secs or timeout_secs == 0):
         # back off wait duration exponentially, capped at MAX_WAIT_INTERVAL_SEC
         elapsed_secs = time.time() - wait_begin
         till_timeout_secs = timeout_secs - elapsed_secs

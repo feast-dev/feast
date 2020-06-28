@@ -15,6 +15,7 @@
 import json
 import logging
 import sys
+from typing import Dict, List
 
 import click
 import pkg_resources
@@ -120,11 +121,11 @@ def feature():
     pass
 
 
-def _get_features_labels_dict(label_str: str):
+def _get_features_labels_dict(label_str: str) -> Dict[str, str]:
     """
     Converts CLI input labels string to dictionary format if provided string is valid.
     """
-    labels_dict = {}
+    labels_dict = {}  # type: Dict[str,str]
     labels_kv = label_str.split(",")
     if label_str == "":
         return labels_dict
@@ -135,13 +136,13 @@ def _get_features_labels_dict(label_str: str):
     return labels_dict
 
 
-def _get_features_entities(entities_str: str):
+def _get_features_entities(entities_str: str) -> List[str]:
     """
     Converts CLI input entities string to list format if provided string is valid.
     """
-    entities_list = []
+    entities_list: List[str] = []
     if entities_str == "":
-        return entities_list
+        return []
     return entities_str.split(",")
 
 
@@ -174,11 +175,11 @@ def feature_list(project: str, entities: str, labels: str):
     feast_client = Client()  # type: Client
 
     entities_list = _get_features_entities(entities)
-    labels_dict = _get_features_labels_dict(labels)
+    labels_dict: Dict[str, str] = _get_features_labels_dict(labels)
 
     table = []
     for feature_ref, feature in feast_client.list_features_by_ref(
-        project=project, entities=entities_list, labels=labels_dict
+            project=project, entities=entities_list, labels=labels_dict
     ).items():
         table.append([feature.name, feature.dtype, repr(feature_ref)])
 
@@ -195,11 +196,11 @@ def feature_set():
     pass
 
 
-def _get_labels_dict(label_str: str):
+def _get_labels_dict(label_str: str) -> Dict[str, str]:
     """
     Converts CLI input labels string to dictionary format if provided string is valid.
     """
-    labels_dict = {}
+    labels_dict: Dict[str, str] = {}
     labels_kv = label_str.split(",")
     if label_str == "":
         return labels_dict
@@ -242,7 +243,7 @@ def feature_set_list(project: str, name: str, labels: str):
 
     table = []
     for fs in feast_client.list_feature_sets(
-        project=project, name=name, labels=labels_dict
+            project=project, name=name, labels=labels_dict
     ):
         table.append([fs.name, repr(fs)])
 
@@ -369,7 +370,7 @@ def ingest_job_list(job_id, feature_set_ref, store_name):
     feast_client = Client()
     table = []
     for ingest_job in feast_client.list_ingest_jobs(
-        job_id=job_id, feature_set_ref=feature_set_ref, store_name=store_name
+            job_id=job_id, feature_set_ref=feature_set_ref, store_name=store_name
     ):
         table.append([ingest_job.id, IngestionJobStatus.Name(ingest_job.status)])
 
