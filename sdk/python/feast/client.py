@@ -733,10 +733,9 @@ class Client:
         Args:
             job: IngestJob to restart
         """
-        self._connect_core()  # ensures self._core_service_stub is defined
         request = RestartIngestionJobRequest(id=job.id)
         try:
-            self._core_service_stub.RestartIngestionJob(request)  # type: ignore
+            self._core_service.RestartIngestionJob(request)  # type: ignore
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 
@@ -750,10 +749,9 @@ class Client:
         Args:
             job: IngestJob to restart
         """
-        self._connect_core()  # ensures self._core_service_stub is defined
         request = StopIngestionJobRequest(id=job.id)
         try:
-            self._core_service_stub.StopIngestionJob(request)  # type: ignore
+            self._core_service.StopIngestionJob(request)  # type: ignore
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 

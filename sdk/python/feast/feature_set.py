@@ -28,7 +28,6 @@ from pyarrow.lib import TimestampType
 from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
 from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
 from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
-from feast.core.FeatureSet_pb2 import FeatureSetStatusValue
 from feast.core.FeatureSetReference_pb2 import (
     FeatureSetReference as FeatureSetReferenceProto,
 )

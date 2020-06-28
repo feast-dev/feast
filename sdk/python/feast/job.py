@@ -12,7 +12,7 @@ from feast.constants import FEAST_DEFAULT_OPTIONS as defaults
 from feast.core.CoreService_pb2 import ListIngestionJobsRequest
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.IngestionJob_pb2 import IngestionJob as IngestJobProto
-from feast.core.IngestionJob_pb2 import IngestionJobStatusValue
+from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.core.Store_pb2 import Store
 from feast.feature_set import FeatureSet
 from feast.serving.ServingService_pb2 import (
@@ -260,7 +260,7 @@ class IngestJob:
         return self.proto.external_id
 
     @property
-    def status(self) -> IngestionJobStatusValue:
+    def status(self) -> IngestionJobStatus:
         """
         Getter for IngestJob's status
         """
@@ -289,7 +289,7 @@ class IngestJob:
         """
         return self.proto.store
 
-    def wait(self, status: IngestionJobStatusValue, timeout_secs: float = 300):
+    def wait(self, status: IngestionJobStatus, timeout_secs: float = 300):
         """
         Wait for this IngestJob to transtion to the given status.
         Raises TimeoutError if the wait operation times out.
