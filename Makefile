@@ -72,7 +72,7 @@ format-python:
 	cd ${ROOT_DIR}/sdk/python; isort -rc feast tests
 	cd ${ROOT_DIR}/sdk/python; black --target-version py37 feast tests
 
-lint-python: compile-protos-python
+lint-python:
 	cd ${ROOT_DIR}/sdk/python; mypy feast/ tests/ # needs protos compiled
 	cd ${ROOT_DIR}/sdk/python; flake8 feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; black --check feast tests
