@@ -150,7 +150,8 @@ public class Store {
       return false;
     } else if (!Arrays.equals(config, config)) {
       return false;
-    } else if (!subscriptions.equals(other.subscriptions)) {
+    } else if (!convertStringToSubscription(subscriptions)
+        .equals(convertStringToSubscription(other.subscriptions))) {
       return false;
     }
     return true;
