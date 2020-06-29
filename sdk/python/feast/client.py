@@ -88,7 +88,7 @@ from feast.serving.ServingService_pb2 import (
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from tensorflow_metadata.proto.v0 import statistics_pb2
 from feast.type_map import python_type_to_feast_value_type, _python_value_to_proto_value
-from feast.response import OnlineResponse
+from feast.online_response import OnlineResponse
 from feast.types.Value_pb2 import Value as Value
 
 
