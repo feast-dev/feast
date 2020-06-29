@@ -675,12 +675,8 @@ class Client:
                 the feature and feature set names respectively.
                 Only the feature name is required.
             entity_rows:
-                List of GetFeaturesRequest.EntityRow where each row
-                contains entities. Timestamp should not be set for online
-                retrieval. All entity types within a feature
-                OR
-                List of Dict[str, Union[bool,bytes,float,int,str,List[bool,bytes,float,int,str]]]]
-                where each key represents the entity name and value is feast.types.Value in Python native form.
+                A list of dictionaries where the key is an entity and value is
+                feast.types.Value or Python native form.
             project: Optionally specify the the project override. If specified, uses given project for retrieval.
                 Overrides the projects specified in Feature References if also are specified.
             omit_entities: If true will omit entity values in the returned feature data.
@@ -688,19 +684,37 @@ class Client:
             GetOnlineFeaturesResponse containing the feature data in records.
             Each EntityRow provided will yield one record, which contains
             data fields with data value and field status metadata (if included).
+
+        Examples:
+            >>> from feast import Client
+            >>>
+            >>> feast_client = Client(core_url="localhost:6565", serving_url="localhost:6566")
+            >>> feature_refs = ["daily_transactions"]
+            >>> entity_rows = [{"customer_id": 0},{"customer_id": 1}]
+            >>>
+            >>> online_response = feast_client.get_online_features(
+            >>>     feature_refs, entity_rows, project="my_project")
+            >>> online_response_dict = online_response.to_dict()
+            >>> print(online_response_dict)
+            {'daily_transactions': [1.1,1.2], 'customer_id': [0,1]}
         """
         warnings.warn(
             "entity_rows parameter will only be accepting Dict format from v0.7 onwards",
             DeprecationWarning,
         )
+        inferred_entity_rows = []  # type: Any
         try:
             if entity_rows and isinstance(entity_rows[0], dict):
-                entity_rows = _infer_entity_rows(entity_rows)  # type: ignore
+                inferred_entity_rows = _infer_entity_rows(entity_rows)  # type: ignore
+            if entity_rows and isinstance(
+                entity_rows[0], GetOnlineFeaturesRequest.EntityRow
+            ):
+                inferred_entity_rows = entity_rows
             response = self._serving_service.GetOnlineFeatures(
                 GetOnlineFeaturesRequest(
                     omit_entities_in_response=omit_entities,
                     features=_build_feature_references(feature_ref_strs=feature_refs),
-                    entity_rows=entity_rows,  # type: ignore
+                    entity_rows=inferred_entity_rows,
                     project=project if project is not None else self.project,
                 )
             )
@@ -985,8 +999,8 @@ def _infer_entity_rows(
     Builds a list of EntityRow protos from Python native type format passed by user.
 
     Args:
-        entities: List of Dict[str, Union[bool,bytes,float,int,str,List[bool,bytes,float,int,str]]]]
-            where each key represents the entity name and value is feast.types.Value in Python native form.
+        entities: A list of dictionaries where the key is an entity and value is
+            feast.types.Value or Python native form.
 
     Returns:
         A list of EntityRow protos parsed from args.
