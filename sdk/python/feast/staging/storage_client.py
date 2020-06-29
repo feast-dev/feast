@@ -116,7 +116,7 @@ class GCSClient(AbstractStagingClient):
                 if re.match(regex, file) and file not in path
             ]
         else:
-            return [f"{S3}://{bucket}/{path.lstrip('/')}"]
+            return [f"{GS}://{bucket}/{path.lstrip('/')}"]
 
     def upload_file(self, local_path: str, bucket: str, remote_path: str):
         """
