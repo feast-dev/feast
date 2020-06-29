@@ -74,7 +74,7 @@ def _encode_pa_tables(
     }
 
     # List to store result
-    feature_rows = []
+    feature_rows: List[bytes] = []
 
     # Loop optimization declaration(s)
     field = FieldProto.Field

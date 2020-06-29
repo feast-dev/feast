@@ -94,7 +94,7 @@ from feast.types.Value_pb2 import Value as Value
 
 _logger = logging.getLogger(__name__)
 
-CPU_COUNT = os.cpu_count()  # type: int
+CPU_COUNT: int = len(os.sched_getaffinity(0))
 
 warnings.simplefilter("once", DeprecationWarning)
 
@@ -129,9 +129,9 @@ class Client:
             options = dict()
         self._config = Config(options={**options, **kwargs})
 
-        self._core_service_stub: CoreServiceStub = None
-        self._serving_service_stub: ServingServiceStub = None
-        self._auth_metadata = None
+        self._core_service_stub: Optional[CoreServiceStub] = None
+        self._serving_service_stub: Optional[ServingServiceStub] = None
+        self._auth_metadata: Optional[grpc.AuthMetadataPlugin] = None
 
         # Configure Auth Metadata Plugin if auth is enabled
         if self._config.getboolean(CONFIG_CORE_ENABLE_AUTH_KEY):
@@ -481,7 +481,7 @@ class Client:
                 raise ValueError("No project has been configured.")
 
         try:
-            get_feature_set_response = self._core_service_stub.GetFeatureSet(
+            get_feature_set_response = self._core_service.GetFeatureSet(
                 GetFeatureSetRequest(project=project, name=name.strip()),
                 metadata=self._get_grpc_metadata(),
             )  # type: GetFeatureSetResponse
@@ -736,9 +736,9 @@ class Client:
         )
         request = ListIngestionJobsRequest(filter=list_filter)
         # make list request & unpack response
-        response = self._core_service_stub.ListIngestionJobs(request)
+        response = self._core_service_stub.ListIngestionJobs(request)  # type: ignore
         ingest_jobs = [
-            IngestJob(proto, self._core_service_stub) for proto in response.jobs
+            IngestJob(proto, self._core_service_stub) for proto in response.jobs  # type: ignore
         ]
         return ingest_jobs
 
@@ -754,7 +754,7 @@ class Client:
         """
         request = RestartIngestionJobRequest(id=job.id)
         try:
-            self._core_service_stub.RestartIngestionJob(request)
+            self._core_service.RestartIngestionJob(request)  # type: ignore
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 
@@ -770,7 +770,7 @@ class Client:
         """
         request = StopIngestionJobRequest(id=job.id)
         try:
-            self._core_service_stub.StopIngestionJob(request)
+            self._core_service.StopIngestionJob(request)  # type: ignore
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 
@@ -834,11 +834,12 @@ class Client:
         while True:
             if timeout is not None and time.time() - current_time >= timeout:
                 raise TimeoutError("Timed out waiting for feature set to be ready")
-            feature_set = self.get_feature_set(name)
+            fetched_feature_set: Optional[FeatureSet] = self.get_feature_set(name)
             if (
-                feature_set is not None
-                and feature_set.status == FeatureSetStatus.STATUS_READY
+                fetched_feature_set is not None
+                and fetched_feature_set.status == FeatureSetStatus.STATUS_READY
             ):
+                feature_set = fetched_feature_set
                 break
             time.sleep(3)
 
@@ -961,7 +962,7 @@ class Client:
             if end_date is not None:
                 request.end_date.CopyFrom(Timestamp(seconds=int(end_date.timestamp())))
 
-        return self._core_service_stub.GetFeatureStatistics(
+        return self._core_service.GetFeatureStatistics(
             request
         ).dataset_feature_statistics_list
 

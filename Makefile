@@ -1,12 +1,12 @@
-# 
+#
 #  Copyright 2019 The Feast Authors
-# 
+#
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
 #  You may obtain a copy of the License at
-# 
+#
 #      https://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 #  Unless required by applicable law or agreed to in writing, software
 #  distributed under the License is distributed on an "AS IS" BASIS,
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -69,14 +69,22 @@ test-python:
 	pytest --verbose --color=yes sdk/python/tests
 
 format-python:
+	# Sort
 	cd ${ROOT_DIR}/sdk/python; isort -rc feast tests
+	cd ${ROOT_DIR}/tests/e2e; isort -rc .
+
+	# Format
 	cd ${ROOT_DIR}/sdk/python; black --target-version py37 feast tests
+	cd ${ROOT_DIR}/tests/e2e; black --target-version py37 .
 
 lint-python:
-	# TODO: This mypy test needs to be re-enabled and all failures fixed
-	#cd ${ROOT_DIR}/sdk/python; mypy feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; mypy feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; flake8 feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; black --check feast tests
+
+	cd ${ROOT_DIR}/tests/e2e; mypy bq/ redis/
+	cd ${ROOT_DIR}/tests/e2e; flake8 .
+	cd ${ROOT_DIR}/tests/e2e; black --check .
 
 # Go SDK
 
@@ -104,7 +112,7 @@ build-push-docker:
 	@$(MAKE) push-core-docker registry=$(REGISTRY) version=$(VERSION)
 	@$(MAKE) push-serving-docker registry=$(REGISTRY) version=$(VERSION)
 	@$(MAKE) push-ci-docker registry=$(REGISTRY)
-	
+
 build-docker: build-core-docker build-serving-docker build-ci-docker
 
 push-core-docker:

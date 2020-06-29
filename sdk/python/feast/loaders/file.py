@@ -13,17 +13,17 @@
 # limitations under the License.
 
 import os
-import re
 import shutil
 import tempfile
 import uuid
 from datetime import datetime
 from typing import List, Optional, Tuple, Union
-from urllib.parse import ParseResult, urlparse
+from urllib.parse import urlparse
 
 import pandas as pd
-from google.cloud import storage
 from pandavro import to_avro
+
+from feast.staging.storage_client import get_staging_client
 
 
 def export_source_to_staging_location(
@@ -44,12 +44,14 @@ def export_source_to_staging_location(
                 * Pandas DataFrame
                 * Local Avro file
                 * GCS Avro file
+                * S3 Avro file
 
 
         staging_location_uri (str):
             Remote staging location where DataFrame should be written.
             Examples:
                 * gs://bucket/path/
+                * s3://bucket/path/
                 * file:///data/subfolder/
 
     Returns:
@@ -66,26 +68,24 @@ def export_source_to_staging_location(
         uri_path = None  # type: Optional[str]
         if uri.scheme == "file":
             uri_path = uri.path
-
         # Remote gs staging location provided by serving
         dir_path, file_name, source_path = export_dataframe_to_local(
             df=source, dir_path=uri_path
         )
-    elif urlparse(source).scheme in ["", "file"]:
-        # Local file provided as a source
-        dir_path = None
-        file_name = os.path.basename(source)
-        source_path = os.path.abspath(
-            os.path.join(urlparse(source).netloc, urlparse(source).path)
-        )
-    elif urlparse(source).scheme == "gs":
-        # Google Cloud Storage path provided
-        input_source_uri = urlparse(source)
-        if "*" in source:
-            # Wildcard path
-            return _get_files(bucket=input_source_uri.hostname, uri=input_source_uri)
+    elif isinstance(source, str):
+        source_uri = urlparse(source)
+        if source_uri.scheme in ["", "file"]:
+            # Local file provided as a source
+            dir_path = ""
+            file_name = os.path.basename(source)
+            source_path = os.path.abspath(
+                os.path.join(source_uri.netloc, source_uri.path)
+            )
         else:
-            return [source]
+            # gs, s3 file provided as a source.
+            return get_staging_client(source_uri.scheme).list_files(
+                bucket=source_uri.hostname, path=source_uri.path
+            )
     else:
         raise Exception(
             f"Only string and DataFrame types are allowed as a "
@@ -93,23 +93,12 @@ def export_source_to_staging_location(
         )
 
     # Push data to required staging location
-    if uri.scheme == "gs":
-        # Staging location is a Google Cloud Storage path
-        upload_file_to_gcs(
-            source_path, uri.hostname, str(uri.path).strip("/") + "/" + file_name
-        )
-    elif uri.scheme == "file":
-        # Staging location is a file path
-        # Used for end-to-end test
-        pass
-    else:
-        raise Exception(
-            f"Staging location {staging_location_uri} does not have a "
-            f"valid URI. Only gs:// and file:// uri scheme are supported."
-        )
+    get_staging_client(uri.scheme).upload_file(
+        source_path, uri.hostname, str(uri.path).strip("/") + "/" + file_name,
+    )
 
     # Clean up, remove local staging file
-    if dir_path and isinstance(source, pd.DataFrame) and len(str(dir_path)) > 4:
+    if dir_path and isinstance(source, pd.DataFrame) and len(dir_path) > 4:
         shutil.rmtree(dir_path)
 
     return [staging_location_uri.rstrip("/") + "/" + file_name]
@@ -158,70 +147,6 @@ def export_dataframe_to_local(
         ]
 
     return dir_path, file_name, dest_path
-
-
-def upload_file_to_gcs(local_path: str, bucket: str, remote_path: str) -> None:
-    """
-    Upload a file from the local file system to Google Cloud Storage (GCS).
-
-    Args:
-        local_path (str):
-            Local filesystem path of file to upload.
-
-        bucket (str):
-            GCS bucket destination to upload to.
-
-        remote_path (str):
-            Path within GCS bucket to upload file to, includes file name.
-
-    Returns:
-        None:
-            None
-    """
-
-    storage_client = storage.Client(project=None)
-    bucket = storage_client.get_bucket(bucket)
-    blob = bucket.blob(remote_path)
-    blob.upload_from_filename(local_path)
-
-
-def _get_files(bucket: str, uri: ParseResult) -> List[str]:
-    """
-    List all available files within a Google storage bucket that matches a wild
-    card path.
-
-    Args:
-        bucket (str):
-            Google Storage bucket to reference.
-
-        uri (urllib.parse.ParseResult):
-            Wild card uri path containing the "*" character.
-            Example:
-                * gs://feast/staging_location/*
-                * gs://feast/staging_location/file_*.avro
-
-    Returns:
-        List[str]:
-            List of all available files matching the wildcard path.
-    """
-
-    storage_client = storage.Client(project=None)
-    bucket = storage_client.get_bucket(bucket)
-    path = uri.path
-
-    if "*" in path:
-        regex = re.compile(path.replace("*", ".*?").strip("/"))
-        blob_list = bucket.list_blobs(
-            prefix=path.strip("/").split("*")[0], delimiter="/"
-        )
-        # File path should not be in path (file path must be longer than path)
-        return [
-            f"{uri.scheme}://{uri.hostname}/{file}"
-            for file in [x.name for x in blob_list]
-            if re.match(regex, file) and file not in path
-        ]
-    else:
-        raise Exception(f"{path} is not a wildcard path")
 
 
 def _get_file_name() -> str:

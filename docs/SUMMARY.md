@@ -48,6 +48,7 @@
   * [Java SDK](https://javadoc.io/doc/dev.feast/feast-sdk)
   * [Python SDK](https://api.docs.feast.dev/python/)
 * [Limitations](reference/limitations.md)
+* [Design Decisions](reference/design-decisions.md)
 
 ## Contributing
 
@@ -56,5 +57,4 @@
 * [Style Guide](contributing/style-guide.md)
 * [Release Process](contributing/release-process.md)
 * [Adding a New Store](contributing/adding-a-new-store.md)
-* [Design Decisions](contributing/design-decisions.md)
 

@@ -31,7 +31,7 @@ from feast.constants import (
 )
 
 
-def get_auth_metadata_plugin(config: Config):
+def get_auth_metadata_plugin(config: Config) -> grpc.AuthMetadataPlugin:
     """
     Get an Authentication Metadata Plugin. This plugin is used in gRPC to
     sign requests. Please see the following URL for more details

@@ -1,5 +1,6 @@
-from deepdiff import DeepDiff
 from google.protobuf.json_format import MessageToDict
+
+from deepdiff import DeepDiff
 
 
 def clear_unsupported_fields(datasets):
@@ -44,10 +45,12 @@ def assert_stats_equal(left, right):
     left_stats = MessageToDict(left)["datasets"][0]
     right_stats = MessageToDict(right)["datasets"][0]
     assert (
-            left_stats["numExamples"] == right_stats["numExamples"]
+        left_stats["numExamples"] == right_stats["numExamples"]
     ), f"Number of examples do not match. Expected {left_stats['numExamples']}, got {right_stats['numExamples']}"
 
     left_features = sorted(left_stats["features"], key=lambda k: k["path"]["step"][0])
     right_features = sorted(right_stats["features"], key=lambda k: k["path"]["step"][0])
     diff = DeepDiff(left_features, right_features, significant_digits=3)
-    assert len(diff) == 0, f"Feature statistics do not match: \nwanted: {left_features}\n got: {right_features}"
+    assert (
+        len(diff) == 0
+    ), f"Feature statistics do not match: \nwanted: {left_features}\n got: {right_features}"
