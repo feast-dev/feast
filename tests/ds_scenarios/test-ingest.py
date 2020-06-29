@@ -33,7 +33,8 @@ def allow_dirty(pytestconfig):
 @pytest.fixture(scope='module')
 def client(core_url, serving_url, allow_dirty):
     # Get client for core and serving
-    client = Client(core_url=core_url, serving_url=serving_url)
+    client = Client(core_url=core_url, serving_url=serving_url, grpc_connection_timeout_default=20,
+                grpc_connection_timeout_apply_key=1200, batch_feature_request_wait_time_seconds=1200)
     client.create_project(PROJECT_NAME)
 
     # Ensure Feast core is active, but empty
@@ -54,7 +55,7 @@ def client(core_url, serving_url, allow_dirty):
     (create_fraud_counts_df, FRAUD_COUNTS_FEATURE_SET),
 ])
 def test_ingestion(client, data_frame_generator, feature_set):
+    client.set_project(PROJECT_NAME)
     client.apply(feature_set)
     data_frame = data_frame_generator()
-    client.ingest(feature_set, data_frame)
-
+    client.ingest(feature_set, data_frame, timeout=1200)
