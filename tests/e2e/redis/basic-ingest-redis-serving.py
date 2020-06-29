@@ -302,7 +302,7 @@ def test_basic_retrieve_online_multiple_featureset(client, cust_trans_df, driver
     )
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def nonlist_entity_dataframe():
     # Dataframe setup for feature retrieval with entity provided not in list format
     N_ROWS = 2
@@ -312,17 +312,24 @@ def nonlist_entity_dataframe():
             "datetime": [time_offset] * N_ROWS,
             "customer_id2": [i for i in range(N_ROWS)],
             "customer2_rating": [i for i in range(N_ROWS)],
-            "customer2_cost": [float(i)+0.5 for i in range(N_ROWS)],
-            "customer2_past_transactions_int": [[i,i+2] for i in range(N_ROWS)],
-            "customer2_past_transactions_double": [[float(i)+0.5,float(i)+2] for i in range(N_ROWS)],
-            "customer2_past_transactions_float": [[float(i)+0.5,float(i)+2] for i in range(N_ROWS)],
-            "customer2_past_transactions_string": [['first_'+str(i),'second_'+str(i)] for i in range(N_ROWS)],
-            "customer2_past_transactions_bool": [[True,False] for _ in range(N_ROWS)]
+            "customer2_cost": [float(i) + 0.5 for i in range(N_ROWS)],
+            "customer2_past_transactions_int": [[i, i + 2] for i in range(N_ROWS)],
+            "customer2_past_transactions_double": [
+                [float(i) + 0.5, float(i) + 2] for i in range(N_ROWS)
+            ],
+            "customer2_past_transactions_float": [
+                [float(i) + 0.5, float(i) + 2] for i in range(N_ROWS)
+            ],
+            "customer2_past_transactions_string": [
+                ["first_" + str(i), "second_" + str(i)] for i in range(N_ROWS)
+            ],
+            "customer2_past_transactions_bool": [[True, False] for _ in range(N_ROWS)],
         }
     )
     return customer_df
 
-@pytest.fixture(scope='module')
+
+@pytest.fixture(scope="module")
 def list_entity_dataframe():
     # Dataframe setup for feature retrieval with entity provided in list format
     N_ROWS = 2
@@ -330,14 +337,22 @@ def list_entity_dataframe():
     customer_df = pd.DataFrame(
         {
             "datetime": [time_offset] * N_ROWS,
-            "district_ids": [[np.int64(i),np.int64(i+1),np.int64(i+2)] for i in range(N_ROWS)],
+            "district_ids": [
+                [np.int64(i), np.int64(i + 1), np.int64(i + 2)] for i in range(N_ROWS)
+            ],
             "district_rating": [i for i in range(N_ROWS)],
-            "district_cost": [float(i)+0.5 for i in range(N_ROWS)],
-            "district_past_transactions_int": [[i,i+2] for i in range(N_ROWS)],
-            "district_past_transactions_double": [[float(i)+0.5,float(i)+2] for i in range(N_ROWS)],
-            "district_past_transactions_float": [[float(i)+0.5,float(i)+2] for i in range(N_ROWS)],
-            "district_past_transactions_string": [['first_'+str(i),'second_'+str(i)] for i in range(N_ROWS)],
-            "district_past_transactions_bool": [[True,False] for _ in range(N_ROWS)]
+            "district_cost": [float(i) + 0.5 for i in range(N_ROWS)],
+            "district_past_transactions_int": [[i, i + 2] for i in range(N_ROWS)],
+            "district_past_transactions_double": [
+                [float(i) + 0.5, float(i) + 2] for i in range(N_ROWS)
+            ],
+            "district_past_transactions_float": [
+                [float(i) + 0.5, float(i) + 2] for i in range(N_ROWS)
+            ],
+            "district_past_transactions_string": [
+                ["first_" + str(i), "second_" + str(i)] for i in range(N_ROWS)
+            ],
+            "district_past_transactions_bool": [[True, False] for _ in range(N_ROWS)],
         }
     )
     return customer_df
@@ -345,7 +360,9 @@ def list_entity_dataframe():
 
 @pytest.mark.timeout(600)
 @pytest.mark.run(order=14)
-def test_basic_retrieve_online_entity_nonlistform(client, nonlist_entity_dataframe, list_entity_dataframe):
+def test_basic_retrieve_online_entity_nonlistform(
+    client, nonlist_entity_dataframe, list_entity_dataframe
+):
     # Case 1: Feature retrieval with multiple entities retrieval check
     customer_fs = FeatureSet(
         name="customer2",
@@ -353,13 +370,19 @@ def test_basic_retrieve_online_entity_nonlistform(client, nonlist_entity_datafra
             Feature(name="customer2_rating", dtype=ValueType.INT64),
             Feature(name="customer2_cost", dtype=ValueType.FLOAT),
             Feature(name="customer2_past_transactions_int", dtype=ValueType.INT64_LIST),
-            Feature(name="customer2_past_transactions_double", dtype=ValueType.DOUBLE_LIST),
-            Feature(name="customer2_past_transactions_float", dtype=ValueType.FLOAT_LIST),
-            Feature(name="customer2_past_transactions_string", dtype=ValueType.STRING_LIST),
-            Feature(name="customer2_past_transactions_bool", dtype=ValueType.BOOL_LIST)
+            Feature(
+                name="customer2_past_transactions_double", dtype=ValueType.DOUBLE_LIST
+            ),
+            Feature(
+                name="customer2_past_transactions_float", dtype=ValueType.FLOAT_LIST
+            ),
+            Feature(
+                name="customer2_past_transactions_string", dtype=ValueType.STRING_LIST
+            ),
+            Feature(name="customer2_past_transactions_bool", dtype=ValueType.BOOL_LIST),
         ],
         entities=[Entity("customer_id2", ValueType.INT64)],
-        max_age=Duration(seconds=3600)
+        max_age=Duration(seconds=3600),
     )
 
     client.set_project(PROJECT_NAME)
@@ -369,7 +392,7 @@ def test_basic_retrieve_online_entity_nonlistform(client, nonlist_entity_datafra
     client.ingest(customer_fs, nonlist_entity_dataframe, timeout=600)
     time.sleep(15)
 
-    online_request_entity = [{"customer_id2": 0},{"customer_id2": 1}]
+    online_request_entity = [{"customer_id2": 0}, {"customer_id2": 1}]
     online_request_features = [
         "customer2_rating",
         "customer2_cost",
@@ -377,39 +400,49 @@ def test_basic_retrieve_online_entity_nonlistform(client, nonlist_entity_datafra
         "customer2_past_transactions_double",
         "customer2_past_transactions_float",
         "customer2_past_transactions_string",
-        "customer2_past_transactions_bool"
+        "customer2_past_transactions_bool",
     ]
-    online_request_entity2 = [{"customer_id2": Value(int64_val=0)},{"customer_id2": Value(int64_val=1)}]
+    online_request_entity2 = [
+        {"customer_id2": Value(int64_val=0)},
+        {"customer_id2": Value(int64_val=1)},
+    ]
 
     def try_get_features1():
-        response = client.get_online_features(entity_rows=online_request_entity, feature_refs=online_request_features)
+        response = client.get_online_features(
+            entity_rows=online_request_entity, feature_refs=online_request_features
+        )
         return response, True
 
     def try_get_features2():
-        response = client.get_online_features(entity_rows=online_request_entity2, feature_refs=online_request_features)
+        response = client.get_online_features(
+            entity_rows=online_request_entity2, feature_refs=online_request_features
+        )
         return response, True
 
     online_features_actual1 = wait_retry_backoff(
         retry_fn=try_get_features1,
         timeout_secs=90,
-        timeout_msg="Timed out trying to get online feature values"
+        timeout_msg="Timed out trying to get online feature values",
     )
 
     online_features_actual2 = wait_retry_backoff(
         retry_fn=try_get_features2,
         timeout_secs=90,
-        timeout_msg="Timed out trying to get online feature values"
+        timeout_msg="Timed out trying to get online feature values",
     )
 
     online_features_expected = {
-        "customer_id2": [0,1],
-        "customer2_rating": [0,1],
-        "customer2_cost": [0.5,1.5],
-        "customer2_past_transactions_int": [[0,2],[1,3]],
-        "customer2_past_transactions_double": [[0.5,2.0],[1.5,3.0]],
-        "customer2_past_transactions_float": [[0.5,2.0],[1.5,3.0]],
-        "customer2_past_transactions_string": [['first_0','second_0'],['first_1','second_1']],
-        "customer2_past_transactions_bool": [[True,False],[True,False]]
+        "customer_id2": [0, 1],
+        "customer2_rating": [0, 1],
+        "customer2_cost": [0.5, 1.5],
+        "customer2_past_transactions_int": [[0, 2], [1, 3]],
+        "customer2_past_transactions_double": [[0.5, 2.0], [1.5, 3.0]],
+        "customer2_past_transactions_float": [[0.5, 2.0], [1.5, 3.0]],
+        "customer2_past_transactions_string": [
+            ["first_0", "second_0"],
+            ["first_1", "second_1"],
+        ],
+        "customer2_past_transactions_bool": [[True, False], [True, False]],
     }
 
     assert online_features_actual1.to_dict() == online_features_expected
@@ -417,10 +450,15 @@ def test_basic_retrieve_online_entity_nonlistform(client, nonlist_entity_datafra
 
     # Case 2: Feature retrieval with multiple entities retrieval check with mixed types
     with pytest.raises(TypeError) as excinfo:
-        online_request_entity2 = [{"customer_id": 0},{"customer_id": "error_pls"}]
-        online_features_actual2 = client.get_online_features(entity_rows=online_request_entity2, feature_refs=online_request_features)
+        online_request_entity2 = [{"customer_id": 0}, {"customer_id": "error_pls"}]
+        online_features_actual2 = client.get_online_features(
+            entity_rows=online_request_entity2, feature_refs=online_request_features
+        )
 
-    assert "Input entity customer_id has mixed types, ValueType.STRING and ValueType.INT64. That is not allowed." in str(excinfo.value)
+    assert (
+        "Input entity customer_id has mixed types, ValueType.STRING and ValueType.INT64. That is not allowed."
+        in str(excinfo.value)
+    )
 
 
 @pytest.mark.timeout(600)
@@ -433,13 +471,19 @@ def test_basic_retrieve_online_entity_listform(client, list_entity_dataframe):
             Feature(name="district_rating", dtype=ValueType.INT64),
             Feature(name="district_cost", dtype=ValueType.FLOAT),
             Feature(name="district_past_transactions_int", dtype=ValueType.INT64_LIST),
-            Feature(name="district_past_transactions_double", dtype=ValueType.DOUBLE_LIST),
-            Feature(name="district_past_transactions_float", dtype=ValueType.FLOAT_LIST),
-            Feature(name="district_past_transactions_string", dtype=ValueType.STRING_LIST),
-            Feature(name="district_past_transactions_bool", dtype=ValueType.BOOL_LIST)
+            Feature(
+                name="district_past_transactions_double", dtype=ValueType.DOUBLE_LIST
+            ),
+            Feature(
+                name="district_past_transactions_float", dtype=ValueType.FLOAT_LIST
+            ),
+            Feature(
+                name="district_past_transactions_string", dtype=ValueType.STRING_LIST
+            ),
+            Feature(name="district_past_transactions_bool", dtype=ValueType.BOOL_LIST),
         ],
         entities=[Entity("district_ids", dtype=ValueType.INT64_LIST)],
-        max_age=Duration(seconds=3600)
+        max_age=Duration(seconds=3600),
     )
 
     client.set_project(PROJECT_NAME)
@@ -449,7 +493,7 @@ def test_basic_retrieve_online_entity_listform(client, list_entity_dataframe):
     client.ingest(district_fs, list_entity_dataframe, timeout=600)
     time.sleep(15)
 
-    online_request_entity = [{"district_ids": [np.int64(1),np.int64(2),np.int64(3)]}]
+    online_request_entity = [{"district_ids": [np.int64(1), np.int64(2), np.int64(3)]}]
     online_request_features = [
         "district_rating",
         "district_cost",
@@ -457,39 +501,45 @@ def test_basic_retrieve_online_entity_listform(client, list_entity_dataframe):
         "district_past_transactions_double",
         "district_past_transactions_float",
         "district_past_transactions_string",
-        "district_past_transactions_bool"
+        "district_past_transactions_bool",
     ]
-    online_request_entity2 = [{"district_ids": Value(int64_list_val=Int64List(val=[1,2,3]))}]
+    online_request_entity2 = [
+        {"district_ids": Value(int64_list_val=Int64List(val=[1, 2, 3]))}
+    ]
 
     def try_get_features1():
-        response = client.get_online_features(entity_rows=online_request_entity, feature_refs=online_request_features)
+        response = client.get_online_features(
+            entity_rows=online_request_entity, feature_refs=online_request_features
+        )
         return response, True
 
     def try_get_features2():
-        response = client.get_online_features(entity_rows=online_request_entity2, feature_refs=online_request_features)
+        response = client.get_online_features(
+            entity_rows=online_request_entity2, feature_refs=online_request_features
+        )
         return response, True
 
     online_features_actual = wait_retry_backoff(
         retry_fn=try_get_features1,
         timeout_secs=90,
-        timeout_msg="Timed out trying to get online feature values"
+        timeout_msg="Timed out trying to get online feature values",
     )
 
     online_features_actual2 = wait_retry_backoff(
         retry_fn=try_get_features2,
         timeout_secs=90,
-        timeout_msg="Timed out trying to get online feature values"
+        timeout_msg="Timed out trying to get online feature values",
     )
 
     online_features_expected = {
-        "district_ids": [[np.int64(1),np.int64(2),np.int64(3)]],
+        "district_ids": [[np.int64(1), np.int64(2), np.int64(3)]],
         "district_rating": [1],
         "district_cost": [1.5],
-        "district_past_transactions_int": [[1,3]],
-        "district_past_transactions_double": [[1.5,3.0]],
-        "district_past_transactions_float": [[1.5,3.0]],
-        "district_past_transactions_string": [['first_1','second_1']],
-        "district_past_transactions_bool": [[True,False]]
+        "district_past_transactions_int": [[1, 3]],
+        "district_past_transactions_double": [[1.5, 3.0]],
+        "district_past_transactions_float": [[1.5, 3.0]],
+        "district_past_transactions_string": [["first_1", "second_1"]],
+        "district_past_transactions_bool": [[True, False]],
     }
 
     assert online_features_actual.to_dict() == online_features_expected
@@ -497,10 +547,15 @@ def test_basic_retrieve_online_entity_listform(client, list_entity_dataframe):
 
     # Case 2: Features retrieval with entity in list format check with mixed types
     with pytest.raises(ValueError) as excinfo:
-        online_request_entity2 = [{"district_ids": [np.int64(1),np.int64(2),True]}]
-        online_features_actual2 = client.get_online_features(entity_rows=online_request_entity2, feature_refs=online_request_features)
+        online_request_entity2 = [{"district_ids": [np.int64(1), np.int64(2), True]}]
+        online_features_actual2 = client.get_online_features(
+            entity_rows=online_request_entity2, feature_refs=online_request_features
+        )
 
-    assert "List value type for field district_ids is inconsistent. ValueType.INT64 different from ValueType.BOOL." in str(excinfo.value)
+    assert (
+        "List value type for field district_ids is inconsistent. ValueType.INT64 different from ValueType.BOOL."
+        in str(excinfo.value)
+    )
 
 
 @pytest.mark.timeout(300)
@@ -969,7 +1024,6 @@ def test_list_entities_and_features(client):
     assert set(filter_by_project_labels_expected) == set(
         filter_by_project_labels_actual
     )
-
 
 
 @pytest.mark.timeout(900)

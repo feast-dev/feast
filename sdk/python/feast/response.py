@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
 from feast.type_map import feast_value_type_to_python_type
@@ -44,7 +44,7 @@ class OnlineResponse:
         Converts GetOnlineFeaturesResponse features into a dictionary form.
         """
         fields = [k for row in self.field_values for k, _ in row.fields.items()]
-        features_dict = {k: list() for k in fields}
+        features_dict: Dict[str, List[Any]] = {k: list() for k in fields}
 
         for row in self.field_values:
             for feature in features_dict.keys():
