@@ -11,6 +11,10 @@ from ds_fraud_feature_data import (
     FRAUD_COUNTS_FEATURE_SET, create_fraud_counts_df,
 )
 
+_GRPC_CONNECTION_TIMEOUT_DEFAULT = 20
+
+_GRPC_CONNECTION_TIMEOUT_APPLY_KEY = 1200
+
 PROJECT_NAME = 'ds_' + uuid.uuid4().hex.upper()[0:6]
 
 
@@ -33,8 +37,10 @@ def allow_dirty(pytestconfig):
 @pytest.fixture(scope='module')
 def client(core_url, serving_url, allow_dirty):
     # Get client for core and serving
-    client = Client(core_url=core_url, serving_url=serving_url, grpc_connection_timeout_default=20,
-                grpc_connection_timeout_apply_key=1200, batch_feature_request_wait_time_seconds=1200)
+    client = Client(core_url=core_url, serving_url=serving_url,
+                    grpc_connection_timeout_default=_GRPC_CONNECTION_TIMEOUT_DEFAULT,
+                    grpc_connection_timeout_apply_key=_GRPC_CONNECTION_TIMEOUT_APPLY_KEY,
+                    batch_feature_request_wait_time_seconds=_GRPC_CONNECTION_TIMEOUT_APPLY_KEY)
     client.create_project(PROJECT_NAME)
 
     # Ensure Feast core is active, but empty
@@ -58,4 +64,4 @@ def test_ingestion(client, data_frame_generator, feature_set):
     client.set_project(PROJECT_NAME)
     client.apply(feature_set)
     data_frame = data_frame_generator()
-    client.ingest(feature_set, data_frame, timeout=1200)
+    client.ingest(feature_set, data_frame, timeout=_GRPC_CONNECTION_TIMEOUT_APPLY_KEY)
