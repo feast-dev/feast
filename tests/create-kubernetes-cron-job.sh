@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 # This script is starting Long Running Tests on Kubernetes
 # by creating a CronJob that fires in every 10 minutes
