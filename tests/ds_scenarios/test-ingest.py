@@ -19,7 +19,7 @@ def project_name(pytestconfig):
 
 @pytest.fixture(scope='module')
 def initial_entity_id(pytestconfig):
-    return pytestconfig.getoption("initial_entity_id")
+    return int(pytestconfig.getoption("initial_entity_id"))
 
 
 @pytest.fixture(scope='module')
