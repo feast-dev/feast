@@ -11,7 +11,7 @@ grpcio-testing==1.*
 grpcio-tools
 numpy
 mock==2.0.0
-pandas==0.*
+pandas~=1.0.0
 protobuf==3.*
 pytest
 pytest-lazy-fixture==0.6.3

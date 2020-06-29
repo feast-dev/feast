@@ -8,7 +8,7 @@ googleapis-common-protos==1.*
 grpcio==1.*
 numpy
 mock==2.0.0
-pandas==0.*
+pandas~=1.0.0
 protobuf==3.*
 pytest
 pytest-mock
