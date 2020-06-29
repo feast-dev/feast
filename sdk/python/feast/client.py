@@ -885,15 +885,14 @@ class Client:
         start_date: Optional[datetime.datetime] = None,
         end_date: Optional[datetime.datetime] = None,
         force_refresh: bool = False,
-        default_project: Optional[str] = None,
+        project: Optional[str] = None,
     ) -> statistics_pb2.DatasetFeatureStatisticsList:
         """
         Retrieves the feature featureStatistics computed over the data in the batch
         stores.
 
         Args:
-            feature_set_id: Fully qualified feature set id in the format
-                project/feature_set to retrieve batch featureStatistics for. If project
+            feature_set_id: Feature set id to retrieve batch featureStatistics for. If project
                 is not provided, the default ("default") will be used.
             store: Name of the store to retrieve feature featureStatistics over. This
                 store must be a historical store.
@@ -913,7 +912,7 @@ class Client:
                 multiple days, unaggregatable featureStatistics will be dropped.
             force_refresh: Setting this flag to true will force a recalculation
                 of featureStatistics and overwrite results currently in the cache, if any.
-            default_project: Manual override for default project.
+            project: Manual override for default project.
 
         Returns:
            Returns a tensorflow DatasetFeatureStatisticsList containing TFDV featureStatistics.
@@ -926,8 +925,8 @@ class Client:
                 "Only one of dataset_id or [start_date, end_date] can be provided."
             )
 
-        if default_project != "" and "/" not in feature_set_id:
-            feature_set_id = f"{default_project}/{feature_set_id}"
+        if project != "" and "/" not in feature_set_id:
+            feature_set_id = f"{project}/{feature_set_id}"
 
         request = GetFeatureStatisticsRequest(
             feature_set_id=feature_set_id,
