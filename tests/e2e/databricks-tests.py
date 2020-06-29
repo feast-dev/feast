@@ -20,6 +20,10 @@ import numpy as np
 from feast.feature import Feature
 import uuid
 
+_GRPC_CONNECTION_TIMEOUT_APPLY_KEY = 1200
+
+_GRPC_CONNECTION_TIMEOUT_DEFAULT = 20
+
 FLOAT_TOLERANCE = 0.00001
 PROJECT_NAME = 'basic_' + uuid.uuid4().hex.upper()[0:6]
 
@@ -43,7 +47,10 @@ def allow_dirty(pytestconfig):
 @pytest.fixture(scope='module')
 def client(core_url, serving_url, allow_dirty):
     # Get client for core and serving
-    client = Client(core_url=core_url, serving_url=serving_url)
+    client = Client(core_url=core_url, serving_url=serving_url,
+                    grpc_connection_timeout_default=_GRPC_CONNECTION_TIMEOUT_DEFAULT,
+                    grpc_connection_timeout_apply_key=_GRPC_CONNECTION_TIMEOUT_APPLY_KEY,
+                    batch_feature_request_wait_time_seconds=_GRPC_CONNECTION_TIMEOUT_APPLY_KEY)
     client.create_project(PROJECT_NAME)
     client.set_project(PROJECT_NAME)
 
@@ -199,7 +206,7 @@ def test_all_types_ingest_success(client, all_types_dataframe):
     all_types_fs = client.get_feature_set(name="all_types")
 
     # Ingest user embedding data
-    client.ingest(all_types_fs, all_types_dataframe, timeout=1200)
+    client.ingest(all_types_fs, all_types_dataframe, timeout=_GRPC_CONNECTION_TIMEOUT_APPLY_KEY)
 
 
 @pytest.mark.databricks_skip
@@ -304,7 +311,7 @@ def test_large_volume_ingest_success(client, large_volume_dataframe):
     cust_trans_fs = client.get_feature_set(name="customer_transactions_large")
 
     # Ingest customer transaction data
-    client.ingest(cust_trans_fs, large_volume_dataframe, timeout=1200)
+    client.ingest(cust_trans_fs, large_volume_dataframe, timeout=_GRPC_CONNECTION_TIMEOUT_APPLY_KEY)
 
 
 @pytest.mark.timeout(300)
