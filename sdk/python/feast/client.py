@@ -16,6 +16,7 @@
 import datetime
 import logging
 import os
+import multiprocessing
 import shutil
 import tempfile
 import time
@@ -90,7 +91,7 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 
 _logger = logging.getLogger(__name__)
 
-CPU_COUNT: int = len(os.sched_getaffinity(0))
+CPU_COUNT: int = multiprocessing.cpu_count()
 
 
 class Client:
