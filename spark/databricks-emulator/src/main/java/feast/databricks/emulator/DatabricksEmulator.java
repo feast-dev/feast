@@ -22,11 +22,13 @@ import static spark.Spark.post;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import feast.databricks.types.JobDefinition;
 import feast.databricks.types.JobsCreateRequest;
 import feast.databricks.types.JobsCreateResponse;
 import feast.databricks.types.JobsDeleteRequest;
 import feast.databricks.types.Library;
 import feast.databricks.types.ObjectMapperFactory;
+import feast.databricks.types.Run;
 import feast.databricks.types.RunLifeCycleState;
 import feast.databricks.types.RunNowRequest;
 import feast.databricks.types.RunNowResponse;
@@ -35,15 +37,21 @@ import feast.databricks.types.RunState;
 import feast.databricks.types.RunsCancelRequest;
 import feast.databricks.types.RunsCancelResponse;
 import feast.databricks.types.RunsGetResponse;
+import feast.databricks.types.RunsListResponse;
+import feast.databricks.types.RunsSubmitRequest;
+import feast.databricks.types.RunsSubmitResponse;
 import feast.databricks.types.SparkJarTask;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 import org.apache.spark.launcher.SparkAppHandle;
 import org.apache.spark.launcher.SparkLauncher;
 import org.slf4j.Logger;
@@ -88,6 +96,8 @@ public class DatabricksEmulator {
     post("/api/2.0/jobs/run-now", emulator::runNow, json);
     get("/api/2.0/jobs/runs/get", emulator::runsGet, json);
     post("/api/2.0/jobs/runs/cancel", emulator::runsCancel, json);
+    post("/api/2.0/jobs/runs/submit", emulator::runsSubmit, json);
+    get("/api/2.0/jobs/runs/list", emulator::runsList, json);
   }
 
   public static class JsonTransformer implements ResponseTransformer {
@@ -124,11 +134,23 @@ public class DatabricksEmulator {
     }
   }
 
+  static class RunItem {
+    final SparkAppHandle handle;
+    final Optional<Long> jobId;
+    final Optional<Long> numberInJob;
+
+    RunItem(SparkAppHandle handle, Optional<Long> jobId, Optional<Long> numberInJob) {
+      this.handle = handle;
+      this.jobId = jobId;
+      this.numberInJob = numberInJob;
+    }
+  }
+
   public static class EmulatorService {
 
     ItemTracker<JobsCreateRequest> jobTracker = new ItemTracker<>();
 
-    ItemTracker<SparkAppHandle> runTracker = new ItemTracker<>();
+    ItemTracker<RunItem> runTracker = new ItemTracker<>();
 
     ConcurrentMap<Long, AtomicLong> runCountTracker = new ConcurrentHashMap<Long, AtomicLong>();
 
@@ -143,7 +165,8 @@ public class DatabricksEmulator {
     }
 
     private RunState getRunState(long runId) {
-      SparkAppHandle handle = runTracker.getItem(runId);
+      RunItem item = runTracker.getItem(runId);
+      SparkAppHandle handle = item.handle;
 
       RunState.Builder state = RunState.builder();
 
@@ -205,7 +228,22 @@ public class DatabricksEmulator {
       long jobId = req.getJobId();
       log.info("Running job {}", jobId);
 
-      JobsCreateRequest job = jobTracker.getItem(jobId);
+      JobDefinition job = jobTracker.getItem(jobId);
+      long numberInJob =
+          runCountTracker.computeIfAbsent(jobId, k -> new AtomicLong(0L)).incrementAndGet();
+
+      long runId = startRun(job, Optional.of(jobId), Optional.of(numberInJob), req.getJarParams());
+
+      log.info("Started job run {} for job {} (numberInJob: {})", runId, jobId, numberInJob);
+      return RunNowResponse.builder().setRunId(runId).setNumberInJob(numberInJob).build();
+    }
+
+    private long startRun(
+        JobDefinition job,
+        Optional<Long> jobId,
+        Optional<Long> numberInJob,
+        Optional<List<String>> runParams)
+        throws IOException {
 
       List<String> jars = new ArrayList<>();
       job.getLibraries()
@@ -217,20 +255,42 @@ public class DatabricksEmulator {
               });
 
       SparkJarTask task = job.getSparkJarTask();
-      List<String> params =
-          req.getJarParams().orElse(task.getParameters().orElse(Collections.emptyList()));
+      List<String> params = runParams.orElse(task.getParameters().orElse(Collections.emptyList()));
       Map<String, String> sparkConf =
           job.getNewCluster().sparkConf().orElse(Collections.emptyMap());
       SparkAppHandle handle =
           appFactory.createApp(jars, task.getMainClassName(), params, sparkConf);
 
-      long runId = runTracker.addItem(handle);
+      RunItem item = new RunItem(handle, jobId, numberInJob);
+      long runId = runTracker.addItem(item);
+      return runId;
+    }
 
-      runCountTracker.putIfAbsent(jobId, new AtomicLong(0L));
-      long numberInJob = runCountTracker.get(jobId).incrementAndGet();
+    RunsListResponse runsList(Request request, Response response) throws Exception {
+      log.info("Listing runs");
 
-      log.info("Started job run {} for job {} (numberInJob: {})", runId, jobId, numberInJob);
-      return RunNowResponse.builder().setRunId(runId).setNumberInJob(numberInJob).build();
+      String jobId = request.queryParams("job_id");
+      String limit = request.queryParams("limit");
+      Long jobIdValue = jobId == null ? null : Long.valueOf(jobId);
+      // From API doc: The default value is 20. The max is 1000.
+      // If a request specifies a limit of 0, the service will instead use the maximum limit.
+      Long limitValue = limit == null ? 20 : Long.valueOf(limit);
+      if (limitValue <= 0) {
+        limitValue = 1000L;
+      }
+      if (limitValue > 1000L) {
+        limitValue = 1000L;
+      }
+      List<Run> runs =
+          runTracker.items.entrySet().stream()
+              .filter(e -> (jobIdValue == null) || (e.getValue().jobId.orElse(null) == jobIdValue))
+              .sorted(Comparator.comparingLong(e -> -e.getValue().numberInJob.orElse(0L)))
+              .limit(limitValue)
+              .map(
+                  e -> Run.builder().setRunId(e.getKey()).setState(getRunState(e.getKey())).build())
+              .collect(Collectors.toList());
+
+      return RunsListResponse.builder().setRuns(runs).build();
     }
 
     RunsCancelResponse runsCancel(Request request, Response response) throws Exception {
@@ -239,15 +299,24 @@ public class DatabricksEmulator {
       long runId = req.getRunId();
       log.info("Canceling job run {}", runId);
 
-      SparkAppHandle run = runTracker.getItem(runId);
+      RunItem run = runTracker.getItem(runId);
 
       try {
-        run.stop();
+        run.handle.stop();
       } catch (Exception e) {
         log.info("Application stopping threw exception", e);
       }
 
       return RunsCancelResponse.builder().build();
+    }
+
+    RunsSubmitResponse runsSubmit(Request request, Response response) throws Exception {
+      RunsSubmitRequest req = objectMapper.readValue(request.body(), RunsSubmitRequest.class);
+
+      long runId = startRun(req, Optional.empty(), Optional.empty(), Optional.empty());
+
+      log.info("Started job run {}", runId);
+      return RunsSubmitResponse.builder().setRunId(runId).build();
     }
   }
 

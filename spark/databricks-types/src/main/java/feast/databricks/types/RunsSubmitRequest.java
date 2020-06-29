@@ -24,9 +24,9 @@ import java.util.List;
 import java.util.Optional;
 
 @AutoValue
-@JsonDeserialize(builder = AutoValue_JobsCreateRequest.Builder.class)
+@JsonDeserialize(builder = AutoValue_RunsSubmitRequest.Builder.class)
 @JsonInclude(JsonInclude.Include.NON_ABSENT)
-public abstract class JobsCreateRequest implements JobDefinition {
+public abstract class RunsSubmitRequest implements JobDefinition {
 
   @JsonProperty("new_cluster")
   public abstract NewCluster getNewCluster();
@@ -43,11 +43,11 @@ public abstract class JobsCreateRequest implements JobDefinition {
   @JsonProperty("timeout_seconds")
   public abstract Optional<Integer> getTimeoutSeconds();
 
-  @JsonProperty("max_retries")
-  public abstract Optional<Integer> getMaxRetries();
+  @JsonProperty("idempotency_token")
+  public abstract Optional<String> getIdempotencyToken();
 
   public static Builder builder() {
-    return new AutoValue_JobsCreateRequest.Builder();
+    return new AutoValue_RunsSubmitRequest.Builder();
   }
 
   @AutoValue.Builder
@@ -67,9 +67,9 @@ public abstract class JobsCreateRequest implements JobDefinition {
     @JsonProperty("timeout_seconds")
     public abstract Builder setTimeoutSeconds(Integer value);
 
-    @JsonProperty("max_retries")
-    public abstract Builder setMaxRetries(Integer value);
+    @JsonProperty("idempotency_token")
+    public abstract Builder setIdempotencyToken(String value);
 
-    public abstract JobsCreateRequest build();
+    public abstract RunsSubmitRequest build();
   }
 }
