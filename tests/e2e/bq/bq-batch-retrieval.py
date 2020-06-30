@@ -159,7 +159,7 @@ def test_batch_apply_all_featuresets(client):
 @pytest.mark.direct_runner
 @pytest.mark.dataflow_runner
 @pytest.mark.run(order=10)
-def test_batch_get_batch_features_with_file(client):
+def test_batch_get_historical_features_with_file(client):
     file_fs1 = client.get_feature_set(name="file_feature_set")
 
     N_ROWS = 10
@@ -193,7 +193,7 @@ def test_batch_get_batch_features_with_file(client):
     time.sleep(10)
 
     def check():
-        feature_retrieval_job = client.get_batch_features(
+        feature_retrieval_job = client.get_historical_features(
             entity_rows="file://file_feature_set.avro",
             feature_refs=["feature_value1"],
             project=PROJECT_NAME,
@@ -213,7 +213,7 @@ def test_batch_get_batch_features_with_file(client):
 @pytest.mark.direct_runner
 @pytest.mark.dataflow_runner
 @pytest.mark.run(order=11)
-def test_batch_get_batch_features_with_gs_path(client, gcs_path):
+def test_batch_get_historical_features_with_gs_path(client, gcs_path):
     gcs_fs1 = client.get_feature_set(name="gcs_feature_set")
 
     N_ROWS = 10
@@ -252,7 +252,7 @@ def test_batch_get_batch_features_with_gs_path(client, gcs_path):
     blob.upload_from_filename(file_name)
 
     def check():
-        feature_retrieval_job = client.get_batch_features(
+        feature_retrieval_job = client.get_historical_features(
             entity_rows=f"{gcs_path}{ts}/*",
             feature_refs=["feature_value2"],
             project=PROJECT_NAME,
@@ -296,7 +296,7 @@ def test_batch_order_by_creation_time(client):
     client.ingest(proc_time_fs, correct_df)
 
     def check():
-        feature_retrieval_job = client.get_batch_features(
+        feature_retrieval_job = client.get_historical_features(
             entity_rows=incorrect_df[["datetime", "entity_id"]],
             feature_refs=["feature_value3"],
             project=PROJECT_NAME,
@@ -337,7 +337,7 @@ def test_batch_additional_columns_in_entity_table(client):
     )
 
     def check():
-        feature_retrieval_job = client.get_batch_features(
+        feature_retrieval_job = client.get_historical_features(
             entity_rows=entity_df,
             feature_refs=["feature_value4"],
             project=PROJECT_NAME,
@@ -392,7 +392,7 @@ def test_batch_point_in_time_correctness_join(client):
     client.ingest(historical_fs, historical_df)
 
     def check():
-        feature_retrieval_job = client.get_batch_features(
+        feature_retrieval_job = client.get_historical_features(
             entity_rows=entity_df,
             feature_refs=["feature_value5"],
             project=PROJECT_NAME,
@@ -443,7 +443,7 @@ def test_batch_multiple_featureset_joins(client):
     # Test retrieve with different variations of the string feature refs
     # ie feature set inference for feature refs without specified feature set
     def check():
-        feature_retrieval_job = client.get_batch_features(
+        feature_retrieval_job = client.get_historical_features(
             entity_rows=entity_df,
             feature_refs=["feature_value6", "feature_set_2:other_feature_value7"],
             project=PROJECT_NAME,
@@ -480,7 +480,7 @@ def test_batch_no_max_age(client):
     client.ingest(no_max_age_fs, features_8_df)
 
     def check():
-        feature_retrieval_job = client.get_batch_features(
+        feature_retrieval_job = client.get_historical_features(
             entity_rows=features_8_df[["datetime", "entity_id"]],
             feature_refs=["feature_value8"],
             project=PROJECT_NAME,
@@ -564,7 +564,7 @@ def test_update_featureset_apply_featureset_and_ingest_first_subset(
     client.ingest(feature_set=update_fs, source=subset_df)
 
     def check():
-        feature_retrieval_job = client.get_batch_features(
+        feature_retrieval_job = client.get_historical_features(
             entity_rows=update_featureset_dataframe[["datetime", "entity_id"]].iloc[:5],
             feature_refs=["update_feature1", "update_feature2"],
             project=PROJECT_NAME,
@@ -627,7 +627,7 @@ def test_update_featureset_update_featureset_and_ingest_second_subset(
         time.sleep(30)
 
     def check():
-        feature_retrieval_job = client.get_batch_features(
+        feature_retrieval_job = client.get_historical_features(
             entity_rows=update_featureset_dataframe[["datetime", "entity_id"]].iloc[5:],
             feature_refs=["update_feature1", "update_feature3", "update_feature4"],
             project=PROJECT_NAME,
@@ -659,7 +659,7 @@ def test_update_featureset_update_featureset_and_ingest_second_subset(
 @pytest.mark.run(order=22)
 def test_update_featureset_retrieve_all_fields(client, update_featureset_dataframe):
     with pytest.raises(Exception):
-        feature_retrieval_job = client.get_batch_features(
+        feature_retrieval_job = client.get_historical_features(
             entity_rows=update_featureset_dataframe[["datetime", "entity_id"]],
             feature_refs=[
                 "update_feature1",
@@ -675,7 +675,7 @@ def test_update_featureset_retrieve_all_fields(client, update_featureset_datafra
 @pytest.mark.fs_update
 @pytest.mark.run(order=23)
 def test_update_featureset_retrieve_valid_fields(client, update_featureset_dataframe):
-    feature_retrieval_job = client.get_batch_features(
+    feature_retrieval_job = client.get_historical_features(
         entity_rows=update_featureset_dataframe[["datetime", "entity_id"]],
         feature_refs=["update_feature1", "update_feature3", "update_feature4"],
         project=PROJECT_NAME,
@@ -751,7 +751,7 @@ def test_batch_dataset_statistics(client):
             break
         time.sleep(30)
 
-    feature_retrieval_job = client.get_batch_features(
+    feature_retrieval_job = client.get_historical_features(
         entity_rows=entity_df,
         feature_refs=["feature_value6", "feature_set_2:other_feature_value7"],
         project=PROJECT_NAME,

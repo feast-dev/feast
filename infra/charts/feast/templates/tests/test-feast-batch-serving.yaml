@@ -70,7 +70,7 @@ spec:
       entity_rows_df = df.copy(deep=True).rename(columns={"datetime": "event_timestamp"})[["event_timestamp", "customer_id"]]
       pandavro.to_avro("entity_rows.avro", entity_rows_df)
 
-      batch_serving_job = client.get_batch_features(
+      batch_serving_job = client.get_historical_features(
           entity_rows="file://entity_rows.avro", 
           feature_refs=[
               f"{project}/daily_transactions:1",

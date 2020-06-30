@@ -20,6 +20,7 @@ import shutil
 import tempfile
 import time
 import uuid
+import warnings
 from collections import OrderedDict
 from math import ceil
 from typing import Dict, List, Optional, Tuple, Union
@@ -549,6 +550,25 @@ class Client:
         project: str = None,
     ) -> RetrievalJob:
         """
+        Deprecated. Please see get_historical_features.
+        """
+        warnings.warn(
+            "The method get_batch_features() is being deprecated. Please use the identical get_historical_features(). "
+            "Feast 0.7 and onwards will not support get_batch_features().",
+            DeprecationWarning,
+        )
+        return self.get_historical_features(
+            feature_refs, entity_rows, compute_statistics, project
+        )
+
+    def get_historical_features(
+        self,
+        feature_refs: List[str],
+        entity_rows: Union[pd.DataFrame, str],
+        compute_statistics: bool = False,
+        project: str = None,
+    ) -> RetrievalJob:
+        """
         Retrieves historical features from a Feast Serving deployment.
 
         Args:
@@ -585,7 +605,7 @@ class Client:
             >>>            "customer": [1001, 1002, 1003],
             >>>         }
             >>>     )
-            >>> feature_retrieval_job = feast_client.get_batch_features(
+            >>> feature_retrieval_job = feast_client.get_historical_features(
             >>>     feature_refs, entity_rows, project="my_project")
             >>> df = feature_retrieval_job.to_dataframe()
             >>> print(df)
