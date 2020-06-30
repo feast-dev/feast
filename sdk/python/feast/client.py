@@ -20,10 +20,10 @@ import shutil
 import tempfile
 import time
 import uuid
+import warnings
 from collections import OrderedDict
 from math import ceil
-from typing import Any, Dict, List, Optional, Tuple, Union
-import warnings
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import grpc
 import pandas as pd
@@ -75,6 +75,7 @@ from feast.job import IngestJob, RetrievalJob
 from feast.loaders.abstract_producer import get_producer
 from feast.loaders.file import export_source_to_staging_location
 from feast.loaders.ingest import KAFKA_CHUNK_PRODUCTION_TIMEOUT, get_feature_row_chunks
+from feast.online_response import OnlineResponse
 from feast.serving.ServingService_pb2 import (
     DataFormat,
     DatasetSource,
@@ -86,11 +87,9 @@ from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequest,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
-from tensorflow_metadata.proto.v0 import statistics_pb2
-from feast.type_map import python_type_to_feast_value_type, _python_value_to_proto_value
-from feast.online_response import OnlineResponse
+from feast.type_map import _python_value_to_proto_value, python_type_to_feast_value_type
 from feast.types.Value_pb2 import Value as Value
-
+from tensorflow_metadata.proto.v0 import statistics_pb2
 
 _logger = logging.getLogger(__name__)
 
@@ -674,7 +673,7 @@ class Client:
                 "feature_set:feature" where "feature_set" & "feature" refer to
                 the feature and feature set names respectively.
                 Only the feature name is required.
-            entity_rows: A list of dictionaries where the key is an entity and value is
+            entity_rows: A list of dictionaries where each key is an entity and each value is
                 feast.types.Value or Python native form.
             project: Optionally specify the the project override. If specified, uses given project for retrieval.
                 Overrides the projects specified in Feature References if also are specified.
@@ -697,23 +696,13 @@ class Client:
             >>> print(online_response_dict)
             {'daily_transactions': [1.1,1.2], 'customer_id': [0,1]}
         """
-        inferred_entity_rows = []  # type: Any
+
         try:
-            if entity_rows and isinstance(entity_rows[0], dict):
-                inferred_entity_rows = _infer_entity_rows(entity_rows)  # type: ignore
-            if entity_rows and isinstance(
-                entity_rows[0], GetOnlineFeaturesRequest.EntityRow
-            ):
-                warnings.warn(
-                    "entity_rows parameter will only be accepting Dict format from v0.7 onwards",
-                    DeprecationWarning,
-                )
-                inferred_entity_rows = entity_rows
             response = self._serving_service.GetOnlineFeatures(
                 GetOnlineFeaturesRequest(
                     omit_entities_in_response=omit_entities,
                     features=_build_feature_references(feature_ref_strs=feature_refs),
-                    entity_rows=inferred_entity_rows,
+                    entity_rows=_infer_online_entity_rows(entity_rows),
                     project=project if project is not None else self.project,
                 )
             )
@@ -721,7 +710,6 @@ class Client:
             raise grpc.RpcError(e.details())
 
         response = OnlineResponse(response)
-
         return response
 
     def list_ingest_jobs(
@@ -991,23 +979,36 @@ class Client:
         return ()
 
 
-def _infer_entity_rows(
-    entities: List[Dict[str, Any]]
+def _infer_online_entity_rows(
+    entity_rows: List[Union[GetOnlineFeaturesRequest.EntityRow, Dict[str, Any]]],
 ) -> List[GetOnlineFeaturesRequest.EntityRow]:
     """
     Builds a list of EntityRow protos from Python native type format passed by user.
 
     Args:
-        entities: A list of dictionaries where the key is an entity and value is
+        entity_rows: A list of dictionaries where each key is an entity and each value is
             feast.types.Value or Python native form.
 
     Returns:
         A list of EntityRow protos parsed from args.
     """
+
+    # Maintain backward compatibility with users providing EntityRow Proto
+    if entity_rows and isinstance(entity_rows[0], GetOnlineFeaturesRequest.EntityRow):
+        warnings.warn(
+            "entity_rows parameter will only be accepting Dict format from Feast v0.7 onwards",
+            DeprecationWarning,
+        )
+        entity_rows_proto = cast(
+            List[Union[GetOnlineFeaturesRequest.EntityRow]], entity_rows
+        )
+        return entity_rows_proto
+
+    entity_rows_dict = cast(List[Dict[str, Any]], entity_rows)
     entity_row_list = []
     entity_type_map = dict()
 
-    for entity in entities:
+    for entity in entity_rows_dict:
         for key, value in entity.items():
             # Allow for feast.types.Value
             if isinstance(value, Value):

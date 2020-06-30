@@ -18,8 +18,8 @@ from typing import Any, Dict, List, Union
 import numpy as np
 import pandas as pd
 import pyarrow as pa
-from google.protobuf.timestamp_pb2 import Timestamp
 from google.protobuf.json_format import MessageToDict
+from google.protobuf.timestamp_pb2 import Timestamp
 from pyarrow.lib import TimestampType
 
 from feast.constants import DATETIME_COLUMN
