@@ -17,7 +17,7 @@
 package feast.core.job.databricks;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
@@ -48,7 +48,7 @@ public class DatabricksJobManagerTest {
 
   @Mock private HttpClient httpClient;
 
-  @Mock private HttpResponse httpResponse;
+  @Mock private HttpResponse<Object> httpResponse;
 
   private DatabricksJobManager dbJobManager;
   private Job job;
@@ -142,15 +142,11 @@ public class DatabricksJobManagerTest {
 
   @Test
   public void testStartJob_OK() throws IOException, InterruptedException {
-    String createResponseBody = "{ \"job_id\" : \"5\" } ";
-    String runNowResponseBody = "{ \"run_id\" : \"10\", \"number_in_job\" : \"10\"} ";
+    String runsSubmitResponseBody = "{ \"run_id\" : \"10\"} ";
     String jobStatusResponseBody =
         "{ \"state\": {\"life_cycle_state\" : \"RUNNING\", \"state_message\": \"a state message\"} } ";
 
-    when(httpResponse.body())
-        .thenReturn(createResponseBody)
-        .thenReturn(runNowResponseBody)
-        .thenReturn(jobStatusResponseBody);
+    when(httpResponse.body()).thenReturn(runsSubmitResponseBody).thenReturn(jobStatusResponseBody);
     when(httpResponse.statusCode()).thenReturn(HttpStatus.SC_OK);
     when(httpClient.send(any(), any())).thenReturn(httpResponse);
 
@@ -184,13 +180,20 @@ public class DatabricksJobManagerTest {
 
   @Test(expected = JobExecutionException.class)
   public void testAbortJob_BadRequest() throws IOException, InterruptedException {
-    String runId = "1";
-
     when(httpResponse.statusCode()).thenReturn(HttpStatus.SC_BAD_REQUEST);
     when(httpClient.send(any(), any())).thenReturn(httpResponse);
 
     dbJobManager.startJob(job);
 
     verify(httpClient, Mockito.times(1)).send(any(), any());
+  }
+
+  @Test
+  public void toDigest() throws Exception {
+    String digest1 = DatabricksJobManager.toDigest("somestring");
+    assertThat(digest1.length(), equalTo(64));
+    String digest2 = DatabricksJobManager.toDigest("");
+    assertThat(digest2.length(), equalTo(64));
+    assertThat(digest1, not(digest2));
   }
 }

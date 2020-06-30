@@ -63,8 +63,6 @@ feast:
           token:  ${DATABRICKS_TOKEN}
           # Path to the Jar file on the databricks file system
           jarFile: jar_file
-          # Maximum number of retries for a Databricks job, or -1 for unlimited
-          maxRetries: -1
           # Timeout in seconds for Databricks jobs, or -1 for unlimited
           timeoutSeconds: -1
           newCluster:

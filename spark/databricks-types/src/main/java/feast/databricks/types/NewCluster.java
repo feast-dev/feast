@@ -34,10 +34,13 @@ public abstract class NewCluster {
   public abstract String sparkVersion();
 
   @JsonProperty("node_type_id")
-  public abstract String nodeTypeId();
+  public abstract Optional<String> nodeTypeId();
 
   @JsonProperty("spark_conf")
   public abstract Optional<Map<String, String>> sparkConf();
+
+  @JsonProperty("instance_pool_id")
+  public abstract Optional<String> instancePoolId();
 
   public static Builder builder() {
     return new AutoValue_NewCluster.Builder();
@@ -56,6 +59,9 @@ public abstract class NewCluster {
 
     @JsonProperty("spark_conf")
     public abstract Builder setSparkConf(Map<String, String> value);
+
+    @JsonProperty("instance_pool_id")
+    public abstract Builder setInstancePoolId(String value);
 
     public abstract NewCluster build();
   }

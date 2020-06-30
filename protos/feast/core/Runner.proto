@@ -86,6 +86,8 @@ message DatabricksRunnerConfigOptions {
         int32 numWorkers = 3;
 
         string sparkConf = 4;
+
+        string instancePoolId = 5;
     }
 
     /* Databricks host */
@@ -96,9 +98,7 @@ message DatabricksRunnerConfigOptions {
 
     string jarFile = 3;
 
-    int32 maxRetries = 4;
-    
-    int32 timeoutSeconds = 5;
+    int32 timeoutSeconds = 4;
 
-    DatabricksNewClusterOptions newCluster = 6;
+    DatabricksNewClusterOptions newCluster = 5;
 }

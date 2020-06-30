@@ -195,7 +195,7 @@ jobs:
       working-directory: infra/terraform/app
       env:
         # capture debugging info, see https://www.terraform.io/docs/internals/debugging.html
-        TF_LOG: debug
+        TF_LOG: TRACE
 
     - name: Cancel any active Databricks runs
       run: |
@@ -226,7 +226,7 @@ jobs:
         set -ex
         kubectl exec "$E2E_TEST_POD" -- bash -c "
           cd /feast/tests/e2e
-          pytest -x -rA -s basic-ingest-redis-serving.py --core_url feast-core:6565 --serving_url=feast-serving-feast-online-serving:6566
+          pytest -x -rA -s databricks-tests.py --core_url feast-core:6565 --serving_url=feast-serving-feast-online-serving:6566
         "
 
     - name: Run ingestion tests for FF Data Science scenarios

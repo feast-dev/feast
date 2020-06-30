@@ -119,6 +119,7 @@ public class SparkIngestion {
             .readStream()
             .format("kafka")
             .option("kafka.bootstrap.servers", kafkaConfig.getBootstrapServers())
+            .option("startingOffsets", "earliest")
             .option("subscribe", kafkaConfig.getTopic())
             .load();
 
@@ -164,7 +165,7 @@ public class SparkIngestion {
                 })
             .collect(Collectors.toList());
 
-    // Start running the query that writes the data to Delta Lake
+    // Start running the query that writes the data to sink
     return input
         .select("value")
         .map(

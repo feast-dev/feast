@@ -70,6 +70,10 @@ public class ServingServiceConfig {
         HistoricalRetriever bqRetriever = BigQueryHistoricalRetriever.create(config);
         servingService = new HistoricalServingService(bqRetriever, specService, jobService);
         break;
+      case DELTA:
+        OnlineRetriever deltaRetriever = null;
+        servingService = new OnlineServingService(deltaRetriever, specService, tracer);
+        break;
       case CASSANDRA:
       case UNRECOGNIZED:
       case INVALID:
