@@ -29,6 +29,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 from google.protobuf.timestamp_pb2 import Timestamp
+from tensorflow_metadata.proto.v0 import statistics_pb2
 
 import feast.grpc.auth as feast_auth
 from feast.config import Config
@@ -86,7 +87,6 @@ from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesResponse,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
-from tensorflow_metadata.proto.v0 import statistics_pb2
 
 _logger = logging.getLogger(__name__)
 
