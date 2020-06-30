@@ -175,15 +175,16 @@ public class Job extends AbstractTimestampEntity {
   }
 
   public Job clone() {
-    Job job = Job.builder()
-        .setStores(getStores())
-        .setStoreName(getStoreName())
-        .setSourceConfig(getSourceConfig())
-        .setSourceType(getSourceType())
-        .setFeatureSetJobStatuses(new HashSet<>())
-        .setRunner(getRunner())
-        .setStatus(JobStatus.UNKNOWN)
-        .build();
+    Job job =
+        Job.builder()
+            .setStores(getStores())
+            .setStoreName(getStoreName())
+            .setSourceConfig(getSourceConfig())
+            .setSourceType(getSourceType())
+            .setFeatureSetJobStatuses(new HashSet<>())
+            .setRunner(getRunner())
+            .setStatus(JobStatus.UNKNOWN)
+            .build();
     job.addAllFeatureSets(getFeatureSets());
     return job;
   }
