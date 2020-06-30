@@ -1004,11 +1004,11 @@ def _infer_online_entity_rows(
         )
         return entity_rows_proto
 
-    entity_rows_dict = cast(List[Dict[str, Any]], entity_rows)
+    entity_rows_dicts = cast(List[Dict[str, Any]], entity_rows)
     entity_row_list = []
     entity_type_map = dict()
 
-    for entity in entity_rows_dict:
+    for entity in entity_rows_dicts:
         for key, value in entity.items():
             # Allow for feast.types.Value
             if isinstance(value, Value):
