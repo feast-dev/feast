@@ -605,7 +605,7 @@ class Client:
             >>>            "customer": [1001, 1002, 1003],
             >>>         }
             >>>     )
-            >>> feature_retrieval_job = feast_client.get_batch_features(
+            >>> feature_retrieval_job = feast_client.get_historical_features(
             >>>     feature_refs, entity_rows, project="my_project")
             >>> df = feature_retrieval_job.to_dataframe()
             >>> print(df)

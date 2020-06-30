@@ -610,7 +610,7 @@ class TestClient:
         "mocked_client",
         [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
     )
-    def test_get_batch_features(self, mocked_client, mocker):
+    def test_get_historical_features(self, mocked_client, mocker):
 
         mocked_client._serving_service_stub = Serving.ServingServiceStub(
             grpc.insecure_channel("")
@@ -705,7 +705,7 @@ class TestClient:
         # NOTE: Feast Serving does not allow for feature references
         # that specify the same feature in the same request.
         with patch("google.cloud.storage.Client"):
-            response = mocked_client.get_batch_features(
+            response = mocked_client.get_historical_features(
                 entity_rows=pd.DataFrame(
                     {
                         "datetime": [
