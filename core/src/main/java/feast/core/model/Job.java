@@ -115,10 +115,10 @@ public class Job extends AbstractTimestampEntity {
     return getExtId() != null && !getExtId().isEmpty();
   }
 
-  public List<FeatureSet> getFeatureSets() {
+  public Set<FeatureSet> getFeatureSets() {
     return this.featureSetJobStatuses.stream()
         .map(FeatureSetJobStatus::getFeatureSet)
-        .collect(Collectors.toList());
+        .collect(Collectors.toSet());
   }
 
   public Source getSource() {
@@ -126,6 +126,22 @@ public class Job extends AbstractTimestampEntity {
     source.setType(this.sourceType);
     source.setConfig(this.sourceConfig);
     return source;
+  }
+
+  public void addAllFeatureSets(Set<FeatureSet> featureSets) {
+    for (FeatureSet fs : featureSets) {
+      FeatureSetJobStatus status = new FeatureSetJobStatus();
+      status.setFeatureSet(fs);
+      status.setJob(this);
+      if (fs.getStatus() == FeatureSetProto.FeatureSetStatus.STATUS_READY) {
+        // Feature Set was already delivered to previous generation of the job
+        // (another words, it exists in kafka)
+        // so we expect Job will ack latest version based on history from kafka topic
+        status.setVersion(fs.getVersion());
+      }
+      status.setDeliveryStatus(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS);
+      this.getFeatureSetJobStatuses().add(status);
+    }
   }
 
   /**
@@ -159,7 +175,7 @@ public class Job extends AbstractTimestampEntity {
   }
 
   public Job clone() {
-    return Job.builder()
+    Job job = Job.builder()
         .setStores(getStores())
         .setStoreName(getStoreName())
         .setSourceConfig(getSourceConfig())
@@ -168,6 +184,8 @@ public class Job extends AbstractTimestampEntity {
         .setRunner(getRunner())
         .setStatus(JobStatus.UNKNOWN)
         .build();
+    job.addAllFeatureSets(getFeatureSets());
+    return job;
   }
 
   @Override

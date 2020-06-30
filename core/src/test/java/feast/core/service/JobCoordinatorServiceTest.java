@@ -16,6 +16,7 @@
  */
 package feast.core.service;
 
+import static feast.common.models.Store.convertStringToSubscription;
 import static feast.proto.core.FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_DELIVERED;
 import static feast.proto.core.FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS;
 import static org.hamcrest.CoreMatchers.*;
@@ -35,6 +36,7 @@ import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.config.FeastProperties;
 import feast.core.config.FeastProperties.JobProperties;
+import feast.core.dao.FeatureSetJobStatusRepository;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobRepository;
 import feast.core.dao.SourceRepository;
@@ -74,6 +76,7 @@ public class JobCoordinatorServiceTest {
   @Mock JobManager jobManager;
   @Mock SpecService specService;
   @Mock FeatureSetRepository featureSetRepository;
+  @Mock FeatureSetJobStatusRepository jobStatusRepository;
   @Mock private KafkaTemplate<String, FeatureSetSpec> kafkaTemplate;
   @Mock SourceRepository sourceRepository;
 
@@ -93,6 +96,7 @@ public class JobCoordinatorServiceTest {
         new JobCoordinatorService(
             jobRepository,
             featureSetRepository,
+            jobStatusRepository,
             specService,
             jobManager,
             feastProperties,
@@ -103,6 +107,7 @@ public class JobCoordinatorServiceTest {
         new JobCoordinatorService(
             jobRepository,
             featureSetRepository,
+            jobStatusRepository,
             specService,
             jobManager,
             feastProperties,
@@ -512,7 +517,7 @@ public class JobCoordinatorServiceTest {
   }
 
   @Test
-  public void shouldSendPendingFeatureSetToJobs() {
+  public void shouldSendPendingFeatureSetToJobs() throws InvalidProtocolBufferException {
     FeatureSet fs1 =
         TestUtil.CreateFeatureSet(
             "fs_1", "project", Collections.emptyList(), Collections.emptyList());
@@ -553,6 +558,8 @@ public class JobCoordinatorServiceTest {
     when(featureSetRepository.findAllByStatus(FeatureSetProto.FeatureSetStatus.STATUS_PENDING))
         .thenReturn(ImmutableList.of(fs1, fs2, fs3));
 
+    when(specService.listStores(any())).thenReturn(ListStoresResponse.newBuilder().build());
+
     jcsWithConsolidation.notifyJobsWhenFeatureSetUpdated();
 
     verify(kafkaTemplate).sendDefault(eq(fs1.getReference()), any(FeatureSetSpec.class));
@@ -585,6 +592,7 @@ public class JobCoordinatorServiceTest {
     when(kafkaTemplate.sendDefault(eq(fsInTest.getReference()), any()).get()).thenThrow(exc);
     when(featureSetRepository.findAllByStatus(FeatureSetProto.FeatureSetStatus.STATUS_PENDING))
         .thenReturn(ImmutableList.of(fsInTest));
+    when(specService.listStores(any())).thenReturn(ListStoresResponse.newBuilder().build());
 
     jcsWithConsolidation.notifyJobsWhenFeatureSetUpdated();
     assertThat(featureSetJobStatus.getVersion(), is(1));
@@ -651,43 +659,44 @@ public class JobCoordinatorServiceTest {
   }
 
   @Test
-  public void featureSetsShouldBeAllocated() {
+  public void featureSetShouldBeAllocated() throws InvalidProtocolBufferException {
     FeatureSetProto.FeatureSet.Builder fsBuilder =
         FeatureSetProto.FeatureSet.newBuilder().setMeta(FeatureSetMeta.newBuilder());
     FeatureSetSpec.Builder specBuilder = FeatureSetSpec.newBuilder();
 
+    Source source = TestUtil.createKafkaSource("kafka", "topic", false);
+    Store store =
+        TestUtil.createStore("store", ImmutableList.of(convertStringToSubscription("*:*")));
+
+    when(specService.listStores(any()))
+        .thenReturn(ListStoresResponse.newBuilder().addStore(store.toProto()).build());
+
     FeatureSet featureSet1 =
         FeatureSet.fromProto(fsBuilder.setSpec(specBuilder.setName("featureSet1")).build());
-    FeatureSet featureSet2 =
-        FeatureSet.fromProto(fsBuilder.setSpec(specBuilder.setName("featureSet2")).build());
+    featureSet1.setSource(source);
 
-    featureSet2.setStatus(FeatureSetProto.FeatureSetStatus.STATUS_READY);
-    featureSet2.setVersion(5);
+    FeatureSetJobStatus status =
+        TestUtil.CreateFeatureSetJobStatusWithJob(JobStatus.RUNNING, STATUS_IN_PROGRESS, 1);
+
+    featureSet1.getJobStatuses().add(status);
 
     Job job = new Job();
-    jcsWithConsolidation.allocateFeatureSets(job, ImmutableSet.of(featureSet1));
+    job.setStatus(JobStatus.RUNNING);
 
-    FeatureSetJobStatus expectedStatus1 = new FeatureSetJobStatus();
-    expectedStatus1.setJob(job);
-    expectedStatus1.setFeatureSet(featureSet1);
-    expectedStatus1.setVersion(0);
-    expectedStatus1.setDeliveryStatus(STATUS_IN_PROGRESS);
+    when(jobRepository
+            .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
+                source.getType(), source.getConfig(), null, JobStatus.getTerminalStates()))
+        .thenReturn(Optional.of(job));
 
-    assertThat(job.getFeatureSetJobStatuses(), containsInAnyOrder(expectedStatus1));
+    jcsWithConsolidation.allocateFeatureSetToJobs(featureSet1);
 
-    expectedStatus1.setDeliveryStatus(STATUS_DELIVERED);
-    job.getFeatureSetJobStatuses().forEach(j -> j.setDeliveryStatus(STATUS_DELIVERED));
+    FeatureSetJobStatus expectedStatus = new FeatureSetJobStatus();
+    expectedStatus.setJob(job);
+    expectedStatus.setFeatureSet(featureSet1);
+    expectedStatus.setDeliveryStatus(STATUS_IN_PROGRESS);
 
-    jcsWithConsolidation.allocateFeatureSets(job, ImmutableSet.of(featureSet1, featureSet2));
-
-    FeatureSetJobStatus expectedStatus2 = new FeatureSetJobStatus();
-    expectedStatus2.setJob(job);
-    expectedStatus2.setFeatureSet(featureSet2);
-    expectedStatus2.setVersion(featureSet2.getVersion());
-    expectedStatus2.setDeliveryStatus(STATUS_IN_PROGRESS);
-
-    assertThat(
-        job.getFeatureSetJobStatuses(), containsInAnyOrder(expectedStatus1, expectedStatus2));
+    verify(jobStatusRepository).saveAll(ImmutableSet.of(expectedStatus));
+    verify(jobStatusRepository).deleteAll(ImmutableSet.of(status));
   }
 
   @Test
@@ -855,6 +864,7 @@ public class JobCoordinatorServiceTest {
             .setExtId("extId")
             .setId("some-id")
             .setStatus(JobStatus.RUNNING)
+            .setFeatureSetJobStatuses(new HashSet<>())
             .build();
 
     when(jobRepository
