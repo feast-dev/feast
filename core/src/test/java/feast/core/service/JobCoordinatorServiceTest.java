@@ -36,16 +36,10 @@ import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.config.FeastProperties;
 import feast.core.config.FeastProperties.JobProperties;
-import feast.core.dao.FeatureSetJobStatusRepository;
-import feast.core.dao.FeatureSetRepository;
-import feast.core.dao.JobRepository;
-import feast.core.dao.SourceRepository;
+import feast.core.dao.*;
 import feast.core.job.*;
 import feast.core.model.*;
 import feast.core.util.TestUtil;
-import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
-import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
-import feast.proto.core.CoreServiceProto.ListStoresResponse;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.FeatureSetMeta;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
@@ -75,7 +69,7 @@ public class JobCoordinatorServiceTest {
   @Rule public final ExpectedException exception = ExpectedException.none();
   @Mock JobRepository jobRepository;
   @Mock JobManager jobManager;
-  @Mock SpecService specService;
+  @Mock StoreRepository storeRepository;
   @Mock FeatureSetRepository featureSetRepository;
   @Mock FeatureSetJobStatusRepository jobStatusRepository;
   @Mock private KafkaTemplate<String, FeatureSetSpec> kafkaTemplate;
@@ -98,7 +92,7 @@ public class JobCoordinatorServiceTest {
             jobRepository,
             featureSetRepository,
             jobStatusRepository,
-            specService,
+            storeRepository,
             jobManager,
             feastProperties,
             new ConsolidatedJobStrategy(jobRepository),
@@ -109,7 +103,7 @@ public class JobCoordinatorServiceTest {
             jobRepository,
             featureSetRepository,
             jobStatusRepository,
-            specService,
+            storeRepository,
             jobManager,
             feastProperties,
             new JobPerStoreStrategy(jobRepository),
@@ -120,7 +114,7 @@ public class JobCoordinatorServiceTest {
 
   @Test
   public void shouldDoNothingIfNoStoresFound() throws InvalidProtocolBufferException {
-    when(specService.listStores(any())).thenReturn(ListStoresResponse.newBuilder().build());
+    when(storeRepository.findAll()).thenReturn(Collections.emptyList());
     jcsWithConsolidation.Poll();
     verify(jobRepository, times(0)).saveAndFlush(any());
   }
@@ -132,11 +126,7 @@ public class JobCoordinatorServiceTest {
             "test", List.of(Subscription.newBuilder().setName("*").setProject("*").build()));
     StoreProto.Store storeSpec = store.toProto();
 
-    when(specService.listStores(any()))
-        .thenReturn(ListStoresResponse.newBuilder().addStore(storeSpec).build());
-    when(specService.listFeatureSets(
-            Filter.newBuilder().setProject("*").setFeatureSetName("*").build()))
-        .thenReturn(ListFeatureSetsResponse.newBuilder().build());
+    when(storeRepository.findAll()).thenReturn(Collections.emptyList());
     jcsWithConsolidation.Poll();
     verify(jobRepository, times(0)).saveAndFlush(any());
   }
@@ -146,7 +136,6 @@ public class JobCoordinatorServiceTest {
     Store store =
         TestUtil.createStore(
             "test", List.of(Subscription.newBuilder().setName("*").setProject("project1").build()));
-    StoreProto.Store storeSpec = store.toProto();
     SourceProto.Source sourceSpec =
         SourceProto.Source.newBuilder()
             .setType(SourceType.KAFKA)
@@ -199,8 +188,8 @@ public class JobCoordinatorServiceTest {
     when(sourceRepository.findFirstByTypeAndConfigOrderByIdAsc(
             source.getType(), source.getConfig()))
         .thenReturn(source);
-    when(specService.listStores(any()))
-        .thenReturn(ListStoresResponse.newBuilder().addStore(storeSpec).build());
+
+    when(storeRepository.findAll()).thenReturn(ImmutableList.of(store));
 
     when(jobManager.startJob(expectedInput)).thenReturn(expected);
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
@@ -225,7 +214,6 @@ public class JobCoordinatorServiceTest {
     Store store =
         TestUtil.createStore(
             "test", List.of(Subscription.newBuilder().setName("*").setProject("project1").build()));
-    StoreProto.Store storeSpec = store.toProto();
 
     Source source1 = TestUtil.createKafkaSource("servers:9092", "topic", false);
     Source source2 = TestUtil.createKafkaSource("others.servers:9092", "topic", false);
@@ -269,8 +257,7 @@ public class JobCoordinatorServiceTest {
     when(sourceRepository.findFirstByTypeAndConfigOrderByIdAsc(
             source2.getType(), source2.getConfig()))
         .thenReturn(source2);
-    when(specService.listStores(any()))
-        .thenReturn(ListStoresResponse.newBuilder().addStore(storeSpec).build());
+    when(storeRepository.findAll()).thenReturn(ImmutableList.of(store));
 
     when(jobManager.startJob(expectedInput1)).thenReturn(expected1);
     when(jobManager.startJob(expectedInput2)).thenReturn(expected2);
@@ -303,8 +290,6 @@ public class JobCoordinatorServiceTest {
     Store store =
         TestUtil.createStore(
             "test", List.of(Subscription.newBuilder().setName("*").setProject("project1").build()));
-    StoreProto.Store storeSpec = store.toProto();
-
     // simulate duplicate source objects: create source objects from the same spec but with
     // different ids
     Source source1 = TestUtil.createKafkaSource("servers:9092", "topic", false);
@@ -337,9 +322,7 @@ public class JobCoordinatorServiceTest {
     when(sourceRepository.findFirstByTypeAndConfigOrderByIdAsc(
             source2.getType(), source2.getConfig()))
         .thenReturn(source1);
-    when(specService.listStores(any()))
-        .thenReturn(ListStoresResponse.newBuilder().addStore(storeSpec).build());
-
+    when(storeRepository.findAll()).thenReturn(ImmutableList.of(store));
     when(jobManager.startJob(expectedInput)).thenReturn(expected);
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
 
@@ -362,8 +345,6 @@ public class JobCoordinatorServiceTest {
     Store store =
         TestUtil.createStore(
             "test", List.of(Subscription.newBuilder().setName("*").setProject("project1").build()));
-    StoreProto.Store storeSpec = store.toProto();
-
     Source source = TestUtil.createKafkaSource("servers:9092", "topic", false);
 
     FeatureSet featureSet = TestUtil.createEmptyFeatureSet("features2", source);
@@ -399,9 +380,7 @@ public class JobCoordinatorServiceTest {
     when(sourceRepository.findFirstByTypeAndConfigOrderByIdAsc(
             source.getType(), source.getConfig()))
         .thenReturn(source);
-    when(specService.listStores(any()))
-        .thenReturn(ListStoresResponse.newBuilder().addStore(storeSpec).build());
-
+    when(storeRepository.findAll()).thenReturn(ImmutableList.of(store));
     when(jobManager.getJobStatus(inputJobs.get(0))).thenReturn(JobStatus.RUNNING);
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
 
@@ -435,13 +414,11 @@ public class JobCoordinatorServiceTest {
         TestUtil.createStore(
             "test",
             List.of(Subscription.newBuilder().setName("features1").setProject("*").build()));
-    StoreProto.Store store1Spec = store1.toProto();
 
     Store store2 =
         TestUtil.createStore(
             "test",
             List.of(Subscription.newBuilder().setName("features2").setProject("*").build()));
-    StoreProto.Store store2Spec = store2.toProto();
 
     Source source1 = TestUtil.createKafkaSource("servers:9092", "topic", false);
     Source source2 = TestUtil.createKafkaSource("other.servers:9092", "topic", false);
@@ -489,9 +466,7 @@ public class JobCoordinatorServiceTest {
     when(sourceRepository.findFirstByTypeAndConfigOrderByIdAsc(
             source2.getType(), source2.getConfig()))
         .thenReturn(source2);
-    when(specService.listStores(any()))
-        .thenReturn(
-            ListStoresResponse.newBuilder().addStore(store1Spec).addStore(store2Spec).build());
+    when(storeRepository.findAll()).thenReturn(ImmutableList.of(store1, store2));
 
     when(jobManager.startJob(expectedInput1)).thenReturn(expected1);
     when(jobManager.startJob(expectedInput2)).thenReturn(expected2);
@@ -559,7 +534,7 @@ public class JobCoordinatorServiceTest {
     when(featureSetRepository.findAllByStatus(FeatureSetProto.FeatureSetStatus.STATUS_PENDING))
         .thenReturn(ImmutableList.of(fs1, fs2, fs3));
 
-    when(specService.listStores(any())).thenReturn(ListStoresResponse.newBuilder().build());
+    when(storeRepository.findAll()).thenReturn(Collections.emptyList());
 
     jcsWithConsolidation.notifyJobsWhenFeatureSetUpdated();
 
@@ -593,7 +568,7 @@ public class JobCoordinatorServiceTest {
     when(kafkaTemplate.sendDefault(eq(fsInTest.getReference()), any()).get()).thenThrow(exc);
     when(featureSetRepository.findAllByStatus(FeatureSetProto.FeatureSetStatus.STATUS_PENDING))
         .thenReturn(ImmutableList.of(fsInTest));
-    when(specService.listStores(any())).thenReturn(ListStoresResponse.newBuilder().build());
+    when(storeRepository.findAll()).thenReturn(Collections.emptyList());
 
     jcsWithConsolidation.notifyJobsWhenFeatureSetUpdated();
     assertThat(featureSetJobStatus.getVersion(), is(1));
@@ -669,8 +644,7 @@ public class JobCoordinatorServiceTest {
     Store store =
         TestUtil.createStore("store", ImmutableList.of(convertStringToSubscription("*:*")));
 
-    when(specService.listStores(any()))
-        .thenReturn(ListStoresResponse.newBuilder().addStore(store.toProto()).build());
+    when(storeRepository.findAll()).thenReturn(ImmutableList.of(store));
 
     FeatureSet featureSet1 =
         FeatureSet.fromProto(fsBuilder.setSpec(specBuilder.setName("featureSet1")).build());
@@ -807,12 +781,7 @@ public class JobCoordinatorServiceTest {
 
     Source source = TestUtil.createKafkaSource("kafka", "topic", false);
 
-    when(specService.listStores(any()))
-        .thenReturn(
-            ListStoresResponse.newBuilder()
-                .addStore(store1.toProto())
-                .addStore(store2.toProto())
-                .build());
+    when(storeRepository.findAll()).thenReturn(ImmutableList.of(store1, store2));
 
     when(featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc("%", "%"))
         .thenReturn(ImmutableList.of(TestUtil.createEmptyFeatureSet("fs", source)));
@@ -877,12 +846,7 @@ public class JobCoordinatorServiceTest {
 
     Source source = TestUtil.createKafkaSource("kafka", "topic", false);
 
-    when(specService.listStores(any()))
-        .thenReturn(
-            ListStoresResponse.newBuilder()
-                .addStore(store1.toProto())
-                .addStore(store2.toProto())
-                .build());
+    when(storeRepository.findAll()).thenReturn(ImmutableList.of(store1, store2));
 
     when(featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc("%", "%"))
         .thenReturn(ImmutableList.of(TestUtil.createEmptyFeatureSet("fs", source)));

@@ -25,6 +25,7 @@ import feast.core.config.FeastProperties.JobProperties;
 import feast.core.dao.FeatureSetJobStatusRepository;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobRepository;
+import feast.core.dao.StoreRepository;
 import feast.core.job.*;
 import feast.core.model.*;
 import feast.core.model.FeatureSet;
@@ -32,8 +33,6 @@ import feast.core.model.Job;
 import feast.core.model.JobStatus;
 import feast.core.model.Source;
 import feast.core.model.Store;
-import feast.proto.core.CoreServiceProto.ListStoresRequest.Filter;
-import feast.proto.core.CoreServiceProto.ListStoresResponse;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.IngestionJobProto;
 import java.util.*;
@@ -61,7 +60,7 @@ public class JobCoordinatorService {
   private final JobRepository jobRepository;
   private final FeatureSetRepository featureSetRepository;
   private final FeatureSetJobStatusRepository jobStatusRepository;
-  private final SpecService specService;
+  private final StoreRepository storeRepository;
   private final JobManager jobManager;
   private final JobProperties jobProperties;
   private final JobGroupingStrategy groupingStrategy;
@@ -72,7 +71,7 @@ public class JobCoordinatorService {
       JobRepository jobRepository,
       FeatureSetRepository featureSetRepository,
       FeatureSetJobStatusRepository jobStatusRepository,
-      SpecService specService,
+      StoreRepository storeRepository,
       JobManager jobManager,
       FeastProperties feastProperties,
       JobGroupingStrategy groupingStrategy,
@@ -80,7 +79,7 @@ public class JobCoordinatorService {
     this.jobRepository = jobRepository;
     this.featureSetRepository = featureSetRepository;
     this.jobStatusRepository = jobStatusRepository;
-    this.specService = specService;
+    this.storeRepository = storeRepository;
     this.jobManager = jobManager;
     this.jobProperties = feastProperties.getJobs();
     this.specPublisher = specPublisher;
@@ -297,10 +296,7 @@ public class JobCoordinatorService {
   }
 
   private List<Store> getAllStores() {
-    ListStoresResponse listStoresResponse = specService.listStores(Filter.newBuilder().build());
-    return listStoresResponse.getStoreList().stream()
-        .map(Store::fromProto)
-        .collect(Collectors.toList());
+    return storeRepository.findAll();
   }
 
   /**
