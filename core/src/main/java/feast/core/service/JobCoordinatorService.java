@@ -267,7 +267,8 @@ public class JobCoordinatorService {
       status.setJob(job);
       status.setDeliveryStatus(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS);
 
-      current.put(new FeatureSetJobStatus.FeatureSetJobStatusKey(job.getId(), featureSet.getId()), status);
+      current.put(
+          new FeatureSetJobStatus.FeatureSetJobStatusKey(job.getId(), featureSet.getId()), status);
     }
 
     Set<FeatureSetJobStatus.FeatureSetJobStatusKey> toDelete =
