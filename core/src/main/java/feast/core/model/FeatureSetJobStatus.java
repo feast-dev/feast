@@ -79,6 +79,6 @@ public class FeatureSetJobStatus {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(job, featureSet, deliveryStatus, version);
+    return Objects.hashCode(job, featureSet);
   }
 }

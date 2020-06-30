@@ -16,11 +16,13 @@
  */
 package feast.core.service;
 
+import static feast.common.models.Store.isSubscribedToFeatureSet;
 import static feast.core.model.FeatureSet.parseReference;
 
 import com.google.common.collect.Sets;
 import feast.core.config.FeastProperties;
 import feast.core.config.FeastProperties.JobProperties;
+import feast.core.dao.FeatureSetJobStatusRepository;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobRepository;
 import feast.core.job.*;
@@ -58,6 +60,7 @@ public class JobCoordinatorService {
 
   private final JobRepository jobRepository;
   private final FeatureSetRepository featureSetRepository;
+  private final FeatureSetJobStatusRepository jobStatusRepository;
   private final SpecService specService;
   private final JobManager jobManager;
   private final JobProperties jobProperties;
@@ -68,6 +71,7 @@ public class JobCoordinatorService {
   public JobCoordinatorService(
       JobRepository jobRepository,
       FeatureSetRepository featureSetRepository,
+      FeatureSetJobStatusRepository jobStatusRepository,
       SpecService specService,
       JobManager jobManager,
       FeastProperties feastProperties,
@@ -75,6 +79,7 @@ public class JobCoordinatorService {
       KafkaTemplate<String, FeatureSetProto.FeatureSetSpec> specPublisher) {
     this.jobRepository = jobRepository;
     this.featureSetRepository = featureSetRepository;
+    this.jobStatusRepository = jobStatusRepository;
     this.specService = specService;
     this.jobManager = jobManager;
     this.jobProperties = feastProperties.getJobs();
@@ -152,10 +157,6 @@ public class JobCoordinatorService {
     for (Pair<Source, Set<Store>> mapping : sourceToStores) {
       Source source = mapping.getKey();
       Set<Store> stores = mapping.getValue();
-      Set<FeatureSet> featureSets =
-          stores.stream()
-              .flatMap(s -> getFeatureSetsForStore(s).stream())
-              .collect(Collectors.toSet());
 
       Job job = groupingStrategy.getOrCreateJob(source, stores);
 
@@ -185,11 +186,14 @@ public class JobCoordinatorService {
         }
       } else {
         job.setId(groupingStrategy.createJobId(job));
+        job.addAllFeatureSets(
+            stores.stream()
+                .flatMap(s -> getFeatureSetsForStore(s).stream())
+                .filter(fs -> fs.getSource().equals(source))
+                .collect(Collectors.toSet()));
 
         jobTasks.add(CreateJobTask.builder().setJob(job).setJobManager(jobManager).build());
       }
-
-      allocateFeatureSets(job, featureSets);
 
       // Record the job as required to safeguard it from getting stopped
       activeJobs.add(job);
@@ -227,38 +231,50 @@ public class JobCoordinatorService {
   }
 
   /**
-   * Connects given {@link Job} with FeatureSets by creating {@link FeatureSetJobStatus}. This
-   * connection represents responsibility of the job to handle allocated FeatureSets. We use this
+   * Connects given {@link FeatureSet} with Jobs by creating {@link FeatureSetJobStatus}. This
+   * connection represents responsibility of the job to handle allocated FeatureSet. We use this
    * connection {@link FeatureSetJobStatus} to monitor Ingestion of specific FeatureSet and Specs
    * delivery status.
    *
    * <p>Only after this connection is created FeatureSetSpec could be sent to IngestionJob.
    *
-   * @param job {@link Job} responsible job
-   * @param featureSets Set of {@link FeatureSet} featureSets to allocate to this job
+   * @param featureSet featureSet {@link FeatureSet} to find jobs and allocate
    */
-  void allocateFeatureSets(Job job, Set<FeatureSet> featureSets) {
-    Map<FeatureSet, FeatureSetJobStatus> alreadyConnected =
-        job.getFeatureSetJobStatuses().stream()
-            .collect(Collectors.toMap(FeatureSetJobStatus::getFeatureSet, s -> s));
+  FeatureSet allocateFeatureSetToJobs(FeatureSet featureSet) {
+    Set<FeatureSetJobStatus> toAdd = new HashSet<>();
+    Set<FeatureSetJobStatus> existing = featureSet.getJobStatuses();
 
-    for (FeatureSet fs : featureSets) {
-      if (alreadyConnected.containsKey(fs)) {
+    Stream<Pair<Source, Store>> jobArgsStream =
+        getAllStores().stream()
+            .filter(
+                s ->
+                    isSubscribedToFeatureSet(
+                        s.getSubscriptions(),
+                        featureSet.getProject().getName(),
+                        featureSet.getName()))
+            .map(s -> Pair.of(featureSet.getSource(), s));
+
+    for (Pair<Source, Set<Store>> jobArgs : groupingStrategy.collectSingleJobInput(jobArgsStream)) {
+      Job job = groupingStrategy.getOrCreateJob(jobArgs.getLeft(), jobArgs.getRight());
+      if (!job.isRunning()) {
         continue;
       }
 
       FeatureSetJobStatus status = new FeatureSetJobStatus();
-      status.setFeatureSet(fs);
+      status.setFeatureSet(featureSet);
       status.setJob(job);
-      if (fs.getStatus() == FeatureSetProto.FeatureSetStatus.STATUS_READY) {
-        // Feature Set was already delivered to previous generation of the job
-        // (another words, it exists in kafka)
-        // so we expect Job will ack latest version based on history from kafka topic
-        status.setVersion(fs.getVersion());
-      }
       status.setDeliveryStatus(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS);
-      job.getFeatureSetJobStatuses().add(status);
+
+      toAdd.add(status);
     }
+
+    Set<FeatureSetJobStatus> toDelete = Sets.difference(existing, toAdd);
+    toAdd = Sets.difference(toAdd, existing);
+
+    jobStatusRepository.deleteAll(toDelete);
+    jobStatusRepository.saveAll(toAdd);
+    jobStatusRepository.flush();
+    return featureSet;
   }
 
   /** Get running extra ingestion jobs that have ids not in keepJobs */
@@ -271,6 +287,13 @@ public class JobCoordinatorService {
     return extraJobMap.values();
   }
 
+  private List<Store> getAllStores() {
+    ListStoresResponse listStoresResponse = specService.listStores(Filter.newBuilder().build());
+    return listStoresResponse.getStoreList().stream()
+        .map(Store::fromProto)
+        .collect(Collectors.toList());
+  }
+
   /**
    * Generate a source to stores mapping. The resulting iterable yields pairs of Source and
    * Set-of-stores to create one ingestion job per each pair.
@@ -278,17 +301,10 @@ public class JobCoordinatorService {
    * @return a Map from source to stores.
    */
   private Iterable<Pair<Source, Set<Store>>> getSourceToStoreMappings() {
-    ListStoresResponse listStoresResponse = specService.listStores(Filter.newBuilder().build());
-    List<Store> stores =
-        listStoresResponse.getStoreList().stream()
-            .map(Store::fromProto)
-            .collect(Collectors.toList());
-
     // build mapping from source to store.
     // compile a set of sources via subscribed FeatureSets of stores.
-
     Stream<Pair<Source, Store>> distinctPairs =
-        stores.stream()
+        getAllStores().stream()
             .flatMap(
                 store ->
                     getFeatureSetsForStore(store).stream()
@@ -325,6 +341,7 @@ public class JobCoordinatorService {
         featureSetRepository.findAllByStatus(FeatureSetProto.FeatureSetStatus.STATUS_PENDING);
 
     pendingFeatureSets.stream()
+        .map(this::allocateFeatureSetToJobs)
         .filter(
             fs -> {
               List<FeatureSetJobStatus> runningJobs =
@@ -334,7 +351,7 @@ public class JobCoordinatorService {
 
               return runningJobs.size() > 0
                   && runningJobs.stream()
-                      .allMatch(jobStatus -> jobStatus.getVersion() < fs.getVersion());
+                      .anyMatch(jobStatus -> jobStatus.getVersion() < fs.getVersion());
             })
         .forEach(
             fs -> {
