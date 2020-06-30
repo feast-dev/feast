@@ -71,7 +71,9 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
     if (featureSetSpecs == null) {
       log.warn(
           String.format(
-              "FeatureRow contains invalid feature set id %s. Please check that the feature rows are being published to the correct topic on the feature stream.",
+              "FeatureRow contains invalid featureSetReference %s."
+                  + " Please check that the feature rows are being published"
+                  + " to the correct topic on the feature stream.",
               featureRow.getFeatureSet()));
       return;
     }
