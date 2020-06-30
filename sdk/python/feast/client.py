@@ -23,7 +23,7 @@ import uuid
 import warnings
 from collections import OrderedDict
 from math import ceil
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import grpc
 import pandas as pd
@@ -76,6 +76,7 @@ from feast.job import IngestJob, RetrievalJob
 from feast.loaders.abstract_producer import get_producer
 from feast.loaders.file import export_source_to_staging_location
 from feast.loaders.ingest import KAFKA_CHUNK_PRODUCTION_TIMEOUT, get_feature_row_chunks
+from feast.online_response import OnlineResponse
 from feast.serving.ServingService_pb2 import (
     DataFormat,
     DatasetSource,
@@ -85,13 +86,16 @@ from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoRequest,
     GetFeastServingInfoResponse,
     GetOnlineFeaturesRequest,
-    GetOnlineFeaturesResponse,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
+from feast.type_map import _python_value_to_proto_value, python_type_to_feast_value_type
+from feast.types.Value_pb2 import Value as Value
 
 _logger = logging.getLogger(__name__)
 
 CPU_COUNT: int = len(os.sched_getaffinity(0))
+
+warnings.simplefilter("once", DeprecationWarning)
 
 
 class Client:
@@ -675,10 +679,10 @@ class Client:
     def get_online_features(
         self,
         feature_refs: List[str],
-        entity_rows: List[GetOnlineFeaturesRequest.EntityRow],
+        entity_rows: List[Union[GetOnlineFeaturesRequest.EntityRow, Dict[str, Any]]],
         project: Optional[str] = None,
         omit_entities: bool = False,
-    ) -> GetOnlineFeaturesResponse:
+    ) -> OnlineResponse:
         """
         Retrieves the latest online feature data from Feast Serving
 
@@ -688,9 +692,8 @@ class Client:
                 "feature_set:feature" where "feature_set" & "feature" refer to
                 the feature and feature set names respectively.
                 Only the feature name is required.
-            entity_rows: List of GetFeaturesRequest.EntityRow where each row
-                contains entities. Timestamp should not be set for online
-                retrieval. All entity types within a feature
+            entity_rows: A list of dictionaries where each key is an entity and each value is
+                feast.types.Value or Python native form.
             project: Optionally specify the the project override. If specified, uses given project for retrieval.
                 Overrides the projects specified in Feature References if also are specified.
             omit_entities: If true will omit entity values in the returned feature data.
@@ -698,6 +701,19 @@ class Client:
             GetOnlineFeaturesResponse containing the feature data in records.
             Each EntityRow provided will yield one record, which contains
             data fields with data value and field status metadata (if included).
+
+        Examples:
+            >>> from feast import Client
+            >>>
+            >>> feast_client = Client(core_url="localhost:6565", serving_url="localhost:6566")
+            >>> feature_refs = ["daily_transactions"]
+            >>> entity_rows = [{"customer_id": 0},{"customer_id": 1}]
+            >>>
+            >>> online_response = feast_client.get_online_features(
+            >>>     feature_refs, entity_rows, project="my_project")
+            >>> online_response_dict = online_response.to_dict()
+            >>> print(online_response_dict)
+            {'daily_transactions': [1.1,1.2], 'customer_id': [0,1]}
         """
 
         try:
@@ -705,13 +721,14 @@ class Client:
                 GetOnlineFeaturesRequest(
                     omit_entities_in_response=omit_entities,
                     features=_build_feature_references(feature_ref_strs=feature_refs),
-                    entity_rows=entity_rows,
+                    entity_rows=_infer_online_entity_rows(entity_rows),
                     project=project if project is not None else self.project,
                 )
             )
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 
+        response = OnlineResponse(response)
         return response
 
     def list_ingest_jobs(
@@ -978,6 +995,58 @@ class Client:
         if self._config.getboolean(CONFIG_CORE_ENABLE_AUTH_KEY) and self._auth_metadata:
             return self._auth_metadata.get_signed_meta()
         return ()
+
+
+def _infer_online_entity_rows(
+    entity_rows: List[Union[GetOnlineFeaturesRequest.EntityRow, Dict[str, Any]]],
+) -> List[GetOnlineFeaturesRequest.EntityRow]:
+    """
+    Builds a list of EntityRow protos from Python native type format passed by user.
+
+    Args:
+        entity_rows: A list of dictionaries where each key is an entity and each value is
+            feast.types.Value or Python native form.
+
+    Returns:
+        A list of EntityRow protos parsed from args.
+    """
+
+    # Maintain backward compatibility with users providing EntityRow Proto
+    if entity_rows and isinstance(entity_rows[0], GetOnlineFeaturesRequest.EntityRow):
+        warnings.warn(
+            "entity_rows parameter will only be accepting Dict format from Feast v0.7 onwards",
+            DeprecationWarning,
+        )
+        entity_rows_proto = cast(
+            List[Union[GetOnlineFeaturesRequest.EntityRow]], entity_rows
+        )
+        return entity_rows_proto
+
+    entity_rows_dicts = cast(List[Dict[str, Any]], entity_rows)
+    entity_row_list = []
+    entity_type_map = dict()
+
+    for entity in entity_rows_dicts:
+        for key, value in entity.items():
+            # Allow for feast.types.Value
+            if isinstance(value, Value):
+                proto_value = value
+            else:
+                # Infer the specific type for this row
+                current_dtype = python_type_to_feast_value_type(name=key, value=value)
+
+                if key not in entity_type_map:
+                    entity_type_map[key] = current_dtype
+                else:
+                    if current_dtype != entity_type_map[key]:
+                        raise TypeError(
+                            f"Input entity {key} has mixed types, {current_dtype} and {entity_type_map[key]}. That is not allowed. "
+                        )
+                proto_value = _python_value_to_proto_value(current_dtype, value)
+            entity_row_list.append(
+                GetOnlineFeaturesRequest.EntityRow(fields={key: proto_value})
+            )
+    return entity_row_list
 
 
 def _build_feature_references(
