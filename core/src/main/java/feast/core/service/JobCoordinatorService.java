@@ -223,6 +223,10 @@ public class JobCoordinatorService {
       return true;
     }
 
+    if (stores.stream().anyMatch(s -> s.getLastUpdated().after(job.getCreated()))) {
+      return true;
+    }
+
     return false;
   }
 

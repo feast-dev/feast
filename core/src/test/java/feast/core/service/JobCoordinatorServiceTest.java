@@ -53,6 +53,7 @@ import feast.proto.core.SourceProto.KafkaSourceConfig;
 import feast.proto.core.SourceProto.SourceType;
 import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.Subscription;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CancellationException;
 import lombok.SneakyThrows;
@@ -727,6 +728,35 @@ public class JobCoordinatorServiceTest {
             .setStores(new HashSet<>())
             .setExtId("extId")
             .build();
+
+    when(jobRepository
+            .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
+                source.getType(), source.getConfig(), null, JobStatus.getTerminalStates()))
+        .thenReturn(Optional.of(job));
+
+    List<JobTask> tasks =
+        jcsWithConsolidation.makeJobUpdateTasks(
+            ImmutableList.of(Pair.of(source, ImmutableSet.of(store))));
+
+    assertThat("CreateTask is expected", tasks.get(0) instanceof CreateJobTask);
+  }
+
+  @Test
+  public void shouldUpgradeJobWhenStoreChanged() {
+    Source source = TestUtil.createKafkaSource("kafka:9092", "topic", false);
+    Store store = TestUtil.createStore("store", Collections.emptyList());
+
+    Job job =
+        Job.builder()
+            .setStatus(JobStatus.RUNNING)
+            .setFeatureSetJobStatuses(new HashSet<>())
+            .setSource(source)
+            .setStores(ImmutableSet.of(store))
+            .setExtId("extId")
+            .build();
+
+    job.setCreated(Date.from(Instant.now()));
+    store.setLastUpdated(Date.from(Instant.now().plusSeconds(1)));
 
     when(jobRepository
             .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
