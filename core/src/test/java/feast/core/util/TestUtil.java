@@ -141,6 +141,7 @@ public class TestUtil {
 
     featureSetJobStatus.setDeliveryStatus(deliveryStatus);
     featureSetJobStatus.setVersion(version);
+    featureSetJobStatus.setId(new FeatureSetJobStatus.FeatureSetJobStatusKey(job.getId(), 0));
 
     return featureSetJobStatus;
   }
