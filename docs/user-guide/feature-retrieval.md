@@ -111,7 +111,7 @@ Point-in-time-correct joins also prevents the occurrence of feature leakage by t
 
 Feast is able to compute [TFDV](https://tensorflow.google.cn/tfx/tutorials/data_validation/tfdv_basic) compatible statistics over data retrieved from historical stores. The statistics can be used in conjunction with feature schemas and TFDV to verify the integrity of your retrieved dataset, or to [Facets](https://github.com/PAIR-code/facets) to visualize the distribution.
 
-The computation of statistics is not enabled by default. To indicate to Feast that the statistics are to be computed for a given historical retrieval request, pass `compute_statistics=True` to `get_batch_features`.
+The computation of statistics is not enabled by default. To indicate to Feast that the statistics are to be computed for a given historical retrieval request, pass `compute_statistics=True` to `get_historical_features`.
 
 ```python
 dataset = client.get_historical_features(

@@ -159,7 +159,7 @@ def test_batch_apply_all_featuresets(client):
 @pytest.mark.direct_runner
 @pytest.mark.dataflow_runner
 @pytest.mark.run(order=10)
-def test_batch_get_batch_features_with_file(client):
+def test_batch_get_historical_features_with_file(client):
     file_fs1 = client.get_feature_set(name="file_feature_set")
 
     N_ROWS = 10
@@ -213,7 +213,7 @@ def test_batch_get_batch_features_with_file(client):
 @pytest.mark.direct_runner
 @pytest.mark.dataflow_runner
 @pytest.mark.run(order=11)
-def test_batch_get_batch_features_with_gs_path(client, gcs_path):
+def test_batch_get_historical_features_with_gs_path(client, gcs_path):
     gcs_fs1 = client.get_feature_set(name="gcs_feature_set")
 
     N_ROWS = 10
