@@ -77,4 +77,8 @@ message DataflowRunnerConfigOptions {
 
     /* Labels to apply to the dataflow job */
     map<string, string> labels = 13;
+
+    /* Disk size to use on each remote Compute Engine worker instance */
+    int32 diskSizeGb = 14;
+
 }
