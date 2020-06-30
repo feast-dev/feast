@@ -79,10 +79,12 @@ format-python:
 
 lint-python:
 	cd ${ROOT_DIR}/sdk/python; mypy feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; isort -rc feast tests --check-only
 	cd ${ROOT_DIR}/sdk/python; flake8 feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; black --check feast tests
 
 	cd ${ROOT_DIR}/tests/e2e; mypy bq/ redis/
+	cd ${ROOT_DIR}/tests/e2e; isort -rc . --check-only
 	cd ${ROOT_DIR}/tests/e2e; flake8 .
 	cd ${ROOT_DIR}/tests/e2e; black --check .
 
