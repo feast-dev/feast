@@ -1,6 +1,5 @@
-from google.protobuf.json_format import MessageToDict
-
 from deepdiff import DeepDiff
+from google.protobuf.json_format import MessageToDict
 
 
 def clear_unsupported_fields(datasets):

@@ -10,13 +10,13 @@ import numpy as np
 import pandas as pd
 import pytest
 import pytz
+import tensorflow_data_validation as tfdv
+from bq.testutils import assert_stats_equal, clear_unsupported_fields
 from google.cloud import bigquery, storage
 from google.cloud.storage import Blob
 from google.protobuf.duration_pb2 import Duration
 from pandavro import to_avro
 
-import tensorflow_data_validation as tfdv
-from bq.testutils import assert_stats_equal, clear_unsupported_fields
 from feast.client import Client
 from feast.core.CoreService_pb2 import ListStoresRequest
 from feast.core.IngestionJob_pb2 import IngestionJobStatus
