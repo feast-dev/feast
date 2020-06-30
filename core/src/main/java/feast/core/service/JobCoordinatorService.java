@@ -241,8 +241,10 @@ public class JobCoordinatorService {
    * @param featureSet featureSet {@link FeatureSet} to find jobs and allocate
    */
   FeatureSet allocateFeatureSetToJobs(FeatureSet featureSet) {
-    Set<FeatureSetJobStatus> toAdd = new HashSet<>();
-    Set<FeatureSetJobStatus> existing = featureSet.getJobStatuses();
+    Map<FeatureSetJobStatus.FeatureSetJobStatusKey, FeatureSetJobStatus> current = new HashMap<>();
+    Map<FeatureSetJobStatus.FeatureSetJobStatusKey, FeatureSetJobStatus> existing =
+        featureSet.getJobStatuses().stream()
+            .collect(Collectors.toMap(FeatureSetJobStatus::getId, s -> s));
 
     Stream<Pair<Source, Store>> jobArgsStream =
         getAllStores().stream()
@@ -265,14 +267,16 @@ public class JobCoordinatorService {
       status.setJob(job);
       status.setDeliveryStatus(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS);
 
-      toAdd.add(status);
+      current.put(status.getId(), status);
     }
 
-    Set<FeatureSetJobStatus> toDelete = Sets.difference(existing, toAdd);
-    toAdd = Sets.difference(toAdd, existing);
+    Set<FeatureSetJobStatus.FeatureSetJobStatusKey> toDelete =
+        Sets.difference(existing.keySet(), current.keySet());
+    Set<FeatureSetJobStatus.FeatureSetJobStatusKey> toAdd =
+        Sets.difference(current.keySet(), existing.keySet());
 
-    jobStatusRepository.deleteAll(toDelete);
-    jobStatusRepository.saveAll(toAdd);
+    jobStatusRepository.deleteAll(toDelete.stream().map(existing::get).collect(Collectors.toSet()));
+    jobStatusRepository.saveAll(toAdd.stream().map(current::get).collect(Collectors.toSet()));
     jobStatusRepository.flush();
     return featureSet;
   }
