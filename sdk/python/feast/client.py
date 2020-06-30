@@ -698,10 +698,6 @@ class Client:
             >>> print(online_response_dict)
             {'daily_transactions': [1.1,1.2], 'customer_id': [0,1]}
         """
-        warnings.warn(
-            "entity_rows parameter will only be accepting Dict format from v0.7 onwards",
-            DeprecationWarning,
-        )
         inferred_entity_rows = []  # type: Any
         try:
             if entity_rows and isinstance(entity_rows[0], dict):
@@ -709,6 +705,10 @@ class Client:
             if entity_rows and isinstance(
                 entity_rows[0], GetOnlineFeaturesRequest.EntityRow
             ):
+                warnings.warn(
+                    "entity_rows parameter will only be accepting Dict format from v0.7 onwards",
+                    DeprecationWarning,
+                )
                 inferred_entity_rows = entity_rows
             response = self._serving_service.GetOnlineFeatures(
                 GetOnlineFeaturesRequest(
