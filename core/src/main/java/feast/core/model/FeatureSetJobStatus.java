@@ -21,6 +21,7 @@ import feast.proto.core.FeatureSetProto.FeatureSetJobDeliveryStatus;
 import java.io.Serializable;
 import javax.persistence.*;
 import javax.persistence.Entity;
+import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -37,6 +38,7 @@ import lombok.Setter;
 public class FeatureSetJobStatus {
   @Embeddable
   @EqualsAndHashCode
+  @AllArgsConstructor
   public static class FeatureSetJobStatusKey implements Serializable {
     public FeatureSetJobStatusKey() {}
 
