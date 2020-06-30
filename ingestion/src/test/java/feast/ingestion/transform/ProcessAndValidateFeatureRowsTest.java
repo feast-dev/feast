@@ -16,6 +16,8 @@
  */
 package feast.ingestion.transform;
 
+import static feast.common.models.FeatureSet.getFeatureSetStringRef;
+
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
@@ -104,7 +106,17 @@ public class ProcessAndValidateFeatureRowsTest {
       expected.add(randomRow);
     }
 
-    input.add(FeatureRow.newBuilder().setFeatureSet("invalid").build());
+    FeatureRow invalidRow =
+        FeatureRow.newBuilder()
+            .setFeatureSet(getFeatureSetStringRef(fs1))
+            .addFields(
+                Field.newBuilder()
+                    .setName("feature_1")
+                    .setValue(Value.newBuilder().setBoolVal(false).build())
+                    .build())
+            .build();
+
+    input.add(invalidRow);
 
     PCollectionView<Map<String, Iterable<FeatureSetSpec>>> specsView =
         p.apply("StaticSpecs", Create.of(featureSetSpecs)).apply(View.asMultimap());

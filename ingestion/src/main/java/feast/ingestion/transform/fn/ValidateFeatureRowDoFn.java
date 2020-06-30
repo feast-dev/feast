@@ -31,9 +31,12 @@ import java.util.Map;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoValue
 public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow> {
+  private static final Logger log = LoggerFactory.getLogger(ValidateFeatureRowDoFn.class);
 
   public abstract PCollectionView<Map<String, Iterable<FeatureSetProto.FeatureSetSpec>>>
       getFeatureSets();
@@ -65,40 +68,43 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
     FeatureRow featureRow = context.element();
     Iterable<FeatureSetProto.FeatureSetSpec> featureSetSpecs =
         context.sideInput(getFeatureSets()).get(featureRow.getFeatureSet());
+    if (featureSetSpecs == null) {
+      log.warn(
+          String.format(
+              "FeatureRow contains invalid featureSetReference %s."
+                  + " Please check that the feature rows are being published"
+                  + " to the correct topic on the feature stream.",
+              featureRow.getFeatureSet()));
+      return;
+    }
 
     List<FieldProto.Field> fields = new ArrayList<>();
-    if (featureSetSpecs != null) {
-      FeatureSetProto.FeatureSetSpec latestSpec = Iterators.getLast(featureSetSpecs.iterator());
-      FeatureSet featureSet = new FeatureSet(latestSpec);
 
-      for (FieldProto.Field field : featureRow.getFieldsList()) {
-        Field fieldSpec = featureSet.getField(field.getName());
-        if (fieldSpec == null) {
-          // skip
-          continue;
-        }
-        // If value is set in the FeatureRow, make sure the value type matches
-        // that defined in FeatureSetSpec
-        if (!field.getValue().getValCase().equals(ValCase.VAL_NOT_SET)) {
-          int expectedTypeFieldNumber = fieldSpec.getType().getNumber();
-          int actualTypeFieldNumber = field.getValue().getValCase().getNumber();
-          if (expectedTypeFieldNumber != actualTypeFieldNumber) {
-            error =
-                String.format(
-                    "FeatureRow contains field '%s' with invalid type '%s'. Feast expects the field type to match that in FeatureSet '%s'. Please check the FeatureRow data.",
-                    field.getName(), field.getValue().getValCase(), fieldSpec.getType());
-            break;
-          }
-        }
-        if (!fields.contains(field)) {
-          fields.add(field);
+    FeatureSetProto.FeatureSetSpec latestSpec = Iterators.getLast(featureSetSpecs.iterator());
+    FeatureSet featureSet = new FeatureSet(latestSpec);
+
+    for (FieldProto.Field field : featureRow.getFieldsList()) {
+      Field fieldSpec = featureSet.getField(field.getName());
+      if (fieldSpec == null) {
+        // skip
+        continue;
+      }
+      // If value is set in the FeatureRow, make sure the value type matches
+      // that defined in FeatureSetSpec
+      if (!field.getValue().getValCase().equals(ValCase.VAL_NOT_SET)) {
+        int expectedTypeFieldNumber = fieldSpec.getType().getNumber();
+        int actualTypeFieldNumber = field.getValue().getValCase().getNumber();
+        if (expectedTypeFieldNumber != actualTypeFieldNumber) {
+          error =
+              String.format(
+                  "FeatureRow contains field '%s' with invalid type '%s'. Feast expects the field type to match that in FeatureSet '%s'. Please check the FeatureRow data.",
+                  field.getName(), field.getValue().getValCase(), fieldSpec.getType());
+          break;
         }
       }
-    } else {
-      error =
-          String.format(
-              "FeatureRow contains invalid feature set id %s. Please check that the feature rows are being published to the correct topic on the feature stream.",
-              featureRow.getFeatureSet());
+      if (!fields.contains(field)) {
+        fields.add(field);
+      }
     }
 
     if (error != null) {
