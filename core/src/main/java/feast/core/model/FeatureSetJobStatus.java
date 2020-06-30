@@ -21,7 +21,6 @@ import feast.proto.core.FeatureSetProto.FeatureSetJobDeliveryStatus;
 import java.io.Serializable;
 import javax.persistence.*;
 import javax.persistence.Entity;
-
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
