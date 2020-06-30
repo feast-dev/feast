@@ -48,7 +48,7 @@ features = self._features + [self._target]
 # Retrieve training dataset from Feast. The "entity_df" is a dataframe that contains
 # timestamps and entity keys. In this case, it is a dataframe with two columns.
 # One timestamp column, and one customer id column
-dataset = client.get_batch_features(
+dataset = client.get_historical_features(
     feature_refs=features,
     entity_rows=entity_df
 )
@@ -59,7 +59,7 @@ df = dataset.to_dataframe()
 ```
 
 {% hint style="info" %}
-When no project is specified when retrieving features with `get_batch_features()`, Feast infers that the features specified belong to the `default` project. To retrieve from another project, specify the `default` parameter when retrieving features.
+When no project is specified when retrieving features with `get_historical_features()`, Feast infers that the features specified belong to the `default` project. To retrieve from another project, specify the `default` parameter when retrieving features.
 {% endhint %}
 
 In the above example, Feast does a point in time correct query from a single feature set. For each timestamp and entity key combination that is provided by `entity_df`, Feast determines the values of all the features in the `features` list at that respective point in time and then joins features values to that specific entity value and timestamp, and repeats this process for all timestamps.
@@ -88,7 +88,7 @@ features = [
  ]
 
 
-dataset = client.get_batch_features(
+dataset = client.get_historical_features(
         feature_refs=features, # this is a list of feature references
         entity_rows=entity_df # This is the entity dataframe above
     )
@@ -111,10 +111,10 @@ Point-in-time-correct joins also prevents the occurrence of feature leakage by t
 
 Feast is able to compute [TFDV](https://tensorflow.google.cn/tfx/tutorials/data_validation/tfdv_basic) compatible statistics over data retrieved from historical stores. The statistics can be used in conjunction with feature schemas and TFDV to verify the integrity of your retrieved dataset, or to [Facets](https://github.com/PAIR-code/facets) to visualize the distribution.
 
-The computation of statistics is not enabled by default. To indicate to Feast that the statistics are to be computed for a given historical retrieval request, pass `compute_statistics=True` to `get_batch_features`.
+The computation of statistics is not enabled by default. To indicate to Feast that the statistics are to be computed for a given historical retrieval request, pass `compute_statistics=True` to `get_historical_features`.
 
 ```python
-dataset = client.get_batch_features(
+dataset = client.get_historical_features(
     feature_refs=features, 
     entity_rows=entity_df 
     compute_statistics=True

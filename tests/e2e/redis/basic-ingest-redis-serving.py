@@ -27,8 +27,8 @@ from feast.serving.ServingService_pb2 import (
 )
 from feast.source import KafkaSource
 from feast.type_map import ValueType
-from feast.types.Value_pb2 import Value as Value
 from feast.types.Value_pb2 import Int64List
+from feast.types.Value_pb2 import Value as Value
 from feast.wait import wait_retry_backoff
 
 FLOAT_TOLERANCE = 0.00001

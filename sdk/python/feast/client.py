@@ -30,6 +30,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 from google.protobuf.timestamp_pb2 import Timestamp
+from tensorflow_metadata.proto.v0 import statistics_pb2
 
 import feast.grpc.auth as feast_auth
 from feast.config import Config
@@ -89,7 +90,6 @@ from feast.serving.ServingService_pb2 import (
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.type_map import _python_value_to_proto_value, python_type_to_feast_value_type
 from feast.types.Value_pb2 import Value as Value
-from tensorflow_metadata.proto.v0 import statistics_pb2
 
 _logger = logging.getLogger(__name__)
 
@@ -554,6 +554,25 @@ class Client:
         project: str = None,
     ) -> RetrievalJob:
         """
+        Deprecated. Please see get_historical_features.
+        """
+        warnings.warn(
+            "The method get_batch_features() is being deprecated. Please use the identical get_historical_features(). "
+            "Feast 0.7 and onwards will not support get_batch_features().",
+            DeprecationWarning,
+        )
+        return self.get_historical_features(
+            feature_refs, entity_rows, compute_statistics, project
+        )
+
+    def get_historical_features(
+        self,
+        feature_refs: List[str],
+        entity_rows: Union[pd.DataFrame, str],
+        compute_statistics: bool = False,
+        project: str = None,
+    ) -> RetrievalJob:
+        """
         Retrieves historical features from a Feast Serving deployment.
 
         Args:
@@ -590,7 +609,7 @@ class Client:
             >>>            "customer": [1001, 1002, 1003],
             >>>         }
             >>>     )
-            >>> feature_retrieval_job = feast_client.get_batch_features(
+            >>> feature_retrieval_job = feast_client.get_historical_features(
             >>>     feature_refs, entity_rows, project="my_project")
             >>> df = feature_retrieval_job.to_dataframe()
             >>> print(df)
@@ -903,15 +922,14 @@ class Client:
         start_date: Optional[datetime.datetime] = None,
         end_date: Optional[datetime.datetime] = None,
         force_refresh: bool = False,
-        default_project: Optional[str] = None,
+        project: Optional[str] = None,
     ) -> statistics_pb2.DatasetFeatureStatisticsList:
         """
         Retrieves the feature featureStatistics computed over the data in the batch
         stores.
 
         Args:
-            feature_set_id: Fully qualified feature set id in the format
-                project/feature_set to retrieve batch featureStatistics for. If project
+            feature_set_id: Feature set id to retrieve batch featureStatistics for. If project
                 is not provided, the default ("default") will be used.
             store: Name of the store to retrieve feature featureStatistics over. This
                 store must be a historical store.
@@ -931,7 +949,7 @@ class Client:
                 multiple days, unaggregatable featureStatistics will be dropped.
             force_refresh: Setting this flag to true will force a recalculation
                 of featureStatistics and overwrite results currently in the cache, if any.
-            default_project: Manual override for default project.
+            project: Manual override for default project.
 
         Returns:
            Returns a tensorflow DatasetFeatureStatisticsList containing TFDV featureStatistics.
@@ -944,8 +962,8 @@ class Client:
                 "Only one of dataset_id or [start_date, end_date] can be provided."
             )
 
-        if default_project != "" and "/" not in feature_set_id:
-            feature_set_id = f"{default_project}/{feature_set_id}"
+        if project != "" and "/" not in feature_set_id:
+            feature_set_id = f"{project}/{feature_set_id}"
 
         request = GetFeatureStatisticsRequest(
             feature_set_id=feature_set_id,

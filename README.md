@@ -32,7 +32,7 @@ fs = feast.Client('feast.example.com')
 customer_features = ['CreditScore', 'Balance', 'Age', 'NumOfProducts', 'IsActive']
 
 # Training your model (typically from a notebook or pipeline)
-data = fs.get_batch_features(customer_features, customer_entities)
+data = fs.get_historical_features(customer_features, customer_entities)
 my_model = ml.fit(data)
 
 # Serving predictions (when serving the model in production)
