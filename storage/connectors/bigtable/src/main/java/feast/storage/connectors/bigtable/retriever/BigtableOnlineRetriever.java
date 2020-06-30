@@ -50,10 +50,14 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
   public static OnlineRetriever create(Map<String, String> config) {
     BigtableDataClient dataClient = null;
     try {
-      dataClient = BigtableDataClient.create(config.get("projectId"), config.get("instanceId"));
+      dataClient = BigtableDataClient.create(config.get("project_id"), config.get("instance_id"));
+    } catch (NullPointerException e) {
+      throw new IllegalStateException(
+          String.format("Unable to connect to bigtable with config %s", config.toString()), e);
     } catch (IOException e) {
       e.printStackTrace();
-      throw new IllegalStateException("Unable to connect to bigtable with exception %s", e);
+      throw new IllegalStateException(
+          String.format("Unable to connect to bigtable with config %s", config.toString()), e);
     }
     return new BigtableOnlineRetriever(dataClient, config.get("tableId"));
   }

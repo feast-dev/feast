@@ -95,7 +95,8 @@ public class Store {
         config = storeProto.getBigtableConfig().toByteArray();
         break;
       default:
-        throw new IllegalArgumentException("Invalid store provided");
+        throw new IllegalArgumentException(
+            String.format("Invalid store provided: %s", storeProto.getType().toString()));
     }
     return new Store(
         storeProto.getName(), storeProto.getType().toString(), config, String.join(",", subs));
@@ -125,7 +126,8 @@ public class Store {
         BigtableConfig bigtableConfig = BigtableConfig.parseFrom(config);
         return storeProtoBuilder.setBigtableConfig(bigtableConfig).build();
       default:
-        throw new InvalidProtocolBufferException("Invalid store set");
+        throw new InvalidProtocolBufferException(
+            String.format("Invalid store set", StoreType.valueOf(type)));
     }
   }
 

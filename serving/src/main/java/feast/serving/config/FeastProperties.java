@@ -262,6 +262,11 @@ public class FeastProperties {
               StoreProto.Store.CassandraConfig.newBuilder();
           JsonFormat.parser().merge(jsonWriter.writeValueAsString(config), cassandraConfig);
           return storeProtoBuilder.setCassandraConfig(cassandraConfig.build()).build();
+        case BIGTABLE:
+          StoreProto.Store.BigtableConfig.Builder bigtableConfig =
+              StoreProto.Store.BigtableConfig.newBuilder();
+          JsonFormat.parser().merge(jsonWriter.writeValueAsString(config), bigtableConfig);
+          return storeProtoBuilder.setBigtableConfig(bigtableConfig.build()).build();
         default:
           throw new InvalidProtocolBufferException("Invalid store set");
       }
