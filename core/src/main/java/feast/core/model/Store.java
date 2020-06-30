@@ -47,7 +47,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @Entity
 @Table(name = "stores")
-public class Store {
+public class Store extends AbstractTimestampEntity {
 
   // Name of the store. Must be unique
   @Id
