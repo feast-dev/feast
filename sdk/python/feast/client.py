@@ -674,8 +674,7 @@ class Client:
                 "feature_set:feature" where "feature_set" & "feature" refer to
                 the feature and feature set names respectively.
                 Only the feature name is required.
-            entity_rows:
-                A list of dictionaries where the key is an entity and value is
+            entity_rows: A list of dictionaries where the key is an entity and value is
                 feast.types.Value or Python native form.
             project: Optionally specify the the project override. If specified, uses given project for retrieval.
                 Overrides the projects specified in Feature References if also are specified.
