@@ -93,7 +93,10 @@ from feast.types.Value_pb2 import Value as Value
 
 _logger = logging.getLogger(__name__)
 
-CPU_COUNT: int = len(os.sched_getaffinity(0))
+try:
+    CPU_COUNT: int = len(os.sched_getaffinity(0))
+except AttributeError as e:
+    CPU_COUNT: int = 2
 
 warnings.simplefilter("once", DeprecationWarning)
 
