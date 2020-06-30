@@ -378,7 +378,8 @@ public class JobCoordinatorService {
               // FeatureSet).
               // We now set status to IN_PROGRESS, so listenAckFromJobs would be able to
               // monitor delivery progress for each new version.
-              fs.getJobStatuses().stream()
+              Set<FeatureSetJobStatus> jobStatuses = fs.getJobStatuses();
+              jobStatuses.stream()
                   .filter(s -> s.getJob().isRunning())
                   .forEach(
                       jobStatus -> {
@@ -386,7 +387,8 @@ public class JobCoordinatorService {
                             FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS);
                         jobStatus.setVersion(fs.getVersion());
                       });
-              featureSetRepository.saveAndFlush(fs);
+              jobStatusRepository.saveAll(jobStatuses);
+              jobStatusRepository.flush();
             });
   }
 
