@@ -6,14 +6,14 @@ from datetime import datetime, timedelta
 import pandas as pd
 import pytest
 import pytz
-from google.protobuf.duration_pb2 import Duration
-
 import tensorflow_data_validation as tfdv
 from bq.testutils import (
     assert_stats_equal,
     clear_unsupported_agg_fields,
     clear_unsupported_fields,
 )
+from google.protobuf.duration_pb2 import Duration
+
 from feast.client import Client
 from feast.entity import Entity
 from feast.feature import Feature
