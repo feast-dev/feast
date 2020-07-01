@@ -16,6 +16,7 @@
 import datetime
 import logging
 import os
+import multiprocessing
 import shutil
 import tempfile
 import time
@@ -93,7 +94,7 @@ from feast.types.Value_pb2 import Value as Value
 
 _logger = logging.getLogger(__name__)
 
-CPU_COUNT: int = len(os.sched_getaffinity(0))
+CPU_COUNT: int = multiprocessing.cpu_count()
 
 warnings.simplefilter("once", DeprecationWarning)
 
