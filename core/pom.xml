@@ -117,12 +117,12 @@
 	    <dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-core</artifactId>
-			<version>5.3.0.RELEASE</version>
+			<version>${spring.security.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-config</artifactId>
-			<version>5.3.0.RELEASE</version>
+			<version>${spring.security.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.security.oauth</groupId>
@@ -132,18 +132,23 @@
 		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-oauth2-client</artifactId>
-			<version>5.3.0.RELEASE</version>
+			<version>${spring.security.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-web</artifactId>
-			<version>5.3.0.RELEASE</version>
+			<version>${spring.security.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-oauth2-resource-server</artifactId>
+			<version>${spring.security.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-oauth2-jose</artifactId>
-			<version>5.3.0.RELEASE</version>
-		</dependency> 
+			<version>${spring.security.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>net.devh</groupId>
 			<artifactId>grpc-server-spring-boot-starter</artifactId>
@@ -157,7 +162,7 @@
 		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-oauth2-core</artifactId>
-			<version>5.3.0.RELEASE</version>
+			<version>${spring.security.version}</version>
 		</dependency>
         <!--compile "org.springframework.boot:spring-boot-starter-data-jpa:${springBootVersion}"-->
         <dependency>

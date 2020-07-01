@@ -278,6 +278,12 @@
       <artifactId>embedded-redis</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>jakarta.validation</groupId>
+      <artifactId>jakarta.validation-api</artifactId>
+      <version>${jakarta.validation.api.version}</version>
+    </dependency>
   </dependencies>
 
   <profiles>

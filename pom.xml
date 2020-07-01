@@ -50,7 +50,9 @@
         <grpcVersion>1.17.1</grpcVersion>
         <protocVersion>3.10.0</protocVersion>
         <protobufVersion>3.10.0</protobufVersion>
-        <springBootVersion>2.0.9.RELEASE</springBootVersion>
+        <springBootVersion>2.3.0.RELEASE</springBootVersion>
+        <spring.security.version>5.3.0.RELEASE</spring.security.version>
+        <spring.security.oauth.version>2.4.0.RELEASE</spring.security.oauth.version>
         <org.apache.beam.version>2.18.0</org.apache.beam.version>
         <com.google.cloud.version>1.91.0</com.google.cloud.version>
         <io.prometheus.version>0.8.0</io.prometheus.version>
@@ -63,7 +65,9 @@
         <opencensus.version>0.21.0</opencensus.version>
         <!-- Force log4j2 to 2.11+ to support objectMessageAsJsonObject -->
         <log4jVersion>2.12.1</log4jVersion>
-        <flyway.version>5.2.4</flyway.version>
+        <flyway.version>6.0.8</flyway.version>
+        <joda.time.version>2.9.9</joda.time.version>
+        <jakarta.validation.api.version>2.0.2</jakarta.validation.api.version>
     </properties>
 
     <organization>
@@ -207,6 +211,11 @@
             </dependency>
 
             <!-- Other Stuff -->
+            <dependency>
+                <groupId>joda-time</groupId>
+                <artifactId>joda-time</artifactId>
+                <version>${joda.time.version}</version>
+            </dependency>
             <dependency>
               <groupId>com.datadoghq</groupId>
               <artifactId>java-dogstatsd-client</artifactId>
@@ -367,6 +376,9 @@
                         <goals>
                             <goal>jar</goal>
                         </goals>
+                        <configuration>
+                            <javadocExecutable>${java.home}/bin/javadoc</javadocExecutable>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
