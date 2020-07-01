@@ -92,6 +92,9 @@ public class FeatureRowsBatch implements Serializable {
                     f -> {
                       Schema.FieldType fieldType =
                           protoToSchemaTypes.get(f.getValue().getValCase());
+                      if (fieldType == null) {
+                        return;
+                      }
                       if (types.containsKey(f.getName())) {
                         if (!types.get(f.getName()).equals(fieldType)) {
                           throw new RuntimeException("schema cannot be inferred");
