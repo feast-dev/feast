@@ -29,6 +29,10 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
+/**
+ * Represents {@link Store}s attached to one {@link Job}. Keeps copy of Store's proto to detect
+ * changes in original Store.
+ */
 @Entity
 @Table(
     name = "jobs_stores",
