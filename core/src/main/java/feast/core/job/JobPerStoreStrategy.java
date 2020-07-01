@@ -55,13 +55,16 @@ public class JobPerStoreStrategy implements JobGroupingStrategy {
         .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
             source.getType(), source.getConfig(), store.getName(), JobStatus.getTerminalStates())
         .orElseGet(
-            () ->
-                Job.builder()
-                    .setSource(source)
-                    .setStoreName(store.getName())
-                    .setStores(stores)
-                    .setFeatureSetJobStatuses(new HashSet<>())
-                    .build());
+            () -> {
+              Job job =
+                  Job.builder()
+                      .setSource(source)
+                      .setStoreName(store.getName())
+                      .setFeatureSetJobStatuses(new HashSet<>())
+                      .build();
+              job.setStores(stores);
+              return job;
+            });
   }
 
   @Override

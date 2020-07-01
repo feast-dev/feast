@@ -50,12 +50,12 @@ public class ConsolidatedJobStrategy implements JobGroupingStrategy {
         .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
             source.getType(), source.getConfig(), null, JobStatus.getTerminalStates())
         .orElseGet(
-            () ->
-                Job.builder()
-                    .setSource(source)
-                    .setStores(stores)
-                    .setFeatureSetJobStatuses(new HashSet<>())
-                    .build());
+            () -> {
+              Job job =
+                  Job.builder().setSource(source).setFeatureSetJobStatuses(new HashSet<>()).build();
+              job.setStores(stores);
+              return job;
+            });
   }
 
   @Override

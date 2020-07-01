@@ -55,7 +55,6 @@ import feast.proto.core.SourceProto.KafkaSourceConfig;
 import feast.proto.core.SourceProto.SourceType;
 import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.Subscription;
-import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CancellationException;
 import lombok.SneakyThrows;
@@ -180,16 +179,7 @@ public class JobCoordinatorServiceTest {
     FeatureSet featureSet2 = FeatureSet.fromProto(featureSetSpec2);
     ArgumentCaptor<List<Job>> jobArgCaptor = ArgumentCaptor.forClass(List.class);
 
-    Job expectedInput =
-        Job.builder()
-            .setId("id")
-            .setExtId("")
-            .setRunner(Runner.DATAFLOW)
-            .setSource(source)
-            .setStores(ImmutableSet.of(store))
-            .setFeatureSetJobStatuses(TestUtil.makeFeatureSetJobStatus(featureSet1, featureSet2))
-            .setStatus(JobStatus.PENDING)
-            .build();
+    Job expectedInput = newJob("id", store, source, featureSet1, featureSet2);
 
     Job expected =
         expectedInput.toBuilder().setExtId("extid1").setStatus(JobStatus.RUNNING).build();
@@ -220,6 +210,20 @@ public class JobCoordinatorServiceTest {
     assertThat(actual, containsInAnyOrder(expected));
   }
 
+  private Job newJob(String id, Store store, Source source, FeatureSet... featureSets) {
+    Job job =
+        Job.builder()
+            .setId(id)
+            .setExtId("")
+            .setRunner(Runner.DATAFLOW)
+            .setSource(source)
+            .setFeatureSetJobStatuses(TestUtil.makeFeatureSetJobStatus(featureSets))
+            .setStatus(JobStatus.PENDING)
+            .build();
+    job.setStores(ImmutableSet.of(store));
+    return job;
+  }
+
   @Test
   public void shouldGroupJobsBySource() throws InvalidProtocolBufferException {
     Store store =
@@ -233,30 +237,12 @@ public class JobCoordinatorServiceTest {
     FeatureSet featureSet1 = TestUtil.createEmptyFeatureSet("features1", source1);
     FeatureSet featureSet2 = TestUtil.createEmptyFeatureSet("features2", source2);
 
-    Job expectedInput1 =
-        Job.builder()
-            .setId("id1")
-            .setExtId("")
-            .setRunner(Runner.DATAFLOW)
-            .setSource(source1)
-            .setStores(ImmutableSet.of(store))
-            .setFeatureSetJobStatuses(TestUtil.makeFeatureSetJobStatus(featureSet1))
-            .setStatus(JobStatus.PENDING)
-            .build();
+    Job expectedInput1 = newJob("id1", store, source1, featureSet1);
 
     Job expected1 =
         expectedInput1.toBuilder().setExtId("extid1").setStatus(JobStatus.RUNNING).build();
 
-    Job expectedInput2 =
-        Job.builder()
-            .setId("id2")
-            .setExtId("")
-            .setRunner(Runner.DATAFLOW)
-            .setSource(source2)
-            .setStores(ImmutableSet.of(store))
-            .setFeatureSetJobStatuses(TestUtil.makeFeatureSetJobStatus(featureSet2))
-            .setStatus(JobStatus.PENDING)
-            .build();
+    Job expectedInput2 = newJob("id2", store, source2, featureSet2);
 
     Job expected2 =
         expectedInput2.toBuilder().setExtId("extid2").setStatus(JobStatus.RUNNING).build();
@@ -315,16 +301,7 @@ public class JobCoordinatorServiceTest {
     FeatureSet featureSet1 = TestUtil.createEmptyFeatureSet("features1", source1);
     FeatureSet featureSet2 = TestUtil.createEmptyFeatureSet("features2", source2);
 
-    Job expectedInput =
-        Job.builder()
-            .setId("id")
-            .setExtId("")
-            .setSource(source1)
-            .setStores(ImmutableSet.of(store))
-            .setRunner(Runner.DATAFLOW)
-            .setFeatureSetJobStatuses(TestUtil.makeFeatureSetJobStatus(featureSet1, featureSet2))
-            .setStatus(JobStatus.PENDING)
-            .build();
+    Job expectedInput = newJob("id", store, source1, featureSet1, featureSet2);
 
     Job expected =
         expectedInput.toBuilder().setExtId("extid1").setStatus(JobStatus.RUNNING).build();
@@ -374,16 +351,10 @@ public class JobCoordinatorServiceTest {
     List<Job> expectedJobs = new ArrayList<>();
     List<Job> extraJobs = new ArrayList();
     for (int i = 0; i < 3; i++) {
-      inputJobs.add(
-          Job.builder()
-              .setId(String.format("id%d", i))
-              .setExtId(String.format("extid%d", i))
-              .setSource(source)
-              .setStores(ImmutableSet.of(store))
-              .setRunner(Runner.DATAFLOW)
-              .setFeatureSetJobStatuses(TestUtil.makeFeatureSetJobStatus(featureSet))
-              .setStatus(JobStatus.RUNNING)
-              .build());
+      Job job = newJob(String.format("id%d", i), store, source, featureSet);
+      job.setExtId(String.format("extid%d", i));
+      job.setStatus(JobStatus.RUNNING);
+      inputJobs.add(job);
 
       JobStatus targetStatus = (i >= 1) ? JobStatus.ABORTED : JobStatus.RUNNING;
       expectedJobs.add(inputJobs.get(i).toBuilder().setStatus(targetStatus).build());
@@ -449,30 +420,12 @@ public class JobCoordinatorServiceTest {
     FeatureSet featureSet1 = TestUtil.createEmptyFeatureSet("feature1", source1);
     FeatureSet featureSet2 = TestUtil.createEmptyFeatureSet("feature2", source2);
 
-    Job expectedInput1 =
-        Job.builder()
-            .setId("id1")
-            .setExtId("")
-            .setRunner(Runner.DATAFLOW)
-            .setSource(source1)
-            .setStores(ImmutableSet.of(store1))
-            .setFeatureSetJobStatuses(TestUtil.makeFeatureSetJobStatus(featureSet1))
-            .setStatus(JobStatus.PENDING)
-            .build();
+    Job expectedInput1 = newJob("id1", store1, source1, featureSet1);
 
     Job expected1 =
         expectedInput1.toBuilder().setExtId("extid1").setStatus(JobStatus.RUNNING).build();
 
-    Job expectedInput2 =
-        Job.builder()
-            .setId("id2")
-            .setExtId("")
-            .setRunner(Runner.DATAFLOW)
-            .setSource(source2)
-            .setStores(ImmutableSet.of(store2))
-            .setFeatureSetJobStatuses(TestUtil.makeFeatureSetJobStatus(featureSet2))
-            .setStatus(JobStatus.PENDING)
-            .build();
+    Job expectedInput2 = newJob("id2", store2, source2, featureSet2);
 
     Job expected2 =
         expectedInput2.toBuilder().setExtId("extid2").setStatus(JobStatus.RUNNING).build();
@@ -734,38 +687,9 @@ public class JobCoordinatorServiceTest {
             .setStatus(JobStatus.RUNNING)
             .setFeatureSetJobStatuses(new HashSet<>())
             .setSource(source)
-            .setStores(new HashSet<>())
             .setExtId("extId")
+            .setJobStores(new HashSet<>())
             .build();
-
-    when(jobRepository
-            .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
-                source.getType(), source.getConfig(), null, JobStatus.getTerminalStates()))
-        .thenReturn(Optional.of(job));
-
-    List<JobTask> tasks =
-        jcsWithConsolidation.makeJobUpdateTasks(
-            ImmutableList.of(Pair.of(source, ImmutableSet.of(store))));
-
-    assertThat("CreateTask is expected", tasks.get(0) instanceof CreateJobTask);
-  }
-
-  @Test
-  public void shouldUpgradeJobWhenStoreChanged() {
-    Source source = TestUtil.createKafkaSource("kafka:9092", "topic", false);
-    Store store = TestUtil.createStore("store", Collections.emptyList());
-
-    Job job =
-        Job.builder()
-            .setStatus(JobStatus.RUNNING)
-            .setFeatureSetJobStatuses(new HashSet<>())
-            .setSource(source)
-            .setStores(ImmutableSet.of(store))
-            .setExtId("extId")
-            .build();
-
-    job.setCreated(Date.from(Instant.now()));
-    store.setLastUpdated(Date.from(Instant.now().plusSeconds(1)));
 
     when(jobRepository
             .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
@@ -825,19 +749,8 @@ public class JobCoordinatorServiceTest {
                 eq(JobStatus.getTerminalStates())))
         .thenReturn(Optional.empty());
 
-    Job expected1 =
-        Job.builder()
-            .setSource(source)
-            .setStores(ImmutableSet.of(store1))
-            .setRunner(Runner.DATAFLOW)
-            .build();
-
-    Job expected2 =
-        Job.builder()
-            .setSource(source)
-            .setStores(ImmutableSet.of(store2))
-            .setRunner(Runner.DATAFLOW)
-            .build();
+    Job expected1 = newJob("", store1, source);
+    Job expected2 = newJob("", store2, source);
 
     when(jobManager.startJob(any())).thenReturn(new Job());
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
@@ -887,15 +800,10 @@ public class JobCoordinatorServiceTest {
     when(featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc("%", "%"))
         .thenReturn(ImmutableList.of(TestUtil.createEmptyFeatureSet("fs", source)));
 
-    Job existingJob =
-        Job.builder()
-            .setStores(ImmutableSet.of(store1))
-            .setSource(source)
-            .setExtId("extId")
-            .setId("some-id")
-            .setStatus(JobStatus.RUNNING)
-            .setFeatureSetJobStatuses(new HashSet<>())
-            .build();
+    Job existingJob = newJob("some-id", store1, source);
+    existingJob.setExtId("extId");
+    existingJob.setFeatureSetJobStatuses(new HashSet<>());
+    existingJob.setStatus(JobStatus.RUNNING);
 
     when(jobRepository
             .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(

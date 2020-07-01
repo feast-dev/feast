@@ -108,7 +108,7 @@ public class JobService {
         // multiple filters can apply together in an 'and' operation
         if (!filter.getStoreName().isEmpty()) {
           // find jobs by name
-          List<Job> jobs = this.jobRepository.findByStoresName(filter.getStoreName());
+          List<Job> jobs = this.jobRepository.findByJobStoresIdStoreName(filter.getStoreName());
           Set<String> jobIds = jobs.stream().map(Job::getId).collect(Collectors.toSet());
           matchingJobIds = this.mergeResults(matchingJobIds, jobIds);
         }
