@@ -46,6 +46,9 @@ lint-java:
 test-java:
 	mvn --no-transfer-progress test
 
+test-java-integration:
+	mvn -DskipUTs test-compile failsafe:integration-test failsafe:verify
+
 test-java-with-coverage:
 	mvn --no-transfer-progress test jacoco:report-aggregate
 

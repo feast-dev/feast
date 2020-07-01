@@ -37,7 +37,10 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.config.KafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
+import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 
 @Slf4j
 @Configuration
@@ -113,7 +116,19 @@ public class FeatureStreamConfig {
   }
 
   @Bean
-  public ConsumerFactory<?, ?> ackConsumerFactory(FeastProperties feastProperties) {
+  KafkaListenerContainerFactory<
+          ConcurrentMessageListenerContainer<String, IngestionJobProto.FeatureSetSpecAck>>
+      kafkaAckListenerContainerFactory(
+          ConsumerFactory<String, IngestionJobProto.FeatureSetSpecAck> consumerFactory) {
+    ConcurrentKafkaListenerContainerFactory<String, IngestionJobProto.FeatureSetSpecAck> factory =
+        new ConcurrentKafkaListenerContainerFactory<>();
+    factory.setConsumerFactory(consumerFactory);
+    return factory;
+  }
+
+  @Bean
+  public ConsumerFactory<String, IngestionJobProto.FeatureSetSpecAck> ackConsumerFactory(
+      FeastProperties feastProperties) {
     StreamProperties streamProperties = feastProperties.getStream();
     Map<String, Object> props = new HashMap<>();
 
