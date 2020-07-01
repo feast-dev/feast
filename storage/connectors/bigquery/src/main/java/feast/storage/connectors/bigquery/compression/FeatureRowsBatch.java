@@ -143,11 +143,14 @@ public class FeatureRowsBatch implements Serializable {
                   idx -> {
                     Schema.Field field = schema.getField(idx);
                     if (rowValues.containsKey(field.getName())) {
-                      ((List<Object>) values.get(idx))
-                          .add(protoValueToObject(rowValues.get(field.getName())));
-                    } else {
-                      ((List<Object>) values.get(idx)).add(defaultValues.get(field.getName()));
+                      Object o = protoValueToObject(rowValues.get(field.getName()));
+                      if (o != null) {
+                        ((List<Object>) values.get(idx)).add(o);
+                        return;
+                      }
                     }
+
+                    ((List<Object>) values.get(idx)).add(defaultValues.get(field.getName()));
                   });
         });
   }

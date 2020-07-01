@@ -32,6 +32,7 @@ import com.google.cloud.bigquery.*;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 import feast.common.models.FeatureSetReference;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
@@ -450,13 +451,34 @@ public class BigQuerySinkTest {
 
     List<FeatureRow> input = Stream.concat(stream1, stream2).collect(Collectors.toList());
 
+    FeatureRow rowWithNull =
+        FeatureRow.newBuilder()
+            .setFeatureSet("project/fs")
+            .addAllFields(copyFieldsWithout(generateRow(""), "entity"))
+            .addFields(FieldProto.Field.newBuilder().setName("entity").build())
+            .build();
+
+    List<FeatureRow> inputWithNulls = Lists.newArrayList(input);
+    inputWithNulls.add(rowWithNull);
+
     PCollection<FeatureRow> result =
-        p.apply(Create.of(input))
+        p.apply(Create.of(inputWithNulls))
             .apply("KV", ParDo.of(new ExtractKV()))
             .apply(new CompactFeatureRows(1000))
             .apply("Flat", ParDo.of(new FlatMap()));
 
     List<FeatureRow> inputWithoutNulls = dropNullFeature(input);
+
+    inputWithoutNulls.add(
+        FeatureRow.newBuilder()
+            .setFeatureSet("project/fs")
+            .addFields(
+                FieldProto.Field.newBuilder()
+                    .setName("entity")
+                    .setValue(ValueProto.Value.newBuilder().setInt64Val(0L).build())
+                    .build())
+            .addAllFields(copyFieldsWithout(rowWithNull, "entity", "null_value"))
+            .build());
 
     PAssert.that(result).containsInAnyOrder(inputWithoutNulls);
     p.run();
@@ -473,6 +495,13 @@ public class BigQuerySinkTest {
                             .filter(f -> !f.getName().equals("null_value"))
                             .collect(Collectors.toList()))
                     .build())
+        .collect(Collectors.toList());
+  }
+
+  private List<FieldProto.Field> copyFieldsWithout(FeatureRow row, String... except) {
+    ArrayList<String> exclude = Lists.newArrayList(except);
+    return row.getFieldsList().stream()
+        .filter(f -> !exclude.contains(f.getName()))
         .collect(Collectors.toList());
   }
 
