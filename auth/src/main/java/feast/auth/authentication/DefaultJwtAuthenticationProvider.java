@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.auth.authentication;
+package feast.auth.authentication;
 
 import java.util.Map;
 import org.springframework.security.authentication.AuthenticationProvider;

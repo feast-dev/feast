@@ -24,10 +24,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.auth.authorization.AuthorizationProvider;
-import feast.core.auth.authorization.AuthorizationResult;
+import feast.auth.authorization.AuthorizationProvider;
+import feast.auth.authorization.AuthorizationResult;
+import feast.auth.config.SecurityProperties;
 import feast.core.config.FeastProperties;
-import feast.core.config.FeastProperties.SecurityProperties;
 import feast.core.dao.ProjectRepository;
 import feast.core.model.Entity;
 import feast.core.model.Feature;
@@ -73,10 +73,10 @@ class CoreServiceAuthTest {
 
   CoreServiceAuthTest() {
     MockitoAnnotations.initMocks(this);
-    FeastProperties.SecurityProperties.AuthorizationProperties authProp =
-        new FeastProperties.SecurityProperties.AuthorizationProperties();
+    SecurityProperties.AuthorizationProperties authProp =
+        new SecurityProperties.AuthorizationProperties();
     authProp.setEnabled(true);
-    FeastProperties.SecurityProperties sp = new SecurityProperties();
+    SecurityProperties sp = new SecurityProperties();
     sp.setAuthorization(authProp);
     FeastProperties feastProperties = new FeastProperties();
     feastProperties.setSecurity(sp);

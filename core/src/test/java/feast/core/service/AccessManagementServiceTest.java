@@ -23,9 +23,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import feast.core.auth.authorization.AuthorizationProvider;
+import feast.auth.authorization.AuthorizationProvider;
+import feast.auth.config.SecurityProperties;
 import feast.core.config.FeastProperties;
-import feast.core.config.FeastProperties.SecurityProperties;
 import feast.core.dao.ProjectRepository;
 import feast.core.model.Project;
 import java.util.Arrays;
@@ -50,10 +50,10 @@ public class AccessManagementServiceTest {
   public void setUp() {
     initMocks(this);
     projectRepository = mock(ProjectRepository.class);
-    FeastProperties.SecurityProperties.AuthorizationProperties authProp =
-        new FeastProperties.SecurityProperties.AuthorizationProperties();
+    SecurityProperties.AuthorizationProperties authProp =
+        new SecurityProperties.AuthorizationProperties();
     authProp.setEnabled(false);
-    FeastProperties.SecurityProperties sp = new SecurityProperties();
+    SecurityProperties sp = new SecurityProperties();
     sp.setAuthorization(authProp);
     FeastProperties feastProperties = new FeastProperties();
     feastProperties.setSecurity(sp);

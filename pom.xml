@@ -37,6 +37,7 @@
         <module>sdk/java</module>
         <module>docs/coverage/java</module>
         <module>common</module>
+        <module>auth</module>
     </modules>
 
     <properties>
