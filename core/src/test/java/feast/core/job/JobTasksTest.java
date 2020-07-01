@@ -76,15 +76,17 @@ public class JobTasksTest {
   }
 
   Job makeJob(String extId, List<FeatureSet> featureSets, JobStatus status) {
-    return Job.builder()
-        .setId("job")
-        .setExtId(extId)
-        .setRunner(RUNNER)
-        .setSource(source)
-        .setStores(ImmutableSet.of(store))
-        .setFeatureSetJobStatuses(TestUtil.makeFeatureSetJobStatus(featureSets))
-        .setStatus(status)
-        .build();
+    Job job =
+        Job.builder()
+            .setId("job")
+            .setExtId(extId)
+            .setRunner(RUNNER)
+            .setSource(source)
+            .setFeatureSetJobStatuses(TestUtil.makeFeatureSetJobStatus(featureSets))
+            .setStatus(status)
+            .build();
+    job.setStores(ImmutableSet.of(store));
+    return job;
   }
 
   CreateJobTask makeCreateTask(Job currentJob) {

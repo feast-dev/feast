@@ -76,16 +76,8 @@ public class Job extends AbstractTimestampEntity {
   private String sourceConfig;
 
   // Sinks
-  @ManyToMany
-  @JoinTable(
-      name = "jobs_stores",
-      joinColumns = @JoinColumn(name = "job_id"),
-      inverseJoinColumns = @JoinColumn(name = "store_name"),
-      indexes = {
-        @Index(name = "idx_jobs_stores_job_id", columnList = "job_id"),
-        @Index(name = "idx_jobs_stores_store_name", columnList = "store_name")
-      })
-  private Set<Store> stores;
+  @OneToMany(mappedBy = "job", cascade = CascadeType.ALL)
+  private Set<JobStore> jobStores = new HashSet<>();
 
   @Deprecated
   @Column(name = "store_name")
@@ -145,6 +137,30 @@ public class Job extends AbstractTimestampEntity {
   }
 
   /**
+   * Materialize stores from protos stored in {@link JobStore}
+   *
+   * @return set of {@link Store}
+   */
+  public Set<Store> getStores() {
+    return getJobStores().stream()
+        .map(JobStore::getStoreProto)
+        .map(Store::fromProto)
+        .collect(Collectors.toSet());
+  }
+
+  /**
+   * Copy stores as protos to JobStores {@link JobStore} to keep job's version of allocated stores.
+   *
+   * @param stores allocated set of {@link Store}
+   */
+  public void setStores(Set<Store> stores) {
+    jobStores = new HashSet<>();
+    for (Store store : stores) {
+      jobStores.add(new JobStore(this, store));
+    }
+  }
+
+  /**
    * Convert a job model to ingestion job proto
    *
    * @return Ingestion Job proto derieved from the given job
@@ -177,7 +193,6 @@ public class Job extends AbstractTimestampEntity {
   public Job clone() {
     Job job =
         Job.builder()
-            .setStores(getStores())
             .setStoreName(getStoreName())
             .setSourceConfig(getSourceConfig())
             .setSourceType(getSourceType())
@@ -185,13 +200,14 @@ public class Job extends AbstractTimestampEntity {
             .setRunner(getRunner())
             .setStatus(JobStatus.UNKNOWN)
             .build();
+    job.setStores(getStores());
     job.addAllFeatureSets(getFeatureSets());
     return job;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(getSource(), this.stores, this.runner);
+    return Objects.hash(getSource(), getStores(), this.runner);
   }
 
   @Override
@@ -204,7 +220,7 @@ public class Job extends AbstractTimestampEntity {
       return false;
     } else if (!getSource().equals(other.getSource())) {
       return false;
-    } else if (!stores.equals(other.stores)) {
+    } else if (!getStores().equals(other.getStores())) {
       return false;
     }
     return true;

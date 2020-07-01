@@ -1,0 +1,1 @@
+ALTER TABLE jobs_stores ADD COLUMN store_proto oid not null;

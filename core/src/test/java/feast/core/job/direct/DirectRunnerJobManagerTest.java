@@ -150,11 +150,10 @@ public class DirectRunnerJobManagerTest {
             .setExtId("")
             .setRunner(Runner.DIRECT)
             .setSource(Source.fromProto(source))
-            .setStores(ImmutableSet.of(Store.fromProto(store)))
             .setFeatureSetJobStatuses(makeFeatureSetJobStatus(FeatureSet.fromProto(featureSet)))
             .setStatus(JobStatus.PENDING)
             .build();
-
+    job.setStores(ImmutableSet.of(Store.fromProto(store)));
     Job actual = drJobManager.startJob(job);
 
     verify(drJobManager, times(1)).runPipeline(pipelineOptionsCaptor.capture());

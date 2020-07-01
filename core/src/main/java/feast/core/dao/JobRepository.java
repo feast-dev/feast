@@ -40,6 +40,6 @@ public interface JobRepository extends JpaRepository<Job, String> {
 
   List<Job> findByFeatureSetJobStatusesIn(List<FeatureSetJobStatus> featureSetsJobStatuses);
 
-  // find jobs by feast store name
-  List<Job> findByStoresName(String storeName);
+  // find jobs that have at least one store with given name
+  List<Job> findByJobStoresIdStoreName(String storeName);
 }

@@ -16,6 +16,7 @@
  */
 package feast.core.job.dataflow;
 
+import static feast.common.models.Store.convertStringToSubscription;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.any;
@@ -25,6 +26,7 @@ import static org.mockito.MockitoAnnotations.initMocks;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.testing.auth.oauth2.MockGoogleCredential;
 import com.google.api.services.dataflow.Dataflow;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -35,6 +37,7 @@ import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.Runner;
 import feast.core.model.*;
+import feast.core.util.TestUtil;
 import feast.ingestion.options.ImportOptions;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.FeatureSetMeta;
@@ -170,10 +173,10 @@ public class DataflowJobManagerTest {
             .setExtId("")
             .setRunner(Runner.DATAFLOW)
             .setSource(Source.fromProto(source))
-            .setStores(ImmutableSet.of(Store.fromProto(store)))
             .setFeatureSetJobStatuses(Sets.newHashSet(featureSetJobStatus))
             .setStatus(JobStatus.PENDING)
             .build();
+    job.setStores(ImmutableSet.of(Store.fromProto(store)));
     Job actual = dfJobManager.startJob(job);
 
     verify(dfJobManager, times(1)).runPipeline(captor.capture());
@@ -215,12 +218,8 @@ public class DataflowJobManagerTest {
 
   @Test
   public void shouldThrowExceptionWhenJobStateTerminal() throws IOException {
-    StoreProto.Store store =
-        StoreProto.Store.newBuilder()
-            .setName("SERVING")
-            .setType(StoreType.REDIS)
-            .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
-            .build();
+    Store store =
+        TestUtil.createStore("store", ImmutableList.of(convertStringToSubscription("*:*")));
 
     SourceProto.Source source =
         SourceProto.Source.newBuilder()
@@ -253,11 +252,10 @@ public class DataflowJobManagerTest {
             .setExtId("")
             .setRunner(Runner.DATAFLOW)
             .setSource(Source.fromProto(source))
-            .setStores(ImmutableSet.of(Store.fromProto(store)))
             .setFeatureSetJobStatuses(Sets.newHashSet(featureSetJobStatus))
             .setStatus(JobStatus.PENDING)
             .build();
-
+    job.setStores(ImmutableSet.of(store));
     expectedException.expect(JobExecutionException.class);
     dfJobManager.startJob(job);
   }

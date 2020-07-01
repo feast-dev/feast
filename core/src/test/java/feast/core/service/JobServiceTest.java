@@ -123,7 +123,7 @@ public class JobServiceTest {
 
   public void setupJobRepository() {
     when(this.jobRepository.findById(this.job.getId())).thenReturn(Optional.of(this.job));
-    when(this.jobRepository.findByStoresName(this.dataStore.getName()))
+    when(this.jobRepository.findByJobStoresIdStoreName(this.dataStore.getName()))
         .thenReturn(Arrays.asList(this.job));
     when(this.jobRepository.findByFeatureSetJobStatusesIn(
             Lists.newArrayList((this.featureSet.getJobStatuses()))))
@@ -148,15 +148,17 @@ public class JobServiceTest {
   }
 
   private Job newDummyJob(String id, String extId, JobStatus status) {
-    return job.builder()
-        .setId(id)
-        .setExtId(extId)
-        .setRunner(Runner.DATAFLOW)
-        .setSource(this.dataSource)
-        .setStores(ImmutableSet.of(this.dataStore))
-        .setFeatureSetJobStatuses(makeFeatureSetJobStatus(this.featureSet))
-        .setStatus(status)
-        .build();
+    Job job =
+        Job.builder()
+            .setId(id)
+            .setExtId(extId)
+            .setRunner(Runner.DATAFLOW)
+            .setSource(this.dataSource)
+            .setFeatureSetJobStatuses(makeFeatureSetJobStatus(this.featureSet))
+            .setStatus(status)
+            .build();
+    job.setStores(ImmutableSet.of(this.dataStore));
+    return job;
   }
 
   private List<FeatureSetReference> newDummyFeatureSetReferences() {
