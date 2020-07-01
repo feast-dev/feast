@@ -18,6 +18,7 @@ package feast.storage.connectors.bigtable.writer;
 
 import com.google.cloud.bigtable.beam.CloudBigtableIO;
 import com.google.cloud.bigtable.beam.CloudBigtableTableConfiguration;
+import com.google.common.collect.Iterators;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.StoreProto.Store.BigtableConfig;
@@ -37,8 +38,10 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -63,17 +66,20 @@ public class BigtableCustomIO {
   private BigtableCustomIO() {}
 
   public static Write write(
-      BigtableConfig bigtableConfig, Map<String, FeatureSetSpec> featureSetSpecs) {
+      BigtableConfig bigtableConfig,
+      PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecs) {
     return new Write(bigtableConfig, featureSetSpecs);
   }
 
   /** ServingStoreWrite data to a Bigtable server. */
   public static class Write extends PTransform<PCollection<FeatureRow>, WriteResult> {
 
-    private final Map<String, FeatureSetSpec> featureSetSpecs;
+    private final PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecs;
     private final CloudBigtableTableConfiguration bigtableConfig;
 
-    public Write(BigtableConfig bigtableConfig, Map<String, FeatureSetSpec> featureSetSpecs) {
+    public Write(
+        BigtableConfig bigtableConfig,
+        PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecs) {
       this.bigtableConfig =
           new CloudBigtableTableConfiguration.Builder()
               .withProjectId(bigtableConfig.getProjectId())
@@ -107,9 +113,9 @@ public class BigtableCustomIO {
     public static class MutationDoFn extends DoFn<FeatureRow, Mutation> {
 
       private final List<FeatureRow> featureRows = new ArrayList<>();
-      private Map<String, FeatureSetSpec> featureSetSpecs;
+      private PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecs;
 
-      MutationDoFn(Map<String, FeatureSetSpec> featureSetSpecs) {
+      MutationDoFn(PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecs) {
         this.featureSetSpecs = featureSetSpecs;
       }
 
@@ -131,8 +137,7 @@ public class BigtableCustomIO {
        * .setErrorMessage(exception.getMessage())
        * .setStackTrace(ExceptionUtils.getStackTrace(exception)) .build(); } *
        */
-      private String getKey(FeatureRow featureRow) {
-        FeatureSetSpec featureSetSpec = featureSetSpecs.get(featureRow.getFeatureSet());
+      private String getKey(FeatureRow featureRow, FeatureSetSpec featureSetSpec) {
         List<String> entityNames =
             featureSetSpec.getEntitiesList().stream()
                 .map(EntitySpec::getName)
@@ -157,9 +162,14 @@ public class BigtableCustomIO {
 
       @ProcessElement
       public void processElement(ProcessContext context) {
+        Map<String, FeatureSetSpec> latestSpecs =
+            context.sideInput(featureSetSpecs).entrySet().stream()
+                .map(e -> ImmutablePair.of(e.getKey(), Iterators.getLast(e.getValue().iterator())))
+                .collect(Collectors.toMap(ImmutablePair::getLeft, ImmutablePair::getRight));
         FeatureRow featureRow = context.element();
         try {
-          String key = getKey(featureRow);
+          FeatureSetSpec featureSetSpec = latestSpecs.get(featureRow.getFeatureSet());
+          String key = getKey(featureRow, featureSetSpec);
           System.out.printf("Setting the key: %s", key);
           System.out.printf("value: %s", featureRow);
           long timestamp = System.currentTimeMillis();

@@ -47,8 +47,6 @@ public abstract class BigtableFeatureSink implements FeatureSink {
 
   public abstract BigtableConfig getBigtableConfig();
 
-  public abstract Map<String, FeatureSetSpec> getFeatureSetSpecs();
-
   public abstract Builder toBuilder();
 
   public static Builder builder() {
@@ -58,8 +56,6 @@ public abstract class BigtableFeatureSink implements FeatureSink {
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setBigtableConfig(BigtableConfig bigtableConfig);
-
-    public abstract Builder setFeatureSetSpecs(Map<String, FeatureSetSpec> featureSetSpecs);
 
     public abstract BigtableFeatureSink build();
   }
@@ -98,7 +94,7 @@ public abstract class BigtableFeatureSink implements FeatureSink {
 
   @Override
   public PTransform<PCollection<FeatureRow>, WriteResult> writer() {
-    return new BigtableCustomIO.Write(getBigtableConfig(), getFeatureSetSpecs());
+    return new BigtableCustomIO.Write(getBigtableConfig(), getSpecsView());
   }
 
   private static class ReferenceToString
