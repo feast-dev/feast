@@ -93,7 +93,7 @@ public class FeatureSet extends AbstractTimestampEntity {
   @Column(name = "version", columnDefinition = "integer default 0")
   private int version;
 
-  @OneToMany(mappedBy = "featureSet", cascade = CascadeType.ALL)
+  @OneToMany(mappedBy = "featureSet")
   private Set<FeatureSetJobStatus> jobStatuses = new HashSet<>();
 
   public FeatureSet() {
