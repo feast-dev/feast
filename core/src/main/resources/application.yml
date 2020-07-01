@@ -61,6 +61,8 @@ feast:
           host: databricks_host
           # Token for authentication
           token:  ${DATABRICKS_TOKEN}
+          # Path to store Spark job checkpoints 
+          checkpointLocation: dbfs:/checkpoints/feast
           # Path to the Jar file on the databricks file system
           jarFile: jar_file
           # Timeout in seconds for Databricks jobs, or -1 for unlimited

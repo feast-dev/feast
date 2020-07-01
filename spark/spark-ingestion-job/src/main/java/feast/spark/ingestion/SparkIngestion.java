@@ -19,6 +19,7 @@ package feast.spark.ingestion;
 import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import feast.ingestion.transform.ReadFromSource;
 import feast.ingestion.transform.fn.ProcessFeatureRowDoFn;
 import feast.ingestion.utils.SpecUtil;
 import feast.proto.core.FeatureSetProto.FeatureSet;
@@ -46,6 +47,7 @@ import org.slf4j.LoggerFactory;
 public class SparkIngestion {
   private static final Logger log = LoggerFactory.getLogger(SparkIngestion.class);
   private final String jobId;
+  private final String checkpointLocation;
   private final String defaultFeastProject;
   private final List<FeatureSet> featureSets;
   private final List<Store> stores;
@@ -73,13 +75,14 @@ public class SparkIngestion {
    * @throws InvalidProtocolBufferException
    */
   public SparkIngestion(String[] args) throws InvalidProtocolBufferException {
-    int numArgs = 4;
+    int numArgs = 5;
     if (args.length != numArgs) {
       throw new IllegalArgumentException("Expecting " + numArgs + " arguments");
     }
 
     int index = 0;
     jobId = args[index++];
+    checkpointLocation = args[index++];
     defaultFeastProject = args[index++];
     String featureSetSpecsJson = args[index++];
     String storesJson = args[index++];
@@ -121,6 +124,8 @@ public class SparkIngestion {
             .option("kafka.bootstrap.servers", kafkaConfig.getBootstrapServers())
             .option("startingOffsets", "earliest")
             .option("subscribe", kafkaConfig.getTopic())
+            // Don't fail the job if the current Kafka offset has been expired
+            .option("failOnDataLoss", "false")
             .load();
 
     Collection<SparkSink> consumers =
@@ -176,6 +181,10 @@ public class SparkIngestion {
             },
             Encoders.BINARY())
         .writeStream()
+        .option(
+            "checkpointLocation",
+            String.format(
+                "%s/%s", checkpointLocation, ReadFromSource.generateConsumerGroupId(jobId)))
         .foreachBatch(
             (batchDF, batchId) -> {
               batchDF.persist();

@@ -100,5 +100,7 @@ message DatabricksRunnerConfigOptions {
 
     int32 timeoutSeconds = 4;
 
-    DatabricksNewClusterOptions newCluster = 5;
+    string checkpointLocation = 5;
+
+    DatabricksNewClusterOptions newCluster = 6;
 }

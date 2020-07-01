@@ -54,6 +54,7 @@ public class DatabricksJobManager implements JobManager {
 
   private final String databricksHost;
   private final byte[] databricksToken;
+  private final String checkpointLocation;
   private final String jarFile;
   private final DatabricksRunnerConfigOptions.DatabricksNewClusterOptions newClusterConfigOptions;
   private final HttpClient httpClient;
@@ -65,6 +66,7 @@ public class DatabricksJobManager implements JobManager {
 
     this.databricksHost = runnerConfigOptions.getHost();
     this.databricksToken = runnerConfigOptions.getToken().getBytes(StandardCharsets.UTF_8);
+    this.checkpointLocation = runnerConfigOptions.getCheckpointLocation();
     this.httpClient = httpClient;
     this.newClusterConfigOptions = runnerConfigOptions.getNewCluster();
     this.jarFile = runnerConfigOptions.getJarFile();
@@ -218,9 +220,10 @@ public class DatabricksJobManager implements JobManager {
     String storesJson = toJsonLine(store);
     String featureSetsJson = toJsonLines(featureSetSpecsProtos);
 
-    RunsSubmitRequest runRequest =
-        getJobRequest(
-            jobName, Arrays.asList(job.getId(), defaultFeastProject, featureSetsJson, storesJson));
+    List<String> params =
+        Arrays.asList(
+            job.getId(), checkpointLocation, defaultFeastProject, featureSetsJson, storesJson);
+    RunsSubmitRequest runRequest = getJobRequest(jobName, params);
 
     try {
       String body = mapper.writeValueAsString(runRequest);
