@@ -136,6 +136,11 @@ public class Job extends AbstractTimestampEntity {
     }
   }
 
+  /**
+   * Materialize stores from protos stored in {@link JobStore}
+   *
+   * @return set of {@link Store}
+   */
   public Set<Store> getStores() {
     return getJobStores().stream()
         .map(JobStore::getStoreProto)
@@ -143,6 +148,11 @@ public class Job extends AbstractTimestampEntity {
         .collect(Collectors.toSet());
   }
 
+  /**
+   * Copy stores as protos to JobStores {@link JobStore} to keep job's version of allocated stores.
+   *
+   * @param stores allocated set of {@link Store}
+   */
   public void setStores(Set<Store> stores) {
     jobStores = new HashSet<>();
     for (Store store : stores) {

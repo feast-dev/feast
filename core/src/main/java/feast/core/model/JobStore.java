@@ -77,7 +77,7 @@ public class JobStore {
 
   public StoreProto.Store getStoreProto() {
     try {
-      return StoreProto.Store.parseFrom(storeProto);
+      return StoreProto.Store.parseFrom(this.storeProto);
     } catch (InvalidProtocolBufferException e) {
       return StoreProto.Store.newBuilder().build();
     }
@@ -100,11 +100,12 @@ public class JobStore {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     JobStore jobStore = (JobStore) o;
-    return Objects.equal(id, jobStore.id) && Objects.equal(storeProto, jobStore.storeProto);
+    return Objects.equal(this.id, jobStore.id)
+        && Objects.equal(this.storeProto, jobStore.storeProto);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(id, storeProto);
+    return Objects.hashCode(this.id, this.storeProto);
   }
 }
