@@ -25,7 +25,6 @@ import com.google.protobuf.Descriptors.Descriptor;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
-import feast.proto.storage.BigtableProto.BigtableKey;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FeatureRowProto.FeatureRow.Builder;
 import feast.proto.types.FieldProto.Field;
@@ -37,7 +36,7 @@ import java.util.Optional;
 
 public class BigtableOnlineObserver implements ResponseObserver<Row> {
 
-  private final List<BigtableKey> bigtableKeys;
+  private final List<String> bigtableKeys;
   private final FeatureSetSpec featureSetSpec;
   private final List<FeatureReference> featureReferences;
   private static final String METADATA_CF = "metadata";
@@ -46,25 +45,25 @@ public class BigtableOnlineObserver implements ResponseObserver<Row> {
   private static final ByteString INGESTION_ID_QUALIFIER = ByteString.copyFromUtf8("ingestion_id");
   private static final ByteString EVENT_TIMESTAMP_QUALIFIER =
       ByteString.copyFromUtf8("event_timestamp");
-  private HashMap<ByteString, Builder> resultMap;
+  private HashMap<String, Builder> resultMap;
   private HashMap<ByteString, Descriptor> featureMap;
   private List<Optional<FeatureRow>> result;
 
   private BigtableOnlineObserver(
-      List<BigtableKey> bigtableKeys,
+      List<String> bigtableKeys,
       FeatureSetSpec featureSetSpec,
       List<FeatureReference> featureReferences,
       List<Optional<FeatureRow>> result) {
     this.bigtableKeys = bigtableKeys;
     this.featureSetSpec = featureSetSpec;
     this.featureReferences = featureReferences;
-    this.resultMap = new HashMap<>();
     this.featureMap = new HashMap<>();
+    this.resultMap = new HashMap<>();
     this.result = result;
   }
 
   public static BigtableOnlineObserver create(
-      List<BigtableKey> bigtableKeys,
+      List<String> bigtableKeys,
       FeatureSetSpec featureSetSpec,
       List<FeatureReference> featureReferences,
       List<Optional<FeatureRow>> result) {
@@ -91,18 +90,23 @@ public class BigtableOnlineObserver implements ResponseObserver<Row> {
           ByteString.copyFromUtf8(featureReference.getName()),
           allFeatureMap.get(featureReference.getName()));
     }
-    for (BigtableKey bigtableKey : bigtableKeys) {
-      this.resultMap.put(bigtableKey.toByteString(), nullFeatureRowBuilder);
+    for (String bigtableKey : bigtableKeys) {
+      System.out.printf("Pushing the bigtable key %s\n", bigtableKey);
+      this.resultMap.put(bigtableKey, nullFeatureRowBuilder);
     }
   }
 
   @Override
   public void onResponse(Row row) {
     List<RowCell> metadata = row.getCells(METADATA_CF);
-    Builder resultBuilder = resultMap.get(row.getKey());
+    System.out.printf("Got a result row with key %s\n", row.getKey().toString());
+    System.out.printf("OG key %s\n", row.getKey());
+    Builder resultBuilder = resultMap.get(row.getKey().toString());
     for (RowCell rowValues : row.getCells(FEATURES_CF)) {
       try {
         if (featureMap.containsKey(rowValues.getQualifier())) {
+          System.out.printf(
+              "Adding the feature %s to %s\n", rowValues.getQualifier(), row.getKey());
           resultBuilder.addFields(
               Field.newBuilder()
                   .setNameBytes(ByteString.copyFrom(rowValues.getQualifier().toByteArray()))
@@ -117,6 +121,9 @@ public class BigtableOnlineObserver implements ResponseObserver<Row> {
                   .build());
         }
       } catch (Exception e) {
+        System.out.printf(
+            "Failed to compute correctly for qualifier %s\n", rowValues.getQualifier());
+        System.out.printf("Feature map keys %s\n", featureMap.keySet());
         throw Status.NOT_FOUND
             .withCause(e)
             .withDescription("There was a problem getting the right cells")
@@ -135,8 +142,11 @@ public class BigtableOnlineObserver implements ResponseObserver<Row> {
 
   @Override
   public void onComplete() {
-    for (BigtableKey key : bigtableKeys) {
+    for (String key : bigtableKeys) {
       if (!resultMap.containsKey(key)) {
+        System.out.printf("Bigtable key %s\n", key);
+        System.out.printf("Bigtable bytes %s\n", key.getBytes());
+        System.out.printf("Resultmap keys %s\n", resultMap.keySet());
         throw Status.INVALID_ARGUMENT
             .withDescription("Somehow a bigtable key did not receive a builder in the resultMap")
             .asRuntimeException();

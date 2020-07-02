@@ -103,7 +103,9 @@ public class JobCoordinatorService {
   public void Poll() {
     log.info("Polling for new jobs...");
     Iterable<Pair<Source, Set<Store>>> sourceStoreMappings = getSourceToStoreMappings();
+    log.info("Found source to store mappings {}", sourceStoreMappings);
     List<JobTask> jobUpdateTasks = makeJobUpdateTasks(sourceStoreMappings);
+    log.info("Found jobUpdateTasks {}", jobUpdateTasks);
 
     if (jobUpdateTasks.isEmpty()) {
       log.info("No jobs found.");

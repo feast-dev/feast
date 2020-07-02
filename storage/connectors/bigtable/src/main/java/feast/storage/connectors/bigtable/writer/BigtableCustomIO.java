@@ -37,9 +37,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.*;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.hadoop.hbase.client.Mutation;
@@ -56,8 +54,8 @@ public class BigtableCustomIO {
   private static final String INGESTION_ID_QUALIFIER = "ingestion_id";
   private static final String EVENT_TIMESTAMP_QUALIFIER = "event_timestamp";
 
-  private static final TupleTag<FeatureRow> successfulInsertsTag =
-      new TupleTag<FeatureRow>("successfulInserts") {};
+  private static final TupleTag<Mutation> successfulMutationsTag =
+      new TupleTag<Mutation>("successfulInserts") {};
   private static final TupleTag<FailedElement> failedInsertsTupleTag =
       new TupleTag<FailedElement>("failedInserts") {};
 
@@ -91,9 +89,14 @@ public class BigtableCustomIO {
 
     @Override
     public WriteResult expand(PCollection<FeatureRow> input) {
-      PCollection<Mutation> bigtableMutations =
-          input.apply(ParDo.of(new MutationDoFn(featureSetSpecs)));
-      bigtableMutations.apply(CloudBigtableIO.writeToTable(bigtableConfig));
+      PCollectionTuple bigtableMutations =
+          input.apply(
+              ParDo.of(new MutationDoFn(featureSetSpecs))
+                  .withOutputTags(successfulMutationsTag, TupleTagList.of(failedInsertsTupleTag))
+                  .withSideInputs(featureSetSpecs));
+      bigtableMutations
+          .get(successfulMutationsTag)
+          .apply(CloudBigtableIO.writeToTable(bigtableConfig));
       // Since BigQueryIO does not support emitting failure writes, we set failedElements to
       // an empty stream
       PCollection<FailedElement> failedElements =
@@ -157,7 +160,20 @@ public class BigtableCustomIO {
         for (String entityName : entityNames) {
           bigtableKeyBuilder.addEntities(entityFields.get(entityName));
         }
-        return bigtableKeyBuilder.build().toString();
+        BigtableKey btk = bigtableKeyBuilder.build();
+        StringBuilder bigtableKey = new StringBuilder();
+        for (Field field : btk.getEntitiesList()) {
+          bigtableKey.append(field.getValue().getStringVal());
+        }
+        bigtableKey.append("#");
+        for (Field field : btk.getEntitiesList()) {
+          bigtableKey.append(field.getName());
+          bigtableKey.append("#");
+        }
+        bigtableKey.append(featureSetSpec.getProject());
+        bigtableKey.append("#");
+        bigtableKey.append(featureSetSpec.getName());
+        return bigtableKey.toString();
       }
 
       @ProcessElement
@@ -170,8 +186,7 @@ public class BigtableCustomIO {
         try {
           FeatureSetSpec featureSetSpec = latestSpecs.get(featureRow.getFeatureSet());
           String key = getKey(featureRow, featureSetSpec);
-          System.out.printf("Setting the key: %s", key);
-          System.out.printf("value: %s", featureRow);
+          log.info("Setting the key: {}", key);
           long timestamp = System.currentTimeMillis();
           Put row = new Put(Bytes.toBytes(key));
           row.addColumn(
@@ -196,7 +211,7 @@ public class BigtableCustomIO {
                 timestamp,
                 field.getValue().toByteArray());
           }
-          context.output(successfulInsertsTag, featureRow);
+          context.output(successfulMutationsTag, row);
         } catch (Exception e) {
           featureRows.forEach(
               failedMutation -> {
