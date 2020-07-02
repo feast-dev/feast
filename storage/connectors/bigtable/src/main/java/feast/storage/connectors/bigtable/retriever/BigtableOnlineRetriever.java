@@ -16,15 +16,15 @@
  */
 package feast.storage.connectors.bigtable.retriever;
 
+import static com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.Filters.FILTERS;
+
 import com.google.bigtable.repackaged.com.google.api.gax.rpc.ServerStream;
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.BigtableDataClient;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.Filters;
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.Row;
-import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.RowCell;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.Descriptors;
+import com.google.common.collect.ImmutableList;
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
@@ -45,8 +45,6 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
 
   private final BigtableDataClient dataClient;
   private final String table;
-  private static final String METADATA_CF = "metadata";
-  private static final String FEATURES_CF = "features";
 
   private BigtableOnlineRetriever(BigtableDataClient dataClient, String table) {
     this.dataClient = dataClient;
@@ -54,7 +52,7 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
   }
 
   public static OnlineRetriever create(Map<String, String> config) {
-    BigtableDataClient dataClient = null;
+    BigtableDataClient dataClient;
     try {
       dataClient = BigtableDataClient.create(config.get("project_id"), config.get("instance_id"));
     } catch (NullPointerException e) {
@@ -85,23 +83,46 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
   @Override
   public List<Optional<FeatureRow>> getOnlineFeatures(
       List<EntityRow> entityRows, FeatureSetRequest featureSetRequest) {
-    List<Optional<FeatureRow>> featureRows = new ArrayList<>();
-    HashMap<FeatureSetRequest, List<String>> keyMap = new HashMap<>();
-    System.out.printf("Computing Bigtable Keys\n");
-    List<String> bigtableKeys = buildBigtableKeys(entityRows, featureSetRequest.getSpec());
-    keyMap.put(featureSetRequest, bigtableKeys);
+    FeatureSetSpec featureSetSpec = featureSetRequest.getSpec();
+    List<String> bigtableKeys = buildBigtableKeys(entityRows, featureSetSpec);
+    FeatureRowDecoder decoder =
+        new FeatureRowDecoder(generateFeatureSetStringRef(featureSetSpec), featureSetSpec);
+    List<Optional<FeatureRow>> featureRows;
+    ImmutableList<FeatureReference> featureRequestList =
+        featureSetRequest.getFeatureReferences().asList();
     try {
-      System.out.printf("Bigtable Keys %s\f", bigtableKeys.toString());
-      featureRows =
-          sendAndProcessMultiGet(
-              bigtableKeys,
-              featureSetRequest.getSpec(),
-              featureSetRequest.getFeatureReferences().asList());
+      featureRows = getFeaturesFromBigtable(bigtableKeys, featureRequestList, decoder);
     } catch (InvalidProtocolBufferException | ExecutionException e) {
       throw Status.INTERNAL
           .withDescription("Unable to parse protobuf while retrieving feature")
           .withCause(e)
           .asRuntimeException();
+    }
+    return featureRows;
+  }
+
+  private List<Optional<FeatureRow>> getFeaturesFromBigtable(
+      List<String> bigtableKeys,
+      ImmutableList<FeatureReference> featureReferences,
+      FeatureRowDecoder decoder)
+      throws InvalidProtocolBufferException, ExecutionException {
+    // pull feature row data bytes from redis using given redis keys
+    ServerStream<Row> featureRowsStream = sendMultiGet(bigtableKeys, featureReferences);
+    List<Optional<FeatureRow>> featureRows = new ArrayList<>();
+    for (Row featureRow : featureRowsStream) {
+      try {
+        FeatureRow decodedFeatureRow = decoder.decode(featureRow);
+        featureRows.add(Optional.of(decodedFeatureRow));
+      } catch (Exception e) {
+        // decoding feature row failed: data corruption could have occurred
+        e.printStackTrace();
+        throw Status.DATA_LOSS
+            .withCause(e.getCause())
+            .withDescription(
+                "Failed to decode FeatureRow from Row received from bigtable"
+                    + ": Possible data corruption")
+            .asRuntimeException();
+      }
     }
     return featureRows;
   }
@@ -149,9 +170,7 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
     BigtableKey.Builder builder = BigtableKey.newBuilder().setFeatureSet(featureSet);
     Map<String, Value> fieldsMap = entityRow.getFieldsMap();
     featureSetEntityNames.sort(String::compareTo);
-    for (int i = 0; i < featureSetEntityNames.size(); i++) {
-      String entityName = featureSetEntityNames.get(i);
-
+    for (String entityName : featureSetEntityNames) {
       if (!fieldsMap.containsKey(entityName)) {
         throw Status.INVALID_ARGUMENT
             .withDescription(
@@ -167,18 +186,6 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
     return builder.build();
   }
 
-  private List<Optional<FeatureRow>> sendAndProcessMultiGet(
-      List<String> bigtableKeys,
-      FeatureSetSpec featureSetSpec,
-      List<FeatureReference> featureReferences)
-      throws InvalidProtocolBufferException, ExecutionException {
-    List<ByteString> refs =
-        featureReferences.stream()
-            .map(featureReference -> ByteString.copyFromUtf8(featureReference.getName()))
-            .collect(Collectors.toList());
-    return sendMultiGet(bigtableKeys, featureSetSpec, featureReferences);
-  }
-
   /**
    * Send a list of get request as an mget
    *
@@ -186,74 +193,15 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
    * @return list of {@link FeatureRow} in primitive byte representation for each {@link
    *     BigtableKey}
    */
-  private List<Optional<FeatureRow>> sendMultiGet(
-      List<String> keys, FeatureSetSpec featureSetSpec, List<FeatureReference> featureReferences) {
-    HashMap<String, FeatureRow.Builder> resultMap = new HashMap<>();
-    HashMap<ByteString, Descriptors.Descriptor> featureMap = new HashMap<>();
-    List<FeatureSetProto.FeatureSpec> featuresList = featureSetSpec.getFeaturesList();
-    HashMap<String, Descriptors.Descriptor> allFeatureMap = new HashMap<>();
-    for (FeatureSetProto.FeatureSpec spec : featuresList) {
-      allFeatureMap.put(spec.getName(), spec.getDescriptorForType());
-    }
-    FeatureRow.Builder nullFeatureRowBuilder =
-        FeatureRow.newBuilder().setFeatureSet(generateFeatureSetStringRef(featureSetSpec));
-
-    for (FeatureReference featureReference : featureReferences) {
-      nullFeatureRowBuilder.addFields(Field.newBuilder().setName(featureReference.getName()));
-      featureMap.put(
-          ByteString.copyFromUtf8(featureReference.getName()),
-          allFeatureMap.get(featureReference.getName()));
-    }
-    for (String bigtableKey : keys) {
-      System.out.printf("Pushing the bigtable key %s\n", bigtableKey);
-      resultMap.put(bigtableKey, nullFeatureRowBuilder);
-    }
+  private ServerStream<Row> sendMultiGet(
+      List<String> keys, ImmutableList<FeatureReference> featureReferences) {
     try {
       Query multiGet = Query.create(table);
+      Filters.Filter filter = FILTERS.limit().cellsPerColumn(1);
       for (String key : keys) {
-        multiGet.rowKey(key);
+        multiGet.rowKey(key).filter(filter);
       }
-      ServerStream<Row> rows = dataClient.readRows(multiGet);
-      for (Row row : rows) {
-        List<RowCell> metadata = row.getCells(METADATA_CF);
-        System.out.printf("Got a result row with key %s\n", row.getKey().toString());
-        System.out.printf("OG key %s\n", row.getKey());
-        FeatureRow.Builder resultBuilder = resultMap.get(row.getKey().toString());
-        for (RowCell rowValues : row.getCells(FEATURES_CF)) {
-          try {
-            if (featureMap.containsKey(rowValues.getQualifier())) {
-              System.out.printf(
-                  "Adding the feature %s to %s\n", rowValues.getQualifier(), row.getKey());
-              resultBuilder.addFields(
-                  Field.newBuilder()
-                      .setNameBytes(ByteString.copyFrom(rowValues.getQualifier().toByteArray()))
-                      .setValue(
-                          Value.newBuilder()
-                              .setField(
-                                  featureMap
-                                      .get(rowValues.getQualifier())
-                                      .findFieldByName(rowValues.getQualifier().toStringUtf8()),
-                                  rowValues.getValue())
-                              .build())
-                      .build());
-            }
-          } catch (Exception e) {
-            System.out.printf(
-                "Failed to compute correctly for qualifier %s\n", rowValues.getQualifier());
-            System.out.printf("Feature map keys %s\n", featureMap.keySet());
-            throw Status.NOT_FOUND
-                .withCause(e)
-                .withDescription("There was a problem getting the right cells")
-                .asRuntimeException();
-          }
-        }
-      }
-      List<Optional<FeatureRow>> result = new ArrayList<>();
-      for (String key : resultMap.keySet()) {
-        FeatureRow finalRow = resultMap.get(key).build();
-        result.add(Optional.of(finalRow));
-      }
-      return result;
+      return dataClient.readRows(multiGet);
     } catch (Exception e) {
       throw Status.NOT_FOUND
           .withDescription("Unable to retrieve feature from Bigtable")
@@ -264,7 +212,6 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
 
   // TODO: Refactor this out to common package?
   private static String generateFeatureSetStringRef(FeatureSetSpec featureSetSpec) {
-    String ref = String.format("%s/%s", featureSetSpec.getProject(), featureSetSpec.getName());
-    return ref;
+    return String.format("%s/%s", featureSetSpec.getProject(), featureSetSpec.getName());
   }
 }

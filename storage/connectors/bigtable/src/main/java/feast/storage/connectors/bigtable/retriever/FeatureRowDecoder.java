@@ -16,17 +16,26 @@
  */
 package feast.storage.connectors.bigtable.retriever;
 
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.Row;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.RowCell;
+import com.google.protobuf.Descriptors;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Timestamp;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FieldProto.Field;
+import feast.proto.types.ValueProto;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class FeatureRowDecoder {
 
+  private static final String METADATA_CF = "metadata";
+  private static final String FEATURES_CF = "features";
   private final String featureSetRef;
   private final FeatureSetSpec spec;
 
@@ -36,38 +45,13 @@ public class FeatureRowDecoder {
   }
 
   /**
-   * A feature row is considered encoded if the feature set and field names are not set. This method
-   * is required for backward compatibility purposes, to allow Feast serving to continue serving non
-   * encoded Feature Row ingested by an older version of Feast.
-   *
-   * @param featureRow Feature row
-   * @return boolean
-   */
-  public Boolean isEncoded(FeatureRow featureRow) {
-    return featureRow.getFeatureSet().isEmpty()
-        && featureRow.getFieldsList().stream().allMatch(field -> field.getName().isEmpty());
-  }
-
-  /**
-   * Validates if an encoded feature row can be decoded without exception.
-   *
-   * @param featureRow Feature row
-   * @return boolean
-   */
-  public Boolean isEncodingValid(FeatureRow featureRow) {
-    return featureRow.getFieldsList().size() == spec.getFeaturesList().size();
-  }
-
-  /**
    * Decoding feature row by repopulating the field names based on the corresponding feature set
    * spec.
    *
-   * @param encodedFeatureRow Feature row
+   * @param bigtableFeatureRow Feature row
    * @return boolean
    */
-  public FeatureRow decode(FeatureRow encodedFeatureRow) {
-    final List<Field> fieldsWithoutName = encodedFeatureRow.getFieldsList();
-
+  public FeatureRow decode(Row bigtableFeatureRow) throws InvalidProtocolBufferException {
     List<String> featureNames =
         spec.getFeaturesList().stream()
             .sorted(Comparator.comparing(FeatureSpec::getName))
@@ -78,17 +62,29 @@ public class FeatureRowDecoder {
             .mapToObj(
                 featureNameIndex -> {
                   String featureName = featureNames.get(featureNameIndex);
-                  return fieldsWithoutName
-                      .get(featureNameIndex)
-                      .toBuilder()
-                      .setName(featureName)
-                      .build();
+                  List<RowCell> featureValue =
+                      bigtableFeatureRow.getCells(FEATURES_CF, featureName);
+                  Map<Descriptors.FieldDescriptor, Object> fieldDescriptors =
+                      spec.getFeatures(featureNameIndex).getAllFields();
+                  Field.Builder finalField = Field.newBuilder();
+                  try {
+                    finalField
+                        .setName(featureName)
+                        .setValue(
+                            ValueProto.Value.parseFrom(
+                                featureValue.get(0).getValue().toByteArray()));
+                  } catch (InvalidProtocolBufferException e) {
+                    e.printStackTrace();
+                  }
+                  Field f = finalField.build();
+                  return f;
                 })
             .collect(Collectors.toList());
-    return encodedFeatureRow
-        .toBuilder()
-        .clearFields()
+    byte[] timestamp =
+        bigtableFeatureRow.getCells(METADATA_CF, "event_timestamp").get(0).getValue().toByteArray();
+    return FeatureRow.newBuilder()
         .setFeatureSet(featureSetRef)
+        .setEventTimestamp(Timestamp.parseFrom(timestamp))
         .addAllFields(fields)
         .build();
   }
