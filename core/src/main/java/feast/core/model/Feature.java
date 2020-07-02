@@ -235,7 +235,7 @@ public class Feature {
   }
 
   /**
-   * Update the feature object with a valid feature spec. Only schema changes are allowed.
+   * Update the feature object with a valid feature spec.
    *
    * @param featureSpec {@link FeatureSpec} containing schema changes.
    */
@@ -252,6 +252,7 @@ public class Feature {
               "You are attempting to change the type of feature %s from %s to %s. This isn't allowed. Please create a new feature.",
               featureSpec.getName(), type, featureSpec.getValueType()));
     }
+    this.setLabels(TypeConversion.convertMapToJsonString(featureSpec.getLabelsMap()));
     updateSchema(featureSpec);
   }
 

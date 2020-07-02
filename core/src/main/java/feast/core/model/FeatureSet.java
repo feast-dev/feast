@@ -314,9 +314,10 @@ public class FeatureSet extends AbstractTimestampEntity {
               spec.getEntitiesList(), existingEntities));
     }
 
-    // 4. Update max age and source.
-    maxAgeSeconds = spec.getMaxAge().getSeconds();
-    source = Source.fromProto(spec.getSource());
+    // 2. Update max age, source and labels.
+    this.maxAgeSeconds = spec.getMaxAge().getSeconds();
+    this.source = Source.fromProto(spec.getSource());
+    this.setLabels(TypeConversion.convertMapToJsonString(spec.getLabelsMap()));
 
     Map<String, FeatureSpec> updatedFeatures =
         spec.getFeaturesList().stream().collect(Collectors.toMap(FeatureSpec::getName, fs -> fs));
