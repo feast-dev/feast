@@ -245,6 +245,10 @@ jobs:
         set -ex
         git fetch --unshallow
         git stash
+        export DATABRICKS_HOST="$TF_VAR_databricks_workspace_url"
+        export DATABRICKS_TOKEN=$(terraform output databricks_token)
+        set -x
+        pip install databricks-cli
         python setup.py bdist_egg
         dbfs mkdirs dbfs:/pypi/feast/
         dbfs cp dist/*.egg dbfs:/pypi/feast/
