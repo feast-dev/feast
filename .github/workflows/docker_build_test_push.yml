@@ -240,14 +240,15 @@ jobs:
     - name: Delete e2e test pod
       run: kubectl delete pod "$E2E_TEST_POD"
 
-#    - name: Upload Python egg to Databricks
-#      run: |
-#        set -ex
-#        git fetch --unshallow
-#        git stash
-#        python setup.py bdist_egg
-#        dbfs cp dist/*.egg dbfs:/
-#      working-directory: sdk/python
+    - name: Upload Python egg to Databricks
+      run: |
+        set -ex
+        git fetch --unshallow
+        git stash
+        python setup.py bdist_egg
+        dbfs mkdirs dbfs:/pypi/feast/
+        dbfs cp dist/*.egg dbfs:/pypi/feast/
+      working-directory: sdk/python
 
     - name: Upload package to Pypi
       run: |
@@ -256,7 +257,7 @@ jobs:
         git stash
         python setup.py sdist
         pip install twine
-        twine upload dist/* --repository-url https://${{ secrets.PYPI_REPO }} -u ${{ secrets.PYPI_USER }} -p ${{ secrets.PYPI_PWD }}
+        twine upload dist/*.tar.gz --repository-url https://${{ secrets.PYPI_REPO }} -u ${{ secrets.PYPI_USER }} -p ${{ secrets.PYPI_PWD }}
       working-directory: sdk/python
 
     - name: Output logs
