@@ -208,9 +208,15 @@ jobs:
       working-directory: infra/terraform/app
 
     - name: Compile Python protos
+      uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
       run: set -e make compile-protos-python
 
     - name: Upload Python egg to Databricks
+      uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
       run: |
         set -ex
         git fetch --unshallow
@@ -225,6 +231,9 @@ jobs:
       working-directory: sdk/python
 
     - name: Upload package to Pypi
+      uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
       run: |
         set -ex
         git fetch --unshallow
