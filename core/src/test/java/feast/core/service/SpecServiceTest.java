@@ -701,6 +701,42 @@ public class SpecServiceTest {
   }
 
   @Test
+  public void applyFeatureSetShouldUpdateLabels() throws InvalidProtocolBufferException {
+    FeatureSpec updatedFeature =
+        FeatureSpec.newBuilder().setName("feature").setValueType(Enum.STRING).build();
+
+    FeatureSet featureSet = featureSets.get(0);
+    FeatureSetSpec featureSetSpec = featureSet.toProto().getSpec().toBuilder().build();
+    Map<String, String> featureSetLabels =
+        new HashMap<>() {
+          {
+            put("fsLabel1", "fsValue1");
+          }
+        };
+
+    FeatureSetProto.FeatureSet incomingFeatureSet =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                featureSetSpec
+                    .toBuilder()
+                    .setFeatures(0, updatedFeature)
+                    .putAllLabels(featureSetLabels)
+                    .build())
+            .build();
+
+    ApplyFeatureSetResponse applyFeatureSetResponse =
+        specService.applyFeatureSet(incomingFeatureSet);
+    FeatureSetProto.FeatureSet updatedFs = applyFeatureSetResponse.getFeatureSet();
+    Map<String, String> updatedFsLabels = updatedFs.getSpec().getLabelsMap();
+
+    Map<String, String> updatedFeatureLabels = updatedFs.getSpec().getFeatures(0).getLabelsMap();
+    Map<String, String> emptyFeatureLabels = new HashMap<>();
+
+    assertEquals(featureSetLabels, updatedFsLabels);
+    assertEquals(emptyFeatureLabels, updatedFeatureLabels);
+  }
+
+  @Test
   public void applyFeatureSetShouldAcceptFeatureSetLabels() throws InvalidProtocolBufferException {
     Map<String, String> featureSetLabels =
         new HashMap<>() {

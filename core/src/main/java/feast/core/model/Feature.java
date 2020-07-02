@@ -235,11 +235,12 @@ public class Feature {
   }
 
   /**
-   * Update the feature object with a valid feature spec. Only schema changes are allowed.
+   * Update the feature object with a valid feature spec.
    *
    * @param featureSpec {@link FeatureSpec} containing schema changes.
    */
   public void updateFromProto(FeatureSpec featureSpec) {
+    this.setLabels(TypeConversion.convertMapToJsonString(featureSpec.getLabelsMap()));
     if (isArchived()) {
       throw new IllegalArgumentException(
           String.format(
