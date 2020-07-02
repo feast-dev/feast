@@ -20,6 +20,7 @@ import static feast.storage.common.testing.TestUtil.createRandomValue;
 import static feast.storage.common.testing.TestUtil.field;
 import static feast.storage.connectors.bigquery.writer.FeatureSetSpecToTableSchema.*;
 import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
@@ -464,7 +465,7 @@ public class BigQuerySinkTest {
     PCollection<FeatureRow> result =
         p.apply(Create.of(inputWithNulls))
             .apply("KV", ParDo.of(new ExtractKV()))
-            .apply(new CompactFeatureRows(1000))
+            .apply(new CompactFeatureRows(10000))
             .apply("Flat", ParDo.of(new FlatMap()));
 
     List<FeatureRow> inputWithoutNulls = dropNullFeature(input);
@@ -480,7 +481,15 @@ public class BigQuerySinkTest {
             .addAllFields(copyFieldsWithout(rowWithNull, "entity", "null_value"))
             .build());
 
-    PAssert.that(result).containsInAnyOrder(inputWithoutNulls);
+    PAssert.that(result)
+        .satisfies(
+            actual -> {
+              List<FeatureRow> actualSorted = sortFeaturesByName(Lists.newArrayList(actual));
+              List<FeatureRow> expectedSorted = sortFeaturesByName(inputWithoutNulls);
+
+              assertThat(actualSorted, containsInAnyOrder(expectedSorted.toArray()));
+              return null;
+            });
     p.run();
   }
 
@@ -490,10 +499,7 @@ public class BigQuerySinkTest {
             r ->
                 FeatureRow.newBuilder()
                     .setFeatureSet(r.getFeatureSet())
-                    .addAllFields(
-                        r.getFieldsList().stream()
-                            .filter(f -> !f.getName().equals("null_value"))
-                            .collect(Collectors.toList()))
+                    .addAllFields(copyFieldsWithout(r, "null_value"))
                     .build())
         .collect(Collectors.toList());
   }
@@ -502,6 +508,21 @@ public class BigQuerySinkTest {
     ArrayList<String> exclude = Lists.newArrayList(except);
     return row.getFieldsList().stream()
         .filter(f -> !exclude.contains(f.getName()))
+        .collect(Collectors.toList());
+  }
+
+  public static List<FeatureRow> sortFeaturesByName(List<FeatureRow> rows) {
+    return rows.stream()
+        .map(
+            row -> {
+              List<FieldProto.Field> fieldsList = Lists.newArrayList(row.getFieldsList());
+              fieldsList.sort(Comparator.comparing(FieldProto.Field::getName));
+
+              return FeatureRow.newBuilder()
+                  .setFeatureSet(row.getFeatureSet())
+                  .addAllFields(fieldsList)
+                  .build();
+            })
         .collect(Collectors.toList());
   }
 
