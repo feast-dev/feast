@@ -37,7 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AccessManagementService {
 
-  @Autowired private SecurityProperties securityProperties;
+  private SecurityProperties securityProperties;
 
   private AuthorizationProvider authorizationProvider;
   private ProjectRepository projectRepository;

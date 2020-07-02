@@ -38,7 +38,7 @@ import org.springframework.security.oauth2.server.resource.BearerTokenAuthentica
 @Configuration
 public class SecurityConfig {
 
-  private SecurityProperties securityProperties;
+  private final SecurityProperties securityProperties;
 
   public SecurityConfig(SecurityProperties securityProperties) {
     this.securityProperties = securityProperties;
