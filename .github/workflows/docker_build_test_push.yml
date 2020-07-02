@@ -207,6 +207,33 @@ jobs:
         databricks runs list --active-only | cut -f1 -d ' ' | xargs -tr -n1 databricks runs cancel --run-id
       working-directory: infra/terraform/app
 
+    - name: Compile Python protos
+      run: set -e make compile-protos-python
+
+    - name: Upload Python egg to Databricks
+      run: |
+        set -ex
+        git fetch --unshallow
+        git stash
+        export DATABRICKS_HOST="$TF_VAR_databricks_workspace_url"
+        export DATABRICKS_TOKEN=$(terraform output databricks_token)
+        set -x
+        pip install databricks-cli
+        python setup.py bdist_egg
+        dbfs mkdirs dbfs:/pypi/feast/
+        dbfs cp dist/*.egg dbfs:/pypi/feast/
+      working-directory: sdk/python
+
+    - name: Upload package to Pypi
+      run: |
+        set -ex
+        git fetch --unshallow
+        git stash
+        python setup.py sdist
+        pip install twine
+        twine upload dist/*.tar.gz --repository-url https://${{ secrets.PYPI_REPO }} -u ${{ secrets.PYPI_USER }} -p ${{ secrets.PYPI_PWD }}
+      working-directory: sdk/python
+
     - uses: azure/setup-kubectl@v1
 
     - name: Prepare e2e test pod and clear Redis data
@@ -240,32 +267,6 @@ jobs:
     - name: Delete e2e test pod
       run: kubectl delete pod "$E2E_TEST_POD"
 
-    - name: Compile Python protos
-      run: set -e make compile-protos-python
-
-    - name: Upload Python egg to Databricks
-      run: |
-        set -ex
-        git fetch --unshallow
-        git stash
-        export DATABRICKS_HOST="$TF_VAR_databricks_workspace_url"
-        export DATABRICKS_TOKEN=$(terraform output databricks_token)
-        set -x
-        pip install databricks-cli
-        python setup.py bdist_egg
-        dbfs mkdirs dbfs:/pypi/feast/
-        dbfs cp dist/*.egg dbfs:/pypi/feast/
-      working-directory: sdk/python
-
-    - name: Upload package to Pypi
-      run: |
-        set -ex
-        git fetch --unshallow
-        git stash
-        python setup.py sdist
-        pip install twine
-        twine upload dist/*.tar.gz --repository-url https://${{ secrets.PYPI_REPO }} -u ${{ secrets.PYPI_USER }} -p ${{ secrets.PYPI_PWD }}
-      working-directory: sdk/python
 
     - name: Output logs
       if: ${{ always() }}
