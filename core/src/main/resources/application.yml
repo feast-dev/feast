@@ -93,7 +93,11 @@ feast:
       enabled: false
       provider: none
       options:
-        basePath: http://localhost:3000
+        allow: http://localhost:3000
+        claim: canonicalId
+        writeRoles:
+          - role:feast:admin
+          - role:feast:{PROJECT}-member
 
 grpc:
   server:

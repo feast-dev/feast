@@ -33,6 +33,7 @@ import sh.ory.keto.model.OryAccessControlPolicyRole;
 public class KetoAuthorizationProvider implements AuthorizationProvider {
 
   private final EnginesApi apiInstance;
+  private final Map<String, Object> options;
 
   /**
    * Initializes the KetoAuthorizationProvider
@@ -40,13 +41,14 @@ public class KetoAuthorizationProvider implements AuthorizationProvider {
    * @param options String K/V pair of options to initialize the provider with. Expects at least a
    *     "basePath" for the provider URL
    */
-  public KetoAuthorizationProvider(Map<String, String> options) {
+  public KetoAuthorizationProvider(Map<String, Object> options) {
     if (options == null) {
       throw new IllegalArgumentException("Cannot pass empty or null options to KetoAuth");
     }
     ApiClient defaultClient = Configuration.getDefaultApiClient();
-    defaultClient.setBasePath(options.get("basePath"));
+    defaultClient.setBasePath((String)options.get("basePath"));
     this.apiInstance = new EnginesApi(defaultClient);
+    this.options = options;
   }
 
   /**
@@ -57,20 +59,26 @@ public class KetoAuthorizationProvider implements AuthorizationProvider {
    * @return AuthorizationResult result of authorization query
    */
   public AuthorizationResult checkAccess(String project, Authentication authentication) {
-    String email = getEmailFromAuth(authentication);
+    String email = getClaimFromAuth(authentication);
     try {
       // Get all roles from Keto
       List<OryAccessControlPolicyRole> roles =
           this.apiInstance.listOryAccessControlPolicyRoles("glob", 500L, 500L, email);
+      List<String> writeRoles = (List<String>) this.options.get("writeRoles");
 
-      // Loop through all roles the user has
-      for (OryAccessControlPolicyRole role : roles) {
-        // If the user has an admin or project specific role, return.
-        if (("roles:admin").equals(role.getId())
-            || (String.format("roles:feast:%s-member", project)).equals(role.getId())) {
-          return AuthorizationResult.success();
+      for (String writeRole : writeRoles) {
+        if (writeRole.contains("{PROJECT}")) {
+          writeRole = writeRole.replace("{PROJECT}", project);
+        }
+        // Loop through all roles the user has
+        for (OryAccessControlPolicyRole role : roles) {
+          // If the user has an admin or project specific role, return.
+          if ((writeRole).equals(role.getId())) {
+            return AuthorizationResult.success();
+          }
         }
       }
+
     } catch (ApiException e) {
       System.err.println("Exception when calling EnginesApi#doOryAccessControlPoliciesAllow");
       System.err.println("Status code: " + e.getCode());
@@ -89,18 +97,21 @@ public class KetoAuthorizationProvider implements AuthorizationProvider {
    * @param authentication Spring Security Authentication object, used to extract user details
    * @return String user email
    */
-  private String getEmailFromAuth(Authentication authentication) {
+  private String getClaimFromAuth(Authentication authentication) {
     Jwt principle = ((Jwt) authentication.getPrincipal());
     Map<String, Object> claims = principle.getClaims();
-    String email = (String) claims.get("email");
+    String claimID = (String) claims.get((String)this.options.get("claim"));
 
-    if (email.isEmpty()) {
-      throw new IllegalStateException("JWT does not have a valid email set.");
+    if ((this.options.get("claim")).equals("email")) {
+      if (claimID.isEmpty()) {
+        throw new IllegalStateException("JWT does not have a valid email set.");
+      }
+      boolean validEmail = (new EmailValidator()).isValid(claimID, null);
+      if (!validEmail) {
+        throw new IllegalStateException("JWT contains an invalid email address");
+      }
     }
-    boolean validEmail = (new EmailValidator()).isValid(email, null);
-    if (!validEmail) {
-      throw new IllegalStateException("JWT contains an invalid email address");
-    }
-    return email;
+
+    return claimID;
   }
 }
