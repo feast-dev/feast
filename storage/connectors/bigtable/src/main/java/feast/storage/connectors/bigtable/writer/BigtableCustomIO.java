@@ -97,7 +97,7 @@ public class BigtableCustomIO {
       bigtableMutations
           .get(successfulMutationsTag)
           .apply(CloudBigtableIO.writeToTable(bigtableConfig));
-      // Since BigQueryIO does not support emitting failure writes, we set failedElements to
+      // Since BigTableIO does not support emitting failure writes, we set failedElements to
       // an empty stream
       PCollection<FailedElement> failedElements =
           input
@@ -186,7 +186,6 @@ public class BigtableCustomIO {
         try {
           FeatureSetSpec featureSetSpec = latestSpecs.get(featureRow.getFeatureSet());
           String key = getKey(featureRow, featureSetSpec);
-          log.info("Setting the key: {}", key);
           long timestamp = System.currentTimeMillis();
           Put row = new Put(Bytes.toBytes(key));
           row.addColumn(
