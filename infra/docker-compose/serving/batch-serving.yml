@@ -16,8 +16,8 @@ feast:
         - name: "*"
           project: "*"
   job_store:
-    redis_host: localhost
-    redis_pass: ${REDIS_PASS}
+    redis_host: ${REDIS_HOST}
+    redis_pass: '${REDIS_PASS}'
     redis_port: 6379
   
 grpc:
