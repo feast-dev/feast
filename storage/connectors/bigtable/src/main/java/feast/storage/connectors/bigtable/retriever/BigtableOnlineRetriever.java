@@ -85,11 +85,12 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
       List<EntityRow> entityRows, FeatureSetRequest featureSetRequest) {
     FeatureSetSpec featureSetSpec = featureSetRequest.getSpec();
     List<String> bigtableKeys = buildBigtableKeys(entityRows, featureSetSpec);
-    FeatureRowDecoder decoder =
-        new FeatureRowDecoder(generateFeatureSetStringRef(featureSetSpec), featureSetSpec);
     List<Optional<FeatureRow>> featureRows;
     ImmutableList<FeatureReference> featureRequestList =
         featureSetRequest.getFeatureReferences().asList();
+    FeatureRowDecoder decoder =
+        new FeatureRowDecoder(
+            generateFeatureSetStringRef(featureSetSpec), featureSetSpec, featureRequestList);
     try {
       featureRows = getFeaturesFromBigtable(bigtableKeys, featureRequestList, decoder);
     } catch (InvalidProtocolBufferException | ExecutionException e) {
@@ -197,7 +198,16 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
       List<String> keys, ImmutableList<FeatureReference> featureReferences) {
     try {
       Query multiGet = Query.create(table);
+      StringBuilder regexString = new StringBuilder();
+      regexString.append("(?i)(\\W|^)(");
+      for (FeatureReference reference : featureReferences) {
+        regexString.append(reference.getName());
+        regexString.append("|");
+      }
+      regexString.append("event_timestamp");
+      regexString.append(")(\\W|$)");
       Filters.Filter filter = FILTERS.limit().cellsPerColumn(1);
+      Filters.Filter colFilter = FILTERS.qualifier().regex(regexString.toString());
       for (String key : keys) {
         multiGet.rowKey(key).filter(filter);
       }

@@ -18,17 +18,18 @@ package feast.storage.connectors.bigtable.retriever;
 
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.RowCell;
-import com.google.protobuf.Descriptors;
+import com.google.common.collect.ImmutableList;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
+import feast.proto.serving.ServingAPIProto;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -36,12 +37,21 @@ public class FeatureRowDecoder {
 
   private static final String METADATA_CF = "metadata";
   private static final String FEATURES_CF = "features";
+  private static final String TIMESTAMP_QUALIFIER = "event_timestamp";
   private final String featureSetRef;
   private final FeatureSetSpec spec;
+  private final Set<String> featureRequestNameSet;
 
-  public FeatureRowDecoder(String featureSetRef, FeatureSetSpec spec) {
+  public FeatureRowDecoder(
+      String featureSetRef,
+      FeatureSetSpec spec,
+      ImmutableList<ServingAPIProto.FeatureReference> featureRequestList) {
     this.featureSetRef = featureSetRef;
     this.spec = spec;
+    this.featureRequestNameSet =
+        featureRequestList.stream()
+            .map(ServingAPIProto.FeatureReference::getName)
+            .collect(Collectors.toSet());
   }
 
   /**
@@ -64,24 +74,29 @@ public class FeatureRowDecoder {
                   String featureName = featureNames.get(featureNameIndex);
                   List<RowCell> featureValue =
                       bigtableFeatureRow.getCells(FEATURES_CF, featureName);
-                  Map<Descriptors.FieldDescriptor, Object> fieldDescriptors =
-                      spec.getFeatures(featureNameIndex).getAllFields();
                   Field.Builder finalField = Field.newBuilder();
-                  try {
-                    finalField
-                        .setName(featureName)
-                        .setValue(
-                            ValueProto.Value.parseFrom(
-                                featureValue.get(0).getValue().toByteArray()));
-                  } catch (InvalidProtocolBufferException e) {
-                    e.printStackTrace();
+                  if (featureValue.isEmpty() || !featureRequestNameSet.contains(featureName)) {
+                    finalField.setName(featureName).build();
+                  } else {
+                    try {
+                      finalField
+                          .setName(featureName)
+                          .setValue(
+                              ValueProto.Value.parseFrom(
+                                  featureValue.get(0).getValue().toByteArray()));
+                    } catch (InvalidProtocolBufferException e) {
+                      e.printStackTrace();
+                    }
                   }
-                  Field f = finalField.build();
-                  return f;
+                  return finalField.build();
                 })
             .collect(Collectors.toList());
     byte[] timestamp =
-        bigtableFeatureRow.getCells(METADATA_CF, "event_timestamp").get(0).getValue().toByteArray();
+        bigtableFeatureRow
+            .getCells(METADATA_CF, TIMESTAMP_QUALIFIER)
+            .get(0)
+            .getValue()
+            .toByteArray();
     return FeatureRow.newBuilder()
         .setFeatureSet(featureSetRef)
         .setEventTimestamp(Timestamp.parseFrom(timestamp))
