@@ -198,16 +198,7 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
       List<String> keys, ImmutableList<FeatureReference> featureReferences) {
     try {
       Query multiGet = Query.create(table);
-      StringBuilder regexString = new StringBuilder();
-      regexString.append("(?i)(\\W|^)(");
-      for (FeatureReference reference : featureReferences) {
-        regexString.append(reference.getName());
-        regexString.append("|");
-      }
-      regexString.append("event_timestamp");
-      regexString.append(")(\\W|$)");
       Filters.Filter filter = FILTERS.limit().cellsPerColumn(1);
-      Filters.Filter colFilter = FILTERS.qualifier().regex(regexString.toString());
       for (String key : keys) {
         multiGet.rowKey(key).filter(filter);
       }
