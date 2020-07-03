@@ -55,7 +55,12 @@ public class RedisClusterOnlineRetriever implements OnlineRetriever {
             .map(
                 hostPort -> {
                   String[] hostPortSplit = hostPort.trim().split(":");
-                  return RedisURI.create(hostPortSplit[0], Integer.parseInt(hostPortSplit[1]));
+                  RedisURI redisuri =
+                      RedisURI.create(hostPortSplit[0], Integer.parseInt(hostPortSplit[1]));
+                  if (hostPortSplit.length == 3) {
+                    redisuri.setPassword(hostPortSplit[2]);
+                  }
+                  return redisuri;
                 })
             .collect(Collectors.toList());
 

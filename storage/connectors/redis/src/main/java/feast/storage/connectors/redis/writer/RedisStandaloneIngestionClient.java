@@ -32,6 +32,7 @@ import org.joda.time.Duration;
 
 public class RedisStandaloneIngestionClient implements RedisIngestionClient {
   private final String host;
+  private final String pass;
   private final int port;
   private final BackOffExecutor backOffExecutor;
   private RedisClient redisclient;
@@ -43,6 +44,7 @@ public class RedisStandaloneIngestionClient implements RedisIngestionClient {
   public RedisStandaloneIngestionClient(StoreProto.Store.RedisConfig redisConfig) {
     this.host = redisConfig.getHost();
     this.port = redisConfig.getPort();
+    this.pass = redisConfig.getPass();
     long backoffMs = redisConfig.getInitialBackoffMs() > 0 ? redisConfig.getInitialBackoffMs() : 1;
     this.backOffExecutor =
         new BackOffExecutor(redisConfig.getMaxRetries(), Duration.millis(backoffMs));
@@ -50,8 +52,9 @@ public class RedisStandaloneIngestionClient implements RedisIngestionClient {
 
   @Override
   public void setup() {
-    this.redisclient =
-        RedisClient.create(new RedisURI(host, port, java.time.Duration.ofMillis(DEFAULT_TIMEOUT)));
+    RedisURI redisuri = new RedisURI(host, port, java.time.Duration.ofMillis(DEFAULT_TIMEOUT));
+    redisuri.setPassword(pass);
+    this.redisclient = RedisClient.create(redisuri);
   }
 
   @Override

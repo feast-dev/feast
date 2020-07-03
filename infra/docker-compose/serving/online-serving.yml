@@ -5,7 +5,8 @@ feast:
     - name: online
       type: REDIS
       config:
-        host: redis
+        host: localhost
+        pass: ${REDIS_PASS}
         port: 6379
       subscriptions:
         - name: "*"

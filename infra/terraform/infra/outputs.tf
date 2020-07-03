@@ -33,6 +33,11 @@ output "redis_hostname" {
 output "redis_port" {
   value = azurerm_redis_cache.redis_cluster.port
 }
+output "redis_pass" {
+  sensitive = true
+  value = azurerm_redis_cache.redis_cluster.primary_access_key
+}
+
 output "databricks_workspace_url" {
   value = "https://${azurerm_databricks_workspace.databricks.workspace_url}"
 }

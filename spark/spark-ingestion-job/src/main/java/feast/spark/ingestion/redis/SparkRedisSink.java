@@ -68,12 +68,14 @@ public class SparkRedisSink implements SparkSink {
     JavaSparkContext sc = new JavaSparkContext(spark.sparkContext());
     Broadcast<Write> broadcastedWriter = sc.broadcast(write);
 
-    return new RedisWriter(
-        broadcastedWriter,
+    RedisURI redisuri =
         new RedisURI(
             redisConfig.getHost(),
             redisConfig.getPort(),
-            java.time.Duration.ofMillis(DEFAULT_TIMEOUT)));
+            java.time.Duration.ofMillis(DEFAULT_TIMEOUT));
+    redisuri.setPassword(redisConfig.getPass());
+
+    return new RedisWriter(broadcastedWriter, redisuri);
   }
 
   @SuppressWarnings("serial")

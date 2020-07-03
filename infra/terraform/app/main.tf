@@ -245,6 +245,7 @@ feast-online-serving:
         config:
           host: ${var.redis_hostname}
           port: ${var.redis_port}
+          pass: ${var.redis_pass}
         subscriptions:
         - name: "*"
           project: "*"
@@ -277,6 +278,7 @@ feast-batch-serving:
       job_store:
         redis_host: ${var.redis_hostname}
         redis_port: ${var.redis_port}
+        redis_pass: ${var.redis_pass}
 
 feast-core:
   enabled: false
