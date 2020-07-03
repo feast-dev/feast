@@ -158,17 +158,7 @@ jobs:
         echo "::set-env name=KUBECONFIG::$PWD/kube_config"
 
     - name: Install Terraform databricks provider
-      # TODO: should simply run this command:
-      # curl https://raw.githubusercontent.com/databrickslabs/databricks-terraform/master/godownloader-databricks-provider.sh | bash -xs -- -b $HOME/.terraform.d/plugins
-      # but blocked by issues:
-      # - https://github.com/databrickslabs/terraform-provider-databricks/issues/128
-      # - https://github.com/databrickslabs/terraform-provider-databricks/issues/123
-      run: |
-        PLUGINS=$HOME/.terraform.d/plugins
-        test -s $PLUGINS/terraform-provider-databricks_v0.2.0 && exit
-        wget -O databricks-provider.tgz https://github.com/databrickslabs/terraform-provider-databricks/releases/download/v0.2.0/databricks-terraform_0.2.0_Linux_64-bit.tar.gz
-        mkdir -p $PLUGINS
-        tar -C $PLUGINS -zxvf databricks-provider.tgz terraform-provider-databricks_v0.2.0
+      run: curl https://raw.githubusercontent.com/databrickslabs/databricks-terraform/master/godownloader-databricks-provider.sh | bash -xs -- -b $HOME/.terraform.d/plugins
 
     - name: Set Terraform variables app
       run: |
