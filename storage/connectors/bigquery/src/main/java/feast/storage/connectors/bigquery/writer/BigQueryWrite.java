@@ -218,14 +218,14 @@ public class BigQueryWrite extends PTransform<PCollection<FeatureRow>, WriteResu
               @ProcessElement
               public void process(ProcessContext c) {
                 CoGbkResult result = c.element().getValue();
+                boolean ready = result.getAll(successTag).iterator().hasNext();
+                if (!ready) {
+                  return;
+                }
+
                 result
-                    .getAll(successTag)
-                    .forEach(
-                        success ->
-                            result
-                                .getAll(inputTag)
-                                .forEach(
-                                    rows -> rows.getFeatureRows().forEachRemaining(c::output)));
+                    .getAll(inputTag)
+                    .forEach(rows -> rows.getFeatureRows().forEachRemaining(c::output));
               }
             }));
   }
