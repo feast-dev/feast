@@ -17,12 +17,7 @@ ACR_REPOSITORY=$1
 # Tag of the Jupyter image; example, v56b9e30332cb08bde55f1d5f966d5d73515d711e
 ACR_IMAGE_TAG=$2
 
-CRON_JOB_ID=$3
-
-if [ -z "$CRON_JOB_ID" ]
-then
-  CRON_JOB_ID=$(date +%s)
-fi
+CRON_JOB_ID=${3-$(date +%s)}
 
 TEMPLATE="apiVersion: batch/v1beta1
 kind: CronJob
