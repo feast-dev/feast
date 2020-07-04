@@ -1,6 +1,6 @@
 flake8
 black
-isort
+isort>=5
 grpcio-tools
 mypy-protobuf
 pytest

@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import pathlib
 from collections import OrderedDict
 from concurrent import futures
@@ -23,10 +22,9 @@ import pandas as pd
 import pytest
 import pytz
 from google.protobuf import json_format
-from tensorflow_metadata.proto.v0 import schema_pb2
 
-import feast.core.CoreService_pb2_grpc as Core
 from feast.client import Client
+from feast.core import CoreService_pb2_grpc as Core
 from feast.entity import Entity
 from feast.feature_set import (
     Feature,
@@ -36,6 +34,7 @@ from feast.feature_set import (
 )
 from feast.value_type import ValueType
 from feast_core_server import CoreServicer
+from tensorflow_metadata.proto.v0 import schema_pb2
 
 CORE_URL = "core.feast.local"
 SERVING_URL = "serving.feast.local"

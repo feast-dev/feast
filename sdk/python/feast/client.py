@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
 import datetime
 import logging
 import multiprocessing
@@ -29,11 +27,9 @@ from typing import Any, Dict, List, Optional, Tuple, Union, cast
 import grpc
 import pandas as pd
 import pyarrow as pa
-import pyarrow.parquet as pq
 from google.protobuf.timestamp_pb2 import Timestamp
-from tensorflow_metadata.proto.v0 import statistics_pb2
+from pyarrow import parquet as pq
 
-import feast.grpc.auth as feast_auth
 from feast.config import Config
 from feast.constants import (
     CONFIG_CORE_ENABLE_AUTH_KEY,
@@ -72,6 +68,7 @@ from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
 from feast.feature import Feature, FeatureRef
 from feast.feature_set import Entity, FeatureSet, FeatureSetRef
+from feast.grpc import auth as feast_auth
 from feast.grpc.grpc import create_grpc_channel
 from feast.job import IngestJob, RetrievalJob
 from feast.loaders.abstract_producer import get_producer
@@ -91,6 +88,7 @@ from feast.serving.ServingService_pb2 import (
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.type_map import _python_value_to_proto_value, python_type_to_feast_value_type
 from feast.types.Value_pb2 import Value as Value
+from tensorflow_metadata.proto.v0 import statistics_pb2
 
 _logger = logging.getLogger(__name__)
 

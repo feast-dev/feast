@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 from http import HTTPStatus
 
 import grpc
@@ -108,6 +107,7 @@ class OAuthMetadataPlugin(grpc.AuthMetadataPlugin):
             return
 
         import json
+
         import requests
 
         headers_token = {"content-type": "application/json"}
@@ -190,8 +190,9 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
             return
 
         # Try to find ID Token from Gcloud SDK
-        from google.auth import jwt
         import subprocess
+
+        from google.auth import jwt
 
         try:
             cli_output = subprocess.run(

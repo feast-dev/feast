@@ -5,10 +5,10 @@ from typing import Dict
 
 import grpc
 
-import feast.serving.ServingService_pb2_grpc as Serving
 from feast.core import FeatureSet_pb2 as FeatureSetProto
 from feast.core.CoreService_pb2 import ListFeatureSetsResponse
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
+from feast.serving import ServingService_pb2_grpc as Serving
 from feast.serving.ServingService_pb2 import GetFeastServingInfoResponse
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24

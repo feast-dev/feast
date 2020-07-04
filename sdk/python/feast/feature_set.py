@@ -25,7 +25,6 @@ from google.protobuf.message import Message
 from google.protobuf.timestamp_pb2 import Timestamp
 from pandas.api.types import is_datetime64_ns_dtype
 from pyarrow.lib import TimestampType
-from tensorflow_metadata.proto.v0 import schema_pb2
 
 from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
 from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
@@ -42,6 +41,7 @@ from feast.type_map import (
     pa_to_feast_value_type,
     python_type_to_feast_value_type,
 )
+from tensorflow_metadata.proto.v0 import schema_pb2
 
 
 class FeatureSet:

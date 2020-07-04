@@ -30,7 +30,7 @@ google
 pandavro==1.5.*
 kafka-python==1.*
 tabulate==0.8.*
-isort
+isort>=5
 mypy
 mypy-protobuf
 pre-commit

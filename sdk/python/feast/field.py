@@ -14,10 +14,9 @@
 from collections import OrderedDict
 from typing import MutableMapping, Optional, Union
 
-from tensorflow_metadata.proto.v0 import schema_pb2
-
 from feast.core.FeatureSet_pb2 import FeatureSpec
 from feast.value_type import ValueType
+from tensorflow_metadata.proto.v0 import schema_pb2
 
 
 class Field:

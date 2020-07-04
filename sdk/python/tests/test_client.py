@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
 import pkgutil
 import tempfile
 from concurrent import futures
@@ -28,9 +26,8 @@ from google.protobuf.duration_pb2 import Duration
 from mock import MagicMock, patch
 from pytz import timezone
 
-import feast.core.CoreService_pb2_grpc as Core
-import feast.serving.ServingService_pb2_grpc as Serving
 from feast.client import Client
+from feast.core import CoreService_pb2_grpc as Core
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionResponse,
     GetFeatureSetResponse,
@@ -52,6 +49,7 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_set import FeatureSet, FeatureSetRef
 from feast.job import IngestJob
+from feast.serving import ServingService_pb2_grpc as Serving
 from feast.serving.ServingService_pb2 import DataFormat, FeastServingType
 from feast.serving.ServingService_pb2 import FeatureReference as FeatureRefProto
 from feast.serving.ServingService_pb2 import (

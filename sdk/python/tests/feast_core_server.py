@@ -5,7 +5,7 @@ from concurrent import futures
 import grpc
 from google.protobuf.timestamp_pb2 import Timestamp
 
-import feast.core.CoreService_pb2_grpc as Core
+from feast.core import CoreService_pb2_grpc as Core
 from feast.core.CoreService_pb2 import (
     ApplyFeatureSetRequest,
     ApplyFeatureSetResponse,

@@ -4,7 +4,7 @@ from multiprocessing import Pool
 from typing import Iterable, List
 
 import pandas as pd
-import pyarrow.parquet as pq
+from pyarrow import parquet as pq
 
 from feast.constants import DATETIME_COLUMN
 from feast.feature_set import FeatureSet

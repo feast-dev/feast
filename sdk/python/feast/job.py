@@ -4,7 +4,6 @@ from urllib.parse import urlparse
 import fastavro
 import pandas as pd
 from google.protobuf.json_format import MessageToJson
-from tensorflow_metadata.proto.v0 import statistics_pb2
 
 from feast.constants import CONFIG_TIMEOUT_KEY
 from feast.constants import FEAST_DEFAULT_OPTIONS as defaults
@@ -24,6 +23,7 @@ from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.source import Source
 from feast.staging.storage_client import get_staging_client
 from feast.wait import wait_retry_backoff
+from tensorflow_metadata.proto.v0 import statistics_pb2
 
 # Maximum no of seconds to wait until the retrieval jobs status is DONE in Feast
 # Currently set to the maximum query execution time limit in BigQuery

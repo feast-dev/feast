@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 import tempfile
 
 import boto3
@@ -25,8 +24,8 @@ from moto import mock_s3
 from pandas.testing import assert_frame_equal
 from pytest import fixture, raises
 
-import feast.serving.ServingService_pb2_grpc as Serving
 from feast.job import JobProto, RetrievalJob
+from feast.serving import ServingService_pb2_grpc as Serving
 from feast.serving.ServingService_pb2 import DataFormat, GetJobResponse
 from feast.serving.ServingService_pb2 import Job as BatchRetrievalJob
 from feast.serving.ServingService_pb2 import JobStatus, JobType
