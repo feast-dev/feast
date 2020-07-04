@@ -14,21 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.config;
+package feast.auth.config;
 
-import feast.core.auth.authentication.DefaultJwtAuthenticationProvider;
-import feast.core.auth.authorization.AuthorizationProvider;
-import feast.core.auth.authorization.Keto.KetoAuthorizationProvider;
-import feast.core.config.FeastProperties.SecurityProperties;
-import feast.proto.core.CoreServiceGrpc;
+import feast.auth.authentication.DefaultJwtAuthenticationProvider;
+import feast.auth.authorization.AuthorizationProvider;
+import feast.auth.authorization.Keto.KetoAuthorizationProvider;
 import java.util.ArrayList;
 import java.util.List;
 import net.devh.boot.grpc.server.security.authentication.BearerAuthenticationReader;
 import net.devh.boot.grpc.server.security.authentication.GrpcAuthenticationReader;
-import net.devh.boot.grpc.server.security.check.AccessPredicate;
 import net.devh.boot.grpc.server.security.check.AccessPredicateVoter;
-import net.devh.boot.grpc.server.security.check.GrpcSecurityMetadataSource;
-import net.devh.boot.grpc.server.security.check.ManualGrpcSecurityMetadataSource;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -45,8 +40,8 @@ public class SecurityConfig {
 
   private final SecurityProperties securityProperties;
 
-  public SecurityConfig(FeastProperties feastProperties) {
-    this.securityProperties = feastProperties.getSecurity();
+  public SecurityConfig(SecurityProperties securityProperties) {
+    this.securityProperties = securityProperties;
   }
 
   /**
@@ -84,26 +79,6 @@ public class SecurityConfig {
   @ConditionalOnProperty(prefix = "feast.security.authentication", name = "enabled")
   GrpcAuthenticationReader authenticationReader() {
     return new BearerAuthenticationReader(BearerTokenAuthenticationToken::new);
-  }
-
-  /**
-   * Creates a SecurityMetadataSource when authentication is enabled. This allows for the
-   * configuration of endpoint level security rules.
-   *
-   * @return GrpcSecurityMetadataSource
-   */
-  @Bean
-  @ConditionalOnProperty(prefix = "feast.security.authentication", name = "enabled")
-  GrpcSecurityMetadataSource grpcSecurityMetadataSource() {
-    final ManualGrpcSecurityMetadataSource source = new ManualGrpcSecurityMetadataSource();
-
-    // Authentication is enabled for all gRPC endpoints
-    source.setDefault(AccessPredicate.authenticated());
-
-    // The following endpoints allow unauthenticated access
-    source.set(CoreServiceGrpc.getGetFeastCoreVersionMethod(), AccessPredicate.permitAll());
-
-    return source;
   }
 
   /**

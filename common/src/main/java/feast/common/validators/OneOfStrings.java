@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.validators;
+package feast.common.validators;
 
 import java.lang.annotation.*;
 import javax.validation.Constraint;

@@ -18,7 +18,7 @@ package feast.core.auth;
 
 import static org.junit.Assert.assertNotNull;
 
-import feast.core.config.SecurityConfig;
+import feast.auth.config.SecurityConfig;
 import javax.inject.Inject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

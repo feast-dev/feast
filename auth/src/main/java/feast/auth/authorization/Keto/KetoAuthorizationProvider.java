@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.auth.authorization.Keto;
+package feast.auth.authorization.Keto;
 
-import feast.core.auth.authorization.AuthorizationProvider;
-import feast.core.auth.authorization.AuthorizationResult;
+import feast.auth.authorization.AuthorizationProvider;
+import feast.auth.authorization.AuthorizationResult;
 import java.util.List;
 import java.util.Map;
 import org.hibernate.validator.internal.constraintvalidators.bv.EmailValidator;

@@ -16,8 +16,9 @@
  */
 package feast.core.config;
 
+import feast.auth.config.SecurityProperties;
+import feast.common.validators.OneOfStrings;
 import feast.core.config.FeastProperties.StreamProperties.FeatureStreamOptions;
-import feast.core.validators.OneOfStrings;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -39,11 +40,12 @@ import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.info.BuildProperties;
-import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 @Getter
 @Setter
-@Component
+@Configuration
 @ConfigurationProperties(prefix = "feast", ignoreInvalidFields = true)
 public class FeastProperties {
 
@@ -71,6 +73,11 @@ public class FeastProperties {
   private StreamProperties stream;
 
   private SecurityProperties security;
+
+  @Bean
+  SecurityProperties securityProperties() {
+    return this.getSecurity();
+  }
 
   /** Feast job properties. These properties are used for ingestion jobs. */
   @Getter
@@ -270,44 +277,6 @@ public class FeastProperties {
                 + ". Make sure it is a valid IP address or DNS hostname e.g. localhost or 10.128.10.40. Error detail: "
                 + e.getMessage());
       }
-    }
-  }
-
-  @Getter
-  @Setter
-  public static class SecurityProperties {
-
-    private AuthenticationProperties authentication;
-    private AuthorizationProperties authorization;
-
-    @Getter
-    @Setter
-    public static class AuthenticationProperties {
-
-      // Enable authentication
-      private boolean enabled;
-
-      // Named authentication provider to use
-      @OneOfStrings({"jwt"})
-      private String provider;
-
-      // K/V options to initialize the provider with
-      private Map<String, String> options;
-    }
-
-    @Getter
-    @Setter
-    public static class AuthorizationProperties {
-
-      // Enable authorization. Authentication must be enabled if authorization is enabled.
-      private boolean enabled;
-
-      // Named authorization provider to use.
-      @OneOfStrings({"none", "keto"})
-      private String provider;
-
-      // K/V options to initialize the provider with
-      private Map<String, String> options;
     }
   }
 }

@@ -16,10 +16,10 @@
  */
 package feast.core.service;
 
-import feast.core.auth.authorization.AuthorizationProvider;
-import feast.core.auth.authorization.AuthorizationResult;
+import feast.auth.authorization.AuthorizationProvider;
+import feast.auth.authorization.AuthorizationResult;
+import feast.auth.config.SecurityProperties;
 import feast.core.config.FeastProperties;
-import feast.core.config.FeastProperties.SecurityProperties;
 import feast.core.dao.ProjectRepository;
 import feast.core.model.Project;
 import java.util.List;
@@ -38,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AccessManagementService {
 
   private SecurityProperties securityProperties;
+
   private AuthorizationProvider authorizationProvider;
   private ProjectRepository projectRepository;
 
