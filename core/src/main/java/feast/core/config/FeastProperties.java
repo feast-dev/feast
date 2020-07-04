@@ -76,7 +76,7 @@ public class FeastProperties {
 
   @Bean
   SecurityProperties securityProperties() {
-    return this.security;
+    return this.getSecurity();
   }
 
   /** Feast job properties. These properties are used for ingestion jobs. */
