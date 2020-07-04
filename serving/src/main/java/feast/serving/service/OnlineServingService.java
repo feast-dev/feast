@@ -17,6 +17,7 @@
 package feast.serving.service;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Streams;
 import com.google.protobuf.Duration;
 import feast.common.models.Feature;
 import feast.common.models.FeatureSet;
@@ -36,7 +37,6 @@ import io.opentracing.Scope;
 import io.opentracing.Tracer;
 import java.util.*;
 import java.util.stream.Collectors;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.common.collect.Streams;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 
