@@ -134,7 +134,7 @@
       <optional>true</optional>
     </dependency>
 
-    <!--compile "org.springframework.boot:spring-boot-starter-web:${springBootVersion}"-->
+    <!--compile "org.springframework.boot:spring-boot-starter-web:${spring.boot.version}"-->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
@@ -161,23 +161,23 @@
       <artifactId>grpc-spring-boot-starter</artifactId>
     </dependency>
 
-    <!--compile "org.springframework.boot:spring-boot-starter-actuator:${springBootVersion}"-->
+    <!--compile "org.springframework.boot:spring-boot-starter-actuator:${spring.boot.version}"-->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
 
-    <!--compile "io.grpc:grpc-services:${grpcVersion}"-->
+    <!--compile "io.grpc:grpc-services:${grpc.version}"-->
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-services</artifactId>
     </dependency>
-    <!--compile "io.grpc:grpc-stub:${grpcVersion}"-->
+    <!--compile "io.grpc:grpc-stub:${grpc.version}"-->
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-stub</artifactId>
     </dependency>
-    <!--compile "com.google.protobuf:protobuf-java-util:${protobufVersion}"-->
+    <!--compile "com.google.protobuf:protobuf-java-util:${protobuf.version}"-->
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java-util</artifactId>
@@ -249,7 +249,7 @@
     </dependency>
 
 
-    <!--testCompile "io.grpc:grpc-testing:${grpcVersion}"-->
+    <!--testCompile "io.grpc:grpc-testing:${grpc.version}"-->
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-testing</artifactId>
