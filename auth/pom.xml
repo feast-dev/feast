@@ -9,7 +9,7 @@
 	</parent>
 	<artifactId>feast-auth</artifactId>
 
-	<name>Feast Authenication and Authorization</name>
+	<name>Feast Authentication and Authorization</name>
 
 	<dependencies>
 		<dependency>
