@@ -66,6 +66,10 @@ variable "redis_port" {
   description = "The port of the Azure Redis Cache instance."
   type        = number
 }
+variable "redis_pass" {
+  description = "The password of the Azure Redis Cache instance."
+  type        = string
+}
 variable "spark_job_jars" {
   description = "The local directory from which Spark job JARs are to be uploaded to DBFS."
   type        = string
