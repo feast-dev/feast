@@ -11,13 +11,13 @@ data "azurerm_postgresql_server" "postgres" {
 locals {
   databricks_secret_scope        = "feast"
   databricks_secret_datalake_key = "azure_account_key"
-  pypi_password_secret_key = "pypi_password"
-  pypi_username_secret_key = "pypi_username"
+  pypi_password_secret_key       = "pypi_password"
+  pypi_username_secret_key       = "pypi_username"
   databricks_dbfs_jar_folder     = "dbfs:/feast/run${var.run_number}"
-  databricks_spark_version = "6.6.x-scala2.11"
-  databricks_vm_type = "Standard_D3_v2"
-  databricks_instance_pool_name = "Feast"
-  databricks_pypi_init_script = <<EOT
+  databricks_spark_version       = "6.6.x-scala2.11"
+  databricks_vm_type             = "Standard_D3_v2"
+  databricks_instance_pool_name  = "Feast"
+  databricks_pypi_init_script    = <<EOT
       #!/usr/bin/env bash
 
       mkdir /.config && mkdir /.config/pip
@@ -40,10 +40,10 @@ resource "databricks_token" "feast" {
 }
 
 resource "databricks_instance_pool" "feast" {
-  instance_pool_name = local.databricks_instance_pool_name
-  min_idle_instances = 2
-  max_capacity = 6
-  node_type_id = local.databricks_vm_type 
+  instance_pool_name                    = local.databricks_instance_pool_name
+  min_idle_instances                    = 2
+  max_capacity                          = 6
+  node_type_id                          = local.databricks_vm_type
   idle_instance_autotermination_minutes = 60
 }
 
@@ -322,22 +322,28 @@ resource "databricks_secret" "pypi_password" {
 }
 
 resource "databricks_dbfs_file" "init_pypi_script" {
-  content = filebase64("../../scripts/init_pypi.sh")
-  path = "/init_scripts/init_pypi.sh"
-  overwrite = true
-  mkdirs = true
+  content              = filebase64("../../scripts/init_pypi.sh")
+  path                 = "/init_scripts/init_pypi.sh"
+  overwrite            = true
+  mkdirs               = true
   validate_remote_file = true
 }
 
 resource "databricks_cluster" "feast-cluster" {
-  num_workers = "2"
-  cluster_name = "sri-test"
-  spark_version = "6.4.x-scala2.11"
-  node_type_id = "i3.2xlarge"
+  num_workers             = "2"
+  cluster_name            = "feast-dev-test"
+  spark_version           = "6.5.x-scala2.11"
+  node_type_id            = "Standard_DS3_v2"
   autotermination_minutes = 30
-  aws_attributes {
-    availability = "ON_DEMAND"
-    zone_id = "us-east-1"
-    instance_profile_arn = "arn:aws:iam::999999999999:instance-profile/s3-access"
+  init_scripts {
+    dbfs {
+      destination = databricks_dbfs_file.init_pypi_script.path
+    }
   }
+  spark_env_vars = {
+     "PYPI_PWD"="{{secrets/feast/pypi_password}}"
+     "PYPI_USER"="{{secrets/feast/pypi_user}}"
+     "PYSPARK_PYTHON"="/databricks/python3/bin/python3"
+     "PIP_CONFIG_FILE"="/.config/pip/pip.conf"
+   }
 }
