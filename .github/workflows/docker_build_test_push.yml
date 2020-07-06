@@ -12,7 +12,7 @@ on:
 
 env:
   # - change per env
-  TF_VAR_project_name: isacabefffeastcd2
+  TF_VAR_project_name: isacabefffeastcd
   # - optionally change per env
   TERRAFORM_BACKEND_STORAGE_ACCOUNT_RESOURCE_GROUP_NAME: isacabefffeasttf
   # - change per env
