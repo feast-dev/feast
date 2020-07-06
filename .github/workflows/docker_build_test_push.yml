@@ -140,7 +140,7 @@ jobs:
     # databricks provider DBFS bug)
     - uses: actions/setup-python@v2
       with:
-        python-version: '3.7'
+        python-version: '3.6'
 
     - name: Upload Spark JARs
       run: |
