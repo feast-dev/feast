@@ -337,7 +337,7 @@ resource "databricks_cluster" "feast-cluster" {
   autotermination_minutes = 30
   init_scripts {
     dbfs {
-      destination = databricks_dbfs_file.init_pypi_script.path
+      destination = "dbfs:/${databricks_dbfs_file.init_pypi_script.path}"
     }
   }
   spark_env_vars = {
