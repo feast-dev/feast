@@ -11,6 +11,8 @@ data "azurerm_postgresql_server" "postgres" {
 locals {
   databricks_secret_scope        = "feast"
   databricks_secret_datalake_key = "azure_account_key"
+  pypi_password_secret_key = "pypi_password"
+  pypi_username_secret_key = "pypi_username"
   databricks_dbfs_jar_folder     = "dbfs:/feast/run${var.run_number}"
   databricks_spark_version = "6.6.x-scala2.11"
   databricks_vm_type = "Standard_D3_v2"
@@ -307,14 +309,26 @@ EOT
   ]
 }
 
+resource "databricks_secret" "pypi_username" {
+  key          = local.pypi_username_secret_key
+  string_value = var.pypi_user
+  scope        = databricks_secret_scope.feast.name
+}
+
+resource "databricks_secret" "pypi_password" {
+  key          = local.pypi_password_secret_key
+  string_value = var.pypi_password
+  scope        = databricks_secret_scope.feast.name
+}
+
 resource "local_file" "pypi_init_script_file" {
     content     = local.databricks_pypi_init_script
-    filename = "init_pypi.sh"
+    filename = "./init_pypi.sh"
 }
-resource "databricks_dbfs_file" "init_pypi_script" {
-  content = filebase64(local_file.pypi_init_script_file.filename)
-  path = "/init_scripts/init_pypi.sh"
-  overwrite = true
-  mkdirs = true
-  validate_remote_file = true
-}
+//resource "databricks_dbfs_file" "init_pypi_script" {
+//  content = filebase64(local_file.pypi_init_script_file.filename)
+//  path = "/init_scripts/init_pypi.sh"
+//  overwrite = true
+//  mkdirs = true
+//  validate_remote_file = true
+//}
