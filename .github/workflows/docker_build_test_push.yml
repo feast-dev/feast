@@ -140,7 +140,7 @@ jobs:
     # databricks provider DBFS bug)
     - uses: actions/setup-python@v2
       with:
-        python-version: '3.6'
+        python-version: '2.x'
 
     - name: Upload Spark JARs
       run: |
@@ -210,24 +210,24 @@ jobs:
     - name: Compile Python protos
       run: set -e make compile-protos-python
 
-#    - uses: actions/setup-python@v2
-#      with:
-#        python-version: '3.7'
-
-    - name: Upload Python egg to Databricks
-      run: |
-        set -ex
-        git fetch --unshallow
-        git stash
-        export DATABRICKS_HOST="$TF_VAR_databricks_workspace_url"
-        export DATABRICKS_TOKEN=$(terraform output databricks_token)
-        set -x
-        pip install databricks-cli
-        python setup.py bdist_egg
-        echo -e "${DATABRICKS_HOST}\n${DATABRICKS_TOKEN}\n" | databricks configure --token
-        dbfs mkdirs dbfs:/pypi/feast/
-        dbfs cp dist/*.egg dbfs:/pypi/feast/
-      working-directory: sdk/python
+##    - uses: actions/setup-python@v2
+##      with:
+##        python-version: '3.7'
+#
+#    - name: Upload Python egg to Databricks
+#      run: |
+#        set -ex
+#        git fetch --unshallow
+#        git stash
+#        export DATABRICKS_HOST="$TF_VAR_databricks_workspace_url"
+#        export DATABRICKS_TOKEN=$(terraform output databricks_token)
+#        set -x
+#        pip install databricks-cli
+#        python setup.py bdist_egg
+#        echo -e "${DATABRICKS_HOST}\n${DATABRICKS_TOKEN}\n" | databricks configure --token
+#        dbfs mkdirs dbfs:/pypi/feast/
+#        dbfs cp dist/*.egg dbfs:/pypi/feast/
+#      working-directory: sdk/python
 
     - name: Upload package to Pypi
       run: |
