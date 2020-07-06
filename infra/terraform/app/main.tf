@@ -307,14 +307,14 @@ EOT
   ]
 }
 
-//resource "local_file" "pypi_init_script_file" {
-//    content     = local.databricks_pypi_init_script
-//    filename = "init_pypi.sh"
-//}
-//resource "databricks_dbfs_file" "init_pypi_script" {
-//  content = filebase64(local_file.pypi_init_script_file.filename)
-//  path = "/init_scripts/init_pypi.sh"
-//  overwrite = true
-//  mkdirs = true
-//  validate_remote_file = true
-//}
+resource "local_file" "pypi_init_script_file" {
+    content     = local.databricks_pypi_init_script
+    filename = "init_pypi.sh"
+}
+resource "databricks_dbfs_file" "init_pypi_script" {
+  content = filebase64(local_file.pypi_init_script_file.filename)
+  path = "/init_scripts/init_pypi.sh"
+  overwrite = true
+  mkdirs = true
+  validate_remote_file = true
+}
