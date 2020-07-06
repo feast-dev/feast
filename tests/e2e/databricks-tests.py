@@ -19,6 +19,8 @@ import pandas as pd
 import numpy as np
 from feast.feature import Feature
 import uuid
+from pandavro import to_avro
+import tempfile
 
 _GRPC_CONNECTION_TIMEOUT_APPLY_KEY = 1200
 
@@ -36,6 +38,11 @@ def core_url(pytestconfig):
 @pytest.fixture(scope='module')
 def serving_url(pytestconfig):
     return pytestconfig.getoption("serving_url")
+
+
+@pytest.fixture(scope='module')
+def batch_serving_url(pytestconfig):
+    return pytestconfig.getoption("batch_serving_url")
 
 
 @pytest.fixture(scope='module')
@@ -62,6 +69,14 @@ def client(core_url, serving_url, allow_dirty):
                 "Feast cannot have existing feature sets registered. Exiting tests."
             )
 
+    return client
+
+
+@pytest.fixture(scope='module')
+def batch_client(core_url, batch_serving_url, allow_dirty):
+    # Get client for core and serving
+    client = Client(core_url=core_url, serving_url=batch_serving_url)
+    client.set_project(PROJECT_NAME)
     return client
 
 
@@ -209,7 +224,6 @@ def test_all_types_ingest_success(client, all_types_dataframe):
     client.ingest(all_types_fs, all_types_dataframe, timeout=_GRPC_CONNECTION_TIMEOUT_APPLY_KEY)
 
 
-@pytest.mark.databricks_skip
 @pytest.mark.timeout(300)
 @pytest.mark.run(order=22)
 def test_all_types_retrieve_online_success(client, all_types_dataframe):
@@ -258,6 +272,23 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
                 returned_float_list[0], sent_float_list[0], abs_tol=FLOAT_TOLERANCE
         ):
             break
+
+
+@pytest.mark.timeout(1200)
+@pytest.mark.run(order=23)
+def test_all_types_retrieve_batch_success(client, batch_client, all_types_dataframe):
+
+    feature_retrieval_job = batch_client.get_batch_features(
+        entity_rows=all_types_dataframe[["datetime", "user_id"]],
+        feature_refs=["string_feature"],
+        project=PROJECT_NAME,
+    )
+
+    output = feature_retrieval_job.to_dataframe()
+    print(output.head())
+
+    assert output["user_id"].to_list() == all_types_dataframe["user_id"].to_list()
+    assert output["string_feature"].to_list() == all_types_dataframe["string_feature"].to_list()
 
 
 @pytest.fixture(scope='module')

@@ -134,7 +134,6 @@ def test_export_source_to_staging_location_abfss_file_as_source_should_pass():
     assert source == [ABFSS_LOCATION]
 
 
-@patch("azure.common.credentials.get_azure_cli_credentials")
 @patch("azure.storage.filedatalake.DataLakeServiceClient")
 def test_export_source_to_staging_location_abfss_wildcard_as_source_should_pass(
     client, avro_data_path

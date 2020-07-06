@@ -20,6 +20,7 @@ package feast.serving;
 
 import "google/protobuf/timestamp.proto";
 import "feast/types/Value.proto";
+import "feast/core/FeatureSet.proto";
 
 option java_package = "feast.proto.serving";
 option java_outer_classname = "ServingAPIProto";
@@ -190,4 +191,29 @@ message DatasetSource {
         // Format of the data. Currently only avro is supported.
         DataFormat data_format = 2;
     }
+}
+
+message FeatureSetRequest {
+    feast.core.FeatureSetSpec  spec = 1;
+    repeated FeatureReference  feature_references = 2;
+}
+
+message HistoricalRetrievalRequest {
+    string                      retrieval_id = 1;
+    DatasetSource               dataset_source = 2;
+    repeated FeatureSetRequest  feature_set_requests = 3;
+}
+
+enum HistoricalRetrievalResultType {
+    SUCCESS = 0;
+    FAIL = 1;
+}
+
+message HistoricalRetrievalResult {
+    HistoricalRetrievalResultType result_type = 1;
+    string                        id = 2;
+    JobStatus                     status = 3;
+    string                        error = 4;
+    repeated string               file_uris = 5;
+    DataFormat                    data_format = 6;
 }

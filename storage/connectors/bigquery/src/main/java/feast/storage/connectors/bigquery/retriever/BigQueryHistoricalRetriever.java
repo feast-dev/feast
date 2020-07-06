@@ -26,9 +26,7 @@ import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import feast.proto.serving.ServingAPIProto;
-import feast.proto.serving.ServingAPIProto.DatasetSource;
-import feast.storage.api.retriever.FeatureSetRequest;
-import feast.storage.api.retriever.HistoricalRetrievalResult;
+import feast.proto.serving.ServingAPIProto.HistoricalRetrievalResult;
 import feast.storage.api.retriever.HistoricalRetriever;
 import io.grpc.Status;
 import java.io.IOException;
@@ -124,23 +122,27 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
 
   @Override
   public HistoricalRetrievalResult getHistoricalFeatures(
-      String retrievalId, DatasetSource datasetSource, List<FeatureSetRequest> featureSetRequests) {
+      ServingAPIProto.HistoricalRetrievalRequest request) {
     List<FeatureSetQueryInfo> featureSetQueryInfos =
-        QueryTemplater.getFeatureSetInfos(featureSetRequests);
-
+        QueryTemplater.getFeatureSetInfos(request.getFeatureSetRequestsList());
+    String retrievalId = request.getRetrievalId();
     // 1. load entity table
     Table entityTable;
     String entityTableName;
     try {
-      entityTable = loadEntities(datasetSource);
+      entityTable = loadEntities(request.getDatasetSource());
 
       TableId entityTableWithUUIDs = generateUUIDs(entityTable);
       entityTableName = generateFullTableName(entityTableWithUUIDs);
     } catch (Exception e) {
-      return HistoricalRetrievalResult.error(
-          retrievalId,
-          new RuntimeException(
-              String.format("Unable to load entity table to BigQuery: %s", e.toString())));
+      return HistoricalRetrievalResult.newBuilder()
+          .setResultType(ServingAPIProto.HistoricalRetrievalResultType.FAIL)
+          .setId(retrievalId)
+          .setError(
+              new RuntimeException(
+                      String.format("Unable to load entity table to BigQuery: %s", e.toString()))
+                  .getMessage())
+          .build();
     }
 
     Schema entityTableSchema = entityTable.getDefinition().getSchema();
@@ -177,13 +179,21 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
       waitForJob(extractJob);
 
     } catch (BigQueryException | InterruptedException | IOException e) {
-      return HistoricalRetrievalResult.error(retrievalId, e);
+      return HistoricalRetrievalResult.newBuilder()
+          .setResultType(ServingAPIProto.HistoricalRetrievalResultType.FAIL)
+          .setId(retrievalId)
+          .setError(e.getMessage())
+          .build();
     }
 
     List<String> fileUris = parseOutputFileURIs(retrievalId);
 
-    return HistoricalRetrievalResult.success(
-        retrievalId, fileUris, ServingAPIProto.DataFormat.DATA_FORMAT_AVRO);
+    return HistoricalRetrievalResult.newBuilder()
+        .setResultType(ServingAPIProto.HistoricalRetrievalResultType.SUCCESS)
+        .setId(retrievalId)
+        .addAllFileUris(fileUris)
+        .setDataFormat(ServingAPIProto.DataFormat.DATA_FORMAT_AVRO)
+        .build();
   }
 
   private TableId generateUUIDs(Table loadedEntityTable) {

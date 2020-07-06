@@ -10,6 +10,7 @@ def pytest_configure(config):
 def pytest_addoption(parser):
     parser.addoption("--core_url", action="store", default="localhost:6565")
     parser.addoption("--serving_url", action="store", default="localhost:6566")
+    parser.addoption("--batch_serving_url", action="store", default="localhost:6566")
     parser.addoption("--allow_dirty", action="store", default="False")
     parser.addoption("--gcs_path", action="store", default="gs://feast-templocation-kf-feast/")
     parser.addoption("--databricks", action="store_true", default=False, help="skip tests not supported with Databricks runner")

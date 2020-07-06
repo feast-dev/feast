@@ -134,6 +134,15 @@ message Store {
 
   message DeltaConfig {
     string path = 1;
+    string databricks_host = 2;
+    string databricks_token = 3;
+    string staging_location = 4;
+    string jar_file = 5;
+    int32 num_workers = 6;
+    string spark_version = 7;
+    string spark_conf = 8;
+    string instance_pool_id = 9;
+    int32 timeout_seconds = 10;
   }
 
   message Subscription {

@@ -23,7 +23,7 @@ import com.mitchellbosecke.pebble.template.PebbleTemplate;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
-import feast.storage.api.retriever.FeatureSetRequest;
+import feast.proto.serving.ServingAPIProto.FeatureSetRequest;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
@@ -79,7 +79,7 @@ public class QueryTemplater {
       Duration maxAge = spec.getMaxAge();
       List<String> fsEntities =
           spec.getEntitiesList().stream().map(EntitySpec::getName).collect(Collectors.toList());
-      List<FeatureReference> features = featureSetRequest.getFeatureReferences().asList();
+      List<FeatureReference> features = featureSetRequest.getFeatureReferencesList();
       featureSetInfos.add(
           new FeatureSetQueryInfo(
               spec.getProject(), spec.getName(), maxAge.getSeconds(), fsEntities, features, ""));

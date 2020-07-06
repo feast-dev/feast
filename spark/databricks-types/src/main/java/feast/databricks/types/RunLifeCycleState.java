@@ -17,10 +17,20 @@
 package feast.databricks.types;
 
 public enum RunLifeCycleState {
-  PENDING, //
-  RUNNING, //
-  TERMINATING, //
-  TERMINATED, //
-  SKIPPED, //
-  INTERNAL_ERROR //
+  PENDING(false), //
+  RUNNING(false), //
+  TERMINATING(false), //
+  TERMINATED(true), //
+  SKIPPED(true), //
+  INTERNAL_ERROR(true); //
+
+  private boolean terminal;
+
+  RunLifeCycleState(boolean terminal) {
+    this.terminal = terminal;
+  }
+
+  public boolean isTerminal() {
+    return terminal;
+  }
 }

@@ -16,6 +16,7 @@
  */
 package feast.storage.api.retriever;
 
+import feast.proto.serving.ServingAPIProto.FeatureSetRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import java.util.List;

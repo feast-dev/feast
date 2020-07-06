@@ -27,6 +27,9 @@ output "datalake_name" {
 output "datalake_filesystem" {
   value = azurerm_storage_data_lake_gen2_filesystem.datalake.name
 }
+output "storage_staging_url" {
+  value = "abfss://${azurerm_storage_data_lake_gen2_filesystem.feaststaging.name}@${azurerm_storage_account.datalakestorage.primary_dfs_host}/"
+}
 output "redis_hostname" {
   value = azurerm_redis_cache.redis_cluster.hostname
 }
