@@ -322,9 +322,22 @@ resource "databricks_secret" "pypi_password" {
 }
 
 resource "databricks_dbfs_file" "init_pypi_script" {
-  content = filebase64("../scripts/init_pypi.sh")
+  content = filebase64("../../scripts/init_pypi.sh")
   path = "/init_scripts/init_pypi.sh"
   overwrite = true
   mkdirs = true
   validate_remote_file = true
+}
+
+resource "databricks_cluster" "feast-cluster" {
+  num_workers = "2"
+  cluster_name = "sri-test"
+  spark_version = "6.4.x-scala2.11"
+  node_type_id = "i3.2xlarge"
+  autotermination_minutes = 30
+  aws_attributes {
+    availability = "ON_DEMAND"
+    zone_id = "us-east-1"
+    instance_profile_arn = "arn:aws:iam::999999999999:instance-profile/s3-access"
+  }
 }
