@@ -66,7 +66,6 @@ from feast.core.CoreService_pb2 import (
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
-from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.feature import Feature, FeatureRef
 from feast.feature_set import Entity, FeatureSet, FeatureSetRef
 from feast.grpc import auth as feast_auth
@@ -763,9 +762,6 @@ class Client:
         response = self._core_service.ListIngestionJobs(request)  # type: ignore
         ingest_jobs = [
             IngestJob(proto, self._core_service) for proto in response.jobs  # type: ignore
-        ]
-        ingest_jobs = [
-            job for job in ingest_jobs if job.status == IngestionJobStatus.RUNNING
         ]
 
         return ingest_jobs

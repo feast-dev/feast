@@ -119,7 +119,11 @@ public class JobService {
               this.jobRepository
                   .findByFeatureSetJobStatusesFeatureSetNameAndFeatureSetJobStatusesFeatureSetProjectName(
                       fsReference.getName(), fsReference.getProject());
-          List<String> jobIds = matchingJobs.stream().map(Job::getId).collect(Collectors.toList());
+          List<String> jobIds =
+              matchingJobs.stream()
+                  .filter(job -> job.getStatus().equals(JobStatus.RUNNING))
+                  .map(Job::getId)
+                  .collect(Collectors.toList());
           matchingJobIds = this.mergeResults(matchingJobIds, jobIds);
         }
       }
