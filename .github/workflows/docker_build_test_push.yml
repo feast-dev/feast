@@ -140,7 +140,7 @@ jobs:
     # databricks provider DBFS bug)
     - uses: actions/setup-python@v2
       with:
-        python-version: '2.x'
+        python-version: '3.7'
 
     - name: Upload Spark JARs
       run: |
@@ -210,9 +210,9 @@ jobs:
     - name: Compile Python protos
       run: set -e make compile-protos-python
 
-    - uses: actions/setup-python@v2
-      with:
-        python-version: '3.7'
+#    - uses: actions/setup-python@v2
+#      with:
+#        python-version: '3.7'
 
     - name: Upload Python egg to Databricks
       run: |
