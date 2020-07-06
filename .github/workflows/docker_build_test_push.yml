@@ -210,10 +210,11 @@ jobs:
     - name: Compile Python protos
       run: set -e make compile-protos-python
 
-    - name: Upload Python egg to Databricks
-      uses: actions/setup-python@v2
+    - uses: actions/setup-python@v2
       with:
         python-version: '3.x'
+
+    - name: Upload Python egg to Databricks
       run: |
         set -ex
         git fetch --unshallow
