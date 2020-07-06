@@ -321,13 +321,8 @@ resource "databricks_secret" "pypi_password" {
   scope        = databricks_secret_scope.feast.name
 }
 
-resource "local_file" "pypi_init_script_file" {
-    content     = local.databricks_pypi_init_script
-    filename = "./init_pypi.sh"
-}
-
 resource "databricks_dbfs_file" "init_pypi_script" {
-  content = filebase64(local_file.pypi_init_script_file.filename)
+  content = filebase64("../scripts/init_pypi.sh")
   path = "/init_scripts/init_pypi.sh"
   overwrite = true
   mkdirs = true
