@@ -341,9 +341,9 @@ resource "databricks_cluster" "feast-cluster" {
     }
   }
   spark_env_vars = {
-     "PYPI_PWD"="{{secrets/feast/pypi_password}}"
-     "PYPI_USER"="{{secrets/feast/pypi_user}}"
-     "PYSPARK_PYTHON"="/databricks/python3/bin/python3"
-     "PIP_CONFIG_FILE"="/.config/pip/pip.conf"
-   }
+    "PYPI_PWD"        = "{{secrets/${databricks_secret_scope.feast.name}/${databricks_secret.pypi_password.key}}"
+    "PYPI_USER"       = "{{secrets/${databricks_secret_scope.feast.name}/${databricks_secret.pypi_username.key}}}"
+    "PYSPARK_PYTHON"  = "/databricks/python3/bin/python3"
+    "PIP_CONFIG_FILE" = "/.config/pip/pip.conf"
+  }
 }
