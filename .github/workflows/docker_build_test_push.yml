@@ -12,15 +12,15 @@ on:
 
 env:
   # - change per env
-  TF_VAR_project_name: fffeastcd
+  TF_VAR_project_name: isacabefffeastcd
   # - optionally change per env
-  TERRAFORM_BACKEND_STORAGE_ACCOUNT_RESOURCE_GROUP_NAME: fffeasttf
+  TERRAFORM_BACKEND_STORAGE_ACCOUNT_RESOURCE_GROUP_NAME: isacabefffeasttf
   # - change per env
   # - manually crate this storage account in the
   #   resource group TERRAFORM_BACKEND_STORAGE_ACCOUNT_RESOURCE_GROUP_NAME
-  TERRAFORM_BACKEND_STORAGE_ACCOUNT_NAME: fffeastcdtf
+  TERRAFORM_BACKEND_STORAGE_ACCOUNT_NAME: isacabefffeastcdtf
   # - manually create this container in the created storage account
-  TERRAFORM_BACKEND_CONTAINER_NAME: terraform
+  TERRAFORM_BACKEND_CONTAINER_NAME: isacabeterraform
 
   # no need to change those
 
