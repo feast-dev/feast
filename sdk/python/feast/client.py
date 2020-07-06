@@ -66,6 +66,7 @@ from feast.core.CoreService_pb2 import (
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
+from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.feature import Feature, FeatureRef
 from feast.feature_set import Entity, FeatureSet, FeatureSetRef
 from feast.grpc import auth as feast_auth
@@ -749,16 +750,20 @@ class Client:
             List of IngestJobs matching the given filters
         """
         # construct list request
-        feature_set_ref = None
+        feature_set_ref_proto = None
+        if feature_set_ref:
+            feature_set_ref_proto = feature_set_ref.to_proto()
         list_filter = ListIngestionJobsRequest.Filter(
-            id=job_id, feature_set_reference=feature_set_ref, store_name=store_name,
+            id=job_id, feature_set_reference=feature_set_ref_proto, store_name=store_name,
         )
         request = ListIngestionJobsRequest(filter=list_filter)
         # make list request & unpack response
-        response = self._core_service_stub.ListIngestionJobs(request)  # type: ignore
+        response = self._core_service.ListIngestionJobs(request)  # type: ignore
         ingest_jobs = [
-            IngestJob(proto, self._core_service_stub) for proto in response.jobs  # type: ignore
+            IngestJob(proto, self._core_service) for proto in response.jobs  # type: ignore
         ]
+        ingest_jobs = [job for job in ingest_jobs if job.status == IngestionJobStatus.RUNNING]
+
         return ingest_jobs
 
     def restart_ingest_job(self, job: IngestJob):
