@@ -224,6 +224,7 @@ jobs:
         set -x
         pip install databricks-cli
         python setup.py bdist_egg
+        echo -e "${DATABRICKS_HOST}\n${DATABRICKS_TOKEN}\n" | databricks configure --token
         dbfs mkdirs dbfs:/pypi/feast/
         dbfs cp dist/*.egg dbfs:/pypi/feast/
       working-directory: sdk/python
