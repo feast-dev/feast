@@ -12,15 +12,15 @@ on:
 
 env:
   # - change per env
-  TF_VAR_project_name: isacabefffeastcd
+  TF_VAR_project_name: fffeastcd
   # - optionally change per env
-  TERRAFORM_BACKEND_STORAGE_ACCOUNT_RESOURCE_GROUP_NAME: isacabefffeasttf
+  TERRAFORM_BACKEND_STORAGE_ACCOUNT_RESOURCE_GROUP_NAME: fffeasttf
   # - change per env
   # - manually crate this storage account in the
   #   resource group TERRAFORM_BACKEND_STORAGE_ACCOUNT_RESOURCE_GROUP_NAME
-  TERRAFORM_BACKEND_STORAGE_ACCOUNT_NAME: isacabefffeastcdtf
+  TERRAFORM_BACKEND_STORAGE_ACCOUNT_NAME: fffeastcdtf
   # - manually create this container in the created storage account
-  TERRAFORM_BACKEND_CONTAINER_NAME: isacabeterraform
+  TERRAFORM_BACKEND_CONTAINER_NAME: terraform
 
   # no need to change those
 
@@ -59,10 +59,10 @@ jobs:
 
     - name: Set Terraform variables infra
       run: |
-        echo ::set-env name=ARM_CLIENT_ID::${{ secrets.ISACABE_ARM_CLIENT_ID }}
-        echo ::set-env name=ARM_CLIENT_SECRET::${{ secrets.ISACABE_ARM_CLIENT_SECRET }}
-        echo ::set-env name=ARM_SUBSCRIPTION_ID::${{ secrets.ISACABE_ARM_SUBSCRIPTION_ID }}
-        echo ::set-env name=ARM_TENANT_ID::${{ secrets.ISACABE_ARM_TENANT_ID }}
+        echo ::set-env name=ARM_CLIENT_ID::${{ secrets.ARM_CLIENT_ID }}
+        echo ::set-env name=ARM_CLIENT_SECRET::${{ secrets.ARM_CLIENT_SECRET }}
+        echo ::set-env name=ARM_SUBSCRIPTION_ID::${{ secrets.ARM_SUBSCRIPTION_ID }}
+        echo ::set-env name=ARM_TENANT_ID::${{ secrets.ARM_TENANT_ID }}
 
     - name: Terraform init infra
       # cache plugin locally to avoid re-downloading it at every run
@@ -158,17 +158,7 @@ jobs:
         echo "::set-env name=KUBECONFIG::$PWD/kube_config"
 
     - name: Install Terraform databricks provider
-      # TODO: should simply run this command:
-      # curl https://raw.githubusercontent.com/databrickslabs/databricks-terraform/master/godownloader-databricks-provider.sh | bash -xs -- -b $HOME/.terraform.d/plugins
-      # but blocked by issues:
-      # - https://github.com/databrickslabs/terraform-provider-databricks/issues/128
-      # - https://github.com/databrickslabs/terraform-provider-databricks/issues/123
-      run: |
-        PLUGINS=$HOME/.terraform.d/plugins
-        test -s $PLUGINS/terraform-provider-databricks_v0.2.0 && exit
-        wget -O databricks-provider.tgz https://github.com/databrickslabs/terraform-provider-databricks/releases/download/v0.2.0/databricks-terraform_0.2.0_Linux_64-bit.tar.gz
-        mkdir -p $PLUGINS
-        tar -C $PLUGINS -zxvf databricks-provider.tgz terraform-provider-databricks_v0.2.0
+      run: curl https://raw.githubusercontent.com/databrickslabs/databricks-terraform/master/godownloader-databricks-provider.sh | bash -xs -- -b $HOME/.terraform.d/plugins
 
     - name: Set Terraform variables app
       run: |
