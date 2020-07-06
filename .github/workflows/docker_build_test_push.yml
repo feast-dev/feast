@@ -59,10 +59,10 @@ jobs:
 
     - name: Set Terraform variables infra
       run: |
-        echo ::set-env name=ARM_CLIENT_ID::${{ secrets.ARM_CLIENT_ID }}
-        echo ::set-env name=ARM_CLIENT_SECRET::${{ secrets.ARM_CLIENT_SECRET }}
-        echo ::set-env name=ARM_SUBSCRIPTION_ID::${{ secrets.ARM_SUBSCRIPTION_ID }}
-        echo ::set-env name=ARM_TENANT_ID::${{ secrets.ARM_TENANT_ID }}
+        echo ::set-env name=ARM_CLIENT_ID::${{ secrets.ISACABE_ARM_CLIENT_ID }}
+        echo ::set-env name=ARM_CLIENT_SECRET::${{ secrets.ISACABE_ARM_CLIENT_SECRET }}
+        echo ::set-env name=ARM_SUBSCRIPTION_ID::${{ secrets.ISACABE_ARM_SUBSCRIPTION_ID }}
+        echo ::set-env name=ARM_TENANT_ID::${{ secrets.ISACABE_ARM_TENANT_ID }}
 
     - name: Terraform init infra
       # cache plugin locally to avoid re-downloading it at every run
