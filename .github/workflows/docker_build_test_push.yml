@@ -184,9 +184,9 @@ jobs:
       run: TF_PLUGIN_CACHE_DIR=$HOME/.terraform.d/plugin-cache terraform init -input=false -backend-config=container_name="$TERRAFORM_BACKEND_CONTAINER_NAME" -backend-config=key="$TERRAFORM_BACKEND_BLOB_PATH_APP" -backend-config=storage_account_name="$TERRAFORM_BACKEND_STORAGE_ACCOUNT_NAME" -backend-config=resource_group_name="$TERRAFORM_BACKEND_STORAGE_ACCOUNT_RESOURCE_GROUP_NAME"
       working-directory: infra/terraform/app
 
-#    - name: Terraform destroy app
-#      run: terraform destroy -input=false -auto-approve
-#      working-directory: infra/terraform/app
+    - name: Terraform destroy app
+      run: terraform destroy -input=false -auto-approve
+      working-directory: infra/terraform/app
 
     - name: Terraform plan app
       run: terraform plan -out=tfplan -input=false
