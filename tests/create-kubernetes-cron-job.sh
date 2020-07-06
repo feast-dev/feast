@@ -36,7 +36,7 @@ spec:
             args:
             - /bin/sh
             - -c
-            - cd /feast/tests/ds_scenarios && pytest -x -rA -s test-ingest.py --core_url feast-feast-core:6565 --serving_url=feast-feast-online-serving:6566 --initial_entity_id "$(date +%s)" --project_name "test_cronjob"
+            - cd /feast/tests/ds_scenarios && pytest -x -rA -s test-ingest.py --core_url feast-core:6565 --serving_url=feast-serving-feast-online-serving:6566 --initial_entity_id "$(date +%s)" --project_name "test_cronjob"
           restartPolicy: Never"
 
 echo "$TEMPLATE" | kubectl apply -f -

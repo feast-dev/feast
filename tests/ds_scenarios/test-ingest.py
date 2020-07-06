@@ -21,7 +21,7 @@ def project_name(pytestconfig):
 def initial_entity_id(pytestconfig):
     return int(pytestconfig.getoption("initial_entity_id"))
 
-  
+
 _GRPC_CONNECTION_TIMEOUT_DEFAULT = 20
 
 _GRPC_CONNECTION_TIMEOUT_APPLY_KEY = 1200
