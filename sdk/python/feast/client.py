@@ -754,7 +754,9 @@ class Client:
         if feature_set_ref:
             feature_set_ref_proto = feature_set_ref.to_proto()
         list_filter = ListIngestionJobsRequest.Filter(
-            id=job_id, feature_set_reference=feature_set_ref_proto, store_name=store_name,
+            id=job_id,
+            feature_set_reference=feature_set_ref_proto,
+            store_name=store_name,
         )
         request = ListIngestionJobsRequest(filter=list_filter)
         # make list request & unpack response
@@ -762,7 +764,9 @@ class Client:
         ingest_jobs = [
             IngestJob(proto, self._core_service) for proto in response.jobs  # type: ignore
         ]
-        ingest_jobs = [job for job in ingest_jobs if job.status == IngestionJobStatus.RUNNING]
+        ingest_jobs = [
+            job for job in ingest_jobs if job.status == IngestionJobStatus.RUNNING
+        ]
 
         return ingest_jobs
 
