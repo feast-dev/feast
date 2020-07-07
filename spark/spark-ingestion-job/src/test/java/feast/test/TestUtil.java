@@ -595,10 +595,13 @@ public class TestUtil {
     Map<RedisKey, FeatureRow> expected = TestUtil.generateExpectedData(featureSet.getSpec(), input);
 
     LOGGER.info("Validating the actual values written to Redis ...");
-    RedisClient redisClient =
-        RedisClient.create(
-            new RedisURI(
-                redisConfig.getHost(), redisConfig.getPort(), java.time.Duration.ofMillis(2000)));
+
+    RedisURI redisuri =
+        new RedisURI(
+            redisConfig.getHost(), redisConfig.getPort(), java.time.Duration.ofMillis(2000));
+    redisuri.setPassword(redisConfig.getPass());
+
+    RedisClient redisClient = RedisClient.create(redisuri);
     StatefulRedisConnection<byte[], byte[]> connection = redisClient.connect(new ByteArrayCodec());
     RedisCommands<byte[], byte[]> sync = connection.sync();
 

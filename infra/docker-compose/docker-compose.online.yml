@@ -13,6 +13,9 @@ services:
     ports:
       - 6566:6566
     restart: on-failure
+    environment:
+      REDIS_PASS: ${REDIS_PASS}
+      REDIS_HOST: ${REDIS_HOST}
     command:
       - java
       - -jar
@@ -21,5 +24,6 @@ services:
 
   redis:
     image: redis:5-alpine
+    command: redis-server --requirepass '${REDIS_PASS}'
     ports:
       - "6379:6379"

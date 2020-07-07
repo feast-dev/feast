@@ -49,11 +49,11 @@ public class RedisOnlineRetriever implements OnlineRetriever {
   }
 
   public static OnlineRetriever create(Map<String, String> config) {
+    RedisURI redisuri = RedisURI.create(config.get("host"), Integer.parseInt(config.get("port")));
+    redisuri.setPassword(config.get("pass"));
 
     StatefulRedisConnection<byte[], byte[]> connection =
-        RedisClient.create(
-                RedisURI.create(config.get("host"), Integer.parseInt(config.get("port"))))
-            .connect(new ByteArrayCodec());
+        RedisClient.create(redisuri).connect(new ByteArrayCodec());
 
     return new RedisOnlineRetriever(connection);
   }

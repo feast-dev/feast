@@ -441,6 +441,9 @@ public class FeastProperties {
     /** Job Store Redis Host */
     private int redisPort;
 
+    /** Job Store Redis Pass */
+    private String redisPass;
+
     /**
      * Gets redis host.
      *
@@ -475,6 +478,24 @@ public class FeastProperties {
      */
     public void setRedisPort(int redisPort) {
       this.redisPort = redisPort;
+    }
+
+    /**
+     * Gets redis pass.
+     *
+     * @return the redis pass
+     */
+    public String getRedisPass() {
+      return redisPass;
+    }
+
+    /**
+     * Sets redis pass.
+     *
+     * @param redisPass the redis pass
+     */
+    public void setRedisPass(String redisPass) {
+      this.redisPass = redisPass;
     }
   }
 

@@ -81,9 +81,10 @@ public abstract class RedisFeatureSink implements FeatureSink {
   @Override
   public void prepareWrite(FeatureSet featureSet) {
     if (getRedisConfig() != null) {
-      RedisClient redisClient =
-          RedisClient.create(
-              RedisURI.create(getRedisConfig().getHost(), getRedisConfig().getPort()));
+      RedisURI redisuri = RedisURI.create(getRedisConfig().getHost(), getRedisConfig().getPort());
+      redisuri.setPassword(getRedisConfig().getPass());
+      RedisClient redisClient = RedisClient.create(redisuri);
+
       try {
         redisClient.connect();
       } catch (RedisConnectionException e) {

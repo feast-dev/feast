@@ -110,6 +110,7 @@ message Store {
     int32 initial_backoff_ms = 3;
     // Optional. Maximum total number of retries for connecting to Redis. Default to zero retries.
     int32 max_retries = 4;
+    string pass = 5;
   }
 
   message BigQueryConfig {
