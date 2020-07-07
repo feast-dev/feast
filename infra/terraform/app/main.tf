@@ -17,13 +17,7 @@ locals {
   databricks_spark_version       = "6.6.x-scala2.11"
   databricks_vm_type             = "Standard_D3_v2"
   databricks_instance_pool_name  = "Feast"
-  databricks_pypi_init_script    = <<EOT
-      #!/usr/bin/env bash
 
-      mkdir /.config && mkdir /.config/pip
-      echo -e "[global]\nindex-url = https://$PYPI_USER:$PYPI_PWD@$PYPI_REPO\nextra-index-url =  https://pypi.org/simple/\n" > /.config/pip/pip.conf
-      export PIP_CONFIG_FILE=/.config/pip/pip.conf
-      EOT
 }
 
 resource "azurerm_postgresql_database" "feast" {
@@ -331,8 +325,8 @@ resource "databricks_dbfs_file" "init_pypi_script" {
 
 resource "databricks_cluster" "feast-cluster" {
   cluster_name            = "feast-dev-test"
-  spark_version           = "6.5.x-scala2.11"
-  node_type_id            = "Standard_DS3_v2"
+  spark_version           = local.databricks_spark_version
+  node_type_id            = local.databricks_vm_type
   autotermination_minutes = 30
 
   autoscale {

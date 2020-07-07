@@ -13,6 +13,10 @@ on:
 env:
   # - change per env
   TF_VAR_project_name: fffeastcd
+
+  # - account used to access the internal pypi repository
+  TF_VAR_pypi_user: ci
+
   # - optionally change per env
   TERRAFORM_BACKEND_STORAGE_ACCOUNT_RESOURCE_GROUP_NAME: fffeasttf
   # - change per env
@@ -177,7 +181,6 @@ jobs:
         echo "::set-env name=TF_VAR_feast_version::$FEAST_VERSION"
         echo "::set-env name=TF_VAR_run_number::$GITHUB_RUN_NUMBER"
         echo "::set-env name=TF_VAR_pypi_password:::${{ secrets.PYPI_PWD }}"
-        echo "::set-env name=TF_VAR_pypi_user:::${{ secrets.PYPI_USER }}"
 
     - name: Terraform init app
       # cache plugin locally to avoid re-downloading it at every run
@@ -212,24 +215,23 @@ jobs:
     - name: Compile Python protos
       run: set -e make compile-protos-python
 
-##    - uses: actions/setup-python@v2
-##      with:
-##        python-version: '3.7'
-#
-#    - name: Upload Python egg to Databricks
-#      run: |
-#        set -ex
-#        git fetch --unshallow
-#        git stash
-#        export DATABRICKS_HOST="$TF_VAR_databricks_workspace_url"
-#        export DATABRICKS_TOKEN=$(terraform output databricks_token)
-#        set -x
-#        pip install databricks-cli
-#        python setup.py bdist_egg
-#        echo -e "${DATABRICKS_HOST}\n${DATABRICKS_TOKEN}\n" | databricks configure --token
-#        dbfs mkdirs dbfs:/pypi/feast/
-#        dbfs cp dist/*.egg dbfs:/pypi/feast/
-#      working-directory: sdk/python
+
+
+    - name: Run e2e tests for Redis
+      run: |
+        set -ex
+        kubectl exec "$E2E_TEST_POD" -- bash -c "
+          cd /feast/tests/e2e
+          pytest -x -rA -s databricks-tests.py --core_url feast-core:6565 --serving_url=feast-serving-feast-online-serving:6566
+        "
+
+    - name: Run ingestion tests for FF Data Science scenarios
+      run: |
+        set -ex
+        kubectl exec "$E2E_TEST_POD" -- bash -c "
+          cd /feast/tests/ds_scenarios
+          pytest -x -rA -s test-ingest.py --core_url feast-core:6565 --serving_url=feast-serving-feast-online-serving:6566
+        "
 
     - name: Upload package to Pypi
       run: |
@@ -254,23 +256,6 @@ jobs:
         kubectl run -it --rm --restart=Never --image=redis redisflush$GITHUB_RUN_NUMBER --command -- redis-cli -h $TF_VAR_redis_hostname FLUSHALL
 
         kubectl wait --timeout 45m --for=condition=ContainersReady pod "$E2E_TEST_POD"
-
-    - name: Run e2e tests for Redis
-      run: |
-        set -ex
-        kubectl exec "$E2E_TEST_POD" -- bash -c "
-          cd /feast/tests/e2e
-          pytest -x -rA -s databricks-tests.py --core_url feast-core:6565 --serving_url=feast-serving-feast-online-serving:6566
-        "
-
-    - name: Run ingestion tests for FF Data Science scenarios
-      run: |
-        set -ex
-        kubectl exec "$E2E_TEST_POD" -- bash -c "
-          cd /feast/tests/ds_scenarios
-          pytest -x -rA -s test-ingest.py --core_url feast-core:6565 --serving_url=feast-serving-feast-online-serving:6566
-        "
-
     - name: Delete e2e test pod
       run: kubectl delete pod "$E2E_TEST_POD"
 
