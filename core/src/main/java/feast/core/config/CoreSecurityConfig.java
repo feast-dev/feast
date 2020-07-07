@@ -23,10 +23,12 @@ import net.devh.boot.grpc.server.security.check.GrpcSecurityMetadataSource;
 import net.devh.boot.grpc.server.security.check.ManualGrpcSecurityMetadataSource;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @Slf4j
+@ComponentScan("feast.auth")
 public class CoreSecurityConfig {
 
   /**
@@ -45,7 +47,7 @@ public class CoreSecurityConfig {
 
     // The following endpoints allow unauthenticated access
     source.set(CoreServiceGrpc.getGetFeastCoreVersionMethod(), AccessPredicate.permitAll());
-
+    source.set(CoreServiceGrpc.getUpdateStoreMethod(), AccessPredicate.permitAll());
     return source;
   }
 }
