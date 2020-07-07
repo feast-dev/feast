@@ -333,9 +333,8 @@ resource "databricks_secret" "pypi_password" {
 
 resource "databricks_dbfs_file" "init_pypi_script" {
   content              = filebase64("../../scripts/init_pypi.sh")
-  path                 = "/init_scripts/init_pypi.sh"
+  path                 = "/databricks/init/init_pypi.sh"
   overwrite            = true
-  mkdirs               = true
   validate_remote_file = true
 }
 
