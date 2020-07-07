@@ -224,8 +224,8 @@ public class FeatureRowToSparkRowTest {
     assertThat(((java.sql.Timestamp) row.get(i++)).getTime(), is(100000000L));
     // CREATED_TIMESTAMP_COLUMN
     Timestamp value = (java.sql.Timestamp) row.get(i++);
-    assertThat(value, greaterThan(before));
-    assertThat(value, lessThan(after));
+    assertThat(value, greaterThanOrEqualTo(before));
+    assertThat(value, lessThanOrEqualTo(after));
     // INGESTION_ID_COLUMN
     assertThat(row.get(i++), is("myjob"));
     // values

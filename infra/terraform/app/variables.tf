@@ -58,6 +58,10 @@ variable "datalake_filesystem" {
   description = "The filesystem of the Azure Data Lake Storage Gen2 account for storing Delta data."
   type        = string
 }
+variable "storage_staging_url" {
+  description = "The ABFSS URL of the storage location for exchanging batch data between Feast Serving (Historical Retriever) and Feast client."
+  type        = string
+}
 variable "redis_hostname" {
   description = "The hostname of the Azure Redis Cache instance."
   type        = string

@@ -162,17 +162,7 @@ jobs:
         echo "::set-env name=KUBECONFIG::$PWD/kube_config"
 
     - name: Install Terraform databricks provider
-      # TODO: should simply run this command:
-      # curl https://raw.githubusercontent.com/databrickslabs/databricks-terraform/master/godownloader-databricks-provider.sh | bash -xs -- -b $HOME/.terraform.d/plugins
-      # but blocked by issues:
-      # - https://github.com/databrickslabs/terraform-provider-databricks/issues/128
-      # - https://github.com/databrickslabs/terraform-provider-databricks/issues/123
-      run: |
-        PLUGINS=$HOME/.terraform.d/plugins
-        test -s $PLUGINS/terraform-provider-databricks_v0.2.0 && exit
-        wget -O databricks-provider.tgz https://github.com/databrickslabs/terraform-provider-databricks/releases/download/v0.2.0/databricks-terraform_0.2.0_Linux_64-bit.tar.gz
-        mkdir -p $PLUGINS
-        tar -C $PLUGINS -zxvf databricks-provider.tgz terraform-provider-databricks_v0.2.0
+      run: curl https://raw.githubusercontent.com/databrickslabs/databricks-terraform/master/godownloader-databricks-provider.sh | bash -xs -- -b $HOME/.terraform.d/plugins
 
     - name: Set Terraform variables app
       run: |
@@ -198,9 +188,6 @@ jobs:
     - name: Terraform apply app
       run: terraform apply -input=false -auto-approve tfplan
       working-directory: infra/terraform/app
-      env:
-        # capture debugging info, see https://www.terraform.io/docs/internals/debugging.html
-        TF_LOG: TRACE
 
     - name: Cancel any active Databricks runs
       run: |
@@ -215,14 +202,62 @@ jobs:
     - name: Compile Python protos
       run: set -e make compile-protos-python
 
+    - name: Prepare e2e test pod and clear Redis data
+      run: |
+        set -ex
 
+        kubectl delete secret azure-e2e-test || true
+        kubectl create secret generic azure-e2e-test --from-literal=AZURE_CLIENT_SECRET="$ARM_CLIENT_SECRET"
 
-    - name: Run e2e tests for Redis
+        # Start e2e test pod
+        kubectl delete pod "$E2E_TEST_POD" || true
+        kubectl run "$E2E_TEST_POD" --restart=Never --image "$FEAST_JUPYTER_IMAGE:$FEAST_VERSION" --overrides='
+        {
+          "spec": {
+            "containers": [
+              {
+                "name": "'$E2E_TEST_POD'",
+                "image": "'$FEAST_JUPYTER_IMAGE':'$FEAST_VERSION'",
+                "resources": {
+                    "limits": {
+                        "memory": "4Gi"
+                    }
+                },
+                "env": [
+                  {
+                    "name": "AZURE_TENANT_ID",
+                    "value": "'$ARM_TENANT_ID'"
+                  },
+                  {
+                    "name": "AZURE_CLIENT_ID",
+                    "value": "'$ARM_CLIENT_ID'"
+                  },
+                  {
+                    "name": "AZURE_CLIENT_SECRET",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "azure-e2e-test",
+                        "key": "AZURE_CLIENT_SECRET"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }'
+
+        # While the test pod is starting, clear all data from Redis
+        kubectl run -it --rm --restart=Never --image=redis redisflush$GITHUB_RUN_NUMBER --command -- redis-cli -h $TF_VAR_redis_hostname FLUSHALL
+
+        kubectl wait --timeout 15m --for=condition=ContainersReady pod "$E2E_TEST_POD"
+
+    - name: Run e2e tests with Databricks
       run: |
         set -ex
         kubectl exec "$E2E_TEST_POD" -- bash -c "
           cd /feast/tests/e2e
-          pytest -x -rA -s databricks-tests.py --core_url feast-core:6565 --serving_url=feast-serving-feast-online-serving:6566
+          pytest -x -rA -s databricks-tests.py --core_url feast-core:6565 --serving_url=feast-serving-feast-online-serving:6566 --batch_serving_url=feast-serving-feast-batch-serving:6566
         "
 
     - name: Run ingestion tests for FF Data Science scenarios

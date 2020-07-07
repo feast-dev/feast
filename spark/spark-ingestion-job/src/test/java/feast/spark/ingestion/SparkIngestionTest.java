@@ -49,6 +49,7 @@ import feast.spark.ingestion.delta.FeatureRowToSparkRow;
 import feast.spark.ingestion.delta.SparkDeltaSink;
 import feast.test.TestUtil;
 import feast.test.TestUtil.LocalKafka;
+import feast.test.TestUtil.LocalRedis;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
@@ -85,7 +86,7 @@ public class SparkIngestionTest {
   private static final int KAFKA_PORT = 19092;
   private static final String KAFKA_BOOTSTRAP_SERVERS = KAFKA_HOST + ":" + KAFKA_PORT;
   private static final short KAFKA_REPLICATION_FACTOR = 1;
-  private static final String KAFKA_TOPIC = "topic_1";
+  private static final String KAFKA_TOPIC = "topic_" + System.currentTimeMillis();
   private static final long KAFKA_PUBLISH_TIMEOUT_SEC = 10;
 
   private static final String ZOOKEEPER_DATA_DIR = Files.createTempDir().getAbsolutePath();
@@ -117,10 +118,12 @@ public class SparkIngestionTest {
         ZOOKEEPER_HOST,
         ZOOKEEPER_PORT,
         ZOOKEEPER_DATA_DIR);
+    LocalRedis.start(REDIS_PORT);
   }
 
   @AfterClass
   public static void tearDown() {
+    LocalRedis.stop();
     LocalKafka.stop();
   }
 
@@ -176,13 +179,6 @@ public class SparkIngestionTest {
             });
 
     StreamingQuery query = ingestion.createQuery();
-
-    for (int i = 0; i < 60 && !query.status().isDataAvailable(); i++) {
-      LOGGER.info("Waiting for trigger to start");
-      Thread.sleep(1000);
-    }
-
-    assertThat("Should consume", query.status().isDataAvailable(), is(true));
 
     LOGGER.info(
         "Publishing {} Feature Row messages to Kafka ...",

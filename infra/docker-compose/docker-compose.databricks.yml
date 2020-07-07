@@ -5,9 +5,9 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/databricks-emulator/Dockerfile
-    image: ${FEAST_DATABRICKS_EMULATOR_IMAGE}:${FEAST_VERSION}
+    image: ${FEAST_DATABRICKS_EMULATOR_IMAGE:-feast-databricks-emulator-dev}:${FEAST_VERSION}
     volumes:
-      - ./temp/databricks-emulator-storage:/mnt/storage
+      - ${FEAST_BATCH_JOB_STAGING_LOCATION}:${FEAST_BATCH_JOB_STAGING_LOCATION}
     restart: on-failure
     ports:
       - 9080:8080

@@ -49,6 +49,9 @@ test-java:
 test-java-with-coverage:
 	mvn -B test jacoco:report-aggregate
 
+test-java-8-with-coverage:
+	mvn -B test -pl spark/spark-ingestion-job,spark/spark-historical-retriever-job jacoco:report-aggregate
+
 build-java:
 	mvn clean verify
 

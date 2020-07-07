@@ -150,6 +150,8 @@ feast-core:
       service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "internal-load-balancers"
     loadBalancerIP: ${var.feast_core_vnet_ip}
 
+  logLevel: INFO
+
   application-secret.yaml:
 
     spring:
@@ -239,6 +241,8 @@ feast-online-serving:
       service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "internal-load-balancers"
     loadBalancerIP: ${var.feast_online_serving_vnet_ip}
 
+  logLevel: INFO
+
   application-override.yaml:
     feast:
       core-host: "${var.feast_core_vnet_ip}"
@@ -265,7 +269,9 @@ feast-batch-serving:
       service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "internal-load-balancers"
     loadBalancerIP: ${var.feast_batch_serving_vnet_ip}
 
-  application-override.yaml:
+  logLevel: INFO
+
+  application-secret.yaml:
     feast:
       core-host: "${var.feast_core_vnet_ip}"
       active_store: delta
@@ -273,7 +279,17 @@ feast-batch-serving:
         - name: delta
           type: DELTA
           config:
-            path: "abfss://${var.datalake_filesystem}@${var.datalake_name}.dfs.core.windows.net/feast${var.run_number}"
+            path: "abfss://${var.datalake_filesystem}@${var.datalake_name}.dfs.core.windows.net/"
+            databricks_host: "${var.databricks_workspace_url}"
+            databricks_token: "${databricks_token.feast.token_value}"
+            staging_location: "${var.storage_staging_url}"
+            jar_file: "${local.databricks_dbfs_jar_folder}/sparkjars/spark-historical-retriever-job.jar"
+            num_workers: 1
+            spark_version: "${local.databricks_spark_version}"
+            spark_conf: |
+              fs.azure.account.key.${var.datalake_name}.dfs.core.windows.net {{secrets/${local.databricks_secret_scope}/${local.databricks_secret_datalake_key}}}
+            instance_pool_id: "${databricks_instance_pool.feast.id}"
+            timeout_seconds: 3600
           subscriptions:
             - name: "*"
               project: "*"

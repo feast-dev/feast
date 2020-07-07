@@ -16,6 +16,8 @@
  */
 package feast.spark.ingestion.delta;
 
+import static org.apache.spark.sql.functions.*;
+
 import feast.ingestion.utils.SpecUtil;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
@@ -34,6 +36,8 @@ import java.util.stream.Collectors;
 import org.apache.spark.api.java.function.VoidFunction2;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
+import org.apache.spark.sql.expressions.Window;
+import org.apache.spark.sql.expressions.WindowSpec;
 import org.apache.spark.sql.types.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,23 +70,31 @@ public class SparkDeltaSink implements SparkSink {
 
     List<FeatureSetInfo> featureSetInfos = new ArrayList<FeatureSetInfo>();
 
-    for (Entry<String, FeatureSetSpec> spec : featureSetSpecsByKey.entrySet()) {
+    for (Entry<String, FeatureSetSpec> specEntry : featureSetSpecsByKey.entrySet()) {
 
-      StructType schema = mapper.buildSchema(spec.getValue());
-      log.info("Table: {} schema: {}", spec.getKey(), schema);
+      String specKey = specEntry.getKey();
+      FeatureSetSpec spec = specEntry.getValue();
+      StructType schema = mapper.buildSchema(spec);
 
       // Initialize Delta table if needed
-      String deltaTablePath = getDeltaTablePath(deltaPath, spec.getValue());
+      String deltaTablePath = getDeltaTablePath(deltaPath, spec);
+      String deltaTableName = String.format("%s_%s", spec.getProject(), spec.getName());
+      log.info(
+          "Saving FeatureSet {} into Table {} at path {} with schema {}",
+          specKey,
+          deltaTableName,
+          deltaTablePath,
+          schema);
       spark
           .createDataFrame(Collections.emptyList(), schema)
           .write()
           .format("delta")
           .partitionBy(FeatureRowToSparkRow.EVENT_TIMESTAMP_DAY_COLUMN)
           .mode("append")
-          .save(deltaTablePath.toString());
+          .option("path", deltaTablePath.toString())
+          .saveAsTable(deltaTableName);
 
-      featureSetInfos.add(
-          new FeatureSetInfo(spec.getKey(), spec.getValue(), schema, deltaTablePath));
+      featureSetInfos.add(new FeatureSetInfo(specKey, spec, schema, deltaTablePath));
     }
 
     return new DeltaSinkFunction(featureSetInfos, mapper);
@@ -91,6 +103,7 @@ public class SparkDeltaSink implements SparkSink {
   @SuppressWarnings("serial")
   private static class DeltaSinkFunction implements VoidFunction2<Dataset<byte[]>, Long> {
 
+    private static final String ROW_NUMBER_COL_NAME = "__row_number";
     private final List<FeatureSetInfo> featureSetInfos;
     private final FeatureRowToSparkRow mapper;
     private transient Map<String, DeltaTable> deltaTables = new HashMap<>();
@@ -139,6 +152,17 @@ public class SparkDeltaSink implements SparkSink {
         long batchId,
         List<String> entityNames) {
 
+      Column[] entityCols = entityNames.stream().map(functions::col).toArray(Column[]::new);
+
+      WindowSpec w = Window.partitionBy(entityCols).orderBy(monotonicallyIncreasingId().desc());
+
+      // Deduplicate rows in minibatch, as MERGE throws an exception on duplicates
+      Dataset<Row> dedupDF =
+          microBatchOutputDF
+              .withColumn(ROW_NUMBER_COL_NAME, row_number().over(w))
+              .where(col(ROW_NUMBER_COL_NAME).$eq$eq$eq(1))
+              .drop(ROW_NUMBER_COL_NAME);
+
       // Create condition predicate, e.g. "s.key1 = t.key1 and s.key2 = t.key2"
       String condition =
           entityNames.stream()
@@ -147,7 +171,7 @@ public class SparkDeltaSink implements SparkSink {
 
       deltaTable
           .as("t")
-          .merge(microBatchOutputDF.as("s"), condition)
+          .merge(dedupDF.as("s"), condition)
           .whenMatched()
           .updateAll()
           .whenNotMatched()
@@ -157,9 +181,7 @@ public class SparkDeltaSink implements SparkSink {
   }
 
   public static String getDeltaTablePath(String deltaPath, FeatureSetSpec featureSetSpec) {
-    return String.format(
-        "%s/%s/%s",
-        deltaPath, featureSetSpec.getProject(), SpecUtil.getFeatureSetReference(featureSetSpec));
+    return String.format("%s/%s", deltaPath, SpecUtil.getFeatureSetReference(featureSetSpec));
   }
 
   @SuppressWarnings("serial")

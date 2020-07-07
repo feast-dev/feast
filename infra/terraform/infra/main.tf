@@ -1,3 +1,6 @@
+data "azurerm_client_config" "terraform" {
+}
+
 resource "random_password" "random" {
   length           = 24
   special          = true
@@ -238,6 +241,16 @@ resource "azurerm_storage_account" "datalakestorage" {
 resource "azurerm_storage_data_lake_gen2_filesystem" "datalake" {
   name               = "feast"
   storage_account_id = azurerm_storage_account.datalakestorage.id
+}
+
+resource "azurerm_storage_data_lake_gen2_filesystem" "feaststaging" {
+  name               = "feast-staging"
+  storage_account_id = azurerm_storage_account.datalakestorage.id
+}
+resource "azurerm_role_assignment" "feaststaging" {
+  scope                = azurerm_storage_account.datalakestorage.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = data.azurerm_client_config.terraform.object_id
 }
 
 resource "azurerm_log_analytics_workspace" "loganalyticsworkspace" {

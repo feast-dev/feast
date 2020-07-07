@@ -1,0 +1,27 @@
+feast:
+  core-host: core
+  active-store: delta
+  stores:
+    - name: delta
+      type: DELTA
+      config:
+        path: /tmp/databricks-emulator-storage/delta
+        databricks_host: http://databricks-emulator:8080
+        databricks_token: unused
+        staging_location: file:${FEAST_JOB_STAGING_LOCATION}
+        jar_file: /opt/sparkjars/spark-historical-retriever-job.jar
+        num_workers: 1
+        spark_version: unused
+        spark_conf: |
+          spark.driver.memory 1G
+        instance_pool_id: unused
+        timeout_seconds: 600
+      subscriptions:
+        - name: "*"
+          project: "*"
+  job_store:
+    redis_host: redis
+    redis_port: 6379
+  
+grpc:
+  port: 6567

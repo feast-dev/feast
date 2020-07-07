@@ -18,7 +18,6 @@ package feast.serving.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.proto.core.StoreProto.Store.StoreType;
 import feast.serving.service.JobService;
 import feast.serving.service.NoopJobService;
 import feast.serving.service.RedisBackedJobService;
@@ -31,9 +30,17 @@ public class JobServiceConfig {
   @Bean
   public JobService jobService(FeastProperties feastProperties)
       throws InvalidProtocolBufferException, JsonProcessingException {
-    if (!feastProperties.getActiveStore().toProto().getType().equals(StoreType.BIGQUERY)) {
-      return new NoopJobService();
+    switch (feastProperties.getActiveStore().toProto().getType()) {
+      case BIGQUERY:
+      case DELTA:
+        return new RedisBackedJobService(feastProperties.getJobStore());
+      case REDIS_CLUSTER:
+      case REDIS:
+      case CASSANDRA:
+      case UNRECOGNIZED:
+      case INVALID:
+      default:
+        return new NoopJobService();
     }
-    return new RedisBackedJobService(feastProperties.getJobStore());
   }
 }

@@ -32,10 +32,10 @@ import feast.proto.core.FeatureSetProto.FeatureSpec;
 import feast.proto.core.StoreProto.Store;
 import feast.proto.core.StoreProto.Store.Subscription;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
+import feast.proto.serving.ServingAPIProto.FeatureSetRequest;
 import feast.serving.exception.SpecRetrievalException;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.specs.CoreSpecService;
-import feast.storage.api.retriever.FeatureSetRequest;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -150,8 +150,8 @@ public class CachedSpecServiceTest {
         equalTo(
             List.of(
                 FeatureSetRequest.newBuilder()
-                    .addFeatureReference(fs1fr1)
-                    .addFeatureReference(fs1fr2)
+                    .addFeatureReferences(fs1fr1)
+                    .addFeatureReferences(fs1fr2)
                     .setSpec(featureSetSpecs.get("fs1"))
                     .build())));
   }
@@ -169,8 +169,8 @@ public class CachedSpecServiceTest {
         equalTo(
             List.of(
                 FeatureSetRequest.newBuilder()
-                    .addFeatureReference(fs2fr3)
-                    .addFeatureReference(fs2fr5)
+                    .addFeatureReferences(fs2fr3)
+                    .addFeatureReferences(fs2fr5)
                     .setSpec(featureSetSpecs.get("fs2"))
                     .build())));
   }
@@ -190,11 +190,11 @@ public class CachedSpecServiceTest {
         containsInAnyOrder(
             List.of(
                     FeatureSetRequest.newBuilder()
-                        .addFeatureReference(fs1fr1)
+                        .addFeatureReferences(fs1fr1)
                         .setSpec(featureSetSpecs.get("fs1"))
                         .build(),
                     FeatureSetRequest.newBuilder()
-                        .addFeatureReference(fs2fr3)
+                        .addFeatureReferences(fs2fr3)
                         .setSpec(featureSetSpecs.get("fs2"))
                         .build())
                 .toArray()));
@@ -214,11 +214,11 @@ public class CachedSpecServiceTest {
         containsInAnyOrder(
             List.of(
                     FeatureSetRequest.newBuilder()
-                        .addFeatureReference(fs1fr1)
+                        .addFeatureReferences(fs1fr1)
                         .setSpec(featureSetSpecs.get("fs1"))
                         .build(),
                     FeatureSetRequest.newBuilder()
-                        .addFeatureReference(fs2fr3)
+                        .addFeatureReferences(fs2fr3)
                         .setSpec(featureSetSpecs.get("fs2"))
                         .build())
                 .toArray()));
@@ -237,8 +237,8 @@ public class CachedSpecServiceTest {
         equalTo(
             List.of(
                 FeatureSetRequest.newBuilder()
-                    .addFeatureReference(fr1)
-                    .addFeatureReference(fr2)
+                    .addFeatureReferences(fr1)
+                    .addFeatureReferences(fr2)
                     .setSpec(featureSetSpecs.get("fs1"))
                     .build())));
   }

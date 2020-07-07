@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 
 import fastavro
 import pandas as pd
+import glob
 from google.protobuf.json_format import MessageToJson
 
 from feast.core.CoreService_pb2 import ListIngestionJobsRequest
@@ -21,7 +22,7 @@ from feast.serving.ServingService_pb2 import (
 from feast.serving.ServingService_pb2 import Job as JobProto
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.source import Source
-from feast.staging.staging_strategy import StagingStrategy
+from feast.staging.storage_client import get_staging_client
 
 # Maximum no of seconds to wait until the retrieval jobs status is DONE in Feast
 # Currently set to the maximum query execution time limit in BigQuery
@@ -46,7 +47,6 @@ class RetrievalJob:
         """
         self.job_proto = job_proto
         self.serving_stub = serving_stub
-        self.staging_strategy = StagingStrategy()
 
     @property
     def id(self):
@@ -124,12 +124,23 @@ class RetrievalJob:
         """
         uris = self.get_avro_files(timeout_sec)
         for file_uri in uris:
-            file_obj = self.staging_strategy.execute_file_download(file_uri)
-            file_obj.seek(0)
-            avro_reader = fastavro.reader(file_obj)
+            (file_obj, dir_obj) = get_staging_client(file_uri.scheme).download_file(
+                file_uri
+            )
+            if file_obj:
+                file_obj.seek(0)
+                avro_reader = fastavro.reader(file_obj)
 
-            for record in avro_reader:
-                yield record
+                for record in avro_reader:
+                    yield record
+
+            if dir_obj:
+                for file_name in glob.glob(f"{dir_obj.name}/*.avro"):
+                    with open(file_name, "rb") as file_obj:
+                        avro_reader = fastavro.reader(file_obj)
+
+                        for record in avro_reader:
+                            yield record
 
     def to_dataframe(self, timeout_sec: int = DEFAULT_TIMEOUT_SEC) -> pd.DataFrame:
         """

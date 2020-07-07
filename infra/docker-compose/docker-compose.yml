@@ -28,10 +28,12 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/jupyter/Dockerfile
-    image: ${FEAST_JUPYTER_IMAGE}:${FEAST_VERSION}
+    image: ${FEAST_JUPYTER_IMAGE:-feast-jupyter}:${FEAST_VERSION}
+    user: root
     volumes:
       - ./gcp-service-accounts/${FEAST_JUPYTER_GCP_SERVICE_ACCOUNT_KEY}:/etc/gcloud/service-accounts/key.json
       - ../../:/home/jovyan/feast
+      - ${FEAST_BATCH_JOB_STAGING_LOCATION}:${FEAST_BATCH_JOB_STAGING_LOCATION}
     depends_on:
       - core
     environment:
