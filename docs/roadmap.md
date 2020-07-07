@@ -1,5 +1,27 @@
 # Roadmap
 
+## Feast 0.7 \(Feature Release\)
+
+[Discussion](https://github.com/feast-dev/feast/issues/834)
+
+[GitHub Milestone](https://github.com/feast-dev/feast/milestone/4)
+
+### New functionality
+
+1. Entities as a first-class concept [\#405](https://github.com/feast-dev/feast/issues/405)
+2. Datasets as a first-class concept \(TBD\)
+3. Feast UI \(MVP\)
+4. Native SDK types instead of proto types
+
+### Technical debt, refactoring, or housekeeping
+
+1. Improved integration testing framework
+2. Resolve non-determinism in end-to-end tests
+
+### Proposals
+
+1. Training-serving skew detection proposal
+
 ## Feast 0.6 \(Feature Release\)
 
 [Discussion](https://github.com/feast-dev/feast/issues/767)
