@@ -23,11 +23,9 @@ import feast.core.job.Runner;
 import feast.core.log.Action;
 import feast.core.log.AuditLogger;
 import feast.core.log.Resource;
-import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
-import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.proto.core.CoreServiceProto.ListIngestionJobsRequest;
 import feast.proto.core.CoreServiceProto.ListIngestionJobsResponse;
 import feast.proto.core.CoreServiceProto.RestartIngestionJobRequest;
@@ -115,20 +113,17 @@ public class JobService {
         if (filter.hasFeatureSetReference()) {
           // find a matching featuresets for reference
           FeatureSetReference fsReference = filter.getFeatureSetReference();
-          ListFeatureSetsResponse response =
-              this.specService.listFeatureSets(this.toListFeatureSetFilter(fsReference));
-          List<FeatureSet> featureSets =
-              response.getFeatureSetsList().stream()
-                  .map(FeatureSet::fromProto)
-                  .collect(Collectors.toList());
 
           // find jobs for the matching featuresets
           Collection<Job> matchingJobs =
-              this.jobRepository.findByFeatureSetJobStatusesIn(
-                  featureSets.stream()
-                      .flatMap(fs -> fs.getJobStatuses().stream())
-                      .collect(Collectors.toList()));
-          List<String> jobIds = matchingJobs.stream().map(Job::getId).collect(Collectors.toList());
+              this.jobRepository
+                  .findByFeatureSetJobStatusesFeatureSetNameAndFeatureSetJobStatusesFeatureSetProjectName(
+                      fsReference.getName(), fsReference.getProject());
+          List<String> jobIds =
+              matchingJobs.stream()
+                  .filter(job -> job.getStatus().equals(JobStatus.RUNNING))
+                  .map(Job::getId)
+                  .collect(Collectors.toList());
           matchingJobIds = this.mergeResults(matchingJobIds, jobIds);
         }
       }
