@@ -202,6 +202,8 @@ jobs:
     - name: Compile Python protos
       run: set -e make compile-protos-python
 
+    - uses: azure/setup-kubectl@v1
+
     - name: Prepare e2e test pod and clear Redis data
       run: |
         set -ex
@@ -277,8 +279,6 @@ jobs:
         pip install twine
         twine upload dist/*.tar.gz --repository-url https://${{ secrets.PYPI_REPO }} -u ${{ secrets.PYPI_USER }} -p ${{ secrets.PYPI_PWD }}
       working-directory: sdk/python
-
-    - uses: azure/setup-kubectl@v1
 
     - name: Prepare e2e test pod and clear Redis data
       run: |
