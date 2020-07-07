@@ -170,8 +170,8 @@ feast-core:
             options:
               host: "${var.databricks_workspace_url}"
               token: "${databricks_token.feast.token_value}"
+              checkpointLocation: dbfs:/checkpoints/feast
               jarFile: "${local.databricks_dbfs_jar_folder}/sparkjars/spark-ingestion-job.jar"
-              maxRetries: 0
               timeoutSeconds: 1200
               newCluster:
                 sparkVersion: "${local.databricks_spark_version}"

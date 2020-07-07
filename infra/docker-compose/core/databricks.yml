@@ -9,8 +9,8 @@ feast:
         options:
           host: http://databricks-emulator:8080
           token: unused
+          checkpointLocation: /tmp/checkpoints/feast
           jarFile: /opt/sparkjars/spark-ingestion-job.jar
-          maxRetries: 0
           timeoutSeconds: -1
           newCluster:
             sparkVersion: 6.6.x-scala2.11

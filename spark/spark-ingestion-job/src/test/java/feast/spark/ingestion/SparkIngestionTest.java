@@ -100,7 +100,9 @@ public class SparkIngestionTest {
   // Note that larger no of samples will increase completion time for ingestion.
   private static final int IMPORT_JOB_SAMPLE_FEATURE_ROW_SIZE = 128;
 
-  @Rule public TemporaryFolder folder = new TemporaryFolder();
+  @Rule public TemporaryFolder deltaFolder = new TemporaryFolder();
+
+  @Rule public TemporaryFolder checkpointFolder = new TemporaryFolder();
 
   @Rule public final SparkSessionRule spark = new SparkSessionRule();
 
@@ -152,7 +154,7 @@ public class SparkIngestionTest {
     Store redis =
         TestUtil.createStore(specForRedis, StoreType.REDIS).setRedisConfig(redisConfig).build();
 
-    File deltaPath = folder.getRoot();
+    File deltaPath = deltaFolder.getRoot();
     DeltaConfig deltaConfig = DeltaConfig.newBuilder().setPath(deltaPath.getAbsolutePath()).build();
     Store delta =
         TestUtil.createStore(specForDelta, StoreType.DELTA).setDeltaConfig(deltaConfig).build();
@@ -165,9 +167,13 @@ public class SparkIngestionTest {
 
     Dataset<Row> data = null;
 
+    String checkpointDir = checkpointFolder.getRoot().getAbsolutePath();
+
     SparkIngestion ingestion =
         new SparkIngestion(
-            new String[] {"testjob", "myDefaultFeastProject", featureSetsJson, storesJson});
+            new String[] {
+              "testjob", checkpointDir, "myDefaultFeastProject", featureSetsJson, storesJson
+            });
 
     StreamingQuery query = ingestion.createQuery();
 

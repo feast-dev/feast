@@ -12,5 +12,9 @@ pandas==0.*
 mock==2.0.0
 pandavro==1.5.*
 moto
-azure-cli-core
-azure-storage-blob>=12
+mypy
+mypy-protobuf
+azure-storage-file-datalake
+azure-identity
+azure-common
+msrestazure

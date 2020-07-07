@@ -16,16 +16,17 @@
  */
 package feast.databricks.types;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import java.util.List;
+import java.util.Optional;
 
-public class ObjectMapperFactory {
+public interface JobDefinition {
+  NewCluster getNewCluster();
 
-  public static ObjectMapper createObjectMapper() {
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.registerModule(new Jdk8Module());
-    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    return mapper;
-  }
+  SparkJarTask getSparkJarTask();
+
+  Optional<String> getName();
+
+  Optional<List<Library>> getLibraries();
+
+  Optional<Integer> getTimeoutSeconds();
 }

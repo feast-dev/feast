@@ -46,7 +46,6 @@ REQUIRED = [
     "numpy",
     "google",
     "confluent_kafka",
-    "boto3"
 ]
 
 # README file from Feast repo root directory

@@ -34,10 +34,14 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.Charsets;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpException;
 import org.apache.http.HttpStatus;
@@ -50,11 +54,11 @@ public class DatabricksJobManager implements JobManager {
 
   private final String databricksHost;
   private final byte[] databricksToken;
+  private final String checkpointLocation;
   private final String jarFile;
   private final DatabricksRunnerConfigOptions.DatabricksNewClusterOptions newClusterConfigOptions;
   private final HttpClient httpClient;
   private static final ObjectMapper mapper = ObjectMapperFactory.createObjectMapper();
-  private final int maxRetries;
   private final int timeoutSeconds;
 
   public DatabricksJobManager(
@@ -62,10 +66,10 @@ public class DatabricksJobManager implements JobManager {
 
     this.databricksHost = runnerConfigOptions.getHost();
     this.databricksToken = runnerConfigOptions.getToken().getBytes(StandardCharsets.UTF_8);
+    this.checkpointLocation = runnerConfigOptions.getCheckpointLocation();
     this.httpClient = httpClient;
     this.newClusterConfigOptions = runnerConfigOptions.getNewCluster();
     this.jarFile = runnerConfigOptions.getJarFile();
-    this.maxRetries = runnerConfigOptions.getMaxRetries();
     this.timeoutSeconds = runnerConfigOptions.getTimeoutSeconds();
   }
 
@@ -78,20 +82,12 @@ public class DatabricksJobManager implements JobManager {
   public Job startJob(Job job) {
     String jobId = job.getId();
 
-    long databricksJobId = createDatabricksJob(job);
-
-    log.info("Created job for Feast job {} (Databricks JobId {})", jobId, databricksJobId);
-
-    long databricksRunId = runDatabricksJob(databricksJobId);
+    long databricksRunId = createDatabricksRun(job);
 
     log.info("Setting job status for job {} (Databricks RunId {})", jobId, databricksRunId);
     job.setExtId(Long.toString(databricksRunId));
 
-    log.info(
-        "Waiting for job {} to start (Databricks JobId {} RunId {})",
-        jobId,
-        databricksJobId,
-        databricksRunId);
+    log.info("Waiting for job {} to start (Databricks RunId {})", jobId, databricksRunId);
     waitForJobToStart(job);
 
     return job;
@@ -199,7 +195,7 @@ public class DatabricksJobManager implements JobManager {
     return response;
   }
 
-  private long createDatabricksJob(Job job) {
+  private long createDatabricksRun(Job job) {
     log.info("Starting job id {} for sink {}", job.getId(), job.getSinkName());
 
     String jobName = String.format("Feast ingestion job %s", job.getId());
@@ -224,23 +220,24 @@ public class DatabricksJobManager implements JobManager {
     String storesJson = toJsonLine(store);
     String featureSetsJson = toJsonLines(featureSetSpecsProtos);
 
-    JobsCreateRequest createRequest =
-        getJobRequest(
-            jobName, Arrays.asList(job.getId(), defaultFeastProject, featureSetsJson, storesJson));
+    List<String> params =
+        Arrays.asList(
+            job.getId(), checkpointLocation, defaultFeastProject, featureSetsJson, storesJson);
+    RunsSubmitRequest runRequest = getJobRequest(jobName, params);
 
     try {
-      String body = mapper.writeValueAsString(createRequest);
+      String body = mapper.writeValueAsString(runRequest);
 
       HttpRequest.Builder request =
           HttpRequest.newBuilder()
-              .uri(getJobsCreateUri())
+              .uri(URI.create(String.format("%s/api/2.0/jobs/runs/submit", databricksHost)))
               .POST(HttpRequest.BodyPublishers.ofString(body));
 
       HttpResponse<String> response = sendDatabricksRequest(request);
-      JobsCreateResponse createResponse =
-          mapper.readValue(response.body(), JobsCreateResponse.class);
+      RunsSubmitResponse submitResponse =
+          mapper.readValue(response.body(), RunsSubmitResponse.class);
 
-      return createResponse.getJobId();
+      return submitResponse.getRunId();
 
     } catch (IOException | InterruptedException | HttpException e) {
       log.error("Unable to run databricks job" + jobName, e);
@@ -252,48 +249,7 @@ public class DatabricksJobManager implements JobManager {
     }
   }
 
-  private URI getJobsCreateUri() {
-    return URI.create(String.format("%s/api/2.0/jobs/create", databricksHost));
-  }
-
-  private long runDatabricksJob(long databricksJobId) {
-    log.info("Starting run for Databricks JobId {}", databricksJobId);
-
-    RunNowRequest runNowRequest = getRunNowRequest(databricksJobId);
-
-    try {
-      String body = mapper.writeValueAsString(runNowRequest);
-
-      HttpRequest.Builder request =
-          HttpRequest.newBuilder()
-              .uri(getRunNowUri())
-              .POST(HttpRequest.BodyPublishers.ofString(body));
-
-      HttpResponse<String> response = sendDatabricksRequest(request);
-
-      RunNowResponse runNowResponse = mapper.readValue(response.body(), RunNowResponse.class);
-      return runNowResponse.getRunId();
-    } catch (Exception e) {
-      log.error("Unable to run databricks job with id " + databricksJobId, e);
-      throw new JobExecutionException(
-          String.format(
-              "Unable to run databricks job with id : %s \nmessage: %s\ncause: %s",
-              databricksJobId, e.getMessage(), e.getCause()),
-          e);
-    }
-  }
-
-  private URI getRunNowUri() {
-    return URI.create(String.format("%s/api/2.0/jobs/run-now", databricksHost));
-  }
-
-  private RunNowRequest getRunNowRequest(long databricksJobId) {
-    RunNowRequest runNowRequest = RunNowRequest.builder().setJobId(databricksJobId).build();
-
-    return runNowRequest;
-  }
-
-  private JobsCreateRequest getJobRequest(String jobName, List<String> params) {
+  private RunsSubmitRequest getJobRequest(String jobName, List<String> params) {
     Map<String, String> sparkConf =
         Arrays.stream(newClusterConfigOptions.getSparkConf().strip().split("\n"))
             .map(s -> s.strip().split("\\s+", 2))
@@ -317,17 +273,41 @@ public class DatabricksJobManager implements JobManager {
             .setParameters(params)
             .build();
 
-    JobsCreateRequest createRequest =
-        JobsCreateRequest.builder()
+    String token = toDigest(jobName);
+
+    RunsSubmitRequest runRequest =
+        RunsSubmitRequest.builder()
             .setLibraries(libraries)
-            .setMaxRetries(maxRetries)
             .setTimeoutSeconds(timeoutSeconds)
             .setName(jobName)
             .setNewCluster(newCluster.build())
             .setSparkJarTask(sparkJarTask)
+            .setIdempotencyToken(token)
             .build();
 
-    return createRequest;
+    return runRequest;
+  }
+
+  /**
+   * Create a 64-character long digest from a string. This can be used as the Databricks
+   * idempotency_token, which is <a
+   * href="https://docs.databricks.com/dev-tools/api/latest/jobs.html#request-structure">limited to
+   * 64 characters</a>.
+   *
+   * @param jobName String to digest
+   * @return a digest exactly 64 characters long.
+   */
+  static String toDigest(String jobName) {
+    MessageDigest md;
+    try {
+      md = MessageDigest.getInstance("SHA-256");
+    } catch (NoSuchAlgorithmException e) {
+      throw new RuntimeException(e);
+    }
+
+    md.update(jobName.getBytes(Charsets.UTF_8));
+    String token = Hex.encodeHexString(md.digest());
+    return token;
   }
 
   private static void ifPresent(String nodeTypeId, Consumer<? super String> action) {

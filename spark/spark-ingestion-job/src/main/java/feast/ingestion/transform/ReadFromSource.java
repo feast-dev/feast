@@ -1,6 +1,6 @@
 /*
  * SPDX-License-Identifier: Apache-2.0
- * Copyright 2018-2020 The Feast Authors
+ * Copyright 2018-2019 The Feast Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.databricks.types;
+package feast.ingestion.transform;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
-public class ObjectMapperFactory {
+/* Copied from feast-ingestion project. TODO - create shared project */
+public abstract class ReadFromSource {
 
-  public static ObjectMapper createObjectMapper() {
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.registerModule(new Jdk8Module());
-    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    return mapper;
+  public static String generateConsumerGroupId(String jobName) {
+    String jobNameWithoutTimestamp =
+        Arrays.stream(jobName.split("-")).limit(4).collect(Collectors.joining("-"));
+    return "feast_import_job_" + jobNameWithoutTimestamp;
   }
 }
