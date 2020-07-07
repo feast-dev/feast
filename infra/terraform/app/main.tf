@@ -330,16 +330,21 @@ resource "databricks_dbfs_file" "init_pypi_script" {
 }
 
 resource "databricks_cluster" "feast-cluster" {
-  num_workers             = "2"
   cluster_name            = "feast-dev-test"
   spark_version           = "6.5.x-scala2.11"
   node_type_id            = "Standard_DS3_v2"
   autotermination_minutes = 30
-  init_scripts {
-    dbfs {
-      destination = "dbfs:/${databricks_dbfs_file.init_pypi_script.path}"
+
+  autoscale {
+      min_workers = 0
+      max_workers = 2
     }
-  }
+
+//  init_scripts {
+//    dbfs {
+//      destination = "dbfs:/${databricks_dbfs_file.init_pypi_script.path}"
+//    }
+//  }
   spark_env_vars = {
     "PYPI_PWD"        = "{{secrets/${databricks_secret_scope.feast.name}/${databricks_secret.pypi_password.key}}"
     "PYPI_USER"       = "{{secrets/${databricks_secret_scope.feast.name}/${databricks_secret.pypi_username.key}}}"
