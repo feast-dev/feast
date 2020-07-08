@@ -31,7 +31,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 
-/** Authorization Provider implementation for external HTTP authorization server */
+/**
+ * HTTPAuthorizationProvider uses an external HTTP service for authorizing requests. Please see
+ * auth/src/main/resources/api.yaml for the API specification of this external service.
+ */
 public class HTTPAuthorizationProvider implements AuthorizationProvider {
 
   private static final Logger log = LoggerFactory.getLogger(HTTPAuthorizationProvider.class);
