@@ -139,15 +139,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
-                    <source>8</source>
-                    <doclint>none</doclint>
-                    <tags>
-                        <tag>
-                            <name>http.response.details</name>
-                            <placement>a</placement>
-                            <head>Http Response Details:</head>
-                        </tag>
-                    </tags>
+                    <excludePackageNames>feast.auth.generated.client.api</excludePackageNames>
                 </configuration>
             </plugin>
         </plugins>
