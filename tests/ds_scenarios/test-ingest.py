@@ -54,7 +54,8 @@ def client(core_url, serving_url, allow_dirty, project_name):
     if not project_name:
       project_name = 'ds_' + uuid.uuid4().hex.upper()[0:6]
 
-    client.create_project(project_name)
+    if project_name not in client.list_projects():
+        client.create_project(project_name)
 
     # Ensure Feast core is active, but empty
     if not allow_dirty:
@@ -73,7 +74,7 @@ def client(core_url, serving_url, allow_dirty, project_name):
     (create_product_text_attributes_df, PRODUCT_TEXT_ATTRIBUTE_FEATURE_SET),
     (create_fraud_counts_df, FRAUD_COUNTS_FEATURE_SET),
 ])
-def test_ingestion(client, initial_entity_id, data_frame_generator, feature_set):
+def test_ingestion(project_name, client, initial_entity_id, data_frame_generator, feature_set):
     client.set_project(project_name)
     client.apply(feature_set)
     data_frame = data_frame_generator(initial_entity_id)
