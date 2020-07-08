@@ -35,9 +35,9 @@ import org.springframework.security.core.Authentication;
  * HTTPAuthorizationProvider uses an external HTTP service for authorizing requests. Please see
  * auth/src/main/resources/api.yaml for the API specification of this external service.
  */
-public class HTTPAuthorizationProvider implements AuthorizationProvider {
+public class HttpAuthorizationProvider implements AuthorizationProvider {
 
-  private static final Logger log = LoggerFactory.getLogger(HTTPAuthorizationProvider.class);
+  private static final Logger log = LoggerFactory.getLogger(HttpAuthorizationProvider.class);
   private final DefaultApi defaultApiClient;
 
   /**
@@ -46,7 +46,7 @@ public class HTTPAuthorizationProvider implements AuthorizationProvider {
    * @param options String K/V pair of options to initialize the provider with. Expects at least a
    *     "basePath" for the provider URL
    */
-  public HTTPAuthorizationProvider(Map<String, String> options) {
+  public HttpAuthorizationProvider(Map<String, String> options) {
     if (options == null) {
       throw new IllegalArgumentException(
           "Cannot pass empty or null options to HTTPAuthorizationProvider");

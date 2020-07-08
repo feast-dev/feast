@@ -18,7 +18,7 @@ package feast.auth.config;
 
 import feast.auth.authentication.DefaultJwtAuthenticationProvider;
 import feast.auth.authorization.AuthorizationProvider;
-import feast.auth.authorization.HTTPAuthorizationProvider;
+import feast.auth.authorization.HttpAuthorizationProvider;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -110,7 +110,7 @@ public class SecurityConfig {
       switch (securityProperties.getAuthorization().getProvider()) {
         case "http":
           Map<String, String> options = securityProperties.getAuthorization().getOptions();
-          return new HTTPAuthorizationProvider(options);
+          return new HttpAuthorizationProvider(options);
         default:
           throw new IllegalArgumentException(
               "Please configure an Authorization Provider if you have enabled authorization.");
