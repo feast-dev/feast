@@ -3,10 +3,36 @@ feast:
   # Feast Serving requires connection to Feast Core to retrieve and reload Feast metadata (e.g. FeatureSpecs, Store information)
   core-host: ${FEAST_CORE_HOST:localhost}
   core-grpc-port: ${FEAST_CORE_GRPC_PORT:6565}
+  
+  core-authentication:
+    enabled: false # should be set to true if authentication is enabled on core.
+    provider: google # can be set to `oauth` or `google`
+    # if google, GOOGLE_APPLICATION_CREDENTIALS environment variable should be set.
+    options:
+      #if provider is oauth following properties need to be set, else serving boot up will fail.
+      oauth_url: https://localhost/oauth/token #oauth token request url
+      grant_type: client_credentials #oauth grant type
+      client_id: <client_id> #oauth client id which will be used for jwt token token request
+      client_secret: <client_secret> #oauth client secret which will be used for jwt token token request
+      audience: https://localhost #token audience.
+      jwkEndpointURI: <jwkEndpointURI> #jwk enpoint uri, used for caching token till expiry.
+      
 
   # Indicates the active store. Only a single store in the last can be active at one time. In the future this key
   # will be deprecated in order to allow multiple stores to be served from a single serving instance
   active_store: online
+  
+  security:
+    authentication:
+      enabled: false
+      provider: jwt
+      options:
+        jwkEndpointURI: "https://www.googleapis.com/oauth2/v3/certs"
+    authorization:
+      enabled: false
+      provider: none
+      options:
+        basePath: http://localhost:3000
 
   # List of store configurations
   stores:
@@ -72,13 +98,15 @@ feast:
     redis_port: 6379
 
 grpc:
-  # The port number Feast Serving GRPC service should listen on
-  # It is set default to 6566 so it does not conflict with the GRPC server on Feast Core
-  # which defaults to port 6565
-  port: ${GRPC_PORT:6566}
-  # This allows client to discover GRPC endpoints easily
-  # https://github.com/grpc/grpc-java/blob/master/documentation/server-reflection-tutorial.md
-  enable-reflection: ${GRPC_ENABLE_REFLECTION:true}
+  server:
+    # The port number Feast Serving GRPC service should listen on
+    # It is set default to 6566 so it does not conflict with the GRPC server on Feast Core
+    # which defaults to port 6565
+    port: ${GRPC_PORT:6566}
+    security:
+      enabled: false
+      certificateChainPath: server.crt
+      privateKeyPath: server.key
 
 server:
   # The port number on which the Tomcat webserver that serves REST API endpoints should listen

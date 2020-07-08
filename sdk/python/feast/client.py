@@ -165,11 +165,11 @@ class Client:
             channel = create_grpc_channel(
                 url=self._config.get(CONFIG_SERVING_URL_KEY),
                 enable_ssl=self._config.getboolean(CONFIG_SERVING_ENABLE_SSL_KEY),
-                enable_auth=False,
+                enable_auth=self._config.getboolean(CONFIG_CORE_ENABLE_AUTH_KEY),
                 ssl_server_cert_path=self._config.get(
                     CONFIG_SERVING_SERVER_SSL_CERT_KEY
                 ),
-                auth_metadata_plugin=None,
+                auth_metadata_plugin=self._auth_metadata,
                 timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
             )
             self._serving_service_stub = ServingServiceStub(channel)
@@ -271,6 +271,7 @@ class Client:
             serving_version = self._serving_service.GetFeastServingInfo(
                 GetFeastServingInfoRequest(),
                 timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                metadata=self._get_grpc_metadata(),
             ).version
             result["serving"] = {"url": self.serving_url, "version": serving_version}
 
@@ -619,6 +620,7 @@ class Client:
         serving_info = self._serving_service.GetFeastServingInfo(
             GetFeastServingInfoRequest(),
             timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+            metadata=self._get_grpc_metadata(),
         )  # type: GetFeastServingInfoResponse
 
         if serving_info.type != FeastServingType.FEAST_SERVING_TYPE_BATCH:
@@ -669,7 +671,9 @@ class Client:
 
         # Retrieve Feast Job object to manage life cycle of retrieval
         try:
-            response = self._serving_service.GetBatchFeatures(request)
+            response = self._serving_service.GetBatchFeatures(
+                request, metadata=self._get_grpc_metadata()
+            )
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 
@@ -722,7 +726,8 @@ class Client:
                     features=_build_feature_references(feature_ref_strs=feature_refs),
                     entity_rows=_infer_online_entity_rows(entity_rows),
                     project=project if project is not None else self.project,
-                )
+                ),
+                metadata=self._get_grpc_metadata(),
             )
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())

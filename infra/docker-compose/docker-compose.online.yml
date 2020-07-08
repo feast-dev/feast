@@ -5,11 +5,16 @@ services:
     image: ${FEAST_SERVING_IMAGE}:${FEAST_VERSION}
     volumes:
       - ./serving/${FEAST_ONLINE_SERVING_CONFIG}:/etc/feast/application.yml
+      # Required if authentication is enabled on core and
+      # provider is 'google'. GOOGLE_APPLICATION_CREDENTIALS is used for connecting to core.
+      - ./gcp-service-accounts/${FEAST_BATCH_SERVING_GCP_SERVICE_ACCOUNT_KEY}:/etc/gcloud/service-accounts/key.json
     depends_on:
       - redis
     ports:
       - 6566:6566
     restart: on-failure
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
     command:
       - java
       - -jar

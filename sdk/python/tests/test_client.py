@@ -81,6 +81,7 @@ _FAKE_JWT_TOKEN = (
     "TY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDI"
     "yfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
 )
+AUTH_METADATA = (("authorization", f"Bearer {_FAKE_JWT_TOKEN}"),)
 
 
 class TestClient:
@@ -99,6 +100,32 @@ class TestClient:
     @pytest.fixture
     def mock_client(self):
         client = Client(core_url=CORE_URL, serving_url=SERVING_URL)
+        client._core_url = CORE_URL
+        client._serving_url = SERVING_URL
+        return client
+
+    @pytest.fixture
+    def mock_client_with_auth(self):
+        client = Client(
+            core_url=CORE_URL,
+            serving_url=SERVING_URL,
+            core_enable_auth=True,
+            core_auth_token=_FAKE_JWT_TOKEN,
+        )
+        client._core_url = CORE_URL
+        client._serving_url = SERVING_URL
+        return client
+
+    @pytest.fixture
+    def secure_mock_client_with_auth(self):
+        client = Client(
+            core_url=CORE_URL,
+            serving_url=SERVING_URL,
+            core_enable_ssl=True,
+            serving_enable_ssl=True,
+            core_enable_auth=True,
+            core_auth_token=_FAKE_JWT_TOKEN,
+        )
         client._core_url = CORE_URL
         client._serving_url = SERVING_URL
         return client
@@ -257,10 +284,21 @@ class TestClient:
         )
 
     @pytest.mark.parametrize(
-        "mocked_client",
-        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+        "mocked_client,auth_metadata",
+        [
+            (pytest.lazy_fixture("mock_client"), ()),
+            (pytest.lazy_fixture("mock_client_with_auth"), (AUTH_METADATA)),
+            (pytest.lazy_fixture("secure_mock_client"), ()),
+            (pytest.lazy_fixture("secure_mock_client_with_auth"), (AUTH_METADATA)),
+        ],
+        ids=[
+            "mock_client_without_auth",
+            "mock_client_with_auth",
+            "secure_mock_client_without_auth",
+            "secure_mock_client_with_auth",
+        ],
     )
-    def test_get_online_features(self, mocked_client, mocker):
+    def test_get_online_features(self, mocked_client, auth_metadata, mocker):
         ROW_COUNT = 300
 
         mocked_client._serving_service_stub = Serving.ServingServiceStub(
@@ -312,7 +350,7 @@ class TestClient:
             project="driver_project",
         )  # type: GetOnlineFeaturesResponse
         mocked_client._serving_service_stub.GetOnlineFeatures.assert_called_with(
-            request
+            request, metadata=auth_metadata
         )
 
         got_fields = got_response.field_values[0].fields
@@ -606,7 +644,12 @@ class TestClient:
 
     @pytest.mark.parametrize(
         "mocked_client",
-        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+        [
+            pytest.lazy_fixture("mock_client"),
+            pytest.lazy_fixture("mock_client_with_auth"),
+            pytest.lazy_fixture("secure_mock_client"),
+            pytest.lazy_fixture("secure_mock_client_with_auth"),
+        ],
     )
     def test_get_historical_features(self, mocked_client, mocker):
 

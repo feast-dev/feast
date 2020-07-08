@@ -25,17 +25,30 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
+import feast.auth.config.SecurityProperties;
+import feast.auth.config.SecurityProperties.AuthenticationProperties;
+import feast.auth.config.SecurityProperties.AuthorizationProperties;
+import feast.auth.credentials.CoreAuthenticationProperties;
 import feast.proto.core.StoreProto;
 import java.util.*;
 import java.util.stream.Collectors;
+import javax.annotation.PostConstruct;
+import javax.validation.ConstraintViolation;
+import javax.validation.ConstraintViolationException;
+import javax.validation.Validation;
+import javax.validation.Validator;
+import javax.validation.ValidatorFactory;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Positive;
 import org.apache.logging.log4j.core.config.plugins.validation.constraints.ValidHost;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.info.BuildProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 /** Feast Serving properties. */
+@Configuration
 @ConfigurationProperties(prefix = "feast", ignoreInvalidFields = true)
 public class FeastProperties {
 
@@ -60,6 +73,41 @@ public class FeastProperties {
 
   /* Feast Core port to connect to. */
   @Positive private int coreGrpcPort;
+
+  private CoreAuthenticationProperties coreAuthentication;
+
+  public CoreAuthenticationProperties getCoreAuthentication() {
+    return coreAuthentication;
+  }
+
+  public void setCoreAuthentication(CoreAuthenticationProperties coreAuthentication) {
+    this.coreAuthentication = coreAuthentication;
+  }
+
+  private SecurityProperties security;
+
+  @Bean
+  SecurityProperties securityProperties() {
+    return this.getSecurity();
+  }
+
+  /**
+   * Getter for SecurityProperties
+   *
+   * @return Returns the {@link SecurityProperties} object.
+   */
+  public SecurityProperties getSecurity() {
+    return security;
+  }
+
+  /**
+   * Setter for SecurityProperties
+   *
+   * @param security :input {@link SecurityProperties} object
+   */
+  public void setSecurity(SecurityProperties security) {
+    this.security = security;
+  }
 
   /**
    * Finds and returns the active store
@@ -537,6 +585,43 @@ public class FeastProperties {
      */
     public void setServiceName(String serviceName) {
       this.serviceName = serviceName;
+    }
+  }
+
+  /**
+   * Validates all FeastProperties. This method runs after properties have been initialized and
+   * individually and conditionally validates each class.
+   */
+  @PostConstruct
+  public void validate() {
+    ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
+    Validator validator = factory.getValidator();
+
+    // Validate root fields in FeastProperties
+    Set<ConstraintViolation<FeastProperties>> violations = validator.validate(this);
+    if (!violations.isEmpty()) {
+      throw new ConstraintViolationException(violations);
+    }
+
+    // Validate CoreAuthenticationProperties
+    Set<ConstraintViolation<CoreAuthenticationProperties>> coreAuthenticationPropsViolations =
+        validator.validate(getCoreAuthentication());
+    if (!coreAuthenticationPropsViolations.isEmpty()) {
+      throw new ConstraintViolationException(coreAuthenticationPropsViolations);
+    }
+
+    // Validate AuthenticationProperties
+    Set<ConstraintViolation<AuthenticationProperties>> authenticationPropsViolations =
+        validator.validate(getSecurity().getAuthentication());
+    if (!authenticationPropsViolations.isEmpty()) {
+      throw new ConstraintViolationException(authenticationPropsViolations);
+    }
+
+    // Validate AuthorizationProperties
+    Set<ConstraintViolation<AuthorizationProperties>> authorizationPropsViolations =
+        validator.validate(getSecurity().getAuthorization());
+    if (!authorizationPropsViolations.isEmpty()) {
+      throw new ConstraintViolationException(authorizationPropsViolations);
     }
   }
 }

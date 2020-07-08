@@ -16,6 +16,8 @@
  */
 package feast.serving.controller;
 
+import feast.auth.service.AuthorizationService;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.serving.ServingAPIProto.GetBatchFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
@@ -35,11 +37,13 @@ import io.grpc.stub.StreamObserver;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
-import org.lognet.springboot.grpc.GRpcService;
+import java.util.List;
+import net.devh.boot.grpc.server.service.GrpcService;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 
-@GRpcService(interceptors = {GrpcMonitoringInterceptor.class})
+@GrpcService(interceptors = {GrpcMonitoringInterceptor.class})
 public class ServingServiceGRpcController extends ServingServiceImplBase {
 
   private static final Logger log =
@@ -47,10 +51,15 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
   private final ServingService servingService;
   private final String version;
   private final Tracer tracer;
+  private final AuthorizationService authorizationService;
 
   @Autowired
   public ServingServiceGRpcController(
-      ServingService servingService, FeastProperties feastProperties, Tracer tracer) {
+      AuthorizationService authorizationService,
+      ServingService servingService,
+      FeastProperties feastProperties,
+      Tracer tracer) {
+    this.authorizationService = authorizationService;
     this.servingService = servingService;
     this.version = feastProperties.getVersion();
     this.tracer = tracer;
@@ -70,6 +79,13 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
   public void getOnlineFeatures(
       GetOnlineFeaturesRequest request,
       StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
+    // authorize for the project in request object.
+    this.authorizationService.authorizeRequest(
+        SecurityContextHolder.getContext(), request.getProject());
+    // authorize for projects set in feature list, backward compatibility for
+    // <=v0.5.X
+    this.checkProjectAccess(request.getFeaturesList());
+
     Span span = tracer.buildSpan("getOnlineFeatures").start();
     try (Scope scope = tracer.scopeManager().activate(span, false)) {
       RequestHelper.validateOnlineRequest(request);
@@ -92,6 +108,7 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       GetBatchFeaturesRequest request, StreamObserver<GetBatchFeaturesResponse> responseObserver) {
     try {
       RequestHelper.validateBatchRequest(request);
+      this.checkProjectAccess(request.getFeaturesList());
       GetBatchFeaturesResponse batchFeatures = servingService.getBatchFeatures(request);
       responseObserver.onNext(batchFeatures);
       responseObserver.onCompleted();
@@ -115,5 +132,14 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       log.warn("Failed to get Job", e);
       responseObserver.onError(e);
     }
+  }
+
+  private void checkProjectAccess(List<FeatureReference> featureList) {
+    featureList.stream()
+        .forEach(
+            featureRef -> {
+              this.authorizationService.authorizeRequest(
+                  SecurityContextHolder.getContext(), featureRef.getProject());
+            });
   }
 }

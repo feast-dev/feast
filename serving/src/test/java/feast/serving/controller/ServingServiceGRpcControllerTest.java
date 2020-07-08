@@ -16,9 +16,20 @@
  */
 package feast.serving.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.protobuf.Timestamp;
+import feast.auth.authorization.AuthorizationProvider;
+import feast.auth.authorization.AuthorizationResult;
+import feast.auth.config.SecurityProperties;
+import feast.auth.config.SecurityProperties.AuthenticationProperties;
+import feast.auth.config.SecurityProperties.AuthorizationProperties;
+import feast.auth.service.AuthorizationService;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
@@ -34,6 +45,10 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 public class ServingServiceGRpcControllerTest {
 
@@ -44,6 +59,10 @@ public class ServingServiceGRpcControllerTest {
   private GetOnlineFeaturesRequest validRequest;
 
   private ServingServiceGRpcController service;
+
+  @Mock private Authentication authentication;
+
+  @Mock private AuthorizationProvider authProvider;
 
   @Before
   public void setUp() {
@@ -59,23 +78,64 @@ public class ServingServiceGRpcControllerTest {
                     .putFields("entity1", Value.newBuilder().setInt64Val(1).build())
                     .putFields("entity2", Value.newBuilder().setInt64Val(1).build()))
             .build();
+  }
 
+  private ServingServiceGRpcController getServingServiceGRpcController(boolean enableAuth) {
     Tracer tracer = Configuration.fromEnv("dummy").getTracer();
     FeastProperties feastProperties = new FeastProperties();
-    service = new ServingServiceGRpcController(mockServingService, feastProperties, tracer);
+
+    AuthorizationProperties authorizationProps = new AuthorizationProperties();
+    authorizationProps.setEnabled(enableAuth);
+    AuthenticationProperties authenticationProps = new AuthenticationProperties();
+    authenticationProps.setEnabled(enableAuth);
+    SecurityProperties securityProperties = new SecurityProperties();
+    securityProperties.setAuthentication(authenticationProps);
+    securityProperties.setAuthorization(authorizationProps);
+    feastProperties.setSecurity(securityProperties);
+    AuthorizationService authorizationservice =
+        new AuthorizationService(feastProperties.getSecurity(), authProvider);
+    return new ServingServiceGRpcController(
+        authorizationservice, mockServingService, feastProperties, tracer);
   }
 
   @Test
   public void shouldPassValidRequestAsIs() {
+    service = getServingServiceGRpcController(false);
     service.getOnlineFeatures(validRequest, mockStreamObserver);
     Mockito.verify(mockServingService).getOnlineFeatures(validRequest);
   }
 
   @Test
   public void shouldCallOnErrorIfEntityDatasetIsNotSet() {
+    service = getServingServiceGRpcController(false);
     GetOnlineFeaturesRequest missingEntityName =
         GetOnlineFeaturesRequest.newBuilder(validRequest).clearEntityRows().build();
     service.getOnlineFeatures(missingEntityName, mockStreamObserver);
     Mockito.verify(mockStreamObserver).onError(Mockito.any(StatusRuntimeException.class));
+  }
+
+  @Test
+  public void shouldPassValidRequestAsIsIfRequestIsAuthorized() {
+    service = getServingServiceGRpcController(true);
+    SecurityContext context = mock(SecurityContext.class);
+    SecurityContextHolder.setContext(context);
+    when(context.getAuthentication()).thenReturn(authentication);
+    doReturn(AuthorizationResult.success())
+        .when(authProvider)
+        .checkAccessToProject(anyString(), any(Authentication.class));
+    service.getOnlineFeatures(validRequest, mockStreamObserver);
+    Mockito.verify(mockServingService).getOnlineFeatures(validRequest);
+  }
+
+  @Test(expected = AccessDeniedException.class)
+  public void shouldThrowErrorOnValidRequestIfRequestIsUnauthorized() {
+    service = getServingServiceGRpcController(true);
+    SecurityContext context = mock(SecurityContext.class);
+    SecurityContextHolder.setContext(context);
+    when(context.getAuthentication()).thenReturn(authentication);
+    doReturn(AuthorizationResult.failed(null))
+        .when(authProvider)
+        .checkAccessToProject(anyString(), any(Authentication.class));
+    service.getOnlineFeatures(validRequest, mockStreamObserver);
   }
 }

@@ -67,10 +67,6 @@ feast:
   tracing:
     enabled: false
 
-grpc:
-  port: 6566
-  enable-reflection: true
-
 spring:
   main:
     web-environment: false

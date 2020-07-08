@@ -103,6 +103,12 @@
       <artifactId>feast-common</artifactId>
       <version>${project.version}</version>
     </dependency>
+    
+    <dependency>
+      <groupId>dev.feast</groupId>
+      <artifactId>feast-auth</artifactId>
+      <version>${project.version}</version>
+    </dependency>
 
     <!-- TODO: SLF4J is being used via Lombok, but also jog4j - pick one -->
     <dependency>
@@ -137,13 +143,7 @@
       <optional>true</optional>
     </dependency>
 
-    <!--compile io.github.lognet:grpc-spring-boot-starter:3.0.2'-->
-    <dependency>
-      <groupId>io.github.lognet</groupId>
-      <artifactId>grpc-spring-boot-starter</artifactId>
-    </dependency>
-
-    <!--compile "org.springframework.boot:spring-boot-starter-actuator:${spring.boot.version}"-->
+    <!--compile "org.springframework.boot:spring-boot-starter-actuator:${springBootVersion}"-->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
@@ -266,11 +266,55 @@
       <artifactId>embedded-redis</artifactId>
       <scope>test</scope>
     </dependency>
-
     <dependency>
       <groupId>jakarta.validation</groupId>
       <artifactId>jakarta.validation-api</artifactId>
       <version>${jakarta.validation.api.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-core</artifactId>
+      <version>${spring.security.version}</version>
+    </dependency>
+	<dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-config</artifactId>
+      <version>${spring.security.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security.oauth</groupId>
+      <artifactId>spring-security-oauth2</artifactId>
+      <version>${spring.security.oauth2.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-oauth2-client</artifactId>
+      <version>${spring.security.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-web</artifactId>
+      <version>${spring.security.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-oauth2-jose</artifactId>
+      <version>${spring.security.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>net.devh</groupId>
+      <artifactId>grpc-server-spring-boot-starter</artifactId>
+      <version>${grpc.spring.boot.starter.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.nimbusds</groupId>
+      <artifactId>nimbus-jose-jwt</artifactId>
+      <version>8.2.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-oauth2-core</artifactId>
+      <version>${spring.security.version}</version>
     </dependency>
   </dependencies>
 

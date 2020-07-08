@@ -27,6 +27,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import feast.auth.authorization.AuthorizationProvider;
 import feast.auth.authorization.AuthorizationResult;
 import feast.auth.config.SecurityProperties;
+import feast.auth.service.AuthorizationService;
 import feast.core.config.FeastProperties;
 import feast.core.dao.ProjectRepository;
 import feast.core.grpc.CoreServiceImpl;
@@ -34,8 +35,8 @@ import feast.core.model.Entity;
 import feast.core.model.Feature;
 import feast.core.model.FeatureSet;
 import feast.core.model.Source;
-import feast.core.service.AccessManagementService;
 import feast.core.service.JobService;
+import feast.core.service.ProjectService;
 import feast.core.service.SpecService;
 import feast.core.service.StatsService;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetRequest;
@@ -61,7 +62,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 public class CoreServiceAuthTest {
 
   private CoreServiceImpl coreService;
-  private AccessManagementService accessManagementService;
+  private ProjectService projectService;
 
   @Mock private SpecService specService;
   @Mock private ProjectRepository projectRepository;
@@ -78,11 +79,12 @@ public class CoreServiceAuthTest {
     sp.setAuthorization(authProp);
     FeastProperties feastProperties = new FeastProperties();
     feastProperties.setSecurity(sp);
-    accessManagementService =
-        new AccessManagementService(feastProperties, projectRepository, authProvider);
+    projectService = new ProjectService(projectRepository);
+    AuthorizationService authService =
+        new AuthorizationService(feastProperties.getSecurity(), authProvider);
     coreService =
         new CoreServiceImpl(
-            specService, accessManagementService, statsService, jobService, feastProperties);
+            specService, projectService, statsService, jobService, feastProperties, authService);
   }
 
   @Test
