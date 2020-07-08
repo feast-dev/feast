@@ -16,8 +16,11 @@
  */
 package feast.auth.authorization;
 
-import static feast.auth.authorization.AuthUtil.getEmailFromAuth;
-
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import feast.auth.generated.client.api.DefaultApi;
 import feast.auth.generated.client.invoker.ApiClient;
 import feast.auth.generated.client.invoker.ApiException;
@@ -59,7 +62,6 @@ public class HTTPAuthorizationProvider implements AuthorizationProvider {
    * @return AuthorizationResult result of authorization query
    */
   public AuthorizationResult checkAccess(String project, Authentication authentication) {
-    String email = getEmailFromAuth(authentication);
     CheckProjectAccessRequest checkProjectAccessRequest =
         new CheckProjectAccessRequest().project(project).authentication(authentication);
 
@@ -70,8 +72,8 @@ public class HTTPAuthorizationProvider implements AuthorizationProvider {
       if (response == null || response.getAllowed() == null) {
         throw new RuntimeException(
             String.format(
-                "Empty response returned for HTTP authorization, email %s, authentication %s",
-                email, authentication.toString()));
+                "Empty response returned for access to project %s for authentication \n%s",
+                project, authenticationToJson(authentication)));
       }
       if (response.getAllowed()) {
         // Successfully authenticated
@@ -80,14 +82,33 @@ public class HTTPAuthorizationProvider implements AuthorizationProvider {
       // Could not determine project membership, deny access.
       return AuthorizationResult.failed(
           String.format(
-              "Access denied to project %s for user %s with message %s",
-              project, email, response.getMessage()));
+              "Access denied to project %s for with message: %s", project, response.getMessage()));
     } catch (ApiException e) {
       log.error("API exception has occurred while authenticating user: {}", e.getMessage(), e);
     }
 
     // Could not determine project membership, deny access.
-    return AuthorizationResult.failed(
-        String.format("Access denied to project %s for user %s", project, email));
+    return AuthorizationResult.failed(String.format("Access denied to project %s", project));
+  }
+
+  /**
+   * Converts Spring Authentication object into Json String form.
+   *
+   * @param authentication Authentication object that contains request level authentication metadata
+   * @return Json representation of authentication object
+   */
+  private static String authenticationToJson(Authentication authentication) {
+    ObjectWriter ow =
+        new ObjectMapper()
+            .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
+            .writer()
+            .withDefaultPrettyPrinter();
+    try {
+      return ow.writeValueAsString(authentication);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(
+          String.format(
+              "Could not convert Authentication object to JSON: %s", authentication.toString()));
+    }
   }
 }
