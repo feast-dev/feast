@@ -381,6 +381,9 @@ public class FeastProperties {
       /** Feature set versions to subscribe to. */
       String version;
 
+      /** Project/Feature set exclude flag to subscribe to. */
+      boolean exclude;
+
       /**
        * Gets Feast project subscribed to.
        *
@@ -436,6 +439,24 @@ public class FeastProperties {
       }
 
       /**
+       * Gets the exclude flag to subscribe to.
+       *
+       * @return the exclude flag
+       */
+      public boolean getExclude() {
+        return exclude;
+      }
+
+      /**
+       * Sets the exclude flag to subscribe to.
+       *
+       * @param exclude the exclude flag
+       */
+      public void setExclude(boolean exclude) {
+        this.exclude = exclude;
+      }
+
+      /**
        * Convert this {@link Subscription} to a {@link StoreProto.Store.Subscription}.
        *
        * @return the store proto . store . subscription
@@ -444,6 +465,7 @@ public class FeastProperties {
         return StoreProto.Store.Subscription.newBuilder()
             .setName(getName())
             .setProject(getProject())
+            .setExclude(getExclude())
             .build();
       }
     }

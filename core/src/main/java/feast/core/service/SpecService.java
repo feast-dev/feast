@@ -16,6 +16,7 @@
  */
 package feast.core.service;
 
+import static feast.common.models.Store.isSubscribedToFeatureSet;
 import static feast.core.validators.Matchers.checkValidCharacters;
 import static feast.core.validators.Matchers.checkValidCharactersAllowAsterisk;
 
@@ -23,6 +24,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.ProjectRepository;
 import feast.core.dao.StoreRepository;
+import feast.core.exception.RegistrationException;
 import feast.core.exception.RetrievalException;
 import feast.core.model.*;
 import feast.core.validators.FeatureSetValidator;
@@ -335,6 +337,29 @@ public class SpecService {
   @Transactional
   public ApplyFeatureSetResponse applyFeatureSet(FeatureSetProto.FeatureSet newFeatureSet)
       throws InvalidProtocolBufferException {
+    // Autofill default project if not specified
+    if (newFeatureSet.getSpec().getProject().isEmpty()) {
+      newFeatureSet =
+          newFeatureSet
+              .toBuilder()
+              .setSpec(newFeatureSet.getSpec().toBuilder().setProject(Project.DEFAULT_NAME).build())
+              .build();
+    }
+
+    for (Store store : storeRepository.findAll()) {
+      List<Subscription> subscriptionList = store.getSubscriptions();
+      String projectName = newFeatureSet.getSpec().getProject();
+      String featureSetName = newFeatureSet.getSpec().getName();
+      boolean isSubscribed =
+          isSubscribedToFeatureSet(subscriptionList, projectName, featureSetName);
+
+      if (!isSubscribed) {
+        throw new RegistrationException(
+            String.format(
+                "The supplied Project and FeatureSet, %s/%s has been blacklisted and is not available for registration.",
+                projectName, featureSetName));
+      }
+    }
     // Validate incoming feature set
     FeatureSetValidator.validateSpec(newFeatureSet);
 
