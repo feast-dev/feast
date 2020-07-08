@@ -1,0 +1,76 @@
+openapi: 3.0.1
+info:
+  description: 'Feast Authorization Server'
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  title: Feast Authorization Server
+  version: 1.0.0
+servers:
+  - url: /v1
+paths:
+  /healthz:
+    get:
+      responses:
+        "200":
+          description: Online
+        "500":
+          description: Offline
+  /readiness:
+    get:
+      responses:
+        "200":
+          description: Ready
+        "500":
+          description: Not Ready
+  /checkProjectAccess:
+    post:
+      operationId: check_project_access_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckProjectAccessRequest'
+        description: Request containing both the Spring Authorization object as well
+          as the project that wants to be accessed.
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckProjectAccessResponse'
+          description: Authorized
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckProjectAccessResponse'
+          description: Unauthorized
+      summary: Check whether request is authorized to access a project
+      x-swagger-router-controller: swagger_server.controllers.default_controller
+      x-codegen-request-body-name: body
+      x-openapi-router-controller: openapi_server.controllers.default_controller
+components:
+  schemas:
+    CheckProjectAccessRequest:
+      example:
+        authentication: '{}'
+        project: project
+      properties:
+        authentication:
+          properties: {}
+          type: object
+        project:
+          type: string
+      type: object
+    CheckProjectAccessResponse:
+      example:
+        allowed: true
+        message: message
+      properties:
+        allowed:
+          type: boolean
+        message:
+          type: string
+      type: object

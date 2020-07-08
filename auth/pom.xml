@@ -7,6 +7,9 @@
         <artifactId>feast-parent</artifactId>
         <version>${revision}</version>
     </parent>
+    <properties>
+        <external.auth.client.package.name>feast.auth.generated.client</external.auth.client.package.name>
+    </properties>
     <artifactId>feast-auth</artifactId>
 
     <name>Feast Authentication and Authorization</name>
@@ -33,11 +36,6 @@
             <version>5.3.0.RELEASE</version>
         </dependency>
         <dependency>
-            <groupId>sh.ory.keto</groupId>
-            <artifactId>keto-client</artifactId>
-            <version>0.4.4-alpha.1</version>
-        </dependency>
-        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
         </dependency>
@@ -46,6 +44,48 @@
             <artifactId>hibernate-validator</artifactId>
             <version>6.1.2.Final</version>
         </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+        </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.openapitools</groupId>
+                <artifactId>openapi-generator-maven-plugin</artifactId>
+                <version>4.3.1</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/src/main/resources/api.yaml</inputSpec>
+                            <generatorName>java</generatorName>
+                            <packageName>${external.auth.client.package.name}</packageName>
+                            <modelPackage>${external.auth.client.package.name}.model</modelPackage>
+                            <apiPackage>${external.auth.client.package.name}.api</apiPackage>
+                            <invokerPackage>${external.auth.client.package.name}.invoker</invokerPackage>
+                            <configOptions>
+                                <groupId>${project.groupId}</groupId>
+                                <artifactId>${project.artifactId}</artifactId>
+                                <artifactVersion>${project.version}</artifactVersion>
+                                <java8>true</java8>
+                                <dateLibrary>java8</dateLibrary>
+                                <licenseName>Apache 2.0</licenseName>
+                                <licenseUrl>https://www.apache.org/licenses/LICENSE-2.0</licenseUrl>
+                                <output>${project.build.directory}/generated-sources</output>
+                            </configOptions>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>
