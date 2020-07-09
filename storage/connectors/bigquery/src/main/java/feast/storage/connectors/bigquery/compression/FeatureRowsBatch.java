@@ -19,6 +19,7 @@ package feast.storage.connectors.bigquery.compression;
 import static feast.proto.types.ValueProto.Value.ValCase.*;
 import static feast.storage.connectors.bigquery.common.TypeUtil.*;
 
+import com.google.protobuf.Timestamp;
 import feast.proto.types.FeatureRowProto;
 import feast.proto.types.FieldProto;
 import feast.proto.types.ValueProto;
@@ -118,6 +119,12 @@ public class FeatureRowsBatch implements Serializable {
                         featureSetReference = row.getFeatureSet();
                       }
                     }));
+
+    fieldsInOrder.add(
+        Schema.Field.of("eventTimestamp", Schema.FieldType.array(Schema.FieldType.INT64)));
+    fieldsInOrder.add(
+        Schema.Field.of("ingestionId", Schema.FieldType.array(Schema.FieldType.STRING)));
+
     Schema schema = Schema.builder().addFields(fieldsInOrder).build();
     schema.setUUID(UUID.randomUUID());
     return schema;
@@ -132,13 +139,24 @@ public class FeatureRowsBatch implements Serializable {
   }
 
   private void toColumnar(Iterable<FeatureRowProto.FeatureRow> featureRows) {
+    int timestampColumnIdx = schema.getFieldCount() - 2;
+    int ingestionIdColumnIdx = schema.getFieldCount() - 1;
+
     featureRows.forEach(
         row -> {
-          Map<String, ValueProto.Value> rowValues =
-              row.getFieldsList().stream()
-                  .collect(Collectors.toMap(FieldProto.Field::getName, FieldProto.Field::getValue));
+          Map<String, ValueProto.Value> rowValues;
+          try {
+            rowValues =
+                row.getFieldsList().stream()
+                    .collect(
+                        Collectors.toMap(FieldProto.Field::getName, FieldProto.Field::getValue));
+          } catch (IllegalStateException e) {
+            // row contains feature duplicates
+            // omitting for now
+            return;
+          }
 
-          IntStream.range(0, schema.getFieldCount())
+          IntStream.range(0, schema.getFieldCount() - 2)
               .forEach(
                   idx -> {
                     Schema.Field field = schema.getField(idx);
@@ -152,6 +170,10 @@ public class FeatureRowsBatch implements Serializable {
 
                     ((List<Object>) values.get(idx)).add(defaultValues.get(field.getName()));
                   });
+
+          // adding system fields
+          ((List<Object>) values.get(timestampColumnIdx)).add(row.getEventTimestamp().getSeconds());
+          ((List<Object>) values.get(ingestionIdColumnIdx)).add(row.getIngestionId());
         });
   }
 
@@ -177,14 +199,25 @@ public class FeatureRowsBatch implements Serializable {
   }
 
   public Iterator<FeatureRowProto.FeatureRow> getFeatureRows() {
+    int timestampColumnIdx = schema.getFieldCount() - 2;
+    int ingestionIdColumnIdx = schema.getFieldCount() - 1;
+
     return IntStream.range(0, ((List<Object>) values.get(0)).size())
         .parallel()
         .mapToObj(
             rowIdx ->
                 FeatureRowProto.FeatureRow.newBuilder()
                     .setFeatureSet(getFeatureSetReference())
+                    .setEventTimestamp(
+                        Timestamp.newBuilder()
+                            .setSeconds(
+                                (long)
+                                    (((List<Object>) values.get(timestampColumnIdx)).get(rowIdx)))
+                            .build())
+                    .setIngestionId(
+                        (String) (((List<Object>) values.get(ingestionIdColumnIdx)).get(rowIdx)))
                     .addAllFields(
-                        IntStream.range(0, schema.getFieldCount())
+                        IntStream.range(0, schema.getFieldCount() - 2)
                             .mapToObj(
                                 fieldIdx ->
                                     FieldProto.Field.newBuilder()
