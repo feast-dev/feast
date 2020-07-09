@@ -40,13 +40,14 @@ import org.apache.beam.sdk.transforms.windowing.*;
 import org.apache.beam.sdk.values.*;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class RedisCustomIO {
 
-  private static final int DEFAULT_BATCH_SIZE = 1000;
-  private static final int DEFAULT_TIMEOUT = 2000;
+  private static final int DEFAULT_BATCH_SIZE = 10000;
+  private static final int DEFAULT_FREQUENCY_SECONDS = 30;
 
   private static TupleTag<FeatureRow> successfulInsertsTag =
       new TupleTag<FeatureRow>("successfulInserts") {};
@@ -68,8 +69,8 @@ public class RedisCustomIO {
 
     private PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecs;
     private RedisIngestionClient redisIngestionClient;
-    private int batchSize;
-    private int timeout;
+    private int batchSize = DEFAULT_BATCH_SIZE;
+    private Duration flushFrequency = Duration.standardSeconds(DEFAULT_FREQUENCY_SECONDS);
 
     public Write(
         RedisIngestionClient redisIngestionClient,
@@ -83,8 +84,8 @@ public class RedisCustomIO {
       return this;
     }
 
-    public Write withTimeout(int timeout) {
-      this.timeout = timeout;
+    public Write withFlushFrequency(Duration frequency) {
+      this.flushFrequency = flushFrequency;
       return this;
     }
 
@@ -92,14 +93,11 @@ public class RedisCustomIO {
     public WriteResult expand(PCollection<FeatureRow> input) {
       PCollectionTuple redisWrite =
           input
-              .apply(
-                  "CollectBatchBeforeWrite",
-                  Window.<FeatureRow>into(new GlobalWindows())
-                      .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(batchSize)))
-                      .discardingFiredPanes())
+              .apply("FixedFlushWindow", Window.<FeatureRow>into(FixedWindows.of(flushFrequency)))
               .apply("AttachSingletonKey", WithKeys.of((Void) null))
-              .apply("GroupOntoSingleton", GroupByKey.create())
+              .apply("IntoBatches", GroupIntoBatches.ofSize(batchSize))
               .apply("ExtractResultValues", Values.create())
+              .apply("GlobalWindow", Window.<Iterable<FeatureRow>>into(new GlobalWindows()))
               .apply(
                   ParDo.of(new WriteDoFn(redisIngestionClient, featureSetSpecs))
                       .withOutputTags(successfulInsertsTag, TupleTagList.of(failedInsertsTupleTag))
@@ -112,8 +110,6 @@ public class RedisCustomIO {
 
     public static class WriteDoFn extends DoFn<Iterable<FeatureRow>, FeatureRow> {
       private PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecsView;
-      private int batchSize = DEFAULT_BATCH_SIZE;
-      private int timeout = DEFAULT_TIMEOUT;
       private RedisIngestionClient redisIngestionClient;
 
       WriteDoFn(
@@ -122,20 +118,6 @@ public class RedisCustomIO {
 
         this.redisIngestionClient = redisIngestionClient;
         this.featureSetSpecsView = featureSetSpecsView;
-      }
-
-      public WriteDoFn withBatchSize(int batchSize) {
-        if (batchSize > 0) {
-          this.batchSize = batchSize;
-        }
-        return this;
-      }
-
-      public WriteDoFn withTimeout(int timeout) {
-        if (timeout > 0) {
-          this.timeout = timeout;
-        }
-        return this;
       }
 
       @Setup
