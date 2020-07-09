@@ -147,7 +147,7 @@ public class SparkIngestion {
                           jobId, store.getDeltaConfig(), spark, featureSetSpecsByKey);
                     case REDIS:
                       return new SparkRedisSink(
-                          store.getRedisConfig(), spark, featureSetSpecsByKey);
+                          jobId, store.getRedisConfig(), spark, featureSetSpecsByKey);
                     default:
                       throw new UnsupportedOperationException(
                           "Store " + store + " is not implemented in Spark ingestor");

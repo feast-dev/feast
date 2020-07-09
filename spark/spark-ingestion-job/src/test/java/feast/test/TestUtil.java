@@ -51,6 +51,7 @@ import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -454,32 +455,20 @@ public class TestUtil {
                     .setName("entity_id_secondary")
                     .setValueType(Enum.STRING)
                     .build())
-            // FIXME causes roundtrip assertion error with Redis
-            // .addFeatures(featureOfType(Enum.BYTES))
+            .addFeatures(featureOfType(Enum.BYTES))
             .addFeatures(featureOfType(Enum.STRING))
-            // FIXME causes roundtrip assertion error with Redis
-            // .addFeatures(featureOfType(Enum.INT32))
-            // FIXME causes roundtrip assertion error with Redis
-            // .addFeatures(featureOfType(Enum.INT64))
-            // FIXME causes roundtrip assertion error with Redis
-            // .addFeatures(featureOfType(Enum.DOUBLE))
-            // FIXME causes roundtrip assertion error with Redis
-            // .addFeatures(featureOfType(Enum.FLOAT))
-            // FIXME causes roundtrip assertion error with Redis
-            // .addFeatures(featureOfType(Enum.BOOL))
-            // FIXME causes roundtrip assertion error with Spark
-            // .addFeatures(featureOfType(Enum.BYTES_LIST))
+            .addFeatures(featureOfType(Enum.INT32))
+            .addFeatures(featureOfType(Enum.INT64))
+            .addFeatures(featureOfType(Enum.DOUBLE))
+            .addFeatures(featureOfType(Enum.FLOAT))
+            .addFeatures(featureOfType(Enum.BOOL))
+            .addFeatures(featureOfType(Enum.BYTES_LIST))
             .addFeatures(featureOfType(Enum.STRING_LIST))
-            // FIXME causes roundtrip assertion error with Redis
-            // .addFeatures(featureOfType(Enum.INT32_LIST))
-            // FIXME causes roundtrip assertion error with Redis
-            // .addFeatures(featureOfType(Enum.INT64_LIST))
-            // FIXME causes roundtrip assertion error with Redis
-            // .addFeatures(featureOfType(Enum.DOUBLE_LIST))
-            // FIXME causes roundtrip assertion error with Redis
-            // .addFeatures(featureOfType(Enum.FLOAT_LIST))
-            // FIXME causes roundtrip assertion error with Redis
-            // .addFeatures(featureOfType(Enum.BOOL_LIST))
+            .addFeatures(featureOfType(Enum.INT32_LIST))
+            .addFeatures(featureOfType(Enum.INT64_LIST))
+            .addFeatures(featureOfType(Enum.DOUBLE_LIST))
+            .addFeatures(featureOfType(Enum.FLOAT_LIST))
+            .addFeatures(featureOfType(Enum.BOOL_LIST))
             .setSource(
                 Source.newBuilder()
                     .setType(SourceType.KAFKA)
@@ -564,6 +553,7 @@ public class TestUtil {
                                   .map(FeatureSpec::getName)
                                   .collect(Collectors.toList())
                                   .contains(field.getName()))
+                      .sorted(Comparator.comparing(Field::getName))
                       .map(field -> field.toBuilder().clearName().build())
                       .collect(Collectors.toList());
               randomRow =
@@ -590,7 +580,7 @@ public class TestUtil {
   }
 
   public static void validateRedis(
-      FeatureSet featureSet, List<FeatureRow> input, RedisConfig redisConfig) {
+      FeatureSet featureSet, List<FeatureRow> input, RedisConfig redisConfig, String jobId) {
 
     Map<RedisKey, FeatureRow> expected = TestUtil.generateExpectedData(featureSet.getSpec(), input);
 
@@ -635,7 +625,16 @@ public class TestUtil {
           }
 
           // Ensure the retrieved FeatureRow is equal to the ingested FeatureRow.
-          Assert.assertEquals(expectedValue, actualValue);
+          FeatureRow expectedValue1 =
+              FeatureRow.newBuilder(expectedValue)
+                  .setIngestionId(jobId)
+                  .clearFields()
+                  .addAllFields(
+                      expectedValue.getFieldsList().stream()
+                          .sorted(Comparator.comparing(Field::getName))
+                          .collect(Collectors.toList()))
+                  .build();
+          Assert.assertEquals(expectedValue1, actualValue);
         });
     redisClient.shutdown();
   }

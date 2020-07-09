@@ -80,6 +80,8 @@ import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
 public class SparkIngestionTest {
+  private static final String TEST_JOB_ID = "testjob";
+
   private static final Logger LOGGER = LoggerFactory.getLogger(SparkIngestionTest.class.getName());
 
   private static final String KAFKA_HOST = "localhost";
@@ -175,7 +177,7 @@ public class SparkIngestionTest {
     SparkIngestion ingestion =
         new SparkIngestion(
             new String[] {
-              "testjob", checkpointDir, "myDefaultFeastProject", featureSetsJson, storesJson
+              TEST_JOB_ID, checkpointDir, "myDefaultFeastProject", featureSetsJson, storesJson
             });
 
     StreamingQuery query = ingestion.createQuery();
@@ -214,7 +216,7 @@ public class SparkIngestionTest {
     assertThat("Should have returned data", data, notNullValue());
     assertThat("Should have returned data", data.count(), greaterThan(0L));
 
-    TestUtil.validateRedis(featureSetForRedis, inputForRedis, redisConfig);
+    TestUtil.validateRedis(featureSetForRedis, inputForRedis, redisConfig, TEST_JOB_ID);
 
     validateDelta(featureSetForDelta, inputForDelta, data);
   }

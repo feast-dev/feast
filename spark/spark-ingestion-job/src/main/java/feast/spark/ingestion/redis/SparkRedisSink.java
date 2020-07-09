@@ -48,15 +48,18 @@ public class SparkRedisSink implements SparkSink {
 
   private static final int DEFAULT_TIMEOUT = 2000;
 
+  private final String jobId;
   private final RedisConfig redisConfig;
   private final SparkSession spark;
 
   private final Map<String, FeatureSetSpec> featureSetSpecsByKey;
 
   public SparkRedisSink(
+      String jobId,
       RedisConfig redisConfig,
       SparkSession spark,
       Map<String, FeatureSetSpec> featureSetSpecsByKey) {
+    this.jobId = jobId;
     this.redisConfig = redisConfig;
     this.spark = spark;
     this.featureSetSpecsByKey = featureSetSpecsByKey;
@@ -75,17 +78,19 @@ public class SparkRedisSink implements SparkSink {
             java.time.Duration.ofMillis(DEFAULT_TIMEOUT));
     redisuri.setPassword(redisConfig.getPass());
 
-    return new RedisWriter(broadcastedWriter, redisuri);
+    return new RedisWriter(jobId, broadcastedWriter, redisuri);
   }
 
   @SuppressWarnings("serial")
   private static class RedisWriter implements VoidFunction2<Dataset<byte[]>, Long> {
 
+    private final String jobId;
     private final RedisURI uri;
     private final Broadcast<Write> broadcastedWriter;
     private transient RedisAsyncCommands<byte[], byte[]> commands = null;
 
-    private RedisWriter(Broadcast<Write> broadcastedWriter, RedisURI uri) {
+    private RedisWriter(String jobId, Broadcast<Write> broadcastedWriter, RedisURI uri) {
+      this.jobId = jobId;
       this.uri = uri;
       this.broadcastedWriter = broadcastedWriter;
     }
@@ -106,7 +111,7 @@ public class SparkRedisSink implements SparkSink {
             FeatureRow featureRow = FeatureRow.parseFrom(r);
             byte[] key = writer.getKey(featureRow);
             if (key != null) {
-              byte[] value = writer.getValue(featureRow);
+              byte[] value = writer.getValue(featureRow, jobId);
               futures.add(commands.set(key, value));
             }
           });

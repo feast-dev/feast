@@ -72,7 +72,7 @@ public class RedisCustomIO {
       return redisKeyBuilder.build().toByteArray();
     }
 
-    public byte[] getValue(FeatureRow featureRow) {
+    public byte[] getValue(FeatureRow featureRow, String ingestionId) {
       FeatureSetSpec spec = featureSetSpecs.get(featureRow.getFeatureSet());
 
       List<String> featureNames =
@@ -100,6 +100,7 @@ public class RedisCustomIO {
 
       return FeatureRow.newBuilder()
           .setEventTimestamp(featureRow.getEventTimestamp())
+          .setIngestionId(ingestionId)
           .addAllFields(values)
           .build()
           .toByteArray();

@@ -224,7 +224,7 @@ def test_all_types_ingest_success(client, all_types_dataframe):
     client.ingest(all_types_fs, all_types_dataframe, timeout=_GRPC_CONNECTION_TIMEOUT_APPLY_KEY)
 
 
-@pytest.mark.timeout(300)
+@pytest.mark.timeout(1200)
 @pytest.mark.run(order=22)
 def test_all_types_retrieve_online_success(client, all_types_dataframe):
     # Poll serving for feature values until the correct values are returned
@@ -268,10 +268,10 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
 
         sent_float_list = all_types_dataframe.iloc[0]["float_list_feature"]
 
-        if math.isclose(
+        assert math.isclose(
                 returned_float_list[0], sent_float_list[0], abs_tol=FLOAT_TOLERANCE
-        ):
-            break
+        )
+        break
 
 
 @pytest.mark.timeout(1200)
