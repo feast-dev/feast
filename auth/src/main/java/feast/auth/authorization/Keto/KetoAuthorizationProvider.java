@@ -59,21 +59,24 @@ public class KetoAuthorizationProvider implements AuthorizationProvider {
    * @return AuthorizationResult result of authorization query
    */
   public AuthorizationResult checkAccess(String project, Authentication authentication) {
-    String email = getClaimFromAuth(authentication);
+    String subject = (String)this.options.get("subject");
+    if ((subject == null) || (subject.isEmpty()))
+      subject = "email";
+    String subjectValue = getSubjectFromAuth(authentication, subject);
     try {
       // Get all roles from Keto
       List<OryAccessControlPolicyRole> roles =
-          this.apiInstance.listOryAccessControlPolicyRoles("glob", 500L, 500L, email);
-      List<String> writeRoles = (List<String>) this.options.get("writeRoles");
+          this.apiInstance.listOryAccessControlPolicyRoles("glob", 500L, 500L, subjectValue);
+      List<String> roleTemplates = (List<String>) this.options.get("roles");
 
-      for (String writeRole : writeRoles) {
-        if (writeRole.contains("{PROJECT}")) {
-          writeRole = writeRole.replace("{PROJECT}", project);
+      for (String roleTemplate : roleTemplates) {
+        if (roleTemplate.contains("{PROJECT}")) {
+          roleTemplate = roleTemplate.replace("{PROJECT}", project);
         }
         // Loop through all roles the user has
         for (OryAccessControlPolicyRole role : roles) {
-          // If the user has an admin or project specific role, return.
-          if ((writeRole).equals(role.getId())) {
+          // If the user has a role matching one of the templates, return.
+          if ((roleTemplate).equals(role.getId())) {
             return AuthorizationResult.success();
           }
         }
@@ -95,23 +98,25 @@ public class KetoAuthorizationProvider implements AuthorizationProvider {
    * Get user email from their authentication object.
    *
    * @param authentication Spring Security Authentication object, used to extract user details
+   * @param subject Subject from the Auth token
    * @return String user email
    */
-  private String getClaimFromAuth(Authentication authentication) {
+  private String getSubjectFromAuth(Authentication authentication, String subject) {
     Jwt principle = ((Jwt) authentication.getPrincipal());
     Map<String, Object> claims = principle.getClaims();
-    String claimID = (String) claims.get((String)this.options.get("claim"));
+    String subjectValue = (String)claims.get(subject);
 
-    if ((this.options.get("claim")).equals("email")) {
-      if (claimID.isEmpty()) {
-        throw new IllegalStateException("JWT does not have a valid email set.");
-      }
-      boolean validEmail = (new EmailValidator()).isValid(claimID, null);
+    if (subjectValue.isEmpty()) {
+      throw new IllegalStateException(String.format("JWT does not have a valid %s.", subject));
+    }
+
+    if (subject.equals("email")) {
+      boolean validEmail = (new EmailValidator()).isValid(subjectValue, null);
       if (!validEmail) {
         throw new IllegalStateException("JWT contains an invalid email address");
       }
     }
 
-    return claimID;
+    return subjectValue;
   }
 }

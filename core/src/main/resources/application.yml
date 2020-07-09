@@ -93,9 +93,9 @@ feast:
       enabled: false
       provider: none
       options:
-        allow: http://localhost:3000
-        claim: canonicalId
-        writeRoles:
+        basePath: http://localhost:3000
+        subject: email
+        roles:
           - role:feast:admin
           - role:feast:{PROJECT}-member
 
