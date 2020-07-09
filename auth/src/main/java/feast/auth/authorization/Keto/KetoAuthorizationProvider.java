@@ -46,7 +46,7 @@ public class KetoAuthorizationProvider implements AuthorizationProvider {
       throw new IllegalArgumentException("Cannot pass empty or null options to KetoAuth");
     }
     ApiClient defaultClient = Configuration.getDefaultApiClient();
-    defaultClient.setBasePath((String)options.get("basePath"));
+    defaultClient.setBasePath((String) options.get("basePath"));
     this.apiInstance = new EnginesApi(defaultClient);
     this.options = options;
   }
@@ -59,9 +59,8 @@ public class KetoAuthorizationProvider implements AuthorizationProvider {
    * @return AuthorizationResult result of authorization query
    */
   public AuthorizationResult checkAccess(String project, Authentication authentication) {
-    String subject = (String)this.options.get("subject");
-    if ((subject == null) || (subject.isEmpty()))
-      subject = "email";
+    String subject = (String) this.options.get("subject");
+    if ((subject == null) || (subject.isEmpty())) subject = "email";
     String subjectValue = getSubjectFromAuth(authentication, subject);
     try {
       // Get all roles from Keto
@@ -91,7 +90,7 @@ public class KetoAuthorizationProvider implements AuthorizationProvider {
     }
     // Could not determine project membership, deny access.
     return AuthorizationResult.failed(
-        String.format("Access denied to project %s for user %s", project, email));
+        String.format("Access denied to project %s for user %s", project, subjectValue));
   }
 
   /**
@@ -104,7 +103,7 @@ public class KetoAuthorizationProvider implements AuthorizationProvider {
   private String getSubjectFromAuth(Authentication authentication, String subject) {
     Jwt principle = ((Jwt) authentication.getPrincipal());
     Map<String, Object> claims = principle.getClaims();
-    String subjectValue = (String)claims.get(subject);
+    String subjectValue = (String) claims.get(subject);
 
     if (subjectValue.isEmpty()) {
       throw new IllegalStateException(String.format("JWT does not have a valid %s.", subject));

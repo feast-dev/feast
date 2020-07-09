@@ -54,6 +54,6 @@ public class SecurityProperties {
     private String provider;
 
     // K/V options to initialize the provider with
-    private Map<String, String> options;
+    private Map<String, Object> options;
   }
 }
