@@ -349,11 +349,6 @@ resource "databricks_cluster" "feast-cluster" {
       max_workers = 2
     }
 
-  init_scripts {
-    dbfs {
-      destination = "dbfs:${databricks_dbfs_file.init_pypi_script.path}"
-    }
-  }
   spark_env_vars = {
     "PYPI_PWD"        = "{{secrets/${databricks_secret_scope.feast.name}/${databricks_secret.pypi_password.key}}"
     "PYPI_USER"       = "{{secrets/${databricks_secret_scope.feast.name}/${databricks_secret.pypi_username.key}}}"
