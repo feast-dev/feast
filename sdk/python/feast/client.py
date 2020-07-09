@@ -836,12 +836,39 @@ class Client:
         Returns:
             str:
                 ingestion id for this dataset
+
+        Examples:
+            >>> from feast import Client
+            >>>
+            >>> feast_client = Client(core_url="localhost:6565")
+            >>> fs_df = pd.DataFrame(
+            >>>         {
+            >>>            "datetime": [pd.datetime.now()],
+            >>>            "driver": [1001],
+            >>>            "rating": [4.3],
+            >>>         }
+            >>>     )
+            >>> client.ingest("project1:driver", fs_df)
+            >>> client.ingest("driver", fs_df) # default project
+            >>>
+            >>> driver_fs = client.get_feature_set(name="driver", project="project1")
+            >>> driver_fs = client.get_feature_set(name="driver") # default project
+            >>> client.ingest(driver_fs, fs_df)
         """
 
         if isinstance(feature_set, FeatureSet):
             name = feature_set.name
+            project = feature_set.project
         elif isinstance(feature_set, str):
-            name = feature_set
+            if len(feature_set.split(":")) == 1:
+                name = feature_set
+                project = "default"
+            elif len(feature_set.split(":")) == 2:
+                project, name = feature_set.split(":")
+            else:
+                raise Exception(
+                    "Feature set name is invalid, should be in <project>:<feature_set> or <feature_set> format."
+                )
         else:
             raise Exception("Feature set name must be provided")
 
@@ -858,7 +885,9 @@ class Client:
         while True:
             if timeout is not None and time.time() - current_time >= timeout:
                 raise TimeoutError("Timed out waiting for feature set to be ready")
-            fetched_feature_set: Optional[FeatureSet] = self.get_feature_set(name)
+            fetched_feature_set: Optional[FeatureSet] = self.get_feature_set(
+                name, project
+            )
             if (
                 fetched_feature_set is not None
                 and fetched_feature_set.status == FeatureSetStatus.STATUS_READY
