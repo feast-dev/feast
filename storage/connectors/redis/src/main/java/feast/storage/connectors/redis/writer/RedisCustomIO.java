@@ -85,7 +85,7 @@ public class RedisCustomIO {
     }
 
     public Write withFlushFrequency(Duration frequency) {
-      this.flushFrequency = flushFrequency;
+      this.flushFrequency = frequency;
       return this;
     }
 
@@ -94,7 +94,15 @@ public class RedisCustomIO {
       PCollectionTuple redisWrite =
           input
               .apply("FixedFlushWindow", Window.<FeatureRow>into(FixedWindows.of(flushFrequency)))
-              .apply("AttachSingletonKey", WithKeys.of((Void) null))
+              .apply(
+                  "AttachFeatureReferenceKey",
+                  ParDo.of(
+                      new DoFn<FeatureRow, KV<String, FeatureRow>>() {
+                        @ProcessElement
+                        public void process(ProcessContext c) {
+                          c.output(KV.of(c.element().getFeatureSet(), c.element()));
+                        }
+                      }))
               .apply("IntoBatches", GroupIntoBatches.ofSize(batchSize))
               .apply("ExtractResultValues", Values.create())
               .apply("GlobalWindow", Window.<Iterable<FeatureRow>>into(new GlobalWindows()))
