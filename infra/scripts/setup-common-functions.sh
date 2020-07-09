@@ -98,7 +98,7 @@ start_feast_serving() {
 
   if [ -n "$1" ]; then
     echo "Custom Spring application.yml location provided: $1"
-    export CONFIG_ARG="--spring.config.location=file://$1"
+    export CONFIG_ARG="--spring.config.location=classpath:/application.yml,file://$1"
   fi
 
   nohup java -jar serving/target/feast-serving-$FEAST_BUILD_VERSION.jar $CONFIG_ARG &>/var/log/feast-serving-online.log &

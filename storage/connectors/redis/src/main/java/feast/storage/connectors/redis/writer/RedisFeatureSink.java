@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.joda.time.Duration;
 
 @AutoValue
 public abstract class RedisFeatureSink implements FeatureSink {
@@ -113,11 +114,29 @@ public abstract class RedisFeatureSink implements FeatureSink {
   @Override
   public PTransform<PCollection<FeatureRow>, WriteResult> writer() {
     if (getRedisClusterConfig() != null) {
-      return new RedisCustomIO.Write(
-          new RedisClusterIngestionClient(getRedisClusterConfig()), getSpecsView());
+      RedisCustomIO.Write writer =
+          new RedisCustomIO.Write(
+              new RedisClusterIngestionClient(getRedisClusterConfig()), getSpecsView());
+
+      if (getRedisClusterConfig().getFlushFrequencySeconds() > 0) {
+        writer =
+            writer.withFlushFrequency(
+                Duration.standardSeconds(getRedisClusterConfig().getFlushFrequencySeconds()));
+      }
+
+      return writer;
     } else if (getRedisConfig() != null) {
-      return new RedisCustomIO.Write(
-          new RedisStandaloneIngestionClient(getRedisConfig()), getSpecsView());
+      RedisCustomIO.Write writer =
+          new RedisCustomIO.Write(
+              new RedisStandaloneIngestionClient(getRedisConfig()), getSpecsView());
+
+      if (getRedisConfig().getFlushFrequencySeconds() > 0) {
+        writer =
+            writer.withFlushFrequency(
+                Duration.standardSeconds(getRedisConfig().getFlushFrequencySeconds()));
+      }
+
+      return writer;
     } else {
       throw new RuntimeException(
           "At least one RedisConfig or RedisClusterConfig must be provided to Redis Sink");
