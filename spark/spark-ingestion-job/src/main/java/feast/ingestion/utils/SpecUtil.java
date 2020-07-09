@@ -18,12 +18,16 @@ package feast.ingestion.utils;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
+import feast.ingestion.values.Field;
+import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.FeatureSet;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.StoreProto.Store;
 import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
@@ -97,5 +101,18 @@ public class SpecUtil {
       stores.add(builder.build());
     }
     return stores;
+  }
+
+  public static Map<String, Field> getFieldsByName(FeatureSetSpec featureSetSpec) {
+    Map<String, Field> fieldByName = new HashMap<>();
+    for (FeatureSetProto.EntitySpec entitySpec : featureSetSpec.getEntitiesList()) {
+      fieldByName.put(
+          entitySpec.getName(), new Field(entitySpec.getName(), entitySpec.getValueType()));
+    }
+    for (FeatureSetProto.FeatureSpec featureSpec : featureSetSpec.getFeaturesList()) {
+      fieldByName.put(
+          featureSpec.getName(), new Field(featureSpec.getName(), featureSpec.getValueType()));
+    }
+    return fieldByName;
   }
 }

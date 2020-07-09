@@ -19,21 +19,16 @@ package feast.spark.ingestion;
 import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import feast.ingestion.transform.ProcessAndValidateFeatureRows;
 import feast.ingestion.transform.ReadFromSource;
-import feast.ingestion.transform.fn.ProcessFeatureRowDoFn;
 import feast.ingestion.utils.SpecUtil;
 import feast.proto.core.FeatureSetProto.FeatureSet;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.SourceProto.KafkaSourceConfig;
 import feast.proto.core.StoreProto.Store;
-import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.spark.ingestion.delta.SparkDeltaSink;
 import feast.spark.ingestion.redis.SparkRedisSink;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import org.apache.spark.api.java.function.VoidFunction2;
 import org.apache.spark.sql.*;
@@ -155,7 +150,21 @@ public class SparkIngestion {
                 })
             .collect(Collectors.toList());
 
-    ProcessFeatureRowDoFn procFeat = new ProcessFeatureRowDoFn(defaultFeastProject);
+    Map<String, FeatureSetSpec> featureSetSpecs =
+        this.featureSets.stream()
+            .collect(
+                Collectors.toMap(
+                    featureSet -> getFeatureSetReference(featureSet.getSpec()),
+                    FeatureSet::getSpec));
+
+    HashMap<String, feast.ingestion.values.FeatureSet> featureSets =
+        featureSetSpecs.entrySet().stream()
+            .collect(
+                Collectors.toMap(
+                    Map.Entry::getKey,
+                    e -> new feast.ingestion.values.FeatureSet(e.getValue()),
+                    (prev, next) -> next,
+                    HashMap::new));
 
     List<VoidFunction2<Dataset<byte[]>, Long>> consumerSinks =
         consumers.stream()
@@ -170,16 +179,14 @@ public class SparkIngestion {
                 })
             .collect(Collectors.toList());
 
+    ProcessAndValidateFeatureRows processAndValidateFeatureRows =
+        new ProcessAndValidateFeatureRows(defaultFeastProject);
+
+    Dataset<byte[]> processedRows =
+        processAndValidateFeatureRows.processDataset(input, featureSets);
+
     // Start running the query that writes the data to sink
-    return input
-        .select("value")
-        .map(
-            r -> {
-              FeatureRow featureRow = FeatureRow.parseFrom((byte[]) r.getAs(0));
-              featureRow = procFeat.processElement(featureRow);
-              return featureRow.toByteArray();
-            },
-            Encoders.BINARY())
+    return processedRows
         .writeStream()
         .option(
             "checkpointLocation",
