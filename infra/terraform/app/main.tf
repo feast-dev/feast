@@ -11,10 +11,13 @@ data "azurerm_postgresql_server" "postgres" {
 locals {
   databricks_secret_scope        = "feast"
   databricks_secret_datalake_key = "azure_account_key"
+  pypi_password_secret_key       = "pypi_password"
+  pypi_username_secret_key       = "pypi_username"
   databricks_dbfs_jar_folder     = "dbfs:/feast/run${var.run_number}"
-  databricks_spark_version = "6.6.x-scala2.11"
-  databricks_vm_type = "Standard_D3_v2"
-  databricks_instance_pool_name = "Feast"
+  databricks_spark_version       = "6.6.x-scala2.11"
+  databricks_vm_type             = "Standard_D3_v2"
+  databricks_instance_pool_name  = "Feast"
+
 }
 
 resource "azurerm_postgresql_database" "feast" {
@@ -31,10 +34,10 @@ resource "databricks_token" "feast" {
 }
 
 resource "databricks_instance_pool" "feast" {
-  instance_pool_name = local.databricks_instance_pool_name
-  min_idle_instances = 2
-  max_capacity = 6
-  node_type_id = local.databricks_vm_type 
+  instance_pool_name                    = local.databricks_instance_pool_name
+  min_idle_instances                    = 2
+  max_capacity                          = 6
+  node_type_id                          = local.databricks_vm_type
   idle_instance_autotermination_minutes = 60
 }
 
@@ -316,4 +319,42 @@ EOT
   depends_on = [
     helm_release.feast_core
   ]
+}
+
+resource "databricks_secret" "pypi_username" {
+  key          = local.pypi_username_secret_key
+  string_value = var.pypi_user
+  scope        = databricks_secret_scope.feast.name
+}
+
+resource "databricks_secret" "pypi_password" {
+  key          = local.pypi_password_secret_key
+  string_value = var.pypi_password
+  scope        = databricks_secret_scope.feast.name
+}
+
+resource "databricks_dbfs_file" "init_pypi_script" {
+  content              = filebase64("../../scripts/init_pypi.sh")
+  path                 = "/databricks/init/init_pypi.sh"
+  overwrite            = true
+  validate_remote_file = true
+}
+
+resource "databricks_cluster" "feast-cluster" {
+  cluster_name            = "feast-dev-test"
+  spark_version           = local.databricks_spark_version
+  node_type_id            = local.databricks_vm_type
+  autotermination_minutes = 30
+
+  autoscale {
+      min_workers = 0
+      max_workers = 2
+    }
+
+  spark_env_vars = {
+    "PYPI_PWD"        = "{{secrets/${databricks_secret_scope.feast.name}/${databricks_secret.pypi_password.key}}"
+    "PYPI_USER"       = "{{secrets/${databricks_secret_scope.feast.name}/${databricks_secret.pypi_username.key}}}"
+    "PYSPARK_PYTHON"  = "/databricks/python3/bin/python3"
+    "PIP_CONFIG_FILE" = "/.config/pip/pip.conf"
+  }
 }
