@@ -23,48 +23,51 @@ paths:
           description: Ready
         "500":
           description: Not Ready
-  /checkProjectAccess:
+  /checkAccessByResource:
     post:
-      operationId: check_project_access_post
+      operationId: check_access_by_resource_post
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CheckProjectAccessRequest'
+              $ref: '#/components/schemas/checkAccessByResourceRequest'
         description: Request containing both the Spring Authorization object as well
-          as the project that wants to be accessed.
+          as the resource type and resource Id that access is being requested for.
         required: true
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CheckProjectAccessResponse'
+                $ref: '#/components/schemas/checkAccessByResourceResponse'
           description: Authorized
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CheckProjectAccessResponse'
+                $ref: '#/components/schemas/checkAccessByResourceResponse'
           description: Unauthorized
-      summary: Check whether request is authorized to access a project
+      summary: Check whether request is authorized to access a specific resource
       x-swagger-router-controller: swagger_server.controllers.default_controller
       x-codegen-request-body-name: body
       x-openapi-router-controller: openapi_server.controllers.default_controller
 components:
   schemas:
-    CheckProjectAccessRequest:
+    checkAccessByResourceRequest:
       example:
         authentication: '{}'
-        project: project
+        resourceType: project
+        resourceId: default
       properties:
         authentication:
           properties: {}
           type: object
-        project:
+        resourceType:
+          type: string
+        resourceId:
           type: string
       type: object
-    CheckProjectAccessResponse:
+    checkAccessByResourceResponse:
       example:
         allowed: true
         message: message
