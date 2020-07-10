@@ -18,9 +18,10 @@ package feast.auth.config;
 
 import feast.auth.authentication.DefaultJwtAuthenticationProvider;
 import feast.auth.authorization.AuthorizationProvider;
-import feast.auth.authorization.Keto.KetoAuthorizationProvider;
+import feast.auth.authorization.HttpAuthorizationProvider;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import net.devh.boot.grpc.server.security.authentication.BearerAuthenticationReader;
 import net.devh.boot.grpc.server.security.authentication.GrpcAuthenticationReader;
 import net.devh.boot.grpc.server.security.check.AccessPredicateVoter;
@@ -107,8 +108,9 @@ public class SecurityConfig {
     if (securityProperties.getAuthentication().isEnabled()
         && securityProperties.getAuthorization().isEnabled()) {
       switch (securityProperties.getAuthorization().getProvider()) {
-        case "keto":
-          return new KetoAuthorizationProvider(securityProperties.getAuthorization().getOptions());
+        case "http":
+          Map<String, String> options = securityProperties.getAuthorization().getOptions();
+          return new HttpAuthorizationProvider(options);
         default:
           throw new IllegalArgumentException(
               "Please configure an Authorization Provider if you have enabled authorization.");

@@ -25,11 +25,11 @@ import org.springframework.security.core.Authentication;
 public interface AuthorizationProvider {
 
   /**
-   * Validates whether a user is allowed access to the project
+   * Validates whether a user is allowed access to a project
    *
-   * @param project Name of the Feast project
+   * @param projectId Id of the Feast project
    * @param authentication Spring Security Authentication object
    * @return AuthorizationResult result of authorization query
    */
-  AuthorizationResult checkAccess(String project, Authentication authentication);
+  AuthorizationResult checkAccessToProject(String projectId, Authentication authentication);
 }

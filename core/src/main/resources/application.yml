@@ -91,9 +91,9 @@ feast:
 
     authorization:
       enabled: false
-      provider: none
+      provider: http
       options:
-        basePath: http://localhost:3000
+        authorizationUrl: http://localhost:8082
 
 grpc:
   server:
