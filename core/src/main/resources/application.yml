@@ -93,7 +93,7 @@ feast:
       enabled: false
       provider: http
       options:
-        externalAuthUrl: http://localhost:8082
+        authorizationUrl: http://localhost:8082
 
 grpc:
   server:

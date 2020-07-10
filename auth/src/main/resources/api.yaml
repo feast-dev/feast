@@ -7,7 +7,7 @@ info:
   title: Feast Authorization Server
   version: 1.0.0
 servers:
-  - url: /v1
+  - url: /
 paths:
   /healthz:
     get:
@@ -23,57 +23,89 @@ paths:
           description: Ready
         "500":
           description: Not Ready
-  /checkAccessByResource:
+  /checkAccess:
     post:
-      operationId: check_access_by_resource_post
+      operationId: check_access_post
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/checkAccessByResourceRequest'
-        description: Request containing both the Spring Authorization object as well
-          as the resource type and resource Id that access is being requested for.
+              $ref: '#/components/schemas/checkAccessRequest'
+        description: Request containing user, resource, and action information. Used to make an authorization decision.
         required: true
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/checkAccessByResourceResponse'
-          description: Authorized
-        "401":
+                $ref: '#/components/schemas/authorizationResult'
+          description: Authorization passed response
+        "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/checkAccessByResourceResponse'
-          description: Unauthorized
+                $ref: '#/components/schemas/authorizationResult'
+          description: Authorization failed response
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_500'
+          description: The standard error format
       summary: Check whether request is authorized to access a specific resource
-      x-swagger-router-controller: swagger_server.controllers.default_controller
       x-codegen-request-body-name: body
-      x-openapi-router-controller: openapi_server.controllers.default_controller
 components:
   schemas:
-    checkAccessByResourceRequest:
+    checkAccessRequest:
       example:
-        authentication: '{}'
-        resourceType: project
-        resourceId: default
+        action: 'read'
+        context: '{}'
+        resource: 'feast:project'
+        subject: 'me@example.com'
       properties:
-        authentication:
+        action:
+          description: Action is the action that is being taken on the requested resource.
+          type: string
+        context:
+          description: Context is the request's environmental context.
           properties: {}
           type: object
-        resourceType:
+        resource:
+          description: Resource is the resource that access is requested to.
           type: string
-        resourceId:
+        subject:
+          description: Subject is the subject that is requesting access, typically the user.
           type: string
+      title: Input for checking if a request is allowed or not.
       type: object
-    checkAccessByResourceResponse:
+    authorizationResult:
       example:
         allowed: true
-        message: message
       properties:
         allowed:
+          description: Allowed is true if the request should be allowed and false
+            otherwise.
           type: boolean
+      required:
+        - allowed
+      title: AuthorizationResult is the result of an access control decision. It contains
+        the decision outcome.
+      type: object
+    inline_response_500:
+      properties:
+        code:
+          format: int64
+          type: integer
+        details:
+          items:
+            properties: {}
+            type: object
+          type: array
         message:
           type: string
-      type: object
+        reason:
+          type: string
+        request:
+          type: string
+        status:
+          type: string

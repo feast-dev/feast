@@ -16,20 +16,16 @@
  */
 package feast.auth.authorization;
 
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.PropertyAccessor;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import feast.auth.generated.client.api.DefaultApi;
 import feast.auth.generated.client.invoker.ApiClient;
 import feast.auth.generated.client.invoker.ApiException;
-import feast.auth.generated.client.model.CheckProjectAccessRequest;
-import feast.auth.generated.client.model.CheckProjectAccessResponse;
+import feast.auth.generated.client.model.CheckAccessRequest;
 import java.util.Map;
+import org.hibernate.validator.internal.constraintvalidators.bv.EmailValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 /**
  * HTTPAuthorizationProvider uses an external HTTP service for authorizing requests. Please see
@@ -38,7 +34,14 @@ import org.springframework.security.core.Authentication;
 public class HttpAuthorizationProvider implements AuthorizationProvider {
 
   private static final Logger log = LoggerFactory.getLogger(HttpAuthorizationProvider.class);
+
   private final DefaultApi defaultApiClient;
+
+  /**
+   * The default subject claim is the key within the Authentication object where the user's identity
+   * can be found
+   */
+  private final String DEFAULT_SUBJECT_CLAIM = "email";
 
   /**
    * Initializes the HTTPAuthorizationProvider
@@ -53,65 +56,85 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
     }
 
     ApiClient apiClient = new ApiClient();
-    apiClient.setBasePath(options.get("externalAuthUrl"));
+    apiClient.setBasePath(options.get("authorizationUrl"));
     this.defaultApiClient = new DefaultApi(apiClient);
   }
 
   /**
-   * Validates whether a user has access to the project
+   * Validates whether a user has access to a project
    *
-   * @param project Name of the Feast project
+   * @param projectId Name of the Feast project
    * @param authentication Spring Security Authentication object
    * @return AuthorizationResult result of authorization query
    */
-  public AuthorizationResult checkAccess(String project, Authentication authentication) {
-    CheckProjectAccessRequest checkProjectAccessRequest =
-        new CheckProjectAccessRequest().project(project).authentication(authentication);
+  public AuthorizationResult checkAccessToProject(String projectId, Authentication authentication) {
+
+    CheckAccessRequest checkAccessRequest = new CheckAccessRequest();
+    Object context = getContext(authentication);
+    String subject = getSubjectFromAuth(authentication, DEFAULT_SUBJECT_CLAIM);
+    checkAccessRequest.setAction("ALL");
+    checkAccessRequest.setContext(context);
+    checkAccessRequest.setResource(projectId);
+    checkAccessRequest.setSubject(subject);
 
     try {
       // Make authorization request to external service
-      CheckProjectAccessResponse response =
-          defaultApiClient.checkProjectAccessPost(checkProjectAccessRequest);
-      if (response == null || response.getAllowed() == null) {
+      feast.auth.generated.client.model.AuthorizationResult authResult =
+          defaultApiClient.checkAccessPost(checkAccessRequest);
+      if (authResult == null) {
         throw new RuntimeException(
             String.format(
-                "Empty response returned for access to project %s for authentication \n%s",
-                project, authenticationToJson(authentication)));
+                "Empty response returned for access to project %s for subject %s",
+                projectId, subject));
       }
-      if (response.getAllowed()) {
+      if (authResult.getAllowed()) {
         // Successfully authenticated
         return AuthorizationResult.success();
       }
-      // Could not determine project membership, deny access.
-      return AuthorizationResult.failed(
-          String.format(
-              "Access denied to project %s for with message: %s", project, response.getMessage()));
     } catch (ApiException e) {
-      log.error("API exception has occurred while authenticating user: {}", e.getMessage(), e);
+      log.error("API exception has occurred during authorization: {}", e.getMessage(), e);
     }
 
     // Could not determine project membership, deny access.
-    return AuthorizationResult.failed(String.format("Access denied to project %s", project));
+    return AuthorizationResult.failed(
+        String.format("Access denied to project %s for subject %s", projectId, subject));
   }
 
   /**
-   * Converts Spring Authentication object into Json String form.
+   * Extract a context object to send as metadata to the authorization service
    *
-   * @param authentication Authentication object that contains request level authentication metadata
-   * @return Json representation of authentication object
+   * @param authentication  Spring Security Authentication object
+   * @return Returns a context object that will be serialized and sent as metadata to the authorization service
    */
-  private static String authenticationToJson(Authentication authentication) {
-    ObjectWriter ow =
-        new ObjectMapper()
-            .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
-            .writer()
-            .withDefaultPrettyPrinter();
-    try {
-      return ow.writeValueAsString(authentication);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(
-          String.format(
-              "Could not convert Authentication object to JSON: %s", authentication.toString()));
+  private Object getContext(Authentication authentication) {
+    // Not implemented yet, left empty
+    return new Object();
+  }
+
+  /**
+   * Get user email from their authentication object.
+   *
+   * @param authentication Spring Security Authentication object, used to extract user details
+   * @param subjectClaim Indicates the claim where the subject can be found
+   * @return String user email
+   */
+  private String getSubjectFromAuth(Authentication authentication, String subjectClaim) {
+    Jwt principle = ((Jwt) authentication.getPrincipal());
+    Map<String, Object> claims = principle.getClaims();
+    String subjectValue = (String) claims.get(subjectClaim);
+
+    if (subjectValue.isEmpty()) {
+      throw new IllegalStateException(
+          String.format("JWT does not have a valid claim %s.", subjectClaim));
     }
+
+    if (subjectClaim.equals("email")) {
+      boolean validEmail = (new EmailValidator()).isValid(subjectValue, null);
+      if (!validEmail) {
+        throw new IllegalStateException("JWT contains an invalid email address");
+      }
+    }
+
+    return subjectValue;
   }
 }

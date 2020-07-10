@@ -96,7 +96,7 @@ class CoreServiceAuthTest {
 
     doReturn(AuthorizationResult.failed(null))
         .when(authProvider)
-        .checkAccess(anyString(), any(Authentication.class));
+        .checkAccessToProject(anyString(), any(Authentication.class));
 
     StreamRecorder<ApplyFeatureSetResponse> responseObserver = StreamRecorder.create();
     FeatureSetProto.FeatureSet incomingFeatureSet = newDummyFeatureSet("f2", 1, project).toProto();
@@ -121,7 +121,7 @@ class CoreServiceAuthTest {
     when(context.getAuthentication()).thenReturn(auth);
     doReturn(AuthorizationResult.success())
         .when(authProvider)
-        .checkAccess(anyString(), any(Authentication.class));
+        .checkAccessToProject(anyString(), any(Authentication.class));
 
     StreamRecorder<ApplyFeatureSetResponse> responseObserver = StreamRecorder.create();
     FeatureSetProto.FeatureSet incomingFeatureSet = newDummyFeatureSet("f2", 1, project).toProto();

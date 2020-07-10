@@ -112,14 +112,15 @@ public class AccessManagementService {
    * Determine whether a user belongs to a Project
    *
    * @param securityContext User's Spring Security Context. Used to identify user.
-   * @param project Name of the project for which membership should be tested.
+   * @param projectId Id (name) of the project for which membership should be tested.
    */
-  public void checkIfProjectMember(SecurityContext securityContext, String project) {
+  public void checkIfProjectMember(SecurityContext securityContext, String projectId) {
     Authentication authentication = securityContext.getAuthentication();
     if (!this.securityProperties.getAuthorization().isEnabled()) {
       return;
     }
-    AuthorizationResult result = this.authorizationProvider.checkAccess(project, authentication);
+    AuthorizationResult result =
+        this.authorizationProvider.checkAccessToProject(projectId, authentication);
     if (!result.isAllowed()) {
       throw new AccessDeniedException(result.getFailureReason().orElse("AccessDenied"));
     }
