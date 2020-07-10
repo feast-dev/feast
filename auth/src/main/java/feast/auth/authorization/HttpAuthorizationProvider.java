@@ -103,8 +103,9 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
   /**
    * Extract a context object to send as metadata to the authorization service
    *
-   * @param authentication  Spring Security Authentication object
-   * @return Returns a context object that will be serialized and sent as metadata to the authorization service
+   * @param authentication Spring Security Authentication object
+   * @return Returns a context object that will be serialized and sent as metadata to the
+   *     authorization service
    */
   private Object getContext(Authentication authentication) {
     // Not implemented yet, left empty
