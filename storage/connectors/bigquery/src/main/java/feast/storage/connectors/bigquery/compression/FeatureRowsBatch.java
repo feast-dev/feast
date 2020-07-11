@@ -176,30 +176,44 @@ public class FeatureRowsBatch implements Serializable {
     return new FeatureRowsBatch(row.getSchema(), row.getValues());
   }
 
+  private FeatureRowProto.FeatureRow restoreFeatureRow(int rowIdx) {
+    return FeatureRowProto.FeatureRow.newBuilder()
+        .setFeatureSet(getFeatureSetReference())
+        .addAllFields(
+            IntStream.range(0, schema.getFieldCount())
+                .mapToObj(
+                    fieldIdx ->
+                        FieldProto.Field.newBuilder()
+                            .setName(schema.getField(fieldIdx).getName())
+                            .setValue(
+                                objectToProtoValue(
+                                    ((List<Object>) values.get(fieldIdx)).get(rowIdx),
+                                    schemaToProtoTypes.get(
+                                        schema
+                                            .getField(fieldIdx)
+                                            .getType()
+                                            .getCollectionElementType())))
+                            .build())
+                .collect(Collectors.toList()))
+        .build();
+  }
+
   public Iterator<FeatureRowProto.FeatureRow> getFeatureRows() {
     return IntStream.range(0, ((List<Object>) values.get(0)).size())
         .parallel()
-        .mapToObj(
-            rowIdx ->
-                FeatureRowProto.FeatureRow.newBuilder()
-                    .setFeatureSet(getFeatureSetReference())
-                    .addAllFields(
-                        IntStream.range(0, schema.getFieldCount())
-                            .mapToObj(
-                                fieldIdx ->
-                                    FieldProto.Field.newBuilder()
-                                        .setName(schema.getField(fieldIdx).getName())
-                                        .setValue(
-                                            objectToProtoValue(
-                                                ((List<Object>) values.get(fieldIdx)).get(rowIdx),
-                                                schemaToProtoTypes.get(
-                                                    schema
-                                                        .getField(fieldIdx)
-                                                        .getType()
-                                                        .getCollectionElementType())))
-                                        .build())
-                            .collect(Collectors.toList()))
-                    .build())
+        .mapToObj(this::restoreFeatureRow)
+        .iterator();
+  }
+
+  public Iterator<FeatureRowProto.FeatureRow> getFeatureRowsSample(int maxCount) {
+    int featureCount = ((List<Object>) values.get(0)).size();
+    Random rd = new Random(42);
+
+    return IntStream.range(0, featureCount)
+        .filter(idx -> rd.nextInt(featureCount) < maxCount)
+        .parallel()
+        .mapToObj(this::restoreFeatureRow)
+        .limit(maxCount)
         .iterator();
   }
 
