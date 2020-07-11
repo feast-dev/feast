@@ -72,9 +72,10 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
     CheckAccessRequest checkAccessRequest = new CheckAccessRequest();
     Object context = getContext(authentication);
     String subject = getSubjectFromAuth(authentication, DEFAULT_SUBJECT_CLAIM);
+    String resource = "projects:" + projectId;
     checkAccessRequest.setAction("ALL");
     checkAccessRequest.setContext(context);
-    checkAccessRequest.setResource(projectId);
+    checkAccessRequest.setResource(resource);
     checkAccessRequest.setSubject(subject);
 
     try {
