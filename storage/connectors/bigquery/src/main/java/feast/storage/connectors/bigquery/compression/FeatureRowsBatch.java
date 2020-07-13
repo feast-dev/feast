@@ -207,48 +207,58 @@ public class FeatureRowsBatch implements Serializable {
     return new FeatureRowsBatch(row.getSchema(), row.getValues());
   }
 
-  public Iterator<FeatureRowProto.FeatureRow> getFeatureRows() {
+  private FeatureRowProto.FeatureRow restoreFeatureRow(int rowIdx) {
     int timestampColumnIdx = schema.indexOf("eventTimestamp");
     int ingestionIdColumnIdx = schema.indexOf("ingestionId");
 
-    return IntStream.range(0, ((List<Object>) values.get(0)).size())
-        .parallel()
-        .mapToObj(
-            rowIdx ->
-                FeatureRowProto.FeatureRow.newBuilder()
-                    .setFeatureSet(getFeatureSetReference())
-                    .setEventTimestamp(
-                        Timestamp.newBuilder()
-                            .setSeconds(
-                                (long)
-                                    (((List<Object>) values.get(timestampColumnIdx)).get(rowIdx)))
-                            .build())
-                    .setIngestionId(
-                        (String) (((List<Object>) values.get(ingestionIdColumnIdx)).get(rowIdx)))
-                    .addAllFields(
-                        schema.getFieldNames().stream()
-                            .map(
-                                fieldName -> {
-                                  if (SERVICE_FIELDS.contains(fieldName)) {
-                                    return null;
-                                  }
-                                  int fieldIdx = schema.indexOf(fieldName);
+    return FeatureRowProto.FeatureRow.newBuilder()
+        .setFeatureSet(getFeatureSetReference())
+        .setEventTimestamp(
+            Timestamp.newBuilder()
+                .setSeconds((long) (((List<Object>) values.get(timestampColumnIdx)).get(rowIdx)))
+                .build())
+        .setIngestionId((String) (((List<Object>) values.get(ingestionIdColumnIdx)).get(rowIdx)))
+        .addAllFields(
+            schema.getFieldNames().stream()
+                .map(
+                    fieldName -> {
+                      if (SERVICE_FIELDS.contains(fieldName)) {
+                        return null;
+                      }
+                      int fieldIdx = schema.indexOf(fieldName);
 
-                                  return FieldProto.Field.newBuilder()
-                                      .setName(schema.getField(fieldIdx).getName())
-                                      .setValue(
-                                          objectToProtoValue(
-                                              ((List<Object>) values.get(fieldIdx)).get(rowIdx),
-                                              schemaToProtoTypes.get(
-                                                  schema
-                                                      .getField(fieldIdx)
-                                                      .getType()
-                                                      .getCollectionElementType())))
-                                      .build();
-                                })
-                            .filter(Objects::nonNull)
-                            .collect(Collectors.toList()))
-                    .build())
+                      return FieldProto.Field.newBuilder()
+                          .setName(schema.getField(fieldIdx).getName())
+                          .setValue(
+                              objectToProtoValue(
+                                  ((List<Object>) values.get(fieldIdx)).get(rowIdx),
+                                  schemaToProtoTypes.get(
+                                      schema
+                                          .getField(fieldIdx)
+                                          .getType()
+                                          .getCollectionElementType())))
+                          .build();
+                    })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList()))
+        .build();
+  }
+
+  public Iterator<FeatureRowProto.FeatureRow> getFeatureRows() {
+    int featureCount = ((List<Object>) values.get(0)).size();
+
+    return IntStream.range(0, featureCount).parallel().mapToObj(this::restoreFeatureRow).iterator();
+  }
+
+  public Iterator<FeatureRowProto.FeatureRow> getFeatureRowsSample(int maxCount) {
+    int featureCount = ((List<Object>) values.get(0)).size();
+    Random rd = new Random(42);
+
+    return IntStream.range(0, featureCount)
+        .filter(idx -> rd.nextInt(featureCount) < maxCount)
+        .parallel()
+        .mapToObj(this::restoreFeatureRow)
+        .limit(maxCount)
         .iterator();
   }
 
