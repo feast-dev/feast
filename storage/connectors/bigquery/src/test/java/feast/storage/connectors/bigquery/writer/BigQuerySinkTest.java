@@ -124,6 +124,11 @@ public class BigQuerySinkTest {
     FeatureRow.Builder row =
         FeatureRow.newBuilder()
             .setFeatureSet(featureSet)
+            .setEventTimestamp(
+                com.google.protobuf.Timestamp.newBuilder()
+                    .setSeconds(System.currentTimeMillis() / 1000)
+                    .build())
+            .setIngestionId("ingestion-id")
             .addFields(field("entity", rd.nextInt(), ValueProto.ValueType.Enum.INT64))
             .addFields(FieldProto.Field.newBuilder().setName("null_value").build());
 
@@ -499,6 +504,8 @@ public class BigQuerySinkTest {
             r ->
                 FeatureRow.newBuilder()
                     .setFeatureSet(r.getFeatureSet())
+                    .setIngestionId(r.getIngestionId())
+                    .setEventTimestamp(r.getEventTimestamp())
                     .addAllFields(copyFieldsWithout(r, "null_value"))
                     .build())
         .collect(Collectors.toList());
@@ -520,6 +527,8 @@ public class BigQuerySinkTest {
 
               return FeatureRow.newBuilder()
                   .setFeatureSet(row.getFeatureSet())
+                  .setEventTimestamp(row.getEventTimestamp())
+                  .setIngestionId(row.getIngestionId())
                   .addAllFields(fieldsList)
                   .build();
             })
