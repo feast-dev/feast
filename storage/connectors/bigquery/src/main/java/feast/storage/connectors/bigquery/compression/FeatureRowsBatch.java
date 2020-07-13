@@ -215,12 +215,9 @@ public class FeatureRowsBatch implements Serializable {
         .setFeatureSet(getFeatureSetReference())
         .setEventTimestamp(
             Timestamp.newBuilder()
-                .setSeconds(
-                    (long)
-                        (((List<Object>) values.get(timestampColumnIdx)).get(rowIdx)))
+                .setSeconds((long) (((List<Object>) values.get(timestampColumnIdx)).get(rowIdx)))
                 .build())
-        .setIngestionId(
-            (String) (((List<Object>) values.get(ingestionIdColumnIdx)).get(rowIdx)))
+        .setIngestionId((String) (((List<Object>) values.get(ingestionIdColumnIdx)).get(rowIdx)))
         .addAllFields(
             schema.getFieldNames().stream()
                 .map(
@@ -250,10 +247,7 @@ public class FeatureRowsBatch implements Serializable {
   public Iterator<FeatureRowProto.FeatureRow> getFeatureRows() {
     int featureCount = ((List<Object>) values.get(0)).size();
 
-    return IntStream.range(0, featureCount)
-        .parallel()
-        .mapToObj(this::restoreFeatureRow)
-        .iterator();
+    return IntStream.range(0, featureCount).parallel().mapToObj(this::restoreFeatureRow).iterator();
   }
 
   public Iterator<FeatureRowProto.FeatureRow> getFeatureRowsSample(int maxCount) {
