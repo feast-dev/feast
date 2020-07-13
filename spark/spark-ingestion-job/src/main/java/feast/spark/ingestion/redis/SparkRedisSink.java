@@ -73,7 +73,11 @@ public class SparkRedisSink implements SparkSink {
             redisConfig.getHost(),
             redisConfig.getPort(),
             java.time.Duration.ofMillis(DEFAULT_TIMEOUT));
-    redisuri.setPassword(redisConfig.getPass());
+
+    String pass = redisConfig.getPass();
+    if(pass != null && !pass.isEmpty()){
+      redisuri.setPassword(pass);
+    }
 
     return new RedisWriter(broadcastedWriter, redisuri);
   }

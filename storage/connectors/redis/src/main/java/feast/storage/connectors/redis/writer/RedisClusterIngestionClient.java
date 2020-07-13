@@ -50,7 +50,10 @@ public class RedisClusterIngestionClient implements RedisIngestionClient {
                   RedisURI redisuri =
                       RedisURI.create(hostPortSplit[0], Integer.parseInt(hostPortSplit[1]));
                   if (hostPortSplit.length == 3) {
-                    redisuri.setPassword(hostPortSplit[2]);
+                    String pass = hostPortSplit[2];
+                    if(pass != null && !pass.isEmpty()){
+                      redisuri.setPassword(pass);
+                    }
                   }
                   return redisuri;
                 })

@@ -599,7 +599,11 @@ public class TestUtil {
     RedisURI redisuri =
         new RedisURI(
             redisConfig.getHost(), redisConfig.getPort(), java.time.Duration.ofMillis(2000));
-    redisuri.setPassword(redisConfig.getPass());
+
+    String pass = redisConfig.getPass();
+    if(pass != null && !pass.isEmpty()){
+      redisuri.setPassword(pass);
+    }
 
     RedisClient redisClient = RedisClient.create(redisuri);
     StatefulRedisConnection<byte[], byte[]> connection = redisClient.connect(new ByteArrayCodec());

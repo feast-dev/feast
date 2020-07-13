@@ -45,7 +45,11 @@ public class RedisBackedJobService implements JobService {
   public RedisBackedJobService(FeastProperties.JobStoreProperties jobStoreProperties) {
     RedisURI uri =
         RedisURI.create(jobStoreProperties.getRedisHost(), jobStoreProperties.getRedisPort());
-    uri.setPassword(jobStoreProperties.getRedisPass());
+    String pass = jobStoreProperties.getRedisPass();
+    if(pass != null && !pass.isEmpty()){
+      uri.setPassword(pass);
+    }
+
     this.syncCommand =
         RedisClient.create(DefaultClientResources.create(), uri)
             .connect(new ByteArrayCodec())

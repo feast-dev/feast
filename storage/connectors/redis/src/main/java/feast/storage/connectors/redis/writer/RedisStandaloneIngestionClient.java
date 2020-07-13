@@ -53,7 +53,9 @@ public class RedisStandaloneIngestionClient implements RedisIngestionClient {
   @Override
   public void setup() {
     RedisURI redisuri = new RedisURI(host, port, java.time.Duration.ofMillis(DEFAULT_TIMEOUT));
-    redisuri.setPassword(pass);
+    if(pass != null && !pass.isEmpty()){
+      redisuri.setPassword(pass);
+    }
     this.redisclient = RedisClient.create(redisuri);
   }
 
