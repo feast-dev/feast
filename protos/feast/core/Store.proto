@@ -108,6 +108,8 @@ message Store {
     int32 initial_backoff_ms = 3;
     // Optional. Maximum total number of retries for connecting to Redis. Default to zero retries.
     int32 max_retries = 4;
+    // Optional. how often flush data to redis
+    int32 flush_frequency_seconds = 5;
   }
 
   message BigQueryConfig {
@@ -129,6 +131,8 @@ message Store {
     string connection_string = 1;
     int32 initial_backoff_ms = 2;
     int32 max_retries = 3;
+    // Optional. how often flush data to redis
+    int32 flush_frequency_seconds = 4;
   }
 
   message Subscription {

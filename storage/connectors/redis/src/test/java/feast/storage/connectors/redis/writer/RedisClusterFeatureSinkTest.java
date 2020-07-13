@@ -33,7 +33,6 @@ import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.Value;
 import feast.proto.types.ValueProto.ValueType.Enum;
-import feast.storage.api.writer.FailedElement;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
@@ -221,7 +220,6 @@ public class RedisClusterFeatureSinkTest {
         p.apply(Create.of(featureRows))
             .apply(redisClusterFeatureSink.writer())
             .getFailedInserts()
-            .apply(Window.<FailedElement>into(new GlobalWindows()).triggering(Never.ever()))
             .apply(Count.globally());
 
     redisCluster.stop();
@@ -283,7 +281,6 @@ public class RedisClusterFeatureSinkTest {
         p.apply(Create.of(featureRows))
             .apply("modifiedSink", redisClusterFeatureSink.writer())
             .getFailedInserts()
-            .apply(Window.<FailedElement>into(new GlobalWindows()).triggering(Never.ever()))
             .apply(Count.globally());
 
     PAssert.that(failedElementCount).containsInAnyOrder(1L);
