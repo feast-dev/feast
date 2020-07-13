@@ -22,7 +22,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
-import com.google.protobuf.util.Timestamps;
+import com.google.protobuf.Timestamp;
 import feast.ingestion.transform.metrics.WriteSuccessMetricsTransform;
 import feast.proto.core.FeatureSetProto.FeatureSet;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
@@ -36,6 +36,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -218,10 +219,15 @@ public class TestUtil {
    */
   public static FeatureRow createRandomFeatureRow(
       FeatureSetSpec featureSetSpec, int randomStringSize) {
+
+    Instant time = Instant.now();
+    Timestamp timestamp =
+        Timestamp.newBuilder().setSeconds(time.getEpochSecond()).setNanos(time.getNano()).build();
+
     Builder builder =
         FeatureRow.newBuilder()
             .setFeatureSet(getFeatureSetStringRef(featureSetSpec))
-            .setEventTimestamp(Timestamps.fromMillis(System.currentTimeMillis()));
+            .setEventTimestamp(timestamp);
 
     featureSetSpec
         .getEntitiesList()
