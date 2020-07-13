@@ -107,6 +107,8 @@ public class SparkIngestionTest {
 
   @Rule public TemporaryFolder checkpointFolder = new TemporaryFolder();
 
+  @Rule public TemporaryFolder deadLetterFolder = new TemporaryFolder();
+
   @Rule public final SparkSessionRule spark = new SparkSessionRule();
 
   @BeforeClass
@@ -146,11 +148,20 @@ public class SparkIngestionTest {
     FeatureSet featureSetForDelta = TestUtil.createFeatureSetForDelta(kafka);
     FeatureSetSpec specForRedis = featureSetForRedis.getSpec();
     FeatureSetSpec specForDelta = featureSetForDelta.getSpec();
+    FeatureSetSpec invalidSpec =
+        FeatureSetSpec.newBuilder(specForDelta).setProject("invalid_project").build();
 
     List<FeatureRow> inputForRedis =
         TestUtil.generateTestData(specForRedis, IMPORT_JOB_SAMPLE_FEATURE_ROW_SIZE);
     List<FeatureRow> inputForDelta =
         TestUtil.generateTestData(specForDelta, IMPORT_JOB_SAMPLE_FEATURE_ROW_SIZE);
+    List<FeatureRow> invalidInput =
+        TestUtil.generateTestData(invalidSpec, IMPORT_JOB_SAMPLE_FEATURE_ROW_SIZE);
+    List<FeatureRow> allInputs =
+        Stream.concat(
+                Stream.concat(inputForRedis.stream(), invalidInput.stream()),
+                inputForDelta.stream())
+            .collect(Collectors.toList());
 
     LOGGER.info("Starting Import Job");
 
@@ -173,22 +184,26 @@ public class SparkIngestionTest {
     Dataset<Row> data = null;
 
     String checkpointDir = checkpointFolder.getRoot().getAbsolutePath();
+    String deadLetterDir = deadLetterFolder.getRoot().getAbsolutePath();
 
     SparkIngestion ingestion =
         new SparkIngestion(
             new String[] {
-              TEST_JOB_ID, checkpointDir, "myDefaultFeastProject", featureSetsJson, storesJson
+              TEST_JOB_ID,
+              checkpointDir,
+              "myDefaultFeastProject",
+              deadLetterDir,
+              featureSetsJson,
+              storesJson
             });
 
     StreamingQuery query = ingestion.createQuery();
 
-    LOGGER.info(
-        "Publishing {} Feature Row messages to Kafka ...",
-        inputForRedis.size() + inputForDelta.size());
+    LOGGER.info("Publishing {} Feature Row messages to Kafka ...", allInputs.size());
     TestUtil.publishFeatureRowsToKafka(
         KAFKA_BOOTSTRAP_SERVERS,
         KAFKA_TOPIC,
-        Stream.concat(inputForRedis.stream(), inputForDelta.stream()).collect(Collectors.toList()),
+        allInputs,
         ByteArraySerializer.class,
         KAFKA_PUBLISH_TIMEOUT_SEC);
 
@@ -219,6 +234,8 @@ public class SparkIngestionTest {
     TestUtil.validateRedis(featureSetForRedis, inputForRedis, redisConfig, TEST_JOB_ID);
 
     validateDelta(featureSetForDelta, inputForDelta, data);
+
+    validateDeadLetter(invalidInput);
   }
 
   private <T extends MessageOrBuilder> String toJsonLines(Collection<T> items) {
@@ -252,6 +269,39 @@ public class SparkIngestionTest {
     // Ensure each of the retrieved FeatureRow is equal to the ingested FeatureRow.
     assertThat(delta.size(), is(input.size()));
     assertEquals(new HashSet<>(input), delta);
+  }
+
+  private void validateDeadLetter(List<FeatureRow> invalidInput) throws Exception {
+    String deadLetterDir = deadLetterFolder.getRoot().getAbsolutePath();
+    for (int i = 0; i < 60; i++) {
+
+      Dataset<Row> data = spark.session.read().format("delta").load(deadLetterDir.toString());
+      long count = data.count();
+      assertThat(count, is((long) IMPORT_JOB_SAMPLE_FEATURE_ROW_SIZE));
+      Row f = data.first();
+      if (f.length() > 0) {
+        break;
+      } else {
+        LOGGER.info("Delta directory not yet created.");
+      }
+      Thread.sleep(1000);
+    }
+
+    Dataset<Row> data = spark.session.read().format("delta").load(deadLetterDir.toString());
+    long count = data.count();
+    assertThat(count, is((long) IMPORT_JOB_SAMPLE_FEATURE_ROW_SIZE));
+    Row f = data.first();
+    assertThat(f.length(), is(6));
+    int i = 0;
+    assertThat("timestamp", f.get(i++), instanceOf(java.sql.Timestamp.class));
+    assertThat("jobName", (String) f.getAs(i++), equalTo(""));
+    assertThat("transformName", (String) f.getAs(i++), is("ValidateFeatureRow"));
+    assertThat("payload", (String) f.getAs(i++), startsWith("fields"));
+    assertThat(
+        "errorMessage",
+        (String) f.getAs(i++),
+        containsString("FeatureRow contains invalid feature set id"));
+    assertThat("stackTrace", (String) f.getAs(i++), equalTo(null));
   }
 
   public static FeatureRow sparkRowToFeatureRow(FeatureSetSpec featureSetSpec, Row row) {

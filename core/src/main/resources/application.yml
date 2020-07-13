@@ -61,12 +61,14 @@ feast:
           host: databricks_host
           # Token for authentication
           token:  ${DATABRICKS_TOKEN}
-          # Path to store Spark job checkpoints 
+          # Path to store Spark job checkpoints
           checkpointLocation: dbfs:/checkpoints/feast
           # Path to the Jar file on the databricks file system
           jarFile: jar_file
           # Timeout in seconds for Databricks jobs, or -1 for unlimited
           timeoutSeconds: -1
+          # Path to store dead letter data
+          deadLetterPath: dbfs:/feast/deadletter
           newCluster:
             # The platform version for scala and spark (e.g. 6.5.x-scala2.11)
             sparkVersion: your_spark_version

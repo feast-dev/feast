@@ -57,6 +57,7 @@ public class DatabricksJobManager implements JobManager {
   private final String checkpointLocation;
   private final String jarFile;
   private final DatabricksRunnerConfigOptions.DatabricksNewClusterOptions newClusterConfigOptions;
+  private final String deadLetterPath;
   private final HttpClient httpClient;
   private static final ObjectMapper mapper = ObjectMapperFactory.createObjectMapper();
   private final int timeoutSeconds;
@@ -69,6 +70,7 @@ public class DatabricksJobManager implements JobManager {
     this.checkpointLocation = runnerConfigOptions.getCheckpointLocation();
     this.httpClient = httpClient;
     this.newClusterConfigOptions = runnerConfigOptions.getNewCluster();
+    this.deadLetterPath = runnerConfigOptions.getDeadLetterPath();
     this.jarFile = runnerConfigOptions.getJarFile();
     this.timeoutSeconds = runnerConfigOptions.getTimeoutSeconds();
   }
@@ -222,7 +224,12 @@ public class DatabricksJobManager implements JobManager {
 
     List<String> params =
         Arrays.asList(
-            job.getId(), checkpointLocation, defaultFeastProject, featureSetsJson, storesJson);
+            job.getId(),
+            checkpointLocation,
+            defaultFeastProject,
+            deadLetterPath,
+            featureSetsJson,
+            storesJson);
     RunsSubmitRequest runRequest = getJobRequest(jobName, params);
 
     try {

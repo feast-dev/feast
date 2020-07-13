@@ -16,11 +16,10 @@
  */
 package feast.ingestion.transform;
 
-import feast.ingestion.enums.ValidationStatus;
 import feast.ingestion.transform.fn.ProcessFeatureRowDoFn;
 import feast.ingestion.transform.fn.ValidateFeatureRowDoFn;
 import feast.ingestion.values.FeatureSet;
-import feast.proto.types.FeatureRowProto;
+import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.spark.ingestion.RowWithValidationResult;
 import java.util.HashMap;
 import org.apache.spark.sql.Dataset;
@@ -35,7 +34,7 @@ public class ProcessAndValidateFeatureRows {
     this.defaultFeastProject = defaultFeastProject;
   }
 
-  public Dataset<byte[]> processDataset(
+  public Dataset<RowWithValidationResult> processDataset(
       Dataset<Row> input, HashMap<String, FeatureSet> featureSets) {
     ValidateFeatureRowDoFn validFeat = new ValidateFeatureRowDoFn(featureSets);
 
@@ -46,20 +45,11 @@ public class ProcessAndValidateFeatureRows {
             .select("value")
             .map(
                 r -> {
-                  return validFeat.validateElement((byte[]) r.getAs(0));
+                  FeatureRow featureRow = FeatureRow.parseFrom((byte[]) r.getAs(0));
+                  FeatureRow el = procFeat.processElement(featureRow);
+                  return validFeat.validateElement(el);
                 },
                 Encoders.kryo(RowWithValidationResult.class));
-
-    Dataset<RowWithValidationResult> validRows =
-        rowsWithValidationResult.filter(
-            row -> row.getValidationStatus().equals(ValidationStatus.SUCCESS));
-
-    return validRows.map(
-        r -> {
-          FeatureRowProto.FeatureRow featureRow =
-              FeatureRowProto.FeatureRow.parseFrom(r.getFeatureRow());
-          return procFeat.processElement(featureRow).toByteArray();
-        },
-        Encoders.BINARY());
+    return rowsWithValidationResult;
   }
 }

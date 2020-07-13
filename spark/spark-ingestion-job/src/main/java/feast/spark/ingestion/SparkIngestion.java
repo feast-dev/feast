@@ -19,6 +19,7 @@ package feast.spark.ingestion;
 import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import feast.ingestion.enums.ValidationStatus;
 import feast.ingestion.transform.ProcessAndValidateFeatureRows;
 import feast.ingestion.transform.ReadFromSource;
 import feast.ingestion.utils.SpecUtil;
@@ -28,11 +29,15 @@ import feast.proto.core.SourceProto.KafkaSourceConfig;
 import feast.proto.core.StoreProto.Store;
 import feast.spark.ingestion.delta.SparkDeltaSink;
 import feast.spark.ingestion.redis.SparkRedisSink;
+import feast.storage.api.writer.FailedElement;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.apache.spark.api.java.function.VoidFunction2;
 import org.apache.spark.sql.*;
+import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.streaming.StreamingQuery;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,8 +49,21 @@ public class SparkIngestion {
   private final String jobId;
   private final String checkpointLocation;
   private final String defaultFeastProject;
+  private final String deadLetterPath;
   private final List<FeatureSet> featureSets;
   private final List<Store> stores;
+  private static final StructType deadLetterType;
+
+  static {
+    StructType schema = new StructType();
+    schema = schema.add("timestamp", DataTypes.TimestampType, false);
+    schema = schema.add("job_name", DataTypes.StringType, true);
+    schema = schema.add("transform_name", DataTypes.StringType, true);
+    schema = schema.add("payload", DataTypes.StringType, true);
+    schema = schema.add("error_message", DataTypes.StringType, true);
+    schema = schema.add("stack_trace", DataTypes.StringType, true);
+    deadLetterType = schema;
+  }
 
   /**
    * Run a Spark ingestion job.
@@ -70,7 +88,7 @@ public class SparkIngestion {
    * @throws InvalidProtocolBufferException
    */
   public SparkIngestion(String[] args) throws InvalidProtocolBufferException {
-    int numArgs = 5;
+    int numArgs = 6;
     if (args.length != numArgs) {
       throw new IllegalArgumentException("Expecting " + numArgs + " arguments");
     }
@@ -79,6 +97,7 @@ public class SparkIngestion {
     jobId = args[index++];
     checkpointLocation = args[index++];
     defaultFeastProject = args[index++];
+    deadLetterPath = args[index++];
     String featureSetSpecsJson = args[index++];
     String storesJson = args[index++];
 
@@ -182,7 +201,7 @@ public class SparkIngestion {
     ProcessAndValidateFeatureRows processAndValidateFeatureRows =
         new ProcessAndValidateFeatureRows(defaultFeastProject);
 
-    Dataset<byte[]> processedRows =
+    Dataset<RowWithValidationResult> processedRows =
         processAndValidateFeatureRows.processDataset(input, featureSets);
 
     // Start running the query that writes the data to sink
@@ -195,17 +214,50 @@ public class SparkIngestion {
         .foreachBatch(
             (batchDF, batchId) -> {
               batchDF.persist();
+              Dataset<byte[]> validRows =
+                  batchDF
+                      .filter(row -> row.getValidationStatus().equals(ValidationStatus.SUCCESS))
+                      .map(RowWithValidationResult::getFeatureRow, Encoders.BINARY());
+
+              validRows.persist();
               consumerSinks.forEach(
                   c -> {
                     try {
-                      c.call(batchDF, batchId);
+                      c.call(validRows, batchId);
                     } catch (Exception e) {
                       log.error("Error invoking sink", e);
                       throw new RuntimeException(e);
                     }
                   });
+              validRows.unpersist();
+
+              storeDeadLetter(batchDF);
+
               batchDF.unpersist();
             })
         .start();
+  }
+
+  private void storeDeadLetter(Dataset<RowWithValidationResult> batchDF) {
+    Dataset<RowWithValidationResult> invalidRows =
+        batchDF.filter(row -> row.getValidationStatus().equals(ValidationStatus.FAILURE));
+
+    invalidRows
+        .map(
+            e -> {
+              FailedElement element = e.getFailedElement();
+              return RowFactory.create(
+                  new java.sql.Timestamp(element.getTimestamp().getMillis()),
+                  element.getJobName(),
+                  element.getTransformName(),
+                  element.getPayload(),
+                  element.getErrorMessage(),
+                  element.getStackTrace());
+            },
+            RowEncoder.apply(deadLetterType))
+        .write()
+        .format("delta")
+        .mode("append")
+        .save(deadLetterPath);
   }
 }

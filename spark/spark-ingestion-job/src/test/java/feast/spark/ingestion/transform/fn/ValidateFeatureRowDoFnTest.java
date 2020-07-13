@@ -77,7 +77,7 @@ public class ValidateFeatureRowDoFnTest {
 
     ValidateFeatureRowDoFn validFeat = new ValidateFeatureRowDoFn(featureSets);
 
-    RowWithValidationResult result = validFeat.validateElement(invalidRow.toByteArray());
+    RowWithValidationResult result = validFeat.validateElement(invalidRow);
 
     assertThat(result.getValidationStatus(), equalTo(ValidationStatus.FAILURE));
   }
@@ -124,7 +124,7 @@ public class ValidateFeatureRowDoFnTest {
 
     FeatureRowProto.FeatureRow randomRow = TestUtil.createRandomFeatureRow(fs1);
 
-    RowWithValidationResult result = validFeat.validateElement(randomRow.toByteArray());
+    RowWithValidationResult result = validFeat.validateElement(randomRow);
 
     assertThat(result.getValidationStatus(), equalTo(ValidationStatus.SUCCESS));
   }

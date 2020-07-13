@@ -38,11 +38,11 @@ public class ValidateFeatureRowDoFn implements Serializable {
     this.featureSets = featureSets;
   }
 
-  public RowWithValidationResult validateElement(byte[] featureRowBytes)
+  public RowWithValidationResult validateElement(FeatureRow featureRow)
       throws InvalidProtocolBufferException {
     // TODO: Abstract duplicated validation logic into shared module.
     String error = null;
-    FeatureRow featureRow = FeatureRow.parseFrom(featureRowBytes);
+    byte[] featureRowBytes = featureRow.toByteArray();
     FeatureSet featureSet = featureSets.get(featureRow.getFeatureSet());
     List<FieldProto.Field> fields = new ArrayList<>();
     if (featureSet != null) {

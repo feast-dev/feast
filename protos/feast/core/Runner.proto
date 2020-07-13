@@ -103,4 +103,6 @@ message DatabricksRunnerConfigOptions {
     string checkpointLocation = 5;
 
     DatabricksNewClusterOptions newCluster = 6;
+
+    string deadLetterPath = 7;
 }

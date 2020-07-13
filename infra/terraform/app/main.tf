@@ -176,6 +176,7 @@ feast-core:
               host: "${var.databricks_workspace_url}"
               token: "${databricks_token.feast.token_value}"
               checkpointLocation: dbfs:/checkpoints/feast
+              deadLetterPath: dbfs:/feast/deadletter
               jarFile: "${local.databricks_dbfs_jar_folder}/sparkjars/spark-ingestion-job.jar"
               timeoutSeconds: 1200
               newCluster:
