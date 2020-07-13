@@ -45,7 +45,7 @@ public class FeatureStreamConfig {
 
   String DEFAULT_KAFKA_REQUEST_TIMEOUT_MS_CONFIG = "15000";
   int DEFAULT_SPECS_TOPIC_PARTITIONING = 1;
-  short DEFAULT_SPECS_TOPIC_REPLICATION = 3;
+  short DEFAULT_SPECS_TOPIC_REPLICATION = 1;
 
   @Bean
   public KafkaAdmin admin(FeastProperties feastProperties) {
