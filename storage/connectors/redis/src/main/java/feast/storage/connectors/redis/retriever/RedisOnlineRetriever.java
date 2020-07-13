@@ -51,7 +51,7 @@ public class RedisOnlineRetriever implements OnlineRetriever {
   public static OnlineRetriever create(Map<String, String> config) {
     RedisURI redisuri = RedisURI.create(config.get("host"), Integer.parseInt(config.get("port")));
     String pass = config.get("pass");
-    if(pass != null && !pass.isEmpty()){
+    if (pass != null && !pass.isEmpty()) {
       redisuri.setPassword(pass);
     }
 

@@ -84,7 +84,7 @@ public abstract class RedisFeatureSink implements FeatureSink {
       RedisURI redisuri = RedisURI.create(getRedisConfig().getHost(), getRedisConfig().getPort());
 
       String pass = getRedisConfig().getPass();
-      if(pass != null && !pass.isEmpty()){
+      if (pass != null && !pass.isEmpty()) {
         redisuri.setPassword(pass);
       }
       RedisClient redisClient = RedisClient.create(redisuri);
