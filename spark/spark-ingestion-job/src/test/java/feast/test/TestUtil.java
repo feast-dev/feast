@@ -601,7 +601,7 @@ public class TestUtil {
             redisConfig.getHost(), redisConfig.getPort(), java.time.Duration.ofMillis(2000));
 
     String pass = redisConfig.getPass();
-    if(pass != null && !pass.isEmpty()){
+    if (pass != null && !pass.isEmpty()) {
       redisuri.setPassword(pass);
     }
 

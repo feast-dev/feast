@@ -75,7 +75,7 @@ public class SparkRedisSink implements SparkSink {
             java.time.Duration.ofMillis(DEFAULT_TIMEOUT));
 
     String pass = redisConfig.getPass();
-    if(pass != null && !pass.isEmpty()){
+    if (pass != null && !pass.isEmpty()) {
       redisuri.setPassword(pass);
     }
 
