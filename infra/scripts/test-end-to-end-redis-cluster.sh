@@ -56,6 +56,7 @@ feast:
       config: 
         # Connection string specifies the IP and ports of Redis instances in Redis cluster
         connection_string: "localhost:7000,localhost:7001,localhost:7002,localhost:7003,localhost:7004,localhost:7005"
+        flush_frequency_seconds: 1
       # Subscriptions indicate which feature sets needs to be retrieved and used to populate this store
       subscriptions:
         # Wildcards match all options. No filtering is done.

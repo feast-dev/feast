@@ -74,7 +74,21 @@ if [[ ${ENABLE_AUTH} = "True" ]];
     start_feast_core
 fi
 
-start_feast_serving
+cat <<EOF > /tmp/serving.warehouse.application.yml
+feast:
+  stores:
+    - name: online
+      type: REDIS
+      config:
+        host: localhost
+        port: 6379
+        flush_frequency_seconds: 1
+      subscriptions:
+        - name: "*"
+          project: "*"
+EOF
+
+start_feast_serving /tmp/serving.warehouse.application.yml
 install_python_with_miniconda_and_feast_sdk
 
 print_banner "Running end-to-end tests with pytest at 'tests/e2e'"
