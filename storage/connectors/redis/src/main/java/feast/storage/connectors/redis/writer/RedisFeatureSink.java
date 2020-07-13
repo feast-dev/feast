@@ -107,7 +107,20 @@ public abstract class RedisFeatureSink implements FeatureSink {
           "At least one RedisConfig or RedisClusterConfig must be provided to Redis Sink");
     }
     specsView = featureSetSpecs.apply(ParDo.of(new ReferenceToString())).apply(View.asMultimap());
-    return featureSetSpecs.apply(Keys.create());
+    return featureSetSpecs
+        .apply(
+            "DummyDelay",
+            ParDo.of(
+                new DoFn<
+                    KV<FeatureSetReference, FeatureSetSpec>,
+                    KV<FeatureSetReference, FeatureSetSpec>>() {
+                  @ProcessElement
+                  public void process(ProcessContext c) throws InterruptedException {
+                    Thread.sleep(1000);
+                    c.output(c.element());
+                  }
+                }))
+        .apply(Keys.create());
   }
 
   @Override
