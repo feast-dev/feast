@@ -200,7 +200,7 @@ public class FeatureRowsBatch implements Serializable {
   }
 
   public Row toRow() {
-    return Row.withSchema(schema).attachValues(values).build();
+    return Row.withSchema(schema).attachValues(values);
   }
 
   public static FeatureRowsBatch fromRow(Row row) {

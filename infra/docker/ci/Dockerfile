@@ -30,7 +30,7 @@ ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 ENV PATH="$HOME/bin:${PATH}"
 
 # Install Protoc and Plugins
-ENV PROTOC_VERSION 3.10.0
+ENV PROTOC_VERSION 3.12.2
 
 RUN PROTOC_ZIP=protoc-${PROTOC_VERSION}-linux-x86_64.zip && \
     curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/$PROTOC_ZIP && \

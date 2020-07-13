@@ -17,13 +17,14 @@
 package feast.storage.common.testing;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.util.Timestamps;
+import com.google.protobuf.Timestamp;
 import feast.proto.core.FeatureSetProto.FeatureSet;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FeatureRowProto.FeatureRow.Builder;
 import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.*;
+import java.time.Instant;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.commons.lang3.RandomStringUtils;
 
@@ -53,10 +54,15 @@ public class TestUtil {
    * @return {@link FeatureRow}
    */
   public static FeatureRow createRandomFeatureRow(FeatureSet featureSet, int randomStringSize) {
+
+    Instant time = Instant.now();
+    Timestamp timestamp =
+        Timestamp.newBuilder().setSeconds(time.getEpochSecond()).setNanos(time.getNano()).build();
+
     Builder builder =
         FeatureRow.newBuilder()
             .setFeatureSet(getFeatureSetReference(featureSet))
-            .setEventTimestamp(Timestamps.fromMillis(System.currentTimeMillis()));
+            .setEventTimestamp(timestamp);
 
     featureSet
         .getSpec()
