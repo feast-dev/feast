@@ -166,7 +166,6 @@ public class FeatureRowsBatch implements Serializable {
                     if (SERVICE_FIELDS.contains(fieldName)) {
                       return;
                     }
-
                     Schema.Field field = schema.getField(fieldName);
                     int idx = schema.indexOf(fieldName);
 
