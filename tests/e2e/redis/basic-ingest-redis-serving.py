@@ -558,32 +558,6 @@ def test_basic_retrieve_online_entity_listform(client, list_entity_dataframe):
     )
 
 
-@pytest.mark.timeout(300)
-@pytest.mark.run(order=19)
-def test_basic_ingest_jobs(client):
-    # list ingestion jobs given featureset
-    cust_trans_fs = client.get_feature_set(name="customer_transactions")
-    ingest_jobs = client.list_ingest_jobs(
-        feature_set_ref=FeatureSetRef.from_feature_set(cust_trans_fs)
-    )
-    # filter ingestion jobs to only those that are running
-    ingest_jobs = [
-        job for job in ingest_jobs if job.status == IngestionJobStatus.RUNNING
-    ]
-    assert len(ingest_jobs) >= 1
-
-    for ingest_job in ingest_jobs:
-        # restart ingestion ingest_job
-        client.restart_ingest_job(ingest_job)
-        ingest_job.wait(IngestionJobStatus.RUNNING)
-        assert ingest_job.status == IngestionJobStatus.RUNNING
-
-        # stop ingestion ingest_job
-        client.stop_ingest_job(ingest_job)
-        ingest_job.wait(IngestionJobStatus.ABORTED)
-        assert ingest_job.status == IngestionJobStatus.ABORTED
-
-
 @pytest.fixture(scope="module")
 def all_types_dataframe():
     return pd.DataFrame(
@@ -762,16 +736,33 @@ def test_all_types_ingest_jobs(client, all_types_dataframe):
     ]
     assert len(ingest_jobs) >= 1
 
-    for ingest_job in ingest_jobs:
-        # restart ingestion ingest_job
-        client.restart_ingest_job(ingest_job)
-        ingest_job.wait(IngestionJobStatus.RUNNING)
-        assert ingest_job.status == IngestionJobStatus.RUNNING
+    ingest_job = ingest_jobs[0]
+    # restart ingestion ingest_job
+    # restart means stop current job
+    # (replacement will be automatically spawned)
+    client.restart_ingest_job(ingest_job)
+    # wait for replacement to be created
+    time.sleep(15)  # should be more than polling_interval
 
-        # stop ingestion ingest_job
-        client.stop_ingest_job(ingest_job)
-        ingest_job.wait(IngestionJobStatus.ABORTED)
-        assert ingest_job.status == IngestionJobStatus.ABORTED
+    # id without timestamp part
+    # that remains the same between jobs
+    shared_id = "-".join(ingest_job.id.split("-")[:-1])
+    replacement_jobs = [
+        job
+        for job in ingest_jobs
+        if job.status == IngestionJobStatus.RUNNING and job.id.startswith(shared_id)
+    ]
+
+    assert len(replacement_jobs) >= 1
+    replacement_job = replacement_jobs[0]
+
+    replacement_job.wait(IngestionJobStatus.RUNNING)
+    assert replacement_job.status == IngestionJobStatus.RUNNING
+
+    # stop ingestion ingest_job
+    client.stop_ingest_job(replacement_job)
+    replacement_job.wait(IngestionJobStatus.ABORTED)
+    assert replacement_job.status == IngestionJobStatus.ABORTED
 
 
 @pytest.fixture(scope="module")

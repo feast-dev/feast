@@ -13,9 +13,7 @@ import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.coders.*;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.state.StateSpec;
-import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.*;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.windowing.*;
 import org.apache.beam.sdk.values.*;
@@ -232,20 +230,28 @@ public abstract class BatchLoadsWithResult<DestinationT>
             "CreateJobId",
             ParDo.of(
                 new DoFn<KV<Void, TableRow>, String>() {
-                  @StateId("generatedForWindow")
-                  private final StateSpec<ValueState<Boolean>> generatedForWindow = StateSpecs.value(BooleanCoder.of());
+                  @StateId("oncePerWindow")
+                  private final StateSpec<SetState<Boolean>> oncePerWindow = StateSpecs.set(BooleanCoder.of());
 
                   @ProcessElement
                   public void process(
                       ProcessContext c,
                       BoundedWindow w,
-                      @StateId("generatedForWindow") ValueState<Boolean> generatedForWindow) {
+                      @StateId("oncePerWindow") SetState<Boolean> oncePerWindow) {
 
-                    if (generatedForWindow.read() != null) {
+                    // if set already contains something
+                    // it means we already generated Id for this window
+                    Boolean empty = oncePerWindow.isEmpty().read();
+                    if (empty != null && !empty) {
                       return;
                     }
 
-                    generatedForWindow.write(true);
+                    // trying to add to Set and check if it was added
+                    // if true - we won and Id will be generated in current Process
+                    Boolean insertResult = oncePerWindow.addIfAbsent(true).read();
+                    if (insertResult != null && !insertResult) {
+                      return;
+                    }
 
                     c.output(
                         String.format(
