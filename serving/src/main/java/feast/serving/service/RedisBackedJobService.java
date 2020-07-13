@@ -46,7 +46,7 @@ public class RedisBackedJobService implements JobService {
     RedisURI uri =
         RedisURI.create(jobStoreProperties.getRedisHost(), jobStoreProperties.getRedisPort());
     String pass = jobStoreProperties.getRedisPass();
-    if(pass != null && !pass.isEmpty()){
+    if (pass != null && !pass.isEmpty()) {
       uri.setPassword(pass);
     }
 
