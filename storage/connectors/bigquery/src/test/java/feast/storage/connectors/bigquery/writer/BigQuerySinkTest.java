@@ -21,6 +21,7 @@ import static feast.storage.common.testing.TestUtil.field;
 import static feast.storage.connectors.bigquery.writer.FeatureSetSpecToTableSchema.*;
 import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
@@ -498,6 +499,30 @@ public class BigQuerySinkTest {
     p.run();
   }
 
+  @Test
+  public void featureRowBatchShouldSampleOnRestore() {
+    List<FeatureRow> stream =
+        IntStream.range(0, 1000)
+            .mapToObj(i -> generateRow("project/fs"))
+            .collect(Collectors.toList());
+
+    PCollection<Long> result =
+        p.apply(Create.of(stream))
+            .apply("KV", ParDo.of(new ExtractKV()))
+            .apply(new CompactFeatureRows(1000))
+            .apply(ParDo.of(new FlatMapWithSample(100)))
+            .apply(Count.globally());
+
+    PAssert.that(result)
+        .satisfies(
+            r -> {
+              // sample size is within bound of required size
+              assertThat(Math.abs(r.iterator().next() - 100), lessThan(5L));
+              return null;
+            });
+    p.run();
+  }
+
   private List<FeatureRow> dropNullFeature(List<FeatureRow> input) {
     return input.stream()
         .map(
@@ -547,6 +572,19 @@ public class BigQuerySinkTest {
     @Override
     public Table answer(InvocationOnMock invocationOnMock) throws Throwable {
       return FakeTable.create(mock(BigQuery.class), tableId, tableDefinition);
+    }
+  }
+
+  private static class FlatMapWithSample extends DoFn<KV<String, FeatureRowsBatch>, FeatureRow> {
+    private int sampleSize;
+
+    FlatMapWithSample(int sampleSize) {
+      this.sampleSize = sampleSize;
+    }
+
+    @ProcessElement
+    public void process(ProcessContext c) {
+      c.element().getValue().getFeatureRowsSample(sampleSize).forEachRemaining(c::output);
     }
   }
 }
