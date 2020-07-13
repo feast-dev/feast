@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.direct.DirectOptions;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -44,7 +43,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.Deserializer;
-import org.joda.time.Duration;
 import org.junit.*;
 
 public class FeatureSetSpecReadAndWriteTest {
@@ -101,7 +99,7 @@ public class FeatureSetSpecReadAndWriteTest {
   }
 
   @Test
-  public void pipelineShouldReadSpecsAndAcknowledge() {
+  public void pipelineShouldReadSpecsAndAcknowledge() throws InterruptedException {
     SourceProto.Source source =
         SourceProto.Source.newBuilder()
             .setKafkaSourceConfig(
@@ -153,8 +151,8 @@ public class FeatureSetSpecReadAndWriteTest {
     publishSpecToKafka("project", "fs", 3, source);
     publishSpecToKafka("project", "fs_2", 2, source);
 
-    PipelineResult run = p.run();
-    run.waitUntilFinish(Duration.standardSeconds(10));
+    p.run();
+    Thread.sleep(10000);
 
     List<IngestionJobProto.FeatureSetSpecAck> acks = getFeatureSetSpecAcks();
 
@@ -178,7 +176,7 @@ public class FeatureSetSpecReadAndWriteTest {
     // in-flight update 1
     publishSpecToKafka("project", "fs", 4, source);
 
-    run.waitUntilFinish(Duration.standardSeconds(5));
+    Thread.sleep(5000);
 
     assertThat(
         getFeatureSetSpecAcks(),
@@ -192,7 +190,7 @@ public class FeatureSetSpecReadAndWriteTest {
     // in-flight update 2
     publishSpecToKafka("project", "fs_2", 3, source);
 
-    run.waitUntilFinish(Duration.standardSeconds(5));
+    Thread.sleep(5000);
 
     assertThat(
         getFeatureSetSpecAcks(),
