@@ -46,9 +46,6 @@ import org.slf4j.LoggerFactory;
 
 public class RedisCustomIO {
 
-  private static final int DEFAULT_BATCH_SIZE = 10000;
-  private static final int DEFAULT_FREQUENCY_SECONDS = 30;
-
   private static TupleTag<FeatureRow> successfulInsertsTag =
       new TupleTag<FeatureRow>("successfulInserts") {};
   private static TupleTag<FailedElement> failedInsertsTupleTag =
@@ -69,8 +66,8 @@ public class RedisCustomIO {
 
     private PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecs;
     private RedisIngestionClient redisIngestionClient;
-    private int batchSize = DEFAULT_BATCH_SIZE;
-    private Duration flushFrequency = Duration.standardSeconds(DEFAULT_FREQUENCY_SECONDS);
+    private int batchSize;
+    private Duration flushFrequency;
 
     public Write(
         RedisIngestionClient redisIngestionClient,

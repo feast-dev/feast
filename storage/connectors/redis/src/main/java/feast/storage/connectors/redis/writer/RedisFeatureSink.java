@@ -39,6 +39,8 @@ import org.joda.time.Duration;
 
 @AutoValue
 public abstract class RedisFeatureSink implements FeatureSink {
+  private static final int DEFAULT_BATCH_SIZE = 10000;
+  private static final int DEFAULT_FREQUENCY_SECONDS = 30;
 
   /**
    * Initialize a {@link RedisFeatureSink.Builder} from a {@link StoreProto.Store.RedisConfig}.
@@ -113,30 +115,28 @@ public abstract class RedisFeatureSink implements FeatureSink {
 
   @Override
   public PTransform<PCollection<FeatureRow>, WriteResult> writer() {
+    int flushFrequencySeconds = DEFAULT_FREQUENCY_SECONDS;
+
     if (getRedisClusterConfig() != null) {
-      RedisCustomIO.Write writer =
-          new RedisCustomIO.Write(
-              new RedisClusterIngestionClient(getRedisClusterConfig()), getSpecsView());
 
       if (getRedisClusterConfig().getFlushFrequencySeconds() > 0) {
-        writer =
-            writer.withFlushFrequency(
-                Duration.standardSeconds(getRedisClusterConfig().getFlushFrequencySeconds()));
+        flushFrequencySeconds = getRedisClusterConfig().getFlushFrequencySeconds();
       }
 
-      return writer;
+      return new RedisCustomIO.Write(
+              new RedisClusterIngestionClient(getRedisClusterConfig()), getSpecsView())
+          .withFlushFrequency(Duration.standardSeconds(flushFrequencySeconds))
+          .withBatchSize(DEFAULT_BATCH_SIZE);
+
     } else if (getRedisConfig() != null) {
-      RedisCustomIO.Write writer =
-          new RedisCustomIO.Write(
-              new RedisStandaloneIngestionClient(getRedisConfig()), getSpecsView());
-
       if (getRedisConfig().getFlushFrequencySeconds() > 0) {
-        writer =
-            writer.withFlushFrequency(
-                Duration.standardSeconds(getRedisConfig().getFlushFrequencySeconds()));
+        flushFrequencySeconds = getRedisConfig().getFlushFrequencySeconds();
       }
 
-      return writer;
+      return new RedisCustomIO.Write(
+              new RedisStandaloneIngestionClient(getRedisConfig()), getSpecsView())
+          .withFlushFrequency(Duration.standardSeconds(flushFrequencySeconds))
+          .withBatchSize(DEFAULT_BATCH_SIZE);
     } else {
       throw new RuntimeException(
           "At least one RedisConfig or RedisClusterConfig must be provided to Redis Sink");
