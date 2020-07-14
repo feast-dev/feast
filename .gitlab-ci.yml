@@ -1,0 +1,72 @@
+services:
+  - docker:18.09.7-dind
+
+default:
+  image: docker:stable
+  tags:
+    - dsp
+
+.test: &test
+  stage: build
+  image: maven:3.6-jdk-11
+  script:
+    - infra/scripts/test-end-to-end.sh
+  except:
+    - ^v0\.(3|4)-branch$
+
+variables:
+  DOCKER_HOST: tcp://localhost:2375
+  # This is the region of AWS, used by the deployer ecs-deploy
+  REGION: "eu-west-1"
+  ACCOUNT: "674300753731"
+  SERVICE_NAME: "feast"
+  # Image name
+  IMAGE_NAME: "feast"
+  # Elastic Container Registry URL of the package.
+  ECR_URL: "674300753731.dkr.ecr.eu-west-1.amazonaws.com/dsp/feast"
+  IMAGE_TAG: "0.6.${CI_PIPELINE_IID}"
+
+before_script:
+  - | # ${variable//-/} is a bash replacement that strips the hyphens from the contents of the variable. Needed for API Gateway.
+    echo "===== Account => ${ACCOUNT}, Region => ${REGION} ====="
+    apk add --no-cache curl jq python3 py-pip
+    pip3 install awscli
+    echo $(python3 --version)
+    echo $(pip3 --version)
+
+stages:
+  - build
+  - publish
+  - deploy
+
+test:
+  <<: *test
+
+build:
+  stage: build
+  except:
+    - master
+  script:
+    - |
+      echo "===== Building image ====="
+      export IMAGE="${ECR_URL}:${IMAGE_TAG}"
+      echo IMAGE_TAG $IMAGE_TAG IMAGE $IMAGE
+      $(aws ecr get-login --no-include-email --region ${REGION}  --registry-ids ${ACCOUNT})
+      docker build -t $IMAGE_NAME . --build-arg CT_ARTIFACTORY_USERNAME=$CT_ARTIFACTORY_USERNAME \
+        --build-arg CT_ARTIFACTORY_API_KEY=$CT_ARTIFACTORY_API_KEY --build-arg LICENSE_KEY=$NEWRELIC_LICENSE_KEY
+
+"build & publish":
+  stage: publish
+  only:
+    - master
+  script:
+    - |
+      echo "===== Building and pushing image ====="
+      export IMAGE="${ECR_URL}:${IMAGE_TAG}"
+      echo IMAGE_TAG $IMAGE_TAG IMAGE $IMAGE
+      $(aws ecr get-login --no-include-email --region ${REGION}  --registry-ids ${ACCOUNT})
+      docker build -t $IMAGE_NAME . --build-arg CT_ARTIFACTORY_USERNAME=$CT_ARTIFACTORY_USERNAME \
+        --build-arg CT_ARTIFACTORY_API_KEY=$CT_ARTIFACTORY_API_KEY --build-arg LICENSE_KEY=$NEWRELIC_LICENSE_KEY
+      docker tag $IMAGE_NAME $IMAGE
+      docker tag $IMAGE_NAME $IMAGE_NAME:latest
+      docker push $IMAGE
