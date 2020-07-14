@@ -28,11 +28,12 @@ import io.lettuce.core.api.async.RedisAsyncCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.apache.commons.lang3.StringUtils;
 import org.joda.time.Duration;
 
 public class RedisStandaloneIngestionClient implements RedisIngestionClient {
   private final String host;
-  private final String pass;
+  private final String password;
   private final int port;
   private final BackOffExecutor backOffExecutor;
   private RedisClient redisclient;
@@ -44,7 +45,7 @@ public class RedisStandaloneIngestionClient implements RedisIngestionClient {
   public RedisStandaloneIngestionClient(StoreProto.Store.RedisConfig redisConfig) {
     this.host = redisConfig.getHost();
     this.port = redisConfig.getPort();
-    this.pass = redisConfig.getPass();
+    this.password = redisConfig.getPass();
     long backoffMs = redisConfig.getInitialBackoffMs() > 0 ? redisConfig.getInitialBackoffMs() : 1;
     this.backOffExecutor =
         new BackOffExecutor(redisConfig.getMaxRetries(), Duration.millis(backoffMs));
@@ -53,8 +54,8 @@ public class RedisStandaloneIngestionClient implements RedisIngestionClient {
   @Override
   public void setup() {
     RedisURI redisuri = new RedisURI(host, port, java.time.Duration.ofMillis(DEFAULT_TIMEOUT));
-    if (pass != null && !pass.isEmpty()) {
-      redisuri.setPassword(pass);
+    if (StringUtils.trimToNull(password) != null) {
+      redisuri.setPassword(password);
     }
     this.redisclient = RedisClient.create(redisuri);
   }

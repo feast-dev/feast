@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 
 public class RedisOnlineRetriever implements OnlineRetriever {
 
@@ -50,9 +51,9 @@ public class RedisOnlineRetriever implements OnlineRetriever {
 
   public static OnlineRetriever create(Map<String, String> config) {
     RedisURI redisuri = RedisURI.create(config.get("host"), Integer.parseInt(config.get("port")));
-    String pass = config.get("pass");
-    if (pass != null && !pass.isEmpty()) {
-      redisuri.setPassword(pass);
+    String password = config.get("pass");
+    if (StringUtils.trimToNull(password) != null) {
+      redisuri.setPassword(password);
     }
 
     StatefulRedisConnection<byte[], byte[]> connection =

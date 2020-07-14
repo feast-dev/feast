@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 import org.joda.time.Duration;
 
 public class RedisClusterIngestionClient implements RedisIngestionClient {
@@ -50,9 +51,9 @@ public class RedisClusterIngestionClient implements RedisIngestionClient {
                   RedisURI redisuri =
                       RedisURI.create(hostPortSplit[0], Integer.parseInt(hostPortSplit[1]));
                   if (hostPortSplit.length == 3) {
-                    String pass = hostPortSplit[2];
-                    if (pass != null && !pass.isEmpty()) {
-                      redisuri.setPassword(pass);
+                    String password = hostPortSplit[2];
+                    if (StringUtils.trimToNull(password) != null) {
+                      redisuri.setPassword(password);
                     }
                   }
                   return redisuri;

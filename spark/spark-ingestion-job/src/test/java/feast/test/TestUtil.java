@@ -64,6 +64,7 @@ import java.util.stream.IntStream;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServerStartable;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -600,9 +601,9 @@ public class TestUtil {
         new RedisURI(
             redisConfig.getHost(), redisConfig.getPort(), java.time.Duration.ofMillis(2000));
 
-    String pass = redisConfig.getPass();
-    if (pass != null && !pass.isEmpty()) {
-      redisuri.setPassword(pass);
+    String password = redisConfig.getPass();
+    if (StringUtils.trimToNull(password) != null) {
+      redisuri.setPassword(password);
     }
 
     RedisClient redisClient = RedisClient.create(redisuri);

@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 
 public class RedisClusterOnlineRetriever implements OnlineRetriever {
 
@@ -58,9 +59,9 @@ public class RedisClusterOnlineRetriever implements OnlineRetriever {
                   RedisURI redisuri =
                       RedisURI.create(hostPortSplit[0], Integer.parseInt(hostPortSplit[1]));
                   if (hostPortSplit.length == 3) {
-                    String pass = hostPortSplit[2];
-                    if (pass != null && !pass.isEmpty()) {
-                      redisuri.setPassword(pass);
+                    String password = hostPortSplit[2];
+                    if (StringUtils.trimToNull(password) != null) {
+                      redisuri.setPassword(password);
                     }
                   }
                   return redisuri;
