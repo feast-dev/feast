@@ -34,7 +34,6 @@ import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.Value;
 import feast.proto.types.ValueProto.ValueType.Enum;
-import feast.storage.api.writer.FailedElement;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
@@ -49,9 +48,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.Never;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
 import org.junit.Before;
@@ -212,7 +208,6 @@ public class RedisFeatureSinkTest {
         p.apply(Create.of(featureRows))
             .apply(redisFeatureSink.writer())
             .getFailedInserts()
-            .apply(Window.<FailedElement>into(new GlobalWindows()).triggering(Never.ever()))
             .apply(Count.globally());
 
     redis.stop();
@@ -271,7 +266,6 @@ public class RedisFeatureSinkTest {
         p.apply(Create.of(featureRows))
             .apply(redisFeatureSink.writer())
             .getFailedInserts()
-            .apply(Window.<FailedElement>into(new GlobalWindows()).triggering(Never.ever()))
             .apply(Count.globally());
 
     redis.stop();

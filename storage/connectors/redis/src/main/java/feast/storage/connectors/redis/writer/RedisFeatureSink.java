@@ -35,9 +35,12 @@ import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.joda.time.Duration;
 
 @AutoValue
 public abstract class RedisFeatureSink implements FeatureSink {
+  private static final int DEFAULT_BATCH_SIZE = 10000;
+  private static final int DEFAULT_FREQUENCY_SECONDS = 30;
 
   /**
    * Initialize a {@link RedisFeatureSink.Builder} from a {@link StoreProto.Store.RedisConfig}.
@@ -107,17 +110,46 @@ public abstract class RedisFeatureSink implements FeatureSink {
           "At least one RedisConfig or RedisClusterConfig must be provided to Redis Sink");
     }
     specsView = featureSetSpecs.apply(ParDo.of(new ReferenceToString())).apply(View.asMultimap());
-    return featureSetSpecs.apply(Keys.create());
+    return featureSetSpecs
+        .apply(
+            "DummyDelay",
+            ParDo.of(
+                new DoFn<
+                    KV<FeatureSetReference, FeatureSetSpec>,
+                    KV<FeatureSetReference, FeatureSetSpec>>() {
+                  @ProcessElement
+                  public void process(ProcessContext c) throws InterruptedException {
+                    Thread.sleep(1000);
+                    c.output(c.element());
+                  }
+                }))
+        .apply(Keys.create());
   }
 
   @Override
   public PTransform<PCollection<FeatureRow>, WriteResult> writer() {
+    int flushFrequencySeconds = DEFAULT_FREQUENCY_SECONDS;
+
     if (getRedisClusterConfig() != null) {
+
+      if (getRedisClusterConfig().getFlushFrequencySeconds() > 0) {
+        flushFrequencySeconds = getRedisClusterConfig().getFlushFrequencySeconds();
+      }
+
       return new RedisCustomIO.Write(
-          new RedisClusterIngestionClient(getRedisClusterConfig()), getSpecsView());
+              new RedisClusterIngestionClient(getRedisClusterConfig()), getSpecsView())
+          .withFlushFrequency(Duration.standardSeconds(flushFrequencySeconds))
+          .withBatchSize(DEFAULT_BATCH_SIZE);
+
     } else if (getRedisConfig() != null) {
+      if (getRedisConfig().getFlushFrequencySeconds() > 0) {
+        flushFrequencySeconds = getRedisConfig().getFlushFrequencySeconds();
+      }
+
       return new RedisCustomIO.Write(
-          new RedisStandaloneIngestionClient(getRedisConfig()), getSpecsView());
+              new RedisStandaloneIngestionClient(getRedisConfig()), getSpecsView())
+          .withFlushFrequency(Duration.standardSeconds(flushFrequencySeconds))
+          .withBatchSize(DEFAULT_BATCH_SIZE);
     } else {
       throw new RuntimeException(
           "At least one RedisConfig or RedisClusterConfig must be provided to Redis Sink");

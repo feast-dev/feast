@@ -55,4 +55,4 @@ export FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .N
 ${PROJECT_ROOT_DIR}/infra/scripts/wait-for-it.sh ${FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS}:6566 --timeout=120
 
 # Run e2e tests for Redis
-docker exec feast_jupyter_1 bash -c 'cd feast/tests/e2e/ && pytest -s basic-ingest-redis-serving.py --core_url core:6565 --serving_url=online-serving:6566'
+docker exec feast_jupyter_1 bash -c 'cd feast/tests/e2e/redis && pytest -s basic-ingest-redis-serving.py --core_url core:6565 --serving_url=online-serving:6566'
