@@ -243,7 +243,7 @@ def test_batch_get_historical_features_with_gs_path(client, gcs_path):
     uri = urlparse(gcs_path)
     bucket = uri.hostname
     ts = int(time.time())
-    remote_path = str(uri.path).strip("/") + f"{ts}/{file_name}"
+    remote_path = str(uri.path).lstrip("/") + f"{ts}/{file_name}"
 
     # Upload file to gcs
     storage_client = storage.Client(project=None)

@@ -274,7 +274,7 @@ presubmits:
 
   - name: test-end-to-end-batch-dataflow
     decorate: true
-    always_run: false
+    always_run: true
     spec:
       volumes:
       - name: service-account-df
@@ -311,7 +311,7 @@ presubmits:
         - -c
         - |
           infra/scripts/download-maven-cache.sh \
-            --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
+            --archive-uri gs://feast-templocation-kf-feast/.m2.2020-07-13.tar \
             --output-dir $PWD/
 
           infra/scripts/publish-docker-image.sh \
@@ -440,7 +440,7 @@ postsubmits:
         - -c
         - |
           infra/scripts/download-maven-cache.sh \
-            --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
+            --archive-uri gs://feast-templocation-kf-feast/.m2.2020-07-13.tar \
             --output-dir $PWD/
 
           if [ $PULL_BASE_REF == "master" ]; then
