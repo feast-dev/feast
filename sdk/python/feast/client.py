@@ -848,8 +848,8 @@ class Client:
             >>>            "rating": [4.3],
             >>>         }
             >>>     )
-            >>> client.ingest("project1:driver", fs_df)
-            >>> client.ingest("driver", fs_df) # default project
+            >>> client.set_project("project1")
+            >>> client.ingest("driver", fs_df)
             >>>
             >>> driver_fs = client.get_feature_set(name="driver", project="project1")
             >>> driver_fs = client.get_feature_set(name="driver") # default project
@@ -860,15 +860,11 @@ class Client:
             name = feature_set.name
             project = feature_set.project
         elif isinstance(feature_set, str):
-            if len(feature_set.split(":")) == 1:
-                name = feature_set
-                project = "default"
-            elif len(feature_set.split(":")) == 2:
-                project, name = feature_set.split(":")
+            if self.project is not None:
+                project = self.project
             else:
-                raise Exception(
-                    "Feature set name is invalid, should be in <project>:<feature_set> or <feature_set> format."
-                )
+                project = "default"
+            name = feature_set
         else:
             raise Exception("Feature set name must be provided")
 

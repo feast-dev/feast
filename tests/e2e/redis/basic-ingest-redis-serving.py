@@ -558,6 +558,112 @@ def test_basic_retrieve_online_entity_listform(client, list_entity_dataframe):
     )
 
 
+@pytest.mark.timeout(600)
+@pytest.mark.run(order=16)
+def test_basic_ingest_retrieval_fs(client):
+    # Set to another project to test ingestion based on current project context
+    client.set_project(PROJECT_NAME + "_NS1")
+    driver_fs = FeatureSet(
+        name="driver_fs",
+        features=[
+            Feature(name="driver_fs_rating", dtype=ValueType.FLOAT),
+            Feature(name="driver_fs_cost", dtype=ValueType.FLOAT),
+        ],
+        entities=[Entity("driver_fs_id", ValueType.INT64)],
+        max_age=Duration(seconds=3600),
+    )
+    client.apply(driver_fs)
+
+    N_ROWS = 2
+    time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
+    driver_df = pd.DataFrame(
+        {
+            "datetime": [time_offset] * N_ROWS,
+            "driver_fs_id": [i for i in range(N_ROWS)],
+            "driver_fs_rating": [float(i) for i in range(N_ROWS)],
+            "driver_fs_cost": [float(i) + 0.5 for i in range(N_ROWS)],
+        }
+    )
+    client.ingest(driver_fs, driver_df, timeout=600)
+    time.sleep(15)
+
+    online_request_entity = [{"driver_fs_id": 0}, {"driver_fs_id": 1}]
+    online_request_features = ["driver_fs_rating", "driver_fs_cost"]
+
+    def try_get_features():
+        response = client.get_online_features(
+            entity_rows=online_request_entity, feature_refs=online_request_features
+        )
+        return response, True
+
+    online_features_actual = wait_retry_backoff(
+        retry_fn=try_get_features,
+        timeout_secs=90,
+        timeout_msg="Timed out trying to get online feature values",
+    )
+
+    online_features_expected = {
+        "driver_fs_id": [0, 1],
+        "driver_fs_rating": [0.0, 1.0],
+        "driver_fs_cost": [0.5, 1.5],
+    }
+
+    assert online_features_actual.to_dict() == online_features_expected
+
+
+@pytest.mark.timeout(600)
+@pytest.mark.run(order=17)
+def test_basic_ingest_retrieval_str(client):
+    # Set to another project to test ingestion based on current project context
+    client.set_project(PROJECT_NAME + "_NS1")
+    customer_fs = FeatureSet(
+        name="cust_fs",
+        features=[
+            Feature(name="cust_rating", dtype=ValueType.INT64),
+            Feature(name="cust_cost", dtype=ValueType.FLOAT),
+        ],
+        entities=[Entity("cust_id", ValueType.INT64)],
+        max_age=Duration(seconds=3600),
+    )
+    client.apply(customer_fs)
+
+    N_ROWS = 2
+    time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
+    cust_df = pd.DataFrame(
+        {
+            "datetime": [time_offset] * N_ROWS,
+            "cust_id": [i for i in range(N_ROWS)],
+            "cust_rating": [i for i in range(N_ROWS)],
+            "cust_cost": [float(i) + 0.5 for i in range(N_ROWS)],
+        }
+    )
+    client.ingest("cust_fs", cust_df, timeout=600)
+    time.sleep(15)
+
+    online_request_entity = [{"cust_id": 0}, {"cust_id": 1}]
+    online_request_features = ["cust_rating", "cust_cost"]
+
+    def try_get_features():
+        response = client.get_online_features(
+            entity_rows=online_request_entity, feature_refs=online_request_features
+        )
+        return response, True
+
+    online_features_actual = wait_retry_backoff(
+        retry_fn=try_get_features,
+        timeout_secs=90,
+        timeout_msg="Timed out trying to get online feature values",
+    )
+
+    online_features_expected = {
+        "cust_id": [0, 1],
+        "cust_rating": [0, 1],
+        "cust_cost": [0.5, 1.5],
+    }
+
+    assert online_features_actual.to_dict() == online_features_expected
+
+
 @pytest.mark.timeout(300)
 @pytest.mark.run(order=19)
 def test_basic_ingest_jobs(client):
