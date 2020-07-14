@@ -203,7 +203,7 @@ Export required environment variables
 ============================================================
 "
 
-export TEMP_BUCKET=$TEMP_BUCKET
+export TEMP_BUCKET=$TEMP_BUCKET/$HELM_RELEASE_NAME/$(date +%s)
 export DATASET_NAME=$DATASET_NAME
 export GCLOUD_PROJECT=$GCLOUD_PROJECT
 export GCLOUD_NETWORK=$GCLOUD_NETWORK
