@@ -62,6 +62,7 @@ feast:
   jobs:
     polling_interval_milliseconds: 10000
     active_runner: direct
+    consolidate-jobs-per-source: true
     runners:
       - name: direct
         type: DirectRunner
