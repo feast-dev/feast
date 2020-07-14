@@ -26,13 +26,13 @@ variables:
   ECR_URL: "674300753731.dkr.ecr.eu-west-1.amazonaws.com/dsp/feast"
   IMAGE_TAG: "0.6.${CI_PIPELINE_IID}"
 
-before_script:
-  - | # ${variable//-/} is a bash replacement that strips the hyphens from the contents of the variable. Needed for API Gateway.
-    echo "===== Account => ${ACCOUNT}, Region => ${REGION} ====="
-    apk add --no-cache curl jq python3 py-pip
-    pip3 install awscli
-    echo $(python3 --version)
-    echo $(pip3 --version)
+# before_script:
+#   - | # ${variable//-/} is a bash replacement that strips the hyphens from the contents of the variable. Needed for API Gateway.
+#     echo "===== Account => ${ACCOUNT}, Region => ${REGION} ====="
+#     yum install curl jq python3 py-pip
+#     pip3 install awscli
+#     echo $(python3 --version)
+#     echo $(pip3 --version)
 
 stages:
   - build
