@@ -40,7 +40,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
     // Bypasses security/authentication for the following paths
     http.authorizeRequests()
-        .antMatchers("/actuator/**", "/metrics/**")
+        .antMatchers("/actuator/**", "/metrics/**", "/api/v1/**")
         .permitAll()
         .anyRequest()
         .authenticated()
