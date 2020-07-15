@@ -29,7 +29,7 @@ variables:
 before_script:
   - | # ${variable//-/} is a bash replacement that strips the hyphens from the contents of the variable. Needed for API Gateway.
     echo "===== Account => ${ACCOUNT}, Region => ${REGION} ====="
-    apt-get install curl jq python3 py-pip
+    apk add --no-cache bash curl jq python3 py-pip
     pip3 install awscli
     echo $(python3 --version)
     echo $(pip3 --version)
