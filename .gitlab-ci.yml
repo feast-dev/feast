@@ -8,7 +8,7 @@ default:
 
 .test: &test
   stage: build
-  image: maven:3.6-jdk-11
+  image: maven:3.6-jdk-11-alpine
   script:
     - infra/scripts/test-end-to-end.sh
   except:
