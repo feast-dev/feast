@@ -58,7 +58,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-class CoreServiceAuthTest {
+public class CoreServiceAuthTest {
 
   private CoreServiceImpl coreService;
   private AccessManagementService accessManagementService;
@@ -69,7 +69,7 @@ class CoreServiceAuthTest {
   @Mock private StatsService statsService;
   @Mock private JobService jobService;
 
-  CoreServiceAuthTest() {
+  public CoreServiceAuthTest() {
     MockitoAnnotations.initMocks(this);
     SecurityProperties.AuthorizationProperties authProp =
         new SecurityProperties.AuthorizationProperties();
@@ -86,7 +86,7 @@ class CoreServiceAuthTest {
   }
 
   @Test
-  void cantApplyFeatureSetIfNotProjectMember() throws InvalidProtocolBufferException {
+  public void shouldNotApplyFeatureSetIfNotProjectMember() throws InvalidProtocolBufferException {
 
     String project = "project1";
     Authentication auth = mock(Authentication.class);
@@ -112,7 +112,7 @@ class CoreServiceAuthTest {
   }
 
   @Test
-  void canApplyFeatureSetIfProjectMember() throws InvalidProtocolBufferException {
+  public void shouldApplyFeatureSetIfProjectMember() throws InvalidProtocolBufferException {
 
     String project = "project1";
     Authentication auth = mock(Authentication.class);
