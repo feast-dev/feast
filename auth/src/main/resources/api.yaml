@@ -55,6 +55,11 @@ paths:
       summary: Check whether request is authorized to access a specific resource
       x-codegen-request-body-name: body
 components:
+  headers:
+    Authorization:
+      description: Auth token
+      schema:
+        type: string
   schemas:
     checkAccessRequest:
       example:
