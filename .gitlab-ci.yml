@@ -6,14 +6,6 @@ default:
   tags:
     - dsp
 
-.test: &test
-  stage: build
-  image: maven:3.6-jdk-11-alpine
-  script:
-    - infra/scripts/test-end-to-end.sh
-  except:
-    - ^v0\.(3|4)-branch$
-
 cache:
   key: "$CI_JOB_NAME"
   paths:
@@ -38,26 +30,29 @@ variables:
   # `installAtEnd` and `deployAtEnd` are only effective with recent version of the corresponding plugins.
   MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true"
 
-before_script:
-  - | # ${variable//-/} is a bash replacement that strips the hyphens from the contents of the variable. Needed for API Gateway.
-    echo "===== Account => ${ACCOUNT}, Region => ${REGION} ====="
-    apk add --no-cache bash curl jq python3 py-pip
-    pip3 install awscli
-    echo $(python3 --version)
-    echo $(pip3 --version)
-    $(aws ecr get-login --no-include-email --region ${REGION}  --registry-ids ${ACCOUNT})
-
 stages:
   - build
 
 test:
-  <<: *test
+  stage: build
+  image: maven:3.6-jdk-11
+  script:
+    - infra/scripts/test-end-to-end.sh
+  except:
+    - ^v0\.(3|4)-branch$
 
 "build & publish":
   stage: build
   when: manual
   script:
     - |
+      echo "===== Account => ${ACCOUNT}, Region => ${REGION} ====="
+      apk add --no-cache bash curl jq python3 py-pip
+      pip3 install awscli
+      echo $(python3 --version)
+      echo $(pip3 --version)
+      $(aws ecr get-login --no-include-email --region ${REGION}  --registry-ids ${ACCOUNT})
+
       infra/scripts/publish-docker-image.sh \
         --repository ${ECR_URL}/feast-core \
         --tag ${IMAGE_TAG} \
