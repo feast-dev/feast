@@ -62,11 +62,6 @@ public class AccessManagementServiceTest {
   }
 
   @Test
-  public void testDefaultProjectCreateInConstructor() {
-    verify(this.projectRepository).saveAndFlush(new Project(Project.DEFAULT_NAME));
-  }
-
-  @Test
   public void shouldCreateProjectIfItDoesntExist() {
     String projectName = "project1";
     Project project = new Project(projectName);

@@ -48,10 +48,6 @@ public class AccessManagementService {
       ProjectRepository projectRepository,
       AuthorizationProvider authorizationProvider) {
     this.projectRepository = projectRepository;
-    // create default project if it does not yet exist.
-    if (!projectRepository.existsById(Project.DEFAULT_NAME)) {
-      this.createProject(Project.DEFAULT_NAME);
-    }
     this.authorizationProvider = authorizationProvider;
     this.securityProperties = feastProperties.getSecurity();
   }
@@ -62,10 +58,6 @@ public class AccessManagementService {
       ProjectRepository projectRepository,
       ObjectProvider<AuthorizationProvider> authorizationProvider) {
     this.projectRepository = projectRepository;
-    // create default project if it does not yet exist.
-    if (!projectRepository.existsById(Project.DEFAULT_NAME)) {
-      this.createProject(Project.DEFAULT_NAME);
-    }
     this.authorizationProvider = authorizationProvider.getIfUnique();
     this.securityProperties = feastProperties.getSecurity();
   }
