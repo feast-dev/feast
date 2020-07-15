@@ -81,7 +81,6 @@ public class AccessManagementService {
       throw new IllegalArgumentException(String.format("Project already exists: %s", name));
     }
     Project project = new Project(name);
-    System.out.println(project.getName());
     projectRepository.saveAndFlush(project);
   }
 
