@@ -16,7 +16,7 @@
  */
 package feast.core.grpc;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
@@ -50,7 +50,8 @@ import java.sql.Date;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
-import org.junit.jupiter.api.Test;
+
+import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.security.access.AccessDeniedException;
