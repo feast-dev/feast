@@ -60,6 +60,7 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
 
   /**
    * Creates an API client and sets the URL and Auth header for the external API.
+   *
    * @param authentication Spring Security Authentication object
    */
   public void createApiClient(Authentication authentication) {
