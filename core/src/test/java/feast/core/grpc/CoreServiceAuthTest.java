@@ -50,7 +50,6 @@ import java.sql.Date;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
-
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;

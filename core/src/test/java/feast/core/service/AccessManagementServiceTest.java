@@ -16,7 +16,6 @@
  */
 package feast.core.service;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -41,7 +40,6 @@ import org.mockito.Mock;
 public class AccessManagementServiceTest {
 
   @Mock private ProjectRepository projectRepository;
-
   @Rule public final ExpectedException expectedException = ExpectedException.none();
 
   private AccessManagementService accessManagementService;
@@ -57,6 +55,7 @@ public class AccessManagementServiceTest {
     sp.setAuthorization(authProp);
     FeastProperties feastProperties = new FeastProperties();
     feastProperties.setSecurity(sp);
+
     accessManagementService =
         new AccessManagementService(
             feastProperties, projectRepository, mock(AuthorizationProvider.class));
@@ -71,9 +70,9 @@ public class AccessManagementServiceTest {
   public void shouldCreateProjectIfItDoesntExist() {
     String projectName = "project1";
     Project project = new Project(projectName);
-    when(projectRepository.saveAndFlush(any(Project.class))).thenReturn(project);
+    when(projectRepository.saveAndFlush(project)).thenReturn(project);
     accessManagementService.createProject(projectName);
-    verify(projectRepository, times(1)).saveAndFlush(any());
+    verify(projectRepository, times(1)).saveAndFlush(project);
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -86,9 +85,10 @@ public class AccessManagementServiceTest {
   @Test
   public void shouldArchiveProjectIfItExists() {
     String projectName = "project1";
-    when(projectRepository.findById(projectName)).thenReturn(Optional.of(new Project(projectName)));
+    Project project = new Project(projectName);
+    when(projectRepository.findById(projectName)).thenReturn(Optional.of(project));
     accessManagementService.archiveProject(projectName);
-    verify(projectRepository, times(1)).saveAndFlush(any(Project.class));
+    verify(projectRepository, times(1)).saveAndFlush(project);
   }
 
   @Test

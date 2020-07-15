@@ -42,11 +42,16 @@ public class AccessManagementService {
   private AuthorizationProvider authorizationProvider;
   private ProjectRepository projectRepository;
 
+  // TODO: Remove duplication of constructor
   public AccessManagementService(
       FeastProperties feastProperties,
       ProjectRepository projectRepository,
       AuthorizationProvider authorizationProvider) {
     this.projectRepository = projectRepository;
+    // create default project if it does not yet exist.
+    if (!projectRepository.existsById(Project.DEFAULT_NAME)) {
+      this.createProject(Project.DEFAULT_NAME);
+    }
     this.authorizationProvider = authorizationProvider;
     this.securityProperties = feastProperties.getSecurity();
   }
@@ -76,6 +81,7 @@ public class AccessManagementService {
       throw new IllegalArgumentException(String.format("Project already exists: %s", name));
     }
     Project project = new Project(name);
+    System.out.println(project.getName());
     projectRepository.saveAndFlush(project);
   }
 
