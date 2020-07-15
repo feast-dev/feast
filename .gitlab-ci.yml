@@ -36,11 +36,11 @@ before_script:
     $(aws ecr get-login --no-include-email --region ${REGION}  --registry-ids ${ACCOUNT})
 
 stages:
-  # - build
+  - build
   - publish
 
-test:
-  <<: *test
+# test:
+#   <<: *test
 
 "build & publish":
   stage: publish
