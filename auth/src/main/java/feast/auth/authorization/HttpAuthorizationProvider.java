@@ -35,7 +35,8 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
 
   private static final Logger log = LoggerFactory.getLogger(HttpAuthorizationProvider.class);
 
-  private final DefaultApi defaultApiClient;
+  private DefaultApi defaultApiClient;
+  private final Map<String, String> options;
 
   /**
    * The default subject claim is the key within the Authentication object where the user's identity
@@ -54,9 +55,18 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
       throw new IllegalArgumentException(
           "Cannot pass empty or null options to HTTPAuthorizationProvider");
     }
+    this.options = options;
+  }
 
+  /**
+   * Creates an API client and sets the URL and Auth header for the external API.
+   * @param authentication Spring Security Authentication object
+   */
+  public void createApiClient(Authentication authentication) {
+    Jwt token = ((Jwt) authentication.getCredentials());
     ApiClient apiClient = new ApiClient();
-    apiClient.setBasePath(options.get("authorizationUrl"));
+    apiClient.addDefaultHeader("Authorization", "Bearer " + token.getTokenValue());
+    apiClient.setBasePath(this.options.get("authorizationUrl"));
     this.defaultApiClient = new DefaultApi(apiClient);
   }
 
@@ -68,6 +78,8 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
    * @return AuthorizationResult result of authorization query
    */
   public AuthorizationResult checkAccessToProject(String projectId, Authentication authentication) {
+
+    createApiClient(authentication);
 
     CheckAccessRequest checkAccessRequest = new CheckAccessRequest();
     Object context = getContext(authentication);
@@ -81,7 +93,7 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
     try {
       // Make authorization request to external service
       feast.auth.generated.client.model.AuthorizationResult authResult =
-          defaultApiClient.checkAccessPost(checkAccessRequest);
+          this.defaultApiClient.checkAccessPost(checkAccessRequest);
       if (authResult == null) {
         throw new RuntimeException(
             String.format(
