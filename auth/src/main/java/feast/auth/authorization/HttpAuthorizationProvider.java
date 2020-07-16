@@ -36,7 +36,6 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
   private static final Logger log = LoggerFactory.getLogger(HttpAuthorizationProvider.class);
 
   private final DefaultApi defaultApiClient;
-  private final Map<String, String> options;
 
   /**
    * The default subject claim is the key within the Authentication object where the user's identity
@@ -55,9 +54,8 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
       throw new IllegalArgumentException(
           "Cannot pass empty or null options to HTTPAuthorizationProvider");
     }
-    this.options = options;
     ApiClient apiClient = new ApiClient();
-    apiClient.setBasePath(this.options.get("authorizationUrl"));
+    apiClient.setBasePath(options.get("authorizationUrl"));
     this.defaultApiClient = new DefaultApi(apiClient);
   }
 
