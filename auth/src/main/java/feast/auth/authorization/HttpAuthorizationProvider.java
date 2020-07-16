@@ -35,7 +35,7 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
 
   private static final Logger log = LoggerFactory.getLogger(HttpAuthorizationProvider.class);
 
-  private DefaultApi defaultApiClient;
+  private final DefaultApi defaultApiClient;
   private final Map<String, String> options;
 
   /**
@@ -56,17 +56,7 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
           "Cannot pass empty or null options to HTTPAuthorizationProvider");
     }
     this.options = options;
-  }
-
-  /**
-   * Creates an API client and sets the URL and Auth header for the external API.
-   *
-   * @param authentication Spring Security Authentication object
-   */
-  public void createApiClient(Authentication authentication) {
-    Jwt token = ((Jwt) authentication.getCredentials());
     ApiClient apiClient = new ApiClient();
-    apiClient.addDefaultHeader("Authorization", "Bearer " + token.getTokenValue());
     apiClient.setBasePath(this.options.get("authorizationUrl"));
     this.defaultApiClient = new DefaultApi(apiClient);
   }
@@ -80,8 +70,6 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
    */
   public AuthorizationResult checkAccessToProject(String projectId, Authentication authentication) {
 
-    createApiClient(authentication);
-
     CheckAccessRequest checkAccessRequest = new CheckAccessRequest();
     Object context = getContext(authentication);
     String subject = getSubjectFromAuth(authentication, DEFAULT_SUBJECT_CLAIM);
@@ -92,9 +80,11 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
     checkAccessRequest.setSubject(subject);
 
     try {
+      Jwt token = ((Jwt) authentication.getCredentials());
       // Make authorization request to external service
       feast.auth.generated.client.model.AuthorizationResult authResult =
-          this.defaultApiClient.checkAccessPost(checkAccessRequest);
+          this.defaultApiClient.checkAccessPost(
+              "Bearer " + token.getTokenValue(), checkAccessRequest);
       if (authResult == null) {
         throw new RuntimeException(
             String.format(

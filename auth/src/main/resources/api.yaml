@@ -25,6 +25,13 @@ paths:
           description: Not Ready
   /checkAccess:
     post:
+      parameters:
+        - name: Authorization
+          in: header
+          description: Auth token
+          required: true
+          schema:
+            type: string
       operationId: check_access_post
       requestBody:
         content:
@@ -55,11 +62,6 @@ paths:
       summary: Check whether request is authorized to access a specific resource
       x-codegen-request-body-name: body
 components:
-  headers:
-    Authorization:
-      description: Auth token
-      schema:
-        type: string
   schemas:
     checkAccessRequest:
       example:
