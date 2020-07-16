@@ -54,6 +54,7 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
       throw new IllegalArgumentException(
           "Cannot pass empty or null options to HTTPAuthorizationProvider");
     }
+
     ApiClient apiClient = new ApiClient();
     apiClient.setBasePath(options.get("authorizationUrl"));
     this.defaultApiClient = new DefaultApi(apiClient);
@@ -78,11 +79,11 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
     checkAccessRequest.setSubject(subject);
 
     try {
-      Jwt token = ((Jwt) authentication.getCredentials());
+      Jwt credentials = ((Jwt) authentication.getCredentials());
       // Make authorization request to external service
       feast.auth.generated.client.model.AuthorizationResult authResult =
           this.defaultApiClient.checkAccessPost(
-              "Bearer " + token.getTokenValue(), checkAccessRequest);
+              "Bearer " + credentials.getTokenValue(), checkAccessRequest);
       if (authResult == null) {
         throw new RuntimeException(
             String.format(
