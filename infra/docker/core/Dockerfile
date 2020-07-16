@@ -30,6 +30,8 @@ COPY core core
 COPY ingestion ingestion
 COPY protos protos
 COPY serving serving
+COPY common common
+COPY auth auth
 COPY spark spark
 COPY pom.xml pom.xml
 

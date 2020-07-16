@@ -9,11 +9,13 @@ test -z ${GCLOUD_PROJECT} && GCLOUD_PROJECT="kf-feast"
 test -z ${GCLOUD_REGION} && GCLOUD_REGION="us-central1"
 test -z ${GCLOUD_NETWORK} && GCLOUD_NETWORK="default"
 test -z ${GCLOUD_SUBNET} && GCLOUD_SUBNET="default"
-test -z ${TEMP_BUCKET} && TEMP_BUCKET="feast-templocation-kf-feast"
+test -z ${TEMP_BUCKET} && TEMP_BUCKET="kf-feast-dataflow-temp"
 test -z ${K8_CLUSTER_NAME} && K8_CLUSTER_NAME="feast-e2e-dataflow"
 test -z ${HELM_RELEASE_NAME} && HELM_RELEASE_NAME="pr-$PULL_NUMBER"
 test -z ${HELM_COMMON_NAME} && HELM_COMMON_NAME="deps"
 test -z ${DATASET_NAME} && DATASET_NAME=feast_e2e_$(date +%s)
+test -z ${SPECS_TOPIC} && SPECS_TOPIC=feast-specs-$(date +%s)
+
 
 feast_kafka_1_ip_name="feast-kafka-1"
 feast_kafka_2_ip_name="feast-kafka-2"
@@ -124,6 +126,7 @@ Helm install common parts (kafka, redis, etc)
    --set "feast-core.enabled=false" \
    --set "feast-online-serving.enabled=false" \
    --set "feast-batch-serving.enabled=false" \
+   --set "postgresql.enabled=false"
    "$HELM_COMMON_NAME" .
 
 }
@@ -149,7 +152,6 @@ Helm install feast
   cd $ORIGINAL_DIR/infra/charts/feast
 
   helm install --wait --timeout 300s --debug --values="values-end-to-end-batch-dataflow-updated.yaml" \
-   --set "postgresql.enabled=false" \
    --set "kafka.enabled=false" \
    --set "redis.enabled=false" \
    --set "prometheus-statsd-exporter.enabled=false" \
@@ -171,6 +173,8 @@ function clean() {
 
   # Uninstall helm release before clearing PVCs
   helm uninstall ${HELM_RELEASE_NAME}
+
+  kubectl delete pvc data-${HELM_RELEASE_NAME}-postgresql-0
 
   # Stop Dataflow jobs from retrieved Dataflow job ids in ingesting_jobs.txt
   if [ -f ingesting_jobs.txt ]; then
@@ -207,8 +211,9 @@ export GCLOUD_SUBNET=$GCLOUD_SUBNET
 export GCLOUD_REGION=$GCLOUD_REGION
 export HELM_COMMON_NAME=$HELM_COMMON_NAME
 export IMAGE_TAG=${PULL_PULL_SHA:1}
+export SPECS_TOPIC=$SPECS_TOPIC
 
-envsubst $'$TEMP_BUCKET $DATASET_NAME $GCLOUD_PROJECT $GCLOUD_NETWORK \
+envsubst $'$TEMP_BUCKET $DATASET_NAME $GCLOUD_PROJECT $GCLOUD_NETWORK $SPECS_TOPIC \
   $GCLOUD_SUBNET $GCLOUD_REGION $IMAGE_TAG $HELM_COMMON_NAME $feast_kafka_1_ip
   $feast_kafka_2_ip $feast_kafka_3_ip $feast_redis_ip $feast_statsd_ip' < $ORIGINAL_DIR/infra/scripts/test-templates/values-end-to-end-batch-dataflow.yaml > $ORIGINAL_DIR/infra/charts/feast/values-end-to-end-batch-dataflow-updated.yaml
 
@@ -270,11 +275,11 @@ LOGS_ARTIFACT_PATH=/logs/artifacts
 
 cd $ORIGINAL_DIR/tests/e2e
 
-core_ip=$(kubectl get -o jsonpath="{.spec.clusterIP}" service ${HELM_RELEASE_NAME}-feast-core)
-serving_ip=$(kubectl get -o jsonpath="{.spec.clusterIP}" service ${HELM_RELEASE_NAME}-feast-batch-serving)
+core_ip=$(kubectl get -o jsonpath="{.status.loadBalancer.ingress[0].ip}" service ${HELM_RELEASE_NAME}-feast-core)
+serving_ip=$(kubectl get -o jsonpath="{.status.loadBalancer.ingress[0].ip}" service ${HELM_RELEASE_NAME}-feast-batch-serving)
 
 set +e
-pytest -v bq-batch-retrieval.py -m dataflow_runner --core_url "$core_ip:6565" --serving_url "$serving_ip:6566" --gcs_path "gs://${TEMP_BUCKET}/" --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+pytest -s -v bq/bq-batch-retrieval.py -m dataflow_runner --core_url "$core_ip:6565" --serving_url "$serving_ip:6566" --gcs_path "gs://${TEMP_BUCKET}/" --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 
 if [[ ${TEST_EXIT_CODE} != 0 ]]; then

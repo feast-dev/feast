@@ -10,6 +10,10 @@ feast-batch-serving:
   # feast-batch-serving.enabled -- Flag to install Feast Batch Serving
   enabled: false
 
+feast-jupyter:
+  # feast-jupyter.enabled -- Flag to install Feast Jupyter Notebook with SDK
+  enabled: true
+
 postgresql:
   # postgresql.enabled -- Flag to install Postgresql
   enabled: true

@@ -16,42 +16,42 @@
  */
 package feast.storage.connectors.bigquery.writer;
 
+import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.bigquery.*;
-import com.google.common.collect.ImmutableMap;
+import feast.common.models.FeatureSetReference;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.StoreProto.Store.BigQueryConfig;
 import feast.proto.types.FeatureRowProto;
 import feast.storage.api.writer.FeatureSink;
 import feast.storage.api.writer.WriteResult;
-import feast.storage.connectors.bigquery.common.TypeUtil;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
-import org.apache.beam.sdk.transforms.PTransform;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.slf4j.Logger;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.joda.time.Duration;
 
 @AutoValue
 public abstract class BigQueryFeatureSink implements FeatureSink {
-  private static final Logger log = org.slf4j.LoggerFactory.getLogger(BigQueryFeatureSink.class);
-
-  // Column description for reserved fields
-  public static final String BIGQUERY_EVENT_TIMESTAMP_FIELD_DESCRIPTION =
-      "Event time for the FeatureRow";
-  public static final String BIGQUERY_CREATED_TIMESTAMP_FIELD_DESCRIPTION =
-      "Processing time of the FeatureRow ingestion in Feast\"";
-  public static final String BIGQUERY_INGESTION_ID_FIELD_DESCRIPTION =
-      "Unique id identifying groups of rows that have been ingested together";
-  public static final String BIGQUERY_JOB_ID_FIELD_DESCRIPTION =
-      "Feast import job ID for the FeatureRow";
-
   public abstract String getProjectId();
 
   public abstract String getDatasetId();
 
-  public abstract BigQuery getBigQuery();
+  public abstract Duration getTriggeringFrequency();
+
+  @Nullable
+  public abstract BigQueryServices getBQTestServices();
+
+  @Nullable
+  public abstract ValueProvider<BigQuery> getBQClient();
+
+  private PCollectionView<Map<String, Iterable<TableSchema>>> schemasView;
 
   /**
    * Initialize a {@link BigQueryFeatureSink.Builder} from a {@link BigQueryConfig}. This method
@@ -59,15 +59,27 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
    * your own client.
    *
    * @param config {@link BigQueryConfig}
-   * @param featureSetSpecs
    * @return {@link BigQueryFeatureSink.Builder}
    */
-  public static FeatureSink fromConfig(
-      BigQueryConfig config, Map<String, FeatureSetProto.FeatureSetSpec> featureSetSpecs) {
-    return builder()
+  public static FeatureSink fromConfig(BigQueryConfig config) {
+    return BigQueryFeatureSink.builder()
         .setDatasetId(config.getDatasetId())
         .setProjectId(config.getProjectId())
-        .setBigQuery(BigQueryOptions.getDefaultInstance().getService())
+        .setBQTestServices(null)
+        .setBQClient(
+            new ValueProvider<BigQuery>() {
+              @Override
+              public BigQuery get() {
+                return BigQueryOptions.getDefaultInstance().getService();
+              }
+
+              @Override
+              public boolean isAccessible() {
+                return true;
+              }
+            })
+        .setTriggeringFrequency(
+            Duration.standardSeconds(config.getWriteTriggeringFrequencySeconds()))
         .build();
   }
 
@@ -82,133 +94,51 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
 
     public abstract Builder setDatasetId(String datasetId);
 
-    public abstract Builder setBigQuery(BigQuery bigQuery);
+    public abstract Builder setTriggeringFrequency(Duration triggeringFrequency);
+
+    public abstract Builder setBQTestServices(BigQueryServices bigQueryServices);
+
+    public abstract Builder setBQClient(ValueProvider<BigQuery> bigQueryOptions);
 
     public abstract BigQueryFeatureSink build();
   }
 
-  /** @param featureSet Feature set to be written */
+  /** @param featureSetSpecs Feature set to be written */
   @Override
-  public void prepareWrite(FeatureSetProto.FeatureSet featureSet) {
-    BigQuery bigquery = getBigQuery();
-    FeatureSetProto.FeatureSetSpec featureSetSpec = featureSet.getSpec();
+  public PCollection<FeatureSetReference> prepareWrite(
+      PCollection<KV<FeatureSetReference, FeatureSetProto.FeatureSetSpec>> featureSetSpecs) {
+    PCollection<KV<FeatureSetReference, TableSchema>> schemas =
+        featureSetSpecs
+            .apply(
+                "GenerateTableSchema",
+                ParDo.of(
+                    new FeatureSetSpecToTableSchema(
+                        DatasetId.of(getProjectId(), getDatasetId()), getBQClient())))
+            .setCoder(
+                KvCoder.of(
+                    AvroCoder.of(FeatureSetReference.class),
+                    FeatureSetSpecToTableSchema.TableSchemaCoder.of()));
 
-    DatasetId datasetId = DatasetId.of(getProjectId(), getDatasetId());
-    if (bigquery.getDataset(datasetId) == null) {
-      log.info(
-          "Creating dataset '{}' in project '{}'", datasetId.getDataset(), datasetId.getProject());
-      bigquery.create(DatasetInfo.of(datasetId));
-    }
-    String tableName =
-        String.format("%s_%s", featureSetSpec.getProject(), featureSetSpec.getName())
-            .replaceAll("-", "_");
-    TableId tableId = TableId.of(datasetId.getProject(), datasetId.getDataset(), tableName);
+    schemasView =
+        schemas
+            .apply("ReferenceString", ParDo.of(new ReferenceToString()))
+            .apply("View", View.asMultimap());
 
-    Table table = bigquery.getTable(tableId);
-    TableDefinition tableDefinition = createBigQueryTableDefinition(table, featureSet.getSpec());
-    TableInfo tableInfo = TableInfo.of(tableId, tableDefinition);
-    if (table != null) {
-      log.info(
-          "Updating and writing to existing BigQuery table '{}:{}.{}'",
-          datasetId.getProject(),
-          datasetId.getDataset(),
-          tableName);
-      bigquery.update(tableInfo);
-      return;
-    }
-
-    log.info(
-        "Creating table '{}' in dataset '{}' in project '{}'",
-        tableId.getTable(),
-        datasetId.getDataset(),
-        datasetId.getProject());
-    bigquery.create(tableInfo);
+    return schemas.apply("Ready", Keys.create());
   }
 
   @Override
   public PTransform<PCollection<FeatureRowProto.FeatureRow>, WriteResult> writer() {
-    return new BigQueryWrite(DatasetId.of(getProjectId(), getDatasetId()));
+    return new BigQueryWrite(DatasetId.of(getProjectId(), getDatasetId()), schemasView)
+        .withTriggeringFrequency(getTriggeringFrequency())
+        .withTestServices(getBQTestServices());
   }
-  /**
-   * Creates a BigQuery {@link TableDefinition} based on the provided FeatureSetSpec and the
-   * existing table, if any. If a table already exists, existing fields will be retained, and new
-   * fields present in the feature set will be appended to the existing FieldsList.
-   *
-   * @param existingTable existing {@link Table} retrieved using bigquery.GetTable(). If the table
-   *     does not exist, will be null.
-   * @param spec FeatureSet spec that this table is for
-   * @return {@link TableDefinition} containing all tombstoned and active fields.
-   */
-  private TableDefinition createBigQueryTableDefinition(
-      Table existingTable, FeatureSetProto.FeatureSetSpec spec) {
-    List<Field> fields = new ArrayList<>();
-    log.info("Table will have the following fields:");
 
-    for (FeatureSetProto.EntitySpec entitySpec : spec.getEntitiesList()) {
-      Field.Builder builder =
-          Field.newBuilder(
-              entitySpec.getName(), TypeUtil.toStandardSqlType(entitySpec.getValueType()));
-      if (entitySpec.getValueType().name().toLowerCase().endsWith("_list")) {
-        builder.setMode(Field.Mode.REPEATED);
-      }
-      Field field = builder.build();
-      log.info("- {}", field.toString());
-      fields.add(field);
+  private static class ReferenceToString
+      extends DoFn<KV<FeatureSetReference, TableSchema>, KV<String, TableSchema>> {
+    @ProcessElement
+    public void process(ProcessContext c) {
+      c.output(KV.of(c.element().getKey().getReference(), c.element().getValue()));
     }
-    for (FeatureSetProto.FeatureSpec featureSpec : spec.getFeaturesList()) {
-      Field.Builder builder =
-          Field.newBuilder(
-              featureSpec.getName(), TypeUtil.toStandardSqlType(featureSpec.getValueType()));
-      if (featureSpec.getValueType().name().toLowerCase().endsWith("_list")) {
-        builder.setMode(Field.Mode.REPEATED);
-      }
-      Field field = builder.build();
-      log.info("- {}", field.toString());
-      fields.add(field);
-    }
-
-    // Refer to protos/feast/core/Store.proto for reserved fields in BigQuery.
-    Map<String, Pair<StandardSQLTypeName, String>>
-        reservedFieldNameToPairOfStandardSQLTypeAndDescription =
-            ImmutableMap.of(
-                "event_timestamp",
-                Pair.of(StandardSQLTypeName.TIMESTAMP, BIGQUERY_EVENT_TIMESTAMP_FIELD_DESCRIPTION),
-                "created_timestamp",
-                Pair.of(
-                    StandardSQLTypeName.TIMESTAMP, BIGQUERY_CREATED_TIMESTAMP_FIELD_DESCRIPTION),
-                "ingestion_id",
-                Pair.of(StandardSQLTypeName.STRING, BIGQUERY_INGESTION_ID_FIELD_DESCRIPTION),
-                "job_id",
-                Pair.of(StandardSQLTypeName.STRING, BIGQUERY_JOB_ID_FIELD_DESCRIPTION));
-    for (Map.Entry<String, Pair<StandardSQLTypeName, String>> entry :
-        reservedFieldNameToPairOfStandardSQLTypeAndDescription.entrySet()) {
-      Field field =
-          Field.newBuilder(entry.getKey(), entry.getValue().getLeft())
-              .setDescription(entry.getValue().getRight())
-              .build();
-      log.info("- {}", field.toString());
-      fields.add(field);
-    }
-
-    TimePartitioning timePartitioning =
-        TimePartitioning.newBuilder(TimePartitioning.Type.DAY).setField("event_timestamp").build();
-    log.info("Table partitioning: " + timePartitioning.toString());
-
-    List<Field> fieldsList = new ArrayList<>();
-    if (existingTable != null) {
-      Schema existingSchema = existingTable.getDefinition().getSchema();
-      fieldsList.addAll(existingSchema.getFields());
-    }
-
-    for (Field field : fields) {
-      if (!fieldsList.contains(field)) {
-        fieldsList.add(field);
-      }
-    }
-
-    return StandardTableDefinition.newBuilder()
-        .setTimePartitioning(timePartitioning)
-        .setSchema(Schema.of(FieldList.of(fieldsList)))
-        .build();
   }
 }

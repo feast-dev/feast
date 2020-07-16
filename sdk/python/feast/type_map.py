@@ -13,11 +13,12 @@
 # limitations under the License.
 
 from datetime import datetime, timezone
-from typing import List
+from typing import Any, Dict, List, Union
 
 import numpy as np
 import pandas as pd
 import pyarrow as pa
+from google.protobuf.json_format import MessageToDict
 from google.protobuf.timestamp_pb2 import Timestamp
 from pyarrow.lib import TimestampType
 
@@ -36,6 +37,44 @@ from feast.types.Value_pb2 import (
 from feast.types.Value_pb2 import Value as ProtoValue
 from feast.types.Value_pb2 import ValueType as ProtoValueType
 from feast.value_type import ValueType
+
+
+def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
+    """
+    Converts field value Proto to Dict and returns each field's Feast Value Type value
+    in their respective Python value.
+
+    Args:
+        field_value_proto: Field value Proto
+
+    Returns:
+        Python native type representation/version of the given field_value_proto
+    """
+    field_value_dict = MessageToDict(field_value_proto)
+
+    for k, v in field_value_dict.items():
+        if k == "int64Val":
+            return int(v)
+        if k == "bytesVal":
+            return bytes(v)
+        if (k == "int64ListVal") or (k == "int32ListVal"):
+            return [int(item) for item in v["val"]]
+        if (k == "floatListVal") or (k == "doubleListVal"):
+            return [float(item) for item in v["val"]]
+        if k == "stringListVal":
+            return [str(item) for item in v["val"]]
+        if k == "bytesListVal":
+            return [bytes(item) for item in v["val"]]
+        if k == "boolListVal":
+            return [bool(item) for item in v["val"]]
+
+        if k in ["int32Val", "floatVal", "doubleVal", "stringVal", "boolVal"]:
+            return v
+        else:
+            raise TypeError(
+                f"Casting to Python native type for type {k} failed. "
+                f"Type {k} not found"
+            )
 
 
 def python_type_to_feast_value_type(
@@ -80,7 +119,7 @@ def python_type_to_feast_value_type(
     if type_name in type_map:
         return type_map[type_name]
 
-    if type_name == "ndarray":
+    if type_name == "ndarray" or isinstance(value, list):
         if recurse:
 
             # Convert to list type
@@ -89,10 +128,15 @@ def python_type_to_feast_value_type(
             # This is the final type which we infer from the list
             common_item_value_type = None
             for item in list_items:
-                # Get the type from the current item, only one level deep
-                current_item_value_type = python_type_to_feast_value_type(
-                    name=name, value=item, recurse=False
-                )
+                if isinstance(item, ProtoValue):
+                    current_item_value_type = _proto_str_to_value_type(
+                        item.WhichOneof("val")
+                    )
+                else:
+                    # Get the type from the current item, only one level deep
+                    current_item_value_type = python_type_to_feast_value_type(
+                        name=name, value=item, recurse=False
+                    )
                 # Validate whether the type stays consistent
                 if (
                     common_item_value_type
@@ -353,6 +397,36 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
     raise Exception(f"Unsupported data type: ${str(type(value))}")
 
 
+def _proto_str_to_value_type(proto_str: str) -> ValueType:
+    """
+    Returns Feast ValueType given Feast ValueType string.
+
+    Args:
+        proto_str: str
+
+    Returns:
+        A variant of ValueType.
+    """
+    type_map = {
+        "int32_val": ValueType.INT32,
+        "int64_val": ValueType.INT64,
+        "double_val": ValueType.DOUBLE,
+        "float_val": ValueType.FLOAT,
+        "string_val": ValueType.STRING,
+        "bytes_val": ValueType.BYTES,
+        "bool_val": ValueType.BOOL,
+        "int32_list_val": ValueType.INT32_LIST,
+        "int64_list_val": ValueType.INT64_LIST,
+        "double_list_val": ValueType.DOUBLE_LIST,
+        "float_list_val": ValueType.FLOAT_LIST,
+        "string_list_val": ValueType.STRING_LIST,
+        "bytes_list_val": ValueType.BYTES_LIST,
+        "bool_list_val": ValueType.BOOL_LIST,
+    }
+
+    return type_map[proto_str]
+
+
 def pa_to_feast_value_attr(pa_type: object):
     """
     Returns the equivalent Feast ValueType string for the given pa.lib type.
@@ -422,7 +496,7 @@ def pa_to_value_type(pa_type: object):
     return type_map[pa_type.__str__()]
 
 
-def pa_to_feast_value_type(value: object) -> ValueType:
+def pa_to_feast_value_type(value: pa.lib.ChunkedArray) -> ValueType:
     type_map = {
         "timestamp[ms]": ValueType.INT64,
         "int32": ValueType.INT32,
@@ -443,7 +517,7 @@ def pa_to_feast_value_type(value: object) -> ValueType:
     return type_map[value.type.__str__()]
 
 
-def pa_column_to_timestamp_proto_column(column: pa.lib.ChunkedArray) -> Timestamp:
+def pa_column_to_timestamp_proto_column(column: pa.lib.ChunkedArray) -> List[Timestamp]:
     if not isinstance(column.type, TimestampType):
         raise Exception("Only TimestampType columns are allowed")
 
@@ -456,9 +530,9 @@ def pa_column_to_timestamp_proto_column(column: pa.lib.ChunkedArray) -> Timestam
 
 
 def pa_column_to_proto_column(
-    feast_value_type, column: pa.lib.ChunkedArray
+    feast_value_type: ValueType, column: pa.lib.ChunkedArray
 ) -> List[ProtoValue]:
-    type_map = {
+    type_map: Dict[ValueType, Union[str, Dict[str, Any]]] = {
         ValueType.INT32: "int32_val",
         ValueType.INT64: "int64_val",
         ValueType.FLOAT: "float_val",
@@ -475,9 +549,9 @@ def pa_column_to_proto_column(
         ValueType.INT64_LIST: {"int64_list_val": Int64List},
     }
 
-    value = type_map[feast_value_type]
+    value: Union[str, Dict[str, Any]] = type_map[feast_value_type]
     # Process list types
-    if type(value) == dict:
+    if isinstance(value, dict):
         list_param_name = list(value.keys())[0]
         return [
             ProtoValue(**{list_param_name: value[list_param_name](val=x.as_py())})

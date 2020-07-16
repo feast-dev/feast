@@ -38,7 +38,7 @@ class ValueType(enum.Enum):
     FLOAT_LIST = 16
     BOOL_LIST = 17
 
-    def to_tfx_schema_feature_type(self) -> schema_pb2.FeatureType:
+    def to_tfx_schema_feature_type(self):
         if self.value in [
             ValueType.BYTES.value,
             ValueType.STRING.value,

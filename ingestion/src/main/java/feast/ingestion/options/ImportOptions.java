@@ -36,16 +36,29 @@ public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions,
 
   @Required
   @Description(
-      "JSON string representation of the FeatureSet that the import job will process, in BZip2 binary format."
-          + "FeatureSet follows the format in feast.core.FeatureSet proto."
-          + "Mutliple FeatureSetSpec can be passed by specifying '--featureSet={...}' multiple times"
+      "JSON string representation of the SpecsPipe configuration."
+          + "Job will use this to know where read new FeatureSetSpec from (kafka broker & topic)"
+          + "and where send acknowledgment on successful update of job's state to."
+          + "SpecsStreamingUpdateConfig follows the format in feast.core.IngestionJob.SpecsStreamingUpdateConfig proto."
           + "The conversion of Proto message to JSON should follow this mapping:"
           + "https://developers.google.com/protocol-buffers/docs/proto3#json"
           + "Please minify and remove all insignificant whitespace such as newline in the JSON string"
           + "to prevent error when parsing the options")
-  byte[] getFeatureSetJson();
+  String getSpecsStreamingUpdateConfigJson();
 
-  void setFeatureSetJson(byte[] featureSetJson);
+  void setSpecsStreamingUpdateConfigJson(String json);
+
+  @Required
+  @Description(
+      "JSON string representation of the Source that will be used to read FeatureRows from."
+          + "Source follows the format in featst.core.Source proto. Currently only kafka source is supported"
+          + "The conversion of Proto message to JSON should follow this mapping:"
+          + "https://developers.google.com/protocol-buffers/docs/proto3#json"
+          + "Please minify and remove all insignificant whitespace such as newline in the JSON string"
+          + "to prevent error when parsing the options")
+  String getSourceJson();
+
+  void setSourceJson(String json);
 
   @Required
   @Description(
@@ -56,9 +69,9 @@ public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions,
           + "https://developers.google.com/protocol-buffers/docs/proto3#json"
           + "Please minify and remove all insignificant whitespace such as newline in the JSON string"
           + "to prevent error when parsing the options")
-  List<String> getStoreJson();
+  List<String> getStoresJson();
 
-  void setStoreJson(List<String> storeJson);
+  void setStoresJson(List<String> storeJson);
 
   @Description(
       "(Optional) Deadletter elements will be written to this BigQuery table."

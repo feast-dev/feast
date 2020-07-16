@@ -98,7 +98,7 @@
 
     <dependency>
       <groupId>dev.feast</groupId>
-      <artifactId>datatypes-java</artifactId>
+      <artifactId>feast-common</artifactId>
       <version>${project.version}</version>
     </dependency>
 

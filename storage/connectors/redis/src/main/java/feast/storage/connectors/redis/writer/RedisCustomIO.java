@@ -16,10 +16,11 @@
  */
 package feast.storage.connectors.redis.writer;
 
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
-import feast.proto.core.StoreProto.Store.*;
 import feast.proto.storage.RedisProto.RedisKey;
 import feast.proto.storage.RedisProto.RedisKey.Builder;
 import feast.proto.types.FeatureRowProto.FeatureRow;
@@ -29,23 +30,16 @@ import feast.storage.api.writer.FailedElement;
 import feast.storage.api.writer.WriteResult;
 import feast.storage.common.retry.Retriable;
 import io.lettuce.core.RedisException;
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.transforms.windowing.*;
+import org.apache.beam.sdk.values.*;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.joda.time.Instant;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,20 +58,22 @@ public class RedisCustomIO {
   private RedisCustomIO() {}
 
   public static Write write(
-      RedisIngestionClient redisIngestionClient, Map<String, FeatureSetSpec> featureSetSpecs) {
+      RedisIngestionClient redisIngestionClient,
+      PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecs) {
     return new Write(redisIngestionClient, featureSetSpecs);
   }
 
   /** ServingStoreWrite data to a Redis server. */
   public static class Write extends PTransform<PCollection<FeatureRow>, WriteResult> {
 
-    private Map<String, FeatureSetSpec> featureSetSpecs;
+    private PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecs;
     private RedisIngestionClient redisIngestionClient;
     private int batchSize;
     private int timeout;
 
     public Write(
-        RedisIngestionClient redisIngestionClient, Map<String, FeatureSetSpec> featureSetSpecs) {
+        RedisIngestionClient redisIngestionClient,
+        PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecs) {
       this.redisIngestionClient = redisIngestionClient;
       this.featureSetSpecs = featureSetSpecs;
     }
@@ -95,28 +91,37 @@ public class RedisCustomIO {
     @Override
     public WriteResult expand(PCollection<FeatureRow> input) {
       PCollectionTuple redisWrite =
-          input.apply(
-              ParDo.of(new WriteDoFn(redisIngestionClient, featureSetSpecs))
-                  .withOutputTags(successfulInsertsTag, TupleTagList.of(failedInsertsTupleTag)));
+          input
+              .apply(
+                  "CollectBatchBeforeWrite",
+                  Window.<FeatureRow>into(new GlobalWindows())
+                      .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(batchSize)))
+                      .discardingFiredPanes())
+              .apply("AttachSingletonKey", WithKeys.of((Void) null))
+              .apply("GroupOntoSingleton", GroupByKey.create())
+              .apply("ExtractResultValues", Values.create())
+              .apply(
+                  ParDo.of(new WriteDoFn(redisIngestionClient, featureSetSpecs))
+                      .withOutputTags(successfulInsertsTag, TupleTagList.of(failedInsertsTupleTag))
+                      .withSideInputs(featureSetSpecs));
       return WriteResult.in(
           input.getPipeline(),
           redisWrite.get(successfulInsertsTag),
           redisWrite.get(failedInsertsTupleTag));
     }
 
-    public static class WriteDoFn extends DoFn<FeatureRow, FeatureRow> {
-
-      private final List<FeatureRow> featureRows = new ArrayList<>();
-      private Map<String, FeatureSetSpec> featureSetSpecs;
+    public static class WriteDoFn extends DoFn<Iterable<FeatureRow>, FeatureRow> {
+      private PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecsView;
       private int batchSize = DEFAULT_BATCH_SIZE;
       private int timeout = DEFAULT_TIMEOUT;
       private RedisIngestionClient redisIngestionClient;
 
       WriteDoFn(
-          RedisIngestionClient redisIngestionClient, Map<String, FeatureSetSpec> featureSetSpecs) {
+          RedisIngestionClient redisIngestionClient,
+          PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecsView) {
 
         this.redisIngestionClient = redisIngestionClient;
-        this.featureSetSpecs = featureSetSpecs;
+        this.featureSetSpecsView = featureSetSpecsView;
       }
 
       public WriteDoFn withBatchSize(int batchSize) {
@@ -145,10 +150,11 @@ public class RedisCustomIO {
         } catch (RedisException e) {
           log.error("Connection to redis cannot be established ", e);
         }
-        featureRows.clear();
       }
 
-      private void executeBatch() throws Exception {
+      private void executeBatch(
+          Iterable<FeatureRow> featureRows, Map<String, FeatureSetSpec> featureSetSpecs)
+          throws Exception {
         this.redisIngestionClient
             .getBackOffExecutor()
             .execute(
@@ -160,7 +166,9 @@ public class RedisCustomIO {
                     }
                     featureRows.forEach(
                         row -> {
-                          redisIngestionClient.set(getKey(row), getValue(row));
+                          redisIngestionClient.set(
+                              getKey(row, featureSetSpecs.get(row.getFeatureSet())),
+                              getValue(row, featureSetSpecs.get(row.getFeatureSet())));
                         });
                     redisIngestionClient.sync();
                   }
@@ -186,10 +194,9 @@ public class RedisCustomIO {
             .build();
       }
 
-      private byte[] getKey(FeatureRow featureRow) {
-        FeatureSetSpec featureSetSpec = featureSetSpecs.get(featureRow.getFeatureSet());
+      private byte[] getKey(FeatureRow featureRow, FeatureSetSpec spec) {
         List<String> entityNames =
-            featureSetSpec.getEntitiesList().stream()
+            spec.getEntitiesList().stream()
                 .map(EntitySpec::getName)
                 .sorted()
                 .collect(Collectors.toList());
@@ -209,9 +216,7 @@ public class RedisCustomIO {
         return redisKeyBuilder.build().toByteArray();
       }
 
-      private byte[] getValue(FeatureRow featureRow) {
-        FeatureSetSpec spec = featureSetSpecs.get(featureRow.getFeatureSet());
-
+      private byte[] getValue(FeatureRow featureRow, FeatureSetSpec spec) {
         List<String> featureNames =
             spec.getFeaturesList().stream().map(FeatureSpec::getName).collect(Collectors.toList());
         Map<String, Field> fieldValueOnlyMap =
@@ -244,46 +249,23 @@ public class RedisCustomIO {
 
       @ProcessElement
       public void processElement(ProcessContext context) {
-        FeatureRow featureRow = context.element();
-        featureRows.add(featureRow);
-        if (featureRows.size() >= batchSize) {
-          try {
-            executeBatch();
-            featureRows.forEach(row -> context.output(successfulInsertsTag, row));
-            featureRows.clear();
-          } catch (Exception e) {
-            featureRows.forEach(
-                failedMutation -> {
-                  FailedElement failedElement =
-                      toFailedElement(failedMutation, e, context.getPipelineOptions().getJobName());
-                  context.output(failedInsertsTupleTag, failedElement);
-                });
-            featureRows.clear();
-          }
-        }
-      }
+        List<FeatureRow> featureRows = Lists.newArrayList(context.element().iterator());
 
-      @FinishBundle
-      public void finishBundle(FinishBundleContext context)
-          throws IOException, InterruptedException {
-        if (featureRows.size() > 0) {
-          try {
-            executeBatch();
-            featureRows.forEach(
-                row ->
-                    context.output(
-                        successfulInsertsTag, row, Instant.now(), GlobalWindow.INSTANCE));
-            featureRows.clear();
-          } catch (Exception e) {
-            featureRows.forEach(
-                failedMutation -> {
-                  FailedElement failedElement =
-                      toFailedElement(failedMutation, e, context.getPipelineOptions().getJobName());
-                  context.output(
-                      failedInsertsTupleTag, failedElement, Instant.now(), GlobalWindow.INSTANCE);
-                });
-            featureRows.clear();
-          }
+        Map<String, FeatureSetSpec> latestSpecs =
+            context.sideInput(featureSetSpecsView).entrySet().stream()
+                .map(e -> ImmutablePair.of(e.getKey(), Iterators.getLast(e.getValue().iterator())))
+                .collect(Collectors.toMap(ImmutablePair::getLeft, ImmutablePair::getRight));
+
+        try {
+          executeBatch(featureRows, latestSpecs);
+          featureRows.forEach(row -> context.output(successfulInsertsTag, row));
+        } catch (Exception e) {
+          featureRows.forEach(
+              failedMutation -> {
+                FailedElement failedElement =
+                    toFailedElement(failedMutation, e, context.getPipelineOptions().getJobName());
+                context.output(failedInsertsTupleTag, failedElement);
+              });
         }
       }
 

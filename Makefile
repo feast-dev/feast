@@ -41,16 +41,16 @@ format-java:
 	mvn spotless:apply
 
 lint-java:
-	mvn spotless:check
+	mvn --no-transfer-progress spotless:check
 
 test-java:
-	mvn test
+	mvn --no-transfer-progress test
 
 test-java-with-coverage:
-	mvn -B test jacoco:report-aggregate
+	mvn --no-transfer-progress test jacoco:report-aggregate
 
 test-java-8-with-coverage:
-	mvn -B test -pl spark/spark-ingestion-job,spark/spark-historical-retriever-job jacoco:report-aggregate
+	mvn --no-transfer-progress test -pl spark/spark-ingestion-job,spark/spark-historical-retriever-job jacoco:report-aggregate
 
 build-java:
 	mvn clean verify
@@ -72,14 +72,24 @@ test-python:
 	pytest --verbose --color=yes sdk/python/tests
 
 format-python:
-	cd ${ROOT_DIR}/sdk/python; isort -rc feast tests
+	# Sort
+	cd ${ROOT_DIR}/sdk/python; isort feast/ tests/
+	cd ${ROOT_DIR}/tests/e2e; isort .
+
+	# Format
 	cd ${ROOT_DIR}/sdk/python; black --target-version py37 feast tests
+	cd ${ROOT_DIR}/tests/e2e; black --target-version py37 .
 
 lint-python:
-	# TODO: This mypy test needs to be re-enabled and all failures fixed
-	#cd ${ROOT_DIR}/sdk/python; mypy feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; mypy feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; isort feast/ tests/ --check-only
 	cd ${ROOT_DIR}/sdk/python; flake8 feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; black --check feast tests
+
+	cd ${ROOT_DIR}/tests/e2e; mypy bq/ redis/
+	cd ${ROOT_DIR}/tests/e2e; isort . --check-only
+	cd ${ROOT_DIR}/tests/e2e; flake8 .
+	cd ${ROOT_DIR}/tests/e2e; black --check .
 
 # Go SDK
 
@@ -165,3 +175,7 @@ build-html: clean-html
 	$(MAKE) compile-protos-python
 	cd 	$(ROOT_DIR)/sdk/python/docs && $(MAKE) html
 	cp -r $(ROOT_DIR)/sdk/python/docs/html/* $(ROOT_DIR)/dist/python
+
+# Versions
+lint-versions:
+	./infra/scripts/validate-version-consistency.sh

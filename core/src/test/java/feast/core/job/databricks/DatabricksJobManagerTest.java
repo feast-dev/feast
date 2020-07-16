@@ -18,23 +18,27 @@ package feast.core.job.databricks;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.Runner;
 import feast.core.model.*;
 import feast.proto.core.FeatureSetProto;
+import feast.proto.core.IngestionJobProto;
+import feast.proto.core.IngestionJobProto.SpecsStreamingUpdateConfig;
 import feast.proto.core.RunnerProto.DatabricksRunnerConfigOptions;
 import feast.proto.core.SourceProto;
+import feast.proto.core.SourceProto.KafkaSourceConfig;
 import feast.proto.core.StoreProto;
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
-import org.apache.http.HttpStatus;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -43,6 +47,10 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 
 public class DatabricksJobManagerTest {
+
+  private static final int SC_OK = 200;
+
+  private static final int SC_BAD_REQUEST = 400;
 
   @Rule public final ExpectedException expectedException = ExpectedException.none();
 
@@ -102,16 +110,31 @@ public class DatabricksJobManagerTest {
             .setToken("TOKEN")
             .setHost("https://databricks");
 
+    FeatureSetJobStatus featureSetJobStatus = new FeatureSetJobStatus();
+    featureSetJobStatus.setFeatureSet(FeatureSet.fromProto(featureSet));
+
+    SpecsStreamingUpdateConfig specsStreamingUpdateConfig =
+        IngestionJobProto.SpecsStreamingUpdateConfig.newBuilder()
+            .setSource(
+                KafkaSourceConfig.newBuilder()
+                    .setTopic("specs_topic")
+                    .setBootstrapServers("servers:9092")
+                    .build())
+            .build();
+
     this.job =
-        new Job(
-            "1",
-            "",
-            Runner.DATABRICKS,
-            Source.fromProto(source),
-            Store.fromProto(store),
-            Lists.newArrayList(FeatureSet.fromProto(featureSet)),
-            JobStatus.PENDING);
-    dbJobManager = new DatabricksJobManager(databricksRunnerConfigOptions.build(), httpClient);
+        Job.builder()
+            .setId("1")
+            .setExtId("")
+            .setRunner(Runner.DATABRICKS)
+            .setSource(Source.fromProto(source))
+            .setFeatureSetJobStatuses(Sets.newHashSet(featureSetJobStatus))
+            .setStatus(JobStatus.PENDING)
+            .build();
+    job.setStores(ImmutableSet.of(Store.fromProto(store)));
+    dbJobManager =
+        new DatabricksJobManager(
+            databricksRunnerConfigOptions.build(), specsStreamingUpdateConfig, httpClient);
   }
 
   @Test
@@ -119,7 +142,7 @@ public class DatabricksJobManagerTest {
     String responseBody =
         "{ \"state\": {\"life_cycle_state\" : \"INTERNAL_ERROR\", \"state_message\": \"a state message\"} } ";
     when(httpResponse.body()).thenReturn(responseBody);
-    when(httpResponse.statusCode()).thenReturn(HttpStatus.SC_OK);
+    when(httpResponse.statusCode()).thenReturn(SC_OK);
     when(httpClient.send(any(), any())).thenReturn(httpResponse);
 
     JobStatus jobStatus = dbJobManager.getJobStatus(job);
@@ -133,7 +156,7 @@ public class DatabricksJobManagerTest {
         "{ \"state\": {\"life_cycle_state\" : \"TERMINATED\", \"result_state\": \"SUCCESS\", \"state_message\": \"a state message\" } } ";
 
     when(httpResponse.body()).thenReturn(responseBody);
-    when(httpResponse.statusCode()).thenReturn(HttpStatus.SC_OK);
+    when(httpResponse.statusCode()).thenReturn(SC_OK);
     when(httpClient.send(any(), any())).thenReturn(httpResponse);
 
     JobStatus jobStatus = dbJobManager.getJobStatus(job);
@@ -147,18 +170,19 @@ public class DatabricksJobManagerTest {
         "{ \"state\": {\"life_cycle_state\" : \"RUNNING\", \"state_message\": \"a state message\"} } ";
 
     when(httpResponse.body()).thenReturn(runsSubmitResponseBody).thenReturn(jobStatusResponseBody);
-    when(httpResponse.statusCode()).thenReturn(HttpStatus.SC_OK);
+    when(httpResponse.statusCode()).thenReturn(SC_OK);
     when(httpClient.send(any(), any())).thenReturn(httpResponse);
 
     Job actual = dbJobManager.startJob(job);
 
     assertThat(actual.getExtId(), equalTo("10"));
     assertThat(actual.getId(), equalTo(job.getId()));
+    assertThat(actual.getStatus(), equalTo(JobStatus.RUNNING));
   }
 
   @Test(expected = JobExecutionException.class)
   public void testStartJob_BadRequest() throws IOException, InterruptedException {
-    when(httpResponse.statusCode()).thenReturn(HttpStatus.SC_BAD_REQUEST);
+    when(httpResponse.statusCode()).thenReturn(SC_BAD_REQUEST);
     when(httpClient.send(any(), any())).thenReturn(httpResponse);
 
     dbJobManager.startJob(job);
@@ -168,19 +192,21 @@ public class DatabricksJobManagerTest {
 
   @Test
   public void testAbortJob_OKRequest() throws IOException, InterruptedException {
-    String runId = "1";
+    job.setExtId("1");
 
-    when(httpResponse.statusCode()).thenReturn(HttpStatus.SC_OK);
+    when(httpResponse.statusCode()).thenReturn(SC_OK);
     when(httpClient.send(any(), any())).thenReturn(httpResponse);
 
-    dbJobManager.abortJob(runId);
+    dbJobManager.abortJob(job);
+    Job actual = dbJobManager.abortJob(job);
 
     verify(httpClient, Mockito.times(1)).send(any(), any());
+    assertThat(actual.getStatus(), equalTo(JobStatus.ABORTING));
   }
 
   @Test(expected = JobExecutionException.class)
   public void testAbortJob_BadRequest() throws IOException, InterruptedException {
-    when(httpResponse.statusCode()).thenReturn(HttpStatus.SC_BAD_REQUEST);
+    when(httpResponse.statusCode()).thenReturn(SC_BAD_REQUEST);
     when(httpClient.send(any(), any())).thenReturn(httpResponse);
 
     dbJobManager.startJob(job);

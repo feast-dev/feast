@@ -86,6 +86,7 @@ public class TestUtil {
   public static class LocalKafka {
 
     private static KafkaServerStartable server;
+    private static Thread startup;
 
     /**
      * Start local Kafka and (optionally) Zookeeper
@@ -117,10 +118,16 @@ public class TestUtil {
       kafkaProp.put("offsets.topic.replication.factor", kafkaReplicationFactor);
       KafkaConfig kafkaConfig = new KafkaConfig(kafkaProp);
       server = new KafkaServerStartable(kafkaConfig);
-      new Thread(server::startup).start();
+      startup = new Thread(server::startup);
+      startup.start();
     }
 
     public static void stop() {
+      try {
+        startup.join(10000);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
       if (server != null) {
         try {
           server.shutdown();

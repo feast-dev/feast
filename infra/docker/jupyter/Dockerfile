@@ -10,8 +10,6 @@ RUN git init .
 COPY sdk/python sdk/python
 COPY Makefile Makefile
 COPY protos protos
-COPY tests tests
-COPY README.md README.md
 
 # Install Python dependencies
 RUN make compile-protos-python
@@ -20,10 +18,13 @@ RUN make compile-protos-python
 RUN pip install -r sdk/python/requirements-ci.txt
 
 # Install Feast SDK
+COPY README.md README.md
 RUN pip install -e sdk/python -U
 
 # Switch back to original user and workdir
 USER $NB_UID
 WORKDIR $HOME
+
+COPY tests /feast/tests
 
 CMD start-notebook.sh --NotebookApp.token=''

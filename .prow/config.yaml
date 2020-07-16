@@ -154,6 +154,32 @@ presubmits:
             memory: "6144Mi"
     skip_branches:
     - ^v0\.(3|4)-branch$
+    
+  - name: test-end-to-end-auth
+    decorate: true
+    always_run: true
+    spec:
+      containers:
+      - image: maven:3.6-jdk-11
+        command: ["infra/scripts/test-end-to-end.sh", "True"]
+        resources:
+          requests:
+            cpu: "6"
+            memory: "6144Mi"
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /etc/gcloud/service-account.json
+        volumeMounts:
+        - mountPath: /etc/gcloud/service-account.json
+          name: service-account
+          readOnly: true
+          subPath: service-account.json
+      volumes:
+      - name: service-account
+        secret:
+          secretName: feast-service-account
+    skip_branches:
+    - ^v0\.(3|4)-branch$
 
   - name: test-end-to-end-redis-cluster
     decorate: true
@@ -255,8 +281,8 @@ presubmits:
         secret:
           secretName: feast-e2e-service-account
       - name: docker-socket
-          hostPath:
-            path: /var/run/docker.sock
+        hostPath:
+          path: /var/run/docker.sock
       containers:
       - image: google/cloud-sdk:273.0.0
         command: ["infra/scripts/test-end-to-end-batch-dataflow.sh"]
@@ -451,11 +477,26 @@ postsubmits:
             --file infra/docker/serving/Dockerfile \
             --google-service-account-file /etc/gcloud/service-account.json
 
-          docker tag gcr.io/kf-feast/feast-core:${PULL_BASE_REF:1} gcr.io/kf-feast/feast-core:latest
-          docker push gcr.io/kf-feast/feast-core:latest
+          infra/scripts/publish-docker-image.sh \
+            --repository gcr.io/kf-feast/feast-jupyter \
+            --tag ${PULL_BASE_REF:1} \
+            --file infra/docker/jupyter/Dockerfile \
+            --google-service-account-file /etc/gcloud/service-account.json
 
-          docker tag gcr.io/kf-feast/feast-serving:${PULL_BASE_REF:1} gcr.io/kf-feast/feast-serving:latest
-          docker push gcr.io/kf-feast/feast-serving:latest
+          HIGHEST_SEMVER_TAG=$(git tag -l --sort -version:refname | head -n 1)
+          echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"
+
+          if [ "${PULL_BASE_REF:1}" == "${HIGHEST_SEMVER_TAG:1}" ]
+          then
+            docker tag gcr.io/kf-feast/feast-core:${PULL_BASE_REF:1} gcr.io/kf-feast/feast-core:latest
+            docker push gcr.io/kf-feast/feast-core:latest
+
+            docker tag gcr.io/kf-feast/feast-serving:${PULL_BASE_REF:1} gcr.io/kf-feast/feast-serving:latest
+            docker push gcr.io/kf-feast/feast-serving:latest
+
+            docker tag gcr.io/kf-feast/feast-jupyter:${PULL_BASE_REF:1} gcr.io/kf-feast/feast-jupyter:latest
+            docker push gcr.io/kf-feast/feast-jupyter:latest
+          fi
 
           fi
         volumeMounts:
@@ -492,15 +533,6 @@ postsubmits:
           curl -s https://get.helm.sh/helm-v2.16.1-linux-amd64.tar.gz | tar -C /tmp -xz
           mv /tmp/linux-amd64/helm /usr/bin/helm
           helm init --client-only
-
-          sed -i "/version: /c\version: ${PULL_BASE_REF:1}" infra/charts/feast/Chart.yaml
-          sed -i "/  version: /c\  version: ${PULL_BASE_REF:1}" infra/charts/feast/requirements.yaml
-
-          sed -i "/version: /c\version: ${PULL_BASE_REF:1}" infra/charts/feast/charts/feast-core/Chart.yaml
-          sed -i "/  tag: /c\  tag: ${PULL_BASE_REF:1}" infra/charts/feast/charts/feast-core/values.yaml
-
-          sed -i "/version: /c\version: ${PULL_BASE_REF:1}" infra/charts/feast/charts/feast-serving/Chart.yaml
-          sed -i "/  tag: /c\  tag: ${PULL_BASE_REF:1}" infra/charts/feast/charts/feast-serving/values.yaml
 
           infra/scripts/sync-helm-charts.sh
         volumeMounts:

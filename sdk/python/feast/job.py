@@ -1,5 +1,3 @@
-import time
-from datetime import datetime, timedelta
 from typing import List
 from urllib.parse import urlparse
 
@@ -8,6 +6,8 @@ import pandas as pd
 import glob
 from google.protobuf.json_format import MessageToJson
 
+from feast.constants import CONFIG_TIMEOUT_KEY
+from feast.constants import FEAST_DEFAULT_OPTIONS as defaults
 from feast.core.CoreService_pb2 import ListIngestionJobsRequest
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.IngestionJob_pb2 import IngestionJob as IngestJobProto
@@ -23,6 +23,8 @@ from feast.serving.ServingService_pb2 import Job as JobProto
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.source import Source
 from feast.staging.storage_client import get_staging_client
+from feast.wait import wait_retry_backoff
+from tensorflow_metadata.proto.v0 import statistics_pb2
 
 # Maximum no of seconds to wait until the retrieval jobs status is DONE in Feast
 # Currently set to the maximum query execution time limit in BigQuery
@@ -69,7 +71,7 @@ class RetrievalJob:
         """
         self.job_proto = self.serving_stub.GetJob(GetJobRequest(job=self.job_proto)).job
 
-    def get_avro_files(self, timeout_sec: int = DEFAULT_TIMEOUT_SEC):
+    def get_avro_files(self, timeout_sec: int = int(defaults[CONFIG_TIMEOUT_KEY])):
         """
         Wait until job is done to get the file uri to Avro result files on
         Google Cloud Storage.
@@ -82,21 +84,17 @@ class RetrievalJob:
         Returns:
             str: Google Cloud Storage file uris of the returned Avro files.
         """
-        max_wait_datetime = datetime.now() + timedelta(seconds=timeout_sec)
-        wait_duration_sec = 2
 
-        while self.status != JOB_STATUS_DONE:
-            if datetime.now() > max_wait_datetime:
-                raise Exception(
-                    "Timeout exceeded while waiting for result. Please retry "
-                    "this method or use a longer timeout value."
-                )
-
+        def try_retrieve():
             self.reload()
-            time.sleep(wait_duration_sec)
+            return None, self.status == JOB_STATUS_DONE
 
-            # Backoff the wait duration exponentially up till MAX_WAIT_INTERVAL_SEC
-            wait_duration_sec = min(wait_duration_sec * 2, MAX_WAIT_INTERVAL_SEC)
+        wait_retry_backoff(
+            retry_fn=try_retrieve,
+            timeout_secs=timeout_sec,
+            timeout_msg="Timeout exceeded while waiting for result. Please retry "
+            "this method or use a longer timeout value.",
+        )
 
         if self.job_proto.error:
             raise Exception(self.job_proto.error)
@@ -109,7 +107,7 @@ class RetrievalJob:
 
         return [urlparse(uri) for uri in self.job_proto.file_uris]
 
-    def result(self, timeout_sec: int = DEFAULT_TIMEOUT_SEC):
+    def result(self, timeout_sec: int = int(defaults[CONFIG_TIMEOUT_KEY])):
         """
         Wait until job is done to get an iterable rows of result. The row can
         only represent an Avro row in Feast 0.3.
@@ -142,7 +140,9 @@ class RetrievalJob:
                         for record in avro_reader:
                             yield record
 
-    def to_dataframe(self, timeout_sec: int = DEFAULT_TIMEOUT_SEC) -> pd.DataFrame:
+    def to_dataframe(
+        self, timeout_sec: int = int(defaults[CONFIG_TIMEOUT_KEY])
+    ) -> pd.DataFrame:
         """
         Wait until a job is done to get an iterable rows of result. This method
         will split the response into chunked DataFrame of a specified size to
@@ -164,7 +164,9 @@ class RetrievalJob:
         return pd.DataFrame.from_records(records)
 
     def to_chunked_dataframe(
-        self, max_chunk_size: int = -1, timeout_sec: int = DEFAULT_TIMEOUT_SEC
+        self,
+        max_chunk_size: int = -1,
+        timeout_sec: int = int(defaults[CONFIG_TIMEOUT_KEY]),
     ) -> pd.DataFrame:
         """
         Wait until a job is done to get an iterable rows of result. This method
@@ -183,8 +185,11 @@ class RetrievalJob:
             pd.DataFrame:
                 Pandas DataFrame of the feature values.
         """
+
+        # Object is Avro row type object, refer to self.result function for this type
+        records: List[dict] = []
+
         # Max chunk size defined by user
-        records = []
         for result in self.result(timeout_sec=timeout_sec):
             result.append(records)
             if len(records) == max_chunk_size:
@@ -198,6 +203,26 @@ class RetrievalJob:
 
     def __iter__(self):
         return iter(self.result())
+
+    def statistics(
+        self, timeout_sec: int = int(defaults[CONFIG_TIMEOUT_KEY])
+    ) -> statistics_pb2.DatasetFeatureStatisticsList:
+        """
+        Get statistics computed over the retrieved data set. Statistics will only be computed for
+        columns that are part of Feast, and not the columns that were provided.
+
+        Args:
+            timeout_sec (int):
+                Max no of seconds to wait until job is done. If "timeout_sec"
+                is exceeded, an exception will be raised.
+
+        Returns:
+            DatasetFeatureStatisticsList containing statistics of Feast features over the retrieved dataset.
+        """
+        self.get_avro_files(timeout_sec)  # wait for job completion
+        if self.job_proto.error:
+            raise Exception(self.job_proto.error)
+        return self.job_proto.dataset_feature_statistics_list
 
 
 class IngestJob:
@@ -242,7 +267,7 @@ class IngestJob:
         return self.proto.external_id
 
     @property
-    def status(self) -> IngestionJobStatus:
+    def status(self) -> IngestionJobStatus:  # type: ignore
         """
         Getter for IngestJob's status
         """
@@ -265,13 +290,13 @@ class IngestJob:
         return Source.from_proto(self.proto.source)
 
     @property
-    def store(self) -> Store:
+    def stores(self) -> List[Store]:
         """
         Getter for the IngestJob's target feast store.
         """
-        return self.proto.store
+        return list(self.proto.stores)
 
-    def wait(self, status: IngestionJobStatus, timeout_secs: float = 300):
+    def wait(self, status: IngestionJobStatus, timeout_secs: int = 300):  # type: ignore
         """
         Wait for this IngestJob to transtion to the given status.
         Raises TimeoutError if the wait operation times out.
@@ -281,18 +306,11 @@ class IngestJob:
             timeout_secs: Maximum seconds to wait before timing out.
         """
         # poll & wait for job status to transition
-        wait_begin = time.time()
-        wait_secs = 2
-        elapsed_secs = 0
-        while self.status != status and elapsed_secs <= timeout_secs:
-            time.sleep(wait_secs)
-            # back off wait duration exponentially, capped at MAX_WAIT_INTERVAL_SEC
-            wait_secs = min(wait_secs * 2, MAX_WAIT_INTERVAL_SEC)
-            elapsed_secs = time.time() - wait_begin
-
-        # raise error if timeout
-        if elapsed_secs > timeout_secs:
-            raise TimeoutError("Wait for IngestJob's status to transition timed out")
+        wait_retry_backoff(
+            retry_fn=(lambda: (None, self.status == status)),  # type: ignore
+            timeout_secs=timeout_secs,
+            timeout_msg="Wait for IngestJob's status to transition timed out",
+        )
 
     def __str__(self):
         # render the contents of ingest job as human readable string

@@ -1,7 +1,7 @@
 feast
 ===== 
 
-Feature store for machine learning. Current chart version is `0.5.0-alpha.1`
+Feature store for machine learning. Current chart version is `0.6.0`
 
 ## TL;DR;
 
@@ -32,9 +32,10 @@ This chart install Feast deployment on a Kubernetes cluster using the [Helm](htt
 
 | Repository | Name | Version |
 |------------|------|---------|
-|  | feast-core | 0.5.0-alpha.1 |
-|  | feast-serving | 0.5.0-alpha.1 |
-|  | feast-serving | 0.5.0-alpha.1 |
+|  | feast-core | 0.6.0 |
+|  | feast-jupyter | 0.6.0 |
+|  | feast-serving | 0.6.0 |
+|  | feast-serving | 0.6.0 |
 |  | prometheus-statsd-exporter | 0.1.2 |
 | https://kubernetes-charts-incubator.storage.googleapis.com/ | kafka | 0.20.8 |
 | https://kubernetes-charts.storage.googleapis.com/ | grafana | 5.0.5 |
@@ -48,6 +49,7 @@ This chart install Feast deployment on a Kubernetes cluster using the [Helm](htt
 |-----|------|---------|-------------|
 | feast-batch-serving.enabled | bool | `false` | Flag to install Feast Batch Serving |
 | feast-core.enabled | bool | `true` | Flag to install Feast Core |
+| feast-jupyter.enabled | bool | `true` | Flag to install Feast Jupyter Notebook with SDK |
 | feast-online-serving.enabled | bool | `true` | Flag to install Feast Online Serving |
 | grafana.enabled | bool | `true` | Flag to install Grafana |
 | kafka.enabled | bool | `true` | Flag to install Kafka |
@@ -116,8 +118,13 @@ training, access to BigQuery is required. First, create a [service account](http
 will provide the credentials to access BigQuery. Grant the service account `editor` 
 role so it has write permissions to BigQuery and Cloud Storage.
 
-> In production, it is advised to give only the required [permissions](foo-feast-batch-serving-test) for the 
-> the service account, versus `editor` role which is very permissive.
+> In production, it is advised to grant these specific roles, versus `editor`
+> role which is very permissive:
+> - **Dataflow Admin**: Permissions to create and manage Dataflow jobs
+> - **Service Account User**: Permissions to set a service account on Dataflow workers
+> - **Storage Admin**: Permissions to write files into Google Cloud Storage
+> - **BigQuery Data Editor**: Permissions to write data into BigQuery
+> - **BigQuery Job User**: Permisssions to run query in BigQuery
 
 Create a Kubernetes secret for the service account JSON file:
 ```bash

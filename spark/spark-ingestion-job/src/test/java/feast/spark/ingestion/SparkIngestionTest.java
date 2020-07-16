@@ -28,6 +28,8 @@ import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.Timestamps;
 import feast.proto.core.FeatureSetProto.FeatureSet;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.IngestionJobProto;
+import feast.proto.core.IngestionJobProto.SpecsStreamingUpdateConfig;
 import feast.proto.core.SourceProto.KafkaSourceConfig;
 import feast.proto.core.StoreProto.Store;
 import feast.proto.core.StoreProto.Store.DeltaConfig;
@@ -54,6 +56,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -175,6 +178,17 @@ public class SparkIngestionTest {
     Store delta =
         TestUtil.createStore(specForDelta, StoreType.DELTA).setDeltaConfig(deltaConfig).build();
 
+    SpecsStreamingUpdateConfig specsStreamingUpdateConfig =
+        IngestionJobProto.SpecsStreamingUpdateConfig.newBuilder()
+            .setSource(
+                KafkaSourceConfig.newBuilder()
+                    .setTopic("specs_topic")
+                    .setBootstrapServers("servers:9092")
+                    .build())
+            .build();
+    String specsStreamingUpdateConfigJson =
+        toJsonLines(Collections.singleton(specsStreamingUpdateConfig));
+
     String storesJson = toJsonLines(Arrays.asList(delta, redis));
     List<FeatureSet> featureSets = Arrays.asList(featureSetForRedis, featureSetForDelta);
     List<FeatureSetSpec> featureSetSpecs =
@@ -190,6 +204,7 @@ public class SparkIngestionTest {
         new SparkIngestion(
             new String[] {
               TEST_JOB_ID,
+              specsStreamingUpdateConfigJson,
               checkpointDir,
               "myDefaultFeastProject",
               deadLetterDir,

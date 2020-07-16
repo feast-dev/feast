@@ -16,43 +16,52 @@
  */
 package feast.core.model;
 
-import com.google.common.collect.Sets;
-import com.google.protobuf.Message;
+import com.google.protobuf.TextFormat;
 import feast.proto.core.SourceProto;
 import feast.proto.core.SourceProto.KafkaSourceConfig;
 import feast.proto.core.SourceProto.Source.Builder;
 import feast.proto.core.SourceProto.SourceType;
 import io.grpc.Status;
 import java.util.Objects;
-import java.util.Set;
-import javax.persistence.Column;
+import javax.persistence.*;
 import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.Setter;
 
-@Setter
 @Entity
+@Getter
+@Setter
+@AllArgsConstructor
 @Table(name = "sources")
 public class Source {
 
-  private static final Set<String> KAFKA_OPTIONS = Sets.newHashSet("bootstrapServers");
-
+  /** Source Id. Internal use only, do not use to identify the source. */
   @Id
-  @Column(name = "id", updatable = false, nullable = false)
-  private String id;
+  @GeneratedValue
+  @Column(name = "pk")
+  private Integer id;
 
-  // Type of the source. Should map to feast.types.Source.SourceType
-  @Column(name = "type", nullable = false)
-  private String type;
+  @Deprecated
+  @Column(name = "id")
+  private String deprecatedId;
 
-  // Bootstrap servers, comma delimited. Used by kafka sources.
+  @Deprecated
   @Column(name = "bootstrap_servers")
   private String bootstrapServers;
 
-  // Topics to listen to, comma delimited. Used by kafka sources.
+  @Deprecated
   @Column(name = "topics")
   private String topics;
+
+  /** Type of the source */
+  @Enumerated(EnumType.STRING)
+  @Column(name = "type", nullable = false)
+  private SourceType type;
+
+  /** Configuration object specific to each source type */
+  @Column(name = "config")
+  private String config;
 
   @Column(name = "is_default")
   private boolean isDefault;
@@ -61,42 +70,68 @@ public class Source {
     super();
   }
 
-  public Source(SourceType type, KafkaSourceConfig config, boolean isDefault) {
-    if (config.getBootstrapServers().isEmpty() || config.getTopic().isEmpty()) {
-      throw Status.INVALID_ARGUMENT
-          .withDescription(
-              "Unsupported source options. Kafka source requires bootstrap servers and topic to be specified.")
-          .asRuntimeException();
+  public String getConfig() {
+    if ((config == null || config.isEmpty()) && bootstrapServers != null && topics != null) {
+      config =
+          KafkaSourceConfig.newBuilder()
+              .setBootstrapServers(bootstrapServers)
+              .setTopic(topics)
+              .build()
+              .toString();
     }
-    this.type = type.toString();
-    this.bootstrapServers = config.getBootstrapServers();
-    this.topics = config.getTopic();
-    this.isDefault = isDefault;
-    this.id = generateId();
+
+    return config;
   }
 
   /**
    * Construct a source facade object from a given proto object.
    *
-   * @param sourceProto SourceProto.Source object
+   * @param sourceSpec SourceProto.Source object
+   * @param isDefault Whether to return the default source object if the source was not defined by
+   *     the user
    * @return Source facade object
    */
-  public static Source fromProto(SourceProto.Source sourceProto) {
-    if (sourceProto.equals(SourceProto.Source.getDefaultInstance())) {
+  public static Source fromProto(SourceProto.Source sourceSpec, boolean isDefault) {
+
+    if (sourceSpec.equals(SourceProto.Source.getDefaultInstance())) {
       Source source = new Source();
-      source.isDefault = true;
+      source.setDefault(true);
       return source;
     }
 
-    switch (sourceProto.getType()) {
+    Source source = new Source();
+    source.setType(sourceSpec.getType());
+
+    switch (sourceSpec.getType()) {
       case KAFKA:
-        return new Source(sourceProto.getType(), sourceProto.getKafkaSourceConfig(), false);
+        if (sourceSpec.getKafkaSourceConfig().getBootstrapServers().isEmpty()
+            || sourceSpec.getKafkaSourceConfig().getTopic().isEmpty()) {
+          throw Status.INVALID_ARGUMENT
+              .withDescription(
+                  "Unsupported source options. Kafka source requires bootstrap servers and topic to be specified.")
+              .asRuntimeException();
+        }
+        source.setConfig(sourceSpec.getKafkaSourceConfig().toString());
+        break;
       case UNRECOGNIZED:
       default:
         throw Status.INVALID_ARGUMENT
             .withDescription("Unsupported source type. Only [KAFKA] is supported.")
             .asRuntimeException();
     }
+
+    source.setDefault(isDefault);
+    return source;
+  }
+
+  /**
+   * Construct a source facade object from a given proto object.
+   *
+   * @param sourceSpec SourceProto.Source object
+   * @return Source facade object
+   */
+  public static Source fromProto(SourceProto.Source sourceSpec) {
+    return fromProto(sourceSpec, false);
   }
 
   /**
@@ -105,100 +140,44 @@ public class Source {
    * @return SourceProto.Source
    */
   public SourceProto.Source toProto() {
-    Builder builder = SourceProto.Source.newBuilder().setType(SourceType.valueOf(type));
-    switch (SourceType.valueOf(type)) {
+    Builder builder = SourceProto.Source.newBuilder().setType(this.getType());
+
+    switch (this.getType()) {
       case KAFKA:
-        KafkaSourceConfig config =
-            KafkaSourceConfig.newBuilder()
-                .setBootstrapServers(bootstrapServers)
-                .setTopic(topics)
-                .build();
-        return builder.setKafkaSourceConfig(config).build();
+        KafkaSourceConfig.Builder kafkaSourceConfig = KafkaSourceConfig.newBuilder();
+        try {
+          com.google.protobuf.TextFormat.getParser().merge(this.getConfig(), kafkaSourceConfig);
+        } catch (TextFormat.ParseException e) {
+          throw new RuntimeException(
+              String.format(
+                  "Unable to deserialize source configuration from String to KafkaSourceConfig: %s",
+                  this.getConfig()),
+              e);
+        }
+        return builder.setKafkaSourceConfig(kafkaSourceConfig).build();
+      case INVALID:
       case UNRECOGNIZED:
       default:
-        throw new RuntimeException("Unable to convert source to proto");
+        throw new RuntimeException(
+            String.format(
+                "Unable to build Source from configuration and type: %s %s",
+                this.getConfig(), this.getType()));
     }
   }
 
   /**
-   * Get the id for this feature source
-   *
-   * @return feature source id in the format TYPE/options
-   */
-  public String getId() {
-    return id;
-  }
-
-  /**
-   * Get the options for this feature source
-   *
-   * @return feature source options
-   */
-  public Message getOptions() {
-    switch (SourceType.valueOf(type)) {
-      case KAFKA:
-        return KafkaSourceConfig.newBuilder()
-            .setBootstrapServers(bootstrapServers)
-            .setTopic(topics)
-            .build();
-      case UNRECOGNIZED:
-      default:
-        throw new RuntimeException("Unable to convert source to proto");
-    }
-  }
-
-  /**
-   * Get the type of source.
-   *
-   * @return SourceType of this feature source
-   */
-  public SourceType getType() {
-    return SourceType.valueOf(type);
-  }
-
-  /**
-   * Indicate whether to use the system defaults or not.
-   *
-   * @return boolean indicating whether this feature set source uses defaults.
-   */
-  public boolean isDefault() {
-    return isDefault;
-  }
-
-  /**
-   * Override equality for sources. isDefault is always compared first; if both sources are using
-   * the default feature source, they will be equal. If not they will be compared based on their
-   * type-specific options.
+   * Override equality for sources. Sources are compared based on their type and type-specific
+   * options.
    *
    * @param other other Source
    * @return boolean equal
    */
   public boolean equalTo(Source other) {
-    if (other.isDefault && isDefault || (type == null && other.type == null)) {
-      return true;
-    }
-
-    if ((type == null || !type.equals(other.type))) {
+    if ((this.getType() == null || !this.getType().equals(other.getType()))) {
       return false;
     }
 
-    switch (SourceType.valueOf(type)) {
-      case KAFKA:
-        return bootstrapServers.equals(other.bootstrapServers) && topics.equals(other.topics);
-      case UNRECOGNIZED:
-      default:
-        return false;
-    }
-  }
-
-  private String generateId() {
-    switch (SourceType.valueOf(type)) {
-      case KAFKA:
-        return String.format("KAFKA/%s/%s", bootstrapServers, topics);
-      default:
-        // should not occur
-        return "";
-    }
+    return this.getConfig().equals(other.getConfig());
   }
 
   @Override
@@ -210,11 +189,20 @@ public class Source {
       return false;
     }
     Source source = (Source) o;
-    return id.equals(source.id);
+    return this.equalTo(source);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id);
+    return Objects.hash(getType(), getConfig());
+  }
+
+  /**
+   * Returns the type of this Source in String format
+   *
+   * @return Source type in String format
+   */
+  public String getTypeString() {
+    return this.getType().getValueDescriptor().getName();
   }
 }

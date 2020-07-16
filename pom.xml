@@ -35,6 +35,9 @@
         <module>core</module>
         <module>serving</module>
         <module>sdk/java</module>
+        <module>docs/coverage/java</module>
+        <module>common</module>
+        <module>auth</module>
         <module>spark/databricks-emulator</module>
         <module>spark/databricks-types</module>
         <module>spark/spark-historical-retriever-job</module>
@@ -42,7 +45,7 @@
     </modules>
 
     <properties>
-        <revision>0.6-SNAPSHOT</revision>
+        <revision>0.6.0</revision>
         <github.url>https://github.com/feast-dev/feast</github.url>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -52,7 +55,7 @@
         <protocVersion>3.10.0</protocVersion>
         <protobufVersion>3.10.0</protobufVersion>
         <springBootVersion>2.0.9.RELEASE</springBootVersion>
-        <org.apache.beam.version>2.16.0</org.apache.beam.version>
+        <org.apache.beam.version>2.18.0</org.apache.beam.version>
         <com.google.cloud.version>1.91.0</com.google.cloud.version>
         <io.prometheus.version>0.8.0</io.prometheus.version>
         <byte-buddy.version>1.9.10</byte-buddy.version>
@@ -64,6 +67,7 @@
         <opencensus.version>0.21.0</opencensus.version>
         <!-- Force log4j2 to 2.11+ to support objectMessageAsJsonObject -->
         <log4jVersion>2.12.1</log4jVersion>
+        <flyway.version>5.2.4</flyway.version>
         <spark.version>2.4.5</spark.version>
         <scala.version>2.11.12</scala.version>
         <scala.compat.version>2.11</scala.compat.version>
@@ -233,7 +237,7 @@
             <dependency>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
-                <version>1.18.2</version>
+                <version>1.18.12</version>
                 <scope>provided</scope>
             </dependency>
 
@@ -405,6 +409,9 @@
                             <version>1.7</version>
                             <style>GOOGLE</style>
                         </googleJavaFormat>
+                        <excludes>
+                            <exclude>src/main/java/**/BatchLoadsWithResult.java</exclude>
+                        </excludes>
                         <removeUnusedImports />
                     </java>
                 </configuration>

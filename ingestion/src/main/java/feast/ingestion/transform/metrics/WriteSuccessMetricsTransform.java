@@ -68,10 +68,11 @@ public abstract class WriteSuccessMetricsTransform
             input
                 .apply(
                     "FixedWindow",
-                    Window.into(
-                        FixedWindows.of(
-                            Duration.standardSeconds(
-                                options.getWindowSizeInSecForFeatureValueMetric()))))
+                    Window.<FeatureRow>into(
+                            FixedWindows.of(
+                                Duration.standardSeconds(
+                                    options.getWindowSizeInSecForFeatureValueMetric())))
+                        .withAllowedLateness(Duration.millis(0)))
                 .apply(
                     "ConvertToKV_FeatureSetRefToFeatureRow",
                     ParDo.of(
@@ -91,6 +92,7 @@ public abstract class WriteSuccessMetricsTransform
                     .setStatsdHost(options.getStatsdHost())
                     .setStatsdPort(options.getStatsdPort())
                     .setStoreName(getStoreName())
+                    .setMetricsNamespace(METRIC_NAMESPACE)
                     .build()));
 
         validRowsGroupedByRef.apply(
@@ -100,6 +102,7 @@ public abstract class WriteSuccessMetricsTransform
                     .setStatsdHost(options.getStatsdHost())
                     .setStatsdPort(options.getStatsdPort())
                     .setStoreName(getStoreName())
+                    .setMetricsNamespace(METRIC_NAMESPACE)
                     .build()));
 
         return PDone.in(input.getPipeline());

@@ -5,7 +5,7 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-// Row map of entity values
+// Row is a map of fields
 type Row map[string]*types.Value
 
 func (r Row) equalTo(other Row) bool {

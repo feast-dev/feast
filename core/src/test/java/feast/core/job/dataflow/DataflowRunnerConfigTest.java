@@ -42,6 +42,7 @@ public class DataflowRunnerConfigTest {
             .setUsePublicIps(false)
             .setWorkerMachineType("n1-standard-1")
             .setDeadLetterTableSpec("project_id:dataset_id.table_id")
+            .setDiskSizeGb(100)
             .putLabels("key", "value")
             .build();
 
@@ -60,7 +61,44 @@ public class DataflowRunnerConfigTest {
                 "--usePublicIps=false",
                 "--workerMachineType=n1-standard-1",
                 "--deadLetterTableSpec=project_id:dataset_id.table_id",
+                "--diskSizeGb=100",
                 "--labels={\"key\":\"value\"}")
+            .toArray(String[]::new);
+    assertThat(args.size(), equalTo(expectedArgs.length));
+    assertThat(args, containsInAnyOrder(expectedArgs));
+  }
+
+  @Test
+  public void shouldIgnoreOptionalArguments() throws IllegalAccessException {
+    DataflowRunnerConfigOptions opts =
+        DataflowRunnerConfigOptions.newBuilder()
+            .setProject("my-project")
+            .setRegion("asia-east1")
+            .setZone("asia-east1-a")
+            .setTempLocation("gs://bucket/tempLocation")
+            .setNetwork("default")
+            .setSubnetwork("regions/asia-east1/subnetworks/mysubnetwork")
+            .setMaxNumWorkers(1)
+            .setAutoscalingAlgorithm("THROUGHPUT_BASED")
+            .setUsePublicIps(false)
+            .setWorkerMachineType("n1-standard-1")
+            .build();
+
+    DataflowRunnerConfig dataflowRunnerConfig = new DataflowRunnerConfig(opts);
+    List<String> args = Lists.newArrayList(dataflowRunnerConfig.toArgs());
+    String[] expectedArgs =
+        Arrays.asList(
+                "--project=my-project",
+                "--region=asia-east1",
+                "--zone=asia-east1-a",
+                "--tempLocation=gs://bucket/tempLocation",
+                "--network=default",
+                "--subnetwork=regions/asia-east1/subnetworks/mysubnetwork",
+                "--maxNumWorkers=1",
+                "--autoscalingAlgorithm=THROUGHPUT_BASED",
+                "--usePublicIps=false",
+                "--workerMachineType=n1-standard-1",
+                "--labels={}")
             .toArray(String[]::new);
     assertThat(args.size(), equalTo(expectedArgs.length));
     assertThat(args, containsInAnyOrder(expectedArgs));

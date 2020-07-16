@@ -5,7 +5,7 @@ image:
   # image.repository -- Docker image repository
   repository: gcr.io/kf-feast/feast-serving
   # image.tag -- Image tag
-  tag: dev
+  tag: latest
   # image.pullPolicy -- Image pull policy
   pullPolicy: IfNotPresent
 
@@ -146,3 +146,6 @@ nodeSelector: {}
 
 # envOverrides -- Extra environment variables to set
 envOverrides: {}
+
+# podLabels -- Labels to be added to Feast Serving pods
+podLabels: {}

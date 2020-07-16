@@ -16,28 +16,24 @@
  */
 package feast.core.job.direct;
 
+import static feast.core.util.StreamUtil.wrapException;
+
 import com.google.common.base.Strings;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
-import feast.core.job.option.FeatureSetJsonByteConverter;
-import feast.core.model.FeatureSet;
-import feast.core.model.Job;
-import feast.core.model.JobStatus;
-import feast.core.model.Project;
+import feast.core.model.*;
 import feast.ingestion.ImportJob;
-import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
-import feast.ingestion.options.OptionCompressor;
-import feast.proto.core.FeatureSetProto;
+import feast.proto.core.IngestionJobProto;
 import feast.proto.core.RunnerProto.DirectRunnerConfigOptions;
+import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.PipelineResult;
@@ -51,14 +47,17 @@ public class DirectRunnerJobManager implements JobManager {
   private DirectRunnerConfig defaultOptions;
   private final DirectJobRegistry jobs;
   private MetricsProperties metrics;
+  private final IngestionJobProto.SpecsStreamingUpdateConfig specsStreamingUpdateConfig;
 
   public DirectRunnerJobManager(
       DirectRunnerConfigOptions directRunnerConfigOptions,
       DirectJobRegistry jobs,
-      MetricsProperties metricsProperties) {
+      MetricsProperties metricsProperties,
+      IngestionJobProto.SpecsStreamingUpdateConfig specsStreamingUpdateConfig) {
     this.defaultOptions = new DirectRunnerConfig(directRunnerConfigOptions);
     this.jobs = jobs;
     this.metrics = metricsProperties;
+    this.specsStreamingUpdateConfig = specsStreamingUpdateConfig;
   }
 
   @Override
@@ -74,12 +73,13 @@ public class DirectRunnerJobManager implements JobManager {
   @Override
   public Job startJob(Job job) {
     try {
-      List<FeatureSetProto.FeatureSet> featureSetProtos = new ArrayList<>();
-      for (FeatureSet featureSet : job.getFeatureSets()) {
-        featureSetProtos.add(featureSet.toProto());
-      }
       ImportOptions pipelineOptions =
-          getPipelineOptions(job.getId(), featureSetProtos, job.getStore().toProto());
+          getPipelineOptions(
+              job.getId(),
+              job.getSource().toProto(),
+              job.getStores().stream()
+                  .map(wrapException(Store::toProto))
+                  .collect(Collectors.toSet()));
       PipelineResult pipelineResult = runPipeline(pipelineOptions);
       DirectJob directJob = new DirectJob(job.getId(), pipelineResult);
       jobs.add(directJob);
@@ -93,17 +93,17 @@ public class DirectRunnerJobManager implements JobManager {
   }
 
   private ImportOptions getPipelineOptions(
-      String jobName, List<FeatureSetProto.FeatureSet> featureSets, StoreProto.Store sink)
+      String jobName, SourceProto.Source source, Set<StoreProto.Store> sinks)
       throws IOException, IllegalAccessException {
     ImportOptions pipelineOptions =
         PipelineOptionsFactory.fromArgs(defaultOptions.toArgs()).as(ImportOptions.class);
 
-    OptionCompressor<List<FeatureSetProto.FeatureSet>> featureSetJsonCompressor =
-        new BZip2Compressor<>(new FeatureSetJsonByteConverter());
-
-    pipelineOptions.setFeatureSetJson(featureSetJsonCompressor.compress(featureSets));
+    JsonFormat.Printer printer = JsonFormat.printer();
+    pipelineOptions.setSpecsStreamingUpdateConfigJson(printer.print(specsStreamingUpdateConfig));
+    pipelineOptions.setSourceJson(printer.print(source));
     pipelineOptions.setJobName(jobName);
-    pipelineOptions.setStoreJson(Collections.singletonList(JsonFormat.printer().print(sink)));
+    pipelineOptions.setStoresJson(
+        sinks.stream().map(wrapException(printer::print)).collect(Collectors.toList()));
     pipelineOptions.setRunner(DirectRunner.class);
     pipelineOptions.setDefaultFeastProject(Project.DEFAULT_NAME);
     pipelineOptions.setProject(""); // set to default value to satisfy validation
@@ -130,30 +130,34 @@ public class DirectRunnerJobManager implements JobManager {
    */
   @Override
   public Job updateJob(Job job) {
-    String jobId = job.getExtId();
-    abortJob(jobId);
     try {
-      return startJob(job);
+      return startJob(abortJob(job));
     } catch (JobExecutionException e) {
       throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
     }
   }
 
   /**
-   * Abort the direct runner job with the given id, then remove it from the direct jobs registry.
+   * Abort the direct runner job,removing it from the direct jobs registry.
    *
-   * @param extId runner specific job id.
+   * @param job to abort.
+   * @return The aborted Job
    */
   @Override
-  public void abortJob(String extId) {
-    DirectJob job = jobs.get(extId);
-    try {
-      job.abort();
-    } catch (IOException e) {
-      throw new RuntimeException(
-          Strings.lenientFormat("Unable to abort DirectRunner job %s", extId), e);
+  public Job abortJob(Job job) {
+    DirectJob directJob = jobs.get(job.getExtId());
+    if (directJob != null) {
+      try {
+        directJob.abort();
+      } catch (IOException e) {
+        throw new RuntimeException(
+            Strings.lenientFormat("Unable to abort DirectRunner job %s", job.getExtId(), e));
+      }
+      jobs.remove(job.getExtId());
     }
-    jobs.remove(extId);
+
+    job.setStatus(JobStatus.ABORTING);
+    return job;
   }
 
   public PipelineResult runPipeline(ImportOptions pipelineOptions) throws IOException {

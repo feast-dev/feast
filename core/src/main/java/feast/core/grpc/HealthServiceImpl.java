@@ -24,11 +24,11 @@ import io.grpc.health.v1.HealthProto.HealthCheckResponse;
 import io.grpc.health.v1.HealthProto.HealthCheckResponse.ServingStatus;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
-import org.lognet.springboot.grpc.GRpcService;
+import net.devh.boot.grpc.server.service.GrpcService;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Slf4j
-@GRpcService
+@GrpcService
 public class HealthServiceImpl extends HealthImplBase {
   private final AccessManagementService accessManagementService;
 

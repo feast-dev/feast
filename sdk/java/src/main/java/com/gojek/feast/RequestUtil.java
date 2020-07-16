@@ -27,24 +27,17 @@ public class RequestUtil {
    * Create feature references protos from given string feature reference.
    *
    * @param featureRefStrings to create Feature Reference protos from
-   * @param project specifies to the project set in parsed Feature Reference protos otherwise ""
    * @return List of parsed {@link FeatureReference} protos
    */
-  public static List<FeatureReference> createFeatureRefs(
-      List<String> featureRefStrings, String project) {
+  public static List<FeatureReference> createFeatureRefs(List<String> featureRefStrings) {
     if (featureRefStrings == null) {
       throw new IllegalArgumentException("featureRefs cannot be null");
     }
 
     List<FeatureReference.Builder> featureRefs =
         featureRefStrings.stream()
-            .map(refStr -> parseFeatureRef(refStr, false))
+            .map(refStr -> parseFeatureRef(refStr))
             .collect(Collectors.toList());
-    // apply project override if specified
-    if (!project.isEmpty()) {
-      featureRefs =
-          featureRefs.stream().map(ref -> ref.setProject(project)).collect(Collectors.toList());
-    }
 
     return featureRefs.stream().map(ref -> ref.build()).collect(Collectors.toList());
   }
@@ -53,29 +46,22 @@ public class RequestUtil {
    * Parse a feature reference proto builder from the given featureRefString
    *
    * @param featureRefString string feature reference to parse from.
-   * @param ignoreProject If true, would ignore if project is specified in given ref string.
-   *     Otherwise, throwws a {@link IllegalArgumentException} if project is specified.
    * @return a parsed {@link FeatureReference.Builder}
    */
-  public static FeatureReference.Builder parseFeatureRef(
-      String featureRefString, boolean ignoreProject) {
+  public static FeatureReference.Builder parseFeatureRef(String featureRefString) {
     featureRefString = featureRefString.trim();
     if (featureRefString.isEmpty()) {
       throw new IllegalArgumentException("Cannot parse a empty feature reference");
     }
-    FeatureReference.Builder featureRef = FeatureReference.newBuilder();
-
-    // parse project if specified
     if (featureRefString.contains("/")) {
-      if (ignoreProject) {
-        String[] projectSplit = featureRefString.split("/");
-        featureRefString = projectSplit[1];
-      } else {
-        throw new IllegalArgumentException(
-            String.format("Unsupported feature reference: %s", featureRefString));
-      }
+      throw new IllegalArgumentException(
+          String.format(
+              "Unsupported feature reference: Specifying project in string"
+                  + " Feature References is not longer supported: %s",
+              featureRefString));
     }
 
+    FeatureReference.Builder featureRef = FeatureReference.newBuilder();
     // parse featureset if specified
     if (featureRefString.contains(":")) {
       String[] featureSetSplit = featureRefString.split(":");
@@ -84,22 +70,5 @@ public class RequestUtil {
     }
     featureRef.setName(featureRefString);
     return featureRef;
-  }
-
-  /**
-   * Render a feature reference as string.
-   *
-   * @param featureReference to render as string
-   * @return string represenation of feature reference.
-   */
-  public static String renderFeatureRef(FeatureReference featureReference) {
-    String refStr = "";
-    // In protov3, unset string and int fields default to "" and 0 respectively
-    if (!featureReference.getFeatureSet().isEmpty()) {
-      refStr += featureReference.getFeatureSet() + ":";
-    }
-    refStr = refStr + featureReference.getName();
-
-    return refStr;
   }
 }

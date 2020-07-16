@@ -13,23 +13,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import tempfile
 
 import boto3
 import grpc
 import pandas as pd
 import pandavro
 import pytest
-from unittest.mock import patch, Mock
+from azure.storage.filedatalake import PathProperties
 from moto import mock_s3
 from pandas.testing import assert_frame_equal
 from pytest import fixture, raises
-from azure.storage.filedatalake import PathProperties
 
-import feast.serving.ServingService_pb2_grpc as Serving
 from feast.job import JobProto, RetrievalJob
+from feast.serving import ServingService_pb2_grpc as Serving
 from feast.serving.ServingService_pb2 import DataFormat, GetJobResponse
 from feast.serving.ServingService_pb2 import Job as BatchRetrievalJob
 from feast.serving.ServingService_pb2 import JobStatus, JobType
+from unittest.mock import patch, Mock
 
 BUCKET = "test_bucket"
 

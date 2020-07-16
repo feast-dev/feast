@@ -20,14 +20,20 @@ import com.google.gson.Gson;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.config.FeastProperties.JobProperties;
+import feast.core.dao.JobRepository;
+import feast.core.job.ConsolidatedJobStrategy;
+import feast.core.job.JobGroupingStrategy;
 import feast.core.job.JobManager;
+import feast.core.job.JobPerStoreStrategy;
 import feast.core.job.databricks.DatabricksJobManager;
 import feast.core.job.dataflow.DataflowJobManager;
 import feast.core.job.direct.DirectJobRegistry;
 import feast.core.job.direct.DirectRunnerJobManager;
+import feast.proto.core.IngestionJobProto;
 import feast.proto.core.RunnerProto.DatabricksRunnerConfigOptions;
 import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions;
 import feast.proto.core.RunnerProto.DirectRunnerConfigOptions;
+import feast.proto.core.SourceProto;
 import java.net.http.HttpClient;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -43,13 +49,59 @@ public class JobConfig {
   private final Gson gson = new Gson();
 
   /**
+   * Create SpecsStreamingUpdateConfig, which is used to set up communications (bi-directional
+   * channel) to send new FeatureSetSpec to IngestionJob and receive acknowledgments.
+   *
+   * @param feastProperties feast config properties
+   */
+  @Bean
+  public IngestionJobProto.SpecsStreamingUpdateConfig createSpecsStreamingUpdateConfig(
+      FeastProperties feastProperties) {
+    FeastProperties.StreamProperties streamProperties = feastProperties.getStream();
+
+    return IngestionJobProto.SpecsStreamingUpdateConfig.newBuilder()
+        .setSource(
+            SourceProto.KafkaSourceConfig.newBuilder()
+                .setBootstrapServers(streamProperties.getOptions().getBootstrapServers())
+                .setTopic(streamProperties.getSpecsOptions().getSpecsTopic())
+                .build())
+        .setAck(
+            SourceProto.KafkaSourceConfig.newBuilder()
+                .setBootstrapServers(streamProperties.getOptions().getBootstrapServers())
+                .setTopic(streamProperties.getSpecsOptions().getSpecsAckTopic()))
+        .build();
+  }
+
+  /**
+   * Returns Grouping Strategy which is responsible for how Ingestion would be split across job
+   * instances (or how Sources and Stores would be grouped together). Choosing strategy depends on
+   * FeastProperties config "feast.jobs.consolidate-jobs-per-source".
+   *
+   * @param feastProperties feast config properties
+   * @param jobRepository repository required by strategy
+   * @return JobGroupingStrategy
+   */
+  @Bean
+  public JobGroupingStrategy getJobGroupingStrategy(
+      FeastProperties feastProperties, JobRepository jobRepository) {
+    Boolean shouldConsolidateJobs = feastProperties.getJobs().getConsolidateJobsPerSource();
+    if (shouldConsolidateJobs) {
+      return new ConsolidatedJobStrategy(jobRepository);
+    } else {
+      return new JobPerStoreStrategy(jobRepository);
+    }
+  }
+
+  /**
    * Get a JobManager according to the runner type and Dataflow configuration.
    *
    * @param feastProperties feast config properties
    */
   @Bean
   @Autowired
-  public JobManager getJobManager(FeastProperties feastProperties)
+  public JobManager getJobManager(
+      FeastProperties feastProperties,
+      IngestionJobProto.SpecsStreamingUpdateConfig specsStreamingUpdateConfig)
       throws InvalidProtocolBufferException {
 
     JobProperties jobProperties = feastProperties.getJobs();
@@ -64,20 +116,25 @@ public class JobConfig {
         DataflowRunnerConfigOptions.Builder dataflowRunnerConfigOptions =
             DataflowRunnerConfigOptions.newBuilder();
         JsonFormat.parser().merge(configJson, dataflowRunnerConfigOptions);
-        return new DataflowJobManager(dataflowRunnerConfigOptions.build(), metrics);
+        return new DataflowJobManager(
+            dataflowRunnerConfigOptions.build(), metrics, specsStreamingUpdateConfig);
       case DIRECT:
         DirectRunnerConfigOptions.Builder directRunnerConfigOptions =
             DirectRunnerConfigOptions.newBuilder();
         JsonFormat.parser().merge(configJson, directRunnerConfigOptions);
         return new DirectRunnerJobManager(
-            directRunnerConfigOptions.build(), new DirectJobRegistry(), metrics);
+            directRunnerConfigOptions.build(),
+            new DirectJobRegistry(),
+            metrics,
+            specsStreamingUpdateConfig);
       case DATABRICKS:
         DatabricksRunnerConfigOptions.Builder databricksRunnerConfigOptions =
             DatabricksRunnerConfigOptions.newBuilder();
         JsonFormat.parser().merge(configJson, databricksRunnerConfigOptions);
         return new DatabricksJobManager(
-            databricksRunnerConfigOptions.build(), HttpClient.newHttpClient());
-
+            databricksRunnerConfigOptions.build(),
+            specsStreamingUpdateConfig,
+            HttpClient.newHttpClient());
       default:
         throw new IllegalArgumentException("Unsupported runner: " + runner);
     }

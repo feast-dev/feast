@@ -20,72 +20,28 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.ingestion.values.Field;
 import feast.proto.core.FeatureSetProto.EntitySpec;
-import feast.proto.core.FeatureSetProto.FeatureSet;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
+import feast.proto.core.IngestionJobProto;
+import feast.proto.core.IngestionJobProto.SpecsStreamingUpdateConfig;
+import feast.proto.core.SourceProto.Source;
 import feast.proto.core.StoreProto.Store;
-import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
+import org.apache.commons.lang3.tuple.Pair;
 
 public class SpecUtil {
+  public static String PROJECT_DEFAULT_NAME = "default";
 
-  public static String getFeatureSetReference(FeatureSetSpec featureSetSpec) {
-    return String.format("%s/%s", featureSetSpec.getProject(), featureSetSpec.getName());
-  }
-
-  /** Get only feature set specs that matches the subscription */
-  public static List<FeatureSet> getSubscribedFeatureSets(
-      List<Subscription> subscriptions, List<FeatureSet> featureSets) {
-    List<FeatureSet> subscribed = new ArrayList<>();
-    for (FeatureSet featureSet : featureSets) {
-      for (Subscription sub : subscriptions) {
-        // If configuration missing, fail
-        if (sub.getProject().isEmpty() || sub.getName().isEmpty()) {
-          throw new IllegalArgumentException(
-              String.format("Subscription is missing arguments: %s", sub.toString()));
-        }
-
-        // If all wildcards, subscribe to everything
-        if (sub.getProject().equals("*") || sub.getName().equals("*")) {
-          subscribed.add(featureSet);
-          break;
-        }
-
-        // Match project name
-        if (!featureSet.getSpec().getProject().equals(sub.getProject())) {
-          continue;
-        }
-
-        // Convert wildcard to regex
-        String subName = sub.getName();
-        if (!sub.getName().contains(".*")) {
-          subName = subName.replace("*", ".*");
-        }
-
-        // Match feature set name to pattern
-        Pattern pattern = Pattern.compile(subName);
-        if (!pattern.matcher(featureSet.getSpec().getName()).matches()) {
-          continue;
-        }
-        subscribed.add(featureSet);
-      }
+  public static Pair<String, String> parseFeatureSetReference(String reference) {
+    String[] split = reference.split("/", 2);
+    if (split.length == 1) {
+      return Pair.of(PROJECT_DEFAULT_NAME, split[0]);
+    } else {
+      return Pair.of(split[0], split[1]);
     }
-    return subscribed;
-  }
-
-  public static List<FeatureSet> parseFeatureSetSpecJsonList(List<String> jsonList)
-      throws InvalidProtocolBufferException {
-    List<FeatureSet> featureSets = new ArrayList<>();
-    for (String json : jsonList) {
-      FeatureSetSpec.Builder builder = FeatureSetSpec.newBuilder();
-      JsonFormat.parser().merge(json, builder);
-      featureSets.add(FeatureSet.newBuilder().setSpec(builder.build()).build());
-    }
-    return featureSets;
   }
 
   public static List<Store> parseStoreJsonList(List<String> jsonList)
@@ -97,6 +53,19 @@ public class SpecUtil {
       stores.add(builder.build());
     }
     return stores;
+  }
+
+  public static Source parseSourceJson(String jsonSource) throws InvalidProtocolBufferException {
+    Source.Builder builder = Source.newBuilder();
+    JsonFormat.parser().merge(jsonSource, builder);
+    return builder.build();
+  }
+
+  public static IngestionJobProto.SpecsStreamingUpdateConfig parseSpecsStreamingUpdateConfig(
+      String jsonConfig) throws InvalidProtocolBufferException {
+    SpecsStreamingUpdateConfig.Builder builder = SpecsStreamingUpdateConfig.newBuilder();
+    JsonFormat.parser().merge(jsonConfig, builder);
+    return builder.build();
   }
 
   public static Map<String, Field> getFieldsByName(FeatureSetSpec featureSetSpec) {

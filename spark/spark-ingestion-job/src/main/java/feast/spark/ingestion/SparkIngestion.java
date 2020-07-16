@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 public class SparkIngestion {
   private static final Logger log = LoggerFactory.getLogger(SparkIngestion.class);
   private final String jobId;
+  private final String specsStreamingUpdateConfigJson;
   private final String checkpointLocation;
   private final String defaultFeastProject;
   private final String deadLetterPath;
@@ -88,13 +89,14 @@ public class SparkIngestion {
    * @throws InvalidProtocolBufferException
    */
   public SparkIngestion(String[] args) throws InvalidProtocolBufferException {
-    int numArgs = 6;
+    int numArgs = 7;
     if (args.length != numArgs) {
       throw new IllegalArgumentException("Expecting " + numArgs + " arguments");
     }
 
     int index = 0;
     jobId = args[index++];
+    specsStreamingUpdateConfigJson = args[index++];
     checkpointLocation = args[index++];
     defaultFeastProject = args[index++];
     deadLetterPath = args[index++];

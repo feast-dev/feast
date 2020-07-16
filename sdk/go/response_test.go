@@ -16,11 +16,19 @@ var response = OnlineFeaturesResponse{
 					"project1/feature1": Int64Val(1),
 					"project1/feature2": {},
 				},
+				Statuses: map[string]serving.GetOnlineFeaturesResponse_FieldStatus{
+					"project1/feature1": serving.GetOnlineFeaturesResponse_PRESENT,
+					"project1/feature2": serving.GetOnlineFeaturesResponse_NULL_VALUE,
+				},
 			},
 			{
 				Fields: map[string]*types.Value{
 					"project1/feature1": Int64Val(2),
 					"project1/feature2": Int64Val(2),
+				},
+				Statuses: map[string]serving.GetOnlineFeaturesResponse_FieldStatus{
+					"project1/feature1": serving.GetOnlineFeaturesResponse_PRESENT,
+					"project1/feature2": serving.GetOnlineFeaturesResponse_PRESENT,
 				},
 			},
 		},
@@ -38,6 +46,28 @@ func TestOnlineFeaturesResponseToRow(t *testing.T) {
 	}
 	for i := range expected {
 		if !expected[i].equalTo(actual[i]) {
+			t.Errorf("expected: %v, got: %v", expected, actual)
+		}
+	}
+}
+
+func TestOnlineFeaturesResponseoToStatuses(t *testing.T) {
+	actual := response.Statuses()
+	expected := []map[string]serving.GetOnlineFeaturesResponse_FieldStatus{
+		{
+			"project1/feature1": serving.GetOnlineFeaturesResponse_PRESENT,
+			"project1/feature2": serving.GetOnlineFeaturesResponse_NULL_VALUE,
+		},
+		{
+			"project1/feature1": serving.GetOnlineFeaturesResponse_PRESENT,
+			"project1/feature2": serving.GetOnlineFeaturesResponse_PRESENT,
+		},
+	}
+	if len(expected) != len(actual) {
+		t.Errorf("expected: %v, got: %v", expected, actual)
+	}
+	for i := range expected {
+		if !cmp.Equal(expected[i], actual[i]) {
 			t.Errorf("expected: %v, got: %v", expected, actual)
 		}
 	}

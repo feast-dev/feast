@@ -82,6 +82,5 @@ Historical storage
 
 Online storage
 
-* [Redis](https://github.com/gojek/feast/tree/master/storage/connectors/redis)
-* [Redis Cluster](https://github.com/gojek/feast/tree/master/storage/connectors/rediscluster)
+* [Redis & Redis Cluster](https://github.com/gojek/feast/tree/master/storage/connectors/redis) 
 
