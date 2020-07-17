@@ -54,6 +54,10 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+/**
+ * Base Integration Test class. Setups postgres & kafka containers. Configures related properties &
+ * beans. Provides DB related clean up between tests.
+ */
 @SpringBootTest
 @ActiveProfiles("it")
 @Testcontainers
@@ -64,6 +68,11 @@ public class BaseIT {
 
   @Container public static KafkaContainer kafka = new KafkaContainer();
 
+  /**
+   * Configure Spring Application to use postgres & kafka rolled out in containers
+   *
+   * @param registry
+   */
   @DynamicPropertySource
   static void properties(DynamicPropertyRegistry registry) {
 
@@ -75,6 +84,11 @@ public class BaseIT {
     registry.add("feast.stream.options.bootstrapServers", kafka::getBootstrapServers);
   }
 
+  /**
+   * SequentialFlow is base class that is supposed to be inherited by @Nested test classes that
+   * wants to preserve context between test cases. For SequentialFlow databases is being truncated
+   * only once after all tests passed.
+   */
   @TestInstance(TestInstance.Lifecycle.PER_CLASS)
   public class SequentialFlow {
     @AfterAll
@@ -83,6 +97,11 @@ public class BaseIT {
     }
   }
 
+  /**
+   * This class must be inherited inside IT Class and annotated with {@link
+   * org.springframework.boot.test.context.TestConfiguration}. It provides configuration needed to
+   * communicate with Feast via Kafka
+   */
   public static class BaseTestConfig {
     @Bean
     public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, byte[]>>
@@ -121,6 +140,12 @@ public class BaseIT {
     }
   }
 
+  /**
+   * Truncates all tables in Database (between tests or flows). Retries on deadlock
+   *
+   * @param em EntityManager
+   * @throws SQLException
+   */
   public static void cleanTables(EntityManager em) throws SQLException {
     List<String> tableNames =
         em.getMetamodel().getEntities().stream()
@@ -143,11 +168,14 @@ public class BaseIT {
     // and that often leads to Deadlock
     // since SpringApp is still running in another thread
     var num_retries = 5;
-    for (var i = 0; i < num_retries; i++) {
+    for (var i = 1; i <= num_retries; i++) {
       try {
         Statement statement = connection.createStatement();
         statement.execute(String.format("truncate %s cascade", String.join(", ", tableNames)));
       } catch (SQLException e) {
+        if (i == num_retries) {
+          throw e;
+        }
         continue;
       }
 
@@ -157,12 +185,13 @@ public class BaseIT {
 
   @PersistenceContext EntityManager entityManager;
 
+  /** Used to determine SequentialFlows */
   public Boolean isNestedTest(TestInfo testInfo) {
     return testInfo.getTestClass().get().getAnnotation(Nested.class) != null;
   }
 
   @AfterEach
-  public void tearDown(TestInfo testInfo) throws SQLException {
+  public void tearDown(TestInfo testInfo) throws Exception {
     if (isNestedTest(testInfo)) {
       return;
     }
