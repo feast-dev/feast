@@ -32,6 +32,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.commons.lang3.StringUtils;
 
 @AutoValue
 public abstract class RedisFeatureSink implements FeatureSink {
@@ -82,7 +83,11 @@ public abstract class RedisFeatureSink implements FeatureSink {
   public void prepareWrite(FeatureSet featureSet) {
     if (getRedisConfig() != null) {
       RedisURI redisuri = RedisURI.create(getRedisConfig().getHost(), getRedisConfig().getPort());
-      redisuri.setPassword(getRedisConfig().getPass());
+
+      String password = getRedisConfig().getPass();
+      if (StringUtils.trimToNull(password) != null) {
+        redisuri.setPassword(password);
+      }
       RedisClient redisClient = RedisClient.create(redisuri);
 
       try {
