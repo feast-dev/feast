@@ -572,8 +572,6 @@
                         <version>5.6.2</version>
                     </dependency>
                 </dependencies>
-                <configuration>
-                </configuration>
                 <executions>
                     <execution>
                         <id>integration-tests</id>
@@ -583,6 +581,14 @@
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <classpathDependencyExcludes>
+                        <classpathDependencyExcludes>${groupId}:${artifactId}</classpathDependencyExcludes>
+                    </classpathDependencyExcludes>
+                    <additionalClasspathElements>
+                        <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
+                    </additionalClasspathElements>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
@@ -742,6 +748,9 @@
                             </goals>
                         </execution>
                     </executions>
+                    <configuration>
+                        <classifier>exec</classifier>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.xolstice.maven.plugins</groupId>
