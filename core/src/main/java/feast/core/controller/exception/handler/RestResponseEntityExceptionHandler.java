@@ -17,9 +17,12 @@
 package feast.core.controller.exception.handler;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.Map;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.UnsatisfiedServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
@@ -28,11 +31,29 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @ControllerAdvice
 public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionHandler {
 
-  @ExceptionHandler(value = {InvalidProtocolBufferException.class})
-  protected ResponseEntity<Object> handleInvalidProtocolBufferException(
-      RuntimeException ex, WebRequest request) {
-    String bodyOfResponse = "An invalid response was received from Feast Core.";
+  @ExceptionHandler({ InvalidProtocolBufferException.class })
+  protected ResponseEntity<Object> handleInvalidProtocolBuffer(
+      InvalidProtocolBufferException ex, WebRequest request) {
+    Map<String, String> bodyOfResponse = Map.of("error",
+        "Unexpected error occurred in Feast Core.");
     return handleExceptionInternal(
         ex, bodyOfResponse, new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, request);
   }
+
+  @ExceptionHandler({ UnsatisfiedServletRequestParameterException.class })
+  protected ResponseEntity<Object> handleUnsatisfiedServletRequestParameter(
+      UnsatisfiedServletRequestParameterException ex, WebRequest request) {
+    Map<String, String> bodyOfResponse = Map.of("error", ex.getMessage());
+    return handleExceptionInternal(
+        ex, bodyOfResponse, new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, request);
+  }
+
+  @Override
+  protected ResponseEntity<Object> handleMissingServletRequestParameter(
+      MissingServletRequestParameterException ex, HttpHeaders headers, HttpStatus status,
+      WebRequest request) {
+    Map<String,String> bodyOfResponse = Map.of("error", ex.getMessage());
+    return this.handleExceptionInternal(ex, bodyOfResponse, headers, status, request);
+  }
+
 }
