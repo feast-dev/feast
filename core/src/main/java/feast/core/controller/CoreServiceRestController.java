@@ -60,8 +60,10 @@ public class CoreServiceRestController {
 
   @Autowired
   public CoreServiceRestController(
-      FeastProperties feastProperties, SpecService specService,
-      JobService jobService, StatsService statsService,
+      FeastProperties feastProperties,
+      SpecService specService,
+      JobService jobService,
+      StatsService statsService,
       AccessManagementService accessManagementService) {
     this.feastProperties = feastProperties;
     this.specService = specService;
@@ -74,16 +76,16 @@ public class CoreServiceRestController {
   @RequestMapping(value = "/version", method = RequestMethod.GET)
   @ResponseBody
   public String getVersion() throws InvalidProtocolBufferException {
-    GetFeastCoreVersionResponse response = GetFeastCoreVersionResponse.newBuilder()
-        .setVersion(feastProperties.getVersion()).build();
+    GetFeastCoreVersionResponse response =
+        GetFeastCoreVersionResponse.newBuilder().setVersion(feastProperties.getVersion()).build();
     return jsonPrinter.print(response);
   }
 
   @RequestMapping(
-      value = "/project/{project}/feature-set/{featureSetName}", method = RequestMethod.GET)
+      value = "/project/{project}/feature-set/{featureSetName}",
+      method = RequestMethod.GET)
   @ResponseBody
-  public String getFeatureSet(
-      @PathVariable String project, @PathVariable String featureSetName)
+  public String getFeatureSet(@PathVariable String project, @PathVariable String featureSetName)
       throws InvalidProtocolBufferException {
     GetFeatureSetRequest request =
         GetFeatureSetRequest.newBuilder().setProject(project).setName(featureSetName).build();
@@ -92,8 +94,8 @@ public class CoreServiceRestController {
 
   @RequestMapping(value = "/feature-sets", method = RequestMethod.GET)
   @ResponseBody
-  public String listFeatureSets(@RequestParam String project,
-      @RequestParam(defaultValue = "*") String name)
+  public String listFeatureSets(
+      @RequestParam String project, @RequestParam(defaultValue = "*") String name)
       throws InvalidProtocolBufferException {
     ListFeatureSetsRequest.Filter filter =
         ListFeatureSetsRequest.Filter.newBuilder()
@@ -105,12 +107,14 @@ public class CoreServiceRestController {
 
   @RequestMapping(value = "/features", method = RequestMethod.GET)
   @ResponseBody
-  public String listFeatures(@RequestParam String[] entities,
-      @RequestParam(defaultValue = "default") String project)
+  public String listFeatures(
+      @RequestParam String[] entities, @RequestParam(defaultValue = "default") String project)
       throws InvalidProtocolBufferException {
     ListFeaturesRequest.Filter filter =
-        ListFeaturesRequest.Filter.newBuilder().setProject(project).addAllEntities(
-            Arrays.asList(entities)).build();
+        ListFeaturesRequest.Filter.newBuilder()
+            .setProject(project)
+            .addAllEntities(Arrays.asList(entities))
+            .build();
     return jsonPrinter.print(specService.listFeatures(filter));
   }
 
@@ -126,9 +130,10 @@ public class CoreServiceRestController {
       @RequestParam(defaultValue = "false") boolean force_refresh)
       throws IOException {
 
-    Builder requestBuilder = GetFeatureStatisticsRequest.newBuilder()
-        .setFeatureSetId(feature_set_id)
-        .setForceRefresh(force_refresh);
+    Builder requestBuilder =
+        GetFeatureStatisticsRequest.newBuilder()
+            .setFeatureSetId(feature_set_id)
+            .setForceRefresh(force_refresh);
 
     // optional request parameters
     store.ifPresent(requestBuilder::setStore);
@@ -145,9 +150,10 @@ public class CoreServiceRestController {
   @ResponseBody
   public String listProjects() throws InvalidProtocolBufferException {
     List<Project> projects = accessManagementService.listProjects();
-    ListProjectsResponse response = ListProjectsResponse.newBuilder()
-        .addAllProjects(projects.stream().map(Project::getName).collect(Collectors.toList()))
-        .build();
+    ListProjectsResponse response =
+        ListProjectsResponse.newBuilder()
+            .addAllProjects(projects.stream().map(Project::getName).collect(Collectors.toList()))
+            .build();
     return jsonPrinter.print(response);
   }
 }

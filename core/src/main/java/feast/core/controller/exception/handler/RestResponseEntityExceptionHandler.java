@@ -31,16 +31,16 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @ControllerAdvice
 public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionHandler {
 
-  @ExceptionHandler({ InvalidProtocolBufferException.class })
+  @ExceptionHandler({InvalidProtocolBufferException.class})
   protected ResponseEntity<Object> handleInvalidProtocolBuffer(
       InvalidProtocolBufferException ex, WebRequest request) {
-    Map<String, String> bodyOfResponse = Map.of("error",
-        "Unexpected error occurred in Feast Core.");
+    Map<String, String> bodyOfResponse =
+        Map.of("error", "Unexpected error occurred in Feast Core.");
     return handleExceptionInternal(
         ex, bodyOfResponse, new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, request);
   }
 
-  @ExceptionHandler({ UnsatisfiedServletRequestParameterException.class })
+  @ExceptionHandler({UnsatisfiedServletRequestParameterException.class})
   protected ResponseEntity<Object> handleUnsatisfiedServletRequestParameter(
       UnsatisfiedServletRequestParameterException ex, WebRequest request) {
     Map<String, String> bodyOfResponse = Map.of("error", ex.getMessage());
@@ -50,10 +50,11 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
 
   @Override
   protected ResponseEntity<Object> handleMissingServletRequestParameter(
-      MissingServletRequestParameterException ex, HttpHeaders headers, HttpStatus status,
+      MissingServletRequestParameterException ex,
+      HttpHeaders headers,
+      HttpStatus status,
       WebRequest request) {
-    Map<String,String> bodyOfResponse = Map.of("error", ex.getMessage());
+    Map<String, String> bodyOfResponse = Map.of("error", ex.getMessage());
     return this.handleExceptionInternal(ex, bodyOfResponse, headers, status, request);
   }
-
 }
