@@ -28,14 +28,17 @@ import feast.core.service.StatsService;
 import feast.proto.core.CoreServiceProto.GetFeastCoreVersionResponse;
 import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
 import feast.proto.core.CoreServiceProto.GetFeatureStatisticsRequest;
+import feast.proto.core.CoreServiceProto.GetFeatureStatisticsRequest.Builder;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.proto.core.CoreServiceProto.ListFeaturesRequest;
 import feast.proto.core.CoreServiceProto.ListProjectsResponse;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -44,6 +47,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@CrossOrigin
 @RequestMapping(value = "/api/v1", produces = "application/json")
 public class CoreServiceRestController {
 
@@ -76,9 +80,7 @@ public class CoreServiceRestController {
   }
 
   @RequestMapping(
-      value = "/project/{project}/feature-set/{featureSetName}",
-      params = {"project", "featureSet"},
-      method = RequestMethod.GET)
+      value = "/project/{project}/feature-set/{featureSetName}", method = RequestMethod.GET)
   @ResponseBody
   public String getFeatureSet(
       @PathVariable String project, @PathVariable String featureSetName)
@@ -88,9 +90,10 @@ public class CoreServiceRestController {
     return jsonPrinter.print(specService.getFeatureSet(request));
   }
 
-  @RequestMapping(value = "/feature-sets", params = {"project", "name"}, method = RequestMethod.GET)
+  @RequestMapping(value = "/feature-sets", method = RequestMethod.GET)
   @ResponseBody
-  public String listFeatureSets(@RequestParam String project, @RequestParam String name)
+  public String listFeatureSets(@RequestParam String project,
+      @RequestParam(defaultValue = "*") String name)
       throws InvalidProtocolBufferException {
     ListFeatureSetsRequest.Filter filter =
         ListFeatureSetsRequest.Filter.newBuilder()
@@ -100,16 +103,10 @@ public class CoreServiceRestController {
     return jsonPrinter.print(specService.listFeatureSets(filter));
   }
 
-  @RequestMapping(value = "/feature-sets", params = "project", method = RequestMethod.GET)
-  @ResponseBody
-  public String listFeatureSets(@RequestParam String project)
-      throws InvalidProtocolBufferException {
-    return listFeatureSets(project, "*");
-  }
-
   @RequestMapping(value = "/features", method = RequestMethod.GET)
   @ResponseBody
-  public String listFeatures(@RequestParam String[] entities, @RequestParam String project)
+  public String listFeatures(@RequestParam String[] entities,
+      @RequestParam(defaultValue = "default") String project)
       throws InvalidProtocolBufferException {
     ListFeaturesRequest.Filter filter =
         ListFeaturesRequest.Filter.newBuilder().setProject(project).addAllEntities(
@@ -121,23 +118,27 @@ public class CoreServiceRestController {
   @ResponseBody
   public String getFeatureStatistics(
       @RequestParam String feature_set_id,
-      @RequestParam String[] features,
-      @RequestParam String store,
-      @RequestParam Timestamp start_date,
-      @RequestParam Timestamp end_date,
-      @RequestParam String[] ingestion_ids,
-      @RequestParam boolean force_refresh)
+      @RequestParam(required = false) Optional<String[]> features,
+      @RequestParam(required = false) Optional<String> store,
+      @RequestParam(name = "start_date", required = false) Optional<Timestamp> startDate,
+      @RequestParam(name = "end_date", required = false) Optional<Timestamp> endDate,
+      @RequestParam(required = false) Optional<String[]> ingestion_ids,
+      @RequestParam(defaultValue = "false") boolean force_refresh)
       throws IOException {
-    GetFeatureStatisticsRequest request = GetFeatureStatisticsRequest.newBuilder()
+
+    Builder requestBuilder = GetFeatureStatisticsRequest.newBuilder()
         .setFeatureSetId(feature_set_id)
-        .addAllFeatures(Arrays.asList(features))
-        .setStore(store)
-        .setStartDate(start_date)
-        .setEndDate(end_date)
-        .addAllIngestionIds(Arrays.asList(ingestion_ids))
-        .setForceRefresh(force_refresh)
-        .build();
-    return jsonPrinter.print(statsService.getFeatureStatistics(request));
+        .setForceRefresh(force_refresh);
+
+    // optional request parameters
+    store.ifPresent(requestBuilder::setStore);
+    features.ifPresent(theFeatures -> requestBuilder.addAllFeatures(Arrays.asList(theFeatures)));
+    startDate.ifPresent(requestBuilder::setStartDate);
+    endDate.ifPresent(requestBuilder::setEndDate);
+    ingestion_ids.ifPresent(
+        theIngestionIds -> requestBuilder.addAllIngestionIds(Arrays.asList(theIngestionIds)));
+
+    return jsonPrinter.print(statsService.getFeatureStatistics(requestBuilder.build()));
   }
 
   @RequestMapping(value = "/projects", method = RequestMethod.GET)
