@@ -55,8 +55,8 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
- * Base Integration Test class. Setups postgres & kafka containers. Configures related properties &
- * beans. Provides DB related clean up between tests.
+ * Base Integration Test class. Setups postgres and kafka containers. Configures related properties
+ * and beans. Provides DB related clean up between tests.
  */
 @SpringBootTest
 @ActiveProfiles("it")
@@ -69,7 +69,7 @@ public class BaseIT {
   @Container public static KafkaContainer kafka = new KafkaContainer();
 
   /**
-   * Configure Spring Application to use postgres & kafka rolled out in containers
+   * Configure Spring Application to use postgres and kafka rolled out in containers
    *
    * @param registry
    */
