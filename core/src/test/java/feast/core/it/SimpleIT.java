@@ -14,9 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.service;
+package feast.core.it;
 
-import feast.core.it.BaseIT;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -24,6 +23,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 public class SimpleIT extends BaseIT {
   @Test
   public void test() {
-    assert true;
+    assert false;
   }
 }
