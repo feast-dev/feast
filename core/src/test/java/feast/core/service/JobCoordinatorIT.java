@@ -79,7 +79,7 @@ public class JobCoordinatorIT extends BaseIT {
 
   @BeforeEach
   public void setUp(TestInfo testInfo) {
-    apiClient.updateStore(DataGenerator.defaultStore);
+    apiClient.updateStore(DataGenerator.getDefaultStore());
 
     specsMailbox = new ArrayList<>();
 
@@ -101,7 +101,7 @@ public class JobCoordinatorIT extends BaseIT {
   @Test
   public void shouldCreateJobForNewSource() {
     apiClient.simpleApplyFeatureSet(
-        DataGenerator.defaultSource,
+        DataGenerator.getDefaultSource(),
         "default",
         "test",
         Collections.emptyList(),
@@ -124,7 +124,7 @@ public class JobCoordinatorIT extends BaseIT {
   @Test
   public void shouldUpgradeJobWhenStoreChanged() {
     apiClient.simpleApplyFeatureSet(
-        DataGenerator.defaultSource,
+        DataGenerator.getDefaultSource(),
         "project",
         "test",
         Collections.emptyList(),
@@ -136,7 +136,7 @@ public class JobCoordinatorIT extends BaseIT {
         DataGenerator.createStore(
             "new-store",
             StoreProto.Store.StoreType.REDIS,
-            ImmutableList.of(DataGenerator.defaultSubscription)));
+            ImmutableList.of(DataGenerator.getDefaultSubscription())));
 
     await()
         .until(
@@ -152,7 +152,7 @@ public class JobCoordinatorIT extends BaseIT {
   @Test
   public void shouldRestoreJobThatStopped() {
     apiClient.simpleApplyFeatureSet(
-        DataGenerator.defaultSource,
+        DataGenerator.getDefaultSource(),
         "project",
         "test",
         Collections.emptyList(),
@@ -190,18 +190,18 @@ public class JobCoordinatorIT extends BaseIT {
 
       job =
           Job.builder()
-              .setSource(Source.fromProto(DataGenerator.defaultSource))
+              .setSource(Source.fromProto(DataGenerator.getDefaultSource()))
               .setId("some-running-id")
               .setStatus(JobStatus.RUNNING)
               .build();
 
       jobManager.startJob(job);
 
-      job.setStores(ImmutableSet.of(Store.fromProto(DataGenerator.defaultStore)));
+      job.setStores(ImmutableSet.of(Store.fromProto(DataGenerator.getDefaultStore())));
       jobRepository.saveAndFlush(job);
 
       apiClient.simpleApplyFeatureSet(
-          DataGenerator.defaultSource,
+          DataGenerator.getDefaultSource(),
           "default",
           "test",
           ImmutableList.of(Pair.of("entity", ValueProto.ValueType.Enum.BOOL)),
@@ -230,7 +230,7 @@ public class JobCoordinatorIT extends BaseIT {
     @Order(2)
     public void shouldUpdateSpec() {
       apiClient.simpleApplyFeatureSet(
-          DataGenerator.defaultSource,
+          DataGenerator.getDefaultSource(),
           "default",
           "test",
           ImmutableList.of(Pair.of("entity", ValueProto.ValueType.Enum.BOOL)),

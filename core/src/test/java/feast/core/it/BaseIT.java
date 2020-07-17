@@ -78,7 +78,7 @@ public class BaseIT {
   @TestInstance(TestInstance.Lifecycle.PER_CLASS)
   public class SequentialFlow {
     @AfterAll
-    public void tearDown() throws SQLException {
+    public void tearDown() throws Exception {
       cleanTables(entityManager);
     }
   }

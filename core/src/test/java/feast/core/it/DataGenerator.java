@@ -25,13 +25,25 @@ import org.apache.commons.lang3.tuple.Triple;
 
 public class DataGenerator {
   // projectName, featureName, exclude
-  public static Triple<String, String, Boolean> defaultSubscription = Triple.of("*", "*", false);
+  static Triple<String, String, Boolean> defaultSubscription = Triple.of("*", "*", false);
 
-  public static StoreProto.Store defaultStore =
+  static StoreProto.Store defaultStore =
       createStore(
           "test-store", StoreProto.Store.StoreType.REDIS, ImmutableList.of(defaultSubscription));
 
-  public static SourceProto.Source defaultSource = createSource("localhost", "topic");
+  static SourceProto.Source defaultSource = createSource("localhost", "topic");
+
+  public static Triple<String, String, Boolean> getDefaultSubscription() {
+    return defaultSubscription;
+  }
+
+  public static StoreProto.Store getDefaultStore() {
+    return defaultStore;
+  }
+
+  public static SourceProto.Source getDefaultSource() {
+    return defaultSource;
+  }
 
   public static SourceProto.Source createSource(String server, String topic) {
     return SourceProto.Source.newBuilder()
