@@ -42,6 +42,7 @@ public class AccessManagementService {
   private AuthorizationProvider authorizationProvider;
   private ProjectRepository projectRepository;
 
+  // TODO: Remove duplication of constructor
   public AccessManagementService(
       FeastProperties feastProperties,
       ProjectRepository projectRepository,
@@ -57,10 +58,6 @@ public class AccessManagementService {
       ProjectRepository projectRepository,
       ObjectProvider<AuthorizationProvider> authorizationProvider) {
     this.projectRepository = projectRepository;
-    // create default project if it does not yet exist.
-    if (!projectRepository.existsById(Project.DEFAULT_NAME)) {
-      this.createProject(Project.DEFAULT_NAME);
-    }
     this.authorizationProvider = authorizationProvider.getIfUnique();
     this.securityProperties = feastProperties.getSecurity();
   }
