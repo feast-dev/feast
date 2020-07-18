@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   maven-integration-test:
     runs-on: ubuntu-latest
-    name: Maven Integration Test
+    name: integration-test-java
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK 1.8
