@@ -18,7 +18,7 @@ package feast.auth.config;
 
 import feast.auth.authentication.DefaultJwtAuthenticationProvider;
 import feast.auth.authorization.AuthorizationProvider;
-import feast.auth.authorization.HttpAuthorizationProvider;
+import feast.auth.providers.http.HttpAuthorizationProvider;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -89,7 +89,7 @@ public class SecurityConfig {
    * @return AccessDecisionManager
    */
   @Bean
-  @ConditionalOnProperty(prefix = "feast.security.authorization", name = "enabled")
+  @ConditionalOnProperty(prefix = "feast.security.authentication", name = "enabled")
   AccessDecisionManager accessDecisionManager() {
     final List<AccessDecisionVoter<?>> voters = new ArrayList<>();
     voters.add(new AccessPredicateVoter());

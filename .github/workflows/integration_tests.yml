@@ -1,5 +1,7 @@
 name: integration tests
+
 on: [push, pull_request]
+
 jobs:
   maven-integration-test:
     runs-on: ubuntu-latest
