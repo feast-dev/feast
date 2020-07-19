@@ -396,8 +396,6 @@ public class BigQuerySinkTest {
                     AvroCoder.of(FeatureSetReference.class), ProtoCoder.of(FeatureSetSpec.class)))
             .advanceWatermarkTo(Instant.now())
             .addElements(KV.of(FeatureSetReference.of("myproject", "fs", 1), spec))
-            .advanceProcessingTime(Duration.standardSeconds(5))
-            // .advanceWatermarkTo(Instant.now().plus(Duration.standardSeconds(5)))
             .addElements(KV.of(FeatureSetReference.of("myproject", "fs", 1), spec_fs_2))
             .advanceWatermarkToInfinity();
 
