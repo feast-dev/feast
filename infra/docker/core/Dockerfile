@@ -13,7 +13,7 @@ WORKDIR /build
 #
 ENV MAVEN_OPTS="-Dmaven.repo.local=/build/.m2/repository -DdependencyLocationsEnabled=false"
 RUN mvn --also-make --projects core,ingestion -Drevision=$REVISION \
-  -DskipTests=true --batch-mode clean package
+  -DskipUTs=true --batch-mode clean package
 #
 # Unpack the jar and copy the files into production Docker image
 # for faster startup time when starting Dataflow jobs from Feast Core.
