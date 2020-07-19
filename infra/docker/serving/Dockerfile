@@ -13,7 +13,7 @@ WORKDIR /build
 #
 ENV MAVEN_OPTS="-Dmaven.repo.local=/build/.m2/repository -DdependencyLocationsEnabled=false"
 RUN mvn --also-make --projects serving -Drevision=$REVISION \
-  -DskipTests=true --batch-mode clean package
+  -DskipUTs=true --batch-mode clean package
 #
 # Download grpc_health_probe to run health check for Feast Serving
 # https://kubernetes.io/blog/2018/10/01/health-checking-grpc-servers-on-kubernetes/
