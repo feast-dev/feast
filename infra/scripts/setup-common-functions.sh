@@ -72,7 +72,7 @@ build_feast_core_and_serving() {
     --output-dir /root/
 
   # Build jars for Feast
-  mvn --quiet --batch-mode -Dmaven.javadoc.skip=true -Dgpg.skip -DskipUTs=true clean package
+  mvn --batch-mode -Dmaven.javadoc.skip=true -Dgpg.skip -DskipUTs=true clean package
 
   ls -lh core/target/*jar
   ls -lh serving/target/*jar
