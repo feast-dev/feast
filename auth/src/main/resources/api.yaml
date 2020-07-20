@@ -25,6 +25,12 @@ paths:
           description: Not Ready
   /checkAccess:
     post:
+      parameters:
+        - name: Authorization
+          in: header
+          description: Auth token
+          schema:
+            type: string
       operationId: check_access_post
       requestBody:
         content:
