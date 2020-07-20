@@ -90,26 +90,30 @@ public class HttpAuthorizationProviderCachingTest {
     Jwt jwt = Mockito.mock(Jwt.class);
     Map<String, Object> claims = new HashMap<>();
     claims.put("email", "test@test.com");
+    doReturn(jwt).when(auth).getCredentials();
     doReturn(jwt).when(auth).getPrincipal();
     doReturn(claims).when(jwt).getClaims();
+    doReturn("test_token").when(jwt).getTokenValue();
     AuthorizationResult authResult = new AuthorizationResult();
     authResult.setAllowed(true);
-    doReturn(authResult).when(api).checkAccessPost(any(CheckAccessRequest.class));
+    doReturn(authResult)
+        .when(api)
+        .checkAccessPost(any(CheckAccessRequest.class), any(String.class));
 
     // Should save the result in cache
     provider.checkAccessToProject("test", auth);
     // Should read from cache
     provider.checkAccessToProject("test", auth);
-    verify(api, times(1)).checkAccessPost(any(CheckAccessRequest.class));
+    verify(api, times(1)).checkAccessPost(any(CheckAccessRequest.class), any(String.class));
 
     // cache ttl is set to 1 second for testing.
     Thread.sleep(1100);
 
     // Should make an invocation to external service
     provider.checkAccessToProject("test", auth);
-    verify(api, times(2)).checkAccessPost(any(CheckAccessRequest.class));
+    verify(api, times(2)).checkAccessPost(any(CheckAccessRequest.class), any(String.class));
     // Should read from cache
     provider.checkAccessToProject("test", auth);
-    verify(api, times(2)).checkAccessPost(any(CheckAccessRequest.class));
+    verify(api, times(2)).checkAccessPost(any(CheckAccessRequest.class), any(String.class));
   }
 }
