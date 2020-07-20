@@ -72,18 +72,12 @@ public class CacheConfiguration implements CachingConfigurer {
     return cacheManager;
   }
 
-  @Override
-  public CacheResolver cacheResolver() {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
   /*
-   * KeyGenerator for HttpAuthorizationProvider.checkAccessToProject() Method.
+   * KeyGenerator used by {@link Cacheable} for caching authorization requests.
    * Key format : checkAccessToProject-<projectId>-<subjectClaim>
    */
-  @Override
-  public KeyGenerator keyGenerator() {
+  @Bean
+  public KeyGenerator authKeyGenerator() {
     return (Object target, Method method, Object... params) -> {
       String projectId = (String) params[0];
       Authentication authentication = (Authentication) params[1];
@@ -92,6 +86,17 @@ public class CacheConfiguration implements CachingConfigurer {
               authentication, secutiryProps.getAuthorization().getOptions().get("subjectClaim"));
       return String.format("%s-%s-%s", method.getName(), projectId, subject);
     };
+  }
+
+  @Override
+  public CacheResolver cacheResolver() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public KeyGenerator keyGenerator() {
+    return null;
   }
 
   @Override

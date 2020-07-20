@@ -71,7 +71,7 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
    * @param authentication Spring Security Authentication object
    * @return AuthorizationResult result of authorization query
    */
-  @Cacheable(value = CacheConfiguration.AUTHORIZATION_CACHE)
+  @Cacheable(value = CacheConfiguration.AUTHORIZATION_CACHE, keyGenerator = "authKeyGenerator")
   public AuthorizationResult checkAccessToProject(String projectId, Authentication authentication) {
 
     CheckAccessRequest checkAccessRequest = new CheckAccessRequest();
