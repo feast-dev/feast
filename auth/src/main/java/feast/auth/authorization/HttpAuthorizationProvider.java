@@ -83,7 +83,7 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
       // Make authorization request to external service
       feast.auth.generated.client.model.AuthorizationResult authResult =
           this.defaultApiClient.checkAccessPost(
-              "Bearer " + credentials.getTokenValue(), checkAccessRequest);
+              checkAccessRequest, "Bearer " + credentials.getTokenValue());
       if (authResult == null) {
         throw new RuntimeException(
             String.format(
