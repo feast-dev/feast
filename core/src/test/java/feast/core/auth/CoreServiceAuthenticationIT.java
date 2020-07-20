@@ -37,7 +37,6 @@ import feast.proto.types.ValueProto;
 import io.grpc.CallCredentials;
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
-import io.grpc.StatusRuntimeException;
 import io.prometheus.client.CollectorRegistry;
 import java.sql.Date;
 import java.time.Instant;
@@ -163,25 +162,20 @@ public class CoreServiceAuthenticationIT {
         CoreServiceProto.GetFeastCoreVersionRequest.getDefaultInstance());
   }
 
+  /**
+   * For the time being, if authentication is enabled but authorization is disabled, users can still
+   * connect to Feast Core as anonymous users. They are not forced to authenticate.
+   */
   @Test
-  public void shouldNotAllowUnauthenticatedFeatureSetListing() {
-    Exception exception =
-        assertThrows(
-            StatusRuntimeException.class,
-            () -> {
-              insecureCoreService.listFeatureSets(
-                  CoreServiceProto.ListFeatureSetsRequest.newBuilder()
-                      .setFilter(
-                          CoreServiceProto.ListFeatureSetsRequest.Filter.newBuilder()
-                              .setProject("*")
-                              .setFeatureSetName("*")
-                              .build())
-                      .build());
-            });
-
-    String expectedMessage = "UNAUTHENTICATED: Authentication failed";
-    String actualMessage = exception.getMessage();
-    assertEquals(actualMessage, expectedMessage);
+  public void shouldAllowUnauthenticatedFeatureSetListing() {
+    insecureCoreService.listFeatureSets(
+        CoreServiceProto.ListFeatureSetsRequest.newBuilder()
+            .setFilter(
+                CoreServiceProto.ListFeatureSetsRequest.Filter.newBuilder()
+                    .setProject("*")
+                    .setFeatureSetName("*")
+                    .build())
+            .build());
   }
 
   @Test

@@ -89,7 +89,7 @@ public class SecurityConfig {
    * @return AccessDecisionManager
    */
   @Bean
-  @ConditionalOnProperty(prefix = "feast.security.authentication", name = "enabled")
+  @ConditionalOnProperty(prefix = "feast.security.authorization", name = "enabled")
   AccessDecisionManager accessDecisionManager() {
     final List<AccessDecisionVoter<?>> voters = new ArrayList<>();
     voters.add(new AccessPredicateVoter());
