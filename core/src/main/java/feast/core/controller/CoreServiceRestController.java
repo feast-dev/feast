@@ -118,10 +118,11 @@ public class CoreServiceRestController {
     return jsonPrinter.print(specService.listFeatures(filter));
   }
 
+  // Either (start_date, end_date) or ingestion_ids are required.
   @RequestMapping(value = "/feature-statistics", method = RequestMethod.GET)
   @ResponseBody
   public String getFeatureStatistics(
-      @RequestParam String feature_set_id,
+      @RequestParam(required = false) Optional<String> feature_set_id,
       @RequestParam(required = false) Optional<String[]> features,
       @RequestParam(required = false) Optional<String> store,
       @RequestParam(name = "start_date", required = false) Optional<Timestamp> startDate,
@@ -131,11 +132,10 @@ public class CoreServiceRestController {
       throws IOException {
 
     Builder requestBuilder =
-        GetFeatureStatisticsRequest.newBuilder()
-            .setFeatureSetId(feature_set_id)
-            .setForceRefresh(force_refresh);
+        GetFeatureStatisticsRequest.newBuilder().setForceRefresh(force_refresh);
 
     // optional request parameters
+    feature_set_id.ifPresent(requestBuilder::setFeatureSetId);
     store.ifPresent(requestBuilder::setStore);
     features.ifPresent(theFeatures -> requestBuilder.addAllFeatures(Arrays.asList(theFeatures)));
     startDate.ifPresent(requestBuilder::setStartDate);
