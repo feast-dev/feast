@@ -29,7 +29,6 @@ paths:
         - name: Authorization
           in: header
           description: Auth token
-          required: true
           schema:
             type: string
       operationId: check_access_post
