@@ -15,7 +15,7 @@ from google.protobuf.duration_pb2 import Duration
 
 from feast.client import Client
 from feast.config import Config
-from feast.constants import CONFIG_CORE_AUTH_PROVIDER
+from feast.constants import CONFIG_AUTH_PROVIDER
 from feast.core import CoreService_pb2
 from feast.core.CoreService_pb2 import ApplyFeatureSetResponse, GetFeatureSetResponse
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
@@ -118,8 +118,8 @@ def client(core_url, serving_url, allow_dirty, enable_auth):
     client = Client(
         core_url=core_url,
         serving_url=serving_url,
-        core_enable_auth=enable_auth,
-        core_auth_provider=AUTH_PROVIDER,
+        enable_auth=enable_auth,
+        auth_provider=AUTH_PROVIDER,
     )
     client.create_project(PROJECT_NAME)
 
@@ -164,6 +164,13 @@ def test_version_returns_results(client):
     version_info = client.version()
     assert not version_info["core"] == "not configured"
     assert not version_info["serving"] == "not configured"
+
+
+def test_list_feature_sets_when_auth_enabled_should_raise(enable_auth):
+    if enable_auth:
+        client = Client(core_url=core_url, serving_url=serving_url, enable_auth=False)
+        with pytest.raises(ConnectionError):
+            client.list_feature_sets()
 
 
 @pytest.mark.timeout(45)
@@ -1206,7 +1213,7 @@ class TestsBasedOnGrpc:
         if not enable_auth:
             return None
         else:
-            metadata = {CONFIG_CORE_AUTH_PROVIDER: AUTH_PROVIDER}
+            metadata = {CONFIG_AUTH_PROVIDER: AUTH_PROVIDER}
             metadata_plugin = get_auth_metadata_plugin(config=Config(metadata))
             return metadata_plugin.get_signed_meta()
 

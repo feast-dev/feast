@@ -24,7 +24,6 @@ import io.grpc.CallCredentials;
 import io.grpc.Metadata;
 import io.grpc.Status;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -34,8 +33,6 @@ import java.util.concurrent.Executor;
  * Used by CoreSpecService to connect to core.
  */
 public class GoogleAuthCredentials extends CallCredentials {
-  private String accessToken;
-  private Instant tokenExpiryTime;
   private final IdTokenCredentials credentials;
   private static final String BEARER_TYPE = "Bearer";
   private static final Metadata.Key<String> AUTHORIZATION_METADATA_KEY =
@@ -62,15 +59,11 @@ public class GoogleAuthCredentials extends CallCredentials {
     appExecutor.execute(
         () -> {
           try {
-            // Fetches new token if it is not available or if token has expired.
-            if (this.accessToken == null || Instant.now().isAfter(this.tokenExpiryTime)) {
-              credentials.refreshIfExpired();
-              this.accessToken = credentials.getIdToken().getTokenValue();
-              this.tokenExpiryTime = credentials.getIdToken().getExpirationTime().toInstant();
-            }
+            credentials.refreshIfExpired();
             Metadata headers = new Metadata();
             headers.put(
-                AUTHORIZATION_METADATA_KEY, String.format("%s %s", BEARER_TYPE, this.accessToken));
+                AUTHORIZATION_METADATA_KEY,
+                String.format("%s %s", BEARER_TYPE, credentials.getIdToken().getTokenValue()));
             applier.apply(headers);
           } catch (Throwable e) {
             applier.fail(Status.UNAUTHENTICATED.withCause(e));

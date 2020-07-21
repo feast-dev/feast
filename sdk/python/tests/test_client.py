@@ -109,8 +109,8 @@ class TestClient:
         client = Client(
             core_url=CORE_URL,
             serving_url=SERVING_URL,
-            core_enable_auth=True,
-            core_auth_token=_FAKE_JWT_TOKEN,
+            enable_auth=True,
+            auth_token=_FAKE_JWT_TOKEN,
         )
         client._core_url = CORE_URL
         client._serving_url = SERVING_URL
@@ -123,8 +123,8 @@ class TestClient:
             serving_url=SERVING_URL,
             core_enable_ssl=True,
             serving_enable_ssl=True,
-            core_enable_auth=True,
-            core_auth_token=_FAKE_JWT_TOKEN,
+            enable_auth=True,
+            auth_token=_FAKE_JWT_TOKEN,
         )
         client._core_url = CORE_URL
         client._serving_url = SERVING_URL
@@ -243,8 +243,8 @@ class TestClient:
             yield Client(
                 core_url="localhost:50055",
                 core_enable_ssl=True,
-                core_enable_auth=True,
-                core_auth_token=_FAKE_JWT_TOKEN,
+                enable_auth=True,
+                auth_token=_FAKE_JWT_TOKEN,
             )
 
     @pytest.fixture
@@ -1050,9 +1050,7 @@ class TestClient:
         self, insecure_core_server_with_auth
     ):
         client = Client(
-            core_url="localhost:50056",
-            core_enable_auth=True,
-            core_auth_token=_FAKE_JWT_TOKEN,
+            core_url="localhost:50056", enable_auth=True, auth_token=_FAKE_JWT_TOKEN,
         )
         client.list_feature_sets()
 

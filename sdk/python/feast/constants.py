@@ -42,8 +42,8 @@ CONFIG_FILE_SECTION = "general"
 CONFIG_PROJECT_KEY = "project"
 CONFIG_CORE_URL_KEY = "core_url"
 CONFIG_CORE_ENABLE_SSL_KEY = "core_enable_ssl"
-CONFIG_CORE_ENABLE_AUTH_KEY = "core_enable_auth"
-CONFIG_CORE_ENABLE_AUTH_TOKEN_KEY = "core_auth_token"
+CONFIG_ENABLE_AUTH_KEY = "enable_auth"
+CONFIG_ENABLE_AUTH_TOKEN_KEY = "auth_token"
 CONFIG_CORE_SERVER_SSL_CERT_KEY = "core_server_ssl_cert"
 CONFIG_SERVING_URL_KEY = "serving_url"
 CONFIG_SERVING_ENABLE_SSL_KEY = "serving_enable_ssl"
@@ -58,7 +58,7 @@ CONFIG_OAUTH_CLIENT_ID_KEY = "oauth_client_id"
 CONFIG_OAUTH_CLIENT_SECRET_KEY = "oauth_client_secret"
 CONFIG_OAUTH_AUDIENCE_KEY = "oauth_audience"
 CONFIG_OAUTH_TOKEN_REQUEST_URL_KEY = "oauth_token_request_url"
-CONFIG_CORE_AUTH_PROVIDER = "core_auth_provider"
+CONFIG_AUTH_PROVIDER = "auth_provider"
 
 CONFIG_TIMEOUT_KEY = "timeout"
 CONFIG_MAX_WAIT_INTERVAL_KEY = "max_wait_interval"
@@ -72,7 +72,7 @@ FEAST_DEFAULT_OPTIONS = {
     # Enable or disable TLS/SSL to Feast Core
     CONFIG_CORE_ENABLE_SSL_KEY: "False",
     # Enable user authentication to Feast Core
-    CONFIG_CORE_ENABLE_AUTH_KEY: "False",
+    CONFIG_ENABLE_AUTH_KEY: "False",
     # Path to certificate(s) to secure connection to Feast Core
     CONFIG_CORE_SERVER_SSL_CERT_KEY: "",
     # Default Feast Serving URL
@@ -91,5 +91,5 @@ FEAST_DEFAULT_OPTIONS = {
     CONFIG_TIMEOUT_KEY: "21600",
     CONFIG_MAX_WAIT_INTERVAL_KEY: "60",
     # Authentication Provider - Google OpenID/OAuth
-    CONFIG_CORE_AUTH_PROVIDER: "google",
+    CONFIG_AUTH_PROVIDER: "google",
 }

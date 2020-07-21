@@ -76,8 +76,8 @@ class GoogleDefaultErrorResponse:
 def config_oauth():
     config_dict = {
         "core_url": "localhost:50051",
-        "core_enable_auth": True,
-        "core_auth_provider": "oauth",
+        "enable_auth": True,
+        "auth_provider": "oauth",
         "oauth_grant_type": "client_credentials",
         "oauth_client_id": "fakeID",
         "oauth_client_secret": "fakeSecret",
@@ -91,13 +91,8 @@ def config_oauth():
 def config_google():
     config_dict = {
         "core_url": "localhost:50051",
-        "core_enable_auth": True,
-        "core_auth_provider": "google",
-        "oauth_grant_type": "client_credentials",
-        "oauth_client_id": "fakeID",
-        "oauth_client_secret": "fakeSecret",
-        "oauth_audience": AUDIENCE,
-        "oauth_token_request_url": AUTH_URL,
+        "enable_auth": True,
+        "auth_provider": "google",
     }
     return Config(config_dict)
 
@@ -106,8 +101,8 @@ def config_google():
 def config_with_missing_variable():
     config_dict = {
         "core_url": "localhost:50051",
-        "core_enable_auth": True,
-        "core_auth_provider": "oauth",
+        "enable_auth": True,
+        "auth_provider": "oauth",
         "oauth_grant_type": "client_credentials",
         "oauth_client_id": "fakeID",
         "oauth_client_secret": "fakeSecret",
