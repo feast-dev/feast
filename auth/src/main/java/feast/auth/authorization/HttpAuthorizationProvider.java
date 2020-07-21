@@ -16,14 +16,16 @@
  */
 package feast.auth.authorization;
 
+import feast.auth.config.CacheConfiguration;
 import feast.auth.generated.client.api.DefaultApi;
 import feast.auth.generated.client.invoker.ApiClient;
 import feast.auth.generated.client.invoker.ApiException;
 import feast.auth.generated.client.model.CheckAccessRequest;
+import feast.auth.utils.AuthUtils;
 import java.util.Map;
-import org.hibernate.validator.internal.constraintvalidators.bv.EmailValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 
@@ -41,7 +43,7 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
    * The default subject claim is the key within the Authentication object where the user's identity
    * can be found
    */
-  private final String DEFAULT_SUBJECT_CLAIM = "email";
+  private final String subjectClaim;
 
   /**
    * Initializes the HTTPAuthorizationProvider
@@ -58,26 +60,29 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
     ApiClient apiClient = new ApiClient();
     apiClient.setBasePath(options.get("authorizationUrl"));
     this.defaultApiClient = new DefaultApi(apiClient);
+    subjectClaim = options.get("subjectClaim");
   }
 
   /**
-   * Validates whether a user has access to a project
+   * Validates whether a user has access to a project. @Cacheable is using {@link
+   * CacheConfiguration} settings to cache output of the method {@link AuthorizationResult} for a
+   * specified duration set in cache settings.
    *
    * @param projectId Name of the Feast project
    * @param authentication Spring Security Authentication object
    * @return AuthorizationResult result of authorization query
    */
+  @Cacheable(value = CacheConfiguration.AUTHORIZATION_CACHE, keyGenerator = "authKeyGenerator")
   public AuthorizationResult checkAccessToProject(String projectId, Authentication authentication) {
 
     CheckAccessRequest checkAccessRequest = new CheckAccessRequest();
     Object context = getContext(authentication);
-    String subject = getSubjectFromAuth(authentication, DEFAULT_SUBJECT_CLAIM);
+    String subject = AuthUtils.getSubjectFromAuth(authentication, subjectClaim);
     String resource = "projects:" + projectId;
     checkAccessRequest.setAction("ALL");
     checkAccessRequest.setContext(context);
     checkAccessRequest.setResource(resource);
     checkAccessRequest.setSubject(subject);
-
     try {
       Jwt credentials = ((Jwt) authentication.getCredentials());
       // Make authorization request to external service
@@ -113,32 +118,5 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
   private Object getContext(Authentication authentication) {
     // Not implemented yet, left empty
     return new Object();
-  }
-
-  /**
-   * Get user email from their authentication object.
-   *
-   * @param authentication Spring Security Authentication object, used to extract user details
-   * @param subjectClaim Indicates the claim where the subject can be found
-   * @return String user email
-   */
-  private String getSubjectFromAuth(Authentication authentication, String subjectClaim) {
-    Jwt principle = ((Jwt) authentication.getPrincipal());
-    Map<String, Object> claims = principle.getClaims();
-    String subjectValue = (String) claims.get(subjectClaim);
-
-    if (subjectValue.isEmpty()) {
-      throw new IllegalStateException(
-          String.format("JWT does not have a valid claim %s.", subjectClaim));
-    }
-
-    if (subjectClaim.equals("email")) {
-      boolean validEmail = (new EmailValidator()).isValid(subjectValue, null);
-      if (!validEmail) {
-        throw new IllegalStateException("JWT contains an invalid email address");
-      }
-    }
-
-    return subjectValue;
   }
 }
