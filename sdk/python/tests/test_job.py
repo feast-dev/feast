@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import tempfile
+from unittest.mock import Mock, patch
 
 import boto3
 import grpc
@@ -30,7 +30,6 @@ from feast.serving import ServingService_pb2_grpc as Serving
 from feast.serving.ServingService_pb2 import DataFormat, GetJobResponse
 from feast.serving.ServingService_pb2 import Job as BatchRetrievalJob
 from feast.serving.ServingService_pb2 import JobStatus, JobType
-from unittest.mock import patch, Mock
 
 BUCKET = "test_bucket"
 

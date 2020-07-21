@@ -14,14 +14,14 @@
 # limitations under the License.
 
 
+import os
 import re
+import shutil
 from abc import ABC, ABCMeta, abstractmethod
-from tempfile import TemporaryFile, TemporaryDirectory
+from tempfile import TemporaryDirectory, TemporaryFile
 from typing import List
 from typing.io import IO
 from urllib.parse import ParseResult
-import os
-import shutil
 
 GS = "gs"
 S3 = "s3"
@@ -41,11 +41,17 @@ class AbstractStagingClient(ABC):
         pass
 
     @abstractmethod
-    def download_file(self, uri: ParseResult) -> (IO[bytes], TemporaryDirectory):
+    def download_file(self, uri: ParseResult) -> IO[bytes]:
         """
         Downloads a file from an object store and returns a TemporaryFile object
         """
         pass
+
+    def download_directory(self, uri: ParseResult) -> TemporaryDirectory:
+        """
+        Downloads a directory from an object store and returns a TemporaryDirectory object
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def list_files(self, uri: ParseResult) -> List[str]:
@@ -77,7 +83,7 @@ class GCSClient(AbstractStagingClient):
             )
         self.gcs_client = storage.Client(project=None)
 
-    def download_file(self, uri: ParseResult) -> (IO[bytes], TemporaryDirectory):
+    def download_file(self, uri: ParseResult) -> IO[bytes]:
         """
         Downloads a file from google cloud storage and returns a TemporaryFile object
 
@@ -90,7 +96,7 @@ class GCSClient(AbstractStagingClient):
         url = uri.geturl()
         file_obj = TemporaryFile()
         self.gcs_client.download_blob_to_file(url, file_obj)
-        return (file_obj, None)
+        return file_obj
 
     def list_files(self, uri: ParseResult) -> List[str]:
         """
@@ -152,7 +158,7 @@ class S3Client(AbstractStagingClient):
             )
         self.s3_client = boto3.client("s3")
 
-    def download_file(self, uri: ParseResult) -> (IO[bytes], TemporaryDirectory):
+    def download_file(self, uri: ParseResult) -> IO[bytes]:
         """
         Downloads a file from AWS s3 storage and returns a TemporaryFile object
 
@@ -165,7 +171,7 @@ class S3Client(AbstractStagingClient):
         bucket = uri.hostname
         file_obj = TemporaryFile()
         self.s3_client.download_fileobj(bucket, url, file_obj)
-        return (file_obj, None)
+        return file_obj
 
     def list_files(self, uri: ParseResult) -> List[str]:
         """
@@ -236,7 +242,7 @@ class AzureClient(AbstractStagingClient):
         self.protocol = "https"
         self.dls_client = DataLakeServiceClient
 
-    def download_file(self, uri: ParseResult) -> (IO[bytes], TemporaryDirectory):
+    def download_file(self, uri: ParseResult) -> IO[bytes]:
         """
         Downloads a file from Azure Blob storage and returns a TemporaryFile object
 
@@ -249,28 +255,32 @@ class AzureClient(AbstractStagingClient):
             f"{self.protocol}://{uri.hostname}", credential=self.credential
         )
 
-        if uri.path.endswith("/"):
-            uri_path = uri.path.lstrip("/")
-            fs_client = client.get_file_system_client(uri.username)
-            blob_list = fs_client.get_paths(uri.path)
-            dir_obj = TemporaryDirectory()
-            for path_properties in blob_list:
-                blob = path_properties.name
-                blob_rel_path = os.path.relpath(blob, uri_path)
-                local_path = f"{dir_obj.name}/{blob_rel_path}"
-                os.makedirs(os.path.dirname(local_path), exist_ok=True)
-                with open(local_path, "wb") as file_obj:
-                    client.get_file_client(uri.username, blob).download_file().readinto(
-                        file_obj
-                    )
-            return (None, dir_obj)
-
         file_obj = TemporaryFile()
         client.get_file_client(uri.username, uri.path).download_file().readinto(
             file_obj
         )
         file_obj.flush()
-        return (file_obj, None)
+        return file_obj
+
+    def download_directory(self, uri: ParseResult) -> TemporaryDirectory:
+        client = self.dls_client(
+            f"{self.protocol}://{uri.hostname}", credential=self.credential
+        )
+
+        uri_path = uri.path.lstrip("/")
+        fs_client = client.get_file_system_client(uri.username)
+        blob_list = fs_client.get_paths(uri.path)
+        dir_obj = TemporaryDirectory()
+        for path_properties in blob_list:
+            blob = path_properties.name
+            blob_rel_path = os.path.relpath(blob, uri_path)
+            local_path = f"{dir_obj.name}/{blob_rel_path}"
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            with open(local_path, "wb") as file_obj:
+                client.get_file_client(uri.username, blob).download_file().readinto(
+                    file_obj
+                )
+        return dir_obj
 
     def list_files(self, uri: ParseResult) -> List[str]:
         """
@@ -333,7 +343,7 @@ class LocalFSClient(AbstractStagingClient):
     def __init__(self):
         pass
 
-    def download_file(self, uri: ParseResult) -> (IO[bytes], TemporaryDirectory):
+    def download_file(self, uri: ParseResult) -> IO[bytes]:
         """
         Reads a local file from the disk
 
@@ -342,17 +352,15 @@ class LocalFSClient(AbstractStagingClient):
         Returns:
             TemporaryFile object
         """
-        url = uri.path
+        file_obj = open(uri.path, "rb")
+        return file_obj
 
-        if url.endswith("/"):
-            dir_obj = TemporaryDirectory()
-            os.rmdir(dir_obj.name)
-            dest = dir_obj
-            shutil.copytree(url, dest.name)
-            return (None, dest)
-
-        file_obj = open(url, "rb")
-        return (file_obj, None)
+    def download_directory(self, uri: ParseResult) -> TemporaryDirectory:
+        dir_obj = TemporaryDirectory()
+        os.rmdir(dir_obj.name)
+        dest = dir_obj
+        shutil.copytree(uri.path, dest.name)
+        return dest
 
     def list_files(self, uri: ParseResult) -> List[str]:
         raise NotImplementedError("list files not implemented for Local file")

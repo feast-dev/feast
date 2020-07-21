@@ -16,22 +16,33 @@
  */
 package feast.spark.ingestion;
 
-import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
-
+import com.google.common.collect.Streams;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.ingestion.enums.ValidationStatus;
 import feast.ingestion.transform.ProcessAndValidateFeatureRows;
 import feast.ingestion.transform.ReadFromSource;
+import feast.ingestion.transform.specs.FilterRelevantFunction;
 import feast.ingestion.utils.SpecUtil;
-import feast.proto.core.FeatureSetProto.FeatureSet;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.IngestionJobProto;
+import feast.proto.core.IngestionJobProto.FeatureSetSpecAck;
+import feast.proto.core.IngestionJobProto.SpecsStreamingUpdateConfig;
 import feast.proto.core.SourceProto.KafkaSourceConfig;
+import feast.proto.core.SourceProto.Source;
 import feast.proto.core.StoreProto.Store;
 import feast.spark.ingestion.delta.SparkDeltaSink;
 import feast.spark.ingestion.redis.SparkRedisSink;
 import feast.storage.api.writer.FailedElement;
+import java.io.Serializable;
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.values.KV;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.spark.api.java.function.VoidFunction2;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
@@ -44,16 +55,23 @@ import org.slf4j.LoggerFactory;
 /**
  * Consumes messages from one or more topics in Kafka and outputs them to Delta/Redis using Spark.
  */
-public class SparkIngestion {
+@SuppressWarnings("serial")
+public class SparkIngestion implements Serializable {
+
   private static final Logger log = LoggerFactory.getLogger(SparkIngestion.class);
+  private final SparkSession spark;
   private final String jobId;
-  private final String specsStreamingUpdateConfigJson;
   private final String checkpointLocation;
   private final String defaultFeastProject;
   private final String deadLetterPath;
-  private final List<FeatureSet> featureSets;
+  private final Map<String, FeatureSetSpec> featureSetSpecs =
+      Collections.synchronizedMap(new HashMap<>());
   private final List<Store> stores;
+  private final Source source;
+  private final SpecsStreamingUpdateConfig specsStreamingUpdateConfig;
+  private StreamingQuery query;
   private static final StructType deadLetterType;
+  volatile boolean stop = false;
 
   static {
     StructType schema = new StructType();
@@ -79,7 +97,7 @@ public class SparkIngestion {
    */
   public static void main(String[] args) throws Exception {
     SparkIngestion ingestion = new SparkIngestion(args);
-    ingestion.createQuery().awaitTermination();
+    ingestion.run();
   }
 
   /**
@@ -96,41 +114,108 @@ public class SparkIngestion {
 
     int index = 0;
     jobId = args[index++];
-    specsStreamingUpdateConfigJson = args[index++];
+    String specsStreamingUpdateConfigJson = args[index++];
     checkpointLocation = args[index++];
     defaultFeastProject = args[index++];
     deadLetterPath = args[index++];
-    String featureSetSpecsJson = args[index++];
     String storesJson = args[index++];
+    String sourceJson = args[index++];
 
-    featureSets =
-        SpecUtil.parseFeatureSetSpecJsonList(Arrays.asList(featureSetSpecsJson.split("\n")));
     stores = SpecUtil.parseStoreJsonList(Arrays.asList(storesJson.split("\n")));
-    log.info("Feature sets: {}", featureSets);
+    source = SpecUtil.parseSourceJson(sourceJson);
+    specsStreamingUpdateConfig =
+        SpecUtil.parseSpecsStreamingUpdateConfig(specsStreamingUpdateConfigJson);
     log.info("Stores: {}", stores);
-  }
-
-  /**
-   * Creates a Spark Structured Streaming query.
-   *
-   * @return a Structured Streaming query mapping source into store data.
-   */
-  public StreamingQuery createQuery() {
 
     // Create session with getOrCreate and do not call SparkContext.stop() nor System.exit() at the
     // end.
     // See https://docs.databricks.com/jobs.html#jar-job-tips
-    SparkSession spark = SparkSession.builder().appName("SparkIngestion").getOrCreate();
+    spark = SparkSession.builder().appName("SparkIngestion").getOrCreate();
+  }
 
-    Set<KafkaSourceConfig> kafkaConfigs =
-        featureSets.stream()
-            .map(s -> s.getSpec().getSource().getKafkaSourceConfig())
-            .collect(Collectors.toSet());
-    if (kafkaConfigs.size() != 1) {
-      throw new UnsupportedOperationException(
-          "Single Kafka config required, got " + kafkaConfigs.size());
+  public void run() {
+    KafkaSourceConfig sourceConfig = specsStreamingUpdateConfig.getSource();
+    KafkaSourceConfig ackConfig = specsStreamingUpdateConfig.getAck();
+
+    FilterRelevantFunction filterRelevantFunction = new FilterRelevantFunction(source, stores);
+
+    Properties config1 = new Properties();
+    config1.put("group.id", ReadFromSource.generateConsumerGroupId(jobId));
+    config1.put("enable.auto.commit", "false");
+    config1.put("bootstrap.servers", sourceConfig.getBootstrapServers());
+    config1.put("key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+    config1.put(
+        "value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+
+    Properties config2 = new Properties();
+    config2.put("bootstrap.servers", ackConfig.getBootstrapServers());
+    config2.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+    config2.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+
+    log.info("Connecting to Kafka");
+    try (KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(config1);
+        KafkaProducer<String, byte[]> producer = new KafkaProducer<>(config2); ) {
+
+      String topic = sourceConfig.getTopic();
+      List<TopicPartition> topicPartitions =
+          consumer.partitionsFor(topic).stream()
+              .map(i -> new TopicPartition(i.topic(), i.partition()))
+              .collect(Collectors.toList());
+      consumer.assign(topicPartitions);
+      consumer.seekToBeginning(topicPartitions);
+      log.info("Consuming");
+      while (!stop) {
+        ConsumerRecords<byte[], byte[]> records = consumer.poll(Duration.ofSeconds(5));
+        if (records.count() == 0) {
+          continue;
+        }
+        log.info("Got {} control records", records.count());
+        List<ProducerRecord<String, byte[]>> acks =
+            Streams.stream(records)
+                .map(
+                    record -> {
+                      try {
+                        String ref = new String(record.key());
+                        FeatureSetSpec spec = FeatureSetSpec.parseFrom(record.value());
+                        if (filterRelevantFunction.apply(KV.of(ref, spec))) {
+                          featureSetSpecs.compute(
+                              ref,
+                              (k, v) ->
+                                  (v == null)
+                                      ? spec
+                                      : spec.getVersion() > v.getVersion() ? spec : v);
+                        }
+                        FeatureSetSpecAck ack =
+                            IngestionJobProto.FeatureSetSpecAck.newBuilder()
+                                .setFeatureSetReference(ref)
+                                .setJobName(jobId)
+                                .setFeatureSetVersion(spec.getVersion())
+                                .build();
+                        return new ProducerRecord<String, byte[]>(
+                            ackConfig.getTopic(), ref, ack.toByteArray());
+                      } catch (InvalidProtocolBufferException e) {
+                        throw new RuntimeException(e);
+                      }
+                    })
+                .collect(Collectors.toList());
+
+        if (query != null) {
+          log.info("Stopping query");
+          query.stop();
+        }
+        log.info("Recreating query with {} FeatureSets", featureSetSpecs.size());
+        startSparkQuery();
+        log.info("Query started");
+
+        acks.stream().forEach(producer::send);
+        log.info("Acknowledged {} control records", acks.size());
+      }
     }
-    KafkaSourceConfig kafkaConfig = kafkaConfigs.iterator().next();
+  }
+
+  /** Creates a Spark Structured Streaming query. */
+  public void startSparkQuery() {
+    KafkaSourceConfig kafkaConfig = source.getKafkaSourceConfig();
 
     // Create DataSet representing the stream of input lines from kafka
     Dataset<Row> input =
@@ -148,35 +233,19 @@ public class SparkIngestion {
         stores.stream()
             .map(
                 store -> {
-                  List<FeatureSet> subscribedFeatureSets =
-                      SpecUtil.getSubscribedFeatureSets(store.getSubscriptionsList(), featureSets);
-
-                  Map<String, FeatureSetSpec> featureSetSpecsByKey =
-                      subscribedFeatureSets.stream()
-                          .collect(
-                              Collectors.toMap(
-                                  fs -> getFeatureSetReference(fs.getSpec()), fs -> fs.getSpec()));
-
                   switch (store.getType()) {
                     case DELTA:
                       return new SparkDeltaSink(
-                          jobId, store.getDeltaConfig(), spark, featureSetSpecsByKey);
+                          jobId, store.getDeltaConfig(), spark, featureSetSpecs);
                     case REDIS:
                       return new SparkRedisSink(
-                          jobId, store.getRedisConfig(), spark, featureSetSpecsByKey);
+                          jobId, store.getRedisConfig(), spark, featureSetSpecs);
                     default:
                       throw new UnsupportedOperationException(
                           "Store " + store + " is not implemented in Spark ingestor");
                   }
                 })
             .collect(Collectors.toList());
-
-    Map<String, FeatureSetSpec> featureSetSpecs =
-        this.featureSets.stream()
-            .collect(
-                Collectors.toMap(
-                    featureSet -> getFeatureSetReference(featureSet.getSpec()),
-                    FeatureSet::getSpec));
 
     HashMap<String, feast.ingestion.values.FeatureSet> featureSets =
         featureSetSpecs.entrySet().stream()
@@ -207,37 +276,38 @@ public class SparkIngestion {
         processAndValidateFeatureRows.processDataset(input, featureSets);
 
     // Start running the query that writes the data to sink
-    return processedRows
-        .writeStream()
-        .option(
-            "checkpointLocation",
-            String.format(
-                "%s/%s", checkpointLocation, ReadFromSource.generateConsumerGroupId(jobId)))
-        .foreachBatch(
-            (batchDF, batchId) -> {
-              batchDF.persist();
-              Dataset<byte[]> validRows =
-                  batchDF
-                      .filter(row -> row.getValidationStatus().equals(ValidationStatus.SUCCESS))
-                      .map(RowWithValidationResult::getFeatureRow, Encoders.BINARY());
+    query =
+        processedRows
+            .writeStream()
+            .option(
+                "checkpointLocation",
+                String.format(
+                    "%s/%s", checkpointLocation, ReadFromSource.generateConsumerGroupId(jobId)))
+            .foreachBatch(
+                (batchDF, batchId) -> {
+                  batchDF.persist();
+                  Dataset<byte[]> validRows =
+                      batchDF
+                          .filter(row -> row.getValidationStatus().equals(ValidationStatus.SUCCESS))
+                          .map(RowWithValidationResult::getFeatureRow, Encoders.BINARY());
 
-              validRows.persist();
-              consumerSinks.forEach(
-                  c -> {
-                    try {
-                      c.call(validRows, batchId);
-                    } catch (Exception e) {
-                      log.error("Error invoking sink", e);
-                      throw new RuntimeException(e);
-                    }
-                  });
-              validRows.unpersist();
+                  validRows.persist();
+                  consumerSinks.forEach(
+                      c -> {
+                        try {
+                          c.call(validRows, batchId);
+                        } catch (Exception e) {
+                          log.error("Error invoking sink", e);
+                          throw new RuntimeException(e);
+                        }
+                      });
+                  validRows.unpersist();
 
-              storeDeadLetter(batchDF);
+                  storeDeadLetter(batchDF);
 
-              batchDF.unpersist();
-            })
-        .start();
+                  batchDF.unpersist();
+                })
+            .start();
   }
 
   private void storeDeadLetter(Dataset<RowWithValidationResult> batchDF) {

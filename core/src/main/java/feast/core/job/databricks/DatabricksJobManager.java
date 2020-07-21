@@ -27,7 +27,6 @@ import feast.core.job.JobManager;
 import feast.core.job.Runner;
 import feast.core.model.*;
 import feast.databricks.types.*;
-import feast.proto.core.FeatureSetProto;
 import feast.proto.core.IngestionJobProto.SpecsStreamingUpdateConfig;
 import feast.proto.core.RunnerProto.DatabricksRunnerConfigOptions;
 import feast.proto.core.StoreProto;
@@ -212,16 +211,12 @@ public class DatabricksJobManager implements JobManager {
 
     String jobName = String.format("Feast ingestion job %s", job.getId());
     String defaultFeastProject = Project.DEFAULT_NAME;
-    Set<FeatureSetProto.FeatureSetSpec> featureSetSpecsProtos =
-        job.getFeatureSets().stream()
-            .map(wrapException(f -> f.toProto().getSpec()))
-            .collect(Collectors.toSet());
     Set<StoreProto.Store> stores =
         job.getStores().stream().map(wrapException(Store::toProto)).collect(Collectors.toSet());
 
     String storesJson = toJsonLines(stores);
-    String featureSetsJson = toJsonLines(featureSetSpecsProtos);
     String specsStreamingUpdateConfigJson = toJsonLine(specsStreamingUpdateConfig);
+    String sourceJson = toJsonLine(job.getSource().toProto());
 
     List<String> params =
         Arrays.asList(
@@ -230,8 +225,9 @@ public class DatabricksJobManager implements JobManager {
             checkpointLocation,
             defaultFeastProject,
             deadLetterPath,
-            featureSetsJson,
-            storesJson);
+            storesJson,
+            sourceJson);
+
     RunsSubmitRequest runRequest = getJobRequest(jobName, params);
 
     try {

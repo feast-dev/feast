@@ -16,7 +16,7 @@
  */
 package feast.spark.ingestion.delta;
 
-import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
+import static feast.common.models.FeatureSet.getFeatureSetStringRef;
 import static org.apache.spark.sql.types.DataTypes.*;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
@@ -139,7 +139,7 @@ public class FeatureRowToSparkRowTest {
     // Arrange
     Builder builder =
         FeatureRow.newBuilder()
-            .setFeatureSet(getFeatureSetReference(featureSetSpec))
+            .setFeatureSet(getFeatureSetStringRef(featureSetSpec))
             .setEventTimestamp(Timestamps.fromMillis(100000000));
 
     builder.addFields(

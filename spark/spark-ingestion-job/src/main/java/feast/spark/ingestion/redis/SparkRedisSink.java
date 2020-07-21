@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.VoidFunction2;
 import org.apache.spark.broadcast.Broadcast;
@@ -76,7 +77,11 @@ public class SparkRedisSink implements SparkSink {
             redisConfig.getHost(),
             redisConfig.getPort(),
             java.time.Duration.ofMillis(DEFAULT_TIMEOUT));
-    redisuri.setPassword(redisConfig.getPass());
+
+    String password = redisConfig.getPass();
+    if (StringUtils.trimToNull(password) != null) {
+      redisuri.setPassword(password);
+    }
 
     return new RedisWriter(jobId, broadcastedWriter, redisuri);
   }

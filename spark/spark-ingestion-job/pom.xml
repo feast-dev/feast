@@ -157,13 +157,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.kafka</groupId>
-      <artifactId>kafka-clients</artifactId>
-      <version>1.0.2</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
       <groupId>io.lettuce</groupId>
       <artifactId>lettuce-core</artifactId>
     </dependency>
@@ -182,9 +175,8 @@
 
     <dependency>
         <groupId>dev.feast</groupId>
-        <artifactId>feast-storage-api</artifactId>
+        <artifactId>feast-ingestion</artifactId>
         <version>${project.version}</version>
-        <scope>compile</scope>
     </dependency>
 
   </dependencies>

@@ -60,6 +60,7 @@ import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
@@ -91,6 +92,8 @@ public class ImportJobTest {
 
   private static final String REDIS_HOST = "localhost";
   private static final int REDIS_PORT = 6380;
+  // test without password
+  private static final String REDIS_PASS = "";
 
   // No of samples of feature row that will be generated and used for testing.
   // Note that larger no of samples will increase completion time for ingestion.
@@ -176,12 +179,17 @@ public class ImportJobTest {
 
     FeatureSet featureSet = FeatureSet.newBuilder().setSpec(spec).build();
 
+    RedisConfig.Builder redisconfiguration =
+        RedisConfig.newBuilder().setHost(REDIS_HOST).setPort(REDIS_PORT);
+    if (StringUtils.trimToNull(REDIS_PASS) != null) {
+      redisconfiguration.setPass(REDIS_PASS);
+    }
+
     Store redis =
         Store.newBuilder()
             .setName(StoreType.REDIS.toString())
             .setType(StoreType.REDIS)
-            .setRedisConfig(
-                RedisConfig.newBuilder().setHost(REDIS_HOST).setPort(REDIS_PORT).build())
+            .setRedisConfig(redisconfiguration.build())
             .addSubscriptions(
                 Subscription.newBuilder()
                     .setProject(spec.getProject())

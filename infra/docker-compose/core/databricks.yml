@@ -10,7 +10,7 @@ feast:
           host: http://databricks-emulator:8080
           token: unused
           checkpointLocation: /tmp/checkpoints/feast
-          deadLetterPath: dbfs:/feast/deadletter
+          deadLetterPath: /tmp/deadletter
           jarFile: /opt/sparkjars/spark-ingestion-job.jar
           timeoutSeconds: -1
           newCluster:

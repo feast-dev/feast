@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.commons.lang3.StringUtils;
 
 @AutoValue
 public abstract class RedisFeatureSink implements FeatureSink {
@@ -91,7 +92,11 @@ public abstract class RedisFeatureSink implements FeatureSink {
       PCollection<KV<FeatureSetReference, FeatureSetProto.FeatureSetSpec>> featureSetSpecs) {
     if (getRedisConfig() != null) {
       RedisURI redisuri = RedisURI.create(getRedisConfig().getHost(), getRedisConfig().getPort());
-      redisuri.setPassword(getRedisConfig().getPass());
+
+      String password = getRedisConfig().getPass();
+      if (StringUtils.trimToNull(password) != null) {
+        redisuri.setPassword(password);
+      }
       RedisClient redisClient = RedisClient.create(redisuri);
 
       try {

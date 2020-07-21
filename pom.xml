@@ -252,7 +252,7 @@
             <!-- Spring Boot BOM overrides -->
             <dependency>
                 <groupId>org.apache.kafka</groupId>
-                <artifactId>kafka_2.12</artifactId>
+                <artifactId>kafka_${scala.compat.version}</artifactId>
                 <version>${kafka.version}</version>
             </dependency>
             <dependency>

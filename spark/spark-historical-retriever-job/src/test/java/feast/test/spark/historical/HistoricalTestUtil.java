@@ -16,7 +16,7 @@
  */
 package feast.test.spark.historical;
 
-import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
+import static feast.common.models.FeatureSet.getFeatureSetStringRef;
 import static org.hamcrest.Matchers.startsWith;
 
 import com.google.protobuf.ByteString;
@@ -137,7 +137,7 @@ public class HistoricalTestUtil {
       FeatureSetProto.FeatureSetSpec featureSetSpec, int rowId, int randomStringSize) {
     FeatureRowProto.FeatureRow.Builder builder =
         FeatureRowProto.FeatureRow.newBuilder()
-            .setFeatureSet(getFeatureSetReference(featureSetSpec))
+            .setFeatureSet(getFeatureSetStringRef(featureSetSpec))
             .setEventTimestamp(Timestamps.fromMillis(System.currentTimeMillis()));
 
     builder.addFields(
