@@ -25,6 +25,7 @@ import feast.auth.config.CacheConfiguration;
 import feast.auth.config.SecurityProperties;
 import feast.auth.config.SecurityProperties.AuthenticationProperties;
 import feast.auth.config.SecurityProperties.AuthorizationProperties;
+import feast.auth.providers.http.HttpAuthorizationProvider;
 import feast.auth.providers.http.client.api.DefaultApi;
 import feast.auth.providers.http.client.model.AuthorizationResult;
 import feast.auth.providers.http.client.model.CheckAccessRequest;

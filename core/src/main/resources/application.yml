@@ -93,7 +93,6 @@ feast:
       enabled: false
       provider: http
       options:
-        subjectClaim: email
         authorizationUrl: http://localhost:8082
         subjectClaim: email
 
