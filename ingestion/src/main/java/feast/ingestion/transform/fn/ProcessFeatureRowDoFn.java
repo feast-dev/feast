@@ -29,11 +29,15 @@ public class ProcessFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow> {
 
   @ProcessElement
   public void processElement(ProcessContext context) {
-    FeatureRow featureRow = context.element();
+    FeatureRow featureRow = processRow(context.element());
+    context.output(featureRow);
+  }
+
+  public FeatureRow processRow(FeatureRow featureRow) {
     String featureSetId = stripVersion(featureRow.getFeatureSet());
     featureSetId = applyDefaultProject(featureSetId);
     featureRow = featureRow.toBuilder().setFeatureSet(featureSetId).build();
-    context.output(featureRow);
+    return featureRow;
   }
 
   // For backward compatibility. Will be deprecated eventually.

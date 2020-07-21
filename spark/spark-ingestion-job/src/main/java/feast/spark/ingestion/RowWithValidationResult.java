@@ -17,7 +17,6 @@
 package feast.spark.ingestion;
 
 import com.google.auto.value.AutoValue;
-import feast.ingestion.enums.ValidationStatus;
 import feast.storage.api.writer.FailedElement;
 import javax.annotation.Nullable;
 
@@ -26,7 +25,7 @@ public abstract class RowWithValidationResult {
 
   public abstract byte[] getFeatureRow();
 
-  public abstract ValidationStatus getValidationStatus();
+  public abstract boolean isValid();
 
   @Nullable
   public abstract FailedElement getFailedElement();
@@ -38,10 +37,9 @@ public abstract class RowWithValidationResult {
   @AutoValue.Builder
   public abstract static class Builder {
 
-    public abstract RowWithValidationResult.Builder setFeatureRow(byte[] storeName);
+    public abstract RowWithValidationResult.Builder setFeatureRow(byte[] featureRow);
 
-    public abstract RowWithValidationResult.Builder setValidationStatus(
-        ValidationStatus statsdHost);
+    public abstract RowWithValidationResult.Builder setValid(boolean valid);
 
     public abstract RowWithValidationResult.Builder setFailedElement(FailedElement statsdPort);
 

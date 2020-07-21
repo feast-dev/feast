@@ -98,7 +98,7 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
                 .withOutputTags(getSuccessTag(), TupleTagList.of(getFailureTag())));
   }
 
-  private String generateConsumerGroupId(String jobName) {
+  public static String generateConsumerGroupId(String jobName) {
     String[] split = jobName.split("-");
     String jobNameWithoutTimestamp =
         Arrays.stream(split).limit(split.length - 1).collect(Collectors.joining("-"));

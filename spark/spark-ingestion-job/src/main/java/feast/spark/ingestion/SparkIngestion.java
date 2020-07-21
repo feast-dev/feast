@@ -18,9 +18,9 @@ package feast.spark.ingestion;
 
 import com.google.common.collect.Streams;
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.ingestion.enums.ValidationStatus;
-import feast.ingestion.transform.ProcessAndValidateFeatureRows;
 import feast.ingestion.transform.ReadFromSource;
+import feast.ingestion.transform.fn.ProcessFeatureRowDoFn;
+import feast.ingestion.transform.fn.ValidateFeatureRowDoFn;
 import feast.ingestion.transform.specs.FilterRelevantFunction;
 import feast.ingestion.utils.SpecUtil;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
@@ -30,6 +30,8 @@ import feast.proto.core.IngestionJobProto.SpecsStreamingUpdateConfig;
 import feast.proto.core.SourceProto.KafkaSourceConfig;
 import feast.proto.core.SourceProto.Source;
 import feast.proto.core.StoreProto.Store;
+import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FieldProto;
 import feast.spark.ingestion.delta.SparkDeltaSink;
 import feast.spark.ingestion.redis.SparkRedisSink;
 import feast.storage.api.writer.FailedElement;
@@ -238,23 +240,13 @@ public class SparkIngestion implements Serializable {
                       return new SparkDeltaSink(
                           jobId, store.getDeltaConfig(), spark, featureSetSpecs);
                     case REDIS:
-                      return new SparkRedisSink(
-                          jobId, store.getRedisConfig(), spark, featureSetSpecs);
+                      return new SparkRedisSink(store.getRedisConfig(), featureSetSpecs);
                     default:
                       throw new UnsupportedOperationException(
                           "Store " + store + " is not implemented in Spark ingestor");
                   }
                 })
             .collect(Collectors.toList());
-
-    HashMap<String, feast.ingestion.values.FeatureSet> featureSets =
-        featureSetSpecs.entrySet().stream()
-            .collect(
-                Collectors.toMap(
-                    Map.Entry::getKey,
-                    e -> new feast.ingestion.values.FeatureSet(e.getValue()),
-                    (prev, next) -> next,
-                    HashMap::new));
 
     List<VoidFunction2<Dataset<byte[]>, Long>> consumerSinks =
         consumers.stream()
@@ -269,15 +261,52 @@ public class SparkIngestion implements Serializable {
                 })
             .collect(Collectors.toList());
 
-    ProcessAndValidateFeatureRows processAndValidateFeatureRows =
-        new ProcessAndValidateFeatureRows(defaultFeastProject);
-
-    Dataset<RowWithValidationResult> processedRows =
-        processAndValidateFeatureRows.processDataset(input, featureSets);
+    ProcessFeatureRowDoFn processFeature = new ProcessFeatureRowDoFn(defaultFeastProject);
 
     // Start running the query that writes the data to sink
     query =
-        processedRows
+        input
+            .map(
+                r -> {
+                  FeatureRow featureRow = FeatureRow.parseFrom((byte[]) r.getAs("value"));
+                  FeatureRow el = processFeature.processRow(featureRow);
+                  List<FieldProto.Field> fields = new ArrayList<>();
+                  FeatureSetSpec featureSet = featureSetSpecs.get(el.getFeatureSet());
+
+                  FailedElement failedElement;
+                  if (featureSet == null) {
+                    String msg =
+                        String.format(
+                            "FeatureRow contains invalid featureSetReference %s."
+                                + " Please check that the feature rows are being published"
+                                + " to the correct topic on the feature stream.",
+                            featureRow.getFeatureSet());
+                    failedElement =
+                        FailedElement.newBuilder()
+                            .setTransformName("ValidateFeatureRow")
+                            .setJobName(jobId)
+                            .setPayload(featureRow.toString())
+                            .setErrorMessage(msg)
+                            .build();
+                  } else {
+                    failedElement =
+                        ValidateFeatureRowDoFn.validateFeatureRow(el, featureSet, jobId, fields);
+                  }
+
+                  if (failedElement != null) {
+
+                    return RowWithValidationResult.newBuilder()
+                        .setFeatureRow(el.toByteArray())
+                        .setValid(false)
+                        .setFailedElement(failedElement)
+                        .build();
+                  }
+                  return RowWithValidationResult.newBuilder()
+                      .setFeatureRow(el.toByteArray())
+                      .setValid(true)
+                      .build();
+                },
+                Encoders.kryo(RowWithValidationResult.class))
             .writeStream()
             .option(
                 "checkpointLocation",
@@ -288,7 +317,7 @@ public class SparkIngestion implements Serializable {
                   batchDF.persist();
                   Dataset<byte[]> validRows =
                       batchDF
-                          .filter(row -> row.getValidationStatus().equals(ValidationStatus.SUCCESS))
+                          .filter(RowWithValidationResult::isValid)
                           .map(RowWithValidationResult::getFeatureRow, Encoders.BINARY());
 
                   validRows.persist();
@@ -311,8 +340,7 @@ public class SparkIngestion implements Serializable {
   }
 
   private void storeDeadLetter(Dataset<RowWithValidationResult> batchDF) {
-    Dataset<RowWithValidationResult> invalidRows =
-        batchDF.filter(row -> row.getValidationStatus().equals(ValidationStatus.FAILURE));
+    Dataset<RowWithValidationResult> invalidRows = batchDF.filter(row -> !row.isValid());
 
     invalidRows
         .map(

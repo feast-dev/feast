@@ -98,7 +98,7 @@
 
     <dependency>
       <groupId>dev.feast</groupId>
-      <artifactId>feast-common</artifactId>
+      <artifactId>feast-storage-connector-redis</artifactId>
       <version>${project.version}</version>
     </dependency>
 

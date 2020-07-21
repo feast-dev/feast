@@ -20,8 +20,7 @@ import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.StoreProto.Store.RedisConfig;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.spark.ingestion.SparkSink;
-import feast.storage.connectors.redis.writer.RedisCustomIO;
-import feast.storage.connectors.redis.writer.RedisCustomIO.Write;
+import feast.storage.connectors.redis.writer.RedisCustomIO.Write.WriteDoFn;
 import io.lettuce.core.LettuceFutures;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisFuture;
@@ -34,10 +33,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.VoidFunction2;
-import org.apache.spark.broadcast.Broadcast;
-import org.apache.spark.sql.*;
+import org.apache.spark.sql.Dataset;
 
 /**
  * Sink for writing row data into Redis.
@@ -49,28 +46,15 @@ public class SparkRedisSink implements SparkSink {
 
   private static final int DEFAULT_TIMEOUT = 2000;
 
-  private final String jobId;
   private final RedisConfig redisConfig;
-  private final SparkSession spark;
-
   private final Map<String, FeatureSetSpec> featureSetSpecsByKey;
 
-  public SparkRedisSink(
-      String jobId,
-      RedisConfig redisConfig,
-      SparkSession spark,
-      Map<String, FeatureSetSpec> featureSetSpecsByKey) {
-    this.jobId = jobId;
+  public SparkRedisSink(RedisConfig redisConfig, Map<String, FeatureSetSpec> featureSetSpecsByKey) {
     this.redisConfig = redisConfig;
-    this.spark = spark;
     this.featureSetSpecsByKey = featureSetSpecsByKey;
   }
 
   public VoidFunction2<Dataset<byte[]>, Long> configure() {
-
-    Write write = new RedisCustomIO.Write(featureSetSpecsByKey);
-    JavaSparkContext sc = new JavaSparkContext(spark.sparkContext());
-    Broadcast<Write> broadcastedWriter = sc.broadcast(write);
 
     RedisURI redisuri =
         new RedisURI(
@@ -83,27 +67,24 @@ public class SparkRedisSink implements SparkSink {
       redisuri.setPassword(password);
     }
 
-    return new RedisWriter(jobId, broadcastedWriter, redisuri);
+    return new RedisWriter(redisuri, featureSetSpecsByKey);
   }
 
   @SuppressWarnings("serial")
   private static class RedisWriter implements VoidFunction2<Dataset<byte[]>, Long> {
 
-    private final String jobId;
     private final RedisURI uri;
-    private final Broadcast<Write> broadcastedWriter;
+    private final Map<String, FeatureSetSpec> featureSetSpecsByKey;
     private transient RedisAsyncCommands<byte[], byte[]> commands = null;
 
-    private RedisWriter(String jobId, Broadcast<Write> broadcastedWriter, RedisURI uri) {
-      this.jobId = jobId;
+    private RedisWriter(RedisURI uri, Map<String, FeatureSetSpec> featureSetSpecsByKey) {
       this.uri = uri;
-      this.broadcastedWriter = broadcastedWriter;
+      this.featureSetSpecsByKey = featureSetSpecsByKey;
     }
 
     @Override
     public void call(Dataset<byte[]> v1, Long v2) throws Exception {
 
-      Write writer = broadcastedWriter.getValue();
       List<RedisFuture<?>> futures = new ArrayList<>();
       v1.foreach(
           r -> {
@@ -114,9 +95,10 @@ public class SparkRedisSink implements SparkSink {
               commands = connection.async();
             }
             FeatureRow featureRow = FeatureRow.parseFrom(r);
-            byte[] key = writer.getKey(featureRow);
+            FeatureSetSpec spec = featureSetSpecsByKey.get(featureRow.getFeatureSet());
+            byte[] key = WriteDoFn.getKey(featureRow, spec);
             if (key != null) {
-              byte[] value = writer.getValue(featureRow, jobId);
+              byte[] value = WriteDoFn.getValue(featureRow, spec);
               futures.add(commands.set(key, value));
             }
           });

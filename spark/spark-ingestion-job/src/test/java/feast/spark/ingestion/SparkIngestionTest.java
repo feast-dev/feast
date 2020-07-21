@@ -375,13 +375,13 @@ public class SparkIngestionTest {
     assertThat(f.length(), is(6));
     int i = 0;
     assertThat("timestamp", f.get(i++), instanceOf(java.sql.Timestamp.class));
-    assertThat("jobName", (String) f.getAs(i++), equalTo(""));
+    assertThat("jobName", (String) f.getAs(i++), equalTo(TEST_JOB_ID));
     assertThat("transformName", (String) f.getAs(i++), is("ValidateFeatureRow"));
     assertThat("payload", (String) f.getAs(i++), startsWith("fields"));
     assertThat(
         "errorMessage",
         (String) f.getAs(i++),
-        containsString("FeatureRow contains invalid feature set id"));
+        containsString("FeatureRow contains invalid featureSetReference"));
     assertThat("stackTrace", (String) f.getAs(i++), equalTo(null));
   }
 
@@ -727,16 +727,7 @@ public class SparkIngestionTest {
           }
 
           // Ensure the retrieved FeatureRow is equal to the ingested FeatureRow.
-          FeatureRow expectedValue1 =
-              FeatureRow.newBuilder(expectedValue)
-                  .setIngestionId(jobId)
-                  .clearFields()
-                  .addAllFields(
-                      expectedValue.getFieldsList().stream()
-                          .sorted(Comparator.comparing(Field::getName))
-                          .collect(Collectors.toList()))
-                  .build();
-          Assert.assertEquals(expectedValue1, actualValue);
+          Assert.assertEquals(expectedValue, actualValue);
         });
     redisClient.shutdown();
   }

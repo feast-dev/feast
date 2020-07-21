@@ -64,7 +64,6 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
 
   @ProcessElement
   public void processElement(ProcessContext context) {
-    String error = null;
     FeatureRow featureRow = context.element();
     Iterable<FeatureSetProto.FeatureSetSpec> featureSetSpecs =
         context.sideInput(getFeatureSets()).get(featureRow.getFeatureSet());
@@ -79,10 +78,26 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
     }
 
     List<FieldProto.Field> fields = new ArrayList<>();
+    FeatureSetProto.FeatureSetSpec spec = Iterators.getLast(featureSetSpecs.iterator());
+    String jobName = context.getPipelineOptions().getJobName();
 
-    FeatureSetProto.FeatureSetSpec latestSpec = Iterators.getLast(featureSetSpecs.iterator());
-    FeatureSet featureSet = new FeatureSet(latestSpec);
+    FailedElement failed = validateFeatureRow(featureRow, spec, jobName, fields);
 
+    if (failed != null) {
+      context.output(getFailureTag(), failed);
+    } else {
+      featureRow = featureRow.toBuilder().clearFields().addAllFields(fields).build();
+      context.output(getSuccessTag(), featureRow);
+    }
+  }
+
+  public static FailedElement validateFeatureRow(
+      FeatureRow featureRow,
+      FeatureSetProto.FeatureSetSpec spec,
+      String jobName,
+      List<FieldProto.Field> fieldsOutput) {
+    FeatureSet featureSet = new FeatureSet(spec);
+    String error = null;
     for (FieldProto.Field field : featureRow.getFieldsList()) {
       Field fieldSpec = featureSet.getField(field.getName());
       if (fieldSpec == null) {
@@ -102,27 +117,26 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
           break;
         }
       }
-      if (!fields.contains(field)) {
-        fields.add(field);
+      if (!fieldsOutput.contains(field)) {
+        fieldsOutput.add(field);
       }
     }
+
+    FailedElement failed = null;
 
     if (error != null) {
       FailedElement.Builder failedElement =
           FailedElement.newBuilder()
               .setTransformName("ValidateFeatureRow")
-              .setJobName(context.getPipelineOptions().getJobName())
+              .setJobName(jobName)
               .setPayload(featureRow.toString())
               .setErrorMessage(error);
-      if (featureSetSpecs != null) {
-        FeatureSetProto.FeatureSetSpec spec = Iterators.getLast(featureSetSpecs.iterator());
+      if (spec != null) {
         failedElement =
             failedElement.setProjectName(spec.getProject()).setFeatureSetName(spec.getName());
       }
-      context.output(getFailureTag(), failedElement.build());
-    } else {
-      featureRow = featureRow.toBuilder().clearFields().addAllFields(fields).build();
-      context.output(getSuccessTag(), featureRow);
+      failed = failedElement.build();
     }
+    return failed;
   }
 }

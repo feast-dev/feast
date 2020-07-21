@@ -126,7 +126,6 @@ public class SparkDeltaSink implements SparkSink {
             batchDF.flatMap(
                 r -> {
                   FeatureRow featureRow = FeatureRow.parseFrom(r);
-                  log.debug("Comparing key '{}' and '{}'", fsInfo.key, featureRow.getFeatureSet());
                   if (!fsInfo.key.equals(featureRow.getFeatureSet())) {
                     return Collections.emptyIterator();
                   }

@@ -194,7 +194,7 @@ public class RedisCustomIO {
             .build();
       }
 
-      private byte[] getKey(FeatureRow featureRow, FeatureSetSpec spec) {
+      public static byte[] getKey(FeatureRow featureRow, FeatureSetSpec spec) {
         List<String> entityNames =
             spec.getEntitiesList().stream()
                 .map(EntitySpec::getName)
@@ -216,7 +216,7 @@ public class RedisCustomIO {
         return redisKeyBuilder.build().toByteArray();
       }
 
-      private byte[] getValue(FeatureRow featureRow, FeatureSetSpec spec) {
+      public static byte[] getValue(FeatureRow featureRow, FeatureSetSpec spec) {
         List<String> featureNames =
             spec.getFeaturesList().stream().map(FeatureSpec::getName).collect(Collectors.toList());
         Map<String, Field> fieldValueOnlyMap =
