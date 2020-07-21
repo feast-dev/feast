@@ -165,6 +165,9 @@ feast-core:
         polling_interval_milliseconds: 5000
         # databricks job can take several minutes to start (on new clusters)
         job_update_timeout_seconds: 1200
+        # if true one job per source with many stores would be created
+        # if false one job per source-store pair would be created
+        consolidate-jobs-per-source: true
         active_runner: databricks
         runners:
           - name: direct
