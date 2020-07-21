@@ -125,7 +125,7 @@ management:
   metrics:
     export:
       simple:
-        enabled: true
+        enabled: false
       statsd:
         enabled: true
         host: ${STATSD_HOST:localhost}

@@ -23,13 +23,11 @@ import feast.core.metrics.collector.JVMResourceCollector;
 import io.prometheus.client.exporter.MetricsServlet;
 import javax.servlet.http.HttpServlet;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ConditionalOnProperty("management.metrics.export.simple.enabled")
 public class MonitoringConfig {
 
   private static final String PROMETHEUS_METRICS_PATH = "/metrics";

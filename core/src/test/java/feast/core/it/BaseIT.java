@@ -19,6 +19,7 @@ package feast.core.it;
 import feast.core.config.FeastProperties;
 import feast.core.util.KafkaSerialization;
 import feast.proto.core.IngestionJobProto;
+import io.prometheus.client.CollectorRegistry;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -192,10 +193,10 @@ public class BaseIT {
 
   @AfterEach
   public void tearDown(TestInfo testInfo) throws Exception {
-    if (isNestedTest(testInfo)) {
-      return;
-    }
+    CollectorRegistry.defaultRegistry.clear();
 
-    cleanTables(entityManager);
+    if (!isNestedTest(testInfo)) {
+      cleanTables(entityManager);
+    }
   }
 }
