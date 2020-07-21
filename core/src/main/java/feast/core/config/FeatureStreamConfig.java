@@ -97,6 +97,13 @@ public class FeatureStreamConfig {
         (short) 1);
   }
 
+  /**
+   * Creates kafka publisher for sending FeatureSetSpecs to ingestion job. Uses ProtoSerializer to
+   * serialize FeatureSetSpec.
+   *
+   * @param feastProperties
+   * @return
+   */
   @Bean
   public KafkaTemplate<String, FeatureSetProto.FeatureSetSpec> specKafkaTemplate(
       FeastProperties feastProperties) {
@@ -115,6 +122,13 @@ public class FeatureStreamConfig {
     return t;
   }
 
+  /**
+   * Set configured consumerFactory for specs acknowledgment topic (see ackConsumerFactory) as
+   * default for KafkaListener.
+   *
+   * @param consumerFactory
+   * @return
+   */
   @Bean
   KafkaListenerContainerFactory<
           ConcurrentMessageListenerContainer<String, IngestionJobProto.FeatureSetSpecAck>>
@@ -126,6 +140,13 @@ public class FeatureStreamConfig {
     return factory;
   }
 
+  /**
+   * Prepares kafka consumer (by configuring ConsumerFactory) to receive acknowledgments from
+   * IngestionJob on successful updates of FeatureSetSpecs.
+   *
+   * @param feastProperties
+   * @return ConsumerFactory for FeatureSetSpecAck
+   */
   @Bean
   public ConsumerFactory<String, IngestionJobProto.FeatureSetSpecAck> ackConsumerFactory(
       FeastProperties feastProperties) {

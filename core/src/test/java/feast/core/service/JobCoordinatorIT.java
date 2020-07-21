@@ -101,11 +101,12 @@ public class JobCoordinatorIT extends BaseIT {
   @Test
   public void shouldCreateJobForNewSource() {
     apiClient.simpleApplyFeatureSet(
-        DataGenerator.getDefaultSource(),
-        "default",
-        "test",
-        Collections.emptyList(),
-        Collections.emptyList());
+        DataGenerator.createFeatureSet(
+            DataGenerator.getDefaultSource(),
+            "default",
+            "test",
+            Collections.emptyList(),
+            Collections.emptyList()));
 
     List<FeatureSetProto.FeatureSet> featureSets = apiClient.simpleListFeatureSets("*");
     assertThat(featureSets.size(), equalTo(1));
@@ -124,11 +125,12 @@ public class JobCoordinatorIT extends BaseIT {
   @Test
   public void shouldUpgradeJobWhenStoreChanged() {
     apiClient.simpleApplyFeatureSet(
-        DataGenerator.getDefaultSource(),
-        "project",
-        "test",
-        Collections.emptyList(),
-        Collections.emptyList());
+        DataGenerator.createFeatureSet(
+            DataGenerator.getDefaultSource(),
+            "project",
+            "test",
+            Collections.emptyList(),
+            Collections.emptyList()));
 
     await().until(jobManager::getAllJobs, hasSize(1));
 
@@ -152,11 +154,12 @@ public class JobCoordinatorIT extends BaseIT {
   @Test
   public void shouldRestoreJobThatStopped() {
     apiClient.simpleApplyFeatureSet(
-        DataGenerator.getDefaultSource(),
-        "project",
-        "test",
-        Collections.emptyList(),
-        Collections.emptyList());
+        DataGenerator.createFeatureSet(
+            DataGenerator.getDefaultSource(),
+            "project",
+            "test",
+            Collections.emptyList(),
+            Collections.emptyList()));
 
     await().until(jobManager::getAllJobs, hasSize(1));
     Job job = jobRepository.findByStatus(JobStatus.RUNNING).get(0);
@@ -201,11 +204,12 @@ public class JobCoordinatorIT extends BaseIT {
       jobRepository.saveAndFlush(job);
 
       apiClient.simpleApplyFeatureSet(
-          DataGenerator.getDefaultSource(),
-          "default",
-          "test",
-          ImmutableList.of(Pair.of("entity", ValueProto.ValueType.Enum.BOOL)),
-          Collections.emptyList());
+          DataGenerator.createFeatureSet(
+              DataGenerator.getDefaultSource(),
+              "default",
+              "test",
+              ImmutableList.of(Pair.of("entity", ValueProto.ValueType.Enum.BOOL)),
+              Collections.emptyList()));
 
       FeatureSetProto.FeatureSet featureSet = apiClient.simpleGetFeatureSet("default", "test");
 
@@ -230,11 +234,12 @@ public class JobCoordinatorIT extends BaseIT {
     @Order(2)
     public void shouldUpdateSpec() {
       apiClient.simpleApplyFeatureSet(
-          DataGenerator.getDefaultSource(),
-          "default",
-          "test",
-          ImmutableList.of(Pair.of("entity", ValueProto.ValueType.Enum.BOOL)),
-          ImmutableList.of(Pair.of("feature", ValueProto.ValueType.Enum.INT32)));
+          DataGenerator.createFeatureSet(
+              DataGenerator.getDefaultSource(),
+              "default",
+              "test",
+              ImmutableList.of(Pair.of("entity", ValueProto.ValueType.Enum.BOOL)),
+              ImmutableList.of(Pair.of("feature", ValueProto.ValueType.Enum.INT32))));
 
       await().until(() -> specsMailbox, hasSize(1));
 
@@ -291,11 +296,12 @@ public class JobCoordinatorIT extends BaseIT {
       assertThat(jobManager.getJobStatus(job), equalTo(JobStatus.RUNNING));
 
       apiClient.simpleApplyFeatureSet(
-          DataGenerator.createSource("localhost", "newTopic"),
-          "default",
-          "test",
-          ImmutableList.of(Pair.of("entity", ValueProto.ValueType.Enum.BOOL)),
-          ImmutableList.of(Pair.of("feature", ValueProto.ValueType.Enum.INT32)));
+          DataGenerator.createFeatureSet(
+              DataGenerator.createSource("localhost", "newTopic"),
+              "default",
+              "test",
+              ImmutableList.of(Pair.of("entity", ValueProto.ValueType.Enum.BOOL)),
+              ImmutableList.of(Pair.of("feature", ValueProto.ValueType.Enum.INT32))));
 
       await().until(() -> jobManager.getJobStatus(job), equalTo(JobStatus.ABORTED));
 

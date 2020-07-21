@@ -17,10 +17,13 @@
 package feast.core.it;
 
 import com.google.common.collect.ImmutableList;
+import feast.proto.core.FeatureSetProto;
 import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
+import feast.proto.types.ValueProto;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 
 public class DataGenerator {
@@ -73,6 +76,40 @@ public class DataGenerator {
                 .collect(Collectors.toList()))
         .setName(name)
         .setType(type)
+        .build();
+  }
+
+  public static FeatureSetProto.FeatureSet createFeatureSet(
+      SourceProto.Source source,
+      String projectName,
+      String name,
+      List<Pair<String, ValueProto.ValueType.Enum>> entities,
+      List<Pair<String, ValueProto.ValueType.Enum>> features) {
+    return FeatureSetProto.FeatureSet.newBuilder()
+        .setSpec(
+            FeatureSetProto.FeatureSetSpec.newBuilder()
+                .setSource(source)
+                .setName(name)
+                .setProject(projectName)
+                .addAllEntities(
+                    entities.stream()
+                        .map(
+                            pair ->
+                                FeatureSetProto.EntitySpec.newBuilder()
+                                    .setName(pair.getLeft())
+                                    .setValueType(pair.getRight())
+                                    .build())
+                        .collect(Collectors.toList()))
+                .addAllFeatures(
+                    features.stream()
+                        .map(
+                            pair ->
+                                FeatureSetProto.FeatureSpec.newBuilder()
+                                    .setName(pair.getLeft())
+                                    .setValueType(pair.getRight())
+                                    .build())
+                        .collect(Collectors.toList()))
+                .build())
         .build();
   }
 }
