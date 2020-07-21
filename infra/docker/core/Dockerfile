@@ -13,7 +13,7 @@ WORKDIR /build
 #
 ENV MAVEN_OPTS="-Dmaven.repo.local=/build/.m2/repository -DdependencyLocationsEnabled=false"
 RUN mvn --also-make --projects core,ingestion -Drevision=$REVISION \
-  -DskipTests=true --batch-mode clean package
+  -DskipUTs=true --batch-mode clean package
 #
 # Unpack the jar and copy the files into production Docker image
 # for faster startup time when starting Dataflow jobs from Feast Core.
@@ -23,7 +23,7 @@ RUN mvn --also-make --projects core,ingestion -Drevision=$REVISION \
 #
 # https://github.com/feast-dev/feast/pull/291
 RUN apt-get -qq update && apt-get -y install unar && \
-  unar /build/core/target/feast-core-$REVISION.jar -o /build/core/target/
+  unar /build/core/target/feast-core-$REVISION-exec.jar -o /build/core/target/
 
 #
 # Download grpc_health_probe to run health check for Feast Serving
@@ -40,9 +40,9 @@ RUN wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/downloa
 FROM openjdk:11-jre as production
 ARG REVISION=dev
 
-COPY --from=builder /build/core/target/feast-core-$REVISION.jar /opt/feast/feast-core.jar
+COPY --from=builder /build/core/target/feast-core-$REVISION-exec.jar /opt/feast/feast-core.jar
 # Required for staging jar dependencies when submitting Dataflow jobs.
-COPY --from=builder /build/core/target/feast-core-$REVISION /opt/feast/feast-core
+COPY --from=builder /build/core/target/feast-core-$REVISION-exec /opt/feast/feast-core
 COPY --from=builder /usr/bin/grpc-health-probe /usr/bin/grpc-health-probe
 
 CMD ["java",\

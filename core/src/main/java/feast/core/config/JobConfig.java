@@ -34,7 +34,7 @@ import feast.proto.core.RunnerProto.DirectRunnerConfigOptions;
 import feast.proto.core.SourceProto;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -94,7 +94,7 @@ public class JobConfig {
    * @param feastProperties feast config properties
    */
   @Bean
-  @Autowired
+  @ConditionalOnMissingBean
   public JobManager getJobManager(
       FeastProperties feastProperties,
       IngestionJobProto.SpecsStreamingUpdateConfig specsStreamingUpdateConfig)

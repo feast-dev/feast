@@ -72,7 +72,7 @@ build_feast_core_and_serving() {
     --output-dir /root/
 
   # Build jars for Feast
-  mvn --quiet --batch-mode --define skipTests=true clean package
+  mvn --quiet --batch-mode -Dmaven.javadoc.skip=true -Dgpg.skip -DskipUTs=true clean package
 
   ls -lh core/target/*jar
   ls -lh serving/target/*jar
@@ -86,7 +86,7 @@ start_feast_core() {
     export CONFIG_ARG="--spring.config.location=classpath:/application.yml,file://$1"
   fi
 
-  nohup java -jar core/target/feast-core-$FEAST_BUILD_VERSION.jar $CONFIG_ARG &>/var/log/feast-core.log &
+  nohup java -jar core/target/feast-core-$FEAST_BUILD_VERSION-exec.jar $CONFIG_ARG &>/var/log/feast-core.log &
   ${SCRIPTS_DIR}/wait-for-it.sh localhost:6565 --timeout=90
 
   tail -n10 /var/log/feast-core.log
@@ -101,7 +101,7 @@ start_feast_serving() {
     export CONFIG_ARG="--spring.config.location=classpath:/application.yml,file://$1"
   fi
 
-  nohup java -jar serving/target/feast-serving-$FEAST_BUILD_VERSION.jar $CONFIG_ARG &>/var/log/feast-serving-online.log &
+  nohup java -jar serving/target/feast-serving-$FEAST_BUILD_VERSION-exec.jar $CONFIG_ARG &>/var/log/feast-serving-online.log &
   ${SCRIPTS_DIR}/wait-for-it.sh localhost:6566 --timeout=60
 
   tail -n100 /var/log/feast-serving-online.log

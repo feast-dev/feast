@@ -33,7 +33,7 @@ public abstract class AbstractTimestampEntity {
   private Date created;
 
   @Temporal(TemporalType.TIMESTAMP)
-  @Column(name = "lastUpdated", nullable = false)
+  @Column(name = "last_updated", nullable = false)
   private Date lastUpdated;
 
   @PrePersist

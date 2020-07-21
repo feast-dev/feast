@@ -68,6 +68,8 @@
         <flyway.version>6.0.8</flyway.version>
         <joda.time.version>2.9.9</joda.time.version>
         <jakarta.validation.api.version>2.0.2</jakarta.validation.api.version>
+
+        <skipUTs>false</skipUTs>
     </properties>
 
     <organization>
@@ -529,12 +531,45 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.0.0-M4</version>
+                <version>3.0.0-M5</version>
                 <configuration>
                     <argLine>@{argLine} -Xms2048m -Xmx2048m -Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
-                    <excludes>
-                        <groups>IntegrationTest</groups>
-                    </excludes>
+                    <skipTests>${skipUTs}</skipTests>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.junit.vintage</groupId>
+                        <artifactId>junit-vintage-engine</artifactId>
+                        <version>5.5.2</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+            <plugin>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.0.0-M5</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.junit.jupiter</groupId>
+                        <artifactId>junit-jupiter-engine</artifactId>
+                        <version>5.6.2</version>
+                    </dependency>
+                </dependencies>
+                <executions>
+                    <execution>
+                        <id>integration-tests</id>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <classpathDependencyExcludes>
+                        <classpathDependencyExcludes>${groupId}:${artifactId}</classpathDependencyExcludes>
+                    </classpathDependencyExcludes>
+                    <additionalClasspathElements>
+                        <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
+                    </additionalClasspathElements>
                 </configuration>
             </plugin>
             <plugin>
@@ -695,6 +730,9 @@
                             </goals>
                         </execution>
                     </executions>
+                    <configuration>
+                        <classifier>exec</classifier>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.xolstice.maven.plugins</groupId>

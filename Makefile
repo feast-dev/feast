@@ -46,6 +46,9 @@ lint-java:
 test-java:
 	mvn --no-transfer-progress test
 
+test-java-integration:
+	mvn --no-transfer-progress -Dmaven.javadoc.skip=true -Dgpg.skip -DskipUTs=true clean verify
+
 test-java-with-coverage:
 	mvn --no-transfer-progress test jacoco:report-aggregate
 

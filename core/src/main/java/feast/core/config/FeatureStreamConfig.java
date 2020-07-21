@@ -37,7 +37,10 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.config.KafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
+import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 
 @Slf4j
 @Configuration
@@ -94,6 +97,13 @@ public class FeatureStreamConfig {
         (short) 1);
   }
 
+  /**
+   * Creates kafka publisher for sending FeatureSetSpecs to ingestion job. Uses ProtoSerializer to
+   * serialize FeatureSetSpec.
+   *
+   * @param feastProperties
+   * @return
+   */
   @Bean
   public KafkaTemplate<String, FeatureSetProto.FeatureSetSpec> specKafkaTemplate(
       FeastProperties feastProperties) {
@@ -112,8 +122,34 @@ public class FeatureStreamConfig {
     return t;
   }
 
+  /**
+   * Set configured consumerFactory for specs acknowledgment topic (see ackConsumerFactory) as
+   * default for KafkaListener.
+   *
+   * @param consumerFactory
+   * @return
+   */
   @Bean
-  public ConsumerFactory<?, ?> ackConsumerFactory(FeastProperties feastProperties) {
+  KafkaListenerContainerFactory<
+          ConcurrentMessageListenerContainer<String, IngestionJobProto.FeatureSetSpecAck>>
+      kafkaAckListenerContainerFactory(
+          ConsumerFactory<String, IngestionJobProto.FeatureSetSpecAck> consumerFactory) {
+    ConcurrentKafkaListenerContainerFactory<String, IngestionJobProto.FeatureSetSpecAck> factory =
+        new ConcurrentKafkaListenerContainerFactory<>();
+    factory.setConsumerFactory(consumerFactory);
+    return factory;
+  }
+
+  /**
+   * Prepares kafka consumer (by configuring ConsumerFactory) to receive acknowledgments from
+   * IngestionJob on successful updates of FeatureSetSpecs.
+   *
+   * @param feastProperties
+   * @return ConsumerFactory for FeatureSetSpecAck
+   */
+  @Bean
+  public ConsumerFactory<String, IngestionJobProto.FeatureSetSpecAck> ackConsumerFactory(
+      FeastProperties feastProperties) {
     StreamProperties streamProperties = feastProperties.getStream();
     Map<String, Object> props = new HashMap<>();
 

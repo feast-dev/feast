@@ -408,7 +408,9 @@ public class JobCoordinatorService {
    *
    * @param record ConsumerRecord with key: FeatureSet reference and value: Ack message
    */
-  @KafkaListener(topics = {"${feast.stream.specsOptions.specsAckTopic}"})
+  @KafkaListener(
+      topics = {"${feast.stream.specsOptions.specsAckTopic}"},
+      containerFactory = "kafkaAckListenerContainerFactory")
   @Transactional
   public void listenAckFromJobs(
       ConsumerRecord<String, IngestionJobProto.FeatureSetSpecAck> record) {
