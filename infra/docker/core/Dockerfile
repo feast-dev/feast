@@ -42,7 +42,7 @@ ARG REVISION=dev
 
 COPY --from=builder /build/core/target/feast-core-$REVISION-exec.jar /opt/feast/feast-core.jar
 # Required for staging jar dependencies when submitting Dataflow jobs.
-COPY --from=builder /build/core/target/feast-core-$REVISION /opt/feast/feast-core
+COPY --from=builder /build/core/target/feast-core-$REVISION-exec /opt/feast/feast-core
 COPY --from=builder /usr/bin/grpc-health-probe /usr/bin/grpc-health-probe
 
 CMD ["java",\
