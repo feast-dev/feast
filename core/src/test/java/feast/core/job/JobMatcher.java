@@ -19,6 +19,7 @@ package feast.core.job;
 import feast.core.model.Job;
 import org.mockito.ArgumentMatcher;
 
+/** Custom Job ArgumentMatcher that disregards the Job id when matching jobs */
 public class JobMatcher implements ArgumentMatcher<Job> {
 
   private Job left;

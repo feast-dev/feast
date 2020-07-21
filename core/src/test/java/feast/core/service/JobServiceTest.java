@@ -16,6 +16,7 @@
  */
 package feast.core.service;
 
+import static feast.core.util.TestUtil.makeFeatureSetJobStatus;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.fail;
@@ -25,11 +26,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
 import feast.core.model.*;
+import feast.core.util.TestUtil;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.proto.core.CoreServiceProto.ListIngestionJobsRequest;
@@ -44,11 +48,7 @@ import feast.proto.core.StoreProto.Store.RedisConfig;
 import feast.proto.core.StoreProto.Store.StoreType;
 import feast.proto.types.ValueProto.ValueType.Enum;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -75,7 +75,7 @@ public class JobServiceTest {
 
     // create mock objects for testing
     // fake data source
-    this.dataSource = TestObjectFactory.defaultSource;
+    this.dataSource = TestUtil.defaultSource;
     // fake data store
     this.dataStore =
         new Store(
@@ -85,7 +85,7 @@ public class JobServiceTest {
             "*:*:*");
 
     // fake featureset & job
-    this.featureSet = this.newDummyFeatureSet("food", 2, "hunger");
+    this.featureSet = this.newDummyFeatureSet("food", "hunger");
     this.job = this.newDummyJob("kafka-to-redis", "job-1111", JobStatus.PENDING);
     try {
       this.ingestionJob = this.job.toProto();
@@ -115,7 +115,6 @@ public class JobServiceTest {
 
       when(this.specService.listFeatureSets(this.listFilters.get(1))).thenReturn(response);
 
-      when(this.specService.listFeatureSets(this.listFilters.get(2))).thenReturn(response);
     } catch (InvalidProtocolBufferException e) {
       e.printStackTrace();
       fail("Unexpected exception");
@@ -124,9 +123,10 @@ public class JobServiceTest {
 
   public void setupJobRepository() {
     when(this.jobRepository.findById(this.job.getId())).thenReturn(Optional.of(this.job));
-    when(this.jobRepository.findByStoreName(this.dataStore.getName()))
+    when(this.jobRepository.findByJobStoresIdStoreName(this.dataStore.getName()))
         .thenReturn(Arrays.asList(this.job));
-    when(this.jobRepository.findByFeatureSetsIn(Arrays.asList(this.featureSet)))
+    when(this.jobRepository.findByFeatureSetJobStatusesIn(
+            Lists.newArrayList((this.featureSet.getJobStatuses()))))
         .thenReturn(Arrays.asList(this.job));
     when(this.jobRepository.findAll()).thenReturn(Arrays.asList(this.job));
   }
@@ -137,61 +137,51 @@ public class JobServiceTest {
         .thenReturn(this.newDummyJob(this.job.getId(), this.job.getExtId(), JobStatus.PENDING));
   }
 
-  private FeatureSet newDummyFeatureSet(String name, int version, String project) {
-    Feature feature = TestObjectFactory.CreateFeature(name + "_feature", Enum.INT64);
-    Entity entity = TestObjectFactory.CreateEntity(name + "_entity", Enum.STRING);
+  private FeatureSet newDummyFeatureSet(String name, String project) {
+    Feature feature = TestUtil.CreateFeature(name + "_feature", Enum.INT64);
+    Entity entity = TestUtil.CreateEntity(name + "_entity", Enum.STRING);
 
     FeatureSet fs =
-        TestObjectFactory.CreateFeatureSet(
-            name, project, Arrays.asList(entity), Arrays.asList(feature));
+        TestUtil.CreateFeatureSet(name, project, Arrays.asList(entity), Arrays.asList(feature));
     fs.setCreated(Date.from(Instant.ofEpochSecond(10L)));
     return fs;
   }
 
   private Job newDummyJob(String id, String extId, JobStatus status) {
-    return new Job(
-        id,
-        extId,
-        Runner.DATAFLOW,
-        this.dataSource,
-        this.dataStore,
-        Arrays.asList(this.featureSet),
-        status);
+    Job job =
+        Job.builder()
+            .setId(id)
+            .setExtId(extId)
+            .setRunner(Runner.DATAFLOW)
+            .setSource(this.dataSource)
+            .setFeatureSetJobStatuses(makeFeatureSetJobStatus(this.featureSet))
+            .setStatus(status)
+            .build();
+    job.setStores(ImmutableSet.of(this.dataStore));
+    return job;
   }
 
   private List<FeatureSetReference> newDummyFeatureSetReferences() {
     return Arrays.asList(
-        // all provided: name, version and project
-        FeatureSetReference.newBuilder()
-            .setName(this.featureSet.getName())
-            .setProject(this.featureSet.getProject().toString())
-            .build(),
-
         // name and project
         FeatureSetReference.newBuilder()
             .setName(this.featureSet.getName())
             .setProject(this.featureSet.getProject().toString())
             .build(),
 
-        // name and version
+        // name only
         FeatureSetReference.newBuilder().setName(this.featureSet.getName()).build());
   }
 
   private List<ListFeatureSetsRequest.Filter> newDummyListRequestFilters() {
     return Arrays.asList(
-        // all provided: name, version and project
-        ListFeatureSetsRequest.Filter.newBuilder()
-            .setFeatureSetName(this.featureSet.getName())
-            .setProject(this.featureSet.getProject().toString())
-            .build(),
-
         // name and project
         ListFeatureSetsRequest.Filter.newBuilder()
             .setFeatureSetName(this.featureSet.getName())
             .setProject(this.featureSet.getProject().toString())
             .build(),
 
-        // name and project
+        // name  only
         ListFeatureSetsRequest.Filter.newBuilder()
             .setFeatureSetName(this.featureSet.getName())
             .setProject("*")
@@ -239,7 +229,7 @@ public class JobServiceTest {
 
   @Test
   public void testListIngestionJobByFeatureSetReference() {
-    // list job by feature set reference: name and version and project
+    // list job by feature set reference: name and project
     ListIngestionJobsRequest.Filter filter =
         ListIngestionJobsRequest.Filter.newBuilder()
             .setFeatureSetReference(this.fsReferences.get(0))
@@ -249,19 +239,10 @@ public class JobServiceTest {
         ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
     assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
 
-    // list job by feature set reference: name and version
+    // list job by feature set reference: name
     filter =
         ListIngestionJobsRequest.Filter.newBuilder()
             .setFeatureSetReference(this.fsReferences.get(1))
-            .setId(this.job.getId())
-            .build();
-    request = ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
-    assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
-
-    // list job by feature set reference: name and project
-    filter =
-        ListIngestionJobsRequest.Filter.newBuilder()
-            .setFeatureSetReference(this.fsReferences.get(2))
             .setId(this.job.getId())
             .build();
     request = ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
@@ -278,7 +259,7 @@ public class JobServiceTest {
         fail("Expected exception, but none was thrown");
       }
     } catch (Exception e) {
-      if (expectError != true) {
+      if (!expectError) {
         // unexpected exception
         e.printStackTrace();
         fail("Caught Unexpected exception trying to restart job");
@@ -295,8 +276,10 @@ public class JobServiceTest {
 
     StopIngestionJobRequest request =
         StopIngestionJobRequest.newBuilder().setId(this.job.getId()).build();
+    when(this.jobManager.abortJob(this.job))
+        .thenReturn(this.newDummyJob(job.getId(), job.getExtId(), JobStatus.ABORTING));
     this.tryStopJob(request, false);
-    verify(this.jobManager).abortJob(this.job.getExtId());
+    verify(this.jobManager).abortJob(this.job);
 
     // TODO: check that for job status change in featureset source
 
@@ -316,7 +299,7 @@ public class JobServiceTest {
           StopIngestionJobRequest.newBuilder().setId(this.job.getId()).build();
       this.tryStopJob(request, false);
 
-      verify(this.jobManager, never()).abortJob(this.job.getExtId());
+      verify(this.jobManager, never()).abortJob(this.job);
     }
 
     this.job.setStatus(prevStatus);
@@ -327,8 +310,7 @@ public class JobServiceTest {
     // check for UnsupportedOperationException when trying to stop jobs are
     // in an in unknown or in a transitional state
     JobStatus prevStatus = this.job.getStatus();
-    List<JobStatus> unsupportedStatuses = new ArrayList<>();
-    unsupportedStatuses.addAll(JobStatus.getTransitionalStates());
+    List<JobStatus> unsupportedStatuses = new ArrayList<>(JobStatus.getTransitionalStates());
     unsupportedStatuses.add(JobStatus.UNKNOWN);
 
     for (JobStatus status : unsupportedStatuses) {
@@ -342,6 +324,12 @@ public class JobServiceTest {
     this.job.setStatus(prevStatus);
   }
 
+  @Test(expected = NoSuchElementException.class)
+  public void testStopJobForUnknownId() {
+    var request = StopIngestionJobRequest.newBuilder().setId("bogusJobId").build();
+    jobService.stopJob(request);
+  }
+
   // restart jobs
   private RestartIngestionJobResponse tryRestartJob(
       RestartIngestionJobRequest request, boolean expectError) {
@@ -353,7 +341,7 @@ public class JobServiceTest {
         fail("Expected exception, but none was thrown");
       }
     } catch (Exception e) {
-      if (expectError != true) {
+      if (!expectError) {
         // unexpected exception
         e.printStackTrace();
         fail("Caught Unexpected exception trying to stop job");
@@ -389,8 +377,7 @@ public class JobServiceTest {
     // check for UnsupportedOperationException when trying to restart jobs are
     // in an in unknown or in a transitional state
     JobStatus prevStatus = this.job.getStatus();
-    List<JobStatus> unsupportedStatuses = new ArrayList<>();
-    unsupportedStatuses.addAll(JobStatus.getTransitionalStates());
+    List<JobStatus> unsupportedStatuses = new ArrayList<>(JobStatus.getTransitionalStates());
     unsupportedStatuses.add(JobStatus.UNKNOWN);
 
     for (JobStatus status : unsupportedStatuses) {

@@ -33,10 +33,13 @@ WORKDIR /build
 COPY datatypes datatypes
 COPY storage storage
 COPY sdk/java sdk/java
+COPY docs/coverage/java docs/coverage/java
 COPY core core
 COPY ingestion ingestion
 COPY protos protos
 COPY serving serving
+COPY common common
+COPY auth auth
 COPY spark spark
 COPY pom.xml pom.xml
 

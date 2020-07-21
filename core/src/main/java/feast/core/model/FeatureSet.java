@@ -23,12 +23,14 @@ import com.google.protobuf.Timestamp;
 import feast.core.util.TypeConversion;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.*;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
 import java.util.*;
 import java.util.stream.Collectors;
 import javax.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apache.commons.lang3.tuple.Pair;
 import org.tensorflow.metadata.v0.*;
 
 @Getter
@@ -72,8 +74,12 @@ public class FeatureSet extends AbstractTimestampEntity {
 
   // Source on which feature rows can be found
   @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-  @JoinColumn(name = "source")
+  @JoinColumn(name = "source_id", referencedColumnName = "pk")
   private Source source;
+
+  @Deprecated
+  @Column(name = "source")
+  private String deprecatedSource;
 
   // Status of the feature set
   @Enumerated(EnumType.STRING)
@@ -83,6 +89,12 @@ public class FeatureSet extends AbstractTimestampEntity {
   // User defined metadata
   @Column(name = "labels", columnDefinition = "text")
   private String labels;
+
+  @Column(name = "version", columnDefinition = "integer default 0")
+  private int version;
+
+  @OneToMany(mappedBy = "featureSet")
+  private Set<FeatureSetJobStatus> jobStatuses = new HashSet<>();
 
   public FeatureSet() {
     super();
@@ -121,8 +133,128 @@ public class FeatureSet extends AbstractTimestampEntity {
     }
   }
 
+  /**
+   * Return a boolean to facilitate streaming elements on the basis of given predicate.
+   *
+   * @param entitiesFilter contain entities that should be attached to the FeatureSet
+   * @return boolean True if FeatureSet contains all entities in the entitiesFilter
+   */
+  public boolean hasAllEntities(List<String> entitiesFilter) {
+    List<String> allEntitiesName =
+        this.getEntities().stream().map(entity -> entity.getName()).collect(Collectors.toList());
+    return allEntitiesName.equals(entitiesFilter);
+  }
+
+  /**
+   * Returns a map of Feature references and Features if FeatureSet's Feature contains all labels in
+   * the labelsFilter
+   *
+   * @param labelsFilter contain labels that should be attached to FeatureSet's features
+   * @return Map of Feature references and Features
+   */
+  public Map<String, Feature> getFeaturesByRef(Map<String, String> labelsFilter) {
+    Map<String, Feature> validFeaturesMap = new HashMap<>();
+    List<Feature> validFeatures;
+    if (labelsFilter.size() > 0) {
+      validFeatures = filterFeaturesByAllLabels(this.getFeatures(), labelsFilter);
+      for (Feature feature : validFeatures) {
+        FeatureReference featureRef =
+            FeatureReference.newBuilder()
+                .setProject(this.getProjectName())
+                .setFeatureSet(this.getName())
+                .setName(feature.getName())
+                .build();
+        validFeaturesMap.put(renderFeatureRef(featureRef), feature);
+      }
+      return validFeaturesMap;
+    }
+    for (Feature feature : this.getFeatures()) {
+      FeatureReference featureRef =
+          FeatureReference.newBuilder()
+              .setProject(this.getProjectName())
+              .setFeatureSet(this.getName())
+              .setName(feature.getName())
+              .build();
+      validFeaturesMap.put(renderFeatureRef(featureRef), feature);
+    }
+    return validFeaturesMap;
+  }
+
+  /**
+   * Returns a list of Features if FeatureSet's Feature contains all labels in labelsFilter
+   *
+   * @param labelsFilter contain labels that should be attached to FeatureSet's features
+   * @return List of Features
+   */
+  public static List<Feature> filterFeaturesByAllLabels(
+      Set<Feature> features, Map<String, String> labelsFilter) {
+    List<Feature> validFeatures =
+        features.stream()
+            .filter(feature -> feature.hasAllLabels(labelsFilter))
+            .collect(Collectors.toList());
+
+    return validFeatures;
+  }
+
+  /**
+   * Render a feature reference as string.
+   *
+   * @param featureReference to render as string
+   * @return string representation of feature reference.
+   */
+  public static String renderFeatureRef(FeatureReference featureReference) {
+    String refStr =
+        featureReference.getProject()
+            + "/"
+            + featureReference.getFeatureSet()
+            + ":"
+            + featureReference.getName();
+
+    return refStr;
+  }
+
+  /**
+   * Return a boolean to facilitate streaming elements on the basis of given predicate.
+   *
+   * @param labelsFilter labels contain key-value mapping for labels attached to the FeatureSet
+   * @return boolean True if FeatureSet contains all labels in the labelsFilter
+   */
+  public boolean hasAllLabels(Map<String, String> labelsFilter) {
+    Map<String, String> featureSetLabelsMap = this.getLabelsMap();
+    for (String key : labelsFilter.keySet()) {
+      if (!featureSetLabelsMap.containsKey(key)
+          || !featureSetLabelsMap.get(key).equals(labelsFilter.get(key))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   public void setProject(Project project) {
     this.project = project;
+  }
+
+  public String getReference() {
+    return String.format("%s/%s", getProjectName(), getName());
+  }
+
+  /** @return Pair &lt;ProjectName, FeatureSetName&gt; */
+  public static Pair<String, String> parseReference(String reference) {
+    String[] split = reference.split("/", 2);
+    if (split.length == 1) {
+      return Pair.of(Project.DEFAULT_NAME, split[0]);
+    }
+
+    if (split.length > 2) {
+      throw new RuntimeException(
+          "FeatureSet reference must have the format <project-name>/<feature-set-name>");
+    }
+
+    return Pair.of(split[0], split[1]);
+  }
+
+  public int incVersion() {
+    return ++version;
   }
 
   public static FeatureSet fromProto(FeatureSetProto.FeatureSet featureSetProto) {
@@ -182,9 +314,10 @@ public class FeatureSet extends AbstractTimestampEntity {
               spec.getEntitiesList(), existingEntities));
     }
 
-    // 4. Update max age and source.
-    maxAgeSeconds = spec.getMaxAge().getSeconds();
-    source = Source.fromProto(spec.getSource());
+    // 2. Update max age, source and labels.
+    this.maxAgeSeconds = spec.getMaxAge().getSeconds();
+    this.source = Source.fromProto(spec.getSource());
+    this.setLabels(TypeConversion.convertMapToJsonString(spec.getLabelsMap()));
 
     Map<String, FeatureSpec> updatedFeatures =
         spec.getFeaturesList().stream().collect(Collectors.toMap(FeatureSpec::getName, fs -> fs));
@@ -257,9 +390,14 @@ public class FeatureSet extends AbstractTimestampEntity {
             .addAllEntities(entitySpecs)
             .addAllFeatures(featureSpecs)
             .putAllLabels(TypeConversion.convertJsonStringToMap(labels))
-            .setSource(source.toProto());
+            .setSource(source.toProto())
+            .setVersion(version);
 
     return FeatureSetProto.FeatureSet.newBuilder().setMeta(meta).setSpec(spec).build();
+  }
+
+  public Map<String, String> getLabelsMap() {
+    return TypeConversion.convertJsonStringToMap(this.getLabels());
   }
 
   @Override
@@ -297,6 +435,10 @@ public class FeatureSet extends AbstractTimestampEntity {
     }
 
     if (maxAgeSeconds != other.maxAgeSeconds) {
+      return false;
+    }
+
+    if (version != other.version) {
       return false;
     }
 

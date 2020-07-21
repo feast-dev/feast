@@ -86,9 +86,26 @@ public class Feature {
   // retrieved from or written to.
   private boolean archived = false;
 
-  private Feature(String name, ValueType.Enum type) {
+  public Feature(String name, ValueType.Enum type) {
     this.setName(name);
     this.setType(type.toString());
+  }
+
+  /**
+   * Return a boolean to facilitate streaming elements on the basis of given predicate.
+   *
+   * @param labelsFilter contain labels that should be attached to Feature
+   * @return boolean True if Feature contains all labels in the labelsFilter
+   */
+  public boolean hasAllLabels(Map<String, String> labelsFilter) {
+    Map<String, String> featureLabelsMap = this.getLabels();
+    for (String key : labelsFilter.keySet()) {
+      if (!featureLabelsMap.containsKey(key)
+          || !featureLabelsMap.get(key).equals(labelsFilter.get(key))) {
+        return false;
+      }
+    }
+    return true;
   }
 
   public static Feature fromProto(FeatureSpec featureSpec) {
@@ -218,7 +235,7 @@ public class Feature {
   }
 
   /**
-   * Update the feature object with a valid feature spec. Only schema changes are allowed.
+   * Update the feature object with a valid feature spec.
    *
    * @param featureSpec {@link FeatureSpec} containing schema changes.
    */
@@ -235,6 +252,7 @@ public class Feature {
               "You are attempting to change the type of feature %s from %s to %s. This isn't allowed. Please create a new feature.",
               featureSpec.getName(), type, featureSpec.getValueType()));
     }
+    this.setLabels(TypeConversion.convertMapToJsonString(featureSpec.getLabelsMap()));
     updateSchema(featureSpec);
   }
 

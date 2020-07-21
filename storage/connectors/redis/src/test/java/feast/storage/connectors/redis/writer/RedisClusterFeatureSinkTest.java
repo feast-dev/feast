@@ -23,6 +23,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Timestamp;
+import feast.common.models.FeatureSetReference;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
@@ -32,6 +33,7 @@ import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.Value;
 import feast.proto.types.ValueProto.ValueType.Enum;
+import feast.storage.api.writer.FailedElement;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
@@ -49,6 +51,8 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.windowing.*;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
 import org.junit.Before;
@@ -113,8 +117,10 @@ public class RedisClusterFeatureSinkTest {
                 FeatureSpec.newBuilder().setName("feature_2").setValueType(Enum.INT64).build())
             .build();
 
-    Map<String, FeatureSetSpec> specMap =
-        ImmutableMap.of("myproject/fs", spec1, "myproject/feature_set", spec2);
+    Map<FeatureSetReference, FeatureSetSpec> specMap =
+        ImmutableMap.of(
+            FeatureSetReference.of("myproject", "fs", 1), spec1,
+            FeatureSetReference.of("myproject", "feature_set", 1), spec2);
     RedisClusterConfig redisClusterConfig =
         RedisClusterConfig.newBuilder()
             .setConnectionString(CONNECTION_STRING)
@@ -123,10 +129,8 @@ public class RedisClusterFeatureSinkTest {
             .build();
 
     redisClusterFeatureSink =
-        RedisFeatureSink.builder()
-            .setFeatureSetSpecs(specMap)
-            .setRedisClusterConfig(redisClusterConfig)
-            .build();
+        RedisFeatureSink.builder().setRedisClusterConfig(redisClusterConfig).build();
+    redisClusterFeatureSink.prepareWrite(p.apply("Specs-1", Create.of(specMap)));
   }
 
   static boolean deleteDirectory(File directoryToBeDeleted) {
@@ -217,6 +221,7 @@ public class RedisClusterFeatureSinkTest {
         p.apply(Create.of(featureRows))
             .apply(redisClusterFeatureSink.writer())
             .getFailedInserts()
+            .apply(Window.<FailedElement>into(new GlobalWindows()).triggering(Never.ever()))
             .apply(Count.globally());
 
     redisCluster.stop();
@@ -260,9 +265,10 @@ public class RedisClusterFeatureSinkTest {
     Map<String, FeatureSetSpec> specMap = ImmutableMap.of("myproject/fs", spec1);
     redisClusterFeatureSink =
         RedisFeatureSink.builder()
-            .setFeatureSetSpecs(specMap)
             .setRedisClusterConfig(redisClusterConfig)
-            .build();
+            .build()
+            .withSpecsView(p.apply("Specs-2", Create.of(specMap)).apply("View", View.asMultimap()));
+
     redisCluster.stop();
 
     List<FeatureRow> featureRows =
@@ -275,8 +281,9 @@ public class RedisClusterFeatureSinkTest {
 
     PCollection<Long> failedElementCount =
         p.apply(Create.of(featureRows))
-            .apply(redisClusterFeatureSink.writer())
+            .apply("modifiedSink", redisClusterFeatureSink.writer())
             .getFailedInserts()
+            .apply(Window.<FailedElement>into(new GlobalWindows()).triggering(Never.ever()))
             .apply(Count.globally());
 
     PAssert.that(failedElementCount).containsInAnyOrder(1L);

@@ -19,25 +19,20 @@ package feast.ingestion.transform;
 import com.google.auto.value.AutoValue;
 import feast.ingestion.transform.fn.ProcessFeatureRowDoFn;
 import feast.ingestion.transform.fn.ValidateFeatureRowDoFn;
-import feast.ingestion.values.FeatureSet;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.storage.api.writer.FailedElement;
 import java.util.Map;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.beam.sdk.values.*;
 
 @AutoValue
 public abstract class ProcessAndValidateFeatureRows
     extends PTransform<PCollection<FeatureRow>, PCollectionTuple> {
 
-  public abstract Map<String, FeatureSetProto.FeatureSetSpec> getFeatureSetSpecs();
+  public abstract PCollectionView<Map<String, Iterable<FeatureSetProto.FeatureSetSpec>>>
+      getFeatureSetSpecs();
 
   public abstract String getDefaultProject();
 
@@ -53,7 +48,7 @@ public abstract class ProcessAndValidateFeatureRows
   public abstract static class Builder {
 
     public abstract Builder setFeatureSetSpecs(
-        Map<String, FeatureSetProto.FeatureSetSpec> featureSets);
+        PCollectionView<Map<String, Iterable<FeatureSetProto.FeatureSetSpec>>> featureSets);
 
     public abstract Builder setDefaultProject(String defaultProject);
 
@@ -66,22 +61,17 @@ public abstract class ProcessAndValidateFeatureRows
 
   @Override
   public PCollectionTuple expand(PCollection<FeatureRow> input) {
-
-    Map<String, FeatureSet> featureSets =
-        getFeatureSetSpecs().entrySet().stream()
-            .map(e -> Pair.of(e.getKey(), new FeatureSet(e.getValue())))
-            .collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
-
     return input
         .apply("ProcessFeatureRows", ParDo.of(new ProcessFeatureRowDoFn(getDefaultProject())))
         .apply(
             "ValidateFeatureRows",
             ParDo.of(
                     ValidateFeatureRowDoFn.newBuilder()
-                        .setFeatureSets(featureSets)
+                        .setFeatureSets(getFeatureSetSpecs())
                         .setSuccessTag(getSuccessTag())
                         .setFailureTag(getFailureTag())
                         .build())
+                .withSideInputs(getFeatureSetSpecs())
                 .withOutputTags(getSuccessTag(), TupleTagList.of(getFailureTag())));
   }
 }

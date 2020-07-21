@@ -16,8 +16,8 @@
  */
 package feast.serving.specs;
 
-import static feast.serving.util.RefUtil.generateFeatureSetStringRef;
-import static feast.serving.util.RefUtil.generateFeatureStringRef;
+import static feast.common.models.Feature.getFeatureStringWithProjectRef;
+import static feast.common.models.FeatureSet.getFeatureSetStringRef;
 import static java.util.stream.Collectors.groupingBy;
 
 import com.google.common.cache.CacheBuilder;
@@ -104,66 +104,105 @@ public class CachedSpecService {
   }
 
   /**
-   * Get FeatureSetSpecs for the given features references. If the project is unspecified in the
-   * given references, autofills the default project. Throws a {@link SpecRetrievalException}. If
-   * multiple feature sets match given string reference,
-   *
-   * @return FeatureSetRequest containing the specs, and their respective feature references
+   * Get FeatureSetSpecs for the given features references. See {@link #getFeatureSets(List,
+   * String)} for full documentation.
    */
   public List<FeatureSetRequest> getFeatureSets(List<FeatureReference> featureReferences) {
+    return getFeatureSets(featureReferences, "");
+  }
+
+  /**
+   * Get FeatureSetSpecs for the given features references. If the project is unspecified in the
+   * given references or project override, autofills the default project. Throws a {@link
+   * SpecRetrievalException} if multiple feature sets match given string reference.
+   *
+   * @param projectOverride If specified would take the spec request in the context of the given
+   *     project only. Otherwise if "", will default to determining the project from the individual
+   *     references. Has higher precedence compared to project specifed in Feature Reference if both
+   *     are specified.
+   * @return FeatureSetRequest containing the specs, and their respective feature references
+   */
+  public List<FeatureSetRequest> getFeatureSets(
+      List<FeatureReference> featureReferences, String projectOverride) {
     List<FeatureSetRequest> featureSetRequests = new ArrayList<>();
     featureReferences.stream()
         .map(
             featureReference -> {
-              // map feature reference to coresponding feature set name
-              String fsName =
-                  featureToFeatureSetMapping.get(generateFeatureStringRef(featureReference));
-              if (fsName == null) {
-                throw new SpecRetrievalException(
-                    String.format(
-                        "Unable to find Feature Set for the given Feature Reference: %s",
-                        generateFeatureStringRef(featureReference)));
-              } else if (fsName == FEATURE_SET_CONFLICT_FLAG) {
-                throw new SpecRetrievalException(
-                    String.format(
-                        "Given Feature Reference is amibigous as it matches multiple Feature Sets: %s."
-                            + "Please specify a more specific Feature Reference (ie specify the project or feature set)",
-                        generateFeatureStringRef(featureReference)));
+              // apply project override when finding feature set for feature
+              FeatureReference queryFeatureRef = featureReference;
+              if (!projectOverride.isEmpty()) {
+                queryFeatureRef = featureReference.toBuilder().setProject(projectOverride).build();
               }
-              return Pair.of(fsName, featureReference);
+
+              String featureSetRefStr = mapFeatureToFeatureSetReference(queryFeatureRef);
+              return Pair.of(featureSetRefStr, featureReference);
             })
         .collect(groupingBy(Pair::getLeft))
         .forEach(
-            (fsName, featureRefs) -> {
-              try {
-                FeatureSetSpec featureSetSpec = featureSetCache.get(fsName);
-                List<FeatureReference> requestedFeatures =
-                    featureRefs.stream().map(Pair::getRight).collect(Collectors.toList());
-
-                // check that requested features reference point to different features in the
-                // featureset.
-                HashSet<String> featureNames = new HashSet<>();
-                requestedFeatures.forEach(
-                    ref -> {
-                      if (featureNames.contains(ref.getName())) {
-                        throw new SpecRetrievalException(
-                            "Multiple Feature References referencing the same feature in a featureset is not allowed.");
-                      }
-                      featureNames.add(ref.getName());
-                    });
-
-                FeatureSetRequest featureSetRequest =
-                    FeatureSetRequest.newBuilder()
-                        .setSpec(featureSetSpec)
-                        .addAllFeatureReferences(requestedFeatures)
-                        .build();
-                featureSetRequests.add(featureSetRequest);
-              } catch (ExecutionException e) {
-                throw new SpecRetrievalException(
-                    String.format("Unable to find featureSet with name: %s", fsName), e);
-              }
+            (featureSetRefStr, fsRefStrAndFeatureRefs) -> {
+              List<FeatureReference> featureRefs =
+                  fsRefStrAndFeatureRefs.stream().map(Pair::getRight).collect(Collectors.toList());
+              featureSetRequests.add(buildFeatureSetRequest(featureSetRefStr, featureRefs));
             });
     return featureSetRequests;
+  }
+
+  /**
+   * Build a Feature Set request from the Feature Set specified by given Feature Set reference and
+   * given Feature References.
+   *
+   * @param featureSetRefStr string feature set reference specifying the feature set that contains
+   *     requested features
+   * @param featureReferences list of feature references specifying the containing feature set
+   *     references.
+   */
+  private FeatureSetRequest buildFeatureSetRequest(
+      String featureSetRefStr, List<FeatureReference> featureReferences) {
+    // get feature set for name
+    FeatureSetSpec featureSetSpec;
+    try {
+      featureSetSpec = featureSetCache.get(featureSetRefStr);
+    } catch (ExecutionException e) {
+      throw new SpecRetrievalException(
+          String.format("Unable to find featureSet with name: %s", featureSetRefStr), e);
+    }
+
+    // check that requested features reference point to different features in the
+    // featureset.
+    HashSet<String> featureNames = new HashSet<>();
+    featureReferences.forEach(
+        ref -> {
+          if (featureNames.contains(ref.getName())) {
+            throw new SpecRetrievalException(
+                "Multiple Feature References referencing the same feature in a featureset is not allowed.");
+          }
+          featureNames.add(ref.getName());
+        });
+
+    return FeatureSetRequest.newBuilder()
+        .setSpec(featureSetSpec)
+        .addAllFeatureReferences(featureReferences)
+        .build();
+  }
+
+  /** Maps given Feature Reference to the containing Feature Set's string reference */
+  private String mapFeatureToFeatureSetReference(FeatureReference featureReference) {
+    // map feature reference to coresponding feature set string reference
+    String featureSetRefStr =
+        featureToFeatureSetMapping.get(getFeatureStringWithProjectRef(featureReference));
+    if (featureSetRefStr == null) {
+      throw new SpecRetrievalException(
+          String.format(
+              "Unable to find Feature Set for the given Feature Reference: %s",
+              getFeatureStringWithProjectRef(featureReference)));
+    } else if (featureSetRefStr == FEATURE_SET_CONFLICT_FLAG) {
+      throw new SpecRetrievalException(
+          String.format(
+              "Given Feature Reference is amibigous as it matches multiple Feature Sets: %s."
+                  + "Please specify a more specific Feature Reference (ie specify the project or feature set)",
+              getFeatureStringWithProjectRef(featureReference)));
+    }
+    return featureSetRefStr;
   }
 
   /**
@@ -195,18 +234,20 @@ public class CachedSpecService {
 
     for (Subscription subscription : this.store.getSubscriptionsList()) {
       try {
-        ListFeatureSetsResponse featureSetsResponse =
-            coreService.listFeatureSets(
-                ListFeatureSetsRequest.newBuilder()
-                    .setFilter(
-                        ListFeatureSetsRequest.Filter.newBuilder()
-                            .setProject(subscription.getProject())
-                            .setFeatureSetName(subscription.getName()))
-                    .build());
+        if (!subscription.getExclude()) {
+          ListFeatureSetsResponse featureSetsResponse =
+              coreService.listFeatureSets(
+                  ListFeatureSetsRequest.newBuilder()
+                      .setFilter(
+                          ListFeatureSetsRequest.Filter.newBuilder()
+                              .setProject(subscription.getProject())
+                              .setFeatureSetName(subscription.getName()))
+                      .build());
 
-        for (FeatureSet featureSet : featureSetsResponse.getFeatureSetsList()) {
-          FeatureSetSpec spec = featureSet.getSpec();
-          featureSets.put(generateFeatureSetStringRef(spec), spec);
+          for (FeatureSet featureSet : featureSetsResponse.getFeatureSetsList()) {
+            FeatureSetSpec spec = featureSet.getSpec();
+            featureSets.put(getFeatureSetStringRef(spec), spec);
+          }
         }
       } catch (StatusRuntimeException e) {
         throw new RuntimeException(
@@ -291,6 +332,6 @@ public class CachedSpecService {
       featureRef = featureRef.clearFeatureSet();
     }
     return Pair.of(
-        generateFeatureStringRef(featureRef.build()), generateFeatureSetStringRef(featureSetSpec));
+        getFeatureStringWithProjectRef(featureRef.build()), getFeatureSetStringRef(featureSetSpec));
   }
 }

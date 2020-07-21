@@ -67,7 +67,8 @@ def _init_config(path: str):
 
 def _get_feast_env_vars():
     """
-    Get environmental variables that start with FEAST_
+    Get environmental variables that start with "FEAST_"
+
     Returns: Dict of Feast environmental variables (stripped of prefix)
     """
     feast_env_vars = {}

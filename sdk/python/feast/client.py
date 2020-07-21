@@ -11,30 +11,35 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
+import datetime
 import logging
+import multiprocessing
 import os
 import shutil
 import tempfile
 import time
 import uuid
+import warnings
 from collections import OrderedDict
 from math import ceil
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import grpc
 import pandas as pd
 import pyarrow as pa
-import pyarrow.parquet as pq
+from google.protobuf.timestamp_pb2 import Timestamp
+from pyarrow import parquet as pq
 
 from feast.config import Config
 from feast.constants import (
-    CONFIG_CORE_SECURE_KEY,
+    CONFIG_CORE_ENABLE_AUTH_KEY,
+    CONFIG_CORE_ENABLE_SSL_KEY,
+    CONFIG_CORE_SERVER_SSL_CERT_KEY,
     CONFIG_CORE_URL_KEY,
     CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY,
     CONFIG_PROJECT_KEY,
-    CONFIG_SERVING_SECURE_KEY,
+    CONFIG_SERVING_ENABLE_SSL_KEY,
+    CONFIG_SERVING_SERVER_SSL_CERT_KEY,
     CONFIG_SERVING_URL_KEY,
     FEAST_DEFAULT_OPTIONS,
 )
@@ -48,8 +53,11 @@ from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionRequest,
     GetFeatureSetRequest,
     GetFeatureSetResponse,
+    GetFeatureStatisticsRequest,
     ListFeatureSetsRequest,
     ListFeatureSetsResponse,
+    ListFeaturesRequest,
+    ListFeaturesResponse,
     ListIngestionJobsRequest,
     ListProjectsRequest,
     ListProjectsResponse,
@@ -58,12 +66,15 @@ from feast.core.CoreService_pb2 import (
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
-from feast.feature import FeatureRef
+from feast.feature import Feature, FeatureRef
 from feast.feature_set import Entity, FeatureSet, FeatureSetRef
+from feast.grpc import auth as feast_auth
+from feast.grpc.grpc import create_grpc_channel
 from feast.job import IngestJob, RetrievalJob
 from feast.loaders.abstract_producer import get_producer
 from feast.loaders.file import export_source_to_staging_location
 from feast.loaders.ingest import KAFKA_CHUNK_PRODUCTION_TIMEOUT, get_feature_row_chunks
+from feast.online_response import OnlineResponse
 from feast.serving.ServingService_pb2 import (
     DataFormat,
     DatasetSource,
@@ -73,13 +84,17 @@ from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoRequest,
     GetFeastServingInfoResponse,
     GetOnlineFeaturesRequest,
-    GetOnlineFeaturesResponse,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
+from feast.type_map import _python_value_to_proto_value, python_type_to_feast_value_type
+from feast.types.Value_pb2 import Value as Value
+from tensorflow_metadata.proto.v0 import statistics_pb2
 
 _logger = logging.getLogger(__name__)
 
-CPU_COUNT = os.cpu_count()  # type: int
+CPU_COUNT: int = multiprocessing.cpu_count()
+
+warnings.simplefilter("once", DeprecationWarning)
 
 
 class Client:
@@ -90,13 +105,19 @@ class Client:
     def __init__(self, options: Optional[Dict[str, str]] = None, **kwargs):
         """
         The Feast Client should be initialized with at least one service url
-
-        Args:
+        Please see constants.py for configuration options. Commonly used options
+        or arguments include:
             core_url: Feast Core URL. Used to manage features
             serving_url: Feast Serving URL. Used to retrieve features
             project: Sets the active project. This field is optional.
             core_secure: Use client-side SSL/TLS for Core gRPC API
             serving_secure: Use client-side SSL/TLS for Serving gRPC API
+            core_enable_auth: Enable authentication and authorization
+            core_auth_provider: Authentication provider – "google" or "oauth"
+            if core_auth_provider is "oauth", the following fields are mandatory –
+            oauth_grant_type, oauth_client_id, oauth_client_secret, oauth_audience, oauth_token_request_url
+
+        Args:
             options: Configuration options to initialize client with
             **kwargs: Additional keyword arguments that will be used as
                 configuration options along with "options"
@@ -106,10 +127,53 @@ class Client:
             options = dict()
         self._config = Config(options={**options, **kwargs})
 
-        self.__core_channel: grpc.Channel = None
-        self.__serving_channel: grpc.Channel = None
-        self._core_service_stub: CoreServiceStub = None
-        self._serving_service_stub: ServingServiceStub = None
+        self._core_service_stub: Optional[CoreServiceStub] = None
+        self._serving_service_stub: Optional[ServingServiceStub] = None
+        self._auth_metadata: Optional[grpc.AuthMetadataPlugin] = None
+
+        # Configure Auth Metadata Plugin if auth is enabled
+        if self._config.getboolean(CONFIG_CORE_ENABLE_AUTH_KEY):
+            self._auth_metadata = feast_auth.get_auth_metadata_plugin(self._config)
+
+    @property
+    def _core_service(self):
+        """
+        Creates or returns the gRPC Feast Core Service Stub
+
+        Returns: CoreServiceStub
+        """
+        if not self._core_service_stub:
+            channel = create_grpc_channel(
+                url=self._config.get(CONFIG_CORE_URL_KEY),
+                enable_ssl=self._config.getboolean(CONFIG_CORE_ENABLE_SSL_KEY),
+                enable_auth=self._config.getboolean(CONFIG_CORE_ENABLE_AUTH_KEY),
+                ssl_server_cert_path=self._config.get(CONFIG_CORE_SERVER_SSL_CERT_KEY),
+                auth_metadata_plugin=self._auth_metadata,
+                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+            )
+            self._core_service_stub = CoreServiceStub(channel)
+        return self._core_service_stub
+
+    @property
+    def _serving_service(self):
+        """
+        Creates or returns the gRPC Feast Serving Service Stub
+
+        Returns: ServingServiceStub
+        """
+        if not self._serving_service_stub:
+            channel = create_grpc_channel(
+                url=self._config.get(CONFIG_SERVING_URL_KEY),
+                enable_ssl=self._config.getboolean(CONFIG_SERVING_ENABLE_SSL_KEY),
+                enable_auth=False,
+                ssl_server_cert_path=self._config.get(
+                    CONFIG_SERVING_SERVER_SSL_CERT_KEY
+                ),
+                auth_metadata_plugin=None,
+                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+            )
+            self._serving_service_stub = ServingServiceStub(channel)
+        return self._serving_service_stub
 
     @property
     def core_url(self) -> str:
@@ -159,7 +223,7 @@ class Client:
         Returns:
             Whether client-side SSL/TLS is enabled
         """
-        return self._config.getboolean(CONFIG_CORE_SECURE_KEY)
+        return self._config.getboolean(CONFIG_CORE_ENABLE_SSL_KEY)
 
     @core_secure.setter
     def core_secure(self, value: bool):
@@ -169,7 +233,7 @@ class Client:
         Args:
             value: True to enable client-side SSL/TLS
         """
-        self._config.set(CONFIG_CORE_SECURE_KEY, value)
+        self._config.set(CONFIG_CORE_ENABLE_SSL_KEY, value)
 
     @property
     def serving_secure(self) -> bool:
@@ -179,7 +243,7 @@ class Client:
         Returns:
             Whether client-side SSL/TLS is enabled
         """
-        return self._config.getboolean(CONFIG_SERVING_SECURE_KEY)
+        return self._config.getboolean(CONFIG_SERVING_ENABLE_SSL_KEY)
 
     @serving_secure.setter
     def serving_secure(self, value: bool):
@@ -189,7 +253,7 @@ class Client:
         Args:
             value: True to enable client-side SSL/TLS
         """
-        self._config.set(CONFIG_SERVING_SECURE_KEY, value)
+        self._config.set(CONFIG_SERVING_ENABLE_SSL_KEY, value)
 
     def version(self):
         """
@@ -204,89 +268,21 @@ class Client:
         }
 
         if self.serving_url:
-            self._connect_serving()
-            serving_version = self._serving_service_stub.GetFeastServingInfo(
+            serving_version = self._serving_service.GetFeastServingInfo(
                 GetFeastServingInfoRequest(),
                 timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
             ).version
             result["serving"] = {"url": self.serving_url, "version": serving_version}
 
         if self.core_url:
-            self._connect_core()
-            core_version = self._core_service_stub.GetFeastCoreVersion(
+            core_version = self._core_service.GetFeastCoreVersion(
                 GetFeastCoreVersionRequest(),
                 timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                metadata=self._get_grpc_metadata(),
             ).version
             result["core"] = {"url": self.core_url, "version": core_version}
 
         return result
-
-    def _connect_core(self, skip_if_connected: bool = True):
-        """
-        Connect to Core API
-
-        Args:
-            skip_if_connected: Do not attempt to connect if already connected
-        """
-        if skip_if_connected and self._core_service_stub:
-            return
-
-        if not self.core_url:
-            raise ValueError("Please set Feast Core URL.")
-
-        if self.__core_channel is None:
-            if self.core_secure or self.core_url.endswith(":443"):
-                self.__core_channel = grpc.secure_channel(
-                    self.core_url, grpc.ssl_channel_credentials()
-                )
-            else:
-                self.__core_channel = grpc.insecure_channel(self.core_url)
-
-        try:
-            grpc.channel_ready_future(self.__core_channel).result(
-                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY)
-            )
-        except grpc.FutureTimeoutError:
-            raise ConnectionError(
-                f"Connection timed out while attempting to connect to Feast "
-                f"Core gRPC server {self.core_url} "
-            )
-        else:
-            self._core_service_stub = CoreServiceStub(self.__core_channel)
-
-    def _connect_serving(self, skip_if_connected=True):
-        """
-        Connect to Serving API
-
-        Args:
-            skip_if_connected: Do not attempt to connect if already connected
-        """
-
-        if skip_if_connected and self._serving_service_stub:
-            return
-
-        if not self.serving_url:
-            raise ValueError("Please set Feast Serving URL.")
-
-        if self.__serving_channel is None:
-            if self.serving_secure or self.serving_url.endswith(":443"):
-                self.__serving_channel = grpc.secure_channel(
-                    self.serving_url, grpc.ssl_channel_credentials()
-                )
-            else:
-                self.__serving_channel = grpc.insecure_channel(self.serving_url)
-
-        try:
-            grpc.channel_ready_future(self.__serving_channel).result(
-                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY)
-            )
-        except grpc.FutureTimeoutError:
-            raise ConnectionError(
-                f"Connection timed out while attempting to connect to Feast "
-                f"Serving gRPC server {self.serving_url} "
-            )
-        else:
-            self._serving_service_stub = ServingServiceStub(self.__serving_channel)
 
     @property
     def project(self) -> Union[str, None]:
@@ -317,10 +313,11 @@ class Client:
             List of project names
 
         """
-        self._connect_core()
-        response = self._core_service_stub.ListProjects(
+
+        response = self._core_service.ListProjects(
             ListProjectsRequest(),
             timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+            metadata=self._get_grpc_metadata(),
         )  # type: ListProjectsResponse
         return list(response.projects)
 
@@ -332,10 +329,10 @@ class Client:
             project: Name of project
         """
 
-        self._connect_core()
-        self._core_service_stub.CreateProject(
+        self._core_service.CreateProject(
             CreateProjectRequest(name=project),
             timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+            metadata=self._get_grpc_metadata(),
         )  # type: CreateProjectResponse
 
     def archive_project(self, project):
@@ -348,11 +345,11 @@ class Client:
             project: Name of project to archive
         """
 
-        self._connect_core()
         try:
             self._core_service_stub.ArchiveProject(
                 ArchiveProjectRequest(name=project),
                 timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                metadata=self._get_grpc_metadata(),
             )  # type: ArchiveProjectResponse
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
@@ -386,7 +383,6 @@ class Client:
         Args:
             feature_set: Feature set that will be registered
         """
-        self._connect_core()
 
         feature_set.is_valid()
         feature_set_proto = feature_set.to_proto()
@@ -396,9 +392,10 @@ class Client:
 
         # Convert the feature set to a request and send to Feast Core
         try:
-            apply_fs_response = self._core_service_stub.ApplyFeatureSet(
+            apply_fs_response = self._core_service.ApplyFeatureSet(
                 ApplyFeatureSetRequest(feature_set=feature_set_proto),
                 timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                metadata=self._get_grpc_metadata(),
             )  # type: ApplyFeatureSetResponse
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
@@ -421,7 +418,7 @@ class Client:
         feature_set._update_from_feature_set(applied_fs)
 
     def list_feature_sets(
-        self, project: str = None, name: str = None,
+        self, project: str = None, name: str = None, labels: Dict[str, str] = dict()
     ) -> List[FeatureSet]:
         """
         Retrieve a list of feature sets from Feast Core
@@ -433,7 +430,6 @@ class Client:
         Returns:
             List of feature sets
         """
-        self._connect_core()
 
         if project is None:
             if self.project is not None:
@@ -444,11 +440,13 @@ class Client:
         if name is None:
             name = "*"
 
-        filter = ListFeatureSetsRequest.Filter(project=project, feature_set_name=name)
+        filter = ListFeatureSetsRequest.Filter(
+            project=project, feature_set_name=name, labels=labels
+        )
 
         # Get latest feature sets from Feast Core
-        feature_set_protos = self._core_service_stub.ListFeatureSets(
-            ListFeatureSetsRequest(filter=filter)
+        feature_set_protos = self._core_service.ListFeatureSets(
+            ListFeatureSetsRequest(filter=filter), metadata=self._get_grpc_metadata(),
         )  # type: ListFeatureSetsResponse
 
         # Extract feature sets and return
@@ -473,7 +471,6 @@ class Client:
             Returns either the specified feature set, or raises an exception if
             none is found
         """
-        self._connect_core()
 
         if project is None:
             if self.project is not None:
@@ -482,17 +479,63 @@ class Client:
                 raise ValueError("No project has been configured.")
 
         try:
-            get_feature_set_response = self._core_service_stub.GetFeatureSet(
-                GetFeatureSetRequest(project=project, name=name.strip())
+            get_feature_set_response = self._core_service.GetFeatureSet(
+                GetFeatureSetRequest(project=project, name=name.strip()),
+                metadata=self._get_grpc_metadata(),
             )  # type: GetFeatureSetResponse
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
         return FeatureSet.from_proto(get_feature_set_response.feature_set)
 
+    def list_features_by_ref(
+        self,
+        project: str = None,
+        entities: List[str] = list(),
+        labels: Dict[str, str] = dict(),
+    ) -> Dict[FeatureRef, Feature]:
+        """
+        Returns a list of features based on filters provided.
+
+        Args:
+            project: Feast project that these features belongs to
+            entities: Feast entity that these features are associated with
+            labels: Feast labels that these features are associated with
+
+        Returns:
+            Dictionary of <feature references: features>
+
+        Examples:
+            >>> from feast import Client
+            >>>
+            >>> feast_client = Client(core_url="localhost:6565")
+            >>> features = list_features_by_ref(project="test_project", entities=["driver_id"], labels={"key1":"val1","key2":"val2"})
+            >>> print(features)
+        """
+        if project is None:
+            if self.project is not None:
+                project = self.project
+            else:
+                project = "default"
+
+        filter = ListFeaturesRequest.Filter(
+            project=project, entities=entities, labels=labels
+        )
+
+        feature_protos = self._core_service.ListFeatures(
+            ListFeaturesRequest(filter=filter)
+        )  # type: ListFeaturesResponse
+
+        features_dict = {}
+        for ref_str, feature_proto in feature_protos.features.items():
+            feature_ref = FeatureRef.from_str(ref_str, ignore_project=True)
+            feature = Feature.from_proto(feature_proto)
+            features_dict[feature_ref] = feature
+
+        return features_dict
+
     def list_entities(self) -> Dict[str, Entity]:
         """
         Returns a dictionary of entities across all feature sets
-
         Returns:
             Dictionary of entities, indexed by name
         """
@@ -506,6 +549,26 @@ class Client:
         self,
         feature_refs: List[str],
         entity_rows: Union[pd.DataFrame, str],
+        compute_statistics: bool = False,
+        project: str = None,
+    ) -> RetrievalJob:
+        """
+        Deprecated. Please see get_historical_features.
+        """
+        warnings.warn(
+            "The method get_batch_features() is being deprecated. Please use the identical get_historical_features(). "
+            "Feast 0.7 and onwards will not support get_batch_features().",
+            DeprecationWarning,
+        )
+        return self.get_historical_features(
+            feature_refs, entity_rows, compute_statistics, project
+        )
+
+    def get_historical_features(
+        self,
+        feature_refs: List[str],
+        entity_rows: Union[pd.DataFrame, str],
+        compute_statistics: bool = False,
         project: str = None,
     ) -> RetrievalJob:
         """
@@ -522,6 +585,8 @@ class Client:
                 Each entity in a feature set must be present as a column in this
                 dataframe. The datetime column must contain timestamps in
                 datetime64 format.
+            compute_statistics (bool):
+                Indicates whether Feast should compute statistics over the retrieved dataset.
             project: Specifies the project which contain the FeatureSets
                 which the requested features belong to.
 
@@ -543,17 +608,15 @@ class Client:
             >>>            "customer": [1001, 1002, 1003],
             >>>         }
             >>>     )
-            >>> feature_retrieval_job = feast_client.get_batch_features(
-            >>>     feature_refs, entity_rows, default_project="my_project")
+            >>> feature_retrieval_job = feast_client.get_historical_features(
+            >>>     feature_refs, entity_rows, project="my_project")
             >>> df = feature_retrieval_job.to_dataframe()
             >>> print(df)
         """
 
-        self._connect_serving()
-
         # Retrieve serving information to determine store type and
         # staging location
-        serving_info = self._serving_service_stub.GetFeastServingInfo(
+        serving_info = self._serving_service.GetFeastServingInfo(
             GetFeastServingInfoRequest(),
             timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
         )  # type: GetFeastServingInfoResponse
@@ -561,7 +624,7 @@ class Client:
         if serving_info.type != FeastServingType.FEAST_SERVING_TYPE_BATCH:
             raise Exception(
                 f'You are connected to a store "{self.serving_url}" which '
-                f"does not support batch retrieval"
+                f"does not support batch retrieval "
             )
 
         if isinstance(entity_rows, pd.DataFrame):
@@ -601,22 +664,24 @@ class Client:
                     file_uris=staged_files, data_format=DataFormat.DATA_FORMAT_AVRO
                 )
             ),
+            compute_statistics=compute_statistics,
         )
 
         # Retrieve Feast Job object to manage life cycle of retrieval
         try:
-            response = self._serving_service_stub.GetBatchFeatures(request)
+            response = self._serving_service.GetBatchFeatures(request)
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 
-        return RetrievalJob(response.job, self._serving_service_stub)
+        return RetrievalJob(response.job, self._serving_service)
 
     def get_online_features(
         self,
         feature_refs: List[str],
-        entity_rows: List[GetOnlineFeaturesRequest.EntityRow],
+        entity_rows: List[Union[GetOnlineFeaturesRequest.EntityRow, Dict[str, Any]]],
         project: Optional[str] = None,
-    ) -> GetOnlineFeaturesResponse:
+        omit_entities: bool = False,
+    ) -> OnlineResponse:
         """
         Retrieves the latest online feature data from Feast Serving
 
@@ -626,56 +691,43 @@ class Client:
                 "feature_set:feature" where "feature_set" & "feature" refer to
                 the feature and feature set names respectively.
                 Only the feature name is required.
-            entity_rows: List of GetFeaturesRequest.EntityRow where each row
-                contains entities. Timestamp should not be set for online
-                retrieval. All entity types within a feature
-            project: Specifies the project which contain the FeatureSets
-                which the requested features belong to.
-
+            entity_rows: A list of dictionaries where each key is an entity and each value is
+                feast.types.Value or Python native form.
+            project: Optionally specify the the project override. If specified, uses given project for retrieval.
+                Overrides the projects specified in Feature References if also are specified.
+            omit_entities: If true will omit entity values in the returned feature data.
         Returns:
-            Returns a list of maps where each item in the list contains the
-            latest feature values for the provided entities
+            GetOnlineFeaturesResponse containing the feature data in records.
+            Each EntityRow provided will yield one record, which contains
+            data fields with data value and field status metadata (if included).
+
+        Examples:
+            >>> from feast import Client
+            >>>
+            >>> feast_client = Client(core_url="localhost:6565", serving_url="localhost:6566")
+            >>> feature_refs = ["daily_transactions"]
+            >>> entity_rows = [{"customer_id": 0},{"customer_id": 1}]
+            >>>
+            >>> online_response = feast_client.get_online_features(
+            >>>     feature_refs, entity_rows, project="my_project")
+            >>> online_response_dict = online_response.to_dict()
+            >>> print(online_response_dict)
+            {'daily_transactions': [1.1,1.2], 'customer_id': [0,1]}
         """
-        self._connect_serving()
 
         try:
-            response = self._serving_service_stub.GetOnlineFeatures(
+            response = self._serving_service.GetOnlineFeatures(
                 GetOnlineFeaturesRequest(
-                    features=_build_feature_references(
-                        feature_ref_strs=feature_refs,
-                        project=project if project is not None else self.project,
-                    ),
-                    entity_rows=entity_rows,
+                    omit_entities_in_response=omit_entities,
+                    features=_build_feature_references(feature_ref_strs=feature_refs),
+                    entity_rows=_infer_online_entity_rows(entity_rows),
+                    project=project if project is not None else self.project,
                 )
             )
-            # collect entity row refs
-            entity_refs = set()
-            for entity_row in entity_rows:
-                entity_refs.update(entity_row.fields.keys())
-
-            strip_field_values = []
-            for field_value in response.field_values:
-                # strip the project part the string feature references returned from serving
-                strip_fields = {}
-                for ref_str, value in field_value.fields.items():
-                    # find and ignore entities
-                    if ref_str in entity_refs:
-                        strip_fields[ref_str] = value
-                    else:
-                        strip_ref_str = repr(
-                            FeatureRef.from_str(ref_str, ignore_project=True)
-                        )
-                        strip_fields[strip_ref_str] = value
-                strip_field_values.append(
-                    GetOnlineFeaturesResponse.FieldValues(fields=strip_fields)
-                )
-
-            del response.field_values[:]
-            response.field_values.extend(strip_field_values)
-
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 
+        response = OnlineResponse(response)
         return response
 
     def list_ingest_jobs(
@@ -696,18 +748,22 @@ class Client:
         Returns:
             List of IngestJobs matching the given filters
         """
-        self._connect_core()
         # construct list request
-        feature_set_ref = None
+        feature_set_ref_proto = None
+        if feature_set_ref:
+            feature_set_ref_proto = feature_set_ref.to_proto()
         list_filter = ListIngestionJobsRequest.Filter(
-            id=job_id, feature_set_reference=feature_set_ref, store_name=store_name,
+            id=job_id,
+            feature_set_reference=feature_set_ref_proto,
+            store_name=store_name,
         )
         request = ListIngestionJobsRequest(filter=list_filter)
         # make list request & unpack response
-        response = self._core_service_stub.ListIngestionJobs(request)
+        response = self._core_service.ListIngestionJobs(request)  # type: ignore
         ingest_jobs = [
-            IngestJob(proto, self._core_service_stub) for proto in response.jobs
+            IngestJob(proto, self._core_service) for proto in response.jobs  # type: ignore
         ]
+
         return ingest_jobs
 
     def restart_ingest_job(self, job: IngestJob):
@@ -720,10 +776,9 @@ class Client:
         Args:
             job: IngestJob to restart
         """
-        self._connect_core()
         request = RestartIngestionJobRequest(id=job.id)
         try:
-            self._core_service_stub.RestartIngestionJob(request)
+            self._core_service.RestartIngestionJob(request)  # type: ignore
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 
@@ -737,10 +792,9 @@ class Client:
         Args:
             job: IngestJob to restart
         """
-        self._connect_core()
         request = StopIngestionJobRequest(id=job.id)
         try:
-            self._core_service_stub.StopIngestionJob(request)
+            self._core_service.StopIngestionJob(request)  # type: ignore
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 
@@ -804,11 +858,12 @@ class Client:
         while True:
             if timeout is not None and time.time() - current_time >= timeout:
                 raise TimeoutError("Timed out waiting for feature set to be ready")
-            feature_set = self.get_feature_set(name)
+            fetched_feature_set: Optional[FeatureSet] = self.get_feature_set(name)
             if (
-                feature_set is not None
-                and feature_set.status == FeatureSetStatus.STATUS_READY
+                fetched_feature_set is not None
+                and fetched_feature_set.status == FeatureSetStatus.STATUS_READY
             ):
+                feature_set = fetched_feature_set
                 break
             time.sleep(3)
 
@@ -861,6 +916,141 @@ class Client:
             shutil.rmtree(dir_path)
 
         return ingestion_id
+
+    def get_statistics(
+        self,
+        feature_set_id: str,
+        store: str,
+        features: List[str] = [],
+        ingestion_ids: Optional[List[str]] = None,
+        start_date: Optional[datetime.datetime] = None,
+        end_date: Optional[datetime.datetime] = None,
+        force_refresh: bool = False,
+        project: Optional[str] = None,
+    ) -> statistics_pb2.DatasetFeatureStatisticsList:
+        """
+        Retrieves the feature featureStatistics computed over the data in the batch
+        stores.
+
+        Args:
+            feature_set_id: Feature set id to retrieve batch featureStatistics for. If project
+                is not provided, the default ("default") will be used.
+            store: Name of the store to retrieve feature featureStatistics over. This
+                store must be a historical store.
+            features: Optional list of feature names to filter from the results.
+            ingestion_ids: Optional list of dataset Ids by which to filter data
+                before retrieving featureStatistics. Cannot be used with start_date
+                and end_date.
+                If multiple dataset ids are provided, unaggregatable featureStatistics
+                will be dropped.
+            start_date: Optional start date over which to filter statistical data.
+                Data from this date will be included.
+                Cannot be used with dataset_ids. If the provided period spans
+                multiple days, unaggregatable featureStatistics will be dropped.
+            end_date: Optional end date over which to filter statistical data.
+                Data from this data will not be included.
+                Cannot be used with dataset_ids. If the provided period spans
+                multiple days, unaggregatable featureStatistics will be dropped.
+            force_refresh: Setting this flag to true will force a recalculation
+                of featureStatistics and overwrite results currently in the cache, if any.
+            project: Manual override for default project.
+
+        Returns:
+           Returns a tensorflow DatasetFeatureStatisticsList containing TFDV featureStatistics.
+        """
+
+        if ingestion_ids is not None and (
+            start_date is not None or end_date is not None
+        ):
+            raise ValueError(
+                "Only one of dataset_id or [start_date, end_date] can be provided."
+            )
+
+        if project != "" and "/" not in feature_set_id:
+            feature_set_id = f"{project}/{feature_set_id}"
+
+        request = GetFeatureStatisticsRequest(
+            feature_set_id=feature_set_id,
+            features=features,
+            store=store,
+            force_refresh=force_refresh,
+        )
+        if ingestion_ids is not None:
+            request.ingestion_ids.extend(ingestion_ids)
+        else:
+            if start_date is not None:
+                request.start_date.CopyFrom(
+                    Timestamp(seconds=int(start_date.timestamp()))
+                )
+            if end_date is not None:
+                request.end_date.CopyFrom(Timestamp(seconds=int(end_date.timestamp())))
+
+        return self._core_service.GetFeatureStatistics(
+            request
+        ).dataset_feature_statistics_list
+
+    def _get_grpc_metadata(self):
+        """
+        Returns a metadata tuple to attach to gRPC requests. This is primarily
+        used when authentication is enabled but SSL/TLS is disabled.
+
+        Returns: Tuple of metadata to attach to each gRPC call
+        """
+        if self._config.getboolean(CONFIG_CORE_ENABLE_AUTH_KEY) and self._auth_metadata:
+            return self._auth_metadata.get_signed_meta()
+        return ()
+
+
+def _infer_online_entity_rows(
+    entity_rows: List[Union[GetOnlineFeaturesRequest.EntityRow, Dict[str, Any]]],
+) -> List[GetOnlineFeaturesRequest.EntityRow]:
+    """
+    Builds a list of EntityRow protos from Python native type format passed by user.
+
+    Args:
+        entity_rows: A list of dictionaries where each key is an entity and each value is
+            feast.types.Value or Python native form.
+
+    Returns:
+        A list of EntityRow protos parsed from args.
+    """
+
+    # Maintain backward compatibility with users providing EntityRow Proto
+    if entity_rows and isinstance(entity_rows[0], GetOnlineFeaturesRequest.EntityRow):
+        warnings.warn(
+            "entity_rows parameter will only be accepting Dict format from Feast v0.7 onwards",
+            DeprecationWarning,
+        )
+        entity_rows_proto = cast(
+            List[Union[GetOnlineFeaturesRequest.EntityRow]], entity_rows
+        )
+        return entity_rows_proto
+
+    entity_rows_dicts = cast(List[Dict[str, Any]], entity_rows)
+    entity_row_list = []
+    entity_type_map = dict()
+
+    for entity in entity_rows_dicts:
+        for key, value in entity.items():
+            # Allow for feast.types.Value
+            if isinstance(value, Value):
+                proto_value = value
+            else:
+                # Infer the specific type for this row
+                current_dtype = python_type_to_feast_value_type(name=key, value=value)
+
+                if key not in entity_type_map:
+                    entity_type_map[key] = current_dtype
+                else:
+                    if current_dtype != entity_type_map[key]:
+                        raise TypeError(
+                            f"Input entity {key} has mixed types, {current_dtype} and {entity_type_map[key]}. That is not allowed. "
+                        )
+                proto_value = _python_value_to_proto_value(current_dtype, value)
+            entity_row_list.append(
+                GetOnlineFeaturesRequest.EntityRow(fields={key: proto_value})
+            )
+    return entity_row_list
 
 
 def _build_feature_references(

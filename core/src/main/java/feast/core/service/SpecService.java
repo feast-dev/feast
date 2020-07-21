@@ -24,10 +24,7 @@ import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.ProjectRepository;
 import feast.core.dao.StoreRepository;
 import feast.core.exception.RetrievalException;
-import feast.core.model.FeatureSet;
-import feast.core.model.Project;
-import feast.core.model.Source;
-import feast.core.model.Store;
+import feast.core.model.*;
 import feast.core.validators.FeatureSetValidator;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse.Status;
@@ -35,6 +32,8 @@ import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
 import feast.proto.core.CoreServiceProto.GetFeatureSetResponse;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.proto.core.CoreServiceProto.ListFeaturesRequest;
+import feast.proto.core.CoreServiceProto.ListFeaturesResponse;
 import feast.proto.core.CoreServiceProto.ListStoresRequest;
 import feast.proto.core.CoreServiceProto.ListStoresResponse;
 import feast.proto.core.CoreServiceProto.ListStoresResponse.Builder;
@@ -47,6 +46,8 @@ import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -114,9 +115,9 @@ public class SpecService {
   }
 
   /**
-   * Return a list of feature sets matching the feature set name and project provided in the filter.
-   * All fields are requried. Use '*' for all arguments in order to return all feature sets in all
-   * projects.
+   * Return a list of feature sets matching the feature set name, project and labels provided in the
+   * filter. All fields are required. Use '*' in feature set name and project, and empty map in
+   * labels in order to return all feature sets in all projects.
    *
    * <p>Project name can be explicitly provided, or an asterisk can be provided to match all
    * projects. It is not possible to provide a combination of asterisks/wildcards and text. If the
@@ -126,6 +127,9 @@ public class SpecService {
    * sets will be returned. Regex is not supported. Explicitly defining a feature set name is not
    * possible if a project name is not set explicitly
    *
+   * <p>The labels in the filter accepts a map. All feature sets which contain every provided label
+   * will be returned.
+   *
    * @param filter filter containing the desired featureSet name
    * @return ListFeatureSetsResponse with list of featureSets found matching the filter
    */
@@ -133,6 +137,7 @@ public class SpecService {
       throws InvalidProtocolBufferException {
     String name = filter.getFeatureSetName();
     String project = filter.getProject();
+    Map<String, String> labelsFilter = filter.getLabelsMap();
 
     if (name.isEmpty()) {
       throw new IllegalArgumentException(
@@ -188,12 +193,75 @@ public class SpecService {
 
     ListFeatureSetsResponse.Builder response = ListFeatureSetsResponse.newBuilder();
     if (featureSets.size() > 0) {
+      featureSets =
+          featureSets.stream()
+              .filter(featureSet -> featureSet.hasAllLabels(labelsFilter))
+              .collect(Collectors.toList());
       for (FeatureSet featureSet : featureSets) {
         response.addFeatureSets(featureSet.toProto());
       }
     }
 
     return response.build();
+  }
+
+  /**
+   * Return a map of feature references and features matching the project, labels and entities
+   * provided in the filter. All fields are required.
+   *
+   * <p>Project name must be explicitly provided or if the project name is omitted, the default
+   * project would be used. A combination of asterisks/wildcards and text is not allowed.
+   *
+   * <p>The entities in the filter accepts a list. All matching features will be returned. Regex is
+   * not supported. If no entities are provided, features will not be filtered by entities.
+   *
+   * <p>The labels in the filter accepts a map. All matching features will be returned. Regex is not
+   * supported. If no labels are provided, features will not be filtered by labels.
+   *
+   * @param filter filter containing the desired project name, entities and labels
+   * @return ListEntitiesResponse with map of feature references and features found matching the
+   *     filter
+   */
+  public ListFeaturesResponse listFeatures(ListFeaturesRequest.Filter filter) {
+    try {
+      String project = filter.getProject();
+      List<String> entities = filter.getEntitiesList();
+      Map<String, String> labels = filter.getLabelsMap();
+
+      checkValidCharactersAllowAsterisk(project, "projectName");
+
+      // Autofill default project if project not specified
+      if (project.isEmpty()) {
+        project = Project.DEFAULT_NAME;
+      }
+
+      // Currently defaults to all FeatureSets
+      List<FeatureSet> featureSets =
+          featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc("%", project);
+
+      ListFeaturesResponse.Builder response = ListFeaturesResponse.newBuilder();
+      if (entities.size() > 0) {
+        featureSets =
+            featureSets.stream()
+                .filter(featureSet -> featureSet.hasAllEntities(entities))
+                .collect(Collectors.toList());
+      }
+
+      Map<String, Feature> featuresMap;
+      for (FeatureSet featureSet : featureSets) {
+        featuresMap = featureSet.getFeaturesByRef(labels);
+        for (Map.Entry<String, Feature> entry : featuresMap.entrySet()) {
+          response.putFeatures(entry.getKey(), entry.getValue().toProto());
+        }
+      }
+
+      return response.build();
+    } catch (InvalidProtocolBufferException e) {
+      throw io.grpc.Status.NOT_FOUND
+          .withDescription("Unable to retrieve features")
+          .withCause(e)
+          .asRuntimeException();
+    }
   }
 
   /**
@@ -223,6 +291,7 @@ public class SpecService {
                           String.format("Store with name '%s' not found", name)));
       return ListStoresResponse.newBuilder().addStore(store.toProto()).build();
     } catch (InvalidProtocolBufferException e) {
+
       throw io.grpc.Status.NOT_FOUND
           .withDescription("Unable to retrieve stores")
           .withCause(e)
@@ -240,6 +309,7 @@ public class SpecService {
    *
    * @param newFeatureSet Feature set that will be created or updated.
    */
+  @Transactional
   public ApplyFeatureSetResponse applyFeatureSet(FeatureSetProto.FeatureSet newFeatureSet)
       throws InvalidProtocolBufferException {
     // Autofill default project if not specified
@@ -298,6 +368,8 @@ public class SpecService {
       featureSet.updateFromProto(newFeatureSet);
       status = Status.UPDATED;
     }
+
+    featureSet.incVersion();
 
     // Persist the FeatureSet object
     featureSet.setStatus(FeatureSetStatus.STATUS_PENDING);

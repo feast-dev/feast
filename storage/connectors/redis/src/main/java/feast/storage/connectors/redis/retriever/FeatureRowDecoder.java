@@ -43,7 +43,7 @@ public class FeatureRowDecoder {
    * @param featureRow Feature row
    * @return boolean
    */
-  public Boolean isEncoded(FeatureRow featureRow) {
+  public boolean isEncoded(FeatureRow featureRow) {
     return featureRow.getFeatureSet().isEmpty()
         && featureRow.getFieldsList().stream().allMatch(field -> field.getName().isEmpty());
   }
@@ -54,7 +54,7 @@ public class FeatureRowDecoder {
    * @param featureRow Feature row
    * @return boolean
    */
-  public Boolean isEncodingValid(FeatureRow featureRow) {
+  public boolean isEncodingValid(FeatureRow featureRow) {
     return featureRow.getFieldsList().size() == spec.getFeaturesList().size();
   }
 

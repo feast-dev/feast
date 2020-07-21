@@ -1,0 +1,19 @@
+# replicaCount -- Number of pods that will be created
+replicaCount: 1
+
+image:
+  # image.repository -- Docker image repository
+  repository: gcr.io/kf-feast/feast-jupyter
+  # image.tag -- Image tag
+  tag: latest
+  # image.pullPolicy -- Image pull policy
+  pullPolicy: Always
+
+gcpServiceAccount:
+  # gcpServiceAccount.enabled -- Flag to use [service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) JSON key
+  enabled: false
+  existingSecret:
+    # gcpServiceAccount.existingSecret.name -- Name of the existing secret containing the service account
+    name: feast-gcp-service-account
+    # gcpServiceAccount.existingSecret.key -- Key in the secret data (file name of the service account)
+    key: credentials.json

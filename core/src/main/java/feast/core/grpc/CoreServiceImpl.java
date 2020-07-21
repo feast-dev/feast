@@ -25,31 +25,9 @@ import feast.core.model.Project;
 import feast.core.service.AccessManagementService;
 import feast.core.service.JobService;
 import feast.core.service.SpecService;
+import feast.core.service.StatsService;
 import feast.proto.core.CoreServiceGrpc.CoreServiceImplBase;
-import feast.proto.core.CoreServiceProto.ApplyFeatureSetRequest;
-import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse;
-import feast.proto.core.CoreServiceProto.ArchiveProjectRequest;
-import feast.proto.core.CoreServiceProto.ArchiveProjectResponse;
-import feast.proto.core.CoreServiceProto.CreateProjectRequest;
-import feast.proto.core.CoreServiceProto.CreateProjectResponse;
-import feast.proto.core.CoreServiceProto.GetFeastCoreVersionRequest;
-import feast.proto.core.CoreServiceProto.GetFeastCoreVersionResponse;
-import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
-import feast.proto.core.CoreServiceProto.GetFeatureSetResponse;
-import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
-import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
-import feast.proto.core.CoreServiceProto.ListIngestionJobsRequest;
-import feast.proto.core.CoreServiceProto.ListIngestionJobsResponse;
-import feast.proto.core.CoreServiceProto.ListProjectsRequest;
-import feast.proto.core.CoreServiceProto.ListProjectsResponse;
-import feast.proto.core.CoreServiceProto.ListStoresRequest;
-import feast.proto.core.CoreServiceProto.ListStoresResponse;
-import feast.proto.core.CoreServiceProto.RestartIngestionJobRequest;
-import feast.proto.core.CoreServiceProto.RestartIngestionJobResponse;
-import feast.proto.core.CoreServiceProto.StopIngestionJobRequest;
-import feast.proto.core.CoreServiceProto.StopIngestionJobResponse;
-import feast.proto.core.CoreServiceProto.UpdateStoreRequest;
-import feast.proto.core.CoreServiceProto.UpdateStoreResponse;
+import feast.proto.core.CoreServiceProto.*;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -57,29 +35,33 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.lognet.springboot.grpc.GRpcService;
+import net.devh.boot.grpc.server.service.GrpcService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 /** Implementation of the feast core GRPC service. */
 @Slf4j
-@GRpcService(interceptors = {MonitoringInterceptor.class})
+@GrpcService(interceptors = {MonitoringInterceptor.class})
 public class CoreServiceImpl extends CoreServiceImplBase {
 
   private final FeastProperties feastProperties;
   private SpecService specService;
-  private AccessManagementService accessManagementService;
   private JobService jobService;
+  private StatsService statsService;
+  private AccessManagementService accessManagementService;
 
   @Autowired
   public CoreServiceImpl(
       SpecService specService,
       AccessManagementService accessManagementService,
+      StatsService statsService,
       JobService jobService,
       FeastProperties feastProperties) {
     this.specService = specService;
     this.accessManagementService = accessManagementService;
     this.jobService = jobService;
     this.feastProperties = feastProperties;
+    this.statsService = statsService;
   }
 
   @Override
@@ -126,6 +108,58 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     }
   }
 
+  /** Retrieve a list of features */
+  @Override
+  public void listFeatures(
+      ListFeaturesRequest request, StreamObserver<ListFeaturesResponse> responseObserver) {
+    try {
+      ListFeaturesResponse response = specService.listFeatures(request.getFilter());
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (IllegalArgumentException e) {
+      log.error("Illegal arguments provided to ListFeatures method: ", e);
+      responseObserver.onError(
+          Status.INVALID_ARGUMENT
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
+    } catch (RetrievalException e) {
+      log.error("Unable to fetch entities requested in ListFeatures method: ", e);
+      responseObserver.onError(
+          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    } catch (Exception e) {
+      log.error("Exception has occurred in ListFeatures method: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void getFeatureStatistics(
+      GetFeatureStatisticsRequest request,
+      StreamObserver<GetFeatureStatisticsResponse> responseObserver) {
+    try {
+      GetFeatureStatisticsResponse response = statsService.getFeatureStatistics(request);
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (IllegalArgumentException e) {
+      log.error("Illegal arguments provided to GetFeatureStatistics method: ", e);
+      responseObserver.onError(
+          Status.INVALID_ARGUMENT
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
+    } catch (RetrievalException e) {
+      log.error("Unable to fetch feature set requested in GetFeatureStatistics method: ", e);
+      responseObserver.onError(
+          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    } catch (Exception e) {
+      log.error("Exception has occurred in GetFeatureStatistics method: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
   @Override
   public void listStores(
       ListStoresRequest request, StreamObserver<ListStoresResponse> responseObserver) {
@@ -143,6 +177,10 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   @Override
   public void applyFeatureSet(
       ApplyFeatureSetRequest request, StreamObserver<ApplyFeatureSetResponse> responseObserver) {
+
+    accessManagementService.checkIfProjectMember(
+        SecurityContextHolder.getContext(), request.getFeatureSet().getSpec().getProject());
+
     try {
       ApplyFeatureSetResponse response = specService.applyFeatureSet(request.getFeatureSet());
       responseObserver.onNext(response);
@@ -192,6 +230,10 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   @Override
   public void archiveProject(
       ArchiveProjectRequest request, StreamObserver<ArchiveProjectResponse> responseObserver) {
+
+    accessManagementService.checkIfProjectMember(
+        SecurityContextHolder.getContext(), request.getName());
+
     try {
       accessManagementService.archiveProject(request.getName());
       responseObserver.onNext(ArchiveProjectResponse.getDefaultInstance());

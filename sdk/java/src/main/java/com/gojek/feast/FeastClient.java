@@ -24,7 +24,6 @@ import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
-import feast.proto.types.ValueProto.Value;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.HashSet;
@@ -83,8 +82,8 @@ public class FeastClient implements AutoCloseable {
    *     featureSet:feature, where 'featureSet' and 'feature' refer to the FeatureSet and Feature
    *     names respectively. Only the Feature name is required.
    * @param rows list of {@link Row} to select the entities to retrieve the features for
-   * @param project {@link String} Specifies the project which contains the FeatureSets which the
-   *     Feature requested belong to.
+   * @param project {@link String} Specifies the project override. If specifed uses the project for
+   *     retrieval. Overrides the projects set in Feature References if also specified.
    * @return list of {@link Row} containing retrieved data fields.
    */
   public List<Row> getOnlineFeatures(List<String> featureRefs, List<Row> rows, String project) {
@@ -110,15 +109,15 @@ public class FeastClient implements AutoCloseable {
    *     featureSet:feature, where 'featureSet' and 'feature' refer to the FeatureSet and Feature
    *     names respectively. Only the Feature name is required.
    * @param rows list of {@link Row} to select the entities to retrieve the features for
-   * @param project {@link String} Specifies the project which contains the FeatureSets which the
-   *     Feature requested belong to.
+   * @param project {@link String} Specifies the project override. If specifed uses the project for
+   *     retrieval. Overrides the projects set in Feature References if also specified.
    * @param omitEntitiesInResponse if true, the returned {@link Row} will not contain field and
    *     value for the entity
    * @return list of {@link Row} containing retrieved data fields.
    */
   public List<Row> getOnlineFeatures(
       List<String> featureRefs, List<Row> rows, String project, boolean omitEntitiesInResponse) {
-    List<FeatureReference> features = RequestUtil.createFeatureRefs(featureRefs, project);
+    List<FeatureReference> features = RequestUtil.createFeatureRefs(featureRefs);
     // build entity rows and collect entity references
     HashSet<String> entityRefs = new HashSet<>();
     List<EntityRow> entityRows =
@@ -138,25 +137,20 @@ public class FeastClient implements AutoCloseable {
             GetOnlineFeaturesRequest.newBuilder()
                 .addAllFeatures(features)
                 .addAllEntityRows(entityRows)
+                .setProject(project)
                 .setOmitEntitiesInResponse(omitEntitiesInResponse)
                 .build());
 
     return response.getFieldValuesList().stream()
         .map(
-            field -> {
+            fieldValues -> {
               Row row = Row.create();
-              field
-                  .getFieldsMap()
-                  .forEach(
-                      (String name, Value value) -> {
-                        // Strip project from string Feature References from returned from serving
-                        if (!entityRefs.contains(name)) {
-                          FeatureReference featureRef =
-                              RequestUtil.parseFeatureRef(name, true).build();
-                          name = RequestUtil.renderFeatureRef(featureRef);
-                        }
-                        row.set(name, value);
-                      });
+              for (String fieldName : fieldValues.getFieldsMap().keySet()) {
+                row.set(
+                    fieldName,
+                    fieldValues.getFieldsMap().get(fieldName),
+                    fieldValues.getStatusesMap().get(fieldName));
+              }
               return row;
             })
         .collect(Collectors.toList());

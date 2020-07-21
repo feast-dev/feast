@@ -21,6 +21,8 @@ option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 option java_outer_classname = "CoreServiceProto";
 option java_package = "feast.proto.core";
 
+import "google/protobuf/timestamp.proto";
+import "tensorflow_metadata/proto/v0/statistics.proto";
 import "feast/core/FeatureSet.proto";
 import "feast/core/Store.proto";
 import "feast/core/FeatureSetReference.proto";
@@ -40,6 +42,17 @@ service CoreService {
     // If no filter is provided in the request, the response will contain all the feature
     // sets currently stored in the registry.
     rpc ListFeatureSets (ListFeatureSetsRequest) returns (ListFeatureSetsResponse);
+
+    // Returns all feature references and respective features matching that filter. If none are found
+    // an empty map will be returned
+    // If no filter is provided in the request, the response will contain all the features
+    // currently stored in the default project.
+    rpc ListFeatures (ListFeaturesRequest) returns (ListFeaturesResponse);
+
+    // Get feature statistics computed over the data in the batch stores.
+    //
+    // Returns a dataset containing TFDV statistics mapped to each valid historical store.
+    rpc GetFeatureStatistics (GetFeatureStatisticsRequest) returns (GetFeatureStatisticsResponse);
 
     // Retrieve store details given a filter.
     //
@@ -133,11 +146,38 @@ message ListFeatureSetsRequest {
         // - my-feature-set* can be used to match all features prefixed by "my-feature-set"
         // - my-feature-set-6 can be used to select a single feature set
         string feature_set_name = 1;
+
+        // User defined metadata for feature set.
+        // Feature sets with all matching labels will be returned.
+        map<string,string> labels = 4;
     }
 }
 
 message ListFeatureSetsResponse {
     repeated feast.core.FeatureSet feature_sets = 1;
+}
+
+message ListFeaturesRequest {
+    message Filter {
+        // User defined metadata for feature.
+        // Features with all matching labels will be returned.
+        map<string,string> labels = 1;
+
+        // List of entities contained within the featureSet that the feature belongs to.
+        // Only feature sets with these entities will be searched for features.
+        repeated string entities = 2;
+
+        // Name of project that the feature sets belongs to. Filtering on projects is disabled. 
+        // It is NOT possible to provide an asterisk with a string in order to do pattern matching.
+        // If unspecified this field will default to the default project 'default'.
+        string project = 3;
+    }
+
+    Filter filter = 1;
+}
+
+message ListFeaturesResponse {
+    map<string, feast.core.FeatureSpec> features = 1;
 }
 
 message ListStoresRequest {
@@ -270,3 +310,42 @@ message StopIngestionJobRequest {
 
 // Request from stopping an ingestion job
 message StopIngestionJobResponse {}
+
+message GetFeatureStatisticsRequest {
+    // Feature set to retrieve the statistics for. A fully qualified feature set
+    // id in the format of project/feature_set must be provided.
+    string feature_set_id = 1;
+
+    // Optional filter which filters returned statistics by selected features. These
+    // features must be present in the data that is being processed.
+    repeated string features = 2;
+
+    // Optional filter to select store over which the statistics will retrieved.
+    // Only historical stores are allowed.
+    string store = 3;
+
+    // Optional start and end dates over which to filter statistical data
+    // Start date is inclusive, but end date is not.
+    // Only dates are supported, not times.
+    // Cannot be used with dataset_ids.
+    // If this period spans multiple days, unaggregatable statistics will be dropped.
+    google.protobuf.Timestamp start_date = 4;
+    google.protobuf.Timestamp end_date = 5;
+
+    // Optional list of ingestion Ids by which to filter data before
+    // retrieving statistics.
+    // Cannot be used with the date ranges
+    // If multiple dataset ids are provided, unaggregatable statistics will be dropped.
+    repeated string ingestion_ids = 6;
+
+    // Setting this flag to true will force a recalculation of statistics and overwrite results currently in the
+    // cache, if any.
+    bool force_refresh = 7;
+}
+
+message GetFeatureStatisticsResponse {
+    // Contains statistics for the requested data.
+    // Due to the limitations of TFDV and Facets, only a single dataset can be returned in,
+    // despite the message being of list type.
+    tensorflow.metadata.v0.DatasetFeatureStatisticsList dataset_feature_statistics_list = 1;
+}

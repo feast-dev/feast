@@ -23,47 +23,49 @@ type OnlineFeaturesRequest struct {
 	// Entities is the list of entity rows to retrieve features on. Each row is a map of entity name to entity value.
 	Entities []Row
 
-	// Project specifies the project would contain the feature sets where the requested features belong to.
+	// Project optionally specifies the project override. If specified, uses given project for retrieval.
+	// Overrides the projects specified in Feature References if also specified.
 	Project string
+
+	// whether to omit the entities fields in the response.
+	OmitEntities bool
 }
 
 // Builds the feast-specified request payload from the wrapper.
 func (r OnlineFeaturesRequest) buildRequest() (*serving.GetOnlineFeaturesRequest, error) {
-	featureRefs, err := buildFeatureRefs(r.Features, r.Project)
+	featureRefs, err := buildFeatureRefs(r.Features)
 	if err != nil {
 		return nil, err
 	}
 
+	// build request entity rows from native entities
 	entityRows := make([]*serving.GetOnlineFeaturesRequest_EntityRow, len(r.Entities))
-
-	for i := range r.Entities {
+	for i, entity := range r.Entities {
 		entityRows[i] = &serving.GetOnlineFeaturesRequest_EntityRow{
-			Fields: r.Entities[i],
+			Fields: entity,
 		}
 	}
+
 	return &serving.GetOnlineFeaturesRequest{
-		Features:   featureRefs,
-		EntityRows: entityRows,
+		Features:               featureRefs,
+		EntityRows:             entityRows,
+		OmitEntitiesInResponse: r.OmitEntities,
+		Project:                r.Project,
 	}, nil
 }
 
 // Creates a slice of FeatureReferences from string representation in
 // the format featureset:feature.
 // featureRefStrs - string feature references to parse.
-// project - Optionally sets the project in parsed FeatureReferences. Otherwise pass ""
 // Returns parsed FeatureReferences.
 // Returns an error when the format of the string feature reference is invalid
-func buildFeatureRefs(featureRefStrs []string, project string) ([]*serving.FeatureReference, error) {
+func buildFeatureRefs(featureRefStrs []string) ([]*serving.FeatureReference, error) {
 	var featureRefs []*serving.FeatureReference
 
 	for _, featureRefStr := range featureRefStrs {
-		featureRef, err := parseFeatureRef(featureRefStr, false)
+		featureRef, err := parseFeatureRef(featureRefStr)
 		if err != nil {
 			return nil, err
-		}
-		// apply project if specified
-		if len(project) != 0 {
-			featureRef.Project = project
 		}
 		featureRefs = append(featureRefs, featureRef)
 	}
@@ -72,23 +74,16 @@ func buildFeatureRefs(featureRefStrs []string, project string) ([]*serving.Featu
 
 // Parses a string FeatureReference into FeatureReference proto
 // featureRefStr - the string feature reference to parse.
-// ignoreProject - if true would ignore if project is specified in the given featureRefStr
-// 				   Otherwise, would return an error if project is detected in featureRefStr.
 // Returns parsed FeatureReference.
 // Returns an error when the format of the string feature reference is invalid
-func parseFeatureRef(featureRefStr string, ignoreProject bool) (*serving.FeatureReference, error) {
+func parseFeatureRef(featureRefStr string) (*serving.FeatureReference, error) {
 	if len(featureRefStr) == 0 {
 		return nil, fmt.Errorf(ErrInvalidFeatureRef, featureRefStr)
 	}
 
 	var featureRef serving.FeatureReference
 	if strings.Contains(featureRefStr, "/") {
-		if ignoreProject {
-			projectSplit := strings.Split(featureRefStr, "/")
-			featureRefStr = projectSplit[1]
-		} else {
-			return nil, fmt.Errorf(ErrInvalidFeatureRef, featureRefStr)
-		}
+		return nil, fmt.Errorf(ErrInvalidFeatureRef, featureRefStr)
 	}
 	// parse featureset if specified
 	if strings.Contains(featureRefStr, ":") {

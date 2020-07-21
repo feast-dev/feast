@@ -16,9 +16,12 @@
  */
 package feast.test;
 
-import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
+import static feast.common.models.FeatureSet.getFeatureSetStringRef;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.io.Files;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Message;
 import com.google.protobuf.util.Timestamps;
 import feast.ingestion.transform.metrics.WriteSuccessMetricsTransform;
 import feast.proto.core.FeatureSetProto.FeatureSet;
@@ -43,15 +46,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServerStartable;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.serialization.LongSerializer;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.zookeeper.server.ServerConfig;
 import org.apache.zookeeper.server.ZooKeeperServerMain;
 import org.joda.time.Duration;
@@ -113,16 +121,19 @@ public class TestUtil {
       kafkaProp.put("zookeeper.connect", zookeeperHost + ":" + zookeeperPort);
       kafkaProp.put("host.name", kafkaHost);
       kafkaProp.put("port", kafkaPort);
+      kafkaProp.put("log.dir", Files.createTempDir().getAbsolutePath());
       kafkaProp.put("offsets.topic.replication.factor", kafkaReplicationFactor);
       KafkaConfig kafkaConfig = new KafkaConfig(kafkaProp);
       server = new KafkaServerStartable(kafkaConfig);
       new Thread(server::startup).start();
+      Thread.sleep(5000);
     }
 
     public static void stop() {
       if (server != null) {
         try {
           server.shutdown();
+          LocalZookeeper.stop();
         } catch (Exception e) {
           e.printStackTrace();
         }
@@ -139,29 +150,46 @@ public class TestUtil {
    * @param valueSerializer in Feast this valueSerializer should be "ByteArraySerializer.class"
    * @param publishTimeoutSec duration to wait for publish operation (of each message) to succeed
    */
-  public static void publishFeatureRowsToKafka(
+  public static <T extends Message> void publishToKafka(
       String bootstrapServers,
       String topic,
-      List<FeatureRow> messages,
+      List<Pair<String, T>> messages,
       Class<?> valueSerializer,
       long publishTimeoutSec) {
-    Long defaultKey = 1L;
+
     Properties prop = new Properties();
-    prop.put("bootstrap.servers", bootstrapServers);
-    prop.put("key.serializer", LongSerializer.class);
-    prop.put("value.serializer", valueSerializer);
-    Producer<Long, byte[]> producer = new KafkaProducer<>(prop);
+    prop.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    prop.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+    prop.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, valueSerializer);
+    Producer<String, byte[]> producer = new KafkaProducer<>(prop);
 
     messages.forEach(
         featureRow -> {
-          ProducerRecord<Long, byte[]> record =
-              new ProducerRecord<>(topic, defaultKey, featureRow.toByteArray());
+          ProducerRecord<String, byte[]> record =
+              new ProducerRecord<>(
+                  topic, featureRow.getLeft(), featureRow.getRight().toByteArray());
           try {
             producer.send(record).get(publishTimeoutSec, TimeUnit.SECONDS);
           } catch (InterruptedException | ExecutionException | TimeoutException e) {
             e.printStackTrace();
           }
         });
+  }
+
+  public static <T> KafkaConsumer<String, T> makeKafkaConsumer(
+      String bootstrapServers, String topic, Class<?> valueDeserializer) {
+    Properties prop = new Properties();
+    prop.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    prop.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+    prop.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, valueDeserializer);
+    prop.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+    prop.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+    prop.put(ConsumerConfig.GROUP_ID_CONFIG, "test");
+
+    KafkaConsumer<String, T> consumer = new KafkaConsumer<>(prop);
+
+    consumer.subscribe(ImmutableList.of(topic));
+    return consumer;
   }
 
   /**
@@ -192,7 +220,7 @@ public class TestUtil {
       FeatureSetSpec featureSetSpec, int randomStringSize) {
     Builder builder =
         FeatureRow.newBuilder()
-            .setFeatureSet(getFeatureSetReference(featureSetSpec))
+            .setFeatureSet(getFeatureSetStringRef(featureSetSpec))
             .setEventTimestamp(Timestamps.fromMillis(System.currentTimeMillis()));
 
     featureSetSpec
@@ -302,7 +330,7 @@ public class TestUtil {
    */
   public static RedisKey createRedisKey(FeatureSetSpec featureSetSpec, FeatureRow row) {
     RedisKey.Builder builder =
-        RedisKey.newBuilder().setFeatureSet(getFeatureSetReference(featureSetSpec));
+        RedisKey.newBuilder().setFeatureSet(getFeatureSetStringRef(featureSetSpec));
     featureSetSpec
         .getEntitiesList()
         .forEach(
@@ -315,20 +343,26 @@ public class TestUtil {
   }
 
   private static class LocalZookeeper {
+    public static Thread thread;
 
     static void start(int zookeeperPort, String zookeeperDataDir) {
-      final ZooKeeperServerMain zookeeper = new ZooKeeperServerMain();
+      ZooKeeperServerMain zookeeper = new ZooKeeperServerMain();
       final ServerConfig serverConfig = new ServerConfig();
       serverConfig.parse(new String[] {String.valueOf(zookeeperPort), zookeeperDataDir});
-      new Thread(
+      thread =
+          new Thread(
               () -> {
                 try {
                   zookeeper.runFromConfig(serverConfig);
-                } catch (IOException e) {
+                } catch (Exception e) {
                   e.printStackTrace();
                 }
-              })
-          .start();
+              });
+      thread.start();
+    }
+
+    static void stop() {
+      thread.interrupt();
     }
   }
 

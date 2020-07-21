@@ -15,15 +15,11 @@
 #
 #
 
-grpc:
-  # The port number Feast Serving GRPC service should listen on
-  port: 6565
-  # This allows client to discover GRPC endpoints easily
-  # https://github.com/grpc/grpc-java/blob/master/documentation/server-reflection-tutorial.md
-  enable-reflection: true
-
 feast:
   jobs:
+    # Enabling JobManagement
+    enabled: true
+
     # Job update polling interval in milliseconds: how often Feast checks if new jobs should be sent to the runner.
     polling_interval_milliseconds: 60000
 
@@ -38,7 +34,8 @@ feast:
     runners:
       - name: direct
         type: DirectRunner
-        options: {}
+        options:
+          tempLocation: gs://bucket/tempLocation
 
       - name: dataflow
         type: DataflowRunner
@@ -91,6 +88,10 @@ feast:
       # Port of the metrics sink.
       port: 9125
 
+    # if true one job per source with many stores would be created
+    # if false one job per source-store pair would be created
+    consolidate-jobs-per-source: false
+
   stream:
     # Feature stream type. Only kafka is supported.
     type: kafka
@@ -101,7 +102,33 @@ feast:
       bootstrapServers: localhost:9092
       replicationFactor: 1
       partitions: 1
+    specsOptions:
+      specsTopic: feast-specs
+      specsAckTopic: feast-specs-ack
+      notifyIntervalMilliseconds: 1000
+      
+  security:
+    authentication:
+      enabled: false
+      provider: jwt
+      options:
+        jwkEndpointURI: "https://www.googleapis.com/oauth2/v3/certs"
 
+    authorization:
+      enabled: false
+      provider: http
+      options:
+        authorizationUrl: http://localhost:8082
+
+grpc:
+  server:
+    # The port that Feast Core gRPC service listens on
+    port: 6565
+    security:
+      enabled: false
+      certificateChainPath: server.crt
+      privateKeyPath: server.key
+      
 spring:
   jpa:
     properties.hibernate:
@@ -110,12 +137,14 @@ spring:
         merge:
           entity_copy_observer: allow
     hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
-    hibernate.ddl-auto: update
+    hibernate.ddl-auto: validate
   datasource:
     driverClassName: org.postgresql.Driver
     url: jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:5432}/${DB_DATABASE:postgres}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:password}
+  flyway:
+    baseline-on-migrate: true
 
 management:
   metrics:

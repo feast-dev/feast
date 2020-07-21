@@ -31,6 +31,10 @@ message DirectRunnerConfigOptions {
 
     /* BigQuery table specification, e.g. PROJECT_ID:DATASET_ID.PROJECT_ID */
     string deadLetterTableSpec = 2;
+
+    // A pipeline level default location for storing temporary files.
+    // Support Google Cloud Storage locations or local path
+    string tempLocation = 3;
 }
 
 message DataflowRunnerConfigOptions {
@@ -73,6 +77,9 @@ message DataflowRunnerConfigOptions {
 
     /* Labels to apply to the dataflow job */
     map<string, string> labels = 13;
+
+    /* Disk size to use on each remote Compute Engine worker instance */
+    int32 diskSizeGb = 14;
 }
 
 message DatabricksRunnerConfigOptions {

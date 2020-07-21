@@ -11,14 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
 import pkgutil
 import tempfile
 from concurrent import futures
 from datetime import datetime
 from unittest import mock
 
+import dataframes
 import grpc
 import pandas as pd
 import pandavro
@@ -27,13 +26,13 @@ from google.protobuf.duration_pb2 import Duration
 from mock import MagicMock, patch
 from pytz import timezone
 
-import dataframes
-import feast.core.CoreService_pb2_grpc as Core
-import feast.serving.ServingService_pb2_grpc as Serving
 from feast.client import Client
+from feast.core import CoreService_pb2_grpc as Core
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionResponse,
     GetFeatureSetResponse,
+    ListFeatureSetsResponse,
+    ListFeaturesResponse,
     ListIngestionJobsResponse,
 )
 from feast.core.FeatureSet_pb2 import EntitySpec as EntitySpecProto
@@ -47,11 +46,13 @@ from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.core.Source_pb2 import KafkaSourceConfig, Source, SourceType
 from feast.core.Store_pb2 import Store
 from feast.entity import Entity
-from feast.feature_set import Feature, FeatureSet, FeatureSetRef
+from feast.feature import Feature
+from feast.feature_set import FeatureSet, FeatureSetRef
 from feast.job import IngestJob
+from feast.serving import ServingService_pb2_grpc as Serving
+from feast.serving.ServingService_pb2 import DataFormat, FeastServingType
+from feast.serving.ServingService_pb2 import FeatureReference as FeatureRefProto
 from feast.serving.ServingService_pb2 import (
-    DataFormat,
-    FeastServingType,
     GetBatchFeaturesResponse,
     GetFeastServingInfoResponse,
     GetJobResponse,
@@ -63,7 +64,11 @@ from feast.serving.ServingService_pb2 import JobStatus, JobType
 from feast.source import KafkaSource
 from feast.types import Value_pb2 as ValueProto
 from feast.value_type import ValueType
-from feast_core_server import CoreServicer
+from feast_core_server import (
+    AllowAuthInterceptor,
+    CoreServicer,
+    DisallowAuthInterceptor,
+)
 from feast_serving_server import ServingServicer
 
 CORE_URL = "core.feast.example.com"
@@ -71,28 +76,29 @@ SERVING_URL = "serving.example.com"
 _PRIVATE_KEY_RESOURCE_PATH = "data/localhost.key"
 _CERTIFICATE_CHAIN_RESOURCE_PATH = "data/localhost.pem"
 _ROOT_CERTIFICATE_RESOURCE_PATH = "data/localhost.crt"
+_FAKE_JWT_TOKEN = (
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0N"
+    "TY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDI"
+    "yfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+)
 
 
 class TestClient:
     @pytest.fixture
-    def secure_mock_client(self, mocker):
+    def secure_mock_client(self):
         client = Client(
             core_url=CORE_URL,
             serving_url=SERVING_URL,
-            core_secure=True,
-            serving_secure=True,
+            core_enable_ssl=True,
+            serving_enable_ssl=True,
         )
-        mocker.patch.object(client, "_connect_core")
-        mocker.patch.object(client, "_connect_serving")
         client._core_url = CORE_URL
         client._serving_url = SERVING_URL
         return client
 
     @pytest.fixture
-    def mock_client(self, mocker):
+    def mock_client(self):
         client = Client(core_url=CORE_URL, serving_url=SERVING_URL)
-        mocker.patch.object(client, "_connect_core")
-        mocker.patch.object(client, "_connect_serving")
         client._core_url = CORE_URL
         client._serving_url = SERVING_URL
         return client
@@ -134,8 +140,43 @@ class TestClient:
     def secure_serving_server(self, server_credentials):
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         Serving.add_ServingServiceServicer_to_server(ServingServicer(), server)
-
         server.add_secure_port("[::]:50054", server_credentials)
+        server.start()
+        yield server
+        server.stop(0)
+
+    @pytest.fixture
+    def secure_core_server_with_auth(self, server_credentials):
+        server = grpc.server(
+            futures.ThreadPoolExecutor(max_workers=10),
+            interceptors=(AllowAuthInterceptor(),),
+        )
+        Core.add_CoreServiceServicer_to_server(CoreServicer(), server)
+        server.add_secure_port("[::]:50055", server_credentials)
+        server.start()
+        yield server
+        server.stop(0)
+
+    @pytest.fixture
+    def insecure_core_server_with_auth(self, server_credentials):
+        server = grpc.server(
+            futures.ThreadPoolExecutor(max_workers=10),
+            interceptors=(AllowAuthInterceptor(),),
+        )
+        Core.add_CoreServiceServicer_to_server(CoreServicer(), server)
+        server.add_insecure_port("[::]:50056")
+        server.start()
+        yield server
+        server.stop(0)
+
+    @pytest.fixture
+    def insecure_core_server_that_blocks_auth(self, server_credentials):
+        server = grpc.server(
+            futures.ThreadPoolExecutor(max_workers=10),
+            interceptors=(DisallowAuthInterceptor(),),
+        )
+        Core.add_CoreServiceServicer_to_server(CoreServicer(), server)
+        server.add_insecure_port("[::]:50057")
         server.start()
         yield server
         server.stop(0)
@@ -145,7 +186,7 @@ class TestClient:
         root_certificate_credentials = pkgutil.get_data(
             __name__, _ROOT_CERTIFICATE_RESOURCE_PATH
         )
-        # this is needed to establish a secure connection using self-signed certificates, for the purpose of the test
+
         ssl_channel_credentials = grpc.ssl_channel_credentials(
             root_certificates=root_certificate_credentials
         )
@@ -156,8 +197,27 @@ class TestClient:
             yield Client(
                 core_url="localhost:50053",
                 serving_url="localhost:50054",
-                core_secure=True,
-                serving_secure=True,
+                core_enable_ssl=True,
+                serving_enable_ssl=True,
+            )
+
+    @pytest.fixture
+    def secure_core_client_with_auth(self, secure_core_server_with_auth):
+        root_certificate_credentials = pkgutil.get_data(
+            __name__, _ROOT_CERTIFICATE_RESOURCE_PATH
+        )
+        ssl_channel_credentials = grpc.ssl_channel_credentials(
+            root_certificates=root_certificate_credentials
+        )
+        with mock.patch(
+            "grpc.ssl_channel_credentials",
+            MagicMock(return_value=ssl_channel_credentials),
+        ):
+            yield Client(
+                core_url="localhost:50055",
+                core_enable_ssl=True,
+                core_enable_auth=True,
+                core_auth_token=_FAKE_JWT_TOKEN,
             )
 
     @pytest.fixture
@@ -210,42 +270,65 @@ class TestClient:
         def int_val(x):
             return ValueProto.Value(int64_val=x)
 
-        # serving can return feature references with projects,
-        # get_online_features() should strip the project part.
-        field_values = GetOnlineFeaturesResponse.FieldValues(
-            fields={
-                "driver_project/driver:driver_id": int_val(1),
-                "driver_project/driver_id": int_val(9),
-            }
+        request = GetOnlineFeaturesRequest(project="driver_project")
+        request.features.extend(
+            [
+                FeatureRefProto(feature_set="driver", name="age"),
+                FeatureRefProto(name="rating"),
+                FeatureRefProto(name="null_value"),
+            ]
         )
-
-        response = GetOnlineFeaturesResponse()
-        entity_rows = []
+        recieve_response = GetOnlineFeaturesResponse()
         for row_number in range(1, ROW_COUNT + 1):
-            response.field_values.append(field_values)
-            entity_rows.append(
+            request.entity_rows.append(
                 GetOnlineFeaturesRequest.EntityRow(
-                    fields={"customer_id": int_val(row_number)}
+                    fields={"driver_id": int_val(row_number)}
                 )
+            ),
+            field_values = GetOnlineFeaturesResponse.FieldValues(
+                fields={
+                    "driver_id": int_val(row_number),
+                    "driver:age": int_val(1),
+                    "rating": int_val(9),
+                    "null_value": ValueProto.Value(),
+                },
+                statuses={
+                    "driver_id": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
+                    "driver:age": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
+                    "rating": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
+                    "null_value": GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE,
+                },
             )
+            recieve_response.field_values.append(field_values)
 
         mocker.patch.object(
             mocked_client._serving_service_stub,
             "GetOnlineFeatures",
-            return_value=response,
+            return_value=recieve_response,
         )
-
-        # NOTE: Feast Serving does not allow for feature references
-        # that specify the same feature in the same request
-        response = mocked_client.get_online_features(
-            entity_rows=entity_rows,
-            feature_refs=["driver:driver_id", "driver_id"],
+        got_response = mocked_client.get_online_features(
+            entity_rows=request.entity_rows,
+            feature_refs=["driver:age", "rating", "null_value"],
             project="driver_project",
         )  # type: GetOnlineFeaturesResponse
+        mocked_client._serving_service_stub.GetOnlineFeatures.assert_called_with(
+            request
+        )
 
+        got_fields = got_response.field_values[0].fields
+        got_statuses = got_response.field_values[0].statuses
         assert (
-            response.field_values[0].fields["driver:driver_id"].int64_val == 1
-            and response.field_values[0].fields["driver_id"].int64_val == 9
+            got_fields["driver_id"] == int_val(1)
+            and got_statuses["driver_id"]
+            == GetOnlineFeaturesResponse.FieldStatus.PRESENT
+            and got_fields["driver:age"] == int_val(1)
+            and got_statuses["driver:age"]
+            == GetOnlineFeaturesResponse.FieldStatus.PRESENT
+            and got_fields["rating"] == int_val(9)
+            and got_statuses["rating"] == GetOnlineFeaturesResponse.FieldStatus.PRESENT
+            and got_fields["null_value"] == ValueProto.Value()
+            and got_statuses["null_value"]
+            == GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE
         )
 
     @pytest.mark.parametrize(
@@ -267,6 +350,7 @@ class TestClient:
                     spec=FeatureSetSpecProto(
                         name="my_feature_set",
                         max_age=Duration(seconds=3600),
+                        labels={"key1": "val1", "key2": "val2"},
                         features=[
                             FeatureSpecProto(
                                 name="my_feature_1",
@@ -299,12 +383,123 @@ class TestClient:
 
         assert (
             feature_set.name == "my_feature_set"
+            and "key1" in feature_set.labels
+            and feature_set.labels["key1"] == "val1"
+            and "key2" in feature_set.labels
+            and feature_set.labels["key2"] == "val2"
             and feature_set.fields["my_feature_1"].name == "my_feature_1"
             and feature_set.fields["my_feature_1"].dtype == ValueType.FLOAT
             and feature_set.fields["my_entity_1"].name == "my_entity_1"
             and feature_set.fields["my_entity_1"].dtype == ValueType.INT64
             and len(feature_set.features) == 2
             and len(feature_set.entities) == 1
+        )
+
+    @pytest.mark.parametrize(
+        "mocked_client",
+        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+    )
+    def test_list_feature_sets(self, mocked_client, mocker):
+        mocker.patch.object(
+            mocked_client,
+            "_core_service_stub",
+            return_value=Core.CoreServiceStub(grpc.insecure_channel("")),
+        )
+
+        feature_set_1_proto = FeatureSetProto(
+            spec=FeatureSetSpecProto(
+                project="test",
+                name="driver_car",
+                max_age=Duration(seconds=3600),
+                labels={"key1": "val1", "key2": "val2"},
+                features=[
+                    FeatureSpecProto(
+                        name="feature_1", value_type=ValueProto.ValueType.FLOAT
+                    )
+                ],
+            )
+        )
+        feature_set_2_proto = FeatureSetProto(
+            spec=FeatureSetSpecProto(
+                project="test",
+                name="driver_ride",
+                max_age=Duration(seconds=3600),
+                labels={"key1": "val1"},
+                features=[
+                    FeatureSpecProto(
+                        name="feature_1", value_type=ValueProto.ValueType.FLOAT
+                    )
+                ],
+            )
+        )
+
+        mocker.patch.object(
+            mocked_client._core_service_stub,
+            "ListFeatureSets",
+            return_value=ListFeatureSetsResponse(
+                feature_sets=[feature_set_1_proto, feature_set_2_proto]
+            ),
+        )
+
+        feature_sets = mocked_client.list_feature_sets(labels={"key1": "val1"})
+        assert len(feature_sets) == 2
+
+        feature_set = feature_sets[0]
+        assert (
+            feature_set.name == "driver_car"
+            and "key1" in feature_set.labels
+            and feature_set.labels["key1"] == "val1"
+            and "key2" in feature_set.labels
+            and feature_set.labels["key2"] == "val2"
+            and feature_set.fields["feature_1"].name == "feature_1"
+            and feature_set.fields["feature_1"].dtype == ValueType.FLOAT
+            and len(feature_set.features) == 1
+        )
+
+    @pytest.mark.parametrize(
+        "mocked_client",
+        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+    )
+    def test_list_features(self, mocked_client, mocker):
+        mocker.patch.object(
+            mocked_client,
+            "_core_service_stub",
+            return_value=Core.CoreServiceStub(grpc.insecure_channel("")),
+        )
+
+        feature1_proto = FeatureSpecProto(
+            name="feature_1", value_type=ValueProto.ValueType.FLOAT
+        )
+        feature2_proto = FeatureSpecProto(
+            name="feature_2", value_type=ValueProto.ValueType.STRING
+        )
+
+        mocker.patch.object(
+            mocked_client._core_service_stub,
+            "ListFeatures",
+            return_value=ListFeaturesResponse(
+                features={
+                    "driver_car:feature_1": feature1_proto,
+                    "driver_car:feature_2": feature2_proto,
+                }
+            ),
+        )
+
+        features = mocked_client.list_features_by_ref(project="test")
+        assert len(features) == 2
+
+        ref_str_list = []
+        feature_name_list = []
+        feature_dtype_list = []
+        for ref_str, feature_proto in features.items():
+            ref_str_list.append(ref_str)
+            feature_name_list.append(feature_proto.name)
+            feature_dtype_list.append(feature_proto.dtype)
+
+        assert (
+            set(ref_str_list) == set(["driver_car:feature_1", "driver_car:feature_2"])
+            and set(feature_name_list) == set(["feature_1", "feature_2"])
+            and set(feature_dtype_list) == set([ValueType.FLOAT, ValueType.STRING])
         )
 
     @pytest.mark.parametrize(
@@ -340,7 +535,7 @@ class TestClient:
                                 bootstrap_servers="localhost:9092", topic="topic"
                             ),
                         ),
-                        store=Store(name="redis"),
+                        stores=[Store(name="redis")],
                     )
                 ]
             ),
@@ -413,7 +608,7 @@ class TestClient:
         "mocked_client",
         [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
     )
-    def test_get_batch_features(self, mocked_client, mocker):
+    def test_get_historical_features(self, mocked_client, mocker):
 
         mocked_client._serving_service_stub = Serving.ServingServiceStub(
             grpc.insecure_channel("")
@@ -508,7 +703,7 @@ class TestClient:
         # NOTE: Feast Serving does not allow for feature references
         # that specify the same feature in the same request.
         with patch("google.cloud.storage.Client"):
-            response = mocked_client.get_batch_features(
+            response = mocked_client.get_historical_features(
                 entity_rows=pd.DataFrame(
                     {
                         "datetime": [
@@ -635,7 +830,7 @@ class TestClient:
         )
 
         with pytest.raises(exception):
-            test_client.ingest("driver-feature-set", dataframe)
+            test_client.ingest("driver-feature-set", dataframe, timeout=1)
 
     @pytest.mark.parametrize(
         "dataframe,exception,test_client",
@@ -752,7 +947,7 @@ class TestClient:
         test_client.apply(all_types_fs)
 
         mocker.patch.object(
-            test_client._core_service_stub,
+            test_client._core_service,
             "GetFeatureSet",
             return_value=GetFeatureSetResponse(feature_set=all_types_fs.to_proto()),
         )
@@ -767,15 +962,15 @@ class TestClient:
         client = Client(
             core_url="localhost:50051",
             serving_url="localhost:50052",
-            serving_secure=True,
-            core_secure=True,
+            serving_enable_ssl=True,
+            core_enable_ssl=True,
         )
         with mock.patch("grpc.secure_channel") as _grpc_mock, mock.patch(
             "grpc.ssl_channel_credentials", MagicMock(return_value="test")
         ) as _mocked_credentials:
-            client._connect_serving()
+            _ = client._serving_service
             _grpc_mock.assert_called_with(
-                client.serving_url, _mocked_credentials.return_value
+                client.serving_url, credentials=_mocked_credentials.return_value
             )
 
     @mock.patch("grpc.channel_ready_future")
@@ -786,9 +981,9 @@ class TestClient:
         with mock.patch("grpc.secure_channel") as _grpc_mock, mock.patch(
             "grpc.ssl_channel_credentials", MagicMock(return_value="test")
         ) as _mocked_credentials:
-            client._connect_serving()
+            _ = client._serving_service
             _grpc_mock.assert_called_with(
-                client.serving_url, _mocked_credentials.return_value
+                client.serving_url, credentials=_mocked_credentials.return_value
             )
 
     @patch("grpc.channel_ready_future")
@@ -797,7 +992,29 @@ class TestClient:
         with mock.patch("grpc.secure_channel") as _grpc_mock, mock.patch(
             "grpc.ssl_channel_credentials", MagicMock(return_value="test")
         ) as _mocked_credentials:
-            client._connect_core()
+            _ = client._core_service
             _grpc_mock.assert_called_with(
-                client.core_url, _mocked_credentials.return_value
+                client.core_url, credentials=_mocked_credentials.return_value
             )
+
+    @mock.patch("grpc.channel_ready_future")
+    def test_auth_success_with_secure_channel_on_core_url(
+        self, secure_core_client_with_auth
+    ):
+        secure_core_client_with_auth.list_feature_sets()
+
+    def test_auth_success_with_insecure_channel_on_core_url(
+        self, insecure_core_server_with_auth
+    ):
+        client = Client(
+            core_url="localhost:50056",
+            core_enable_auth=True,
+            core_auth_token=_FAKE_JWT_TOKEN,
+        )
+        client.list_feature_sets()
+
+    def test_no_auth_sent_when_auth_disabled(
+        self, insecure_core_server_that_blocks_auth
+    ):
+        client = Client(core_url="localhost:50057")
+        client.list_feature_sets()

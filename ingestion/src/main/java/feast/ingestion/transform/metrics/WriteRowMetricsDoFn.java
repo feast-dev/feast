@@ -44,9 +44,9 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<String, Iterable<Featu
   public static final String STORE_TAG_KEY = "feast_store";
   public static final String FEATURE_SET_PROJECT_TAG_KEY = "feast_project_name";
   public static final String FEATURE_SET_NAME_TAG_KEY = "feast_featureSet_name";
-  public static final String FEATURE_SET_VERSION_TAG_KEY = "feast_featureSet_version";
   public static final String FEATURE_TAG_KEY = "feast_feature_name";
   public static final String INGESTION_JOB_NAME_KEY = "ingestion_job_name";
+  public static final String METRICS_NAMESPACE_KEY = "metrics_namespace";
 
   public static final String GAUGE_NAME_FEATURE_ROW_LAG_MS_MIN = "feature_row_lag_ms_min";
   public static final String GAUGE_NAME_FEATURE_ROW_LAG_MS_MAX = "feature_row_lag_ms_max";
@@ -77,6 +77,8 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<String, Iterable<Featu
 
   public abstract int getStatsdPort();
 
+  public abstract String getMetricsNamespace();
+
   @Nullable
   public abstract Clock getClock();
 
@@ -103,6 +105,8 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<String, Iterable<Featu
     public abstract Builder setStatsdHost(String statsdHost);
 
     public abstract Builder setStatsdPort(int statsdPort);
+
+    public abstract Builder setMetricsNamespace(String metricNamespace);
 
     /**
      * setClock will override the default system clock used to calculate feature row lag.
@@ -193,6 +197,7 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<String, Iterable<Featu
       FEATURE_SET_PROJECT_TAG_KEY + ":" + featureSetProject,
       FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
       INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName(),
+      METRICS_NAMESPACE_KEY + ":" + getMetricsNamespace(),
     };
 
     statsd.count(COUNT_NAME_FEATURE_ROW_INGESTED, featureRowLagStats.getN(), tags);

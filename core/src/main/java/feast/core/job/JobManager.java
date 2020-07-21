@@ -29,7 +29,7 @@ public interface JobManager {
   Runner getRunnerType();
 
   /**
-   * Start an import job.
+   * Start an import job. Start should change the status of the Job from PENDING to RUNNING.
    *
    * @param job job to start
    * @return Job
@@ -45,11 +45,13 @@ public interface JobManager {
   Job updateJob(Job job);
 
   /**
-   * Abort a job given runner-specific job ID.
+   * Abort a job given runner-specific job ID. Abort should change the status of the Job from
+   * RUNNING to ABORTING.
    *
-   * @param extId runner specific job id.
+   * @param job to abort.
+   * @return The aborted Job
    */
-  void abortJob(String extId);
+  Job abortJob(Job job);
 
   /**
    * Restart an job. If job is an terminated state, will simply start the job. Might cause data to

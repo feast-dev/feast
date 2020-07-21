@@ -21,6 +21,7 @@ package feast.serving;
 import "google/protobuf/timestamp.proto";
 import "feast/types/Value.proto";
 import "feast/core/FeatureSet.proto";
+import "tensorflow_metadata/proto/v0/statistics.proto";
 
 option java_package = "feast.proto.serving";
 option java_outer_classname = "ServingAPIProto";
@@ -91,9 +92,14 @@ message GetOnlineFeaturesRequest {
     // values will be returned.
     bool omit_entities_in_response = 3;
 
+    // Optional field to specify project name override. If specified, uses the 
+    // given project for retrieval. Overrides the projects specified in
+    // Feature References if both are specified.
+    string project = 5;
+
     message EntityRow {
-        // Request timestamp of this row. This value will be used, together with maxAge,
-        // to determine feature staleness.
+        // Request timestamp of this row. This value will be used, 
+        // together with maxAge, to determine feature staleness.
         google.protobuf.Timestamp entity_timestamp = 1;
 
         // Map containing mapping of entity name to entity value.
@@ -108,6 +114,9 @@ message GetBatchFeaturesRequest {
     // Source of the entity dataset containing the timestamps and entity keys to retrieve
     // features for.
     DatasetSource dataset_source = 2;
+
+    // Compute statistics for the dataset retrieved
+    bool compute_statistics = 4;
 }
 
 message GetOnlineFeaturesResponse {
@@ -117,7 +126,30 @@ message GetOnlineFeaturesResponse {
     message FieldValues {
         // Map of feature or entity name to feature/entity values.
         // Timestamps are not returned in this response.
-        map<string,feast.types.Value> fields = 1;
+        map<string, feast.types.Value> fields = 1;
+        // Map of feature or entity name to feature/entity statuses/metadata.
+        map<string, FieldStatus> statuses = 2;
+    }
+   
+    enum FieldStatus {
+        // Status is unset for this field.
+        INVALID = 0;
+
+        // Field value is present for this field and age is within max age.
+        PRESENT = 1;
+
+        // Values could be found for entity key and age is within max age, but
+        // this field value is assigned a value on ingestion into feast.
+        NULL_VALUE = 2;
+
+        // Entity key did not return any values as they do not exist in Feast.
+        // This could suggest that the feature values have not yet been ingested
+        // into feast or the ingestion failed.
+        NOT_FOUND = 3;
+
+        // Values could be found for entity key, but field values are outside the maximum 
+        // allowable range.
+        OUTSIDE_MAX_AGE = 4;
     }
 }
 
@@ -174,6 +206,9 @@ message Job {
     // Output only. The data format for all the files.
     // For CSV format, the files contain both feature values and a column header.
     DataFormat data_format = 6;
+    // Output only. The statistics computed over
+    // the retrieved dataset. Only available for BigQuery stores.
+    tensorflow.metadata.v0.DatasetFeatureStatisticsList dataset_feature_statistics_list = 7;
 }
 
 message DatasetSource {
@@ -202,6 +237,7 @@ message HistoricalRetrievalRequest {
     string                      retrieval_id = 1;
     DatasetSource               dataset_source = 2;
     repeated FeatureSetRequest  feature_set_requests = 3;
+    bool                        computeStatistics = 4;
 }
 
 enum HistoricalRetrievalResultType {
@@ -216,4 +252,5 @@ message HistoricalRetrievalResult {
     string                        error = 4;
     repeated string               file_uris = 5;
     DataFormat                    data_format = 6;
+    tensorflow.metadata.v0.DatasetFeatureStatisticsList stats = 7;
 }

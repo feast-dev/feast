@@ -41,9 +41,13 @@ services:
       FEAST_ONLINE_SERVING_URL: online-serving:6566
       FEAST_BATCH_SERVING_URL: batch-serving:6567
       GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
-      FEAST_REPOSITORY_VERSION: ${FEAST_REPOSITORY_VERSION}
     ports:
       - 8888:8888
+    command: >
+      bash -c "
+      git clone https://github.com/feast-dev/feast.git || true
+      && cd feast && git checkout $$(git tag | sort -r --version-sort | head -n1 | cut -c1-4)-branch && cd ..
+      && start-notebook.sh --NotebookApp.token=''"
 
   kafka:
     image: confluentinc/cp-kafka:5.2.1

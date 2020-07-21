@@ -2,8 +2,13 @@
 
 set -e
 set -o pipefail
+ENABLE_AUTH="False"
+if [[ -n $1 ]]; then
+  ENABLE_AUTH=$1
+fi
+echo "Authenication enabled : ${ENABLE_AUTH}"
 
-test -z ${GOOGLE_APPLICATION_CREDENTIALS} && GOOGLE_APPLICATION_CREDENTIALS="/etc/service-account/service-account.json"
+test -z ${GOOGLE_APPLICATION_CREDENTIALS} && GOOGLE_APPLICATION_CREDENTIALS="/etc/gcloud/service-account.json"
 test -z ${SKIP_BUILD_JARS} && SKIP_BUILD_JARS="false"
 test -z ${GOOGLE_CLOUD_PROJECT} && GOOGLE_CLOUD_PROJECT="kf-feast"
 test -z ${TEMP_BUCKET} && TEMP_BUCKET="feast-templocation-kf-feast"
@@ -29,6 +34,7 @@ This script will run end-to-end tests for Feast Core and Online Serving.
 source ${SCRIPTS_DIR}/setup-common-functions.sh
 
 install_test_tools
+install_gcloud_sdk
 install_and_start_local_redis
 install_and_start_local_postgres
 install_and_start_local_zookeeper_and_kafka
@@ -39,7 +45,34 @@ else
   echo "[DEBUG] Skipping building jars"
 fi
 
-start_feast_core
+# Start Feast Core with auth if enabled
+cat <<EOF > /tmp/core.warehouse.application.yml
+feast:
+  jobs:
+    polling_interval_milliseconds: 10000
+    active_runner: direct
+    runners:
+      - name: direct
+        type: DirectRunner
+        options: {}
+  security:
+    authentication:
+      enabled: true
+      provider: jwt
+    authorization:
+      enabled: false
+      provider: none
+EOF
+
+if [[ ${ENABLE_AUTH} = "True" ]]; 
+  then
+    print_banner "Starting 'Feast core with auth'."
+    start_feast_core /tmp/core.warehouse.application.yml
+  else
+    print_banner "Starting 'Feast core without auth'."
+    start_feast_core
+fi
+
 start_feast_serving
 install_python_with_miniconda_and_feast_sdk
 
@@ -52,7 +85,8 @@ ORIGINAL_DIR=$(pwd)
 cd tests/e2e
 
 set +e
-pytest basic-ingest-redis-serving.py --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+export GOOGLE_APPLICATION_CREDENTIALS=/etc/gcloud/service-account.json
+pytest redis/* --enable_auth=${ENABLE_AUTH} --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 
 if [[ ${TEST_EXIT_CODE} != 0 ]]; then

@@ -13,14 +13,16 @@
 # limitations under the License.
 import warnings
 from collections import OrderedDict
-from typing import Dict, List, Optional
+from typing import Dict, List, MutableMapping, Optional
 
 import pandas as pd
 import pyarrow as pa
+import yaml
 from google.protobuf import json_format
 from google.protobuf.duration_pb2 import Duration
-from google.protobuf.json_format import MessageToJson
+from google.protobuf.json_format import MessageToDict, MessageToJson
 from google.protobuf.message import Message
+from google.protobuf.timestamp_pb2 import Timestamp
 from pandas.api.types import is_datetime64_ns_dtype
 from pyarrow.lib import TimestampType
 
@@ -55,21 +57,26 @@ class FeatureSet:
         entities: List[Entity] = None,
         source: Source = None,
         max_age: Optional[Duration] = None,
+        labels: Optional[MutableMapping[str, str]] = None,
     ):
         self._name = name
         self._project = project
         self._fields = OrderedDict()  # type: Dict[str, Field]
         if features is not None:
-            self.features = features
+            self.features: Optional[List[Feature]] = features
         if entities is not None:
             self.entities = entities
         if source is None:
             self._source = None
         else:
             self._source = source
+        if labels is None:
+            self._labels = OrderedDict()  # type: MutableMapping[str, str]
+        else:
+            self._labels = labels
         self._max_age = max_age
         self._status = None
-        self._created_timestamp = None
+        self._created_timestamp: Optional[Timestamp] = None
 
     def __eq__(self, other):
         if not isinstance(other, FeatureSet):
@@ -79,11 +86,18 @@ class FeatureSet:
             if key not in other.fields.keys() or self.fields[key] != other.fields[key]:
                 return False
 
+            if self.fields[key] != other.fields[key]:
+                return False
+
         if (
-            self.name != other.name
+            self.labels != other.labels
+            or self.name != other.name
             or self.project != other.project
             or self.max_age != other.max_age
         ):
+            return False
+
+        if self.source != other.source:
             return False
         return True
 
@@ -211,6 +225,21 @@ class FeatureSet:
         self._max_age = max_age
 
     @property
+    def labels(self):
+        """
+        Returns the labels of this feature set. This is the user defined metadata
+        defined as a dictionary.
+        """
+        return self._labels
+
+    @labels.setter
+    def labels(self, labels: MutableMapping[str, str]):
+        """
+        Set the labels for this feature set
+        """
+        self._labels = labels
+
+    @property
     def status(self):
         """
         Returns the status of this feature set
@@ -237,6 +266,18 @@ class FeatureSet:
         Sets the status of this feature set
         """
         self._created_timestamp = created_timestamp
+
+    def set_label(self, key: str, value: str):
+        """
+        Sets the label value for a given key
+        """
+        self.labels[key] = value
+
+    def remove_label(self, key: str):
+        """
+        Removes a label based on key
+        """
+        del self.labels[key]
 
     def add(self, resource):
         """
@@ -272,13 +313,9 @@ class FeatureSet:
         Args:
             name: Name of Feature or Entity to be removed
         """
-        if name not in self._fields:
-            raise ValueError("Could not find field " + name + ", no action taken")
-        if name in self._fields:
-            del self._fields[name]
-            return
+        del self._fields[name]
 
-    def _add_fields(self, fields: List[Field]):
+    def _add_fields(self, fields):
         """
         Adds multiple Fields to a Feature Set
 
@@ -343,8 +380,9 @@ class FeatureSet:
 
         # Create dictionary of fields that will not be inferred (manually set)
         provided_fields = OrderedDict()
+        fields = _create_field_list(entities, features)
 
-        for field in entities + features:
+        for field in fields:
             if not isinstance(field, Field):
                 raise Exception(f"Invalid field object type provided {type(field)}")
             if field.name not in provided_fields:
@@ -482,8 +520,9 @@ class FeatureSet:
 
         # Create dictionary of fields that will not be inferred (manually set)
         provided_fields = OrderedDict()
+        fields = _create_field_list(entities, features)
 
-        for field in entities + features:
+        for field in fields:
             if not isinstance(field, Field):
                 raise Exception(f"Invalid field object type provided {type(field)}")
             if field.name not in provided_fields:
@@ -783,17 +822,23 @@ class FeatureSet:
             entities=[
                 Entity.from_proto(entity) for entity in feature_set_proto.spec.entities
             ],
-            max_age=feature_set_proto.spec.max_age,
+            max_age=(
+                None
+                if feature_set_proto.spec.max_age.seconds == 0
+                and feature_set_proto.spec.max_age.nanos == 0
+                else feature_set_proto.spec.max_age
+            ),
+            labels=feature_set_proto.spec.labels,
             source=(
                 None
                 if feature_set_proto.spec.source.type == 0
                 else Source.from_proto(feature_set_proto.spec.source)
             ),
-            project=feature_set_proto.spec.project
+            project=None
             if len(feature_set_proto.spec.project) == 0
             else feature_set_proto.spec.project,
         )
-        feature_set._status = feature_set_proto.meta.status
+        feature_set._status = feature_set_proto.meta.status  # type: ignore
         feature_set._created_timestamp = feature_set_proto.meta.created_timestamp
         return feature_set
 
@@ -813,6 +858,7 @@ class FeatureSet:
             name=self.name,
             project=self.project,
             max_age=self.max_age,
+            labels=self.labels,
             source=self.source.to_proto() if self.source is not None else None,
             features=[
                 field.to_proto()
@@ -827,6 +873,29 @@ class FeatureSet:
         )
 
         return FeatureSetProto(spec=spec, meta=meta)
+
+    def to_dict(self) -> Dict:
+        """
+        Converts feature set to dict
+
+        :return: Dictionary object representation of feature set
+        """
+        feature_set_dict = MessageToDict(self.to_proto())
+
+        # Remove meta when empty for more readable exports
+        if feature_set_dict["meta"] == {}:
+            del feature_set_dict["meta"]
+
+        return feature_set_dict
+
+    def to_yaml(self):
+        """
+        Converts a feature set to a YAML string.
+
+        :return: Feature set string returned in YAML format
+        """
+        feature_set_dict = self.to_dict()
+        return yaml.dump(feature_set_dict, allow_unicode=True, sort_keys=False)
 
 
 class FeatureSetRef:
@@ -975,3 +1044,29 @@ def _infer_pd_column_type(column, series, rows_to_sample):
             dtype = current_dtype
 
     return dtype
+
+
+def _create_field_list(entities: List[Entity], features: List[Feature]) -> List[Field]:
+    """
+    Convert entities and features List to Field List
+
+    Args:
+        entities: List of Entity Objects
+        features: List of Features Objects
+
+
+    Returns:
+         List[Field]:
+            List of field from entities and features combined
+    """
+    fields: List[Field] = []
+
+    for entity in entities:
+        if isinstance(entity, Field):
+            fields.append(entity)
+
+    for feature in features:
+        if isinstance(feature, Field):
+            fields.append(feature)
+
+    return fields

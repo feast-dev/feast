@@ -23,6 +23,8 @@ import feast.proto.core.SourceProto.Source;
 import feast.proto.core.SourceProto.SourceType;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.storage.api.writer.FailedElement;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -97,6 +99,9 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
   }
 
   private String generateConsumerGroupId(String jobName) {
-    return "feast_import_job_" + jobName;
+    String[] split = jobName.split("-");
+    String jobNameWithoutTimestamp =
+        Arrays.stream(split).limit(split.length - 1).collect(Collectors.joining("-"));
+    return "feast_import_job_" + jobNameWithoutTimestamp;
   }
 }

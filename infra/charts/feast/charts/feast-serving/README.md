@@ -2,7 +2,7 @@ feast-serving
 =============
 Feast Serving serves low-latency latest features and historical batch features.
 
-Current chart version is `0.5.0-alpha.1`
+Current chart version is `0.6.0`
 
 
 
@@ -12,18 +12,18 @@ Current chart version is `0.5.0-alpha.1`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| "application-generated.yaml".enabled | bool | `true` | Flag to include Helm generated configuration for Feast Core host, Redis store and job store. This is useful for deployment that uses default configuration for Redis. Please set `application-override.yaml` to override this configuration. |
+| "application-generated.yaml".enabled | bool | `true` | Flag to include Helm generated configuration for http port, Feast Core host, Redis store and job store. This is useful for deployment that uses default configuration for Redis. Please set `application-override.yaml` to override this configuration. |
 | "application-override.yaml" | object | `{"enabled":true}` | Configuration to override the default [application.yaml](https://github.com/feast-dev/feast/blob/master/serving/src/main/resources/application.yml). Will be created as a ConfigMap. `application-override.yaml` has a higher precedence than `application-secret.yaml` |
 | "application-secret.yaml" | object | `{"enabled":true}` | Configuration to override the default [application.yaml](https://github.com/feast-dev/feast/blob/master/serving/src/main/resources/application.yml). Will be created as a Secret. `application-override.yaml` has a higher precedence than `application-secret.yaml`. It is recommended to either set `application-override.yaml` or `application-secret.yaml` only to simplify config management. |
 | "application.yaml".enabled | bool | `true` | Flag to include the default [configuration](https://github.com/feast-dev/feast/blob/master/serving/src/main/resources/application.yml). Please set `application-override.yaml` to override this configuration. |
 | envOverrides | object | `{}` | Extra environment variables to set |
 | gcpProjectId | string | `""` | Project ID to use when using Google Cloud services such as BigQuery, Cloud Storage and Dataflow |
-| gcpServiceAccount.enabled | bool | `false` | Flag to use [service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) JSON key |
+| gcpServiceAccount.enabled | bool | `false` | Flag to use [service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) JSON key Cloud service account JSON key file. |
 | gcpServiceAccount.existingSecret.key | string | `"credentials.json"` | Key in the secret data (file name of the service account) |
 | gcpServiceAccount.existingSecret.name | string | `"feast-gcp-service-account"` | Name of the existing secret containing the service account |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | image.repository | string | `"gcr.io/kf-feast/feast-serving"` | Docker image repository |
-| image.tag | string | `"dev"` | Image tag |
+| image.tag | string | `"latest"` | Image tag |
 | ingress.grpc.annotations | object | `{}` | Extra annotations for the ingress |
 | ingress.grpc.auth.enabled | bool | `false` | Flag to enable auth |
 | ingress.grpc.class | string | `"nginx"` | Which ingress controller to use |
@@ -51,6 +51,7 @@ Current chart version is `0.5.0-alpha.1`
 | logLevel | string | `"WARN"` | Default log level, use either one of `DEBUG`, `INFO`, `WARN` or `ERROR` |
 | logType | string | `"Console"` | Log format, either `JSON` or `Console` |
 | nodeSelector | object | `{}` | Node labels for pod assignment |
+| podLabels | object | `{}` | Labels to be added to Feast Serving pods |
 | prometheus.enabled | bool | `true` | Flag to enable scraping of Feast Core metrics |
 | readinessProbe.enabled | bool | `true` | Flag to enabled the probe |
 | readinessProbe.failureThreshold | int | `5` | Min consecutive failures for the probe to be considered failed |
@@ -65,5 +66,5 @@ Current chart version is `0.5.0-alpha.1`
 | service.grpc.targetPort | int | `6566` | Container port serving GRPC requests |
 | service.http.nodePort | string | `nil` | Port number that each cluster node will listen to |
 | service.http.port | int | `80` | Service port for HTTP requests |
-| service.http.targetPort | int | `8080` | Container port serving HTTP requests |
+| service.http.targetPort | int | `8080` | Container port serving HTTP requests and Prometheus metrics |
 | service.type | string | `"ClusterIP"` | Kubernetes service type |

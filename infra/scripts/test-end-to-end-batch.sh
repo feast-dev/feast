@@ -55,8 +55,21 @@ else
   echo "[DEBUG] Skipping building jars"
 fi
 
-export FEAST_JOBS_POLLING_INTERVAL_MILLISECONDS=10000
-start_feast_core
+# Start Feast Core in background
+cat <<EOF > /tmp/core.warehouse.application.yml
+feast:
+  jobs:
+    polling_interval_milliseconds: 10000
+    active_runner: direct
+    runners:
+      - name: direct
+        type: DirectRunner
+        options:
+          tempLocation: gs://${TEMP_BUCKET}/tempLocation
+
+EOF
+
+start_feast_core /tmp/core.warehouse.application.yml
 
 DATASET_NAME=feast_$(date +%s)
 bq --location=US --project_id=${GOOGLE_CLOUD_PROJECT} mk \
@@ -86,6 +99,7 @@ feast:
         staging_location: ${JOBS_STAGING_LOCATION}
         initial_retry_delay_seconds: 1
         total_timeout_seconds: 21600
+        write_triggering_frequency_seconds: 1
       subscriptions:
         - name: "*"
           project: "*"
@@ -119,7 +133,7 @@ ORIGINAL_DIR=$(pwd)
 cd tests/e2e
 
 set +e
-pytest bq-batch-retrieval.py -m ${PYTEST_MARK} --gcs_path "gs://${TEMP_BUCKET}/" --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+pytest bq/* -m ${PYTEST_MARK} --gcs_path "gs://${TEMP_BUCKET}/" --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 
 if [[ ${TEST_EXIT_CODE} != 0 ]]; then

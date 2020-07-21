@@ -16,15 +16,18 @@
  */
 package feast.ingestion;
 
+import static feast.common.models.FeatureSet.getFeatureSetStringRef;
+
+import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSet;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
+import feast.proto.core.IngestionJobProto;
 import feast.proto.core.SourceProto.KafkaSourceConfig;
 import feast.proto.core.SourceProto.Source;
 import feast.proto.core.SourceProto.SourceType;
@@ -53,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -75,6 +79,9 @@ public class ImportJobTest {
   private static final String KAFKA_BOOTSTRAP_SERVERS = KAFKA_HOST + ":" + KAFKA_PORT;
   private static final short KAFKA_REPLICATION_FACTOR = 1;
   private static final String KAFKA_TOPIC = "topic_1";
+  private static final String KAFKA_SPECS_TOPIC = "topic_specs_1";
+  private static final String KAFKA_SPECS_ACK_TOPIC = "topic_specs_ack_1";
+
   private static final long KAFKA_PUBLISH_TIMEOUT_SEC = 10;
 
   @SuppressWarnings("UnstableApiUsage")
@@ -120,6 +127,30 @@ public class ImportJobTest {
   @Test
   public void runPipeline_ShouldWriteToRedisCorrectlyGivenValidSpecAndFeatureRow()
       throws IOException, InterruptedException {
+    Source featureSource =
+        Source.newBuilder()
+            .setType(SourceType.KAFKA)
+            .setKafkaSourceConfig(
+                KafkaSourceConfig.newBuilder()
+                    .setBootstrapServers(KAFKA_HOST + ":" + KAFKA_PORT)
+                    .setTopic(KAFKA_TOPIC)
+                    .build())
+            .build();
+
+    IngestionJobProto.SpecsStreamingUpdateConfig specsStreamingUpdateConfig =
+        IngestionJobProto.SpecsStreamingUpdateConfig.newBuilder()
+            .setSource(
+                KafkaSourceConfig.newBuilder()
+                    .setBootstrapServers(KAFKA_HOST + ":" + KAFKA_PORT)
+                    .setTopic(KAFKA_SPECS_TOPIC)
+                    .build())
+            .setAck(
+                KafkaSourceConfig.newBuilder()
+                    .setBootstrapServers(KAFKA_HOST + ":" + KAFKA_PORT)
+                    .setTopic(KAFKA_SPECS_ACK_TOPIC)
+                    .build())
+            .build();
+
     FeatureSetSpec spec =
         FeatureSetSpec.newBuilder()
             .setName("feature_set")
@@ -143,15 +174,7 @@ public class ImportJobTest {
                 FeatureSpec.newBuilder().setName("feature_2").setValueType(Enum.STRING).build())
             .addFeatures(
                 FeatureSpec.newBuilder().setName("feature_3").setValueType(Enum.INT64).build())
-            .setSource(
-                Source.newBuilder()
-                    .setType(SourceType.KAFKA)
-                    .setKafkaSourceConfig(
-                        KafkaSourceConfig.newBuilder()
-                            .setBootstrapServers(KAFKA_HOST + ":" + KAFKA_PORT)
-                            .setTopic(KAFKA_TOPIC)
-                            .build())
-                    .build())
+            .setSource(featureSource)
             .build();
 
     FeatureSet featureSet = FeatureSet.newBuilder().setSpec(spec).build();
@@ -175,20 +198,16 @@ public class ImportJobTest {
             .build();
 
     ImportOptions options = PipelineOptionsFactory.create().as(ImportOptions.class);
-    BZip2Compressor<FeatureSetSpec> compressor =
-        new BZip2Compressor<>(
-            option -> {
-              JsonFormat.Printer printer =
-                  JsonFormat.printer().omittingInsignificantWhitespace().printingEnumsAsInts();
-              return printer.print(option).getBytes();
-            });
-    options.setFeatureSetJson(compressor.compress(spec));
-    options.setStoreJson(Collections.singletonList(JsonFormat.printer().print(redis)));
+
+    options.setSpecsStreamingUpdateConfigJson(
+        JsonFormat.printer().print(specsStreamingUpdateConfig));
+    options.setSourceJson(JsonFormat.printer().print(featureSource));
+    options.setStoresJson(Collections.singletonList(JsonFormat.printer().print(redis)));
     options.setDefaultFeastProject("myproject");
     options.setProject("");
     options.setBlockOnRun(false);
 
-    List<FeatureRow> input = new ArrayList<>();
+    List<Pair<String, FeatureRow>> input = new ArrayList<>();
     Map<RedisKey, FeatureRow> expected = new HashMap<>();
 
     LOGGER.info("Generating test data ...");
@@ -197,7 +216,7 @@ public class ImportJobTest {
             i -> {
               FeatureRow randomRow = TestUtil.createRandomFeatureRow(featureSet.getSpec());
               RedisKey redisKey = TestUtil.createRedisKey(featureSet.getSpec(), randomRow);
-              input.add(randomRow);
+              input.add(Pair.of("", randomRow));
               List<FieldProto.Field> fields =
                   randomRow.getFieldsList().stream()
                       .filter(
@@ -224,7 +243,13 @@ public class ImportJobTest {
     Assert.assertEquals(pipelineResult.getState(), State.RUNNING);
 
     LOGGER.info("Publishing {} Feature Row messages to Kafka ...", input.size());
-    TestUtil.publishFeatureRowsToKafka(
+    TestUtil.publishToKafka(
+        KAFKA_BOOTSTRAP_SERVERS,
+        KAFKA_SPECS_TOPIC,
+        ImmutableList.of(Pair.of(getFeatureSetStringRef(spec), spec)),
+        ByteArraySerializer.class,
+        KAFKA_PUBLISH_TIMEOUT_SEC);
+    TestUtil.publishToKafka(
         KAFKA_BOOTSTRAP_SERVERS,
         KAFKA_TOPIC,
         input,

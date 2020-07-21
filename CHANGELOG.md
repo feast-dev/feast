@@ -1,5 +1,107 @@
 # Changelog
 
+## [v0.6.0](https://github.com/feast-dev/feast/tree/v0.6.0) (2020-07-13)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.5.1...v0.6.0)
+
+**Breaking changes:**
+
+- Compute and write metrics for rows prior to store writes [\#763](https://github.com/feast-dev/feast/pull/763) ([zhilingc](https://github.com/zhilingc))
+
+**Implemented enhancements:**
+
+- Allow users compute statistics over retrieved batch datasets [\#799](https://github.com/feast-dev/feast/pull/799) ([zhilingc](https://github.com/zhilingc))
+- Replace Keto Authorization with External HTTP Authorization [\#864](https://github.com/feast-dev/feast/pull/864) ([woop](https://github.com/woop))
+- Add disk size as Dataflow Job Configuration [\#841](https://github.com/feast-dev/feast/pull/841) ([khorshuheng](https://github.com/khorshuheng))
+- JobCoordinator may be turned off by configuration [\#829](https://github.com/feast-dev/feast/pull/829) ([pyalex](https://github.com/pyalex))
+- Allow ingestion job grouping/consolidation to be configurable [\#825](https://github.com/feast-dev/feast/pull/825) ([pyalex](https://github.com/pyalex))
+- Add subscriptions blacklist functionality [\#813](https://github.com/feast-dev/feast/pull/813) ([terryyylim](https://github.com/terryyylim))
+- Add Common module [\#801](https://github.com/feast-dev/feast/pull/801) ([terryyylim](https://github.com/terryyylim))
+- FeatureSets are delivered to Ingestion Job through Kafka [\#792](https://github.com/feast-dev/feast/pull/792) ([pyalex](https://github.com/pyalex))
+- Add YAML export to Python SDK [\#782](https://github.com/feast-dev/feast/pull/782) ([woop](https://github.com/woop))
+- Add support to Python SDK for staging files on Amazon S3 [\#769](https://github.com/feast-dev/feast/pull/769) ([jmelinav](https://github.com/jmelinav))
+- Add support for version method in Feast SDK and Core [\#759](https://github.com/feast-dev/feast/pull/759) ([woop](https://github.com/woop))
+- Upgrade ingestion to allow for in-flight updates to feature sets for sinks [\#757](https://github.com/feast-dev/feast/pull/757) ([pyalex](https://github.com/pyalex))
+- Add Discovery API for listing features [\#797](https://github.com/feast-dev/feast/pull/797) ([terryyylim](https://github.com/terryyylim))
+- Authentication and authorization support [\#793](https://github.com/feast-dev/feast/pull/793) ([dr3s](https://github.com/dr3s))
+- Add API for listing feature sets using labels [\#785](https://github.com/feast-dev/feast/pull/785) ([terryyylim](https://github.com/terryyylim))
+
+**Fixed bugs:**
+
+- Bypass authentication for metric endpoints [\#862](https://github.com/feast-dev/feast/pull/862) ([woop](https://github.com/woop))
+- Python SDK listing of ingestion job fails for featureset reference filter [\#861](https://github.com/feast-dev/feast/pull/861) ([terryyylim](https://github.com/terryyylim))
+- Fix BigQuerySink successful output to produce only once [\#858](https://github.com/feast-dev/feast/pull/858) ([pyalex](https://github.com/pyalex))
+- Re-applying of featuresets does not update label changes [\#857](https://github.com/feast-dev/feast/pull/857) ([terryyylim](https://github.com/terryyylim))
+- BQ Sink is failing when Feature consists of only null values [\#853](https://github.com/feast-dev/feast/pull/853) ([pyalex](https://github.com/pyalex))
+- Fix FeatureSetJobStatus removal [\#848](https://github.com/feast-dev/feast/pull/848) ([pyalex](https://github.com/pyalex))
+- Fix: JobCoordinator tries to create duplicate FeatureSetJobStatuses [\#847](https://github.com/feast-dev/feast/pull/847) ([pyalex](https://github.com/pyalex))
+- Replace IngestionJob when store was updated [\#846](https://github.com/feast-dev/feast/pull/846) ([pyalex](https://github.com/pyalex))
+- Don't send unrecognized featureSets to deadletter in IngestionJob [\#845](https://github.com/feast-dev/feast/pull/845) ([pyalex](https://github.com/pyalex))
+- Deallocate featureSet from job when source changed [\#844](https://github.com/feast-dev/feast/pull/844) ([pyalex](https://github.com/pyalex))
+- Fix CPU count selection in Python SDK for non-Unix [\#839](https://github.com/feast-dev/feast/pull/839) ([pyalex](https://github.com/pyalex))
+- Write metrics for store allocated rows only [\#830](https://github.com/feast-dev/feast/pull/830) ([zhilingc](https://github.com/zhilingc))
+- Prevent reserved fields from being registered [\#819](https://github.com/feast-dev/feast/pull/819) ([terryyylim](https://github.com/terryyylim))
+- Fix Optional\#get\(\) and string comparison bugs in JobService [\#804](https://github.com/feast-dev/feast/pull/804) ([ches](https://github.com/ches))
+- Publish helm chart script should not modify the chart content [\#779](https://github.com/feast-dev/feast/pull/779) ([khorshuheng](https://github.com/khorshuheng))
+- Fix pipeline options toArgs\(\) returning empty list [\#765](https://github.com/feast-dev/feast/pull/765) ([zhilingc](https://github.com/zhilingc))
+- Remove usage of parallel stream for feature value map generation [\#751](https://github.com/feast-dev/feast/pull/751) ([khorshuheng](https://github.com/khorshuheng))
+
+**Merged pull requests:**
+
+- Remove Spring Boot from auth tests [\#859](https://github.com/feast-dev/feast/pull/859) ([woop](https://github.com/woop))
+- Authentication and Authorization into feast-auth module. [\#856](https://github.com/feast-dev/feast/pull/856) ([jmelinav](https://github.com/jmelinav))
+- Keep StoreProto inside JobStore to decouple JobCoordination from SpecService internals [\#852](https://github.com/feast-dev/feast/pull/852) ([pyalex](https://github.com/pyalex))
+- Enable isort for Python SDK [\#843](https://github.com/feast-dev/feast/pull/843) ([woop](https://github.com/woop))
+- Replace batch with historical for Python SDK retrieval [\#842](https://github.com/feast-dev/feast/pull/842) ([woop](https://github.com/woop))
+- Upgrade pandas to 1.0.x [\#840](https://github.com/feast-dev/feast/pull/840) ([duongnt](https://github.com/duongnt))
+- Ensure store subscriptions are migrated to allow exclusion schema [\#838](https://github.com/feast-dev/feast/pull/838) ([pyalex](https://github.com/pyalex))
+- Remove project reference from feature set id in stats example notebook [\#836](https://github.com/feast-dev/feast/pull/836) ([zhilingc](https://github.com/zhilingc))
+- Enable linting and formatting for e2e tests [\#832](https://github.com/feast-dev/feast/pull/832) ([woop](https://github.com/woop))
+- IngestionJob is being gracefully replaced to minimize downtime [\#828](https://github.com/feast-dev/feast/pull/828) ([pyalex](https://github.com/pyalex))
+- Add native types for Python SDK online retrieval [\#826](https://github.com/feast-dev/feast/pull/826) ([terryyylim](https://github.com/terryyylim))
+- Send acknowledgment on Spec Update only after sinks are ready [\#822](https://github.com/feast-dev/feast/pull/822) ([pyalex](https://github.com/pyalex))
+- Remove Duplicated Strip Projects Code from SDKs [\#820](https://github.com/feast-dev/feast/pull/820) ([mrzzy](https://github.com/mrzzy))
+- Consolidate ingestion jobs to one job per source [\#817](https://github.com/feast-dev/feast/pull/817) ([pyalex](https://github.com/pyalex))
+- Add missing key count metric [\#816](https://github.com/feast-dev/feast/pull/816) ([terryyylim](https://github.com/terryyylim))
+- Create table in BigQuery if doesn't exists when new FeatureSetSpec arrived to IngestionJob [\#815](https://github.com/feast-dev/feast/pull/815) ([pyalex](https://github.com/pyalex))
+- Refactor common module's feature string reference method [\#814](https://github.com/feast-dev/feast/pull/814) ([terryyylim](https://github.com/terryyylim))
+- Fix typo in documentation [\#811](https://github.com/feast-dev/feast/pull/811) ([ravisuhag](https://github.com/ravisuhag))
+- Database Schema migration for RELEASE 0.6 with Flyway [\#810](https://github.com/feast-dev/feast/pull/810) ([pyalex](https://github.com/pyalex))
+- Update helm installation docs - Fix broken link [\#808](https://github.com/feast-dev/feast/pull/808) ([davidheryanto](https://github.com/davidheryanto))
+- Add authentication support for end-to-end tests [\#807](https://github.com/feast-dev/feast/pull/807) ([jmelinav](https://github.com/jmelinav))
+- Use latest instead of dev as the default image tag in helm charts [\#806](https://github.com/feast-dev/feast/pull/806) ([duongnt](https://github.com/duongnt))
+- Build Feast Jupyter image and clean up examples [\#803](https://github.com/feast-dev/feast/pull/803) ([woop](https://github.com/woop))
+- Move communication with IngestionJob to JobCoordinator [\#800](https://github.com/feast-dev/feast/pull/800) ([pyalex](https://github.com/pyalex))
+- Compression of FeatureRows collection in memory [\#798](https://github.com/feast-dev/feast/pull/798) ([pyalex](https://github.com/pyalex))
+- Add Kubernetes Pod labels to Core and Serving. [\#795](https://github.com/feast-dev/feast/pull/795) ([ashwinath](https://github.com/ashwinath))
+- Add v0.3.8 changelog [\#788](https://github.com/feast-dev/feast/pull/788) ([ches](https://github.com/ches))
+- Update change log due to release 0.5.1 [\#783](https://github.com/feast-dev/feast/pull/783) ([khorshuheng](https://github.com/khorshuheng))
+- Refactor end-to-end tests to reduce duplication [\#758](https://github.com/feast-dev/feast/pull/758) ([woop](https://github.com/woop))
+- Recompile golang protos to include new FeatureSetStatus [\#755](https://github.com/feast-dev/feast/pull/755) ([zhilingc](https://github.com/zhilingc))
+- Merge Redis cluster connector with Redis connector [\#752](https://github.com/feast-dev/feast/pull/752) ([pyalex](https://github.com/pyalex))
+
+## [0.5.1](https://github.com/feast-dev/feast/tree/0.5.1) (2020-06-06)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.5.0...v0.5.1)
+
+**Implemented enhancements:**
+- Add support for version method in Feast SDK and Core [\#759](https://github.com/feast-dev/feast/pull/759) ([woop](https://github.com/woop))
+- Refactor runner configuration, add labels to dataflow options [\#718](https://github.com/feast-dev/feast/pull/718) ([zhilingc](https://github.com/zhilingc))
+
+**Fixed bugs:**
+- Fix pipeline options toArgs\(\) returning empty list [\#765](https://github.com/feast-dev/feast/pull/765) ([zhilingc](https://github.com/zhilingc))
+- Fix project argument for feature set describe in CLI [\#731](https://github.com/feast-dev/feast/pull/731) ([terryyylim](https://github.com/terryyylim))
+- Fix Go and Java SDK Regressions [\#729](https://github.com/feast-dev/feast/pull/729) ([mrzzy](https://github.com/mrzzy))
+- Remove usage of parallel stream for feature value map generation [\#751](https://github.com/feast-dev/feast/pull/751) ([khorshuheng](https://github.com/khorshuheng))
+- Restore Feast Java SDK and Ingestion compatibility with Java 8 runtimes [\#722](https://github.com/feast-dev/feast/pull/722) ([ches](https://github.com/ches))
+- Python sdk bug fixes [\#723](https://github.com/feast-dev/feast/pull/723) ([zhilingc](https://github.com/zhilingc))
+
+**Merged pull requests:**
+- Increase Jaeger Tracing coverage [\#719](https://github.com/feast-dev/feast/pull/719) ([terryyylim](https://github.com/terryyylim))
+- Recompile golang protos to include new FeatureSetStatus [\#755](https://github.com/feast-dev/feast/pull/755) ([zhilingc](https://github.com/zhilingc))
+- Merge Redis cluster connector with Redis connector [\#752](https://github.com/feast-dev/feast/pull/752) ([pyalex](https://github.com/pyalex))
+- Remove unused Hibernate dep from Serving [\#721](https://github.com/feast-dev/feast/pull/721) ([ches](https://github.com/ches))
+
 ## [v0.5.0](https://github.com/feast-dev/feast/tree/v0.5.0) (2020-05-19)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.4.7...v0.5.0)
@@ -193,6 +295,18 @@ See [Feast 0.5 Release Issue](https://github.com/feast-dev/feast/issues/527) for
 - Infer schema of PyArrow table directly [\#355](https://github.com/feast-dev/feast/pull/355) ([voonhous](https://github.com/voonhous))
 - Add readiness checks for Feast services in end to end test [\#337](https://github.com/feast-dev/feast/pull/337) ([davidheryanto](https://github.com/davidheryanto))
 - Create CHANGELOG.md [\#321](https://github.com/feast-dev/feast/pull/321) ([woop](https://github.com/woop))
+
+## [v0.3.8](https://github.com/feast-dev/feast/tree/v0.3.8) (2020-06-10)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.3.7...v0.3.8)
+
+**Implemented enhancements:**
+
+- v0.3 backport: Add feature and feature set labels [\#737](https://github.com/feast-dev/feast/pull/737) ([ches](https://github.com/ches))
+
+**Merged pull requests:**
+
+- v0.3 backport: Add Java coverage reporting [\#734](https://github.com/feast-dev/feast/pull/734) ([ches](https://github.com/ches))
 
 ## [v0.3.7](https://github.com/feast-dev/feast/tree/v0.3.7) (2020-05-01)
 

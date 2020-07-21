@@ -79,6 +79,7 @@ public class HistoricalServingService implements ServingService {
             .setRetrievalId(retrievalId)
             .setDatasetSource(getFeaturesRequest.getDatasetSource())
             .addAllFeatureSetRequests(featureSetRequests)
+            .setComputeStatistics(getFeaturesRequest.getComputeStatistics())
             .build();
 
     jobService.upsert(runningJob);
@@ -117,9 +118,11 @@ public class HistoricalServingService implements ServingService {
     if (result.getResultType() != HistoricalRetrievalResultType.SUCCESS) {
       return builder.setError(result.getError()).build();
     }
-    return builder
-        .addAllFileUris(result.getFileUrisList())
-        .setDataFormat(result.getDataFormat())
-        .build();
+    Builder jobBuilder =
+        builder.addAllFileUris(result.getFileUrisList()).setDataFormat(result.getDataFormat());
+    if (result.getStats() != null) {
+      jobBuilder.setDatasetFeatureStatisticsList(result.getStats());
+    }
+    return builder.build();
   }
 }

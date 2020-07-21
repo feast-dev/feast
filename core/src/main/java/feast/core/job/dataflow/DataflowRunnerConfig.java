@@ -42,6 +42,7 @@ public class DataflowRunnerConfig extends RunnerConfig {
     this.tempLocation = runnerConfigOptions.getTempLocation();
     this.maxNumWorkers = runnerConfigOptions.getMaxNumWorkers();
     this.deadLetterTableSpec = runnerConfigOptions.getDeadLetterTableSpec();
+    this.diskSizeGb = runnerConfigOptions.getDiskSizeGb();
     this.labels = runnerConfigOptions.getLabelsMap();
     validate();
   }
@@ -84,6 +85,9 @@ public class DataflowRunnerConfig extends RunnerConfig {
 
   /* BigQuery table specification, e.g. PROJECT_ID:DATASET_ID.PROJECT_ID */
   public String deadLetterTableSpec;
+
+  /* Disk size to use on each remote Compute Engine worker instance */
+  public Integer diskSizeGb;
 
   public Map<String, String> labels;
 

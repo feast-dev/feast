@@ -16,6 +16,8 @@
  */
 package feast.core.job.databricks;
 
+import static feast.core.util.StreamUtil.wrapException;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageOrBuilder;
@@ -25,7 +27,7 @@ import feast.core.job.JobManager;
 import feast.core.job.Runner;
 import feast.core.model.*;
 import feast.databricks.types.*;
-import feast.proto.core.FeatureSetProto;
+import feast.proto.core.IngestionJobProto.SpecsStreamingUpdateConfig;
 import feast.proto.core.RunnerProto.DatabricksRunnerConfigOptions;
 import feast.proto.core.StoreProto;
 import java.io.IOException;
@@ -37,14 +39,13 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.Charsets;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.HttpException;
-import org.apache.http.HttpStatus;
 
 @Slf4j
 public class DatabricksJobManager implements JobManager {
@@ -58,12 +59,16 @@ public class DatabricksJobManager implements JobManager {
   private final String jarFile;
   private final DatabricksRunnerConfigOptions.DatabricksNewClusterOptions newClusterConfigOptions;
   private final String deadLetterPath;
+  private final SpecsStreamingUpdateConfig specsStreamingUpdateConfig;
   private final HttpClient httpClient;
   private static final ObjectMapper mapper = ObjectMapperFactory.createObjectMapper();
+
   private final int timeoutSeconds;
 
   public DatabricksJobManager(
-      DatabricksRunnerConfigOptions runnerConfigOptions, HttpClient httpClient) {
+      DatabricksRunnerConfigOptions runnerConfigOptions,
+      SpecsStreamingUpdateConfig specsStreamingUpdateConfig,
+      HttpClient httpClient) {
 
     this.databricksHost = runnerConfigOptions.getHost();
     this.databricksToken = runnerConfigOptions.getToken().getBytes(StandardCharsets.UTF_8);
@@ -73,6 +78,7 @@ public class DatabricksJobManager implements JobManager {
     this.deadLetterPath = runnerConfigOptions.getDeadLetterPath();
     this.jarFile = runnerConfigOptions.getJarFile();
     this.timeoutSeconds = runnerConfigOptions.getTimeoutSeconds();
+    this.specsStreamingUpdateConfig = specsStreamingUpdateConfig;
   }
 
   @Override
@@ -107,7 +113,8 @@ public class DatabricksJobManager implements JobManager {
   }
 
   @Override
-  public void abortJob(String runId) {
+  public Job abortJob(Job job) {
+    String runId = job.getExtId();
     log.info("Aborting job (Databricks RunId {})", runId);
 
     try {
@@ -122,7 +129,7 @@ public class DatabricksJobManager implements JobManager {
 
       sendDatabricksRequest(request);
 
-    } catch (IOException | InterruptedException | HttpException e) {
+    } catch (IOException | InterruptedException e) {
       log.error(
           "Unable to abort databricks job with run id : {}\ncause: {}",
           runId,
@@ -134,6 +141,8 @@ public class DatabricksJobManager implements JobManager {
               runId, e.getMessage(), e.getCause()),
           e);
     }
+    job.setStatus(JobStatus.ABORTING);
+    return job;
   }
 
   private URI getAbortUri() {
@@ -142,7 +151,7 @@ public class DatabricksJobManager implements JobManager {
 
   @Override
   public Job restartJob(Job job) {
-    abortJob(job.getExtId());
+    abortJob(job);
     waitForJobToTerminate(job);
     return startJob(job);
   }
@@ -167,7 +176,7 @@ public class DatabricksJobManager implements JobManager {
           status);
       return status;
 
-    } catch (IOException | InterruptedException | HttpException ex) {
+    } catch (IOException | InterruptedException ex) {
       log.error("Unable to retrieve status of a databricks run with id " + job.getExtId(), ex);
       return JobStatus.UNKNOWN;
     }
@@ -179,7 +188,7 @@ public class DatabricksJobManager implements JobManager {
   }
 
   private HttpResponse<String> sendDatabricksRequest(HttpRequest.Builder builder)
-      throws IOException, InterruptedException, HttpException {
+      throws IOException, InterruptedException {
 
     String authorizationHeader =
         String.format("%s %s", "Bearer", new String(databricksToken, StandardCharsets.UTF_8));
@@ -188,8 +197,8 @@ public class DatabricksJobManager implements JobManager {
 
     HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-    if (response.statusCode() != HttpStatus.SC_OK) {
-      throw new HttpException(
+    if (response.statusCode() != 200) {
+      throw new IOException(
           String.format(
               "Databricks returned with unexpected code: %s -- %s",
               response.statusCode(), response.body()));
@@ -198,38 +207,27 @@ public class DatabricksJobManager implements JobManager {
   }
 
   private long createDatabricksRun(Job job) {
-    log.info("Starting job id {} for sink {}", job.getId(), job.getSinkName());
+    log.info("Starting job id {}", job.getId());
 
     String jobName = String.format("Feast ingestion job %s", job.getId());
     String defaultFeastProject = Project.DEFAULT_NAME;
-    List<FeatureSetProto.FeatureSetSpec> featureSetSpecsProtos = new ArrayList<>();
-    StoreProto.Store store;
-    try {
-      for (FeatureSet featureSet : job.getFeatureSets()) {
-        featureSetSpecsProtos.add(featureSet.toProto().getSpec());
-      }
-      store = job.getStore().toProto();
-    } catch (InvalidProtocolBufferException e) {
-      log.error("Invalid job specification", e);
-      throw new IllegalArgumentException(
-          String.format(
-              "DatabricksJobManager failed to START job with id '%s' because the job"
-                  + "has an invalid spec. Please check the FeatureSet, Source and Store specs. Actual error message: %s",
-              job.getId(), e.getMessage()),
-          e);
-    }
+    Set<StoreProto.Store> stores =
+        job.getStores().stream().map(wrapException(Store::toProto)).collect(Collectors.toSet());
 
-    String storesJson = toJsonLine(store);
-    String featureSetsJson = toJsonLines(featureSetSpecsProtos);
+    String storesJson = toJsonLines(stores);
+    String specsStreamingUpdateConfigJson = toJsonLine(specsStreamingUpdateConfig);
+    String sourceJson = toJsonLine(job.getSource().toProto());
 
     List<String> params =
         Arrays.asList(
             job.getId(),
+            specsStreamingUpdateConfigJson,
             checkpointLocation,
             defaultFeastProject,
             deadLetterPath,
-            featureSetsJson,
-            storesJson);
+            storesJson,
+            sourceJson);
+
     RunsSubmitRequest runRequest = getJobRequest(jobName, params);
 
     try {
@@ -246,7 +244,7 @@ public class DatabricksJobManager implements JobManager {
 
       return submitResponse.getRunId();
 
-    } catch (IOException | InterruptedException | HttpException e) {
+    } catch (IOException | InterruptedException e) {
       log.error("Unable to run databricks job" + jobName, e);
       throw new JobExecutionException(
           String.format(

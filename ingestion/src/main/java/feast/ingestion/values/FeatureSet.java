@@ -16,7 +16,7 @@
  */
 package feast.ingestion.values;
 
-import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
+import static feast.common.models.FeatureSet.getFeatureSetStringRef;
 import static feast.ingestion.utils.SpecUtil.getFieldsByName;
 
 import feast.proto.core.FeatureSetProto;
@@ -35,7 +35,7 @@ public class FeatureSet implements Serializable {
   private final Map<String, Field> fields;
 
   public FeatureSet(FeatureSetProto.FeatureSetSpec featureSetSpec) {
-    this.reference = getFeatureSetReference(featureSetSpec);
+    this.reference = getFeatureSetStringRef(featureSetSpec);
     this.fields = getFieldsByName(featureSetSpec);
   }
 

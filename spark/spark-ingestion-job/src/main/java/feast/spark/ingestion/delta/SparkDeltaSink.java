@@ -16,9 +16,9 @@
  */
 package feast.spark.ingestion.delta;
 
+import static feast.common.models.FeatureSet.getFeatureSetStringRef;
 import static org.apache.spark.sql.functions.*;
 
-import feast.ingestion.utils.SpecUtil;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.StoreProto.Store.DeltaConfig;
@@ -92,6 +92,7 @@ public class SparkDeltaSink implements SparkSink {
           .partitionBy(FeatureRowToSparkRow.EVENT_TIMESTAMP_DAY_COLUMN)
           .mode("append")
           .option("path", deltaTablePath.toString())
+          .option("mergeSchema", "true")
           .saveAsTable(deltaTableName);
 
       featureSetInfos.add(new FeatureSetInfo(specKey, spec, schema, deltaTablePath));
@@ -181,7 +182,7 @@ public class SparkDeltaSink implements SparkSink {
   }
 
   public static String getDeltaTablePath(String deltaPath, FeatureSetSpec featureSetSpec) {
-    return String.format("%s/%s", deltaPath, SpecUtil.getFeatureSetReference(featureSetSpec));
+    return String.format("%s/%s", deltaPath, getFeatureSetStringRef(featureSetSpec));
   }
 
   @SuppressWarnings("serial")
