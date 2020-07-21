@@ -18,10 +18,12 @@ package feast.auth.providers.http;
 
 import feast.auth.authorization.AuthorizationProvider;
 import feast.auth.authorization.AuthorizationResult;
+import feast.auth.config.CacheConfiguration;
 import feast.auth.providers.http.client.api.DefaultApi;
 import feast.auth.providers.http.client.invoker.ApiClient;
 import feast.auth.providers.http.client.invoker.ApiException;
 import feast.auth.providers.http.client.model.CheckAccessRequest;
+import feast.auth.utils.AuthUtils;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,8 +58,6 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
       throw new IllegalArgumentException(
           "Cannot pass empty or null options to HTTPAuthorizationProvider");
     }
-
-    subjectClaim = options.get("subjectClaim");
 
     ApiClient apiClient = new ApiClient();
     apiClient.setBasePath(options.get("authorizationUrl"));
