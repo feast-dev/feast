@@ -28,6 +28,7 @@ import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FieldProto.Field;
 import feast.storage.api.writer.FailedElement;
 import feast.storage.api.writer.WriteResult;
+import feast.storage.connectors.bigtable.common.KeyGenerator;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -161,19 +162,7 @@ public class BigtableCustomIO {
           bigtableKeyBuilder.addEntities(entityFields.get(entityName));
         }
         BigtableKey btk = bigtableKeyBuilder.build();
-        StringBuilder bigtableKey = new StringBuilder();
-        for (Field field : btk.getEntitiesList()) {
-          bigtableKey.append(field.getValue().getStringVal());
-        }
-        bigtableKey.append("#");
-        for (Field field : btk.getEntitiesList()) {
-          bigtableKey.append(field.getName());
-          bigtableKey.append("#");
-        }
-        bigtableKey.append(featureSetSpec.getProject());
-        bigtableKey.append("#");
-        bigtableKey.append(featureSetSpec.getName());
-        return bigtableKey.toString();
+        return KeyGenerator.getKey(btk, featureSetSpec.getProject(), featureSetSpec.getName());
       }
 
       @ProcessElement

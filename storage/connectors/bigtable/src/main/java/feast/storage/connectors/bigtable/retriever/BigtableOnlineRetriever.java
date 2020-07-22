@@ -35,6 +35,7 @@ import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.Value;
 import feast.storage.api.retriever.FeatureSetRequest;
 import feast.storage.api.retriever.OnlineRetriever;
+import feast.storage.connectors.bigtable.common.KeyGenerator;
 import io.grpc.Status;
 import java.io.IOException;
 import java.util.*;
@@ -141,19 +142,7 @@ public class BigtableOnlineRetriever implements OnlineRetriever {
             .collect(Collectors.toList());
     List<String> btKeys = new ArrayList<>();
     for (BigtableKey btk : bigtableKeys) {
-      StringBuilder bigtableKey = new StringBuilder();
-      for (Field field : btk.getEntitiesList()) {
-        bigtableKey.append(field.getValue().getStringVal());
-      }
-      bigtableKey.append("#");
-      for (Field field : btk.getEntitiesList()) {
-        bigtableKey.append(field.getName());
-        bigtableKey.append("#");
-      }
-      bigtableKey.append(featureSetSpec.getProject());
-      bigtableKey.append("#");
-      bigtableKey.append(featureSetSpec.getName());
-      btKeys.add(bigtableKey.toString());
+      btKeys.add(KeyGenerator.getKey(btk, featureSetSpec.getProject(), featureSetSpec.getName()));
     }
     return btKeys;
   }
