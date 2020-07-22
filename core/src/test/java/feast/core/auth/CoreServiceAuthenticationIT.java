@@ -32,7 +32,6 @@ import feast.proto.core.*;
 import io.grpc.CallCredentials;
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
-import io.prometheus.client.CollectorRegistry;
 import java.util.*;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -108,7 +107,6 @@ public class CoreServiceAuthenticationIT extends BaseIT {
   @AfterAll
   static void tearDown() {
     wireMockRule.stop();
-    CollectorRegistry.defaultRegistry.clear();
   }
 
   @Test

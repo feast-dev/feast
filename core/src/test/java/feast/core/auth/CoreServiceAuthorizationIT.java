@@ -35,7 +35,6 @@ import io.grpc.CallCredentials;
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
-import io.prometheus.client.CollectorRegistry;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
@@ -161,7 +160,6 @@ public class CoreServiceAuthorizationIT extends BaseIT {
   static void tearDown() {
     environment.stop();
     wireMockRule.stop();
-    CollectorRegistry.defaultRegistry.clear();
   }
 
   @Test
