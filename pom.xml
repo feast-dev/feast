@@ -140,19 +140,19 @@
             </dependency>
 
             <dependency>
-                <groupId>io.opencensus</groupId>
-                <artifactId>opencensus-api</artifactId>
-                <version>${opencensus.version}</version>
+              <groupId>io.opencensus</groupId>
+              <artifactId>opencensus-api</artifactId>
+              <version>${opencensus.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.opencensus</groupId>
-                <artifactId>opencensus-contrib-grpc-util</artifactId>
-                <version>${opencensus.version}</version>
+              <groupId>io.opencensus</groupId>
+              <artifactId>opencensus-contrib-grpc-util</artifactId>
+              <version>${opencensus.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.opencensus</groupId>
-                <artifactId>opencensus-contrib-http-util</artifactId>
-                <version>${opencensus.version}</version>
+              <groupId>io.opencensus</groupId>
+              <artifactId>opencensus-contrib-http-util</artifactId>
+              <version>${opencensus.version}</version>
             </dependency>
 
             <!-- gRPC -->
@@ -200,11 +200,6 @@
                 <groupId>io.grpc</groupId>
                 <artifactId>grpc-netty</artifactId>
                 <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-netty</artifactId>
-                <version>${grpcVersion}</version>
             </dependency>
             <dependency>
                 <groupId>io.grpc</groupId>
@@ -371,6 +366,7 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+
             <dependency>
                 <groupId>javax.xml.bind</groupId>
                 <artifactId>jaxb-api</artifactId>
@@ -417,9 +413,6 @@
                         <goals>
                             <goal>jar</goal>
                         </goals>
-                        <configuration>
-                            <javadocExecutable>${java.home}/bin/javadoc</javadocExecutable>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -430,8 +423,8 @@
                 <configuration>
                     <java>
                         <licenseHeader>
-                            <content>
-                                <![CDATA[
+                          <content>
+<![CDATA[
 /*
  * SPDX-License-Identifier: Apache-2.0
  * Copyright 2018-$YEAR The Feast Authors
@@ -449,7 +442,7 @@
  * limitations under the License.
  */
 ]]>
-                            </content>
+                          </content>
                         </licenseHeader>
                         <googleJavaFormat>
                             <version>1.7</version>
@@ -462,15 +455,15 @@
                     </java>
                 </configuration>
                 <executions>
-                    <!-- Move check to fail faster, but after compilation. Default is verify phase -->
-                    <execution>
-                        <id>spotless-check</id>
-                        <phase>process-test-classes</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
+                  <!-- Move check to fail faster, but after compilation. Default is verify phase -->
+                  <execution>
+                      <id>spotless-check</id>
+                      <phase>process-test-classes</phase>
+                      <goals>
+                          <goal>check</goal>
+                      </goals>
+                  </execution>
+              </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -750,4 +743,3 @@
         </pluginManagement>
     </build>
 </project>
-
