@@ -52,7 +52,7 @@ cust_trans_fs = FeatureSet.from_yaml("customer_transactions_feature_set.yaml")
 client.apply(cust_trans_fs)
 
 # Load feature data into Feast for this specific feature set
-client.ingest(cust_trans_fs, customer_data)
+client.ingest(cust_trans_fs, customer_df)
 ```
 
 {% hint style="info" %}
