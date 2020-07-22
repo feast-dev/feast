@@ -119,7 +119,7 @@ public class AccessManagementService {
     AuthorizationResult result =
         this.authorizationProvider.checkAccessToProject(projectId, authentication);
     if (!result.isAllowed()) {
-      throw new AccessDeniedException(result.getFailureReason().orElse("AccessDenied"));
+      throw new AccessDeniedException(result.getFailureReason().orElse("Access Denied"));
     }
   }
 }

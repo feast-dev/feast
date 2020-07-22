@@ -28,7 +28,7 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @Slf4j
-@ComponentScan("feast.auth")
+@ComponentScan("feast.auth.config")
 public class CoreSecurityConfig {
 
   /**

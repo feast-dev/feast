@@ -37,6 +37,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.server.service.GrpcService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /** Implementation of the feast core GRPC service. */
@@ -178,10 +179,10 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public void applyFeatureSet(
       ApplyFeatureSetRequest request, StreamObserver<ApplyFeatureSetResponse> responseObserver) {
 
-    accessManagementService.checkIfProjectMember(
-        SecurityContextHolder.getContext(), request.getFeatureSet().getSpec().getProject());
-
+    String projectId = null;
     try {
+      projectId = request.getFeatureSet().getSpec().getProject();
+      accessManagementService.checkIfProjectMember(SecurityContextHolder.getContext(), projectId);
       ApplyFeatureSetResponse response = specService.applyFeatureSet(request.getFeatureSet());
       responseObserver.onNext(response);
       responseObserver.onCompleted();
@@ -192,6 +193,13 @@ public class CoreServiceImpl extends CoreServiceImplBase {
           e);
       responseObserver.onError(
           Status.ALREADY_EXISTS.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    } catch (AccessDeniedException e) {
+      log.info(String.format("User prevented from accessing project: %s", projectId));
+      responseObserver.onError(
+          Status.PERMISSION_DENIED
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
     } catch (Exception e) {
       log.error("Exception has occurred in ApplyFeatureSet method: ", e);
       responseObserver.onError(
