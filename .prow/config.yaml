@@ -284,7 +284,7 @@ presubmits:
         hostPath:
           path: /var/run/docker.sock
       containers:
-      - image: google/cloud-sdk:273.0.0
+      - image: google/cloud-sdk:302.0.0
         command: ["infra/scripts/test-end-to-end-batch-dataflow.sh"]
         resources:
           requests:
@@ -305,7 +305,7 @@ presubmits:
     always_run: true
     spec:
       containers:
-      - image: google/cloud-sdk:273.0.0
+      - image: google/cloud-sdk:302.0.0
         command:
         - bash
         - -c
@@ -434,7 +434,7 @@ postsubmits:
     decorate: true
     spec:
       containers:
-      - image: google/cloud-sdk:273.0.0
+      - image: google/cloud-sdk:302.0.0
         command:
         - bash
         - -c
@@ -523,7 +523,7 @@ postsubmits:
     decorate: true
     spec:
       containers:
-      - image: google/cloud-sdk:273.0.0-slim
+      - image: google/cloud-sdk:302.0.0-slim
         command:
         - bash
         - -c
