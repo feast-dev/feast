@@ -18,7 +18,6 @@ ROOT_DIR 	:= $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 PROTO_TYPE_SUBDIRS = core serving types storage
 PROTO_SERVICE_SUBDIRS = core serving
 
-
 # General
 
 format: format-python format-go format-java
@@ -59,23 +58,23 @@ build-java:
 # Python SDK
 
 install-python-ci-dependencies:
-	$(PIP) install -r sdk/python/requirements-ci.txt
+	pip install -r sdk/python/requirements-ci.txt
 
 compile-protos-python: install-python-ci-dependencies
-	@$(foreach dir,$(PROTO_TYPE_SUBDIRS),cd ${ROOT_DIR}/protos; $(PYTHON) -m grpc_tools.protoc -I. --python_out=../sdk/python/ --mypy_out=../sdk/python/ feast/$(dir)/*.proto;)
-	@$(foreach dir,$(PROTO_SERVICE_SUBDIRS),cd ${ROOT_DIR}/protos; $(PYTHON) -m grpc_tools.protoc -I. --grpc_python_out=../sdk/python/ feast/$(dir)/*.proto;)
-	cd ${ROOT_DIR}/protos; $(PYTHON) -m grpc_tools.protoc -I. --python_out=../sdk/python/ --mypy_out=../sdk/python/ tensorflow_metadata/proto/v0/*.proto
+	@$(foreach dir,$(PROTO_TYPE_SUBDIRS),cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --python_out=../sdk/python/ --mypy_out=../sdk/python/ feast/$(dir)/*.proto;)
+	@$(foreach dir,$(PROTO_SERVICE_SUBDIRS),cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --grpc_python_out=../sdk/python/ feast/$(dir)/*.proto;)
+	cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --python_out=../sdk/python/ --mypy_out=../sdk/python/ tensorflow_metadata/proto/v0/*.proto
 
 install-python: compile-protos-python
-	$(PIP) install -e sdk/python --upgrade
+	pip install -e sdk/python --upgrade
 
 test-python:
 	pytest --verbose --color=yes sdk/python/tests
 
 format-python:
 	# Sort
-	cd ${ROOT_DIR}/sdk/python; isort feast/ tests/
-	cd ${ROOT_DIR}/tests/e2e; isort .
+	cd ${ROOT_DIR}/sdk/python; isort -rc feast tests
+	cd ${ROOT_DIR}/tests/e2e; isort -rc .
 
 	# Format
 	cd ${ROOT_DIR}/sdk/python; black --target-version py37 feast tests
@@ -83,12 +82,12 @@ format-python:
 
 lint-python:
 	cd ${ROOT_DIR}/sdk/python; mypy feast/ tests/
-	cd ${ROOT_DIR}/sdk/python; isort feast/ tests/ --check-only
+	cd ${ROOT_DIR}/sdk/python; isort -rc feast tests --check-only
 	cd ${ROOT_DIR}/sdk/python; flake8 feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; black --check feast tests
 
 	cd ${ROOT_DIR}/tests/e2e; mypy bq/ redis/
-	cd ${ROOT_DIR}/tests/e2e; isort . --check-only
+	cd ${ROOT_DIR}/tests/e2e; isort -rc . --check-only
 	cd ${ROOT_DIR}/tests/e2e; flake8 .
 	cd ${ROOT_DIR}/tests/e2e; black --check .
 
