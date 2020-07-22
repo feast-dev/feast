@@ -392,12 +392,10 @@ class Client:
 
         # Convert the feature set to a request and send to Feast Core
         try:
-            md = self._get_grpc_metadata()
-            print(md)
-            req = ApplyFeatureSetRequest(feature_set=feature_set_proto)
-            print(req)
             apply_fs_response = self._core_service.ApplyFeatureSet(
-                req, timeout=5, metadata=md,
+                ApplyFeatureSetRequest(feature_set=feature_set_proto),
+                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                metadata=self._get_grpc_metadata(),
             )  # type: ApplyFeatureSetResponse
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
@@ -998,9 +996,6 @@ class Client:
 
         Returns: Tuple of metadata to attach to each gRPC call
         """
-        print("grpc metadata call")
-        print(self._config)
-        print(self._auth_metadata)
         if self._config.getboolean(CONFIG_CORE_ENABLE_AUTH_KEY) and self._auth_metadata:
             return self._auth_metadata.get_signed_meta()
         return ()
