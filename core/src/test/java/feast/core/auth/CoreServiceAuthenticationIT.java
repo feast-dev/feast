@@ -48,13 +48,12 @@ import org.springframework.test.context.DynamicPropertySource;
     properties = {
       "feast.security.authentication.enabled=true",
       "feast.security.authorization.enabled=false",
-      "feast.security.authorization.provider=http",
     })
 public class CoreServiceAuthenticationIT extends BaseIT {
 
   private static CoreServiceGrpc.CoreServiceBlockingStub insecureCoreService;
 
-  private static int feast_core_port = 6565;
+  private static int feast_core_port;
   private static int JWKS_PORT = 45124;
 
   private static JwtHelper jwtHelper = new JwtHelper();
