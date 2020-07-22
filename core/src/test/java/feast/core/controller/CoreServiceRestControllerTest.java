@@ -16,83 +16,64 @@
  */
 package feast.core.controller;
 
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.doReturn;
 
-import java.net.URI;
+import com.google.protobuf.InvalidProtocolBufferException;
+import feast.core.config.FeastProperties;
+import feast.core.model.Project;
+import feast.core.service.AccessManagementService;
+import feast.core.service.JobService;
+import feast.core.service.SpecService;
+import feast.core.service.StatsService;
+import feast.proto.core.CoreServiceProto.GetFeastCoreVersionResponse;
+import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
+import feast.proto.core.CoreServiceProto.GetFeatureSetResponse;
+import feast.proto.core.FeatureSetProto.FeatureSet;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.web.util.UriComponentsBuilder;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
 
-@RunWith(SpringRunner.class)
-@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
-@AutoConfigureMockMvc
+@RunWith(MockitoJUnitRunner.class)
 public class CoreServiceRestControllerTest {
 
-  @Autowired private MockMvc mockMvc;
-  private static String UrlPrefix = "/api/v1";
+  @Mock FeastProperties feastProperties;
+  @Mock SpecService specService;
+  @Mock JobService jobService;
+  @Mock StatsService statsService;
+  @Mock AccessManagementService accessManagementService;
+
+  @InjectMocks CoreServiceRestController controller;
 
   @Test
-  public void getVersion() throws Exception {
-    mockMvc
-        .perform(
-            MockMvcRequestBuilders.get(UrlPrefix + "/version").accept(MediaType.APPLICATION_JSON))
-        .andDo(print())
-        .andExpect(status().isOk())
-        .andExpect(content().contentType("application/json"))
-        .andExpect(jsonPath("$.version").isNotEmpty());
+  public void getVersion() {
+    String version = "v0.7";
+    GetFeastCoreVersionResponse response =
+        GetFeastCoreVersionResponse.newBuilder().setVersion(version).build();
+    doReturn(version).when(feastProperties).getVersion();
+    assertEquals(response, controller.getVersion());
   }
 
   @Test
-  public void listProjects() throws Exception {
-    mockMvc
-        .perform(
-            MockMvcRequestBuilders.get(UrlPrefix + "/projects").accept(MediaType.APPLICATION_JSON))
-        .andDo(print())
-        .andExpect(status().isOk())
-        .andExpect(content().contentType("application/json"))
-        .andExpect(jsonPath("$.projects").isNotEmpty());
-    ;
+  public void listProjects() {
+    String version = "v0.7";
+    GetFeastCoreVersionResponse response =
+        GetFeastCoreVersionResponse.newBuilder().setVersion(version).build();
+    doReturn(version).when(feastProperties).getVersion();
+    assertEquals(response, controller.getVersion());
   }
 
   @Test
-  public void listFeatureSets() throws Exception {
-    URI uri =
-        UriComponentsBuilder.fromPath(UrlPrefix)
-            .path("/feature-sets")
-            .queryParam("project", "default")
-            .build()
-            .toUri();
-    mockMvc
-        .perform(MockMvcRequestBuilders.get(uri).accept(MediaType.APPLICATION_JSON))
-        .andDo(print())
-        .andExpect(status().isOk())
-        .andExpect(content().contentType("application/json"));
-    ;
-  }
-
-  @Test
-  public void listFeatures() throws Exception {
-    URI uri =
-        UriComponentsBuilder.fromPath(UrlPrefix)
-            .path("/features")
-            .queryParam("entities", "")
-            .build()
-            .toUri();
-    mockMvc
-        .perform(MockMvcRequestBuilders.get(uri).accept(MediaType.APPLICATION_JSON))
-        .andDo(print())
-        .andExpect(status().isOk())
-        .andExpect(content().contentType("application/json"));
+  public void getFeatureSet() throws InvalidProtocolBufferException {
+    String project = Project.DEFAULT_NAME;
+    String featureSetName = FeatureSet.getDefaultInstance().getSpec().getName();
+    GetFeatureSetRequest request =
+        GetFeatureSetRequest.newBuilder().setProject(project).setName(featureSetName).build();
+    GetFeatureSetResponse response =
+        GetFeatureSetResponse.newBuilder().setFeatureSet(FeatureSet.getDefaultInstance()).build();
+    doReturn(response).when(specService).getFeatureSet(request);
+    assertEquals(response, controller.getFeatureSet(project, featureSetName));
   }
 }
