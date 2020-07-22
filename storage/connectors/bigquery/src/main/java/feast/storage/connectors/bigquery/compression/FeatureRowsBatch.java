@@ -101,7 +101,10 @@ public class FeatureRowsBatch implements Serializable {
                       }
                       if (types.containsKey(f.getName())) {
                         if (!types.get(f.getName()).equals(fieldType)) {
-                          throw new RuntimeException("schema cannot be inferred");
+                          throw new RuntimeException(
+                              String.format(
+                                  "schema cannot be inferred %s != %s",
+                                  types.get(f.getName()).toString(), fieldType.toString()));
                         }
 
                         return;

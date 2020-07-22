@@ -397,9 +397,7 @@ class Client:
             req = ApplyFeatureSetRequest(feature_set=feature_set_proto)
             print(req)
             apply_fs_response = self._core_service.ApplyFeatureSet(
-                req,
-                timeout=5,
-                metadata=md,
+                req, timeout=5, metadata=md,
             )  # type: ApplyFeatureSetResponse
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
