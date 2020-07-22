@@ -74,7 +74,7 @@ test-python:
 format-python:
 	# Sort
 	cd ${ROOT_DIR}/sdk/python; isort feast/ tests/
-	cd ${ROOT_DIR}/tests/e2e; isort -rc .
+	cd ${ROOT_DIR}/tests/e2e; isort .
 
 	# Format
 	cd ${ROOT_DIR}/sdk/python; black --target-version py37 feast tests
