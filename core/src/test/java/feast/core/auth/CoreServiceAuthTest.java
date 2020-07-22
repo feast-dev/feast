@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.grpc;
+package feast.core.auth;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
@@ -29,6 +29,7 @@ import feast.auth.authorization.AuthorizationResult;
 import feast.auth.config.SecurityProperties;
 import feast.core.config.FeastProperties;
 import feast.core.dao.ProjectRepository;
+import feast.core.grpc.CoreServiceImpl;
 import feast.core.model.Entity;
 import feast.core.model.Feature;
 import feast.core.model.FeatureSet;
@@ -53,7 +54,6 @@ import java.util.HashMap;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -107,8 +107,8 @@ public class CoreServiceAuthTest {
     ApplyFeatureSetRequest request =
         ApplyFeatureSetRequest.newBuilder().setFeatureSet(spec).build();
 
-    assertThrows(
-        AccessDeniedException.class, () -> coreService.applyFeatureSet(request, responseObserver));
+    coreService.applyFeatureSet(request, responseObserver);
+    assertEquals("PERMISSION_DENIED: Access Denied", responseObserver.getError().getMessage());
   }
 
   @Test
