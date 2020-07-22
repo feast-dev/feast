@@ -142,19 +142,19 @@ public class CoreServiceRestController {
   /**
    * GET /features : List Features based on project and entities.
    *
-   * @param entities List of all entities every returned feature should belong to. At least one
-   *     entity is required. For example, if <code>entity1</code> and <code>entity2</code> are
-   *     given, then all features returned (if any) will belong to BOTH entities.
-   * @param labels (Optional) Key-value pair of labels. Only features with ALL matching labels will
-   *     be returned.
-   * @param project (Optional) A single project where the feature set of all features returned is
-   *     under.
+   * @param entities Request Parameter: List of all entities every returned feature should belong
+   *     to. At least one entity is required. For example, if <code>entity1</code> and <code>entity2
+   *     </code> are given, then all features returned (if any) will belong to BOTH entities.
+   * @param labels (Optional) Request Parameter: Key-value pair of labels. Only features with ALL
+   *     matching labels will be returned.
+   * @param project (Optional) Request Parameter: A single project where the feature set of all
+   *     features returned is under.
    * @return (200 OK) Return {@link ListFeaturesResponse} in JSON.
    */
   @RequestMapping(value = "/features", method = RequestMethod.GET)
   public ListFeaturesResponse listFeatures(
       @RequestParam String[] entities,
-      @RequestParam Optional<Map<String, String>> labels,
+      @RequestParam(required = false) Optional<Map<String, String>> labels,
       @RequestParam(defaultValue = Project.DEFAULT_NAME) String project) {
     ListFeaturesRequest.Filter.Builder filterBuilder =
         ListFeaturesRequest.Filter.newBuilder()
@@ -174,10 +174,10 @@ public class CoreServiceRestController {
    *     <code>0001-01-01T00:00:00Z</code> to <code>9999-12-31T23:59:59.999999999Z</code>. Time
    *     given will be ignored.
    * @param endDate Request Parameter: UTC+0 ending date (exclusive) in the ISO format, from <code>
-   *     0001-01-01T00:00:00Z</code> to <code>9999-12-31T23:59:59.999999999Z</code>. Time given will
-   *     be ignored.
+   *      0001-01-01T00:00:00Z</code> to <code>9999-12-31T23:59:59.999999999Z</code>. Time given
+   *     will be ignored.
    * @param featureSetId (Optional) Request Parameter: Feature set ID, which has the form of <code>
-   *     project/feature_set_name</code>.
+   *                     project/feature_set_name</code>.
    * @param features (Optional) Request Parameter: List of features.
    * @param store (Optional) Request Parameter:
    * @param forceRefresh (Optional) Request Parameter: whether to override the values in the cache.
@@ -204,7 +204,7 @@ public class CoreServiceRestController {
     startDate.ifPresent(
         startDateStr -> requestBuilder.setStartDate(UtcTimeStringToTimestamp(startDateStr)));
     endDate.ifPresent(
-        endDateStr -> requestBuilder.setStartDate(UtcTimeStringToTimestamp(endDateStr)));
+        endDateStr -> requestBuilder.setEndDate(UtcTimeStringToTimestamp(endDateStr)));
     ingestionIds.ifPresent(
         theIngestionIds -> requestBuilder.addAllIngestionIds(Arrays.asList(theIngestionIds)));
 
