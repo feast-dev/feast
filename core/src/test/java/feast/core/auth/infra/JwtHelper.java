@@ -35,13 +35,22 @@ public final class JwtHelper {
   private static RSAKey key = null;
   private JWKSet keySet;
 
-  public JwtHelper() throws JOSEException {
-    key = new RSAKeyGenerator(2048).keyID("123").generate();
-    RSAKey.Builder builder =
-        new RSAKey.Builder((RSAPublicKey) this.getKey().toKeyPair().getPublic())
-            .keyUse(KeyUse.SIGNATURE)
-            .algorithm(JWSAlgorithm.RS256)
-            .keyID(this.getKey().getKeyID());
+  public JwtHelper() {
+    try {
+      key = new RSAKeyGenerator(2048).keyID("123").generate();
+    } catch (JOSEException e) {
+      throw new RuntimeException("Could not generate RSA key");
+    }
+    RSAKey.Builder builder = null;
+    try {
+      builder =
+          new RSAKey.Builder((RSAPublicKey) this.getKey().toKeyPair().getPublic())
+              .keyUse(KeyUse.SIGNATURE)
+              .algorithm(JWSAlgorithm.RS256)
+              .keyID(this.getKey().getKeyID());
+    } catch (JOSEException e) {
+      throw new RuntimeException("Could not create RSAKey builder");
+    }
     keySet = new JWKSet(builder.build());
   }
 

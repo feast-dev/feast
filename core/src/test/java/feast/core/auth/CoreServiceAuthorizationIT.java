@@ -130,11 +130,7 @@ public class CoreServiceAuthorizationIT {
       kafka.start();
 
       // Set up Jwt Helper to generate keys and sign authentication requests
-      try {
-        jwtHelper = new JwtHelper();
-      } catch (JOSEException e) {
-        throw new RuntimeException("Could not set up JwtHelper");
-      }
+      jwtHelper = new JwtHelper();
 
       // Start Wiremock Server to act as fake JWKS server
       wireMockRule.start();
