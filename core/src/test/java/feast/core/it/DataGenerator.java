@@ -21,6 +21,7 @@ import feast.proto.core.FeatureSetProto;
 import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
 import feast.proto.types.ValueProto;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.Pair;
@@ -46,6 +47,15 @@ public class DataGenerator {
 
   public static SourceProto.Source getDefaultSource() {
     return defaultSource;
+  }
+
+  public static FeatureSetProto.FeatureSet getDefaultFeatureSet() {
+    return createFeatureSet(
+        DataGenerator.getDefaultSource(),
+        "default",
+        "test",
+        Collections.emptyList(),
+        Collections.emptyList());
   }
 
   public static SourceProto.Source createSource(String server, String topic) {

@@ -16,28 +16,28 @@
  */
 package feast.core.auth;
 
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.junit.WireMockClassRule;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.JWKSet;
 import feast.core.auth.infra.JwtHelper;
+import feast.core.config.FeastProperties;
 import feast.core.it.BaseIT;
+import feast.core.it.DataGenerator;
+import feast.core.it.SimpleAPIClient;
 import feast.core.model.*;
 import feast.proto.core.*;
-import feast.proto.types.ValueProto;
 import io.grpc.CallCredentials;
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
 import io.prometheus.client.CollectorRegistry;
-import java.sql.Date;
-import java.time.Instant;
 import java.util.*;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -51,7 +51,7 @@ import org.springframework.test.context.DynamicPropertySource;
     })
 public class CoreServiceAuthenticationIT extends BaseIT {
 
-  private static CoreServiceGrpc.CoreServiceBlockingStub insecureCoreService;
+  @Autowired FeastProperties feastProperties;
 
   private static int feast_core_port;
   private static int JWKS_PORT = 45124;
@@ -65,6 +65,8 @@ public class CoreServiceAuthenticationIT extends BaseIT {
   @ClassRule public static WireMockClassRule wireMockRule = new WireMockClassRule(JWKS_PORT);
 
   @Rule public WireMockClassRule instanceRule = wireMockRule;
+
+  static SimpleAPIClient insecureApiClient;
 
   @DynamicPropertySource
   static void initialize(DynamicPropertyRegistry registry) {
@@ -94,10 +96,13 @@ public class CoreServiceAuthenticationIT extends BaseIT {
   @BeforeAll
   public static void globalSetUp(@Value("${grpc.server.port}") int port) {
     feast_core_port = port;
+
     // Create insecure Feast Core gRPC client
     Channel insecureChannel =
         ManagedChannelBuilder.forAddress("localhost", feast_core_port).usePlaintext().build();
-    insecureCoreService = CoreServiceGrpc.newBlockingStub(insecureChannel);
+    CoreServiceGrpc.CoreServiceBlockingStub insecureCoreService =
+        CoreServiceGrpc.newBlockingStub(insecureChannel);
+    insecureApiClient = new SimpleAPIClient(insecureCoreService);
   }
 
   @AfterAll
@@ -108,13 +113,13 @@ public class CoreServiceAuthenticationIT extends BaseIT {
 
   @Test
   public void shouldGetVersionFromFeastCoreAlways() {
-    insecureCoreService.getFeastCoreVersion(
-        CoreServiceProto.GetFeastCoreVersionRequest.getDefaultInstance());
+    SimpleAPIClient secureApiClient = getSecureApiClient("fakeUserThatIsAuthenticated@example.com");
 
-    CoreServiceGrpc.CoreServiceBlockingStub secureService =
-        getSecureGrpcClient("fakeUserThatIsAuthenticated@example.com");
-    secureService.getFeastCoreVersion(
-        CoreServiceProto.GetFeastCoreVersionRequest.getDefaultInstance());
+    String feastCoreVersionSecure = secureApiClient.getFeastCoreVersion();
+    String feastCoreVersionInsecure = insecureApiClient.getFeastCoreVersion();
+
+    assertEquals(feastCoreVersionSecure, feastCoreVersionInsecure);
+    assertEquals(feastProperties.getVersion(), feastCoreVersionSecure);
   }
 
   /**
@@ -123,49 +128,65 @@ public class CoreServiceAuthenticationIT extends BaseIT {
    */
   @Test
   public void shouldAllowUnauthenticatedFeatureSetListing() {
-    insecureCoreService.listFeatureSets(
-        CoreServiceProto.ListFeatureSetsRequest.newBuilder()
-            .setFilter(
-                CoreServiceProto.ListFeatureSetsRequest.Filter.newBuilder()
-                    .setProject("*")
-                    .setFeatureSetName("*")
-                    .build())
-            .build());
+    FeatureSetProto.FeatureSet expectedFeatureSet = DataGenerator.getDefaultFeatureSet();
+    insecureApiClient.simpleApplyFeatureSet(expectedFeatureSet);
+
+    List<FeatureSetProto.FeatureSet> listFeatureSetsResponse =
+        insecureApiClient.simpleListFeatureSets("*");
+    FeatureSetProto.FeatureSet actualFeatureSet = listFeatureSetsResponse.get(0);
+
+    assert listFeatureSetsResponse.size() == 1;
+    assertEquals(
+        actualFeatureSet.getSpec().getProject(), expectedFeatureSet.getSpec().getProject());
+    assertEquals(
+        actualFeatureSet.getSpec().getProject(), expectedFeatureSet.getSpec().getProject());
   }
 
   @Test
   public void shouldAllowAuthenticatedFeatureSetListing() {
-    CoreServiceGrpc.CoreServiceBlockingStub secureCoreService =
-        getSecureGrpcClient("AuthenticatedUserWithoutAuthorization@example.com");
-    secureCoreService.listFeatureSets(
-        CoreServiceProto.ListFeatureSetsRequest.newBuilder()
-            .setFilter(
-                CoreServiceProto.ListFeatureSetsRequest.Filter.newBuilder()
-                    .setProject("*")
-                    .setFeatureSetName("*")
-                    .build())
-            .build());
+    SimpleAPIClient secureApiClient =
+        getSecureApiClient("AuthenticatedUserWithoutAuthorization@example.com");
+    FeatureSetProto.FeatureSet expectedFeatureSet = DataGenerator.getDefaultFeatureSet();
+    secureApiClient.simpleApplyFeatureSet(expectedFeatureSet);
+    List<FeatureSetProto.FeatureSet> listFeatureSetsResponse =
+        secureApiClient.simpleListFeatureSets("*");
+    FeatureSetProto.FeatureSet actualFeatureSet = listFeatureSetsResponse.get(0);
+
+    assert listFeatureSetsResponse.size() == 1;
+    assertEquals(
+        actualFeatureSet.getSpec().getProject(), expectedFeatureSet.getSpec().getProject());
+    assertEquals(
+        actualFeatureSet.getSpec().getProject(), expectedFeatureSet.getSpec().getProject());
   }
 
   @Test
-  void canApplyFeatureSetIfAuthenticated() throws InvalidProtocolBufferException {
-    CoreServiceGrpc.CoreServiceBlockingStub secureClient = getSecureGrpcClient(subject);
+  void canApplyFeatureSetIfAuthenticated() {
+    SimpleAPIClient secureApiClient =
+        getSecureApiClient("AuthenticatedUserWithoutAuthorization@example.com");
+    FeatureSetProto.FeatureSet expectedFeatureSet =
+        DataGenerator.createFeatureSet(
+            DataGenerator.getDefaultSource(),
+            "project_1",
+            "test_1",
+            Collections.emptyList(),
+            Collections.emptyList());
 
-    FeatureSetProto.FeatureSet incomingFeatureSet = newDummyFeatureSet("f2", project).toProto();
-    CoreServiceProto.ApplyFeatureSetRequest request =
-        CoreServiceProto.ApplyFeatureSetRequest.newBuilder()
-            .setFeatureSet(incomingFeatureSet)
-            .build();
+    secureApiClient.simpleApplyFeatureSet(expectedFeatureSet);
 
-    CoreServiceProto.ApplyFeatureSetResponse response = secureClient.applyFeatureSet(request);
-    assertSame(response.getStatus(), CoreServiceProto.ApplyFeatureSetResponse.Status.CREATED);
+    FeatureSetProto.FeatureSet actualFeatureSet =
+        secureApiClient.simpleGetFeatureSet("project_1", "test_1");
+
+    assertEquals(
+        expectedFeatureSet.getSpec().getProject(), actualFeatureSet.getSpec().getProject());
+    assertEquals(expectedFeatureSet.getSpec().getName(), actualFeatureSet.getSpec().getName());
+    assertEquals(expectedFeatureSet.getSpec().getSource(), actualFeatureSet.getSpec().getSource());
   }
 
   @TestConfiguration
   public static class TestConfig extends BaseTestConfig {}
 
   // Create secure Feast Core gRPC client for a specific user
-  private CoreServiceGrpc.CoreServiceBlockingStub getSecureGrpcClient(String subjectEmail) {
+  private static SimpleAPIClient getSecureApiClient(String subjectEmail) {
     CallCredentials callCredentials = null;
     try {
       callCredentials = jwtHelper.getCallCredentials(subjectEmail);
@@ -178,33 +199,7 @@ public class CoreServiceAuthenticationIT extends BaseIT {
 
     CoreServiceGrpc.CoreServiceBlockingStub secureCoreService =
         CoreServiceGrpc.newBlockingStub(secureChannel).withCallCredentials(callCredentials);
-    return secureCoreService;
-  }
 
-  private FeatureSet newDummyFeatureSet(String name, String project) {
-    Feature feature = new Feature("feature", ValueProto.ValueType.Enum.INT64);
-    Entity entity = new Entity("entity", ValueProto.ValueType.Enum.STRING);
-    SourceProto.Source sourceSpec =
-        SourceProto.Source.newBuilder()
-            .setType(SourceProto.SourceType.KAFKA)
-            .setKafkaSourceConfig(
-                SourceProto.KafkaSourceConfig.newBuilder()
-                    .setBootstrapServers("kafka:9092")
-                    .setTopic("my-topic")
-                    .build())
-            .build();
-    Source defaultSource = Source.fromProto(sourceSpec);
-    FeatureSet fs =
-        new FeatureSet(
-            name,
-            project,
-            100L,
-            Arrays.asList(entity),
-            Arrays.asList(feature),
-            defaultSource,
-            new HashMap<String, String>(),
-            FeatureSetProto.FeatureSetStatus.STATUS_READY);
-    fs.setCreated(Date.from(Instant.ofEpochSecond(10L)));
-    return fs;
+    return new SimpleAPIClient(secureCoreService);
   }
 }

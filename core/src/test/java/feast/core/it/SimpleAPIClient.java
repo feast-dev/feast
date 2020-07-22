@@ -71,4 +71,10 @@ public class SimpleAPIClient {
                 .build())
         .getJobsList();
   }
+
+  public String getFeastCoreVersion() {
+    return stub.getFeastCoreVersion(
+            feast.proto.core.CoreServiceProto.GetFeastCoreVersionRequest.getDefaultInstance())
+        .getVersion();
+  }
 }

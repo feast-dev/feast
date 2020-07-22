@@ -25,32 +25,28 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.JWKSet;
 import feast.core.auth.infra.JwtHelper;
+import feast.core.config.FeastProperties;
 import feast.core.it.BaseIT;
-import feast.core.model.Entity;
-import feast.core.model.Feature;
-import feast.core.model.FeatureSet;
-import feast.core.model.Source;
+import feast.core.it.DataGenerator;
+import feast.core.it.SimpleAPIClient;
 import feast.proto.core.CoreServiceGrpc;
-import feast.proto.core.CoreServiceProto;
 import feast.proto.core.FeatureSetProto;
-import feast.proto.core.SourceProto;
-import feast.proto.types.ValueProto;
 import io.grpc.CallCredentials;
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
 import io.prometheus.client.CollectorRegistry;
 import java.io.File;
-import java.sql.Date;
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.List;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -72,7 +68,7 @@ import sh.ory.keto.model.OryAccessControlPolicyRole;
     })
 public class CoreServiceAuthorizationIT extends BaseIT {
 
-  private static CoreServiceGrpc.CoreServiceBlockingStub insecureCoreService;
+  @Autowired FeastProperties feastProperties;
 
   private static final String DEFAULT_FLAVOR = "glob";
   private static int KETO_PORT = 4466;
@@ -86,6 +82,8 @@ public class CoreServiceAuthorizationIT extends BaseIT {
   static String subjectInProject = "good_member@example.com";
   static String subjectIsAdmin = "bossman@example.com";
   static String subjectClaim = "sub";
+
+  static SimpleAPIClient insecureApiClient;
 
   @ClassRule public static WireMockClassRule wireMockRule = new WireMockClassRule(JWKS_PORT);
 
@@ -147,7 +145,16 @@ public class CoreServiceAuthorizationIT extends BaseIT {
     // Create insecure Feast Core gRPC client
     Channel insecureChannel =
         ManagedChannelBuilder.forAddress("localhost", feast_core_port).usePlaintext().build();
-    insecureCoreService = CoreServiceGrpc.newBlockingStub(insecureChannel);
+    CoreServiceGrpc.CoreServiceBlockingStub insecureCoreService =
+        CoreServiceGrpc.newBlockingStub(insecureChannel);
+    insecureApiClient = new SimpleAPIClient(insecureCoreService);
+  }
+
+  @BeforeEach
+  public void setUp() {
+    SimpleAPIClient secureApiClient = getSecureApiClient(subjectIsAdmin);
+    FeatureSetProto.FeatureSet expectedFeatureSet = DataGenerator.getDefaultFeatureSet();
+    secureApiClient.simpleApplyFeatureSet(expectedFeatureSet);
   }
 
   @AfterAll
@@ -159,13 +166,13 @@ public class CoreServiceAuthorizationIT extends BaseIT {
 
   @Test
   public void shouldGetVersionFromFeastCoreAlways() {
-    insecureCoreService.getFeastCoreVersion(
-        CoreServiceProto.GetFeastCoreVersionRequest.getDefaultInstance());
+    SimpleAPIClient secureApiClient = getSecureApiClient("fakeUserThatIsAuthenticated@example.com");
 
-    CoreServiceGrpc.CoreServiceBlockingStub secureService =
-        getSecureGrpcClient("fakeUserThatIsAuthenticated@example.com");
-    secureService.getFeastCoreVersion(
-        CoreServiceProto.GetFeastCoreVersionRequest.getDefaultInstance());
+    String feastCoreVersionSecure = secureApiClient.getFeastCoreVersion();
+    String feastCoreVersionInsecure = insecureApiClient.getFeastCoreVersion();
+
+    assertEquals(feastCoreVersionSecure, feastCoreVersionInsecure);
+    assertEquals(feastProperties.getVersion(), feastCoreVersionSecure);
   }
 
   @Test
@@ -174,14 +181,7 @@ public class CoreServiceAuthorizationIT extends BaseIT {
         assertThrows(
             StatusRuntimeException.class,
             () -> {
-              insecureCoreService.listFeatureSets(
-                  CoreServiceProto.ListFeatureSetsRequest.newBuilder()
-                      .setFilter(
-                          CoreServiceProto.ListFeatureSetsRequest.Filter.newBuilder()
-                              .setProject("*")
-                              .setFeatureSetName("*")
-                              .build())
-                      .build());
+              insecureApiClient.simpleListFeatureSets("8");
             });
 
     String expectedMessage = "UNAUTHENTICATED: Authentication failed";
@@ -191,31 +191,36 @@ public class CoreServiceAuthorizationIT extends BaseIT {
 
   @Test
   public void shouldAllowAuthenticatedFeatureSetListing() {
-    CoreServiceGrpc.CoreServiceBlockingStub secureCoreService =
-        getSecureGrpcClient("AuthenticatedUserWithoutAuthorization@example.com");
-    secureCoreService.listFeatureSets(
-        CoreServiceProto.ListFeatureSetsRequest.newBuilder()
-            .setFilter(
-                CoreServiceProto.ListFeatureSetsRequest.Filter.newBuilder()
-                    .setProject("*")
-                    .setFeatureSetName("*")
-                    .build())
-            .build());
+    SimpleAPIClient secureApiClient =
+        getSecureApiClient("AuthenticatedUserWithoutAuthorization@example.com");
+    FeatureSetProto.FeatureSet expectedFeatureSet = DataGenerator.getDefaultFeatureSet();
+    List<FeatureSetProto.FeatureSet> listFeatureSetsResponse =
+        secureApiClient.simpleListFeatureSets("*");
+    FeatureSetProto.FeatureSet actualFeatureSet = listFeatureSetsResponse.get(0);
+
+    assert listFeatureSetsResponse.size() == 1;
+    assertEquals(
+        actualFeatureSet.getSpec().getProject(), expectedFeatureSet.getSpec().getProject());
+    assertEquals(
+        actualFeatureSet.getSpec().getProject(), expectedFeatureSet.getSpec().getProject());
   }
 
   @Test
   void cantApplyFeatureSetIfNotProjectMember() throws InvalidProtocolBufferException {
     String userName = "random_user@example.com";
-    CoreServiceGrpc.CoreServiceBlockingStub secureClient = getSecureGrpcClient(userName);
-
-    FeatureSetProto.FeatureSet incomingFeatureSet = newDummyFeatureSet("f2", project).toProto();
-    CoreServiceProto.ApplyFeatureSetRequest request =
-        CoreServiceProto.ApplyFeatureSetRequest.newBuilder()
-            .setFeatureSet(incomingFeatureSet)
-            .build();
+    SimpleAPIClient secureApiClient = getSecureApiClient(userName);
+    FeatureSetProto.FeatureSet expectedFeatureSet =
+        DataGenerator.createFeatureSet(
+            DataGenerator.getDefaultSource(),
+            project,
+            "test_5",
+            Collections.emptyList(),
+            Collections.emptyList());
 
     StatusRuntimeException exception =
-        assertThrows(StatusRuntimeException.class, () -> secureClient.applyFeatureSet(request));
+        assertThrows(
+            StatusRuntimeException.class,
+            () -> secureApiClient.simpleApplyFeatureSet(expectedFeatureSet));
 
     String expectedMessage =
         String.format(
@@ -225,81 +230,51 @@ public class CoreServiceAuthorizationIT extends BaseIT {
   }
 
   @Test
-  void canApplyFeatureSetIfProjectMember() throws InvalidProtocolBufferException {
-    CoreServiceGrpc.CoreServiceBlockingStub secureClient = getSecureGrpcClient(subjectInProject);
+  void canApplyFeatureSetIfProjectMember() {
+    SimpleAPIClient secureApiClient = getSecureApiClient(subjectInProject);
+    FeatureSetProto.FeatureSet expectedFeatureSet =
+        DataGenerator.createFeatureSet(
+            DataGenerator.getDefaultSource(),
+            project,
+            "test_6",
+            Collections.emptyList(),
+            Collections.emptyList());
 
-    FeatureSetProto.FeatureSet incomingFeatureSet = newDummyFeatureSet("f2", project).toProto();
-    CoreServiceProto.ApplyFeatureSetRequest request =
-        CoreServiceProto.ApplyFeatureSetRequest.newBuilder()
-            .setFeatureSet(incomingFeatureSet)
-            .build();
+    secureApiClient.simpleApplyFeatureSet(expectedFeatureSet);
 
-    feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse response =
-        secureClient.applyFeatureSet(request);
-    assertSame(response.getStatus(), CoreServiceProto.ApplyFeatureSetResponse.Status.CREATED);
+    FeatureSetProto.FeatureSet actualFeatureSet =
+        secureApiClient.simpleGetFeatureSet(project, "test_6");
+
+    assertEquals(
+        expectedFeatureSet.getSpec().getProject(), actualFeatureSet.getSpec().getProject());
+    assertEquals(expectedFeatureSet.getSpec().getName(), actualFeatureSet.getSpec().getName());
+    assertEquals(expectedFeatureSet.getSpec().getSource(), actualFeatureSet.getSpec().getSource());
   }
 
   @Test
-  void canApplyFeatureSetIfAdmin() throws InvalidProtocolBufferException {
-    CoreServiceGrpc.CoreServiceBlockingStub secureClient = getSecureGrpcClient(subjectIsAdmin);
+  void canApplyFeatureSetIfAdmin() {
+    SimpleAPIClient secureApiClient = getSecureApiClient(subjectIsAdmin);
+    FeatureSetProto.FeatureSet expectedFeatureSet =
+        DataGenerator.createFeatureSet(
+            DataGenerator.getDefaultSource(),
+            "any_project",
+            "test_2",
+            Collections.emptyList(),
+            Collections.emptyList());
 
-    FeatureSetProto.FeatureSet incomingFeatureSet = newDummyFeatureSet("f3", project).toProto();
-    CoreServiceProto.ApplyFeatureSetRequest request =
-        CoreServiceProto.ApplyFeatureSetRequest.newBuilder()
-            .setFeatureSet(incomingFeatureSet)
-            .build();
+    secureApiClient.simpleApplyFeatureSet(expectedFeatureSet);
 
-    feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse response =
-        secureClient.applyFeatureSet(request);
-    assertSame(response.getStatus(), CoreServiceProto.ApplyFeatureSetResponse.Status.CREATED);
+    FeatureSetProto.FeatureSet actualFeatureSet =
+        secureApiClient.simpleGetFeatureSet("any_project", "test_2");
+
+    assertEquals(
+        expectedFeatureSet.getSpec().getProject(), actualFeatureSet.getSpec().getProject());
+    assertEquals(expectedFeatureSet.getSpec().getName(), actualFeatureSet.getSpec().getName());
+    assertEquals(expectedFeatureSet.getSpec().getSource(), actualFeatureSet.getSpec().getSource());
   }
 
   @TestConfiguration
   public static class TestConfig extends BaseTestConfig {}
-
-  // Create secure Feast Core gRPC client for a specific user
-  private CoreServiceGrpc.CoreServiceBlockingStub getSecureGrpcClient(String subjectEmail) {
-    CallCredentials callCredentials = null;
-    try {
-      callCredentials = jwtHelper.getCallCredentials(subjectEmail);
-    } catch (JOSEException e) {
-      throw new RuntimeException(
-          String.format("Could not build call credentials: %s", e.getMessage()));
-    }
-    Channel secureChannel =
-        ManagedChannelBuilder.forAddress("localhost", feast_core_port).usePlaintext().build();
-
-    CoreServiceGrpc.CoreServiceBlockingStub secureCoreService =
-        CoreServiceGrpc.newBlockingStub(secureChannel).withCallCredentials(callCredentials);
-    return secureCoreService;
-  }
-
-  private FeatureSet newDummyFeatureSet(String name, String project) {
-    Feature feature = new Feature("feature", ValueProto.ValueType.Enum.INT64);
-    Entity entity = new Entity("entity", ValueProto.ValueType.Enum.STRING);
-    SourceProto.Source sourceSpec =
-        SourceProto.Source.newBuilder()
-            .setType(SourceProto.SourceType.KAFKA)
-            .setKafkaSourceConfig(
-                SourceProto.KafkaSourceConfig.newBuilder()
-                    .setBootstrapServers("kafka:9092")
-                    .setTopic("my-topic")
-                    .build())
-            .build();
-    Source defaultSource = Source.fromProto(sourceSpec);
-    FeatureSet fs =
-        new FeatureSet(
-            name,
-            project,
-            100L,
-            Arrays.asList(entity),
-            Arrays.asList(feature),
-            defaultSource,
-            new HashMap<String, String>(),
-            FeatureSetProto.FeatureSetStatus.STATUS_READY);
-    fs.setCreated(Date.from(Instant.ofEpochSecond(10L)));
-    return fs;
-  }
 
   private static void seedKeto(String url) throws ApiException {
     ApiClient ketoClient = Configuration.getDefaultApiClient();
@@ -358,5 +333,23 @@ public class CoreServiceAuthorizationIT extends BaseIT {
     policy.effect("allow");
     policy.conditions(null);
     return policy;
+  }
+
+  // Create secure Feast Core gRPC client for a specific user
+  private static SimpleAPIClient getSecureApiClient(String subjectEmail) {
+    CallCredentials callCredentials = null;
+    try {
+      callCredentials = jwtHelper.getCallCredentials(subjectEmail);
+    } catch (JOSEException e) {
+      throw new RuntimeException(
+          String.format("Could not build call credentials: %s", e.getMessage()));
+    }
+    Channel secureChannel =
+        ManagedChannelBuilder.forAddress("localhost", feast_core_port).usePlaintext().build();
+
+    CoreServiceGrpc.CoreServiceBlockingStub secureCoreService =
+        CoreServiceGrpc.newBlockingStub(secureChannel).withCallCredentials(callCredentials);
+
+    return new SimpleAPIClient(secureCoreService);
   }
 }
