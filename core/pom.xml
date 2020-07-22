@@ -50,7 +50,6 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <skip>false</skip>
-
                 </configuration>
                 <executions>
                     <execution>
@@ -59,7 +58,6 @@
                             <goal>build-info</goal>
                         </goals>
                     </execution>
-
                 </executions>
             </plugin>
 
@@ -231,8 +229,6 @@
             <optional>true</optional>
         </dependency>
 
-
-
         <dependency>
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
@@ -288,7 +284,6 @@
             <artifactId>spring-boot-test</artifactId>
             <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-test-autoconfigure</artifactId>
