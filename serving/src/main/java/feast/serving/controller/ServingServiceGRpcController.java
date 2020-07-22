@@ -41,6 +41,7 @@ import java.util.List;
 import net.devh.boot.grpc.server.service.GrpcService;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 @GrpcService(interceptors = {GrpcMonitoringInterceptor.class})
@@ -79,15 +80,14 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
   public void getOnlineFeatures(
       GetOnlineFeaturesRequest request,
       StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
-    // authorize for the project in request object.
-    this.authorizationService.authorizeRequest(
-        SecurityContextHolder.getContext(), request.getProject());
-    // authorize for projects set in feature list, backward compatibility for
-    // <=v0.5.X
-    this.checkProjectAccess(request.getFeaturesList());
-
     Span span = tracer.buildSpan("getOnlineFeatures").start();
     try (Scope scope = tracer.scopeManager().activate(span, false)) {
+      // authorize for the project in request object.
+      this.authorizationService.authorizeRequest(
+          SecurityContextHolder.getContext(), request.getProject());
+      // authorize for projects set in feature list, backward compatibility for
+      // <=v0.5.X
+      this.checkProjectAccess(request.getFeaturesList());
       RequestHelper.validateOnlineRequest(request);
       GetOnlineFeaturesResponse onlineFeatures = servingService.getOnlineFeatures(request);
       responseObserver.onNext(onlineFeatures);
@@ -96,6 +96,13 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       log.error("Failed to retrieve specs in SpecService", e);
       responseObserver.onError(
           Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asException());
+    } catch (AccessDeniedException e) {
+      log.info(String.format("User prevented from accessing one of the projects in request"));
+      responseObserver.onError(
+          Status.PERMISSION_DENIED
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
     } catch (Exception e) {
       log.warn("Failed to get Online Features", e);
       responseObserver.onError(e);
@@ -116,6 +123,13 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       log.error("Failed to retrieve specs in SpecService", e);
       responseObserver.onError(
           Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asException());
+    } catch (AccessDeniedException e) {
+      log.info(String.format("User prevented from accessing one of the projects in request"));
+      responseObserver.onError(
+          Status.PERMISSION_DENIED
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
     } catch (Exception e) {
       log.warn("Failed to get Batch Features", e);
       responseObserver.onError(e);

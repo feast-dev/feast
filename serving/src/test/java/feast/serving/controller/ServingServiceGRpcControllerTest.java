@@ -45,7 +45,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -127,7 +126,7 @@ public class ServingServiceGRpcControllerTest {
     Mockito.verify(mockServingService).getOnlineFeatures(validRequest);
   }
 
-  @Test(expected = AccessDeniedException.class)
+  @Test
   public void shouldThrowErrorOnValidRequestIfRequestIsUnauthorized() {
     service = getServingServiceGRpcController(true);
     SecurityContext context = mock(SecurityContext.class);
@@ -137,5 +136,6 @@ public class ServingServiceGRpcControllerTest {
         .when(authProvider)
         .checkAccessToProject(anyString(), any(Authentication.class));
     service.getOnlineFeatures(validRequest, mockStreamObserver);
+    Mockito.verify(mockStreamObserver).onError(Mockito.any(StatusRuntimeException.class));
   }
 }

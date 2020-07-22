@@ -187,8 +187,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
 
     try {
       projectId = request.getFeatureSet().getSpec().getProject();
-      authorizationService.authorizeRequest(
-    	        SecurityContextHolder.getContext(), projectId);
+      authorizationService.authorizeRequest(SecurityContextHolder.getContext(), projectId);
       ApplyFeatureSetResponse response = specService.applyFeatureSet(request.getFeatureSet());
       responseObserver.onNext(response);
       responseObserver.onCompleted();
@@ -244,10 +243,10 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   @Override
   public void archiveProject(
       ArchiveProjectRequest request, StreamObserver<ArchiveProjectResponse> responseObserver) {
-	  String projectId = null; 
+    String projectId = null;
     try {
       projectId = request.getName();
-	authorizationService.authorizeRequest(SecurityContextHolder.getContext(), projectId);
+      authorizationService.authorizeRequest(SecurityContextHolder.getContext(), projectId);
       projectService.archiveProject(projectId);
       responseObserver.onNext(ArchiveProjectResponse.getDefaultInstance());
       responseObserver.onCompleted();
@@ -263,13 +262,13 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onError(
           Status.UNIMPLEMENTED.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     } catch (AccessDeniedException e) {
-        log.info(String.format("User prevented from accessing project: %s", projectId));
-        responseObserver.onError(
-            Status.PERMISSION_DENIED
-                .withDescription(e.getMessage())
-                .withCause(e)
-                .asRuntimeException());
-      } catch (Exception e) {
+      log.info(String.format("User prevented from accessing project: %s", projectId));
+      responseObserver.onError(
+          Status.PERMISSION_DENIED
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
+    } catch (Exception e) {
       log.error("Exception has occurred in the createProject method: ", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());

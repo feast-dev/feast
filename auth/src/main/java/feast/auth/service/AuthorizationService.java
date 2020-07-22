@@ -57,7 +57,7 @@ public class AuthorizationService {
     AuthorizationResult result =
         this.authorizationProvider.checkAccessToProject(project, authentication);
     if (!result.isAllowed()) {
-      throw new AccessDeniedException(result.getFailureReason().orElse("AccessDenied"));
+      throw new AccessDeniedException(result.getFailureReason().orElse("Access Denied"));
     }
   }
 }
