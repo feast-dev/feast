@@ -17,8 +17,6 @@
 ROOT_DIR 	:= $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 PROTO_TYPE_SUBDIRS = core serving types storage
 PROTO_SERVICE_SUBDIRS = core serving
-PYTHON = /usr/local/bin/python3
-PIP = /usr/local/bin/pip3
 
 
 # General
