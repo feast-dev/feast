@@ -25,8 +25,6 @@ import feast.core.service.JobService;
 import feast.core.service.SpecService;
 import feast.core.service.StatsService;
 import feast.proto.core.CoreServiceProto.GetFeastCoreVersionResponse;
-import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
-import feast.proto.core.CoreServiceProto.GetFeatureSetResponse;
 import feast.proto.core.CoreServiceProto.GetFeatureStatisticsRequest;
 import feast.proto.core.CoreServiceProto.GetFeatureStatisticsRequest.Builder;
 import feast.proto.core.CoreServiceProto.GetFeatureStatisticsResponse;
@@ -46,7 +44,6 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -94,39 +91,20 @@ public class CoreServiceRestController {
   }
 
   /**
-   * GET /project/{project}/feature-set/{featureSetName} : Get information about a feature set in a
-   * project. To get multiple feature sets, use the (GET /feature-sets) endpoint.
-   *
-   * @param project Feast project name.
-   * @param featureSetName Feast feature set name.
-   * @return (200 OK) Returns {@link GetFeatureSetResponse} in JSON.
-   * @throws InvalidProtocolBufferException (500 Internal Server Error)
-   */
-  @RequestMapping(
-      value = "/project/{project}/feature-set/{featureSetName}",
-      method = RequestMethod.GET)
-  public GetFeatureSetResponse getFeatureSet(
-      @PathVariable String project, @PathVariable String featureSetName)
-      throws InvalidProtocolBufferException {
-    GetFeatureSetRequest request =
-        GetFeatureSetRequest.newBuilder().setProject(project).setName(featureSetName).build();
-    return specService.getFeatureSet(request);
-  }
-
-  /**
    * GET /feature-sets : Retrieve a list of Feature Sets according to filtering parameters of Feast
    * project name and feature set name. If none matches, an empty JSON response is returned.
    *
-   * @param project (Optional) Request Parameter: Name of feast project to search in. If absent or
-   *     set to "*", filter all projects by default. Asterisk can NOT be used as wildcard to filter
-   *     projects.
+   * @param project (Optional) Request Parameter: Name of feast project to search in. If absent,
+   *     filter only the default project. If this is set to <code>"*"</code>, all existing projects
+   *     will be filtered. However, asterisk can NOT be combined with other strings (for example
+   *     <code>"merchant_*"</code>) and be used as wildcard to filter projects.
    * @param name (Optional) Request Parameter: Feature set name. If absent or set to "*", filter *
    *     all feature sets by default. Asterisk can be used as wildcard to filter * feature sets.
    * @return (200 OK) Return {@link ListFeatureSetsResponse} in JSON.
    */
   @RequestMapping(value = "/feature-sets", method = RequestMethod.GET)
   public ListFeatureSetsResponse listFeatureSets(
-      @RequestParam(defaultValue = "*") String project,
+      @RequestParam(defaultValue = Project.DEFAULT_NAME) String project,
       @RequestParam(defaultValue = "*") String name)
       throws InvalidProtocolBufferException {
     ListFeatureSetsRequest.Filter.Builder filterBuilder =
@@ -139,7 +117,8 @@ public class CoreServiceRestController {
    *
    * @param entities Request Parameter: List of all entities every returned feature should belong
    *     to. At least one entity is required. For example, if <code>entity1</code> and <code>entity2
-   *     </code> are given, then all features returned (if any) will belong to BOTH entities.
+   *                 </code> are given, then all features returned (if any) will belong to BOTH
+   *     entities.
    * @param project (Optional) Request Parameter: A single project where the feature set of all
    *     features returned is under.
    * @return (200 OK) Return {@link ListFeaturesResponse} in JSON.
