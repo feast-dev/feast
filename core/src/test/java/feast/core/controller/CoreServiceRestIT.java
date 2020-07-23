@@ -142,9 +142,9 @@ public class CoreServiceRestIT extends BaseIT {
   }
 
   // list projects
-  // create new project and get again
   @Test
   public void listProjects() throws Exception {
+    // should get 2 projects
     String url = UriComponentsBuilder.fromPath("/api/v1/projects").buildAndExpand().toString();
     mockMvc
         .perform(MockMvcRequestBuilders.get(url).accept(MediaType.APPLICATION_JSON))
@@ -160,6 +160,7 @@ public class CoreServiceRestIT extends BaseIT {
     // getting a specific feature set
     String url1 =
         UriComponentsBuilder.fromPath("/api/v1/feature-sets")
+            .queryParam("project", "default")
             .queryParam("name", "merchant_ratings")
             .buildAndExpand()
             .toString();
@@ -192,6 +193,7 @@ public class CoreServiceRestIT extends BaseIT {
     String url3 =
         UriComponentsBuilder.fromPath("/api/v1/feature-sets")
             .queryParam("project", "*")
+            .queryParam("name", "*")
             .buildAndExpand()
             .toString();
     mockMvc
@@ -203,7 +205,7 @@ public class CoreServiceRestIT extends BaseIT {
   }
 
   @Test
-  public void getFeatures() throws Exception {
+  public void listFeatures() throws Exception {
     // entities = [merchant_id]
     // project = default
     // should return 4 features

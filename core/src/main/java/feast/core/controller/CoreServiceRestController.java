@@ -94,18 +94,17 @@ public class CoreServiceRestController {
    * GET /feature-sets : Retrieve a list of Feature Sets according to filtering parameters of Feast
    * project name and feature set name. If none matches, an empty JSON response is returned.
    *
-   * @param project (Optional) Request Parameter: Name of feast project to search in. If absent,
-   *     filter only the default project. If this is set to <code>"*"</code>, all existing projects
-   *     will be filtered. However, asterisk can NOT be combined with other strings (for example
-   *     <code>"merchant_*"</code>) and be used as wildcard to filter projects.
-   * @param name (Optional) Request Parameter: Feature set name. If absent or set to "*", filter *
-   *     all feature sets by default. Asterisk can be used as wildcard to filter * feature sets.
+   * @param project Request Parameter: Name of feast project to search in. If set to <code>"*"
+   *     </code>, all existing projects will be filtered. However, asterisk can NOT be combined with
+   *     other strings (for example <code>"merchant_*"</code>) to use as wildcard to filter feature
+   *     sets.
+   * @param name Request Parameter: Feature set name. If set to "*", filter * all feature sets by
+   *     default. Asterisk can be used as wildcard to filter * feature sets.
    * @return (200 OK) Return {@link ListFeatureSetsResponse} in JSON.
    */
   @RequestMapping(value = "/feature-sets", method = RequestMethod.GET)
   public ListFeatureSetsResponse listFeatureSets(
-      @RequestParam(defaultValue = Project.DEFAULT_NAME) String project,
-      @RequestParam(defaultValue = "*") String name)
+      @RequestParam(defaultValue = Project.DEFAULT_NAME) String project, @RequestParam String name)
       throws InvalidProtocolBufferException {
     ListFeatureSetsRequest.Filter.Builder filterBuilder =
         ListFeatureSetsRequest.Filter.newBuilder().setProject(project).setFeatureSetName(name);
@@ -120,17 +119,16 @@ public class CoreServiceRestController {
    *                 </code> are given, then all features returned (if any) will belong to BOTH
    *     entities.
    * @param project (Optional) Request Parameter: A single project where the feature set of all
-   *     features returned is under.
+   *     features returned is under. If not provided, the default project will be used, usually
+   *     <code>default</code>.
    * @return (200 OK) Return {@link ListFeaturesResponse} in JSON.
    */
   @RequestMapping(value = "/features", method = RequestMethod.GET)
   public ListFeaturesResponse listFeatures(
-      @RequestParam String[] entities,
-      @RequestParam(defaultValue = Project.DEFAULT_NAME) String project) {
+      @RequestParam String[] entities, @RequestParam(required = false) Optional<String> project) {
     ListFeaturesRequest.Filter.Builder filterBuilder =
-        ListFeaturesRequest.Filter.newBuilder()
-            .setProject(project)
-            .addAllEntities(Arrays.asList(entities));
+        ListFeaturesRequest.Filter.newBuilder().addAllEntities(Arrays.asList(entities));
+    project.ifPresent(filterBuilder::setProject);
     return specService.listFeatures(filterBuilder.build());
   }
 
