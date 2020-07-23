@@ -41,7 +41,6 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -116,26 +115,22 @@ public class CoreServiceRestController {
 
   /**
    * GET /feature-sets : Retrieve a list of Feature Sets according to filtering parameters of Feast
-   * project, feature set name and labels. If none match, an empty JSON response is returned.
+   * project name and feature set name. If none matches, an empty JSON response is returned.
    *
    * @param project (Optional) Request Parameter: Name of feast project to search in. If absent or
    *     set to "*", filter all projects by default. Asterisk can NOT be used as wildcard to filter
    *     projects.
    * @param name (Optional) Request Parameter: Feature set name. If absent or set to "*", filter *
    *     all feature sets by default. Asterisk can be used as wildcard to filter * feature sets.
-   * @param labels (Optional) Request Parameter: Key-value pair of feature set labels to filter
-   *     results.
    * @return (200 OK) Return {@link ListFeatureSetsResponse} in JSON.
    */
   @RequestMapping(value = "/feature-sets", method = RequestMethod.GET)
   public ListFeatureSetsResponse listFeatureSets(
       @RequestParam(defaultValue = "*") String project,
-      @RequestParam(defaultValue = "*") String name,
-      @RequestParam(required = false) Optional<Map<String, String>> labels)
+      @RequestParam(defaultValue = "*") String name)
       throws InvalidProtocolBufferException {
     ListFeatureSetsRequest.Filter.Builder filterBuilder =
         ListFeatureSetsRequest.Filter.newBuilder().setProject(project).setFeatureSetName(name);
-    labels.ifPresent(filterBuilder::putAllLabels);
     return specService.listFeatureSets(filterBuilder.build());
   }
 
@@ -145,8 +140,6 @@ public class CoreServiceRestController {
    * @param entities Request Parameter: List of all entities every returned feature should belong
    *     to. At least one entity is required. For example, if <code>entity1</code> and <code>entity2
    *     </code> are given, then all features returned (if any) will belong to BOTH entities.
-   * @param labels (Optional) Request Parameter: Key-value pair of labels. Only features with ALL
-   *     matching labels will be returned.
    * @param project (Optional) Request Parameter: A single project where the feature set of all
    *     features returned is under.
    * @return (200 OK) Return {@link ListFeaturesResponse} in JSON.
@@ -154,13 +147,11 @@ public class CoreServiceRestController {
   @RequestMapping(value = "/features", method = RequestMethod.GET)
   public ListFeaturesResponse listFeatures(
       @RequestParam String[] entities,
-      @RequestParam(required = false) Optional<Map<String, String>> labels,
       @RequestParam(defaultValue = Project.DEFAULT_NAME) String project) {
     ListFeaturesRequest.Filter.Builder filterBuilder =
         ListFeaturesRequest.Filter.newBuilder()
             .setProject(project)
             .addAllEntities(Arrays.asList(entities));
-    labels.ifPresent(filterBuilder::putAllLabels);
     return specService.listFeatures(filterBuilder.build());
   }
 
