@@ -183,7 +183,7 @@ for feature in features:
 
 | Status | Meaning |
 | :--- | :--- |
-| NOT\_FOUND | Unset values returned as no feature value was ingested for this feature. |
+| NOT\_FOUND | Unset values returned as the feature value was not found in the online store. This might mean that no feature value was ingested for this feature. |
 | NULL\_VALUE | Unset values returned as the ingested feature value was also unset. |
 | OUTSIDE\_MAX\_AGE | Unset values returned as the age of the feature value \(time since the value was ingested\) has exceeded the Feature Set's max age, which the feature was defined in. |
 | PRESENT | Set values are returned for the requested feature. |
