@@ -11,7 +11,7 @@ An entity is the object on which features are observed. For example we could hav
 
 In the context of Feast, entities are important because they are used as keys when looking up feature values. Entities are also used when joining feature values between different feature sets in order to build one large data set to train a model, or to serve a model.
 
-Example entity properties 
+Example entity properties
 
 {% code title="customer\_id.yaml" %}
 ```yaml
@@ -20,7 +20,6 @@ name: customer_id
 
 # Entity value type
 value_type: INT64
-
 ```
 {% endcode %}
 
