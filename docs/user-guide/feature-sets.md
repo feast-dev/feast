@@ -2,7 +2,7 @@
 
 Feature sets are both a schema and a means of identifying data sources for features.
 
-Data typically comes in the form of flat files, dataframes, tables in a database, or events on a stream. Thus the data occurs with multiple columns/fields in multiple rows/events. 
+Data typically comes in the form of flat files, dataframes, tables in a database, or events on a stream. Thus the data occurs with multiple columns/fields in multiple rows/events.
 
 Feature sets are a way for defining the unique properties of these data sources, how Feast should interpret them, and how Feast should source them. Feature sets allow for groups of fields in these data sources to be [ingested](data-ingestion.md) and [stored](stores.md) together. Feature sets allow for efficient storage and logical namespacing of data within [stores](stores.md).
 
@@ -10,7 +10,7 @@ Feature sets are a way for defining the unique properties of these data sources,
 Feature sets are a grouping of feature sets based on how they are loaded into Feast. They ensure that data is efficiently stored during ingestion. Feature sets are not a grouping of features for retrieval of features. During retrieval it is possible to retrieve feature values from any number of feature sets.
 {% endhint %}
 
-### Customer Transactions Example
+## Customer Transactions Example
 
 Below is an example specification of a basic `customer transactions` feature set that has been exported to YAML:
 
@@ -59,9 +59,9 @@ client.ingest(cust_trans_fs, customer_df)
 When applying a Feature Set without specifying a project in its specification, Feast creates/updates the Feature Set in the `default` project. To create a Feature Set in another project, specify the project of choice in the Feature Set specification's project field.
 {% endhint %}
 
-### **Making changes to Feature Sets**
+## **Making changes to Feature Sets**
 
-In order to facilitate the need for feature set definitions to change over time, a limited set of changes can be made to existing feature sets. 
+In order to facilitate the need for feature set definitions to change over time, a limited set of changes can be made to existing feature sets.
 
 To apply changes to a feature set:
 
