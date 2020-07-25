@@ -24,7 +24,6 @@ clean_up() {
   exit $ARG
 }
 
-trap clean_up EXIT
 
 export CURRENT_SHA=$(git rev-parse HEAD)
 export PROJECT_ROOT_DIR=$(git rev-parse --show-toplevel)
@@ -32,6 +31,9 @@ export COMPOSE_INTERACTIVE_NO_CLI=1
 
 # Wait for docker images to be available
 "${PROJECT_ROOT_DIR}"/infra/scripts/wait-for-docker-images.sh "${CURRENT_SHA}"
+
+# Clean up Docker Compose if failure
+trap clean_up EXIT
 
 # Create Docker Compose configuration file
 cd "${PROJECT_ROOT_DIR}"/infra/docker-compose/
