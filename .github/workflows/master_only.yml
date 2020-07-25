@@ -1,0 +1,50 @@
+name: master only
+
+on:
+  push:
+    branches: master
+    tags:
+      - 'v*.*.*'
+
+jobs:
+
+  build-docker-images:
+    runs-on: [self-hosted, builder]
+    strategy:
+      matrix:
+        component: [core, serving, jupyter, ci]
+    steps:
+      - uses: actions/checkout@v2
+      - name: build image
+        run: make build-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA}
+      - name: push image
+        run: make push-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA}
+      - name: push feast dev
+        run: |
+          if [ ${GITHUB_REF#refs/*/} == "master" ]; then
+            docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:dev
+            # docker push gcr.io/kf-feast/feast-${{ matrix.component }}:dev
+          fi
+      - name: get version
+        id: get_version
+        run: echo ::set-output name=VERSION::${${GITHUB_REF/refs\/tags\//}:1}
+      - name: push versioned release
+        run: |
+
+          # Build and push semver tagged commits
+          rx='^([0-9]+\.){0,2}(\*|[0-9]+)$'
+          if [[ ${{ steps.get_version.outputs.VERSION }} =~ $rx ]]; then
+
+            docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:${{ steps.get_version.outputs.VERSION }}
+            # docker push gcr.io/kf-feast/feast-${{ matrix.component }}:${{ steps.get_version.outputs.VERSION }}
+
+            # Also update "latest" image if tagged commit is pushed to stable branch
+            HIGHEST_SEMVER_TAG=$(git tag -l --sort -version:refname | head -n 1)
+            echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"
+
+            if [ ${{ steps.get_version.outputs.VERSION }} == "${HIGHEST_SEMVER_TAG:1}" ]
+            then
+              docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:${{ steps.get_version.outputs.VERSION }}
+              # docker push gcr.io/kf-feast/feast-${{ matrix.component }}:${{ steps.get_version.outputs.VERSION }}
+            fi
+          fi
