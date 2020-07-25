@@ -24,8 +24,12 @@ clean_up() {
   exit $ARG
 }
 
+CURRENT_SHA=$(git rev-parse HEAD)
 
-export CURRENT_SHA=$(git rev-parse HEAD)
+if [ "$GITHUB_EVENT_NAME" == "pull_request" ]; then
+    export CURRENT_SHA=$(cat "$GITHUB_EVENT_PATH" | jq -r .pull_request.head.sha)
+fi
+
 export PROJECT_ROOT_DIR=$(git rev-parse --show-toplevel)
 export COMPOSE_INTERACTIVE_NO_CLI=1
 
