@@ -316,14 +316,20 @@ presubmits:
 
           infra/scripts/publish-docker-image.sh \
             --repository gcr.io/kf-feast/feast-core \
-            --tag ${PULL_PULL_SHA:1} \
+            --tag ${PULL_PULL_SHA} \
             --file infra/docker/core/Dockerfile \
             --google-service-account-file /etc/gcloud/service-account.json
 
           infra/scripts/publish-docker-image.sh \
             --repository gcr.io/kf-feast/feast-serving \
-            --tag ${PULL_PULL_SHA:1} \
+            --tag ${PULL_PULL_SHA} \
             --file infra/docker/serving/Dockerfile \
+            --google-service-account-file /etc/gcloud/service-account.json
+
+          infra/scripts/publish-docker-image.sh \
+            --repository gcr.io/kf-feast/feast-jupyter \
+            --tag ${PULL_PULL_SHA} \
+            --file infra/docker/jupyter/Dockerfile \
             --google-service-account-file /etc/gcloud/service-account.json
 
         volumeMounts:
