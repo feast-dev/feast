@@ -31,14 +31,14 @@ export PROJECT_ROOT_DIR=$(git rev-parse --show-toplevel)
 export COMPOSE_INTERACTIVE_NO_CLI=1
 
 # Wait for docker images to be available
-"${PROJECT_ROOT_DIR}"/infra/scripts/wait-for-docker-images.sh "${CURRENT_SHA}"
+"${PROJECT_ROOT_DIR}"/infra/scripts/wait-for-docker-images.sh latest
 
 # Create Docker Compose configuration file
 cd "${PROJECT_ROOT_DIR}"/infra/docker-compose/
 cp .env.sample .env
 
 # Start Docker Compose containers
-docker-compose -e FEAST_VERSION="${GIT_SHA}" -f docker-compose.yml -f docker-compose.online.yml up -d
+docker-compose -e FEAST_VERSION=latest -f docker-compose.yml -f docker-compose.online.yml up -d
 
 # Get Jupyter container IP address
 export JUPYTER_DOCKER_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_jupyter_1)
@@ -63,7 +63,7 @@ export FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .N
 "${PROJECT_ROOT_DIR}"/infra/scripts/wait-for-it.sh ${FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS}:6566 --timeout=120
 
 # Ingest data into Feast
-pip3 install --user matplotlib pandas numpy feast pytz
+pip3 install --user matplotlib pandas numpy feast pytz pip setuptools wheel
 python "${PROJECT_ROOT_DIR}"/tests/load/ingest.py "${FEAST_CORE_CONTAINER_IP_ADDRESS}":6565  "${FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS}":6566
 
 # Download load test tool and proxy
