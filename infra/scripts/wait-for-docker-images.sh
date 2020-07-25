@@ -9,7 +9,7 @@ GIT_SHA=$1
 
 # Set allowed failure count
 poll_count=0
-maximum_poll_count=30
+maximum_poll_count=150
 
 # Wait for Feast Core to be available on GCR
 until docker pull gcr.io/kf-feast/feast-core:"${GIT_SHA}"
