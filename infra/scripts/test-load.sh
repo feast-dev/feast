@@ -87,6 +87,8 @@ sleep 5
 ./wrk -t2 -c10 -d30s -R20 --latency http://localhost:8080/send?entity_count=50 > load_test_results_1fs_13f_50e_20rps
 ./wrk -t2 -c10 -d30s -R50 --latency http://localhost:8080/send?entity_count=50 > load_test_results_1fs_13f_50e_50rps
 ./wrk -t2 -c10 -d30s -R250 --latency http://localhost:8080/send?entity_count=50 > load_test_results_1fs_13f_50e_250rps
+
+# Print load test results
 cat $(ls -lah | grep load_test_results | awk '{print $9}' | tr '\n' ' ')
 
 # Create hdr-plot of load tests
