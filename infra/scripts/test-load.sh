@@ -38,7 +38,7 @@ cd "${PROJECT_ROOT_DIR}"/infra/docker-compose/
 cp .env.sample .env
 
 # Start Docker Compose containers
-docker-compose -e FEAST_VERSION=latest -f docker-compose.yml -f docker-compose.online.yml up -d
+FEAST_VERSION=latest docker-compose -f docker-compose.yml -f docker-compose.online.yml up -d
 
 # Get Jupyter container IP address
 export JUPYTER_DOCKER_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_jupyter_1)
