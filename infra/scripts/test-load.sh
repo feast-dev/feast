@@ -92,7 +92,7 @@ sleep 5
 cat $(ls -lah | grep load_test_results | awk '{print $9}' | tr '\n' ' ')
 
 # Create hdr-plot of load tests
-pip3 install --upgrade --user matplotlib pandas hdr-plot
+pip install --upgrade --user matplotlib pandas hdr-plot
 export PLOT_FILE_NAME="load_test_graph_${CURRENT_SHA}"_$(date "+%Y%m%d-%H%M%S").png
 hdr-plot --output "$PLOT_FILE_NAME" --title "Load test: ${CURRENT_SHA}"  $(ls -lah | grep load_test_results | awk '{print $9}' | tr '\n' ' ')
 
