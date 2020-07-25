@@ -64,7 +64,7 @@ export FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .N
 
 # Ingest data into Feast
 sudo apt-get update
-sudo apt-get install python3-dev python3-pip python3-venv python3-wheel python3-setuptools
+sudo apt-get install -y python3-dev python3-pip python3-venv python3-wheel python3-setuptools
 pip3 install --user matplotlib pandas numpy feast pytz pip setuptools wheel
 python3 "${PROJECT_ROOT_DIR}"/tests/load/ingest.py "${FEAST_CORE_CONTAINER_IP_ADDRESS}":6565  "${FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS}":6566
 
