@@ -3,7 +3,7 @@ name: complete workflow
 on: [push, pull_request]
 
 jobs:
-  build-docker-images:
+  build-push-docker-images:
     runs-on: [self-hosted, builder]
     strategy:
       matrix:

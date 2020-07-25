@@ -48,3 +48,10 @@ jobs:
               # docker push gcr.io/kf-feast/feast-${{ matrix.component }}:${{ steps.get_version.outputs.VERSION }}
             fi
           fi
+
+  tests-docker-compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: test docker compose
+        run: ./infra/scripts/test-docker-compose.sh
