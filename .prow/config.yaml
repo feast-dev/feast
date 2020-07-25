@@ -328,7 +328,7 @@ presubmits:
 
           infra/scripts/publish-docker-image.sh \
             --repository gcr.io/kf-feast/feast-jupyter \
-            --tag ${PULL_PULL_SHA} \
+            --tag ${PULL_BASE_SHA} \
             --file infra/docker/jupyter/Dockerfile \
             --google-service-account-file /etc/gcloud/service-account.json
 
