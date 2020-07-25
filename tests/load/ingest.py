@@ -1,12 +1,9 @@
 import sys
-import time
 
 import pandas as pd
 import numpy as np
 import pytz
-from feast.online_response import OnlineResponse
 from feast.wait import wait_retry_backoff
-from google.protobuf.duration_pb2 import Duration
 
 from feast import Client, Feature, FeatureSet, Entity, ValueType
 from datetime import datetime

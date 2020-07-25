@@ -60,6 +60,7 @@ export FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .N
 "${PROJECT_ROOT_DIR}"/infra/scripts/wait-for-it.sh ${FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS}:6566 --timeout=120
 
 # Ingest data into Feast
+pip3 install --user matplotlib pandas numpy feast pytz
 python "${PROJECT_ROOT_DIR}"/tests/load/ingest.py "${FEAST_CORE_CONTAINER_IP_ADDRESS}":6565  "${FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS}":6566
 
 # Download load test tool and proxy
