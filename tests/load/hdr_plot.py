@@ -56,11 +56,11 @@ def plot_summarybox(ax, percentiles, labels):
 
 
 def plot_percentiles(percentiles, labels):
-    y_range = [0, 5, 10, 15, 25, 50, 100]
+    y_range = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
     x_range = [0.25, 0.5, 0.9, 0.99, 0.999, 0.9999, 0.99999, 0.999999]
 
     fig, ax = plt.subplots(figsize=(24, 16))
-    plt.ylim(0, 100)
+    plt.ylim(0, 50)
     # plot values
     for data in percentiles:
         ax.plot(data['Percentile'], data['Latency'])
