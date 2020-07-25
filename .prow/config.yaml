@@ -439,65 +439,67 @@ postsubmits:
         - bash
         - -c
         - |
+          # Load cache to speed up builds
           infra/scripts/download-maven-cache.sh \
             --archive-uri gs://feast-templocation-kf-feast/.m2.2020-07-13.tar \
             --output-dir $PWD/
 
-          if [ $PULL_BASE_REF == "master" ]; then
-
+          # Build images based on SHAs
           infra/scripts/publish-docker-image.sh \
             --repository gcr.io/kf-feast/feast-core \
-            --tag dev \
+            --tag ${PULL_BASE_SHA} \
             --file infra/docker/core/Dockerfile \
             --google-service-account-file /etc/gcloud/service-account.json
 
           infra/scripts/publish-docker-image.sh \
             --repository gcr.io/kf-feast/feast-serving \
-            --tag dev \
-            --file infra/docker/serving/Dockerfile \
-            --google-service-account-file /etc/gcloud/service-account.json
-
-          docker tag gcr.io/kf-feast/feast-core:dev gcr.io/kf-feast/feast-core:${PULL_BASE_SHA}
-          docker push gcr.io/kf-feast/feast-core:${PULL_BASE_SHA}
-
-          docker tag gcr.io/kf-feast/feast-serving:dev gcr.io/kf-feast/feast-serving:${PULL_BASE_SHA}
-          docker push gcr.io/kf-feast/feast-serving:${PULL_BASE_SHA}
-
-          else
-
-          infra/scripts/publish-docker-image.sh \
-            --repository gcr.io/kf-feast/feast-core \
-            --tag ${PULL_BASE_REF} \
-            --file infra/docker/core/Dockerfile \
-            --google-service-account-file /etc/gcloud/service-account.json
-
-          infra/scripts/publish-docker-image.sh \
-            --repository gcr.io/kf-feast/feast-serving \
-            --tag ${PULL_BASE_REF} \
+            --tag ${PULL_BASE_SHA} \
             --file infra/docker/serving/Dockerfile \
             --google-service-account-file /etc/gcloud/service-account.json
 
           infra/scripts/publish-docker-image.sh \
             --repository gcr.io/kf-feast/feast-jupyter \
-            --tag ${PULL_BASE_REF} \
+            --tag ${PULL_BASE_SHA} \
             --file infra/docker/jupyter/Dockerfile \
             --google-service-account-file /etc/gcloud/service-account.json
 
-          HIGHEST_SEMVER_TAG=$(git tag -l --sort -version:refname | head -n 1)
-          echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"
+          # Create a "dev" image for the master branch
+          if [ $PULL_BASE_REF == "master" ]; then
+            docker tag gcr.io/kf-feast/feast-core:${PULL_BASE_SHA} gcr.io/kf-feast/feast-core:dev
+            docker push gcr.io/kf-feast/feast-core:dev
 
-          if [ "${PULL_BASE_REF:1}" == "${HIGHEST_SEMVER_TAG:1}" ]
-          then
-            docker tag gcr.io/kf-feast/feast-core:${PULL_BASE_REF:1} gcr.io/kf-feast/feast-core:latest
-            docker push gcr.io/kf-feast/feast-core:latest
-
-            docker tag gcr.io/kf-feast/feast-serving:${PULL_BASE_REF:1} gcr.io/kf-feast/feast-serving:latest
-            docker push gcr.io/kf-feast/feast-serving:latest
-
-            docker tag gcr.io/kf-feast/feast-jupyter:${PULL_BASE_REF:1} gcr.io/kf-feast/feast-jupyter:latest
-            docker push gcr.io/kf-feast/feast-jupyter:latest
+            docker tag gcr.io/kf-feast/feast-serving:${PULL_BASE_SHA} gcr.io/kf-feast/feast-serving:dev
+            docker push gcr.io/kf-feast/feast-serving:dev
           fi
 
+          # Build and push semver tagged commits
+          rx='^([0-9]+\.){0,2}(\*|[0-9]+)$'
+          if [[ ${PULL_BASE_REF:1} =~ $rx ]]; then
+
+            docker tag gcr.io/kf-feast/feast-core:${PULL_BASE_SHA} gcr.io/kf-feast/feast-core:${PULL_BASE_REF:1}
+            docker push gcr.io/kf-feast/feast-core:${PULL_BASE_REF:1}
+
+            docker tag gcr.io/kf-feast/feast-serving:${PULL_BASE_SHA} gcr.io/kf-feast/feast-serving:${PULL_BASE_REF:1}
+            docker push gcr.io/kf-feast/feast-serving:${PULL_BASE_REF:1}
+
+            docker tag gcr.io/kf-feast/feast-jupyter:${PULL_BASE_SHA} gcr.io/kf-feast/feast-jupyter:${PULL_BASE_REF:1}
+            docker push gcr.io/kf-feast/feast-jupyter:${PULL_BASE_REF:1}
+
+            # Also update "latest" image if tagged commit is pushed to stable branch
+            HIGHEST_SEMVER_TAG=$(git tag -l --sort -version:refname | head -n 1)
+            echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"
+
+            if [ "${PULL_BASE_REF:1}" == "${HIGHEST_SEMVER_TAG:1}" ]
+            then
+              docker tag gcr.io/kf-feast/feast-core:${PULL_BASE_SHA} gcr.io/kf-feast/feast-core:latest
+              docker push gcr.io/kf-feast/feast-core:latest
+
+              docker tag gcr.io/kf-feast/feast-serving:${PULL_BASE_SHA} gcr.io/kf-feast/feast-serving:latest
+              docker push gcr.io/kf-feast/feast-serving:latest
+
+              docker tag gcr.io/kf-feast/feast-jupyter:${PULL_BASE_SHA} gcr.io/kf-feast/feast-jupyter:latest
+              docker push gcr.io/kf-feast/feast-jupyter:latest
+            fi
           fi
         volumeMounts:
         - name: docker-socket
