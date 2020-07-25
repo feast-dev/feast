@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+#
+# This script will block until both the Feast Serving and Feast Core docker images are available for use for a specific tag.
+#
 
 [[ -z "$1" ]] && { echo "Please pass the Git SHA as the first parameter" ; exit 1; }
 
