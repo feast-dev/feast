@@ -849,11 +849,33 @@ class Client:
         Returns:
             str:
                 ingestion id for this dataset
+
+        Examples:
+            >>> from feast import Client
+            >>>
+            >>> client = Client(core_url="localhost:6565")
+            >>> fs_df = pd.DataFrame(
+            >>>         {
+            >>>            "datetime": [pd.datetime.now()],
+            >>>            "driver": [1001],
+            >>>            "rating": [4.3],
+            >>>         }
+            >>>     )
+            >>> client.set_project("project1")
+            >>> client.ingest("driver", fs_df)
+            >>>
+            >>> driver_fs = client.get_feature_set(name="driver", project="project1")
+            >>> client.ingest(driver_fs, fs_df)
         """
 
         if isinstance(feature_set, FeatureSet):
             name = feature_set.name
+            project = feature_set.project
         elif isinstance(feature_set, str):
+            if self.project is not None:
+                project = self.project
+            else:
+                project = "default"
             name = feature_set
         else:
             raise Exception("Feature set name must be provided")
@@ -871,7 +893,9 @@ class Client:
         while True:
             if timeout is not None and time.time() - current_time >= timeout:
                 raise TimeoutError("Timed out waiting for feature set to be ready")
-            fetched_feature_set: Optional[FeatureSet] = self.get_feature_set(name)
+            fetched_feature_set: Optional[FeatureSet] = self.get_feature_set(
+                name, project
+            )
             if (
                 fetched_feature_set is not None
                 and fetched_feature_set.status == FeatureSetStatus.STATUS_READY
