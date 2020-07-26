@@ -41,7 +41,12 @@ import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
@@ -60,6 +65,15 @@ public class DataflowJobManager implements JobManager {
   private final DataflowRunnerConfig defaultOptions;
   private final MetricsProperties metrics;
   private final IngestionJobProto.SpecsStreamingUpdateConfig specsStreamingUpdateConfig;
+
+  // For Dataflow jobs with multiple FeatureSets with same label key, the label values from
+  // different FeatureSets will be joined by JOB_LABEL_VALUE_JOIN_CHAR character
+  static final String JOB_LABEL_VALUE_JOIN_CHAR = "_";
+  // Label key and value must start with a lowercase letter and contains only letters, numbers,
+  // dashes or underscores. The total length of label key or value is at most 63 characters.
+  // Adapted from:
+  // https://cloud.google.com/resource-manager/docs/creating-managing-labels#requirements
+  static final Pattern JOB_LABEL_VALID_PATTERN = Pattern.compile("^[a-z][a-z0-9-_]{0,62}$");
 
   public DataflowJobManager(
       DataflowRunnerConfigOptions runnerConfigOptions,
@@ -114,6 +128,7 @@ public class DataflowJobManager implements JobManager {
   @Override
   public Job startJob(Job job) {
     try {
+      Map<String, String> labels = getJobLabels(job.getFeatureSets());
       String extId =
           submitDataflowJob(
               job.getId(),
@@ -121,7 +136,8 @@ public class DataflowJobManager implements JobManager {
               job.getStores().stream()
                   .map(wrapException(Store::toProto))
                   .collect(Collectors.toSet()),
-              false);
+              false,
+              labels);
       job.setExtId(extId);
       job.setStatus(JobStatus.RUNNING);
       return job;
@@ -232,9 +248,13 @@ public class DataflowJobManager implements JobManager {
   }
 
   private String submitDataflowJob(
-      String jobName, SourceProto.Source source, Set<StoreProto.Store> sinks, boolean update) {
+      String jobName,
+      SourceProto.Source source,
+      Set<StoreProto.Store> sinks,
+      boolean update,
+      Map<String, String> labels) {
     try {
-      ImportOptions pipelineOptions = getPipelineOptions(jobName, source, sinks, update);
+      ImportOptions pipelineOptions = getPipelineOptions(jobName, source, sinks, update, labels);
       DataflowPipelineJob pipelineResult = runPipeline(pipelineOptions);
       String jobId = waitForJobToRun(pipelineResult);
       return jobId;
@@ -245,7 +265,11 @@ public class DataflowJobManager implements JobManager {
   }
 
   private ImportOptions getPipelineOptions(
-      String jobName, SourceProto.Source source, Set<StoreProto.Store> sinks, boolean update)
+      String jobName,
+      SourceProto.Source source,
+      Set<StoreProto.Store> sinks,
+      boolean update,
+      Map<String, String> labels)
       throws IOException, IllegalAccessException {
     ImportOptions pipelineOptions =
         PipelineOptionsFactory.fromArgs(defaultOptions.toArgs()).as(ImportOptions.class);
@@ -262,6 +286,7 @@ public class DataflowJobManager implements JobManager {
     pipelineOptions.setUpdate(update);
     pipelineOptions.setRunner(DataflowRunner.class);
     pipelineOptions.setJobName(jobName);
+    pipelineOptions.setLabels(labels);
     pipelineOptions.setFilesToStage(
         detectClassPathResourcesToStage(DataflowRunner.class.getClassLoader()));
     if (metrics.isEnabled()) {
@@ -297,5 +322,76 @@ public class DataflowJobManager implements JobManager {
       }
       Thread.sleep(2000);
     }
+  }
+
+  /**
+   * GetJobLabels returns a key, value map of labels that should be applied to the DataflowJob.
+   *
+   * <p>A Dataflow job can ingest data from multiple FeatureSets. Each FeatureSet can have its own
+   * key, value labels. When multiple FeatureSets have the same label key, the label value for the
+   * DataflowJob will be the concatenation of all the FeatureSets label values with the same key.
+   *
+   * <p>The label key and value for the Dataflow job will follow the requirements defined here:
+   * https://cloud.google.com/resource-manager/docs/creating-managing-labels#requirements. If the
+   * label does not fulfill the requirements, the label will be ignored rather than errors being
+   * thrown. This is because invalid labels should not result in failed Dataflow jobs and disruption
+   * to the ingestion of feature data.
+   *
+   * <p>Warning logs from Feast Core can be inspected to debug cases where expected labels for
+   * Dataflow jobs are not applied.
+   *
+   * @param featureSets FeatureSets that the DataflowJob expects to ingest from
+   * @return Labels that should be applied to the Dataflow job
+   */
+  private Map<String, String> getJobLabels(Collection<FeatureSet> featureSets) {
+    HashMap<String, Set<String>> jobLabels = new HashMap<>();
+
+    for (FeatureSet fs : featureSets) {
+      for (Map.Entry<String, String> label : fs.getLabelsMap().entrySet()) {
+        String key = label.getKey().toLowerCase();
+        String value = label.getValue().toLowerCase();
+
+        if (!JOB_LABEL_VALID_PATTERN.matcher(key).matches()) {
+          log.warn(
+              String.format(
+                  "FeatureSet '%s' with label key '%s' does not match the accepted pattern '%s'. Label will be ignored.",
+                  fs.getName(), key, JOB_LABEL_VALID_PATTERN.toString()));
+          continue;
+        }
+
+        if (!JOB_LABEL_VALID_PATTERN.matcher(value).matches()) {
+          log.warn(
+              String.format(
+                  "FeatureSet '%s' with label value '%s' does not match the accepted pattern '%s'. Label will be ignored.",
+                  fs.getName(), value, JOB_LABEL_VALID_PATTERN.toString()));
+          continue;
+        }
+
+        // Ensure the set object is initialized for new jobLabels key
+        if (!jobLabels.containsKey(key)) {
+          jobLabels.put(key, new TreeSet<>());
+        }
+        jobLabels.get(key).add(value);
+      }
+    }
+
+    // jobLabelsFlattened contains the combined label values from multiple FeatureSets
+    // with the same label key.
+    HashMap<String, String> jobLabelsFlattened = new HashMap<>();
+    for (Map.Entry<String, Set<String>> label : jobLabels.entrySet()) {
+      String flattenedVal = String.join(JOB_LABEL_VALUE_JOIN_CHAR, label.getValue());
+
+      if (!JOB_LABEL_VALID_PATTERN.matcher(flattenedVal).matches()) {
+        log.warn(
+            String.format(
+                "DataflowJob with with label value '%s' does not match the accepted pattern '%s'. Label with key '%s' will be ignored.",
+                flattenedVal, JOB_LABEL_VALID_PATTERN.toString(), label.getKey()));
+        continue;
+      }
+
+      jobLabelsFlattened.put(label.getKey(), flattenedVal);
+    }
+
+    return jobLabelsFlattened;
   }
 }

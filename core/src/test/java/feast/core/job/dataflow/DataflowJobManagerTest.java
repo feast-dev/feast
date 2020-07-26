@@ -17,6 +17,7 @@
 package feast.core.job.dataflow;
 
 import static feast.common.models.Store.convertStringToSubscription;
+import static feast.core.job.dataflow.DataflowJobManager.JOB_LABEL_VALUE_JOIN_CHAR;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.any;
@@ -53,6 +54,8 @@ import feast.proto.core.StoreProto.Store.RedisConfig;
 import feast.proto.core.StoreProto.Store.StoreType;
 import feast.proto.core.StoreProto.Store.Subscription;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -85,7 +88,6 @@ public class DataflowJobManagerTest {
     optionsBuilder.setTempLocation("tempLocation");
     optionsBuilder.setNetwork("network");
     optionsBuilder.setSubnetwork("subnetwork");
-    optionsBuilder.putLabels("orchestrator", "feast");
     defaults = optionsBuilder.build();
     MetricsProperties metricsProperties = new MetricsProperties();
     metricsProperties.setEnabled(false);
@@ -130,19 +132,49 @@ public class DataflowJobManagerTest {
                     .build())
             .build();
 
-    FeatureSetProto.FeatureSet featureSet =
+    FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setMeta(FeatureSetMeta.newBuilder())
             .setSpec(
                 FeatureSetSpec.newBuilder()
                     .setSource(source)
-                    .setName("featureSet")
-                    .setMaxAge(Duration.newBuilder().build()))
+                    .setName("featureSet1")
+                    .setMaxAge(Duration.newBuilder().build())
+                    .putLabels("Label1", "Value1")
+                    .putLabels("label2", "value2")
+                    .putLabels("label3", "value3")
+                    .putLabels(
+                        "labelKeyTooLong64char-------------------------------------------",
+                        "ignored")
+                    .putLabels("label4", "value4"))
+            .build();
+
+    FeatureSetProto.FeatureSet featureSet2 =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setMeta(FeatureSetMeta.newBuilder())
+            .setSpec(
+                FeatureSetSpec.newBuilder()
+                    .setSource(source)
+                    .setName("featureSet2")
+                    .setMaxAge(Duration.newBuilder().build())
+                    .putLabels("label1", "value1-B-invalid-char-*")
+                    .putLabels("label2", "value2-B")
+                    .putLabels(
+                        "label3", "value3-B-too-long-when-flattened-xxxxxxxxxxxxxxxxxxxxxxxxx")
+                    .putLabels(
+                        "ignored",
+                        "labelValTooLong64char-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+                    .putLabels("label4", "value4"))
             .build();
 
     Printer printer = JsonFormat.printer();
     String expectedExtJobId = "feast-job-0";
     String jobName = "job";
+
+    Map<String, String> expectedLabels = new HashMap<>();
+    expectedLabels.put("label1", "value1");
+    expectedLabels.put("label2", "value2" + JOB_LABEL_VALUE_JOIN_CHAR + "value2-b");
+    expectedLabels.put("label4", "value4");
 
     ImportOptions expectedPipelineOptions =
         PipelineOptionsFactory.fromArgs("").as(ImportOptions.class);
@@ -151,7 +183,7 @@ public class DataflowJobManagerTest {
     expectedPipelineOptions.setRegion("region");
     expectedPipelineOptions.setUpdate(false);
     expectedPipelineOptions.setAppName("DataflowJobManager");
-    expectedPipelineOptions.setLabels(defaults.getLabelsMap());
+    expectedPipelineOptions.setLabels(expectedLabels);
     expectedPipelineOptions.setJobName(jobName);
     expectedPipelineOptions.setStoresJson(Lists.newArrayList(printer.print(store)));
     expectedPipelineOptions.setSourceJson(printer.print(source));
@@ -164,8 +196,11 @@ public class DataflowJobManagerTest {
 
     doReturn(mockPipelineResult).when(dfJobManager).runPipeline(any());
 
-    FeatureSetJobStatus featureSetJobStatus = new FeatureSetJobStatus();
-    featureSetJobStatus.setFeatureSet(FeatureSet.fromProto(featureSet));
+    FeatureSetJobStatus featureSetJobStatus1 = new FeatureSetJobStatus();
+    featureSetJobStatus1.setFeatureSet(FeatureSet.fromProto(featureSet1));
+
+    FeatureSetJobStatus featureSetJobStatus2 = new FeatureSetJobStatus();
+    featureSetJobStatus2.setFeatureSet(FeatureSet.fromProto(featureSet2));
 
     Job job =
         Job.builder()
@@ -173,7 +208,7 @@ public class DataflowJobManagerTest {
             .setExtId("")
             .setRunner(Runner.DATAFLOW)
             .setSource(Source.fromProto(source))
-            .setFeatureSetJobStatuses(Sets.newHashSet(featureSetJobStatus))
+            .setFeatureSetJobStatuses(Sets.newHashSet(featureSetJobStatus1, featureSetJobStatus2))
             .setStatus(JobStatus.PENDING)
             .build();
     job.setStores(ImmutableSet.of(Store.fromProto(store)));
@@ -214,6 +249,7 @@ public class DataflowJobManagerTest {
         equalTo(printer.print(specsStreamingUpdateConfig)));
     assertThat(actual.getExtId(), equalTo(expectedExtJobId));
     assertThat(actual.getStatus(), equalTo(JobStatus.RUNNING));
+    assertThat(actualPipelineOptions.getLabels(), equalTo(expectedPipelineOptions.getLabels()));
   }
 
   @Test
