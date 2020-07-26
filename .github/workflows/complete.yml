@@ -110,7 +110,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Run load test
-        run:  make test-load
+        run:  make test-load GIT_SHA=${GITHUB_SHA}
       - uses: actions/upload-artifact@v2
         with:
           name: load-test-results

@@ -190,4 +190,4 @@ lint-versions:
 # Performance
 
 test-load:
-	./infra/scripts/test-load.sh
+	./infra/scripts/test-load.sh $(GIT_SHA)
