@@ -1,0 +1,16 @@
+name: load test
+
+on: [push, pull_request]
+
+jobs:
+  load-test:
+    runs-on: [self-hosted, load]
+    name: load-test
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run load test
+        run:  make test-load
+      - uses: actions/upload-artifact@v2
+        with:
+          name: load-test-results
+          path: load-test-output/
