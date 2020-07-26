@@ -840,7 +840,7 @@ class Client:
         Examples:
             >>> from feast import Client
             >>>
-            >>> feast_client = Client(core_url="localhost:6565")
+            >>> client = Client(core_url="localhost:6565")
             >>> fs_df = pd.DataFrame(
             >>>         {
             >>>            "datetime": [pd.datetime.now()],
@@ -852,7 +852,6 @@ class Client:
             >>> client.ingest("driver", fs_df)
             >>>
             >>> driver_fs = client.get_feature_set(name="driver", project="project1")
-            >>> driver_fs = client.get_feature_set(name="driver") # default project
             >>> client.ingest(driver_fs, fs_df)
         """
 
