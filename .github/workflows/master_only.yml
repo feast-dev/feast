@@ -23,7 +23,7 @@ jobs:
         run: |
           if [ ${GITHUB_REF#refs/*/} == "master" ]; then
             docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:dev
-            # docker push gcr.io/kf-feast/feast-${{ matrix.component }}:dev
+            docker push gcr.io/kf-feast/feast-${{ matrix.component }}:dev
           fi
       - name: get version
         id: get_version
@@ -36,7 +36,7 @@ jobs:
           if [[ ${{ steps.get_version.outputs.VERSION }} =~ $rx ]]; then
 
             docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:${{ steps.get_version.outputs.VERSION }}
-            # docker push gcr.io/kf-feast/feast-${{ matrix.component }}:${{ steps.get_version.outputs.VERSION }}
+            docker push gcr.io/kf-feast/feast-${{ matrix.component }}:${{ steps.get_version.outputs.VERSION }}
 
             # Also update "latest" image if tagged commit is pushed to stable branch
             HIGHEST_SEMVER_TAG=$(git tag -l --sort -version:refname | head -n 1)
@@ -45,7 +45,7 @@ jobs:
             if [ ${{ steps.get_version.outputs.VERSION }} == "${HIGHEST_SEMVER_TAG:1}" ]
             then
               docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:${{ steps.get_version.outputs.VERSION }}
-              # docker push gcr.io/kf-feast/feast-${{ matrix.component }}:${{ steps.get_version.outputs.VERSION }}
+              docker push gcr.io/kf-feast/feast-${{ matrix.component }}:${{ steps.get_version.outputs.VERSION }}
             fi
           fi
 
