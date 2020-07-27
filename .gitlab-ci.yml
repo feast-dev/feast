@@ -4,7 +4,9 @@ services:
 default:
   image: docker:stable
   tags:
-    - dsp
+    - java
+    - k8s
+    - aws
 
 cache:
   key: "$CI_JOB_NAME"
@@ -14,14 +16,13 @@ cache:
 variables:
   DOCKER_HOST: tcp://localhost:2375
   # This is the region of AWS, used by the deployer ecs-deploy
-  REGION: "eu-west-1"
-  ACCOUNT: "674300753731"
-  SERVICE_NAME: "feast"
+  REGION: "SET_IN_CI"
+  ACCOUNT: "SET_IN_CI"
   # Image name
   IMAGE_NAME: "feast"
-  # Elastic Container Registry URL of the package.
-  ECR_URL: "674300753731.dkr.ecr.eu-west-1.amazonaws.com/feast"
-  IMAGE_TAG: "0.6.${CI_PIPELINE_IID}"
+  # Docker Image Repo (ie ECR)
+  IMAGE_REPO: "SET_IN_CI"
+  IMAGE_TAG: "${CI_PIPELINE_IID}"
   # This will suppress any download for dependencies and plugins or upload messages which would clutter the console log.
   # `showDateTime` will show the passed time in milliseconds. You need to specify `--batch-mode` to make this work.
   MAVEN_OPTS: "-Dhttps.protocols=TLSv1.2 -Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true"
@@ -54,11 +55,11 @@ test:
       $(aws ecr get-login --no-include-email --region ${REGION}  --registry-ids ${ACCOUNT})
 
       infra/scripts/publish-docker-image.sh \
-        --repository ${ECR_URL}/feast-core \
+        --repository ${IMAGE_REPO}/feast-core \
         --tag ${IMAGE_TAG} \
         --file infra/docker/core/Dockerfile
 
       infra/scripts/publish-docker-image.sh \
-        --repository ${ECR_URL}/feast-serving \
+        --repository ${IMAGE_REPO}/feast-serving \
         --tag ${IMAGE_TAG} \
         --file infra/docker/serving/Dockerfile
