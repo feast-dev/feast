@@ -19,6 +19,12 @@ $ mvn verify -Dspotless.check.skip
 
 If you're using IntelliJ, you can import [these code style settings](https://github.com/google/styleguide/blob/gh-pages/intellij-java-google-style.xml) if you'd like to use the IDE's reformat function as you develop.
 
+#### 1.1.1 Lombok and AutoValue
+
+We use AutoValue as the primary means of defining immutable value types, especially builder pattern style classes. 
+
+We also allow the use of Lombok, but only for @Getter and @Setter. 
+
 ### 1.2 Go
 
 Make sure you apply `go fmt`.
