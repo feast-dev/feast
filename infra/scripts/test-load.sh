@@ -24,10 +24,14 @@ clean_up() {
   exit $ARG
 }
 
-CURRENT_SHA=$(git rev-parse HEAD)
-
-if [ "$GITHUB_EVENT_NAME" == "pull_request" ]; then
-    export CURRENT_SHA=$(cat "$GITHUB_EVENT_PATH" | jq -r .pull_request.head.sha)
+if [ -z "$1" ] ; then
+  echo "No SHA provided as argument, using local HEAD";
+  CURRENT_SHA=$(git rev-parse HEAD);
+  export CURRENT_SHA
+else
+  echo "Using ${1} as SHA to test";
+  CURRENT_SHA=${1}
+  export CURRENT_SHA
 fi
 
 export PROJECT_ROOT_DIR=$(git rev-parse --show-toplevel)

@@ -129,6 +129,9 @@ push-serving-docker:
 push-ci-docker:
 	docker push $(REGISTRY)/feast-ci:latest
 
+push-jupyter-docker:
+	docker push $(REGISTRY)/feast-jupyter:$(VERSION)
+
 build-core-docker:
 	docker build -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
 
@@ -137,6 +140,9 @@ build-serving-docker:
 
 build-ci-docker:
 	docker build -t $(REGISTRY)/feast-ci:latest -f infra/docker/ci/Dockerfile .
+
+build-jupyter-docker:
+	docker build -t $(REGISTRY)/feast-jupyter:$(VERSION) -f infra/docker/jupyter/Dockerfile .
 
 # Documentation
 
@@ -184,4 +190,4 @@ lint-versions:
 # Performance
 
 test-load:
-	./infra/scripts/test-load.sh
+	./infra/scripts/test-load.sh $(GIT_SHA)
