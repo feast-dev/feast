@@ -13,9 +13,10 @@ test -z ${SKIP_BUILD_JARS} && SKIP_BUILD_JARS="false"
 test -z ${GOOGLE_CLOUD_PROJECT} && GOOGLE_CLOUD_PROJECT="kf-feast"
 test -z ${TEMP_BUCKET} && TEMP_BUCKET="feast-templocation-kf-feast"
 test -z ${JOBS_STAGING_LOCATION} && JOBS_STAGING_LOCATION="gs://${TEMP_BUCKET}/staging-location"
-test -z ${FEAST_BUILD_VERSION} && FEAST_BUILD_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
 
-echo "Testing version: $FEAST_BUILD_VERSION"
+# Get the current build version using maven (and pom.xml)
+export FEAST_BUILD_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+echo Building version: $FEAST_BUILD_VERSION
 
 # Get Feast project repository root and scripts directory
 export PROJECT_ROOT_DIR=$(git rev-parse --show-toplevel)
@@ -73,7 +74,21 @@ if [[ ${ENABLE_AUTH} = "True" ]];
     start_feast_core
 fi
 
-start_feast_serving
+cat <<EOF > /tmp/serving.warehouse.application.yml
+feast:
+  stores:
+    - name: online
+      type: REDIS
+      config:
+        host: localhost
+        port: 6379
+        flush_frequency_seconds: 1
+      subscriptions:
+        - name: "*"
+          project: "*"
+EOF
+
+start_feast_serving /tmp/serving.warehouse.application.yml
 install_python_with_miniconda_and_feast_sdk
 
 print_banner "Running end-to-end tests with pytest at 'tests/e2e'"

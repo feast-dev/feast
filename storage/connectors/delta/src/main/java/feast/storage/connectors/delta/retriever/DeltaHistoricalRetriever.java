@@ -177,7 +177,6 @@ public abstract class DeltaHistoricalRetriever implements HistoricalRetriever {
     log.info("Databricks run {} completed with state {}", runId, state);
     if (!Optional.of(RunResultState.SUCCESS).equals(state.getResultState())) {
       return HistoricalRetrievalResult.newBuilder()
-          .setResultType(ServingAPIProto.HistoricalRetrievalResultType.FAIL)
           .setId(retrievalId)
           .setError(
               state
@@ -186,7 +185,6 @@ public abstract class DeltaHistoricalRetriever implements HistoricalRetriever {
           .build();
     }
     return HistoricalRetrievalResult.newBuilder()
-        .setResultType(ServingAPIProto.HistoricalRetrievalResultType.SUCCESS)
         .setId(retrievalId)
         .addFileUris(String.format("%s/", exportDestination))
         .setDataFormat(ServingAPIProto.DataFormat.DATA_FORMAT_AVRO)

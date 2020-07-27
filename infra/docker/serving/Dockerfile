@@ -48,8 +48,8 @@ RUN mvn --also-make --projects serving -Drevision=$REVISION \
 
 FROM openjdk:11-jre-slim as production
 ARG REVISION=dev
-COPY --from=builder /usr/bin/grpc-health-probe /usr/bin/grpc-health-probe
 COPY --from=builder /build/serving/target/feast-serving-$REVISION.jar /opt/feast/feast-serving.jar
+COPY --from=builder /usr/bin/grpc-health-probe /usr/bin/grpc-health-probe
 CMD ["java",\
      "-Xms1024m",\
      "-Xmx1024m",\

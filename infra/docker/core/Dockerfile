@@ -64,9 +64,9 @@ RUN unar /build/core/target/feast-core-$REVISION.jar -o /build/core/target/
 FROM openjdk:11-jre as production
 ARG REVISION=dev
 
+COPY --from=builder /build/core/target/feast-core-$REVISION.jar /opt/feast/feast-core.jar
 # Required for staging jar dependencies when submitting Dataflow jobs.
 COPY --from=builder /build/core/target/feast-core-$REVISION /opt/feast/feast-core
-COPY --from=builder /build/core/target/feast-core-$REVISION.jar /opt/feast/feast-core.jar
 COPY --from=builder /usr/bin/grpc-health-probe /usr/bin/grpc-health-probe
 
 CMD ["java",\

@@ -240,17 +240,11 @@ message HistoricalRetrievalRequest {
     bool                        computeStatistics = 4;
 }
 
-enum HistoricalRetrievalResultType {
-    SUCCESS = 0;
-    FAIL = 1;
-}
-
 message HistoricalRetrievalResult {
-    HistoricalRetrievalResultType result_type = 1;
-    string                        id = 2;
-    JobStatus                     status = 3;
-    string                        error = 4;
-    repeated string               file_uris = 5;
-    DataFormat                    data_format = 6;
-    tensorflow.metadata.v0.DatasetFeatureStatisticsList stats = 7;
+    string                        id = 1;
+    JobStatus                     status = 2;
+    string                        error = 3;
+    repeated string               file_uris = 4;
+    DataFormat                    data_format = 5;
+    tensorflow.metadata.v0.DatasetFeatureStatisticsList stats = 6;
 }

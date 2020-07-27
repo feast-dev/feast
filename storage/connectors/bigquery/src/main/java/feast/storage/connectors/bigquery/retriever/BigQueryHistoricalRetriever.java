@@ -146,7 +146,6 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
       entityTableName = generateFullTableName(entityTableWithUUIDs);
     } catch (Exception e) {
       return HistoricalRetrievalResult.newBuilder()
-          .setResultType(ServingAPIProto.HistoricalRetrievalResultType.FAIL)
           .setId(retrievalId)
           .setError(
               new RuntimeException(
@@ -190,7 +189,6 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
 
     } catch (BigQueryException | InterruptedException | IOException e) {
       return HistoricalRetrievalResult.newBuilder()
-          .setResultType(ServingAPIProto.HistoricalRetrievalResultType.FAIL)
           .setId(retrievalId)
           .setError(e.getMessage())
           .build();
@@ -200,7 +198,6 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
 
     HistoricalRetrievalResult.Builder result =
         HistoricalRetrievalResult.newBuilder()
-            .setResultType(ServingAPIProto.HistoricalRetrievalResultType.SUCCESS)
             .setId(retrievalId)
             .addAllFileUris(fileUris)
             .setDataFormat(ServingAPIProto.DataFormat.DATA_FORMAT_AVRO);

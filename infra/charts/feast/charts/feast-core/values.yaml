@@ -42,7 +42,7 @@ postgresql:
 gcpProjectId: ""
 
 # javaOpts -- [JVM options](https://docs.oracle.com/cd/E22289_01/html/821-1274/configuring-the-default-jvm-and-java-arguments.html). For better performance, it is advised to set the min and max heap: <br> `-Xms2048m -Xmx2048m`
-javaOpts:
+javaOpts: 
 
 # logType -- Log format, either `JSON` or `Console`
 logType: Console

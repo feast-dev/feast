@@ -55,6 +55,7 @@ public class BigQueryWrite extends PTransform<PCollection<FeatureRow>, WriteResu
   private static final Duration BIGQUERY_JOB_MAX_EXPECTING_RESULT_TIME = Duration.standardHours(1);
   private static final int BIGQUERY_MAX_JOB_RETRIES = 20;
   private static final int DEFAULT_COMPACTION_BATCH_SIZE = 10000;
+  private static final int MAX_SUCCESSFUL_OUTPUTS_PER_DESTINATION = 1000;
 
   private DatasetId destination;
   private PCollectionView<Map<String, Iterable<TableSchema>>> schemas;
@@ -63,6 +64,7 @@ public class BigQueryWrite extends PTransform<PCollection<FeatureRow>, WriteResu
   private Duration expectingResultTime = BIGQUERY_JOB_MAX_EXPECTING_RESULT_TIME;
   private BigQueryServices testServices;
   private int compactionBatchSize = DEFAULT_COMPACTION_BATCH_SIZE;
+  private int maxSuccessfulOutputs = MAX_SUCCESSFUL_OUTPUTS_PER_DESTINATION;
 
   public BigQueryWrite(
       DatasetId destination, PCollectionView<Map<String, Iterable<TableSchema>>> schemas) {
@@ -87,6 +89,11 @@ public class BigQueryWrite extends PTransform<PCollection<FeatureRow>, WriteResu
 
   public BigQueryWrite withCompactionBatchSize(int batchSize) {
     this.compactionBatchSize = batchSize;
+    return this;
+  }
+
+  public BigQueryWrite withMaxSuccessfulOutputs(int maxSuccessfulOutputs) {
+    this.maxSuccessfulOutputs = maxSuccessfulOutputs;
     return this;
   }
 
@@ -225,7 +232,10 @@ public class BigQueryWrite extends PTransform<PCollection<FeatureRow>, WriteResu
 
                 result
                     .getAll(inputTag)
-                    .forEach(rows -> rows.getFeatureRows().forEachRemaining(c::output));
+                    .forEach(
+                        rows ->
+                            rows.getFeatureRowsSample(maxSuccessfulOutputs)
+                                .forEachRemaining(c::output));
               }
             }));
   }

@@ -115,7 +115,7 @@ public class HistoricalServingService implements ServingService {
             .setId(result.getId())
             .setType(JobType.JOB_TYPE_DOWNLOAD)
             .setStatus(result.getStatus());
-    if (result.getResultType() != HistoricalRetrievalResultType.SUCCESS) {
+    if (result.getError() != HistoricalRetrievalResult.getDefaultInstance().getError()) {
       return builder.setError(result.getError()).build();
     }
     Builder jobBuilder =

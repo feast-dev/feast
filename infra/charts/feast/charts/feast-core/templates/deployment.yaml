@@ -74,7 +74,7 @@ spec:
           value: {{ .Values.logType | quote }}
         - name: LOG_LEVEL
           value: {{ .Values.logLevel | quote }}
-
+          
         {{- if .Values.postgresql.existingSecret }}
         - name: SPRING_DATASOURCE_PASSWORD
           valueFrom:
@@ -104,8 +104,8 @@ spec:
         {{- end }}
 
         command:
-        - java
-        - -jar
+        - java 
+        - -jar 
         - /opt/feast/feast-core.jar
         - --spring.config.location=
           {{- if index .Values "application.yaml" "enabled" -}}

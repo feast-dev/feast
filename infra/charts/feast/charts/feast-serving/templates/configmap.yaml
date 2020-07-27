@@ -14,10 +14,10 @@ data:
 {{- if index .Values "application-generated.yaml" "enabled" }}
     feast:
       core-host: {{ .Release.Name }}-feast-core
-
+      
       stores:
       - name: online
-        type: REDIS
+        type: REDIS 
         config:
           host: {{ .Release.Name }}-redis-master
           port: 6379
@@ -25,7 +25,7 @@ data:
         - name: "*"
           project: "*"
           version: "*"
-
+      
       job_store:
         redis_host: {{ .Release.Name }}-redis-master
         redis_port: 6379
@@ -36,5 +36,5 @@ data:
 
   application-override.yaml: |
 {{- if index .Values "application-override.yaml" "enabled" }}
-{{- toYaml (index .Values "application-override.yaml") | nindent 4 }}
+{{- toYaml (index .Values "application-override.yaml") | nindent 4 }}    
 {{- end }}

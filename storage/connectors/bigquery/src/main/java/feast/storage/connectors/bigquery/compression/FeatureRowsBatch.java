@@ -19,6 +19,8 @@ package feast.storage.connectors.bigquery.compression;
 import static feast.proto.types.ValueProto.Value.ValCase.*;
 import static feast.storage.connectors.bigquery.common.TypeUtil.*;
 
+import com.google.common.collect.ImmutableList;
+import com.google.protobuf.Timestamp;
 import feast.proto.types.FeatureRowProto;
 import feast.proto.types.FieldProto;
 import feast.proto.types.ValueProto;
@@ -40,6 +42,8 @@ import org.apache.beam.sdk.values.Row;
  * <p>getFeatureRows provides reverse transformation
  */
 public class FeatureRowsBatch implements Serializable {
+  public static final ImmutableList<String> SERVICE_FIELDS =
+      ImmutableList.of("eventTimestamp", "ingestionId");
   private final Schema schema;
   private String featureSetReference;
   private List<Object> values = new ArrayList<>();
@@ -118,6 +122,12 @@ public class FeatureRowsBatch implements Serializable {
                         featureSetReference = row.getFeatureSet();
                       }
                     }));
+
+    fieldsInOrder.add(
+        Schema.Field.of("eventTimestamp", Schema.FieldType.array(Schema.FieldType.INT64)));
+    fieldsInOrder.add(
+        Schema.Field.of("ingestionId", Schema.FieldType.array(Schema.FieldType.STRING)));
+
     Schema schema = Schema.builder().addFields(fieldsInOrder).build();
     schema.setUUID(UUID.randomUUID());
     return schema;
@@ -132,16 +142,33 @@ public class FeatureRowsBatch implements Serializable {
   }
 
   private void toColumnar(Iterable<FeatureRowProto.FeatureRow> featureRows) {
+    int timestampColumnIdx = schema.indexOf("eventTimestamp");
+    int ingestionIdColumnIdx = schema.indexOf("ingestionId");
+
     featureRows.forEach(
         row -> {
-          Map<String, ValueProto.Value> rowValues =
-              row.getFieldsList().stream()
-                  .collect(Collectors.toMap(FieldProto.Field::getName, FieldProto.Field::getValue));
+          Map<String, ValueProto.Value> rowValues;
+          try {
+            rowValues =
+                row.getFieldsList().stream()
+                    .collect(
+                        Collectors.toMap(FieldProto.Field::getName, FieldProto.Field::getValue));
+          } catch (IllegalStateException e) {
+            // row contains feature duplicates
+            // omitting for now
+            return;
+          }
 
-          IntStream.range(0, schema.getFieldCount())
+          schema
+              .getFieldNames()
               .forEach(
-                  idx -> {
-                    Schema.Field field = schema.getField(idx);
+                  fieldName -> {
+                    if (SERVICE_FIELDS.contains(fieldName)) {
+                      return;
+                    }
+                    Schema.Field field = schema.getField(fieldName);
+                    int idx = schema.indexOf(fieldName);
+
                     if (rowValues.containsKey(field.getName())) {
                       Object o = protoValueToObject(rowValues.get(field.getName()));
                       if (o != null) {
@@ -152,6 +179,10 @@ public class FeatureRowsBatch implements Serializable {
 
                     ((List<Object>) values.get(idx)).add(defaultValues.get(field.getName()));
                   });
+
+          // adding service fields
+          ((List<Object>) values.get(timestampColumnIdx)).add(row.getEventTimestamp().getSeconds());
+          ((List<Object>) values.get(ingestionIdColumnIdx)).add(row.getIngestionId());
         });
   }
 
@@ -176,30 +207,58 @@ public class FeatureRowsBatch implements Serializable {
     return new FeatureRowsBatch(row.getSchema(), row.getValues());
   }
 
+  private FeatureRowProto.FeatureRow restoreFeatureRow(int rowIdx) {
+    int timestampColumnIdx = schema.indexOf("eventTimestamp");
+    int ingestionIdColumnIdx = schema.indexOf("ingestionId");
+
+    return FeatureRowProto.FeatureRow.newBuilder()
+        .setFeatureSet(getFeatureSetReference())
+        .setEventTimestamp(
+            Timestamp.newBuilder()
+                .setSeconds((long) (((List<Object>) values.get(timestampColumnIdx)).get(rowIdx)))
+                .build())
+        .setIngestionId((String) (((List<Object>) values.get(ingestionIdColumnIdx)).get(rowIdx)))
+        .addAllFields(
+            schema.getFieldNames().stream()
+                .map(
+                    fieldName -> {
+                      if (SERVICE_FIELDS.contains(fieldName)) {
+                        return null;
+                      }
+                      int fieldIdx = schema.indexOf(fieldName);
+
+                      return FieldProto.Field.newBuilder()
+                          .setName(schema.getField(fieldIdx).getName())
+                          .setValue(
+                              objectToProtoValue(
+                                  ((List<Object>) values.get(fieldIdx)).get(rowIdx),
+                                  schemaToProtoTypes.get(
+                                      schema
+                                          .getField(fieldIdx)
+                                          .getType()
+                                          .getCollectionElementType())))
+                          .build();
+                    })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList()))
+        .build();
+  }
+
   public Iterator<FeatureRowProto.FeatureRow> getFeatureRows() {
-    return IntStream.range(0, ((List<Object>) values.get(0)).size())
+    int featureCount = ((List<Object>) values.get(0)).size();
+
+    return IntStream.range(0, featureCount).parallel().mapToObj(this::restoreFeatureRow).iterator();
+  }
+
+  public Iterator<FeatureRowProto.FeatureRow> getFeatureRowsSample(int maxCount) {
+    int featureCount = ((List<Object>) values.get(0)).size();
+    Random rd = new Random(42);
+
+    return IntStream.range(0, featureCount)
+        .filter(idx -> rd.nextInt(featureCount) < maxCount)
         .parallel()
-        .mapToObj(
-            rowIdx ->
-                FeatureRowProto.FeatureRow.newBuilder()
-                    .setFeatureSet(getFeatureSetReference())
-                    .addAllFields(
-                        IntStream.range(0, schema.getFieldCount())
-                            .mapToObj(
-                                fieldIdx ->
-                                    FieldProto.Field.newBuilder()
-                                        .setName(schema.getField(fieldIdx).getName())
-                                        .setValue(
-                                            objectToProtoValue(
-                                                ((List<Object>) values.get(fieldIdx)).get(rowIdx),
-                                                schemaToProtoTypes.get(
-                                                    schema
-                                                        .getField(fieldIdx)
-                                                        .getType()
-                                                        .getCollectionElementType())))
-                                        .build())
-                            .collect(Collectors.toList()))
-                    .build())
+        .mapToObj(this::restoreFeatureRow)
+        .limit(maxCount)
         .iterator();
   }
 

@@ -1,7 +1,6 @@
 FROM jupyter/minimal-notebook:619e9cc2fc07
 
 USER root
-
 WORKDIR /feast
 
 # Init empty .git settings (required by SDK setup.py)

@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.6.1](https://github.com/feast-dev/feast/tree/v0.6.1) (2020-07-17)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.6.0...v0.6.1)
+
+**Implemented enhancements:**
+
+- Improve parallelization in Redis Sink [\#866](https://github.com/feast-dev/feast/pull/866) ([pyalex](https://github.com/pyalex))
+- BQ sink produces sample of successful inserts [\#875](https://github.com/feast-dev/feast/pull/875) ([pyalex](https://github.com/pyalex))
+
+**Fixed bugs:**
+
+- Add IngestionId & EventTimestamp to FeatureRowBatch to calculate lag metric correctly [\#874](https://github.com/feast-dev/feast/pull/874) ([pyalex](https://github.com/pyalex))
+- Prevent race condition in BQ sink jobId generation [\#877](https://github.com/feast-dev/feast/pull/877) ([pyalex](https://github.com/pyalex))
+
 ## [v0.6.0](https://github.com/feast-dev/feast/tree/v0.6.0) (2020-07-13)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.5.1...v0.6.0)
