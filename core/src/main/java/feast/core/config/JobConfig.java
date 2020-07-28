@@ -25,13 +25,16 @@ import feast.core.job.ConsolidatedJobStrategy;
 import feast.core.job.JobGroupingStrategy;
 import feast.core.job.JobManager;
 import feast.core.job.JobPerStoreStrategy;
+import feast.core.job.databricks.DatabricksJobManager;
 import feast.core.job.dataflow.DataflowJobManager;
 import feast.core.job.direct.DirectJobRegistry;
 import feast.core.job.direct.DirectRunnerJobManager;
 import feast.proto.core.IngestionJobProto;
+import feast.proto.core.RunnerProto.DatabricksRunnerConfigOptions;
 import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions;
 import feast.proto.core.RunnerProto.DirectRunnerConfigOptions;
 import feast.proto.core.SourceProto;
+import java.net.http.HttpClient;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -123,6 +126,14 @@ public class JobConfig {
             new DirectJobRegistry(),
             metrics,
             specsStreamingUpdateConfig);
+      case DATABRICKS:
+        DatabricksRunnerConfigOptions.Builder databricksRunnerConfigOptions =
+            DatabricksRunnerConfigOptions.newBuilder();
+        JsonFormat.parser().merge(configJson, databricksRunnerConfigOptions);
+        return new DatabricksJobManager(
+            databricksRunnerConfigOptions.build(),
+            specsStreamingUpdateConfig,
+            HttpClient.newHttpClient());
       default:
         throw new IllegalArgumentException("Unsupported runner: " + runner);
     }

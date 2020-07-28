@@ -2,6 +2,9 @@ version: "3.7"
 
 services:
   core:
+    build:
+      context: ../..
+      dockerfile: infra/docker/core/Dockerfile
     image: ${FEAST_CORE_IMAGE}:${FEAST_VERSION}
     volumes:
       - ./core/${FEAST_CORE_CONFIG}:/etc/feast/application.yml
@@ -22,9 +25,15 @@ services:
       - --spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml
 
   jupyter:
-    image: gcr.io/kf-feast/feast-jupyter:latest
+    build:
+      context: ../..
+      dockerfile: infra/docker/jupyter/Dockerfile
+    image: ${FEAST_JUPYTER_IMAGE:-feast-jupyter}:${FEAST_VERSION}
+    user: root
     volumes:
       - ./gcp-service-accounts/${FEAST_JUPYTER_GCP_SERVICE_ACCOUNT_KEY}:/etc/gcloud/service-accounts/key.json
+      - ../../:/home/jovyan/feast
+      - ${FEAST_BATCH_JOB_STAGING_LOCATION}:${FEAST_BATCH_JOB_STAGING_LOCATION}
     depends_on:
       - core
     environment:

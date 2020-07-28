@@ -1,0 +1,26 @@
+feast:
+  jobs:
+    polling_interval_milliseconds: 30000
+    job_update_timeout_seconds: 240
+    active_runner: databricks
+    runners:
+      - name: databricks
+        type: DatabricksRunner
+        options:
+          host: http://databricks-emulator:8080
+          token: unused
+          checkpointLocation: /tmp/checkpoints/feast
+          deadLetterPath: /tmp/deadletter
+          jarFile: /opt/sparkjars/spark-ingestion-job.jar
+          timeoutSeconds: -1
+          newCluster:
+            sparkVersion: 6.6.x-scala2.11
+            nodeTypeId: Standard_F4s
+            numWorkers: 2
+            sparkConf: |
+              spark.driver.memory 1G
+  stream:
+    type: kafka
+    options:
+      topic: feast-features
+      bootstrapServers: "kafka:9092,localhost:9094"

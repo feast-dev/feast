@@ -105,7 +105,9 @@ docker-compose \
 up -d
 ```
 
-A Jupyter Notebook should become available within a few minutes:
+A Jupyter Notebook  should become available within a few minutes:
 
-{% embed url="http://localhost:8888/tree/feast/examples" caption="" %}
+{% embed url="http://localhost:8888/tree/feast/examples" %}
+
+
 

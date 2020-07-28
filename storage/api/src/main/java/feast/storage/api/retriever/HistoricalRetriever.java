@@ -16,8 +16,8 @@
  */
 package feast.storage.api.retriever;
 
-import feast.proto.serving.ServingAPIProto.DatasetSource;
-import java.util.List;
+import feast.proto.serving.ServingAPIProto.HistoricalRetrievalRequest;
+import feast.proto.serving.ServingAPIProto.HistoricalRetrievalResult;
 
 /**
  * A historical retriever is a feature retriever that retrieves feature data corresponding to
@@ -36,18 +36,9 @@ public interface HistoricalRetriever {
   /**
    * Get all features corresponding to the provided batch features request.
    *
-   * @param retrievalId String that uniquely identifies this retrieval request.
-   * @param datasetSource {@link DatasetSource} containing source to load the dataset containing
-   *     entity columns.
-   * @param featureSetRequests List of {@link FeatureSetRequest} to feature references in the
-   *     request tied to that feature set.
-   * @param computeStatistics whether to compute statistics over the resultant dataset.
+   * @param request HistoricalRetrievalRequest
    * @return {@link HistoricalRetrievalResult} if successful, contains the location of the results,
    *     else contains the error to be returned to the user.
    */
-  HistoricalRetrievalResult getHistoricalFeatures(
-      String retrievalId,
-      DatasetSource datasetSource,
-      List<FeatureSetRequest> featureSetRequests,
-      boolean computeStatistics);
+  HistoricalRetrievalResult getHistoricalFeatures(HistoricalRetrievalRequest request);
 }

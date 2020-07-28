@@ -14,3 +14,7 @@ pandavro==1.5.*
 moto
 mypy
 mypy-protobuf
+azure-storage-file-datalake
+azure-identity
+azure-common
+msrestazure

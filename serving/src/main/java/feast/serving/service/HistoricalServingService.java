@@ -18,10 +18,10 @@ package feast.serving.service;
 
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.*;
+import feast.proto.serving.ServingAPIProto.FeatureSetRequest;
+import feast.proto.serving.ServingAPIProto.HistoricalRetrievalResult;
 import feast.proto.serving.ServingAPIProto.Job.Builder;
 import feast.serving.specs.CachedSpecService;
-import feast.storage.api.retriever.FeatureSetRequest;
-import feast.storage.api.retriever.HistoricalRetrievalResult;
 import feast.storage.api.retriever.HistoricalRetriever;
 import io.grpc.Status;
 import java.util.List;
@@ -73,18 +73,22 @@ public class HistoricalServingService implements ServingService {
             .setType(JobType.JOB_TYPE_DOWNLOAD)
             .setStatus(JobStatus.JOB_STATUS_RUNNING)
             .build();
+
+    HistoricalRetrievalRequest request =
+        HistoricalRetrievalRequest.newBuilder()
+            .setRetrievalId(retrievalId)
+            .setDatasetSource(getFeaturesRequest.getDatasetSource())
+            .addAllFeatureSetRequests(featureSetRequests)
+            .setComputeStatistics(getFeaturesRequest.getComputeStatistics())
+            .build();
+
     jobService.upsert(runningJob);
     Thread thread =
         new Thread(
             new Runnable() {
               @Override
               public void run() {
-                HistoricalRetrievalResult result =
-                    retriever.getHistoricalFeatures(
-                        retrievalId,
-                        getFeaturesRequest.getDatasetSource(),
-                        featureSetRequests,
-                        getFeaturesRequest.getComputeStatistics());
+                HistoricalRetrievalResult result = retriever.getHistoricalFeatures(request);
                 jobService.upsert(resultToJob(result));
               }
             });
@@ -111,11 +115,11 @@ public class HistoricalServingService implements ServingService {
             .setId(result.getId())
             .setType(JobType.JOB_TYPE_DOWNLOAD)
             .setStatus(result.getStatus());
-    if (result.hasError()) {
+    if (result.getError() != HistoricalRetrievalResult.getDefaultInstance().getError()) {
       return builder.setError(result.getError()).build();
     }
     Builder jobBuilder =
-        builder.addAllFileUris(result.getFileUris()).setDataFormat(result.getDataFormat());
+        builder.addAllFileUris(result.getFileUrisList()).setDataFormat(result.getDataFormat());
     if (result.getStats() != null) {
       jobBuilder.setDatasetFeatureStatisticsList(result.getStats());
     }

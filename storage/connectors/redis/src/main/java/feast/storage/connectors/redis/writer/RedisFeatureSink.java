@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.commons.lang3.StringUtils;
 import org.joda.time.Duration;
 
 @AutoValue
@@ -93,9 +94,14 @@ public abstract class RedisFeatureSink implements FeatureSink {
   public PCollection<FeatureSetReference> prepareWrite(
       PCollection<KV<FeatureSetReference, FeatureSetProto.FeatureSetSpec>> featureSetSpecs) {
     if (getRedisConfig() != null) {
-      RedisClient redisClient =
-          RedisClient.create(
-              RedisURI.create(getRedisConfig().getHost(), getRedisConfig().getPort()));
+      RedisURI redisuri = RedisURI.create(getRedisConfig().getHost(), getRedisConfig().getPort());
+
+      String password = getRedisConfig().getPass();
+      if (StringUtils.trimToNull(password) != null) {
+        redisuri.setPassword(password);
+      }
+      RedisClient redisClient = RedisClient.create(redisuri);
+
       try {
         redisClient.connect();
       } catch (RedisConnectionException e) {

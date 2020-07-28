@@ -2,6 +2,9 @@ version: "3.7"
 
 services:
   online-serving:
+    build:
+      context: ../..
+      dockerfile: infra/docker/serving/Dockerfile
     image: ${FEAST_SERVING_IMAGE}:${FEAST_VERSION}
     volumes:
       - ./serving/${FEAST_ONLINE_SERVING_CONFIG}:/etc/feast/application.yml
@@ -10,6 +13,9 @@ services:
     ports:
       - 6566:6566
     restart: on-failure
+    environment:
+      REDIS_PASS: ${REDIS_PASS}
+      REDIS_HOST: ${REDIS_HOST}
     command:
       - java
       - -jar
@@ -18,5 +24,6 @@ services:
 
   redis:
     image: redis:5-alpine
+    command: redis-server --requirepass '${REDIS_PASS}'
     ports:
       - "6379:6379"

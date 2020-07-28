@@ -30,12 +30,12 @@ import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
+import feast.proto.serving.ServingAPIProto.FeatureSetRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.storage.RedisProto.RedisKey;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.Value;
-import feast.storage.api.retriever.FeatureSetRequest;
 import feast.storage.api.retriever.OnlineRetriever;
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.api.StatefulRedisConnection;
@@ -88,9 +88,9 @@ public class RedisOnlineRetrieverTest {
     FeatureSetRequest featureSetRequest =
         FeatureSetRequest.newBuilder()
             .setSpec(getFeatureSetSpec())
-            .addFeatureReference(
+            .addFeatureReferences(
                 FeatureReference.newBuilder().setName("feature1").setProject("project").build())
-            .addFeatureReference(
+            .addFeatureReferences(
                 FeatureReference.newBuilder().setName("feature2").setProject("project").build())
             .build();
     List<EntityRow> entityRows =
@@ -163,9 +163,9 @@ public class RedisOnlineRetrieverTest {
     FeatureSetRequest featureSetRequest =
         FeatureSetRequest.newBuilder()
             .setSpec(getFeatureSetSpec())
-            .addFeatureReference(
+            .addFeatureReferences(
                 FeatureReference.newBuilder().setName("feature1").setProject("project").build())
-            .addFeatureReference(
+            .addFeatureReferences(
                 FeatureReference.newBuilder().setName("feature2").setProject("project").build())
             .build();
     List<EntityRow> entityRows =

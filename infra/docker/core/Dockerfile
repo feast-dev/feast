@@ -4,8 +4,41 @@
 
 FROM maven:3.6-jdk-11 as builder
 ARG REVISION=dev
-COPY  . /build
+
+
+#
+# Download unarchiver
+#
+RUN apt-get -qq update && apt-get -y install unar
+
+#
+# Download grpc_health_probe to run health check for Feast Serving
+# https://kubernetes.io/blog/2018/10/01/health-checking-grpc-servers-on-kubernetes/
+#
+RUN wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.3.1/grpc_health_probe-linux-amd64 \
+         -O /usr/bin/grpc-health-probe && \
+    chmod +x /usr/bin/grpc-health-probe
+
+
 WORKDIR /build
+
+COPY datatypes datatypes
+COPY storage storage
+COPY sdk/java sdk/java
+COPY docs/coverage/java docs/coverage/java
+COPY core core
+COPY ingestion ingestion
+COPY protos protos
+COPY serving serving
+COPY common common
+COPY auth auth
+COPY spark spark
+COPY pom.xml pom.xml
+
+# Trick to copy .m2 directory only if it exists.
+# The LICENSE file is any file that actually exists, to make sure the command doesn't fail.
+COPY LICENSE .m[2] .m2/
+
 #
 # Setting Maven repository .m2 directory relative to /build folder gives the
 # user to optionally use cached repository when building the image by copying
@@ -22,16 +55,7 @@ RUN mvn --also-make --projects core,ingestion -Drevision=$REVISION \
 # a good tradeoff between speed and size.
 #
 # https://github.com/feast-dev/feast/pull/291
-RUN apt-get -qq update && apt-get -y install unar && \
-  unar /build/core/target/feast-core-$REVISION.jar -o /build/core/target/
-
-#
-# Download grpc_health_probe to run health check for Feast Serving
-# https://kubernetes.io/blog/2018/10/01/health-checking-grpc-servers-on-kubernetes/
-#
-RUN wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.3.1/grpc_health_probe-linux-amd64 \
-         -O /usr/bin/grpc-health-probe && \
-    chmod +x /usr/bin/grpc-health-probe
+RUN unar /build/core/target/feast-core-$REVISION.jar -o /build/core/target/
 
 # ============================================================
 # Build stage 2: Production

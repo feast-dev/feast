@@ -38,6 +38,10 @@
         <module>docs/coverage/java</module>
         <module>common</module>
         <module>auth</module>
+        <module>spark/databricks-emulator</module>
+        <module>spark/databricks-types</module>
+        <module>spark/spark-historical-retriever-job</module>
+        <module>spark/spark-ingestion-job</module>
     </modules>
 
     <properties>
@@ -64,6 +68,9 @@
         <!-- Force log4j2 to 2.11+ to support objectMessageAsJsonObject -->
         <log4jVersion>2.12.1</log4jVersion>
         <flyway.version>5.2.4</flyway.version>
+        <spark.version>2.4.5</spark.version>
+        <scala.version>2.11.12</scala.version>
+        <scala.compat.version>2.11</scala.compat.version>
     </properties>
 
     <organization>
@@ -245,7 +252,7 @@
             <!-- Spring Boot BOM overrides -->
             <dependency>
                 <groupId>org.apache.kafka</groupId>
-                <artifactId>kafka_2.12</artifactId>
+                <artifactId>kafka_${scala.compat.version}</artifactId>
                 <version>${kafka.version}</version>
             </dependency>
             <dependency>

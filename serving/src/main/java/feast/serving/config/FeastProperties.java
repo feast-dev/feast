@@ -262,6 +262,11 @@ public class FeastProperties {
               StoreProto.Store.CassandraConfig.newBuilder();
           JsonFormat.parser().merge(jsonWriter.writeValueAsString(config), cassandraConfig);
           return storeProtoBuilder.setCassandraConfig(cassandraConfig.build()).build();
+        case DELTA:
+          StoreProto.Store.DeltaConfig.Builder deltaConfig =
+              StoreProto.Store.DeltaConfig.newBuilder();
+          JsonFormat.parser().merge(jsonWriter.writeValueAsString(config), deltaConfig);
+          return storeProtoBuilder.setDeltaConfig(deltaConfig.build()).build();
         default:
           throw new InvalidProtocolBufferException("Invalid store set");
       }
@@ -436,6 +441,9 @@ public class FeastProperties {
     /** Job Store Redis Host */
     private int redisPort;
 
+    /** Job Store Redis Pass */
+    private String redisPass;
+
     /**
      * Gets redis host.
      *
@@ -470,6 +478,24 @@ public class FeastProperties {
      */
     public void setRedisPort(int redisPort) {
       this.redisPort = redisPort;
+    }
+
+    /**
+     * Gets redis pass.
+     *
+     * @return the redis pass
+     */
+    public String getRedisPass() {
+      return redisPass;
+    }
+
+    /**
+     * Sets redis pass.
+     *
+     * @param redisPass the redis pass
+     */
+    public void setRedisPass(String redisPass) {
+      this.redisPass = redisPass;
     }
   }
 

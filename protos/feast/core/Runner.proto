@@ -80,5 +80,36 @@ message DataflowRunnerConfigOptions {
 
     /* Disk size to use on each remote Compute Engine worker instance */
     int32 diskSizeGb = 14;
+}
 
+message DatabricksRunnerConfigOptions {
+
+    message DatabricksNewClusterOptions{
+
+        string sparkVersion = 1;
+
+        string nodeTypeId = 2;
+
+        int32 numWorkers = 3;
+
+        string sparkConf = 4;
+
+        string instancePoolId = 5;
+    }
+
+    /* Databricks host */
+    string host = 1;
+
+    /* Databricks token */
+    string token = 2;
+
+    string jarFile = 3;
+
+    int32 timeoutSeconds = 4;
+
+    string checkpointLocation = 5;
+
+    DatabricksNewClusterOptions newCluster = 6;
+
+    string deadLetterPath = 7;
 }

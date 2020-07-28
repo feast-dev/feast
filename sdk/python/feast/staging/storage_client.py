@@ -14,9 +14,11 @@
 # limitations under the License.
 
 
+import os
 import re
+import shutil
 from abc import ABC, ABCMeta, abstractmethod
-from tempfile import TemporaryFile
+from tempfile import TemporaryDirectory, TemporaryFile
 from typing import List
 from typing.io import IO
 from urllib.parse import ParseResult
@@ -24,6 +26,7 @@ from urllib.parse import ParseResult
 GS = "gs"
 S3 = "s3"
 LOCAL_FILE = "file"
+ABFSS = "abfss"
 
 
 class AbstractStagingClient(ABC):
@@ -44,15 +47,21 @@ class AbstractStagingClient(ABC):
         """
         pass
 
+    def download_directory(self, uri: ParseResult) -> TemporaryDirectory:
+        """
+        Downloads a directory from an object store and returns a TemporaryDirectory object
+        """
+        raise NotImplementedError
+
     @abstractmethod
-    def list_files(self, bucket: str, path: str) -> List[str]:
+    def list_files(self, uri: ParseResult) -> List[str]:
         """
         Lists all the files under a directory in an object store.
         """
         pass
 
     @abstractmethod
-    def upload_file(self, local_path: str, bucket: str, remote_path: str):
+    def upload_file(self, local_path: str, uri: ParseResult, remote_path: str):
         """
         Uploads a file to an object store.
         """
@@ -89,7 +98,7 @@ class GCSClient(AbstractStagingClient):
         self.gcs_client.download_blob_to_file(url, file_obj)
         return file_obj
 
-    def list_files(self, bucket: str, path: str) -> List[str]:
+    def list_files(self, uri: ParseResult) -> List[str]:
         """
         Lists all the files under a directory in google cloud storage if path has wildcard(*) character.
 
@@ -102,7 +111,9 @@ class GCSClient(AbstractStagingClient):
                     remote staging location.
         """
 
+        bucket = uri.hostname
         gs_bucket = self.gcs_client.get_bucket(bucket)
+        path = uri.path
 
         if "*" in path:
             regex = re.compile(path.replace("*", ".*?").strip("/"))
@@ -116,9 +127,9 @@ class GCSClient(AbstractStagingClient):
                 if re.match(regex, file) and file not in path
             ]
         else:
-            return [f"{GS}://{bucket}/{path.lstrip('/')}"]
+            return [f"{S3}://{bucket}/{path.lstrip('/')}"]
 
-    def upload_file(self, local_path: str, bucket: str, remote_path: str):
+    def upload_file(self, local_path: str, uri: ParseResult, remote_path: str):
         """
         Uploads file to google cloud storage.
 
@@ -127,7 +138,7 @@ class GCSClient(AbstractStagingClient):
             bucket (str): gs Bucket name
             remote_path (str): relative path to the folder to which the files need to be uploaded
         """
-        gs_bucket = self.gcs_client.get_bucket(bucket)
+        gs_bucket = self.gcs_client.get_bucket(uri.hostname)
         blob = gs_bucket.blob(remote_path)
         blob.upload_from_filename(local_path)
 
@@ -162,7 +173,7 @@ class S3Client(AbstractStagingClient):
         self.s3_client.download_fileobj(bucket, url, file_obj)
         return file_obj
 
-    def list_files(self, bucket: str, path: str) -> List[str]:
+    def list_files(self, uri: ParseResult) -> List[str]:
         """
         Lists all the files under a directory in s3 if path has wildcard(*) character.
 
@@ -174,6 +185,8 @@ class S3Client(AbstractStagingClient):
             List[str]: A list containing the full path to the file(s) in the
                     remote staging location.
         """
+        bucket = uri.hostname
+        path = uri.path
 
         if "*" in path:
             regex = re.compile(path.replace("*", ".*?").strip("/"))
@@ -189,7 +202,7 @@ class S3Client(AbstractStagingClient):
         else:
             return [f"{S3}://{bucket}/{path.lstrip('/')}"]
 
-    def upload_file(self, local_path: str, bucket: str, remote_path: str):
+    def upload_file(self, local_path: str, uri: ParseResult, remote_path: str):
         """
         Uploads file to s3.
 
@@ -198,8 +211,127 @@ class S3Client(AbstractStagingClient):
             bucket (str): s3 Bucket name
             remote_path (str): relative path to the folder to which the files need to be uploaded
         """
+        bucket = uri.hostname
         with open(local_path, "rb") as file:
             self.s3_client.upload_fileobj(file, bucket, remote_path)
+
+
+class AzureClient(AbstractStagingClient):
+    """
+       Implementation of AbstractStagingClient for Azure data lake storage Gen2
+    """
+
+    def __init__(self):
+        try:
+            from azure.storage.filedatalake import DataLakeServiceClient
+        except ImportError:
+            raise ImportError(
+                "Install package azure-storage-file-datalake for Azure Blob staging support"
+                "run ```pip install azure-storage-file-datalake```"
+            )
+        try:
+            from azure.identity import DefaultAzureCredential
+        except ImportError:
+            raise ImportError(
+                "Install package azure-identity for Azure Blob staging support"
+                "run ```pip install azure-identity```"
+            )
+        self.credential = DefaultAzureCredential(
+            exclude_interactive_browser_credential=False
+        )
+        self.protocol = "https"
+        self.dls_client = DataLakeServiceClient
+
+    def download_file(self, uri: ParseResult) -> IO[bytes]:
+        """
+        Downloads a file from Azure Blob storage and returns a TemporaryFile object
+
+        Args:
+            uri (urllib.parse.ParseResult): Parsed uri of the file ex: urlparse("abfss://filesystem@account.dfs.core.windows.net/file.avro")
+        Returns:
+            TemporaryFile object
+        """
+        client = self.dls_client(
+            f"{self.protocol}://{uri.hostname}", credential=self.credential
+        )
+
+        file_obj = TemporaryFile()
+        client.get_file_client(uri.username, uri.path).download_file().readinto(
+            file_obj
+        )
+        file_obj.flush()
+        return file_obj
+
+    def download_directory(self, uri: ParseResult) -> TemporaryDirectory:
+        client = self.dls_client(
+            f"{self.protocol}://{uri.hostname}", credential=self.credential
+        )
+
+        uri_path = uri.path.lstrip("/")
+        fs_client = client.get_file_system_client(uri.username)
+        blob_list = fs_client.get_paths(uri.path)
+        dir_obj = TemporaryDirectory()
+        for path_properties in blob_list:
+            blob = path_properties.name
+            blob_rel_path = os.path.relpath(blob, uri_path)
+            local_path = f"{dir_obj.name}/{blob_rel_path}"
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            with open(local_path, "wb") as file_obj:
+                client.get_file_client(uri.username, blob).download_file().readinto(
+                    file_obj
+                )
+        return dir_obj
+
+    def list_files(self, uri: ParseResult) -> List[str]:
+        """
+        Lists all the files under a directory in Azure store if path has wildcard(*) character.
+
+        Args:
+            bucket (str): Azure blob storage bucket name
+            path (str): object location in Azure blob storage.
+
+        Returns:
+            List[str]: A list containing the full path to the file(s) in the
+                    remote staging location.
+        """
+        path = uri.path
+
+        client = self.dls_client(
+            f"{self.protocol}://{uri.hostname}", credential=self.credential
+        )
+
+        if "*" in path:
+            regex = re.compile(path.replace("*", ".*?").strip("/"))
+            directory = path.split("*")[0]
+            fs_client = client.get_file_system_client(uri.username)
+            blob_list = fs_client.get_paths(directory)
+            # File path should not be in path (file path must be longer than path)
+            return [
+                f"{ABFSS}://{uri.username}@{uri.hostname}/{file}"
+                for file in [x.name for x in blob_list]
+                if re.match(regex, file) and file not in path
+            ]
+        else:
+            return [f"{ABFSS}://{uri.username}@{uri.hostname}/{path.lstrip('/')}"]
+
+    def upload_file(self, local_path: str, uri: ParseResult, remote_path: str):
+        """
+        Uploads file to Azure Blob.
+
+        Args:
+            local_path (str): Path to the local file that needs to be uploaded/staged
+            bucket (str): Azure blob storage bucket name
+            remote_path (str): relative path to the folder to which the files need to be uploaded
+        """
+        client = self.dls_client(
+            f"{self.protocol}://{uri.hostname}", credential=self.credential
+        )
+        fs_client = client.get_file_system_client(uri.username)
+
+        with open(local_path, "rb") as file:
+            file_contents = file.read()
+            file_client = fs_client.get_file_client(remote_path)
+            file_client.upload_data(file_contents, overwrite=True)
 
 
 class LocalFSClient(AbstractStagingClient):
@@ -220,18 +352,29 @@ class LocalFSClient(AbstractStagingClient):
         Returns:
             TemporaryFile object
         """
-        url = uri.path
-        file_obj = open(url, "rb")
+        file_obj = open(uri.path, "rb")
         return file_obj
 
-    def list_files(self, bucket: str, path: str) -> List[str]:
+    def download_directory(self, uri: ParseResult) -> TemporaryDirectory:
+        dir_obj = TemporaryDirectory()
+        os.rmdir(dir_obj.name)
+        dest = dir_obj
+        shutil.copytree(uri.path, dest.name)
+        return dest
+
+    def list_files(self, uri: ParseResult) -> List[str]:
         raise NotImplementedError("list files not implemented for Local file")
 
-    def upload_file(self, local_path: str, bucket: str, remote_path: str):
+    def upload_file(self, local_path: str, uri: ParseResult, remote_path: str):
         pass  # For test cases
 
 
-storage_clients = {GS: GCSClient, S3: S3Client, LOCAL_FILE: LocalFSClient}
+storage_clients = {
+    GS: GCSClient,
+    S3: S3Client,
+    LOCAL_FILE: LocalFSClient,
+    ABFSS: AzureClient,
+}
 
 
 def get_staging_client(scheme):
@@ -239,7 +382,7 @@ def get_staging_client(scheme):
     Initialization of a specific client object(GCSClient, S3Client etc.)
 
     Args:
-        scheme (str): uri scheme: s3, gs or file
+        scheme (str): uri scheme: s3, gs, abfss or file
 
     Returns:
         An object of concrete implementation of AbstractStagingClient
@@ -248,5 +391,5 @@ def get_staging_client(scheme):
         return storage_clients[scheme]()
     except ValueError:
         raise Exception(
-            f"Could not identify file scheme {scheme}. Only gs://, file:// and s3:// are supported"
+            f"Could not identify file scheme {scheme}. Only gs://, file://, s3:// and abfss:// are supported"
         )

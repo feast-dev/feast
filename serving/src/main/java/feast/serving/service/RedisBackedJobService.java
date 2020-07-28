@@ -27,6 +27,7 @@ import io.lettuce.core.api.sync.RedisCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.resource.DefaultClientResources;
 import java.util.Optional;
+import org.apache.commons.lang3.StringUtils;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 
@@ -45,6 +46,10 @@ public class RedisBackedJobService implements JobService {
   public RedisBackedJobService(FeastProperties.JobStoreProperties jobStoreProperties) {
     RedisURI uri =
         RedisURI.create(jobStoreProperties.getRedisHost(), jobStoreProperties.getRedisPort());
+    String password = jobStoreProperties.getRedisPass();
+    if (StringUtils.trimToNull(password) != null) {
+      uri.setPassword(password);
+    }
 
     this.syncCommand =
         RedisClient.create(DefaultClientResources.create(), uri)

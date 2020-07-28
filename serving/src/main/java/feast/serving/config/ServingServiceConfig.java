@@ -28,6 +28,7 @@ import feast.serving.specs.CachedSpecService;
 import feast.storage.api.retriever.HistoricalRetriever;
 import feast.storage.api.retriever.OnlineRetriever;
 import feast.storage.connectors.bigquery.retriever.BigQueryHistoricalRetriever;
+import feast.storage.connectors.delta.retriever.DeltaHistoricalRetriever;
 import feast.storage.connectors.redis.retriever.RedisClusterOnlineRetriever;
 import feast.storage.connectors.redis.retriever.RedisOnlineRetriever;
 import io.opentracing.Tracer;
@@ -69,6 +70,10 @@ public class ServingServiceConfig {
         }
         HistoricalRetriever bqRetriever = BigQueryHistoricalRetriever.create(config);
         servingService = new HistoricalServingService(bqRetriever, specService, jobService);
+        break;
+      case DELTA:
+        HistoricalRetriever deltaRetriever = DeltaHistoricalRetriever.create(config);
+        servingService = new HistoricalServingService(deltaRetriever, specService, jobService);
         break;
       case CASSANDRA:
       case UNRECOGNIZED:

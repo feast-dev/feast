@@ -83,9 +83,7 @@ def export_source_to_staging_location(
             )
         else:
             # gs, s3 file provided as a source.
-            return get_staging_client(source_uri.scheme).list_files(
-                bucket=source_uri.hostname, path=source_uri.path
-            )
+            return get_staging_client(source_uri.scheme).list_files(source_uri)
     else:
         raise Exception(
             f"Only string and DataFrame types are allowed as a "
@@ -94,11 +92,16 @@ def export_source_to_staging_location(
 
     # Push data to required staging location
     get_staging_client(uri.scheme).upload_file(
-        source_path, uri.hostname, str(uri.path).strip("/") + "/" + file_name,
+        source_path, uri, str(uri.path).strip("/") + "/" + file_name,
     )
 
     # Clean up, remove local staging file
-    if dir_path and isinstance(source, pd.DataFrame) and len(dir_path) > 4:
+    if (
+        dir_path
+        and isinstance(source, pd.DataFrame)
+        and uri.scheme != "file"
+        and len(str(dir_path)) > 4
+    ):
         shutil.rmtree(dir_path)
 
     return [staging_location_uri.rstrip("/") + "/" + file_name]

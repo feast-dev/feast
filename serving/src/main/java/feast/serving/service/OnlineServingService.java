@@ -21,6 +21,7 @@ import com.google.protobuf.Duration;
 import feast.common.models.Feature;
 import feast.common.models.FeatureSet;
 import feast.proto.serving.ServingAPIProto.*;
+import feast.proto.serving.ServingAPIProto.FeatureSetRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
@@ -29,12 +30,12 @@ import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.Value;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.util.Metrics;
-import feast.storage.api.retriever.FeatureSetRequest;
 import feast.storage.api.retriever.OnlineRetriever;
 import io.grpc.Status;
 import io.opentracing.Scope;
 import io.opentracing.Tracer;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.common.collect.Streams;
 import org.apache.commons.lang3.tuple.Pair;
@@ -165,7 +166,9 @@ public class OnlineServingService implements ServingService {
     Map<String, Value> valueMap = new HashMap<>();
     // In order to return values containing the same feature references provided by the user,
     // we reuse the feature references in the request as the keys in field builder map
-    Map<String, FeatureReference> nameRefMap = featureSetRequest.getFeatureRefsByName();
+    Map<String, FeatureReference> nameRefMap =
+        featureSetRequest.getFeatureReferencesList().stream()
+            .collect(Collectors.toMap(FeatureReference::getName, Function.identity()));
 
     if (featureRow.isPresent()) {
       // unpack feature row's feature values and populate value map
@@ -268,7 +271,7 @@ public class OnlineServingService implements ServingService {
                           .setFeatureSet(
                               FeatureSet.getFeatureSetStringRef(featureSetRequest.getSpec()));
                   for (FeatureReference featureReference :
-                      featureSetRequest.getFeatureReferences()) {
+                      featureSetRequest.getFeatureReferencesList()) {
                     nullFeatureRowBuilder.addFields(
                         Field.newBuilder().setName(featureReference.getName()));
                   }
@@ -309,7 +312,7 @@ public class OnlineServingService implements ServingService {
   private void populateRequestCountMetrics(FeatureSetRequest featureSetRequest) {
     String project = featureSetRequest.getSpec().getProject();
     featureSetRequest
-        .getFeatureReferences()
+        .getFeatureReferencesList()
         .parallelStream()
         .forEach(ref -> Metrics.requestCount.labels(project, ref.getName()).inc());
   }

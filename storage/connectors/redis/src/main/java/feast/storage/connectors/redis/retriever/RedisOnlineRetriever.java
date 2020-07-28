@@ -20,12 +20,12 @@ import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.serving.ServingAPIProto.FeatureSetRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.storage.RedisProto.RedisKey;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.Value;
-import feast.storage.api.retriever.FeatureSetRequest;
 import feast.storage.api.retriever.OnlineRetriever;
 import io.grpc.Status;
 import io.lettuce.core.RedisClient;
@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 
 public class RedisOnlineRetriever implements OnlineRetriever {
 
@@ -49,11 +50,14 @@ public class RedisOnlineRetriever implements OnlineRetriever {
   }
 
   public static OnlineRetriever create(Map<String, String> config) {
+    RedisURI redisuri = RedisURI.create(config.get("host"), Integer.parseInt(config.get("port")));
+    String password = config.get("pass");
+    if (StringUtils.trimToNull(password) != null) {
+      redisuri.setPassword(password);
+    }
 
     StatefulRedisConnection<byte[], byte[]> connection =
-        RedisClient.create(
-                RedisURI.create(config.get("host"), Integer.parseInt(config.get("port"))))
-            .connect(new ByteArrayCodec());
+        RedisClient.create(redisuri).connect(new ByteArrayCodec());
 
     return new RedisOnlineRetriever(connection);
   }

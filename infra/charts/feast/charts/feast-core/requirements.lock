@@ -1,0 +1,15 @@
+dependencies:
+- name: postgresql
+  repository: https://kubernetes-charts.storage.googleapis.com
+  version: 6.5.5
+- name: kafka
+  repository: https://kubernetes-charts-incubator.storage.googleapis.com
+  version: 0.20.1
+- name: common
+  repository: https://kubernetes-charts-incubator.storage.googleapis.com
+  version: 0.0.5
+- name: prometheus-statsd-exporter
+  repository: ""
+  version: 0.1.2
+digest: sha256:03806d8d6fc3ffd70c5ca1026544277b69de361180a384c5b45eb110f0080baa
+generated: "2020-02-13T17:50:23.985561Z"

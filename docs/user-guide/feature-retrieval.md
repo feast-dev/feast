@@ -138,7 +138,7 @@ for feature_set in feature_sets:
 anomalies = tfdv.validate_statistics(statistics=stats, schema=schema)
 ```
 
-## 4. Online feature retrieval
+## Online feature retrieval
 
 Online feature retrieval works in much the same way as batch retrieval, with one important distinction: Online stores only maintain the current state of features. No historical data is served.
 
@@ -149,14 +149,10 @@ features = [
  'avg_daily_trips',
  ]
 
-response = client.get_online_features(
+data = client.get_online_features(
         feature_refs=features, # Contains only feature references
         entity_rows=entity_rows, # Contains only entities (driver ids)
-)
-
-for feature in features:
-   # feature values can be obtained from the response's field values
-   response.field_values.fields[feature]
+    )
 ```
 
 {% hint style="info" %}
@@ -164,30 +160,4 @@ When no project is specified when retrieving features with get\_online\_feature\
 {% endhint %}
 
 Online serving with Feast is built to be very low latency. Feast Serving provides a [gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html) that is backed by [Redis](https://redis.io/). We also provide support for [Python](https://api.docs.feast.dev/python/), [Go](https://godoc.org/github.com/gojek/feast/sdk/go), and Java clients.
-
-### Online Field Statuses
-
-Online Serving also returns Online Field Statuses when retrieving features. These status values gives useful insight into situations where Online Serving returns unset values. It also allows better of handling of the different possible cases represented by each status:for feature in features:
-
-```python
-for feature in features:
-    # field statuses can be obtained from the response's field values
-    status = response.field_values.statuses[feature]
-    
-    if status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND:
-       # handle case where feature value has not been ingested
-    elif status == GetOnlineFeaturesResponse.FieldStatus.PRESENT:
-       # feature value is present and can be used
-       value = response.field_values.fields[feature]
-```
-
-| Status | Meaning |
-| :--- | :--- |
-| NOT\_FOUND | Unset values returned as the feature value was not found in the online store. This might mean that no feature value was ingested for this feature. |
-| NULL\_VALUE | Unset values returned as the ingested feature value was also unset. |
-| OUTSIDE\_MAX\_AGE | Unset values returned as the age of the feature value \(time since the value was ingested\) has exceeded the Feature Set's max age, which the feature was defined in. |
-| PRESENT | Set values are returned for the requested feature. |
-| UNKNOWN | Status signifies the field status is unset for the requested feature. Might mean that the Feast version does not support Field Statuses |
-
-
 

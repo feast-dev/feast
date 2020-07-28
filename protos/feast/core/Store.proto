@@ -98,6 +98,8 @@ message Store {
     CASSANDRA = 3;
 
     REDIS_CLUSTER = 4;
+
+    DELTA = 5;
   }
 
   message RedisConfig {
@@ -110,6 +112,7 @@ message Store {
     int32 max_retries = 4;
     // Optional. how often flush data to redis
     int32 flush_frequency_seconds = 5;
+    string pass = 6;
   }
 
   message BigQueryConfig {
@@ -133,6 +136,19 @@ message Store {
     int32 max_retries = 3;
     // Optional. how often flush data to redis
     int32 flush_frequency_seconds = 4;
+  }
+
+  message DeltaConfig {
+    string path = 1;
+    string databricks_host = 2;
+    string databricks_token = 3;
+    string staging_location = 4;
+    string jar_file = 5;
+    int32 num_workers = 6;
+    string spark_version = 7;
+    string spark_conf = 8;
+    string instance_pool_id = 9;
+    int32 timeout_seconds = 10;
   }
 
   message Subscription {
@@ -175,5 +191,6 @@ message Store {
     BigQueryConfig bigquery_config = 12;
     CassandraConfig cassandra_config = 13;
     RedisClusterConfig redis_cluster_config = 14;
+    DeltaConfig delta_config = 15;
   }
 }

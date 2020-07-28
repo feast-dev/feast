@@ -139,10 +139,10 @@ def get_feature_row_chunks(
 
     field_map = {field.name: field.dtype for field in fs.fields.values()}
 
-    pool = Pool(max_workers)
-    func = partial(_encode_pa_tables, file, feature_set, field_map, ingestion_id)
-    for chunk in pool.imap(func, row_groups):
-        yield chunk
+    with Pool(max_workers) as pool:
+        func = partial(_encode_pa_tables, file, feature_set, field_map, ingestion_id)
+        for chunk in pool.imap(func, row_groups):
+            yield chunk
     return
 
 

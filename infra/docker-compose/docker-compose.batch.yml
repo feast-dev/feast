@@ -13,6 +13,9 @@ services:
     restart: on-failure
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
+      FEAST_JOB_STAGING_LOCATION: ${FEAST_BATCH_JOB_STAGING_LOCATION}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PASS: ${REDIS_PASS}
     command:
       - "java"
       - "-Xms1024m"

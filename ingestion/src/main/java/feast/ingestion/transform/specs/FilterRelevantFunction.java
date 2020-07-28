@@ -39,7 +39,7 @@ public class FilterRelevantFunction
   }
 
   @Override
-  public Boolean apply(KV<String, FeatureSetProto.FeatureSetSpec> input) throws Exception {
+  public Boolean apply(KV<String, FeatureSetProto.FeatureSetSpec> input) {
     return stores.stream()
             .anyMatch(
                 s ->
