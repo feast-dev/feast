@@ -40,6 +40,8 @@ import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -51,8 +53,16 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.runners.model.InitializationError;
+import sh.ory.keto.ApiClient;
+import sh.ory.keto.ApiException;
+import sh.ory.keto.Configuration;
+import sh.ory.keto.api.EnginesApi;
+import sh.ory.keto.model.OryAccessControlPolicy;
+import sh.ory.keto.model.OryAccessControlPolicyRole;
 
 public class AuthTestUtils {
+
+  private static final String DEFAULT_FLAVOR = "glob";
 
   static SourceProto.Source defaultSource =
       createSource("kafka:9092,localhost:9094", "feast-features");
@@ -207,5 +217,67 @@ public class AuthTestUtils {
     if (!response.isSuccessful()) {
       throw new InitializationError(response.message());
     }
+  }
+
+  public static void seedKeto(String url, String project, String subjectInProject, String admin)
+      throws ApiException {
+    ApiClient ketoClient = Configuration.getDefaultApiClient();
+    ketoClient.setBasePath(url);
+    EnginesApi enginesApi = new EnginesApi(ketoClient);
+
+    // Add policies
+    OryAccessControlPolicy adminPolicy = getAdminPolicy();
+    enginesApi.upsertOryAccessControlPolicy(DEFAULT_FLAVOR, adminPolicy);
+
+    OryAccessControlPolicy projectPolicy = getMyProjectMemberPolicy(project);
+    enginesApi.upsertOryAccessControlPolicy(DEFAULT_FLAVOR, projectPolicy);
+
+    // Add policy roles
+    OryAccessControlPolicyRole adminPolicyRole = getAdminPolicyRole(admin);
+    enginesApi.upsertOryAccessControlPolicyRole(DEFAULT_FLAVOR, adminPolicyRole);
+
+    OryAccessControlPolicyRole myProjectMemberPolicyRole =
+        getMyProjectMemberPolicyRole(project, subjectInProject);
+    enginesApi.upsertOryAccessControlPolicyRole(DEFAULT_FLAVOR, myProjectMemberPolicyRole);
+  }
+
+  private static OryAccessControlPolicyRole getMyProjectMemberPolicyRole(
+      String project, String subjectInProject) {
+    OryAccessControlPolicyRole role = new OryAccessControlPolicyRole();
+    role.setId(String.format("roles:%s-project-members", project));
+    role.setMembers(Collections.singletonList("users:" + subjectInProject));
+    return role;
+  }
+
+  private static OryAccessControlPolicyRole getAdminPolicyRole(String subjectIsAdmin) {
+    OryAccessControlPolicyRole role = new OryAccessControlPolicyRole();
+    role.setId("roles:admin");
+    role.setMembers(Collections.singletonList("users:" + subjectIsAdmin));
+    return role;
+  }
+
+  private static OryAccessControlPolicy getAdminPolicy() {
+    OryAccessControlPolicy policy = new OryAccessControlPolicy();
+    policy.setId("policies:admin");
+    policy.subjects(Collections.singletonList("roles:admin"));
+    policy.resources(Collections.singletonList("resources:**"));
+    policy.actions(Collections.singletonList("actions:**"));
+    policy.effect("allow");
+    policy.conditions(null);
+    return policy;
+  }
+
+  private static OryAccessControlPolicy getMyProjectMemberPolicy(String project) {
+    OryAccessControlPolicy policy = new OryAccessControlPolicy();
+    policy.setId(String.format("policies:%s-project-members-policy", project));
+    policy.subjects(Collections.singletonList(String.format("roles:%s-project-members", project)));
+    policy.resources(
+        Arrays.asList(
+            String.format("resources:projects:%s", project),
+            String.format("resources:projects:%s:**", project)));
+    policy.actions(Collections.singletonList("actions:**"));
+    policy.effect("allow");
+    policy.conditions(null);
+    return policy;
   }
 }

@@ -38,6 +38,8 @@ import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import net.devh.boot.grpc.server.service.GrpcService;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -83,11 +85,15 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
     Span span = tracer.buildSpan("getOnlineFeatures").start();
     try (Scope scope = tracer.scopeManager().activate(span, false)) {
       // authorize for the project in request object.
-      this.authorizationService.authorizeRequest(
-          SecurityContextHolder.getContext(), request.getProject());
-      // authorize for projects set in feature list, backward compatibility for
-      // <=v0.5.X
-      this.checkProjectAccess(request.getFeaturesList());
+      if (request.getProject() != null && !request.getProject().isEmpty()) {
+        // project set at root level overrides the project set at feature set level
+        this.authorizationService.authorizeRequest(
+            SecurityContextHolder.getContext(), request.getProject());
+      } else {
+        // authorize for projects set in feature list, backward compatibility for
+        // <=v0.5.X
+        this.checkProjectAccess(request.getFeaturesList());
+      }
       RequestHelper.validateOnlineRequest(request);
       GetOnlineFeaturesResponse onlineFeatures = servingService.getOnlineFeatures(request);
       responseObserver.onNext(onlineFeatures);
@@ -149,11 +155,17 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
   }
 
   private void checkProjectAccess(List<FeatureReference> featureList) {
-    featureList.stream()
-        .forEach(
-            featureRef -> {
-              this.authorizationService.authorizeRequest(
-                  SecurityContextHolder.getContext(), featureRef.getProject());
-            });
+    Set<String> projectList =
+        featureList.stream().map(FeatureReference::getProject).collect(Collectors.toSet());
+    if (projectList.isEmpty()) {
+      authorizationService.authorizeRequest(SecurityContextHolder.getContext(), "default");
+    } else {
+      projectList.stream()
+          .forEach(
+              project -> {
+                this.authorizationService.authorizeRequest(
+                    SecurityContextHolder.getContext(), project);
+              });
+    }
   }
 }

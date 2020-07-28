@@ -18,8 +18,6 @@ package feast.serving.it;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.HashMap;
-import java.util.Map;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -45,7 +43,6 @@ public class BaseAuthIT {
   static final String CORE = "core_1";
 
   static final String HYDRA = "hydra_1";
-  static final Map<String, String> options = new HashMap<>();
   static final int HYDRA_PORT = 4445;
 
   static CoreSimpleAPIClient insecureApiClient;
@@ -56,7 +53,7 @@ public class BaseAuthIT {
   static final int FEAST_SERVING_PORT = 6566;
 
   @DynamicPropertySource
-  static void initialize(DynamicPropertyRegistry registry) throws UnknownHostException {
+  static void properties(DynamicPropertyRegistry registry) {
     registry.add("feast.stores[0].name", () -> "online");
     registry.add("feast.stores[0].type", () -> "REDIS");
     // Redis needs to accessible by both core and serving, hence using host address
@@ -66,7 +63,6 @@ public class BaseAuthIT {
           try {
             return InetAddress.getLocalHost().getHostAddress();
           } catch (UnknownHostException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
             return "";
           }

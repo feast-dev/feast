@@ -4,7 +4,7 @@ services:
   core:
     image: gcr.io/kf-feast/feast-core:latest
     volumes: 
-      - ./core-it.yml:/etc/feast/application.yml
+      - ./core/application-it.yml:/etc/feast/application.yml
     environment:
       DB_HOST: db
     restart: on-failure

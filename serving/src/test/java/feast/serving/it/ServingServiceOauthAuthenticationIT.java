@@ -29,6 +29,7 @@ import io.grpc.StatusRuntimeException;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.BeforeAll;
@@ -51,6 +52,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
     })
 @Testcontainers
 public class ServingServiceOauthAuthenticationIT extends BaseAuthIT {
+
+  static final Map<String, String> options = new HashMap<>();
 
   @ClassRule @Container
   public static DockerComposeContainer environment =

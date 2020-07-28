@@ -30,7 +30,7 @@ feast:
         jwkEndpointURI: "https://www.googleapis.com/oauth2/v3/certs"
     authorization:
       enabled: false
-      provider: none
+      provider: http
       options:
         basePath: http://localhost:3000
 
