@@ -50,7 +50,6 @@ public class BaseAuthIT {
   static final int REDIS_PORT = 6379;
 
   static final int FEAST_CORE_PORT = 6565;
-  static final int FEAST_SERVING_PORT = 6566;
 
   @DynamicPropertySource
   static void properties(DynamicPropertyRegistry registry) {

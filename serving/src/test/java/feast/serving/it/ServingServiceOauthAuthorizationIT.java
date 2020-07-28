@@ -25,6 +25,7 @@ import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
 import feast.proto.types.ValueProto.Value;
+import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import java.io.File;
 import java.io.IOException;
@@ -55,7 +56,7 @@ import sh.ory.keto.ApiException;
       "feast.security.authorization.enabled=true"
     })
 @Testcontainers
-public class ServingServiceOauthAuthroizationIT extends BaseAuthIT {
+public class ServingServiceOauthAuthorizationIT extends BaseAuthIT {
 
   static final Map<String, String> adminCredentials = new HashMap<>();
   static final Map<String, String> memberCredentials = new HashMap<>();
@@ -65,6 +66,7 @@ public class ServingServiceOauthAuthroizationIT extends BaseAuthIT {
   private static int KETO_ADAPTOR_PORT = 8080;
   static String subjectClaim = "sub";
   static CoreSimpleAPIClient coreClient;
+  static final int FEAST_SERVING_PORT = 6766;
 
   @ClassRule @Container
   public static DockerComposeContainer environment =
@@ -103,6 +105,7 @@ public class ServingServiceOauthAuthroizationIT extends BaseAuthIT {
     registry.add("feast.security.authorization.options.subjectClaim", () -> subjectClaim);
     registry.add("feast.security.authentication.options.jwkEndpointURI", () -> JWK_URI);
     registry.add("feast.security.authorization.options.authorizationUrl", () -> ketoAdaptorUrl);
+    registry.add("grpc.server.port", () -> FEAST_SERVING_PORT);
   }
 
   @BeforeAll
@@ -136,6 +139,7 @@ public class ServingServiceOauthAuthroizationIT extends BaseAuthIT {
   public void shouldNotAllowUnauthenticatedGetOnlineFeatures() {
     ServingServiceBlockingStub servingStub =
         AuthTestUtils.getServingServiceStub(false, FEAST_SERVING_PORT, null);
+
     GetOnlineFeaturesRequest onlineFeatureRequest =
         AuthTestUtils.createOnlineFeatureRequest(PROJECT_NAME, FEATURE_NAME, ENTITY_ID, 1);
     Exception exception =
@@ -148,6 +152,7 @@ public class ServingServiceOauthAuthroizationIT extends BaseAuthIT {
     String expectedMessage = "UNAUTHENTICATED: Authentication failed";
     String actualMessage = exception.getMessage();
     assertEquals(actualMessage, expectedMessage);
+    ((ManagedChannel) servingStub.getChannel()).shutdown();
   }
 
   @Test
@@ -162,6 +167,7 @@ public class ServingServiceOauthAuthroizationIT extends BaseAuthIT {
     Map<String, Value> fieldsMap = featureResponse.getFieldValues(0).getFieldsMap();
     assertTrue(fieldsMap.containsKey(ENTITY_ID));
     assertTrue(fieldsMap.containsKey(FEATURE_NAME));
+    ((ManagedChannel) servingStub.getChannel()).shutdown();
   }
 
   @Test
@@ -178,6 +184,7 @@ public class ServingServiceOauthAuthroizationIT extends BaseAuthIT {
     Map<String, Value> fieldsMap = featureResponse.getFieldValues(0).getFieldsMap();
     assertTrue(fieldsMap.containsKey(ENTITY_ID));
     assertTrue(fieldsMap.containsKey(FEATURE_NAME));
+    ((ManagedChannel) servingStub.getChannel()).shutdown();
   }
 
   @Test
@@ -200,5 +207,6 @@ public class ServingServiceOauthAuthroizationIT extends BaseAuthIT {
             PROJECT_NAME, NOT_PROJECT_MEMBER_CLIENT_ID);
     String actualMessage = exception.getMessage();
     assertEquals(actualMessage, expectedMessage);
+    ((ManagedChannel) servingStub.getChannel()).shutdown();
   }
 }

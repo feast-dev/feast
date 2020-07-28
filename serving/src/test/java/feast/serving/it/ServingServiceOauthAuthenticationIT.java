@@ -25,6 +25,7 @@ import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
 import feast.proto.types.ValueProto.Value;
+import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import java.io.File;
 import java.io.IOException;
@@ -54,6 +55,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 public class ServingServiceOauthAuthenticationIT extends BaseAuthIT {
 
   static final Map<String, String> options = new HashMap<>();
+
+  static final int FEAST_SERVING_PORT = 6566;
 
   @ClassRule @Container
   public static DockerComposeContainer environment =
@@ -116,5 +119,6 @@ public class ServingServiceOauthAuthenticationIT extends BaseAuthIT {
     Map<String, Value> fieldsMap = featureResponse.getFieldValues(0).getFieldsMap();
     assertTrue(fieldsMap.containsKey(ENTITY_ID));
     assertTrue(fieldsMap.containsKey(FEATURE_NAME));
+    ((ManagedChannel) servingStub.getChannel()).shutdown();
   }
 }
