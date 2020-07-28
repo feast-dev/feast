@@ -18,7 +18,7 @@ package feast.auth.config;
 
 import feast.auth.authentication.DefaultJwtAuthenticationProvider;
 import feast.auth.authorization.AuthorizationProvider;
-import feast.auth.authorization.HttpAuthorizationProvider;
+import feast.auth.providers.http.HttpAuthorizationProvider;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
