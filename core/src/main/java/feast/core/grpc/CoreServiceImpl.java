@@ -18,12 +18,13 @@ package feast.core.grpc;
 
 import com.google.api.gax.rpc.InvalidArgumentException;
 import com.google.protobuf.InvalidProtocolBufferException;
+import feast.auth.service.AuthorizationService;
 import feast.core.config.FeastProperties;
 import feast.core.exception.RetrievalException;
 import feast.core.grpc.interceptors.MonitoringInterceptor;
 import feast.core.model.Project;
-import feast.core.service.AccessManagementService;
 import feast.core.service.JobService;
+import feast.core.service.ProjectService;
 import feast.core.service.SpecService;
 import feast.core.service.StatsService;
 import feast.proto.core.CoreServiceGrpc.CoreServiceImplBase;
@@ -37,6 +38,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.server.service.GrpcService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /** Implementation of the feast core GRPC service. */
@@ -48,20 +50,23 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   private SpecService specService;
   private JobService jobService;
   private StatsService statsService;
-  private AccessManagementService accessManagementService;
+  private ProjectService projectService;
+  private final AuthorizationService authorizationService;
 
   @Autowired
   public CoreServiceImpl(
       SpecService specService,
-      AccessManagementService accessManagementService,
+      ProjectService projectService,
       StatsService statsService,
       JobService jobService,
-      FeastProperties feastProperties) {
+      FeastProperties feastProperties,
+      AuthorizationService authorizationService) {
     this.specService = specService;
-    this.accessManagementService = accessManagementService;
+    this.projectService = projectService;
     this.jobService = jobService;
     this.feastProperties = feastProperties;
     this.statsService = statsService;
+    this.authorizationService = authorizationService;
   }
 
   @Override
@@ -178,10 +183,11 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public void applyFeatureSet(
       ApplyFeatureSetRequest request, StreamObserver<ApplyFeatureSetResponse> responseObserver) {
 
-    accessManagementService.checkIfProjectMember(
-        SecurityContextHolder.getContext(), request.getFeatureSet().getSpec().getProject());
+    String projectId = null;
 
     try {
+      projectId = request.getFeatureSet().getSpec().getProject();
+      authorizationService.authorizeRequest(SecurityContextHolder.getContext(), projectId);
       ApplyFeatureSetResponse response = specService.applyFeatureSet(request.getFeatureSet());
       responseObserver.onNext(response);
       responseObserver.onCompleted();
@@ -192,6 +198,13 @@ public class CoreServiceImpl extends CoreServiceImplBase {
           e);
       responseObserver.onError(
           Status.ALREADY_EXISTS.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    } catch (AccessDeniedException e) {
+      log.info(String.format("User prevented from accessing project: %s", projectId));
+      responseObserver.onError(
+          Status.PERMISSION_DENIED
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
     } catch (Exception e) {
       log.error("Exception has occurred in ApplyFeatureSet method: ", e);
       responseObserver.onError(
@@ -217,7 +230,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public void createProject(
       CreateProjectRequest request, StreamObserver<CreateProjectResponse> responseObserver) {
     try {
-      accessManagementService.createProject(request.getName());
+      projectService.createProject(request.getName());
       responseObserver.onNext(CreateProjectResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (Exception e) {
@@ -230,12 +243,11 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   @Override
   public void archiveProject(
       ArchiveProjectRequest request, StreamObserver<ArchiveProjectResponse> responseObserver) {
-
-    accessManagementService.checkIfProjectMember(
-        SecurityContextHolder.getContext(), request.getName());
-
+    String projectId = null;
     try {
-      accessManagementService.archiveProject(request.getName());
+      projectId = request.getName();
+      authorizationService.authorizeRequest(SecurityContextHolder.getContext(), projectId);
+      projectService.archiveProject(projectId);
       responseObserver.onNext(ArchiveProjectResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (IllegalArgumentException e) {
@@ -249,6 +261,13 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       log.error("Attempted to archive an unsupported project:", e);
       responseObserver.onError(
           Status.UNIMPLEMENTED.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    } catch (AccessDeniedException e) {
+      log.info(String.format("User prevented from accessing project: %s", projectId));
+      responseObserver.onError(
+          Status.PERMISSION_DENIED
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
     } catch (Exception e) {
       log.error("Exception has occurred in the createProject method: ", e);
       responseObserver.onError(
@@ -260,7 +279,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public void listProjects(
       ListProjectsRequest request, StreamObserver<ListProjectsResponse> responseObserver) {
     try {
-      List<Project> projects = accessManagementService.listProjects();
+      List<Project> projects = projectService.listProjects();
       responseObserver.onNext(
           ListProjectsResponse.newBuilder()
               .addAllProjects(projects.stream().map(Project::getName).collect(Collectors.toList()))

@@ -32,10 +32,10 @@ from pyarrow import parquet as pq
 
 from feast.config import Config
 from feast.constants import (
-    CONFIG_CORE_ENABLE_AUTH_KEY,
     CONFIG_CORE_ENABLE_SSL_KEY,
     CONFIG_CORE_SERVER_SSL_CERT_KEY,
     CONFIG_CORE_URL_KEY,
+    CONFIG_ENABLE_AUTH_KEY,
     CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY,
     CONFIG_PROJECT_KEY,
     CONFIG_SERVING_ENABLE_SSL_KEY,
@@ -112,9 +112,9 @@ class Client:
             project: Sets the active project. This field is optional.
             core_secure: Use client-side SSL/TLS for Core gRPC API
             serving_secure: Use client-side SSL/TLS for Serving gRPC API
-            core_enable_auth: Enable authentication and authorization
-            core_auth_provider: Authentication provider – "google" or "oauth"
-            if core_auth_provider is "oauth", the following fields are mandatory –
+            enable_auth: Enable authentication and authorization
+            auth_provider: Authentication provider – "google" or "oauth"
+            if auth_provider is "oauth", the following fields are mandatory –
             oauth_grant_type, oauth_client_id, oauth_client_secret, oauth_audience, oauth_token_request_url
 
         Args:
@@ -132,7 +132,7 @@ class Client:
         self._auth_metadata: Optional[grpc.AuthMetadataPlugin] = None
 
         # Configure Auth Metadata Plugin if auth is enabled
-        if self._config.getboolean(CONFIG_CORE_ENABLE_AUTH_KEY):
+        if self._config.getboolean(CONFIG_ENABLE_AUTH_KEY):
             self._auth_metadata = feast_auth.get_auth_metadata_plugin(self._config)
 
     @property
@@ -146,7 +146,7 @@ class Client:
             channel = create_grpc_channel(
                 url=self._config.get(CONFIG_CORE_URL_KEY),
                 enable_ssl=self._config.getboolean(CONFIG_CORE_ENABLE_SSL_KEY),
-                enable_auth=self._config.getboolean(CONFIG_CORE_ENABLE_AUTH_KEY),
+                enable_auth=self._config.getboolean(CONFIG_ENABLE_AUTH_KEY),
                 ssl_server_cert_path=self._config.get(CONFIG_CORE_SERVER_SSL_CERT_KEY),
                 auth_metadata_plugin=self._auth_metadata,
                 timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
@@ -165,11 +165,11 @@ class Client:
             channel = create_grpc_channel(
                 url=self._config.get(CONFIG_SERVING_URL_KEY),
                 enable_ssl=self._config.getboolean(CONFIG_SERVING_ENABLE_SSL_KEY),
-                enable_auth=False,
+                enable_auth=self._config.getboolean(CONFIG_ENABLE_AUTH_KEY),
                 ssl_server_cert_path=self._config.get(
                     CONFIG_SERVING_SERVER_SSL_CERT_KEY
                 ),
-                auth_metadata_plugin=None,
+                auth_metadata_plugin=self._auth_metadata,
                 timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
             )
             self._serving_service_stub = ServingServiceStub(channel)
@@ -271,6 +271,7 @@ class Client:
             serving_version = self._serving_service.GetFeastServingInfo(
                 GetFeastServingInfoRequest(),
                 timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                metadata=self._get_grpc_metadata(),
             ).version
             result["serving"] = {"url": self.serving_url, "version": serving_version}
 
@@ -522,7 +523,7 @@ class Client:
         )
 
         feature_protos = self._core_service.ListFeatures(
-            ListFeaturesRequest(filter=filter)
+            ListFeaturesRequest(filter=filter), metadata=self._get_grpc_metadata(),
         )  # type: ListFeaturesResponse
 
         features_dict = {}
@@ -619,6 +620,7 @@ class Client:
         serving_info = self._serving_service.GetFeastServingInfo(
             GetFeastServingInfoRequest(),
             timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+            metadata=self._get_grpc_metadata(),
         )  # type: GetFeastServingInfoResponse
 
         if serving_info.type != FeastServingType.FEAST_SERVING_TYPE_BATCH:
@@ -669,11 +671,17 @@ class Client:
 
         # Retrieve Feast Job object to manage life cycle of retrieval
         try:
-            response = self._serving_service.GetBatchFeatures(request)
+            response = self._serving_service.GetBatchFeatures(
+                request, metadata=self._get_grpc_metadata()
+            )
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 
-        return RetrievalJob(response.job, self._serving_service)
+        return RetrievalJob(
+            response.job,
+            self._serving_service,
+            auth_metadata_plugin=self._auth_metadata,
+        )
 
     def get_online_features(
         self,
@@ -722,7 +730,8 @@ class Client:
                     features=_build_feature_references(feature_ref_strs=feature_refs),
                     entity_rows=_infer_online_entity_rows(entity_rows),
                     project=project if project is not None else self.project,
-                )
+                ),
+                metadata=self._get_grpc_metadata(),
             )
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
@@ -759,9 +768,9 @@ class Client:
         )
         request = ListIngestionJobsRequest(filter=list_filter)
         # make list request & unpack response
-        response = self._core_service.ListIngestionJobs(request)  # type: ignore
+        response = self._core_service.ListIngestionJobs(request, metadata=self._get_grpc_metadata(),)  # type: ignore
         ingest_jobs = [
-            IngestJob(proto, self._core_service) for proto in response.jobs  # type: ignore
+            IngestJob(proto, self._core_service, auth_metadata_plugin=self._auth_metadata) for proto in response.jobs  # type: ignore
         ]
 
         return ingest_jobs
@@ -778,7 +787,9 @@ class Client:
         """
         request = RestartIngestionJobRequest(id=job.id)
         try:
-            self._core_service.RestartIngestionJob(request)  # type: ignore
+            self._core_service.RestartIngestionJob(
+                request, metadata=self._get_grpc_metadata(),
+            )  # type: ignore
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 
@@ -794,7 +805,9 @@ class Client:
         """
         request = StopIngestionJobRequest(id=job.id)
         try:
-            self._core_service.StopIngestionJob(request)  # type: ignore
+            self._core_service.StopIngestionJob(
+                request, metadata=self._get_grpc_metadata(),
+            )  # type: ignore
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 
@@ -996,7 +1009,7 @@ class Client:
 
         Returns: Tuple of metadata to attach to each gRPC call
         """
-        if self._config.getboolean(CONFIG_CORE_ENABLE_AUTH_KEY) and self._auth_metadata:
+        if self._config.getboolean(CONFIG_ENABLE_AUTH_KEY) and self._auth_metadata:
             return self._auth_metadata.get_signed_meta()
         return ()
 

@@ -96,24 +96,22 @@ public class HttpAuthorizationProviderCachingTest {
     doReturn("test_token").when(jwt).getTokenValue();
     AuthorizationResult authResult = new AuthorizationResult();
     authResult.setAllowed(true);
-    doReturn(authResult)
-        .when(api)
-        .checkAccessPost(any(CheckAccessRequest.class), any(String.class));
+    doReturn(authResult).when(api).checkAccessPost(any(CheckAccessRequest.class));
 
     // Should save the result in cache
     provider.checkAccessToProject("test", auth);
     // Should read from cache
     provider.checkAccessToProject("test", auth);
-    verify(api, times(1)).checkAccessPost(any(CheckAccessRequest.class), any(String.class));
+    verify(api, times(1)).checkAccessPost(any(CheckAccessRequest.class));
 
     // cache ttl is set to 1 second for testing.
     Thread.sleep(1100);
 
     // Should make an invocation to external service
     provider.checkAccessToProject("test", auth);
-    verify(api, times(2)).checkAccessPost(any(CheckAccessRequest.class), any(String.class));
+    verify(api, times(2)).checkAccessPost(any(CheckAccessRequest.class));
     // Should read from cache
     provider.checkAccessToProject("test", auth);
-    verify(api, times(2)).checkAccessPost(any(CheckAccessRequest.class), any(String.class));
+    verify(api, times(2)).checkAccessPost(any(CheckAccessRequest.class));
   }
 }

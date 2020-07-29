@@ -21,10 +21,12 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import feast.proto.core.StoreProto;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.specs.CoreSpecService;
+import io.grpc.CallCredentials;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -58,9 +60,11 @@ public class SpecServiceConfig {
   }
 
   @Bean
-  public CachedSpecService specService(FeastProperties feastProperties)
+  public CachedSpecService specService(
+      FeastProperties feastProperties, ObjectProvider<CallCredentials> callCredentials)
       throws InvalidProtocolBufferException, JsonProcessingException {
-    CoreSpecService coreService = new CoreSpecService(feastCoreHost, feastCorePort);
+    CoreSpecService coreService =
+        new CoreSpecService(feastCoreHost, feastCorePort, callCredentials);
     StoreProto.Store storeProto = feastProperties.getActiveStore().toProto();
     CachedSpecService cachedSpecStorage = new CachedSpecService(coreService, storeProto);
     try {

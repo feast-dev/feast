@@ -2,10 +2,7 @@
 
 set -e
 set -o pipefail
-ENABLE_AUTH="False"
-if [[ -n $1 ]]; then
-  ENABLE_AUTH=$1
-fi
+[[ $1 == "True" ]] && ENABLE_AUTH="true" || ENABLE_AUTH="false"
 echo "Authenication enabled : ${ENABLE_AUTH}"
 
 test -z ${GOOGLE_APPLICATION_CREDENTIALS} && GOOGLE_APPLICATION_CREDENTIALS="/etc/gcloud/service-account.json"
@@ -60,19 +57,12 @@ feast:
     authentication:
       enabled: true
       provider: jwt
+      options:
+        jwkEndpointURI: "https://www.googleapis.com/oauth2/v3/certs"
     authorization:
       enabled: false
       provider: none
 EOF
-
-if [[ ${ENABLE_AUTH} = "True" ]]; 
-  then
-    print_banner "Starting 'Feast core with auth'."
-    start_feast_core /tmp/core.warehouse.application.yml
-  else
-    print_banner "Starting 'Feast core without auth'."
-    start_feast_core
-fi
 
 cat <<EOF > /tmp/serving.warehouse.application.yml
 feast:
@@ -86,7 +76,29 @@ feast:
       subscriptions:
         - name: "*"
           project: "*"
+  core-authentication:
+    enabled: $ENABLE_AUTH 
+    provider: google 
+  security:
+    authentication:
+      enabled: $ENABLE_AUTH
+      provider: jwt
+    authorization:
+      enabled: false
+      provider: none
 EOF
+
+if [[ ${ENABLE_AUTH} = "true" ]]; 
+  then
+    print_banner "Starting Feast core with auth"
+    start_feast_core /tmp/core.warehouse.application.yml
+    print_banner "Starting Feast Serving with auth"
+  else
+    print_banner "Starting Feast core without auth"
+    start_feast_core
+    print_banner "Starting Feast Serving without auth"
+fi
+
 
 start_feast_serving /tmp/serving.warehouse.application.yml
 install_python_with_miniconda_and_feast_sdk
