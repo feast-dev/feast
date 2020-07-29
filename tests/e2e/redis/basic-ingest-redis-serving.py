@@ -411,13 +411,19 @@ def test_basic_retrieve_online_entity_nonlistform(
         response = client.get_online_features(
             entity_rows=online_request_entity, feature_refs=online_request_features
         )
-        return response, True
+        is_ok = check_online_response(
+            online_request_features, nonlist_entity_dataframe, response
+        )
+        return response, is_ok
 
     def try_get_features2():
         response = client.get_online_features(
             entity_rows=online_request_entity2, feature_refs=online_request_features
         )
-        return response, True
+        is_ok = check_online_response(
+            online_request_features, nonlist_entity_dataframe, response
+        )
+        return response, is_ok
 
     online_features_actual1 = wait_retry_backoff(
         retry_fn=try_get_features1,
