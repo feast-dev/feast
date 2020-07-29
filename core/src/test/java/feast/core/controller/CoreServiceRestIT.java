@@ -16,11 +16,6 @@
  */
 package feast.core.controller;
 
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import feast.core.it.BaseIT;
 import feast.core.it.DataGenerator;
 import feast.core.it.SimpleAPIClient;
@@ -31,6 +26,8 @@ import feast.proto.types.ValueProto.ValueType.Enum;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.List;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.JsonElement;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.JsonParser;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Assert;
 import org.junit.jupiter.api.BeforeAll;
@@ -38,24 +35,20 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.web.context.WebApplicationContext;
+import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureWebTestClient
 public class CoreServiceRestIT extends BaseIT {
-
-  @Autowired private WebApplicationContext webApplicationContext;
-  @Autowired private MockMvc mockMvc;
 
   static CoreServiceGrpc.CoreServiceBlockingStub stub;
   static SimpleAPIClient apiClient;
+  @Autowired private WebTestClient webTestClient;
 
   @BeforeAll
   public static void globalSetUp(@Value("${grpc.server.port}") int port) {
@@ -131,95 +124,152 @@ public class CoreServiceRestIT extends BaseIT {
   }
 
   @Test
-  public void getVersion() throws Exception {
-    Assert.assertNotNull(mockMvc);
-    String url = UriComponentsBuilder.fromPath("/api/v1/version").buildAndExpand().toString();
-    mockMvc
-        .perform(MockMvcRequestBuilders.get(url).accept(MediaType.APPLICATION_JSON))
-        .andDo(print())
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.version").isNotEmpty());
+  public void getVersion() {
+    String uriString = UriComponentsBuilder.fromPath("/api/v1/version").toUriString();
+    webTestClient
+        .get()
+        .uri(uriString)
+        .exchange()
+        .expectStatus()
+        .isOk()
+        .expectHeader()
+        .contentType(MediaType.APPLICATION_JSON)
+        .expectBody()
+        .jsonPath("$.version")
+        .isNotEmpty();
   }
 
   // list projects
   @Test
-  public void listProjects() throws Exception {
+  public void listProjects(@Autowired WebTestClient webTestClient) {
     // should get 2 projects
-    String url = UriComponentsBuilder.fromPath("/api/v1/projects").buildAndExpand().toString();
-    mockMvc
-        .perform(MockMvcRequestBuilders.get(url).accept(MediaType.APPLICATION_JSON))
-        .andDo(print())
-        .andExpect(status().isOk());
+    String uriString = UriComponentsBuilder.fromPath("/api/v1/projects").toUriString();
+    webTestClient
+        .get()
+        .uri(uriString)
+        .exchange()
+        .expectStatus()
+        .isOk()
+        .expectHeader()
+        .contentType(MediaType.APPLICATION_JSON)
+        .expectBody()
+        .jsonPath("$.projects")
+        .isArray()
+        .jsonPath("$.projects")
+        .value(
+            projects -> {
+              JsonElement jsonElement = JsonParser.parseString((String) projects);
+              Assert.assertEquals(jsonElement.getAsJsonArray().size(), 2);
+            });
   }
 
   // list feature sets
   @Test
-  public void listFeatureSets() throws Exception {
+  public void listFeatureSets(@Autowired WebTestClient webTestClient) throws Exception {
     // project = default
     // name = merchant_ratings
     // getting a specific feature set
-    String url1 =
+    String uri1 =
         UriComponentsBuilder.fromPath("/api/v1/feature-sets")
             .queryParam("project", "default")
             .queryParam("name", "merchant_ratings")
             .buildAndExpand()
             .toString();
-    mockMvc
-        .perform(MockMvcRequestBuilders.get(url1).accept(MediaType.APPLICATION_JSON))
-        .andDo(print())
-        .andExpect(status().isOk())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.featureSets").isNotEmpty());
+    webTestClient
+        .get()
+        .uri(uri1)
+        .exchange()
+        .expectStatus()
+        .isOk()
+        .expectHeader()
+        .contentType(MediaType.APPLICATION_JSON)
+        .expectBody()
+        .jsonPath("$.featureSets")
+        .isArray()
+        .jsonPath("$.featureSets")
+        .value(
+            projects -> {
+              JsonElement jsonElement = JsonParser.parseString((String) projects);
+              Assert.assertEquals(jsonElement.getAsJsonArray().size(), 1);
+            });
 
     // project = *
     // name = *merchant_ratings
     // should have two feature sets named *merchant_ratings
-    String url2 =
+    String uri2 =
         UriComponentsBuilder.fromPath("/api/v1/feature-sets")
             .queryParam("project", "*")
             .queryParam("name", "*merchant_ratings")
             .buildAndExpand()
             .toString();
-    mockMvc
-        .perform(MockMvcRequestBuilders.get(url2).accept(MediaType.APPLICATION_JSON))
-        .andDo(print())
-        .andExpect(status().isOk())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.featureSets").isNotEmpty());
+    webTestClient
+        .get()
+        .uri(uri2)
+        .exchange()
+        .expectStatus()
+        .isOk()
+        .expectHeader()
+        .contentType(MediaType.APPLICATION_JSON)
+        .expectBody()
+        .jsonPath("$.featureSets")
+        .isArray()
+        .jsonPath("$.featureSets")
+        .value(
+            projects -> {
+              System.out.println("here");
+              JsonElement jsonElement = JsonParser.parseString((String) projects);
+              Assert.assertEquals(jsonElement.getAsJsonArray().size(), 2);
+            });
 
     // project = *
     // name = *
     // should have three feature sets
-    String url3 =
+    String uri3 =
         UriComponentsBuilder.fromPath("/api/v1/feature-sets")
             .queryParam("project", "*")
             .queryParam("name", "*")
             .buildAndExpand()
             .toString();
-    mockMvc
-        .perform(MockMvcRequestBuilders.get(url3).accept(MediaType.APPLICATION_JSON))
-        .andDo(print())
-        .andExpect(status().isOk())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.featureSets").isArray());
+    webTestClient
+        .get()
+        .uri(uri3)
+        .exchange()
+        .expectStatus()
+        .isOk()
+        .expectHeader()
+        .contentType(MediaType.APPLICATION_JSON)
+        .expectBody()
+        .jsonPath("$.featureSets")
+        .isArray()
+        .jsonPath("$.featureSets")
+        .value(
+            projects -> {
+              JsonElement jsonElement = JsonParser.parseString((String) projects);
+              Assert.assertEquals(jsonElement.getAsJsonArray().size(), 3);
+            });
   }
 
   @Test
-  public void listFeatures() throws Exception {
+  public void listFeatures(@Autowired WebTestClient webTestClient) throws Exception {
     // entities = [merchant_id]
     // project = default
     // should return 4 features
-    String url1 =
+    String uri1 =
         UriComponentsBuilder.fromPath("/api/v1/features")
             .queryParam("entities", "merchant_id")
             .buildAndExpand()
             .toString();
-    mockMvc
-        .perform(MockMvcRequestBuilders.get(url1).accept(MediaType.APPLICATION_JSON))
-        .andDo(print())
-        .andExpect(status().isOk())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.features").isMap());
+    webTestClient
+        .get()
+        .uri(uri1)
+        .exchange()
+        .expectStatus()
+        .isOk()
+        .expectHeader()
+        .contentType(MediaType.APPLICATION_JSON)
+        .expectBody()
+        .jsonPath("$.features")
+        .isMap();
 
     // entities = [merchant_id]
     // project = merchant
@@ -230,12 +280,17 @@ public class CoreServiceRestIT extends BaseIT {
             .queryParam("project", "merchant")
             .buildAndExpand()
             .toString();
-    mockMvc
-        .perform(MockMvcRequestBuilders.get(url2).accept(MediaType.APPLICATION_JSON))
-        .andDo(print())
-        .andExpect(status().isOk())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.features").isMap());
+    webTestClient
+        .get()
+        .uri(uri1)
+        .exchange()
+        .expectStatus()
+        .isOk()
+        .expectHeader()
+        .contentType(MediaType.APPLICATION_JSON)
+        .expectBody()
+        .jsonPath("$.features")
+        .isMap();
   }
 
   @TestConfiguration
