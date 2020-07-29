@@ -81,7 +81,7 @@ public class DataflowJobManagerTest {
     Builder optionsBuilder = DataflowRunnerConfigOptions.newBuilder();
     optionsBuilder.setProject("project");
     optionsBuilder.setRegion("region");
-    optionsBuilder.setZone("zone");
+    optionsBuilder.setWorkerZone("zone");
     optionsBuilder.setTempLocation("tempLocation");
     optionsBuilder.setNetwork("network");
     optionsBuilder.setSubnetwork("subnetwork");

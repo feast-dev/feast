@@ -32,7 +32,7 @@ public class DataflowRunnerConfig extends RunnerConfig {
   public DataflowRunnerConfig(DataflowRunnerConfigOptions runnerConfigOptions) {
     this.project = runnerConfigOptions.getProject();
     this.region = runnerConfigOptions.getRegion();
-    this.zone = runnerConfigOptions.getZone();
+    this.workerZone = runnerConfigOptions.getWorkerZone();
     this.serviceAccount = runnerConfigOptions.getServiceAccount();
     this.network = runnerConfigOptions.getNetwork();
     this.subnetwork = runnerConfigOptions.getSubnetwork();
@@ -44,6 +44,8 @@ public class DataflowRunnerConfig extends RunnerConfig {
     this.deadLetterTableSpec = runnerConfigOptions.getDeadLetterTableSpec();
     this.diskSizeGb = runnerConfigOptions.getDiskSizeGb();
     this.labels = runnerConfigOptions.getLabelsMap();
+    this.enableStreamingEngine = runnerConfigOptions.getEnableStreamingEngine();
+    this.workerDiskType = runnerConfigOptions.getWorkerDiskType();
     validate();
   }
 
@@ -54,7 +56,7 @@ public class DataflowRunnerConfig extends RunnerConfig {
   @NotBlank public String region;
 
   /* GCP availability zone for operations. */
-  @NotBlank public String zone;
+  @NotBlank public String workerZone;
 
   /* Run the job as a specific service account, instead of the default GCE robot. */
   public String serviceAccount;
@@ -90,6 +92,12 @@ public class DataflowRunnerConfig extends RunnerConfig {
   public Integer diskSizeGb;
 
   public Map<String, String> labels;
+
+  /* If true job will be run on StreamingEngine instead of VMs */
+  public Boolean enableStreamingEngine;
+
+  /* Type of persistent disk to be used by workers */
+  public String workerDiskType;
 
   /** Validates Dataflow runner configuration options */
   public void validate() {
