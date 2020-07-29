@@ -206,25 +206,33 @@ public class RedisCustomIO {
       private byte[] getValue(FeatureRow featureRow, FeatureSetSpec spec) {
         List<String> featureNames =
             spec.getFeaturesList().stream().map(FeatureSpec::getName).collect(Collectors.toList());
-        Map<String, Field> fieldValueOnlyMap =
+        
+        Map<String, Field.Builder> fieldValueOnlyMap =
             featureRow.getFieldsList().stream()
                 .filter(field -> featureNames.contains(field.getName()))
                 .distinct()
                 .collect(
                     Collectors.toMap(
                         Field::getName,
-                        field -> Field.newBuilder().setValue(field.getValue()).build()));
+                        field -> Field.newBuilder().setValue(field.getValue())));
 
         List<Field> values =
             featureNames.stream()
                 .sorted()
                 .map(
-                    featureName ->
-                        fieldValueOnlyMap.getOrDefault(
+                    featureName -> {
+                          Field.Builder field = fieldValueOnlyMap.getOrDefault(
                             featureName,
                             Field.newBuilder()
-                                .setValue(ValueProto.Value.getDefaultInstance())
-                                .build()))
+                                .setValue(ValueProto.Value.getDefaultInstance()));
+                        
+                          // Set the name of the field to the hash of the field name.
+                          // Use hash of name instead of the name of the field to reduce redis 
+                          // storage consumption per feature row stored.
+                          field.setName(String.format("%d", featureName.hashCode()));
+                        
+                          return field.build();
+                    })
                 .collect(Collectors.toList());
 
         return FeatureRow.newBuilder()
