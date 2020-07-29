@@ -16,6 +16,8 @@
  */
 package feast.serving.controller;
 
+import feast.auth.service.AuthorizationService;
+import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.serving.ServingAPIProto.GetBatchFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
@@ -35,11 +37,16 @@ import io.grpc.stub.StreamObserver;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
-import org.lognet.springboot.grpc.GRpcService;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import net.devh.boot.grpc.server.service.GrpcService;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 
-@GRpcService(interceptors = {GrpcMonitoringInterceptor.class})
+@GrpcService(interceptors = {GrpcMonitoringInterceptor.class})
 public class ServingServiceGRpcController extends ServingServiceImplBase {
 
   private static final Logger log =
@@ -47,10 +54,15 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
   private final ServingService servingService;
   private final String version;
   private final Tracer tracer;
+  private final AuthorizationService authorizationService;
 
   @Autowired
   public ServingServiceGRpcController(
-      ServingService servingService, FeastProperties feastProperties, Tracer tracer) {
+      AuthorizationService authorizationService,
+      ServingService servingService,
+      FeastProperties feastProperties,
+      Tracer tracer) {
+    this.authorizationService = authorizationService;
     this.servingService = servingService;
     this.version = feastProperties.getVersion();
     this.tracer = tracer;
@@ -72,6 +84,16 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
     Span span = tracer.buildSpan("getOnlineFeatures").start();
     try (Scope scope = tracer.scopeManager().activate(span, false)) {
+      // authorize for the project in request object.
+      if (request.getProject() != null && !request.getProject().isEmpty()) {
+        // project set at root level overrides the project set at feature set level
+        this.authorizationService.authorizeRequest(
+            SecurityContextHolder.getContext(), request.getProject());
+      } else {
+        // authorize for projects set in feature list, backward compatibility for
+        // <=v0.5.X
+        this.checkProjectAccess(request.getFeaturesList());
+      }
       RequestHelper.validateOnlineRequest(request);
       GetOnlineFeaturesResponse onlineFeatures = servingService.getOnlineFeatures(request);
       responseObserver.onNext(onlineFeatures);
@@ -80,6 +102,13 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       log.error("Failed to retrieve specs in SpecService", e);
       responseObserver.onError(
           Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asException());
+    } catch (AccessDeniedException e) {
+      log.info(String.format("User prevented from accessing one of the projects in request"));
+      responseObserver.onError(
+          Status.PERMISSION_DENIED
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
     } catch (Exception e) {
       log.warn("Failed to get Online Features", e);
       responseObserver.onError(e);
@@ -92,6 +121,7 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       GetBatchFeaturesRequest request, StreamObserver<GetBatchFeaturesResponse> responseObserver) {
     try {
       RequestHelper.validateBatchRequest(request);
+      this.checkProjectAccess(request.getFeaturesList());
       GetBatchFeaturesResponse batchFeatures = servingService.getBatchFeatures(request);
       responseObserver.onNext(batchFeatures);
       responseObserver.onCompleted();
@@ -99,6 +129,13 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       log.error("Failed to retrieve specs in SpecService", e);
       responseObserver.onError(
           Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asException());
+    } catch (AccessDeniedException e) {
+      log.info(String.format("User prevented from accessing one of the projects in request"));
+      responseObserver.onError(
+          Status.PERMISSION_DENIED
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
     } catch (Exception e) {
       log.warn("Failed to get Batch Features", e);
       responseObserver.onError(e);
@@ -114,6 +151,21 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
     } catch (Exception e) {
       log.warn("Failed to get Job", e);
       responseObserver.onError(e);
+    }
+  }
+
+  private void checkProjectAccess(List<FeatureReference> featureList) {
+    Set<String> projectList =
+        featureList.stream().map(FeatureReference::getProject).collect(Collectors.toSet());
+    if (projectList.isEmpty()) {
+      authorizationService.authorizeRequest(SecurityContextHolder.getContext(), "default");
+    } else {
+      projectList.stream()
+          .forEach(
+              project -> {
+                this.authorizationService.authorizeRequest(
+                    SecurityContextHolder.getContext(), project);
+              });
     }
   }
 }

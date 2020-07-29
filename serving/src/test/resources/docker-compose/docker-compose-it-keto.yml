@@ -1,0 +1,44 @@
+version: '3'
+services:
+  keto:
+    depends_on:
+      - ketodb
+      - migrations
+    image: oryd/keto:v0.4.3-alpha.2
+    environment:
+      - DSN=postgres://keto:keto@ketodb:5432/keto?sslmode=disable
+    command:
+      - serve
+    ports:
+      - 4466
+
+  ketodb:
+    image: bitnami/postgresql:9.6
+    environment:
+      - POSTGRESQL_USERNAME=keto
+      - POSTGRESQL_PASSWORD=keto
+      - POSTGRESQL_DATABASE=keto
+    ports:
+      - "54340:5432"
+    
+  migrations:
+    depends_on:
+      - ketodb
+    image: oryd/keto:v0.4.3-alpha.2
+    environment:
+      - DSN=postgres://keto:keto@ketodb:5432/keto?sslmode=disable
+    command:
+      - migrate
+      - sql
+      - -e
+
+  adaptor:
+    depends_on:
+    - keto
+    image: gcr.io/kf-feast/feast-keto-auth-server:latest
+    environment:
+      SERVER_PORT: 8080
+      KETO_URL: http://keto:4466
+    ports:
+    - 8080
+    restart: on-failure

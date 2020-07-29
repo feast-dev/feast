@@ -24,6 +24,7 @@ import pandavro
 import pytest
 from google.protobuf.duration_pb2 import Duration
 from mock import MagicMock, patch
+from pytest_lazyfixture import lazy_fixture
 from pytz import timezone
 
 from feast.client import Client
@@ -81,6 +82,7 @@ _FAKE_JWT_TOKEN = (
     "TY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDI"
     "yfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
 )
+AUTH_METADATA = (("authorization", f"Bearer {_FAKE_JWT_TOKEN}"),)
 
 
 class TestClient:
@@ -99,6 +101,32 @@ class TestClient:
     @pytest.fixture
     def mock_client(self):
         client = Client(core_url=CORE_URL, serving_url=SERVING_URL)
+        client._core_url = CORE_URL
+        client._serving_url = SERVING_URL
+        return client
+
+    @pytest.fixture
+    def mock_client_with_auth(self):
+        client = Client(
+            core_url=CORE_URL,
+            serving_url=SERVING_URL,
+            enable_auth=True,
+            auth_token=_FAKE_JWT_TOKEN,
+        )
+        client._core_url = CORE_URL
+        client._serving_url = SERVING_URL
+        return client
+
+    @pytest.fixture
+    def secure_mock_client_with_auth(self):
+        client = Client(
+            core_url=CORE_URL,
+            serving_url=SERVING_URL,
+            core_enable_ssl=True,
+            serving_enable_ssl=True,
+            enable_auth=True,
+            auth_token=_FAKE_JWT_TOKEN,
+        )
         client._core_url = CORE_URL
         client._serving_url = SERVING_URL
         return client
@@ -216,8 +244,8 @@ class TestClient:
             yield Client(
                 core_url="localhost:50055",
                 core_enable_ssl=True,
-                core_enable_auth=True,
-                core_auth_token=_FAKE_JWT_TOKEN,
+                enable_auth=True,
+                auth_token=_FAKE_JWT_TOKEN,
             )
 
     @pytest.fixture
@@ -226,7 +254,7 @@ class TestClient:
 
     @pytest.mark.parametrize(
         "mocked_client",
-        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+        [lazy_fixture("mock_client"), lazy_fixture("secure_mock_client")],
     )
     def test_version(self, mocked_client, mocker):
         mocked_client._core_service_stub = Core.CoreServiceStub(
@@ -257,10 +285,21 @@ class TestClient:
         )
 
     @pytest.mark.parametrize(
-        "mocked_client",
-        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+        "mocked_client,auth_metadata",
+        [
+            (lazy_fixture("mock_client"), ()),
+            (lazy_fixture("mock_client_with_auth"), (AUTH_METADATA)),
+            (lazy_fixture("secure_mock_client"), ()),
+            (lazy_fixture("secure_mock_client_with_auth"), (AUTH_METADATA)),
+        ],
+        ids=[
+            "mock_client_without_auth",
+            "mock_client_with_auth",
+            "secure_mock_client_without_auth",
+            "secure_mock_client_with_auth",
+        ],
     )
-    def test_get_online_features(self, mocked_client, mocker):
+    def test_get_online_features(self, mocked_client, auth_metadata, mocker):
         ROW_COUNT = 300
 
         mocked_client._serving_service_stub = Serving.ServingServiceStub(
@@ -312,7 +351,7 @@ class TestClient:
             project="driver_project",
         )  # type: GetOnlineFeaturesResponse
         mocked_client._serving_service_stub.GetOnlineFeatures.assert_called_with(
-            request
+            request, metadata=auth_metadata
         )
 
         got_fields = got_response.field_values[0].fields
@@ -333,7 +372,7 @@ class TestClient:
 
     @pytest.mark.parametrize(
         "mocked_client",
-        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+        [lazy_fixture("mock_client"), lazy_fixture("secure_mock_client")],
     )
     def test_get_feature_set(self, mocked_client, mocker):
         mocked_client._core_service_stub = Core.CoreServiceStub(
@@ -397,7 +436,7 @@ class TestClient:
 
     @pytest.mark.parametrize(
         "mocked_client",
-        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+        [lazy_fixture("mock_client"), lazy_fixture("secure_mock_client")],
     )
     def test_list_feature_sets(self, mocked_client, mocker):
         mocker.patch.object(
@@ -458,7 +497,7 @@ class TestClient:
 
     @pytest.mark.parametrize(
         "mocked_client",
-        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+        [lazy_fixture("mock_client"), lazy_fixture("secure_mock_client")],
     )
     def test_list_features(self, mocked_client, mocker):
         mocker.patch.object(
@@ -504,7 +543,7 @@ class TestClient:
 
     @pytest.mark.parametrize(
         "mocked_client",
-        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+        [lazy_fixture("mock_client"), lazy_fixture("secure_mock_client")],
     )
     def test_list_ingest_jobs(self, mocked_client, mocker):
         mocker.patch.object(
@@ -560,7 +599,7 @@ class TestClient:
 
     @pytest.mark.parametrize(
         "mocked_client",
-        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+        [lazy_fixture("mock_client"), lazy_fixture("secure_mock_client")],
     )
     def test_restart_ingest_job(self, mocked_client, mocker):
         mocker.patch.object(
@@ -583,7 +622,7 @@ class TestClient:
 
     @pytest.mark.parametrize(
         "mocked_client",
-        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+        [lazy_fixture("mock_client"), lazy_fixture("secure_mock_client")],
     )
     def test_stop_ingest_job(self, mocked_client, mocker):
         mocker.patch.object(
@@ -606,7 +645,12 @@ class TestClient:
 
     @pytest.mark.parametrize(
         "mocked_client",
-        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+        [
+            lazy_fixture("mock_client"),
+            lazy_fixture("mock_client_with_auth"),
+            lazy_fixture("secure_mock_client"),
+            lazy_fixture("secure_mock_client_with_auth"),
+        ],
     )
     def test_get_historical_features(self, mocked_client, mocker):
 
@@ -725,8 +769,7 @@ class TestClient:
         assert actual_dataframe[["driver_id"]].equals(expected_dataframe[["driver_id"]])
 
     @pytest.mark.parametrize(
-        "test_client",
-        [pytest.lazy_fixture("client"), pytest.lazy_fixture("secure_client")],
+        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client")],
     )
     def test_apply_feature_set_success(self, test_client):
 
@@ -770,8 +813,8 @@ class TestClient:
     @pytest.mark.parametrize(
         "dataframe,test_client",
         [
-            (dataframes.GOOD, pytest.lazy_fixture("client")),
-            (dataframes.GOOD, pytest.lazy_fixture("secure_client")),
+            (dataframes.GOOD, lazy_fixture("client")),
+            (dataframes.GOOD, lazy_fixture("secure_client")),
         ],
     )
     def test_feature_set_ingest_success(self, dataframe, test_client, mocker):
@@ -802,7 +845,7 @@ class TestClient:
 
     @pytest.mark.parametrize(
         "dataframe,test_client,exception",
-        [(dataframes.GOOD, pytest.lazy_fixture("client"), Exception)],
+        [(dataframes.GOOD, lazy_fixture("client"), Exception)],
     )
     def test_feature_set_ingest_throws_exception_if_kafka_down(
         self, dataframe, test_client, exception, mocker
@@ -835,8 +878,8 @@ class TestClient:
     @pytest.mark.parametrize(
         "dataframe,exception,test_client",
         [
-            (dataframes.GOOD, TimeoutError, pytest.lazy_fixture("client")),
-            (dataframes.GOOD, TimeoutError, pytest.lazy_fixture("secure_client")),
+            (dataframes.GOOD, TimeoutError, lazy_fixture("client")),
+            (dataframes.GOOD, TimeoutError, lazy_fixture("secure_client")),
         ],
     )
     def test_feature_set_ingest_fail_if_pending(
@@ -872,26 +915,22 @@ class TestClient:
     @pytest.mark.parametrize(
         "dataframe,exception,test_client",
         [
-            (dataframes.BAD_NO_DATETIME, Exception, pytest.lazy_fixture("client")),
+            (dataframes.BAD_NO_DATETIME, Exception, lazy_fixture("client")),
             (
                 dataframes.BAD_INCORRECT_DATETIME_TYPE,
                 Exception,
-                pytest.lazy_fixture("client"),
+                lazy_fixture("client"),
             ),
-            (dataframes.BAD_NO_ENTITY, Exception, pytest.lazy_fixture("client")),
-            (dataframes.NO_FEATURES, Exception, pytest.lazy_fixture("client")),
-            (
-                dataframes.BAD_NO_DATETIME,
-                Exception,
-                pytest.lazy_fixture("secure_client"),
-            ),
+            (dataframes.BAD_NO_ENTITY, Exception, lazy_fixture("client")),
+            (dataframes.NO_FEATURES, Exception, lazy_fixture("client")),
+            (dataframes.BAD_NO_DATETIME, Exception, lazy_fixture("secure_client"),),
             (
                 dataframes.BAD_INCORRECT_DATETIME_TYPE,
                 Exception,
-                pytest.lazy_fixture("secure_client"),
+                lazy_fixture("secure_client"),
             ),
-            (dataframes.BAD_NO_ENTITY, Exception, pytest.lazy_fixture("secure_client")),
-            (dataframes.NO_FEATURES, Exception, pytest.lazy_fixture("secure_client")),
+            (dataframes.BAD_NO_ENTITY, Exception, lazy_fixture("secure_client")),
+            (dataframes.NO_FEATURES, Exception, lazy_fixture("secure_client")),
         ],
     )
     def test_feature_set_ingest_failure(self, test_client, dataframe, exception):
@@ -911,8 +950,8 @@ class TestClient:
     @pytest.mark.parametrize(
         "dataframe,test_client",
         [
-            (dataframes.ALL_TYPES, pytest.lazy_fixture("client")),
-            (dataframes.ALL_TYPES, pytest.lazy_fixture("secure_client")),
+            (dataframes.ALL_TYPES, lazy_fixture("client")),
+            (dataframes.ALL_TYPES, lazy_fixture("secure_client")),
         ],
     )
     def test_feature_set_types_success(self, test_client, dataframe, mocker):
@@ -1007,9 +1046,7 @@ class TestClient:
         self, insecure_core_server_with_auth
     ):
         client = Client(
-            core_url="localhost:50056",
-            core_enable_auth=True,
-            core_auth_token=_FAKE_JWT_TOKEN,
+            core_url="localhost:50056", enable_auth=True, auth_token=_FAKE_JWT_TOKEN,
         )
         client.list_feature_sets()
 

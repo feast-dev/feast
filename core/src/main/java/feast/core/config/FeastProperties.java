@@ -17,6 +17,8 @@
 package feast.core.config;
 
 import feast.auth.config.SecurityProperties;
+import feast.auth.config.SecurityProperties.AuthenticationProperties;
+import feast.auth.config.SecurityProperties.AuthorizationProperties;
 import feast.common.validators.OneOfStrings;
 import feast.core.config.FeastProperties.StreamProperties.FeatureStreamOptions;
 import java.net.InetAddress;
@@ -277,6 +279,20 @@ public class FeastProperties {
                 + ". Make sure it is a valid IP address or DNS hostname e.g. localhost or 10.128.10.40. Error detail: "
                 + e.getMessage());
       }
+    }
+
+    // Validate AuthenticationProperties
+    Set<ConstraintViolation<AuthenticationProperties>> authenticationPropsViolations =
+        validator.validate(getSecurity().getAuthentication());
+    if (!authenticationPropsViolations.isEmpty()) {
+      throw new ConstraintViolationException(authenticationPropsViolations);
+    }
+
+    // Validate AuthorizationProperties
+    Set<ConstraintViolation<AuthorizationProperties>> authorizationPropsViolations =
+        validator.validate(getSecurity().getAuthorization());
+    if (!authorizationPropsViolations.isEmpty()) {
+      throw new ConstraintViolationException(authorizationPropsViolations);
     }
   }
 }

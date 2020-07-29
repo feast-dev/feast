@@ -68,7 +68,8 @@
         <flyway.version>6.0.8</flyway.version>
         <joda.time.version>2.9.9</joda.time.version>
         <jakarta.validation.api.version>2.0.2</jakarta.validation.api.version>
-
+        <spring.security.oauth2.version>2.5.0.RELEASE</spring.security.oauth2.version>
+        
         <skipUTs>false</skipUTs>
     </properties>
 

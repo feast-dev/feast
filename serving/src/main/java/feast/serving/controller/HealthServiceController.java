@@ -26,12 +26,12 @@ import io.grpc.health.v1.HealthProto.HealthCheckRequest;
 import io.grpc.health.v1.HealthProto.HealthCheckResponse;
 import io.grpc.health.v1.HealthProto.HealthCheckResponse.ServingStatus;
 import io.grpc.stub.StreamObserver;
-import org.lognet.springboot.grpc.GRpcService;
+import net.devh.boot.grpc.server.service.GrpcService;
 import org.springframework.beans.factory.annotation.Autowired;
 
 // Reference: https://github.com/grpc/grpc/blob/master/doc/health-checking.md
 
-@GRpcService(interceptors = {GrpcMonitoringInterceptor.class})
+@GrpcService(interceptors = {GrpcMonitoringInterceptor.class})
 public class HealthServiceController extends HealthImplBase {
   private CachedSpecService specService;
   private ServingService servingService;
