@@ -20,11 +20,11 @@ import com.google.gson.Gson;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.config.FeastProperties.JobProperties;
-import feast.core.dao.JobRepository;
 import feast.core.job.ConsolidatedJobStrategy;
 import feast.core.job.JobGroupingStrategy;
 import feast.core.job.JobManager;
 import feast.core.job.JobPerStoreStrategy;
+import feast.core.job.JobRepository;
 import feast.core.job.dataflow.DataflowJobManager;
 import feast.core.job.direct.DirectJobRegistry;
 import feast.core.job.direct.DirectRunnerJobManager;
@@ -32,6 +32,7 @@ import feast.proto.core.IngestionJobProto;
 import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions;
 import feast.proto.core.RunnerProto.DirectRunnerConfigOptions;
 import feast.proto.core.SourceProto;
+import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -80,7 +81,8 @@ public class JobConfig {
   @Bean
   public JobGroupingStrategy getJobGroupingStrategy(
       FeastProperties feastProperties, JobRepository jobRepository) {
-    Boolean shouldConsolidateJobs = feastProperties.getJobs().getConsolidateJobsPerSource();
+    Boolean shouldConsolidateJobs =
+        feastProperties.getJobs().getCoordinator().getConsolidateJobsPerSource();
     if (shouldConsolidateJobs) {
       return new ConsolidatedJobStrategy(jobRepository);
     } else {
@@ -103,21 +105,33 @@ public class JobConfig {
     JobProperties jobProperties = feastProperties.getJobs();
     FeastProperties.JobProperties.Runner runner = jobProperties.getActiveRunner();
     Map<String, Object> runnerConfigOptions = runner.getOptions();
-    String configJson = gson.toJson(runnerConfigOptions);
 
     FeastProperties.MetricsProperties metrics = jobProperties.getMetrics();
 
     switch (runner.getType()) {
       case DATAFLOW:
+        // Retrieve labels for options to extend them
+        Map<String, String> jobLabels =
+            (Map<String, String>) runnerConfigOptions.getOrDefault("labels", new HashMap());
+        // Merge Job Selector Labels into runner options
+        // to create jobs with the same set of labels
+        jobProperties.getCoordinator().getJobSelector().forEach(jobLabels::put);
+        runnerConfigOptions.put("labels", jobLabels);
+
+        String configJson = gson.toJson(runnerConfigOptions);
+
         DataflowRunnerConfigOptions.Builder dataflowRunnerConfigOptions =
             DataflowRunnerConfigOptions.newBuilder();
         JsonFormat.parser().merge(configJson, dataflowRunnerConfigOptions);
-        return new DataflowJobManager(
-            dataflowRunnerConfigOptions.build(), metrics, specsStreamingUpdateConfig);
+        return DataflowJobManager.of(
+            dataflowRunnerConfigOptions.build(),
+            metrics,
+            specsStreamingUpdateConfig,
+            jobProperties.getCoordinator().getJobSelector());
       case DIRECT:
         DirectRunnerConfigOptions.Builder directRunnerConfigOptions =
             DirectRunnerConfigOptions.newBuilder();
-        JsonFormat.parser().merge(configJson, directRunnerConfigOptions);
+        JsonFormat.parser().merge(gson.toJson(runnerConfigOptions), directRunnerConfigOptions);
         return new DirectRunnerJobManager(
             directRunnerConfigOptions.build(),
             new DirectJobRegistry(),

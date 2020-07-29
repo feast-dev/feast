@@ -44,20 +44,30 @@ public class SpecUtil {
     }
   }
 
-  public static List<Store> parseStoreJsonList(List<String> jsonList)
-      throws InvalidProtocolBufferException {
+  public static List<Store> parseStoreJsonList(List<String> jsonList) {
     List<Store> stores = new ArrayList<>();
     for (String json : jsonList) {
       Store.Builder builder = Store.newBuilder();
-      JsonFormat.parser().merge(json, builder);
+      try {
+        JsonFormat.parser().merge(json, builder);
+      } catch (InvalidProtocolBufferException e) {
+        throw new RuntimeException(
+            String.format("Couldn't parse StoreProto.Store object from json: %s", e.getCause()));
+      }
       stores.add(builder.build());
     }
     return stores;
   }
 
-  public static Source parseSourceJson(String jsonSource) throws InvalidProtocolBufferException {
+  public static Source parseSourceJson(String jsonSource) {
     Source.Builder builder = Source.newBuilder();
-    JsonFormat.parser().merge(jsonSource, builder);
+    try {
+      JsonFormat.parser().merge(jsonSource, builder);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(
+          String.format("Couldn't parse SourceProto.Source object from json: %s", e.getCause()));
+    }
+
     return builder.build();
   }
 

@@ -978,10 +978,15 @@ def test_all_types_ingest_jobs(client, all_types_dataframe):
     # id without timestamp part
     # that remains the same between jobs
     shared_id = "-".join(ingest_job.id.split("-")[:-1])
+    ingest_jobs = client.list_ingest_jobs(
+        feature_set_ref=FeatureSetRef.from_feature_set(all_types_fs)
+    )
     replacement_jobs = [
         job
         for job in ingest_jobs
-        if job.status == IngestionJobStatus.RUNNING and job.id.startswith(shared_id)
+        if job.status == IngestionJobStatus.RUNNING
+        and job.id.startswith(shared_id)
+        and job.id != ingest_job.id
     ]
 
     assert len(replacement_jobs) >= 1

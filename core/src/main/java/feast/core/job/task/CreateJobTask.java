@@ -39,7 +39,6 @@ public class CreateJobTask extends JobTask {
       changeJobStatus(JobStatus.PENDING);
 
       // Start job with jobManager.
-      job.setRunner(jobManager.getRunnerType());
       job = jobManager.startJob(job);
 
       log.info(String.format("Build graph and submitting to %s", runnerName));

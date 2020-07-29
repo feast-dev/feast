@@ -40,7 +40,19 @@ else
   echo "[DEBUG] Skipping building jars"
 fi
 
-start_feast_core
+# Start Feast Core with auth if enabled
+cat <<EOF > /tmp/core.warehouse.application.yml
+feast:
+  jobs:
+    polling_interval_milliseconds: 5000
+    active_runner: direct
+    runners:
+      - name: direct
+        type: DirectRunner
+        options: {}
+EOF
+
+start_feast_core /tmp/core.warehouse.application.yml
 
 cat <<EOF > /tmp/serving.online.application.yml
 feast:

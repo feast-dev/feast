@@ -16,13 +16,11 @@
  */
 package feast.core.job;
 
-import feast.core.dao.JobRepository;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
-import feast.core.model.Source;
-import feast.core.model.Store;
+import feast.proto.core.SourceProto;
+import feast.proto.core.StoreProto;
 import java.time.Instant;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -45,35 +43,43 @@ public class ConsolidatedJobStrategy implements JobGroupingStrategy {
   }
 
   @Override
-  public Job getOrCreateJob(Source source, Set<Store> stores) {
+  public Job getOrCreateJob(SourceProto.Source source, Set<StoreProto.Store> stores) {
     return jobRepository
-        .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
-            source.getType(), source.getConfig(), null, JobStatus.getTerminalStates())
+        .findFirstBySourceAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
+            source, null, JobStatus.getTerminalStates())
         .orElseGet(
-            () -> {
-              Job job =
-                  Job.builder().setSource(source).setFeatureSetJobStatuses(new HashSet<>()).build();
-              job.setStores(stores);
-              return job;
-            });
+            () ->
+                Job.builder()
+                    .setId(createJobId(source))
+                    .setSource(source)
+                    .setStores(
+                        stores.stream()
+                            .collect(Collectors.toMap(StoreProto.Store::getName, s -> s)))
+                    .build());
   }
 
-  @Override
-  public String createJobId(Job job) {
+  private String createJobId(SourceProto.Source source) {
     String dateSuffix = String.valueOf(Instant.now().toEpochMilli());
     String jobId =
         String.format(
             "%s-%d-%s",
-            job.getSource().getTypeString(),
-            Objects.hashCode(job.getSource().getConfig()),
+            source.getType().getValueDescriptor().getName(),
+            Objects.hash(
+                source.getKafkaSourceConfig().getBootstrapServers(),
+                source.getKafkaSourceConfig().getTopic()),
             dateSuffix);
     return jobId.replaceAll("_store", "-").toLowerCase();
   }
 
   @Override
-  public Iterable<Pair<Source, Set<Store>>> collectSingleJobInput(
-      Stream<Pair<Source, Store>> stream) {
-    Map<Source, Set<Store>> map =
+  public String createJobId(Job job) {
+    return createJobId(job.getSource());
+  }
+
+  @Override
+  public Iterable<Pair<SourceProto.Source, Set<StoreProto.Store>>> collectSingleJobInput(
+      Stream<Pair<SourceProto.Source, StoreProto.Store>> stream) {
+    Map<SourceProto.Source, Set<StoreProto.Store>> map =
         stream.collect(
             Collectors.groupingBy(
                 Pair::getLeft, Collectors.mapping(Pair::getRight, Collectors.toSet())));

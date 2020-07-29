@@ -22,24 +22,24 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.beans.HasPropertyWithValue.hasProperty;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
+import static org.hamcrest.collection.IsMapWithSize.aMapWithSize;
 import static org.hamcrest.core.AllOf.allOf;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
+import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.dao.JobRepository;
 import feast.core.it.BaseIT;
 import feast.core.it.DataGenerator;
 import feast.core.it.SimpleAPIClient;
 import feast.core.job.JobManager;
-import feast.core.job.Runner;
+import feast.core.job.JobRepository;
 import feast.core.model.*;
 import feast.proto.core.*;
 import feast.proto.types.ValueProto;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.*;
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.*;
@@ -54,9 +54,9 @@ import org.springframework.kafka.core.KafkaTemplate;
 @SpringBootTest(
     properties = {
       "feast.jobs.enabled=true",
-      "feast.jobs.polling_interval_milliseconds=2000",
+      "feast.jobs.polling_interval_milliseconds=1000",
       "feast.stream.specsOptions.notifyIntervalMilliseconds=100",
-      "feast.jobs.consolidate-jobs-per-source=true"
+      "feast.jobs.coordinator.consolidate-jobs-per-source=true"
     })
 public class JobCoordinatorIT extends BaseIT {
   @Autowired private FakeJobManager jobManager;
@@ -85,6 +85,7 @@ public class JobCoordinatorIT extends BaseIT {
 
     if (!isNestedTest(testInfo)) {
       jobManager.cleanAll();
+      jobRepository.deleteAll();
     }
   }
 
@@ -99,6 +100,7 @@ public class JobCoordinatorIT extends BaseIT {
   }
 
   @Test
+  @SneakyThrows
   public void shouldCreateJobForNewSource() {
     apiClient.simpleApplyFeatureSet(
         DataGenerator.createFeatureSet(
@@ -114,12 +116,18 @@ public class JobCoordinatorIT extends BaseIT {
     await()
         .until(
             jobManager::getAllJobs,
-            hasItem(
+            containsInAnyOrder(
                 allOf(
-                    hasProperty("runner", equalTo(Runner.DIRECT)),
-                    hasProperty("id", containsString("kafka--627317556")),
-                    hasProperty("jobStores", hasSize(1)),
-                    hasProperty("featureSetJobStatuses", hasSize(1)))));
+                    hasProperty("id", containsString("kafka-1422433213")),
+                    hasProperty("stores", aMapWithSize(1)),
+                    hasProperty("featureSetDeliveryStatuses", aMapWithSize(1)))));
+
+    // verify stay stable
+    Job job = jobManager.getAllJobs().get(0);
+    Thread.sleep(3000);
+
+    assertThat(
+        jobManager.getAllJobs(), containsInAnyOrder(hasProperty("id", equalTo(job.getId()))));
   }
 
   @Test
@@ -145,8 +153,8 @@ public class JobCoordinatorIT extends BaseIT {
             jobManager::getAllJobs,
             containsInAnyOrder(
                 allOf(
-                    hasProperty("jobStores", hasSize(2)),
-                    hasProperty("featureSetJobStatuses", hasSize(1)))));
+                    hasProperty("stores", aMapWithSize(2)),
+                    hasProperty("featureSetDeliveryStatuses", aMapWithSize(1)))));
 
     await().until(jobManager::getAllJobs, hasSize(1));
   }
@@ -190,18 +198,19 @@ public class JobCoordinatorIT extends BaseIT {
     @Order(1)
     public void shouldSendNewSpec() {
       jobManager.cleanAll();
+      jobRepository.deleteAll();
 
       job =
           Job.builder()
-              .setSource(Source.fromProto(DataGenerator.getDefaultSource()))
+              .setSource(DataGenerator.getDefaultSource())
+              .setStores(
+                  ImmutableMap.of(
+                      DataGenerator.getDefaultStore().getName(), DataGenerator.getDefaultStore()))
               .setId("some-running-id")
-              .setStatus(JobStatus.RUNNING)
               .build();
 
       jobManager.startJob(job);
-
-      job.setStores(ImmutableSet.of(Store.fromProto(DataGenerator.getDefaultStore())));
-      jobRepository.saveAndFlush(job);
+      jobRepository.add(job);
 
       apiClient.simpleApplyFeatureSet(
           DataGenerator.createFeatureSet(
@@ -332,62 +341,6 @@ public class JobCoordinatorIT extends BaseIT {
           .until(
               () -> apiClient.simpleGetFeatureSet("default", "test").getMeta().getStatus(),
               equalTo(FeatureSetProto.FeatureSetStatus.STATUS_READY));
-    }
-  }
-
-  public static class FakeJobManager implements JobManager {
-    private final Map<String, Job> state;
-
-    public FakeJobManager() {
-      state = new HashMap<>();
-    }
-
-    @Override
-    public Runner getRunnerType() {
-      return Runner.DIRECT;
-    }
-
-    @Override
-    public Job startJob(Job job) {
-      String extId = UUID.randomUUID().toString();
-      job.setExtId(extId);
-      job.setStatus(JobStatus.RUNNING);
-      state.put(extId, job);
-      return job;
-    }
-
-    @Override
-    public Job updateJob(Job job) {
-      return job;
-    }
-
-    @Override
-    public Job abortJob(Job job) {
-      job.setStatus(JobStatus.ABORTING);
-      state.remove(job.getExtId());
-      return job;
-    }
-
-    @Override
-    public Job restartJob(Job job) {
-      return abortJob(job);
-    }
-
-    @Override
-    public JobStatus getJobStatus(Job job) {
-      if (state.containsKey(job.getExtId())) {
-        return JobStatus.RUNNING;
-      }
-
-      return JobStatus.ABORTED;
-    }
-
-    public List<Job> getAllJobs() {
-      return Lists.newArrayList(state.values());
-    }
-
-    public void cleanAll() {
-      state.clear();
     }
   }
 

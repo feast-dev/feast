@@ -69,7 +69,8 @@
         <joda.time.version>2.9.9</joda.time.version>
         <jakarta.validation.api.version>2.0.2</jakarta.validation.api.version>
         <spring.security.oauth2.version>2.5.0.RELEASE</spring.security.oauth2.version>
-        
+        <lombok.version>1.18.12</lombok.version>
+
         <skipUTs>false</skipUTs>
         <auto.value.version>1.6.6</auto.value.version>
     </properties>
@@ -278,7 +279,7 @@
             <dependency>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
-                <version>1.18.12</version>
+                <version>${lombok.version}</version>
                 <scope>provided</scope>
             </dependency>
             <dependency>
