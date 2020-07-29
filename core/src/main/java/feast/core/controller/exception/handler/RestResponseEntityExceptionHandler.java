@@ -17,6 +17,7 @@
 package feast.core.controller.exception.handler;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import feast.core.exception.RetrievalException;
 import java.util.Map;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -28,32 +29,72 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+/** A exception handler for some common exceptions while accessing Feast Core via HTTP. */
 @ControllerAdvice
 public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionHandler {
 
+  /**
+   * Handles the case when a request object (such as {@link
+   * feast.proto.core.CoreServiceProto.GetFeatureSetRequest}) or a response object (such as {@link
+   * feast.proto.core.CoreServiceProto.GetFeatureSetResponse} is malformed.
+   *
+   * @param ex the {@link InvalidProtocolBufferException} that occurred.
+   * @param request the {@link WebRequest} that caused this exception.
+   * @return (500 Internal Server Error)
+   */
   @ExceptionHandler({InvalidProtocolBufferException.class})
   protected ResponseEntity<Object> handleInvalidProtocolBuffer(
       InvalidProtocolBufferException ex, WebRequest request) {
     Map<String, String> bodyOfResponse =
-        Map.of("error", "Unexpected error occurred in Feast Core.");
+        Map.of("error", "An unexpected error occurred in Feast Core.");
     return handleExceptionInternal(
         ex, bodyOfResponse, new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, request);
   }
 
-  @ExceptionHandler({UnsatisfiedServletRequestParameterException.class})
-  protected ResponseEntity<Object> handleUnsatisfiedServletRequestParameter(
-      UnsatisfiedServletRequestParameterException ex, WebRequest request) {
+  /**
+   * Handles various exceptions that are due to malformed or invalid requests, such as
+   *
+   * <ul>
+   *   <li>{@link UnsatisfiedServletRequestParameterException} where a parameter is requested in
+   *       {@link org.springframework.web.bind.annotation.RequestMapping} but not supplied.
+   *   <li>{@link IllegalArgumentException} where unsupported parameters are provided.
+   *   <li>{@link RetrievalException} where a store specified is not
+   * </ul>
+   *
+   * @param ex the {@link UnsatisfiedServletRequestParameterException} that occurred.
+   * @param request the {@link WebRequest} that caused this exception.
+   * @return (400 Bad Request)
+   */
+  @ExceptionHandler({
+    UnsatisfiedServletRequestParameterException.class,
+    IllegalArgumentException.class,
+    RetrievalException.class
+  })
+  protected ResponseEntity<Object> handleBadRequest(Exception ex, WebRequest request) {
+    ex.printStackTrace();
     Map<String, String> bodyOfResponse = Map.of("error", ex.getMessage());
     return handleExceptionInternal(
-        ex, bodyOfResponse, new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, request);
+        ex, bodyOfResponse, new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
   }
 
+  /**
+   * Handles {@link MissingServletRequestParameterException} which occurs when a controller method
+   * expects a certain parameter but is not supplied by the request. The original implementation
+   * returns an empty body with (400 Bad Request), we add in the error and stacktrace.
+   *
+   * @param ex the {@link MissingServletRequestParameterException} that occurred.
+   * @param request the {@link WebRequest} that caused this exception.
+   * @param headers the {@link HttpHeaders} from the request.
+   * @param status the {@link HttpStatus} generated for the response, (400 Bad Request)
+   * @return (400 Bad Request)
+   */
   @Override
   protected ResponseEntity<Object> handleMissingServletRequestParameter(
       MissingServletRequestParameterException ex,
       HttpHeaders headers,
       HttpStatus status,
       WebRequest request) {
+    ex.printStackTrace();
     Map<String, String> bodyOfResponse = Map.of("error", ex.getMessage());
     return this.handleExceptionInternal(ex, bodyOfResponse, headers, status, request);
   }
