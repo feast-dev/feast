@@ -19,8 +19,8 @@ from google.auth.exceptions import DefaultCredentialsError
 
 from feast.config import Config
 from feast.constants import (
-    CONFIG_CORE_AUTH_PROVIDER,
-    CONFIG_CORE_ENABLE_AUTH_TOKEN_KEY,
+    CONFIG_AUTH_PROVIDER,
+    CONFIG_ENABLE_AUTH_TOKEN_KEY,
     CONFIG_OAUTH_AUDIENCE_KEY,
     CONFIG_OAUTH_CLIENT_ID_KEY,
     CONFIG_OAUTH_CLIENT_SECRET_KEY,
@@ -44,9 +44,9 @@ def get_auth_metadata_plugin(config: Config) -> grpc.AuthMetadataPlugin:
     Args:
         config: Feast Configuration object
     """
-    if AuthProvider(config.get(CONFIG_CORE_AUTH_PROVIDER)) == AuthProvider.GOOGLE:
+    if AuthProvider(config.get(CONFIG_AUTH_PROVIDER)) == AuthProvider.GOOGLE:
         return GoogleOpenIDAuthMetadataPlugin(config)
-    elif AuthProvider(config.get(CONFIG_CORE_AUTH_PROVIDER)) == AuthProvider.OAUTH:
+    elif AuthProvider(config.get(CONFIG_AUTH_PROVIDER)) == AuthProvider.OAUTH:
         return OAuthMetadataPlugin(config)
     else:
         raise RuntimeError(
@@ -75,8 +75,8 @@ class OAuthMetadataPlugin(grpc.AuthMetadataPlugin):
         self._token = None
 
         # If provided, set a static token
-        if config.exists(CONFIG_CORE_ENABLE_AUTH_TOKEN_KEY):
-            self._static_token = config.get(CONFIG_CORE_ENABLE_AUTH_TOKEN_KEY)
+        if config.exists(CONFIG_ENABLE_AUTH_TOKEN_KEY):
+            self._static_token = config.get(CONFIG_ENABLE_AUTH_TOKEN_KEY)
             self._refresh_token(config)
         elif (
             config.exists(CONFIG_OAUTH_GRANT_TYPE_KEY)
@@ -171,8 +171,8 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
         self._token = None
 
         # If provided, set a static token
-        if config.exists(CONFIG_CORE_ENABLE_AUTH_TOKEN_KEY):
-            self._static_token = config.get(CONFIG_CORE_ENABLE_AUTH_TOKEN_KEY)
+        if config.exists(CONFIG_ENABLE_AUTH_TOKEN_KEY):
+            self._static_token = config.get(CONFIG_ENABLE_AUTH_TOKEN_KEY)
 
         self._request = requests.Request()
         self._refresh_token()

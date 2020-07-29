@@ -24,9 +24,11 @@ import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.proto.core.CoreServiceProto.UpdateStoreRequest;
 import feast.proto.core.CoreServiceProto.UpdateStoreResponse;
 import feast.proto.core.StoreProto.Store;
+import io.grpc.CallCredentials;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.slf4j.Logger;
+import org.springframework.beans.factory.ObjectProvider;
 
 /** Client for interfacing with specs in Feast Core. */
 public class CoreSpecService {
@@ -34,10 +36,16 @@ public class CoreSpecService {
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(CoreSpecService.class);
   private final CoreServiceGrpc.CoreServiceBlockingStub blockingStub;
 
-  public CoreSpecService(String feastCoreHost, int feastCorePort) {
+  public CoreSpecService(
+      String feastCoreHost, int feastCorePort, ObjectProvider<CallCredentials> callCredentials) {
     ManagedChannel channel =
         ManagedChannelBuilder.forAddress(feastCoreHost, feastCorePort).usePlaintext().build();
-    blockingStub = CoreServiceGrpc.newBlockingStub(channel);
+    CallCredentials creds = callCredentials.getIfAvailable();
+    if (creds != null) {
+      blockingStub = CoreServiceGrpc.newBlockingStub(channel).withCallCredentials(creds);
+    } else {
+      blockingStub = CoreServiceGrpc.newBlockingStub(channel);
+    }
   }
 
   public GetFeatureSetResponse getFeatureSet(GetFeatureSetRequest getFeatureSetRequest) {

@@ -14,6 +14,8 @@ import pytz
 from google.protobuf.duration_pb2 import Duration
 
 from feast.client import Client
+from feast.config import Config
+from feast.constants import CONFIG_AUTH_PROVIDER
 from feast.core import CoreService_pb2
 from feast.core.CoreService_pb2 import ApplyFeatureSetResponse, GetFeatureSetResponse
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
@@ -21,6 +23,7 @@ from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_set import FeatureSet, FeatureSetRef
+from feast.grpc.auth import get_auth_metadata_plugin
 from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequest,
     GetOnlineFeaturesResponse,
@@ -34,6 +37,7 @@ from feast.wait import wait_retry_backoff
 FLOAT_TOLERANCE = 0.00001
 PROJECT_NAME = "basic_" + uuid.uuid4().hex.upper()[0:6]
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+AUTH_PROVIDER = "google"
 
 
 def basic_dataframe(entities, features, ingest_time, n_size, null_features=[]):
@@ -103,7 +107,7 @@ def allow_dirty(pytestconfig):
 
 @pytest.fixture(scope="module")
 def enable_auth(pytestconfig):
-    return pytestconfig.getoption("enable_auth")
+    return True if pytestconfig.getoption("enable_auth").lower() == "true" else False
 
 
 @pytest.fixture(scope="module")
@@ -114,8 +118,8 @@ def client(core_url, serving_url, allow_dirty, enable_auth):
     client = Client(
         core_url=core_url,
         serving_url=serving_url,
-        core_enable_auth=enable_auth,
-        core_auth_provider="google",
+        enable_auth=enable_auth,
+        auth_provider=AUTH_PROVIDER,
     )
     client.create_project(PROJECT_NAME)
 
@@ -160,6 +164,13 @@ def test_version_returns_results(client):
     version_info = client.version()
     assert not version_info["core"] == "not configured"
     assert not version_info["serving"] == "not configured"
+
+
+def test_list_feature_sets_when_auth_enabled_should_raise(enable_auth):
+    if enable_auth:
+        client = Client(core_url=core_url, serving_url=serving_url, enable_auth=False)
+        with pytest.raises(ConnectionError):
+            client.list_feature_sets()
 
 
 @pytest.mark.timeout(45)
@@ -1091,22 +1102,33 @@ class TestsBasedOnGrpc:
         core_service_stub = CoreServiceStub(core_channel)
         return core_service_stub
 
-    def apply_feature_set(self, core_service_stub, feature_set_proto):
+    @pytest.fixture(scope="module")
+    def auth_meta_data(self, enable_auth):
+        if not enable_auth:
+            return None
+        else:
+            metadata = {CONFIG_AUTH_PROVIDER: AUTH_PROVIDER}
+            metadata_plugin = get_auth_metadata_plugin(config=Config(metadata))
+            return metadata_plugin.get_signed_meta()
+
+    def apply_feature_set(self, core_service_stub, feature_set_proto, auth_meta_data):
         try:
             apply_fs_response = core_service_stub.ApplyFeatureSet(
                 CoreService_pb2.ApplyFeatureSetRequest(feature_set=feature_set_proto),
                 timeout=self.GRPC_CONNECTION_TIMEOUT,
+                metadata=auth_meta_data,
             )  # type: ApplyFeatureSetResponse
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
         return apply_fs_response.feature_set
 
-    def get_feature_set(self, core_service_stub, name, project):
+    def get_feature_set(self, core_service_stub, name, project, auth_meta_data):
         try:
             get_feature_set_response = core_service_stub.GetFeatureSet(
                 CoreService_pb2.GetFeatureSetRequest(
                     project=project, name=name.strip(),
-                )
+                ),
+                metadata=auth_meta_data,
             )  # type: GetFeatureSetResponse
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
@@ -1114,17 +1136,17 @@ class TestsBasedOnGrpc:
 
     @pytest.mark.timeout(45)
     @pytest.mark.run(order=51)
-    def test_register_feature_set_with_labels(self, core_service_stub):
+    def test_register_feature_set_with_labels(self, core_service_stub, auth_meta_data):
         feature_set_name = "test_feature_set_labels"
         feature_set_proto = FeatureSet(
             name=feature_set_name,
             project=PROJECT_NAME,
             labels={self.LABEL_KEY: self.LABEL_VALUE},
         ).to_proto()
-        self.apply_feature_set(core_service_stub, feature_set_proto)
+        self.apply_feature_set(core_service_stub, feature_set_proto, auth_meta_data)
 
         retrieved_feature_set = self.get_feature_set(
-            core_service_stub, feature_set_name, PROJECT_NAME
+            core_service_stub, feature_set_name, PROJECT_NAME, auth_meta_data
         )
 
         assert self.LABEL_KEY in retrieved_feature_set.spec.labels
@@ -1132,7 +1154,7 @@ class TestsBasedOnGrpc:
 
     @pytest.mark.timeout(45)
     @pytest.mark.run(order=52)
-    def test_register_feature_with_labels(self, core_service_stub):
+    def test_register_feature_with_labels(self, core_service_stub, auth_meta_data):
         feature_set_name = "test_feature_labels"
         feature_set_proto = FeatureSet(
             name=feature_set_name,
@@ -1145,10 +1167,10 @@ class TestsBasedOnGrpc:
                 )
             ],
         ).to_proto()
-        self.apply_feature_set(core_service_stub, feature_set_proto)
+        self.apply_feature_set(core_service_stub, feature_set_proto, auth_meta_data)
 
         retrieved_feature_set = self.get_feature_set(
-            core_service_stub, feature_set_name, PROJECT_NAME
+            core_service_stub, feature_set_name, PROJECT_NAME, auth_meta_data
         )
         retrieved_feature = retrieved_feature_set.spec.features[0]
 

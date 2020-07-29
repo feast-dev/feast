@@ -27,14 +27,15 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import feast.auth.authorization.AuthorizationProvider;
 import feast.auth.authorization.AuthorizationResult;
 import feast.auth.config.SecurityProperties;
+import feast.auth.service.AuthorizationService;
 import feast.core.config.FeastProperties;
 import feast.core.dao.ProjectRepository;
 import feast.core.model.Entity;
 import feast.core.model.Feature;
 import feast.core.model.FeatureSet;
 import feast.core.model.Source;
-import feast.core.service.AccessManagementService;
 import feast.core.service.JobService;
+import feast.core.service.ProjectService;
 import feast.core.service.SpecService;
 import feast.core.service.StatsService;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetRequest;
@@ -45,6 +46,7 @@ import feast.proto.core.SourceProto;
 import feast.proto.core.SourceProto.KafkaSourceConfig;
 import feast.proto.core.SourceProto.SourceType;
 import feast.proto.types.ValueProto.ValueType.Enum;
+import io.grpc.StatusRuntimeException;
 import io.grpc.internal.testing.StreamRecorder;
 import java.sql.Date;
 import java.time.Instant;
@@ -53,7 +55,6 @@ import java.util.HashMap;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -61,7 +62,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 class CoreServiceAuthTest {
 
   private CoreServiceImpl coreService;
-  private AccessManagementService accessManagementService;
+  private ProjectService projectService;
 
   @Mock private SpecService specService;
   @Mock private ProjectRepository projectRepository;
@@ -78,11 +79,12 @@ class CoreServiceAuthTest {
     sp.setAuthorization(authProp);
     FeastProperties feastProperties = new FeastProperties();
     feastProperties.setSecurity(sp);
-    accessManagementService =
-        new AccessManagementService(feastProperties, projectRepository, authProvider);
+    projectService = new ProjectService(projectRepository);
+    AuthorizationService authService =
+        new AuthorizationService(feastProperties.getSecurity(), authProvider);
     coreService =
         new CoreServiceImpl(
-            specService, accessManagementService, statsService, jobService, feastProperties);
+            specService, projectService, statsService, jobService, feastProperties, authService);
   }
 
   @Test
@@ -108,7 +110,11 @@ class CoreServiceAuthTest {
         ApplyFeatureSetRequest.newBuilder().setFeatureSet(spec).build();
 
     assertThrows(
-        AccessDeniedException.class, () -> coreService.applyFeatureSet(request, responseObserver));
+        StatusRuntimeException.class,
+        () -> {
+          coreService.applyFeatureSet(request, responseObserver);
+          throw responseObserver.getError();
+        });
   }
 
   @Test

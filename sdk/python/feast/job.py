@@ -2,6 +2,7 @@ from typing import List
 from urllib.parse import urlparse
 
 import fastavro
+import grpc
 import pandas as pd
 from google.protobuf.json_format import MessageToJson
 
@@ -39,15 +40,20 @@ class RetrievalJob:
     """
 
     def __init__(
-        self, job_proto: JobProto, serving_stub: ServingServiceStub,
+        self,
+        job_proto: JobProto,
+        serving_stub: ServingServiceStub,
+        auth_metadata_plugin: grpc.AuthMetadataPlugin = None,
     ):
         """
         Args:
             job_proto: Job proto object (wrapped by this job object)
             serving_stub: Stub for Feast serving service
+            auth_metadata_plugin: plugin to fetch auth metadata
         """
         self.job_proto = job_proto
         self.serving_stub = serving_stub
+        self.auth_metadata = auth_metadata_plugin
 
     @property
     def id(self):
@@ -68,7 +74,10 @@ class RetrievalJob:
         Reload the latest job status
         Returns: None
         """
-        self.job_proto = self.serving_stub.GetJob(GetJobRequest(job=self.job_proto)).job
+        self.job_proto = self.serving_stub.GetJob(
+            GetJobRequest(job=self.job_proto),
+            metadata=self.auth_metadata.get_signed_meta() if self.auth_metadata else (),
+        ).job
 
     def get_avro_files(self, timeout_sec: int = int(defaults[CONFIG_TIMEOUT_KEY])):
         """
@@ -218,16 +227,23 @@ class IngestJob:
     Defines a job for feature ingestion in feast.
     """
 
-    def __init__(self, job_proto: IngestJobProto, core_stub: CoreServiceStub):
+    def __init__(
+        self,
+        job_proto: IngestJobProto,
+        core_stub: CoreServiceStub,
+        auth_metadata_plugin: grpc.AuthMetadataPlugin = None,
+    ):
         """
         Construct a native ingest job from its protobuf version.
 
         Args:
         job_proto: Job proto object to construct from.
         core_stub: stub for Feast CoreService
+        auth_metadata_plugin: plugin to fetch auth metadata
         """
         self.proto = job_proto
         self.core_svc = core_stub
+        self.auth_metadata = auth_metadata_plugin
 
     def reload(self):
         """
@@ -235,7 +251,10 @@ class IngestJob:
         """
         # pull latest proto from feast core
         response = self.core_svc.ListIngestionJobs(
-            ListIngestionJobsRequest(filter=ListIngestionJobsRequest.Filter(id=self.id))
+            ListIngestionJobsRequest(
+                filter=ListIngestionJobsRequest.Filter(id=self.id)
+            ),
+            metadata=self.auth_metadata.get_signed_meta() if self.auth_metadata else (),
         )
         self.proto = response.jobs[0]
 
