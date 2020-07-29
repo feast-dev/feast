@@ -351,11 +351,12 @@ resource "databricks_cluster" "feast-cluster" {
   autotermination_minutes = 30
 
   autoscale {
-      min_workers = 0
-      max_workers = 2
-    }
+    min_workers = 0
+    max_workers = 2
+  }
 
   spark_env_vars = {
+    "PYPI_REPO"       = var.pypi_repo
     "PYPI_PWD"        = "{{secrets/${databricks_secret_scope.feast.name}/${databricks_secret.pypi_password.key}}"
     "PYPI_USER"       = "{{secrets/${databricks_secret_scope.feast.name}/${databricks_secret.pypi_username.key}}}"
     "PYSPARK_PYTHON"  = "/databricks/python3/bin/python3"

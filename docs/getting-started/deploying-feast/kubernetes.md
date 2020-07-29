@@ -40,7 +40,7 @@ gcloud iam service-accounts create feast-service-account
 gcloud projects add-iam-policy-binding my-gcp-project \
   --member serviceAccount:feast-service-account@my-gcp-project.iam.gserviceaccount.com \
   --role roles/editor
-  
+
 # Please use "credentials.json" as the file name
 gcloud iam service-accounts keys create credentials.json --iam-account \
 feast-service-account@my-gcp-project.iam.gserviceaccount.com
@@ -178,7 +178,7 @@ You should now be able to open the Jupyter notebook at [http://localhost:8888/](
 From within the Jupyter Notebook you can now clone the Feast repository
 
 ```text
-git clone https://github.com/feast-dev/feast 
+git clone https://github.com/feast-dev/feast
 ```
 
 Please try out our [examples](https://github.com/feast-dev/feast/blob/master/examples/) \(remember to check out the latest stable version\).

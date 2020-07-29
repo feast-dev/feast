@@ -186,15 +186,3 @@ sdk/python/docs/html
 *_pb2.py
 *_pb2.pyi
 *_pb2_grpc.py
-
-
-### Farfetch ###
-
-pom-ff-deploy.xml
-
-# Secrets
-secrets/
-
-# Dumping ground
-tmp/
-.helmsman-tmp/

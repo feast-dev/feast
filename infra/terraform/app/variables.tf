@@ -98,6 +98,10 @@ variable "databricks_name" {
   description = "The resource name of the Azure Databricks instance."
   type        = string
 }
+variable "pypi_repo" {
+  description = "The URL to internal pypi (without protocol)"
+  type        = string
+}
 variable "pypi_user" {
   description = "The username to use for internal pypi authentication"
   type        = string

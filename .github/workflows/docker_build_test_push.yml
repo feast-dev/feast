@@ -170,6 +170,7 @@ jobs:
         echo "::set-env name=TF_VAR_feast_serving_image_repository::$FEAST_SERVING_IMAGE"
         echo "::set-env name=TF_VAR_feast_version::$FEAST_VERSION"
         echo "::set-env name=TF_VAR_run_number::$GITHUB_RUN_NUMBER"
+        echo "::set-env name=TF_VAR_pypi_repo:::${{ secrets.PYPI_REPO }}"
         echo "::set-env name=TF_VAR_pypi_password:::${{ secrets.PYPI_PWD }}"
 
     - name: Terraform init app
