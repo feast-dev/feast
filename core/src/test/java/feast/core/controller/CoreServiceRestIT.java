@@ -35,13 +35,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
+@ConditionalOnClass({WebClient.class, WebTestClient.class})
 @SpringBootTest
 @AutoConfigureWebTestClient
 public class CoreServiceRestIT extends BaseIT {
@@ -141,7 +144,7 @@ public class CoreServiceRestIT extends BaseIT {
 
   // list projects
   @Test
-  public void listProjects(@Autowired WebTestClient webTestClient) {
+  public void listProjects() {
     // should get 2 projects
     String uriString = UriComponentsBuilder.fromPath("/api/v1/projects").toUriString();
     webTestClient
@@ -165,7 +168,7 @@ public class CoreServiceRestIT extends BaseIT {
 
   // list feature sets
   @Test
-  public void listFeatureSets(@Autowired WebTestClient webTestClient) throws Exception {
+  public void listFeatureSets() throws Exception {
     // project = default
     // name = merchant_ratings
     // getting a specific feature set
@@ -250,7 +253,7 @@ public class CoreServiceRestIT extends BaseIT {
   }
 
   @Test
-  public void listFeatures(@Autowired WebTestClient webTestClient) throws Exception {
+  public void listFeatures() throws Exception {
     // entities = [merchant_id]
     // project = default
     // should return 4 features
