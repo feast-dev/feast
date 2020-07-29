@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -95,9 +96,9 @@ public class CoreServiceRestController {
    * project name and feature set name. If none matches, an empty JSON response is returned.
    *
    * @param project Request Parameter: Name of feast project to search in. If set to <code>"*"
-   *     </code>, all existing projects will be filtered. However, asterisk can NOT be combined with
-   *     other strings (for example <code>"merchant_*"</code>) to use as wildcard to filter feature
-   *     sets.
+   *                </code>, all existing projects will be filtered. However, asterisk can NOT be
+   *     combined with other strings (for example <code>"merchant_*"</code>) to use as wildcard to
+   *     filter feature sets.
    * @param name Request Parameter: Feature set name. If set to "*", filter * all feature sets by
    *     default. Asterisk can be used as wildcard to filter * feature sets.
    * @return (200 OK) Return {@link ListFeatureSetsResponse} in JSON.
@@ -134,45 +135,50 @@ public class CoreServiceRestController {
 
   /**
    * GET /feature-statistics : Fetches statistics for a dataset speficied by the parameters. Either
-   * both (start_date, end_date) need to be given or ingestion_ids are required.
+   * both (start_date, end_date) need to be given or ingestion_ids are required. If both are given,
+   * (start_date, end_date) will be ignored.
    *
    * @param ingestionIds Request Parameter: List of ingestion IDs. If missing, both startDate and
    *     endDate should be provided.
    * @param startDate Request Parameter: UTC+0 starting date (inclusive) in the ISO format, from
-   *     <code>0001-01-01T00:00:00Z</code> to <code>9999-12-31T23:59:59.999999999Z</code>. Time
-   *     given will be ignored.
+   *     <code>0001-01-01</code> to <code>9999-12-31</code>. Time given will be ignored. This
+   *     parameter will be ignored if any ingestionIds is provided.
    * @param endDate Request Parameter: UTC+0 ending date (exclusive) in the ISO format, from <code>
-   *      0001-01-01T00:00:00Z</code> to <code>9999-12-31T23:59:59.999999999Z</code>. Time given
-   *     will be ignored.
-   * @param featureSetId (Optional) Request Parameter: Feature set ID, which has the form of <code>
+   *      0001-01-01</code> to <code>9999-12-31</code>. Time given will be ignored. This parameter
+   *     will be ignored if any ingestionIds is provided.
+   * @param store Request Parameter: The name of the historical store used in Feast Serving. Online
+   *     store is not allowed.
+   * @param featureSetId Request Parameter: Feature set ID, which has the form of <code>
    *                     project/feature_set_name</code>.
-   * @param features (Optional) Request Parameter: List of features.
-   * @param store (Optional) Request Parameter:
-   * @param forceRefresh (Optional) Request Parameter: whether to override the values in the cache.
-   *     Accepts <code>true</code>, <code>false</code>.
+   * @param forceRefresh Request Parameter: whether to override the values in the cache. Accepts
+   *     <code>true</code>, <code>false</code>.
+   * @param features (Optional) Request Parameter: List of features. If none provided, all features
+   *     in the feature set will be used for statistics.
    * @return (200 OK) Returns {@link GetFeatureStatisticsResponse} in JSON.
    */
   @RequestMapping(value = "/feature-statistics", method = RequestMethod.GET)
   public GetFeatureStatisticsResponse getFeatureStatistics(
-      @RequestParam(name = "feature_set_id", required = false) Optional<String> featureSetId,
+      @RequestParam(name = "feature_set_id") String featureSetId,
       @RequestParam(required = false) Optional<String[]> features,
-      @RequestParam(required = false) Optional<String> store,
+      @RequestParam String store,
       @RequestParam(name = "start_date", required = false) Optional<String> startDate,
       @RequestParam(name = "end_date", required = false) Optional<String> endDate,
       @RequestParam(name = "ingestion_ids", required = false) Optional<String[]> ingestionIds,
-      @RequestParam(name = "force_refresh", defaultValue = "false") boolean forceRefresh)
+      @RequestParam(name = "force_refresh") boolean forceRefresh)
       throws IOException {
 
-    Builder requestBuilder = GetFeatureStatisticsRequest.newBuilder().setForceRefresh(forceRefresh);
+    Builder requestBuilder =
+        GetFeatureStatisticsRequest.newBuilder()
+            .setForceRefresh(forceRefresh)
+            .setFeatureSetId(featureSetId)
+            .setStore(store);
 
     // set optional request parameters if they are provided
-    featureSetId.ifPresent(requestBuilder::setFeatureSetId);
-    store.ifPresent(requestBuilder::setStore);
     features.ifPresent(theFeatures -> requestBuilder.addAllFeatures(Arrays.asList(theFeatures)));
     startDate.ifPresent(
-        startDateStr -> requestBuilder.setStartDate(UtcTimeStringToTimestamp(startDateStr)));
+        startDateStr -> requestBuilder.setStartDate(utcTimeStringToTimestamp(startDateStr)));
     endDate.ifPresent(
-        endDateStr -> requestBuilder.setEndDate(UtcTimeStringToTimestamp(endDateStr)));
+        endDateStr -> requestBuilder.setEndDate(utcTimeStringToTimestamp(endDateStr)));
     ingestionIds.ifPresent(
         theIngestionIds -> requestBuilder.addAllIngestionIds(Arrays.asList(theIngestionIds)));
 
@@ -192,8 +198,10 @@ public class CoreServiceRestController {
         .build();
   }
 
-  private Timestamp UtcTimeStringToTimestamp(String utcTimeString) {
-    long epochSecond = LocalDate.parse(utcTimeString).toEpochSecond(LocalTime.MIN, ZoneOffset.UTC);
+  private Timestamp utcTimeStringToTimestamp(String utcTimeString) {
+    long epochSecond =
+        LocalDate.parse(utcTimeString, DateTimeFormatter.ISO_DATE)
+            .toEpochSecond(LocalTime.MIN, ZoneOffset.UTC);
     return Timestamp.newBuilder().setSeconds(epochSecond).setNanos(0).build();
   }
 }
