@@ -8,12 +8,20 @@ jobs:
     strategy:
       matrix:
         component: [core, serving]
+    env:
+      GITHUB_PR_SHA: ${{ github.event.pull_request.head.sha }}
+      REGISTRY: gcr.io/kf-feast
     steps:
       - uses: actions/checkout@v2
       - name: build image
-        run: make build-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA}
+        run: make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
       - name: push image
-        run: make push-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA}
+        run: |
+          docker push ${REGISTRY}/feast-${{ matrix.component }}:${GITHUB_SHA}
+          if [ -n "${GITHUB_PR_SHA}" ]; then
+            docker tag ${REGISTRY}/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_PR_SHA}
+            docker push ${REGISTRY}/feast-${{ matrix.component }}:${GITHUB_PR_SHA}
+          fi
 
   lint-java:
     container: gcr.io/kf-feast/feast-ci:latest
