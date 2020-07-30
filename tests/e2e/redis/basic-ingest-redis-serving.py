@@ -370,7 +370,7 @@ def list_entity_dataframe():
 
 
 @pytest.mark.timeout(600)
-@pytest.mark.run(order=16)
+@pytest.mark.run(order=14)
 def test_basic_retrieve_online_entity_nonlistform(
     client, nonlist_entity_dataframe, list_entity_dataframe
 ):
@@ -473,7 +473,7 @@ def test_basic_retrieve_online_entity_nonlistform(
 
 
 @pytest.mark.timeout(600)
-@pytest.mark.run(order=17)
+@pytest.mark.run(order=15)
 def test_basic_retrieve_online_entity_listform(client, list_entity_dataframe):
     # Case 1: Features retrieval with entity in list format check
     district_fs = FeatureSet(
@@ -570,7 +570,7 @@ def test_basic_retrieve_online_entity_listform(client, list_entity_dataframe):
 
 
 @pytest.mark.timeout(600)
-@pytest.mark.run(order=18)
+@pytest.mark.run(order=16)
 def test_basic_ingest_retrieval_fs(client):
     # Set to another project to test ingestion based on current project context
     client.set_project(PROJECT_NAME + "_NS1")
@@ -623,7 +623,7 @@ def test_basic_ingest_retrieval_fs(client):
 
 
 @pytest.mark.timeout(600)
-@pytest.mark.run(order=19)
+@pytest.mark.run(order=17)
 def test_basic_ingest_retrieval_str(client):
     # Set to another project to test ingestion based on current project context
     client.set_project(PROJECT_NAME + "_NS1")
