@@ -18,6 +18,7 @@ package feast.storage.connectors.redis.retriever;
 
 import static org.junit.Assert.*;
 
+import com.google.common.hash.Hashing;
 import com.google.protobuf.Timestamp;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
@@ -25,6 +26,7 @@ import feast.proto.types.FeatureRowProto;
 import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.Value;
 import feast.proto.types.ValueProto.ValueType;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import org.junit.Test;
 
@@ -48,10 +50,29 @@ public class FeatureRowDecoderTest {
           .build();
 
   @Test
-  public void featureRowWithFieldNamesIsNotConsideredAsEncoded() {
-
+  public void shouldDecodeValidEncodedFeatureRowV2() {
     FeatureRowDecoder decoder = new FeatureRowDecoder("feature_set_ref", spec);
-    FeatureRowProto.FeatureRow nonEncodedFeatureRow =
+
+    FeatureRowProto.FeatureRow encodedFeatureRow =
+        FeatureRowProto.FeatureRow.newBuilder()
+            .setEventTimestamp(Timestamp.newBuilder().setNanos(1000))
+            .addFields(
+                Field.newBuilder()
+                    .setName(
+                        Hashing.murmur3_32()
+                            .hashString("feature1", StandardCharsets.UTF_8)
+                            .toString())
+                    .setValue(Value.newBuilder().setInt32Val(2)))
+            .addFields(
+                Field.newBuilder()
+                    .setName(
+                        Hashing.murmur3_32()
+                            .hashString("feature2", StandardCharsets.UTF_8)
+                            .toString())
+                    .setValue(Value.newBuilder().setFloatVal(1.0f)))
+            .build();
+
+    FeatureRowProto.FeatureRow expectedFeatureRow =
         FeatureRowProto.FeatureRow.newBuilder()
             .setFeatureSet("feature_set_ref")
             .setEventTimestamp(Timestamp.newBuilder().setNanos(1000))
@@ -62,26 +83,88 @@ public class FeatureRowDecoderTest {
                     .setName("feature2")
                     .setValue(Value.newBuilder().setFloatVal(1.0f)))
             .build();
-    assertFalse(decoder.isEncoded(nonEncodedFeatureRow));
+
+    assertEquals(expectedFeatureRow, decoder.decode(encodedFeatureRow));
   }
 
   @Test
-  public void encodingIsInvalidIfNumberOfFeaturesInSpecDiffersFromFeatureRow() {
-
+  public void shouldDecodeValidFeatureRowV2WithIncompleteFields() {
     FeatureRowDecoder decoder = new FeatureRowDecoder("feature_set_ref", spec);
 
     FeatureRowProto.FeatureRow encodedFeatureRow =
         FeatureRowProto.FeatureRow.newBuilder()
             .setEventTimestamp(Timestamp.newBuilder().setNanos(1000))
-            .addFields(Field.newBuilder().setValue(Value.newBuilder().setInt32Val(2)))
+            .addFields(
+                Field.newBuilder()
+                    .setName(
+                        Hashing.murmur3_32()
+                            .hashString("feature1", StandardCharsets.UTF_8)
+                            .toString())
+                    .setValue(Value.newBuilder().setInt32Val(2)))
             .build();
 
-    assertFalse(decoder.isEncodingValid(encodedFeatureRow));
+    // should decode missing fields as fields with unset value.
+    FeatureRowProto.FeatureRow expectedFeatureRow =
+        FeatureRowProto.FeatureRow.newBuilder()
+            .setFeatureSet("feature_set_ref")
+            .setEventTimestamp(Timestamp.newBuilder().setNanos(1000))
+            .addFields(
+                Field.newBuilder().setName("feature1").setValue(Value.newBuilder().setInt32Val(2)))
+            .addFields(Field.newBuilder().setName("feature2").setValue(Value.newBuilder().build()))
+            .build();
+
+    assertEquals(expectedFeatureRow, decoder.decode(encodedFeatureRow));
   }
 
   @Test
-  public void shouldDecodeValidEncodedFeatureRow() {
+  public void shouldDecodeValidFeatureRowV2AndIgnoreExtraFields() {
+    FeatureRowDecoder decoder = new FeatureRowDecoder("feature_set_ref", spec);
 
+    FeatureRowProto.FeatureRow encodedFeatureRow =
+        FeatureRowProto.FeatureRow.newBuilder()
+            .setEventTimestamp(Timestamp.newBuilder().setNanos(1000))
+            .addFields(
+                Field.newBuilder()
+                    .setName(
+                        Hashing.murmur3_32()
+                            .hashString("feature1", StandardCharsets.UTF_8)
+                            .toString())
+                    .setValue(Value.newBuilder().setInt32Val(2)))
+            .addFields(
+                Field.newBuilder()
+                    .setName(
+                        Hashing.murmur3_32()
+                            .hashString("feature2", StandardCharsets.UTF_8)
+                            .toString())
+                    .setValue(Value.newBuilder().setFloatVal(1.0f)))
+            .addFields(
+                Field.newBuilder()
+                    .setName(
+                        Hashing.murmur3_32()
+                            .hashString("feature3", StandardCharsets.UTF_8)
+                            .toString())
+                    .setValue(Value.newBuilder().setStringVal("data")))
+            .build();
+
+    // should decode missing fields as fields with unset value.
+    FeatureRowProto.FeatureRow expectedFeatureRow =
+        FeatureRowProto.FeatureRow.newBuilder()
+            .setFeatureSet("feature_set_ref")
+            .setEventTimestamp(Timestamp.newBuilder().setNanos(1000))
+            .addFields(
+                Field.newBuilder().setName("feature1").setValue(Value.newBuilder().setInt32Val(2)))
+            .addFields(
+                Field.newBuilder()
+                    .setName("feature2")
+                    .setValue(Value.newBuilder().setFloatVal(1.0f)))
+            .build();
+
+    assertEquals(expectedFeatureRow, decoder.decode(encodedFeatureRow));
+  }
+
+  // TODO: remove this test in Feast 0.7 when support for Feature Row v1 is removed
+  @Test
+  public void shouldDecodeValidEncodedFeatureRowV1() {
     FeatureRowDecoder decoder = new FeatureRowDecoder("feature_set_ref", spec);
 
     FeatureRowProto.FeatureRow encodedFeatureRow =
@@ -103,8 +186,6 @@ public class FeatureRowDecoderTest {
                     .setValue(Value.newBuilder().setFloatVal(1.0f)))
             .build();
 
-    assertTrue(decoder.isEncoded(encodedFeatureRow));
-    assertTrue(decoder.isEncodingValid(encodedFeatureRow));
     assertEquals(expectedFeatureRow, decoder.decode(encodedFeatureRow));
   }
 }

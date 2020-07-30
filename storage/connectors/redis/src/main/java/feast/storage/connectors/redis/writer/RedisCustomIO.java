@@ -18,6 +18,7 @@ package feast.storage.connectors.redis.writer;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.hash.Hashing;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
@@ -29,7 +30,9 @@ import feast.proto.types.ValueProto;
 import feast.storage.api.writer.FailedElement;
 import feast.storage.api.writer.WriteResult;
 import feast.storage.common.retry.Retriable;
+import feast.storage.connectors.redis.retriever.FeatureRowDecoder;
 import io.lettuce.core.RedisException;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -203,35 +206,44 @@ public class RedisCustomIO {
         return redisKeyBuilder.build().toByteArray();
       }
 
+      /**
+       * Encode the Feature Row as bytes to store in Redis in encoded Feature Row v2 format. 
+       * To reduce storage space consumption in redis, 
+       * feature rows are "encoded" by hashing the fields names and not unsetting the feature
+       * set reference. {@link FeatureRowDecoder} is rensponsible for reversing this "encoding" step.
+       */
       private byte[] getValue(FeatureRow featureRow, FeatureSetSpec spec) {
         List<String> featureNames =
             spec.getFeaturesList().stream().map(FeatureSpec::getName).collect(Collectors.toList());
-        
+
         Map<String, Field.Builder> fieldValueOnlyMap =
             featureRow.getFieldsList().stream()
                 .filter(field -> featureNames.contains(field.getName()))
                 .distinct()
                 .collect(
                     Collectors.toMap(
-                        Field::getName,
-                        field -> Field.newBuilder().setValue(field.getValue())));
+                        Field::getName, field -> Field.newBuilder().setValue(field.getValue())));
 
         List<Field> values =
             featureNames.stream()
                 .sorted()
                 .map(
                     featureName -> {
-                          Field.Builder field = fieldValueOnlyMap.getOrDefault(
-                            featureName,
-                            Field.newBuilder()
-                                .setValue(ValueProto.Value.getDefaultInstance()));
-                        
-                          // Set the name of the field to the hash of the field name.
-                          // Use hash of name instead of the name of the field to reduce redis 
-                          // storage consumption per feature row stored.
-                          field.setName(String.format("%d", featureName.hashCode()));
-                        
-                          return field.build();
+                      Field.Builder field =
+                          fieldValueOnlyMap.getOrDefault(
+                              featureName,
+                              Field.newBuilder().setValue(ValueProto.Value.getDefaultInstance()));
+
+                      // Encode the name of the as the hash of the field name.
+                      // Use hash of name instead of the name of to reduce redis storage consumption
+                      // per feature row stored.
+                      String nameHash =
+                          Hashing.murmur3_32()
+                              .hashString(featureName, StandardCharsets.UTF_8)
+                              .toString();
+                      field.setName(nameHash);
+
+                      return field.build();
                     })
                 .collect(Collectors.toList());
 
