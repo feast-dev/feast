@@ -64,7 +64,7 @@ public class FeatureRowDecoder {
    * @return boolean
    */
   private boolean isEncodedV2(FeatureRow featureRow) {
-    return featureRow.getFieldsList().stream().allMatch(field -> !field.getName().isEmpty());
+    return featureRow.getFieldsList().stream().anyMatch(field -> field.getName().isEmpty());
   }
 
   /**
