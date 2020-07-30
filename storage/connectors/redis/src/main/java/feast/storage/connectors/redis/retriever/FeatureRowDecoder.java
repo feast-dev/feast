@@ -42,9 +42,9 @@ public class FeatureRowDecoder {
 
   /**
    * Check if encoded feature row v1 is encoded. The Feature Row v1 encoding defines that a Feature
-   * Row is is considered encoded if both it's feature set reference and fields names are not set .
-   * The no. of fields in the feature row should also match up with the number of fields in the
-   * Feature Set spec. NOTE: This method is deprecated and will be removed in Feast v0.7.
+   * Row is considered encoded if both it's feature set reference and fields names are not set . The
+   * no. of fields in the feature row should also match up with the number of fields in the Feature
+   * Set spec. NOTE: This method is deprecated and will be removed in Feast v0.7.
    *
    * @param featureRow Feature row
    * @return boolean
@@ -58,13 +58,13 @@ public class FeatureRowDecoder {
 
   /**
    * Check if encoded feature row v2 is encoded. The Feature Row v2 encoding defines that a Feature
-   * Row is f is considered encoded if it's both it feature set reference and fields names are set.
+   * Row is considered encoded if it's both it feature set reference and fields names are set.
    *
    * @param featureRow Feature row
    * @return boolean
    */
   private boolean isEncodedV2(FeatureRow featureRow) {
-    return featureRow.getFieldsList().stream().anyMatch(field -> field.getName().isEmpty());
+    return !featureRow.getFieldsList().stream().anyMatch(field -> field.getName().isEmpty());
   }
 
   /**
@@ -104,7 +104,6 @@ public class FeatureRowDecoder {
           .setFeatureSet(featureSetRef)
           .addAllFields(fields)
           .build();
-
     }
     if (isEncodedV2(encodedFeatureRow)) {
       // Feature Row v2 encoding uses a hashed name as the field name and does not have feature set

@@ -682,9 +682,7 @@ def test_basic_retrieve_feature_row_missing_fields(client, cust_trans_df):
 
     # apply cust_trans_fs and ingest dataframe
     client.set_project(PROJECT_NAME + "_basic_retrieve_missing_fields")
-    old_cust_trans_fs = FeatureSet.from_yaml(
-        f"{DIR_PATH}/basic/cust_trans_fs.yaml"
-    )
+    old_cust_trans_fs = FeatureSet.from_yaml(f"{DIR_PATH}/basic/cust_trans_fs.yaml")
     client.apply(old_cust_trans_fs)
     client.ingest(old_cust_trans_fs, cust_trans_df)
 
@@ -731,9 +729,7 @@ def test_basic_retrieve_feature_row_extra_fields(client, cust_trans_df):
     feature_refs = ["daily_transactions", "total_transactions"]
     # apply cust_trans_fs and ingest dataframe
     client.set_project(PROJECT_NAME + "_basic_retrieve_missing_fields")
-    old_cust_trans_fs = FeatureSet.from_yaml(
-        f"{DIR_PATH}/basic/cust_trans_fs.yaml"
-    )
+    old_cust_trans_fs = FeatureSet.from_yaml(f"{DIR_PATH}/basic/cust_trans_fs.yaml")
     client.apply(old_cust_trans_fs)
     client.ingest(old_cust_trans_fs, cust_trans_df)
 
