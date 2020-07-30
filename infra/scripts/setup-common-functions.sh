@@ -141,7 +141,7 @@ wait_for_docker_image(){
   maximum_poll_count=150
 
   # Wait for Feast Core to be available on GCR
-  until docker "$DOCKER_IMAGE"
+  until docker pull "$DOCKER_IMAGE"
   do
     # Exit when we have tried enough times
     if [[ "$poll_count" -gt "$maximum_poll_count" ]]; then
