@@ -130,3 +130,26 @@ $1
 ============================================================
 "
 }
+
+wait_for_docker_image(){
+  # This script will block until a docker image is ready
+
+  [[ -z "$1" ]] && { echo "Please pass the docker image URI as the first parameter" ; exit 1; }
+
+  DOCKER_IMAGE=$1
+  poll_count=0
+  maximum_poll_count=150
+
+  # Wait for Feast Core to be available on GCR
+  until docker "$DOCKER_IMAGE"
+  do
+    # Exit when we have tried enough times
+    if [[ "$poll_count" -gt "$maximum_poll_count" ]]; then
+         exit 1
+    fi
+    # Sleep and increment counter on failure
+    echo "${DOCKER_IMAGE} could not be found";
+    sleep 5;
+    ((poll_count++))
+  done
+}

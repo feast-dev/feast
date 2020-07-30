@@ -24,6 +24,12 @@ clean_up() {
   exit $ARG
 }
 
+# Get Feast project repository root and scripts directory
+export PROJECT_ROOT_DIR=$(git rev-parse --show-toplevel)
+export SCRIPTS_DIR=${PROJECT_ROOT_DIR}/infra/scripts
+export COMPOSE_INTERACTIVE_NO_CLI=1
+source ${SCRIPTS_DIR}/setup-common-functions.sh
+
 if [ -z "$1" ] ; then
   echo "No SHA provided as argument, using local HEAD";
   CURRENT_SHA=$(git rev-parse HEAD);
@@ -34,11 +40,8 @@ else
   export CURRENT_SHA
 fi
 
-export PROJECT_ROOT_DIR=$(git rev-parse --show-toplevel)
-export COMPOSE_INTERACTIVE_NO_CLI=1
-
-# Wait for docker images to be available
-"${PROJECT_ROOT_DIR}"/infra/scripts/wait-for-docker-images.sh "${CURRENT_SHA}"
+wait_for_docker_image gcr.io/kf-feast/feast-core:"${CURRENT_SHA}"
+wait_for_docker_image gcr.io/kf-feast/feast-serving:"${CURRENT_SHA}"
 
 # Clean up Docker Compose if failure
 trap clean_up EXIT
