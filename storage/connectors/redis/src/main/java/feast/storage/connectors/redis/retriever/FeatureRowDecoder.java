@@ -105,7 +105,8 @@ public class FeatureRowDecoder {
           .addAllFields(fields)
           .build();
 
-    } else if (isEncodedV2(encodedFeatureRow)) {
+    }
+    if (isEncodedV2(encodedFeatureRow)) {
       // Feature Row v2 encoding uses a hashed name as the field name and does not have feature set
       // reference set.
       // Decoding reverts the field name to a unhashed string and set feature set reference.
