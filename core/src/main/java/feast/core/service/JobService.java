@@ -20,12 +20,10 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
-import feast.core.log.Action;
-import feast.core.log.AuditLogger;
-import feast.core.log.Resource;
+import feast.core.job.task.RestartJobTask;
+import feast.core.job.task.TerminateJobTask;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
-import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.proto.core.CoreServiceProto.ListIngestionJobsRequest;
 import feast.proto.core.CoreServiceProto.ListIngestionJobsResponse;
 import feast.proto.core.CoreServiceProto.RestartIngestionJobRequest;
@@ -54,14 +52,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class JobService {
   private final JobRepository jobRepository;
-  private final SpecService specService;
   private final Map<Runner, JobManager> jobManagers;
 
   @Autowired
-  public JobService(
-      JobRepository jobRepository, SpecService specService, List<JobManager> jobManagerList) {
+  public JobService(JobRepository jobRepository, List<JobManager> jobManagerList) {
     this.jobRepository = jobRepository;
-    this.specService = specService;
 
     this.jobManagers = new HashMap<>();
     for (JobManager manager : jobManagerList) {
@@ -77,12 +72,10 @@ public class JobService {
    *
    * @param request list ingestion jobs request specifying which jobs to include
    * @throws IllegalArgumentException when given filter in a unsupported configuration
-   * @throws InvalidProtocolBufferException on error when constructing response protobuf
    * @return list ingestion jobs response
    */
   @Transactional(readOnly = true)
-  public ListIngestionJobsResponse listJobs(ListIngestionJobsRequest request)
-      throws InvalidProtocolBufferException {
+  public ListIngestionJobsResponse listJobs(ListIngestionJobsRequest request) {
     Set<String> matchingJobIds = new HashSet<>();
 
     // check that filter specified and not empty
@@ -142,7 +135,11 @@ public class JobService {
       if (job.getStatus() == JobStatus.ERROR) {
         continue;
       }
-      ingestJobs.add(job.toProto());
+      try {
+        ingestJobs.add(job.toProto());
+      } catch (InvalidProtocolBufferException e) {
+        throw new RuntimeException("Unexpected failure to construct Protobuf", e);
+      }
     }
 
     // pack jobs into response
@@ -176,14 +173,9 @@ public class JobService {
           "Restarting a job with a transitional, terminal or unknown status is unsupported");
     }
 
-    // restart job with job manager
-    JobManager jobManager = this.jobManagers.get(job.getRunner());
-    job = jobManager.restartJob(job);
-    log.info(
-        String.format(
-            "Restarted job (id: %s, extId: %s runner: %s)",
-            job.getId(), job.getExtId(), job.getRunner()));
-    this.logStatusChange(job, status, job.getStatus());
+    // restart job by running job task
+    new RestartJobTask(job, jobManagers.get(job.getRunner())).call();
+
     // update job model in job repository
     this.jobRepository.saveAndFlush(job);
 
@@ -219,16 +211,10 @@ public class JobService {
       throw new UnsupportedOperationException(
           "Stopping a job with a transitional or unknown status is unsupported");
     }
-    this.logStatusChange(job, status, job.getStatus());
 
-    // stop job with job manager
-    JobManager jobManager = this.jobManagers.get(job.getRunner());
-    job = jobManager.abortJob(job);
-    log.info(
-        String.format(
-            "Aborted job (id: %s, extId: %s runner: %s)",
-            job.getId(), job.getExtId(), job.getRunner()));
-    this.logStatusChange(job, status, job.getStatus());
+    // stop job with job task
+    new TerminateJobTask(job, jobManagers.get(job.getRunner())).call();
+
     // update job model in job repository
     this.jobRepository.saveAndFlush(job);
 
@@ -247,32 +233,5 @@ public class JobService {
       results.retainAll(newResults);
     }
     return results;
-  }
-
-  /** converts feature set reference to a list feature set filter */
-  private ListFeatureSetsRequest.Filter toListFeatureSetFilter(FeatureSetReference fsReference) {
-    // match featuresets using contents of featureset reference
-    String fsName = fsReference.getName();
-    String fsProject = fsReference.getProject();
-
-    // construct list featureset request filter using feature set reference
-    // for proto3, default value for missing values:
-    // - numeric values (ie int) is zero
-    // - strings is empty string
-    return ListFeatureSetsRequest.Filter.newBuilder()
-        .setFeatureSetName(fsName.isEmpty() ? "*" : fsName)
-        .setProject(fsProject.isEmpty() ? "*" : fsProject)
-        .build();
-  }
-
-  /** log job status using job manager */
-  private void logStatusChange(Job job, JobStatus oldStatus, JobStatus newStatus) {
-    AuditLogger.log(
-        Resource.JOB,
-        job.getId(),
-        Action.STATUS_CHANGE,
-        "Job status transition: changed from %s to %s",
-        oldStatus,
-        newStatus);
   }
 }

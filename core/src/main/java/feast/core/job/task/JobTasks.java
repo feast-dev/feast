@@ -14,19 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.job;
+package feast.core.job.task;
 
-import feast.core.log.Action;
-import feast.core.log.AuditLogger;
-import feast.core.log.Resource;
-import feast.core.model.Job;
-import java.util.concurrent.Callable;
-
-public interface JobTask extends Callable<Job> {
-  static void logAudit(Action action, Job job, String detail, Object... args) {
-    AuditLogger.log(Resource.JOB, job.getId(), action, detail, args);
-  }
-
-  @Override
-  Job call() throws RuntimeException;
+/** Enum listing of the available Job Tasks to perform on Jobs */
+public enum JobTasks {
+  CREATE,
+  UPDATE_STATUS,
+  RESTART,
+  ABORT,
 }

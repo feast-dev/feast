@@ -1,6 +1,6 @@
 /*
  * SPDX-License-Identifier: Apache-2.0
- * Copyright 2018-2020 The Feast Authors
+ * Copyright 2018-2019 The Feast Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,30 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.job;
+package feast.common.logging.config;
 
-import feast.core.log.Action;
-import feast.core.model.Job;
-import lombok.Builder;
+import javax.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
-/** Task to terminate given {@link Job} by using {@link JobManager} */
 @Getter
 @Setter
-@Builder(setterPrefix = "set")
-public class TerminateJobTask implements JobTask {
-  private Job job;
-  private JobManager jobManager;
+public class LoggingProperties {
+  @NotNull private AuditLogProperties audit;
 
-  @Override
-  public Job call() {
-    JobTask.logAudit(
-        Action.ABORT,
-        job,
-        "Aborting job %s for runner %s",
-        job.getId(),
-        jobManager.getRunnerType().toString());
-    return jobManager.abortJob(job);
+  @Getter
+  @Setter
+  public static class AuditLogProperties {
+    // Whether to enable/disable audit logging entirely.
+    private boolean enabled;
+
+    // Whether to enable/disable message level (ie request/response) audit logging.
+    private boolean messageLoggingEnabled;
   }
 }

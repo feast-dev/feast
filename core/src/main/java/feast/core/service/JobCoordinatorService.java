@@ -26,6 +26,7 @@ import feast.core.dao.FeatureSetJobStatusRepository;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobRepository;
 import feast.core.job.*;
+import feast.core.job.task.*;
 import feast.core.model.*;
 import feast.core.model.FeatureSet;
 import feast.core.model.Job;
@@ -129,6 +130,7 @@ public class JobCoordinatorService {
         }
       } catch (ExecutionException | InterruptedException | TimeoutException e) {
         log.warn("Unable to start or update job: {}", e.getMessage());
+        e.printStackTrace();
       }
       completedTasks++;
     }
@@ -162,7 +164,7 @@ public class JobCoordinatorService {
 
       if (job.isDeployed()) {
         if (!job.isRunning()) {
-          jobTasks.add(UpdateJobStatusTask.builder().setJob(job).setJobManager(jobManager).build());
+          jobTasks.add(new UpdateJobStatusTask(job, jobManager));
 
           // Mark that it is not safe to stop jobs without disrupting ingestion
           isSafeToStopJobs = false;
@@ -180,9 +182,9 @@ public class JobCoordinatorService {
 
           isSafeToStopJobs = false;
 
-          jobTasks.add(CreateJobTask.builder().setJob(job).setJobManager(jobManager).build());
+          jobTasks.add(new CreateJobTask(job, jobManager));
         } else {
-          jobTasks.add(UpdateJobStatusTask.builder().setJob(job).setJobManager(jobManager).build());
+          jobTasks.add(new UpdateJobStatusTask(job, jobManager));
         }
       } else {
         job.setId(groupingStrategy.createJobId(job));
@@ -192,7 +194,7 @@ public class JobCoordinatorService {
                 .filter(fs -> fs.getSource().equals(source))
                 .collect(Collectors.toSet()));
 
-        jobTasks.add(CreateJobTask.builder().setJob(job).setJobManager(jobManager).build());
+        jobTasks.add(new CreateJobTask(job, jobManager));
       }
 
       // Record the job as required to safeguard it from getting stopped
@@ -203,8 +205,7 @@ public class JobCoordinatorService {
       getExtraJobs(activeJobs)
           .forEach(
               extraJob -> {
-                jobTasks.add(
-                    TerminateJobTask.builder().setJob(extraJob).setJobManager(jobManager).build());
+                jobTasks.add(new TerminateJobTask(extraJob, jobManager));
               });
     }
 

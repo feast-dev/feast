@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.job;
+package feast.core.job.task;
 
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertThat;
@@ -24,6 +24,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.common.collect.ImmutableSet;
+import feast.core.job.*;
 import feast.core.model.*;
 import feast.core.util.TestUtil;
 import feast.proto.core.SourceProto;
@@ -73,6 +74,8 @@ public class JobTasksTest {
                         .setBootstrapServers("servers:9092")
                         .build())
                 .build());
+
+    TestUtil.setupAuditLogger();
   }
 
   Job makeJob(String extId, List<FeatureSet> featureSets, JobStatus status) {
@@ -90,19 +93,15 @@ public class JobTasksTest {
   }
 
   CreateJobTask makeCreateTask(Job currentJob) {
-    return CreateJobTask.builder().setJob(currentJob).setJobManager(jobManager).build();
-  }
-
-  UpgradeJobTask makeUpgradeTask(Job currentJob) {
-    return UpgradeJobTask.builder().setJob(currentJob).setJobManager(jobManager).build();
+    return new CreateJobTask(currentJob, jobManager);
   }
 
   UpdateJobStatusTask makeCheckStatusTask(Job currentJob) {
-    return UpdateJobStatusTask.builder().setJob(currentJob).setJobManager(jobManager).build();
+    return new UpdateJobStatusTask(currentJob, jobManager);
   }
 
   TerminateJobTask makeTerminateTask(Job currentJob) {
-    return TerminateJobTask.builder().setJob(currentJob).setJobManager(jobManager).build();
+    return new TerminateJobTask(currentJob, jobManager);
   }
 
   @Test

@@ -58,10 +58,6 @@
               can use different version of the same library e.g. because of backward compatiblity issues -->
               <relocations>
                 <relocation>
-                  <pattern>org.springframework</pattern>
-                  <shadedPattern>org.springframework.vendor</shadedPattern>
-                </relocation>
-                <relocation>
                   <pattern>io.opencensus</pattern>
                   <shadedPattern>io.opencensus.vendor</shadedPattern>
                 </relocation>

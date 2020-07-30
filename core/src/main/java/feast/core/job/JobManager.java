@@ -29,10 +29,11 @@ public interface JobManager {
   Runner getRunnerType();
 
   /**
-   * Start an import job. Start should change the status of the Job from PENDING to RUNNING.
+   * Start an import job. The JobManager should also attach external id that is specific to
+   * JobManager implementation
    *
    * @param job job to start
-   * @return Job
+   * @return Running Job with extId set.
    */
   Job startJob(Job job);
 
@@ -45,11 +46,10 @@ public interface JobManager {
   Job updateJob(Job job);
 
   /**
-   * Abort a job given runner-specific job ID. Abort should change the status of the Job from
-   * RUNNING to ABORTING.
+   * Abort a job given runner-specific job ID.
    *
    * @param job to abort.
-   * @return The aborted Job
+   * @return The Aborting Job
    */
   Job abortJob(Job job);
 

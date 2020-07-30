@@ -384,7 +384,6 @@
             <filtering>true</filtering>
           </resource>
         </resources>
-
       </build>
     </profile>
   </profiles>
