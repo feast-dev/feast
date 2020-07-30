@@ -684,7 +684,6 @@ def test_basic_retrieve_feature_row_missing_fields(client, cust_trans_df):
     feature_refs = ["daily_transactions", "total_transactions", "null_values"]
     # update cust_trans_fs with one additional feature.
     # feature rows ingested before the feature set update will be missing a field.
-    old_cust_trans_fs = client.get_feature_set(name="customer_transactions")
     new_cust_trans_fs = client.get_feature_set(name="customer_transactions")
     new_cust_trans_fs.add(Feature("n_trips", ValueType.INT64))
     client.apply(new_cust_trans_fs)
