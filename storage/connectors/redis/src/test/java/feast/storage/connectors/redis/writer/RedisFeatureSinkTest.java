@@ -17,12 +17,12 @@
 package feast.storage.connectors.redis.writer;
 
 import static feast.storage.common.testing.TestUtil.field;
+import static feast.storage.common.testing.TestUtil.hash;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.hash.Hashing;
 import com.google.protobuf.Timestamp;
 import feast.common.models.FeatureSetReference;
 import feast.proto.core.FeatureSetProto.EntitySpec;
@@ -41,7 +41,6 @@ import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisStringCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -523,9 +522,5 @@ public class RedisFeatureSinkTest {
 
     byte[] actual = sync.get(expectedKey.toByteArray());
     assertThat(actual, equalTo(expectedValue.toByteArray()));
-  }
-
-  private static String hash(String input) {
-    return Hashing.murmur3_32().hashString(input, StandardCharsets.UTF_8).toString();
   }
 }
