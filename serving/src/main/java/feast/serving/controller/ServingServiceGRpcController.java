@@ -17,6 +17,7 @@
 package feast.serving.controller;
 
 import feast.auth.service.AuthorizationService;
+import feast.common.interceptors.GrpcMessageInterceptor;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.serving.ServingAPIProto.GetBatchFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetBatchFeaturesResponse;
@@ -46,7 +47,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-@GrpcService(interceptors = {GrpcMonitoringInterceptor.class})
+@GrpcService(interceptors = {GrpcMessageInterceptor.class, GrpcMonitoringInterceptor.class})
 public class ServingServiceGRpcController extends ServingServiceImplBase {
 
   private static final Logger log =

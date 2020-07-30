@@ -14,13 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.log;
+package feast.common.logging.entry;
 
-/** Resources interacted with, for audit logging purposes */
-public enum Resource {
-  FEATURE,
-  FEATURE_GROUP,
-  ENTITY,
-  STORAGE,
-  JOB
+/** AuditLogEntryKind lists the various kinds of {@link AuditLogEntry} */
+public enum AuditLogEntryKind {
+  MESSAGE,
+  ACTION,
+  TRANSITION,
 }

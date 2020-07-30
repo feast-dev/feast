@@ -95,6 +95,15 @@ feast:
       options:
         authorizationUrl: http://localhost:8082
         subjectClaim: email
+        
+  logging:
+    # Audit logging provides a machine readable structured JSON log that can give better 
+    # insight into what is happening in Feast.
+    audit:
+      # Whether audit logging is enabled. 
+      enabled: true
+      # Whether to enable message level (ie request/response) audit logging
+      messageLoggingEnabled: false
 
 grpc:
   server:

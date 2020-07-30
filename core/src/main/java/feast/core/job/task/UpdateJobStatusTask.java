@@ -14,37 +14,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.job;
+package feast.core.job.task;
 
-import feast.core.log.Action;
+import feast.core.job.JobManager;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
 
 /**
  * Task that retrieves status from {@link JobManager} on given {@link Job} and update the job
  * accordingly in-place
  */
-@Getter
-@Setter
-@Builder(setterPrefix = "set")
-public class UpdateJobStatusTask implements JobTask {
-  private Job job;
-  private JobManager jobManager;
+public class UpdateJobStatusTask extends JobTask {
+  public UpdateJobStatusTask(Job job, JobManager jobManager) {
+    super(job, jobManager);
+  }
 
   @Override
   public Job call() {
-    JobStatus currentStatus = job.getStatus();
-    JobStatus newStatus = jobManager.getJobStatus(job);
+    try {
+      JobStatus newStatus = jobManager.getJobStatus(job);
+      changeJobStatus(newStatus);
 
-    if (newStatus != currentStatus) {
-      var auditMessage = "Job status updated: changed from %s to %s";
-      JobTask.logAudit(Action.STATUS_CHANGE, job, auditMessage, currentStatus, newStatus);
+      return job;
+    } catch (Exception e) {
+      handleException(e);
+      return job;
     }
-
-    job.setStatus(newStatus);
-    return job;
   }
 }

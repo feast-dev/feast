@@ -35,7 +35,6 @@ import feast.core.job.Runner;
 import feast.core.model.*;
 import feast.core.util.TestUtil;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
-import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.proto.core.CoreServiceProto.ListIngestionJobsRequest;
 import feast.proto.core.CoreServiceProto.ListIngestionJobsResponse;
 import feast.proto.core.CoreServiceProto.RestartIngestionJobRequest;
@@ -57,7 +56,6 @@ public class JobServiceTest {
   // mocks
   @Mock private JobRepository jobRepository;
   @Mock private JobManager jobManager;
-  @Mock private SpecService specService;
   // fake models
   private Source dataSource;
   private Store dataStore;
@@ -97,28 +95,12 @@ public class JobServiceTest {
     this.listFilters = this.newDummyListRequestFilters();
 
     // setup mock objects
-    this.setupSpecService();
     this.setupJobRepository();
     this.setupJobManager();
+    TestUtil.setupAuditLogger();
 
     // create test target
-    this.jobService =
-        new JobService(this.jobRepository, this.specService, Arrays.asList(this.jobManager));
-  }
-
-  public void setupSpecService() {
-    try {
-      ListFeatureSetsResponse response =
-          ListFeatureSetsResponse.newBuilder().addFeatureSets(this.featureSet.toProto()).build();
-
-      when(this.specService.listFeatureSets(this.listFilters.get(0))).thenReturn(response);
-
-      when(this.specService.listFeatureSets(this.listFilters.get(1))).thenReturn(response);
-
-    } catch (InvalidProtocolBufferException e) {
-      e.printStackTrace();
-      fail("Unexpected exception");
-    }
+    this.jobService = new JobService(this.jobRepository, Arrays.asList(this.jobManager));
   }
 
   public void setupJobRepository() {
@@ -190,13 +172,7 @@ public class JobServiceTest {
 
   private ListIngestionJobsResponse tryListJobs(ListIngestionJobsRequest request) {
     ListIngestionJobsResponse response = null;
-    try {
-      response = this.jobService.listJobs(request);
-    } catch (InvalidProtocolBufferException e) {
-      e.printStackTrace();
-      fail("Caught Unexpected exception");
-    }
-
+    response = this.jobService.listJobs(request);
     return response;
   }
 
