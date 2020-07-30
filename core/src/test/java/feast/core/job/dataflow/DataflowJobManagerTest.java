@@ -213,7 +213,6 @@ public class DataflowJobManagerTest {
         actualPipelineOptions.getSpecsStreamingUpdateConfigJson(),
         equalTo(printer.print(specsStreamingUpdateConfig)));
     assertThat(actual.getExtId(), equalTo(expectedExtJobId));
-    assertThat(actual.getStatus(), equalTo(JobStatus.RUNNING));
   }
 
   @Test

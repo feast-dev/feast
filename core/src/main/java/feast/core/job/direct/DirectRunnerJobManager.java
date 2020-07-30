@@ -84,7 +84,6 @@ public class DirectRunnerJobManager implements JobManager {
       DirectJob directJob = new DirectJob(job.getId(), pipelineResult);
       jobs.add(directJob);
       job.setExtId(job.getId());
-      job.setStatus(JobStatus.RUNNING);
       return job;
     } catch (Exception e) {
       log.error("Error submitting job", e);
@@ -156,7 +155,6 @@ public class DirectRunnerJobManager implements JobManager {
       jobs.remove(job.getExtId());
     }
 
-    job.setStatus(JobStatus.ABORTING);
     return job;
   }
 

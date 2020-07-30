@@ -16,6 +16,12 @@
  */
 package feast.core.util;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import feast.common.logging.AuditLogger;
+import feast.common.logging.config.LoggingProperties;
+import feast.common.logging.config.LoggingProperties.AuditLogProperties;
 import feast.core.model.Entity;
 import feast.core.model.Feature;
 import feast.core.model.FeatureSet;
@@ -41,6 +47,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.springframework.boot.info.BuildProperties;
 
 public class TestUtil {
   public static Set<FeatureSetJobStatus> makeFeatureSetJobStatus(FeatureSet... featureSets) {
@@ -144,5 +151,19 @@ public class TestUtil {
     featureSetJobStatus.setId(new FeatureSetJobStatus.FeatureSetJobStatusKey(job.getId(), 0));
 
     return featureSetJobStatus;
+  }
+
+  /** Setup the audit logger. This call is required to use the audit logger when testing. */
+  public static void setupAuditLogger() {
+    AuditLogProperties properties = new AuditLogProperties();
+    properties.setEnabled(true);
+    LoggingProperties loggingProperties = new LoggingProperties();
+    loggingProperties.setAudit(properties);
+
+    BuildProperties buildProperties = mock(BuildProperties.class);
+    when(buildProperties.getArtifact()).thenReturn("feast-core");
+    when(buildProperties.getVersion()).thenReturn("0.6");
+
+    new AuditLogger(loggingProperties, buildProperties);
   }
 }

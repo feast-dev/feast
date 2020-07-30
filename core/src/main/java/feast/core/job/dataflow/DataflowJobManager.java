@@ -123,7 +123,6 @@ public class DataflowJobManager implements JobManager {
                   .collect(Collectors.toSet()),
               false);
       job.setExtId(extId);
-      job.setStatus(JobStatus.RUNNING);
       return job;
 
     } catch (RuntimeException e) {
@@ -183,7 +182,6 @@ public class DataflowJobManager implements JobManager {
           Strings.lenientFormat("Unable to drain job with id: %s", dataflowJobId), e);
     }
 
-    job.setStatus(JobStatus.ABORTING);
     return job;
   }
 

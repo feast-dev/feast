@@ -29,6 +29,7 @@ import feast.auth.config.SecurityProperties;
 import feast.auth.config.SecurityProperties.AuthenticationProperties;
 import feast.auth.config.SecurityProperties.AuthorizationProperties;
 import feast.auth.credentials.CoreAuthenticationProperties;
+import feast.common.logging.config.LoggingProperties;
 import feast.proto.core.StoreProto;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -39,16 +40,17 @@ import javax.validation.Validation;
 import javax.validation.Validator;
 import javax.validation.ValidatorFactory;
 import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Positive;
 import org.apache.logging.log4j.core.config.plugins.validation.constraints.ValidHost;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.ComponentScan;
 
 /** Feast Serving properties. */
-@Configuration
+@ComponentScan("feast.common.logging")
 @ConfigurationProperties(prefix = "feast", ignoreInvalidFields = true)
 public class FeastProperties {
 
@@ -146,6 +148,14 @@ public class FeastProperties {
 
   /* Metric tracing properties. */
   private TracingProperties tracing;
+
+  /* Feast Audit Logging properties */
+  @NotNull private LoggingProperties logging;
+
+  @Bean
+  LoggingProperties loggingProperties() {
+    return getLogging();
+  }
 
   /**
    * Gets Serving store configuration as a list of {@link Store}.
@@ -473,6 +483,20 @@ public class FeastProperties {
    */
   public void setTracing(TracingProperties tracing) {
     this.tracing = tracing;
+  }
+
+  /**
+   * Gets logging properties
+   *
+   * @return logging properties
+   */
+  public LoggingProperties getLogging() {
+    return logging;
+  }
+
+  /** Sets logging properties @@param logging the logging properties */
+  public void setLogging(LoggingProperties logging) {
+    this.logging = logging;
   }
 
   /** The type Job store properties. */
