@@ -207,10 +207,10 @@ public class RedisCustomIO {
       }
 
       /**
-       * Encode the Feature Row as bytes to store in Redis in encoded Feature Row v2 format. 
-       * To reduce storage space consumption in redis, 
-       * feature rows are "encoded" by hashing the fields names and not unsetting the feature
-       * set reference. {@link FeatureRowDecoder} is rensponsible for reversing this "encoding" step.
+       * Encode the Feature Row as bytes to store in Redis in encoded Feature Row v2 format. To
+       * reduce storage space consumption in redis, feature rows are "encoded" by hashing the fields
+       * names and not unsetting the feature set reference. {@link FeatureRowDecoder} is
+       * rensponsible for reversing this "encoding" step.
        */
       private byte[] getValue(FeatureRow featureRow, FeatureSetSpec spec) {
         List<String> featureNames =

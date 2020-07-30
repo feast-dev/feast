@@ -675,6 +675,90 @@ def test_basic_ingest_retrieval_str(client):
     assert online_features_actual.to_dict() == online_features_expected
 
 
+@pytest.mark.timeout(600)
+@pytest.mark.run(order=18)
+def test_basic_retrieve_feature_row_missing_fields(client, cust_trans_df):
+    # reset the project to default
+    client.set_project()
+
+    feature_refs = ["daily_transactions", "total_transactions", "null_values"]
+    # update cust_trans_fs with one additional feature.
+    # feature rows ingested before the feature set update will be missing a field.
+    old_cust_trans_fs = client.get_feature_set(name="customer_transactions")
+    new_cust_trans_fs = client.get_feature_set(name="customer_transactions")
+    new_cust_trans_fs.add(Feature("n_trips", ValueType.INT64))
+    client.apply(new_cust_trans_fs)
+    # sleep to ensure feature set is propagated
+    time.sleep(15)
+
+    # attempt to retrieve features from feature rows with missing fields
+    def try_get_features():
+        response = client.get_online_features(
+            entity_rows=[
+                {"customer_id": np.int64(cust_trans_df.iloc[0]["customer_id"])}
+            ],
+            feature_refs=feature_refs + ["n_trips"],
+        )  # type: GetOnlineFeaturesResponse
+        # check if the ingested fields can be correctly retrieved.
+        is_ok = all(
+            [
+                check_online_response(ref, cust_trans_df, response)
+                for ref in feature_refs
+            ]
+        )
+        # should return null_value status for missing field n_trips
+        is_missing_ok = (
+            response.field_values[0].statuses["n_trips"]
+            == GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE
+        )
+        return response, is_ok and is_missing_ok
+
+    wait_retry_backoff(
+        retry_fn=try_get_features,
+        timeout_secs=90,
+        timeout_msg="Timed out trying to get online feature values",
+    )
+
+
+@pytest.mark.timeout(600)
+@pytest.mark.run(order=19)
+def test_basic_retrieve_feature_row_extra_fields(client, cust_trans_df):
+    # reset the project to default
+    client.set_project()
+
+    feature_refs = ["daily_transactions", "total_transactions"]
+    # update cust_trans_fs with the null_values feature dropped.
+    # feature rows ingested before the feature set update will have an extra field.
+    new_cust_trans_fs = client.get_feature_set(name="customer_transactions")
+    new_cust_trans_fs.drop("null_values")
+    client.apply(new_cust_trans_fs)
+    # sleep to ensure feature set update is propagated
+    time.sleep(15)
+
+    # attempt to retrieve features from feature rows with extra fields
+    def try_get_features():
+        response = client.get_online_features(
+            entity_rows=[
+                {"customer_id": np.int64(cust_trans_df.iloc[0]["customer_id"])}
+            ],
+            feature_refs=feature_refs,
+        )  # type: GetOnlineFeaturesResponse
+        # check if the non dropped fields can be correctly retrieved.
+        is_ok = all(
+            [
+                check_online_response(ref, cust_trans_df, response)
+                for ref in feature_refs
+            ]
+        )
+        return response, is_ok
+
+    wait_retry_backoff(
+        retry_fn=try_get_features,
+        timeout_secs=90,
+        timeout_msg="Timed out trying to get online feature values",
+    )
+
+
 @pytest.fixture(scope="module")
 def all_types_dataframe():
     return pd.DataFrame(
