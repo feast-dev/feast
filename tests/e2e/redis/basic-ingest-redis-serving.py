@@ -678,16 +678,22 @@ def test_basic_ingest_retrieval_str(client):
 @pytest.mark.timeout(600)
 @pytest.mark.run(order=18)
 def test_basic_retrieve_feature_row_missing_fields(client, cust_trans_df):
-    # reset the project to default
-    client.set_project()
-
     feature_refs = ["daily_transactions", "total_transactions", "null_values"]
+
+    # apply cust_trans_fs and ingest dataframe
+    client.set_project(PROJECT_NAME + "_basic_retrieve_missing_fields")
+    old_cust_trans_fs = FeatureSet.from_yaml(
+        f"{DIR_PATH}/basic/cust_trans_fs.yaml"
+    )
+    client.apply(old_cust_trans_fs)
+    client.ingest(old_cust_trans_fs, cust_trans_df)
+
     # update cust_trans_fs with one additional feature.
     # feature rows ingested before the feature set update will be missing a field.
     new_cust_trans_fs = client.get_feature_set(name="customer_transactions")
     new_cust_trans_fs.add(Feature("n_trips", ValueType.INT64))
     client.apply(new_cust_trans_fs)
-    # sleep to ensure feature set is propagated
+    # sleep to ensure feature set update is propagated
     time.sleep(15)
 
     # attempt to retrieve features from feature rows with missing fields
@@ -722,10 +728,15 @@ def test_basic_retrieve_feature_row_missing_fields(client, cust_trans_df):
 @pytest.mark.timeout(600)
 @pytest.mark.run(order=19)
 def test_basic_retrieve_feature_row_extra_fields(client, cust_trans_df):
-    # reset the project to default
-    client.set_project()
-
     feature_refs = ["daily_transactions", "total_transactions"]
+    # apply cust_trans_fs and ingest dataframe
+    client.set_project(PROJECT_NAME + "_basic_retrieve_missing_fields")
+    old_cust_trans_fs = FeatureSet.from_yaml(
+        f"{DIR_PATH}/basic/cust_trans_fs.yaml"
+    )
+    client.apply(old_cust_trans_fs)
+    client.ingest(old_cust_trans_fs, cust_trans_df)
+
     # update cust_trans_fs with the null_values feature dropped.
     # feature rows ingested before the feature set update will have an extra field.
     new_cust_trans_fs = client.get_feature_set(name="customer_transactions")
