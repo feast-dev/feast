@@ -41,10 +41,10 @@ public class FeatureRowDecoder {
   }
 
   /**
-   * Check if encoded feature row v1 is encoded. A Feature Row v1 is considered encoded if both it'
-   * feature set reference and fields names are not set. The no. of fields in the feature row should
-   * also match up with the number of fields in the Feature Set spec. NOTE: This method is
-   * deprecated and will be removed in Feast v0.7.
+   * Check if encoded feature row v1 is encoded. The Feature Row v1 encoding defines that a Feature
+   * Row is is considered encoded if both it's feature set reference and fields names are not set .
+   * The no. of fields in the feature row should also match up with the number of fields in the
+   * Feature Set spec. NOTE: This method is deprecated and will be removed in Feast v0.7.
    *
    * @param featureRow Feature row
    * @return boolean
@@ -57,8 +57,8 @@ public class FeatureRowDecoder {
   }
 
   /**
-   * Check if encoded feature row v2 is encoded. A Feature Row v2 is considered encoded if it's both
-   * it feature set reference and fields names are set.
+   * Check if encoded feature row v2 is encoded. The Feature Row v2 encoding defines that a Feature
+   * Row is f is considered encoded if it's both it feature set reference and fields names are set.
    *
    * @param featureRow Feature row
    * @return boolean
@@ -68,8 +68,8 @@ public class FeatureRowDecoder {
   }
 
   /**
-   * Decode feature row encoded by {@link RedisCustomIO}. NOTE: support for decoding feature row v1
-   * will be dropped in Feast 0.7
+   * Decode feature row encoded by {@link RedisCustomIO}. NOTE: support for decoding Feature Row v1
+   * encoding will be dropped in Feast 0.7
    *
    * @throws IllegalArgumentException if unable to the decode the given feature row
    * @param encodedFeatureRow Feature row
@@ -106,7 +106,7 @@ public class FeatureRowDecoder {
           .build();
 
     } else if (isEncodedV2(encodedFeatureRow)) {
-      // Encoded Feature Row v2 uses a hashed name as the field name and does not have feature set
+      // Feature Row v2 encoding uses a hashed name as the field name and does not have feature set
       // reference set.
       // Decoding reverts the field name to a unhashed string and set feature set reference.
       Map<String, Value> nameHashValueMap =

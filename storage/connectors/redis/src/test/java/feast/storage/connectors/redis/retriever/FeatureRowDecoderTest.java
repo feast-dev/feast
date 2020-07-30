@@ -162,7 +162,7 @@ public class FeatureRowDecoderTest {
     assertEquals(expectedFeatureRow, decoder.decode(encodedFeatureRow));
   }
 
-  // TODO: remove this test in Feast 0.7 when support for Feature Row v1 is removed
+  // TODO: remove this test in Feast 0.7 when support for Feature Row v1 encoding is removed
   @Test
   public void shouldDecodeValidEncodedFeatureRowV1() {
     FeatureRowDecoder decoder = new FeatureRowDecoder("feature_set_ref", spec);
