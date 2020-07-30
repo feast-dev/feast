@@ -75,6 +75,13 @@
             <groupId>dev.feast</groupId>
             <artifactId>feast-ingestion</artifactId>
             <version>${project.version}</version>
+            <exclusions>
+                <!-- Exclusion required to prevent Core from using SLF4J logging bindings from ingestion -->
+                <exclusion>  
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-simple</artifactId>
+                </exclusion>
+            </exclusions> 
         </dependency>
         <dependency>
             <groupId>dev.feast</groupId>

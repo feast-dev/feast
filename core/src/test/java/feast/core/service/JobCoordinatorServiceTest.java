@@ -41,6 +41,7 @@ import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobRepository;
 import feast.core.dao.SourceRepository;
 import feast.core.job.*;
+import feast.core.job.task.*;
 import feast.core.model.*;
 import feast.core.util.TestUtil;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
@@ -91,6 +92,7 @@ public class JobCoordinatorServiceTest {
     JobProperties jobProperties = new JobProperties();
     jobProperties.setJobUpdateTimeoutSeconds(5);
     feastProperties.setJobs(jobProperties);
+    TestUtil.setupAuditLogger();
 
     jcsWithConsolidation =
         new JobCoordinatorService(
@@ -214,7 +216,7 @@ public class JobCoordinatorServiceTest {
     Job job =
         Job.builder()
             .setId(id)
-            .setExtId("")
+            .setExtId("extId")
             .setRunner(Runner.DATAFLOW)
             .setSource(source)
             .setFeatureSetJobStatuses(TestUtil.makeFeatureSetJobStatus(featureSets))
@@ -752,7 +754,8 @@ public class JobCoordinatorServiceTest {
     Job expected1 = newJob("", store1, source);
     Job expected2 = newJob("", store2, source);
 
-    when(jobManager.startJob(any())).thenReturn(new Job());
+    when(jobManager.startJob(expected1)).thenReturn(expected1);
+    when(jobManager.startJob(expected2)).thenReturn(expected2);
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
 
     jcsWithJobPerStore.Poll();
@@ -805,6 +808,11 @@ public class JobCoordinatorServiceTest {
     existingJob.setFeatureSetJobStatuses(new HashSet<>());
     existingJob.setStatus(JobStatus.RUNNING);
 
+    Job spawnJob = newJob("some-other-id", store1, source);
+    existingJob.setExtId("extId2");
+    existingJob.setFeatureSetJobStatuses(new HashSet<>());
+    existingJob.setStatus(JobStatus.RUNNING);
+
     when(jobRepository
             .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
                 eq(source.getType()),
@@ -814,6 +822,7 @@ public class JobCoordinatorServiceTest {
         .thenReturn(Optional.of(existingJob));
 
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
+    when(jobManager.startJob(any())).thenReturn(spawnJob);
 
     jcsWithConsolidation.Poll();
 
@@ -821,7 +830,6 @@ public class JobCoordinatorServiceTest {
 
     // not stopped yet
     verify(jobManager, never()).abortJob(any());
-
     verify(jobManager, times(1)).startJob(jobCaptor.capture());
 
     Job actual = jobCaptor.getValue();

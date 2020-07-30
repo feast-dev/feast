@@ -14,20 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.log;
+package feast.common.logging.entry;
 
-/** Actions taken for audit logging purposes */
-public enum Action {
-  // Job-related actions
-  SUBMIT,
-  STATUS_CHANGE,
-  ABORT,
+import com.google.auto.value.AutoValue;
 
-  // Spec-related
-  UPDATE,
-  REGISTER,
+@AutoValue
+/**
+ * LogResource is used in {@link AuditLogEntry} to reference a specific resource as the subject of
+ * the log
+ */
+public abstract class LogResource {
+  public enum ResourceType {
+    JOB,
+    FEATURE_SET,
+  }
 
-  // Storage-related
-  ADD,
-  SCHEMA_UPDATE,
+  public abstract ResourceType getType();
+
+  public abstract String getId();
+
+  public static LogResource of(ResourceType type, String id) {
+    return new AutoValue_LogResource(type, id);
+  }
 }

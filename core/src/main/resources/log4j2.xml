@@ -21,26 +21,28 @@
         <Property name="LOG_PATTERN">
             %d{yyyy-MM-dd HH:mm:ss.SSS} %5p ${hostName} --- [%15.15t] %-40.40c{1.} : %m%n%ex
         </Property>
-        <Property name="APPENDER_TYPE">${env:LOG_TYPE:-Console}</Property>
-        <Property name="LOG_LEVEL">${env:LOG_LEVEL:-info}</Property>
+        <Property name="JSON_LOG_PATTERN">
+            {"time":"%d{yyyy-MM-dd'T'HH:mm:ssXXX}","hostname":"${hostName}","severity":"%p","message":%m}%n%ex
+        </Property>
     </Properties>
-    <CustomLevels>
-        <CustomLevel name="AUDIT" intLevel="350"/>
-    </CustomLevels>
     <Appenders>
         <Console name="ConsoleAppender" target="SYSTEM_OUT" follow="true">
+            <MarkerFilter marker="AUDIT_MARK" onMatch="DENY" onMismatch="ACCEPT"/>
             <PatternLayout pattern="${LOG_PATTERN}"/>
         </Console>
         <Console name="JSONAppender" target="SYSTEM_OUT" follow="true">
-            <JsonLayout  compact="true" eventEol="true" objectMessageAsJsonObject="true" />
+            <MarkerFilter marker="AUDIT_MARK" onMatch="ACCEPT" onMismatch="DENY"/>
+            <PatternLayout pattern="${JSON_LOG_PATTERN}"/>
         </Console>
     </Appenders>
     <Loggers>
-      <Logger name="feast.core" level="debug" additivity="false">
-        <AppenderRef ref="${APPENDER_TYPE}Appender"/>
+      <Logger name="feast.core" level="info" additivity="false">
+        <AppenderRef ref="ConsoleAppender"/>
+        <AppenderRef ref="JSONAppender"/>
       </Logger>
-      <Root level="${LOG_LEVEL}">
-        <AppenderRef ref="${APPENDER_TYPE}Appender"/>
+      <Root level="info">
+        <AppenderRef ref="ConsoleAppender"/>
+        <AppenderRef ref="JSONAppender"/>
       </Root>
     </Loggers>
 </Configuration>

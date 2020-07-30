@@ -19,6 +19,7 @@ package feast.core.config;
 import feast.auth.config.SecurityProperties;
 import feast.auth.config.SecurityProperties.AuthenticationProperties;
 import feast.auth.config.SecurityProperties.AuthorizationProperties;
+import feast.common.logging.config.LoggingProperties;
 import feast.common.validators.OneOfStrings;
 import feast.core.config.FeastProperties.StreamProperties.FeatureStreamOptions;
 import java.net.InetAddress;
@@ -43,11 +44,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
 @Getter
 @Setter
 @Configuration
+@ComponentScan("feast.common.logging")
 @ConfigurationProperties(prefix = "feast", ignoreInvalidFields = true)
 public class FeastProperties {
 
@@ -74,11 +77,19 @@ public class FeastProperties {
   /* Feast Kafka stream properties */
   private StreamProperties stream;
 
-  private SecurityProperties security;
+  @NotNull private SecurityProperties security;
 
   @Bean
   SecurityProperties securityProperties() {
-    return this.getSecurity();
+    return getSecurity();
+  }
+
+  /* Feast Audit Logging properties */
+  @NotNull private LoggingProperties logging;
+
+  @Bean
+  LoggingProperties loggingProperties() {
+    return getLogging();
   }
 
   /** Feast job properties. These properties are used for ingestion jobs. */

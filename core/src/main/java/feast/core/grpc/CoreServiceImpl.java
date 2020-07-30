@@ -19,6 +19,7 @@ package feast.core.grpc;
 import com.google.api.gax.rpc.InvalidArgumentException;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.auth.service.AuthorizationService;
+import feast.common.interceptors.GrpcMessageInterceptor;
 import feast.core.config.FeastProperties;
 import feast.core.exception.RetrievalException;
 import feast.core.grpc.interceptors.MonitoringInterceptor;
@@ -43,7 +44,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 /** Implementation of the feast core GRPC service. */
 @Slf4j
-@GrpcService(interceptors = {MonitoringInterceptor.class})
+@GrpcService(interceptors = {GrpcMessageInterceptor.class, MonitoringInterceptor.class})
 public class CoreServiceImpl extends CoreServiceImplBase {
 
   private final FeastProperties feastProperties;

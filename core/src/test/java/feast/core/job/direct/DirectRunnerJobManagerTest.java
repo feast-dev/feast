@@ -158,7 +158,6 @@ public class DirectRunnerJobManagerTest {
 
     verify(drJobManager, times(1)).runPipeline(pipelineOptionsCaptor.capture());
     verify(directJobRegistry, times(1)).add(directJobCaptor.capture());
-    assertThat(actual.getStatus(), equalTo(JobStatus.RUNNING));
 
     ImportOptions actualPipelineOptions = pipelineOptionsCaptor.getValue();
     DirectJob jobStarted = directJobCaptor.getValue();
@@ -201,6 +200,5 @@ public class DirectRunnerJobManagerTest {
     job = drJobManager.abortJob(job);
     verify(directJob, times(1)).abort();
     verify(directJobRegistry, times(1)).remove("ext1");
-    assertThat(job.getStatus(), equalTo(JobStatus.ABORTING));
   }
 }
