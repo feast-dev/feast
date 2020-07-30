@@ -22,6 +22,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.hash.Hashing;
 import com.google.protobuf.Timestamp;
 import feast.common.models.FeatureSetReference;
 import feast.proto.core.FeatureSetProto.EntitySpec;
@@ -40,6 +41,7 @@ import io.lettuce.core.cluster.api.sync.RedisClusterCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ScheduledFuture;
@@ -160,7 +162,10 @@ public class RedisClusterFeatureSinkTest {
             .build(),
         FeatureRow.newBuilder()
             .setEventTimestamp(Timestamp.getDefaultInstance())
-            .addFields(Field.newBuilder().setValue(Value.newBuilder().setStringVal("one")))
+            .addFields(
+                Field.newBuilder()
+                    .setName(hash("feature"))
+                    .setValue(Value.newBuilder().setStringVal("one")))
             .build());
     kvs.put(
         RedisKey.newBuilder()
@@ -169,7 +174,10 @@ public class RedisClusterFeatureSinkTest {
             .build(),
         FeatureRow.newBuilder()
             .setEventTimestamp(Timestamp.getDefaultInstance())
-            .addFields(Field.newBuilder().setValue(Value.newBuilder().setStringVal("two")))
+            .addFields(
+                Field.newBuilder()
+                    .setName(hash("feature"))
+                    .setValue(Value.newBuilder().setStringVal("two")))
             .build());
 
     List<FeatureRow> featureRows =
@@ -205,7 +213,10 @@ public class RedisClusterFeatureSinkTest {
             .build(),
         FeatureRow.newBuilder()
             .setEventTimestamp(Timestamp.getDefaultInstance())
-            .addFields(Field.newBuilder().setValue(Value.newBuilder().setStringVal("one")))
+            .addFields(
+                Field.newBuilder()
+                    .setName(hash("feature"))
+                    .setValue(Value.newBuilder().setStringVal("one")))
             .build());
 
     List<FeatureRow> featureRows =
@@ -332,8 +343,14 @@ public class RedisClusterFeatureSinkTest {
     FeatureRow expectedValue =
         FeatureRow.newBuilder()
             .setEventTimestamp(Timestamp.newBuilder().setSeconds(10))
-            .addFields(Field.newBuilder().setValue(Value.newBuilder().setStringVal("strValue1")))
-            .addFields(Field.newBuilder().setValue(Value.newBuilder().setInt64Val(1001)))
+            .addFields(
+                Field.newBuilder()
+                    .setName(hash("feature_1"))
+                    .setValue(Value.newBuilder().setStringVal("strValue1")))
+            .addFields(
+                Field.newBuilder()
+                    .setName(hash("feature_2"))
+                    .setValue(Value.newBuilder().setInt64Val(1001)))
             .build();
 
     p.apply(Create.of(offendingRow)).apply(redisClusterFeatureSink.writer());
@@ -383,8 +400,14 @@ public class RedisClusterFeatureSinkTest {
 
     List<Field> expectedFields =
         Arrays.asList(
-            Field.newBuilder().setValue(Value.newBuilder().setStringVal("strValue1")).build(),
-            Field.newBuilder().setValue(Value.newBuilder().setInt64Val(1001)).build());
+            Field.newBuilder()
+                .setName(hash("feature_1"))
+                .setValue(Value.newBuilder().setStringVal("strValue1"))
+                .build(),
+            Field.newBuilder()
+                .setName(hash("feature_2"))
+                .setValue(Value.newBuilder().setInt64Val(1001))
+                .build());
     FeatureRow expectedValue =
         FeatureRow.newBuilder()
             .setEventTimestamp(Timestamp.newBuilder().setSeconds(10))
@@ -443,8 +466,14 @@ public class RedisClusterFeatureSinkTest {
     FeatureRow expectedValue =
         FeatureRow.newBuilder()
             .setEventTimestamp(Timestamp.newBuilder().setSeconds(10))
-            .addFields(Field.newBuilder().setValue(Value.newBuilder().setStringVal("strValue1")))
-            .addFields(Field.newBuilder().setValue(Value.newBuilder().setInt64Val(1001)))
+            .addFields(
+                Field.newBuilder()
+                    .setName(hash("feature_1"))
+                    .setValue(Value.newBuilder().setStringVal("strValue1")))
+            .addFields(
+                Field.newBuilder()
+                    .setName(hash("feature_2"))
+                    .setValue(Value.newBuilder().setInt64Val(1001)))
             .build();
 
     p.apply(Create.of(featureRowWithDuplicatedFeatureFields))
@@ -492,8 +521,12 @@ public class RedisClusterFeatureSinkTest {
     FeatureRow expectedValue =
         FeatureRow.newBuilder()
             .setEventTimestamp(Timestamp.newBuilder().setSeconds(10))
-            .addFields(Field.newBuilder().setValue(Value.newBuilder().setStringVal("strValue1")))
-            .addFields(Field.newBuilder().setValue(Value.getDefaultInstance()))
+            .addFields(
+                Field.newBuilder()
+                    .setName(hash("feature_1"))
+                    .setValue(Value.newBuilder().setStringVal("strValue1")))
+            .addFields(
+                Field.newBuilder().setName(hash("feature_2")).setValue(Value.getDefaultInstance()))
             .build();
 
     p.apply(Create.of(featureRowWithDuplicatedFeatureFields))
@@ -503,5 +536,9 @@ public class RedisClusterFeatureSinkTest {
 
     byte[] actual = redisClusterCommands.get(expectedKey.toByteArray());
     assertThat(actual, equalTo(expectedValue.toByteArray()));
+  }
+
+  private static String hash(String input) {
+    return Hashing.murmur3_32().hashString(input, StandardCharsets.UTF_8).toString();
   }
 }
