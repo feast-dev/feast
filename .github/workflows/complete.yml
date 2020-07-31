@@ -64,7 +64,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: install dependencies
-        run: Make lint-versions
+        run: make lint-versions
 
   unit-test-java:
     runs-on: ubuntu-latest
