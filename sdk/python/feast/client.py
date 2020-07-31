@@ -29,6 +29,7 @@ import pandas as pd
 import pyarrow as pa
 from google.protobuf.timestamp_pb2 import Timestamp
 from pyarrow import parquet as pq
+from tqdm import tqdm
 
 from feast.config import Config
 from feast.constants import (
@@ -54,6 +55,7 @@ from feast.core.CoreService_pb2 import (
     GetFeatureSetRequest,
     GetFeatureSetResponse,
     GetFeatureStatisticsRequest,
+    IngestFeaturesRequest,
     ListFeatureSetsRequest,
     ListFeatureSetsResponse,
     ListFeaturesRequest,
@@ -811,6 +813,116 @@ class Client:
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
 
+    def ingest_features(
+        self,
+        feature_set: Union[str, FeatureSet],
+        source: Union[pd.DataFrame, str],
+        chunk_size: int = 10000,
+        max_workers: int = max(CPU_COUNT - 1, 1),
+        disable_progress_bar: bool = False,
+        timeout: int = KAFKA_CHUNK_PRODUCTION_TIMEOUT,
+    ) -> str:
+        """
+        Loads feature data into Feast for a specific feature set.
+        performs same functionality as ingest() method. 
+        The only difference is instead of writing data directly to kafka,
+        makes grpc call to core, which inturn writes data into kafka.
+        Args:
+            feature_set (typing.Union[str, feast.feature_set.FeatureSet]):
+                Feature set object or the string name of the feature set
+
+            source (typing.Union[pd.DataFrame, str]):
+                Either a file path or Pandas Dataframe to ingest into Feast
+                Files that are currently supported:
+                    * parquet
+                    * csv
+                    * json
+
+            chunk_size (int):
+                Amount of rows to load and ingest at a time.
+
+            max_workers (int):
+                Number of worker processes to use to encode values.
+
+            disable_progress_bar (bool):
+                Disable printing of progress statistics.
+
+            timeout (int):
+                Timeout in seconds to wait for completion.
+
+        Returns:
+            str:
+                ingestion id for this dataset
+
+        Examples:
+            >>> from feast import Client
+            >>>
+            >>> client = Client(core_url="localhost:6565")
+            >>> fs_df = pd.DataFrame(
+            >>>         {
+            >>>            "datetime": [pd.datetime.now()],
+            >>>            "driver": [1001],
+            >>>            "rating": [4.3],
+            >>>         }
+            >>>     )
+            >>> client.set_project("project1")
+            >>> client.ingest_features("driver", fs_df)
+            >>>
+            >>> driver_fs = client.get_feature_set(name="driver", project="project1")
+            >>> client.ingest_features(driver_fs, fs_df)
+        """
+        name, project = self._get_project_and_feature_set_name(feature_set)
+        # Read table and get row count
+        dir_path, dest_path = _read_table_from_source(source, chunk_size, max_workers)
+
+        pq_file = pq.ParquetFile(dest_path)
+
+        progress_bar = tqdm(
+            total=pq_file.metadata.num_rows,
+            unit="rows",
+            smoothing=0,
+            disable=disable_progress_bar,
+        )
+        group_size = int(pq_file.metadata.num_rows / pq_file.num_row_groups)
+        feature_set, timeout = self._wait_for_fs_to_be_ready(
+            feature_set, name, project, timeout
+        )
+        try:
+            ingestion_id = _generate_ingestion_id(feature_set)
+            if feature_set.source.source_type == "Kafka":
+                for chunk in get_feature_row_chunks(
+                    file=dest_path,
+                    row_groups=list(range(pq_file.num_row_groups)),
+                    fs=feature_set,
+                    ingestion_id=ingestion_id,
+                    max_workers=max_workers,
+                    serialize=False,
+                ):
+                    ingest_feature_request = IngestFeaturesRequest(
+                        feature_set=feature_set.to_proto(), feature_rows=chunk
+                    )
+                    self._core_service.IngestFeatures(
+                        ingest_feature_request,
+                        metadata=self._get_grpc_metadata(),
+                        timeout=timeout,
+                    )
+                    progress_bar.update(group_size)
+            else:
+                raise Exception(
+                    f"Could not determine source type for feature set "
+                    f'"{feature_set.name}" with source type '
+                    f'"{feature_set.source.source_type}"'
+                )
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+        finally:
+            # Remove parquet file(s) that were created earlier
+            print("Removing temporary file(s)...")
+            shutil.rmtree(dir_path)
+        progress_bar.refresh()
+        progress_bar.close()
+        return ingestion_id
+
     def ingest(
         self,
         feature_set: Union[str, FeatureSet],
@@ -868,17 +980,7 @@ class Client:
             >>> client.ingest(driver_fs, fs_df)
         """
 
-        if isinstance(feature_set, FeatureSet):
-            name = feature_set.name
-            project = feature_set.project
-        elif isinstance(feature_set, str):
-            if self.project is not None:
-                project = self.project
-            else:
-                project = "default"
-            name = feature_set
-        else:
-            raise Exception("Feature set name must be provided")
+        name, project = self._get_project_and_feature_set_name(feature_set)
 
         # Read table and get row count
         dir_path, dest_path = _read_table_from_source(source, chunk_size, max_workers)
@@ -887,25 +989,9 @@ class Client:
 
         row_count = pq_file.metadata.num_rows
 
-        current_time = time.time()
-
-        print("Waiting for feature set to be ready for ingestion...")
-        while True:
-            if timeout is not None and time.time() - current_time >= timeout:
-                raise TimeoutError("Timed out waiting for feature set to be ready")
-            fetched_feature_set: Optional[FeatureSet] = self.get_feature_set(
-                name, project
-            )
-            if (
-                fetched_feature_set is not None
-                and fetched_feature_set.status == FeatureSetStatus.STATUS_READY
-            ):
-                feature_set = fetched_feature_set
-                break
-            time.sleep(3)
-
-        if timeout is not None:
-            timeout = timeout - int(time.time() - current_time)
+        feature_set, timeout = self._wait_for_fs_to_be_ready(
+            feature_set, name, project, timeout
+        )
 
         try:
             # Kafka configs
@@ -953,6 +1039,40 @@ class Client:
             shutil.rmtree(dir_path)
 
         return ingestion_id
+
+    def _wait_for_fs_to_be_ready(self, feature_set, name, project, timeout):
+        current_time = time.time()
+        print("Waiting for feature set to be ready for ingestion...")
+        while True:
+            if timeout is not None and time.time() - current_time >= timeout:
+                raise TimeoutError("Timed out waiting for feature set to be ready")
+            fetched_feature_set: Optional[FeatureSet] = self.get_feature_set(
+                name, project
+            )
+            if (
+                fetched_feature_set is not None
+                and fetched_feature_set.status == FeatureSetStatus.STATUS_READY
+            ):
+                feature_set = fetched_feature_set
+                break
+            time.sleep(3)
+        if timeout is not None:
+            timeout = timeout - int(time.time() - current_time)
+        return feature_set, timeout
+
+    def _get_project_and_feature_set_name(self, feature_set):
+        if isinstance(feature_set, FeatureSet):
+            name = feature_set.name
+            project = feature_set.project
+        elif isinstance(feature_set, str):
+            if self.project is not None:
+                project = self.project
+            else:
+                project = "default"
+            name = feature_set
+        else:
+            raise Exception("Feature set name must be provided")
+        return name, project
 
     def get_statistics(
         self,

@@ -26,8 +26,13 @@ KAFKA_CHUNK_PRODUCTION_TIMEOUT = 120  # type: int
 
 
 def _encode_pa_tables(
-    file: str, feature_set: str, fields: dict, ingestion_id: str, row_group_idx: int
-) -> List[bytes]:
+    file: str,
+    feature_set: str,
+    fields: dict,
+    ingestion_id: str,
+    serialize: bool,
+    row_group_idx: int,
+) -> List[any]:
     """
     Helper function to encode a PyArrow table(s) read from parquet file(s) into
     FeatureRows.
@@ -52,6 +57,9 @@ def _encode_pa_tables(
         ingestion_id (str):
             UUID unique to this ingestion job.
 
+        serialize (bool):
+            If output should be a serialised
+
         row_group_idx(int):
             Row group index to read and encode into byte like FeatureRow
             protobuf objects.
@@ -74,7 +82,7 @@ def _encode_pa_tables(
     }
 
     # List to store result
-    feature_rows: List[bytes] = []
+    feature_rows = []
 
     # Loop optimization declaration(s)
     field = FieldProto.Field
@@ -94,9 +102,11 @@ def _encode_pa_tables(
         # Insert field from each column
         for k, v in proto_items:
             ext([field(name=k, value=v[row_idx])])
-
-        # Append FeatureRow in byte string form
-        append(feature_row.SerializeToString())
+        if serialize:
+            # Append FeatureRow in byte string form
+            append(feature_row.SerializeToString())
+        else:
+            append(feature_row)
 
     return feature_rows
 
@@ -107,7 +117,8 @@ def get_feature_row_chunks(
     fs: FeatureSet,
     ingestion_id: str,
     max_workers: int,
-) -> Iterable[List[bytes]]:
+    serialize: bool = True,
+) -> Iterable[List[any]]:
     """
     Iterator function to encode a PyArrow table read from a parquet file to
     FeatureRow(s).
@@ -130,6 +141,8 @@ def get_feature_row_chunks(
         max_workers (int):
             Maximum number of workers to spawn.
 
+        serialize (bool):
+            If output should be a serialised
     Returns:
         Iterable[List[bytes]]:
             Iterable list of byte encoded FeatureRow(s).
@@ -140,7 +153,9 @@ def get_feature_row_chunks(
     field_map = {field.name: field.dtype for field in fs.fields.values()}
 
     pool = Pool(max_workers)
-    func = partial(_encode_pa_tables, file, feature_set, field_map, ingestion_id)
+    func = partial(
+        _encode_pa_tables, file, feature_set, field_map, ingestion_id, serialize
+    )
     for chunk in pool.imap(func, row_groups):
         yield chunk
     return

@@ -24,6 +24,7 @@ import feast.core.config.FeastProperties;
 import feast.core.exception.RetrievalException;
 import feast.core.grpc.interceptors.MonitoringInterceptor;
 import feast.core.model.Project;
+import feast.core.service.IngestionService;
 import feast.core.service.JobService;
 import feast.core.service.ProjectService;
 import feast.core.service.SpecService;
@@ -53,6 +54,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   private StatsService statsService;
   private ProjectService projectService;
   private final AuthorizationService authorizationService;
+  private final IngestionService ingestionService;
 
   @Autowired
   public CoreServiceImpl(
@@ -61,13 +63,15 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       StatsService statsService,
       JobService jobService,
       FeastProperties feastProperties,
-      AuthorizationService authorizationService) {
+      AuthorizationService authorizationService,
+      IngestionService ingestionService) {
     this.specService = specService;
     this.projectService = projectService;
     this.jobService = jobService;
     this.feastProperties = feastProperties;
     this.statsService = statsService;
     this.authorizationService = authorizationService;
+    this.ingestionService = ingestionService;
   }
 
   @Override
@@ -353,6 +357,31 @@ public class CoreServiceImpl extends CoreServiceImplBase {
           Status.FAILED_PRECONDITION.withDescription(e.getMessage()).withCause(e).asException());
     } catch (Exception e) {
       log.error("Unexpected exception on calling stopIngestionJob method:", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void ingestFeatures(
+      IngestFeaturesRequest request, StreamObserver<IngestFeaturesResponse> responseObserver) {
+    String projectId = null;
+    try {
+      projectId = request.getFeatureSet().getSpec().getProject();
+      authorizationService.authorizeRequest(SecurityContextHolder.getContext(), projectId);
+      IngestFeaturesResponse response =
+          ingestionService.ingestFeatures(request.getFeatureRowsList());
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (AccessDeniedException e) {
+      log.info(String.format("User prevented from accessing project: %s", projectId));
+      responseObserver.onError(
+          Status.PERMISSION_DENIED
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
+    } catch (Exception e) {
+      log.error("Unexpected exception on calling ingestFeatures method:", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }

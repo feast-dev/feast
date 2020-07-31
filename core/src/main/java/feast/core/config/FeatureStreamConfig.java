@@ -24,6 +24,7 @@ import feast.proto.core.IngestionJobProto;
 import feast.proto.core.SourceProto;
 import feast.proto.core.SourceProto.KafkaSourceConfig;
 import feast.proto.core.SourceProto.SourceType;
+import feast.proto.types.FeatureRowProto.FeatureRow;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -122,6 +123,29 @@ public class FeatureStreamConfig {
     return t;
   }
 
+  /**
+   * Creates kafka publisher for sending FeatureRow to kafka. Uses ProtoSerializer to serialize
+   * FeatureRow.
+   *
+   * @param feastProperties
+   * @return
+   */
+  @Bean
+  public KafkaTemplate<String, FeatureRow> featuresKafkaTemplate(FeastProperties feastProperties) {
+    StreamProperties streamProperties = feastProperties.getStream();
+    Map<String, Object> props = new HashMap<>();
+
+    props.put(
+        ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
+        streamProperties.getOptions().getBootstrapServers());
+    KafkaTemplate<String, FeatureRow> t =
+        new KafkaTemplate<>(
+            new DefaultKafkaProducerFactory<>(
+                props, new StringSerializer(), new KafkaSerialization.ProtoSerializer<>()));
+
+    t.setDefaultTopic(streamProperties.getOptions().getTopic());
+    return t;
+  }
   /**
    * Set configured consumerFactory for specs acknowledgment topic (see ackConsumerFactory) as
    * default for KafkaListener.
