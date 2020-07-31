@@ -3,15 +3,34 @@
 # ============================================================
 
 FROM maven:3.6-jdk-11 as builder
-ARG REVISION=dev
-COPY  . /build
+
 WORKDIR /build
-#
+
+COPY pom.xml .
+COPY datatypes/java/pom.xml datatypes/java/pom.xml
+COPY common/pom.xml common/pom.xml
+COPY auth/pom.xml auth/pom.xml
+COPY ingestion/pom.xml ingestion/pom.xml
+COPY core/pom.xml core/pom.xml
+COPY serving/pom.xml serving/pom.xml
+COPY storage/api/pom.xml storage/api/pom.xml
+COPY storage/connectors/pom.xml storage/connectors/pom.xml
+COPY storage/connectors/redis/pom.xml storage/connectors/redis/pom.xml
+COPY storage/connectors/bigquery/pom.xml storage/connectors/bigquery/pom.xml
+COPY sdk/java/pom.xml sdk/java/pom.xml
+COPY docs/coverage/java/pom.xml docs/coverage/java/pom.xml
+COPY protos/ protos/
+
 # Setting Maven repository .m2 directory relative to /build folder gives the
 # user to optionally use cached repository when building the image by copying
 # the existing .m2 directory to $FEAST_REPO_ROOT/.m2
-#
 ENV MAVEN_OPTS="-Dmaven.repo.local=/build/.m2/repository -DdependencyLocationsEnabled=false"
+COPY pom.xml .m2/* .m2/
+RUN mvn dependency:go-offline -DexcludeGroupIds:dev.feast 2>/dev/null || true
+
+COPY . .
+
+ARG REVISION=dev
 RUN mvn --also-make --projects serving -Drevision=$REVISION \
   -DskipUTs=true --batch-mode clean package
 #
