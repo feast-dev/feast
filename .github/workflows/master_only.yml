@@ -18,7 +18,7 @@ jobs:
         with:
           version: '290.0.1'
           export_default_credentials: true
-        - run: gcloud auth configure-docker
+      - run: gcloud auth configure-docker --quiet
       - name: Build image
         run: make build-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA}
       - name: Push image
