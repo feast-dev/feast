@@ -8,26 +8,31 @@ on:
 
 jobs:
   build-docker-images:
-    runs-on: [self-hosted, builder]
+    runs-on: [self-hosted]
     strategy:
       matrix:
         component: [core, serving, jupyter, ci]
     steps:
       - uses: actions/checkout@v2
-      - name: build image
+      - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        with:
+          version: '290.0.1'
+          export_default_credentials: true
+        - run: gcloud auth configure-docker
+      - name: Build image
         run: make build-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA}
-      - name: push image
+      - name: Push image
         run: make push-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA}
-      - name: push feast dev
+      - name: Push image to feast dev
         run: |
           if [ ${GITHUB_REF#refs/*/} == "master" ]; then
             docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:dev
             docker push gcr.io/kf-feast/feast-${{ matrix.component }}:dev
           fi
-      - name: get version
+      - name: Get version
         id: get_version
         run: echo ::set-output name=VERSION::${${GITHUB_REF/refs\/tags\//}:1}
-      - name: push versioned release
+      - name: Push versioned release
         run: |
 
           # Build and push semver tagged commits
@@ -52,5 +57,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: test docker compose
+      - name: Test docker compose
         run: ./infra/scripts/test-docker-compose.sh
