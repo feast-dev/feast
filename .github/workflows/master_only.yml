@@ -30,26 +30,25 @@ jobs:
             docker push gcr.io/kf-feast/feast-${{ matrix.component }}:dev
           fi
       - name: Get version
-        id: get_version
-        run: echo ::set-output name=VERSION::${${GITHUB_REF/refs\/tags\//}:1}
+        run: echo ::set-env name=RELEASE_VERSION::${GITHUB_REF#refs/*/}
       - name: Push versioned release
         run: |
-
           # Build and push semver tagged commits
-          rx='^([0-9]+\.){0,2}(\*|[0-9]+)$'
-          if [[ ${{ steps.get_version.outputs.VERSION }} =~ $rx ]]; then
+          rx='^v[0-9]+?\.[0-9]+?\.[0-9]+?$'
+          if [[ "${RELEASE_VERSION}" =~ $rx ]]; then
+            VERSION_WITHOUT_PREFIX=${RELEASE_VERSION:1}
 
-            docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:${{ steps.get_version.outputs.VERSION }}
-            docker push gcr.io/kf-feast/feast-${{ matrix.component }}:${{ steps.get_version.outputs.VERSION }}
+            docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX}
+            docker push gcr.io/kf-feast/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX}
 
             # Also update "latest" image if tagged commit is pushed to stable branch
             HIGHEST_SEMVER_TAG=$(git tag -l --sort -version:refname | head -n 1)
             echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"
 
-            if [ ${{ steps.get_version.outputs.VERSION }} == "${HIGHEST_SEMVER_TAG:1}" ]
+            if [ "${VERSION_WITHOUT_PREFIX}" == "${HIGHEST_SEMVER_TAG:1}" ]
             then
-              docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:${{ steps.get_version.outputs.VERSION }}
-              docker push gcr.io/kf-feast/feast-${{ matrix.component }}:${{ steps.get_version.outputs.VERSION }}
+              docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:latest
+              docker push gcr.io/kf-feast/feast-${{ matrix.component }}:latest
             fi
           fi
 
