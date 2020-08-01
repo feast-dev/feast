@@ -45,7 +45,7 @@ message DataflowRunnerConfigOptions {
     string region = 2;
 
     /* GCP availability zone for operations. */
-    string zone = 3;
+    string workerZone = 3;
 
     /* Run the job as a specific service account, instead of the default GCE robot. */
     string serviceAccount = 4;
@@ -81,4 +81,9 @@ message DataflowRunnerConfigOptions {
     /* Disk size to use on each remote Compute Engine worker instance */
     int32 diskSizeGb = 14;
 
+    /* Run job on Dataflow Streaming Engine instead of creating worker VMs */
+    bool enableStreamingEngine = 15;
+
+    /* Type of persistent disk to be used by workers */
+    string workerDiskType = 16;
 }

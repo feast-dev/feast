@@ -33,7 +33,9 @@ public class DataflowRunnerConfigTest {
         DataflowRunnerConfigOptions.newBuilder()
             .setProject("my-project")
             .setRegion("asia-east1")
-            .setZone("asia-east1-a")
+            .setWorkerZone("asia-east1-a")
+            .setEnableStreamingEngine(true)
+            .setWorkerDiskType("pd-ssd")
             .setTempLocation("gs://bucket/tempLocation")
             .setNetwork("default")
             .setSubnetwork("regions/asia-east1/subnetworks/mysubnetwork")
@@ -52,7 +54,7 @@ public class DataflowRunnerConfigTest {
         Arrays.asList(
                 "--project=my-project",
                 "--region=asia-east1",
-                "--zone=asia-east1-a",
+                "--workerZone=asia-east1-a",
                 "--tempLocation=gs://bucket/tempLocation",
                 "--network=default",
                 "--subnetwork=regions/asia-east1/subnetworks/mysubnetwork",
@@ -62,7 +64,9 @@ public class DataflowRunnerConfigTest {
                 "--workerMachineType=n1-standard-1",
                 "--deadLetterTableSpec=project_id:dataset_id.table_id",
                 "--diskSizeGb=100",
-                "--labels={\"key\":\"value\"}")
+                "--labels={\"key\":\"value\"}",
+                "--enableStreamingEngine=true",
+                "--workerDiskType=pd-ssd")
             .toArray(String[]::new);
     assertThat(args.size(), equalTo(expectedArgs.length));
     assertThat(args, containsInAnyOrder(expectedArgs));
@@ -74,7 +78,7 @@ public class DataflowRunnerConfigTest {
         DataflowRunnerConfigOptions.newBuilder()
             .setProject("my-project")
             .setRegion("asia-east1")
-            .setZone("asia-east1-a")
+            .setWorkerZone("asia-east1-a")
             .setTempLocation("gs://bucket/tempLocation")
             .setNetwork("default")
             .setSubnetwork("regions/asia-east1/subnetworks/mysubnetwork")
@@ -90,7 +94,7 @@ public class DataflowRunnerConfigTest {
         Arrays.asList(
                 "--project=my-project",
                 "--region=asia-east1",
-                "--zone=asia-east1-a",
+                "--workerZone=asia-east1-a",
                 "--tempLocation=gs://bucket/tempLocation",
                 "--network=default",
                 "--subnetwork=regions/asia-east1/subnetworks/mysubnetwork",
@@ -98,7 +102,8 @@ public class DataflowRunnerConfigTest {
                 "--autoscalingAlgorithm=THROUGHPUT_BASED",
                 "--usePublicIps=false",
                 "--workerMachineType=n1-standard-1",
-                "--labels={}")
+                "--labels={}",
+                "--enableStreamingEngine=false")
             .toArray(String[]::new);
     assertThat(args.size(), equalTo(expectedArgs.length));
     assertThat(args, containsInAnyOrder(expectedArgs));

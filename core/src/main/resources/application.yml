@@ -42,11 +42,13 @@ feast:
         options:
           project: my_gcp_project
           region: asia-east1
-          zone: asia-east1-a
+          workerZone: asia-east1-a
           tempLocation: gs://bucket/tempLocation
           network: default
           subnetwork: regions/asia-east1/subnetworks/mysubnetwork
           maxNumWorkers: 1
+          enableStreamingEngine: false
+          workerDiskType: compute.googleapis.com/projects/asia-east1-a/diskTypes/pd-ssd
           autoscalingAlgorithm: THROUGHPUT_BASED
           usePublicIps: false
           workerMachineType: n1-standard-1

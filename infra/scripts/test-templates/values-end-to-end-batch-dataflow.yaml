@@ -27,7 +27,7 @@ feast-core:
           options:
             project: $GCLOUD_PROJECT
             region: $GCLOUD_REGION
-            zone: $GCLOUD_REGION-a
+            workerZone: $GCLOUD_REGION-a
             tempLocation: gs://$TEMP_BUCKET/tempLocation
             network: $GCLOUD_NETWORK
             subnetwork: regions/$GCLOUD_REGION/subnetworks/$GCLOUD_SUBNET
