@@ -122,11 +122,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Run load test
-        run:  make test-load GIT_SHA=${GITHUB_SHA}
       - uses: actions/setup-python@v2
         with:
           python-version: '3.7'
+      - name: Run load test
+        run:  make test-load GIT_SHA=${GITHUB_SHA}
       - uses: actions/upload-artifact@v2
         with:
           name: load-test-results
