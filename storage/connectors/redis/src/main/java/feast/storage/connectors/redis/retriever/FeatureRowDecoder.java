@@ -41,10 +41,10 @@ public class FeatureRowDecoder {
   }
 
   /**
-   * Check if encoded feature row v1 is encoded. The Feature Row v1 encoding defines that a Feature
-   * Row is considered encoded if both it's feature set reference and fields names are not set . The
-   * no. of fields in the feature row should also match up with the number of fields in the Feature
-   * Set spec. NOTE: This method is deprecated and will be removed in Feast v0.7.
+   * Check if encoded feature row can be decoded by v1 Decoder. The v1 Decoder requires that the
+   * Feature Row to have both it's feature set reference and fields names are not set. The no. of
+   * fields in the feature row should also match up with the number of fields in the Feature Set
+   * spec. NOTE: This method is deprecated and will be removed in Feast v0.7.
    *
    * @param featureRow Feature row
    * @return boolean
@@ -57,8 +57,8 @@ public class FeatureRowDecoder {
   }
 
   /**
-   * Check if encoded feature row v2 is encoded. The Feature Row v2 encoding defines that a Feature
-   * Row is considered encoded if it's both it feature set reference and fields names are set.
+   * Check if encoded feature row can be decoded by Decoder. The v2 Decoder requires that a Feature
+   * Row to have both it feature set reference and fields names are set.
    *
    * @param featureRow Feature row
    * @return boolean
@@ -68,8 +68,8 @@ public class FeatureRowDecoder {
   }
 
   /**
-   * Decode feature row encoded by {@link RedisCustomIO}. NOTE: support for decoding Feature Row v1
-   * encoding will be dropped in Feast 0.7
+   * Decode feature row encoded by {@link RedisCustomIO}. NOTE: The v1 Decoder will be removed in
+   * Feast 0.7
    *
    * @throws IllegalArgumentException if unable to the decode the given feature row
    * @param encodedFeatureRow Feature row
@@ -77,7 +77,8 @@ public class FeatureRowDecoder {
    */
   public FeatureRow decode(FeatureRow encodedFeatureRow) {
     if (isEncodedV1(encodedFeatureRow)) {
-      // TODO: remove support for v1 feature row in Feast 0.7
+      // TODO: remove v1 feature row decoder in Feast 0.7
+      // Decode Feature Rows using the v1 Decoder.
       final List<Field> fieldsWithoutName = encodedFeatureRow.getFieldsList();
       List<String> featureNames =
           spec.getFeaturesList().stream()
@@ -106,8 +107,9 @@ public class FeatureRowDecoder {
           .build();
     }
     if (isEncodedV2(encodedFeatureRow)) {
-      // Feature Row v2 encoding uses a hashed name as the field name and does not have feature set
-      // reference set.
+      // Decode Feature Rows using the v2 Decoder.
+      // v2 Decoder input Feature Rows should use a hashed name as the field name and
+      // should not have feature set reference set.
       // Decoding reverts the field name to a unhashed string and set feature set reference.
       Map<String, Value> nameHashValueMap =
           encodedFeatureRow.getFieldsList().stream()
