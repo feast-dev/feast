@@ -1,10 +1,10 @@
-name: complete
+name: complete workflow
 
 on: [push, pull_request]
 
 jobs:
   build-push-docker-images:
-    runs-on: [self-hosted]
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         component: [core, serving]
@@ -15,12 +15,12 @@ jobs:
       - uses: actions/checkout@v2
       - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
         with:
-          version: '290.0.1'
-          export_default_credentials: true
-      - run: gcloud auth configure-docker --quiet
-      - name: Build image
+          version: '270.0.0'
+          service_account_key: ${{ secrets.GCR_SERVICE_ACCOUNT }}
+      - run: gcloud auth configure-docker
+      - name: build image
         run: make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
-      - name: Push image
+      - name: push image
         run: |
           docker push ${REGISTRY}/feast-${{ matrix.component }}:${GITHUB_SHA}
           if [ -n "${GITHUB_PR_SHA}" ]; then
@@ -33,7 +33,7 @@ jobs:
     runs-on: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v2
-      - name: Lint java
+      - name: lint java
         run: make lint-java
 
   lint-python:
@@ -41,11 +41,11 @@ jobs:
     runs-on: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v2
-      - name: Install dependencies
+      - name: install dependencies
         run: make install-python-ci-dependencies
-      - name: Compile protos
+      - name: compile protos
         run: make compile-protos-python
-      - name: Lint python
+      - name: lint python
         run: make lint-python
 
   lint-go:
@@ -53,9 +53,9 @@ jobs:
     runs-on: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v2
-      - name: Install dependencies
+      - name: install dependencies
         run: make install-go-ci-dependencies
-      - name: Lint go
+      - name: lint go
         run: make lint-go
 
   lint-versions:
@@ -77,7 +77,7 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
-      - name: Test java
+      - name: test java
         run: make test-java-with-coverage
       - uses: actions/upload-artifact@v2
         with:
@@ -89,9 +89,9 @@ jobs:
     container: gcr.io/kf-feast/feast-ci:latest
     steps:
       - uses: actions/checkout@v2
-      - name: Install python
+      - name: install python
         run: make install-python
-      - name: Test python
+      - name: test python
         run: make test-python
 
   unit-test-go:
@@ -99,9 +99,9 @@ jobs:
     container: gcr.io/kf-feast/feast-ci:latest
     steps:
       - uses: actions/checkout@v2
-      - name: Install dependencies
+      - name: install dependencies
         run: make compile-protos-go
-      - name: Test go
+      - name: test go
         run: make test-go
 
   integration-test:
