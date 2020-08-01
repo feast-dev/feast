@@ -124,7 +124,6 @@ jobs:
       - uses: actions/checkout@v2
       - name: Run load test
         run:  make test-load GIT_SHA=${GITHUB_SHA}
-      - name: Install Python 3
       - uses: actions/setup-python@v2
         with:
           python-version: '3.7'
