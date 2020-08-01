@@ -25,6 +25,13 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Base class for redis-related DoFns. Assumes that operations will be batched. Prepares redisClient
+ * on DoFn.Setup stage and close it on DoFn.Teardown stage.
+ *
+ * @param <Input>
+ * @param <Output>
+ */
 public class BatchDoFnWithRedis<Input, Output> extends DoFn<Input, Output> {
   private static final Logger log = LoggerFactory.getLogger(BatchDoFnWithRedis.class);
 

@@ -117,6 +117,12 @@ public class RedisCustomIO {
           redisWrite.get(failedInsertsTupleTag));
     }
 
+    /**
+     * Writes batch of {@link FeatureRow} to Redis. Only latest values should be written. In order
+     * to guarantee that we first fetch all existing values (first batch operation), compare with
+     * current batch by eventTimestamp, and send to redis values (second batch operation) that were
+     * confirmed to be most recent.
+     */
     public static class WriteDoFn extends BatchDoFnWithRedis<Iterable<FeatureRow>, FeatureRow> {
       private final PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecsView;
 
