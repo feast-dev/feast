@@ -89,7 +89,12 @@
             <version>4.12</version>
             <scope>test</scope>
         </dependency>
-
+        <dependency>
+            <groupId>org.apache.beam</groupId>
+            <artifactId>beam-sdks-java-extensions-protobuf</artifactId>
+            <version>${org.apache.beam.version}</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
