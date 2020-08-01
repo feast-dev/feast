@@ -1273,7 +1273,7 @@ def test_sources_deduplicate_ingest_jobs(client):
         time.sleep(1)
 
 
-@pytest.mark.run(order=70)
+@pytest.mark.run(order=23)
 def test_sink_writes_only_recent_rows(client):
     feature_refs = ["driver:rating", "driver:cost"]
 
@@ -1315,6 +1315,7 @@ def test_sink_writes_only_recent_rows(client):
 
     # test read before write
     client.ingest("driver", earlier_df)
+    time.sleep(10)
     wait_retry_backoff(
         retry_fn=try_get_features,
         timeout_secs=90,
