@@ -80,7 +80,7 @@ Configure the `.env` file based on your environment. At the very least you have 
 | Parameter | Description |
 | :--- | :--- |
 | `FEAST_CORE_GCP_SERVICE_ACCOUNT_KEY` | This should be your service account file name, for example `key.json`. |
-| `FEAST_BATCH_SERVING_GCP_SERVICE_ACCOUNT_KEY` | This should be your service account file name, for example `key.json` |
+| `FEAST_historical_serving_GCP_SERVICE_ACCOUNT_KEY` | This should be your service account file name, for example `key.json` |
 | `FEAST_JUPYTER_GCP_SERVICE_ACCOUNT_KEY` | This should be your service account file name, for example `key.json` |
 
 ### 3.3 Configure Historical Serving
