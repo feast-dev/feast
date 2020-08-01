@@ -6,7 +6,8 @@ feast:
     runners:
       - name: direct
         type: DirectRunner
-        options: {}
+        options:
+          tempLocation: gs://bucket/tempLocation
   stream:
     type: kafka
     options:
