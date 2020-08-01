@@ -119,11 +119,15 @@ jobs:
 
   load-test:
     needs: build-push-docker-images
-    runs-on: ubuntu-latest
+    runs-on: gc
     steps:
       - uses: actions/checkout@v2
       - name: Run load test
         run:  make test-load GIT_SHA=${GITHUB_SHA}
+      - name: Install Python 3
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
       - uses: actions/upload-artifact@v2
         with:
           name: load-test-results
