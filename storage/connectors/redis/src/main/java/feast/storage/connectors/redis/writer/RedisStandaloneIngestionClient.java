@@ -21,12 +21,12 @@ import feast.proto.core.StoreProto;
 import feast.storage.common.retry.BackOffExecutor;
 import io.lettuce.core.LettuceFutures;
 import io.lettuce.core.RedisClient;
-import io.lettuce.core.RedisFuture;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.async.RedisAsyncCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
-import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.joda.time.Duration;
 
@@ -38,7 +38,6 @@ public class RedisStandaloneIngestionClient implements RedisIngestionClient {
   private static final int DEFAULT_TIMEOUT = 2000;
   private StatefulRedisConnection<byte[], byte[]> connection;
   private RedisAsyncCommands<byte[], byte[]> commands;
-  private List<RedisFuture> futures = Lists.newArrayList();
 
   public RedisStandaloneIngestionClient(StoreProto.Store.RedisConfig redisConfig) {
     this.host = redisConfig.getHost();
@@ -69,6 +68,9 @@ public class RedisStandaloneIngestionClient implements RedisIngestionClient {
     if (!isConnected()) {
       this.connection = this.redisclient.connect(new ByteArrayCodec());
       this.commands = connection.async();
+
+      // enable pipelining of commands
+      this.commands.setAutoFlushCommands(false);
     }
   }
 
@@ -78,48 +80,20 @@ public class RedisStandaloneIngestionClient implements RedisIngestionClient {
   }
 
   @Override
-  public void sync() {
-    // Wait for some time for futures to complete
-    // TODO: should this be configurable?
-    try {
-      LettuceFutures.awaitAll(60, TimeUnit.SECONDS, futures.toArray(new RedisFuture[0]));
-    } finally {
-      futures.clear();
-    }
+  public void sync(Iterable<Future<?>> futures) {
+    this.connection.flushCommands();
+
+    LettuceFutures.awaitAll(
+        60, TimeUnit.SECONDS, Lists.newArrayList(futures).toArray(new Future[0]));
   }
 
   @Override
-  public void pexpire(byte[] key, Long expiryMillis) {
-    commands.pexpire(key, expiryMillis);
+  public CompletableFuture<String> set(byte[] key, byte[] value) {
+    return commands.set(key, value).toCompletableFuture();
   }
 
   @Override
-  public void append(byte[] key, byte[] value) {
-    futures.add(commands.append(key, value));
-  }
-
-  @Override
-  public void set(byte[] key, byte[] value) {
-    futures.add(commands.set(key, value));
-  }
-
-  @Override
-  public void lpush(byte[] key, byte[] value) {
-    futures.add(commands.lpush(key, value));
-  }
-
-  @Override
-  public void rpush(byte[] key, byte[] value) {
-    futures.add(commands.rpush(key, value));
-  }
-
-  @Override
-  public void sadd(byte[] key, byte[] value) {
-    futures.add(commands.sadd(key, value));
-  }
-
-  @Override
-  public void zadd(byte[] key, Long score, byte[] value) {
-    futures.add(commands.zadd(key, score, value));
+  public CompletableFuture<byte[]> get(byte[] key) {
+    return commands.get(key).toCompletableFuture();
   }
 }

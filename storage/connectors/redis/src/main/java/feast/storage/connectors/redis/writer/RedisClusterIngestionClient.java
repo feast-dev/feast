@@ -20,7 +20,6 @@ import com.google.common.collect.Lists;
 import feast.proto.core.StoreProto;
 import feast.storage.common.retry.BackOffExecutor;
 import io.lettuce.core.LettuceFutures;
-import io.lettuce.core.RedisFuture;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
@@ -28,6 +27,8 @@ import io.lettuce.core.cluster.api.async.RedisAdvancedClusterAsyncCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.joda.time.Duration;
@@ -39,7 +40,6 @@ public class RedisClusterIngestionClient implements RedisIngestionClient {
   private transient RedisClusterClient clusterClient;
   private StatefulRedisClusterConnection<byte[], byte[]> connection;
   private RedisAdvancedClusterAsyncCommands<byte[], byte[]> commands;
-  private List<RedisFuture> futures = Lists.newArrayList();
 
   public RedisClusterIngestionClient(StoreProto.Store.RedisClusterConfig redisClusterConfig) {
     this.uriList =
@@ -55,7 +55,6 @@ public class RedisClusterIngestionClient implements RedisIngestionClient {
         redisClusterConfig.getInitialBackoffMs() > 0 ? redisClusterConfig.getInitialBackoffMs() : 1;
     this.backOffExecutor =
         new BackOffExecutor(redisClusterConfig.getMaxRetries(), Duration.millis(backoffMs));
-    this.clusterClient = RedisClusterClient.create(uriList);
   }
 
   @Override
@@ -78,6 +77,10 @@ public class RedisClusterIngestionClient implements RedisIngestionClient {
     if (!isConnected()) {
       this.connection = clusterClient.connect(new ByteArrayCodec());
       this.commands = connection.async();
+
+      // despite we're using async API client still flushes after each command by default
+      // which we don't want since we produce all commands in batches
+      this.commands.setAutoFlushCommands(false);
     }
   }
 
@@ -87,46 +90,20 @@ public class RedisClusterIngestionClient implements RedisIngestionClient {
   }
 
   @Override
-  public void sync() {
-    try {
-      LettuceFutures.awaitAll(60, TimeUnit.SECONDS, futures.toArray(new RedisFuture[0]));
-    } finally {
-      futures.clear();
-    }
+  public void sync(Iterable<Future<?>> futures) {
+    this.connection.flushCommands();
+
+    LettuceFutures.awaitAll(
+        60, TimeUnit.SECONDS, Lists.newArrayList(futures).toArray(new Future[0]));
   }
 
   @Override
-  public void pexpire(byte[] key, Long expiryMillis) {
-    futures.add(commands.pexpire(key, expiryMillis));
+  public CompletableFuture<String> set(byte[] key, byte[] value) {
+    return commands.set(key, value).toCompletableFuture();
   }
 
   @Override
-  public void append(byte[] key, byte[] value) {
-    futures.add(commands.append(key, value));
-  }
-
-  @Override
-  public void set(byte[] key, byte[] value) {
-    futures.add(commands.set(key, value));
-  }
-
-  @Override
-  public void lpush(byte[] key, byte[] value) {
-    futures.add(commands.lpush(key, value));
-  }
-
-  @Override
-  public void rpush(byte[] key, byte[] value) {
-    futures.add(commands.rpush(key, value));
-  }
-
-  @Override
-  public void sadd(byte[] key, byte[] value) {
-    futures.add(commands.sadd(key, value));
-  }
-
-  @Override
-  public void zadd(byte[] key, Long score, byte[] value) {
-    futures.add(commands.zadd(key, score, value));
+  public CompletableFuture<byte[]> get(byte[] key) {
+    return commands.get(key).toCompletableFuture();
   }
 }
