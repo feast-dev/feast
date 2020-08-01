@@ -37,6 +37,7 @@ fi
 
 wait_for_docker_image gcr.io/kf-feast/feast-core:"${CURRENT_SHA}"
 wait_for_docker_image gcr.io/kf-feast/feast-serving:"${CURRENT_SHA}"
+wait_for_docker_image gcr.io/kf-feast/feast-jupyter:"${CURRENT_SHA}"
 
 # Clean up Docker Compose if failure
 trap clean_up EXIT
@@ -44,9 +45,6 @@ trap clean_up EXIT
 # Create Docker Compose configuration file
 cd "${PROJECT_ROOT_DIR}"/infra/docker-compose/
 cp .env.sample .env
-
-# Start Docker Compose containers
-FEAST_VERSION=${CURRENT_SHA} docker-compose up -d
 
 # Get Jupyter container IP address
 export JUPYTER_DOCKER_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_jupyter_1)
@@ -71,7 +69,7 @@ export FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .N
 "${PROJECT_ROOT_DIR}"/infra/scripts/wait-for-it.sh ${FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS}:6566 --timeout=120
 
 # Ingest data into Feast
-pip install --user matplotlib feast pytz matplotlib --upgrade
+pip install --user matplotlib feast pytz --upgrade
 python "${PROJECT_ROOT_DIR}"/tests/load/ingest.py "${FEAST_CORE_CONTAINER_IP_ADDRESS}":6565  "${FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS}":6566
 
 # Download load test tool and proxy
