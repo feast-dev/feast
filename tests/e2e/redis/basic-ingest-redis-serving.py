@@ -1306,7 +1306,7 @@ def test_sink_writes_only_recent_rows(client):
         return response, is_ok
 
     # test compaction within batch
-    client.ingest("driver", pd.concat(earlier_df, later_df))
+    client.ingest("driver", pd.concat([earlier_df, later_df]))
     wait_retry_backoff(
         retry_fn=try_get_features,
         timeout_secs=90,

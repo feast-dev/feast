@@ -76,8 +76,8 @@ export FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .N
 "${PROJECT_ROOT_DIR}"/infra/scripts/wait-for-it.sh ${FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS}:6566 --timeout=120
 
 # Ingest data into Feast
-pip3 install --user matplotlib feast pytz matplotlib --upgrade
-python3 "${PROJECT_ROOT_DIR}"/tests/load/ingest.py "${FEAST_CORE_CONTAINER_IP_ADDRESS}":6565  "${FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS}":6566
+pip install --user matplotlib feast pytz matplotlib --upgrade
+python "${PROJECT_ROOT_DIR}"/tests/load/ingest.py "${FEAST_CORE_CONTAINER_IP_ADDRESS}":6565  "${FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS}":6566
 
 # Download load test tool and proxy
 cd $(mktemp -d)
@@ -106,7 +106,7 @@ cat $(ls -lah | grep load_test_results | awk '{print $9}' | tr '\n' ' ')
 
 # Create hdr-plot of load tests
 export PLOT_FILE_NAME="load_test_graph_${CURRENT_SHA}"_$(date "+%Y%m%d-%H%M%S").png
-python3 $PROJECT_ROOT_DIR/tests/load/hdr_plot.py --output "$PLOT_FILE_NAME" --title "Load test: ${CURRENT_SHA}" $(ls -lah | grep load_test_results | awk '{print $9}' | tr '\n' ' ')
+python $PROJECT_ROOT_DIR/tests/load/hdr_plot.py --output "$PLOT_FILE_NAME" --title "Load test: ${CURRENT_SHA}" $(ls -lah | grep load_test_results | awk '{print $9}' | tr '\n' ' ')
 
 # Persist artifact
 mkdir -p "${PROJECT_ROOT_DIR}"/load-test-output/
