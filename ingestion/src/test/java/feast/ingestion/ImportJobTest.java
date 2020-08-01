@@ -217,7 +217,9 @@ public class ImportJobTest {
                                   .map(FeatureSpec::getName)
                                   .collect(Collectors.toList())
                                   .contains(field.getName()))
-                      .map(field -> field.toBuilder().clearName().build())
+                      .map(
+                          field ->
+                              field.toBuilder().setName(TestUtil.hash(field.getName())).build())
                       .collect(Collectors.toList());
               randomRow =
                   randomRow

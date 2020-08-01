@@ -19,6 +19,7 @@ package feast.test;
 import static feast.common.models.FeatureSet.getFeatureSetStringRef;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.hash.Hashing;
 import com.google.common.io.Files;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
@@ -516,5 +517,9 @@ public class TestUtil {
         }
       }
     }
+  }
+
+  public static String hash(String input) {
+    return Hashing.murmur3_32().hashString(input, StandardCharsets.UTF_8).toString();
   }
 }

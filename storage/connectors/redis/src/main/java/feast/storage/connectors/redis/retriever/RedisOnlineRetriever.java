@@ -151,15 +151,11 @@ public class RedisOnlineRetriever implements OnlineRetriever {
 
       // decode feature rows from data bytes using decoder.
       FeatureRow featureRow = FeatureRow.parseFrom(featureRowBytes);
-      if (decoder.isEncoded(featureRow) && decoder.isEncodingValid(featureRow)) {
+      try {
         featureRow = decoder.decode(featureRow);
-      } else {
+      } catch (IllegalArgumentException e) {
         // decoding feature row failed: data corruption could have occurred
-        throw Status.DATA_LOSS
-            .withDescription(
-                "Failed to decode FeatureRow from bytes retrieved from redis"
-                    + ": Possible data corruption")
-            .asRuntimeException();
+        throw Status.DATA_LOSS.withCause(e).withDescription(e.getMessage()).asRuntimeException();
       }
       featureRows.add(Optional.of(featureRow));
     }
