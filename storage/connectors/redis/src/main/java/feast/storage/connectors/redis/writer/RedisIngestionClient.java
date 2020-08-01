@@ -18,6 +18,8 @@ package feast.storage.connectors.redis.writer;
 
 import feast.storage.common.retry.BackOffExecutor;
 import java.io.Serializable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 
 public interface RedisIngestionClient extends Serializable {
 
@@ -31,19 +33,9 @@ public interface RedisIngestionClient extends Serializable {
 
   boolean isConnected();
 
-  void sync();
+  void sync(Iterable<Future<?>> futures);
 
-  void pexpire(byte[] key, Long expiryMillis);
+  CompletableFuture<String> set(byte[] key, byte[] value);
 
-  void append(byte[] key, byte[] value);
-
-  void set(byte[] key, byte[] value);
-
-  void lpush(byte[] key, byte[] value);
-
-  void rpush(byte[] key, byte[] value);
-
-  void sadd(byte[] key, byte[] value);
-
-  void zadd(byte[] key, Long score, byte[] value);
+  CompletableFuture<byte[]> get(byte[] key);
 }
