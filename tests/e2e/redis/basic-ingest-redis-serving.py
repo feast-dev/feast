@@ -990,7 +990,7 @@ def large_volume_dataframe():
 
 
 @pytest.mark.timeout(45)
-@pytest.mark.run(order=30)
+@pytest.mark.run(order=40)
 def test_large_volume_register_feature_set_success(client):
     cust_trans_fs_expected = FeatureSet.from_yaml(
         f"{DIR_PATH}/large_volume/cust_trans_large_fs.yaml"
@@ -1016,7 +1016,7 @@ def test_large_volume_register_feature_set_success(client):
 
 
 @pytest.mark.timeout(300)
-@pytest.mark.run(order=31)
+@pytest.mark.run(order=41)
 def test_large_volume_ingest_success(client, large_volume_dataframe):
     # Get large volume feature set
     cust_trans_fs = client.get_feature_set(name="customer_transactions_large")
@@ -1026,7 +1026,7 @@ def test_large_volume_ingest_success(client, large_volume_dataframe):
 
 
 @pytest.mark.timeout(90)
-@pytest.mark.run(order=32)
+@pytest.mark.run(order=42)
 def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
     # Poll serving for feature values until the correct values are returned
     feature_refs = [
@@ -1112,7 +1112,7 @@ def all_types_parquet_file():
 
 
 @pytest.mark.timeout(300)
-@pytest.mark.run(order=40)
+@pytest.mark.run(order=50)
 def test_all_types_parquet_register_feature_set_success(client):
     # Load feature set from file
     all_types_parquet_expected = FeatureSet.from_yaml(
@@ -1140,7 +1140,7 @@ def test_all_types_parquet_register_feature_set_success(client):
 
 
 @pytest.mark.timeout(600)
-@pytest.mark.run(order=41)
+@pytest.mark.run(order=51)
 def test_all_types_infer_register_ingest_file_success(client, all_types_parquet_file):
     # Get feature set
     all_types_fs = client.get_feature_set(name="all_types_parquet")
@@ -1150,7 +1150,7 @@ def test_all_types_infer_register_ingest_file_success(client, all_types_parquet_
 
 
 @pytest.mark.timeout(200)
-@pytest.mark.run(order=50)
+@pytest.mark.run(order=60)
 def test_list_entities_and_features(client):
     customer_entity = Entity("customer_id", ValueType.INT64)
     driver_entity = Entity("driver_id", ValueType.INT64)
@@ -1225,7 +1225,7 @@ def test_list_entities_and_features(client):
 
 
 @pytest.mark.timeout(900)
-@pytest.mark.run(order=60)
+@pytest.mark.run(order=70)
 def test_sources_deduplicate_ingest_jobs(client):
     source = KafkaSource("localhost:9092", "feast-features")
     alt_source = KafkaSource("localhost:9092", "feast-data")
@@ -1273,7 +1273,7 @@ def test_sources_deduplicate_ingest_jobs(client):
         time.sleep(1)
 
 
-@pytest.mark.run(order=18)
+@pytest.mark.run(order=30)
 def test_sink_writes_only_recent_rows(client):
     client.set_project("default")
 
