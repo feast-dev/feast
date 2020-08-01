@@ -821,6 +821,8 @@ def all_types_dataframe():
 @pytest.mark.timeout(45)
 @pytest.mark.run(order=20)
 def test_all_types_register_feature_set_success(client):
+    client.set_project(PROJECT_NAME)
+
     all_types_fs_expected = FeatureSet(
         name="all_types",
         entities=[Entity(name="user_id", dtype=ValueType.INT64)],
@@ -933,6 +935,8 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
 @pytest.mark.run(order=35)
 def test_all_types_ingest_jobs(client, all_types_dataframe):
     # list ingestion jobs given featureset
+    client.set_project(PROJECT_NAME)
+
     all_types_fs = client.get_feature_set(name="all_types")
     ingest_jobs = client.list_ingest_jobs(
         feature_set_ref=FeatureSetRef.from_feature_set(all_types_fs)
