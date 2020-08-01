@@ -46,6 +46,9 @@ trap clean_up EXIT
 cd "${PROJECT_ROOT_DIR}"/infra/docker-compose/
 cp .env.sample .env
 
+# Start Docker Compose containers
+FEAST_VERSION=${CURRENT_SHA} docker-compose up -d
+
 # Get Jupyter container IP address
 export JUPYTER_DOCKER_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_jupyter_1)
 
@@ -103,4 +106,4 @@ python $PROJECT_ROOT_DIR/tests/load/hdr_plot.py --output "$PLOT_FILE_NAME" --tit
 
 # Persist artifact
 mkdir -p "${PROJECT_ROOT_DIR}"/load-test-output/
-cp "${PLOT_FILE_NAME}" "${PROJECT_ROOT_DIR}"/load-test-output/
+cp * "${PROJECT_ROOT_DIR}"/load-test-output/
