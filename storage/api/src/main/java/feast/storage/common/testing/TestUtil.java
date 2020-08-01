@@ -16,6 +16,7 @@
  */
 package feast.storage.common.testing;
 
+import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import feast.proto.core.FeatureSetProto.FeatureSet;
@@ -24,6 +25,7 @@ import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FeatureRowProto.FeatureRow.Builder;
 import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.*;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -190,5 +192,9 @@ public class TestUtil {
       default:
         throw new IllegalStateException("Unexpected valueType: " + value.getClass());
     }
+  }
+
+  public static String hash(String input) {
+    return Hashing.murmur3_32().hashString(input, StandardCharsets.UTF_8).toString();
   }
 }
