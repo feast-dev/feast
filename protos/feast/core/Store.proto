@@ -108,7 +108,7 @@ message Store {
     int32 initial_backoff_ms = 3;
     // Optional. Maximum total number of retries for connecting to Redis. Default to zero retries.
     int32 max_retries = 4;
-    // Optional. how often flush data to redis
+    // Optional. How often flush data to redis
     int32 flush_frequency_seconds = 5;
   }
 
@@ -118,6 +118,7 @@ message Store {
     string staging_location = 3;
     int32 initial_retry_delay_seconds = 4;
     int32 total_timeout_seconds = 5;
+    // Required. Frequency of running BQ load job and flushing all collected rows to BQ table
     int32 write_triggering_frequency_seconds = 6;
   }
 
@@ -131,7 +132,7 @@ message Store {
     string connection_string = 1;
     int32 initial_backoff_ms = 2;
     int32 max_retries = 3;
-    // Optional. how often flush data to redis
+    // Optional. How often flush data to redis
     int32 flush_frequency_seconds = 4;
   }
 

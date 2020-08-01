@@ -16,6 +16,8 @@
  */
 package feast.storage.connectors.bigquery.writer;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.bigquery.*;
@@ -62,6 +64,12 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
    * @return {@link BigQueryFeatureSink.Builder}
    */
   public static FeatureSink fromConfig(BigQueryConfig config) {
+    checkArgument(
+        config.getWriteTriggeringFrequencySeconds() > 0,
+        "Invalid configuration: "
+            + "write_triggering_frequency_seconds in BigQueryConfig must be positive integer. "
+            + "Please fix that in your serving configuration.");
+
     return BigQueryFeatureSink.builder()
         .setDatasetId(config.getDatasetId())
         .setProjectId(config.getProjectId())
