@@ -12,6 +12,7 @@ feast:
         staging_location: gs://gcs_bucket/prefix
         initial_retry_delay_seconds: 1
         total_timeout_seconds: 21600
+        write_triggering_frequency_seconds: 600
       subscriptions:
         - name: "*"
           project: "*"
