@@ -80,7 +80,7 @@ For this guide we will use `NodePort` for exposing Feast services. In order to d
 export FEAST_IP=$(kubectl describe nodes | grep ExternalIP | awk '{print $2}' | head -n 1)
 export FEAST_CORE_URL=${FEAST_IP}:32090
 export FEAST_ONLINE_SERVING_URL=${FEAST_IP}:32091
-export FEAST_historical_serving_URL=${FEAST_IP}:32092
+export FEAST_HISTORICAL_SERVING_URL=${FEAST_IP}:32092
 ```
 
 Add firewall rules to open up ports on your Google Cloud Platform project:
