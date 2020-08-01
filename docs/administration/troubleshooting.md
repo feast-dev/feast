@@ -60,7 +60,7 @@ You will probably need to connect using the hostnames of services and standard F
 ```bash
 export FEAST_CORE_URL=core:6565
 export FEAST_ONLINE_SERVING_URL=online_serving:6566
-export FEAST_historical_serving_URL=historical_serving:6567
+export FEAST_HISTORICAL_SERVING_URL=historical_serving:6567
 ```
 
 ### **Docker Compose \(from outside the docker cluster\)**
@@ -70,7 +70,7 @@ You will probably need to connect using `localhost` and standard ports:
 ```bash
 export FEAST_CORE_URL=localhost:6565
 export FEAST_ONLINE_SERVING_URL=localhost:6566
-export FEAST_historical_serving_URL=localhost:6567
+export FEAST_HISTORICAL_SERVING_URL=localhost:6567
 ```
 
 ### **Google Kubernetes Engine \(GKE\)**
@@ -81,7 +81,7 @@ You will need to find the external IP of one of the nodes as well as the NodePor
 export FEAST_IP=$(kubectl describe nodes | grep ExternalIP | awk '{print $2}' | head -n 1)
 export FEAST_CORE_URL=${FEAST_IP}:32090
 export FEAST_ONLINE_SERVING_URL=${FEAST_IP}:32091
-export FEAST_historical_serving_URL=${FEAST_IP}:32092
+export FEAST_HISTORICAL_SERVING_URL=${FEAST_IP}:32092
 ```
 
 `netcat`, `telnet`, or even `curl` can be used to test whether all services are available and ports are open, but `grpc_cli` is the most powerful. It can be installed from [here](https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md).
@@ -107,7 +107,7 @@ ListProjects
 ### Testing Feast Batch Serving and Online Serving
 
 ```bash
-grpc_cli ls ${FEAST_historical_serving_URL} feast.serving.ServingService
+grpc_cli ls ${FEAST_HISTORICAL_SERVING_URL} feast.serving.ServingService
 ```
 
 ```text
