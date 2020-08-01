@@ -1273,8 +1273,10 @@ def test_sources_deduplicate_ingest_jobs(client):
         time.sleep(1)
 
 
-@pytest.mark.run(order=23)
+@pytest.mark.run(order=18)
 def test_sink_writes_only_recent_rows(client):
+    client.set_project("default")
+
     feature_refs = ["driver:rating", "driver:cost"]
 
     later_df = basic_dataframe(
