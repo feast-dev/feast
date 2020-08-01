@@ -1275,18 +1275,18 @@ def test_sources_deduplicate_ingest_jobs(client):
 
 @pytest.mark.run(order=70)
 def test_sink_writes_only_recent_rows(client):
-    feature_refs = ["rating", "cost"]
+    feature_refs = ["driver:rating", "driver:cost"]
 
     later_df = basic_dataframe(
         entities=["driver_id"],
-        features=feature_refs,
+        features=["rating", "cost"],
         ingest_time=datetime.utcnow(),
         n_size=5,
     )
 
     earlier_df = basic_dataframe(
         entities=["driver_id"],
-        features=feature_refs,
+        features=["rating", "cost"],
         ingest_time=datetime.utcnow() - timedelta(minutes=5),
         n_size=5,
     )
