@@ -4,7 +4,7 @@ import random
 import tempfile
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import grpc
 import numpy as np
@@ -821,6 +821,8 @@ def all_types_dataframe():
 @pytest.mark.timeout(45)
 @pytest.mark.run(order=20)
 def test_all_types_register_feature_set_success(client):
+    client.set_project(PROJECT_NAME)
+
     all_types_fs_expected = FeatureSet(
         name="all_types",
         entities=[Entity(name="user_id", dtype=ValueType.INT64)],
@@ -930,9 +932,11 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
 
 
 @pytest.mark.timeout(300)
-@pytest.mark.run(order=29)
+@pytest.mark.run(order=35)
 def test_all_types_ingest_jobs(client, all_types_dataframe):
     # list ingestion jobs given featureset
+    client.set_project(PROJECT_NAME)
+
     all_types_fs = client.get_feature_set(name="all_types")
     ingest_jobs = client.list_ingest_jobs(
         feature_set_ref=FeatureSetRef.from_feature_set(all_types_fs)
@@ -990,7 +994,7 @@ def large_volume_dataframe():
 
 
 @pytest.mark.timeout(45)
-@pytest.mark.run(order=30)
+@pytest.mark.run(order=40)
 def test_large_volume_register_feature_set_success(client):
     cust_trans_fs_expected = FeatureSet.from_yaml(
         f"{DIR_PATH}/large_volume/cust_trans_large_fs.yaml"
@@ -1016,7 +1020,7 @@ def test_large_volume_register_feature_set_success(client):
 
 
 @pytest.mark.timeout(300)
-@pytest.mark.run(order=31)
+@pytest.mark.run(order=41)
 def test_large_volume_ingest_success(client, large_volume_dataframe):
     # Get large volume feature set
     cust_trans_fs = client.get_feature_set(name="customer_transactions_large")
@@ -1026,7 +1030,7 @@ def test_large_volume_ingest_success(client, large_volume_dataframe):
 
 
 @pytest.mark.timeout(90)
-@pytest.mark.run(order=32)
+@pytest.mark.run(order=42)
 def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
     # Poll serving for feature values until the correct values are returned
     feature_refs = [
@@ -1112,7 +1116,7 @@ def all_types_parquet_file():
 
 
 @pytest.mark.timeout(300)
-@pytest.mark.run(order=40)
+@pytest.mark.run(order=50)
 def test_all_types_parquet_register_feature_set_success(client):
     # Load feature set from file
     all_types_parquet_expected = FeatureSet.from_yaml(
@@ -1140,7 +1144,7 @@ def test_all_types_parquet_register_feature_set_success(client):
 
 
 @pytest.mark.timeout(600)
-@pytest.mark.run(order=41)
+@pytest.mark.run(order=51)
 def test_all_types_infer_register_ingest_file_success(client, all_types_parquet_file):
     # Get feature set
     all_types_fs = client.get_feature_set(name="all_types_parquet")
@@ -1150,7 +1154,7 @@ def test_all_types_infer_register_ingest_file_success(client, all_types_parquet_
 
 
 @pytest.mark.timeout(200)
-@pytest.mark.run(order=50)
+@pytest.mark.run(order=60)
 def test_list_entities_and_features(client):
     customer_entity = Entity("customer_id", ValueType.INT64)
     driver_entity = Entity("driver_id", ValueType.INT64)
@@ -1225,7 +1229,7 @@ def test_list_entities_and_features(client):
 
 
 @pytest.mark.timeout(900)
-@pytest.mark.run(order=60)
+@pytest.mark.run(order=70)
 def test_sources_deduplicate_ingest_jobs(client):
     source = KafkaSource("localhost:9092", "feast-features")
     alt_source = KafkaSource("localhost:9092", "feast-data")
@@ -1271,6 +1275,58 @@ def test_sources_deduplicate_ingest_jobs(client):
     while len(get_running_jobs()) != 1:
         assert 1 <= len(get_running_jobs()) <= 2
         time.sleep(1)
+
+
+@pytest.mark.run(order=30)
+def test_sink_writes_only_recent_rows(client):
+    client.set_project("default")
+
+    feature_refs = ["driver:rating", "driver:cost"]
+
+    later_df = basic_dataframe(
+        entities=["driver_id"],
+        features=["rating", "cost"],
+        ingest_time=datetime.utcnow(),
+        n_size=5,
+    )
+
+    earlier_df = basic_dataframe(
+        entities=["driver_id"],
+        features=["rating", "cost"],
+        ingest_time=datetime.utcnow() - timedelta(minutes=5),
+        n_size=5,
+    )
+
+    def try_get_features():
+        response = client.get_online_features(
+            entity_rows=[
+                GetOnlineFeaturesRequest.EntityRow(
+                    fields={"driver_id": Value(int64_val=later_df.iloc[0]["driver_id"])}
+                )
+            ],
+            feature_refs=feature_refs,
+        )  # type: GetOnlineFeaturesResponse
+        is_ok = all(
+            [check_online_response(ref, later_df, response) for ref in feature_refs]
+        )
+        return response, is_ok
+
+    # test compaction within batch
+    client.ingest("driver", pd.concat([earlier_df, later_df]))
+    wait_retry_backoff(
+        retry_fn=try_get_features,
+        timeout_secs=90,
+        timeout_msg="Timed out trying to get online feature values",
+    )
+
+    # test read before write
+    client.ingest("driver", earlier_df)
+    time.sleep(10)
+    wait_retry_backoff(
+        retry_fn=try_get_features,
+        timeout_secs=90,
+        timeout_msg="Timed out trying to get online feature values",
+    )
 
 
 # TODO: rewrite these using python SDK once the labels are implemented there

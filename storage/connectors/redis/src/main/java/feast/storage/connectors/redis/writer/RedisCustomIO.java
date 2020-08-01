@@ -17,8 +17,9 @@
 package feast.storage.connectors.redis.writer;
 
 import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
+import com.google.common.collect.Streams;
 import com.google.common.hash.Hashing;
+import com.google.protobuf.InvalidProtocolBufferException;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
@@ -29,20 +30,20 @@ import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto;
 import feast.storage.api.writer.FailedElement;
 import feast.storage.api.writer.WriteResult;
-import feast.storage.common.retry.Retriable;
 import feast.storage.connectors.redis.retriever.FeatureRowDecoder;
-import io.lettuce.core.RedisException;
 import java.nio.charset.StandardCharsets;
+import java.util.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
+import java.util.function.BinaryOperator;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.windowing.*;
 import org.apache.beam.sdk.values.*;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -116,61 +117,21 @@ public class RedisCustomIO {
           redisWrite.get(failedInsertsTupleTag));
     }
 
-    public static class WriteDoFn extends DoFn<Iterable<FeatureRow>, FeatureRow> {
-      private PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecsView;
-      private RedisIngestionClient redisIngestionClient;
+    /**
+     * Writes batch of {@link FeatureRow} to Redis. Only latest values should be written. In order
+     * to guarantee that we first fetch all existing values (first batch operation), compare with
+     * current batch by eventTimestamp, and send to redis values (second batch operation) that were
+     * confirmed to be most recent.
+     */
+    public static class WriteDoFn extends BatchDoFnWithRedis<Iterable<FeatureRow>, FeatureRow> {
+      private final PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecsView;
 
       WriteDoFn(
           RedisIngestionClient redisIngestionClient,
           PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecsView) {
 
-        this.redisIngestionClient = redisIngestionClient;
+        super(redisIngestionClient);
         this.featureSetSpecsView = featureSetSpecsView;
-      }
-
-      @Setup
-      public void setup() {
-        this.redisIngestionClient.setup();
-      }
-
-      @StartBundle
-      public void startBundle() {
-        try {
-          redisIngestionClient.connect();
-        } catch (RedisException e) {
-          log.error("Connection to redis cannot be established ", e);
-        }
-      }
-
-      private void executeBatch(
-          Iterable<FeatureRow> featureRows, Map<String, FeatureSetSpec> featureSetSpecs)
-          throws Exception {
-        this.redisIngestionClient
-            .getBackOffExecutor()
-            .execute(
-                new Retriable() {
-                  @Override
-                  public void execute() throws ExecutionException, InterruptedException {
-                    if (!redisIngestionClient.isConnected()) {
-                      redisIngestionClient.connect();
-                    }
-                    featureRows.forEach(
-                        row -> {
-                          redisIngestionClient.set(
-                              getKey(row, featureSetSpecs.get(row.getFeatureSet())),
-                              getValue(row, featureSetSpecs.get(row.getFeatureSet())));
-                        });
-                    redisIngestionClient.sync();
-                  }
-
-                  @Override
-                  public Boolean isExceptionRetriable(Exception e) {
-                    return e instanceof RedisException;
-                  }
-
-                  @Override
-                  public void cleanUpAfterFailure() {}
-                });
       }
 
       private FailedElement toFailedElement(
@@ -184,7 +145,7 @@ public class RedisCustomIO {
             .build();
       }
 
-      private byte[] getKey(FeatureRow featureRow, FeatureSetSpec spec) {
+      private RedisKey getKey(FeatureRow featureRow, FeatureSetSpec spec) {
         List<String> entityNames =
             spec.getEntitiesList().stream()
                 .map(EntitySpec::getName)
@@ -203,7 +164,7 @@ public class RedisCustomIO {
         for (String entityName : entityNames) {
           redisKeyBuilder.addEntities(entityFields.get(entityName));
         }
-        return redisKeyBuilder.build().toByteArray();
+        return redisKeyBuilder.build();
       }
 
       /**
@@ -212,7 +173,7 @@ public class RedisCustomIO {
        * names and not unsetting the feature set reference. {@link FeatureRowDecoder} is
        * rensponsible for reversing this "encoding" step.
        */
-      private byte[] getValue(FeatureRow featureRow, FeatureSetSpec spec) {
+      private FeatureRow getValue(FeatureRow featureRow, FeatureSetSpec spec) {
         List<String> featureNames =
             spec.getFeaturesList().stream().map(FeatureSpec::getName).collect(Collectors.toList());
 
@@ -250,35 +211,101 @@ public class RedisCustomIO {
         return FeatureRow.newBuilder()
             .setEventTimestamp(featureRow.getEventTimestamp())
             .addAllFields(values)
-            .build()
-            .toByteArray();
+            .build();
       }
 
       @ProcessElement
       public void processElement(ProcessContext context) {
-        List<FeatureRow> featureRows = Lists.newArrayList(context.element().iterator());
-
+        List<FeatureRow> filteredFeatureRows = Collections.synchronizedList(new ArrayList<>());
         Map<String, FeatureSetSpec> latestSpecs =
-            context.sideInput(featureSetSpecsView).entrySet().stream()
-                .map(e -> ImmutablePair.of(e.getKey(), Iterators.getLast(e.getValue().iterator())))
-                .collect(Collectors.toMap(ImmutablePair::getLeft, ImmutablePair::getRight));
+            getLatestSpecs(context.sideInput(featureSetSpecsView));
+
+        Map<RedisKey, FeatureRow> deduplicatedRows =
+            deduplicateRows(context.element(), latestSpecs);
 
         try {
-          executeBatch(featureRows, latestSpecs);
-          featureRows.forEach(row -> context.output(successfulInsertsTag, row));
+          executeBatch(
+              (redisIngestionClient) ->
+                  deduplicatedRows.entrySet().stream()
+                      .map(
+                          entry ->
+                              redisIngestionClient
+                                  .get(entry.getKey().toByteArray())
+                                  .thenAccept(
+                                      currentValue -> {
+                                        FeatureRow newRow = entry.getValue();
+                                        if (rowShouldBeWritten(newRow, currentValue)) {
+                                          filteredFeatureRows.add(newRow);
+                                        }
+                                      }))
+                      .collect(Collectors.toList()));
+
+          executeBatch(
+              redisIngestionClient ->
+                  filteredFeatureRows.stream()
+                      .map(
+                          row ->
+                              redisIngestionClient.set(
+                                  getKey(row, latestSpecs.get(row.getFeatureSet())).toByteArray(),
+                                  getValue(row, latestSpecs.get(row.getFeatureSet()))
+                                      .toByteArray()))
+                      .collect(Collectors.toList()));
+
+          filteredFeatureRows.forEach(row -> context.output(successfulInsertsTag, row));
         } catch (Exception e) {
-          featureRows.forEach(
-              failedMutation -> {
-                FailedElement failedElement =
-                    toFailedElement(failedMutation, e, context.getPipelineOptions().getJobName());
-                context.output(failedInsertsTupleTag, failedElement);
-              });
+          deduplicatedRows
+              .values()
+              .forEach(
+                  failedMutation -> {
+                    FailedElement failedElement =
+                        toFailedElement(
+                            failedMutation, e, context.getPipelineOptions().getJobName());
+                    context.output(failedInsertsTupleTag, failedElement);
+                  });
         }
       }
 
-      @Teardown
-      public void teardown() {
-        redisIngestionClient.shutdown();
+      boolean rowShouldBeWritten(FeatureRow newRow, byte[] currentValue) {
+        if (currentValue == null) {
+          // nothing to compare with
+          return true;
+        }
+        FeatureRow currentRow;
+        try {
+          currentRow = FeatureRow.parseFrom(currentValue);
+        } catch (InvalidProtocolBufferException e) {
+          // definitely need to replace current value
+          return true;
+        }
+
+        // check whether new row has later eventTimestamp
+        return new DateTime(currentRow.getEventTimestamp().getSeconds() * 1000L)
+            .isBefore(new DateTime(newRow.getEventTimestamp().getSeconds() * 1000L));
+      }
+
+      /** Deduplicate rows by key within batch. Keep only latest eventTimestamp */
+      Map<RedisKey, FeatureRow> deduplicateRows(
+          Iterable<FeatureRow> rows, Map<String, FeatureSetSpec> latestSpecs) {
+        Comparator<FeatureRow> byEventTimestamp =
+            Comparator.comparing(r -> r.getEventTimestamp().getSeconds());
+
+        FeatureRow identity =
+            FeatureRow.newBuilder()
+                .setEventTimestamp(
+                    com.google.protobuf.Timestamp.newBuilder().setSeconds(-1).build())
+                .build();
+
+        return Streams.stream(rows)
+            .collect(
+                Collectors.groupingBy(
+                    row -> getKey(row, latestSpecs.get(row.getFeatureSet())),
+                    Collectors.reducing(identity, BinaryOperator.maxBy(byEventTimestamp))));
+      }
+
+      Map<String, FeatureSetSpec> getLatestSpecs(Map<String, Iterable<FeatureSetSpec>> specs) {
+        return specs.entrySet().stream()
+            .map(e -> ImmutablePair.of(e.getKey(), Iterators.getLast(e.getValue().iterator())))
+            .collect(Collectors.toMap(ImmutablePair::getLeft, ImmutablePair::getRight));
       }
     }
   }
