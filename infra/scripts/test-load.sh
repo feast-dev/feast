@@ -106,4 +106,4 @@ python $PROJECT_ROOT_DIR/tests/load/hdr_plot.py --output "$PLOT_FILE_NAME" --tit
 
 # Persist artifact
 mkdir -p "${PROJECT_ROOT_DIR}"/load-test-output/
-cp * "${PROJECT_ROOT_DIR}"/load-test-output/
+cp -r load_test_* "${PROJECT_ROOT_DIR}"/load-test-output/
