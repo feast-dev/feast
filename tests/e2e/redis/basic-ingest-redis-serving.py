@@ -4,7 +4,7 @@ import random
 import tempfile
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import grpc
 import numpy as np
@@ -1271,6 +1271,55 @@ def test_sources_deduplicate_ingest_jobs(client):
     while len(get_running_jobs()) != 1:
         assert 1 <= len(get_running_jobs()) <= 2
         time.sleep(1)
+
+
+@pytest.mark.run(order=70)
+def test_sink_writes_only_recent_rows(client):
+    feature_refs = ["rating", "cost"]
+
+    later_df = basic_dataframe(
+        entities=["driver_id"],
+        features=feature_refs,
+        ingest_time=datetime.utcnow(),
+        n_size=5,
+    )
+
+    earlier_df = basic_dataframe(
+        entities=["driver_id"],
+        features=feature_refs,
+        ingest_time=datetime.utcnow() - timedelta(minutes=5),
+        n_size=5,
+    )
+
+    def try_get_features():
+        response = client.get_online_features(
+            entity_rows=[
+                GetOnlineFeaturesRequest.EntityRow(
+                    fields={"driver_id": Value(int64_val=later_df.iloc[0]["driver_id"])}
+                )
+            ],
+            feature_refs=feature_refs,
+        )  # type: GetOnlineFeaturesResponse
+        is_ok = all(
+            [check_online_response(ref, later_df, response) for ref in feature_refs]
+        )
+        return response, is_ok
+
+    # test compaction within batch
+    client.ingest("driver", pd.concat(earlier_df, later_df))
+    wait_retry_backoff(
+        retry_fn=try_get_features,
+        timeout_secs=90,
+        timeout_msg="Timed out trying to get online feature values",
+    )
+
+    # test read before write
+    client.ingest("driver", earlier_df)
+    wait_retry_backoff(
+        retry_fn=try_get_features,
+        timeout_secs=90,
+        timeout_msg="Timed out trying to get online feature values",
+    )
 
 
 # TODO: rewrite these using python SDK once the labels are implemented there
