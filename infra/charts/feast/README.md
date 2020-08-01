@@ -164,6 +164,7 @@ feast-batch-serving:
           staging_location: gs://<bucket_name>/feast-staging-location
           initial_retry_delay_seconds: 3
           total_timeout_seconds: 21600
+          write_triggering_frequency_seconds: 600
         subscriptions:
         - name: "*"
           project: "*"
@@ -280,6 +281,7 @@ feast-batch-serving:
           staging_location: gs://<bucket_name>/feast-staging-location
           initial_retry_delay_seconds: 3
           total_timeout_seconds: 21600
+          write_triggering_frequency_seconds: 600
         subscriptions:
         - name: "*"
           project: "*"
