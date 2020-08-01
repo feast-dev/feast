@@ -119,7 +119,7 @@ jobs:
 
   load-test:
     needs: build-push-docker-images
-    runs-on: gc
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Run load test
