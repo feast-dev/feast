@@ -85,7 +85,7 @@ Configure the `.env` file based on your environment. At the very least you have 
 
 ### 3.3 Configure Historical Serving
 
-We will also need to configure the `batch-serving.yml` file inside `infra/docker-compose/serving/`. This configuration is used to retrieve training datasets from Feast. At a minimum you will need to set:
+We will also need to configure the `historical-serving.yml` file inside `infra/docker-compose/serving/`. This configuration is used to retrieve training datasets from Feast. At a minimum you will need to set:
 
 | Parameter | Description |
 | :--- | :--- |

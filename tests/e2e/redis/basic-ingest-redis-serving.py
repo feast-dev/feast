@@ -86,8 +86,8 @@ def check_online_response(feature_ref, ingest_df, response):
         sent_value = float(ingest_df.iloc[0][feature_name])
         returned_value = float(response.field_values[0].fields[feature_ref].float_val)
         return (
-                math.isclose(sent_value, returned_value, abs_tol=FLOAT_TOLERANCE)
-                and returned_status == GetOnlineFeaturesResponse.FieldStatus.PRESENT
+            math.isclose(sent_value, returned_value, abs_tol=FLOAT_TOLERANCE)
+            and returned_status == GetOnlineFeaturesResponse.FieldStatus.PRESENT
         )
 
 
@@ -378,7 +378,7 @@ def list_entity_dataframe():
 @pytest.mark.timeout(600)
 @pytest.mark.run(order=14)
 def test_basic_retrieve_online_entity_nonlistform(
-        client, nonlist_entity_dataframe, list_entity_dataframe
+    client, nonlist_entity_dataframe, list_entity_dataframe
 ):
     # Case 1: Feature retrieval with multiple entities retrieval check
     customer_fs = FeatureSet(
@@ -428,14 +428,18 @@ def test_basic_retrieve_online_entity_nonlistform(
         response = client.get_online_features(
             entity_rows=online_request_entity, feature_refs=online_request_features
         )
-        is_ok = check_online_response("customer2_rating", nonlist_entity_dataframe, response)
+        is_ok = check_online_response(
+            "customer2_rating", nonlist_entity_dataframe, response
+        )
         return response, is_ok
 
     def try_get_features2():
         response = client.get_online_features(
             entity_rows=online_request_entity2, feature_refs=online_request_features
         )
-        is_ok = check_online_response("customer2_rating", nonlist_entity_dataframe, response)
+        is_ok = check_online_response(
+            "customer2_rating", nonlist_entity_dataframe, response
+        )
         return response, is_ok
 
     online_features_actual1 = wait_retry_backoff(
@@ -475,8 +479,8 @@ def test_basic_retrieve_online_entity_nonlistform(
         )
 
     assert (
-            "Input entity customer_id has mixed types, ValueType.STRING and ValueType.INT64. That is not allowed."
-            in str(excinfo.value)
+        "Input entity customer_id has mixed types, ValueType.STRING and ValueType.INT64. That is not allowed."
+        in str(excinfo.value)
     )
 
 
@@ -530,14 +534,18 @@ def test_basic_retrieve_online_entity_listform(client, list_entity_dataframe):
         response = client.get_online_features(
             entity_rows=online_request_entity, feature_refs=online_request_features
         )
-        is_ok = check_online_response('district_rating', list_entity_dataframe, response)
+        is_ok = check_online_response(
+            "district_rating", list_entity_dataframe, response
+        )
         return response, is_ok
 
     def try_get_features2():
         response = client.get_online_features(
             entity_rows=online_request_entity2, feature_refs=online_request_features
         )
-        is_ok = check_online_response('district_rating', list_entity_dataframe, response)
+        is_ok = check_online_response(
+            "district_rating", list_entity_dataframe, response
+        )
         return response, is_ok
 
     online_features_actual = wait_retry_backoff(
@@ -574,8 +582,8 @@ def test_basic_retrieve_online_entity_listform(client, list_entity_dataframe):
         )
 
     assert (
-            "List value type for field district_ids is inconsistent. ValueType.INT64 different from ValueType.BOOL."
-            in str(excinfo.value)
+        "List value type for field district_ids is inconsistent. ValueType.INT64 different from ValueType.BOOL."
+        in str(excinfo.value)
     )
 
 
@@ -615,7 +623,7 @@ def test_basic_ingest_retrieval_fs(client):
         response = client.get_online_features(
             entity_rows=online_request_entity, feature_refs=online_request_features
         )
-        is_ok = check_online_response('driver_fs_rating', driver_df, response)
+        is_ok = check_online_response("driver_fs_rating", driver_df, response)
         return response, is_ok
 
     online_features_actual = wait_retry_backoff(
@@ -669,7 +677,7 @@ def test_basic_ingest_retrieval_str(client):
         response = client.get_online_features(
             entity_rows=online_request_entity, feature_refs=online_request_features
         )
-        is_ok = check_online_response('cust_rating', cust_df, response)
+        is_ok = check_online_response("cust_rating", cust_df, response)
         return response, is_ok
 
     online_features_actual = wait_retry_backoff(
@@ -938,8 +946,8 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
     )
     # check returned metadata
     assert (
-            response.field_values[0].statuses["float_list_feature"]
-            == GetOnlineFeaturesResponse.FieldStatus.PRESENT
+        response.field_values[0].statuses["float_list_feature"]
+        == GetOnlineFeaturesResponse.FieldStatus.PRESENT
     )
 
 
@@ -1270,8 +1278,8 @@ def test_sources_deduplicate_ingest_jobs(client, kafka_brokers):
         for fs_1_job in fs_1_jobs:
             for fs_2_job in fs_2_jobs:
                 if (
-                        not fs_1_job.source.to_proto() == fs_2_job.source.to_proto()
-                        and fs_1_job.source.to_proto() == shared_source.to_proto()
+                    not fs_1_job.source.to_proto() == fs_2_job.source.to_proto()
+                    and fs_1_job.source.to_proto() == shared_source.to_proto()
                 ):
                     same = False
                 if fs_1_job.id != fs_2_job.id:

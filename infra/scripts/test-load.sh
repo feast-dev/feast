@@ -14,12 +14,7 @@ clean_up() {
   # Shut down docker-compose images
   cd "${PROJECT_ROOT_DIR}"/infra/docker-compose
 
-  docker-compose \
-    -f docker-compose.yml \
-    -f docker-compose.online.yml down
-
-  # Remove configuration file
-  rm .env
+  docker-compose down
 
   exit $ARG
 }
@@ -51,7 +46,7 @@ cd "${PROJECT_ROOT_DIR}"/infra/docker-compose/
 cp .env.sample .env
 
 # Start Docker Compose containers
-FEAST_VERSION=${CURRENT_SHA} docker-compose -f docker-compose.yml -f docker-compose.online.yml up -d
+FEAST_VERSION=${CURRENT_SHA} docker-compose up -d
 
 # Get Jupyter container IP address
 export JUPYTER_DOCKER_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_jupyter_1)
@@ -70,7 +65,7 @@ export FEAST_CORE_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSett
 "${PROJECT_ROOT_DIR}"/infra/scripts/wait-for-it.sh ${FEAST_CORE_CONTAINER_IP_ADDRESS}:6565 --timeout=120
 
 # Get Feast Online Serving container IP address
-export FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_online-serving_1)
+export FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_online_serving_1)
 
 # Wait for Feast Online Serving to be ready
 "${PROJECT_ROOT_DIR}"/infra/scripts/wait-for-it.sh ${FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS}:6566 --timeout=120

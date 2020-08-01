@@ -15,8 +15,8 @@ docker ps
 ```text
 CONTAINER ID        IMAGE                                  COMMAND                  CREATED             STATUS              PORTS                                            NAMES
 d7447205bced        jupyter/datascience-notebook:latest    "tini -g -- start-no…"   2 minutes ago       Up 2 minutes        0.0.0.0:8888->8888/tcp                           feast_jupyter_1
-8e49dbe81b92        gcr.io/kf-feast/feast-serving:latest   "java -Xms1024m -Xmx…"   2 minutes ago       Up 5 seconds        0.0.0.0:6567->6567/tcp                           feast_batch-serving_1
-b859494bd33a        gcr.io/kf-feast/feast-serving:latest   "java -jar /opt/feas…"   2 minutes ago       Up About a minute   0.0.0.0:6566->6566/tcp                           feast_online-serving_1
+8e49dbe81b92        gcr.io/kf-feast/feast-serving:latest   "java -Xms1024m -Xmx…"   2 minutes ago       Up 5 seconds        0.0.0.0:6567->6567/tcp                           feast_batch_serving_1
+b859494bd33a        gcr.io/kf-feast/feast-serving:latest   "java -jar /opt/feas…"   2 minutes ago       Up About a minute   0.0.0.0:6566->6566/tcp                           feast_online_serving_1
 5c4962811767        gcr.io/kf-feast/feast-core:latest      "java -jar /opt/feas…"   2 minutes ago       Up 2 minutes        0.0.0.0:6565->6565/tcp                           feast_core_1
 1ba7239e0ae0        confluentinc/cp-kafka:5.2.1            "/etc/confluent/dock…"   2 minutes ago       Up 2 minutes        0.0.0.0:9092->9092/tcp, 0.0.0.0:9094->9094/tcp   feast_kafka_1
 e2779672735c        confluentinc/cp-zookeeper:5.2.1        "/etc/confluent/dock…"   2 minutes ago       Up 2 minutes        2181/tcp, 2888/tcp, 3888/tcp                     feast_zookeeper_1
@@ -59,8 +59,8 @@ You will probably need to connect using the hostnames of services and standard F
 
 ```bash
 export FEAST_CORE_URL=core:6565
-export FEAST_ONLINE_SERVING_URL=online-serving:6566
-export FEAST_BATCH_SERVING_URL=batch-serving:6567
+export FEAST_ONLINE_SERVING_URL=online_serving:6566
+export FEAST_BATCH_SERVING_URL=batch_serving:6567
 ```
 
 ### **Docker Compose \(from outside the docker cluster\)**
@@ -145,11 +145,11 @@ In order to print the logs from these services, please run the commands below.
 ```
 
 ```text
-docker logs -f feast_batch-serving_1
+docker logs -f feast_batch_serving_1
 ```
 
 ```text
-docker logs -f feast_online-serving_1
+docker logs -f feast_online_serving_1
 ```
 
 ### Google Kubernetes Engine
