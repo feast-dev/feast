@@ -26,18 +26,18 @@ export COMPOSE_INTERACTIVE_NO_CLI=1
 source ${SCRIPTS_DIR}/setup-common-functions.sh
 
 if [ -z "$1" ] ; then
-  echo "No SHA provided as argument, using local HEAD";
-  CURRENT_SHA=$(git rev-parse HEAD);
-  export CURRENT_SHA
+  echo "No SHA/FEAST_VERSION provided as argument, using local HEAD";
+  FEAST_VERSION=$(git rev-parse HEAD);
+  export FEAST_VERSION
 else
-  echo "Using ${1} as SHA to test";
-  CURRENT_SHA=${1}
-  export CURRENT_SHA
+  echo "Using ${1} as SHA/FEAST_VERSION to test";
+  FEAST_VERSION=${1}
+  export FEAST_VERSION
 fi
 
-wait_for_docker_image gcr.io/kf-feast/feast-core:"${CURRENT_SHA}"
-wait_for_docker_image gcr.io/kf-feast/feast-serving:"${CURRENT_SHA}"
-wait_for_docker_image gcr.io/kf-feast/feast-jupyter:"${CURRENT_SHA}"
+wait_for_docker_image gcr.io/kf-feast/feast-core:"${FEAST_VERSION}"
+wait_for_docker_image gcr.io/kf-feast/feast-serving:"${FEAST_VERSION}"
+wait_for_docker_image gcr.io/kf-feast/feast-jupyter:"${FEAST_VERSION}"
 
 # Clean up Docker Compose if failure
 trap clean_up EXIT
@@ -47,7 +47,7 @@ cd "${PROJECT_ROOT_DIR}"/infra/docker-compose/
 cp .env.sample .env
 
 # Start Docker Compose containers
-FEAST_VERSION=${CURRENT_SHA} docker-compose up -d
+FEAST_VERSION=${FEAST_VERSION} docker-compose up -d
 
 # Get Jupyter container IP address
 export JUPYTER_DOCKER_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_jupyter_1)
@@ -101,8 +101,8 @@ sleep 5
 cat $(ls -lah | grep load_test_results | awk '{print $9}' | tr '\n' ' ')
 
 # Create hdr-plot of load tests
-export PLOT_FILE_NAME="load_test_graph_${CURRENT_SHA}"_$(date "+%Y%m%d-%H%M%S").png
-python $PROJECT_ROOT_DIR/tests/load/hdr_plot.py --output "$PLOT_FILE_NAME" --title "Load test: ${CURRENT_SHA}" $(ls -lah | grep load_test_results | awk '{print $9}' | tr '\n' ' ')
+export PLOT_FILE_NAME="load_test_graph_${FEAST_VERSION}"_$(date "+%Y%m%d-%H%M%S").png
+python $PROJECT_ROOT_DIR/tests/load/hdr_plot.py --output "$PLOT_FILE_NAME" --title "Load test: ${FEAST_VERSION}" $(ls -lah | grep load_test_results | awk '{print $9}' | tr '\n' ' ')
 
 # Persist artifact
 mkdir -p "${PROJECT_ROOT_DIR}"/load-test-output/
