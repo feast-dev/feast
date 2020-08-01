@@ -4,6 +4,7 @@ import random
 import tempfile
 import time
 import uuid
+from copy import copy
 from datetime import datetime, timedelta
 
 import grpc
@@ -85,8 +86,8 @@ def check_online_response(feature_ref, ingest_df, response):
         sent_value = float(ingest_df.iloc[0][feature_name])
         returned_value = float(response.field_values[0].fields[feature_ref].float_val)
         return (
-            math.isclose(sent_value, returned_value, abs_tol=FLOAT_TOLERANCE)
-            and returned_status == GetOnlineFeaturesResponse.FieldStatus.PRESENT
+                math.isclose(sent_value, returned_value, abs_tol=FLOAT_TOLERANCE)
+                and returned_status == GetOnlineFeaturesResponse.FieldStatus.PRESENT
         )
 
 
@@ -108,6 +109,11 @@ def allow_dirty(pytestconfig):
 @pytest.fixture(scope="module")
 def enable_auth(pytestconfig):
     return True if pytestconfig.getoption("enable_auth").lower() == "true" else False
+
+
+@pytest.fixture(scope="module")
+def kafka_brokers(pytestconfig):
+    return pytestconfig.getoption("kafka_brokers")
 
 
 @pytest.fixture(scope="module")
@@ -174,7 +180,7 @@ def test_list_feature_sets_when_auth_enabled_should_raise(enable_auth):
 
 
 @pytest.mark.timeout(45)
-@pytest.mark.run(order=10)
+@pytest.mark.run(order=0)
 def test_basic_register_feature_set_success(client):
     # Register feature set without project
     cust_trans_fs_expected = FeatureSet.from_yaml(
@@ -372,7 +378,7 @@ def list_entity_dataframe():
 @pytest.mark.timeout(600)
 @pytest.mark.run(order=14)
 def test_basic_retrieve_online_entity_nonlistform(
-    client, nonlist_entity_dataframe, list_entity_dataframe
+        client, nonlist_entity_dataframe, list_entity_dataframe
 ):
     # Case 1: Feature retrieval with multiple entities retrieval check
     customer_fs = FeatureSet(
@@ -422,13 +428,15 @@ def test_basic_retrieve_online_entity_nonlistform(
         response = client.get_online_features(
             entity_rows=online_request_entity, feature_refs=online_request_features
         )
-        return response, True
+        is_ok = check_online_response("customer2_rating", nonlist_entity_dataframe, response)
+        return response, is_ok
 
     def try_get_features2():
         response = client.get_online_features(
             entity_rows=online_request_entity2, feature_refs=online_request_features
         )
-        return response, True
+        is_ok = check_online_response("customer2_rating", nonlist_entity_dataframe, response)
+        return response, is_ok
 
     online_features_actual1 = wait_retry_backoff(
         retry_fn=try_get_features1,
@@ -467,8 +475,8 @@ def test_basic_retrieve_online_entity_nonlistform(
         )
 
     assert (
-        "Input entity customer_id has mixed types, ValueType.STRING and ValueType.INT64. That is not allowed."
-        in str(excinfo.value)
+            "Input entity customer_id has mixed types, ValueType.STRING and ValueType.INT64. That is not allowed."
+            in str(excinfo.value)
     )
 
 
@@ -522,13 +530,15 @@ def test_basic_retrieve_online_entity_listform(client, list_entity_dataframe):
         response = client.get_online_features(
             entity_rows=online_request_entity, feature_refs=online_request_features
         )
-        return response, True
+        is_ok = check_online_response('district_rating', list_entity_dataframe, response)
+        return response, is_ok
 
     def try_get_features2():
         response = client.get_online_features(
             entity_rows=online_request_entity2, feature_refs=online_request_features
         )
-        return response, True
+        is_ok = check_online_response('district_rating', list_entity_dataframe, response)
+        return response, is_ok
 
     online_features_actual = wait_retry_backoff(
         retry_fn=try_get_features1,
@@ -564,8 +574,8 @@ def test_basic_retrieve_online_entity_listform(client, list_entity_dataframe):
         )
 
     assert (
-        "List value type for field district_ids is inconsistent. ValueType.INT64 different from ValueType.BOOL."
-        in str(excinfo.value)
+            "List value type for field district_ids is inconsistent. ValueType.INT64 different from ValueType.BOOL."
+            in str(excinfo.value)
     )
 
 
@@ -605,7 +615,8 @@ def test_basic_ingest_retrieval_fs(client):
         response = client.get_online_features(
             entity_rows=online_request_entity, feature_refs=online_request_features
         )
-        return response, True
+        is_ok = check_online_response('driver_fs_rating', driver_df, response)
+        return response, is_ok
 
     online_features_actual = wait_retry_backoff(
         retry_fn=try_get_features,
@@ -658,7 +669,8 @@ def test_basic_ingest_retrieval_str(client):
         response = client.get_online_features(
             entity_rows=online_request_entity, feature_refs=online_request_features
         )
-        return response, True
+        is_ok = check_online_response('cust_rating', cust_df, response)
+        return response, is_ok
 
     online_features_actual = wait_retry_backoff(
         retry_fn=try_get_features,
@@ -926,8 +938,8 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
     )
     # check returned metadata
     assert (
-        response.field_values[0].statuses["float_list_feature"]
-        == GetOnlineFeaturesResponse.FieldStatus.PRESENT
+            response.field_values[0].statuses["float_list_feature"]
+            == GetOnlineFeaturesResponse.FieldStatus.PRESENT
     )
 
 
@@ -1228,52 +1240,91 @@ def test_list_entities_and_features(client):
     )
 
 
-@pytest.mark.timeout(900)
+@pytest.mark.timeout(500)
 @pytest.mark.run(order=70)
-def test_sources_deduplicate_ingest_jobs(client):
-    source = KafkaSource("localhost:9092", "feast-features")
-    alt_source = KafkaSource("localhost:9092", "feast-data")
+def test_sources_deduplicate_ingest_jobs(client, kafka_brokers):
+    shared_source = KafkaSource(kafka_brokers, "dup_shared")
+    dup_source_fs_1 = FeatureSet(
+        name="duplicate_source_fs_1",
+        features=[Feature("fs1", ValueType.FLOAT), Feature("fs2", ValueType.FLOAT)],
+        entities=[Entity("e2", ValueType.INT64)],
+        source=shared_source,
+    )
+    dup_source_fs_2 = copy(dup_source_fs_1)
+    dup_source_fs_2.name = "duplicate_source_fs_2"
 
-    def get_running_jobs():
-        return [
-            job
-            for job in client.list_ingest_jobs()
-            if job.status == IngestionJobStatus.RUNNING
-        ]
+    def is_same_jobs():
+        fs_1_jobs = client.list_ingest_jobs(
+            feature_set_ref=FeatureSetRef(
+                name=dup_source_fs_1.name, project=dup_source_fs_1.project
+            )
+        )
+        fs_2_jobs = client.list_ingest_jobs(
+            feature_set_ref=FeatureSetRef(
+                name=dup_source_fs_2.name, project=dup_source_fs_2.project
+            )
+        )
+        same = True
+        if not (len(fs_1_jobs) > 0 and len(fs_1_jobs) == len(fs_2_jobs)):
+            same = False
+        for fs_1_job in fs_1_jobs:
+            for fs_2_job in fs_2_jobs:
+                if (
+                        not fs_1_job.source.to_proto() == fs_2_job.source.to_proto()
+                        and fs_1_job.source.to_proto() == shared_source.to_proto()
+                ):
+                    same = False
+                if fs_1_job.id != fs_2_job.id:
+                    same = False
+        return same
 
-    # stop all ingest jobs
-    ingest_jobs = client.list_ingest_jobs()
-    for ingest_job in ingest_jobs:
-        client.stop_ingest_job(ingest_job)
-    for ingest_job in ingest_jobs:
-        ingest_job.wait(IngestionJobStatus.ABORTED)
+    def is_different_jobs():
+        fs_1_jobs = client.list_ingest_jobs(
+            feature_set_ref=FeatureSetRef(
+                name=dup_source_fs_1.name, project=dup_source_fs_1.project
+            )
+        )
+        fs_2_jobs = client.list_ingest_jobs(
+            feature_set_ref=FeatureSetRef(
+                name=dup_source_fs_2.name, project=dup_source_fs_2.project
+            )
+        )
+        different = True
+        if not (len(fs_1_jobs) > 0 and len(fs_2_jobs) > 0):
+            different = False
+        for fs_1_job in fs_1_jobs:
+            if fs_1_job.source.to_proto() == alt_source.to_proto():
+                different = False
+        for fs_2_job in fs_2_jobs:
+            if fs_2_job.source.to_proto() == shared_source.to_proto():
+                different = False
+        for fs_1_job in fs_1_jobs:
+            for fs_2_job in fs_2_jobs:
+                if fs_1_job.id == fs_2_job.id:
+                    different = False
+        return different
 
-    # register multiple featuresets with the same source
+    # register multiple feature sets with the same source
     # only one ingest job should spawned due to test ingest job deduplication
-    cust_trans_fs = FeatureSet.from_yaml(f"{DIR_PATH}/basic/cust_trans_fs.yaml")
-    driver_fs = FeatureSet.from_yaml(f"{DIR_PATH}/basic/driver_fs.yaml")
-    cust_trans_fs.source, driver_fs.source = source, source
-    client.apply(cust_trans_fs)
-    client.apply(driver_fs)
+    client.apply(dup_source_fs_1)
+    client.apply(dup_source_fs_2)
 
-    while len(get_running_jobs()) != 1:
-        assert 0 <= len(get_running_jobs()) <= 1
+    while not is_same_jobs():
         time.sleep(1)
 
-    # update feature sets with different sources, should spawn 2 ingest jobs
-    driver_fs.source = alt_source
-    client.apply(driver_fs)
+    # update feature sets with different sources, should have different jobs
+    alt_source = KafkaSource(kafka_brokers, "alt_source")
+    dup_source_fs_2.source = alt_source
+    client.apply(dup_source_fs_2)
 
-    while len(get_running_jobs()) != 2:
-        assert 1 <= len(get_running_jobs()) <= 2
+    while not is_different_jobs():
         time.sleep(1)
 
-    # update feature sets with same source again, should spawn only 1 ingest job
-    driver_fs.source = source
-    client.apply(driver_fs)
+    # update feature sets with same source again, should have the same job
+    dup_source_fs_2.source = shared_source
+    client.apply(dup_source_fs_2)
 
-    while len(get_running_jobs()) != 1:
-        assert 1 <= len(get_running_jobs()) <= 2
+    while not is_same_jobs():
         time.sleep(1)
 
 
