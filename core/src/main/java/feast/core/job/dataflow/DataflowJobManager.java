@@ -273,7 +273,7 @@ public class DataflowJobManager implements JobManager {
         .filter(
             dfJob ->
                 dfJob != null
-                    && dfJob.getLabels() != null
+                    && (dfJob.getLabels() != null || this.jobSelector.isEmpty())
                     && this.jobSelector.entrySet().stream()
                         .allMatch(
                             entry ->

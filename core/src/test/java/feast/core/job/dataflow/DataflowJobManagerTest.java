@@ -264,6 +264,7 @@ public class DataflowJobManagerTest {
 
     List<Job> jobs = dfJobManager.listJobs();
 
+    assertThat(jobs, hasSize(1));
     assertThat(
         jobs,
         hasItem(
@@ -288,5 +289,55 @@ public class DataflowJobManagerTest {
         .thenReturn(null);
 
     assertThat(dfJobManager.listJobs(), hasSize(0));
+  }
+
+  @Test
+  @SneakyThrows
+  public void shouldRetrieveRunningJobsWithoutLabels() {
+    when(dataflow
+            .projects()
+            .locations()
+            .jobs()
+            .list("project", "region")
+            .setFilter("ACTIVE")
+            .execute())
+        .thenReturn(
+            new ListJobsResponse()
+                .setJobs(
+                    ImmutableList.of(
+                        new com.google.api.services.dataflow.model.Job().setId("job-1"))));
+
+    JsonFormat.Printer jsonPrinter = JsonFormat.printer();
+
+    // job with no labels
+    when(dataflow
+            .projects()
+            .locations()
+            .jobs()
+            .get("project", "region", "job-1")
+            .setView("JOB_VIEW_ALL")
+            .execute())
+        .thenReturn(
+            new com.google.api.services.dataflow.model.Job()
+                .setId("job-1")
+                .setEnvironment(
+                    new Environment()
+                        .setSdkPipelineOptions(
+                            ImmutableMap.of(
+                                "options",
+                                ImmutableMap.of(
+                                    "jobName", "kafka-to-redis",
+                                    "sourceJson", jsonPrinter.print(source),
+                                    "storesJson", ImmutableList.of(jsonPrinter.print(store)))))));
+
+    MetricsProperties metricsProperties = new MetricsProperties();
+    metricsProperties.setEnabled(false);
+
+    dfJobManager =
+        new DataflowJobManager(
+            defaults, metricsProperties, specsStreamingUpdateConfig, ImmutableMap.of(), dataflow);
+
+    List<Job> jobs = dfJobManager.listJobs();
+    assertThat(jobs, hasItem(hasProperty("id", equalTo("kafka-to-redis"))));
   }
 }
