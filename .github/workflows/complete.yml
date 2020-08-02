@@ -7,10 +7,11 @@ jobs:
     runs-on: [self-hosted]
     strategy:
       matrix:
-        component: [core, serving]
+        component: [core, serving, jupyter]
     env:
       GITHUB_PR_SHA: ${{ github.event.pull_request.head.sha }}
       REGISTRY: gcr.io/kf-feast
+      MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2019-10-24.tar
     steps:
       - uses: actions/checkout@v2
       - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
@@ -18,6 +19,11 @@ jobs:
           version: '290.0.1'
           export_default_credentials: true
       - run: gcloud auth configure-docker --quiet
+      - name: Get m2 cache
+        run: |
+          infra/scripts/download-maven-cache.sh \
+          --archive-uri ${MAVEN_CACHE} \
+          --output-dir .
       - name: Build image
         run: make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
       - name: Push image

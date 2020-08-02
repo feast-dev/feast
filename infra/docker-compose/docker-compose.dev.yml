@@ -25,21 +25,18 @@ services:
       - spring-boot:run
 
   jupyter:
-    image: jupyter/minimal-notebook:619e9cc2fc07
+    image: gcr.io/kf-feast/feast-jupyter:${FEAST_VERSION}
     volumes:
-      - ./gcp-service-accounts/${FEAST_JUPYTER_GCP_SERVICE_ACCOUNT_KEY}:/etc/gcloud/service-accounts/key.json
-      - ./jupyter/startup.sh:/etc/startup.sh
+      - ${GCP_SERVICE_ACCOUNT}:/etc/gcloud/service-accounts/key.json
     depends_on:
       - core
     environment:
       FEAST_CORE_URL: core:6565
-      FEAST_ONLINE_SERVING_URL: online-serving:6566
-      FEAST_BATCH_SERVING_URL: batch-serving:6567
+      FEAST_ONLINE_SERVING_URL: online_serving:6566
+      FEAST_HISTORICAL_SERVING_URL: historical_serving:6567
       GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
-      FEAST_REPOSITORY_VERSION: ${FEAST_REPOSITORY_VERSION}
     ports:
       - 8888:8888
-    command: ["/etc/startup.sh"]
 
   kafka:
     image: confluentinc/cp-kafka:5.2.1

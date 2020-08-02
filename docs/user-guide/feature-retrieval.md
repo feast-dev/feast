@@ -116,7 +116,7 @@ The computation of statistics is not enabled by default. To indicate to Feast th
 ```python
 dataset = client.get_historical_features(
     feature_refs=features, 
-    entity_rows=entity_df 
+    entity_rows=entity_df,
     compute_statistics=True
 )
 
