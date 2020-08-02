@@ -85,7 +85,7 @@ Configure the `.env` file based on your environment. At the very least you have 
 | Parameter | Description |
 | :--- | :--- |
 | FEAST\_CORE\_GCP\_SERVICE\_ACCOUNT\_KEY | This should be your service account file name, for example `key.json`. |
-| FEAST\_BATCH\_SERVING\_GCP\_SERVICE\_ACCOUNT\_KEY | This should be your service account file name, for example `key.json` |
+| FEAST\_HISTORICAL\_SERVING\_GCP\_SERVICE\_ACCOUNT\_KEY | This should be your service account file name, for example `key.json` |
 | FEAST\_JUPYTER\_GCP\_SERVICE\_ACCOUNT\_KEY | This should be your service account file name, for example `key.json` |
 | FEAST\_JOB\_STAGING\_LOCATION | Google Cloud Storage bucket that Feast will use to stage data exports and batch retrieval requests, for example `gs://your-gcs-bucket/staging` |
 

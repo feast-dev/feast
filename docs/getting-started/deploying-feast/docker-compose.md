@@ -80,12 +80,12 @@ Configure the `.env` file based on your environment. At the very least you have 
 | Parameter | Description |
 | :--- | :--- |
 | `FEAST_CORE_GCP_SERVICE_ACCOUNT_KEY` | This should be your service account file name, for example `key.json`. |
-| `FEAST_BATCH_SERVING_GCP_SERVICE_ACCOUNT_KEY` | This should be your service account file name, for example `key.json` |
+| `FEAST_HISTORICAL_SERVING_GCP_SERVICE_ACCOUNT_KEY` | This should be your service account file name, for example `key.json` |
 | `FEAST_JUPYTER_GCP_SERVICE_ACCOUNT_KEY` | This should be your service account file name, for example `key.json` |
 
 ### 3.3 Configure Historical Serving
 
-We will also need to configure the `batch-serving.yml` file inside `infra/docker-compose/serving/`. This configuration is used to retrieve training datasets from Feast. At a minimum you will need to set:
+We will also need to configure the `historical-serving.yml` file inside `infra/docker-compose/serving/`. This configuration is used to retrieve training datasets from Feast. At a minimum you will need to set:
 
 | Parameter | Description |
 | :--- | :--- |
