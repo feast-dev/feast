@@ -23,4 +23,6 @@ RUN pip install -e sdk/python -U
 USER $NB_UID
 WORKDIR $HOME
 
-CMD start-notebook.sh --NotebookApp.token=''
+COPY examples .
+
+CMD ["start-notebook.sh", "--NotebookApp.token=''"]

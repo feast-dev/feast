@@ -6,3 +6,4 @@ def pytest_addoption(parser):
         "--gcs_path", action="store", default="gs://feast-templocation-kf-feast/"
     )
     parser.addoption("--enable_auth", action="store", default="False")
+    parser.addoption("--kafka_brokers", action="store", default="localhost:9092")

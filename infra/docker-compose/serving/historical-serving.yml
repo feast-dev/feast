@@ -4,7 +4,7 @@ feast:
   stores:
     - name: historical
       type: BIGQUERY
-      # Changes required for batch serving to work
+      # Changes required for historical serving to work
       # Please see https://api.docs.feast.dev/grpc/feast.core.pb.html#Store for configuration options
       config:
         project_id: project
@@ -21,4 +21,5 @@ feast:
     redis_port: 6379
   
 grpc:
-  port: 6567
+  server:
+    port: 6567
