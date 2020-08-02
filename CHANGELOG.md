@@ -1,5 +1,28 @@
 # Changelog
 
+## [v0.6.2](https://github.com/feast-dev/feast/tree/v0.6.2) (2020-08-02)                                                                                                                                                                                                         
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.6.1...v0.6.2)
+
+**Implemented enhancements:**
+
+- Redis sink flushes only rows that have more recent eventTimestamp [\#913](https://github.com/feast-dev/feast/pull/913) ([pyalex](https://github.com/pyalex))
+- Dataflow runner options: disk type & streaming engine [\#906](https://github.com/feast-dev/feast/pull/906) ([pyalex](https://github.com/pyalex))
+- Add Structured Audit Logging [\#891](https://github.com/feast-dev/feast/pull/891) ([mrzzy](https://github.com/mrzzy))
+- Add Authentication and Authorization for feast serving [\#865](https://github.com/feast-dev/feast/pull/865) ([jmelinav](https://github.com/jmelinav))
+- Throw more informative exception when write\_triggering\_frequency\_seconds is missing [\#917](https://github.com/feast-dev/feast/pull/917) ([pyalex](https://github.com/pyalex))
+- Add caching to authorization [\#884](https://github.com/feast-dev/feast/pull/884) ([jmelinav](https://github.com/jmelinav))
+- Add Auth header [\#885](https://github.com/feast-dev/feast/pull/885) ([AnujaVane](https://github.com/AnujaVane))
+
+**Fixed bugs:**
+
+- Fix Online Serving unable to retrieve feature data after Feature Set update. [\#908](https://github.com/feast-dev/feast/pull/908) ([mrzzy](https://github.com/mrzzy))
+- Fix Python SDK ingestion for featureset name that exist in multiple projects [\#868](https://github.com/feast-dev/feast/pull/868) ([terryyylim](https://github.com/terryyylim))
+- Backport delay in Redis acknowledgement of spec [\#915](https://github.com/feast-dev/feast/pull/915) ([woop](https://github.com/woop))
+
+**Merged pull requests:**
+
+- Upgrade Feast dependencies [\#876](https://github.com/feast-dev/feast/pull/876) ([pyalex](https://github.com/pyalex))
+
 ## [v0.6.1](https://github.com/feast-dev/feast/tree/v0.6.1) (2020-07-17)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.6.0...v0.6.1)
