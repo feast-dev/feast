@@ -273,4 +273,20 @@ public class DataflowJobManagerTest {
                 hasProperty("stores", hasValue(store)),
                 hasProperty("extId", equalTo("job-2")))));
   }
+
+  @Test
+  @SneakyThrows
+  public void shouldHandleNullResponseFromDataflow() {
+    when(dataflow
+            .projects()
+            .locations()
+            .jobs()
+            .list("project", "region")
+            .setFilter("ACTIVE")
+            .execute()
+            .getJobs())
+        .thenReturn(null);
+
+    assertThat(dfJobManager.listJobs(), hasSize(0));
+  }
 }

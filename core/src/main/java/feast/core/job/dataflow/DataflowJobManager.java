@@ -247,6 +247,10 @@ public class DataflowJobManager implements JobManager {
           String.format("Unable to retrieve list of jobs from dataflow: %s", e.getMessage()));
     }
 
+    if (jobs == null) {
+      return Collections.emptyList();
+    }
+
     return jobs.stream()
         .map(
             dfJob -> {
