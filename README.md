@@ -6,7 +6,6 @@
 <br />
 
 [![Unit Tests](https://github.com/feast-dev/feast/workflows/unit%20tests/badge.svg?branch=master)](https://github.com/feast-dev/feast/actions?query=workflow%3A%22unit+tests%22+branch%3Amaster)
-[![Docker Compose Tests](https://github.com/feast-dev/feast/workflows/docker%20compose%20tests/badge.svg?branch=master)](https://github.com/feast-dev/feast/actions?query=workflow%3A%22docker+compose+tests%22+branch%3Amaster)
 [![Code Standards](https://github.com/feast-dev/feast/workflows/code%20standards/badge.svg?branch=master)](https://github.com/feast-dev/feast/actions?query=workflow%3A%22code+standards%22+branch%3Amaster)
 [![Docs Latest](https://img.shields.io/badge/docs-latest-blue.svg)](https://docs.feast.dev/)
 [![GitHub Release](https://img.shields.io/github/v/release/feast-dev/feast.svg?style=flat&sort=semver&color=blue)](https://github.com/feast-dev/feast/releases)
@@ -45,12 +44,16 @@ The following commands will start Feast in online-only mode.
 git clone https://github.com/feast-dev/feast.git
 cd feast/infra/docker-compose
 cp .env.sample .env
-docker-compose -f docker-compose.yml -f docker-compose.online.yml up -d
 ```
 
-This will start a local Feast deployment with online serving. Additionally, a [Jupyter Notebook](http://localhost:8888/tree/feast/examples) with Feast examples.
+At this point the `.env` can be configured, and a GCP service account can be added if BigQuery will be used for historical serving.
 
-Please see the links below to set up Feast for batch/historical serving with BigQuery.
+Bring up Feast:
+```
+docker-compose up -d
+```
+
+The command above will bring up a complete Feast deployment with a [Jupyter Notebook](http://localhost:8888/tree/feast/examples). This notebook contains Feast example tutorials.
 
 ## Important resources
 
