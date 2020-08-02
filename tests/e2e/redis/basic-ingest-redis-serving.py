@@ -180,7 +180,7 @@ def test_list_feature_sets_when_auth_enabled_should_raise(enable_auth):
 
 
 @pytest.mark.timeout(45)
-@pytest.mark.run(order=0)
+@pytest.mark.run(order=10)
 def test_basic_register_feature_set_success(client):
     # Register feature set without project
     cust_trans_fs_expected = FeatureSet.from_yaml(
