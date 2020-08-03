@@ -394,18 +394,21 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-          <groupId>org.springframework.boot</groupId>
-          <artifactId>spring-boot-starter-webflux</artifactId>
+          <groupId>io.rest-assured</groupId>
+          <artifactId>rest-assured</artifactId>
+          <version>4.2.0</version>
           <scope>test</scope>
         </dependency>
         <dependency>
-          <groupId>org.springframework.boot</groupId>
-          <artifactId>spring-boot-starter-test</artifactId>
+          <groupId>io.rest-assured</groupId>
+          <artifactId>json-path</artifactId>
+          <version>4.2.0</version>
           <scope>test</scope>
         </dependency>
         <dependency>
-          <groupId>io.projectreactor</groupId>
-          <artifactId>reactor-test</artifactId>
+          <groupId>io.rest-assured</groupId>
+          <artifactId>xml-path</artifactId>
+          <version>4.2.0</version>
           <scope>test</scope>
         </dependency>
     </dependencies>

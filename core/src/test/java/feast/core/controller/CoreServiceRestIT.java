@@ -16,6 +16,11 @@
  */
 package feast.core.controller;
 
+import static io.restassured.RestAssured.get;
+import static org.hamcrest.Matchers.aMapWithSize;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import feast.core.it.BaseIT;
 import feast.core.it.DataGenerator;
 import feast.core.it.SimpleAPIClient;
@@ -25,33 +30,172 @@ import feast.proto.core.FeatureSetProto.FeatureSet;
 import feast.proto.types.ValueProto.ValueType.Enum;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.restassured.RestAssured;
+import io.restassured.http.ContentType;
+import io.restassured.path.json.JsonPath;
 import java.util.List;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.JsonElement;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.JsonParser;
 import org.apache.commons.lang3.tuple.Pair;
-import org.junit.Assert;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.reactive.server.WebTestClient;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.web.util.UriComponentsBuilder;
 
-@ConditionalOnClass({WebClient.class, WebTestClient.class})
-@SpringBootTest
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
 public class CoreServiceRestIT extends BaseIT {
 
   static CoreServiceGrpc.CoreServiceBlockingStub stub;
   static SimpleAPIClient apiClient;
-  @Autowired private WebTestClient webTestClient;
+  @LocalServerPort private int port;
+
+  @Test
+  public void getVersion() {
+    String uriString = UriComponentsBuilder.fromPath("/api/v1/version").toUriString();
+    get(uriString)
+        .then()
+        .log()
+        .everything()
+        .assertThat()
+        .contentType(ContentType.JSON)
+        .body("version", notNullValue());
+  }
+
+  // list projects
+  @Test
+  public void listProjects() {
+    // should get 2 projects
+    String uriString = UriComponentsBuilder.fromPath("/api/v1/projects").toUriString();
+    String responseBody =
+        get(uriString)
+            .then()
+            .log()
+            .everything()
+            .assertThat()
+            .contentType(ContentType.JSON)
+            .extract()
+            .response()
+            .getBody()
+            .asString();
+    List<String> projectList = JsonPath.from(responseBody).getList("projects");
+    assertEquals(projectList, List.of("default", "merchant"));
+  }
+
+  // list feature sets
+  @Test
+  public void listFeatureSets() {
+    // project = default
+    // name = merchant_ratings
+    // getting a specific feature set
+    String uri1 =
+        UriComponentsBuilder.fromPath("/api/v1/feature-sets")
+            .queryParam("project", "default")
+            .queryParam("name", "merchant_ratings")
+            .buildAndExpand()
+            .toString();
+    String responseBody =
+        get(uri1)
+            .then()
+            .log()
+            .everything()
+            .assertThat()
+            .contentType(ContentType.JSON)
+            .extract()
+            .response()
+            .getBody()
+            .asString();
+    List<String> featureSetList = JsonPath.from(responseBody).getList("featureSets");
+    assertEquals(featureSetList.size(), 1);
+
+    // project = *
+    // name = *merchant_ratings
+    // should have two feature sets named *merchant_ratings
+    String uri2 =
+        UriComponentsBuilder.fromPath("/api/v1/feature-sets")
+            .queryParam("project", "*")
+            .queryParam("name", "*merchant_ratings")
+            .buildAndExpand()
+            .toString();
+    responseBody =
+        get(uri2)
+            .then()
+            .log()
+            .everything()
+            .assertThat()
+            .contentType(ContentType.JSON)
+            .extract()
+            .response()
+            .getBody()
+            .asString();
+    featureSetList = JsonPath.from(responseBody).getList("featureSets");
+    assertEquals(featureSetList.size(), 2);
+
+    // project = *
+    // name = *
+    // should have three feature sets
+    String uri3 =
+        UriComponentsBuilder.fromPath("/api/v1/feature-sets")
+            .queryParam("project", "*")
+            .queryParam("name", "*")
+            .buildAndExpand()
+            .toString();
+    responseBody =
+        get(uri3)
+            .then()
+            .log()
+            .everything()
+            .assertThat()
+            .contentType(ContentType.JSON)
+            .extract()
+            .response()
+            .getBody()
+            .asString();
+    featureSetList = JsonPath.from(responseBody).getList("featureSets");
+    assertEquals(featureSetList.size(), 3);
+  }
+
+  @Test
+  public void listFeatures() {
+    // entities = [merchant_id]
+    // project = default
+    // should return 4 features
+    String uri1 =
+        UriComponentsBuilder.fromPath("/api/v1/features")
+            .queryParam("entities", "merchant_id")
+            .buildAndExpand()
+            .toString();
+    get(uri1)
+        .then()
+        .log()
+        .everything()
+        .assertThat()
+        .contentType(ContentType.JSON)
+        .body("features", aMapWithSize(4));
+
+    // entities = [merchant_id]
+    // project = merchant
+    // should return 2 features
+    String uri2 =
+        UriComponentsBuilder.fromPath("/api/v1/features")
+            .queryParam("entities", "merchant_id")
+            .queryParam("project", "merchant")
+            .buildAndExpand()
+            .toString();
+    get(uri2)
+        .then()
+        .log()
+        .everything()
+        .assertThat()
+        .contentType(ContentType.JSON)
+        .body("features", aMapWithSize(2));
+  }
+
+  @TestConfiguration
+  public static class TestConfig extends BaseTestConfig {}
 
   @BeforeAll
   public static void globalSetUp(@Value("${grpc.server.port}") int port) {
@@ -124,178 +268,6 @@ public class CoreServiceRestIT extends BaseIT {
             List.of(Pair.of("merchant_id", Enum.STRING)),
             List.of(Pair.of("merchant_prop1", Enum.BOOL), Pair.of("merchant_prop2", Enum.FLOAT)));
     apiClient.simpleApplyFeatureSet(yetAnotherMerchantFeatureSet);
+    RestAssured.port = port;
   }
-
-  @Test
-  public void getVersion() {
-    String uriString = UriComponentsBuilder.fromPath("/api/v1/version").toUriString();
-    webTestClient
-        .get()
-        .uri(uriString)
-        .exchange()
-        .expectStatus()
-        .isOk()
-        .expectHeader()
-        .contentType(MediaType.APPLICATION_JSON)
-        .expectBody()
-        .jsonPath("$.version")
-        .isNotEmpty();
-  }
-
-  // list projects
-  @Test
-  public void listProjects() {
-    // should get 2 projects
-    String uriString = UriComponentsBuilder.fromPath("/api/v1/projects").toUriString();
-    webTestClient
-        .get()
-        .uri(uriString)
-        .exchange()
-        .expectStatus()
-        .isOk()
-        .expectHeader()
-        .contentType(MediaType.APPLICATION_JSON)
-        .expectBody()
-        .jsonPath("$.projects")
-        .isArray()
-        .jsonPath("$.projects")
-        .value(
-            projects -> {
-              JsonElement jsonElement = JsonParser.parseString((String) projects);
-              Assert.assertEquals(jsonElement.getAsJsonArray().size(), 2);
-            });
-  }
-
-  // list feature sets
-  @Test
-  public void listFeatureSets() throws Exception {
-    // project = default
-    // name = merchant_ratings
-    // getting a specific feature set
-    String uri1 =
-        UriComponentsBuilder.fromPath("/api/v1/feature-sets")
-            .queryParam("project", "default")
-            .queryParam("name", "merchant_ratings")
-            .buildAndExpand()
-            .toString();
-    webTestClient
-        .get()
-        .uri(uri1)
-        .exchange()
-        .expectStatus()
-        .isOk()
-        .expectHeader()
-        .contentType(MediaType.APPLICATION_JSON)
-        .expectBody()
-        .jsonPath("$.featureSets")
-        .isArray()
-        .jsonPath("$.featureSets")
-        .value(
-            projects -> {
-              JsonElement jsonElement = JsonParser.parseString((String) projects);
-              Assert.assertEquals(jsonElement.getAsJsonArray().size(), 1);
-            });
-
-    // project = *
-    // name = *merchant_ratings
-    // should have two feature sets named *merchant_ratings
-    String uri2 =
-        UriComponentsBuilder.fromPath("/api/v1/feature-sets")
-            .queryParam("project", "*")
-            .queryParam("name", "*merchant_ratings")
-            .buildAndExpand()
-            .toString();
-    webTestClient
-        .get()
-        .uri(uri2)
-        .exchange()
-        .expectStatus()
-        .isOk()
-        .expectHeader()
-        .contentType(MediaType.APPLICATION_JSON)
-        .expectBody()
-        .jsonPath("$.featureSets")
-        .isArray()
-        .jsonPath("$.featureSets")
-        .value(
-            projects -> {
-              System.out.println("here");
-              JsonElement jsonElement = JsonParser.parseString((String) projects);
-              Assert.assertEquals(jsonElement.getAsJsonArray().size(), 2);
-            });
-
-    // project = *
-    // name = *
-    // should have three feature sets
-    String uri3 =
-        UriComponentsBuilder.fromPath("/api/v1/feature-sets")
-            .queryParam("project", "*")
-            .queryParam("name", "*")
-            .buildAndExpand()
-            .toString();
-    webTestClient
-        .get()
-        .uri(uri3)
-        .exchange()
-        .expectStatus()
-        .isOk()
-        .expectHeader()
-        .contentType(MediaType.APPLICATION_JSON)
-        .expectBody()
-        .jsonPath("$.featureSets")
-        .isArray()
-        .jsonPath("$.featureSets")
-        .value(
-            projects -> {
-              JsonElement jsonElement = JsonParser.parseString((String) projects);
-              Assert.assertEquals(jsonElement.getAsJsonArray().size(), 3);
-            });
-  }
-
-  @Test
-  public void listFeatures() throws Exception {
-    // entities = [merchant_id]
-    // project = default
-    // should return 4 features
-    String uri1 =
-        UriComponentsBuilder.fromPath("/api/v1/features")
-            .queryParam("entities", "merchant_id")
-            .buildAndExpand()
-            .toString();
-    webTestClient
-        .get()
-        .uri(uri1)
-        .exchange()
-        .expectStatus()
-        .isOk()
-        .expectHeader()
-        .contentType(MediaType.APPLICATION_JSON)
-        .expectBody()
-        .jsonPath("$.features")
-        .isMap();
-
-    // entities = [merchant_id]
-    // project = merchant
-    // should return 2 features
-    String url2 =
-        UriComponentsBuilder.fromPath("/api/v1/features")
-            .queryParam("entities", "merchant_id")
-            .queryParam("project", "merchant")
-            .buildAndExpand()
-            .toString();
-    webTestClient
-        .get()
-        .uri(uri1)
-        .exchange()
-        .expectStatus()
-        .isOk()
-        .expectHeader()
-        .contentType(MediaType.APPLICATION_JSON)
-        .expectBody()
-        .jsonPath("$.features")
-        .isMap();
-  }
-
-  @TestConfiguration
-  public static class TestConfig extends BaseTestConfig {}
 }
