@@ -46,6 +46,12 @@ gcloud iam service-accounts keys create credentials.json --iam-account \
 feast-service-account@my-gcp-project.iam.gserviceaccount.com
 ```
 
+Create a BigQuery dataset for Feast to store historical data:
+
+```bash
+bq --location=US mk --dataset my_project:feast
+```
+
 ## 2. Set up a Kubernetes \(GKE\) cluster
 
 Create a Kubernetes cluster:
@@ -123,8 +129,14 @@ curl https://raw.githubusercontent.com/feast-dev/feast/master/infra/charts/feast
 Update `values.yaml` based on your GCP and GKE environment. Minimally the following values must be set
 
 * `project_id` is your GCP project id
-* `dataset_id` is your BigQuery dataset id. This dataset will be created by Feast if it does not exist.
-* `staging_location` is the GCS bucket used for staging that you created in this guide.
+* `dataset_id` is your BigQuery dataset id. 
+* `staging_location` is the GCS bucket used for staging data being loaded into BigQuery.
+* `tempLocation` should also be set to the bucket that you want ingestion jobs to load data into BigQuery.
+
+For more details on configuration parameters, please see the following two files
+
+* [Core](https://github.com/feast-dev/feast/blob/master/core/src/main/resources/application.yml)
+* [Serving](https://github.com/feast-dev/feast/blob/master/serving/src/main/resources/application.yml)
 
 Install the Feast Helm chart:
 
@@ -142,7 +154,7 @@ This may take a few minutes
 
 ```bash
 NAME                                                    READY   STATUS    RESTARTS   AGE
-myrelease-feast-batch-serving-5674f6fb4c-bzsk8      1/1     Running   2          14m
+myrelease-feast-historical-serving-5674f6fb4c-bzsk8      1/1     Running   2          14m
 myrelease-feast-core-7547b455f4-fvppz               1/1     Running   1          14m
 myrelease-feast-jupyter-9b7c4b8fd-bdcbv             1/1     Running   0          14m
 myrelease-feast-online-serving-7884578db5-57xwv     1/1     Running   1          14m

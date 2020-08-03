@@ -173,7 +173,7 @@ Online Serving also returns Online Field Statuses when retrieving features. Thes
 for feature in features:
     # field statuses can be obtained from the response's field values
     status = response.field_values.statuses[feature]
-    
+
     if status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND:
        # handle case where feature value has not been ingested
     elif status == GetOnlineFeaturesResponse.FieldStatus.PRESENT:
