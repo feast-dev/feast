@@ -12,7 +12,7 @@ feast:
         staging_location: gs://gcs_bucket/prefix
         initial_retry_delay_seconds: 1
         total_timeout_seconds: 21600
-        write_triggering_frequency_seconds: 600
+        write_triggering_frequency_seconds: 10
       subscriptions:
         - name: "*"
           project: "*"
@@ -21,4 +21,5 @@ feast:
     redis_port: 6379
   
 grpc:
-  port: 6567
+  server:
+    port: 6567
