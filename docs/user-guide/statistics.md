@@ -16,7 +16,7 @@ Statistics can be retrieved from Feast using the python SDK's `get_statistics` m
 
 Feature statistics can be retrieved for a single feature set, from a single valid warehouse store. Users can opt to either retrieve feature statistics for a discrete subset of data by providing an `ingestion_id` , a unique id generated for a dataset when it is ingested into feast:
 
-```text
+```python
 # A unique ingestion id is returned for each batch ingestion
 ingestion_id=client.ingest(feature_set,df)
 
@@ -29,7 +29,7 @@ stats = client.get_statistics(
 
 Or by selecting data within a time range by providing a `start_date` and `end_date` \(the start date is inclusive, the end date is not\):
 
-```text
+```python
 start_date=datetime(2020,10,1,0,0,0)
 end_date=datetime(2020,10,2,0,0,0)
 
@@ -49,7 +49,7 @@ Note that when providing a time range, Feast will NOT filter out duplicated rows
 
 Feast returns the statistics in the form of the protobuf [DatasetFeatureStatisticsList](https://github.com/tensorflow/metadata/blob/master/tensorflow_metadata/proto/v0/statistics.proto#L36), which can be subsequently passed to TFDV methods to [validate the dataset](https://www.tensorflow.org/tfx/data_validation/get_started#checking_the_data_for_errors)...
 
-```text
+```python
 anomalies = tfdv.validate_statistics(
     statistics=stats_2, schema=feature_set.export_tfx_schema())
 tfdv.display_anomalies(anomalies)
@@ -57,7 +57,7 @@ tfdv.display_anomalies(anomalies)
 
 Or [visualise the statistics](https://www.tensorflow.org/tfx/data_validation/get_started#computing_descriptive_data_statistics) in [facets](https://github.com/PAIR-code/facets).
 
-```text
+```python
 tfdv.visualize_statistics(stats)
 ```
 
@@ -67,7 +67,7 @@ Refer to the [example notebook](https://github.com/feast-dev/feast/blob/master/e
 
 Feast supports retrieval of feature statistics across multiple datasets or days.
 
-```text
+```python
 stats = client.get_statistics( 
     feature_set_id='project/feature_set', 
     store='warehouse', 
@@ -83,7 +83,7 @@ Refer to the table below for the list of statistics that will be dropped.
 
 Feast caches the results of all feature statistics requests, and will, by default, retrieve and return the cached results. To recompute previously computed feature statistics, set `force_refresh` to `true` when retrieving the statistics:
 
-```text
+```python
 stats=client.get_statistics(
     feature_set_id='project/feature_set',
     store='warehouse',
