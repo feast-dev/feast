@@ -20,8 +20,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
 import feast.core.config.FeastProperties;
 import feast.core.model.Project;
-import feast.core.service.AccessManagementService;
-import feast.core.service.JobService;
+import feast.core.service.ProjectService;
 import feast.core.service.SpecService;
 import feast.core.service.StatsService;
 import feast.proto.core.CoreServiceProto.GetFeastCoreVersionResponse;
@@ -61,22 +60,19 @@ public class CoreServiceRestController {
 
   private final FeastProperties feastProperties;
   private SpecService specService;
-  private JobService jobService;
   private StatsService statsService;
-  private AccessManagementService accessManagementService;
+  private ProjectService projectService;
 
   @Autowired
   public CoreServiceRestController(
       FeastProperties feastProperties,
       SpecService specService,
-      JobService jobService,
       StatsService statsService,
-      AccessManagementService accessManagementService) {
+      ProjectService projectService) {
     this.feastProperties = feastProperties;
     this.specService = specService;
-    this.jobService = jobService;
     this.statsService = statsService;
-    this.accessManagementService = accessManagementService;
+    this.projectService = projectService;
   }
 
   /**
@@ -192,7 +188,7 @@ public class CoreServiceRestController {
    */
   @RequestMapping(value = "/projects", method = RequestMethod.GET)
   public ListProjectsResponse listProjects() {
-    List<Project> projects = accessManagementService.listProjects();
+    List<Project> projects = projectService.listProjects();
     return ListProjectsResponse.newBuilder()
         .addAllProjects(projects.stream().map(Project::getName).collect(Collectors.toList()))
         .build();
