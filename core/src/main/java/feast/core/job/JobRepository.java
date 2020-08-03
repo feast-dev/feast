@@ -30,6 +30,7 @@ public interface JobRepository {
 
   List<Job> findByStatus(JobStatus status);
 
+  // find jobs that have given FeatureSet allocated to them
   List<Job> findByFeatureSetReference(FeatureSetReference reference);
 
   // find jobs that have at least one store with given name

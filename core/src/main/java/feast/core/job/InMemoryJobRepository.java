@@ -27,6 +27,12 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+/**
+ * Keeps state of all jobs managed by current application in memory. On start loads persistent state
+ * through JobManager from JobManager backend.
+ *
+ * <p>Provides flexible access to objects via JPA-like filtering API.
+ */
 @Component
 public class InMemoryJobRepository implements JobRepository {
   private final JobManager jobManager;

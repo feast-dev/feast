@@ -43,13 +43,13 @@ public abstract class Job {
     return status;
   }
 
-  // Source type and config, derieved from job's source and stored as inline fields.
+  // Source type and config, derived from job's source and stored as inline fields.
   public abstract SourceProto.Source getSource();
 
   // Sinks
   public abstract Map<String, StoreProto.Store> getStores();
 
-  // FeatureSets populated by the job via intermediate FeatureSetDeliveryStatus model
+  // Allocated FeatureSets' delivery statuses
   public abstract Map<FeatureSetReference, FeatureSetDeliveryStatus>
       getFeatureSetDeliveryStatuses();
 
