@@ -30,7 +30,8 @@ declare -a files_to_validate_version=(
   "infra/charts/feast/charts/feast-core/Chart.yaml,1,${FEAST_MASTER_VERSION}"
   "infra/charts/feast/charts/feast-serving/Chart.yaml,1,${FEAST_MASTER_VERSION}"
   "infra/charts/feast/charts/feast-jupyter/Chart.yaml,1,${FEAST_MASTER_VERSION}"
-  "infra/charts/feast/requirements.yaml,4,${FEAST_MASTER_VERSION}" # We are only testing for the version once
+  "infra/charts/feast/requirements.yaml,4,${FEAST_MASTER_VERSION}"
+  "infra/charts/feast/requirements.lock,4,${FEAST_RELEASE_VERSION}"
   "infra/docker-compose/.env.sample,1,${FEAST_RELEASE_VERSION}"
 )
 
@@ -47,14 +48,17 @@ for i in "${files_to_validate_version[@]}"; do
   echo "File contents:"
   echo "========================================================="
   cat "$FILE_PATH"
+  echo
   echo "========================================================="
   ACTUAL_OCCURRENCES=$(grep -c "$VERSION" "$FILE_PATH" || true)
 
   if [ "${ACTUAL_OCCURRENCES}" -eq "${EXPECTED_OCCURRENCES}" ]; then
     echo "SUCCESS"
+    echo
     echo "Expecting $EXPECTED_OCCURRENCES occurrences of $VERSION in $FILE_PATH, and found $ACTUAL_OCCURRENCES"
   else
     echo "FAILURE"
+    echo
     echo "Expecting $EXPECTED_OCCURRENCES occurrences of $VERSION in $FILE_PATH, but found $ACTUAL_OCCURRENCES"
     exit 1
   fi
