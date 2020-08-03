@@ -28,8 +28,14 @@ export FEAST_RELEASE_VERSION=${FEAST_RELEASE_VERSION_WITH_V:1}
 declare -a files_to_validate_version=(
   "infra/charts/feast/Chart.yaml,1,${FEAST_MASTER_VERSION}"
   "infra/charts/feast/charts/feast-core/Chart.yaml,1,${FEAST_MASTER_VERSION}"
+  "infra/charts/feast/charts/feast-core/values.yaml,1,${FEAST_RELEASE_VERSION}"
+  "infra/charts/feast/charts/feast-core/README.md,1,${FEAST_RELEASE_VERSION}"
   "infra/charts/feast/charts/feast-serving/Chart.yaml,1,${FEAST_MASTER_VERSION}"
+  "infra/charts/feast/charts/feast-jupyter/values.yaml,1,${FEAST_RELEASE_VERSION}"
+  "infra/charts/feast/charts/feast-jupyter/README.md,1,${FEAST_RELEASE_VERSION}"
   "infra/charts/feast/charts/feast-jupyter/Chart.yaml,1,${FEAST_MASTER_VERSION}"
+  "infra/charts/feast/charts/feast-serving/values.yaml,1,${FEAST_RELEASE_VERSION}"
+  "infra/charts/feast/charts/feast-serving/README.md,1,${FEAST_RELEASE_VERSION}"
   "infra/charts/feast/requirements.yaml,4,${FEAST_MASTER_VERSION}"
   "infra/charts/feast/requirements.lock,4,${FEAST_RELEASE_VERSION}"
   "infra/docker-compose/.env.sample,1,${FEAST_RELEASE_VERSION}"
@@ -62,5 +68,5 @@ for i in "${files_to_validate_version[@]}"; do
     echo "Expecting $EXPECTED_OCCURRENCES occurrences of $VERSION in $FILE_PATH, but found $ACTUAL_OCCURRENCES"
     exit 1
   fi
-    echo "========================================================="
+  echo "========================================================="
 done
