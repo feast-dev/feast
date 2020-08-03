@@ -1,16 +1,9 @@
 #!/usr/bin/env bash
 
-# This script will scan through a list of files to validate that all versions are consistent with the master version
+# This script will scan through a list of files to validate that all versions are consistent with
+# - Master version (could be snapshot)
+# - Highest stable commit (latest tag)
 set -e
-
-# List of files to validate
-declare -a files_to_validate=(
-  "infra/charts/feast/Chart.yaml"
-  "infra/charts/feast/charts/feast-core/Chart.yaml"
-  "infra/charts/feast/charts/feast-serving/Chart.yaml"
-  "infra/charts/feast/charts/feast-jupyter/Chart.yaml"
-  "infra/charts/feast/requirements.yaml" # We are only testing for the version once
-)
 
 # Determine the current Feast version from Maven (pom.xml)
 export FEAST_MASTER_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
@@ -19,20 +12,51 @@ export FEAST_MASTER_VERSION=$(mvn help:evaluate -Dexpression=project.version -q 
   exit 1
 }
 
+# Determine the highest released version from Git history
+FEAST_RELEASE_VERSION_WITH_V=$(git tag -l --sort -version:refname | head -n 1)
+export FEAST_RELEASE_VERSION=${FEAST_RELEASE_VERSION_WITH_V:1}
+[[ -z "$FEAST_RELEASE_VERSION" ]] && {
+  echo "$FEAST_RELEASE_VERSION is missing"
+  exit 1
+}
+
+# List of files to validate with master version (from pom.xml)
+# Structure is a comma separated list of structure
+# <File to validate>, <Amount of occurrences of specific version to look for>, <version to look for>
+#
+
+declare -a files_to_validate_version=(
+  "infra/charts/feast/Chart.yaml,1,${FEAST_MASTER_VERSION}"
+  "infra/charts/feast/charts/feast-core/Chart.yaml,1,${FEAST_MASTER_VERSION}"
+  "infra/charts/feast/charts/feast-serving/Chart.yaml,1,${FEAST_MASTER_VERSION}"
+  "infra/charts/feast/charts/feast-jupyter/Chart.yaml,1,${FEAST_MASTER_VERSION}"
+  "infra/charts/feast/requirements.yaml,4,${FEAST_MASTER_VERSION}" # We are only testing for the version once
+  "infra/docker-compose/.env.sample,1,${FEAST_RELEASE_VERSION}"
+)
+
 echo
-echo "Testing list of files to ensure they have the following version $FEAST_MASTER_VERSION"
+echo "Testing list of files to ensure they have the correct version"
 echo
 
-for i in "${files_to_validate[@]}"; do
+for i in "${files_to_validate_version[@]}"; do
+  IFS=',' read -r FILE_PATH EXPECTED_OCCURRENCES VERSION <<<"${i}"
   echo
   echo
-  echo "Testing whether versions are correctly set within file: $i"
+  echo "Testing whether versions are correctly set within file: $FILE_PATH"
   echo
   echo "File contents:"
   echo "========================================================="
-  cat "$i"
+  cat "$FILE_PATH"
   echo "========================================================="
-  grep -q "$FEAST_MASTER_VERSION" "$i"
-  echo "SUCCESS: Version found"
-  echo "========================================================="
+  ACTUAL_OCCURRENCES=$(grep -c "$VERSION" "$FILE_PATH" || true)
+
+  if [ "${ACTUAL_OCCURRENCES}" -eq "${EXPECTED_OCCURRENCES}" ]; then
+    echo "SUCCESS"
+    echo "Expecting $EXPECTED_OCCURRENCES occurrences of $VERSION in $FILE_PATH, and found $ACTUAL_OCCURRENCES"
+  else
+    echo "FAILURE"
+    echo "Expecting $EXPECTED_OCCURRENCES occurrences of $VERSION in $FILE_PATH, but found $ACTUAL_OCCURRENCES"
+    exit 1
+  fi
+    echo "========================================================="
 done
