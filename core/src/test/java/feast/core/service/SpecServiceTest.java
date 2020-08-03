@@ -606,7 +606,7 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void applyFeatureSetShouldUsedDefaultProjectIfUnspecified()
+  public void imputeProjectNameShouldSetDefaultProjectIfUnspecified()
       throws InvalidProtocolBufferException {
     Feature f3f1 = TestUtil.CreateFeature("f3f1", Enum.INT64);
     Feature f3f2 = TestUtil.CreateFeature("f3f2", Enum.INT64);
@@ -616,13 +616,9 @@ public class SpecServiceTest {
     FeatureSetProto.FeatureSet incomingFeatureSet =
         TestUtil.CreateFeatureSet("f3", "", Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1))
             .toProto();
-    ApplyFeatureSetResponse applyFeatureSetResponse =
-        specService.applyFeatureSet(incomingFeatureSet);
-    assertThat(applyFeatureSetResponse.getStatus(), equalTo(Status.CREATED));
-
-    assertThat(
-        applyFeatureSetResponse.getFeatureSet().getSpec().getProject(),
-        equalTo(Project.DEFAULT_NAME));
+    FeatureSetProto.FeatureSet imputedFeatureSet =
+        specService.imputeProjectName(incomingFeatureSet);
+    assertThat(imputedFeatureSet.getSpec().getProject(), equalTo(Project.DEFAULT_NAME));
   }
 
   @Test

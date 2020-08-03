@@ -30,6 +30,7 @@ import feast.core.service.SpecService;
 import feast.core.service.StatsService;
 import feast.proto.core.CoreServiceGrpc.CoreServiceImplBase;
 import feast.proto.core.CoreServiceProto.*;
+import feast.proto.core.FeatureSetProto.FeatureSet;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -187,9 +188,10 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     String projectId = null;
 
     try {
-      projectId = request.getFeatureSet().getSpec().getProject();
+      FeatureSet featureSet = specService.imputeProjectName(request.getFeatureSet());
+      projectId = featureSet.getSpec().getProject();
       authorizationService.authorizeRequest(SecurityContextHolder.getContext(), projectId);
-      ApplyFeatureSetResponse response = specService.applyFeatureSet(request.getFeatureSet());
+      ApplyFeatureSetResponse response = specService.applyFeatureSet(featureSet);
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (org.hibernate.exception.ConstraintViolationException e) {
