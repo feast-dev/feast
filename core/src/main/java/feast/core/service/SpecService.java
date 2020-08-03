@@ -37,6 +37,8 @@ import feast.proto.core.CoreServiceProto.ListFeaturesResponse;
 import feast.proto.core.CoreServiceProto.ListStoresRequest;
 import feast.proto.core.CoreServiceProto.ListStoresResponse;
 import feast.proto.core.CoreServiceProto.ListStoresResponse.Builder;
+import feast.proto.core.CoreServiceProto.UpdateFeatureSetStatusRequest;
+import feast.proto.core.CoreServiceProto.UpdateFeatureSetStatusResponse;
 import feast.proto.core.CoreServiceProto.UpdateStoreRequest;
 import feast.proto.core.CoreServiceProto.UpdateStoreResponse;
 import feast.proto.core.FeatureSetProto;
@@ -89,29 +91,33 @@ public class SpecService {
    */
   public GetFeatureSetResponse getFeatureSet(GetFeatureSetRequest request)
       throws InvalidProtocolBufferException {
+    FeatureSet featureSet = getFeatureSet(request.getProject(), request.getName());
 
+    return GetFeatureSetResponse.newBuilder().setFeatureSet(featureSet.toProto()).build();
+  }
+
+  private FeatureSet getFeatureSet(String projectName, String featureSetName) {
     // Validate input arguments
-    checkValidCharacters(request.getName(), "featureSetName");
+    checkValidCharacters(featureSetName, "featureSetName");
 
-    if (request.getName().isEmpty()) {
+    if (featureSetName.isEmpty()) {
       throw new IllegalArgumentException("No feature set name provided");
     }
     // Autofill default project if project is not specified
-    if (request.getProject().isEmpty()) {
-      request = request.toBuilder().setProject(Project.DEFAULT_NAME).build();
+    if (projectName.isEmpty()) {
+      projectName = Project.DEFAULT_NAME;
     }
 
     FeatureSet featureSet;
 
     featureSet =
-        featureSetRepository.findFeatureSetByNameAndProject_Name(
-            request.getName(), request.getProject());
+        featureSetRepository.findFeatureSetByNameAndProject_Name(featureSetName, projectName);
 
     if (featureSet == null) {
       throw new RetrievalException(
-          String.format("Feature set with name \"%s\" could not be found.", request.getName()));
+          String.format("Feature set with name \"%s\" could not be found.", featureSetName));
     }
-    return GetFeatureSetResponse.newBuilder().setFeatureSet(featureSet.toProto()).build();
+    return featureSet;
   }
 
   /**
@@ -138,6 +144,7 @@ public class SpecService {
     String name = filter.getFeatureSetName();
     String project = filter.getProject();
     Map<String, String> labelsFilter = filter.getLabelsMap();
+    FeatureSetStatus statusFilter = filter.getStatus();
 
     if (name.isEmpty()) {
       throw new IllegalArgumentException(
@@ -195,6 +202,10 @@ public class SpecService {
     if (featureSets.size() > 0) {
       featureSets =
           featureSets.stream()
+              .filter(
+                  featureSet ->
+                      statusFilter.equals(FeatureSetStatus.STATUS_INVALID)
+                          || featureSet.getStatus().equals(statusFilter))
               .filter(featureSet -> featureSet.hasAllLabels(labelsFilter))
               .collect(Collectors.toList());
       for (FeatureSet featureSet : featureSets) {
@@ -262,6 +273,18 @@ public class SpecService {
           .withCause(e)
           .asRuntimeException();
     }
+  }
+
+  /** Update FeatureSet's status by given FeatureSetReference and new status */
+  public UpdateFeatureSetStatusResponse updateFeatureSetStatus(
+      UpdateFeatureSetStatusRequest request) {
+    FeatureSet featureSet =
+        getFeatureSet(request.getReference().getProject(), request.getReference().getName());
+
+    featureSet.setStatus(request.getStatus());
+    featureSetRepository.saveAndFlush(featureSet);
+
+    return UpdateFeatureSetStatusResponse.newBuilder().build();
   }
 
   /**

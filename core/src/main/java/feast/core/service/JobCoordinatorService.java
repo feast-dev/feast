@@ -18,22 +18,24 @@ package feast.core.service;
 
 import static feast.common.models.Store.isSubscribedToFeatureSet;
 import static feast.core.model.FeatureSet.parseReference;
-import static feast.core.util.StreamUtil.wrapException;
 
 import com.google.common.collect.Sets;
+import com.google.protobuf.InvalidProtocolBufferException;
 import feast.common.models.FeatureSetReference;
 import feast.core.config.FeastProperties;
 import feast.core.config.FeastProperties.JobProperties;
-import feast.core.dao.FeatureSetRepository;
 import feast.core.job.*;
 import feast.core.job.task.*;
-import feast.core.model.*;
-import feast.core.model.FeatureSet;
+import feast.core.model.FeatureSetDeliveryStatus;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
+import feast.proto.core.CoreServiceProto;
 import feast.proto.core.CoreServiceProto.ListStoresRequest.Filter;
 import feast.proto.core.CoreServiceProto.ListStoresResponse;
 import feast.proto.core.FeatureSetProto;
+import feast.proto.core.FeatureSetProto.FeatureSet;
+import feast.proto.core.FeatureSetProto.FeatureSetSpec;
+import feast.proto.core.FeatureSetReferenceProto;
 import feast.proto.core.IngestionJobProto;
 import feast.proto.core.SourceProto.Source;
 import feast.proto.core.StoreProto.Store;
@@ -59,24 +61,21 @@ public class JobCoordinatorService {
   private final int SPEC_PUBLISHING_TIMEOUT_SECONDS = 5;
 
   private final JobRepository jobRepository;
-  private final FeatureSetRepository featureSetRepository;
   private final SpecService specService;
   private final JobManager jobManager;
   private final JobProperties jobProperties;
   private final JobGroupingStrategy groupingStrategy;
-  private final KafkaTemplate<String, FeatureSetProto.FeatureSetSpec> specPublisher;
+  private final KafkaTemplate<String, FeatureSetSpec> specPublisher;
 
   @Autowired
   public JobCoordinatorService(
       JobRepository jobRepository,
-      FeatureSetRepository featureSetRepository,
       SpecService specService,
       JobManager jobManager,
       FeastProperties feastProperties,
       JobGroupingStrategy groupingStrategy,
-      KafkaTemplate<String, FeatureSetProto.FeatureSetSpec> specPublisher) {
+      KafkaTemplate<String, FeatureSetSpec> specPublisher) {
     this.jobRepository = jobRepository;
-    this.featureSetRepository = featureSetRepository;
     this.specService = specService;
     this.jobManager = jobManager;
     this.jobProperties = feastProperties.getJobs();
@@ -236,7 +235,7 @@ public class JobCoordinatorService {
    */
   FeatureSet allocateFeatureSetToJobs(FeatureSet featureSet) {
     FeatureSetReference ref =
-        FeatureSetReference.of(featureSet.getProject().getName(), featureSet.getName());
+        FeatureSetReference.of(featureSet.getSpec().getProject(), featureSet.getSpec().getName());
     Set<String> confirmedJobIds = new HashSet<>();
 
     Stream<Pair<Source, Store>> jobArgsStream =
@@ -245,9 +244,9 @@ public class JobCoordinatorService {
                 s ->
                     isSubscribedToFeatureSet(
                         s.getSubscriptionsList(),
-                        featureSet.getProject().getName(),
-                        featureSet.getName()))
-            .map(s -> Pair.of(featureSet.getSource().toProto(), s));
+                        featureSet.getSpec().getProject(),
+                        featureSet.getSpec().getName()))
+            .map(s -> Pair.of(featureSet.getSpec().getSource(), s));
 
     // Add featureSet to allocated job if not allocated before
     for (Pair<Source, Set<Store>> jobArgs : groupingStrategy.collectSingleJobInput(jobArgsStream)) {
@@ -320,31 +319,47 @@ public class JobCoordinatorService {
    * @param store to get subscribed FeatureSets for
    * @return list of FeatureSets that the store subscribes to.
    */
-  private List<FeatureSetProto.FeatureSet> getFeatureSetsForStore(Store store) {
+  private List<FeatureSet> getFeatureSetsForStore(Store store) {
     return store.getSubscriptionsList().stream()
         .flatMap(
-            subscription ->
-                featureSetRepository
-                    .findAllByNameLikeAndProject_NameLikeOrderByNameAsc(
-                        subscription.getName().replace('*', '%'),
-                        subscription.getProject().replace('*', '%'))
-                    .stream())
+            subscription -> {
+              try {
+                return specService
+                    .listFeatureSets(
+                        CoreServiceProto.ListFeatureSetsRequest.Filter.newBuilder()
+                            .setProject(subscription.getProject())
+                            .setFeatureSetName(subscription.getName())
+                            .build())
+                    .getFeatureSetsList().stream();
+              } catch (InvalidProtocolBufferException e) {
+                throw new RuntimeException(
+                    String.format(
+                        "Couldn't fetch featureSets for subscription %s. Reason: %s",
+                        subscription, e.getMessage()));
+              }
+            })
         .distinct()
-        .map(wrapException(FeatureSet::toProto))
         .collect(Collectors.toList());
   }
 
   @Scheduled(fixedDelayString = "${feast.stream.specsOptions.notifyIntervalMilliseconds}")
-  public void notifyJobsWhenFeatureSetUpdated() {
+  public void notifyJobsWhenFeatureSetUpdated() throws InvalidProtocolBufferException {
     List<FeatureSet> pendingFeatureSets =
-        featureSetRepository.findAllByStatus(FeatureSetProto.FeatureSetStatus.STATUS_PENDING);
+        specService
+            .listFeatureSets(
+                CoreServiceProto.ListFeatureSetsRequest.Filter.newBuilder()
+                    .setProject("*")
+                    .setFeatureSetName("*")
+                    .setStatus(FeatureSetProto.FeatureSetStatus.STATUS_PENDING)
+                    .build())
+            .getFeatureSetsList();
 
     pendingFeatureSets.stream()
         .map(this::allocateFeatureSetToJobs)
         .map(
             fs -> {
               FeatureSetReference ref =
-                  FeatureSetReference.of(fs.getProject().getName(), fs.getName());
+                  FeatureSetReference.of(fs.getSpec().getProject(), fs.getSpec().getName());
               List<FeatureSetDeliveryStatus> deliveryStatuses =
                   jobRepository.findByFeatureSetReference(ref).stream()
                       .filter(Job::isRunning)
@@ -360,13 +375,17 @@ public class JobCoordinatorService {
                     && pair.getRight().stream()
                         .anyMatch(
                             jobStatus ->
-                                jobStatus.getDeliveredVersion() < pair.getLeft().getVersion()))
+                                jobStatus.getDeliveredVersion()
+                                    < pair.getLeft().getSpec().getVersion()))
         .forEach(
             pair -> {
               FeatureSet fs = pair.getLeft();
               List<FeatureSetDeliveryStatus> deliveryStatuses = pair.getRight();
 
-              log.info("Sending new FeatureSet {} to Ingestion", fs.getReference());
+              FeatureSetReference ref =
+                  FeatureSetReference.of(fs.getSpec().getProject(), fs.getSpec().getName());
+
+              log.info("Sending new FeatureSet {} to Ingestion", ref);
 
               // Sending latest version of FeatureSet to all currently running IngestionJobs
               // (there's one topic for all sets).
@@ -375,7 +394,7 @@ public class JobCoordinatorService {
               // again later.
               try {
                 specPublisher
-                    .sendDefault(fs.getReference(), fs.toProto().getSpec())
+                    .sendDefault(ref.getReference(), fs.getSpec())
                     .get(SPEC_PUBLISHING_TIMEOUT_SECONDS, TimeUnit.SECONDS);
               } catch (Exception e) {
                 log.error(
@@ -393,7 +412,7 @@ public class JobCoordinatorService {
                   jobStatus -> {
                     jobStatus.setDeliveryStatus(
                         FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS);
-                    jobStatus.setDeliveredVersion(fs.getVersion());
+                    jobStatus.setDeliveredVersion(fs.getSpec().getVersion());
                   });
             });
   }
@@ -412,13 +431,19 @@ public class JobCoordinatorService {
   @KafkaListener(
       topics = {"${feast.stream.specsOptions.specsAckTopic}"},
       containerFactory = "kafkaAckListenerContainerFactory")
-  public void listenAckFromJobs(
-      ConsumerRecord<String, IngestionJobProto.FeatureSetSpecAck> record) {
+  public void listenAckFromJobs(ConsumerRecord<String, IngestionJobProto.FeatureSetSpecAck> record)
+      throws InvalidProtocolBufferException {
     String setReference = record.key();
     Pair<String, String> projectAndSetName = parseReference(setReference);
     FeatureSet featureSet =
-        featureSetRepository.findFeatureSetByNameAndProject_Name(
-            projectAndSetName.getRight(), projectAndSetName.getLeft());
+        specService
+            .getFeatureSet(
+                CoreServiceProto.GetFeatureSetRequest.newBuilder()
+                    .setProject(projectAndSetName.getLeft())
+                    .setName(projectAndSetName.getRight())
+                    .build())
+            .getFeatureSet();
+
     if (featureSet == null) {
       log.warn(
           String.format("ACKListener received message for unknown FeatureSet %s", setReference));
@@ -427,18 +452,18 @@ public class JobCoordinatorService {
 
     int ackVersion = record.value().getFeatureSetVersion();
 
-    if (featureSet.getVersion() != ackVersion) {
+    if (featureSet.getSpec().getVersion() != ackVersion) {
       log.warn(
           String.format(
               "ACKListener received outdated ack for %s. Current %d, Received %d",
-              setReference, featureSet.getVersion(), ackVersion));
+              setReference, featureSet.getSpec().getVersion(), ackVersion));
       return;
     }
 
-    log.info("Updating featureSet {} delivery statuses.", featureSet.getReference());
-
     FeatureSetReference ref =
-        FeatureSetReference.of(featureSet.getProject().getName(), featureSet.getName());
+        FeatureSetReference.of(featureSet.getSpec().getProject(), featureSet.getSpec().getName());
+
+    log.info("Updating featureSet {} delivery statuses.", ref);
 
     jobRepository
         .findById(record.value().getJobName())
@@ -459,10 +484,17 @@ public class JobCoordinatorService {
                         .equals(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_DELIVERED));
 
     if (allDelivered) {
-      log.info("FeatureSet {} update is completely delivered", featureSet.getReference());
+      log.info("FeatureSet {} update is completely delivered", ref);
 
-      featureSet.setStatus(FeatureSetProto.FeatureSetStatus.STATUS_READY);
-      featureSetRepository.saveAndFlush(featureSet);
+      specService.updateFeatureSetStatus(
+          CoreServiceProto.UpdateFeatureSetStatusRequest.newBuilder()
+              .setReference(
+                  FeatureSetReferenceProto.FeatureSetReference.newBuilder()
+                      .setName(ref.getFeatureSetName())
+                      .setProject(ref.getProjectName())
+                      .build())
+              .setStatus(FeatureSetProto.FeatureSetStatus.STATUS_READY)
+              .build());
     }
   }
 }
