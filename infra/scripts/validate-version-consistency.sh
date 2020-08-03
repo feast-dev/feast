@@ -13,6 +13,7 @@ export FEAST_MASTER_VERSION=$(mvn help:evaluate -Dexpression=project.version -q 
 }
 
 # Determine the highest released version from Git history
+git fetch --prune --unshallow --tags || true
 FEAST_RELEASE_VERSION_WITH_V=$(git tag -l --sort -version:refname | head -n 1)
 echo $FEAST_RELEASE_VERSION_WITH_V
 
