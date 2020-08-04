@@ -5,7 +5,7 @@ on: [push]
 jobs:
   notebook-tests:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: ${{ secrets.GCP_PROJECT_ID != 0 }}
     strategy:
       matrix:
         notebook: [basic, churn_prediction, statistics]
