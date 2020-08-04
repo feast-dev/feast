@@ -1,11 +1,14 @@
 name: notebook
 
-on: [push]
+on:
+  push:
+    branches:
+      - "master"
+      - "**"
 
 jobs:
   notebook-tests:
     runs-on: ubuntu-latest
-    if: ${{ secrets.GCP_PROJECT_ID != 0 }}
     strategy:
       matrix:
         notebook: [basic, churn_prediction, statistics]
