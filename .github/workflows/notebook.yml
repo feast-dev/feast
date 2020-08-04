@@ -58,7 +58,8 @@ jobs:
           --output_bucket_name=${OUTPUT_BUCKET_NAME}
       - name: Print Docker logs
         run: cd infra/docker-compose && docker-compose logs -t
-      - name: Block shutdown
+      - name: Block shutdown of ngrok
+        if: always()
         run: |
           while [ "$(docker exec feast_jupyter_1 cat /tmp/block)" == "true" ]; do
             echo "Blocking the shutdown of ngrok and exiting of workflow."
