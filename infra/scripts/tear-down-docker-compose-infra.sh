@@ -18,6 +18,4 @@ cd "${PROJECT_ROOT_DIR}"/infra/docker-compose/
 docker-compose down
 
 # Delete BigQuery dataset only when execution is successful
-if [ "$?" -eq 0 ]; then
-  bq rm -r --project_id ${GCLOUD_PROJECT} --force "${BIGQUERY_DATASET_NAME}"
-fi
+bq rm -r --project_id ${GCLOUD_PROJECT} --force "${BIGQUERY_DATASET_NAME}"
