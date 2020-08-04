@@ -86,6 +86,10 @@ public class ServingServiceOauthAuthenticationIT extends BaseAuthIT {
 
   @Test
   public void shouldAllowUnauthenticatedGetOnlineFeatures() {
+    // apply feature set
+    CoreSimpleAPIClient coreClient =
+        AuthTestUtils.getSecureApiClientForCore(FEAST_CORE_PORT, options);
+    AuthTestUtils.applyFeatureSet(coreClient, PROJECT_NAME, ENTITY_ID, FEATURE_NAME);
     ServingServiceBlockingStub servingStub =
         AuthTestUtils.getServingServiceStub(false, FEAST_SERVING_PORT, null);
     GetOnlineFeaturesRequest onlineFeatureRequest =
