@@ -29,7 +29,9 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
       - name: Install dependencies
-        run: pip install pytest docker google-cloud-storage
+        run: |
+          pip install pytest docker google-cloud-storage
+          sudo apt-get install jq ngrok
       - name: Set TEST_RUN_ID
         run: echo ::set-env name=TEST_RUN_ID::action_${GITHUB_SHA}_${{ matrix.notebook }}
       - name: Set TEMP_BUCKET
@@ -40,6 +42,11 @@ jobs:
         run: |
           source infra/scripts/setup-common-functions.sh
           wait_for_docker_compose_running
+      - name: Start ngrok
+        run: |
+          ./ngrok http 8888 > /dev/null &
+          sleep 5
+          echo $(curl -s http://localhost:4040/api/tunnels | jq ".tunnels[0].public_url")
       - name: Get output notebook URL
         run: echo "https://nbviewer.jupyter.org/url/storage.googleapis.com/${OUTPUT_BUCKET_NAME}/${TEST_RUN_ID}/${{ matrix.notebook }}.ipynb?clear_cache=True"
       - name: Test notebook
@@ -50,5 +57,11 @@ jobs:
           --output_bucket_name=${OUTPUT_BUCKET_NAME}
       - name: Print Docker logs
         run: cd infra/docker-compose && docker-compose logs -t
+      - name: Block shutdown
+        run: |
+          while [ "$(cat /tmp/block)" == "true" ]; do
+            echo "Blocking the shutdown of ngrok and exiting of workflow."
+            sleep 10
+          done
       - name: Tear down Docker Compose
         run: ./infra/scripts/tear-down-docker-compose-infra.sh
