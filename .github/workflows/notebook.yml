@@ -31,7 +31,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install pytest docker google-cloud-storage
-          sudo apt-get install jq ngrok
+          sudo apt-get install jq
+          sudo snap install ngrok
       - name: Set TEST_RUN_ID
         run: echo ::set-env name=TEST_RUN_ID::action_${GITHUB_SHA}_${{ matrix.notebook }}
       - name: Set TEMP_BUCKET
