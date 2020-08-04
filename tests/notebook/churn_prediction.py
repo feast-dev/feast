@@ -11,4 +11,4 @@ def test_churn_prediction(output_bucket_name: str, test_run_id: str):
     # Run Jupyter notebook
     run_notebook(notebook_path, output_notebook_uri)
 
-    # # TODO: Add validation steps for notebook output data
+    # TODO: Add validation steps for notebook output data
