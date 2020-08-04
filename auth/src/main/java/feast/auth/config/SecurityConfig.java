@@ -83,13 +83,13 @@ public class SecurityConfig {
   }
 
   /**
-   * Creates an AccessDecisionManager if authentication is enabled. This object determines the
-   * policy used to make authentication decisions.
+   * Creates an AccessDecisionManager if authorization is enabled. This object determines the policy
+   * used to make authorization decisions.
    *
    * @return AccessDecisionManager
    */
   @Bean
-  @ConditionalOnProperty(prefix = "feast.security.authentication", name = "enabled")
+  @ConditionalOnProperty(prefix = "feast.security.authorization", name = "enabled")
   AccessDecisionManager accessDecisionManager() {
     final List<AccessDecisionVoter<?>> voters = new ArrayList<>();
     voters.add(new AccessPredicateVoter());
