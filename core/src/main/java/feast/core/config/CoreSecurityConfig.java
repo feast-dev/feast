@@ -17,6 +17,7 @@
 package feast.core.config;
 
 import feast.proto.core.CoreServiceGrpc;
+import io.grpc.health.v1.HealthGrpc;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.server.security.check.AccessPredicate;
 import net.devh.boot.grpc.server.security.check.GrpcSecurityMetadataSource;
@@ -48,6 +49,7 @@ public class CoreSecurityConfig {
     // The following endpoints allow unauthenticated access
     source.set(CoreServiceGrpc.getGetFeastCoreVersionMethod(), AccessPredicate.permitAll());
     source.set(CoreServiceGrpc.getUpdateStoreMethod(), AccessPredicate.permitAll());
+    source.set(HealthGrpc.getCheckMethod(), AccessPredicate.permitAll());
     return source;
   }
 }
