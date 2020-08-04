@@ -21,7 +21,6 @@ import feast.auth.credentials.OAuthCredentials;
 import feast.proto.serving.ServingServiceGrpc;
 import io.grpc.CallCredentials;
 import io.grpc.health.v1.HealthGrpc;
-
 import java.io.IOException;
 import net.devh.boot.grpc.server.security.check.AccessPredicate;
 import net.devh.boot.grpc.server.security.check.GrpcSecurityMetadataSource;

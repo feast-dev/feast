@@ -32,7 +32,6 @@ import feast.proto.core.*;
 import io.grpc.CallCredentials;
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
-import io.grpc.StatusRuntimeException;
 import java.util.*;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -121,18 +120,24 @@ public class CoreServiceAuthenticationIT extends BaseIT {
     assertEquals(feastProperties.getVersion(), feastCoreVersionSecure);
   }
 
+  /**
+   * If authentication is enabled but authorization is disabled, users can still connect to Feast
+   * Core as anonymous users. They are not forced to authenticate.
+   */
   @Test
-  public void shouldNotAllowUnauthenticatedFeatureSetListing() {
-    Exception exception =
-        assertThrows(
-            StatusRuntimeException.class,
-            () -> {
-              insecureApiClient.simpleListFeatureSets("*");
-            });
+  public void shouldAllowUnauthenticatedFeatureSetListing() {
+    FeatureSetProto.FeatureSet expectedFeatureSet = DataGenerator.getDefaultFeatureSet();
+    insecureApiClient.simpleApplyFeatureSet(expectedFeatureSet);
 
-    String expectedMessage = "UNAUTHENTICATED: Authentication failed";
-    String actualMessage = exception.getMessage();
-    assertEquals(actualMessage, expectedMessage);
+    List<FeatureSetProto.FeatureSet> listFeatureSetsResponse =
+        insecureApiClient.simpleListFeatureSets("*");
+    FeatureSetProto.FeatureSet actualFeatureSet = listFeatureSetsResponse.get(0);
+
+    assert listFeatureSetsResponse.size() == 1;
+    assertEquals(
+        actualFeatureSet.getSpec().getProject(), expectedFeatureSet.getSpec().getProject());
+    assertEquals(
+        actualFeatureSet.getSpec().getProject(), expectedFeatureSet.getSpec().getProject());
   }
 
   @Test
