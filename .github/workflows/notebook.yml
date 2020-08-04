@@ -39,15 +39,15 @@ jobs:
         run: echo ::set-env name=TEMP_BUCKET::gs://${OUTPUT_BUCKET_NAME}
       - name: Set up Feast with Docker Compose
         run: ./infra/scripts/setup-docker-compose-infra.sh
+      - name: Start ngrok
+        run: |
+          ngrok http 8888 > /dev/null &
+          sleep 5
+          echo $(curl -s http://localhost:4040/api/tunnels | jq ".tunnels[0].public_url")
       - name: Wait for Docker Compose to come online
         run: |
           source infra/scripts/setup-common-functions.sh
           wait_for_docker_compose_running
-      - name: Start ngrok
-        run: |
-          ./ngrok http 8888 > /dev/null &
-          sleep 5
-          echo $(curl -s http://localhost:4040/api/tunnels | jq ".tunnels[0].public_url")
       - name: Get output notebook URL
         run: echo "https://nbviewer.jupyter.org/url/storage.googleapis.com/${OUTPUT_BUCKET_NAME}/${TEST_RUN_ID}/${{ matrix.notebook }}.ipynb?clear_cache=True"
       - name: Test notebook
@@ -60,7 +60,7 @@ jobs:
         run: cd infra/docker-compose && docker-compose logs -t
       - name: Block shutdown
         run: |
-          while [ "$(cat /tmp/block)" == "true" ]; do
+          while [ "$(docker exec feast_jupyter_1 cat /tmp/block)" == "true" ]; do
             echo "Blocking the shutdown of ngrok and exiting of workflow."
             sleep 10
           done
