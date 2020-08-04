@@ -17,7 +17,6 @@
 package feast.serving.it;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.testcontainers.containers.wait.strategy.Wait.forHttp;
 
@@ -26,7 +25,6 @@ import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
 import feast.proto.types.ValueProto.Value;
 import io.grpc.ManagedChannel;
-import io.grpc.StatusRuntimeException;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
@@ -87,21 +85,21 @@ public class ServingServiceOauthAuthenticationIT extends BaseAuthIT {
   }
 
   @Test
-  public void shouldNotAllowUnauthenticatedGetOnlineFeatures() {
+  public void shouldAllowUnauthenticatedGetOnlineFeatures() {
+    // apply feature set
+    CoreSimpleAPIClient coreClient =
+        AuthTestUtils.getSecureApiClientForCore(FEAST_CORE_PORT, options);
+    AuthTestUtils.applyFeatureSet(coreClient, PROJECT_NAME, ENTITY_ID, FEATURE_NAME);
     ServingServiceBlockingStub servingStub =
         AuthTestUtils.getServingServiceStub(false, FEAST_SERVING_PORT, null);
     GetOnlineFeaturesRequest onlineFeatureRequest =
         AuthTestUtils.createOnlineFeatureRequest(PROJECT_NAME, FEATURE_NAME, ENTITY_ID, 1);
-    Exception exception =
-        assertThrows(
-            StatusRuntimeException.class,
-            () -> {
-              servingStub.getOnlineFeatures(onlineFeatureRequest);
-            });
-
-    String expectedMessage = "UNAUTHENTICATED: Authentication failed";
-    String actualMessage = exception.getMessage();
-    assertEquals(actualMessage, expectedMessage);
+    GetOnlineFeaturesResponse featureResponse = servingStub.getOnlineFeatures(onlineFeatureRequest);
+    assertEquals(1, featureResponse.getFieldValuesCount());
+    Map<String, Value> fieldsMap = featureResponse.getFieldValues(0).getFieldsMap();
+    assertTrue(fieldsMap.containsKey(ENTITY_ID));
+    assertTrue(fieldsMap.containsKey(FEATURE_NAME));
+    ((ManagedChannel) servingStub.getChannel()).shutdown();
   }
 
   @Test
