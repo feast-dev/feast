@@ -18,7 +18,10 @@ package feast.serving.config;
 
 import feast.auth.credentials.GoogleAuthCredentials;
 import feast.auth.credentials.OAuthCredentials;
+import feast.proto.serving.ServingServiceGrpc;
 import io.grpc.CallCredentials;
+import io.grpc.health.v1.HealthGrpc;
+
 import java.io.IOException;
 import net.devh.boot.grpc.server.security.check.AccessPredicate;
 import net.devh.boot.grpc.server.security.check.GrpcSecurityMetadataSource;
@@ -67,6 +70,10 @@ public class ServingSecurityConfig {
 
     // Authentication is enabled for all gRPC endpoints
     source.setDefault(AccessPredicate.authenticated());
+
+    // The following endpoints allow unauthenticated access
+    source.set(ServingServiceGrpc.getGetFeastServingInfoMethod(), AccessPredicate.permitAll());
+    source.set(HealthGrpc.getCheckMethod(), AccessPredicate.permitAll());
     return source;
   }
 
