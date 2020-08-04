@@ -10,6 +10,7 @@ jobs:
   notebook-tests:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         notebook: [basic, churn_prediction, statistics]
     env:
