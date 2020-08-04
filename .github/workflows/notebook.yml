@@ -11,7 +11,7 @@ jobs:
         notebook: [basic, churn_prediction, statistics]
     env:
       OUTPUT_BUCKET_NAME: feast-test-notebook-artifacts
-      FEAST_VERSION: ${{ env.GITHUB_SHA }}
+      FEAST_VERSION: ${{ github.sha }}
       ALLOW_DELETE_BQ_DATASET: true
     steps:
       - uses: actions/checkout@v2
