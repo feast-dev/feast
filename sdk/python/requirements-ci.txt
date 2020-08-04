@@ -9,8 +9,12 @@ pytest-mock
 pytest-timeout
 pytest-ordering==0.6.*
 pandas~=1.0.0
+polling
 mock==2.0.0
 pandavro==1.5.*
 moto
 mypy
 mypy-protobuf
+papermill[gcs]
+ipykernel
+jupyter-client>=6.1.5

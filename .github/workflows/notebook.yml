@@ -1,0 +1,50 @@
+name: notebook
+
+on: [push]
+
+jobs:
+  notebook-tests:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    strategy:
+      matrix:
+        notebook: [basic, churn_prediction, statistics]
+    env:
+      OUTPUT_BUCKET_NAME: feast-test-notebook-artifacts
+      FEAST_VERSION: ${{ env.GITHUB_SHA }}
+      ALLOW_DELETE_BQ_DATASET: true
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+      - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        with:
+          version: '290.0.1'
+          export_default_credentials: true
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+      - name: Install dependencies
+        run: pip install pytest docker google-cloud-storage
+      - name: Set TEST_RUN_ID
+        run: echo ::set-env name=TEST_RUN_ID::action_${GITHUB_SHA}_${{ matrix.notebook }}
+      - name: Set TEMP_BUCKET
+        run: echo ::set-env name=TEMP_BUCKET::gs://${OUTPUT_BUCKET_NAME}
+      - name: Set up Feast with Docker Compose
+        run: ./infra/scripts/setup-docker-compose-infra.sh
+      - name: Wait for Docker Compose to come online
+        run: |
+          source infra/scripts/setup-common-functions.sh
+          wait_for_docker_compose_running
+      - name: Get output notebook URL
+        run: echo "https://nbviewer.jupyter.org/url/storage.googleapis.com/${OUTPUT_BUCKET_NAME}/${TEST_RUN_ID}/${{ matrix.notebook }}.ipynb?clear_cache=True"
+      - name: Test notebook
+        run: |
+          python -m pytest --verbose --color=yes \
+          tests/notebook/${{ matrix.notebook }}.py \
+          --test_run_id=${TEST_RUN_ID} \
+          --output_bucket_name=${OUTPUT_BUCKET_NAME}
+      - name: Print Docker logs
+        run: cd infra/docker-compose && docker-compose logs -t
+      - name: Tear down Docker Compose
+        run: ./infra/scripts/tear-down-docker-compose-infra.sh

@@ -37,6 +37,7 @@ REQUIRED = [
     "pandavro==1.5.*",
     "protobuf>=3.10",
     "PyYAML==5.1.*",
+    "polling",
     "fastavro>=0.22.11,<0.23",
     "kafka-python==1.*",
     "tabulate==0.8.*",

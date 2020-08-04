@@ -131,10 +131,13 @@ $1
 "
 }
 
-wait_for_docker_image(){
+wait_for_docker_image() {
   # This script will block until a docker image is ready
 
-  [[ -z "$1" ]] && { echo "Please pass the docker image URI as the first parameter" ; exit 1; }
+  [[ -z "$1" ]] && {
+    echo "Please pass the docker image URI as the first parameter"
+    exit 1
+  }
   oldopt=$-
   set +e
 
@@ -143,18 +146,42 @@ wait_for_docker_image(){
   maximum_poll_count=150
 
   # Wait for Feast Core to be available on GCR
-  until docker pull "$DOCKER_IMAGE"
-  do
+  until docker pull "$DOCKER_IMAGE"; do
     # Exit when we have tried enough times
     if [[ "$poll_count" -gt "$maximum_poll_count" ]]; then
-         set -$oldopt
-         exit 1
+      set -$oldopt
+      exit 1
     fi
     # Sleep and increment counter on failure
-    echo "${DOCKER_IMAGE} could not be found";
-    sleep 5;
+    echo "${DOCKER_IMAGE} could not be found"
+    sleep 5
     ((poll_count++))
   done
 
   set -$oldopt
+}
+
+wait_for_docker_compose_running() {
+  until docker ps | grep core; do
+    sleep 3
+    echo "Waiting for Docker Compose to start containers"
+  done
+
+  # Get Feast Core container IP address
+  export FEAST_CORE_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_core_1)
+
+  # Wait for Feast Core to be ready
+  ${PROJECT_ROOT_DIR}/infra/scripts/wait-for-it.sh ${FEAST_CORE_CONTAINER_IP_ADDRESS}:6565 --timeout=120
+
+  # Get Feast Online Serving container IP address
+  export FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_online_serving_1)
+
+  # Wait for Feast Online Serving to be ready
+  ${PROJECT_ROOT_DIR}/infra/scripts/wait-for-it.sh ${FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS}:6566 --timeout=120
+
+  # Get Feast Historical Serving container IP address
+  export FEAST_HISTORICAL_SERVING_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_historical_serving_1)
+
+  # Wait for Feast Historical Serving to be ready
+  ${PROJECT_ROOT_DIR}/infra/scripts/wait-for-it.sh ${FEAST_HISTORICAL_SERVING_CONTAINER_IP_ADDRESS}:6567 --timeout=120
 }
