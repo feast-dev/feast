@@ -375,7 +375,7 @@ public class SpecService {
   }
 
   /**
-   * sets project to 'default' if project is not specified in featureSet
+   * Sets project to 'default' if project is not specified in feature set
    *
    * @param featureSet Feature set which needs to be imputed with default project.
    */
