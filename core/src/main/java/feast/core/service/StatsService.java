@@ -129,6 +129,9 @@ public class StatsService {
         List<FeatureNameStatistics> featureNameStatistics =
             getFeatureNameStatisticsByDate(
                 statisticsRetriever, featureSet, features, timestamp, request.getForceRefresh());
+        if (featureNameStatistics.size() != 0) {
+          featureNameStatisticsList.add(featureNameStatistics);
+        }
         featureNameStatisticsList.add(featureNameStatistics);
         timestamp += 86400; // advance by a day
       }
@@ -147,13 +150,15 @@ public class StatsService {
         List<FeatureNameStatistics> featureNameStatistics =
             getFeatureNameStatisticsByDataset(
                 statisticsRetriever, featureSet, features, datasetId, request.getForceRefresh());
-        featureNameStatisticsList.add(featureNameStatistics);
-        if (featureNameStatisticsList.size() == 0) {
-          throw new RetrievalException(
-              String.format(
-                  "Unable to find any data over provided data sets %s",
-                  request.getIngestionIdsList()));
+        if (featureNameStatistics.size() != 0) {
+          featureNameStatisticsList.add(featureNameStatistics);
         }
+      }
+      if (featureNameStatisticsList.size() == 0) {
+        throw new RetrievalException(
+            String.format(
+                "Unable to find any data over provided data sets %s",
+                request.getIngestionIdsList()));
       }
     }
 
