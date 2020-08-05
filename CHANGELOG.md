@@ -18,6 +18,7 @@
 - Fix Online Serving unable to retrieve feature data after Feature Set update. [\#908](https://github.com/feast-dev/feast/pull/908) ([mrzzy](https://github.com/mrzzy))
 - Fix Python SDK ingestion for featureset name that exist in multiple projects [\#868](https://github.com/feast-dev/feast/pull/868) ([terryyylim](https://github.com/terryyylim))
 - Backport delay in Redis acknowledgement of spec [\#915](https://github.com/feast-dev/feast/pull/915) ([woop](https://github.com/woop))
+- Allow unauthenticated access when Authorization is disabled and to Health Probe [\#927](https://github.com/feast-dev/feast/pull/927) ([mrzzy](https://github.com/mrzzy))
 
 **Merged pull requests:**
 
