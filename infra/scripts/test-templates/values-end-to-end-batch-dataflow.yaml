@@ -20,7 +20,7 @@ feast-core:
           specsAckTopic: $SPECS_TOPIC-ack
       jobs:
         active_runner: dataflow
-
+        consolidate-jobs-per-source: true
         runners:
         - name: dataflow
           type: DataflowRunner
