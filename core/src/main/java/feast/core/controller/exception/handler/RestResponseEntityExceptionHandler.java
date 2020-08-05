@@ -52,13 +52,28 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
   }
 
   /**
+   * Handles the case that retrieval of information from the services triggered and exception.
+   * Instead of returning 500 with no error message, returns 500 with a body describing the error
+   * message.
+   *
+   * @param ex the {@link RetrievalException} that occurred.
+   * @param request the {@link WebRequest} that caused this exception.
+   * @return (500 Internal Server Error)
+   */
+  @ExceptionHandler({RetrievalException.class})
+  protected ResponseEntity<Object> handleRetrieval(RetrievalException ex, WebRequest request) {
+    Map<String, String> bodyOfResponse = Map.of("error", ex.getMessage());
+    return handleExceptionInternal(
+        ex, bodyOfResponse, new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, request);
+  }
+
+  /**
    * Handles various exceptions that are due to malformed or invalid requests, such as
    *
    * <ul>
    *   <li>{@link UnsatisfiedServletRequestParameterException} where a parameter is requested in
    *       {@link org.springframework.web.bind.annotation.RequestMapping} but not supplied.
    *   <li>{@link IllegalArgumentException} where unsupported parameters are provided.
-   *   <li>{@link RetrievalException} where a store specified is not
    * </ul>
    *
    * @param ex the {@link UnsatisfiedServletRequestParameterException} that occurred.
@@ -67,8 +82,7 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
    */
   @ExceptionHandler({
     UnsatisfiedServletRequestParameterException.class,
-    IllegalArgumentException.class,
-    RetrievalException.class
+    IllegalArgumentException.class
   })
   protected ResponseEntity<Object> handleBadRequest(Exception ex, WebRequest request) {
     ex.printStackTrace();
