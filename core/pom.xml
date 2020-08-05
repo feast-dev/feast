@@ -221,7 +221,7 @@
         <dependency>
             <groupId>com.google.apis</groupId>
             <artifactId>google-api-services-dataflow</artifactId>
-            <version>v1b3-rev266-1.25.0</version>
+            <version>v1b3-rev20200305-1.30.9</version>
         </dependency>
         <dependency>
             <groupId>org.hibernate</groupId>
