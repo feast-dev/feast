@@ -114,8 +114,8 @@ grpc:
     port: ${GRPC_PORT:6566}
     security:
       enabled: false
-      certificateChainPath: server.crt
-      privateKeyPath: server.key
+      certificateChain: server.crt
+      privateKey: server.key
 
 server:
   # The port number on which the Tomcat webserver that serves REST API endpoints should listen
