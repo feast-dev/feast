@@ -162,12 +162,7 @@ public class CoreServiceAuthenticationIT extends BaseIT {
     SimpleAPIClient secureApiClient =
         getSecureApiClient("AuthenticatedUserWithoutAuthorization@example.com");
     FeatureSetProto.FeatureSet expectedFeatureSet =
-        DataGenerator.createFeatureSet(
-            DataGenerator.getDefaultSource(),
-            "project_1",
-            "test_1",
-            Collections.emptyList(),
-            Collections.emptyList());
+        DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), "project_1", "test_1");
 
     secureApiClient.simpleApplyFeatureSet(expectedFeatureSet);
 

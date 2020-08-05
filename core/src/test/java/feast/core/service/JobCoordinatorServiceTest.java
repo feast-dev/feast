@@ -136,12 +136,8 @@ public class JobCoordinatorServiceTest {
     Source source1 = DataGenerator.createSource("servers:9092", "topic");
     Source source2 = DataGenerator.createSource("others.servers:9092", "topic");
 
-    FeatureSet featureSet1 =
-        DataGenerator.createFeatureSet(
-            source1, "project1", "features1", Collections.emptyList(), Collections.emptyList());
-    FeatureSet featureSet2 =
-        DataGenerator.createFeatureSet(
-            source2, "project1", "features2", Collections.emptyList(), Collections.emptyList());
+    FeatureSet featureSet1 = DataGenerator.createFeatureSet(source1, "project1", "features1");
+    FeatureSet featureSet2 = DataGenerator.createFeatureSet(source2, "project1", "features2");
 
     when(specService.listFeatureSets(
             Filter.newBuilder().setFeatureSetName("*").setProject("project1").build()))
@@ -174,12 +170,8 @@ public class JobCoordinatorServiceTest {
     Source source1 = DataGenerator.createSource("servers:9092", "topic");
     Source source2 = DataGenerator.createSource("other.servers:9092", "topic");
 
-    FeatureSet featureSet1 =
-        DataGenerator.createFeatureSet(
-            source1, "default", "feature1", Collections.emptyList(), Collections.emptyList());
-    FeatureSet featureSet2 =
-        DataGenerator.createFeatureSet(
-            source2, "default", "feature2", Collections.emptyList(), Collections.emptyList());
+    FeatureSet featureSet1 = DataGenerator.createFeatureSet(source1, "default", "feature1");
+    FeatureSet featureSet2 = DataGenerator.createFeatureSet(source2, "default", "feature2");
 
     when(specService.listFeatureSets(
             Filter.newBuilder().setFeatureSetName("features1").setProject("*").build()))
@@ -276,9 +268,7 @@ public class JobCoordinatorServiceTest {
 
     Source source = DataGenerator.createSource("servers:9092", "topic");
 
-    FeatureSet featureSet =
-        DataGenerator.createFeatureSet(
-            source, "default", "features1", Collections.emptyList(), Collections.emptyList());
+    FeatureSet featureSet = DataGenerator.createFeatureSet(source, "default", "features1");
 
     when(specService.listFeatureSets(
             Filter.newBuilder().setFeatureSetName("*").setProject("*").build()))

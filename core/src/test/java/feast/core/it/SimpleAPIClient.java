@@ -17,7 +17,10 @@
 package feast.core.it;
 
 import feast.proto.core.*;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 public class SimpleAPIClient {
   private CoreServiceGrpc.CoreServiceBlockingStub stub;
@@ -31,15 +34,42 @@ public class SimpleAPIClient {
         CoreServiceProto.ApplyFeatureSetRequest.newBuilder().setFeatureSet(featureSet).build());
   }
 
-  public List<FeatureSetProto.FeatureSet> simpleListFeatureSets(String name) {
+  public List<FeatureSetProto.FeatureSet> simpleListFeatureSets(
+      String projectName, String featureSetName, Map<String, String> labels) {
     return stub.listFeatureSets(
             CoreServiceProto.ListFeatureSetsRequest.newBuilder()
                 .setFilter(
                     CoreServiceProto.ListFeatureSetsRequest.Filter.newBuilder()
-                        .setFeatureSetName(name)
+                        .setProject(projectName)
+                        .setFeatureSetName(featureSetName)
+                        .putAllLabels(labels)
                         .build())
                 .build())
         .getFeatureSetsList();
+  }
+
+  public List<FeatureSetProto.FeatureSet> simpleListFeatureSets(
+      String projectName, String featureSetName, FeatureSetProto.FeatureSetStatus status) {
+    return stub.listFeatureSets(
+            CoreServiceProto.ListFeatureSetsRequest.newBuilder()
+                .setFilter(
+                    CoreServiceProto.ListFeatureSetsRequest.Filter.newBuilder()
+                        .setProject(projectName)
+                        .setFeatureSetName(featureSetName)
+                        .setStatus(status)
+                        .build())
+                .build())
+        .getFeatureSetsList();
+  }
+
+  public List<FeatureSetProto.FeatureSet> simpleListFeatureSets(
+      String projectName, String featureSetName) {
+    return simpleListFeatureSets(
+        projectName, featureSetName, FeatureSetProto.FeatureSetStatus.STATUS_INVALID);
+  }
+
+  public List<FeatureSetProto.FeatureSet> simpleListFeatureSets(String featureSetName) {
+    return simpleListFeatureSets("default", featureSetName);
   }
 
   public FeatureSetProto.FeatureSet simpleGetFeatureSet(String projectName, String name) {
@@ -49,6 +79,38 @@ public class SimpleAPIClient {
                 .setProject(projectName)
                 .build())
         .getFeatureSet();
+  }
+
+  public void updateFeatureSetStatus(
+      String projectName, String name, FeatureSetProto.FeatureSetStatus status) {
+    stub.updateFeatureSetStatus(
+        CoreServiceProto.UpdateFeatureSetStatusRequest.newBuilder()
+            .setReference(
+                FeatureSetReferenceProto.FeatureSetReference.newBuilder()
+                    .setProject(projectName)
+                    .setName(name)
+                    .build())
+            .setStatus(status)
+            .build());
+  }
+
+  public Map<String, FeatureSetProto.FeatureSpec> simpleListFeatures(
+      String projectName, Map<String, String> labels, List<String> entities) {
+    return stub.listFeatures(
+            CoreServiceProto.ListFeaturesRequest.newBuilder()
+                .setFilter(
+                    CoreServiceProto.ListFeaturesRequest.Filter.newBuilder()
+                        .setProject(projectName)
+                        .addAllEntities(entities)
+                        .putAllLabels(labels)
+                        .build())
+                .build())
+        .getFeaturesMap();
+  }
+
+  public Map<String, FeatureSetProto.FeatureSpec> simpleListFeatures(
+      String projectName, String... entities) {
+    return simpleListFeatures(projectName, Collections.emptyMap(), Arrays.asList(entities));
   }
 
   public void updateStore(StoreProto.Store store) {
