@@ -61,7 +61,8 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
   public <ReqT, RespT> Listener<ReqT> interceptCall(
       ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
     MessageAuditLogEntry.Builder entryBuilder = MessageAuditLogEntry.newBuilder();
-    // default response message to empty proto in log entry.
+    // default request/response message to empty proto in log entry.
+    entryBuilder.setRequest(Empty.newBuilder().build());
     entryBuilder.setResponse(Empty.newBuilder().build());
 
     // Unpack service & method name from call
