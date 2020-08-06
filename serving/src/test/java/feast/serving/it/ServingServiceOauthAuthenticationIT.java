@@ -20,6 +20,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.testcontainers.containers.wait.strategy.Wait.forHttp;
 
+import com.squareup.okhttp.OkHttpClient;
+import com.squareup.okhttp.Request;
+import com.squareup.okhttp.Response;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
@@ -35,6 +38,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.runners.model.InitializationError;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.containers.DockerComposeContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -43,6 +48,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 @ActiveProfiles("it")
 @SpringBootTest(
+    webEnvironment = WebEnvironment.RANDOM_PORT,
     properties = {
       "feast.core-authentication.enabled=true",
       "feast.core-authentication.provider=oauth",
@@ -55,6 +61,7 @@ public class ServingServiceOauthAuthenticationIT extends BaseAuthIT {
   static final Map<String, String> options = new HashMap<>();
 
   static final int FEAST_SERVING_PORT = 6566;
+  @LocalServerPort private int metricsPort;
 
   @ClassRule @Container
   public static DockerComposeContainer environment =
@@ -82,6 +89,19 @@ public class ServingServiceOauthAuthenticationIT extends BaseAuthIT {
     options.put("jwkEndpointURI", JWK_URI);
     options.put("audience", AUDIENCE);
     options.put("grant_type", GRANT_TYPE);
+  }
+
+  /** Test that Feast Serving metrics endpoint can be accessed with authentication enabled */
+  @Test
+  public void shouldAllowUnauthenticatedAccessToMetricsEndpoint() throws IOException {
+    Request request =
+        new Request.Builder()
+            .url(String.format("http://localhost:%d/metrics", metricsPort))
+            .get()
+            .build();
+    Response response = new OkHttpClient().newCall(request).execute();
+    assertTrue(response.isSuccessful());
+    assertTrue(!response.body().string().isEmpty());
   }
 
   @Test
