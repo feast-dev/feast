@@ -132,7 +132,6 @@ public class StatsService {
         if (featureNameStatistics.size() != 0) {
           featureNameStatisticsList.add(featureNameStatistics);
         }
-        featureNameStatisticsList.add(featureNameStatistics);
         timestamp += 86400; // advance by a day
       }
       if (featureNameStatisticsList.size() == 0) {
