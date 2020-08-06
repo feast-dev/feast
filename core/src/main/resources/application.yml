@@ -113,8 +113,8 @@ grpc:
     port: 6565
     security:
       enabled: false
-      certificateChainPath: server.crt
-      privateKeyPath: server.key
+      certificateChain: server.crt
+      privateKey: server.key
       
 spring:
   jpa:
