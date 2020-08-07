@@ -312,15 +312,6 @@ public class SpecService {
   @Transactional
   public ApplyFeatureSetResponse applyFeatureSet(FeatureSetProto.FeatureSet newFeatureSet)
       throws InvalidProtocolBufferException {
-    // Autofill default project if not specified
-    if (newFeatureSet.getSpec().getProject().isEmpty()) {
-      newFeatureSet =
-          newFeatureSet
-              .toBuilder()
-              .setSpec(newFeatureSet.getSpec().toBuilder().setProject(Project.DEFAULT_NAME).build())
-              .build();
-    }
-
     // Validate incoming feature set
     FeatureSetValidator.validateSpec(newFeatureSet);
 
@@ -381,6 +372,21 @@ public class SpecService {
         .setFeatureSet(featureSet.toProto())
         .setStatus(status)
         .build();
+  }
+
+  /**
+   * Sets project to 'default' if project is not specified in feature set
+   *
+   * @param featureSet Feature set which needs to be imputed with default project.
+   */
+  public FeatureSetProto.FeatureSet imputeProjectName(FeatureSetProto.FeatureSet featureSet) {
+    if (featureSet.getSpec().getProject().isEmpty()) {
+      return featureSet
+          .toBuilder()
+          .setSpec(featureSet.getSpec().toBuilder().setProject(Project.DEFAULT_NAME).build())
+          .build();
+    }
+    return featureSet;
   }
 
   /**
