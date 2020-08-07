@@ -16,7 +16,6 @@
  */
 package feast.common.logging.interceptors;
 
-import com.google.protobuf.Empty;
 import com.google.protobuf.Message;
 import feast.common.auth.config.SecurityProperties;
 import feast.common.auth.config.SecurityProperties.AuthenticationProperties;
@@ -61,10 +60,6 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
   public <ReqT, RespT> Listener<ReqT> interceptCall(
       ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
     MessageAuditLogEntry.Builder entryBuilder = MessageAuditLogEntry.newBuilder();
-    // default request/response message to empty proto in log entry.
-    entryBuilder.setRequest(Empty.newBuilder().build());
-    entryBuilder.setResponse(Empty.newBuilder().build());
-
     // Unpack service & method name from call
     // full method name is in format <classpath>.<Service>/<Method>
     String fullMethodName = call.getMethodDescriptor().getFullMethodName();
@@ -78,22 +73,25 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
     entryBuilder.setIdentity(identity);
 
     // Register forwarding call to intercept outgoing response and log to audit log
+    // As sendMessage(), close() and onMessage() may not be called in order (async)
+    // add a try log message call to each so that message logging would not
+    // depend on the calls to made in a specific order.
     call =
         new SimpleForwardingServerCall<ReqT, RespT>(call) {
           @Override
           public void sendMessage(RespT message) {
-            // 2. Track the response & Log entry to audit logger
+            // Track the response & Log entry to audit logger
             super.sendMessage(message);
             entryBuilder.setResponse((Message) message);
+            tryLogMessage(entryBuilder);
           }
 
           @Override
           public void close(Status status, Metadata trailers) {
             super.close(status, trailers);
-            // 3. Log the message log entry to the audit log
-            Level logLevel = (status.isOk()) ? Level.INFO : Level.ERROR;
+            // Log the message log entry to the audit log
             entryBuilder.setStatusCode(status.getCode());
-            AuditLogger.logMessage(logLevel, entryBuilder);
+            tryLogMessage(entryBuilder);
           }
         };
 
@@ -103,8 +101,9 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
       // Register listener to intercept incoming request messages and log to audit log
       public void onMessage(ReqT message) {
         super.onMessage(message);
-        // 1. Track the request.
+        // Track the request.
         entryBuilder.setRequest((Message) message);
+        tryLogMessage(entryBuilder);
       }
     };
   }

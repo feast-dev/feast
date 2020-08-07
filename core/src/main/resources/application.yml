@@ -57,7 +57,7 @@ feast:
       # Whether audit logging is enabled. 
       enabled: true
       # Whether to enable message level (ie request/response) audit logging
-      messageLoggingEnabled: false
+      messageLoggingEnabled: true
 
 grpc:
   server:
