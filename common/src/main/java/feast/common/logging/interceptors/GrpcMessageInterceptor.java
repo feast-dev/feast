@@ -22,6 +22,7 @@ import feast.common.auth.config.SecurityProperties;
 import feast.common.auth.config.SecurityProperties.AuthenticationProperties;
 import feast.common.auth.utils.AuthUtils;
 import feast.common.logging.AuditLogger;
+import feast.common.logging.config.LoggingProperties;
 import feast.common.logging.entry.MessageAuditLogEntry;
 import io.grpc.ForwardingServerCall.SimpleForwardingServerCall;
 import io.grpc.ForwardingServerCallListener.SimpleForwardingServerCallListener;
@@ -48,18 +49,27 @@ import org.springframework.stereotype.Component;
 @Component
 public class GrpcMessageInterceptor implements ServerInterceptor {
   private SecurityProperties securityProperties;
+  private LoggingProperties loggingProperties;
+
   /**
-   * Construct GrpcMessageIntercetor. If provided securityProperties, will output the subject claim
-   * specified in securityProperties as identity in {@link MessageAuditLogEntry} instead.
+   * Construct GrpcMessageIntercetor. 
+   * @param loggingProperties properties used to configure logging interceptor.
+   * @param securityProperties If provided, will output the subject claim specified in securityProperties as identity in {@link MessageAuditLogEntry} instead.
    */
   @Autowired
-  public GrpcMessageInterceptor(@Nullable SecurityProperties securityProperties) {
+  public GrpcMessageInterceptor(LoggingProperties loggingProperties,@Nullable SecurityProperties securityProperties) {
     this.securityProperties = securityProperties;
+    this.loggingProperties = loggingProperties;
   }
 
   @Override
   public <ReqT, RespT> Listener<ReqT> interceptCall(
       ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+    // Disable the message logging interceptor entirely if message logging is disabled.
+    if (!loggingProperties.getAudit().isMessageLoggingEnabled()) {
+      return next.startCall(call, headers);
+    }
+
     MessageAuditLogEntry.Builder entryBuilder = MessageAuditLogEntry.newBuilder();
     // default response message to empty proto in log entry.
     entryBuilder.setResponse(Empty.newBuilder().build());
