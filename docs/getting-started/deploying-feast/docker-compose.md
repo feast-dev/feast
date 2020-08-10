@@ -35,7 +35,7 @@ docker-compose up -d
 
 Once Feast comes up you should be able to connect to a local Jupyter notebook that contains Feast examples. This may take a few minutes.
 
-{% embed url="http://localhost:8888/tree?" %}
+{% embed url="http://localhost:8888/tree?" caption="" %}
 
 ## 3. Start Feast for Training and Online Serving
 
@@ -104,7 +104,5 @@ docker-compose up -d
 
 Once Feast comes up you should be able to connect to a local Jupyter notebook that contains Feast examples. This may take a few minutes.
 
-{% embed url="http://localhost:8888/tree?" %}
-
-## 
+{% embed url="http://localhost:8888/tree?" caption="" %}
 

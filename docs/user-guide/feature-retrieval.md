@@ -189,5 +189,3 @@ for feature in features:
 | PRESENT | Set values are returned for the requested feature. |
 | UNKNOWN | Status signifies the field status is unset for the requested feature. Might mean that the Feast version does not support Field Statuses |
 
-
-
