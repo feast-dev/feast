@@ -6,19 +6,23 @@
 
 [GitHub Milestone](https://github.com/feast-dev/feast/milestone/4)
 
-### New functionality
+### **New Functionality**
 
 1. Entities as a first-class concept [\#405](https://github.com/feast-dev/feast/issues/405)
-2. Datasets as a first-class concept \(TBD\)
+2. ~~Datasets as a first-class concept~~ \(pushed out\)
 3. Feast UI \(MVP\)
 4. Native SDK types instead of proto types
+5. Audit log support
+6. Request/response logging for online serving
 
-### Technical debt, refactoring, or housekeeping
+### **Technical debt, refactoring, or housekeeping**
 
 1. Improved integration testing framework
-2. Resolve non-determinism in end-to-end tests
+2. Rectify all flaky batch tests
+3. Decouple job management from Feast Core
+4. More descriptive error logs in Feast online serving
 
-### Proposals
+### **Proposals**
 
 1. Training-serving skew detection proposal
 
