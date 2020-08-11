@@ -34,11 +34,12 @@ public class RestartJobTask extends JobTask {
   @Override
   public Job call() {
     try {
-      job = jobManager.restartJob(job);
-      log.info("Restart job %s for runner %s", job.getId(), job.getRunner().toString());
-      AuditLogger.logAction(Level.INFO, JobTasks.RESTART.name(), ResourceType.JOB, job.getId());
+      // abort job and expect replacement will be spawned
+      job = jobManager.abortJob(job);
+      log.info("Restart job {} for runner {}", job.getId(), jobManager.getRunnerType().toString());
+      AuditLogger.logAction(Level.INFO, JobTasks.ABORT.name(), ResourceType.JOB, job.getId());
 
-      changeJobStatus(JobStatus.RUNNING);
+      changeJobStatus(JobStatus.ABORTING);
       return job;
     } catch (Exception e) {
       handleException(e);

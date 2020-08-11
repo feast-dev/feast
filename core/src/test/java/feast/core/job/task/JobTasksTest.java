@@ -16,16 +16,18 @@
  */
 package feast.core.job.task;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.beans.HasPropertyWithValue.hasProperty;
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableMap;
 import feast.core.job.*;
-import feast.core.model.*;
+import feast.core.model.Job;
+import feast.core.model.JobStatus;
 import feast.core.util.TestUtil;
 import feast.proto.core.SourceProto;
 import feast.proto.core.SourceProto.KafkaSourceConfig;
@@ -34,8 +36,7 @@ import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.RedisConfig;
 import feast.proto.core.StoreProto.Store.StoreType;
 import feast.proto.core.StoreProto.Store.Subscription;
-import java.util.Collections;
-import java.util.List;
+import lombok.SneakyThrows;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -45,10 +46,8 @@ public class JobTasksTest {
 
   @Mock private JobManager jobManager;
 
-  private Store store;
-  private Source source;
-  private FeatureSet featureSet1;
-  private FeatureSet featureSet2;
+  private StoreProto.Store store;
+  private SourceProto.Source source;
 
   @Before
   public void setUp() {
@@ -56,39 +55,35 @@ public class JobTasksTest {
     when(jobManager.getRunnerType()).thenReturn(RUNNER);
 
     store =
-        Store.fromProto(
-            StoreProto.Store.newBuilder()
-                .setName("test")
-                .setType(StoreType.REDIS)
-                .setRedisConfig(RedisConfig.newBuilder().build())
-                .addSubscriptions(Subscription.newBuilder().setProject("*").setName("*").build())
-                .build());
+        StoreProto.Store.newBuilder()
+            .setName("test")
+            .setType(StoreType.REDIS)
+            .setRedisConfig(RedisConfig.newBuilder().build())
+            .addSubscriptions(Subscription.newBuilder().setProject("*").setName("*").build())
+            .build();
 
     source =
-        Source.fromProto(
-            SourceProto.Source.newBuilder()
-                .setType(SourceType.KAFKA)
-                .setKafkaSourceConfig(
-                    KafkaSourceConfig.newBuilder()
-                        .setTopic("topic")
-                        .setBootstrapServers("servers:9092")
-                        .build())
-                .build());
-
+        SourceProto.Source.newBuilder()
+            .setType(SourceType.KAFKA)
+            .setKafkaSourceConfig(
+                KafkaSourceConfig.newBuilder()
+                    .setTopic("topic")
+                    .setBootstrapServers("servers:9092")
+                    .build())
+            .build();
     TestUtil.setupAuditLogger();
   }
 
-  Job makeJob(String extId, List<FeatureSet> featureSets, JobStatus status) {
+  @SneakyThrows
+  Job makeJob(String extId, JobStatus status) {
     Job job =
         Job.builder()
             .setId("job")
-            .setExtId(extId)
-            .setRunner(RUNNER)
             .setSource(source)
-            .setFeatureSetJobStatuses(TestUtil.makeFeatureSetJobStatus(featureSets))
-            .setStatus(status)
+            .setStores(ImmutableMap.of(store.getName(), store))
             .build();
-    job.setStores(ImmutableSet.of(store));
+    job.setStatus(status);
+    job.setExtId(extId);
     return job;
   }
 
@@ -106,21 +101,19 @@ public class JobTasksTest {
 
   @Test
   public void shouldCreateJobIfNotPresent() {
-    Job expectedInput = makeJob("ext", Collections.emptyList(), JobStatus.PENDING);
+    Job expectedInput = makeJob("ext", JobStatus.PENDING);
 
     CreateJobTask task = makeCreateTask(expectedInput);
 
-    Job expected = makeJob("ext", Collections.emptyList(), JobStatus.RUNNING);
-
-    when(jobManager.startJob(expectedInput)).thenReturn(expected);
+    when(jobManager.startJob(expectedInput)).thenReturn(makeJob("ext", JobStatus.RUNNING));
 
     Job actual = task.call();
-    assertThat(actual, equalTo(expected));
+    assertThat(actual, hasProperty("status", equalTo(JobStatus.RUNNING)));
   }
 
   @Test
   public void shouldUpdateJobStatusIfNotCreateOrUpdate() {
-    Job originalJob = makeJob("ext", Collections.emptyList(), JobStatus.RUNNING);
+    Job originalJob = makeJob("ext", JobStatus.RUNNING);
     JobTask jobUpdateTask = makeCheckStatusTask(originalJob);
 
     when(jobManager.getJobStatus(originalJob)).thenReturn(JobStatus.ABORTING);
@@ -131,31 +124,31 @@ public class JobTasksTest {
 
   @Test
   public void shouldReturnJobWithErrorStatusIfFailedToSubmit() {
-    Job expectedInput = makeJob("", Collections.emptyList(), JobStatus.PENDING);
+    Job expectedInput = makeJob("", JobStatus.PENDING);
 
     CreateJobTask jobUpdateTask = makeCreateTask(expectedInput);
 
-    Job expected = makeJob("", Collections.emptyList(), JobStatus.ERROR);
+    Job expected = makeJob("", JobStatus.ERROR);
 
     when(jobManager.startJob(expectedInput))
         .thenThrow(new RuntimeException("Something went wrong"));
 
     Job actual = jobUpdateTask.call();
-    assertThat(actual, equalTo(expected));
+    assertThat(actual, hasProperty("status", equalTo(JobStatus.ERROR)));
   }
 
   @Test
   public void shouldStopJobIfTargetStatusIsAbort() {
-    Job originalJob = makeJob("ext", Collections.emptyList(), JobStatus.RUNNING);
+    Job originalJob = makeJob("ext", JobStatus.RUNNING);
     JobTask jobUpdateTask = makeTerminateTask(originalJob);
 
-    Job expected = makeJob("ext", Collections.emptyList(), JobStatus.ABORTING);
+    Job expected = makeJob("ext", JobStatus.ABORTING);
 
     when(jobManager.getJobStatus(originalJob)).thenReturn(JobStatus.ABORTING);
     when(jobManager.abortJob(originalJob)).thenReturn(expected);
 
     Job actual = jobUpdateTask.call();
     verify(jobManager, times(1)).abortJob(originalJob);
-    assertThat(actual, equalTo(expected));
+    assertThat(actual, hasProperty("status", equalTo(JobStatus.ABORTING)));
   }
 }

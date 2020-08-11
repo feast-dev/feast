@@ -20,11 +20,11 @@ import com.google.gson.Gson;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.config.FeastProperties.JobProperties;
-import feast.core.dao.JobRepository;
 import feast.core.job.ConsolidatedJobStrategy;
 import feast.core.job.JobGroupingStrategy;
 import feast.core.job.JobManager;
 import feast.core.job.JobPerStoreStrategy;
+import feast.core.job.JobRepository;
 import feast.core.job.dataflow.DataflowJobManager;
 import feast.core.job.direct.DirectJobRegistry;
 import feast.core.job.direct.DirectRunnerJobManager;
@@ -80,7 +80,8 @@ public class JobConfig {
   @Bean
   public JobGroupingStrategy getJobGroupingStrategy(
       FeastProperties feastProperties, JobRepository jobRepository) {
-    Boolean shouldConsolidateJobs = feastProperties.getJobs().getConsolidateJobsPerSource();
+    Boolean shouldConsolidateJobs =
+        feastProperties.getJobs().getCoordinator().getConsolidateJobsPerSource();
     if (shouldConsolidateJobs) {
       return new ConsolidatedJobStrategy(jobRepository);
     } else {
@@ -103,17 +104,20 @@ public class JobConfig {
     JobProperties jobProperties = feastProperties.getJobs();
     FeastProperties.JobProperties.Runner runner = jobProperties.getActiveRunner();
     Map<String, Object> runnerConfigOptions = runner.getOptions();
-    String configJson = gson.toJson(runnerConfigOptions);
 
     FeastProperties.MetricsProperties metrics = jobProperties.getMetrics();
+    String configJson = gson.toJson(runnerConfigOptions);
 
     switch (runner.getType()) {
       case DATAFLOW:
         DataflowRunnerConfigOptions.Builder dataflowRunnerConfigOptions =
             DataflowRunnerConfigOptions.newBuilder();
         JsonFormat.parser().merge(configJson, dataflowRunnerConfigOptions);
-        return new DataflowJobManager(
-            dataflowRunnerConfigOptions.build(), metrics, specsStreamingUpdateConfig);
+        return DataflowJobManager.of(
+            dataflowRunnerConfigOptions.build(),
+            metrics,
+            specsStreamingUpdateConfig,
+            jobProperties.getCoordinator().getJobSelector());
       case DIRECT:
         DirectRunnerConfigOptions.Builder directRunnerConfigOptions =
             DirectRunnerConfigOptions.newBuilder();

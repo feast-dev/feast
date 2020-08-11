@@ -921,6 +921,12 @@ class FeatureSetRef:
         return self.proto.name
 
     @classmethod
+    def from_proto(cls, feature_set_ref_proto: FeatureSetReferenceProto):
+        return cls(
+            project=feature_set_ref_proto.project, name=feature_set_ref_proto.name,
+        )
+
+    @classmethod
     def from_feature_set(cls, feature_set: FeatureSet):
         """
         Construct a feature set reference that refers to the given feature set.

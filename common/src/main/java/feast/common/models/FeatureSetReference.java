@@ -26,6 +26,8 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class FeatureSetReference implements Serializable {
+  public static String PROJECT_DEFAULT_NAME = "default";
+
   /* Name of project to which this featureSet is assigned */
   private String projectName;
   /* Name of FeatureSet */
@@ -38,7 +40,12 @@ public class FeatureSetReference implements Serializable {
   public FeatureSetReference() {}
 
   public static FeatureSetReference of(String projectName, String featureSetName, Integer version) {
+    projectName = projectName.isEmpty() ? PROJECT_DEFAULT_NAME : projectName;
     return new FeatureSetReference(projectName, featureSetName, version);
+  }
+
+  public static FeatureSetReference of(String projectName, String featureSetName) {
+    return FeatureSetReference.of(projectName, featureSetName, -1);
   }
 
   public String getReference() {

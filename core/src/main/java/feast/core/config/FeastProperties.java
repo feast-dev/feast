@@ -103,8 +103,18 @@ public class FeastProperties {
     /* The active Apache Beam runner name. This name references one instance of the Runner class */
     private String activeRunner;
 
-    /* If true only one IngestionJob would be created per source with all subscribed stores in it */
-    private Boolean consolidateJobsPerSource = false;
+    /* Job Coordinator related properties */
+    private CoordinatorProperties coordinator;
+
+    @Getter
+    @Setter
+    public static class CoordinatorProperties {
+      /* If true only one IngestionJob would be created per source with all subscribed stores in it */
+      private Boolean consolidateJobsPerSource = false;
+
+      /* Labels to identify jobs managed by this job coordinator */
+      private Map<String, String> jobSelector = new HashMap<>();
+    }
 
     /** List of configured job runners. */
     private List<Runner> runners = new ArrayList<>();

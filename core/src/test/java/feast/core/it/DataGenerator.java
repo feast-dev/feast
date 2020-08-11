@@ -73,20 +73,37 @@ public class DataGenerator {
       String name,
       StoreProto.Store.StoreType type,
       List<Triple<String, String, Boolean>> subscriptions) {
-    return StoreProto.Store.newBuilder()
-        .addAllSubscriptions(
-            subscriptions.stream()
-                .map(
-                    s ->
-                        StoreProto.Store.Subscription.newBuilder()
-                            .setProject(s.getLeft())
-                            .setName(s.getMiddle())
-                            .setExclude(s.getRight())
-                            .build())
-                .collect(Collectors.toList()))
-        .setName(name)
-        .setType(type)
-        .build();
+    StoreProto.Store.Builder builder =
+        StoreProto.Store.newBuilder()
+            .addAllSubscriptions(
+                subscriptions.stream()
+                    .map(
+                        s ->
+                            StoreProto.Store.Subscription.newBuilder()
+                                .setProject(s.getLeft())
+                                .setName(s.getMiddle())
+                                .setExclude(s.getRight())
+                                .build())
+                    .collect(Collectors.toList()))
+            .setName(name)
+            .setType(type);
+
+    switch (type) {
+      case REDIS:
+        StoreProto.Store.RedisConfig redisConfig =
+            StoreProto.Store.RedisConfig.newBuilder().build();
+        return builder.setRedisConfig(redisConfig).build();
+      case BIGQUERY:
+        StoreProto.Store.BigQueryConfig bqConfig =
+            StoreProto.Store.BigQueryConfig.newBuilder().build();
+        return builder.setBigqueryConfig(bqConfig).build();
+      case REDIS_CLUSTER:
+        StoreProto.Store.RedisClusterConfig redisClusterConfig =
+            StoreProto.Store.RedisClusterConfig.newBuilder().build();
+        return builder.setRedisClusterConfig(redisClusterConfig).build();
+      default:
+        throw new RuntimeException("Unrecognized Store type");
+    }
   }
 
   public static FeatureSetProto.FeatureSet createFeatureSet(

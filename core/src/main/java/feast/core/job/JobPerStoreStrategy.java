@@ -17,14 +17,12 @@
 package feast.core.job;
 
 import com.google.common.collect.Lists;
-import feast.core.dao.JobRepository;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
-import feast.core.model.Source;
-import feast.core.model.Store;
+import feast.proto.core.SourceProto;
+import feast.proto.core.StoreProto;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -44,45 +42,49 @@ public class JobPerStoreStrategy implements JobGroupingStrategy {
   }
 
   @Override
-  public Job getOrCreateJob(Source source, Set<Store> stores) {
-    ArrayList<Store> storesList = Lists.newArrayList(stores);
+  public Job getOrCreateJob(SourceProto.Source source, Set<StoreProto.Store> stores) {
+    ArrayList<StoreProto.Store> storesList = Lists.newArrayList(stores);
     if (storesList.size() != 1) {
       throw new RuntimeException("Only one store is acceptable in JobPerStore Strategy");
     }
-    Store store = storesList.get(0);
+    StoreProto.Store store = storesList.get(0);
 
     return jobRepository
-        .findFirstBySourceTypeAndSourceConfigAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
-            source.getType(), source.getConfig(), store.getName(), JobStatus.getTerminalStates())
+        .findFirstBySourceAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
+            source, store.getName(), JobStatus.getTerminalStates())
         .orElseGet(
-            () -> {
-              Job job =
-                  Job.builder()
-                      .setSource(source)
-                      .setStoreName(store.getName())
-                      .setFeatureSetJobStatuses(new HashSet<>())
-                      .build();
-              job.setStores(stores);
-              return job;
-            });
+            () ->
+                Job.builder()
+                    .setId(createJobId(source, stores))
+                    .setSource(source)
+                    .setStores(
+                        stores.stream()
+                            .collect(Collectors.toMap(StoreProto.Store::getName, s -> s)))
+                    .build());
   }
 
-  @Override
-  public String createJobId(Job job) {
+  private String createJobId(SourceProto.Source source, Iterable<StoreProto.Store> stores) {
     String dateSuffix = String.valueOf(Instant.now().toEpochMilli());
     String jobId =
         String.format(
             "%s-%d-to-%s-%s",
-            job.getSource().getTypeString(),
-            Objects.hashCode(job.getSource().getConfig()),
-            job.getStoreName(),
+            source.getType().getValueDescriptor().getName(),
+            Objects.hash(
+                source.getKafkaSourceConfig().getBootstrapServers(),
+                source.getKafkaSourceConfig().getTopic()),
+            Lists.newArrayList(stores).get(0).getName(),
             dateSuffix);
     return jobId.replaceAll("_store", "-").toLowerCase();
   }
 
   @Override
-  public Iterable<Pair<Source, Set<Store>>> collectSingleJobInput(
-      Stream<Pair<Source, Store>> stream) {
+  public String createJobId(Job job) {
+    return createJobId(job.getSource(), job.getStores().values());
+  }
+
+  @Override
+  public Iterable<Pair<SourceProto.Source, Set<StoreProto.Store>>> collectSingleJobInput(
+      Stream<Pair<SourceProto.Source, StoreProto.Store>> stream) {
     return stream.map(p -> Pair.of(p.getLeft(), Set.of(p.getRight()))).collect(Collectors.toList());
   }
 }

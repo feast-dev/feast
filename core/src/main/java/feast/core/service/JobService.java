@@ -16,10 +16,9 @@
  */
 package feast.core.service;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.dao.JobRepository;
+import feast.common.models.FeatureSetReference;
 import feast.core.job.JobManager;
-import feast.core.job.Runner;
+import feast.core.job.JobRepository;
 import feast.core.job.task.RestartJobTask;
 import feast.core.job.task.TerminateJobTask;
 import feast.core.model.Job;
@@ -30,14 +29,12 @@ import feast.proto.core.CoreServiceProto.RestartIngestionJobRequest;
 import feast.proto.core.CoreServiceProto.RestartIngestionJobResponse;
 import feast.proto.core.CoreServiceProto.StopIngestionJobRequest;
 import feast.proto.core.CoreServiceProto.StopIngestionJobResponse;
-import feast.proto.core.FeatureSetReferenceProto.FeatureSetReference;
+import feast.proto.core.FeatureSetReferenceProto;
 import feast.proto.core.IngestionJobProto;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
@@ -52,16 +49,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class JobService {
   private final JobRepository jobRepository;
-  private final Map<Runner, JobManager> jobManagers;
+  private final JobManager jobManager;
 
   @Autowired
-  public JobService(JobRepository jobRepository, List<JobManager> jobManagerList) {
+  public JobService(JobRepository jobRepository, JobManager jobManager) {
     this.jobRepository = jobRepository;
-
-    this.jobManagers = new HashMap<>();
-    for (JobManager manager : jobManagerList) {
-      this.jobManagers.put(manager.getRunnerType(), manager);
-    }
+    this.jobManager = jobManager;
   }
 
   // region Job Service API
@@ -99,19 +92,19 @@ public class JobService {
         // multiple filters can apply together in an 'and' operation
         if (!filter.getStoreName().isEmpty()) {
           // find jobs by name
-          List<Job> jobs = this.jobRepository.findByJobStoresIdStoreName(filter.getStoreName());
+          List<Job> jobs = this.jobRepository.findByJobStoreName(filter.getStoreName());
           Set<String> jobIds = jobs.stream().map(Job::getId).collect(Collectors.toSet());
           matchingJobIds = this.mergeResults(matchingJobIds, jobIds);
         }
         if (filter.hasFeatureSetReference()) {
           // find a matching featuresets for reference
-          FeatureSetReference fsReference = filter.getFeatureSetReference();
+          FeatureSetReferenceProto.FeatureSetReference fsReference =
+              filter.getFeatureSetReference();
 
           // find jobs for the matching featuresets
           Collection<Job> matchingJobs =
-              this.jobRepository
-                  .findByFeatureSetJobStatusesFeatureSetNameAndFeatureSetJobStatusesFeatureSetProjectName(
-                      fsReference.getName(), fsReference.getProject());
+              this.jobRepository.findByFeatureSetReference(
+                  FeatureSetReference.of(fsReference.getProject(), fsReference.getName()));
           List<String> jobIds =
               matchingJobs.stream()
                   .filter(job -> job.getStatus().equals(JobStatus.RUNNING))
@@ -135,11 +128,7 @@ public class JobService {
       if (job.getStatus() == JobStatus.ERROR) {
         continue;
       }
-      try {
-        ingestJobs.add(job.toProto());
-      } catch (InvalidProtocolBufferException e) {
-        throw new RuntimeException("Unexpected failure to construct Protobuf", e);
-      }
+      ingestJobs.add(job.toProto());
     }
 
     // pack jobs into response
@@ -174,10 +163,10 @@ public class JobService {
     }
 
     // restart job by running job task
-    new RestartJobTask(job, jobManagers.get(job.getRunner())).call();
+    new RestartJobTask(job, this.jobManager).call();
 
     // update job model in job repository
-    this.jobRepository.saveAndFlush(job);
+    this.jobRepository.add(job);
 
     return RestartIngestionJobResponse.newBuilder().build();
   }
@@ -213,10 +202,10 @@ public class JobService {
     }
 
     // stop job with job task
-    new TerminateJobTask(job, jobManagers.get(job.getRunner())).call();
+    new TerminateJobTask(job, this.jobManager).call();
 
     // update job model in job repository
-    this.jobRepository.saveAndFlush(job);
+    this.jobRepository.add(job);
 
     return StopIngestionJobResponse.newBuilder().build();
   }

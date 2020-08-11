@@ -25,9 +25,7 @@ import feast.common.logging.config.LoggingProperties.AuditLogProperties;
 import feast.core.model.Entity;
 import feast.core.model.Feature;
 import feast.core.model.FeatureSet;
-import feast.core.model.FeatureSetJobStatus;
-import feast.core.model.Job;
-import feast.core.model.JobStatus;
+import feast.core.model.FeatureSetDeliveryStatus;
 import feast.core.model.Project;
 import feast.core.model.Source;
 import feast.core.model.Store;
@@ -44,24 +42,23 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.springframework.boot.info.BuildProperties;
 
 public class TestUtil {
-  public static Set<FeatureSetJobStatus> makeFeatureSetJobStatus(FeatureSet... featureSets) {
+  public static Set<FeatureSetDeliveryStatus> makeFeatureSetJobStatus(FeatureSet... featureSets) {
     return Stream.of(featureSets)
         .map(
             fs -> {
-              FeatureSetJobStatus s = new FeatureSetJobStatus();
-              s.setFeatureSet(fs);
+              FeatureSetDeliveryStatus s = new FeatureSetDeliveryStatus();
               return s;
             })
         .collect(Collectors.toSet());
   }
 
-  public static Set<FeatureSetJobStatus> makeFeatureSetJobStatus(List<FeatureSet> featureSets) {
+  public static Set<FeatureSetDeliveryStatus> makeFeatureSetJobStatus(
+      List<FeatureSet> featureSets) {
     return makeFeatureSetJobStatus(featureSets.toArray(FeatureSet[]::new));
   }
 
@@ -135,22 +132,6 @@ public class TestUtil {
   public static Entity CreateEntity(String name, ValueProto.ValueType.Enum valueType) {
     return Entity.fromProto(
         FeatureSetProto.EntitySpec.newBuilder().setName(name).setValueType(valueType).build());
-  }
-
-  public static FeatureSetJobStatus CreateFeatureSetJobStatusWithJob(
-      JobStatus status, FeatureSetProto.FeatureSetJobDeliveryStatus deliveryStatus, int version) {
-    Job job = new Job();
-    job.setStatus(status);
-    job.setId(UUID.randomUUID().toString());
-
-    FeatureSetJobStatus featureSetJobStatus = new FeatureSetJobStatus();
-    featureSetJobStatus.setJob(job);
-
-    featureSetJobStatus.setDeliveryStatus(deliveryStatus);
-    featureSetJobStatus.setVersion(version);
-    featureSetJobStatus.setId(new FeatureSetJobStatus.FeatureSetJobStatusKey(job.getId(), 0));
-
-    return featureSetJobStatus;
   }
 
   /** Setup the audit logger. This call is required to use the audit logger when testing. */

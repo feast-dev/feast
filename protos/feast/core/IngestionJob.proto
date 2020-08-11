@@ -22,7 +22,7 @@ option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 option java_outer_classname = "IngestionJobProto";
 option java_package = "feast.proto.core";
 
-import "feast/core/FeatureSet.proto";
+import "feast/core/FeatureSetReference.proto";
 import "feast/core/Store.proto";
 import "feast/core/Source.proto";
 
@@ -34,12 +34,15 @@ message IngestionJob {
     // For DirectRunner jobs, this is identical to id. For DataflowRunner jobs, this refers to the Dataflow job ID.
     string external_id = 2;
     IngestionJobStatus status = 3;
-    // List of feature sets whose features are populated by this job.
-    repeated feast.core.FeatureSet feature_sets = 4;
+    // List of feature sets was removed. Use list of references instead
+    reserved 4;
     // Source this job is reading from.
     feast.core.Source source = 5;
     // Store this job is writing to.
     repeated feast.core.Store stores = 6;
+
+    // List of Feature Set References
+    repeated feast.core.FeatureSetReference feature_set_references = 7;
 }
 
 // Status of a Feast Ingestion Job

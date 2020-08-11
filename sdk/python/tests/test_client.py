@@ -552,11 +552,7 @@ class TestClient:
             return_value=Core.CoreServiceStub(grpc.insecure_channel("")),
         )
 
-        feature_set_proto = FeatureSetProto(
-            spec=FeatureSetSpecProto(
-                project="test", name="driver", max_age=Duration(seconds=3600),
-            )
-        )
+        feature_set_ref = FeatureSetRef(project="test", name="driver",)
 
         mocker.patch.object(
             mocked_client._core_service_stub,
@@ -567,7 +563,7 @@ class TestClient:
                         id="kafka-to-redis",
                         external_id="job-2222",
                         status=IngestionJobStatus.RUNNING,
-                        feature_sets=[feature_set_proto],
+                        feature_set_references=[feature_set_ref.to_proto()],
                         source=Source(
                             type=SourceType.KAFKA,
                             kafka_source_config=KafkaSourceConfig(
@@ -581,11 +577,7 @@ class TestClient:
         )
 
         # list ingestion jobs by target feature set reference
-        ingest_jobs = mocked_client.list_ingest_jobs(
-            feature_set_ref=FeatureSetRef.from_feature_set(
-                FeatureSet.from_proto(feature_set_proto)
-            )
-        )
+        ingest_jobs = mocked_client.list_ingest_jobs(feature_set_ref=feature_set_ref)
         assert len(ingest_jobs) >= 1
 
         ingest_job = ingest_jobs[0]

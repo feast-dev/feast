@@ -44,10 +44,10 @@ else
 fi
 
 # Start Feast Core with auth if enabled
-cat <<EOF > /tmp/core.warehouse.application.yml
+cat <<EOF > /tmp/auth.core.warehouse.application.yml
 feast:
   jobs:
-    polling_interval_milliseconds: 10000
+    polling_interval_milliseconds: 5000
     active_runner: direct
     runners:
       - name: direct
@@ -62,6 +62,17 @@ feast:
     authorization:
       enabled: false
       provider: none
+EOF
+
+cat <<EOF > /tmp/core.warehouse.application.yml
+feast:
+  jobs:
+    polling_interval_milliseconds: 5000
+    active_runner: direct
+    runners:
+      - name: direct
+        type: DirectRunner
+        options: {}
 EOF
 
 cat <<EOF > /tmp/serving.warehouse.application.yml
@@ -91,11 +102,11 @@ EOF
 if [[ ${ENABLE_AUTH} = "true" ]]; 
   then
     print_banner "Starting Feast core with auth"
-    start_feast_core /tmp/core.warehouse.application.yml
+    start_feast_core /tmp/auth.core.warehouse.application.yml
     print_banner "Starting Feast Serving with auth"
   else
     print_banner "Starting Feast core without auth"
-    start_feast_core
+    start_feast_core /tmp/core.warehouse.application.yml
     print_banner "Starting Feast Serving without auth"
 fi
 

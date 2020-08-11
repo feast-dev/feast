@@ -16,32 +16,22 @@
  */
 package feast.core.job.dataflow;
 
-import static feast.common.models.Store.convertStringToSubscription;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.googleapis.testing.auth.oauth2.MockGoogleCredential;
 import com.google.api.services.dataflow.Dataflow;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.google.protobuf.Duration;
+import com.google.api.services.dataflow.model.Environment;
+import com.google.api.services.dataflow.model.ListJobsResponse;
+import com.google.common.collect.*;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
-import feast.core.job.Runner;
 import feast.core.model.*;
-import feast.core.util.TestUtil;
 import feast.ingestion.options.ImportOptions;
-import feast.proto.core.FeatureSetProto;
-import feast.proto.core.FeatureSetProto.FeatureSetMeta;
-import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.IngestionJobProto;
 import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions;
 import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions.Builder;
@@ -53,6 +43,8 @@ import feast.proto.core.StoreProto.Store.RedisConfig;
 import feast.proto.core.StoreProto.Store.StoreType;
 import feast.proto.core.StoreProto.Store.Subscription;
 import java.io.IOException;
+import java.util.List;
+import lombok.SneakyThrows;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -62,18 +54,20 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 
 public class DataflowJobManagerTest {
 
   @Rule public final ExpectedException expectedException = ExpectedException.none();
 
-  @Mock private Dataflow dataflow;
+  private Dataflow dataflow;
 
   private DataflowRunnerConfigOptions defaults;
   private IngestionJobProto.SpecsStreamingUpdateConfig specsStreamingUpdateConfig;
   private DataflowJobManager dfJobManager;
+
+  private StoreProto.Store store;
+  private SourceProto.Source source;
 
   @Before
   public void setUp() {
@@ -89,12 +83,8 @@ public class DataflowJobManagerTest {
     defaults = optionsBuilder.build();
     MetricsProperties metricsProperties = new MetricsProperties();
     metricsProperties.setEnabled(false);
-    Credential credential = null;
-    try {
-      credential = MockGoogleCredential.getApplicationDefault();
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
+
+    dataflow = mock(Dataflow.class, RETURNS_DEEP_STUBS);
 
     specsStreamingUpdateConfig =
         IngestionJobProto.SpecsStreamingUpdateConfig.newBuilder()
@@ -105,14 +95,7 @@ public class DataflowJobManagerTest {
                     .build())
             .build();
 
-    dfJobManager =
-        new DataflowJobManager(defaults, metricsProperties, specsStreamingUpdateConfig, credential);
-    dfJobManager = spy(dfJobManager);
-  }
-
-  @Test
-  public void shouldStartJobWithCorrectPipelineOptions() throws IOException {
-    StoreProto.Store store =
+    store =
         StoreProto.Store.newBuilder()
             .setName("SERVING")
             .setType(StoreType.REDIS)
@@ -120,7 +103,7 @@ public class DataflowJobManagerTest {
             .addSubscriptions(Subscription.newBuilder().setProject("*").setName("*").build())
             .build();
 
-    SourceProto.Source source =
+    source =
         SourceProto.Source.newBuilder()
             .setType(SourceType.KAFKA)
             .setKafkaSourceConfig(
@@ -130,16 +113,18 @@ public class DataflowJobManagerTest {
                     .build())
             .build();
 
-    FeatureSetProto.FeatureSet featureSet =
-        FeatureSetProto.FeatureSet.newBuilder()
-            .setMeta(FeatureSetMeta.newBuilder())
-            .setSpec(
-                FeatureSetSpec.newBuilder()
-                    .setSource(source)
-                    .setName("featureSet")
-                    .setMaxAge(Duration.newBuilder().build()))
-            .build();
+    dfJobManager =
+        new DataflowJobManager(
+            defaults,
+            metricsProperties,
+            specsStreamingUpdateConfig,
+            ImmutableMap.of("application", "feast"),
+            dataflow);
+    dfJobManager = spy(dfJobManager);
+  }
 
+  @Test
+  public void shouldStartJobWithCorrectPipelineOptions() throws IOException {
     Printer printer = JsonFormat.printer();
     String expectedExtJobId = "feast-job-0";
     String jobName = "job";
@@ -164,19 +149,12 @@ public class DataflowJobManagerTest {
 
     doReturn(mockPipelineResult).when(dfJobManager).runPipeline(any());
 
-    FeatureSetJobStatus featureSetJobStatus = new FeatureSetJobStatus();
-    featureSetJobStatus.setFeatureSet(FeatureSet.fromProto(featureSet));
-
     Job job =
         Job.builder()
             .setId(jobName)
-            .setExtId("")
-            .setRunner(Runner.DATAFLOW)
-            .setSource(Source.fromProto(source))
-            .setFeatureSetJobStatuses(Sets.newHashSet(featureSetJobStatus))
-            .setStatus(JobStatus.PENDING)
+            .setSource(source)
+            .setStores(ImmutableMap.of(store.getName(), store))
             .build();
-    job.setStores(ImmutableSet.of(Store.fromProto(store)));
     Job actual = dfJobManager.startJob(job);
 
     verify(dfJobManager, times(1)).runPipeline(captor.capture());
@@ -217,24 +195,6 @@ public class DataflowJobManagerTest {
 
   @Test
   public void shouldThrowExceptionWhenJobStateTerminal() throws IOException {
-    Store store =
-        TestUtil.createStore("store", ImmutableList.of(convertStringToSubscription("*:*")));
-
-    SourceProto.Source source =
-        SourceProto.Source.newBuilder()
-            .setType(SourceType.KAFKA)
-            .setKafkaSourceConfig(
-                KafkaSourceConfig.newBuilder()
-                    .setTopic("topic")
-                    .setBootstrapServers("servers:9092")
-                    .build())
-            .build();
-
-    FeatureSetProto.FeatureSet featureSet =
-        FeatureSetProto.FeatureSet.newBuilder()
-            .setSpec(FeatureSetSpec.newBuilder().setName("featureSet").setSource(source).build())
-            .build();
-
     dfJobManager = Mockito.spy(dfJobManager);
 
     DataflowPipelineJob mockPipelineResult = Mockito.mock(DataflowPipelineJob.class);
@@ -242,20 +202,142 @@ public class DataflowJobManagerTest {
 
     doReturn(mockPipelineResult).when(dfJobManager).runPipeline(any());
 
-    FeatureSetJobStatus featureSetJobStatus = new FeatureSetJobStatus();
-    featureSetJobStatus.setFeatureSet(FeatureSet.fromProto(featureSet));
-
     Job job =
         Job.builder()
             .setId("job")
-            .setExtId("")
-            .setRunner(Runner.DATAFLOW)
-            .setSource(Source.fromProto(source))
-            .setFeatureSetJobStatuses(Sets.newHashSet(featureSetJobStatus))
-            .setStatus(JobStatus.PENDING)
+            .setSource(source)
+            .setStores(ImmutableMap.of(store.getName(), store))
             .build();
-    job.setStores(ImmutableSet.of(store));
     expectedException.expect(JobExecutionException.class);
     dfJobManager.startJob(job);
+  }
+
+  @Test
+  @SneakyThrows
+  public void shouldRetrieveRunningJobsFromDataflow() {
+    when(dataflow
+            .projects()
+            .locations()
+            .jobs()
+            .list("project", "region")
+            .setFilter("ACTIVE")
+            .execute())
+        .thenReturn(
+            new ListJobsResponse()
+                .setJobs(
+                    ImmutableList.of(
+                        new com.google.api.services.dataflow.model.Job().setId("job-1"),
+                        new com.google.api.services.dataflow.model.Job().setId("job-2"))));
+
+    // Job doesn't have required labels, should be skipped
+    when(dataflow
+            .projects()
+            .locations()
+            .jobs()
+            .get("project", "region", "job-1")
+            .setView("JOB_VIEW_ALL")
+            .execute())
+        .thenReturn(new com.google.api.services.dataflow.model.Job());
+
+    JsonFormat.Printer jsonPrinter = JsonFormat.printer();
+
+    when(dataflow
+            .projects()
+            .locations()
+            .jobs()
+            .get("project", "region", "job-2")
+            .setView("JOB_VIEW_ALL")
+            .execute())
+        .thenReturn(
+            new com.google.api.services.dataflow.model.Job()
+                .setLabels(ImmutableMap.of("application", "feast"))
+                .setId("job-2")
+                .setEnvironment(
+                    new Environment()
+                        .setSdkPipelineOptions(
+                            ImmutableMap.of(
+                                "options",
+                                ImmutableMap.of(
+                                    "jobName", "kafka-to-redis",
+                                    "sourceJson", jsonPrinter.print(source),
+                                    "storesJson", ImmutableList.of(jsonPrinter.print(store)))))));
+
+    List<Job> jobs = dfJobManager.listRunningJobs();
+
+    assertThat(jobs, hasSize(1));
+    assertThat(
+        jobs,
+        hasItem(
+            allOf(
+                hasProperty("id", equalTo("kafka-to-redis")),
+                hasProperty("source", equalTo(source)),
+                hasProperty("stores", hasValue(store)),
+                hasProperty("extId", equalTo("job-2")))));
+  }
+
+  @Test
+  @SneakyThrows
+  public void shouldHandleNullResponseFromDataflow() {
+    when(dataflow
+            .projects()
+            .locations()
+            .jobs()
+            .list("project", "region")
+            .setFilter("ACTIVE")
+            .execute()
+            .getJobs())
+        .thenReturn(null);
+
+    assertThat(dfJobManager.listRunningJobs(), hasSize(0));
+  }
+
+  @Test
+  @SneakyThrows
+  public void shouldRetrieveRunningJobsWithoutLabels() {
+    when(dataflow
+            .projects()
+            .locations()
+            .jobs()
+            .list("project", "region")
+            .setFilter("ACTIVE")
+            .execute())
+        .thenReturn(
+            new ListJobsResponse()
+                .setJobs(
+                    ImmutableList.of(
+                        new com.google.api.services.dataflow.model.Job().setId("job-1"))));
+
+    JsonFormat.Printer jsonPrinter = JsonFormat.printer();
+
+    // job with no labels
+    when(dataflow
+            .projects()
+            .locations()
+            .jobs()
+            .get("project", "region", "job-1")
+            .setView("JOB_VIEW_ALL")
+            .execute())
+        .thenReturn(
+            new com.google.api.services.dataflow.model.Job()
+                .setId("job-1")
+                .setEnvironment(
+                    new Environment()
+                        .setSdkPipelineOptions(
+                            ImmutableMap.of(
+                                "options",
+                                ImmutableMap.of(
+                                    "jobName", "kafka-to-redis",
+                                    "sourceJson", jsonPrinter.print(source),
+                                    "storesJson", ImmutableList.of(jsonPrinter.print(store)))))));
+
+    MetricsProperties metricsProperties = new MetricsProperties();
+    metricsProperties.setEnabled(false);
+
+    dfJobManager =
+        new DataflowJobManager(
+            defaults, metricsProperties, specsStreamingUpdateConfig, ImmutableMap.of(), dataflow);
+
+    List<Job> jobs = dfJobManager.listRunningJobs();
+    assertThat(jobs, hasItem(hasProperty("id", equalTo("kafka-to-redis"))));
   }
 }

@@ -18,6 +18,7 @@ package feast.core.job;
 
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
+import java.util.List;
 
 public interface JobManager {
 
@@ -70,4 +71,11 @@ public interface JobManager {
    * @return job status.
    */
   JobStatus getJobStatus(Job job);
+
+  /**
+   * List of RUNNING jobs
+   *
+   * @return list of jobs
+   */
+  List<Job> listRunningJobs();
 }

@@ -65,9 +65,16 @@ feast:
       # Port of the metrics sink.
       port: 9125
 
-    # if true one job per source with many stores would be created
-    # if false one job per source-store pair would be created
-    consolidate-jobs-per-source: false
+    coordinator:
+      # if true one job per source with many stores would be created
+      # if false one job per source-store pair would be created
+      consolidate-jobs-per-source: false
+
+      # labels (map) that being assigned to job on creation.
+      # And also used to determine jobs that are being managed by current application
+      # among all running jobs
+      jobSelector:
+        application: feast
 
   stream:
     # Feature stream type. Only kafka is supported.

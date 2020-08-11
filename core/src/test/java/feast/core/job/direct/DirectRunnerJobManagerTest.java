@@ -16,7 +16,6 @@
  */
 package feast.core.job.direct;
 
-import static feast.core.util.TestUtil.makeFeatureSetJobStatus;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.any;
@@ -26,21 +25,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.protobuf.Duration;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
 import feast.core.config.FeastProperties.MetricsProperties;
-import feast.core.job.Runner;
-import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
-import feast.core.model.Source;
-import feast.core.model.Store;
 import feast.ingestion.options.ImportOptions;
-import feast.proto.core.FeatureSetProto;
-import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.IngestionJobProto;
 import feast.proto.core.RunnerProto.DirectRunnerConfigOptions;
 import feast.proto.core.SourceProto;
@@ -71,6 +63,9 @@ public class DirectRunnerJobManagerTest {
   private DirectRunnerConfigOptions defaults;
   private IngestionJobProto.SpecsStreamingUpdateConfig specsStreamingUpdateConfig;
 
+  private StoreProto.Store store;
+  private SourceProto.Source source;
+
   @Before
   public void setUp() {
     initMocks(this);
@@ -87,15 +82,7 @@ public class DirectRunnerJobManagerTest {
                     .build())
             .build();
 
-    drJobManager =
-        new DirectRunnerJobManager(
-            defaults, directJobRegistry, metricsProperties, specsStreamingUpdateConfig);
-    drJobManager = Mockito.spy(drJobManager);
-  }
-
-  @Test
-  public void shouldStartDirectJobAndRegisterPipelineResult() throws IOException {
-    StoreProto.Store store =
+    store =
         StoreProto.Store.newBuilder()
             .setName("SERVING")
             .setType(StoreType.REDIS)
@@ -103,7 +90,7 @@ public class DirectRunnerJobManagerTest {
             .addSubscriptions(Subscription.newBuilder().setProject("*").setName("*").build())
             .build();
 
-    SourceProto.Source source =
+    source =
         SourceProto.Source.newBuilder()
             .setType(SourceType.KAFKA)
             .setKafkaSourceConfig(
@@ -113,16 +100,14 @@ public class DirectRunnerJobManagerTest {
                     .build())
             .build();
 
-    FeatureSetProto.FeatureSet featureSet =
-        FeatureSetProto.FeatureSet.newBuilder()
-            .setSpec(
-                FeatureSetSpec.newBuilder()
-                    .setName("featureSet")
-                    .setMaxAge(Duration.newBuilder())
-                    .setSource(source)
-                    .build())
-            .build();
+    drJobManager =
+        new DirectRunnerJobManager(
+            defaults, directJobRegistry, metricsProperties, specsStreamingUpdateConfig);
+    drJobManager = Mockito.spy(drJobManager);
+  }
 
+  @Test
+  public void shouldStartDirectJobAndRegisterPipelineResult() throws IOException {
     Printer printer = JsonFormat.printer();
 
     String expectedJobId = "feast-job-0";
@@ -146,14 +131,10 @@ public class DirectRunnerJobManagerTest {
 
     Job job =
         Job.builder()
+            .setSource(source)
+            .setStores(ImmutableMap.of(store.getName(), store))
             .setId(expectedJobId)
-            .setExtId("")
-            .setRunner(Runner.DIRECT)
-            .setSource(Source.fromProto(source))
-            .setFeatureSetJobStatuses(makeFeatureSetJobStatus(FeatureSet.fromProto(featureSet)))
-            .setStatus(JobStatus.PENDING)
             .build();
-    job.setStores(ImmutableSet.of(Store.fromProto(store)));
     Job actual = drJobManager.startJob(job);
 
     verify(drJobManager, times(1)).runPipeline(pipelineOptionsCaptor.capture());
@@ -189,11 +170,12 @@ public class DirectRunnerJobManagerTest {
   public void shouldAbortJobThenRemoveFromRegistry() throws IOException {
     Job job =
         Job.builder()
+            .setSource(source)
+            .setStores(ImmutableMap.of(store.getName(), store))
             .setId("id")
-            .setExtId("ext1")
-            .setRunner(Runner.DIRECT)
-            .setStatus(JobStatus.RUNNING)
             .build();
+    job.setExtId("ext1");
+    job.setStatus(JobStatus.RUNNING);
 
     DirectJob directJob = Mockito.mock(DirectJob.class);
     when(directJobRegistry.get("ext1")).thenReturn(directJob);

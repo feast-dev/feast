@@ -32,7 +32,7 @@ import feast.proto.core.RunnerProto.DirectRunnerConfigOptions;
 import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
 import java.io.IOException;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.direct.DirectRunner;
@@ -74,12 +74,7 @@ public class DirectRunnerJobManager implements JobManager {
   public Job startJob(Job job) {
     try {
       ImportOptions pipelineOptions =
-          getPipelineOptions(
-              job.getId(),
-              job.getSource().toProto(),
-              job.getStores().stream()
-                  .map(wrapException(Store::toProto))
-                  .collect(Collectors.toSet()));
+          getPipelineOptions(job.getId(), job.getSource(), new HashSet<>(job.getStores().values()));
       PipelineResult pipelineResult = runPipeline(pipelineOptions);
       DirectJob directJob = new DirectJob(job.getId(), pipelineResult);
       jobs.add(directJob);
@@ -195,5 +190,10 @@ public class DirectRunnerJobManager implements JobManager {
       return JobStatus.ABORTED;
     }
     return DirectJobStateMapper.map(directJob.getPipelineResult().getState());
+  }
+
+  @Override
+  public List<Job> listRunningJobs() {
+    return Collections.emptyList();
   }
 }

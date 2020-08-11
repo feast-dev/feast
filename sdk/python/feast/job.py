@@ -13,7 +13,7 @@ from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.IngestionJob_pb2 import IngestionJob as IngestJobProto
 from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.core.Store_pb2 import Store
-from feast.feature_set import FeatureSet
+from feast.feature_set import FeatureSetRef
 from feast.serving.ServingService_pb2 import (
     DATA_FORMAT_AVRO,
     JOB_STATUS_DONE,
@@ -282,12 +282,14 @@ class IngestJob:
         return self.proto.status
 
     @property
-    def feature_sets(self) -> List[FeatureSet]:
+    def feature_sets(self) -> List[FeatureSetRef]:
         """
         Getter for the IngestJob's feature sets
         """
         # convert featureset protos to native objects
-        return [FeatureSet.from_proto(fs) for fs in self.proto.feature_sets]
+        return [
+            FeatureSetRef.from_proto(fs) for fs in self.proto.feature_set_references
+        ]
 
     @property
     def source(self) -> Source:
