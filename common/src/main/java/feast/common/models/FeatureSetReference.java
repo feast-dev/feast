@@ -40,11 +40,11 @@ public class FeatureSetReference implements Serializable {
   public FeatureSetReference() {}
 
   public static FeatureSetReference of(String projectName, String featureSetName, Integer version) {
+    projectName = projectName.isEmpty() ? PROJECT_DEFAULT_NAME : projectName;
     return new FeatureSetReference(projectName, featureSetName, version);
   }
 
   public static FeatureSetReference of(String projectName, String featureSetName) {
-    projectName = projectName.isEmpty() ? PROJECT_DEFAULT_NAME : projectName;
     return new FeatureSetReference(projectName, featureSetName, -1);
   }
 
