@@ -193,7 +193,7 @@ public class DirectRunnerJobManager implements JobManager {
   }
 
   @Override
-  public List<Job> listJobs() {
+  public List<Job> listRunningJobs() {
     return Collections.emptyList();
   }
 }

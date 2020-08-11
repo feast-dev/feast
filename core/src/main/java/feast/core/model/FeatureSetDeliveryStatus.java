@@ -22,6 +22,12 @@ import feast.proto.core.FeatureSetProto.FeatureSetJobDeliveryStatus;
 import lombok.Getter;
 import lombok.Setter;
 
+/**
+ * Data class that represents connection between {@link Job} and FeatureSet. For all FeatureSets
+ * allocated to Job FeatureSetDeliveryStatus must be created and added to Job's
+ * featureSetDeliveryStatuses map. FeatureSet is determined by {@link FeatureSetReference}. Stores
+ * delivery status and latest delivered version.
+ */
 @Getter
 @Setter
 public class FeatureSetDeliveryStatus {

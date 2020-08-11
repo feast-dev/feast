@@ -37,7 +37,7 @@ public class RestartJobTask extends JobTask {
       // abort job and expect replacement will be spawned
       job = jobManager.abortJob(job);
       log.info("Restart job {} for runner {}", job.getId(), jobManager.getRunnerType().toString());
-      AuditLogger.logAction(Level.INFO, JobTasks.RESTART.name(), ResourceType.JOB, job.getId());
+      AuditLogger.logAction(Level.INFO, JobTasks.ABORT.name(), ResourceType.JOB, job.getId());
 
       changeJobStatus(JobStatus.ABORTING);
       return job;

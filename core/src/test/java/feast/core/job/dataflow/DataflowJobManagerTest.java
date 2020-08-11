@@ -262,7 +262,7 @@ public class DataflowJobManagerTest {
                                     "sourceJson", jsonPrinter.print(source),
                                     "storesJson", ImmutableList.of(jsonPrinter.print(store)))))));
 
-    List<Job> jobs = dfJobManager.listJobs();
+    List<Job> jobs = dfJobManager.listRunningJobs();
 
     assertThat(jobs, hasSize(1));
     assertThat(
@@ -288,7 +288,7 @@ public class DataflowJobManagerTest {
             .getJobs())
         .thenReturn(null);
 
-    assertThat(dfJobManager.listJobs(), hasSize(0));
+    assertThat(dfJobManager.listRunningJobs(), hasSize(0));
   }
 
   @Test
@@ -337,7 +337,7 @@ public class DataflowJobManagerTest {
         new DataflowJobManager(
             defaults, metricsProperties, specsStreamingUpdateConfig, ImmutableMap.of(), dataflow);
 
-    List<Job> jobs = dfJobManager.listJobs();
+    List<Job> jobs = dfJobManager.listRunningJobs();
     assertThat(jobs, hasItem(hasProperty("id", equalTo("kafka-to-redis"))));
   }
 }

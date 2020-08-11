@@ -71,7 +71,7 @@ public class FakeJobManager implements JobManager {
   }
 
   @Override
-  public List<Job> listJobs() {
+  public List<Job> listRunningJobs() {
     return Collections.emptyList();
   }
 

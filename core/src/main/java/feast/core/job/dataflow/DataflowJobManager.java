@@ -229,7 +229,7 @@ public class DataflowJobManager implements JobManager {
   }
 
   @Override
-  public List<Job> listJobs() {
+  public List<Job> listRunningJobs() {
     List<com.google.api.services.dataflow.model.Job> jobs;
 
     try {

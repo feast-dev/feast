@@ -31,12 +31,18 @@ import org.springframework.stereotype.Component;
  * Keeps state of all jobs managed by current application in memory. On start loads persistent state
  * through JobManager from JobManager backend.
  *
+ * <p>E.g., with Dataflow runner all jobs with their state stored on Google's side and accessible
+ * via API. So we don't need to persist this state ourselves. Instead we just fetch it once and then
+ * we apply same changes to dataflow (via JobManager) and to InMemoryRepository to keep them in
+ * sync.
+ *
  * <p>Provides flexible access to objects via JPA-like filtering API.
  */
 @Component
 public class InMemoryJobRepository implements JobRepository {
   private final JobManager jobManager;
 
+  /** Internal storage for all jobs mapped by their Id */
   private Map<String, Job> storage;
 
   @Autowired
@@ -45,9 +51,16 @@ public class InMemoryJobRepository implements JobRepository {
     this.storage = new HashMap<>();
 
     this.storage =
-        this.jobManager.listJobs().stream().collect(Collectors.toMap(Job::getId, j -> j));
+        this.jobManager.listRunningJobs().stream().collect(Collectors.toMap(Job::getId, j -> j));
   }
 
+  /**
+   * Returns single job that has given source, store with given name ans its status is not in given
+   * statuses. We expect this parameters to specify only one RUNNING job (most of the time). But in
+   * case there're many - we return latest updated one.
+   *
+   * @return job that matches given parameters if it's present
+   */
   @Override
   public Optional<Job> findFirstBySourceAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
       SourceProto.Source source, String storeName, Collection<JobStatus> statuses) {
@@ -64,21 +77,27 @@ public class InMemoryJobRepository implements JobRepository {
     return this.storage.values().stream().filter(p).collect(Collectors.toList());
   }
 
+  /** Find Jobs that have given status */
   @Override
   public List<Job> findByStatus(JobStatus status) {
     return this.findWithFilter(j -> j.getStatus().equals(status));
   }
 
+  /**
+   * Find Jobs that have given FeatureSet (specified by {@link FeatureSetReference} allocated to it.
+   */
   @Override
   public List<Job> findByFeatureSetReference(FeatureSetReference reference) {
     return this.findWithFilter(j -> j.getFeatureSetDeliveryStatuses().containsKey(reference));
   }
 
+  /** Find Jobs that have one of the stores with given name */
   @Override
   public List<Job> findByJobStoreName(String storeName) {
     return this.findWithFilter(j -> j.getStores().containsKey(storeName));
   }
 
+  /** Find by {@link Job::getId} */
   @Override
   public Optional<Job> findById(String jobId) {
     return Optional.ofNullable(this.storage.get(jobId));

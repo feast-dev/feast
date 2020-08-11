@@ -77,5 +77,5 @@ public interface JobManager {
    *
    * @return list of jobs
    */
-  List<Job> listJobs();
+  List<Job> listRunningJobs();
 }
