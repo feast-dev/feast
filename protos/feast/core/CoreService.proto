@@ -154,6 +154,8 @@ message ListFeatureSetsRequest {
         // Feature sets with all matching labels will be returned.
         map<string,string> labels = 4;
 
+        // Filter by FeatureSet's current status
+        // Project and Feature Set name still must be specified (could be "*")
         FeatureSetStatus status = 5;
     }
 }
@@ -356,7 +358,9 @@ message GetFeatureStatisticsResponse {
 }
 
 message UpdateFeatureSetStatusRequest {
+    // FeatureSetReference of FeatureSet to update
     FeatureSetReference reference = 1;
+    // Target status
     FeatureSetStatus status = 2;
 }
 
