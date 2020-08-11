@@ -45,7 +45,7 @@ public class FeatureSetReference implements Serializable {
   }
 
   public static FeatureSetReference of(String projectName, String featureSetName) {
-    return new FeatureSetReference(projectName, featureSetName, -1);
+    return FeatureSetReference.of(projectName, featureSetName, -1);
   }
 
   public String getReference() {
