@@ -79,7 +79,7 @@ public class JobCoordinatorServiceTest {
 
     JobManager jobManager = mock(JobManager.class);
 
-    when(jobManager.listJobs()).thenReturn(Collections.emptyList());
+    when(jobManager.listRunningJobs()).thenReturn(Collections.emptyList());
     jobRepository = new InMemoryJobRepository(jobManager);
 
     jcsWithConsolidation =
