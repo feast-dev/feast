@@ -97,7 +97,7 @@ public class InMemoryJobRepository implements JobRepository {
     return this.findWithFilter(j -> j.getStores().containsKey(storeName));
   }
 
-  /** Find by {@link Job::getId} */
+  /** Find by Job's Id */
   @Override
   public Optional<Job> findById(String jobId) {
     return Optional.ofNullable(this.storage.get(jobId));
