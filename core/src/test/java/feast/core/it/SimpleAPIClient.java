@@ -29,8 +29,9 @@ public class SimpleAPIClient {
     this.stub = stub;
   }
 
-  public void simpleApplyFeatureSet(FeatureSetProto.FeatureSet featureSet) {
-    stub.applyFeatureSet(
+  public CoreServiceProto.ApplyFeatureSetResponse simpleApplyFeatureSet(
+      FeatureSetProto.FeatureSet featureSet) {
+    return stub.applyFeatureSet(
         CoreServiceProto.ApplyFeatureSetRequest.newBuilder().setFeatureSet(featureSet).build());
   }
 
@@ -113,12 +114,17 @@ public class SimpleAPIClient {
     return simpleListFeatures(projectName, Collections.emptyMap(), Arrays.asList(entities));
   }
 
-  public void updateStore(StoreProto.Store store) {
-    stub.updateStore(CoreServiceProto.UpdateStoreRequest.newBuilder().setStore(store).build());
+  public CoreServiceProto.UpdateStoreResponse updateStore(StoreProto.Store store) {
+    return stub.updateStore(
+        CoreServiceProto.UpdateStoreRequest.newBuilder().setStore(store).build());
   }
 
   public void createProject(String name) {
     stub.createProject(CoreServiceProto.CreateProjectRequest.newBuilder().setName(name).build());
+  }
+
+  public void archiveProject(String name) {
+    stub.archiveProject(CoreServiceProto.ArchiveProjectRequest.newBuilder().setName(name).build());
   }
 
   public void restartIngestionJob(String jobId) {
@@ -138,5 +144,14 @@ public class SimpleAPIClient {
     return stub.getFeastCoreVersion(
             feast.proto.core.CoreServiceProto.GetFeastCoreVersionRequest.getDefaultInstance())
         .getVersion();
+  }
+
+  public FeatureSetProto.FeatureSet getFeatureSet(String projectName, String featureSetName) {
+    return stub.getFeatureSet(
+            CoreServiceProto.GetFeatureSetRequest.newBuilder()
+                .setProject(projectName)
+                .setName(featureSetName)
+                .build())
+        .getFeatureSet();
   }
 }

@@ -82,7 +82,7 @@ public class JobCoordinatorIT extends BaseIT {
 
     specsMailbox = new ArrayList<>();
 
-    if (!isNestedTest(testInfo)) {
+    if (!isSequentialTest(testInfo)) {
       jobManager.cleanAll();
       jobRepository.deleteAll();
     }
