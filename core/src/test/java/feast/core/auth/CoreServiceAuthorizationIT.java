@@ -208,12 +208,7 @@ public class CoreServiceAuthorizationIT extends BaseIT {
     String userName = "random_user@example.com";
     SimpleAPIClient secureApiClient = getSecureApiClient(userName);
     FeatureSetProto.FeatureSet expectedFeatureSet =
-        DataGenerator.createFeatureSet(
-            DataGenerator.getDefaultSource(),
-            project,
-            "test_5",
-            Collections.emptyList(),
-            Collections.emptyList());
+        DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), project, "test_5");
 
     StatusRuntimeException exception =
         assertThrows(
@@ -231,12 +226,7 @@ public class CoreServiceAuthorizationIT extends BaseIT {
   void canApplyFeatureSetIfProjectMember() {
     SimpleAPIClient secureApiClient = getSecureApiClient(subjectInProject);
     FeatureSetProto.FeatureSet expectedFeatureSet =
-        DataGenerator.createFeatureSet(
-            DataGenerator.getDefaultSource(),
-            project,
-            "test_6",
-            Collections.emptyList(),
-            Collections.emptyList());
+        DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), project, "test_6");
 
     secureApiClient.simpleApplyFeatureSet(expectedFeatureSet);
 
@@ -253,12 +243,7 @@ public class CoreServiceAuthorizationIT extends BaseIT {
   void canApplyFeatureSetIfAdmin() {
     SimpleAPIClient secureApiClient = getSecureApiClient(subjectIsAdmin);
     FeatureSetProto.FeatureSet expectedFeatureSet =
-        DataGenerator.createFeatureSet(
-            DataGenerator.getDefaultSource(),
-            "any_project",
-            "test_2",
-            Collections.emptyList(),
-            Collections.emptyList());
+        DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), "any_project", "test_2");
 
     secureApiClient.simpleApplyFeatureSet(expectedFeatureSet);
 

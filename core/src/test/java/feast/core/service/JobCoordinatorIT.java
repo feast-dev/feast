@@ -40,7 +40,6 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.*;
 import lombok.SneakyThrows;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -83,7 +82,7 @@ public class JobCoordinatorIT extends BaseIT {
 
     specsMailbox = new ArrayList<>();
 
-    if (!isNestedTest(testInfo)) {
+    if (!isSequentialTest(testInfo)) {
       jobManager.cleanAll();
       jobRepository.deleteAll();
     }
@@ -103,12 +102,7 @@ public class JobCoordinatorIT extends BaseIT {
   @SneakyThrows
   public void shouldCreateJobForNewSource() {
     apiClient.simpleApplyFeatureSet(
-        DataGenerator.createFeatureSet(
-            DataGenerator.getDefaultSource(),
-            "default",
-            "test",
-            Collections.emptyList(),
-            Collections.emptyList()));
+        DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), "default", "test"));
 
     List<FeatureSetProto.FeatureSet> featureSets = apiClient.simpleListFeatureSets("*");
     assertThat(featureSets.size(), equalTo(1));
@@ -133,12 +127,7 @@ public class JobCoordinatorIT extends BaseIT {
   @Test
   public void shouldUpgradeJobWhenStoreChanged() {
     apiClient.simpleApplyFeatureSet(
-        DataGenerator.createFeatureSet(
-            DataGenerator.getDefaultSource(),
-            "project",
-            "test",
-            Collections.emptyList(),
-            Collections.emptyList()));
+        DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), "project", "test"));
 
     await().until(jobManager::getAllJobs, hasSize(1));
 
@@ -162,12 +151,7 @@ public class JobCoordinatorIT extends BaseIT {
   @Test
   public void shouldRestoreJobThatStopped() {
     apiClient.simpleApplyFeatureSet(
-        DataGenerator.createFeatureSet(
-            DataGenerator.getDefaultSource(),
-            "project",
-            "test",
-            Collections.emptyList(),
-            Collections.emptyList()));
+        DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), "project", "test"));
 
     await().until(jobManager::getAllJobs, hasSize(1));
     Job job = jobRepository.findByStatus(JobStatus.RUNNING).get(0);
@@ -217,8 +201,8 @@ public class JobCoordinatorIT extends BaseIT {
               DataGenerator.getDefaultSource(),
               "default",
               "test",
-              ImmutableList.of(Pair.of("entity", ValueProto.ValueType.Enum.BOOL)),
-              Collections.emptyList()));
+              ImmutableMap.of("entity", ValueProto.ValueType.Enum.BOOL),
+              ImmutableMap.of()));
 
       FeatureSetProto.FeatureSet featureSet = apiClient.simpleGetFeatureSet("default", "test");
 
@@ -247,8 +231,8 @@ public class JobCoordinatorIT extends BaseIT {
               DataGenerator.getDefaultSource(),
               "default",
               "test",
-              ImmutableList.of(Pair.of("entity", ValueProto.ValueType.Enum.BOOL)),
-              ImmutableList.of(Pair.of("feature", ValueProto.ValueType.Enum.INT32))));
+              ImmutableMap.of("entity", ValueProto.ValueType.Enum.BOOL),
+              ImmutableMap.of("feature", ValueProto.ValueType.Enum.INT32)));
 
       await().until(() -> specsMailbox, hasSize(1));
 
@@ -309,8 +293,8 @@ public class JobCoordinatorIT extends BaseIT {
               DataGenerator.createSource("localhost", "newTopic"),
               "default",
               "test",
-              ImmutableList.of(Pair.of("entity", ValueProto.ValueType.Enum.BOOL)),
-              ImmutableList.of(Pair.of("feature", ValueProto.ValueType.Enum.INT32))));
+              ImmutableMap.of("entity", ValueProto.ValueType.Enum.BOOL),
+              ImmutableMap.of("feature", ValueProto.ValueType.Enum.INT32)));
 
       await().until(() -> jobManager.getJobStatus(job), equalTo(JobStatus.ABORTED));
 

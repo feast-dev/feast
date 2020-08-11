@@ -108,6 +108,9 @@ service CoreService {
     // Does not support stopping a job in a transitional (ie pending, suspending, aborting) or unknown status
     rpc StopIngestionJob(StopIngestionJobRequest) returns (StopIngestionJobResponse);
 
+    // Internal API for Job Coordinator to update featureSet's status once responsible ingestion job is running
+    rpc UpdateFeatureSetStatus(UpdateFeatureSetStatusRequest) returns (UpdateFeatureSetStatusResponse);
+
 }
 
 // Request for a single feature set
@@ -150,6 +153,10 @@ message ListFeatureSetsRequest {
         // User defined metadata for feature set.
         // Feature sets with all matching labels will be returned.
         map<string,string> labels = 4;
+
+        // Filter by FeatureSet's current status
+        // Project and Feature Set name still must be specified (could be "*")
+        FeatureSetStatus status = 5;
     }
 }
 
@@ -349,3 +356,12 @@ message GetFeatureStatisticsResponse {
     // despite the message being of list type.
     tensorflow.metadata.v0.DatasetFeatureStatisticsList dataset_feature_statistics_list = 1;
 }
+
+message UpdateFeatureSetStatusRequest {
+    // FeatureSetReference of FeatureSet to update
+    FeatureSetReference reference = 1;
+    // Target status
+    FeatureSetStatus status = 2;
+}
+
+message UpdateFeatureSetStatusResponse {}

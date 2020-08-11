@@ -168,6 +168,22 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   @Override
+  public void updateFeatureSetStatus(
+      UpdateFeatureSetStatusRequest request,
+      StreamObserver<UpdateFeatureSetStatusResponse> responseObserver) {
+    try {
+      UpdateFeatureSetStatusResponse response = specService.updateFeatureSetStatus(request);
+
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (Exception e) {
+      log.error("Exception has occurred in UpdateFeatureSetStatus method: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
+  @Override
   public void listStores(
       ListStoresRequest request, StreamObserver<ListStoresResponse> responseObserver) {
     try {

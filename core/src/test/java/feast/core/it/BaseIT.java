@@ -187,15 +187,20 @@ public class BaseIT {
   @PersistenceContext EntityManager entityManager;
 
   /** Used to determine SequentialFlows */
-  public Boolean isNestedTest(TestInfo testInfo) {
-    return testInfo.getTestClass().get().getAnnotation(Nested.class) != null;
+  public Boolean isSequentialTest(TestInfo testInfo) {
+    try {
+      testInfo.getTestClass().get().asSubclass(SequentialFlow.class);
+    } catch (ClassCastException e) {
+      return false;
+    }
+    return true;
   }
 
   @AfterEach
   public void tearDown(TestInfo testInfo) throws Exception {
     CollectorRegistry.defaultRegistry.clear();
 
-    if (!isNestedTest(testInfo)) {
+    if (!isSequentialTest(testInfo)) {
       cleanTables(entityManager);
     }
   }

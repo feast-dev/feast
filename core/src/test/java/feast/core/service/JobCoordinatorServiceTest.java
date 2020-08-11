@@ -31,21 +31,21 @@ import com.google.common.collect.*;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.config.FeastProperties;
 import feast.core.config.FeastProperties.JobProperties;
-import feast.core.dao.FeatureSetRepository;
 import feast.core.it.DataGenerator;
 import feast.core.job.*;
 import feast.core.job.JobRepository;
 import feast.core.job.task.*;
-import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
 import feast.core.util.TestUtil;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.proto.core.CoreServiceProto.ListStoresResponse;
+import feast.proto.core.FeatureSetProto.FeatureSet;
 import feast.proto.core.SourceProto.Source;
 import feast.proto.core.StoreProto.Store;
 import java.util.*;
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.junit.Before;
@@ -62,7 +62,6 @@ public class JobCoordinatorServiceTest {
   JobRepository jobRepository;
 
   @Mock SpecService specService;
-  @Mock FeatureSetRepository featureSetRepository;
 
   private FeastProperties feastProperties;
   private JobCoordinatorService jcsWithConsolidation;
@@ -85,7 +84,6 @@ public class JobCoordinatorServiceTest {
     jcsWithConsolidation =
         new JobCoordinatorService(
             jobRepository,
-            featureSetRepository,
             specService,
             jobManager,
             feastProperties,
@@ -95,7 +93,6 @@ public class JobCoordinatorServiceTest {
     jcsWithJobPerStore =
         new JobCoordinatorService(
             jobRepository,
-            featureSetRepository,
             specService,
             jobManager,
             feastProperties,
@@ -130,6 +127,7 @@ public class JobCoordinatorServiceTest {
   }
 
   @Test
+  @SneakyThrows
   public void shouldGroupJobsBySource() {
     Store store =
         DataGenerator.createStore(
@@ -138,13 +136,15 @@ public class JobCoordinatorServiceTest {
     Source source1 = DataGenerator.createSource("servers:9092", "topic");
     Source source2 = DataGenerator.createSource("others.servers:9092", "topic");
 
-    FeatureSet featureSet1 =
-        TestUtil.createEmptyFeatureSet("features1", feast.core.model.Source.fromProto(source1));
-    FeatureSet featureSet2 =
-        TestUtil.createEmptyFeatureSet("features2", feast.core.model.Source.fromProto(source2));
+    FeatureSet featureSet1 = DataGenerator.createFeatureSet(source1, "project1", "features1");
+    FeatureSet featureSet2 = DataGenerator.createFeatureSet(source2, "project1", "features2");
 
-    when(featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc("%", "project1"))
-        .thenReturn(Lists.newArrayList(featureSet1, featureSet2));
+    when(specService.listFeatureSets(
+            Filter.newBuilder().setFeatureSetName("*").setProject("project1").build()))
+        .thenReturn(
+            ListFeatureSetsResponse.newBuilder()
+                .addAllFeatureSets(Lists.newArrayList(featureSet1, featureSet2))
+                .build());
     when(specService.listStores(any()))
         .thenReturn(ListStoresResponse.newBuilder().addStore(store).build());
 
@@ -157,6 +157,7 @@ public class JobCoordinatorServiceTest {
   }
 
   @Test
+  @SneakyThrows
   public void shouldUseStoreSubscriptionToMapStore() {
     Store store1 =
         DataGenerator.createStore(
@@ -169,15 +170,22 @@ public class JobCoordinatorServiceTest {
     Source source1 = DataGenerator.createSource("servers:9092", "topic");
     Source source2 = DataGenerator.createSource("other.servers:9092", "topic");
 
-    FeatureSet featureSet1 =
-        TestUtil.createEmptyFeatureSet("feature1", feast.core.model.Source.fromProto(source1));
-    FeatureSet featureSet2 =
-        TestUtil.createEmptyFeatureSet("feature2", feast.core.model.Source.fromProto(source2));
+    FeatureSet featureSet1 = DataGenerator.createFeatureSet(source1, "default", "feature1");
+    FeatureSet featureSet2 = DataGenerator.createFeatureSet(source2, "default", "feature2");
 
-    when(featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc("features1", "%"))
-        .thenReturn(Lists.newArrayList(featureSet1));
-    when(featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc("features2", "%"))
-        .thenReturn(Lists.newArrayList(featureSet2));
+    when(specService.listFeatureSets(
+            Filter.newBuilder().setFeatureSetName("features1").setProject("*").build()))
+        .thenReturn(
+            ListFeatureSetsResponse.newBuilder()
+                .addAllFeatureSets(Lists.newArrayList(featureSet1))
+                .build());
+
+    when(specService.listFeatureSets(
+            Filter.newBuilder().setFeatureSetName("features2").setProject("*").build()))
+        .thenReturn(
+            ListFeatureSetsResponse.newBuilder()
+                .addAllFeatureSets(Lists.newArrayList(featureSet2))
+                .build());
 
     when(specService.listStores(any()))
         .thenReturn(ListStoresResponse.newBuilder().addStore(store1).addStore(store2).build());
@@ -233,9 +241,14 @@ public class JobCoordinatorServiceTest {
   }
 
   @Test
+  @SneakyThrows
   public void shouldCreateJobIfNoRunning() {
     Source source = DataGenerator.createSource("kafka:9092", "topic");
     Store store = DataGenerator.getDefaultStore();
+
+    when(specService.listFeatureSets(
+            Filter.newBuilder().setFeatureSetName("*").setProject("*").build()))
+        .thenReturn(ListFeatureSetsResponse.newBuilder().build());
 
     List<JobTask> tasks =
         jcsWithConsolidation.makeJobUpdateTasks(
@@ -255,11 +268,14 @@ public class JobCoordinatorServiceTest {
 
     Source source = DataGenerator.createSource("servers:9092", "topic");
 
-    FeatureSet featureSet =
-        TestUtil.createEmptyFeatureSet("features1", feast.core.model.Source.fromProto(source));
+    FeatureSet featureSet = DataGenerator.createFeatureSet(source, "default", "features1");
 
-    when(featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc("%", "%"))
-        .thenReturn(Lists.newArrayList(featureSet));
+    when(specService.listFeatureSets(
+            Filter.newBuilder().setFeatureSetName("*").setProject("*").build()))
+        .thenReturn(
+            ListFeatureSetsResponse.newBuilder()
+                .addAllFeatureSets(Lists.newArrayList(featureSet))
+                .build());
     when(specService.listStores(any()))
         .thenReturn(ListStoresResponse.newBuilder().addStore(store1).addStore(store2).build());
 
