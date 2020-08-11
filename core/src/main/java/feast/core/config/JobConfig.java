@@ -32,7 +32,6 @@ import feast.proto.core.IngestionJobProto;
 import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions;
 import feast.proto.core.RunnerProto.DirectRunnerConfigOptions;
 import feast.proto.core.SourceProto;
-import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -107,19 +106,10 @@ public class JobConfig {
     Map<String, Object> runnerConfigOptions = runner.getOptions();
 
     FeastProperties.MetricsProperties metrics = jobProperties.getMetrics();
+    String configJson = gson.toJson(runnerConfigOptions);
 
     switch (runner.getType()) {
       case DATAFLOW:
-        // Retrieve labels for options to extend them
-        Map<String, String> jobLabels =
-            (Map<String, String>) runnerConfigOptions.getOrDefault("labels", new HashMap());
-        // Merge Job Selector Labels into runner options
-        // to create jobs with the same set of labels
-        jobProperties.getCoordinator().getJobSelector().forEach(jobLabels::put);
-        runnerConfigOptions.put("labels", jobLabels);
-
-        String configJson = gson.toJson(runnerConfigOptions);
-
         DataflowRunnerConfigOptions.Builder dataflowRunnerConfigOptions =
             DataflowRunnerConfigOptions.newBuilder();
         JsonFormat.parser().merge(configJson, dataflowRunnerConfigOptions);
@@ -131,7 +121,7 @@ public class JobConfig {
       case DIRECT:
         DirectRunnerConfigOptions.Builder directRunnerConfigOptions =
             DirectRunnerConfigOptions.newBuilder();
-        JsonFormat.parser().merge(gson.toJson(runnerConfigOptions), directRunnerConfigOptions);
+        JsonFormat.parser().merge(configJson, directRunnerConfigOptions);
         return new DirectRunnerJobManager(
             directRunnerConfigOptions.build(),
             new DirectJobRegistry(),

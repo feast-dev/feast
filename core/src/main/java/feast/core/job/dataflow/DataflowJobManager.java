@@ -94,6 +94,12 @@ public class DataflowJobManager implements JobManager {
       Map<String, String> jobSelector,
       Dataflow dataflow) {
 
+    // Retrieve labels to extend them with jobSelector
+    Map<String, String> jobLabels = new HashMap<>(runnerConfigOptions.getLabelsMap());
+    // Merge Job Selector Labels into runner options
+    jobSelector.forEach(jobLabels::put);
+    runnerConfigOptions = runnerConfigOptions.toBuilder().putAllLabels(jobLabels).build();
+
     defaultOptions = new DataflowRunnerConfig(runnerConfigOptions);
     this.dataflow = dataflow;
     this.metrics = metricsProperties;

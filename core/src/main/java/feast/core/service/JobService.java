@@ -23,7 +23,6 @@ import feast.core.job.task.RestartJobTask;
 import feast.core.job.task.TerminateJobTask;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
-import feast.core.model.Project;
 import feast.proto.core.CoreServiceProto.ListIngestionJobsRequest;
 import feast.proto.core.CoreServiceProto.ListIngestionJobsResponse;
 import feast.proto.core.CoreServiceProto.RestartIngestionJobRequest;
@@ -105,11 +104,7 @@ public class JobService {
           // find jobs for the matching featuresets
           Collection<Job> matchingJobs =
               this.jobRepository.findByFeatureSetReference(
-                  FeatureSetReference.of(
-                      fsReference.getProject().isEmpty()
-                          ? Project.DEFAULT_NAME
-                          : fsReference.getProject(),
-                      fsReference.getName()));
+                  FeatureSetReference.of(fsReference.getProject(), fsReference.getName()));
           List<String> jobIds =
               matchingJobs.stream()
                   .filter(job -> job.getStatus().equals(JobStatus.RUNNING))
