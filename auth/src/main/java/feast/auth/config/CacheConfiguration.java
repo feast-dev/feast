@@ -49,7 +49,7 @@ public class CacheConfiguration implements CachingConfigurer {
 
   public static final String AUTHORIZATION_CACHE = "authorization";
 
-  @Autowired SecurityProperties secutiryProps;
+  @Autowired SecurityProperties securityProperties;
 
   @Bean
   public CacheManager cacheManager() {
@@ -83,7 +83,8 @@ public class CacheConfiguration implements CachingConfigurer {
       Authentication authentication = (Authentication) params[1];
       String subject =
           AuthUtils.getSubjectFromAuth(
-              authentication, secutiryProps.getAuthorization().getOptions().get("subjectClaim"));
+              authentication,
+              securityProperties.getAuthorization().getOptions().get("subjectClaim"));
       return String.format("%s-%s-%s", method.getName(), projectId, subject);
     };
   }
