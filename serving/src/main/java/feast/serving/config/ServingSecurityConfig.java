@@ -47,7 +47,8 @@ import org.springframework.context.annotation.Configuration;
  */
 
 @Configuration
-@ComponentScan(basePackages = {"feast.auth.config", "feast.auth.service"})
+@ComponentScan(
+    basePackages = {"feast.auth.config", "feast.auth.service", "feast.auth.interceptors"})
 public class ServingSecurityConfig {
 
   private final FeastProperties feastProperties;
