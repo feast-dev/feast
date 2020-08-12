@@ -315,7 +315,9 @@ public class BigQuerySinkTest {
                 TableId.of("test-project", "test_dataset", "myproject_fs_2"),
                 StandardTableDefinition.of(
                     Schema.of(
-                        Field.of("old_feature_1", LegacySQLTypeName.FLOAT),
+                        Field.newBuilder("old_feature_1", LegacySQLTypeName.FLOAT)
+                            .setDescription("Some old description")
+                            .build(),
                         Field.of("old_feature_2", LegacySQLTypeName.INTEGER)))));
 
     FeatureSetSpec spec_fs_2 =
@@ -331,6 +333,11 @@ public class BigQuerySinkTest {
                 FeatureSpec.newBuilder()
                     .setName("feature")
                     .setValueType(ValueProto.ValueType.Enum.STRING)
+                    .build())
+            .addFeatures(
+                FeatureSpec.newBuilder()
+                    .setName("old_feature_1")
+                    .setValueType(ValueProto.ValueType.Enum.FLOAT)
                     .build())
             .build();
 

@@ -28,9 +28,7 @@ import feast.storage.connectors.bigquery.common.TypeUtil;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.sdk.coders.Coder;
@@ -146,8 +144,11 @@ public class FeatureSetSpecToTableSchema
    */
   private Schema createSchemaFromSpec(
       FeatureSetProto.FeatureSetSpec spec, String specKey, Table existingTable) {
-    List<Field> fields = new ArrayList<>();
-    log.info("Table {} will have the following fields:", specKey);
+    Map<String, Field> fields = new LinkedHashMap<>();
+    if (existingTable != null) {
+      Schema existingSchema = existingTable.getDefinition().getSchema();
+      existingSchema.getFields().forEach(f -> fields.put(f.getName(), f));
+    }
 
     for (FeatureSetProto.EntitySpec entitySpec : spec.getEntitiesList()) {
       Field.Builder builder =
@@ -157,8 +158,7 @@ public class FeatureSetSpecToTableSchema
         builder.setMode(Field.Mode.REPEATED);
       }
       Field field = builder.build();
-      log.info("- {}", field.toString());
-      fields.add(field);
+      fields.put(field.getName(), field);
     }
     for (FeatureSetProto.FeatureSpec featureSpec : spec.getFeaturesList()) {
       Field.Builder builder =
@@ -169,8 +169,7 @@ public class FeatureSetSpecToTableSchema
       }
 
       Field field = builder.build();
-      log.info("- {}", field.toString());
-      fields.add(field);
+      fields.put(field.getName(), field);
     }
 
     // Refer to protos/feast/core/Store.proto for reserved fields in BigQuery.
@@ -192,24 +191,13 @@ public class FeatureSetSpecToTableSchema
           Field.newBuilder(entry.getKey(), entry.getValue().getLeft())
               .setDescription(entry.getValue().getRight())
               .build();
-      log.info("- {}", field.toString());
-      fields.add(field);
+      fields.put(field.getName(), field);
     }
 
-    List<Field> fieldsList = new ArrayList<>();
-    if (existingTable != null) {
-      Schema existingSchema = existingTable.getDefinition().getSchema();
-      fieldsList.addAll(existingSchema.getFields());
-    }
+    log.info("Table {} will have the following fields:", specKey);
+    fields.values().forEach(f -> log.info("- {}", f.toString()));
 
-    for (Field field : fields) {
-      if (!fieldsList.contains(field)) {
-        fieldsList.add(field);
-        log.info("- {}", field.toString());
-      }
-    }
-
-    return Schema.of(FieldList.of(fieldsList));
+    return Schema.of(FieldList.of(fields.values()));
   }
 
   /**
