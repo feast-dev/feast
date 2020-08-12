@@ -69,7 +69,6 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     String identity = "";
     if (authentication != null) {
-      System.out.println(securityProperties);
       identity =
           AuthUtils.getSubjectFromAuth(
               authentication,
