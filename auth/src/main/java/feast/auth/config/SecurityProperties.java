@@ -48,7 +48,6 @@ public class SecurityProperties {
   @Getter
   @Setter
   public static class AuthorizationProperties {
-
     // Enable authorization. Authentication must be enabled if authorization is enabled.
     private boolean enabled;
 
@@ -57,6 +56,7 @@ public class SecurityProperties {
     private String provider;
 
     // K/V options to initialize the provider with
+    public static final String SUBJECT_CLAIM = "subjectClaim";
     private Map<String, String> options;
   }
 }

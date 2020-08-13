@@ -19,6 +19,7 @@ package feast.auth.providers.http;
 import feast.auth.authorization.AuthorizationProvider;
 import feast.auth.authorization.AuthorizationResult;
 import feast.auth.config.CacheConfiguration;
+import feast.auth.config.SecurityProperties.AuthorizationProperties;
 import feast.auth.providers.http.client.api.DefaultApi;
 import feast.auth.providers.http.client.invoker.ApiClient;
 import feast.auth.providers.http.client.invoker.ApiException;
@@ -62,7 +63,7 @@ public class HttpAuthorizationProvider implements AuthorizationProvider {
     ApiClient apiClient = new ApiClient();
     apiClient.setBasePath(options.get("authorizationUrl"));
     this.defaultApiClient = new DefaultApi(apiClient);
-    subjectClaim = options.get("subjectClaim");
+    subjectClaim = options.get(AuthorizationProperties.SUBJECT_CLAIM);
   }
 
   /**

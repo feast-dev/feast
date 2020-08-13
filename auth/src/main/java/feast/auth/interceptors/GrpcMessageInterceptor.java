@@ -19,6 +19,7 @@ package feast.auth.interceptors;
 import com.google.protobuf.Empty;
 import com.google.protobuf.Message;
 import feast.auth.config.SecurityProperties;
+import feast.auth.config.SecurityProperties.AuthorizationProperties;
 import feast.auth.utils.AuthUtils;
 import feast.common.logging.AuditLogger;
 import feast.common.logging.entry.MessageAuditLogEntry;
@@ -30,6 +31,7 @@ import io.grpc.ServerCall.Listener;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
 import io.grpc.Status;
+import java.util.Map;
 import org.slf4j.event.Level;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -67,13 +69,7 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
 
     // Attempt Extract current authenticated identity.
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    String identity = "";
-    if (authentication != null) {
-      identity =
-          AuthUtils.getSubjectFromAuth(
-              authentication,
-              securityProperties.getAuthorization().getOptions().get("subjectClaim"));
-    }
+    String identity = (authentication != null) ? getIdentity(authentication) : "";
     entryBuilder.setIdentity(identity);
 
     // Register forwarding call to intercept outgoing response and log to audit log
@@ -106,5 +102,19 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
         entryBuilder.setRequest((Message) message);
       }
     };
+  }
+
+  /**
+   * Extract current authenticated identity from given {@link Authentication}. Extracts subject
+   * claim if specified in AuthorizationProperties, otherwise returns authentication name
+   */
+  private String getIdentity(Authentication authentication) {
+    Map<String, String> options = securityProperties.getAuthorization().getOptions();
+    // use subject claim as identity if set in authorization properties
+    if (options.containsKey(AuthorizationProperties.SUBJECT_CLAIM)) {
+      return AuthUtils.getSubjectFromAuth(
+          authentication, options.get(AuthorizationProperties.SUBJECT_CLAIM));
+    }
+    return authentication.getName();
   }
 }

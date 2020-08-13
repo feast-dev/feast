@@ -22,7 +22,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 public class AuthUtils {
-
   // Suppresses default constructor, ensuring non-instantiability.
   private AuthUtils() {}
 
