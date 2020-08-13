@@ -76,6 +76,13 @@ feast:
       jobSelector:
         application: feast
 
+      # Specify feature sets that should be handled by current instance of JobManager
+      featureSetSelector:
+        - project: *
+          name: *
+      # Stores names that won't be used by current instance of JobManager
+      blacklisted-stores: []
+
   stream:
     # Feature stream type. Only kafka is supported.
     type: kafka
