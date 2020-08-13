@@ -78,8 +78,8 @@ feast:
 
       # Specify feature sets that should be handled by current instance of JobManager
       featureSetSelector:
-        - project: *
-          name: *
+        - project: "*"
+          name: "*"
       # Stores names that won't be used by current instance of JobManager
       blacklisted-stores: []
 
