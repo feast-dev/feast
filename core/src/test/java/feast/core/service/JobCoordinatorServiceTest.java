@@ -85,9 +85,11 @@ public class JobCoordinatorServiceTest {
     coordinatorProperties.setFeatureSetSelector(ImmutableList.of(selector));
     coordinatorProperties.setWhitelistedStores(
         ImmutableList.of("test-store", "test", "test-1", "test-2", "normal-store"));
+    coordinatorProperties.setJobSelector(ImmutableMap.of("application", "feast"));
 
     jobProperties.setCoordinator(coordinatorProperties);
     feastProperties.setJobs(jobProperties);
+    feastProperties.setVersion("1.0.0");
 
     TestUtil.setupAuditLogger();
 

@@ -22,6 +22,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.beans.HasPropertyWithValue.hasProperty;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
+import static org.hamcrest.collection.IsMapContaining.hasEntry;
 import static org.hamcrest.collection.IsMapWithSize.aMapWithSize;
 import static org.hamcrest.core.AllOf.allOf;
 
@@ -187,6 +188,33 @@ public class JobCoordinatorIT extends BaseIT {
     Thread.sleep(2000);
 
     assertThat(jobManager.getAllJobs(), hasSize(0));
+  }
+
+  @Test
+  @SneakyThrows
+  public void shouldRestartJobWithOldVersion() {
+    apiClient.simpleApplyFeatureSet(
+        DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), "default", "test"));
+
+    Job job =
+        Job.builder()
+            .setSource(DataGenerator.getDefaultSource())
+            .setStores(
+                ImmutableMap.of(
+                    DataGenerator.getDefaultStore().getName(), DataGenerator.getDefaultStore()))
+            .setId("some-running-id")
+            .setLabels(ImmutableMap.of("version", "0.9.9"))
+            .build();
+
+    jobManager.startJob(job);
+    jobRepository.add(job);
+
+    await().until(() -> jobManager.getJobStatus(job), equalTo(JobStatus.ABORTED));
+
+    Job replacement = jobRepository.findByStatus(JobStatus.RUNNING).get(0);
+    assertThat(replacement.getSource(), equalTo(job.getSource()));
+    assertThat(replacement.getStores(), equalTo(job.getStores()));
+    assertThat(replacement.getLabels(), hasEntry("version", "1.0.0"));
   }
 
   @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
