@@ -33,23 +33,30 @@ import feast.storage.api.writer.WriteResult;
 import feast.storage.connectors.redis.retriever.FeatureRowDecoder;
 import feast.storage.connectors.redis.serializer.RedisKeySerializer;
 import java.nio.charset.StandardCharsets;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Random;
 import java.util.function.BinaryOperator;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.windowing.*;
 import org.apache.beam.sdk.values.*;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class RedisCustomIO {
+
+  private static final Random rand = new Random();
 
   private static TupleTag<FeatureRow> successfulInsertsTag =
       new TupleTag<FeatureRow>("successfulInserts") {};
@@ -67,9 +74,13 @@ public class RedisCustomIO {
     return new Write(redisIngestionClient, featureSetSpecs, serializer);
   }
 
+  // For unit testing the redis TTL jitter.
+  static void setRandomSeed(long seed) {
+    rand.setSeed(seed);
+  }
+
   /** ServingStoreWrite data to a Redis server. */
   public static class Write extends PTransform<PCollection<FeatureRow>, WriteResult> {
-
     private PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecs;
     private RedisIngestionClient redisIngestionClient;
     private RedisKeySerializer serializer;
@@ -132,6 +143,9 @@ public class RedisCustomIO {
       private final PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecsView;
       private final RedisKeySerializer serializer;
 
+      // Used by unit tests to avoid race condition
+      static Supplier<ZonedDateTime> currentTime = ZonedDateTime::now;
+
       WriteDoFn(
           RedisIngestionClient redisIngestionClient,
           PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecsView,
@@ -173,6 +187,15 @@ public class RedisCustomIO {
           redisKeyBuilder.addEntities(entityFields.get(entityName));
         }
         return redisKeyBuilder.build();
+      }
+
+      private FailedElement processSkippedFeatureRow(FeatureRow featureRow, String jobName) {
+        return FailedElement.newBuilder()
+            .setJobName(jobName)
+            .setTransformName("RedisCustomIO")
+            .setPayload(featureRow.toString())
+            .setErrorMessage("featurerow_to_redis_skipped")
+            .build();
       }
 
       /**
@@ -224,24 +247,56 @@ public class RedisCustomIO {
 
       @ProcessElement
       public void processElement(ProcessContext context) {
+        boolean enableRedisTtl = getEnableRedisTtl();
         List<FeatureRow> filteredFeatureRows = Collections.synchronizedList(new ArrayList<>());
+        List<FeatureRow> skippedFeatureRows = Collections.synchronizedList(new ArrayList<>());
         Map<String, FeatureSetSpec> latestSpecs =
             getLatestSpecs(context.sideInput(featureSetSpecsView));
 
         Map<RedisKey, FeatureRow> deduplicatedRows =
             deduplicateRows(context.element(), latestSpecs);
 
+        List<Triple<RedisKey, FeatureRow, Optional<Long>>> rowsWithTtl =
+            deduplicatedRows.entrySet().stream()
+                .map(
+                    entry -> {
+                      FeatureRow row = entry.getValue();
+                      FeatureSetSpec spec = latestSpecs.get(row.getFeatureSet());
+                      Optional<Long> ttl =
+                          enableRedisTtl
+                              ? calculateRowTtl(
+                                  row, spec, getMaxRedisTtlJitterSeconds(), getMaxRedisTtlSeconds())
+                              : Optional.empty();
+                      return Triple.of(entry.getKey(), row, ttl);
+                    })
+                .filter(
+                    triplet -> {
+                      if (triplet.getRight().isPresent() && triplet.getRight().get() <= 0) {
+                        skippedFeatureRows.add(triplet.getMiddle());
+                        return false;
+                      }
+                      return true;
+                    })
+                .collect(Collectors.toList());
+
+        Map<RedisKey, Long> keysWithTtl =
+            rowsWithTtl.stream()
+                .filter(triplet -> triplet.getRight().isPresent())
+                .collect(
+                    Collectors.toMap(
+                        triplet -> triplet.getLeft(), triplet -> triplet.getRight().get()));
+
         try {
           executeBatch(
               (redisIngestionClient) ->
-                  deduplicatedRows.entrySet().stream()
+                  rowsWithTtl.stream()
                       .map(
-                          entry ->
+                          triplet ->
                               redisIngestionClient
-                                  .get(serializer.serialize(entry.getKey()))
+                                  .get(serializer.serialize(triplet.getLeft()))
                                   .thenAccept(
                                       currentValue -> {
-                                        FeatureRow newRow = entry.getValue();
+                                        FeatureRow newRow = triplet.getMiddle();
                                         if (rowShouldBeWritten(newRow, currentValue)) {
                                           filteredFeatureRows.add(newRow);
                                         }
@@ -252,15 +307,23 @@ public class RedisCustomIO {
               redisIngestionClient ->
                   filteredFeatureRows.stream()
                       .map(
-                          row ->
-                              redisIngestionClient.set(
-                                  serializer.serialize(
-                                      getKey(row, latestSpecs.get(row.getFeatureSet()))),
-                                  getValue(row, latestSpecs.get(row.getFeatureSet()))
-                                      .toByteArray()))
+                          row -> {
+                            FeatureSetSpec spec = latestSpecs.get(row.getFeatureSet());
+                            RedisKey key = getKey(row, spec);
+                            byte[] value = getValue(row, spec).toByteArray();
+                            if (keysWithTtl.containsKey(key)) {
+                              long ttl = keysWithTtl.get(key);
+                              return redisIngestionClient.setex(
+                                  serializer.serialize(key), ttl, value);
+                            } else {
+                              return redisIngestionClient.set(serializer.serialize(key), value);
+                            }
+                          })
                       .collect(Collectors.toList()));
 
           filteredFeatureRows.forEach(row -> context.output(successfulInsertsTag, row));
+          skippedFeatureRows.forEach(
+              row -> processSkippedFeatureRow(row, context.getPipelineOptions().getJobName()));
         } catch (Exception e) {
           deduplicatedRows
               .values()
@@ -315,6 +378,48 @@ public class RedisCustomIO {
         return specs.entrySet().stream()
             .map(e -> ImmutablePair.of(e.getKey(), Iterators.getLast(e.getValue().iterator())))
             .collect(Collectors.toMap(ImmutablePair::getLeft, ImmutablePair::getRight));
+      }
+
+      /**
+       * Helper function for calculating the TTL for the redis row.
+       *
+       * @return TTL in seconds for the redis record, or null if TTL should not be used.
+       */
+      Optional<Long> calculateRowTtl(
+          FeatureRow newRow, FeatureSetSpec spec, int maxRedisTtlJitterSeconds, long maxRedisTtl) {
+        long ttlSeconds = 0;
+        final com.google.protobuf.Duration maxAge = spec.getMaxAge();
+
+        // If maxAge isn't set don't apply TTL
+        if (!maxAge.equals(com.google.protobuf.Duration.getDefaultInstance())) {
+          ttlSeconds = maxAge.getSeconds();
+          if (maxRedisTtl > 0 && ttlSeconds > maxRedisTtl) {
+            ttlSeconds = maxRedisTtl;
+          }
+
+          // Adjust initial TTL based on event timestamp of
+          // FeatureRow
+          ttlSeconds -=
+              currentTime.get().toInstant().getEpochSecond()
+                  - newRow.getEventTimestamp().getSeconds();
+
+          // The consideration to write data to Redis or not
+          // should NOT take jitter into account
+          if (ttlSeconds > 0 && maxRedisTtlJitterSeconds > 0) {
+            ttlSeconds += rand.nextInt(maxRedisTtlJitterSeconds);
+          }
+        } else {
+          if (maxRedisTtl > 0) {
+            ttlSeconds = maxRedisTtl;
+          } else {
+            // Log an error instead of throwing an exception since setting a TTL is an
+            // optimization for storage space usage.
+            log.error("Unable to find FeatureSet to set Redis TTL  featureSet={}", spec.getName());
+            return Optional.empty();
+          }
+        }
+
+        return Optional.of(ttlSeconds);
       }
     }
   }

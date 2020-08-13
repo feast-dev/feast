@@ -26,7 +26,7 @@ option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 // The way FeatureRow is encoded and decoded when it is written to and read from
 // the Store depends on the type of the Store.
 //
-// For example, a FeatureRow will materialize as a row in a table in 
+// For example, a FeatureRow will materialize as a row in a table in
 // BigQuery but it will materialize as a key, value pair element in Redis.
 //
 message Store {
@@ -39,25 +39,25 @@ message Store {
     // The Redis data types used (https://redis.io/topics/data-types):
     // - key: STRING
     // - value: STRING
-    // 
+    //
     // Encodings:
     // - key: byte array of RedisKey (refer to feast.storage.RedisKey)
     // - value: byte array of FeatureRow (refer to feast.types.FeatureRow)
-    // 
+    //
     REDIS = 1;
 
     // BigQuery stores a FeatureRow element as a row in a BigQuery table.
-    // 
+    //
     // Table name is derived is the same as the feature set name.
-    // 
-    // The entities and features in a FeatureSetSpec corresponds to the 
-    // fields in the BigQuery table (these make up the BigQuery schema). 
-    // The name of the entity spec and feature spec corresponds to the column 
-    // names, and the value_type of entity spec and feature spec corresponds 
-    // to BigQuery standard SQL data type of the column. 
-    // 
-    // The following BigQuery fields are reserved for Feast internal use. 
-    // Ingestion of entity or feature spec with names identical 
+    //
+    // The entities and features in a FeatureSetSpec corresponds to the
+    // fields in the BigQuery table (these make up the BigQuery schema).
+    // The name of the entity spec and feature spec corresponds to the column
+    // names, and the value_type of entity spec and feature spec corresponds
+    // to BigQuery standard SQL data type of the column.
+    //
+    // The following BigQuery fields are reserved for Feast internal use.
+    // Ingestion of entity or feature spec with names identical
     // to the following field names will raise an exception during ingestion.
     //
     //   column_name       | column_data_type | description
@@ -69,18 +69,18 @@ message Store {
     //
     // BigQuery table created will be partitioned by the field "event_timestamp"
     // of the FeatureRow (https://cloud.google.com/bigquery/docs/partitioned-tables).
-    // 
-    // The following table shows how ValueType in Feast is mapped to 
-    // BigQuery Standard SQL data types 
+    //
+    // The following table shows how ValueType in Feast is mapped to
+    // BigQuery Standard SQL data types
     // (https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types):
     //
-    // BYTES       : BYTES 
-    // STRING      : STRING 
+    // BYTES       : BYTES
+    // STRING      : STRING
     // INT32       : INT64
-    // INT64       : IN64 
+    // INT64       : IN64
     // DOUBLE      : FLOAT64
-    // FLOAT       : FLOAT64 
-    // BOOL        : BOOL 
+    // FLOAT       : FLOAT64
+    // BOOL        : BOOL
     // BYTES_LIST  : ARRAY
     // STRING_LIST : ARRAY
     // INT32_LIST  : ARRAY
@@ -110,6 +110,12 @@ message Store {
     int32 max_retries = 4;
     // Optional. How often flush data to redis
     int32 flush_frequency_seconds = 5;
+    // Set the Redis key TTL based on the max age of the FeatureSet that data is being written for.
+    bool enable_redis_ttl = 6;
+    // Optional. Set the maximum amount of jitter in seconds added to Redis TTL. This has no effect if Redis TLL is disabled.
+    int32 max_redis_ttl_jitter_seconds = 7;
+    // Optional. Set the maximum Redis TTL, if TTL is enabled. If set, this value will be used instead of the FeatureSet max age if the max age is larger.
+    int64 max_redis_ttl_seconds = 8;
   }
 
   message BigQueryConfig {
@@ -141,7 +147,12 @@ message Store {
     bool enable_fallback = 6;
     // Optional. This would be the fallback prefix to use if enable_fallback is true.
     string fallback_prefix = 7;
-
+    // Set the Redis key TTL based on the max age of the FeatureSet that data is being written for.
+    bool enable_redis_ttl = 8;
+    // Optional. Set the maximum amount of jitter in seconds added to Redis TTL. This has no effect if Redis TLL is disabled.
+    int32 max_redis_ttl_jitter_seconds = 9;
+    // Optional. Set the maximum Redis TTL, if TTL is enabled. If set, this value will be used instead of the FeatureSet max age if the max age is larger.
+    int64 max_redis_ttl_seconds = 10;
   }
 
   message Subscription {

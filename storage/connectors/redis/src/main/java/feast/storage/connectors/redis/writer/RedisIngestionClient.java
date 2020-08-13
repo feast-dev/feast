@@ -35,7 +35,15 @@ public interface RedisIngestionClient extends Serializable {
 
   void sync(Iterable<Future<?>> futures);
 
+  boolean getEnableRedisTtl();
+
+  int getMaxRedisTtlJitterSeconds();
+
+  long getMaxRedisTtlSeconds();
+
   CompletableFuture<String> set(byte[] key, byte[] value);
+
+  CompletableFuture<String> setex(byte[] key, long ttl, byte[] value);
 
   CompletableFuture<byte[]> get(byte[] key);
 }

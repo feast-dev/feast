@@ -40,6 +40,9 @@ public class RedisClusterIngestionClient implements RedisIngestionClient {
   private transient RedisClusterClient clusterClient;
   private StatefulRedisClusterConnection<byte[], byte[]> connection;
   private RedisAdvancedClusterAsyncCommands<byte[], byte[]> commands;
+  private boolean enableRedisTtl = false;
+  private int maxRedisTTLJitterSeconds = 0;
+  private long maxRedisTtl = 0;
 
   public RedisClusterIngestionClient(StoreProto.Store.RedisClusterConfig redisClusterConfig) {
     this.uriList =
@@ -55,6 +58,9 @@ public class RedisClusterIngestionClient implements RedisIngestionClient {
         redisClusterConfig.getInitialBackoffMs() > 0 ? redisClusterConfig.getInitialBackoffMs() : 1;
     this.backOffExecutor =
         new BackOffExecutor(redisClusterConfig.getMaxRetries(), Duration.millis(backoffMs));
+    this.enableRedisTtl = redisClusterConfig.getEnableRedisTtl();
+    this.maxRedisTTLJitterSeconds = redisClusterConfig.getMaxRedisTtlJitterSeconds();
+    this.maxRedisTtl = redisClusterConfig.getMaxRedisTtlSeconds();
   }
 
   @Override
@@ -98,8 +104,28 @@ public class RedisClusterIngestionClient implements RedisIngestionClient {
   }
 
   @Override
+  public boolean getEnableRedisTtl() {
+    return this.enableRedisTtl;
+  }
+
+  @Override
+  public int getMaxRedisTtlJitterSeconds() {
+    return this.maxRedisTTLJitterSeconds;
+  }
+
+  @Override
+  public long getMaxRedisTtlSeconds() {
+    return this.maxRedisTtl;
+  }
+
+  @Override
   public CompletableFuture<String> set(byte[] key, byte[] value) {
     return commands.set(key, value).toCompletableFuture();
+  }
+
+  @Override
+  public CompletableFuture<String> setex(byte[] key, long ttl, byte[] value) {
+    return commands.setex(key, ttl, value).toCompletableFuture();
   }
 
   @Override

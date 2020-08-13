@@ -81,6 +81,18 @@ public class BatchDoFnWithRedis<Input, Output> extends DoFn<Input, Output> {
             });
   }
 
+  protected boolean getEnableRedisTtl() {
+    return redisIngestionClient.getEnableRedisTtl();
+  }
+
+  protected long getMaxRedisTtlSeconds() {
+    return redisIngestionClient.getMaxRedisTtlSeconds();
+  }
+
+  protected int getMaxRedisTtlJitterSeconds() {
+    return redisIngestionClient.getMaxRedisTtlJitterSeconds();
+  }
+
   @Teardown
   public void teardown() {
     redisIngestionClient.shutdown();
