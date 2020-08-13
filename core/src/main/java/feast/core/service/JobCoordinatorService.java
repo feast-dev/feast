@@ -66,6 +66,8 @@ public class JobCoordinatorService {
   private final JobProperties jobProperties;
   private final JobGroupingStrategy groupingStrategy;
   private final KafkaTemplate<String, FeatureSetSpec> specPublisher;
+  private final List<Store.Subscription> featureSetSubscriptions;
+  private final List<String> whitelistedStores;
 
   @Autowired
   public JobCoordinatorService(
@@ -81,6 +83,11 @@ public class JobCoordinatorService {
     this.jobProperties = feastProperties.getJobs();
     this.specPublisher = specPublisher;
     this.groupingStrategy = groupingStrategy;
+    this.featureSetSubscriptions =
+        feastProperties.getJobs().getCoordinator().getFeatureSetSelector().stream()
+            .map(JobProperties.CoordinatorProperties.FeatureSetSelector::toSubscription)
+            .collect(Collectors.toList());
+    this.whitelistedStores = feastProperties.getJobs().getCoordinator().getWhitelistedStores();
   }
 
   /**
@@ -290,7 +297,9 @@ public class JobCoordinatorService {
 
   private List<Store> getAllStores() {
     ListStoresResponse listStoresResponse = specService.listStores(Filter.newBuilder().build());
-    return listStoresResponse.getStoreList();
+    return listStoresResponse.getStoreList().stream()
+        .filter(s -> this.whitelistedStores.contains(s.getName()))
+        .collect(Collectors.toList());
   }
 
   /**
@@ -319,7 +328,7 @@ public class JobCoordinatorService {
    * @param store to get subscribed FeatureSets for
    * @return list of FeatureSets that the store subscribes to.
    */
-  private List<FeatureSet> getFeatureSetsForStore(Store store) {
+  List<FeatureSet> getFeatureSetsForStore(Store store) {
     return store.getSubscriptionsList().stream()
         .flatMap(
             subscription -> {
@@ -330,7 +339,14 @@ public class JobCoordinatorService {
                             .setProject(subscription.getProject())
                             .setFeatureSetName(subscription.getName())
                             .build())
-                    .getFeatureSetsList().stream();
+                    .getFeatureSetsList().stream()
+                    .filter(
+                        f ->
+                            this.featureSetSubscriptions.isEmpty()
+                                || isSubscribedToFeatureSet(
+                                    this.featureSetSubscriptions,
+                                    f.getSpec().getProject(),
+                                    f.getSpec().getName()));
               } catch (InvalidProtocolBufferException e) {
                 throw new RuntimeException(
                     String.format(

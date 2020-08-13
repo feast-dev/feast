@@ -17,6 +17,7 @@
 package feast.core.service;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.beans.HasPropertyWithValue.hasProperty;
 import static org.hamcrest.core.Is.isA;
@@ -73,7 +74,21 @@ public class JobCoordinatorServiceTest {
     feastProperties = new FeastProperties();
     JobProperties jobProperties = new JobProperties();
     jobProperties.setJobUpdateTimeoutSeconds(5);
+
+    JobProperties.CoordinatorProperties.FeatureSetSelector selector =
+        new JobProperties.CoordinatorProperties.FeatureSetSelector();
+    selector.setName("fs*");
+    selector.setProject("*");
+
+    JobProperties.CoordinatorProperties coordinatorProperties =
+        new JobProperties.CoordinatorProperties();
+    coordinatorProperties.setFeatureSetSelector(ImmutableList.of(selector));
+    coordinatorProperties.setWhitelistedStores(
+        ImmutableList.of("test-store", "test", "test-1", "test-2", "normal-store"));
+
+    jobProperties.setCoordinator(coordinatorProperties);
     feastProperties.setJobs(jobProperties);
+
     TestUtil.setupAuditLogger();
 
     JobManager jobManager = mock(JobManager.class);
@@ -136,8 +151,8 @@ public class JobCoordinatorServiceTest {
     Source source1 = DataGenerator.createSource("servers:9092", "topic");
     Source source2 = DataGenerator.createSource("others.servers:9092", "topic");
 
-    FeatureSet featureSet1 = DataGenerator.createFeatureSet(source1, "project1", "features1");
-    FeatureSet featureSet2 = DataGenerator.createFeatureSet(source2, "project1", "features2");
+    FeatureSet featureSet1 = DataGenerator.createFeatureSet(source1, "project1", "fs1");
+    FeatureSet featureSet2 = DataGenerator.createFeatureSet(source2, "project1", "fs2");
 
     when(specService.listFeatureSets(
             Filter.newBuilder().setFeatureSetName("*").setProject("project1").build()))
@@ -170,8 +185,8 @@ public class JobCoordinatorServiceTest {
     Source source1 = DataGenerator.createSource("servers:9092", "topic");
     Source source2 = DataGenerator.createSource("other.servers:9092", "topic");
 
-    FeatureSet featureSet1 = DataGenerator.createFeatureSet(source1, "default", "feature1");
-    FeatureSet featureSet2 = DataGenerator.createFeatureSet(source2, "default", "feature2");
+    FeatureSet featureSet1 = DataGenerator.createFeatureSet(source1, "default", "fs1");
+    FeatureSet featureSet2 = DataGenerator.createFeatureSet(source2, "default", "fs2");
 
     when(specService.listFeatureSets(
             Filter.newBuilder().setFeatureSetName("features1").setProject("*").build()))
@@ -268,7 +283,7 @@ public class JobCoordinatorServiceTest {
 
     Source source = DataGenerator.createSource("servers:9092", "topic");
 
-    FeatureSet featureSet = DataGenerator.createFeatureSet(source, "default", "features1");
+    FeatureSet featureSet = DataGenerator.createFeatureSet(source, "default", "fs1");
 
     when(specService.listFeatureSets(
             Filter.newBuilder().setFeatureSetName("*").setProject("*").build()))
@@ -310,7 +325,6 @@ public class JobCoordinatorServiceTest {
     Store store2 =
         DataGenerator.createStore(
             "test-2", Store.StoreType.REDIS, ImmutableList.of(Triple.of("*", "*", false)));
-    ;
 
     Source source = DataGenerator.createSource("servers:9092", "topic");
 
@@ -332,5 +346,63 @@ public class JobCoordinatorServiceTest {
 
     assertThat(jobTasks, hasSize(1));
     assertThat(jobTasks, hasItem(isA(CreateJobTask.class)));
+  }
+
+  @Test
+  @SneakyThrows
+  public void shouldSelectOnlyFeatureSetsThatJobManagerSubscribedTo() {
+    Store store = DataGenerator.getDefaultStore();
+    Source source = DataGenerator.getDefaultSource();
+
+    FeatureSet featureSet1 = DataGenerator.createFeatureSet(source, "default", "fs1");
+    FeatureSet featureSet2 = DataGenerator.createFeatureSet(source, "project", "fs3");
+    FeatureSet featureSet3 = DataGenerator.createFeatureSet(source, "default", "not-fs");
+
+    when(specService.listFeatureSets(
+            Filter.newBuilder().setFeatureSetName("*").setProject("*").build()))
+        .thenReturn(
+            ListFeatureSetsResponse.newBuilder()
+                .addAllFeatureSets(Lists.newArrayList(featureSet1, featureSet2, featureSet3))
+                .build());
+
+    List<FeatureSet> featureSetsForStore = jcsWithConsolidation.getFeatureSetsForStore(store);
+    assertThat(featureSetsForStore, containsInAnyOrder(featureSet1, featureSet2));
+  }
+
+  @Test
+  @SneakyThrows
+  public void shouldSelectOnlyStoresThatNotBlacklisted() {
+    Store store1 =
+        DataGenerator.createStore(
+            "normal-store",
+            Store.StoreType.REDIS,
+            ImmutableList.of(Triple.of("project1", "*", false)));
+    Store store2 =
+        DataGenerator.createStore(
+            "blacklisted-store",
+            Store.StoreType.REDIS,
+            ImmutableList.of(Triple.of("project2", "*", false)));
+
+    Source source1 = DataGenerator.createSource("source-1", "topic");
+    Source source2 = DataGenerator.createSource("source-2", "topic");
+
+    FeatureSet featureSet1 = DataGenerator.createFeatureSet(source1, "default", "fs1");
+    FeatureSet featureSet2 = DataGenerator.createFeatureSet(source2, "project", "fs3");
+
+    when(specService.listStores(any()))
+        .thenReturn(ListStoresResponse.newBuilder().addStore(store1).addStore(store2).build());
+
+    when(specService.listFeatureSets(
+            Filter.newBuilder().setProject("project1").setFeatureSetName("*").build()))
+        .thenReturn(ListFeatureSetsResponse.newBuilder().addFeatureSets(featureSet1).build());
+
+    when(specService.listFeatureSets(
+            Filter.newBuilder().setProject("project2").setFeatureSetName("*").build()))
+        .thenReturn(ListFeatureSetsResponse.newBuilder().addFeatureSets(featureSet2).build());
+
+    ArrayList<Pair<Source, Set<Store>>> pairs =
+        Lists.newArrayList(jcsWithConsolidation.getSourceToStoreMappings());
+
+    assertThat(pairs, containsInAnyOrder(Pair.of(source1, ImmutableSet.of(store1))));
   }
 }

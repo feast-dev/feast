@@ -25,6 +25,12 @@ feast-core:
           jobSelector:
             application: feast
             tag: $IMAGE_TAG
+          featureSetSelector:
+            - project: "*"
+              name: "*"
+          whitelisted-stores:
+            - online
+            - historical
         runners:
         - name: dataflow
           type: DataflowRunner

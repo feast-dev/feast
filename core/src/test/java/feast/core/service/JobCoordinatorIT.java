@@ -55,7 +55,11 @@ import org.springframework.kafka.core.KafkaTemplate;
       "feast.jobs.enabled=true",
       "feast.jobs.polling_interval_milliseconds=1000",
       "feast.stream.specsOptions.notifyIntervalMilliseconds=100",
-      "feast.jobs.coordinator.consolidate-jobs-per-source=true"
+      "feast.jobs.coordinator.consolidate-jobs-per-source=true",
+      "feast.jobs.coordinator.feature-set-selector[0].name=test",
+      "feast.jobs.coordinator.feature-set-selector[0].project=default",
+      "feast.jobs.coordinator.whitelisted-stores[0]=test-store",
+      "feast.jobs.coordinator.whitelisted-stores[1]=new-store",
     })
 public class JobCoordinatorIT extends BaseIT {
   @Autowired private FakeJobManager jobManager;
@@ -127,7 +131,7 @@ public class JobCoordinatorIT extends BaseIT {
   @Test
   public void shouldUpgradeJobWhenStoreChanged() {
     apiClient.simpleApplyFeatureSet(
-        DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), "project", "test"));
+        DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), "default", "test"));
 
     await().until(jobManager::getAllJobs, hasSize(1));
 
@@ -151,7 +155,7 @@ public class JobCoordinatorIT extends BaseIT {
   @Test
   public void shouldRestoreJobThatStopped() {
     apiClient.simpleApplyFeatureSet(
-        DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), "project", "test"));
+        DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), "default", "test"));
 
     await().until(jobManager::getAllJobs, hasSize(1));
     Job job = jobRepository.findByStatus(JobStatus.RUNNING).get(0);
@@ -173,10 +177,27 @@ public class JobCoordinatorIT extends BaseIT {
                     hasProperty("id", not(ingestionJobs.get(0).getId())))));
   }
 
+  @Test
+  @SneakyThrows
+  public void shouldNotCreateJobForUnwantedFeatureSet() {
+    apiClient.simpleApplyFeatureSet(
+        DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), "default", "other"));
+
+    Thread.sleep(2000);
+
+    assertThat(jobManager.getAllJobs(), hasSize(0));
+  }
+
   @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
   @Nested
   class SpecNotificationFlow extends SequentialFlow {
     Job job;
+
+    @AfterAll
+    public void tearDown() {
+      jobManager.cleanAll();
+      jobRepository.deleteAll();
+    }
 
     @Test
     @Order(1)

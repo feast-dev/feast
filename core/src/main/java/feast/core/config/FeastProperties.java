@@ -22,6 +22,7 @@ import feast.auth.config.SecurityProperties.AuthorizationProperties;
 import feast.common.logging.config.LoggingProperties;
 import feast.common.validators.OneOfStrings;
 import feast.core.config.FeastProperties.StreamProperties.FeatureStreamOptions;
+import feast.proto.core.StoreProto;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -114,6 +115,30 @@ public class FeastProperties {
 
       /* Labels to identify jobs managed by this job coordinator */
       private Map<String, String> jobSelector = new HashMap<>();
+
+      /* Selectors to define featureSets that are responsibility of current JobManager */
+      private List<FeatureSetSelector> featureSetSelector = new ArrayList<>();
+
+      /* Specify names of stores that must be used by current JobManager */
+      private List<String> whitelistedStores = new ArrayList<>();
+
+      /**
+       * Similarly to Store's subscription this selector defines set of FeatureSets. All FeatureSets
+       * that match both project and name will be selected. Project and name may use *
+       */
+      @Getter
+      @Setter
+      public static class FeatureSetSelector {
+        private String project;
+        private String name;
+
+        public StoreProto.Store.Subscription toSubscription() {
+          return StoreProto.Store.Subscription.newBuilder()
+              .setName(this.name)
+              .setProject(this.project)
+              .build();
+        }
+      }
     }
 
     /** List of configured job runners. */
