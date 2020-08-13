@@ -60,6 +60,7 @@ import org.springframework.kafka.core.KafkaTemplate;
       "feast.jobs.coordinator.feature-set-selector[0].project=default",
       "feast.jobs.coordinator.whitelisted-stores[0]=test-store",
       "feast.jobs.coordinator.whitelisted-stores[1]=new-store",
+      "feast.version=1.0.0"
     })
 public class JobCoordinatorIT extends BaseIT {
   @Autowired private FakeJobManager jobManager;
@@ -212,6 +213,7 @@ public class JobCoordinatorIT extends BaseIT {
                   ImmutableMap.of(
                       DataGenerator.getDefaultStore().getName(), DataGenerator.getDefaultStore()))
               .setId("some-running-id")
+              .setLabels(ImmutableMap.of("version", "1.0.0"))
               .build();
 
       jobManager.startJob(job);

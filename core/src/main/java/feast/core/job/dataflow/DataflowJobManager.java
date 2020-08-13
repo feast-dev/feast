@@ -94,12 +94,6 @@ public class DataflowJobManager implements JobManager {
       Map<String, String> jobSelector,
       Dataflow dataflow) {
 
-    // Retrieve labels to extend them with jobSelector
-    Map<String, String> jobLabels = new HashMap<>(runnerConfigOptions.getLabelsMap());
-    // Merge Job Selector Labels into runner options
-    jobSelector.forEach(jobLabels::put);
-    runnerConfigOptions = runnerConfigOptions.toBuilder().putAllLabels(jobLabels).build();
-
     defaultOptions = new DataflowRunnerConfig(runnerConfigOptions);
     this.dataflow = dataflow;
     this.metrics = metricsProperties;
@@ -130,7 +124,11 @@ public class DataflowJobManager implements JobManager {
     try {
       String extId =
           submitDataflowJob(
-              job.getId(), job.getSource(), new HashSet<>(job.getStores().values()), false);
+              job.getId(),
+              job.getSource(),
+              new HashSet<>(job.getStores().values()),
+              job.getLabels(),
+              false);
       job.setExtId(extId);
       return job;
 
@@ -315,9 +313,13 @@ public class DataflowJobManager implements JobManager {
   }
 
   private String submitDataflowJob(
-      String jobName, SourceProto.Source source, Set<StoreProto.Store> sinks, boolean update) {
+      String jobName,
+      SourceProto.Source source,
+      Set<StoreProto.Store> sinks,
+      Map<String, String> labels,
+      boolean update) {
     try {
-      ImportOptions pipelineOptions = getPipelineOptions(jobName, source, sinks, update);
+      ImportOptions pipelineOptions = getPipelineOptions(jobName, source, sinks, labels, update);
       DataflowPipelineJob pipelineResult = runPipeline(pipelineOptions);
       String jobId = waitForJobToRun(pipelineResult);
       return jobId;
@@ -328,7 +330,11 @@ public class DataflowJobManager implements JobManager {
   }
 
   private ImportOptions getPipelineOptions(
-      String jobName, SourceProto.Source source, Set<StoreProto.Store> sinks, boolean update)
+      String jobName,
+      SourceProto.Source source,
+      Set<StoreProto.Store> sinks,
+      Map<String, String> labels,
+      boolean update)
       throws IOException, IllegalAccessException {
     ImportOptions pipelineOptions =
         PipelineOptionsFactory.fromArgs(defaultOptions.toArgs()).as(ImportOptions.class);
@@ -347,6 +353,12 @@ public class DataflowJobManager implements JobManager {
     pipelineOptions.setJobName(jobName);
     pipelineOptions.setFilesToStage(
         detectClassPathResourcesToStage(DataflowRunner.class.getClassLoader()));
+
+    // Merge common labels with job's labels
+    Map<String, String> mergedLabels = new HashMap<>(defaultOptions.getLabels());
+    labels.forEach(mergedLabels::put);
+    pipelineOptions.setLabels(mergedLabels);
+
     if (metrics.isEnabled()) {
       pipelineOptions.setMetricsExporterType(metrics.getType());
       if (metrics.getType().equals("statsd")) {

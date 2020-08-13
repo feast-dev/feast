@@ -19,6 +19,7 @@ package feast.core.job;
 import feast.core.model.Job;
 import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.tuple.Pair;
@@ -29,7 +30,8 @@ import org.apache.commons.lang3.tuple.Pair;
  */
 public interface JobGroupingStrategy {
   /** Get the non terminated ingestion job ingesting for given source and stores. */
-  Job getOrCreateJob(SourceProto.Source source, Set<StoreProto.Store> stores);
+  Job getOrCreateJob(
+      SourceProto.Source source, Set<StoreProto.Store> stores, Map<String, String> labels);
   /** Create unique JobId that would be used as key in communications with JobRunner */
   String createJobId(Job job);
   /* Distribute given sources and stores across jobs. One yielded Pair - one created Job **/
