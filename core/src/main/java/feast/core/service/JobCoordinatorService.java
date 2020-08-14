@@ -59,7 +59,7 @@ import org.springframework.stereotype.Service;
 public class JobCoordinatorService {
 
   private final int SPEC_PUBLISHING_TIMEOUT_SECONDS = 5;
-  private final String VERSION_LABEL = "FeastVersion";
+  public static final String VERSION_LABEL = "FeastVersion";
 
   private final JobRepository jobRepository;
   private final SpecService specService;

@@ -203,7 +203,7 @@ public class JobCoordinatorIT extends BaseIT {
                 ImmutableMap.of(
                     DataGenerator.getDefaultStore().getName(), DataGenerator.getDefaultStore()))
             .setId("some-running-id")
-            .setLabels(ImmutableMap.of("version", "0.9.9"))
+            .setLabels(ImmutableMap.of(JobCoordinatorService.VERSION_LABEL, "0.9.9"))
             .build();
 
     jobManager.startJob(job);
@@ -214,7 +214,7 @@ public class JobCoordinatorIT extends BaseIT {
     Job replacement = jobRepository.findByStatus(JobStatus.RUNNING).get(0);
     assertThat(replacement.getSource(), equalTo(job.getSource()));
     assertThat(replacement.getStores(), equalTo(job.getStores()));
-    assertThat(replacement.getLabels(), hasEntry("version", "1.0.0"));
+    assertThat(replacement.getLabels(), hasEntry(JobCoordinatorService.VERSION_LABEL, "1.0.0"));
   }
 
   @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -241,7 +241,7 @@ public class JobCoordinatorIT extends BaseIT {
                   ImmutableMap.of(
                       DataGenerator.getDefaultStore().getName(), DataGenerator.getDefaultStore()))
               .setId("some-running-id")
-              .setLabels(ImmutableMap.of("version", "1.0.0"))
+              .setLabels(ImmutableMap.of(JobCoordinatorService.VERSION_LABEL, "1.0.0"))
               .build();
 
       jobManager.startJob(job);
