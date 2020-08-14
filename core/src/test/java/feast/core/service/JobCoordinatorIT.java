@@ -57,7 +57,9 @@ import org.springframework.kafka.core.KafkaTemplate;
       "feast.stream.specsOptions.notifyIntervalMilliseconds=100",
       "feast.jobs.coordinator.consolidate-jobs-per-source=true",
       "feast.jobs.coordinator.feature-set-selector[0].name=test",
-      "feast.jobs.coordinator.feature-set-selector[0].project=default"
+      "feast.jobs.coordinator.feature-set-selector[0].project=default",
+      "feast.jobs.coordinator.whitelisted-stores[0]=test-store",
+      "feast.jobs.coordinator.whitelisted-stores[1]=new-store",
     })
 public class JobCoordinatorIT extends BaseIT {
   @Autowired private FakeJobManager jobManager;

@@ -117,10 +117,10 @@ public class FeastProperties {
       private Map<String, String> jobSelector = new HashMap<>();
 
       /* Selectors to define featureSets that are responsibility of current JobManager */
-      private List<Selector> featureSetSelector = new ArrayList<>();
+      private List<FeatureSetSelector> featureSetSelector = new ArrayList<>();
 
-      /* Specify names of stores that must not be used by current JobManager */
-      private List<String> blacklistedStores = new ArrayList<>();
+      /* Specify names of stores that must be used by current JobManager */
+      private List<String> whitelistedStores = new ArrayList<>();
 
       /**
        * Similarly to Store's subscription this selector defines set of FeatureSets. All FeatureSets
@@ -128,7 +128,7 @@ public class FeastProperties {
        */
       @Getter
       @Setter
-      public static class Selector {
+      public static class FeatureSetSelector {
         private String project;
         private String name;
 

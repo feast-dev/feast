@@ -67,7 +67,7 @@ public class JobCoordinatorService {
   private final JobGroupingStrategy groupingStrategy;
   private final KafkaTemplate<String, FeatureSetSpec> specPublisher;
   private final List<Store.Subscription> featureSetSubscriptions;
-  private final List<String> blacklistedStores;
+  private final List<String> whitelistedStores;
 
   @Autowired
   public JobCoordinatorService(
@@ -85,9 +85,9 @@ public class JobCoordinatorService {
     this.groupingStrategy = groupingStrategy;
     this.featureSetSubscriptions =
         feastProperties.getJobs().getCoordinator().getFeatureSetSelector().stream()
-            .map(JobProperties.CoordinatorProperties.Selector::toSubscription)
+            .map(JobProperties.CoordinatorProperties.FeatureSetSelector::toSubscription)
             .collect(Collectors.toList());
-    this.blacklistedStores = feastProperties.getJobs().getCoordinator().getBlacklistedStores();
+    this.whitelistedStores = feastProperties.getJobs().getCoordinator().getWhitelistedStores();
   }
 
   /**
@@ -298,7 +298,7 @@ public class JobCoordinatorService {
   private List<Store> getAllStores() {
     ListStoresResponse listStoresResponse = specService.listStores(Filter.newBuilder().build());
     return listStoresResponse.getStoreList().stream()
-        .filter(s -> !this.blacklistedStores.contains(s.getName()))
+        .filter(s -> this.whitelistedStores.contains(s.getName()))
         .collect(Collectors.toList());
   }
 

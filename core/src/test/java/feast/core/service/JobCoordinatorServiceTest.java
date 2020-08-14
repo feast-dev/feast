@@ -75,15 +75,16 @@ public class JobCoordinatorServiceTest {
     JobProperties jobProperties = new JobProperties();
     jobProperties.setJobUpdateTimeoutSeconds(5);
 
-    JobProperties.CoordinatorProperties.Selector selector =
-        new JobProperties.CoordinatorProperties.Selector();
+    JobProperties.CoordinatorProperties.FeatureSetSelector selector =
+        new JobProperties.CoordinatorProperties.FeatureSetSelector();
     selector.setName("fs*");
     selector.setProject("*");
 
     JobProperties.CoordinatorProperties coordinatorProperties =
         new JobProperties.CoordinatorProperties();
     coordinatorProperties.setFeatureSetSelector(ImmutableList.of(selector));
-    coordinatorProperties.setBlacklistedStores(ImmutableList.of("blacklisted-store"));
+    coordinatorProperties.setWhitelistedStores(
+        ImmutableList.of("test-store", "test", "test-1", "test-2", "normal-store"));
 
     jobProperties.setCoordinator(coordinatorProperties);
     feastProperties.setJobs(jobProperties);
