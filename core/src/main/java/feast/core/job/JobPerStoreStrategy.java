@@ -23,6 +23,7 @@ import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -42,7 +43,8 @@ public class JobPerStoreStrategy implements JobGroupingStrategy {
   }
 
   @Override
-  public Job getOrCreateJob(SourceProto.Source source, Set<StoreProto.Store> stores) {
+  public Job getOrCreateJob(
+      SourceProto.Source source, Set<StoreProto.Store> stores, Map<String, String> labels) {
     ArrayList<StoreProto.Store> storesList = Lists.newArrayList(stores);
     if (storesList.size() != 1) {
       throw new RuntimeException("Only one store is acceptable in JobPerStore Strategy");
@@ -60,6 +62,7 @@ public class JobPerStoreStrategy implements JobGroupingStrategy {
                     .setStores(
                         stores.stream()
                             .collect(Collectors.toMap(StoreProto.Store::getName, s -> s)))
+                    .setLabels(labels)
                     .build());
   }
 

@@ -53,10 +53,14 @@ public abstract class Job {
   public abstract Map<FeatureSetReference, FeatureSetDeliveryStatus>
       getFeatureSetDeliveryStatuses();
 
+  // Job's labels
+  public abstract Map<String, String> getLabels();
+
   public static Builder builder() {
     return new AutoValue_Job.Builder()
         .setFeatureSetDeliveryStatuses(new HashMap<>())
-        .setStores(new HashMap<>());
+        .setStores(new HashMap<>())
+        .setLabels(new HashMap<>());
   }
 
   @AutoValue.Builder
@@ -69,6 +73,8 @@ public abstract class Job {
 
     Builder setFeatureSetDeliveryStatuses(
         Map<FeatureSetReference, FeatureSetDeliveryStatus> statuses);
+
+    Builder setLabels(Map<String, String> labels);
 
     Job build();
   }
@@ -164,12 +170,13 @@ public abstract class Job {
     return ingestJob;
   }
 
-  public Job cloneWithId(String newJobId) {
+  public Job cloneWithIdAndLabels(String newJobId, Map<String, String> labels) {
     return Job.builder()
         .setSource(this.getSource())
         .setFeatureSetDeliveryStatuses(new HashMap<>(this.getFeatureSetDeliveryStatuses()))
         .setStores(new HashMap<>(this.getStores()))
         .setId(newJobId)
+        .setLabels(labels)
         .build();
   }
 

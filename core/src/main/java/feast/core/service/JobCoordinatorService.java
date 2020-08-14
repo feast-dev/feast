@@ -59,6 +59,7 @@ import org.springframework.stereotype.Service;
 public class JobCoordinatorService {
 
   private final int SPEC_PUBLISHING_TIMEOUT_SECONDS = 5;
+  public static final String VERSION_LABEL = "feast_version";
 
   private final JobRepository jobRepository;
   private final SpecService specService;
@@ -68,6 +69,8 @@ public class JobCoordinatorService {
   private final KafkaTemplate<String, FeatureSetSpec> specPublisher;
   private final List<Store.Subscription> featureSetSubscriptions;
   private final List<String> whitelistedStores;
+  private final Map<String, String> jobLabels;
+  private final String currentVersion;
 
   @Autowired
   public JobCoordinatorService(
@@ -88,6 +91,9 @@ public class JobCoordinatorService {
             .map(JobProperties.CoordinatorProperties.FeatureSetSelector::toSubscription)
             .collect(Collectors.toList());
     this.whitelistedStores = feastProperties.getJobs().getCoordinator().getWhitelistedStores();
+    this.currentVersion = feastProperties.getVersion();
+    this.jobLabels = new HashMap<>(feastProperties.getJobs().getCoordinator().getJobSelector());
+    this.jobLabels.put(VERSION_LABEL, this.currentVersion);
   }
 
   /**
@@ -161,7 +167,7 @@ public class JobCoordinatorService {
       Source source = mapping.getKey();
       Set<Store> stores = mapping.getValue();
 
-      Job job = groupingStrategy.getOrCreateJob(source, stores);
+      Job job = groupingStrategy.getOrCreateJob(source, stores, this.jobLabels);
 
       if (job.isDeployed()) {
         if (!job.isRunning()) {
@@ -177,7 +183,7 @@ public class JobCoordinatorService {
           // it would make sense to spawn clone of current job
           // and terminate old version on the next Poll.
           // Both jobs should be in the same consumer group and not conflict with each other
-          job = job.cloneWithId(groupingStrategy.createJobId(job));
+          job = job.cloneWithIdAndLabels(groupingStrategy.createJobId(job), this.jobLabels);
           job.addAllStores(stores);
 
           isSafeToStopJobs = false;
@@ -214,8 +220,9 @@ public class JobCoordinatorService {
   /**
    * Decides whether we need to upgrade (restart) given job. Since we send updated FeatureSets to
    * IngestionJob via Kafka, and there's only one source per job (if it change - new job would be
-   * created) the only things that can cause upgrade here are stores: new stores can be added, or
-   * existing stores will change subscriptions.
+   * created) main trigger that can cause upgrade here are stores: new stores can be added, or
+   * existing stores will change subscriptions. Another trigger is release of new version: current
+   * version is being compared with job's version stored in labels.
    *
    * @param job {@link Job} to check
    * @param stores Set of {@link Store} new version of stores (vs current version job.getStores())
@@ -224,6 +231,10 @@ public class JobCoordinatorService {
   private boolean jobRequiresUpgrade(Job job, Set<Store> stores) {
     // if store subscriptions have changed
     if (!Sets.newHashSet(stores).equals(Sets.newHashSet(job.getStores().values()))) {
+      return true;
+    }
+
+    if (!this.currentVersion.equals(job.getLabels().get(VERSION_LABEL))) {
       return true;
     }
 
@@ -257,7 +268,9 @@ public class JobCoordinatorService {
 
     // Add featureSet to allocated job if not allocated before
     for (Pair<Source, Set<Store>> jobArgs : groupingStrategy.collectSingleJobInput(jobArgsStream)) {
-      Job job = groupingStrategy.getOrCreateJob(jobArgs.getLeft(), jobArgs.getRight());
+      Job job =
+          groupingStrategy.getOrCreateJob(
+              jobArgs.getLeft(), jobArgs.getRight(), Collections.emptyMap());
       if (!job.isRunning()) {
         continue;
       }

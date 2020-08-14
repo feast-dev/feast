@@ -43,7 +43,8 @@ public class ConsolidatedJobStrategy implements JobGroupingStrategy {
   }
 
   @Override
-  public Job getOrCreateJob(SourceProto.Source source, Set<StoreProto.Store> stores) {
+  public Job getOrCreateJob(
+      SourceProto.Source source, Set<StoreProto.Store> stores, Map<String, String> labels) {
     return jobRepository
         .findFirstBySourceAndStoreNameAndStatusNotInOrderByLastUpdatedDesc(
             source, null, JobStatus.getTerminalStates())
@@ -55,6 +56,7 @@ public class ConsolidatedJobStrategy implements JobGroupingStrategy {
                     .setStores(
                         stores.stream()
                             .collect(Collectors.toMap(StoreProto.Store::getName, s -> s)))
+                    .setLabels(labels)
                     .build());
   }
 
