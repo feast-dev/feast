@@ -56,11 +56,9 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.core.env.StandardEnvironment;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -68,7 +66,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 @SpringBootTest(
     properties = {
       "feast.jobs.enabled=true",
-      "feast.jobs.polling_interval_milliseconds=1000",
+      "feast.jobs.polling_interval_milliseconds=10000",
       "feast.stream.specsOptions.notifyIntervalMilliseconds=100",
       "feast.jobs.coordinator.consolidate-jobs-per-source=true",
       "feast.jobs.coordinator.feature-set-selector[0].name=test",
@@ -78,7 +76,8 @@ import org.springframework.kafka.core.KafkaTemplate;
       "feast.version=1.0.0"
     })
 public class JobCoordinatorIT extends BaseIT {
-  @Autowired private FakeJobManager jobManager;
+  @Autowired private JobManager jobManager2;
+  private FakeJobManager jobManager;
 
   @Autowired private JobRepository jobRepository;
 
@@ -90,16 +89,16 @@ public class JobCoordinatorIT extends BaseIT {
 
   @BeforeAll
   public static void globalSetUp(@Value("${grpc.server.port}") int port) {
-    StandardEnvironment env = new StandardEnvironment();
-    env.setDefaultProfiles("it-core");
-    new SpringApplicationBuilder(feast.core.CoreApplication.class)
-        .environment(env)
-        .properties(
-            ImmutableMap.of(
-                "spring.datasource.url", postgreSQLContainer.getJdbcUrl(),
-                "spring.datasource.username", postgreSQLContainer.getUsername(),
-                "spring.datasource.password", postgreSQLContainer.getPassword()))
-        .run();
+    //    StandardEnvironment env = new StandardEnvironment();
+    //    env.setDefaultProfiles("it-core");
+    //    new SpringApplicationBuilder(feast.core.CoreApplication.class)
+    //        .environment(env)
+    //        .properties(
+    //            ImmutableMap.of(
+    //                "spring.datasource.url", postgreSQLContainer.getJdbcUrl(),
+    //                "spring.datasource.username", postgreSQLContainer.getUsername(),
+    //                "spring.datasource.password", postgreSQLContainer.getPassword()))
+    //        .run();
 
     ManagedChannel channel =
         ManagedChannelBuilder.forAddress("localhost", port).usePlaintext().build();
@@ -386,7 +385,7 @@ public class JobCoordinatorIT extends BaseIT {
 
     @Test
     @Order(6)
-    public void shouldUpdateStatusAfterACKfromNewJob() {
+    public void shouldUpdateStatusAfterACKFromNewJob() {
       job = jobRepository.findByStatus(JobStatus.RUNNING).get(0);
 
       ackPublisher.sendDefault(
@@ -405,7 +404,7 @@ public class JobCoordinatorIT extends BaseIT {
   }
 
   @TestConfiguration
-  public static class TestConfig extends BaseTestConfig {
+  public static class TestConfig {
     @Bean
     public JobManager getJobManager() {
       return new FakeJobManager();

@@ -17,20 +17,14 @@
 package feast.common.it;
 
 import io.prometheus.client.CollectorRegistry;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
-import javax.persistence.Table;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.hibernate.engine.spi.SessionImplementor;
 import org.junit.jupiter.api.*;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
@@ -89,7 +83,7 @@ public class BaseIT {
   public class SequentialFlow {
     @AfterAll
     public void tearDown() throws Exception {
-      cleanTables(entityManager);
+      cleanTables();
     }
   }
 
@@ -123,26 +117,23 @@ public class BaseIT {
   /**
    * Truncates all tables in Database (between tests or flows). Retries on deadlock
    *
-   * @param em EntityManager
    * @throws SQLException
    */
-  public static void cleanTables(EntityManager em) throws SQLException {
-    List<String> tableNames =
-        em.getMetamodel().getEntities().stream()
-            .map(e -> e.getJavaType().getAnnotation(Table.class).name())
-            .collect(Collectors.toList());
+  public static void cleanTables() throws SQLException {
+    Connection connection =
+        DriverManager.getConnection(
+            postgreSQLContainer.getJdbcUrl(),
+            postgreSQLContainer.getUsername(),
+            postgreSQLContainer.getPassword());
 
-    // this trick needed to get EntityManager with Transaction
-    // and we don't want to wrap whole class into @Transactional
-    em = em.getEntityManagerFactory().createEntityManager();
-    // Transaction needed only once to do unwrap
-    SessionImplementor session = em.unwrap(SessionImplementor.class);
-
-    // and here we're actually don't want any transactions
-    // but instead we pulling raw connection
-    // to be able to retry query if needed
-    // since retrying rollbacked transaction is not that easy
-    Connection connection = session.connection();
+    List<String> tableNames = new ArrayList<>();
+    Statement statement = connection.createStatement();
+    ResultSet rs =
+        statement.executeQuery(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema='public'");
+    while (rs.next()) {
+      tableNames.add(rs.getString(1));
+    }
 
     // retries are needed since truncate require exclusive lock
     // and that often leads to Deadlock
@@ -150,7 +141,7 @@ public class BaseIT {
     int num_retries = 5;
     for (int i = 1; i <= num_retries; i++) {
       try {
-        Statement statement = connection.createStatement();
+        statement = connection.createStatement();
         statement.execute(String.format("truncate %s cascade", String.join(", ", tableNames)));
       } catch (SQLException e) {
         if (i == num_retries) {
@@ -162,8 +153,6 @@ public class BaseIT {
       break;
     }
   }
-
-  @PersistenceContext EntityManager entityManager;
 
   /** Used to determine SequentialFlows */
   public Boolean isSequentialTest(TestInfo testInfo) {
@@ -180,7 +169,7 @@ public class BaseIT {
     CollectorRegistry.defaultRegistry.clear();
 
     if (!isSequentialTest(testInfo)) {
-      cleanTables(entityManager);
+      cleanTables();
     }
   }
 }
