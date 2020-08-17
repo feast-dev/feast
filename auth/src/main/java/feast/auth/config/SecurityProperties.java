@@ -33,7 +33,6 @@ public class SecurityProperties {
   @Getter
   @Setter
   public static class AuthenticationProperties {
-
     // Enable authentication
     private boolean enabled;
 
@@ -56,6 +55,7 @@ public class SecurityProperties {
     private String provider;
 
     // K/V options to initialize the provider with
+    // Key for Subject Claim option which sets the name of the subject claim field in tokens.
     public static final String SUBJECT_CLAIM = "subjectClaim";
     private Map<String, String> options;
   }
