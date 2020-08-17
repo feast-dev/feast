@@ -26,7 +26,7 @@
     </parent>
 
     <name>Feast Core</name>
-    <description>Feature registry and ingestion coordinator</description>
+    <description>Feature registry</description>
     <artifactId>feast-core</artifactId>
 
     <build>
@@ -90,6 +90,12 @@
             <groupId>dev.feast</groupId>
             <artifactId>feast-auth</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.feast</groupId>
+            <artifactId>feast-common-test</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
         </dependency>
 
         <!-- Hot reloading for Spring Boot. spring-boot-maven-plugin removes

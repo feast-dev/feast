@@ -38,6 +38,8 @@
         <module>docs/coverage/java</module>
         <module>common</module>
         <module>auth</module>
+        <module>job-coordinator</module>
+        <module>common-test</module>
     </modules>
 
     <properties>

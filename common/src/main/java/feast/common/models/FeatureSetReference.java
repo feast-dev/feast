@@ -48,6 +48,20 @@ public class FeatureSetReference implements Serializable {
     return FeatureSetReference.of(projectName, featureSetName, -1);
   }
 
+  public static FeatureSetReference parse(String reference) {
+    String[] split = reference.split("/", 2);
+    if (split.length == 1) {
+      return FeatureSetReference.of(PROJECT_DEFAULT_NAME, split[0]);
+    }
+
+    if (split.length > 2) {
+      throw new RuntimeException(
+          "FeatureSet reference must have the format <project-name>/<feature-set-name>");
+    }
+
+    return FeatureSetReference.of(split[0], split[1]);
+  }
+
   public String getReference() {
     return String.format("%s/%s", getProjectName(), getFeatureSetName());
   }

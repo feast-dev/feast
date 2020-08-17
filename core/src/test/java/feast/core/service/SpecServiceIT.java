@@ -30,9 +30,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import avro.shaded.com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Duration;
-import feast.core.it.BaseIT;
-import feast.core.it.DataGenerator;
-import feast.core.it.SimpleAPIClient;
+import feast.common.it.BaseIT;
+import feast.common.it.DataGenerator;
+import feast.common.it.SimpleAPIClient;
 import feast.proto.core.*;
 import feast.proto.types.ValueProto;
 import io.grpc.ManagedChannel;
