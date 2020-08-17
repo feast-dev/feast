@@ -19,7 +19,6 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
-
     <parent>
         <groupId>dev.feast</groupId>
         <artifactId>feast-parent</artifactId>
@@ -394,5 +393,23 @@
             <version>1.6.6</version>
             <scope>provided</scope>
         </dependency>
-  </dependencies>
+        <dependency>
+          <groupId>io.rest-assured</groupId>
+          <artifactId>rest-assured</artifactId>
+          <version>4.2.0</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>io.rest-assured</groupId>
+          <artifactId>json-path</artifactId>
+          <version>4.2.0</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>io.rest-assured</groupId>
+          <artifactId>xml-path</artifactId>
+          <version>4.2.0</version>
+          <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>

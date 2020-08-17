@@ -16,6 +16,9 @@
  */
 package feast.core.config;
 
+import java.util.ArrayList;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -29,6 +32,13 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 @EnableWebSecurity
 public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
+  private final FeastProperties feastProperties;
+
+  @Autowired
+  public WebSecurityConfig(FeastProperties feastProperties) {
+    this.feastProperties = feastProperties;
+  }
+
   /**
    * Allows for custom web security rules to be applied.
    *
@@ -37,10 +47,15 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
    */
   @Override
   protected void configure(HttpSecurity http) throws Exception {
+    List<String> matchersToBypass = new ArrayList<>(List.of("/actuator/**", "/metrics/**"));
+
+    if (feastProperties.securityProperties().isDisableRestControllerAuth()) {
+      matchersToBypass.add("/api/v1/**");
+    }
 
     // Bypasses security/authentication for the following paths
     http.authorizeRequests()
-        .antMatchers("/actuator/**", "/metrics/**")
+        .antMatchers(matchersToBypass.toArray(new String[0]))
         .permitAll()
         .anyRequest()
         .authenticated()

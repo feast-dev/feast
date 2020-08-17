@@ -115,6 +115,11 @@ feast:
         authorizationUrl: http://localhost:8082
         subjectClaim: email
         
+    # If set to true, HTTP REST endpoints at /api/v1 implemented by
+    # CoreServiceRestController will be accessible in Feast Core WITHOUT
+    # authentication.
+    disableRestControllerAuth: false
+
   logging:
     # Audit logging provides a machine readable structured JSON log that can give better 
     # insight into what is happening in Feast.

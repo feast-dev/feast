@@ -27,6 +27,9 @@ public class SecurityProperties {
   private AuthenticationProperties authentication;
   private AuthorizationProperties authorization;
 
+  // Bypass Authentication and Authorization at all HTTP endpoints at /api/v1
+  private boolean disableRestControllerAuth;
+
   @Getter
   @Setter
   public static class AuthenticationProperties {
