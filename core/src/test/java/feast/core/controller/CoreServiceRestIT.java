@@ -21,6 +21,7 @@ import static org.hamcrest.Matchers.aMapWithSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.google.common.collect.ImmutableMap;
 import feast.core.it.BaseIT;
 import feast.core.it.DataGenerator;
 import feast.core.it.SimpleAPIClient;
@@ -34,7 +35,6 @@ import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.path.json.JsonPath;
 import java.util.List;
-import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -223,8 +223,8 @@ public class CoreServiceRestIT extends BaseIT {
             DataGenerator.getDefaultSource(),
             Project.DEFAULT_NAME,
             "merchant_ratings",
-            List.of(Pair.of("merchant_id", Enum.STRING)),
-            List.of(Pair.of("average_rating", Enum.DOUBLE), Pair.of("total_ratings", Enum.INT64)));
+            ImmutableMap.of("merchant_id", Enum.STRING),
+            ImmutableMap.of("average_rating", Enum.DOUBLE, "total_ratings", Enum.INT64));
     apiClient.simpleApplyFeatureSet(merchantFeatureSet);
 
     // spec:
@@ -243,10 +243,10 @@ public class CoreServiceRestIT extends BaseIT {
             DataGenerator.getDefaultSource(),
             Project.DEFAULT_NAME,
             "another_merchant_ratings",
-            List.of(Pair.of("merchant_id", Enum.STRING)),
-            List.of(
-                Pair.of("another_average_rating", Enum.DOUBLE),
-                Pair.of("another_total_ratings", Enum.INT64)));
+            ImmutableMap.of("merchant_id", Enum.STRING),
+            ImmutableMap.of(
+                "another_average_rating", Enum.DOUBLE,
+                "another_total_ratings", Enum.INT64));
     apiClient.simpleApplyFeatureSet(anotherMerchantFeatureSet);
 
     // spec:
@@ -265,8 +265,8 @@ public class CoreServiceRestIT extends BaseIT {
             DataGenerator.getDefaultSource(),
             "merchant",
             "yet_another_merchant_feature_set",
-            List.of(Pair.of("merchant_id", Enum.STRING)),
-            List.of(Pair.of("merchant_prop1", Enum.BOOL), Pair.of("merchant_prop2", Enum.FLOAT)));
+            ImmutableMap.of("merchant_id", Enum.STRING),
+            ImmutableMap.of("merchant_prop1", Enum.BOOL, "merchant_prop2", Enum.FLOAT));
     apiClient.simpleApplyFeatureSet(yetAnotherMerchantFeatureSet);
     RestAssured.port = port;
   }
