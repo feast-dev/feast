@@ -13,6 +13,7 @@ data:
   application-generated.yaml: |
 {{- if index .Values "application-generated.yaml" "enabled" }}
     feast:
+      core-host: {{ .Release.Name }}-feast-core
       stream:
         type: kafka
         options: 

@@ -1,4 +1,5 @@
 feast:
+  core-host: core
   jobs:
     polling_interval_milliseconds: 20000
     job_update_timeout_seconds: 240
