@@ -62,8 +62,10 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
       ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
     MessageAuditLogEntry.Builder entryBuilder = MessageAuditLogEntry.newBuilder();
     // default response/request message to empty proto in log entry.
-    // request could be empty when the client closes the connection before sending a request message. 
-    // response could be unset when the service encounters an error when processsing the service call.
+    // request could be empty when the client closes the connection before sending a request
+    // message.
+    // response could be unset when the service encounters an error when processsing the service
+    // call.
     entryBuilder.setRequest(Empty.newBuilder().build());
     entryBuilder.setResponse(Empty.newBuilder().build());
 
