@@ -68,7 +68,7 @@ install_and_start_local_zookeeper_and_kafka() {
 build_feast_core_and_serving() {
   print_banner "Building Feast Core and Feast Serving"
   infra/scripts/download-maven-cache.sh \
-    --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
+    --archive-uri gs://feast-templocation-kf-feast/.m2.2020-08-19.tar \
     --output-dir /root/
 
   # Build jars for Feast
@@ -76,6 +76,7 @@ build_feast_core_and_serving() {
 
   ls -lh core/target/*jar
   ls -lh serving/target/*jar
+  ls -lh job-coordinator/target/*jar
 }
 
 start_feast_core() {

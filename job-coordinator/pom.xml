@@ -81,31 +81,6 @@
             <artifactId>feast-common</artifactId>
             <version>${project.version}</version>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>dev.feast</groupId>-->
-<!--            <artifactId>feast-auth</artifactId>-->
-<!--            <version>${project.version}</version>-->
-<!--        </dependency>-->
-        <dependency>
-            <groupId>dev.feast</groupId>
-            <artifactId>feast-core</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>dev.feast</groupId>
-            <artifactId>feast-common-test</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- Hot reloading for Spring Boot. spring-boot-maven-plugin removes
-             this automatically when packaging. -->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.boot</groupId>-->
-<!--            <artifactId>spring-boot-devtools</artifactId>-->
-<!--            <optional>true</optional>-->
-<!--        </dependency>-->
 
         <dependency>
             <groupId>javax.inject</groupId>
@@ -206,6 +181,17 @@
 			<version>1.2.3-alpha</version>
 		</dependency>
 
+        <dependency>
+            <groupId>javax.xml.bind</groupId>
+            <artifactId>jaxb-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.bval</groupId>
+            <artifactId>bval-jsr</artifactId>
+            <version>2.0.4</version>
+        </dependency>
+
         <!--testCompile 'com.jayway.jsonpath:json-path-assert:2.2.0'-->
         <dependency>
             <groupId>com.jayway.jsonpath</groupId>
@@ -213,30 +199,23 @@
             <version>2.2.0</version>
             <scope>test</scope>
         </dependency>
-
         <dependency>
-            <groupId>javax.xml.bind</groupId>
-            <artifactId>jaxb-api</artifactId>
+            <groupId>dev.feast</groupId>
+            <artifactId>feast-core</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
         </dependency>
-
-
         <dependency>
-            <groupId>com.google.auto.value</groupId>
-            <artifactId>auto-value-annotations</artifactId>
-            <version>1.6.6</version>
+            <groupId>dev.feast</groupId>
+            <artifactId>feast-common-test</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>test</scope>
             <optional>true</optional>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-config</artifactId>
-            <version>${spring.security.version}</version>
         </dependency>
   </dependencies>
 </project>
