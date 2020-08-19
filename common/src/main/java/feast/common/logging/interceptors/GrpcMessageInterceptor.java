@@ -60,11 +60,12 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
   @Override
   public <ReqT, RespT> Listener<ReqT> interceptCall(
       ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
-    // System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>HERE>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
     MessageAuditLogEntry.Builder entryBuilder = MessageAuditLogEntry.newBuilder();
-    // default response message to empty proto in log entry.
+    // default response/request message to empty proto in log entry.
+    // request could be empty when the client closes the connection before sending a request message. 
+    // response could be unset when the service encounters an error when processsing the service call.
+    entryBuilder.setRequest(Empty.newBuilder().build());
     entryBuilder.setResponse(Empty.newBuilder().build());
-    // System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Response>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 
     // Unpack service & method name from call
     // full method name is in format <classpath>.<Service>/<Method>
@@ -72,13 +73,11 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
     entryBuilder.setService(
         fullMethodName.substring(fullMethodName.lastIndexOf(".") + 1, fullMethodName.indexOf("/")));
     entryBuilder.setMethod(fullMethodName.substring(fullMethodName.indexOf("/") + 1));
-    // System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Method>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 
     // Attempt Extract current authenticated identity.
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     String identity = (authentication != null) ? getIdentity(authentication) : "";
     entryBuilder.setIdentity(identity);
-    // System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>AUTH>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 
     // Register forwarding call to intercept outgoing response and log to audit log
     call =
@@ -88,7 +87,6 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
             // 2. Track the response & Log entry to audit logger
             super.sendMessage(message);
             entryBuilder.setResponse((Message) message);
-            // System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>OUTGOING>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
           }
 
           @Override
@@ -98,7 +96,6 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
             Level logLevel = (status.isOk()) ? Level.INFO : Level.ERROR;
             entryBuilder.setStatusCode(status.getCode());
             AuditLogger.logMessage(logLevel, entryBuilder);
-            // System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>END>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
           }
         };
 
@@ -110,7 +107,6 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
         super.onMessage(message);
         // 1. Track the request.
         entryBuilder.setRequest((Message) message);
-        // System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>INCOMING>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
       }
     };
   }
