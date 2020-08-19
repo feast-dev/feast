@@ -131,3 +131,8 @@ management:
         enabled: true
         host: ${STATSD_HOST:localhost}
         port: ${STATSD_PORT:8125}
+
+server:
+  # The port number on which the Tomcat webserver that serves REST API endpoints should listen
+  # Set default value avoiding conflicts with core & serving
+  port: ${SERVER_PORT:8082}
