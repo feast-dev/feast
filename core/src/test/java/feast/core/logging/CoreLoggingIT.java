@@ -92,7 +92,7 @@ public class CoreLoggingIT extends BaseIT {
     final UpdateStoreResponse response = receivedResponse;
 
     // Wait required to ensure audit logs are flushed into test audit log appender
-    Thread.sleep(500);
+    Thread.sleep(1000);
     // Check message audit logs are produced for each audit log.
     JsonFormat.Parser protoJSONParser = JsonFormat.parser();
     List<JsonObject> logJsonObjects = parseMessageJsonLogObjects(testAuditLogAppender.getLogs());
@@ -143,7 +143,7 @@ public class CoreLoggingIT extends BaseIT {
     assertTrue(hasExpectedException);
 
     // Wait required to ensure audit logs are flushed into test audit log appender
-    Thread.sleep(500);
+    Thread.sleep(1000);
     List<JsonObject> logJsonObjects = parseMessageJsonLogObjects(testAuditLogAppender.getLogs());
     assertEquals(logJsonObjects.size(), 1);
     JsonObject logJsonObject = logJsonObjects.get(0);
