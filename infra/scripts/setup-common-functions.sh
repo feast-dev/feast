@@ -101,7 +101,7 @@ start_feast_jc() {
     export CONFIG_ARG="--spring.config.location=classpath:/application.yml,file://$1"
   fi
 
-  nohup java -jar core/target/feast-job-coordinator-$FEAST_BUILD_VERSION-exec.jar $CONFIG_ARG &>/var/log/feast-jc.log &
+  nohup java -jar job-coordinator/target/feast-job-coordinator-$FEAST_BUILD_VERSION-exec.jar $CONFIG_ARG &>/var/log/feast-jc.log &
   ${SCRIPTS_DIR}/wait-for-it.sh localhost:6570 --timeout=90
 
   tail -n10 /var/log/feast-jc.log

@@ -43,7 +43,7 @@ RUN mvn --also-make --projects job-coordinator,ingestion -Drevision=$REVISION \
 #
 # https://github.com/feast-dev/feast/pull/291
 RUN apt-get -qq update && apt-get -y install unar && \
-  unar /build/core/target/feast-job-coordinator-$REVISION-exec.jar -o /build/core/target/
+  unar /build/job-coordinator/target/feast-job-coordinator-$REVISION-exec.jar -o /build/core/target/
 
 #
 # Download grpc_health_probe to run health check for Feast Serving
