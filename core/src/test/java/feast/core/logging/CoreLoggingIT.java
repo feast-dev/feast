@@ -109,9 +109,11 @@ public class CoreLoggingIT extends BaseIT {
                 UpdateStoreResponse response = logObjResponsePair.getRight();
                 String requestJson = logObj.getAsJsonObject("request").toString();
                 UpdateStoreRequest.Builder gotRequest = UpdateStoreRequest.newBuilder();
+                System.out.println("got request: " + requestJson);
                 protoJSONParser.merge(requestJson, gotRequest);
 
                 String responseJson = logObj.getAsJsonObject("response").toString();
+                System.out.println("got response: " + responseJson);
                 UpdateStoreResponse.Builder gotResponse = UpdateStoreResponse.newBuilder();
                 protoJSONParser.merge(responseJson, gotResponse);
 
