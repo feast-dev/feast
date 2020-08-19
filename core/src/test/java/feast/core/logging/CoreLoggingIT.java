@@ -42,6 +42,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.junit.jupiter.api.BeforeAll;
@@ -83,13 +85,11 @@ public class CoreLoggingIT extends BaseIT {
     // Generate artifical load on feast core.
     UpdateStoreRequest request =
         UpdateStoreRequest.newBuilder().setStore(DataGenerator.getDefaultStore()).build();
-    UpdateStoreResponse receivedResponse = null;
+    List<UpdateStoreResponse> responses = new ArrayList<>();
     final int LOAD_SIZE = 200;
-    final int ASYNC_BURST_SIZE = 5;
     for (int i = 0; i < LOAD_SIZE; i++) {
-      receivedResponse = coreService.updateStore(request);
+      responses.add(coreService.updateStore(request));
     }
-    final UpdateStoreResponse response = receivedResponse;
 
     // Wait required to ensure audit logs are flushed into test audit log appender
     Thread.sleep(1000);
@@ -97,25 +97,31 @@ public class CoreLoggingIT extends BaseIT {
     JsonFormat.Parser protoJSONParser = JsonFormat.parser();
     List<JsonObject> logJsonObjects = parseMessageJsonLogObjects(testAuditLogAppender.getLogs());
 
-    logJsonObjects.forEach(
-        logObj -> {
-          // Extract recorded request/response from message logs
-          try {
-            String requestJson = logObj.getAsJsonObject("request").toString();
-            UpdateStoreRequest.Builder gotRequest = UpdateStoreRequest.newBuilder();
-            protoJSONParser.merge(requestJson, gotRequest);
+    Streams.zip(
+            logJsonObjects.stream(),
+            responses.stream(),
+            (logObj, response) -> Pair.of(logObj, response))
+        .forEach(
+            logObjResponsePair -> {
+              // Extract recorded request/response from message logs
+              try {
+                JsonObject logObj = logObjResponsePair.getLeft();
+                UpdateStoreResponse response = logObjResponsePair.getRight();
+                String requestJson = logObj.getAsJsonObject("request").toString();
+                UpdateStoreRequest.Builder gotRequest = UpdateStoreRequest.newBuilder();
+                protoJSONParser.merge(requestJson, gotRequest);
 
-            String responseJson = logObj.getAsJsonObject("response").toString();
-            UpdateStoreResponse.Builder gotResponse = UpdateStoreResponse.newBuilder();
-            protoJSONParser.merge(responseJson, gotResponse);
+                String responseJson = logObj.getAsJsonObject("response").toString();
+                UpdateStoreResponse.Builder gotResponse = UpdateStoreResponse.newBuilder();
+                protoJSONParser.merge(responseJson, gotResponse);
 
-            // Check that request/response are returned correctlyf
-            assertThat(gotRequest.build(), equalTo(request));
-            assertThat(gotResponse.build(), equalTo(response));
-          } catch (InvalidProtocolBufferException e) {
-            throw new RuntimeException(e);
-          }
-        });
+                // Check that request/response are returned correctlyf
+                assertThat(gotRequest.build(), equalTo(request));
+                assertThat(gotResponse.build(), equalTo(response));
+              } catch (InvalidProtocolBufferException e) {
+                throw new RuntimeException(e);
+              }
+            });
   }
 
   /** Check that message audit logs are produced when server encounters an error */
