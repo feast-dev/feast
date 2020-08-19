@@ -36,14 +36,14 @@ RUN mvn --also-make --projects job-coordinator,ingestion -Drevision=$REVISION \
   -DskipUTs=true --batch-mode clean package
 #
 # Unpack the jar and copy the files into production Docker image
-# for faster startup time when starting Dataflow jobs from Feast Core.
+# for faster startup time when starting Dataflow jobs from Feast JC.
 # This is because we need to stage the classes and dependencies when using Dataflow.
 # The final size of the production image will be bigger but it seems
 # a good tradeoff between speed and size.
 #
 # https://github.com/feast-dev/feast/pull/291
 RUN apt-get -qq update && apt-get -y install unar && \
-  unar /build/job-coordinator/target/feast-job-coordinator-$REVISION-exec.jar -o /build/core/target/
+  unar /build/job-coordinator/target/feast-job-coordinator-$REVISION-exec.jar -o /build/job-coordinator/target/
 
 #
 # Download grpc_health_probe to run health check for Feast Serving
@@ -60,9 +60,9 @@ RUN wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/downloa
 FROM openjdk:11-jre as production
 ARG REVISION=dev
 
-COPY --from=builder /build/core/target/feast-job-coordinator-$REVISION-exec.jar /opt/feast/feast-job-coordinator.jar
+COPY --from=builder /build/job-coordinator/target/feast-job-coordinator-$REVISION-exec.jar /opt/feast/feast-job-coordinator.jar
 # Required for staging jar dependencies when submitting Dataflow jobs.
-COPY --from=builder /build/core/target/feast-job-coordinator-$REVISION-exec /opt/feast/feast-job-coordinator
+COPY --from=builder /build/job-coordinator/target/feast-job-coordinator-$REVISION-exec /opt/feast/feast-job-coordinator
 COPY --from=builder /usr/bin/grpc-health-probe /usr/bin/grpc-health-probe
 
 CMD ["java",\
