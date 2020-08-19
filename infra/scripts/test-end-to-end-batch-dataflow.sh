@@ -284,9 +284,11 @@ cd $ORIGINAL_DIR/tests/e2e
 
 core_ip=$(kubectl get -o jsonpath="{.status.loadBalancer.ingress[0].ip}" service ${HELM_RELEASE_NAME}-feast-core)
 serving_ip=$(kubectl get -o jsonpath="{.status.loadBalancer.ingress[0].ip}" service ${HELM_RELEASE_NAME}-feast-batch-serving)
+jc_ip=$(kubectl get -o jsonpath="{.status.loadBalancer.ingress[0].ip}" service ${HELM_RELEASE_NAME}-feast-jc)
 
 set +e
-pytest -s -v bq/bq-batch-retrieval.py -m dataflow_runner --core_url "$core_ip:6565" --serving_url "$serving_ip:6566" --gcs_path "gs://${TEMP_BUCKET}/" --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+pytest -s -v bq/bq-batch-retrieval.py -m dataflow_runner --core_url "$core_ip:6565" --serving_url "$serving_ip:6566" \
+ --jc_url "$jc_ip:6570" --gcs_path "gs://${TEMP_BUCKET}/" --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 
 if [[ ${TEST_EXIT_CODE} != 0 ]]; then

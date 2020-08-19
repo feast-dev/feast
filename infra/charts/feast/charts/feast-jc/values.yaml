@@ -95,9 +95,9 @@ service:
     nodePort:
   grpc:
     # service.grpc.port -- Service port for GRPC requests
-    port: 6565
+    port: 6570
     # service.grpc.targetPort -- Container port serving GRPC requests
-    targetPort: 6565
+    targetPort: 6570
     # service.grpc.nodePort -- Port number that each cluster node will listen to
     nodePort:
 
