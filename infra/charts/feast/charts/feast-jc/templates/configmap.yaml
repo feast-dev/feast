@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ template "feast-core.fullname" . }}
+  name: {{ template "feast-jc.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    app: {{ template "feast-core.name" . }}
+    app: {{ template "feast-jc.name" . }}
     component: core
     chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
     release: {{ .Release.Name }}
@@ -12,15 +12,18 @@ metadata:
 data:
   application-generated.yaml: |
 {{- if index .Values "application-generated.yaml" "enabled" }}
-    spring:
-      datasource:
-        url: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/postgres
     feast:
       stream:
         type: kafka
         options: 
           bootstrapServers: {{ .Release.Name }}-kafka:9092
           topic: feast
+      jobs:
+        metrics:
+          enabled: true 
+          type: statsd
+          host: {{ .Release.Name }}-prometheus-statsd-exporter-udp
+          port: 9125
 
     server:
       port: {{ .Values.service.http.targetPort }}

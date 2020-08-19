@@ -11,7 +11,7 @@ jobs:
     runs-on: [self-hosted]
     strategy:
       matrix:
-        component: [core, serving, jupyter, ci]
+        component: [core, serving, jc, jupyter, ci]
     env:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2019-10-24.tar
     steps:

@@ -35,7 +35,6 @@ import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.KafkaContainer;
@@ -51,7 +50,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @ActiveProfiles("it")
 @Testcontainers
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-@ContextConfiguration
 public class BaseIT {
 
   @Container public static PostgreSQLContainer<?> postgreSQLContainer = new PostgreSQLContainer<>();
@@ -133,6 +131,10 @@ public class BaseIT {
             "SELECT table_name FROM information_schema.tables WHERE table_schema='public'");
     while (rs.next()) {
       tableNames.add(rs.getString(1));
+    }
+
+    if (tableNames.isEmpty()) {
+      return;
     }
 
     // retries are needed since truncate require exclusive lock

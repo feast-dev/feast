@@ -85,9 +85,9 @@ feast:
           name: "*"
       # Stores names that are enabled on current instance of JobManager
       whitelisted-stores:
+        - historical
         - online
         - online_cluster
-        - historical
 
   stream:
     # Feature stream type. Only kafka is supported.
@@ -116,7 +116,7 @@ feast:
 grpc:
   server:
     # The port that Feast Core gRPC service listens on
-    port: 6567
+    port: 6570
     security:
       enabled: false
       certificateChain: server.crt

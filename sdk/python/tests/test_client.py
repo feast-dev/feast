@@ -29,6 +29,7 @@ from pytz import timezone
 
 from feast.client import Client
 from feast.contrib.job_coordinator.client import Client as JobCoordinatorClient
+from feast.contrib.job_coordinator.job import IngestJob
 from feast.core import CoreService_pb2_grpc as Core
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionResponse,
@@ -50,7 +51,6 @@ from feast.core.Store_pb2 import Store
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_set import FeatureSet, FeatureSetRef
-from feast.contrib.job_coordinator.job import IngestJob
 from feast.serving import ServingService_pb2_grpc as Serving
 from feast.serving.ServingService_pb2 import DataFormat, FeastServingType
 from feast.serving.ServingService_pb2 import FeatureReference as FeatureRefProto

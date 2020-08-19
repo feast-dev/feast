@@ -17,6 +17,7 @@ from google.protobuf.duration_pb2 import Duration
 from feast.client import Client
 from feast.config import Config
 from feast.constants import CONFIG_AUTH_PROVIDER
+from feast.contrib.job_coordinator.client import Client as JCClient
 from feast.core import CoreService_pb2
 from feast.core.CoreService_pb2 import ApplyFeatureSetResponse, GetFeatureSetResponse
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
@@ -102,6 +103,11 @@ def serving_url(pytestconfig):
 
 
 @pytest.fixture(scope="module")
+def jc_url(pytestconfig):
+    return pytestconfig.getoption("jc_url")
+
+
+@pytest.fixture(scope="module")
 def allow_dirty(pytestconfig):
     return True if pytestconfig.getoption("allow_dirty").lower() == "true" else False
 
@@ -137,6 +143,12 @@ def client(core_url, serving_url, allow_dirty, enable_auth):
                 "Feast cannot have existing feature sets registered. Exiting tests."
             )
 
+    return client
+
+
+@pytest.fixture(scope="module")
+def jc_client(jc_url):
+    client = JCClient(jc_url=jc_url)
     return client
 
 
@@ -953,12 +965,12 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
 
 @pytest.mark.timeout(300)
 @pytest.mark.run(order=35)
-def test_all_types_ingest_jobs(client, all_types_dataframe):
+def test_all_types_ingest_jobs(jc_client, client, all_types_dataframe):
     # list ingestion jobs given featureset
     client.set_project(PROJECT_NAME)
 
     all_types_fs = client.get_feature_set(name="all_types")
-    ingest_jobs = client.list_ingest_jobs(
+    ingest_jobs = jc_client.list_ingest_jobs(
         feature_set_ref=FeatureSetRef.from_feature_set(all_types_fs)
     )
     # filter ingestion jobs to only those that are running
@@ -971,14 +983,14 @@ def test_all_types_ingest_jobs(client, all_types_dataframe):
     # restart ingestion ingest_job
     # restart means stop current job
     # (replacement will be automatically spawned)
-    client.restart_ingest_job(ingest_job)
+    jc_client.restart_ingest_job(ingest_job)
     # wait for replacement to be created
     time.sleep(15)  # should be more than polling_interval
 
     # id without timestamp part
     # that remains the same between jobs
     shared_id = "-".join(ingest_job.id.split("-")[:-1])
-    ingest_jobs = client.list_ingest_jobs(
+    ingest_jobs = jc_client.list_ingest_jobs(
         feature_set_ref=FeatureSetRef.from_feature_set(all_types_fs)
     )
     replacement_jobs = [
@@ -996,7 +1008,7 @@ def test_all_types_ingest_jobs(client, all_types_dataframe):
     assert replacement_job.status == IngestionJobStatus.RUNNING
 
     # stop ingestion ingest_job
-    client.stop_ingest_job(replacement_job)
+    jc_client.stop_ingest_job(replacement_job)
     replacement_job.wait(IngestionJobStatus.ABORTED)
     assert replacement_job.status == IngestionJobStatus.ABORTED
 
@@ -1255,7 +1267,7 @@ def test_list_entities_and_features(client):
 
 @pytest.mark.timeout(500)
 @pytest.mark.run(order=70)
-def test_sources_deduplicate_ingest_jobs(client, kafka_brokers):
+def test_sources_deduplicate_ingest_jobs(client, jc_client, kafka_brokers):
     shared_source = KafkaSource(kafka_brokers, "dup_shared")
     dup_source_fs_1 = FeatureSet(
         name="duplicate_source_fs_1",
@@ -1267,12 +1279,12 @@ def test_sources_deduplicate_ingest_jobs(client, kafka_brokers):
     dup_source_fs_2.name = "duplicate_source_fs_2"
 
     def is_same_jobs():
-        fs_1_jobs = client.list_ingest_jobs(
+        fs_1_jobs = jc_client.list_ingest_jobs(
             feature_set_ref=FeatureSetRef(
                 name=dup_source_fs_1.name, project=dup_source_fs_1.project
             )
         )
-        fs_2_jobs = client.list_ingest_jobs(
+        fs_2_jobs = jc_client.list_ingest_jobs(
             feature_set_ref=FeatureSetRef(
                 name=dup_source_fs_2.name, project=dup_source_fs_2.project
             )
@@ -1292,12 +1304,12 @@ def test_sources_deduplicate_ingest_jobs(client, kafka_brokers):
         return same
 
     def is_different_jobs():
-        fs_1_jobs = client.list_ingest_jobs(
+        fs_1_jobs = jc_client.list_ingest_jobs(
             feature_set_ref=FeatureSetRef(
                 name=dup_source_fs_1.name, project=dup_source_fs_1.project
             )
         )
-        fs_2_jobs = client.list_ingest_jobs(
+        fs_2_jobs = jc_client.list_ingest_jobs(
             feature_set_ref=FeatureSetRef(
                 name=dup_source_fs_2.name, project=dup_source_fs_2.project
             )

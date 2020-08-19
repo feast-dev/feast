@@ -1,0 +1,4 @@
+apiVersion: v1
+description: Feast Job Coordinator manage ingestion jobs.
+name: feast-jc
+version: 0.7-SNAPSHOT

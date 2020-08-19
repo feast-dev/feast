@@ -39,6 +39,7 @@ import feast.proto.core.FeatureSetProto.FeatureSet;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.SourceProto.Source;
 import feast.proto.core.StoreProto.Store;
+import io.grpc.StatusRuntimeException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
@@ -93,7 +94,11 @@ public class JobCoordinatorService {
     this.whitelistedStores = feastProperties.getJobs().getCoordinator().getWhitelistedStores();
     this.currentVersion = feastProperties.getVersion();
     this.jobLabels = new HashMap<>(feastProperties.getJobs().getCoordinator().getJobSelector());
-    this.jobLabels.put(VERSION_LABEL, this.currentVersion);
+    this.jobLabels.put(VERSION_LABEL, getCurrentFeastVersion());
+  }
+
+  private String getCurrentFeastVersion() {
+    return this.currentVersion.replace(".", "-");
   }
 
   /**
@@ -234,7 +239,7 @@ public class JobCoordinatorService {
       return true;
     }
 
-    if (!this.currentVersion.equals(job.getLabels().get(VERSION_LABEL))) {
+    if (!getCurrentFeastVersion().equals(job.getLabels().get(VERSION_LABEL))) {
       return true;
     }
 
@@ -275,8 +280,7 @@ public class JobCoordinatorService {
         continue;
       }
 
-      FeatureSetDeliveryStatus status = new FeatureSetDeliveryStatus();
-      status.setFeatureSetReference(ref);
+      FeatureSetDeliveryStatus status = new FeatureSetDeliveryStatus(ref);
       status.setDeliveryStatus(FeatureSetProto.FeatureSetJobDeliveryStatus.STATUS_IN_PROGRESS);
       status.setDeliveredVersion(0);
 
@@ -309,11 +313,18 @@ public class JobCoordinatorService {
   }
 
   private List<Store> getAllStores() {
-    ListStoresResponse listStoresResponse =
-        specService.listStores(
-            CoreServiceProto.ListStoresRequest.newBuilder()
-                .setFilter(Filter.newBuilder().build())
-                .build());
+    ListStoresResponse listStoresResponse;
+    try {
+      listStoresResponse =
+          specService.listStores(
+              CoreServiceProto.ListStoresRequest.newBuilder()
+                  .setFilter(Filter.newBuilder().build())
+                  .build());
+    } catch (StatusRuntimeException e) {
+      log.error("Core Service is unavailable");
+      return Collections.emptyList();
+    }
+
     return listStoresResponse.getStoreList().stream()
         .filter(s -> this.whitelistedStores.contains(s.getName()))
         .collect(Collectors.toList());
@@ -373,18 +384,24 @@ public class JobCoordinatorService {
 
   @Scheduled(fixedDelayString = "${feast.stream.specsOptions.notifyIntervalMilliseconds}")
   public void notifyJobsWhenFeatureSetUpdated() {
-    List<FeatureSet> pendingFeatureSets =
-        specService
-            .listFeatureSets(
-                CoreServiceProto.ListFeatureSetsRequest.newBuilder()
-                    .setFilter(
-                        CoreServiceProto.ListFeatureSetsRequest.Filter.newBuilder()
-                            .setProject("*")
-                            .setFeatureSetName("*")
-                            .setStatus(FeatureSetProto.FeatureSetStatus.STATUS_PENDING)
-                            .build())
-                    .build())
-            .getFeatureSetsList();
+    List<FeatureSet> pendingFeatureSets;
+    try {
+      pendingFeatureSets =
+          specService
+              .listFeatureSets(
+                  CoreServiceProto.ListFeatureSetsRequest.newBuilder()
+                      .setFilter(
+                          CoreServiceProto.ListFeatureSetsRequest.Filter.newBuilder()
+                              .setProject("*")
+                              .setFeatureSetName("*")
+                              .setStatus(FeatureSetProto.FeatureSetStatus.STATUS_PENDING)
+                              .build())
+                      .build())
+              .getFeatureSetsList();
+    } catch (StatusRuntimeException exc) {
+      log.error("Core Service is unavailable");
+      return;
+    }
 
     pendingFeatureSets.stream()
         .map(this::allocateFeatureSetToJobs)
@@ -467,14 +484,19 @@ public class JobCoordinatorService {
       ConsumerRecord<String, IngestionJobProto.FeatureSetSpecAck> record) {
     String setReference = record.key();
     FeatureSetReference ref = FeatureSetReference.parse(setReference);
-    FeatureSet featureSet =
-        specService
-            .getFeatureSet(
-                CoreServiceProto.GetFeatureSetRequest.newBuilder()
-                    .setProject(ref.getProjectName())
-                    .setName(ref.getFeatureSetName())
-                    .build())
-            .getFeatureSet();
+    FeatureSet featureSet;
+    try {
+      featureSet =
+          specService
+              .getFeatureSet(
+                  CoreServiceProto.GetFeatureSetRequest.newBuilder()
+                      .setProject(ref.getProjectName())
+                      .setName(ref.getFeatureSetName())
+                      .build())
+              .getFeatureSet();
+    } catch (StatusRuntimeException e) {
+      featureSet = null;
+    }
 
     if (featureSet == null) {
       log.warn(

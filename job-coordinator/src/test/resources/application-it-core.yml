@@ -39,8 +39,6 @@ feast:
 
 grpc:
   server:
-    # The port that Feast Core gRPC service listens on
-    port: 6565
     security:
       enabled: false
 

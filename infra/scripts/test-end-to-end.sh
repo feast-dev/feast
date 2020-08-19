@@ -44,15 +44,8 @@ else
 fi
 
 # Start Feast Core with auth if enabled
-cat <<EOF > /tmp/auth.core.warehouse.application.yml
+cat <<EOF > /tmp/core.warehouse.application.yml
 feast:
-  jobs:
-    polling_interval_milliseconds: 5000
-    active_runner: direct
-    runners:
-      - name: direct
-        type: DirectRunner
-        options: {}
   security:
     authentication:
       enabled: true
@@ -64,8 +57,10 @@ feast:
       provider: none
 EOF
 
-cat <<EOF > /tmp/core.warehouse.application.yml
+cat <<EOF > /tmp/jc.warehouse.application.yml
 feast:
+  core-host: localhost
+  core-port: 6565
   jobs:
     polling_interval_milliseconds: 5000
     active_runner: direct
@@ -106,11 +101,11 @@ if [[ ${ENABLE_AUTH} = "true" ]];
     print_banner "Starting Feast Serving with auth"
   else
     print_banner "Starting Feast core without auth"
-    start_feast_core /tmp/core.warehouse.application.yml
+    start_feast_core
     print_banner "Starting Feast Serving without auth"
 fi
 
-
+start_feast_jc /tmp/jc.warehouse.application.yml
 start_feast_serving /tmp/serving.warehouse.application.yml
 install_python_with_miniconda_and_feast_sdk
 

@@ -9,6 +9,15 @@ feast-core:
       stream:
         options:
           bootstrapServers: <kafka_sevice_load_balancer_ip_address_1:31090>
+
+feast-jc:
+  gcpServiceAccount:
+    enabled: true
+  application-override.yaml:
+    feast:
+      stream:
+        options:
+          bootstrapServers: <kafka_sevice_load_balancer_ip_address_1:31090>
       jobs:
         active_runner: dataflow
         metrics:

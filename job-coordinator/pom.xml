@@ -81,11 +81,11 @@
             <artifactId>feast-common</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>dev.feast</groupId>
-            <artifactId>feast-auth</artifactId>
-            <version>${project.version}</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>dev.feast</groupId>-->
+<!--            <artifactId>feast-auth</artifactId>-->
+<!--            <version>${project.version}</version>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>dev.feast</groupId>
             <artifactId>feast-core</artifactId>
@@ -101,11 +101,11 @@
 
         <!-- Hot reloading for Spring Boot. spring-boot-maven-plugin removes
              this automatically when packaging. -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-devtools</artifactId>
-            <optional>true</optional>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.springframework.boot</groupId>-->
+<!--            <artifactId>spring-boot-devtools</artifactId>-->
+<!--            <optional>true</optional>-->
+<!--        </dependency>-->
 
         <dependency>
             <groupId>javax.inject</groupId>
@@ -231,6 +231,12 @@
             <artifactId>postgresql</artifactId>
             <scope>test</scope>
             <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-config</artifactId>
+            <version>${spring.security.version}</version>
         </dependency>
   </dependencies>
 </project>

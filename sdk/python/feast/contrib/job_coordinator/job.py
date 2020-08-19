@@ -6,7 +6,8 @@ from google.protobuf.json_format import MessageToJson
 from feast import Source
 from feast.core.CoreService_pb2 import ListIngestionJobsRequest
 from feast.core.CoreService_pb2_grpc import JobCoordinatorServiceStub
-from feast.core.IngestionJob_pb2 import IngestionJob as IngestJobProto, IngestionJobStatus
+from feast.core.IngestionJob_pb2 import IngestionJob as IngestJobProto
+from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.core.Store_pb2 import Store
 from feast.feature_set import FeatureSetRef
 from feast.wait import wait_retry_backoff

@@ -57,8 +57,10 @@ else
 fi
 
 # Start Feast Core in background
-cat <<EOF > /tmp/core.warehouse.application.yml
+cat <<EOF > /tmp/jc.warehouse.application.yml
 feast:
+  core-host: localhost
+  core-port: 6565
   jobs:
     polling_interval_milliseconds: 10000
     active_runner: direct
@@ -71,7 +73,8 @@ feast:
 
 EOF
 
-start_feast_core /tmp/core.warehouse.application.yml
+start_feast_core
+start_feast_jc /tmp/jc.warehouse.application.yml
 
 DATASET_NAME=feast_$(date +%s)
 bq --location=US --project_id=${GOOGLE_CLOUD_PROJECT} mk \

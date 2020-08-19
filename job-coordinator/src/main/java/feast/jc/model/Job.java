@@ -122,10 +122,9 @@ public abstract class Job {
 
   public void addAllFeatureSets(Set<FeatureSetProto.FeatureSet> featureSets) {
     for (FeatureSetProto.FeatureSet fs : featureSets) {
-      FeatureSetDeliveryStatus status = new FeatureSetDeliveryStatus();
       FeatureSetReference ref =
           FeatureSetReference.of(fs.getSpec().getProject(), fs.getSpec().getName());
-      status.setFeatureSetReference(ref);
+      FeatureSetDeliveryStatus status = new FeatureSetDeliveryStatus(ref);
 
       if (fs.getMeta().getStatus() == FeatureSetProto.FeatureSetStatus.STATUS_READY) {
         // Feature Set was already delivered to previous generation of the job

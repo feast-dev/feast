@@ -22,10 +22,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-public class SimpleAPIClient {
+public class SimpleCoreClient {
   private CoreServiceGrpc.CoreServiceBlockingStub stub;
 
-  public SimpleAPIClient(CoreServiceGrpc.CoreServiceBlockingStub stub) {
+  public SimpleCoreClient(CoreServiceGrpc.CoreServiceBlockingStub stub) {
     this.stub = stub;
   }
 
@@ -125,19 +125,6 @@ public class SimpleAPIClient {
 
   public void archiveProject(String name) {
     stub.archiveProject(CoreServiceProto.ArchiveProjectRequest.newBuilder().setName(name).build());
-  }
-
-  public void restartIngestionJob(String jobId) {
-    stub.restartIngestionJob(
-        CoreServiceProto.RestartIngestionJobRequest.newBuilder().setId(jobId).build());
-  }
-
-  public List<IngestionJobProto.IngestionJob> listIngestionJobs() {
-    return stub.listIngestionJobs(
-            CoreServiceProto.ListIngestionJobsRequest.newBuilder()
-                .setFilter(CoreServiceProto.ListIngestionJobsRequest.Filter.newBuilder().build())
-                .build())
-        .getJobsList();
   }
 
   public String getFeastCoreVersion() {

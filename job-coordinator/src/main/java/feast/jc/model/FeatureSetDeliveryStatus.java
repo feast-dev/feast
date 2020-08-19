@@ -19,8 +19,6 @@ package feast.jc.model;
 import com.google.common.base.Objects;
 import feast.common.models.FeatureSetReference;
 import feast.proto.core.FeatureSetProto.FeatureSetJobDeliveryStatus;
-import lombok.Getter;
-import lombok.Setter;
 
 /**
  * Data class that represents connection between {@link Job} and FeatureSet. For all FeatureSets
@@ -28,12 +26,36 @@ import lombok.Setter;
  * featureSetDeliveryStatuses map. FeatureSet is determined by {@link FeatureSetReference}. Stores
  * delivery status and latest delivered version.
  */
-@Getter
-@Setter
 public class FeatureSetDeliveryStatus {
-  private FeatureSetReference featureSetReference;
+  private final FeatureSetReference featureSetReference;
   private FeatureSetJobDeliveryStatus deliveryStatus;
   private int deliveredVersion;
+
+  public FeatureSetDeliveryStatus(FeatureSetReference featureSetReference) {
+    this.featureSetReference = featureSetReference;
+  }
+
+  public FeatureSetDeliveryStatus setDeliveryStatus(FeatureSetJobDeliveryStatus deliveryStatus) {
+    this.deliveryStatus = deliveryStatus;
+    return this;
+  }
+
+  public FeatureSetDeliveryStatus setDeliveredVersion(int deliveredVersion) {
+    this.deliveredVersion = deliveredVersion;
+    return this;
+  }
+
+  public FeatureSetJobDeliveryStatus getDeliveryStatus() {
+    return deliveryStatus;
+  }
+
+  public FeatureSetReference getFeatureSetReference() {
+    return featureSetReference;
+  }
+
+  public int getDeliveredVersion() {
+    return deliveredVersion;
+  }
 
   @Override
   public boolean equals(Object o) {

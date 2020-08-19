@@ -22,8 +22,8 @@ import pkg_resources
 import yaml
 
 from feast.client import Client
-from feast.contrib.job_coordinator.client import Client as JobCoordinatorClient
 from feast.config import Config
+from feast.contrib.job_coordinator.client import Client as JobCoordinatorClient
 from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.feature_set import FeatureSet, FeatureSetRef
 from feast.loaders.yaml import yaml_loader
@@ -422,7 +422,7 @@ def ingest_job_restart(job_id: str):
     Waits for the job to fully restart.
     """
     # find ingestion job for id
-    feast_client = Client()
+    feast_client = JobCoordinatorClient()
     jobs = feast_client.list_ingest_jobs(job_id=job_id)
     if len(jobs) < 1:
         print(f"Ingestion Job with id {job_id} could not be found")

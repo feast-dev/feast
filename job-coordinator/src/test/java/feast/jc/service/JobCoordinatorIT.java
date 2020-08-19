@@ -29,19 +29,14 @@ import static org.hamcrest.core.AllOf.allOf;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.common.it.BaseIT;
-import feast.common.it.DataGenerator;
-import feast.common.it.SimpleAPIClient;
+import feast.common.it.*;
 import feast.common.util.KafkaSerialization;
 import feast.jc.config.FeastProperties;
 import feast.jc.dao.JobRepository;
 import feast.jc.model.Job;
 import feast.jc.model.JobStatus;
 import feast.jc.runner.JobManager;
-import feast.proto.core.CoreServiceGrpc;
-import feast.proto.core.FeatureSetProto;
-import feast.proto.core.IngestionJobProto;
-import feast.proto.core.StoreProto;
+import feast.proto.core.*;
 import feast.proto.types.ValueProto;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -62,12 +57,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.util.SocketUtils;
 
 @SpringBootTest(
     properties = {
       "feast.jobs.enabled=true",
-      "feast.jobs.polling_interval_milliseconds=10000",
-      "feast.stream.specsOptions.notifyIntervalMilliseconds=100",
+      "feast.jobs.polling_interval_milliseconds=1000",
+      "feast.stream.specsOptions.notifyIntervalMilliseconds=1000",
       "feast.jobs.coordinator.consolidate-jobs-per-source=true",
       "feast.jobs.coordinator.feature-set-selector[0].name=test",
       "feast.jobs.coordinator.feature-set-selector[0].project=default",
@@ -76,8 +74,7 @@ import org.springframework.kafka.core.KafkaTemplate;
       "feast.version=1.0.0"
     })
 public class JobCoordinatorIT extends BaseIT {
-  @Autowired private JobManager jobManager2;
-  private FakeJobManager jobManager;
+  @Autowired private FakeJobManager jobManager;
 
   @Autowired private JobRepository jobRepository;
 
@@ -85,30 +82,46 @@ public class JobCoordinatorIT extends BaseIT {
 
   static CoreServiceGrpc.CoreServiceBlockingStub stub;
   static List<FeatureSetProto.FeatureSetSpec> specsMailbox = new ArrayList<>();
-  static SimpleAPIClient apiClient;
+  static SimpleCoreClient coreApiClient;
+  static SimpleJCClient apiClient;
+
+  static int corePort = SocketUtils.findAvailableTcpPort();
+  static ExternalApp coreApp =
+      ExternalApp.builder()
+          .setSpringApplication(feast.core.CoreApplication.class)
+          .setName("it-core")
+          .setGRPCPort(corePort)
+          .setPostgreSQL(postgreSQLContainer)
+          .build();
+
+  @DynamicPropertySource
+  static void properties(DynamicPropertyRegistry registry) {
+    registry.add("feast.corePort", () -> corePort);
+  }
 
   @BeforeAll
-  public static void globalSetUp(@Value("${grpc.server.port}") int port) {
-    //    StandardEnvironment env = new StandardEnvironment();
-    //    env.setDefaultProfiles("it-core");
-    //    new SpringApplicationBuilder(feast.core.CoreApplication.class)
-    //        .environment(env)
-    //        .properties(
-    //            ImmutableMap.of(
-    //                "spring.datasource.url", postgreSQLContainer.getJdbcUrl(),
-    //                "spring.datasource.username", postgreSQLContainer.getUsername(),
-    //                "spring.datasource.password", postgreSQLContainer.getPassword()))
-    //        .run();
+  public static void globalSetUp(@Value("${grpc.server.port}") int localPort) {
+    coreApp.start();
 
     ManagedChannel channel =
-        ManagedChannelBuilder.forAddress("localhost", port).usePlaintext().build();
+        ManagedChannelBuilder.forAddress("localhost", corePort).usePlaintext().build();
     stub = CoreServiceGrpc.newBlockingStub(channel);
-    apiClient = new SimpleAPIClient(stub);
+    coreApiClient = new SimpleCoreClient(stub);
+
+    apiClient =
+        new SimpleJCClient(
+            JobCoordinatorServiceGrpc.newBlockingStub(
+                ManagedChannelBuilder.forAddress("localhost", localPort).usePlaintext().build()));
+  }
+
+  @AfterAll
+  public static void globalTearDown() {
+    coreApp.stop();
   }
 
   @BeforeEach
   public void setUp(TestInfo testInfo) {
-    apiClient.updateStore(DataGenerator.getDefaultStore());
+    coreApiClient.updateStore(DataGenerator.getDefaultStore());
 
     specsMailbox = new ArrayList<>();
 
@@ -131,10 +144,10 @@ public class JobCoordinatorIT extends BaseIT {
   @Test
   @SneakyThrows
   public void shouldCreateJobForNewSource() {
-    apiClient.simpleApplyFeatureSet(
+    coreApiClient.simpleApplyFeatureSet(
         DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), "default", "test"));
 
-    List<FeatureSetProto.FeatureSet> featureSets = apiClient.simpleListFeatureSets("*");
+    List<FeatureSetProto.FeatureSet> featureSets = coreApiClient.simpleListFeatureSets("*");
     assertThat(featureSets.size(), equalTo(1));
 
     await()
@@ -156,12 +169,12 @@ public class JobCoordinatorIT extends BaseIT {
 
   @Test
   public void shouldUpgradeJobWhenStoreChanged() {
-    apiClient.simpleApplyFeatureSet(
+    coreApiClient.simpleApplyFeatureSet(
         DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), "default", "test"));
 
     await().until(jobManager::getAllJobs, hasSize(1));
 
-    apiClient.updateStore(
+    coreApiClient.updateStore(
         DataGenerator.createStore(
             "new-store",
             StoreProto.Store.StoreType.REDIS,
@@ -180,10 +193,10 @@ public class JobCoordinatorIT extends BaseIT {
 
   @Test
   public void shouldRestoreJobThatStopped() {
-    apiClient.simpleApplyFeatureSet(
+    coreApiClient.simpleApplyFeatureSet(
         DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), "default", "test"));
 
-    await().until(jobManager::getAllJobs, hasSize(1));
+    await().until(() -> jobRepository.findByStatus(JobStatus.RUNNING), hasSize(1));
     Job job = jobRepository.findByStatus(JobStatus.RUNNING).get(0);
 
     List<IngestionJobProto.IngestionJob> ingestionJobs = apiClient.listIngestionJobs();
@@ -206,7 +219,7 @@ public class JobCoordinatorIT extends BaseIT {
   @Test
   @SneakyThrows
   public void shouldNotCreateJobForUnwantedFeatureSet() {
-    apiClient.simpleApplyFeatureSet(
+    coreApiClient.simpleApplyFeatureSet(
         DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), "default", "other"));
 
     Thread.sleep(2000);
@@ -217,7 +230,7 @@ public class JobCoordinatorIT extends BaseIT {
   @Test
   @SneakyThrows
   public void shouldRestartJobWithOldVersion() {
-    apiClient.simpleApplyFeatureSet(
+    coreApiClient.simpleApplyFeatureSet(
         DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), "default", "test"));
 
     Job job =
@@ -227,7 +240,7 @@ public class JobCoordinatorIT extends BaseIT {
                 ImmutableMap.of(
                     DataGenerator.getDefaultStore().getName(), DataGenerator.getDefaultStore()))
             .setId("some-running-id")
-            .setLabels(ImmutableMap.of(JobCoordinatorService.VERSION_LABEL, "0.9.9"))
+            .setLabels(ImmutableMap.of(JobCoordinatorService.VERSION_LABEL, "0-9-9"))
             .build();
 
     jobManager.startJob(job);
@@ -238,7 +251,7 @@ public class JobCoordinatorIT extends BaseIT {
     Job replacement = jobRepository.findByStatus(JobStatus.RUNNING).get(0);
     assertThat(replacement.getSource(), equalTo(job.getSource()));
     assertThat(replacement.getStores(), equalTo(job.getStores()));
-    assertThat(replacement.getLabels(), hasEntry(JobCoordinatorService.VERSION_LABEL, "1.0.0"));
+    assertThat(replacement.getLabels(), hasEntry(JobCoordinatorService.VERSION_LABEL, "1-0-0"));
   }
 
   @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -265,13 +278,13 @@ public class JobCoordinatorIT extends BaseIT {
                   ImmutableMap.of(
                       DataGenerator.getDefaultStore().getName(), DataGenerator.getDefaultStore()))
               .setId("some-running-id")
-              .setLabels(ImmutableMap.of(JobCoordinatorService.VERSION_LABEL, "1.0.0"))
+              .setLabels(ImmutableMap.of(JobCoordinatorService.VERSION_LABEL, "1-0-0"))
               .build();
 
       jobManager.startJob(job);
       jobRepository.add(job);
 
-      apiClient.simpleApplyFeatureSet(
+      coreApiClient.simpleApplyFeatureSet(
           DataGenerator.createFeatureSet(
               DataGenerator.getDefaultSource(),
               "default",
@@ -279,7 +292,7 @@ public class JobCoordinatorIT extends BaseIT {
               ImmutableMap.of("entity", ValueProto.ValueType.Enum.BOOL),
               ImmutableMap.of()));
 
-      FeatureSetProto.FeatureSet featureSet = apiClient.simpleGetFeatureSet("default", "test");
+      FeatureSetProto.FeatureSet featureSet = coreApiClient.simpleGetFeatureSet("default", "test");
 
       assertThat(
           featureSet.getMeta().getStatus(),
@@ -301,7 +314,7 @@ public class JobCoordinatorIT extends BaseIT {
     @Test
     @Order(2)
     public void shouldUpdateSpec() {
-      apiClient.simpleApplyFeatureSet(
+      coreApiClient.simpleApplyFeatureSet(
           DataGenerator.createFeatureSet(
               DataGenerator.getDefaultSource(),
               "default",
@@ -334,7 +347,7 @@ public class JobCoordinatorIT extends BaseIT {
       // time to process
       Thread.sleep(1000);
 
-      FeatureSetProto.FeatureSet featureSet = apiClient.simpleGetFeatureSet("default", "test");
+      FeatureSetProto.FeatureSet featureSet = coreApiClient.simpleGetFeatureSet("default", "test");
 
       assertThat(
           featureSet.getMeta().getStatus(),
@@ -354,7 +367,7 @@ public class JobCoordinatorIT extends BaseIT {
 
       await()
           .until(
-              () -> apiClient.simpleGetFeatureSet("default", "test").getMeta().getStatus(),
+              () -> coreApiClient.simpleGetFeatureSet("default", "test").getMeta().getStatus(),
               equalTo(FeatureSetProto.FeatureSetStatus.STATUS_READY));
     }
 
@@ -363,7 +376,7 @@ public class JobCoordinatorIT extends BaseIT {
     public void shouldReallocateFeatureSetAfterSourceChanged() {
       assertThat(jobManager.getJobStatus(job), equalTo(JobStatus.RUNNING));
 
-      apiClient.simpleApplyFeatureSet(
+      coreApiClient.simpleApplyFeatureSet(
           DataGenerator.createFeatureSet(
               DataGenerator.createSource("localhost", "newTopic"),
               "default",
@@ -398,13 +411,13 @@ public class JobCoordinatorIT extends BaseIT {
 
       await()
           .until(
-              () -> apiClient.simpleGetFeatureSet("default", "test").getMeta().getStatus(),
+              () -> coreApiClient.simpleGetFeatureSet("default", "test").getMeta().getStatus(),
               equalTo(FeatureSetProto.FeatureSetStatus.STATUS_READY));
     }
   }
 
   @TestConfiguration
-  public static class TestConfig {
+  public static class TestConfig extends BaseIT.BaseTestConfig {
     @Bean
     public JobManager getJobManager() {
       return new FakeJobManager();

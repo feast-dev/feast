@@ -24,10 +24,9 @@ import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.JWKSet;
 import feast.common.it.BaseIT;
 import feast.common.it.DataGenerator;
-import feast.common.it.SimpleAPIClient;
+import feast.common.it.SimpleCoreClient;
 import feast.core.auth.infra.JwtHelper;
 import feast.core.config.FeastProperties;
-import feast.core.model.*;
 import feast.proto.core.*;
 import io.grpc.CallCredentials;
 import io.grpc.Channel;
@@ -68,7 +67,7 @@ public class CoreServiceAuthenticationIT extends BaseIT {
 
   @Rule public WireMockClassRule instanceRule = wireMockRule;
 
-  static SimpleAPIClient insecureApiClient;
+  static SimpleCoreClient insecureApiClient;
 
   @DynamicPropertySource
   static void initialize(DynamicPropertyRegistry registry) {
@@ -104,7 +103,7 @@ public class CoreServiceAuthenticationIT extends BaseIT {
         ManagedChannelBuilder.forAddress("localhost", feast_core_port).usePlaintext().build();
     CoreServiceGrpc.CoreServiceBlockingStub insecureCoreService =
         CoreServiceGrpc.newBlockingStub(insecureChannel);
-    insecureApiClient = new SimpleAPIClient(insecureCoreService);
+    insecureApiClient = new SimpleCoreClient(insecureCoreService);
   }
 
   @AfterAll
@@ -114,7 +113,8 @@ public class CoreServiceAuthenticationIT extends BaseIT {
 
   @Test
   public void shouldGetVersionFromFeastCoreAlways() {
-    SimpleAPIClient secureApiClient = getSecureApiClient("fakeUserThatIsAuthenticated@example.com");
+    SimpleCoreClient secureApiClient =
+        getSecureApiClient("fakeUserThatIsAuthenticated@example.com");
 
     String feastCoreVersionSecure = secureApiClient.getFeastCoreVersion();
     String feastCoreVersionInsecure = insecureApiClient.getFeastCoreVersion();
@@ -145,7 +145,7 @@ public class CoreServiceAuthenticationIT extends BaseIT {
 
   @Test
   public void shouldAllowAuthenticatedFeatureSetListing() {
-    SimpleAPIClient secureApiClient =
+    SimpleCoreClient secureApiClient =
         getSecureApiClient("AuthenticatedUserWithoutAuthorization@example.com");
     FeatureSetProto.FeatureSet expectedFeatureSet = DataGenerator.getDefaultFeatureSet();
     secureApiClient.simpleApplyFeatureSet(expectedFeatureSet);
@@ -162,7 +162,7 @@ public class CoreServiceAuthenticationIT extends BaseIT {
 
   @Test
   void canApplyFeatureSetIfAuthenticated() {
-    SimpleAPIClient secureApiClient =
+    SimpleCoreClient secureApiClient =
         getSecureApiClient("AuthenticatedUserWithoutAuthorization@example.com");
     FeatureSetProto.FeatureSet expectedFeatureSet =
         DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), "project_1", "test_1");
@@ -187,7 +187,7 @@ public class CoreServiceAuthenticationIT extends BaseIT {
   }
 
   // Create secure Feast Core gRPC client for a specific user
-  private static SimpleAPIClient getSecureApiClient(String subjectEmail) {
+  private static SimpleCoreClient getSecureApiClient(String subjectEmail) {
     CallCredentials callCredentials = null;
     try {
       callCredentials = jwtHelper.getCallCredentials(subjectEmail);
@@ -201,6 +201,6 @@ public class CoreServiceAuthenticationIT extends BaseIT {
     CoreServiceGrpc.CoreServiceBlockingStub secureCoreService =
         CoreServiceGrpc.newBlockingStub(secureChannel).withCallCredentials(callCredentials);
 
-    return new SimpleAPIClient(secureCoreService);
+    return new SimpleCoreClient(secureCoreService);
   }
 }

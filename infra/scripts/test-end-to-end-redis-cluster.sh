@@ -41,8 +41,10 @@ else
 fi
 
 # Start Feast Core with auth if enabled
-cat <<EOF > /tmp/core.warehouse.application.yml
+cat <<EOF > /tmp/jc.warehouse.application.yml
 feast:
+  core-host: localhost
+  core-port: 6565
   jobs:
     polling_interval_milliseconds: 5000
     active_runner: direct
@@ -52,7 +54,8 @@ feast:
         options: {}
 EOF
 
-start_feast_core /tmp/core.warehouse.application.yml
+start_feast_core
+start_feast_jc /tmp/jc.warehouse.application.yml
 
 cat <<EOF > /tmp/serving.online.application.yml
 feast:

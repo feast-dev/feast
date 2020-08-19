@@ -93,6 +93,21 @@ start_feast_core() {
   nc -w2 localhost 6565 </dev/null
 }
 
+start_feast_jc() {
+  print_banner "Starting Feast Job Coordinator"
+
+  if [ -n "$1" ]; then
+    echo "Custom Spring application.yml location provided: $1"
+    export CONFIG_ARG="--spring.config.location=classpath:/application.yml,file://$1"
+  fi
+
+  nohup java -jar core/target/feast-job-coordinator-$FEAST_BUILD_VERSION-exec.jar $CONFIG_ARG &>/var/log/feast-jc.log &
+  ${SCRIPTS_DIR}/wait-for-it.sh localhost:6570 --timeout=90
+
+  tail -n10 /var/log/feast-jc.log
+  nc -w2 localhost 6570 </dev/null
+}
+
 start_feast_serving() {
   print_banner "Starting Feast Online Serving"
 

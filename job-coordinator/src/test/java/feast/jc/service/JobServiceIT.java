@@ -31,9 +31,9 @@ import feast.jc.model.FeatureSetDeliveryStatus;
 import feast.jc.model.Job;
 import feast.jc.model.JobStatus;
 import feast.jc.runner.JobManager;
-import feast.proto.core.CoreServiceGrpc;
 import feast.proto.core.CoreServiceProto;
 import feast.proto.core.FeatureSetReferenceProto;
+import feast.proto.core.JobCoordinatorServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
@@ -50,7 +50,7 @@ public class JobServiceIT extends BaseIT {
 
   @Autowired private JobRepository jobRepository;
 
-  static CoreServiceGrpc.CoreServiceBlockingStub stub;
+  static JobCoordinatorServiceGrpc.JobCoordinatorServiceBlockingStub stub;
 
   Job job;
 
@@ -58,7 +58,7 @@ public class JobServiceIT extends BaseIT {
   public static void globalSetUp(@Value("${grpc.server.port}") int port) {
     ManagedChannel channel =
         ManagedChannelBuilder.forAddress("localhost", port).usePlaintext().build();
-    stub = CoreServiceGrpc.newBlockingStub(channel);
+    stub = JobCoordinatorServiceGrpc.newBlockingStub(channel);
   }
 
   private Job createJobWithId(String jobId) {
@@ -127,7 +127,7 @@ public class JobServiceIT extends BaseIT {
   @Test
   public void shouldReturnListOfJobsByByFeatureSetReference() {
     FeatureSetReference ref = FeatureSetReference.of("default", "fs");
-    FeatureSetDeliveryStatus featureSetDeliveryStatus = new FeatureSetDeliveryStatus();
+    FeatureSetDeliveryStatus featureSetDeliveryStatus = new FeatureSetDeliveryStatus(ref);
 
     this.job.getFeatureSetDeliveryStatuses().put(ref, featureSetDeliveryStatus);
 

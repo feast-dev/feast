@@ -3,18 +3,23 @@ from typing import Optional
 import grpc
 
 from feast.config import Config
-from feast.constants import CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY, CONFIG_CORE_SERVER_SSL_CERT_KEY, \
-    CONFIG_ENABLE_AUTH_KEY, CONFIG_CORE_ENABLE_SSL_KEY, CONFIG_JC_SERVER_KEY
+from feast.constants import (
+    CONFIG_CORE_ENABLE_SSL_KEY,
+    CONFIG_CORE_SERVER_SSL_CERT_KEY,
+    CONFIG_ENABLE_AUTH_KEY,
+    CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY,
+    CONFIG_JC_SERVER_KEY,
+)
+from feast.contrib.job_coordinator.job import IngestJob
 from feast.core.CoreService_pb2 import (
     ListIngestionJobsRequest,
     RestartIngestionJobRequest,
-    StopIngestionJobRequest
+    StopIngestionJobRequest,
 )
 from feast.core.CoreService_pb2_grpc import JobCoordinatorServiceStub
 from feast.feature_set import FeatureSetRef
-from feast.grpc.grpc import create_grpc_channel
 from feast.grpc import auth as feast_auth
-from feast.contrib.job_coordinator.job import IngestJob
+from feast.grpc.grpc import create_grpc_channel
 
 
 class Client:
@@ -53,7 +58,7 @@ class Client:
                 timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
             )
             self._jc_service_stub = JobCoordinatorServiceStub(channel)
-            
+
         return self._jc_service_stub
 
     def list_ingest_jobs(
