@@ -16,7 +16,8 @@
  */
 package feast.jc.grpc;
 
-import feast.jc.dao.JobRepository;
+import feast.proto.core.CoreServiceGrpc;
+import feast.proto.core.CoreServiceProto;
 import io.grpc.Status;
 import io.grpc.health.v1.HealthGrpc.HealthImplBase;
 import io.grpc.health.v1.HealthProto.HealthCheckRequest;
@@ -30,18 +31,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 @Slf4j
 @GrpcService
 public class HealthServiceImpl extends HealthImplBase {
-  private final JobRepository jobRepository;
+  private final CoreServiceGrpc.CoreServiceBlockingStub specService;
 
   @Autowired
-  public HealthServiceImpl(JobRepository jobRepository) {
-    this.jobRepository = jobRepository;
+  public HealthServiceImpl(CoreServiceGrpc.CoreServiceBlockingStub specService) {
+    this.specService = specService;
   }
 
   @Override
   public void check(
       HealthCheckRequest request, StreamObserver<HealthCheckResponse> responseObserver) {
     try {
-      jobRepository.findAll();
+      specService.listFeatureSets(CoreServiceProto.ListFeatureSetsRequest.newBuilder().build());
       responseObserver.onNext(
           HealthCheckResponse.newBuilder().setStatus(ServingStatus.SERVING).build());
       responseObserver.onCompleted();

@@ -321,7 +321,7 @@ public class JobCoordinatorService {
                   .setFilter(Filter.newBuilder().build())
                   .build());
     } catch (StatusRuntimeException e) {
-      log.error("Core Service is unavailable");
+      log.error("Core Service is unavailable. Reason: {}", e.getMessage());
       return Collections.emptyList();
     }
 
@@ -398,8 +398,8 @@ public class JobCoordinatorService {
                               .build())
                       .build())
               .getFeatureSetsList();
-    } catch (StatusRuntimeException exc) {
-      log.error("Core Service is unavailable");
+    } catch (StatusRuntimeException e) {
+      log.error("Core Service is unavailable. Reason: {}", e.getMessage());
       return;
     }
 
@@ -495,7 +495,8 @@ public class JobCoordinatorService {
                       .build())
               .getFeatureSet();
     } catch (StatusRuntimeException e) {
-      featureSet = null;
+      log.error("Core Service is unavailable. Reason: {}", e.getMessage());
+      return;
     }
 
     if (featureSet == null) {

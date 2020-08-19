@@ -67,7 +67,6 @@ public class CoreServiceAuthTest {
   @Mock private ProjectRepository projectRepository;
   @Mock private AuthorizationProvider authProvider;
   @Mock private StatsService statsService;
-  // @Mock private JobService jobService;
 
   public CoreServiceAuthTest() {
     MockitoAnnotations.initMocks(this);
@@ -83,12 +82,7 @@ public class CoreServiceAuthTest {
         new AuthorizationService(feastProperties.getSecurity(), authProvider);
     coreService =
         new CoreServiceImpl(
-            specService,
-            projectService,
-            statsService,
-            // jobService,
-            feastProperties,
-            authService);
+            specService, projectService, statsService, feastProperties, authService);
   }
 
   @Test
