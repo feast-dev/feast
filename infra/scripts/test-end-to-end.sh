@@ -97,7 +97,7 @@ EOF
 if [[ ${ENABLE_AUTH} = "true" ]]; 
   then
     print_banner "Starting Feast core with auth"
-    start_feast_core /tmp/auth.core.warehouse.application.yml
+    start_feast_core /tmp/core.warehouse.application.yml
     print_banner "Starting Feast Serving with auth"
   else
     print_banner "Starting Feast core without auth"
