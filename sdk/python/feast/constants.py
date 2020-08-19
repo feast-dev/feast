@@ -45,6 +45,7 @@ CONFIG_CORE_ENABLE_SSL_KEY = "core_enable_ssl"
 CONFIG_ENABLE_AUTH_KEY = "enable_auth"
 CONFIG_ENABLE_AUTH_TOKEN_KEY = "auth_token"
 CONFIG_CORE_SERVER_SSL_CERT_KEY = "core_server_ssl_cert"
+CONFIG_JC_SERVER_KEY = "jc_url"
 CONFIG_SERVING_URL_KEY = "serving_url"
 CONFIG_SERVING_ENABLE_SSL_KEY = "serving_enable_ssl"
 CONFIG_SERVING_SERVER_SSL_CERT_KEY = "serving_server_ssl_cert"
@@ -75,6 +76,8 @@ FEAST_DEFAULT_OPTIONS = {
     CONFIG_ENABLE_AUTH_KEY: "False",
     # Path to certificate(s) to secure connection to Feast Core
     CONFIG_CORE_SERVER_SSL_CERT_KEY: "",
+    # Default Feast Job Coordinator URL
+    CONFIG_JC_SERVER_KEY: "localhost:6570",
     # Default Feast Serving URL
     CONFIG_SERVING_URL_KEY: "localhost:6565",
     # Enable or disable TLS/SSL to Feast Serving

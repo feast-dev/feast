@@ -58,19 +58,16 @@ from feast.core.CoreService_pb2 import (
     ListFeatureSetsResponse,
     ListFeaturesRequest,
     ListFeaturesResponse,
-    ListIngestionJobsRequest,
     ListProjectsRequest,
     ListProjectsResponse,
-    RestartIngestionJobRequest,
-    StopIngestionJobRequest,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
 from feast.feature import Feature, FeatureRef
-from feast.feature_set import Entity, FeatureSet, FeatureSetRef
+from feast.feature_set import Entity, FeatureSet
 from feast.grpc import auth as feast_auth
 from feast.grpc.grpc import create_grpc_channel
-from feast.job import IngestJob, RetrievalJob
+from feast.job import RetrievalJob
 from feast.loaders.abstract_producer import get_producer
 from feast.loaders.file import export_source_to_staging_location
 from feast.loaders.ingest import KAFKA_CHUNK_PRODUCTION_TIMEOUT, get_feature_row_chunks
@@ -738,78 +735,6 @@ class Client:
 
         response = OnlineResponse(response)
         return response
-
-    def list_ingest_jobs(
-        self,
-        job_id: str = None,
-        feature_set_ref: FeatureSetRef = None,
-        store_name: str = None,
-    ):
-        """
-        List the ingestion jobs currently registered in Feast, with optional filters.
-        Provides detailed metadata about each ingestion job.
-
-        Args:
-            job_id: Select specific ingestion job with the given job_id
-            feature_set_ref: Filter ingestion jobs by target feature set (via reference)
-            store_name: Filter ingestion jobs by target feast store's name
-
-        Returns:
-            List of IngestJobs matching the given filters
-        """
-        # construct list request
-        feature_set_ref_proto = None
-        if feature_set_ref:
-            feature_set_ref_proto = feature_set_ref.to_proto()
-        list_filter = ListIngestionJobsRequest.Filter(
-            id=job_id,
-            feature_set_reference=feature_set_ref_proto,
-            store_name=store_name,
-        )
-        request = ListIngestionJobsRequest(filter=list_filter)
-        # make list request & unpack response
-        response = self._core_service.ListIngestionJobs(request, metadata=self._get_grpc_metadata(),)  # type: ignore
-        ingest_jobs = [
-            IngestJob(proto, self._core_service, auth_metadata_plugin=self._auth_metadata) for proto in response.jobs  # type: ignore
-        ]
-
-        return ingest_jobs
-
-    def restart_ingest_job(self, job: IngestJob):
-        """
-        Restart ingestion job currently registered in Feast.
-        NOTE: Data might be lost during the restart for some job runners.
-        Does not support stopping a job in a transitional (ie pending, suspending, aborting),
-        terminal state (ie suspended or aborted) or unknown status
-
-        Args:
-            job: IngestJob to restart
-        """
-        request = RestartIngestionJobRequest(id=job.id)
-        try:
-            self._core_service.RestartIngestionJob(
-                request, metadata=self._get_grpc_metadata(),
-            )  # type: ignore
-        except grpc.RpcError as e:
-            raise grpc.RpcError(e.details())
-
-    def stop_ingest_job(self, job: IngestJob):
-        """
-        Stop ingestion job currently resgistered in Feast
-        Does nothing if the target job if already in a terminal state (ie suspended or aborted).
-        Does not support stopping a job in a transitional (ie pending, suspending, aborting)
-        or in a unknown status
-
-        Args:
-            job: IngestJob to restart
-        """
-        request = StopIngestionJobRequest(id=job.id)
-        try:
-            self._core_service.StopIngestionJob(
-                request, metadata=self._get_grpc_metadata(),
-            )  # type: ignore
-        except grpc.RpcError as e:
-            raise grpc.RpcError(e.details())
 
     def ingest(
         self,
