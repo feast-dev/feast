@@ -13,7 +13,7 @@ jobs:
       matrix:
         component: [core, serving, jc, jupyter, ci]
     env:
-      MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2019-10-24.tar
+      MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
     steps:
       - uses: actions/checkout@v2
       - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master

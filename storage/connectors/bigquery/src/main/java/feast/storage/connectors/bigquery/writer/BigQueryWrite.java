@@ -24,6 +24,8 @@ import com.google.common.collect.Iterators;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.storage.api.writer.FailedElement;
 import feast.storage.api.writer.WriteResult;
+import feast.storage.connectors.bigquery.compression.CompactFeatureRows;
+import feast.storage.connectors.bigquery.compression.FeatureRowsBatch;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -179,10 +181,10 @@ public class BigQueryWrite extends PTransform<PCollection<FeatureRow>, WriteResu
   private PCollection<FeatureRow> mergeInputWithResult(
       PCollection<FeatureRow> inputInFixedWindow,
       PCollection<KV<TableDestination, String>> successful) {
-    final TupleTag<Iterable<FeatureRow>> inputTag = new TupleTag<>();
+    final TupleTag<FeatureRowsBatch> inputTag = new TupleTag<>();
     final TupleTag<String> successTag = new TupleTag<>();
 
-    PCollection<KV<String, Iterable<FeatureRow>>> insertedRows =
+    PCollection<KV<String, FeatureRowsBatch>> insertedRows =
         inputInFixedWindow
             .apply(
                 "MakeElementKey",
@@ -199,7 +201,7 @@ public class BigQueryWrite extends PTransform<PCollection<FeatureRow>, WriteResu
                                 element));
                       }
                     }))
-            .apply(Sample.fixedSizePerKey(compactionBatchSize));
+            .apply(new CompactFeatureRows(compactionBatchSize));
 
     PCollection<KV<String, CoGbkResult>> inputWithResult =
         KeyedPCollectionTuple.of(inputTag, insertedRows)
@@ -229,7 +231,12 @@ public class BigQueryWrite extends PTransform<PCollection<FeatureRow>, WriteResu
                   return;
                 }
 
-                result.getAll(inputTag).forEach(rows -> rows.forEach(c::output));
+                result
+                    .getAll(inputTag)
+                    .forEach(
+                        rows ->
+                            rows.getFeatureRowsSample(maxSuccessfulOutputs)
+                                .forEachRemaining(c::output));
               }
             }));
   }
