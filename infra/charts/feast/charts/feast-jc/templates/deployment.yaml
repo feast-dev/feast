@@ -5,7 +5,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     app: {{ template "feast-jc.name" . }}
-    component: core
+    component: jc
     chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
@@ -14,7 +14,7 @@ spec:
   selector:
     matchLabels:
       app: {{ template "feast-jc.name" . }}
-      component: core
+      component: jc
       release: {{ .Release.Name }}
   template:
     metadata:
@@ -28,7 +28,7 @@ spec:
       {{- end }}
       labels:
         app: {{ template "feast-jc.name" . }}
-        component: core
+        component: jc
         release: {{ .Release.Name }}
       {{- if .Values.podLabels }}
         {{ toYaml .Values.podLabels | nindent 8 }}

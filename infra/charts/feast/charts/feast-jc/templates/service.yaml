@@ -36,6 +36,6 @@ spec:
     {{- end }}
   selector:
     app: {{ template "feast-jc.name" . }}
-    component: core
+    component: jc
     release: {{ .Release.Name }}
 

@@ -13,9 +13,9 @@ Current chart version is `0.7-SNAPSHOT`
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | "application-generated.yaml".enabled | bool | `true` | Flag to include Helm generated configuration for http port, Feast database URL, Kafka bootstrap servers and jobs metrics host. This is useful for deployment that uses default configuration for Kafka, Postgres and StatsD exporter. Please set `application-override.yaml` to override this configuration. |
-| "application-override.yaml" | object | `{"enabled":true}` | Configuration to override the default [application.yaml](https://github.com/feast-dev/feast/blob/master/core/src/main/resources/application.yml). Will be created as a ConfigMap. `application-override.yaml` has a higher precedence than `application-secret.yaml` |
-| "application-secret.yaml" | object | `{"enabled":true}` | Configuration to override the default [application.yaml](https://github.com/feast-dev/feast/blob/master/core/src/main/resources/application.yml). Will be created as a Secret. `application-override.yaml` has a higher precedence than `application-secret.yaml`. It is recommended to either set `application-override.yaml` or `application-secret.yaml` only to simplify config management. |
-| "application.yaml".enabled | bool | `true` | Flag to include the default [configuration](https://github.com/feast-dev/feast/blob/master/core/src/main/resources/application.yml). Please set `application-override.yaml` to override this configuration. |
+| "application-override.yaml" | object | `{"enabled":true}` | Configuration to override the default [application.yaml](https://github.com/feast-dev/feast/blob/master/job-coordinator/src/main/resources/application.yml). Will be created as a ConfigMap. `application-override.yaml` has a higher precedence than `application-secret.yaml` |
+| "application-secret.yaml" | object | `{"enabled":true}` | Configuration to override the default [application.yaml](https://github.com/feast-dev/feast/blob/master/job-coordinator/src/main/resources/application.yml). Will be created as a Secret. `application-override.yaml` has a higher precedence than `application-secret.yaml`. It is recommended to either set `application-override.yaml` or `application-secret.yaml` only to simplify config management. |
+| "application.yaml".enabled | bool | `true` | Flag to include the default [configuration](https://github.com/feast-dev/feast/blob/master/job-coordinator/src/main/resources/application.yml). Please set `application-override.yaml` to override this configuration. |
 | envOverrides | object | `{}` | Extra environment variables to set |
 | gcpProjectId | string | `""` | Project ID to use when using Google Cloud services such as BigQuery, Cloud Storage and Dataflow |
 | gcpServiceAccount.enabled | bool | `false` | Flag to use [service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) JSON key |
@@ -51,9 +51,9 @@ Current chart version is `0.7-SNAPSHOT`
 | logLevel | string | `"WARN"` | Default log level, use either one of `DEBUG`, `INFO`, `WARN` or `ERROR` |
 | logType | string | `"Console"` | Log format, either `JSON` or `Console` |
 | nodeSelector | object | `{}` | Node labels for pod assignment |
-| podLabels | object | `{}` | Labels to be added to Feast Core pods |
+| podLabels | object | `{}` | Labels to be added to Feast Job Coordinator pods |
 | postgresql.existingSecret | string | `""` | Existing secret to use for authenticating to Postgres |
-| prometheus.enabled | bool | `true` | Flag to enable scraping of Feast Core metrics |
+| prometheus.enabled | bool | `true` | Flag to enable scraping of Feast Job Coordinator metrics |
 | readinessProbe.enabled | bool | `true` | Flag to enabled the probe |
 | readinessProbe.failureThreshold | int | `5` | Min consecutive failures for the probe to be considered failed |
 | readinessProbe.initialDelaySeconds | int | `20` | Delay before the probe is initiated |

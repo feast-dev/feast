@@ -1,7 +1,7 @@
 {{- if .Values.ingress.http.enabled -}}
-{{ template "feast.ingress" (list . "core" "http" .Values.ingress.http) }}
+{{ template "feast.ingress" (list . "jc" "http" .Values.ingress.http) }}
 {{- end }}
 ---
 {{ if .Values.ingress.grpc.enabled -}}
-{{ template "feast.ingress" (list . "core" "grpc" .Values.ingress.grpc) }}
+{{ template "feast.ingress" (list . "jc" "grpc" .Values.ingress.grpc) }}
 {{- end }}

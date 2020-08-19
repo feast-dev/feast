@@ -42,7 +42,7 @@ public class HealthServiceImpl extends HealthImplBase {
   public void check(
       HealthCheckRequest request, StreamObserver<HealthCheckResponse> responseObserver) {
     try {
-      specService.listFeatureSets(CoreServiceProto.ListFeatureSetsRequest.newBuilder().build());
+      specService.listProjects(CoreServiceProto.ListProjectsRequest.newBuilder().build());
       responseObserver.onNext(
           HealthCheckResponse.newBuilder().setStatus(ServingStatus.SERVING).build());
       responseObserver.onCompleted();
