@@ -25,6 +25,7 @@ import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInA
 import static org.hamcrest.collection.IsMapContaining.hasEntry;
 import static org.hamcrest.collection.IsMapWithSize.aMapWithSize;
 import static org.hamcrest.core.AllOf.allOf;
+import static org.hamcrest.number.OrderingComparison.greaterThan;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -387,6 +388,8 @@ public class JobCoordinatorIT extends BaseIT {
       await().until(() -> jobManager.getJobStatus(job), equalTo(JobStatus.ABORTED));
 
       await().until(() -> jobRepository.findByStatus(JobStatus.RUNNING), hasSize(1));
+
+      await().until(() -> specsMailbox, hasSize(greaterThan(0)));
 
       assertThat(
           specsMailbox.get(0),
