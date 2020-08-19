@@ -49,11 +49,9 @@ public class InMemoryJobRepository implements JobRepository {
   @Autowired
   public InMemoryJobRepository(JobManager jobManager) {
     this.jobManager = jobManager;
-    this.storage = new HashMap<>();
 
-    //    this.storage =
-    //        this.jobManager.listRunningJobs().stream().collect(Collectors.toMap(Job::getId, j ->
-    // j));
+    this.storage =
+        this.jobManager.listRunningJobs().stream().collect(Collectors.toMap(Job::getId, j -> j));
   }
 
   /**
