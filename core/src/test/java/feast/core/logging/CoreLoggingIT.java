@@ -86,7 +86,7 @@ public class CoreLoggingIT extends BaseIT {
     UpdateStoreRequest request =
         UpdateStoreRequest.newBuilder().setStore(DataGenerator.getDefaultStore()).build();
     List<UpdateStoreResponse> responses = new ArrayList<>();
-    final int LOAD_SIZE = 200;
+    final int LOAD_SIZE = 40;
     for (int i = 0; i < LOAD_SIZE; i++) {
       responses.add(coreService.updateStore(request));
     }
