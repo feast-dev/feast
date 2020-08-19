@@ -16,6 +16,7 @@
  */
 package feast.common.logging.interceptors;
 
+import com.google.protobuf.Empty;
 import com.google.protobuf.Message;
 import feast.common.auth.config.SecurityProperties;
 import feast.common.auth.config.SecurityProperties.AuthenticationProperties;
@@ -59,39 +60,45 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
   @Override
   public <ReqT, RespT> Listener<ReqT> interceptCall(
       ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+    // System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>HERE>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
     MessageAuditLogEntry.Builder entryBuilder = MessageAuditLogEntry.newBuilder();
+    // default response message to empty proto in log entry.
+    entryBuilder.setResponse(Empty.newBuilder().build());
+    // System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Response>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+
     // Unpack service & method name from call
     // full method name is in format <classpath>.<Service>/<Method>
     String fullMethodName = call.getMethodDescriptor().getFullMethodName();
     entryBuilder.setService(
         fullMethodName.substring(fullMethodName.lastIndexOf(".") + 1, fullMethodName.indexOf("/")));
     entryBuilder.setMethod(fullMethodName.substring(fullMethodName.indexOf("/") + 1));
+    // System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Method>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 
     // Attempt Extract current authenticated identity.
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     String identity = (authentication != null) ? getIdentity(authentication) : "";
     entryBuilder.setIdentity(identity);
+    // System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>AUTH>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 
     // Register forwarding call to intercept outgoing response and log to audit log
-    // As sendMessage(), close() and onMessage() may not be called in order (async)
-    // add a try log message call to each so that message logging would not
-    // depend on the calls to made in a specific order.
     call =
         new SimpleForwardingServerCall<ReqT, RespT>(call) {
           @Override
           public void sendMessage(RespT message) {
-            // Track the response & Log entry to audit logger
+            // 2. Track the response & Log entry to audit logger
             super.sendMessage(message);
             entryBuilder.setResponse((Message) message);
-            tryLogMessage(entryBuilder);
+            // System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>OUTGOING>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
           }
 
           @Override
           public void close(Status status, Metadata trailers) {
             super.close(status, trailers);
-            // Log the message log entry to the audit log
+            // 3. Log the message log entry to the audit log
+            Level logLevel = (status.isOk()) ? Level.INFO : Level.ERROR;
             entryBuilder.setStatusCode(status.getCode());
-            tryLogMessage(entryBuilder);
+            AuditLogger.logMessage(logLevel, entryBuilder);
+            // System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>END>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
           }
         };
 
@@ -101,9 +108,9 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
       // Register listener to intercept incoming request messages and log to audit log
       public void onMessage(ReqT message) {
         super.onMessage(message);
-        // Track the request.
+        // 1. Track the request.
         entryBuilder.setRequest((Message) message);
-        tryLogMessage(entryBuilder);
+        // System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>INCOMING>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
       }
     };
   }
