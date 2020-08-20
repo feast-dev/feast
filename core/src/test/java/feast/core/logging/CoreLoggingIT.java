@@ -42,8 +42,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.junit.jupiter.api.BeforeAll;
@@ -75,16 +73,16 @@ public class CoreLoggingIT extends BaseIT {
     coreService.getFeastCoreVersion(GetFeastCoreVersionRequest.getDefaultInstance());
   }
 
-
   /** Check that messsage audit log are produced on service call */
   @Test
-  public void shouldProduceMessageAuditLogsOnCall() throws InterruptedException {
+  public void shouldProduceMessageAuditLogsOnCall()
+      throws InterruptedException, InvalidProtocolBufferException {
     testAuditLogAppender.getLogs().clear();
     // Generate artifical load on feast core.
     UpdateStoreRequest request =
         UpdateStoreRequest.newBuilder().setStore(DataGenerator.getDefaultStore()).build();
     UpdateStoreResponse response = coreService.updateStore(request);
-  
+
     // Wait required to ensure audit logs are flushed into test audit log appender
     Thread.sleep(1000);
     // Check message audit logs are produced for each audit log.
