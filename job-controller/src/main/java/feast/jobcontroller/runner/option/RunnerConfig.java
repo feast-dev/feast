@@ -24,8 +24,8 @@ import java.util.Map;
 
 /**
  * Value class containing the application-default configuration for a runner. When a job is started
- * by jobcontroller, all fields in the object will be converted into --key=value args to seed the beam pipeline
- * options.
+ * by jobcontroller, all fields in the object will be converted into --key=value args to seed the
+ * beam pipeline options.
  */
 public abstract class RunnerConfig {
 

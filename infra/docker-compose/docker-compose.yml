@@ -24,7 +24,7 @@ services:
   jobcontroller:
     image: gcr.io/kf-feast/feast-jobcontroller:${FEAST_VERSION}
     volumes:
-      - ${FEAST_jobcontroller_CONFIG}:/etc/feast/application.yml
+      - ${FEAST_JOB_CONTROLLER_CONFIG}:/etc/feast/application.yml
       - ${GCP_SERVICE_ACCOUNT}:/etc/gcloud/service-accounts/key.json
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json

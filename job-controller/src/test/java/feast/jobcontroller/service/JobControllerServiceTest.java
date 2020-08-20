@@ -67,8 +67,8 @@ public class JobControllerServiceTest {
   @Mock CoreServiceGrpc.CoreServiceBlockingStub specService;
 
   private FeastProperties feastProperties;
-  private JobControllerService jobcontrollersWithConsolidation;
-  private JobControllerService jobcontrollersWithJobPerStore;
+  private JobControllerService controllerWithConsolidation;
+  private JobControllerService controllerWithJobPerStore;
 
   @BeforeEach
   public void setUp() {
@@ -98,7 +98,7 @@ public class JobControllerServiceTest {
     when(jobManager.listRunningJobs()).thenReturn(Collections.emptyList());
     jobRepository = new InMemoryJobRepository(jobManager);
 
-    jobcontrollersWithConsolidation =
+    controllerWithConsolidation =
         new JobControllerService(
             jobRepository,
             specService,
@@ -107,7 +107,7 @@ public class JobControllerServiceTest {
             new ConsolidatedJobStrategy(jobRepository),
             mock(KafkaTemplate.class));
 
-    jobcontrollersWithJobPerStore =
+    controllerWithJobPerStore =
         new JobControllerService(
             jobRepository,
             specService,
@@ -122,7 +122,8 @@ public class JobControllerServiceTest {
     when(specService.listStores(any())).thenReturn(ListStoresResponse.newBuilder().build());
 
     List<JobTask> jobTasks =
-        jobcontrollersWithConsolidation.makeJobUpdateTasks(jobcontrollersWithConsolidation.getSourceToStoreMappings());
+        controllerWithConsolidation.makeJobUpdateTasks(
+            controllerWithConsolidation.getSourceToStoreMappings());
 
     assertThat(jobTasks, hasSize(0));
   }
@@ -140,7 +141,8 @@ public class JobControllerServiceTest {
         .thenReturn(ListFeatureSetsResponse.newBuilder().build());
 
     List<JobTask> jobTasks =
-        jobcontrollersWithConsolidation.makeJobUpdateTasks(jobcontrollersWithConsolidation.getSourceToStoreMappings());
+        controllerWithConsolidation.makeJobUpdateTasks(
+            controllerWithConsolidation.getSourceToStoreMappings());
 
     assertThat(jobTasks, hasSize(0));
   }
@@ -171,7 +173,7 @@ public class JobControllerServiceTest {
         .thenReturn(ListStoresResponse.newBuilder().addStore(store).build());
 
     ArrayList<Pair<Source, Set<Store>>> pairs =
-        Lists.newArrayList(jobcontrollersWithConsolidation.getSourceToStoreMappings());
+        Lists.newArrayList(controllerWithConsolidation.getSourceToStoreMappings());
 
     assertThat(pairs, hasSize(2));
     assertThat(pairs, hasItem(Pair.of(source1, Sets.newHashSet(store))));
@@ -219,7 +221,7 @@ public class JobControllerServiceTest {
         .thenReturn(ListStoresResponse.newBuilder().addStore(store1).addStore(store2).build());
 
     ArrayList<Pair<Source, Set<Store>>> pairs =
-        Lists.newArrayList(jobcontrollersWithConsolidation.getSourceToStoreMappings());
+        Lists.newArrayList(controllerWithConsolidation.getSourceToStoreMappings());
 
     assertThat(pairs, hasSize(2));
     assertThat(pairs, hasItem(Pair.of(source1, Sets.newHashSet(store1))));
@@ -243,7 +245,7 @@ public class JobControllerServiceTest {
     jobRepository.add(job);
 
     List<JobTask> tasks =
-        jobcontrollersWithConsolidation.makeJobUpdateTasks(
+        controllerWithConsolidation.makeJobUpdateTasks(
             ImmutableList.of(Pair.of(source, ImmutableSet.of(store))));
 
     assertThat("CheckStatus is expected", tasks.get(0) instanceof UpdateJobStatusTask);
@@ -262,7 +264,7 @@ public class JobControllerServiceTest {
     jobRepository.add(job);
 
     List<JobTask> tasks =
-        jobcontrollersWithConsolidation.makeJobUpdateTasks(
+        controllerWithConsolidation.makeJobUpdateTasks(
             ImmutableList.of(Pair.of(source, ImmutableSet.of(store))));
 
     assertThat("CreateTask is expected", tasks.get(0) instanceof CreateJobTask);
@@ -281,7 +283,7 @@ public class JobControllerServiceTest {
         .thenReturn(ListFeatureSetsResponse.newBuilder().build());
 
     List<JobTask> tasks =
-        jobcontrollersWithConsolidation.makeJobUpdateTasks(
+        controllerWithConsolidation.makeJobUpdateTasks(
             ImmutableList.of(Pair.of(source, ImmutableSet.of(store))));
 
     assertThat("CreateTask is expected", tasks.get(0) instanceof CreateJobTask);
@@ -312,7 +314,8 @@ public class JobControllerServiceTest {
         .thenReturn(ListStoresResponse.newBuilder().addStore(store1).addStore(store2).build());
 
     List<JobTask> jobTasks =
-        jobcontrollersWithJobPerStore.makeJobUpdateTasks(jobcontrollersWithJobPerStore.getSourceToStoreMappings());
+        controllerWithJobPerStore.makeJobUpdateTasks(
+            controllerWithJobPerStore.getSourceToStoreMappings());
 
     int hash =
         Objects.hash(
@@ -358,7 +361,7 @@ public class JobControllerServiceTest {
     jobRepository.add(existingJob);
 
     List<JobTask> jobTasks =
-        jobcontrollersWithConsolidation.makeJobUpdateTasks(
+        controllerWithConsolidation.makeJobUpdateTasks(
             ImmutableList.of(Pair.of(source, ImmutableSet.of(store1, store2))));
 
     assertThat(jobTasks, hasSize(1));
@@ -384,7 +387,8 @@ public class JobControllerServiceTest {
                 .addAllFeatureSets(Lists.newArrayList(featureSet1, featureSet2, featureSet3))
                 .build());
 
-    List<FeatureSet> featureSetsForStore = jobcontrollersWithConsolidation.getFeatureSetsForStore(store);
+    List<FeatureSet> featureSetsForStore =
+        controllerWithConsolidation.getFeatureSetsForStore(store);
     assertThat(featureSetsForStore, containsInAnyOrder(featureSet1, featureSet2));
   }
 
@@ -426,7 +430,7 @@ public class JobControllerServiceTest {
         .thenReturn(ListFeatureSetsResponse.newBuilder().addFeatureSets(featureSet2).build());
 
     ArrayList<Pair<Source, Set<Store>>> pairs =
-        Lists.newArrayList(jobcontrollersWithConsolidation.getSourceToStoreMappings());
+        Lists.newArrayList(controllerWithConsolidation.getSourceToStoreMappings());
 
     assertThat(pairs, containsInAnyOrder(Pair.of(source1, ImmutableSet.of(store1))));
   }

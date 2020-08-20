@@ -580,7 +580,9 @@ class TestClient:
         )
 
         # list ingestion jobs by target feature set reference
-        ingest_jobs = mock_jobcontroller_client.list_ingest_jobs(feature_set_ref=feature_set_ref)
+        ingest_jobs = mock_jobcontroller_client.list_ingest_jobs(
+            feature_set_ref=feature_set_ref
+        )
         assert len(ingest_jobs) >= 1
 
         ingest_job = ingest_jobs[0]
@@ -609,7 +611,9 @@ class TestClient:
         )
 
         mock_jobcontroller_client.restart_ingest_job(ingest_job)
-        assert mock_jobcontroller_client._jobcontroller_service_stub.RestartIngestionJob.called
+        assert (
+            mock_jobcontroller_client._jobcontroller_service_stub.RestartIngestionJob.called
+        )
 
     def test_stop_ingest_job(self, mock_jobcontroller_client, mocker):
         mocker.patch.object(
@@ -628,7 +632,9 @@ class TestClient:
         )
 
         mock_jobcontroller_client.stop_ingest_job(ingest_job)
-        assert mock_jobcontroller_client._jobcontroller_service_stub.StopIngestionJob.called
+        assert (
+            mock_jobcontroller_client._jobcontroller_service_stub.StopIngestionJob.called
+        )
 
     @pytest.mark.parametrize(
         "mocked_client",
