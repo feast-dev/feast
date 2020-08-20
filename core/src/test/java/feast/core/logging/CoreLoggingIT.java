@@ -21,6 +21,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -30,14 +32,18 @@ import feast.core.it.BaseIT;
 import feast.core.it.DataGenerator;
 import feast.proto.core.CoreServiceGrpc;
 import feast.proto.core.CoreServiceGrpc.CoreServiceBlockingStub;
+import feast.proto.core.CoreServiceGrpc.CoreServiceFutureStub;
 import feast.proto.core.CoreServiceProto.GetFeastCoreVersionRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
+import feast.proto.core.CoreServiceProto.ListStoresRequest;
+import feast.proto.core.CoreServiceProto.ListStoresResponse;
 import feast.proto.core.CoreServiceProto.UpdateStoreRequest;
 import feast.proto.core.CoreServiceProto.UpdateStoreResponse;
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -56,20 +62,26 @@ import org.springframework.boot.test.context.SpringBootTest;
 public class CoreLoggingIT extends BaseIT {
   private static TestLogAppender testAuditLogAppender;
   private static CoreServiceBlockingStub coreService;
+  private static CoreServiceFutureStub asyncCoreService;
 
   @BeforeAll
   public static void globalSetUp(@Value("${grpc.server.port}") int coreGrpcPort)
       throws InterruptedException, ExecutionException {
     LoggerContext logContext = (LoggerContext) LogManager.getContext(false);
+    // NOTE: As log appender state is shared across tests use a different method
+    // for each test and filter by method name to ensure that you only get logs
+    // for a specific test.
     testAuditLogAppender = logContext.getConfiguration().getAppender("TestAuditLogAppender");
 
-    // Connect to core.
+    // Connect to core service.
     Channel channel =
         ManagedChannelBuilder.forAddress("localhost", coreGrpcPort).usePlaintext().build();
     coreService = CoreServiceGrpc.newBlockingStub(channel);
+    asyncCoreService = CoreServiceGrpc.newFutureStub(channel);
 
-    // Preflight a request to core service stub to verify connection
+    // Preflight a request to core service stubs to verify connection
     coreService.getFeastCoreVersion(GetFeastCoreVersionRequest.getDefaultInstance());
+    asyncCoreService.getFeastCoreVersion(GetFeastCoreVersionRequest.getDefaultInstance()).get();
   }
 
   /** Check that messsage audit log are produced on service call */
@@ -85,11 +97,9 @@ public class CoreLoggingIT extends BaseIT {
     Thread.sleep(1000);
     // Check message audit logs are produced for each audit log.
     JsonFormat.Parser protoJSONParser = JsonFormat.parser();
-    // filter by method name to ensure logs from other tests do not interfere with test
+    // Pull message audit logs logs from test log appender
     List<JsonObject> logJsonObjects =
-        parseMessageJsonLogObjects(testAuditLogAppender.getLogs()).stream()
-            .filter(logObj -> logObj.get("method").getAsString().equals("UpdateStore"))
-            .collect(Collectors.toList());
+        parseMessageJsonLogObjects(testAuditLogAppender.getLogs(), "UpdateStore");
     assertEquals(1, logJsonObjects.size());
     JsonObject logObj = logJsonObjects.get(0);
 
@@ -131,11 +141,9 @@ public class CoreLoggingIT extends BaseIT {
 
     // Wait required to ensure audit logs are flushed into test audit log appender
     Thread.sleep(1000);
-    // filter by method name to ensure logs from other tests do not interfere with test
+    // Pull message audit logs logs from test log appender
     List<JsonObject> logJsonObjects =
-        parseMessageJsonLogObjects(testAuditLogAppender.getLogs()).stream()
-            .filter(logObj -> logObj.get("method").getAsString().equals("ListFeatureSets"))
-            .collect(Collectors.toList());
+        parseMessageJsonLogObjects(testAuditLogAppender.getLogs(), "ListFeatureSets");
 
     assertEquals(1, logJsonObjects.size());
     JsonObject logJsonObject = logJsonObjects.get(0);
@@ -143,8 +151,37 @@ public class CoreLoggingIT extends BaseIT {
     assertEquals(logJsonObject.get("statusCode").getAsString(), statusCode.toString());
   }
 
-  /** Filter and Parse out Message Audit Logs from the given logsStrings */
-  private List<JsonObject> parseMessageJsonLogObjects(List<String> logsStrings) {
+  /** Check that expected message audit logs are produced when under load. */
+  @Test
+  public void shouldProduceExpectedNumberOfAuditLogs()
+      throws InterruptedException, ExecutionException {
+    // Generate artifical requests on core to simulate load.
+    int LOAD_SIZE = 40; // Total number of requests to send.
+    int BURST_SIZE = 5; // Number of requests to send at once.
+
+    List<ListStoresResponse> responses = new LinkedList<>();
+    for (int i = 0; i < LOAD_SIZE; i += 5) {
+      List<ListenableFuture<ListStoresResponse>> futures = new LinkedList<>();
+      for (int j = 0; j < BURST_SIZE; j++) {
+        futures.add(asyncCoreService.listStores(ListStoresRequest.getDefaultInstance()));
+      }
+
+      responses.addAll(Futures.allAsList(futures).get());
+    }
+    // Wait required to ensure audit logs are flushed into test audit log appender
+    Thread.sleep(1000);
+
+    // Pull message audit logs logs from test log appender
+    List<JsonObject> logJsonObjects =
+        parseMessageJsonLogObjects(testAuditLogAppender.getLogs(), "ListStores");
+
+    assertEquals(responses.size(), logJsonObjects.size());
+  }
+
+  /**
+   * Filter and Parse out Message Audit Logs from the given logsStrings for the given method name
+   */
+  private List<JsonObject> parseMessageJsonLogObjects(List<String> logsStrings, String methodName) {
     JsonParser jsonParser = new JsonParser();
     // copy to prevent concurrent modification.
     return logsStrings.stream()
@@ -153,9 +190,12 @@ public class CoreLoggingIT extends BaseIT {
         .filter(
             logObj ->
                 logObj
-                    .getAsJsonPrimitive("kind")
-                    .getAsString()
-                    .equals(AuditLogEntryKind.MESSAGE.toString()))
+                        .getAsJsonPrimitive("kind")
+                        .getAsString()
+                        .equals(AuditLogEntryKind.MESSAGE.toString())
+                    // filter by method name to ensure logs from other tests do not interfere with
+                    // test
+                    && logObj.get("method").getAsString().equals(methodName))
         .collect(Collectors.toList());
   }
 }
