@@ -21,10 +21,10 @@ import feast.proto.core.IngestionJobProto;
 import feast.proto.core.JobControllerServiceGrpc;
 import java.util.List;
 
-public class SimpleJCClient {
+public class SimpleJcClient {
   private final JobControllerServiceGrpc.JobControllerServiceBlockingStub stub;
 
-  public SimpleJCClient(JobControllerServiceGrpc.JobControllerServiceBlockingStub stub) {
+  public SimpleJcClient(JobControllerServiceGrpc.JobControllerServiceBlockingStub stub) {
     this.stub = stub;
   }
 

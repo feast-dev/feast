@@ -48,6 +48,13 @@ public class FeatureSetReference implements Serializable {
     return FeatureSetReference.of(projectName, featureSetName, -1);
   }
 
+  /**
+   * Parse string representation of FeatureSetReference that expected to have format
+   * &lt;ProjectName&gt;/&lt;FeatureSetName&gt;. If project's not given - default will be used.
+   *
+   * @param reference string representation
+   * @return construct {@link FeatureSetReference}
+   */
   public static FeatureSetReference parse(String reference) {
     String[] split = reference.split("/", 2);
     if (split.length == 1) {

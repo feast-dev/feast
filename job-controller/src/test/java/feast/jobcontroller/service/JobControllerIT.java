@@ -84,7 +84,7 @@ public class JobControllerIT extends BaseIT {
   static CoreServiceGrpc.CoreServiceBlockingStub stub;
   static List<FeatureSetProto.FeatureSetSpec> specsMailbox = new ArrayList<>();
   static SimpleCoreClient coreApiClient;
-  static SimpleJCClient apiClient;
+  static SimpleJcClient apiClient;
 
   static int corePort = SocketUtils.findAvailableTcpPort();
   static ExternalApp coreApp =
@@ -110,7 +110,7 @@ public class JobControllerIT extends BaseIT {
     coreApiClient = new SimpleCoreClient(stub);
 
     apiClient =
-        new SimpleJCClient(
+        new SimpleJcClient(
             JobControllerServiceGrpc.newBlockingStub(
                 ManagedChannelBuilder.forAddress("localhost", localPort).usePlaintext().build()));
   }
