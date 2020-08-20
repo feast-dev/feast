@@ -91,12 +91,12 @@ service CoreService {
     // Lists all projects active projects.
     rpc ListProjects (ListProjectsRequest) returns (ListProjectsResponse);
 
-    // Internal API for Job Coordinator to update featureSet's status once responsible ingestion job is running
+    // Internal API for Job Controller to update featureSet's status once responsible ingestion job is running
     rpc UpdateFeatureSetStatus (UpdateFeatureSetStatusRequest) returns (UpdateFeatureSetStatusResponse);
 
 }
 
-service JobCoordinatorService {
+service JobControllerService {
     // List Ingestion Jobs given an optional filter.
     // Returns allow ingestions matching the given request filter.
     // Returns all ingestion jobs if no filter is provided.

@@ -10,7 +10,7 @@ feast-core:
         options:
           bootstrapServers: <kafka_sevice_load_balancer_ip_address_1:31090>
 
-feast-jc:
+feast-jobcontroller:
   gcpServiceAccount:
     enabled: true
   application-override.yaml:

@@ -16,7 +16,7 @@ feast-core:
         options:
           bootstrapServers: $feast_kafka_1_ip:31090
 
-feast-jc:
+feast-jobcontroller:
   enabled: true
   gcpServiceAccount:
     enabled: true
@@ -34,7 +34,7 @@ feast-jc:
           specsAckTopic: $SPECS_TOPIC-ack
       jobs:
         active_runner: dataflow
-        coordinator:
+        controller:
           consolidate-jobs-per-source: true
           jobSelector:
             application: feast

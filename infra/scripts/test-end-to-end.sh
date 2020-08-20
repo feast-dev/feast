@@ -105,7 +105,7 @@ if [[ ${ENABLE_AUTH} = "true" ]];
     print_banner "Starting Feast Serving without auth"
 fi
 
-start_feast_jc /tmp/jc.warehouse.application.yml
+start_feast_jobcontroller /tmp/jc.warehouse.application.yml
 start_feast_serving /tmp/serving.warehouse.application.yml
 install_python_with_miniconda_and_feast_sdk
 

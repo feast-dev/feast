@@ -76,7 +76,7 @@ build_feast_core_and_serving() {
 
   ls -lh core/target/*jar
   ls -lh serving/target/*jar
-  ls -lh job-coordinator/target/*jar
+  ls -lh job-controller/target/*jar
 }
 
 start_feast_core() {
@@ -94,18 +94,18 @@ start_feast_core() {
   nc -w2 localhost 6565 </dev/null
 }
 
-start_feast_jc() {
-  print_banner "Starting Feast Job Coordinator"
+start_feast_jobcontroller() {
+  print_banner "Starting Feast Job Controller"
 
   if [ -n "$1" ]; then
     echo "Custom Spring application.yml location provided: $1"
     export CONFIG_ARG="--spring.config.location=classpath:/application.yml,file://$1"
   fi
 
-  nohup java -jar job-coordinator/target/feast-job-coordinator-$FEAST_BUILD_VERSION-exec.jar $CONFIG_ARG &>/var/log/feast-jc.log &
+  nohup java -jar job-controller/target/feast-job-controller-$FEAST_BUILD_VERSION-exec.jar $CONFIG_ARG &>/var/log/feast-jobcontroller.log &
   ${SCRIPTS_DIR}/wait-for-it.sh localhost:6570 --timeout=90
 
-  tail -n10 /var/log/feast-jc.log
+  tail -n10 /var/log/feast-jobcontroller.log
   nc -w2 localhost 6570 </dev/null
 }
 

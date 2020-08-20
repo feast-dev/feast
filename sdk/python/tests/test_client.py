@@ -28,8 +28,8 @@ from pytest_lazyfixture import lazy_fixture
 from pytz import timezone
 
 from feast.client import Client
-from feast.contrib.job_coordinator.client import Client as JobCoordinatorClient
-from feast.contrib.job_coordinator.job import IngestJob
+from feast.contrib.job_controller.client import Client as JCClient
+from feast.contrib.job_controller.job import IngestJob
 from feast.core import CoreService_pb2_grpc as Core
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionResponse,
@@ -75,7 +75,7 @@ from feast_serving_server import ServingServicer
 
 CORE_URL = "core.feast.example.com"
 SERVING_URL = "serving.example.com"
-JC_URL = "jc.feast.example.com"
+jobcontroller_URL = "jobcontroller.feast.example.com"
 _PRIVATE_KEY_RESOURCE_PATH = "data/localhost.key"
 _CERTIFICATE_CHAIN_RESOURCE_PATH = "data/localhost.pem"
 _ROOT_CERTIFICATE_RESOURCE_PATH = "data/localhost.crt"
@@ -108,8 +108,8 @@ class TestClient:
         return client
 
     @pytest.fixture
-    def mock_jc_client(self):
-        client = JobCoordinatorClient(jc_url=JC_URL)
+    def mock_jobcontroller_client(self):
+        client = JCClient(jobcontroller_url=jobcontroller_URL)
         return client
 
     @pytest.fixture
@@ -548,17 +548,17 @@ class TestClient:
             and set(feature_dtype_list) == set([ValueType.FLOAT, ValueType.STRING])
         )
 
-    def test_list_ingest_jobs(self, mock_jc_client, mocker):
+    def test_list_ingest_jobs(self, mock_jobcontroller_client, mocker):
         mocker.patch.object(
-            mock_jc_client,
-            "_jc_service_stub",
-            return_value=Core.JobCoordinatorServiceStub(grpc.insecure_channel("")),
+            mock_jobcontroller_client,
+            "_jobcontroller_service_stub",
+            return_value=Core.JobControllerServiceStub(grpc.insecure_channel("")),
         )
 
         feature_set_ref = FeatureSetRef(project="test", name="driver",)
 
         mocker.patch.object(
-            mock_jc_client._jc_service_stub,
+            mock_jobcontroller_client._jobcontroller_service_stub,
             "ListIngestionJobs",
             return_value=ListIngestionJobsResponse(
                 jobs=[
@@ -580,7 +580,7 @@ class TestClient:
         )
 
         # list ingestion jobs by target feature set reference
-        ingest_jobs = mock_jc_client.list_ingest_jobs(feature_set_ref=feature_set_ref)
+        ingest_jobs = mock_jobcontroller_client.list_ingest_jobs(feature_set_ref=feature_set_ref)
         assert len(ingest_jobs) >= 1
 
         ingest_job = ingest_jobs[0]
@@ -592,11 +592,11 @@ class TestClient:
             and ingest_job.source.source_type == "Kafka"
         )
 
-    def test_restart_ingest_job(self, mock_jc_client, mocker):
+    def test_restart_ingest_job(self, mock_jobcontroller_client, mocker):
         mocker.patch.object(
-            mock_jc_client,
-            "_jc_service_stub",
-            return_value=Core.JobCoordinatorServiceStub(grpc.insecure_channel("")),
+            mock_jobcontroller_client,
+            "_jobcontroller_service_stub",
+            return_value=Core.JobControllerServiceStub(grpc.insecure_channel("")),
         )
 
         ingest_job = IngestJob(
@@ -605,17 +605,17 @@ class TestClient:
                 external_id="job#2222",
                 status=IngestionJobStatus.ERROR,
             ),
-            core_stub=mock_jc_client._jc_service_stub,
+            core_stub=mock_jobcontroller_client._jobcontroller_service_stub,
         )
 
-        mock_jc_client.restart_ingest_job(ingest_job)
-        assert mock_jc_client._jc_service_stub.RestartIngestionJob.called
+        mock_jobcontroller_client.restart_ingest_job(ingest_job)
+        assert mock_jobcontroller_client._jobcontroller_service_stub.RestartIngestionJob.called
 
-    def test_stop_ingest_job(self, mock_jc_client, mocker):
+    def test_stop_ingest_job(self, mock_jobcontroller_client, mocker):
         mocker.patch.object(
-            mock_jc_client,
-            "_jc_service_stub",
-            return_value=Core.JobCoordinatorServiceStub(grpc.insecure_channel("")),
+            mock_jobcontroller_client,
+            "_jobcontroller_service_stub",
+            return_value=Core.JobControllerServiceStub(grpc.insecure_channel("")),
         )
 
         ingest_job = IngestJob(
@@ -624,11 +624,11 @@ class TestClient:
                 external_id="job#2222",
                 status=IngestionJobStatus.RUNNING,
             ),
-            core_stub=mock_jc_client._jc_service_stub,
+            core_stub=mock_jobcontroller_client._jobcontroller_service_stub,
         )
 
-        mock_jc_client.stop_ingest_job(ingest_job)
-        assert mock_jc_client._jc_service_stub.StopIngestionJob.called
+        mock_jobcontroller_client.stop_ingest_job(ingest_job)
+        assert mock_jobcontroller_client._jobcontroller_service_stub.StopIngestionJob.called
 
     @pytest.mark.parametrize(
         "mocked_client",

@@ -18,13 +18,13 @@ package feast.common.it;
 
 import feast.proto.core.CoreServiceProto;
 import feast.proto.core.IngestionJobProto;
-import feast.proto.core.JobCoordinatorServiceGrpc;
+import feast.proto.core.JobControllerServiceGrpc;
 import java.util.List;
 
 public class SimpleJCClient {
-  private final JobCoordinatorServiceGrpc.JobCoordinatorServiceBlockingStub stub;
+  private final JobControllerServiceGrpc.JobControllerServiceBlockingStub stub;
 
-  public SimpleJCClient(JobCoordinatorServiceGrpc.JobCoordinatorServiceBlockingStub stub) {
+  public SimpleJCClient(JobControllerServiceGrpc.JobControllerServiceBlockingStub stub) {
     this.stub = stub;
   }
 

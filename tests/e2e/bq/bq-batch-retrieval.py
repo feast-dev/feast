@@ -18,7 +18,7 @@ from pandavro import to_avro
 
 from bq.testutils import assert_stats_equal, clear_unsupported_fields
 from feast.client import Client
-from feast.contrib.job_coordinator.client import Client as JCClient
+from feast.contrib.job_controller.client import Client as JCClient
 from feast.core.CoreService_pb2 import ListStoresRequest
 from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.entity import Entity
@@ -42,8 +42,8 @@ def serving_url(pytestconfig):
 
 
 @pytest.fixture(scope="module")
-def jc_url(pytestconfig):
-    return pytestconfig.getoption("jc_url")
+def jobcontroller_url(pytestconfig):
+    return pytestconfig.getoption("jobcontroller_url")
 
 
 @pytest.fixture(scope="module")
@@ -503,8 +503,8 @@ def test_batch_no_max_age(client):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def infra_teardown(pytestconfig, jc_url):
-    client = JCClient(jc_url=jc_url)
+def infra_teardown(pytestconfig, jobcontroller_url):
+    client = JCClient(jobcontroller_url=jobcontroller_url)
 
     marker = pytestconfig.getoption("-m")
     yield marker

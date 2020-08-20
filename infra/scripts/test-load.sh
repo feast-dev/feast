@@ -36,7 +36,7 @@ else
 fi
 
 wait_for_docker_image gcr.io/kf-feast/feast-core:"${FEAST_VERSION}"
-wait_for_docker_image gcr.io/kf-feast/feast-jc:"${FEAST_VERSION}"
+wait_for_docker_image gcr.io/kf-feast/feast-jobcontroller:"${FEAST_VERSION}"
 wait_for_docker_image gcr.io/kf-feast/feast-serving:"${FEAST_VERSION}"
 wait_for_docker_image gcr.io/kf-feast/feast-jupyter:"${FEAST_VERSION}"
 
@@ -66,11 +66,11 @@ export FEAST_CORE_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSett
 # Wait for Feast Core to be ready
 "${PROJECT_ROOT_DIR}"/infra/scripts/wait-for-it.sh ${FEAST_CORE_CONTAINER_IP_ADDRESS}:6565 --timeout=120
 
-# Get Feast Job Coordinator container IP address
-export FEAST_JC_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_jc_1)
+# Get Feast Job Controller container IP address
+export FEAST_jobcontroller_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_jobcontroller_1)
 
-# Wait for Feast Job Coordinator to be ready
-"${PROJECT_ROOT_DIR}"/infra/scripts/wait-for-it.sh ${FEAST_JC_CONTAINER_IP_ADDRESS}:6570 --timeout=120
+# Wait for Feast Job Controller to be ready
+"${PROJECT_ROOT_DIR}"/infra/scripts/wait-for-it.sh ${FEAST_jobcontroller_CONTAINER_IP_ADDRESS}:6570 --timeout=120
 
 # Get Feast Online Serving container IP address
 export FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_online_serving_1)

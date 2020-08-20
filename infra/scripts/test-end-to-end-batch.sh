@@ -74,7 +74,7 @@ feast:
 EOF
 
 start_feast_core
-start_feast_jc /tmp/jc.warehouse.application.yml
+start_feast_jobcontroller /tmp/jc.warehouse.application.yml
 
 DATASET_NAME=feast_$(date +%s)
 bq --location=US --project_id=${GOOGLE_CLOUD_PROJECT} mk \
