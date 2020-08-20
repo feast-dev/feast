@@ -38,7 +38,6 @@ import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -77,7 +76,6 @@ public class CoreLoggingIT extends BaseIT {
   @Test
   public void shouldProduceMessageAuditLogsOnCall()
       throws InterruptedException, InvalidProtocolBufferException {
-    testAuditLogAppender.getLogs().clear();
     // Generate artifical load on feast core.
     UpdateStoreRequest request =
         UpdateStoreRequest.newBuilder().setStore(DataGenerator.getDefaultStore()).build();
@@ -87,9 +85,15 @@ public class CoreLoggingIT extends BaseIT {
     Thread.sleep(1000);
     // Check message audit logs are produced for each audit log.
     JsonFormat.Parser protoJSONParser = JsonFormat.parser();
-    List<JsonObject> logJsonObjects = parseMessageJsonLogObjects(testAuditLogAppender.getLogs());
+    // filter by method name to ensure logs from other tests do not interfere with test
+    List<JsonObject> logJsonObjects =
+        parseMessageJsonLogObjects(testAuditLogAppender.getLogs()).stream()
+            .filter(logObj -> logObj.get("method").getAsString().equals("UpdateStore"))
+            .collect(Collectors.toList());
+    assertEquals(1, logJsonObjects.size());
     JsonObject logObj = logJsonObjects.get(0);
 
+    // Extract & Check that request/response are returned correctly
     String requestJson = logObj.getAsJsonObject("request").toString();
     UpdateStoreRequest.Builder gotRequest = UpdateStoreRequest.newBuilder();
     protoJSONParser.merge(requestJson, gotRequest);
@@ -98,7 +102,6 @@ public class CoreLoggingIT extends BaseIT {
     UpdateStoreResponse.Builder gotResponse = UpdateStoreResponse.newBuilder();
     protoJSONParser.merge(responseJson, gotResponse);
 
-    // Check that request/response are returned correctlyf
     assertThat(gotRequest.build(), equalTo(request));
     assertThat(gotResponse.build(), equalTo(response));
   }
@@ -106,8 +109,7 @@ public class CoreLoggingIT extends BaseIT {
   /** Check that message audit logs are produced when server encounters an error */
   @Test
   public void shouldProduceMessageAuditLogsOnError() throws InterruptedException {
-    testAuditLogAppender.getLogs().clear();
-    // send a bad request which should cause Core to error
+    // Send a bad request which should cause Core to error
     ListFeatureSetsRequest request =
         ListFeatureSetsRequest.newBuilder()
             .setFilter(
@@ -129,9 +131,15 @@ public class CoreLoggingIT extends BaseIT {
 
     // Wait required to ensure audit logs are flushed into test audit log appender
     Thread.sleep(1000);
-    List<JsonObject> logJsonObjects = parseMessageJsonLogObjects(testAuditLogAppender.getLogs());
-    assertEquals(logJsonObjects.size(), 1);
+    // filter by method name to ensure logs from other tests do not interfere with test
+    List<JsonObject> logJsonObjects =
+        parseMessageJsonLogObjects(testAuditLogAppender.getLogs()).stream()
+            .filter(logObj -> logObj.get("method").getAsString().equals("ListFeatureSets"))
+            .collect(Collectors.toList());
+
+    assertEquals(1, logJsonObjects.size());
     JsonObject logJsonObject = logJsonObjects.get(0);
+    // Check correct status code is tracked on error.
     assertEquals(logJsonObject.get("statusCode").getAsString(), statusCode.toString());
   }
 
@@ -139,8 +147,7 @@ public class CoreLoggingIT extends BaseIT {
   private List<JsonObject> parseMessageJsonLogObjects(List<String> logsStrings) {
     JsonParser jsonParser = new JsonParser();
     // copy to prevent concurrent modification.
-    List<String> logsStringsCopy = new ArrayList<String>(logsStrings);
-    return logsStringsCopy.stream()
+    return logsStrings.stream()
         .map(logJSON -> jsonParser.parse(logJSON).getAsJsonObject())
         // Filter to only include message audit logs
         .filter(
