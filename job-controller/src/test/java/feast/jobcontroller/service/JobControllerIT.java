@@ -97,7 +97,7 @@ public class JobControllerIT extends BaseIT {
 
   @DynamicPropertySource
   static void properties(DynamicPropertyRegistry registry) {
-    registry.add("feast.corePort", () -> corePort);
+    registry.add("feast.core-port", () -> corePort);
   }
 
   @BeforeAll

@@ -94,11 +94,17 @@ public class JobControllerService {
     this.whitelistedStores = feastProperties.getJobs().getController().getWhitelistedStores();
     this.currentVersion = feastProperties.getVersion();
     this.jobLabels = new HashMap<>(feastProperties.getJobs().getController().getJobSelector());
-    this.jobLabels.put(VERSION_LABEL, getCurrentFeastVersion());
+    this.jobLabels.put(VERSION_LABEL, getVersionLabel());
   }
 
-  private String getCurrentFeastVersion() {
-    return this.currentVersion.replace(".", "-");
+  /**
+   * Generate version label value that must conform to regular expression
+   * [\\p{Ll}\\p{Lo}\\p{N}_-]{0,63} from current version of Feast.
+   *
+   * @return lower-cased version with replaced dots
+   */
+  private String getVersionLabel() {
+    return this.currentVersion.replace(".", "-").toLowerCase();
   }
 
   /**
@@ -239,7 +245,7 @@ public class JobControllerService {
       return true;
     }
 
-    if (!getCurrentFeastVersion().equals(job.getLabels().get(VERSION_LABEL))) {
+    if (!getVersionLabel().equals(job.getLabels().get(VERSION_LABEL))) {
       return true;
     }
 

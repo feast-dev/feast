@@ -31,12 +31,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 /** Implementation of the feast core GRPC service. */
 @Slf4j
 @GrpcService(interceptors = {GrpcMessageInterceptor.class})
-public class CoreServiceImpl extends JobControllerServiceImplBase {
+public class JobControllerServiceImpl extends JobControllerServiceImplBase {
 
   private JobService jobService;
 
   @Autowired
-  public CoreServiceImpl(JobService jobService) {
+  public JobControllerServiceImpl(JobService jobService) {
     this.jobService = jobService;
   }
 
