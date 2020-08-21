@@ -17,10 +17,11 @@
 package feast.ingestion;
 
 import static feast.common.models.FeatureSet.getFeatureSetStringRef;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.notNullValue;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.io.Files;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.ingestion.options.ImportOptions;
 import feast.proto.core.FeatureSetProto.EntitySpec;
@@ -40,15 +41,12 @@ import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FieldProto;
 import feast.proto.types.ValueProto.ValueType.Enum;
 import feast.test.TestUtil;
-import feast.test.TestUtil.LocalKafka;
-import feast.test.TestUtil.LocalRedis;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -62,35 +60,28 @@ import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.joda.time.Duration;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.KafkaContainer;
 
 public class ImportJobTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ImportJobTest.class.getName());
 
-  private static final String KAFKA_HOST = "localhost";
-  private static final int KAFKA_PORT = 19092;
-  private static final String KAFKA_BOOTSTRAP_SERVERS = KAFKA_HOST + ":" + KAFKA_PORT;
-  private static final short KAFKA_REPLICATION_FACTOR = 1;
+  @ClassRule public static KafkaContainer kafkaContainer = new KafkaContainer();
+
+  @ClassRule
+  public static GenericContainer redisContainer =
+      new GenericContainer("redis:5.0.3-alpine").withExposedPorts(6379);
+
   private static final String KAFKA_TOPIC = "topic_1";
   private static final String KAFKA_SPECS_TOPIC = "topic_specs_1";
   private static final String KAFKA_SPECS_ACK_TOPIC = "topic_specs_ack_1";
 
   private static final long KAFKA_PUBLISH_TIMEOUT_SEC = 10;
-
-  @SuppressWarnings("UnstableApiUsage")
-  private static final String ZOOKEEPER_DATA_DIR = Files.createTempDir().getAbsolutePath();
-
-  private static final String ZOOKEEPER_HOST = "localhost";
-  private static final int ZOOKEEPER_PORT = 2182;
-
-  private static final String REDIS_HOST = "localhost";
-  private static final int REDIS_PORT = 6380;
 
   // No of samples of feature row that will be generated and used for testing.
   // Note that larger no of samples will increase completion time for ingestion.
@@ -102,25 +93,6 @@ public class ImportJobTest {
   // Max duration to wait until the import job finishes writing to Store.
   private static final int IMPORT_JOB_MAX_RUN_DURATION_SEC = 300;
 
-  @BeforeClass
-  public static void setup() throws IOException, InterruptedException {
-    LocalKafka.start(
-        KAFKA_HOST,
-        KAFKA_PORT,
-        KAFKA_REPLICATION_FACTOR,
-        true,
-        ZOOKEEPER_HOST,
-        ZOOKEEPER_PORT,
-        ZOOKEEPER_DATA_DIR);
-    LocalRedis.start(REDIS_PORT);
-  }
-
-  @AfterClass
-  public static void tearDown() {
-    LocalRedis.stop();
-    LocalKafka.stop();
-  }
-
   @Test
   public void runPipeline_ShouldWriteToRedisCorrectlyGivenValidSpecAndFeatureRow()
       throws IOException, InterruptedException {
@@ -129,7 +101,7 @@ public class ImportJobTest {
             .setType(SourceType.KAFKA)
             .setKafkaSourceConfig(
                 KafkaSourceConfig.newBuilder()
-                    .setBootstrapServers(KAFKA_HOST + ":" + KAFKA_PORT)
+                    .setBootstrapServers(kafkaContainer.getBootstrapServers())
                     .setTopic(KAFKA_TOPIC)
                     .build())
             .build();
@@ -138,12 +110,12 @@ public class ImportJobTest {
         IngestionJobProto.SpecsStreamingUpdateConfig.newBuilder()
             .setSource(
                 KafkaSourceConfig.newBuilder()
-                    .setBootstrapServers(KAFKA_HOST + ":" + KAFKA_PORT)
+                    .setBootstrapServers(kafkaContainer.getBootstrapServers())
                     .setTopic(KAFKA_SPECS_TOPIC)
                     .build())
             .setAck(
                 KafkaSourceConfig.newBuilder()
-                    .setBootstrapServers(KAFKA_HOST + ":" + KAFKA_PORT)
+                    .setBootstrapServers(kafkaContainer.getBootstrapServers())
                     .setTopic(KAFKA_SPECS_ACK_TOPIC)
                     .build())
             .build();
@@ -181,7 +153,10 @@ public class ImportJobTest {
             .setName(StoreType.REDIS.toString())
             .setType(StoreType.REDIS)
             .setRedisConfig(
-                RedisConfig.newBuilder().setHost(REDIS_HOST).setPort(REDIS_PORT).build())
+                RedisConfig.newBuilder()
+                    .setHost(redisContainer.getHost())
+                    .setPort(redisContainer.getFirstMappedPort())
+                    .build())
             .addSubscriptions(
                 Subscription.newBuilder()
                     .setProject(spec.getProject())
@@ -234,17 +209,17 @@ public class ImportJobTest {
     LOGGER.info("Starting Import Job with the following options: {}", options.toString());
     PipelineResult pipelineResult = ImportJob.runPipeline(options);
     Thread.sleep(Duration.standardSeconds(IMPORT_JOB_READY_DURATION_SEC).getMillis());
-    Assert.assertEquals(pipelineResult.getState(), State.RUNNING);
+    assertThat(pipelineResult.getState(), equalTo(State.RUNNING));
 
     LOGGER.info("Publishing {} Feature Row messages to Kafka ...", input.size());
     TestUtil.publishToKafka(
-        KAFKA_BOOTSTRAP_SERVERS,
+        kafkaContainer.getBootstrapServers(),
         KAFKA_SPECS_TOPIC,
         ImmutableList.of(Pair.of(getFeatureSetStringRef(spec), spec)),
         ByteArraySerializer.class,
         KAFKA_PUBLISH_TIMEOUT_SEC);
     TestUtil.publishToKafka(
-        KAFKA_BOOTSTRAP_SERVERS,
+        kafkaContainer.getBootstrapServers(),
         KAFKA_TOPIC,
         input,
         ByteArraySerializer.class,
@@ -256,41 +231,28 @@ public class ImportJobTest {
 
     LOGGER.info("Validating the actual values written to Redis ...");
     RedisClient redisClient =
-        RedisClient.create(new RedisURI(REDIS_HOST, REDIS_PORT, java.time.Duration.ofMillis(2000)));
+        RedisClient.create(
+            new RedisURI(
+                redisContainer.getHost(),
+                redisContainer.getFirstMappedPort(),
+                java.time.Duration.ofMillis(2000)));
     StatefulRedisConnection<byte[], byte[]> connection = redisClient.connect(new ByteArrayCodec());
     RedisCommands<byte[], byte[]> sync = connection.sync();
-    expected.forEach(
-        (key, expectedValue) -> {
+    for (Map.Entry<RedisKey, FeatureRow> entry : expected.entrySet()) {
+      RedisKey key = entry.getKey();
+      FeatureRow expectedValue = entry.getValue();
 
-          // Ensure ingested key exists.
-          byte[] actualByteValue = sync.get(key.toByteArray());
-          if (actualByteValue == null) {
-            LOGGER.error("Key not found in Redis: " + key);
-            LOGGER.info("Redis INFO:");
-            LOGGER.info(sync.info());
-            byte[] randomKey = sync.randomkey();
-            if (randomKey != null) {
-              LOGGER.info("Sample random key, value (for debugging purpose):");
-              LOGGER.info("Key: " + randomKey);
-              LOGGER.info("Value: " + sync.get(randomKey));
-            }
-            Assert.fail("Missing key in Redis.");
-          }
+      // Ensure ingested key exists.
+      byte[] actualByteValue = sync.get(key.toByteArray());
+      assertThat("Key not found in Redis: " + key, actualByteValue, notNullValue());
 
-          // Ensure value is a valid serialized FeatureRow object.
-          FeatureRow actualValue = null;
-          try {
-            actualValue = FeatureRow.parseFrom(actualByteValue);
-          } catch (InvalidProtocolBufferException e) {
-            Assert.fail(
-                String.format(
-                    "Actual Redis value cannot be parsed as FeatureRow, key: %s, value :%s",
-                    key, new String(actualByteValue, StandardCharsets.UTF_8)));
-          }
+      // Ensure value is a valid serialized FeatureRow object.
+      FeatureRow actualValue = null;
+      actualValue = FeatureRow.parseFrom(actualByteValue);
 
-          // Ensure the retrieved FeatureRow is equal to the ingested FeatureRow.
-          Assert.assertEquals(expectedValue, actualValue);
-        });
+      // Ensure the retrieved FeatureRow is equal to the ingested FeatureRow.
+      assertThat(actualValue, equalTo(expectedValue));
+    }
     redisClient.shutdown();
   }
 }
