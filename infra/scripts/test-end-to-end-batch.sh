@@ -21,7 +21,7 @@ test -z ${GOOGLE_APPLICATION_CREDENTIALS} && GOOGLE_APPLICATION_CREDENTIALS="/et
 test -z ${SKIP_BUILD_JARS} && SKIP_BUILD_JARS="false"
 test -z ${GOOGLE_CLOUD_PROJECT} && GOOGLE_CLOUD_PROJECT="kf-feast"
 test -z ${TEMP_BUCKET} && TEMP_BUCKET="feast-templocation-kf-feast"
-test -z ${JOBS_STAGING_LOCATION} && JOBS_STAGING_LOCATION="gs://${TEMP_BUCKET}/staging-location/$(date +%s)/"
+test -z ${JOBS_STAGING_LOCATION} && JOBS_STAGING_LOCATION="gs://${TEMP_BUCKET}/staging-location/$(date +%s)"
 
 # Get the current build version using maven (and pom.xml)
 export FEAST_BUILD_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
