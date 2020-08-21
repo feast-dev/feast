@@ -21,12 +21,6 @@ data:
         options: 
           bootstrapServers: {{ .Release.Name }}-kafka:9092
           topic: feast
-      jobs:
-        metrics:
-          enabled: true 
-          type: statsd
-          host: {{ .Release.Name }}-prometheus-statsd-exporter-udp
-          port: 9125
 
     server:
       port: {{ .Values.service.http.targetPort }}

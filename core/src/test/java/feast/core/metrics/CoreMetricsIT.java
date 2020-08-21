@@ -21,7 +21,7 @@ import static org.junit.Assert.assertTrue;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
 import com.squareup.okhttp.Response;
-import feast.core.it.BaseIT;
+import feast.common.it.BaseIT;
 import java.io.IOException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;

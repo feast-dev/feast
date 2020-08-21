@@ -1,6 +1,6 @@
 feast-core
 ==========
-Feast Core registers feature specifications and manage ingestion jobs.
+Feast Core registers feature specifications.
 
 Current chart version is `0.7-SNAPSHOT`
 

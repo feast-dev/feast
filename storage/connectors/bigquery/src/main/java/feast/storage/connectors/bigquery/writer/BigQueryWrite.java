@@ -52,7 +52,8 @@ public class BigQueryWrite extends PTransform<PCollection<FeatureRow>, WriteResu
   private static final Duration BIGQUERY_DEFAULT_WRITE_TRIGGERING_FREQUENCY =
       Duration.standardMinutes(1);
 
-  private static final Duration BIGQUERY_JOB_MAX_EXPECTING_RESULT_TIME = Duration.standardHours(1);
+  private static final Duration BIGQUERY_JOB_MAX_EXPECTING_RESULT_TIME =
+      Duration.standardMinutes(10);
   private static final int BIGQUERY_MAX_JOB_RETRIES = 20;
   private static final int DEFAULT_COMPACTION_BATCH_SIZE = 10000;
   private static final int MAX_SUCCESSFUL_OUTPUTS_PER_DESTINATION = 1000;

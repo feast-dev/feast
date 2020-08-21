@@ -30,9 +30,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import avro.shaded.com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Duration;
-import feast.core.it.BaseIT;
-import feast.core.it.DataGenerator;
-import feast.core.it.SimpleAPIClient;
+import feast.common.it.BaseIT;
+import feast.common.it.DataGenerator;
+import feast.common.it.SimpleCoreClient;
 import feast.proto.core.*;
 import feast.proto.types.ValueProto;
 import io.grpc.ManagedChannel;
@@ -54,14 +54,14 @@ import org.testcontainers.shaded.com.google.common.collect.ImmutableList;
 public class SpecServiceIT extends BaseIT {
 
   static CoreServiceGrpc.CoreServiceBlockingStub stub;
-  static SimpleAPIClient apiClient;
+  static SimpleCoreClient apiClient;
 
   @BeforeAll
   public static void globalSetUp(@Value("${grpc.server.port}") int port) {
     ManagedChannel channel =
         ManagedChannelBuilder.forAddress("localhost", port).usePlaintext().build();
     stub = CoreServiceGrpc.newBlockingStub(channel);
-    apiClient = new SimpleAPIClient(stub);
+    apiClient = new SimpleCoreClient(stub);
   }
 
   @BeforeEach

@@ -68,7 +68,7 @@ install_and_start_local_zookeeper_and_kafka() {
 build_feast_core_and_serving() {
   print_banner "Building Feast Core and Feast Serving"
   infra/scripts/download-maven-cache.sh \
-    --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
+    --archive-uri gs://feast-templocation-kf-feast/.m2.2020-08-19.tar \
     --output-dir /root/
 
   # Build jars for Feast
@@ -76,6 +76,7 @@ build_feast_core_and_serving() {
 
   ls -lh core/target/*jar
   ls -lh serving/target/*jar
+  ls -lh job-controller/target/*jar
 }
 
 start_feast_core() {
@@ -91,6 +92,21 @@ start_feast_core() {
 
   tail -n10 /var/log/feast-core.log
   nc -w2 localhost 6565 </dev/null
+}
+
+start_feast_jobcontroller() {
+  print_banner "Starting Feast Job Controller"
+
+  if [ -n "$1" ]; then
+    echo "Custom Spring application.yml location provided: $1"
+    export CONFIG_ARG="--spring.config.location=classpath:/application.yml,file://$1"
+  fi
+
+  nohup java -jar job-controller/target/feast-job-controller-$FEAST_BUILD_VERSION-exec.jar $CONFIG_ARG &>/var/log/feast-jobcontroller.log &
+  ${SCRIPTS_DIR}/wait-for-it.sh localhost:6570 --timeout=90
+
+  tail -n10 /var/log/feast-jobcontroller.log
+  nc -w2 localhost 6570 </dev/null
 }
 
 start_feast_serving() {

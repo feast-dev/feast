@@ -30,7 +30,6 @@ import javax.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
-import org.apache.commons.lang3.tuple.Pair;
 import org.tensorflow.metadata.v0.*;
 
 @Getter
@@ -229,25 +228,6 @@ public class FeatureSet extends AbstractTimestampEntity {
 
   public void setProject(Project project) {
     this.project = project;
-  }
-
-  public String getReference() {
-    return String.format("%s/%s", getProjectName(), getName());
-  }
-
-  /** @return Pair &lt;ProjectName, FeatureSetName&gt; */
-  public static Pair<String, String> parseReference(String reference) {
-    String[] split = reference.split("/", 2);
-    if (split.length == 1) {
-      return Pair.of(Project.DEFAULT_NAME, split[0]);
-    }
-
-    if (split.length > 2) {
-      throw new RuntimeException(
-          "FeatureSet reference must have the format <project-name>/<feature-set-name>");
-    }
-
-    return Pair.of(split[0], split[1]);
   }
 
   public int incVersion() {

@@ -15,12 +15,26 @@ feast-core:
       stream:
         options:
           bootstrapServers: $feast_kafka_1_ip:31090
+
+feast-jobcontroller:
+  enabled: true
+  gcpServiceAccount:
+    enabled: true
+  service:
+    type: LoadBalancer
+  image:
+    tag: $IMAGE_TAG
+  application-override.yaml:
+    feast:
+      stream:
+        options:
+          bootstrapServers: $feast_kafka_1_ip:31090
         specsOptions:
           specsTopic: $SPECS_TOPIC
           specsAckTopic: $SPECS_TOPIC-ack
       jobs:
         active_runner: dataflow
-        coordinator:
+        controller:
           consolidate-jobs-per-source: true
           jobSelector:
             application: feast

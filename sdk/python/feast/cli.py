@@ -23,6 +23,7 @@ import yaml
 
 from feast.client import Client
 from feast.config import Config
+from feast.contrib.job_controller.client import Client as JCClient
 from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.feature_set import FeatureSet, FeatureSetRef
 from feast.loaders.yaml import yaml_loader
@@ -351,7 +352,7 @@ def ingest_job_list(job_id, feature_set_ref, store_name):
         feature_set_ref = FeatureSetRef.from_str(feature_set_ref)
 
     # pull & render ingestion jobs as a table
-    feast_client = Client()
+    feast_client = JCClient()
     table = []
     for ingest_job in feast_client.list_ingest_jobs(
         job_id=job_id, feature_set_ref=feature_set_ref, store_name=store_name
@@ -370,7 +371,7 @@ def ingest_job_describe(job_id: str):
     Describe the ingestion job with the given id.
     """
     # find ingestion job for id
-    feast_client = Client()
+    feast_client = JCClient()
     jobs = feast_client.list_ingest_jobs(job_id=job_id)
     if len(jobs) < 1:
         print(f"Ingestion Job with id {job_id} could not be found")
@@ -399,7 +400,7 @@ def ingest_job_stop(wait: bool, timeout: int, job_id: str):
     Stop ingestion job for id.
     """
     # find ingestion job for id
-    feast_client = Client()
+    feast_client = JCClient()
     jobs = feast_client.list_ingest_jobs(job_id=job_id)
     if len(jobs) < 1:
         print(f"Ingestion Job with id {job_id} could not be found")
@@ -421,7 +422,7 @@ def ingest_job_restart(job_id: str):
     Waits for the job to fully restart.
     """
     # find ingestion job for id
-    feast_client = Client()
+    feast_client = JCClient()
     jobs = feast_client.list_ingest_jobs(job_id=job_id)
     if len(jobs) < 1:
         print(f"Ingestion Job with id {job_id} could not be found")

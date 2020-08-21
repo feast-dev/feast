@@ -22,9 +22,9 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.common.collect.ImmutableMap;
-import feast.core.it.BaseIT;
-import feast.core.it.DataGenerator;
-import feast.core.it.SimpleAPIClient;
+import feast.common.it.BaseIT;
+import feast.common.it.DataGenerator;
+import feast.common.it.SimpleCoreClient;
 import feast.core.model.Project;
 import feast.proto.core.CoreServiceGrpc;
 import feast.proto.core.FeatureSetProto.FeatureSet;
@@ -50,8 +50,19 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class CoreServiceRestIT extends BaseIT {
 
   static CoreServiceGrpc.CoreServiceBlockingStub stub;
-  static SimpleAPIClient apiClient;
+  static SimpleCoreClient apiClient;
   @LocalServerPort private int port;
+
+  @TestConfiguration
+  public static class TestConfig extends BaseTestConfig {}
+
+  @BeforeAll
+  public static void globalSetUp(@Value("${grpc.server.port}") int port) {
+    ManagedChannel channel =
+        ManagedChannelBuilder.forAddress("localhost", port).usePlaintext().build();
+    stub = CoreServiceGrpc.newBlockingStub(channel);
+    apiClient = new SimpleCoreClient(stub);
+  }
 
   @Test
   public void getVersion() {
@@ -192,17 +203,6 @@ public class CoreServiceRestIT extends BaseIT {
         .assertThat()
         .contentType(ContentType.JSON)
         .body("features", aMapWithSize(2));
-  }
-
-  @TestConfiguration
-  public static class TestConfig extends BaseTestConfig {}
-
-  @BeforeAll
-  public static void globalSetUp(@Value("${grpc.server.port}") int port) {
-    ManagedChannel channel =
-        ManagedChannelBuilder.forAddress("localhost", port).usePlaintext().build();
-    stub = CoreServiceGrpc.newBlockingStub(channel);
-    apiClient = new SimpleAPIClient(stub);
   }
 
   @BeforeEach

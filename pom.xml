@@ -38,6 +38,8 @@
         <module>docs/coverage/java</module>
         <module>common</module>
         <module>auth</module>
+        <module>job-controller</module>
+        <module>common-test</module>
     </modules>
 
     <properties>
@@ -51,6 +53,7 @@
         <protoc.version>3.12.2</protoc.version>
         <protobuf.version>3.12.2</protobuf.version>
         <spring.boot.version>2.3.1.RELEASE</spring.boot.version>
+        <spring.version>5.2.7.RELEASE</spring.version>
         <spring.security.version>5.3.0.RELEASE</spring.security.version>
         <grpc.spring.boot.starter.version>2.9.0.RELEASE</grpc.spring.boot.starter.version>
         <org.apache.beam.version>2.22.0</org.apache.beam.version>
@@ -489,6 +492,18 @@
                 <configuration>
                     <!-- Our leaf applications target 11, except Ingestion and its deps remain on 8 for Beam -->
                     <release>8</release>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>com.google.auto.value</groupId>
+                            <artifactId>auto-value</artifactId>
+                            <version>${auto.value.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
             <plugin>

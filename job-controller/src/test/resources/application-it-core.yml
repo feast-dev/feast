@@ -1,0 +1,65 @@
+feast:
+  stream:
+    # Feature stream type. Only kafka is supported.
+    type: kafka
+    # Feature stream options.
+    # See the following for options https://api.docs.feast.dev/grpc/feast.core.pb.html#KafkaSourceConfig
+    options:
+      topic: feast-features
+      bootstrapServers: localhost:9092
+      replicationFactor: 1
+      partitions: 1
+    specsOptions:
+      specsTopic: feast-specs
+      specsAckTopic: feast-specs-ack
+      notifyIntervalMilliseconds: 1000
+
+  security:
+    authentication:
+      enabled: false
+      provider: jwt
+      options:
+        jwkEndpointURI: "https://www.googleapis.com/oauth2/v3/certs"
+
+    authorization:
+      enabled: false
+      provider: http
+      options:
+        authorizationUrl: http://localhost:8082
+        subjectClaim: email
+
+  logging:
+    # Audit logging provides a machine readable structured JSON log that can give better
+    # insight into what is happening in Feast.
+    audit:
+      # Whether audit logging is enabled.
+      enabled: true
+      # Whether to enable message level (ie request/response) audit logging
+      messageLoggingEnabled: false
+
+grpc:
+  server:
+    security:
+      enabled: false
+
+spring:
+  jpa:
+    properties.hibernate:
+      format_sql: true
+      event:
+        merge:
+          entity_copy_observer: allow
+    hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
+    hibernate.ddl-auto: none
+  datasource:
+    driverClassName: org.postgresql.Driver
+
+management:
+  metrics:
+    export:
+      simple:
+        enabled: false
+      statsd:
+        enabled: true
+        host: ${STATSD_HOST:localhost}
+        port: ${STATSD_PORT:8125}

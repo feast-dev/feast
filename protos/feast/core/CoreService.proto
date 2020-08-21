@@ -90,27 +90,29 @@ service CoreService {
 
     // Lists all projects active projects.
     rpc ListProjects (ListProjectsRequest) returns (ListProjectsResponse);
-  
+
+    // Internal API for Job Controller to update featureSet's status once responsible ingestion job is running
+    rpc UpdateFeatureSetStatus (UpdateFeatureSetStatusRequest) returns (UpdateFeatureSetStatusResponse);
+
+}
+
+service JobControllerService {
     // List Ingestion Jobs given an optional filter.
-    // Returns allow ingestions matching the given request filter. 
+    // Returns allow ingestions matching the given request filter.
     // Returns all ingestion jobs if no filter is provided.
     // Returns an empty list if no ingestion jobs match the filter.
-    rpc ListIngestionJobs(ListIngestionJobsRequest) returns (ListIngestionJobsResponse);
+    rpc ListIngestionJobs (ListIngestionJobsRequest) returns (ListIngestionJobsResponse);
 
     // Restart an Ingestion Job.  Restarts the ingestion job with the given job id.
     // NOTE: Data might be lost during the restart for some job runners.
-    // Does not support stopping a job in a transitional (ie pending, suspending, aborting), 
+    // Does not support stopping a job in a transitional (ie pending, suspending, aborting),
     // terminal state (ie suspended or aborted) or unknown status
-    rpc RestartIngestionJob(RestartIngestionJobRequest) returns (RestartIngestionJobResponse);
-  
+    rpc RestartIngestionJob (RestartIngestionJobRequest) returns (RestartIngestionJobResponse);
+
     // Stop an Ingestion Job.  Stop (Aborts) the ingestion job with the given job id.
     // Does nothing if the target job if already in a terminal state (ie suspended or aborted).
     // Does not support stopping a job in a transitional (ie pending, suspending, aborting) or unknown status
-    rpc StopIngestionJob(StopIngestionJobRequest) returns (StopIngestionJobResponse);
-
-    // Internal API for Job Coordinator to update featureSet's status once responsible ingestion job is running
-    rpc UpdateFeatureSetStatus(UpdateFeatureSetStatusRequest) returns (UpdateFeatureSetStatusResponse);
-
+    rpc StopIngestionJob (StopIngestionJobRequest) returns (StopIngestionJobResponse);
 }
 
 // Request for a single feature set

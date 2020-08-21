@@ -2,6 +2,10 @@ feast-core:
   # feast-core.enabled -- Flag to install Feast Core
   enabled: true
 
+feast-jobcontroller:
+  # feast-jobcontroller.enabled -- Flag to install Feast Job Controller
+  enabled: true
+
 feast-online-serving:
   # feast-online-serving.enabled -- Flag to install Feast Online Serving
   enabled: true
