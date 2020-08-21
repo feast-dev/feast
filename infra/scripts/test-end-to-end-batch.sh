@@ -144,11 +144,10 @@ if [[ ${TEST_EXIT_CODE} != 0 ]]; then
 
   echo "[DEBUG] Printing Python packages list"
   pip list
+else
+  print_banner "Cleaning up"
+
+  bq rm -r -f ${GOOGLE_CLOUD_PROJECT}:${DATASET_NAME}
 fi
 
-cd ${ORIGINAL_DIR}
-
-print_banner "Cleaning up"
-
-bq rm -r -f ${GOOGLE_CLOUD_PROJECT}:${DATASET_NAME}
 exit ${TEST_EXIT_CODE}

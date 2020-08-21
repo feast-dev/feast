@@ -140,6 +140,9 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
     List<FeatureSetQueryInfo> featureSetQueryInfos =
         QueryTemplater.getFeatureSetInfos(featureSetRequests);
 
+    log.info("Processing retrieval {}", retrievalId);
+    datasetSource.getFileSource().getFileUrisList().forEach(log::info);
+
     // 1. load entity table
     Table entityTable;
     String entityTableName;
@@ -155,6 +158,8 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
               String.format("Unable to load entity table to BigQuery: %s", e.toString())));
     }
 
+    log.info("Entity loaded to {}", entityTableName);
+
     Schema entityTableSchema = entityTable.getDefinition().getSchema();
     List<String> entityTableColumnNames =
         entityTableSchema.getFields().stream()
@@ -168,6 +173,8 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
     // 3. Generate the subqueries
     List<String> featureSetQueries =
         generateQueries(entityTableName, timestampLimits, featureSetQueryInfos);
+
+    featureSetQueries.forEach(log::info);
 
     QueryJobConfiguration queryConfig;
 
