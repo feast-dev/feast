@@ -140,7 +140,7 @@ TEST_EXIT_CODE=$?
 if [[ ${TEST_EXIT_CODE} != 0 ]]; then
   echo "[DEBUG] Printing logs"
   ls -ltrh /var/log/feast*
-  cat /var/log/feast-serving-warehouse.log /var/log/feast-core.log /var/log/feast-jobcontroller.log
+  cat /var/log/feast-serving-online.log /var/log/feast-core.log /var/log/feast-jobcontroller.log
 
   echo "[DEBUG] Printing Python packages list"
   pip list
