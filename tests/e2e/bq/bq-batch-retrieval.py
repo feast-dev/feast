@@ -186,7 +186,7 @@ def test_batch_get_historical_features_with_file(client):
     client.ingest(file_fs1, features_1_df, timeout=480)
 
     # Rename column (datetime -> event_timestamp)
-    features_1_df["datetime"] + pd.Timedelta(
+    features_1_df["datetime"] += pd.Timedelta(
         seconds=1
     )  # adds buffer to avoid rounding errors
     features_1_df = features_1_df.rename(columns={"datetime": "event_timestamp"})
@@ -234,7 +234,7 @@ def test_batch_get_historical_features_with_gs_path(client, gcs_path):
     client.ingest(gcs_fs1, features_1_df, timeout=360)
 
     # Rename column (datetime -> event_timestamp)
-    features_1_df["datetime"] + pd.Timedelta(
+    features_1_df["datetime"] += pd.Timedelta(
         seconds=1
     )  # adds buffer to avoid rounding errors
     features_1_df = features_1_df.rename(columns={"datetime": "event_timestamp"})
