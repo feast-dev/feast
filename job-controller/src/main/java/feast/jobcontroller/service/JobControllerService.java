@@ -104,7 +104,7 @@ public class JobControllerService {
    * @return lower-cased version with replaced dots
    */
   private String getVersionLabel() {
-    return this.currentVersion.replace(".", "-").toLowerCase();
+    return this.currentVersion.replace(".", "-").toLowerCase().substring(0, 63);
   }
 
   /**
