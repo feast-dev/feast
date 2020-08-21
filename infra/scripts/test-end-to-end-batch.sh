@@ -21,7 +21,7 @@ test -z ${GOOGLE_APPLICATION_CREDENTIALS} && GOOGLE_APPLICATION_CREDENTIALS="/et
 test -z ${SKIP_BUILD_JARS} && SKIP_BUILD_JARS="false"
 test -z ${GOOGLE_CLOUD_PROJECT} && GOOGLE_CLOUD_PROJECT="kf-feast"
 test -z ${TEMP_BUCKET} && TEMP_BUCKET="feast-templocation-kf-feast"
-test -z ${JOBS_STAGING_LOCATION} && JOBS_STAGING_LOCATION="gs://${TEMP_BUCKET}/staging-location"
+test -z ${JOBS_STAGING_LOCATION} && JOBS_STAGING_LOCATION="gs://${TEMP_BUCKET}/staging-location/$(date +%s)/"
 
 # Get the current build version using maven (and pom.xml)
 export FEAST_BUILD_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
@@ -56,6 +56,12 @@ else
   echo "[DEBUG] Skipping building jars"
 fi
 
+DATASET_NAME=feast_$(date +%s)
+bq --location=US --project_id=${GOOGLE_CLOUD_PROJECT} mk \
+  --dataset \
+  --default_table_expiration 86400 \
+  ${GOOGLE_CLOUD_PROJECT}:${DATASET_NAME}
+
 # Start Feast Core in background
 cat <<EOF > /tmp/jc.warehouse.application.yml
 feast:
@@ -73,16 +79,6 @@ feast:
 
 EOF
 
-start_feast_core
-start_feast_jobcontroller /tmp/jc.warehouse.application.yml
-
-DATASET_NAME=feast_$(date +%s)
-bq --location=US --project_id=${GOOGLE_CLOUD_PROJECT} mk \
-  --dataset \
-  --default_table_expiration 86400 \
-  ${GOOGLE_CLOUD_PROJECT}:${DATASET_NAME}
-
-# Start Feast Online Serving in background
 cat <<EOF > /tmp/serving.warehouse.application.yml
 feast:
   # GRPC service address for Feast Core
@@ -122,6 +118,10 @@ server:
 
 EOF
 
+cat /tmp/jc.warehouse.application.yml /tmp/serving.warehouse.application.yml
+
+start_feast_core
+start_feast_jobcontroller /tmp/jc.warehouse.application.yml
 start_feast_serving /tmp/serving.warehouse.application.yml
 
 install_python_with_miniconda_and_feast_sdk
@@ -134,13 +134,13 @@ ORIGINAL_DIR=$(pwd)
 cd tests/e2e
 
 set +e
-pytest bq/* -m ${PYTEST_MARK} --gcs_path "gs://${TEMP_BUCKET}/" --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+pytest bq/* -v -m ${PYTEST_MARK} --gcs_path ${JOBS_STAGING_LOCATION} --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 
 if [[ ${TEST_EXIT_CODE} != 0 ]]; then
   echo "[DEBUG] Printing logs"
   ls -ltrh /var/log/feast*
-  cat /var/log/feast-serving-warehouse.log /var/log/feast-core.log
+  cat /var/log/feast-serving-warehouse.log /var/log/feast-core.log /var/log/feast-jobcontroller.log
 
   echo "[DEBUG] Printing Python packages list"
   pip list

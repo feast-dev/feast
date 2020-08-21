@@ -257,6 +257,8 @@ def test_batch_get_historical_features_with_gs_path(client, gcs_path):
     blob = bucket.blob(remote_path)
     blob.upload_from_filename(file_name)
 
+    time.sleep(10)
+
     def check():
         feature_retrieval_job = client.get_historical_features(
             entity_rows=f"{gcs_path}{ts}/*",
