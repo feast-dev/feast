@@ -19,7 +19,7 @@ package feast.auth.interceptors;
 import com.google.protobuf.Empty;
 import com.google.protobuf.Message;
 import feast.auth.config.SecurityProperties;
-import feast.auth.config.SecurityProperties.AuthorizationProperties;
+import feast.auth.config.SecurityProperties.AuthenticationProperties;
 import feast.auth.utils.AuthUtils;
 import feast.common.logging.AuditLogger;
 import feast.common.logging.entry.MessageAuditLogEntry;
@@ -111,9 +111,9 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
   private String getIdentity(Authentication authentication) {
     Map<String, String> options = securityProperties.getAuthorization().getOptions();
     // use subject claim as identity if set in authorization properties
-    if (options.containsKey(AuthorizationProperties.SUBJECT_CLAIM)) {
+    if (options.containsKey(AuthenticationProperties.SUBJECT_CLAIM)) {
       return AuthUtils.getSubjectFromAuth(
-          authentication, options.get(AuthorizationProperties.SUBJECT_CLAIM));
+          authentication, options.get(AuthenticationProperties.SUBJECT_CLAIM));
     }
     return authentication.getName();
   }

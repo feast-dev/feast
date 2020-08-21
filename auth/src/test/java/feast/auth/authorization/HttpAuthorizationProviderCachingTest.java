@@ -21,6 +21,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.google.common.collect.ImmutableMap;
 import feast.auth.config.CacheConfiguration;
 import feast.auth.config.SecurityProperties;
 import feast.auth.config.SecurityProperties.AuthenticationProperties;
@@ -64,10 +65,10 @@ public class HttpAuthorizationProviderCachingTest {
       AuthorizationProperties authorization = new AuthorizationProperties();
       authorization.setEnabled(true);
       authorization.setProvider("http");
-      Map<String, String> options = new HashMap<>();
-      options.put("authorizationUrl", "localhost");
-      options.put("subjectClaim", "email");
-      authorization.setOptions(options);
+      authorization.setOptions(ImmutableMap.of("authorizationUrl", "localhost"));
+
+      authentication.setOptions(ImmutableMap.of("subjectClaim", "email"));
+
       SecurityProperties sp = new SecurityProperties();
       sp.setAuthentication(authentication);
       sp.setAuthorization(authorization);

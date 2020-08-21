@@ -42,6 +42,8 @@ public class SecurityProperties {
 
     // K/V options to initialize the provider with
     private Map<String, String> options;
+    // Key for Subject Claim option which sets the name of the subject claim field in tokens.
+    public static final String SUBJECT_CLAIM = "subjectClaim";
   }
 
   @Getter
@@ -55,8 +57,6 @@ public class SecurityProperties {
     private String provider;
 
     // K/V options to initialize the provider with
-    // Key for Subject Claim option which sets the name of the subject claim field in tokens.
-    public static final String SUBJECT_CLAIM = "subjectClaim";
     private Map<String, String> options;
   }
 }

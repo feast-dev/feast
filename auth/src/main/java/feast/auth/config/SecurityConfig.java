@@ -109,7 +109,9 @@ public class SecurityConfig {
         && securityProperties.getAuthorization().isEnabled()) {
       switch (securityProperties.getAuthorization().getProvider()) {
         case "http":
+          // Merge authenticatoin and authorization options to create HttpAuthorizationProvider.
           Map<String, String> options = securityProperties.getAuthorization().getOptions();
+          options.putAll(securityProperties.getAuthentication().getOptions());
           return new HttpAuthorizationProvider(options);
         default:
           throw new IllegalArgumentException(
