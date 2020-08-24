@@ -34,7 +34,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 @AutoValue
@@ -83,7 +82,8 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
   @Override
   public PCollectionTuple expand(PBegin input) {
     Map<String, Object> consumerProperties = new HashMap<>(getKafkaConsumerProperties());
-    consumerProperties.put(ConsumerConfig.GROUP_ID_CONFIG,
+    consumerProperties.put(
+        ConsumerConfig.GROUP_ID_CONFIG,
         generateConsumerGroupId(input.getPipeline().getOptions().getJobName()));
 
     return input

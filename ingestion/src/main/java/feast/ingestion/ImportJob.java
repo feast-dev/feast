@@ -41,6 +41,7 @@ import feast.storage.api.writer.FeatureSink;
 import feast.storage.api.writer.WriteResult;
 import feast.storage.connectors.bigquery.writer.BigQueryDeadletterSink;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -120,7 +121,10 @@ public class ImportJob {
                 .setSource(source)
                 .setSuccessTag(FEATURE_ROW_OUT)
                 .setFailureTag(DEADLETTER_OUT)
-                .setKafkaConsumerProperties(options.getKafkaConsumerProperties())
+                .setKafkaConsumerProperties(
+                    options.getKafkaConsumerProperties() == null
+                        ? new HashMap<>()
+                        : options.getKafkaConsumerProperties())
                 .build());
 
     // Step 3. Process and validate incoming FeatureRows

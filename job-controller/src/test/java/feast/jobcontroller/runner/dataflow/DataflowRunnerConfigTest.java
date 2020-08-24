@@ -17,13 +17,15 @@
 package feast.jobcontroller.runner.dataflow;
 
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.Lists;
+import feast.ingestion.options.ImportOptions;
 import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.jupiter.api.Test;
 
 public class DataflowRunnerConfigTest {
@@ -46,6 +48,8 @@ public class DataflowRunnerConfigTest {
             .setDeadLetterTableSpec("project_id:dataset_id.table_id")
             .setDiskSizeGb(100)
             .putLabels("key", "value")
+            .putKafkaConsumerProperties("max.poll.records", "1000")
+            .putKafkaConsumerProperties("receive.buffer.bytes", "1000000")
             .build();
 
     DataflowRunnerConfig dataflowRunnerConfig = new DataflowRunnerConfig(opts);
@@ -65,11 +69,20 @@ public class DataflowRunnerConfigTest {
                 "--deadLetterTableSpec=project_id:dataset_id.table_id",
                 "--diskSizeGb=100",
                 "--labels={\"key\":\"value\"}",
+                "--kafkaConsumerProperties={\"max.poll.records\":\"1000\",\"receive.buffer.bytes\":\"1000000\"}",
                 "--enableStreamingEngine=true",
                 "--workerDiskType=pd-ssd")
             .toArray(String[]::new);
+
     assertThat(args.size(), equalTo(expectedArgs.length));
     assertThat(args, containsInAnyOrder(expectedArgs));
+
+    ImportOptions pipelineOptions =
+        PipelineOptionsFactory.fromArgs(dataflowRunnerConfig.toArgs()).as(ImportOptions.class);
+
+    assertThat(
+        pipelineOptions.getKafkaConsumerProperties(),
+        equalTo(opts.getKafkaConsumerPropertiesMap()));
   }
 
   @Test
@@ -103,8 +116,10 @@ public class DataflowRunnerConfigTest {
                 "--usePublicIps=false",
                 "--workerMachineType=n1-standard-1",
                 "--labels={}",
+                "--kafkaConsumerProperties={}",
                 "--enableStreamingEngine=false")
             .toArray(String[]::new);
+
     assertThat(args.size(), equalTo(expectedArgs.length));
     assertThat(args, containsInAnyOrder(expectedArgs));
   }
