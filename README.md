@@ -39,21 +39,23 @@ prediction = my_model.predict(fs.get_online_features(customer_features, customer
 ```
 
 ## Getting Started with Docker Compose
-The following commands will start Feast in online-only mode. 
+
+Clone the latest stable version of the [Feast repository](https://github.com/gojek/feast/) and navigate to the `infra/docker-compose` sub-directory:
+
 ```
-git clone https://github.com/feast-dev/feast.git
+git clone --depth 1 --branch v0.6.2 https://github.com/feast-dev/feast.git
 cd feast/infra/docker-compose
 cp .env.sample .env
 ```
 
-At this point the `.env` can be configured, and a GCP service account can be added if BigQuery will be used for historical serving.
+The `.env` should be configured based on your environment. A GCP service account can be added if BigQuery will be used for historical serving (storing and retrieving training data).
 
 Bring up Feast:
 ```
 docker-compose up -d
 ```
 
-The command above will bring up a complete Feast deployment with a [Jupyter Notebook](http://localhost:8888/tree/feast/examples). This notebook contains Feast example tutorials.
+The command above will bring up a complete Feast deployment with a [Jupyter Notebook](http://localhost:8888/tree/feast/examples) containing example notebooks.
 
 ## Important resources
 
