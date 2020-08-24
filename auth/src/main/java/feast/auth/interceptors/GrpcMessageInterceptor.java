@@ -34,6 +34,7 @@ import io.grpc.Status;
 import java.util.Map;
 import org.slf4j.event.Level;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.Nullable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -47,18 +48,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class GrpcMessageInterceptor implements ServerInterceptor {
   private SecurityProperties securityProperties;
-
-  public GrpcMessageInterceptor() {
-    this.securityProperties = null;
-  }
-
   /**
-   * Configure GrpcMessageIntercetor with securityProperties. If provided with securityProperties,
-   * will output the subject claim specified in securityProperties as identity in {@link
-   * MessageAuditLogEntry} instead.
+   * Construct GrpcMessageIntercetor. If provided securityProperties, will output the subject claim
+   * specified in securityProperties as identity in {@link MessageAuditLogEntry} instead.
    */
   @Autowired
-  public GrpcMessageInterceptor(SecurityProperties securityProperties) {
+  public GrpcMessageInterceptor(@Nullable SecurityProperties securityProperties) {
     this.securityProperties = securityProperties;
   }
 
