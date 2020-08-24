@@ -15,6 +15,7 @@ feast-core:
       stream:
         options:
           bootstrapServers: $feast_kafka_1_ip:31090
+          topic: $FEATURES_TOPIC
 
 feast-jobcontroller:
   enabled: true
