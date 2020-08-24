@@ -120,6 +120,7 @@ public class ImportJob {
                 .setSource(source)
                 .setSuccessTag(FEATURE_ROW_OUT)
                 .setFailureTag(DEADLETTER_OUT)
+                .setKafkaConsumerProperties(options.getKafkaConsumerProperties())
                 .build());
 
     // Step 3. Process and validate incoming FeatureRows
@@ -172,14 +173,6 @@ public class ImportJob {
         DeadletterSink deadletterSink =
             new BigQueryDeadletterSink(options.getDeadLetterTableSpec());
 
-        convertedFeatureRows
-            .get(DEADLETTER_OUT)
-            .apply("WriteFailedElements_ReadFromSource", deadletterSink.write());
-
-        validatedRows
-            .get(DEADLETTER_OUT)
-            .apply("WriteFailedElements_ValidateRows", deadletterSink.write());
-
         writeFeatureRows
             .getFailedInserts()
             .apply("WriteFailedElements_WriteFeatureRowToStore", deadletterSink.write());
@@ -193,6 +186,18 @@ public class ImportJob {
       writeFeatureRows
           .getFailedInserts()
           .apply("WriteFailureMetrics", WriteFailureMetricsTransform.create(store.getName()));
+    }
+
+    if (options.getDeadLetterTableSpec() != null) {
+      DeadletterSink deadletterSink = new BigQueryDeadletterSink(options.getDeadLetterTableSpec());
+
+      convertedFeatureRows
+          .get(DEADLETTER_OUT)
+          .apply("WriteFailedElements_ReadFromSource", deadletterSink.write());
+
+      validatedRows
+          .get(DEADLETTER_OUT)
+          .apply("WriteFailedElements_ValidateRows", deadletterSink.write());
     }
 
     sinkReadiness

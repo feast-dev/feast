@@ -86,4 +86,7 @@ message DataflowRunnerConfigOptions {
 
     /* Type of persistent disk to be used by workers */
     string workerDiskType = 16;
+
+    /* Kafka consumer configuration properties */
+    map<string, string> kafkaConsumerProperties = 17;
 }

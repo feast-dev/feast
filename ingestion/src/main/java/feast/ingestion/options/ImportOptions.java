@@ -17,6 +17,8 @@
 package feast.ingestion.options;
 
 import java.util.List;
+import java.util.Map;
+
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.options.Default;
@@ -72,6 +74,13 @@ public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions,
   List<String> getStoresJson();
 
   void setStoresJson(List<String> storeJson);
+
+  @Required
+  @Description(
+      "Properties Map for Kafka Consumer used to pull FeatureRows")
+  Map<String, String> getKafkaConsumerProperties();
+
+  void setKafkaConsumerProperties(Map<String, String> kafkaConsumerProperties);
 
   @Description(
       "(Optional) Deadletter elements will be written to this BigQuery table."
