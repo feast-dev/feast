@@ -17,7 +17,12 @@ This guide will bring Feast up using Docker Compose. This will allow you to:
 
 ## 1. Set up environment
 
-Clone the [Feast repository](https://github.com/gojek/feast/) and navigate to the `infra/docker-compose` sub-directory:
+Clone the latest stable version of the [Feast repository](https://github.com/gojek/feast/) and navigate to the `infra/docker-compose` sub-directory:
+
+```
+git clone --depth 1 --branch v0.6.2 https://github.com/feast-dev/feast.git
+cd feast/infra/docker-compose
+```
 
 Make a copy of the `.env.sample` file:
 
