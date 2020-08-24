@@ -85,17 +85,17 @@ public class TestUtil {
     prop.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, valueSerializer);
     Producer<String, byte[]> producer = new KafkaProducer<>(prop);
 
-    messages.forEach(
-        featureRow -> {
-          ProducerRecord<String, byte[]> record =
-              new ProducerRecord<>(
-                  topic, featureRow.getLeft(), featureRow.getRight().toByteArray());
-          try {
-            producer.send(record).get(publishTimeoutSec, TimeUnit.SECONDS);
-          } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            e.printStackTrace();
-          }
-        });
+    for (Pair<String, T> featureRow : messages) {
+      ProducerRecord<String, byte[]> record =
+          new ProducerRecord<>(topic, featureRow.getLeft(), featureRow.getRight().toByteArray());
+      try {
+        producer.send(record).get(publishTimeoutSec, TimeUnit.SECONDS);
+      } catch (InterruptedException | ExecutionException | TimeoutException e) {
+        e.printStackTrace();
+      }
+    }
+
+    producer.close();
   }
 
   public static <T> KafkaConsumer<String, T> makeKafkaConsumer(

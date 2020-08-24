@@ -41,10 +41,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.Deserializer;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.testcontainers.containers.KafkaContainer;
 
 public class FeatureSetSpecReadAndWriteTest {
@@ -62,12 +59,17 @@ public class FeatureSetSpecReadAndWriteTest {
   private KafkaConsumer<String, IngestionJobProto.FeatureSetSpecAck> consumer;
 
   @Before
-  public void setup() {
+  public void setUp() {
     consumer =
         TestUtil.makeKafkaConsumer(
             kafkaContainer.getBootstrapServers(),
             KAFKA_SPECS_ACK_TOPIC,
             AckMessageDeserializer.class);
+  }
+
+  @After
+  public void tearDown() {
+    consumer.close();
   }
 
   public static PipelineOptions makePipelineOptions() {
