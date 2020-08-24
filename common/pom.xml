@@ -158,6 +158,11 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.fluentd</groupId>
+            <artifactId>fluent-logger</artifactId>
+            <version>0.3.1</version>
+        </dependency>
 
         <!-- Bean Validation API support -->
         <dependency>

@@ -18,13 +18,17 @@ package feast.common.logging;
 
 import feast.common.logging.config.LoggingProperties;
 import feast.common.logging.config.LoggingProperties.AuditLogProperties;
+import feast.common.logging.config.LoggingProperties.LogForwarderProperties;
 import feast.common.logging.entry.ActionAuditLogEntry;
 import feast.common.logging.entry.AuditLogEntry;
 import feast.common.logging.entry.LogResource;
 import feast.common.logging.entry.LogResource.ResourceType;
 import feast.common.logging.entry.MessageAuditLogEntry;
 import feast.common.logging.entry.TransitionAuditLogEntry;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.fluentd.logger.FluentLogger;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 import org.slf4j.event.Level;
@@ -36,8 +40,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class AuditLogger {
   private static final Marker AUDIT_MARKER = MarkerFactory.getMarker("AUDIT_MARK");
+  private static FluentLogger FLUENT_LOGGER;
   private static AuditLogProperties properties;
   private static BuildProperties buildProperties;
+  private static LogForwarderProperties logForwarderProperties;
 
   @Autowired
   public AuditLogger(LoggingProperties loggingProperties, BuildProperties buildProperties) {
@@ -46,6 +52,7 @@ public class AuditLogger {
     // This allows us to use the dependencies in the AuditLogger's static methods
     AuditLogger.properties = loggingProperties.getAudit();
     AuditLogger.buildProperties = buildProperties;
+    AuditLogger.logForwarderProperties = loggingProperties.getForwarder();
   }
 
   /**
@@ -60,6 +67,23 @@ public class AuditLogger {
             .setComponent(buildProperties.getArtifact())
             .setVersion(buildProperties.getVersion())
             .build());
+    Map<String, Object> fluentDLogs = new HashMap<>();
+
+    if (logForwarderProperties.isEnabled()) {
+      FLUENT_LOGGER =
+          FluentLogger.getLogger(
+              "feast",
+              logForwarderProperties.getFluentdHost(),
+              logForwarderProperties.getFluentdPort());
+      fluentDLogs.put("id", entryBuilder.build().getId());
+      fluentDLogs.put("service", entryBuilder.build().getService());
+      fluentDLogs.put("status_code", entryBuilder.build().getStatusCode());
+      fluentDLogs.put("method", entryBuilder.build().getMethod());
+      fluentDLogs.put("request", entryBuilder.build().getRequest());
+      fluentDLogs.put("response", entryBuilder.build().getResponse());
+      // tag can be used as "service" to split rr logs into separate tables
+      FLUENT_LOGGER.log("fluentd", fluentDLogs);
+    }
   }
 
   /**

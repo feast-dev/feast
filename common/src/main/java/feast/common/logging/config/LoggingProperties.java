@@ -24,6 +24,20 @@ import lombok.Setter;
 @Setter
 public class LoggingProperties {
   @NotNull private AuditLogProperties audit;
+  @NotNull private LogForwarderProperties forwarder;
+
+  @Getter
+  @Setter
+  public static class LogForwarderProperties {
+    // Whether to enable/disable (request/response) log forwarding entirely.
+    private boolean enabled;
+
+    // fluentD service host for external (request/response) logging.
+    private String fluentdHost;
+
+    // fluentD service port for external (request/response) logging.
+    private Integer fluentdPort;
+  }
 
   @Getter
   @Setter
