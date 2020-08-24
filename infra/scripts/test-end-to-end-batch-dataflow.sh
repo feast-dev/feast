@@ -300,8 +300,7 @@ if [[ ${TEST_EXIT_CODE} != 0 ]]; then
 
   echo "[DEBUG] Printing Python packages list"
   pip list
-else
-  clean "$@"
 fi
 
+clean "$@"
 exit ${TEST_EXIT_CODE}
