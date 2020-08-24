@@ -40,6 +40,11 @@
             <artifactId>grpc-server-spring-boot-starter</artifactId>
             <version>${grpc.spring.boot.starter.version}</version>
         </dependency>
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-config</artifactId>
+			<version>${spring.security.version}</version>
+		</dependency>
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-oauth2-resource-server</artifactId>
