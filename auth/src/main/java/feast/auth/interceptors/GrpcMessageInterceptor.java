@@ -48,6 +48,15 @@ import org.springframework.stereotype.Component;
 public class GrpcMessageInterceptor implements ServerInterceptor {
   private SecurityProperties securityProperties;
 
+  public GrpcMessageInterceptor() {
+    this.securityProperties = null;
+  }
+
+  /**
+   * Configure GrpcMessageIntercetor with securityProperties. If provided with securityProperties,
+   * will output the subject claim specified in securityProperties as identity in {@link
+   * MessageAuditLogEntry} instead.
+   */
   @Autowired
   public GrpcMessageInterceptor(SecurityProperties securityProperties) {
     this.securityProperties = securityProperties;
@@ -106,14 +115,16 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
 
   /**
    * Extract current authenticated identity from given {@link Authentication}. Extracts subject
-   * claim if specified in AuthorizationProperties, otherwise returns authentication name
+   * claim if specified in AuthorizationProperties, otherwise returns authentication subject.
    */
   private String getIdentity(Authentication authentication) {
-    Map<String, String> options = securityProperties.getAuthorization().getOptions();
-    // use subject claim as identity if set in authorization properties
-    if (options.containsKey(AuthenticationProperties.SUBJECT_CLAIM)) {
-      return AuthUtils.getSubjectFromAuth(
-          authentication, options.get(AuthenticationProperties.SUBJECT_CLAIM));
+    // use subject claim as identity if set in security authorization properties
+    if (securityProperties != null) {
+      Map<String, String> options = securityProperties.getAuthorization().getOptions();
+      if (options.containsKey(AuthenticationProperties.SUBJECT_CLAIM)) {
+        return AuthUtils.getSubjectFromAuth(
+            authentication, options.get(AuthenticationProperties.SUBJECT_CLAIM));
+      }
     }
     return authentication.getName();
   }
