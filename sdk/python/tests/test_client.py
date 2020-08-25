@@ -156,7 +156,7 @@ class TestClient:
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         Core.add_CoreServiceServicer_to_server(CoreServicer(), server)
         port = find_free_port()
-        server.add_insecure_port("[::]:{}".format(port))
+        server.add_insecure_port(f"[::]:{port}")
         server.start()
         yield port
         server.stop(0)
@@ -166,7 +166,7 @@ class TestClient:
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         Serving.add_ServingServiceServicer_to_server(ServingServicer(), server)
         port = find_free_port()
-        server.add_insecure_port("[::]:{}".format(port))
+        server.add_insecure_port(f"[::]:{port}")
         server.start()
         yield port
         server.stop(0)
@@ -176,7 +176,7 @@ class TestClient:
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         Core.add_CoreServiceServicer_to_server(CoreServicer(), server)
         port = find_free_port()
-        server.add_secure_port("[::]:{}".format(port), server_credentials)
+        server.add_secure_port(f"[::]:{port}", server_credentials)
         server.start()
         yield port
         server.stop(0)
@@ -186,7 +186,7 @@ class TestClient:
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         Serving.add_ServingServiceServicer_to_server(ServingServicer(), server)
         port = find_free_port()
-        server.add_secure_port("[::]:{}".format(port), server_credentials)
+        server.add_secure_port(f"[::]:{port}", server_credentials)
         server.start()
         yield port
         server.stop(0)
@@ -199,7 +199,7 @@ class TestClient:
         )
         Core.add_CoreServiceServicer_to_server(CoreServicer(), server)
         port = find_free_port()
-        server.add_secure_port("[::]:{}".format(port), server_credentials)
+        server.add_secure_port(f"[::]:{port}", server_credentials)
         server.start()
         yield port
         server.stop(0)
@@ -212,7 +212,7 @@ class TestClient:
         )
         Core.add_CoreServiceServicer_to_server(CoreServicer(), server)
         port = find_free_port()
-        server.add_insecure_port("[::]:{}".format(port))
+        server.add_insecure_port(f"[::]:{port}")
         server.start()
         yield port
         server.stop(0)
@@ -225,7 +225,7 @@ class TestClient:
         )
         Core.add_CoreServiceServicer_to_server(CoreServicer(), server)
         port = find_free_port()
-        server.add_insecure_port("[::]:{}".format(port))
+        server.add_insecure_port(f"[::]:{port}")
         server.start()
         yield port
         server.stop(0)
@@ -244,8 +244,8 @@ class TestClient:
             MagicMock(return_value=ssl_channel_credentials),
         ):
             yield Client(
-                core_url="localhost:{}".format(secure_core_server),
-                serving_url="localhost:{}".format(secure_serving_server),
+                core_url=f"localhost:{secure_core_server}",
+                serving_url=f"localhost:{secure_serving_server}",
                 core_enable_ssl=True,
                 serving_enable_ssl=True,
             )
@@ -263,7 +263,7 @@ class TestClient:
             MagicMock(return_value=ssl_channel_credentials),
         ):
             yield Client(
-                core_url="localhost:{}".format(secure_core_server_with_auth),
+                core_url=f"localhost:{secure_core_server_with_auth}",
                 core_enable_ssl=True,
                 enable_auth=True,
                 auth_token=_FAKE_JWT_TOKEN,
@@ -272,8 +272,8 @@ class TestClient:
     @pytest.fixture
     def client(self, core_server, serving_server):
         return Client(
-            core_url="localhost:{}".format(core_server),
-            serving_url="localhost:{}".format(serving_server),
+            core_url=f"localhost:{core_server}",
+            serving_url=f"localhost:{serving_server}",
         )
 
     @pytest.mark.parametrize(
@@ -1011,8 +1011,8 @@ class TestClient:
         self, _mocked_obj, core_server, serving_server
     ):
         client = Client(
-            core_url="localhost:{}".format(core_server),
-            serving_url="localhost:{}".format(serving_server),
+            core_url=f"localhost:{core_server}",
+            serving_url=f"localhost:{serving_server}",
             serving_enable_ssl=True,
             core_enable_ssl=True,
         )
@@ -1029,7 +1029,7 @@ class TestClient:
         self, _mocked_obj, core_server
     ):
         client = Client(
-            core_url="localhost:{}".format(core_server), serving_url="localhost:443"
+            core_url=f"localhost:{core_server}", serving_url="localhost:443"
         )
         with mock.patch("grpc.secure_channel") as _grpc_mock, mock.patch(
             "grpc.ssl_channel_credentials", MagicMock(return_value="test")
@@ -1045,7 +1045,7 @@ class TestClient:
     ):
         client = Client(
             core_url="localhost:443",
-            serving_url="localhost:{}".format(secure_serving_server),
+            serving_url=f"localhost:{secure_serving_server}",
         )
         with mock.patch("grpc.secure_channel") as _grpc_mock, mock.patch(
             "grpc.ssl_channel_credentials", MagicMock(return_value="test")
@@ -1065,7 +1065,7 @@ class TestClient:
         self, insecure_core_server_with_auth
     ):
         client = Client(
-            core_url="localhost:{}".format(insecure_core_server_with_auth),
+            core_url=f"localhost:{insecure_core_server_with_auth}",
             enable_auth=True,
             auth_token=_FAKE_JWT_TOKEN,
         )
@@ -1075,6 +1075,6 @@ class TestClient:
         self, insecure_core_server_that_blocks_auth
     ):
         client = Client(
-            core_url="localhost:{}".format(insecure_core_server_that_blocks_auth)
+            core_url=f"localhost:{insecure_core_server_that_blocks_auth}"
         )
         client.list_feature_sets()
