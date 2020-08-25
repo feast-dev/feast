@@ -46,6 +46,8 @@ REQUIRED = [
     "numpy",
     "google",
     "confluent_kafka",
+    "grpcio-opentracing",
+    "opentracing"
 ]
 
 # README file from Feast repo root directory

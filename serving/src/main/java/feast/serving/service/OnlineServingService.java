@@ -16,24 +16,21 @@
  */
 package feast.serving.service;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Streams;
 import com.google.protobuf.Duration;
 import feast.common.models.Feature;
-import feast.common.models.FeatureSet;
 import feast.proto.serving.ServingAPIProto.*;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.proto.types.FeatureRowProto.FeatureRow;
-import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.Value;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.util.Metrics;
 import feast.storage.api.retriever.FeatureSetRequest;
 import feast.storage.api.retriever.OnlineRetriever;
 import io.grpc.Status;
-import io.opentracing.Scope;
+import io.opentracing.Span;
 import io.opentracing.Tracer;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -66,86 +63,90 @@ public class OnlineServingService implements ServingService {
   /** {@inheritDoc} */
   @Override
   public GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest request) {
-    try (Scope scope = tracer.buildSpan("getOnlineFeatures").startActive(true)) {
-      List<EntityRow> entityRows = request.getEntityRowsList();
-      // Collect the feature/entity value for each entity row in entityValueMap
-      Map<EntityRow, Map<String, Value>> entityValuesMap =
-          entityRows.stream().collect(Collectors.toMap(row -> row, row -> new HashMap<>()));
-      // Collect the feature/entity status metadata for each entity row in entityValueMap
-      Map<EntityRow, Map<String, FieldStatus>> entityStatusesMap =
-          entityRows.stream().collect(Collectors.toMap(row -> row, row -> new HashMap<>()));
-      // Collect featureRows retrieved for logging/tracing
-      List<List<Optional<FeatureRow>>> logFeatureRows = new LinkedList<>();
+    List<EntityRow> entityRows = request.getEntityRowsList();
+    // Collect the feature/entity value for each entity row in entityValueMap
+    Map<EntityRow, Map<String, Value>> entityValuesMap =
+        entityRows.stream().collect(Collectors.toMap(row -> row, row -> new HashMap<>()));
+    // Collect the feature/entity status metadata for each entity row in entityValueMap
+    Map<EntityRow, Map<String, FieldStatus>> entityStatusesMap =
+        entityRows.stream().collect(Collectors.toMap(row -> row, row -> new HashMap<>()));
 
-      if (!request.getOmitEntitiesInResponse()) {
-        // Add entity row's fields as response fields
-        entityRows.forEach(
-            entityRow -> {
-              Map<String, Value> valueMap = entityRow.getFieldsMap();
-              entityValuesMap.get(entityRow).putAll(valueMap);
-              entityStatusesMap.get(entityRow).putAll(getMetadataMap(valueMap, false, false));
-            });
-      }
-
-      List<FeatureSetRequest> featureSetRequests =
-          specService.getFeatureSets(request.getFeaturesList(), request.getProject());
-      for (FeatureSetRequest featureSetRequest : featureSetRequests) {
-        // Pull feature rows for given entity rows from the feature/featureset specified in feature
-        // set request.
-        // from the configured online
-        List<Optional<FeatureRow>> featureRows =
-            retriever.getOnlineFeatures(entityRows, featureSetRequest);
-        // Check that feature row returned corresponds to a given entity row.
-        if (featureRows.size() != entityRows.size()) {
-          throw Status.INTERNAL
-              .withDescription(
-                  "The no. of FeatureRow obtained from OnlineRetriever"
-                      + "does not match no. of entityRow passed.")
-              .asRuntimeException();
-        }
-
-        Streams.zip(entityRows.stream(), featureRows.stream(), Pair::of)
-            .forEach(
-                entityFeaturePair -> {
-                  EntityRow entityRow = entityFeaturePair.getLeft();
-                  Optional<FeatureRow> featureRow = entityFeaturePair.getRight();
-                  // Unpack feature field values and merge into entityValueMap
-                  boolean isOutsideMaxAge =
-                      checkOutsideMaxAge(featureSetRequest, entityRow, featureRow);
-                  Map<String, Value> valueMap =
-                      unpackValueMap(featureRow, featureSetRequest, isOutsideMaxAge);
-                  entityValuesMap.get(entityRow).putAll(valueMap);
-
-                  // Generate metadata for feature values and merge into entityFieldsMap
-                  boolean isNotFound = featureRow.isEmpty();
-                  Map<String, FieldStatus> statusMap =
-                      getMetadataMap(valueMap, isNotFound, isOutsideMaxAge);
-                  entityStatusesMap.get(entityRow).putAll(statusMap);
-
-                  // Populate metrics/log request
-                  populateCountMetrics(statusMap, featureSetRequest);
-                });
-        populateRequestCountMetrics(featureSetRequest);
-        logFeatureRows.add(featureRows);
-      }
-      if (scope != null) {
-        logFeatureRowsTrace(scope, logFeatureRows, featureSetRequests);
-      }
-
-      // Build response field values from entityValuesMap and entityStatusesMap
-      // Reponse field values should be in the same order as the entityRows provided by the user.
-      List<FieldValues> fieldValuesList =
-          entityRows.stream()
-              .map(
-                  entityRow -> {
-                    return FieldValues.newBuilder()
-                        .putAllFields(entityValuesMap.get(entityRow))
-                        .putAllStatuses(entityStatusesMap.get(entityRow))
-                        .build();
-                  })
-              .collect(Collectors.toList());
-      return GetOnlineFeaturesResponse.newBuilder().addAllFieldValues(fieldValuesList).build();
+    if (!request.getOmitEntitiesInResponse()) {
+      // Add entity row's fields as response fields
+      entityRows.forEach(
+          entityRow -> {
+            Map<String, Value> valueMap = entityRow.getFieldsMap();
+            entityValuesMap.get(entityRow).putAll(valueMap);
+            entityStatusesMap.get(entityRow).putAll(getMetadataMap(valueMap, false, false));
+          });
     }
+
+    Span specServiceSpan = tracer.buildSpan("getFeatureSets").start();
+    List<FeatureSetRequest> featureSetRequests =
+        specService.getFeatureSets(request.getFeaturesList(), request.getProject());
+    if (specServiceSpan != null) {
+      specServiceSpan.finish();
+    }
+    Span onlineRetrievalSpan = tracer.buildSpan("onlineRetrieval").start();
+    if (onlineRetrievalSpan != null) {
+      onlineRetrievalSpan.setTag("entities", entityRows.size());
+      onlineRetrievalSpan.setTag("feature sets", featureSetRequests.size());
+    }
+    for (FeatureSetRequest featureSetRequest : featureSetRequests) {
+      // Pull feature rows for given entity rows from the feature/featureset specified in feature
+      // set request.
+      // from the configured online
+      List<Optional<FeatureRow>> featureRows =
+          retriever.getOnlineFeatures(entityRows, featureSetRequest);
+      // Check that feature row returned corresponds to a given entity row.
+      if (featureRows.size() != entityRows.size()) {
+        throw Status.INTERNAL
+            .withDescription(
+                "The no. of FeatureRow obtained from OnlineRetriever"
+                    + "does not match no. of entityRow passed.")
+            .asRuntimeException();
+      }
+
+      Streams.zip(entityRows.stream(), featureRows.stream(), Pair::of)
+          .forEach(
+              entityFeaturePair -> {
+                EntityRow entityRow = entityFeaturePair.getLeft();
+                Optional<FeatureRow> featureRow = entityFeaturePair.getRight();
+                // Unpack feature field values and merge into entityValueMap
+                boolean isOutsideMaxAge =
+                    checkOutsideMaxAge(featureSetRequest, entityRow, featureRow);
+                Map<String, Value> valueMap =
+                    unpackValueMap(featureRow, featureSetRequest, isOutsideMaxAge);
+                entityValuesMap.get(entityRow).putAll(valueMap);
+
+                // Generate metadata for feature values and merge into entityFieldsMap
+                boolean isNotFound = featureRow.isEmpty();
+                Map<String, FieldStatus> statusMap =
+                    getMetadataMap(valueMap, isNotFound, isOutsideMaxAge);
+                entityStatusesMap.get(entityRow).putAll(statusMap);
+
+                // Populate metrics/log request
+                populateCountMetrics(statusMap, featureSetRequest);
+              });
+      populateRequestCountMetrics(featureSetRequest);
+    }
+    if (onlineRetrievalSpan != null) {
+      onlineRetrievalSpan.finish();
+    }
+
+    // Build response field values from entityValuesMap and entityStatusesMap
+    // Reponse field values should be in the same order as the entityRows provided by the user.
+    List<FieldValues> fieldValuesList =
+        entityRows.stream()
+            .map(
+                entityRow -> {
+                  return FieldValues.newBuilder()
+                      .putAllFields(entityValuesMap.get(entityRow))
+                      .putAllStatuses(entityStatusesMap.get(entityRow))
+                      .build();
+                })
+            .collect(Collectors.toList());
+    return GetOnlineFeaturesResponse.newBuilder().addAllFieldValues(fieldValuesList).build();
   }
 
   /**
@@ -252,40 +253,6 @@ public class OnlineServingService implements ServingService {
     }
     long timeDifference = givenTimestamp - featureRow.get().getEventTimestamp().getSeconds();
     return timeDifference > maxAge.getSeconds();
-  }
-
-  private void logFeatureRowsTrace(
-      Scope scope,
-      List<List<Optional<FeatureRow>>> logFeatureRows,
-      List<FeatureSetRequest> featureSetRequests) {
-    List<List<FeatureRow>> loggableFeatureRows =
-        Streams.zip(
-                logFeatureRows.stream(),
-                featureSetRequests.stream(),
-                (featureRows, featureSetRequest) -> {
-                  FeatureRow.Builder nullFeatureRowBuilder =
-                      FeatureRow.newBuilder()
-                          .setFeatureSet(
-                              FeatureSet.getFeatureSetStringRef(featureSetRequest.getSpec()));
-                  for (FeatureReference featureReference :
-                      featureSetRequest.getFeatureReferences()) {
-                    nullFeatureRowBuilder.addFields(
-                        Field.newBuilder().setName(featureReference.getName()));
-                  }
-
-                  // log null feature row when feature row is empty
-                  return featureRows.stream()
-                      .map(
-                          featureRow -> {
-                            return (featureRow.isEmpty())
-                                ? nullFeatureRowBuilder.build()
-                                : featureRow.get();
-                          })
-                      .collect(Collectors.toList());
-                })
-            .collect(Collectors.toList());
-
-    scope.span().log(ImmutableMap.of("event", "featureRows", "value", loggableFeatureRows));
   }
 
   private void populateCountMetrics(

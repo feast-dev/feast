@@ -38,3 +38,4 @@ flake8
 black
 boto3
 moto
+grpcio-opentracing

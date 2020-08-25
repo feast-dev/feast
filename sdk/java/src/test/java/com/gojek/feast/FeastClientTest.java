@@ -35,6 +35,7 @@ import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.grpc.testing.GrpcCleanupRule;
+import io.opentracing.noop.NoopTracerFactory;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -81,7 +82,7 @@ public class FeastClientTest {
     ManagedChannel channel =
         this.grpcRule.register(
             InProcessChannelBuilder.forName(serverName).directExecutor().build());
-    this.client = new FeastClient(channel);
+    this.client = new FeastClient(channel, NoopTracerFactory.create());
   }
 
   @Test

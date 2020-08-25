@@ -26,6 +26,9 @@ import feast.proto.serving.ServingServiceGrpc;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.opentracing.Tracer;
+import io.opentracing.contrib.grpc.TracingClientInterceptor;
+import io.opentracing.noop.NoopTracerFactory;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -43,15 +46,29 @@ public class FeastClient implements AutoCloseable {
   private final ServingServiceBlockingStub stub;
 
   /**
-   * Create a client to access Feast
+   * Creates {@link FeastClient}, which is a convenient wrapper over the gRPC client to communicate
+   * with Feast Online Serving.
+   *
+   * @param host hostname or ip address of Feast serving GRPC server
+   * @param port port number of Feast serving GRPC server
+   * @param tracer tracer instance to be used for tracing grpc calls to Feast
+   * @return {@link FeastClient}
+   */
+  public static FeastClient create(String host, int port, Tracer tracer) {
+    ManagedChannel channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
+    return new FeastClient(channel, tracer);
+  }
+
+  /**
+   * Creates {@link FeastClient}, which is a convenient wrapper over the gRPC client to communicate
+   * with Feast Online Serving.
    *
    * @param host hostname or ip address of Feast serving GRPC server
    * @param port port number of Feast serving GRPC server
    * @return {@link FeastClient}
    */
   public static FeastClient create(String host, int port) {
-    ManagedChannel channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
-    return new FeastClient(channel);
+    return create(host, port, NoopTracerFactory.create());
   }
 
   public GetFeastServingInfoResponse getFeastServingInfo() {
@@ -156,9 +173,12 @@ public class FeastClient implements AutoCloseable {
         .collect(Collectors.toList());
   }
 
-  protected FeastClient(ManagedChannel channel) {
+  protected FeastClient(ManagedChannel channel, Tracer tracer) {
     this.channel = channel;
-    this.stub = ServingServiceGrpc.newBlockingStub(channel);
+    TracingClientInterceptor tracingInterceptor =
+        TracingClientInterceptor.newBuilder().withTracer(tracer).build();
+
+    this.stub = ServingServiceGrpc.newBlockingStub(tracingInterceptor.intercept(channel));
   }
 
   public void close() throws Exception {

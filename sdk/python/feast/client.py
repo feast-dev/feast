@@ -28,6 +28,9 @@ import grpc
 import pandas as pd
 import pyarrow as pa
 from google.protobuf.timestamp_pb2 import Timestamp
+from grpc_opentracing import open_tracing_client_interceptor
+from grpc_opentracing.grpcext import intercept_channel
+from opentracing import Tracer
 from pyarrow import parquet as pq
 
 from feast.config import Config
@@ -132,6 +135,8 @@ class Client:
         if self._config.getboolean(CONFIG_ENABLE_AUTH_KEY):
             self._auth_metadata = feast_auth.get_auth_metadata_plugin(self._config)
 
+        self._tracer = None
+
     @property
     def _core_service(self):
         """
@@ -148,6 +153,11 @@ class Client:
                 auth_metadata_plugin=self._auth_metadata,
                 timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
             )
+
+            if self._tracer:
+                interceptor = open_tracing_client_interceptor(self._tracer)
+                channel = intercept_channel(channel, interceptor)
+
             self._core_service_stub = CoreServiceStub(channel)
         return self._core_service_stub
 
@@ -169,6 +179,11 @@ class Client:
                 auth_metadata_plugin=self._auth_metadata,
                 timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
             )
+
+            if self._tracer:
+                interceptor = open_tracing_client_interceptor(self._tracer)
+                channel = intercept_channel(channel, interceptor)
+
             self._serving_service_stub = ServingServiceStub(channel)
         return self._serving_service_stub
 
@@ -281,6 +296,16 @@ class Client:
             result["core"] = {"url": self.core_url, "version": core_version}
 
         return result
+
+    def set_tracer(self, tracer: Tracer):
+        """
+        Set the OpenTracing Tracer instance used to trace the gRPC calls to Feast Core
+        and Feast Serving. If not set, tracing will not be enabled.
+
+        Args:
+            tracer: instance of OpenTracing tracer.
+        """
+        self._tracer = tracer
 
     @property
     def project(self) -> Union[str, None]:
