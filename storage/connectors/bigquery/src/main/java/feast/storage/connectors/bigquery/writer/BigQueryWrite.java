@@ -24,8 +24,6 @@ import com.google.common.collect.Iterators;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.storage.api.writer.FailedElement;
 import feast.storage.api.writer.WriteResult;
-import feast.storage.connectors.bigquery.compression.CompactFeatureRows;
-import feast.storage.connectors.bigquery.compression.FeatureRowsBatch;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -55,8 +53,7 @@ public class BigQueryWrite extends PTransform<PCollection<FeatureRow>, WriteResu
   private static final Duration BIGQUERY_JOB_MAX_EXPECTING_RESULT_TIME =
       Duration.standardMinutes(10);
   private static final int BIGQUERY_MAX_JOB_RETRIES = 20;
-  private static final int DEFAULT_COMPACTION_BATCH_SIZE = 10000;
-  private static final int MAX_SUCCESSFUL_OUTPUTS_PER_DESTINATION = 1000;
+  private static final int MAX_SUCCESSFUL_OUTPUTS_PER_DESTINATION = 10000;
 
   private DatasetId destination;
   private PCollectionView<Map<String, Iterable<TableSchema>>> schemas;
@@ -64,7 +61,6 @@ public class BigQueryWrite extends PTransform<PCollection<FeatureRow>, WriteResu
   private Duration triggeringFrequency = BIGQUERY_DEFAULT_WRITE_TRIGGERING_FREQUENCY;
   private Duration expectingResultTime = BIGQUERY_JOB_MAX_EXPECTING_RESULT_TIME;
   private BigQueryServices testServices;
-  private int compactionBatchSize = DEFAULT_COMPACTION_BATCH_SIZE;
   private int maxSuccessfulOutputs = MAX_SUCCESSFUL_OUTPUTS_PER_DESTINATION;
 
   public BigQueryWrite(
@@ -85,11 +81,6 @@ public class BigQueryWrite extends PTransform<PCollection<FeatureRow>, WriteResu
 
   public BigQueryWrite withExpectingResultTime(Duration expectingResultTime) {
     this.expectingResultTime = expectingResultTime;
-    return this;
-  }
-
-  public BigQueryWrite withCompactionBatchSize(int batchSize) {
-    this.compactionBatchSize = batchSize;
     return this;
   }
 
@@ -181,10 +172,10 @@ public class BigQueryWrite extends PTransform<PCollection<FeatureRow>, WriteResu
   private PCollection<FeatureRow> mergeInputWithResult(
       PCollection<FeatureRow> inputInFixedWindow,
       PCollection<KV<TableDestination, String>> successful) {
-    final TupleTag<FeatureRowsBatch> inputTag = new TupleTag<>();
+    final TupleTag<Iterable<FeatureRow>> inputTag = new TupleTag<>();
     final TupleTag<String> successTag = new TupleTag<>();
 
-    PCollection<KV<String, FeatureRowsBatch>> insertedRows =
+    PCollection<KV<String, Iterable<FeatureRow>>> insertedRows =
         inputInFixedWindow
             .apply(
                 "MakeElementKey",
@@ -201,7 +192,7 @@ public class BigQueryWrite extends PTransform<PCollection<FeatureRow>, WriteResu
                                 element));
                       }
                     }))
-            .apply(new CompactFeatureRows(compactionBatchSize));
+            .apply(Sample.fixedSizePerKey(this.maxSuccessfulOutputs));
 
     PCollection<KV<String, CoGbkResult>> inputWithResult =
         KeyedPCollectionTuple.of(inputTag, insertedRows)
@@ -231,12 +222,7 @@ public class BigQueryWrite extends PTransform<PCollection<FeatureRow>, WriteResu
                   return;
                 }
 
-                result
-                    .getAll(inputTag)
-                    .forEach(
-                        rows ->
-                            rows.getFeatureRowsSample(maxSuccessfulOutputs)
-                                .forEachRemaining(c::output));
+                result.getAll(inputTag).forEach(rows -> rows.forEach(c::output));
               }
             }));
   }

@@ -20,8 +20,6 @@ import static feast.storage.common.testing.TestUtil.createRandomValue;
 import static feast.storage.common.testing.TestUtil.field;
 import static feast.storage.connectors.bigquery.writer.FeatureSetSpecToTableSchema.*;
 import static org.hamcrest.CoreMatchers.*;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
@@ -34,7 +32,6 @@ import com.google.cloud.bigquery.*;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
 import feast.common.models.FeatureSetReference;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
@@ -44,16 +41,11 @@ import feast.proto.types.FieldProto;
 import feast.proto.types.ValueProto;
 import feast.storage.api.writer.FeatureSink;
 import feast.storage.api.writer.WriteResult;
-import feast.storage.connectors.bigquery.compression.CompactFeatureRows;
-import feast.storage.connectors.bigquery.compression.FeatureRowsBatch;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
@@ -215,8 +207,7 @@ public class BigQuerySinkTest {
     PCollection<FeatureRow> successfulInserts =
         p.apply(featureRowTestStream).apply(sink.writer()).getSuccessfulInserts();
 
-    List<FeatureRow> inputWithoutNulls = dropNullFeature(ImmutableList.of(row1, row2));
-    PAssert.that(successfulInserts).containsInAnyOrder(inputWithoutNulls);
+    PAssert.that(successfulInserts).containsInAnyOrder(ImmutableList.of(row1, row2));
     p.run();
 
     assert jobService.getAllJobs().size() == 1;
@@ -300,7 +291,7 @@ public class BigQuerySinkTest {
     PCollection<FeatureRow> inserts =
         p.apply(featureRowTestStream).apply(writer).getSuccessfulInserts();
 
-    PAssert.that(inserts).containsInAnyOrder(dropNullFeature(ImmutableList.of(featureRow)));
+    PAssert.that(inserts).containsInAnyOrder(ImmutableList.of(featureRow));
 
     p.run();
   }
@@ -448,123 +439,6 @@ public class BigQuerySinkTest {
     }
   }
 
-  public static class FlatMap extends DoFn<KV<String, FeatureRowsBatch>, FeatureRow> {
-    @ProcessElement
-    public void process(ProcessContext c) {
-      c.element().getValue().getFeatureRows().forEachRemaining(c::output);
-    }
-  }
-
-  @Test
-  public void featureRowCompressShouldPackAndUnpackSuccessfully() {
-    Stream<FeatureRow> stream1 = IntStream.range(0, 1000).mapToObj(i -> generateRow("project/fs"));
-    Stream<FeatureRow> stream2 =
-        IntStream.range(0, 1000).mapToObj(i -> generateRow("project/fs_2"));
-
-    List<FeatureRow> input = Stream.concat(stream1, stream2).collect(Collectors.toList());
-
-    FeatureRow rowWithNull =
-        FeatureRow.newBuilder()
-            .setFeatureSet("project/fs")
-            .addAllFields(copyFieldsWithout(generateRow(""), "entity"))
-            .addFields(FieldProto.Field.newBuilder().setName("entity").build())
-            .build();
-
-    List<FeatureRow> inputWithNulls = Lists.newArrayList(input);
-    inputWithNulls.add(rowWithNull);
-
-    PCollection<FeatureRow> result =
-        p.apply(Create.of(inputWithNulls))
-            .apply("KV", ParDo.of(new ExtractKV()))
-            .apply(new CompactFeatureRows(10000))
-            .apply("Flat", ParDo.of(new FlatMap()));
-
-    List<FeatureRow> inputWithoutNulls = dropNullFeature(input);
-
-    inputWithoutNulls.add(
-        FeatureRow.newBuilder()
-            .setFeatureSet("project/fs")
-            .addFields(
-                FieldProto.Field.newBuilder()
-                    .setName("entity")
-                    .setValue(ValueProto.Value.newBuilder().setInt64Val(0L).build())
-                    .build())
-            .addAllFields(copyFieldsWithout(rowWithNull, "entity", "null_value"))
-            .build());
-
-    PAssert.that(result)
-        .satisfies(
-            actual -> {
-              List<FeatureRow> actualSorted = sortFeaturesByName(Lists.newArrayList(actual));
-              List<FeatureRow> expectedSorted = sortFeaturesByName(inputWithoutNulls);
-
-              assertThat(actualSorted, containsInAnyOrder(expectedSorted.toArray()));
-              return null;
-            });
-    p.run();
-  }
-
-  @Test
-  public void featureRowBatchShouldSampleOnRestore() {
-    List<FeatureRow> stream =
-        IntStream.range(0, 1000)
-            .mapToObj(i -> generateRow("project/fs"))
-            .collect(Collectors.toList());
-
-    PCollection<Long> result =
-        p.apply(Create.of(stream))
-            .apply("KV", ParDo.of(new ExtractKV()))
-            .apply(new CompactFeatureRows(1000))
-            .apply(ParDo.of(new FlatMapWithSample(100)))
-            .apply(Count.globally());
-
-    PAssert.that(result)
-        .satisfies(
-            r -> {
-              // sample size is within bound of required size
-              assertThat(Math.abs(r.iterator().next() - 100), lessThan(5L));
-              return null;
-            });
-    p.run();
-  }
-
-  private List<FeatureRow> dropNullFeature(List<FeatureRow> input) {
-    return input.stream()
-        .map(
-            r ->
-                FeatureRow.newBuilder()
-                    .setFeatureSet(r.getFeatureSet())
-                    .setIngestionId(r.getIngestionId())
-                    .setEventTimestamp(r.getEventTimestamp())
-                    .addAllFields(copyFieldsWithout(r, "null_value"))
-                    .build())
-        .collect(Collectors.toList());
-  }
-
-  private List<FieldProto.Field> copyFieldsWithout(FeatureRow row, String... except) {
-    ArrayList<String> exclude = Lists.newArrayList(except);
-    return row.getFieldsList().stream()
-        .filter(f -> !exclude.contains(f.getName()))
-        .collect(Collectors.toList());
-  }
-
-  public static List<FeatureRow> sortFeaturesByName(List<FeatureRow> rows) {
-    return rows.stream()
-        .map(
-            row -> {
-              List<FieldProto.Field> fieldsList = Lists.newArrayList(row.getFieldsList());
-              fieldsList.sort(Comparator.comparing(FieldProto.Field::getName));
-
-              return FeatureRow.newBuilder()
-                  .setFeatureSet(row.getFeatureSet())
-                  .setEventTimestamp(row.getEventTimestamp())
-                  .setIngestionId(row.getIngestionId())
-                  .addAllFields(fieldsList)
-                  .build();
-            })
-        .collect(Collectors.toList());
-  }
-
   public static class TableAnswer implements Answer<Table>, Serializable {
     TableId tableId;
     TableDefinition tableDefinition;
@@ -577,19 +451,6 @@ public class BigQuerySinkTest {
     @Override
     public Table answer(InvocationOnMock invocationOnMock) throws Throwable {
       return FakeTable.create(mock(BigQuery.class), tableId, tableDefinition);
-    }
-  }
-
-  private static class FlatMapWithSample extends DoFn<KV<String, FeatureRowsBatch>, FeatureRow> {
-    private int sampleSize;
-
-    FlatMapWithSample(int sampleSize) {
-      this.sampleSize = sampleSize;
-    }
-
-    @ProcessElement
-    public void process(ProcessContext c) {
-      c.element().getValue().getFeatureRowsSample(sampleSize).forEachRemaining(c::output);
     }
   }
 }
