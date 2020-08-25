@@ -16,8 +16,8 @@
  */
 package feast.serving.controller;
 
-import feast.common.auth.interceptors.GrpcMessageInterceptor;
 import feast.common.auth.service.AuthorizationService;
+import feast.common.logging.interceptors.GrpcMessageInterceptor;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.serving.ServingAPIProto.GetBatchFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetBatchFeaturesResponse;

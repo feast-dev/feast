@@ -17,7 +17,7 @@
 package feast.jobcontroller.grpc;
 
 import com.google.api.gax.rpc.InvalidArgumentException;
-import feast.common.auth.interceptors.GrpcMessageInterceptor;
+import feast.common.logging.interceptors.GrpcMessageInterceptor;
 import feast.jobcontroller.service.JobService;
 import feast.proto.core.CoreServiceProto.*;
 import feast.proto.core.JobControllerServiceGrpc.JobControllerServiceImplBase;

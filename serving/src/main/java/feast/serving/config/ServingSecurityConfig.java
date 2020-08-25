@@ -51,7 +51,7 @@ import org.springframework.context.annotation.Configuration;
     basePackages = {
       "feast.common.auth.config",
       "feast.common.auth.service",
-      "feast.common.auth.interceptors"
+      "feast.common.logging.interceptors"
     })
 public class ServingSecurityConfig {
 
