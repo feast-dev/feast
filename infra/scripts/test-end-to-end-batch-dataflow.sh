@@ -15,6 +15,7 @@ test -z ${HELM_RELEASE_NAME} && HELM_RELEASE_NAME="pr-$PULL_NUMBER"
 test -z ${HELM_COMMON_NAME} && HELM_COMMON_NAME="deps"
 test -z ${DATASET_NAME} && DATASET_NAME=feast_e2e_$(date +%s)
 test -z ${SPECS_TOPIC} && SPECS_TOPIC=feast-specs-$(date +%s)
+test -z ${FEATURES_TOPIC} && FEATURES_TOPIC=feast-$(date +%s)
 
 
 feast_kafka_1_ip_name="feast-kafka-1"
@@ -212,6 +213,7 @@ export GCLOUD_REGION=$GCLOUD_REGION
 export HELM_COMMON_NAME=$HELM_COMMON_NAME
 export IMAGE_TAG=$PULL_PULL_SHA
 export SPECS_TOPIC=$SPECS_TOPIC
+export FEATURES_TOPIC=$FEATURES_TOPIC
 
 export PROJECT_ROOT_DIR=$(git rev-parse --show-toplevel)
 export SCRIPTS_DIR=${PROJECT_ROOT_DIR}/infra/scripts
@@ -220,7 +222,7 @@ source ${SCRIPTS_DIR}/setup-common-functions.sh
 wait_for_docker_image gcr.io/kf-feast/feast-core:"${IMAGE_TAG}"
 wait_for_docker_image gcr.io/kf-feast/feast-serving:"${IMAGE_TAG}"
 
-envsubst $'$TEMP_BUCKET $DATASET_NAME $GCLOUD_PROJECT $GCLOUD_NETWORK $SPECS_TOPIC \
+envsubst $'$TEMP_BUCKET $DATASET_NAME $GCLOUD_PROJECT $GCLOUD_NETWORK $SPECS_TOPIC $FEATURES_TOPIC \
   $GCLOUD_SUBNET $GCLOUD_REGION $IMAGE_TAG $HELM_COMMON_NAME $feast_kafka_1_ip
   $feast_kafka_2_ip $feast_kafka_3_ip $feast_redis_ip $feast_statsd_ip' < $ORIGINAL_DIR/infra/scripts/test-templates/values-end-to-end-batch-dataflow.yaml > $ORIGINAL_DIR/infra/charts/feast/values-end-to-end-batch-dataflow-updated.yaml
 
@@ -288,7 +290,7 @@ jobcontroller_ip=$(kubectl get -o jsonpath="{.status.loadBalancer.ingress[0].ip}
 
 set +e
 pytest -s -v bq/bq-batch-retrieval.py -m dataflow_runner --core_url "$core_ip:6565" --serving_url "$serving_ip:6566" \
- --jobcontroller_url "$jobcontroller_ip:6570" --gcs_path "gs://${TEMP_BUCKET}/" --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+ --jobcontroller_url "$jobcontroller_ip:6570" --gcs_path "gs://${TEMP_BUCKET}" --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 
 if [[ ${TEST_EXIT_CODE} != 0 ]]; then

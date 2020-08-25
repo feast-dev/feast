@@ -1,6 +1,6 @@
 import logging
+from concurrent.futures import ProcessPoolExecutor
 from functools import partial
-from multiprocessing import Pool
 from typing import Iterable, List
 
 import pandas as pd
@@ -138,11 +138,11 @@ def get_feature_row_chunks(
     feature_set = f"{fs.project}/{fs.name}"
 
     field_map = {field.name: field.dtype for field in fs.fields.values()}
-
-    pool = Pool(max_workers)
     func = partial(_encode_pa_tables, file, feature_set, field_map, ingestion_id)
-    for chunk in pool.imap(func, row_groups):
-        yield chunk
+
+    with ProcessPoolExecutor(max_workers) as pool:
+        for chunk in pool.map(func, row_groups):
+            yield chunk
     return
 
 

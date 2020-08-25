@@ -46,7 +46,9 @@ public class FeatureRowToTableRow implements SerializableFunction<FeatureRow, Ta
   public TableRow apply(FeatureRow featureRow) {
 
     TableRow tableRow = new TableRow();
-    tableRow.set(EVENT_TIMESTAMP_COLUMN, Timestamps.toString(featureRow.getEventTimestamp()));
+    tableRow.set(
+        EVENT_TIMESTAMP_COLUMN,
+        Timestamps.toString(featureRow.getEventTimestamp().toBuilder().setNanos(0).build()));
     tableRow.set(CREATED_TIMESTAMP_COLUMN, Instant.now().toString());
     tableRow.set(INGESTION_ID_COLUMN, featureRow.getIngestionId());
     tableRow.set(JOB_ID_COLUMN, jobId);

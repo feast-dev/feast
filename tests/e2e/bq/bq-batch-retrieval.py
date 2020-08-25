@@ -186,9 +186,6 @@ def test_batch_get_historical_features_with_file(client):
     client.ingest(file_fs1, features_1_df, timeout=480)
 
     # Rename column (datetime -> event_timestamp)
-    features_1_df["datetime"] + pd.Timedelta(
-        seconds=1
-    )  # adds buffer to avoid rounding errors
     features_1_df = features_1_df.rename(columns={"datetime": "event_timestamp"})
 
     to_avro(
@@ -234,9 +231,6 @@ def test_batch_get_historical_features_with_gs_path(client, gcs_path):
     client.ingest(gcs_fs1, features_1_df, timeout=360)
 
     # Rename column (datetime -> event_timestamp)
-    features_1_df["datetime"] + pd.Timedelta(
-        seconds=1
-    )  # adds buffer to avoid rounding errors
     features_1_df = features_1_df.rename(columns={"datetime": "event_timestamp"})
 
     # Output file to local
@@ -249,7 +243,7 @@ def test_batch_get_historical_features_with_gs_path(client, gcs_path):
     uri = urlparse(gcs_path)
     bucket = uri.hostname
     ts = int(time.time())
-    remote_path = str(uri.path).lstrip("/") + f"{ts}/{file_name}"
+    remote_path = str(uri.path).strip("/") + f"/{ts}/{file_name}"
 
     # Upload file to gcs
     storage_client = storage.Client(project=None)
@@ -257,9 +251,11 @@ def test_batch_get_historical_features_with_gs_path(client, gcs_path):
     blob = bucket.blob(remote_path)
     blob.upload_from_filename(file_name)
 
+    time.sleep(10)
+
     def check():
         feature_retrieval_job = client.get_historical_features(
-            entity_rows=f"{gcs_path}{ts}/*",
+            entity_rows=f"{gcs_path}/{ts}/*",
             feature_refs=["feature_value2"],
             project=PROJECT_NAME,
         )

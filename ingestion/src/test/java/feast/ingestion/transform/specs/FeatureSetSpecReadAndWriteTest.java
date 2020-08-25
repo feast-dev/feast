@@ -22,14 +22,12 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.io.Files;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.IngestionJobProto;
 import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
 import feast.test.TestUtil;
-import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
@@ -44,14 +42,13 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.junit.*;
+import org.testcontainers.containers.KafkaContainer;
 
 public class FeatureSetSpecReadAndWriteTest {
   @Rule public transient TestPipeline p = TestPipeline.fromOptions(makePipelineOptions());
 
-  private static final String KAFKA_HOST = "localhost";
-  private static final int KAFKA_PORT = 29092;
-  private static final String KAFKA_BOOTSTRAP_SERVERS = KAFKA_HOST + ":" + KAFKA_PORT;
-  private static final short KAFKA_REPLICATION_FACTOR = 1;
+  @ClassRule public static KafkaContainer kafkaContainer = new KafkaContainer();
+
   private static final String KAFKA_TOPIC = "topic";
   private static final String KAFKA_SPECS_TOPIC = "topic_specs";
   private static final String KAFKA_SPECS_ACK_TOPIC = "topic_specs_ack";
@@ -61,34 +58,18 @@ public class FeatureSetSpecReadAndWriteTest {
 
   private KafkaConsumer<String, IngestionJobProto.FeatureSetSpecAck> consumer;
 
-  @SuppressWarnings("UnstableApiUsage")
-  private static final String ZOOKEEPER_DATA_DIR = Files.createTempDir().getAbsolutePath();
-
-  private static final String ZOOKEEPER_HOST = "localhost";
-  private static final int ZOOKEEPER_PORT = 2183;
-
-  @BeforeClass
-  public static void setupClass() throws IOException, InterruptedException {
-    TestUtil.LocalKafka.start(
-        KAFKA_HOST,
-        KAFKA_PORT,
-        KAFKA_REPLICATION_FACTOR,
-        true,
-        ZOOKEEPER_HOST,
-        ZOOKEEPER_PORT,
-        ZOOKEEPER_DATA_DIR);
-  }
-
   @Before
-  public void setup() {
+  public void setUp() {
     consumer =
         TestUtil.makeKafkaConsumer(
-            KAFKA_BOOTSTRAP_SERVERS, KAFKA_SPECS_ACK_TOPIC, AckMessageDeserializer.class);
+            kafkaContainer.getBootstrapServers(),
+            KAFKA_SPECS_ACK_TOPIC,
+            AckMessageDeserializer.class);
   }
 
-  @AfterClass
-  public static void tearDown() {
-    TestUtil.LocalKafka.stop();
+  @After
+  public void tearDown() {
+    consumer.close();
   }
 
   public static PipelineOptions makePipelineOptions() {
@@ -104,7 +85,7 @@ public class FeatureSetSpecReadAndWriteTest {
         SourceProto.Source.newBuilder()
             .setKafkaSourceConfig(
                 SourceProto.KafkaSourceConfig.newBuilder()
-                    .setBootstrapServers(KAFKA_BOOTSTRAP_SERVERS)
+                    .setBootstrapServers(kafkaContainer.getBootstrapServers())
                     .setTopic(KAFKA_TOPIC)
                     .build())
             .build();
@@ -122,12 +103,12 @@ public class FeatureSetSpecReadAndWriteTest {
         IngestionJobProto.SpecsStreamingUpdateConfig.newBuilder()
             .setSource(
                 SourceProto.KafkaSourceConfig.newBuilder()
-                    .setBootstrapServers(KAFKA_BOOTSTRAP_SERVERS)
+                    .setBootstrapServers(kafkaContainer.getBootstrapServers())
                     .setTopic(KAFKA_SPECS_TOPIC)
                     .build())
             .setAck(
                 SourceProto.KafkaSourceConfig.newBuilder()
-                    .setBootstrapServers(KAFKA_BOOTSTRAP_SERVERS)
+                    .setBootstrapServers(kafkaContainer.getBootstrapServers())
                     .setTopic(KAFKA_SPECS_ACK_TOPIC)
                     .build())
             .build();
@@ -222,7 +203,7 @@ public class FeatureSetSpecReadAndWriteTest {
             .build();
 
     TestUtil.publishToKafka(
-        KAFKA_BOOTSTRAP_SERVERS,
+        kafkaContainer.getBootstrapServers(),
         KAFKA_SPECS_TOPIC,
         ImmutableList.of(Pair.of(getFeatureSetStringRef(spec), spec)),
         ByteArraySerializer.class,

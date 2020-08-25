@@ -20,7 +20,6 @@ import static feast.common.models.FeatureSet.getFeatureSetStringRef;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.Hashing;
-import com.google.common.io.Files;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
 import com.google.protobuf.Timestamp;
@@ -32,7 +31,6 @@ import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FeatureRowProto.FeatureRow.Builder;
 import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.*;
-import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
@@ -46,8 +44,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import kafka.server.KafkaConfig;
-import kafka.server.KafkaServerStartable;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -62,86 +58,10 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.apache.zookeeper.server.ServerConfig;
-import org.apache.zookeeper.server.ZooKeeperServerMain;
 import org.joda.time.Duration;
-import redis.embedded.RedisServer;
 
 @SuppressWarnings("WeakerAccess")
 public class TestUtil {
-
-  public static class LocalRedis {
-
-    private static RedisServer server;
-
-    /**
-     * Start local Redis for used in testing at "localhost"
-     *
-     * @param port port number
-     * @throws IOException if Redis failed to start
-     */
-    public static void start(int port) throws IOException {
-      server = new RedisServer(port);
-      server.start();
-    }
-
-    public static void stop() {
-      if (server != null) {
-        server.stop();
-      }
-    }
-  }
-
-  public static class LocalKafka {
-
-    private static KafkaServerStartable server;
-
-    /**
-     * Start local Kafka and (optionally) Zookeeper
-     *
-     * @param kafkaHost e.g. localhost
-     * @param kafkaPort e.g. 60001
-     * @param kafkaReplicationFactor e.g. 1
-     * @param zookeeperHost e.g. localhost
-     * @param zookeeperPort e.g. 60002
-     * @param zookeeperDataDir e.g. "/tmp" or "Files.createTempDir().getAbsolutePath()"
-     */
-    public static void start(
-        String kafkaHost,
-        int kafkaPort,
-        short kafkaReplicationFactor,
-        boolean startZookeper,
-        String zookeeperHost,
-        int zookeeperPort,
-        String zookeeperDataDir)
-        throws InterruptedException {
-      if (startZookeper) {
-        LocalZookeeper.start(zookeeperPort, zookeeperDataDir);
-        Thread.sleep(5000);
-      }
-      Properties kafkaProp = new Properties();
-      kafkaProp.put("zookeeper.connect", zookeeperHost + ":" + zookeeperPort);
-      kafkaProp.put("host.name", kafkaHost);
-      kafkaProp.put("port", kafkaPort);
-      kafkaProp.put("log.dir", Files.createTempDir().getAbsolutePath());
-      kafkaProp.put("offsets.topic.replication.factor", kafkaReplicationFactor);
-      KafkaConfig kafkaConfig = new KafkaConfig(kafkaProp);
-      server = new KafkaServerStartable(kafkaConfig);
-      new Thread(server::startup).start();
-      Thread.sleep(5000);
-    }
-
-    public static void stop() {
-      if (server != null) {
-        try {
-          server.shutdown();
-          LocalZookeeper.stop();
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
-      }
-    }
-  }
 
   /**
    * Publish test Feature Row messages to a running Kafka broker
@@ -165,17 +85,17 @@ public class TestUtil {
     prop.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, valueSerializer);
     Producer<String, byte[]> producer = new KafkaProducer<>(prop);
 
-    messages.forEach(
-        featureRow -> {
-          ProducerRecord<String, byte[]> record =
-              new ProducerRecord<>(
-                  topic, featureRow.getLeft(), featureRow.getRight().toByteArray());
-          try {
-            producer.send(record).get(publishTimeoutSec, TimeUnit.SECONDS);
-          } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            e.printStackTrace();
-          }
-        });
+    for (Pair<String, T> featureRow : messages) {
+      ProducerRecord<String, byte[]> record =
+          new ProducerRecord<>(topic, featureRow.getLeft(), featureRow.getRight().toByteArray());
+      try {
+        producer.send(record).get(publishTimeoutSec, TimeUnit.SECONDS);
+      } catch (InterruptedException | ExecutionException | TimeoutException e) {
+        e.printStackTrace();
+      }
+    }
+
+    producer.close();
   }
 
   public static <T> KafkaConsumer<String, T> makeKafkaConsumer(
@@ -347,30 +267,6 @@ public class TestUtil {
                     .findFirst()
                     .ifPresent(builder::addEntities));
     return builder.build();
-  }
-
-  private static class LocalZookeeper {
-    public static Thread thread;
-
-    static void start(int zookeeperPort, String zookeeperDataDir) {
-      ZooKeeperServerMain zookeeper = new ZooKeeperServerMain();
-      final ServerConfig serverConfig = new ServerConfig();
-      serverConfig.parse(new String[] {String.valueOf(zookeeperPort), zookeeperDataDir});
-      thread =
-          new Thread(
-              () -> {
-                try {
-                  zookeeper.runFromConfig(serverConfig);
-                } catch (Exception e) {
-                  e.printStackTrace();
-                }
-              });
-      thread.start();
-    }
-
-    static void stop() {
-      thread.interrupt();
-    }
   }
 
   // Modified version of
