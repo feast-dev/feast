@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.protobuf.Timestamp;
-import feast.auth.credentials.OAuthCredentials;
+import feast.common.auth.credentials.OAuthCredentials;
 import feast.proto.core.CoreServiceGrpc;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.FeatureSetStatus;

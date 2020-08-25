@@ -17,8 +17,8 @@
 package feast.core.grpc;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.auth.interceptors.GrpcMessageInterceptor;
-import feast.auth.service.AuthorizationService;
+import feast.common.auth.interceptors.GrpcMessageInterceptor;
+import feast.common.auth.service.AuthorizationService;
 import feast.core.config.FeastProperties;
 import feast.core.exception.RetrievalException;
 import feast.core.grpc.interceptors.MonitoringInterceptor;

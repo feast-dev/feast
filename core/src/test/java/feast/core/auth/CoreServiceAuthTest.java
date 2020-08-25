@@ -24,10 +24,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.auth.authorization.AuthorizationProvider;
-import feast.auth.authorization.AuthorizationResult;
-import feast.auth.config.SecurityProperties;
-import feast.auth.service.AuthorizationService;
+import feast.common.auth.authorization.AuthorizationProvider;
+import feast.common.auth.authorization.AuthorizationResult;
+import feast.common.auth.config.SecurityProperties;
+import feast.common.auth.service.AuthorizationService;
 import feast.core.config.FeastProperties;
 import feast.core.dao.ProjectRepository;
 import feast.core.grpc.CoreServiceImpl;

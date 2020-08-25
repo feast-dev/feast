@@ -16,8 +16,8 @@
  */
 package feast.serving.config;
 
-import feast.auth.credentials.GoogleAuthCredentials;
-import feast.auth.credentials.OAuthCredentials;
+import feast.common.auth.credentials.GoogleAuthCredentials;
+import feast.common.auth.credentials.OAuthCredentials;
 import feast.proto.serving.ServingServiceGrpc;
 import io.grpc.CallCredentials;
 import io.grpc.health.v1.HealthGrpc;
@@ -48,7 +48,11 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @ComponentScan(
-    basePackages = {"feast.auth.config", "feast.auth.service", "feast.auth.interceptors"})
+    basePackages = {
+      "feast.common.auth.config",
+      "feast.common.auth.service",
+      "feast.common.auth.interceptors"
+    })
 public class ServingSecurityConfig {
 
   private final FeastProperties feastProperties;

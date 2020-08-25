@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.auth.utils;
+package feast.common.auth.utils;
 
 import java.util.Map;
 import org.hibernate.validator.internal.constraintvalidators.bv.EmailValidator;

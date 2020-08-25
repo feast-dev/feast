@@ -24,12 +24,12 @@ import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.protobuf.Timestamp;
-import feast.auth.authorization.AuthorizationProvider;
-import feast.auth.authorization.AuthorizationResult;
-import feast.auth.config.SecurityProperties;
-import feast.auth.config.SecurityProperties.AuthenticationProperties;
-import feast.auth.config.SecurityProperties.AuthorizationProperties;
-import feast.auth.service.AuthorizationService;
+import feast.common.auth.authorization.AuthorizationProvider;
+import feast.common.auth.authorization.AuthorizationResult;
+import feast.common.auth.config.SecurityProperties;
+import feast.common.auth.config.SecurityProperties.AuthenticationProperties;
+import feast.common.auth.config.SecurityProperties.AuthorizationProperties;
+import feast.common.auth.service.AuthorizationService;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;

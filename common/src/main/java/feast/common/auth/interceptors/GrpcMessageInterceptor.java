@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.auth.interceptors;
+package feast.common.auth.interceptors;
 
 import com.google.protobuf.Empty;
 import com.google.protobuf.Message;
-import feast.auth.config.SecurityProperties;
-import feast.auth.config.SecurityProperties.AuthenticationProperties;
-import feast.auth.utils.AuthUtils;
+import feast.common.auth.config.SecurityProperties;
+import feast.common.auth.config.SecurityProperties.AuthenticationProperties;
+import feast.common.auth.utils.AuthUtils;
 import feast.common.logging.AuditLogger;
 import feast.common.logging.entry.MessageAuditLogEntry;
 import io.grpc.ForwardingServerCall.SimpleForwardingServerCall;

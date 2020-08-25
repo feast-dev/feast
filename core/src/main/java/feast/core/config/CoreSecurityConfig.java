@@ -30,7 +30,11 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @Slf4j
 @ComponentScan(
-    basePackages = {"feast.auth.config", "feast.auth.service", "feast.auth.interceptors"})
+    basePackages = {
+      "feast.common.auth.config",
+      "feast.common.auth.service",
+      "feast.common.auth.interceptors"
+    })
 public class CoreSecurityConfig {
 
   /**

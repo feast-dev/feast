@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.auth.config;
+package feast.common.auth.config;
 
-import feast.auth.authentication.DefaultJwtAuthenticationProvider;
-import feast.auth.authorization.AuthorizationProvider;
-import feast.auth.providers.http.HttpAuthorizationProvider;
+import feast.common.auth.authentication.DefaultJwtAuthenticationProvider;
+import feast.common.auth.authorization.AuthorizationProvider;
+import feast.common.auth.providers.http.HttpAuthorizationProvider;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;

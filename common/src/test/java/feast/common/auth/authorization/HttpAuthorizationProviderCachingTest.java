@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.auth.authorization;
+package feast.common.auth.authorization;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
@@ -22,14 +22,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.google.common.collect.ImmutableMap;
-import feast.auth.config.CacheConfiguration;
-import feast.auth.config.SecurityProperties;
-import feast.auth.config.SecurityProperties.AuthenticationProperties;
-import feast.auth.config.SecurityProperties.AuthorizationProperties;
-import feast.auth.providers.http.HttpAuthorizationProvider;
-import feast.auth.providers.http.client.api.DefaultApi;
-import feast.auth.providers.http.client.model.AuthorizationResult;
-import feast.auth.providers.http.client.model.CheckAccessRequest;
+import feast.common.auth.config.CacheConfiguration;
+import feast.common.auth.config.SecurityProperties;
+import feast.common.auth.config.SecurityProperties.AuthenticationProperties;
+import feast.common.auth.config.SecurityProperties.AuthorizationProperties;
+import feast.common.auth.providers.http.HttpAuthorizationProvider;
+import feast.common.auth.providers.http.client.api.DefaultApi;
+import feast.common.auth.providers.http.client.model.AuthorizationResult;
+import feast.common.auth.providers.http.client.model.CheckAccessRequest;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Test;

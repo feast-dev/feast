@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.auth.credentials;
+package feast.common.auth.credentials;
 
 import feast.common.validators.OneOfStrings;
 import java.util.Map;

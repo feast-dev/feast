@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.auth.config;
+package feast.common.auth.config;
 
 import com.google.common.cache.CacheBuilder;
-import feast.auth.utils.AuthUtils;
+import feast.common.auth.utils.AuthUtils;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;

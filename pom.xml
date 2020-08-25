@@ -37,7 +37,6 @@
         <module>sdk/java</module>
         <module>docs/coverage/java</module>
         <module>common</module>
-        <module>auth</module>
         <module>job-controller</module>
         <module>common-test</module>
     </modules>
@@ -298,7 +297,7 @@
             <dependency>
                 <groupId>com.google.code.gson</groupId>
                 <artifactId>gson</artifactId>
-                <version>2.8.5</version>
+                <version>2.8.6</version>
             </dependency>
 
             <!-- Misc Testing -->
