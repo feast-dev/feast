@@ -47,6 +47,7 @@ public class DataflowRunnerConfig extends RunnerConfig {
     this.labels = runnerConfigOptions.getLabelsMap();
     this.enableStreamingEngine = runnerConfigOptions.getEnableStreamingEngine();
     this.workerDiskType = runnerConfigOptions.getWorkerDiskType();
+    this.kafkaConsumerProperties = runnerConfigOptions.getKafkaConsumerPropertiesMap();
     validate();
   }
 
@@ -99,6 +100,9 @@ public class DataflowRunnerConfig extends RunnerConfig {
 
   /* Type of persistent disk to be used by workers */
   public String workerDiskType;
+
+  /* Kafka Consumer Config Properties used in FeatureRow Consumer */
+  public Map<String, String> kafkaConsumerProperties;
 
   /** Validates Dataflow runner configuration options */
   public void validate() {

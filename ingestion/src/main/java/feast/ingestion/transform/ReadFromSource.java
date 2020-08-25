@@ -24,6 +24,8 @@ import feast.proto.core.SourceProto.SourceType;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.storage.api.writer.FailedElement;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -32,7 +34,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 @AutoValue
 public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple> {
@@ -42,6 +44,8 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
   public abstract TupleTag<FeatureRow> getSuccessTag();
 
   public abstract TupleTag<FailedElement> getFailureTag();
+
+  public abstract Map<String, String> getKafkaConsumerProperties();
 
   public static Builder newBuilder() {
     return new AutoValue_ReadFromSource.Builder();
@@ -55,6 +59,8 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
     public abstract Builder setSuccessTag(TupleTag<FeatureRow> successTag);
 
     public abstract Builder setFailureTag(TupleTag<FailedElement> failureTag);
+
+    public abstract Builder setKafkaConsumerProperties(Map<String, String> kafkaConsumerProperties);
 
     abstract ReadFromSource autobuild();
 
@@ -75,6 +81,11 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
 
   @Override
   public PCollectionTuple expand(PBegin input) {
+    Map<String, Object> consumerProperties = new HashMap<>(getKafkaConsumerProperties());
+    consumerProperties.put(
+        ConsumerConfig.GROUP_ID_CONFIG,
+        generateConsumerGroupId(input.getPipeline().getOptions().getJobName()));
+
     return input
         .getPipeline()
         .apply(
@@ -82,10 +93,7 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
             KafkaIO.readBytes()
                 .withBootstrapServers(getSource().getKafkaSourceConfig().getBootstrapServers())
                 .withTopic(getSource().getKafkaSourceConfig().getTopic())
-                .withConsumerConfigUpdates(
-                    ImmutableMap.of(
-                        "group.id",
-                        generateConsumerGroupId(input.getPipeline().getOptions().getJobName())))
+                .withConsumerConfigUpdates(consumerProperties)
                 .withReadCommitted()
                 .commitOffsetsInFinalize())
         .apply(
