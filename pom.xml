@@ -792,7 +792,7 @@
                     <configuration>
                         <compilerArgs>
                             <arg>-Xlint:all</arg>
-                            <arg>-Xdoclint:all</arg>
+                            <arg>-Xdoclint:none</arg>
                         </compilerArgs>
                     </configuration>
                 </plugin>

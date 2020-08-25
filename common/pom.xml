@@ -31,8 +31,8 @@
     <artifactId>feast-common</artifactId>
 
     <properties>
-        <feast.common.auth.providers.http.client.package.name>feast.common.auth.providers.http.client
-        </feast.common.auth.providers.http.client.package.name>
+        <feast.auth.providers.http.client.package.name>feast.common.auth.providers.http.client
+        </feast.auth.providers.http.client.package.name>
     </properties>
 
     <dependencies>
@@ -236,10 +236,10 @@
                         <configuration>
                             <inputSpec>${project.basedir}/src/main/resources/api.yaml</inputSpec>
                             <generatorName>java</generatorName>
-                            <packageName>${feast.common.auth.providers.http.client.package.name}</packageName>
-                            <modelPackage>${feast.common.auth.providers.http.client.package.name}.model</modelPackage>
-                            <apiPackage>${feast.common.auth.providers.http.client.package.name}.api</apiPackage>
-                            <invokerPackage>${feast.common.auth.providers.http.client.package.name}.invoker</invokerPackage>
+                            <packageName>${feast.auth.providers.http.client.package.name}</packageName>
+                            <modelPackage>${feast.auth.providers.http.client.package.name}.model</modelPackage>
+                            <apiPackage>${feast.auth.providers.http.client.package.name}.api</apiPackage>
+                            <invokerPackage>${feast.auth.providers.http.client.package.name}.invoker</invokerPackage>
                             <configOptions>
                                 <groupId>${project.groupId}</groupId>
                                 <artifactId>${project.artifactId}</artifactId>
@@ -258,7 +258,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
-                    <excludePackageNames>feast.common.auth.providers.http.client.*</excludePackageNames>
+                    <excludePackageNames>${feast.auth.providers.http.client.package.name}.*</excludePackageNames>
                 </configuration>
             </plugin>
             <plugin>

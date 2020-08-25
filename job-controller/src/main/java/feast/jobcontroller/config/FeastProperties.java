@@ -39,7 +39,7 @@ import org.springframework.context.annotation.Configuration;
 @Getter
 @Setter
 @Configuration
-@ComponentScan(basePackages = {"feast.common.logging", "feast.auth.interceptors"})
+@ComponentScan("feast.common.logging.interceptors")
 @ConfigurationProperties(prefix = "feast", ignoreInvalidFields = true)
 public class FeastProperties {
 
