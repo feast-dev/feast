@@ -1044,8 +1044,7 @@ class TestClient:
         self, _mocked_obj, secure_serving_server
     ):
         client = Client(
-            core_url="localhost:443",
-            serving_url=f"localhost:{secure_serving_server}",
+            core_url="localhost:443", serving_url=f"localhost:{secure_serving_server}",
         )
         with mock.patch("grpc.secure_channel") as _grpc_mock, mock.patch(
             "grpc.ssl_channel_credentials", MagicMock(return_value="test")
@@ -1074,7 +1073,5 @@ class TestClient:
     def test_no_auth_sent_when_auth_disabled(
         self, insecure_core_server_that_blocks_auth
     ):
-        client = Client(
-            core_url=f"localhost:{insecure_core_server_that_blocks_auth}"
-        )
+        client = Client(core_url=f"localhost:{insecure_core_server_that_blocks_auth}")
         client.list_feature_sets()
