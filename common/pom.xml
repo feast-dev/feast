@@ -30,11 +30,6 @@
     <description>Feast common module with functionality that can be reused</description>
     <artifactId>feast-common</artifactId>
 
-    <properties>
-        <feast.auth.providers.http.client.package.name>feast.common.auth.providers.http.client
-        </feast.auth.providers.http.client.package.name>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>dev.feast</groupId>
