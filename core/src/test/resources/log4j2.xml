@@ -16,7 +16,7 @@
   ~
   -->
 
-<Configuration status="WARN" package="feast.core.logging">
+<Configuration status="WARN" packages="feast.core.logging">
     <Properties>
         <Property name="LOG_PATTERN">
             %d{yyyy-MM-dd HH:mm:ss.SSS} %5p ${hostName} --- [%15.15t] %-40.40c{1.} : %m%n%ex

@@ -20,6 +20,8 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
+import org.apache.logging.log4j.core.Appender;
+import org.apache.logging.log4j.core.Core;
 import org.apache.logging.log4j.core.Filter;
 import org.apache.logging.log4j.core.Layout;
 import org.apache.logging.log4j.core.LogEvent;
@@ -32,7 +34,10 @@ import org.apache.logging.log4j.core.config.plugins.PluginFactory;
 import org.apache.logging.log4j.core.layout.PatternLayout;
 
 /** Test Log Appender used for collecting logs for testing logging. */
-@Plugin(name = "TestLogAppender", category = "Core", elementType = "appender", printObject = true)
+@Plugin(
+    name = "TestLogAppender",
+    category = Core.CATEGORY_NAME,
+    elementType = Appender.ELEMENT_TYPE)
 @Getter
 public class TestLogAppender extends AbstractAppender {
   private List<String> logs;
