@@ -9,7 +9,6 @@ WORKDIR /build
 COPY pom.xml .
 COPY datatypes/java/pom.xml datatypes/java/pom.xml
 COPY common/pom.xml common/pom.xml
-COPY auth/pom.xml auth/pom.xml
 COPY ingestion/pom.xml ingestion/pom.xml
 COPY core/pom.xml core/pom.xml
 COPY serving/pom.xml serving/pom.xml
