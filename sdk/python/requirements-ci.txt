@@ -1,5 +1,5 @@
 flake8
-black
+black==19.10b0
 isort>=5
 grpcio-tools
 mypy-protobuf

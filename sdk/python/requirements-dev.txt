@@ -35,6 +35,6 @@ mypy
 mypy-protobuf
 pre-commit
 flake8
-black
+black==19.10b0
 boto3
 moto
