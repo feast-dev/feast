@@ -32,7 +32,8 @@ feast:
       enabled: false
       provider: http
       options:
-        basePath: http://localhost:3000
+        authorizationUrl: http://localhost:8082
+        subjectClaim: email
 
   # List of store configurations
   stores:

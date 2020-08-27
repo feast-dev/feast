@@ -353,8 +353,8 @@ class Client:
             raise grpc.RpcError(e.details())
 
         # revert to the default project
-        if self._project == project:
-            self._project = FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY]
+        if self.project and self.project == project:
+            self.set_project(project=FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY])
 
     def apply(self, feature_sets: Union[List[FeatureSet], FeatureSet]):
         """
