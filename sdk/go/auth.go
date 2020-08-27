@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -111,19 +109,4 @@ func (provider *OAuthProvider) Token() (string, error) {
 	}
 
 	return provider.token.AccessToken, nil
-}
-
-// Create an GRPC Authentication interceptor with the given AuthProvider.
-// Interceptor will append token from provider to grpc metadata to authenticate with Feast.
-// provider - AuthProvider used to provide credentials
-func NewAuthInterceptor(provider AuthProvider) grpc.UnaryClientInterceptor {
-	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn,
-		invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		token, err := provider.Token()
-		if err != nil {
-			return fmt.Errorf("Failed obtain token from Authentication provider: %v", err)
-		}
-		ctx = metadata.AppendToOutgoingContext(ctx, "Authorization", "Bearer "+token)
-		return invoker(ctx, method, req, reply, cc, opts...)
-	}
 }
