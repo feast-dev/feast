@@ -53,7 +53,7 @@ feast:
   logging:
     # Logging forwarder currently provides a machine readable structured JSON log to an
     # external fluentd service that can give better insight into what is happening in Feast.
-    forwarder:
+    logForwarderProperties:
       enabled: false
       fluentdHost: localhost
       fluentdPort: 24224

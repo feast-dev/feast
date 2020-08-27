@@ -16,6 +16,8 @@
  */
 package feast.common.logging;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import feast.common.logging.config.LoggingProperties;
 import feast.common.logging.config.LoggingProperties.AuditLogProperties;
 import feast.common.logging.config.LoggingProperties.LogForwarderProperties;
@@ -40,7 +42,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class AuditLogger {
   private static final Marker AUDIT_MARKER = MarkerFactory.getMarker("AUDIT_MARK");
-  private static FluentLogger FLUENT_LOGGER;
+  private static FluentLogger fluentLogger;
   private static AuditLogProperties properties;
   private static BuildProperties buildProperties;
   private static LogForwarderProperties logForwarderProperties;
@@ -52,7 +54,14 @@ public class AuditLogger {
     // This allows us to use the dependencies in the AuditLogger's static methods
     AuditLogger.properties = loggingProperties.getAudit();
     AuditLogger.buildProperties = buildProperties;
-    AuditLogger.logForwarderProperties = loggingProperties.getForwarder();
+    AuditLogger.logForwarderProperties = loggingProperties.getLogForwarderProperties();
+    if (loggingProperties.getLogForwarderProperties().isEnabled()) {
+      AuditLogger.fluentLogger =
+          FluentLogger.getLogger(
+              "feast",
+              AuditLogger.logForwarderProperties.getFluentdHost(),
+              AuditLogger.logForwarderProperties.getFluentdPort());
+    }
   }
 
   /**
@@ -60,29 +69,25 @@ public class AuditLogger {
    *
    * @param entryBuilder with all fields set except instance.
    */
-  public static void logMessage(Level level, MessageAuditLogEntry.Builder entryBuilder) {
+  public static void logMessage(Level level, MessageAuditLogEntry.Builder entryBuilder)
+      throws InvalidProtocolBufferException {
     log(
         level,
         entryBuilder
             .setComponent(buildProperties.getArtifact())
             .setVersion(buildProperties.getVersion())
             .build());
-    Map<String, Object> fluentDLogs = new HashMap<>();
+    Map<String, Object> fluentdLogs = new HashMap<>();
 
     if (logForwarderProperties.isEnabled()) {
-      FLUENT_LOGGER =
-          FluentLogger.getLogger(
-              "feast",
-              logForwarderProperties.getFluentdHost(),
-              logForwarderProperties.getFluentdPort());
-      fluentDLogs.put("id", entryBuilder.build().getId());
-      fluentDLogs.put("service", entryBuilder.build().getService());
-      fluentDLogs.put("status_code", entryBuilder.build().getStatusCode());
-      fluentDLogs.put("method", entryBuilder.build().getMethod());
-      fluentDLogs.put("request", entryBuilder.build().getRequest());
-      fluentDLogs.put("response", entryBuilder.build().getResponse());
+      fluentdLogs.put("id", entryBuilder.build().getId());
+      fluentdLogs.put("service", entryBuilder.build().getService());
+      fluentdLogs.put("status_code", entryBuilder.build().getStatusCode());
+      fluentdLogs.put("method", entryBuilder.build().getMethod());
+      fluentdLogs.put("request", JsonFormat.printer().print(entryBuilder.build().getRequest()));
+      fluentdLogs.put("response", JsonFormat.printer().print(entryBuilder.build().getResponse()));
       // tag can be used as "service" to split rr logs into separate tables
-      FLUENT_LOGGER.log("fluentd", fluentDLogs);
+      fluentLogger.log("fluentd", fluentdLogs);
     }
   }
 

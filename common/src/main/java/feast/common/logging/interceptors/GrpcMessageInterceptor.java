@@ -33,6 +33,7 @@ import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
 import io.grpc.Status;
 import java.util.Map;
+import lombok.SneakyThrows;
 import org.slf4j.event.Level;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.Nullable;
@@ -104,6 +105,7 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
             entryBuilder.setResponse((Message) message);
           }
 
+          @SneakyThrows
           @Override
           public void close(Status status, Metadata trailers) {
             super.close(status, trailers);

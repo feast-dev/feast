@@ -24,7 +24,7 @@ import lombok.Setter;
 @Setter
 public class LoggingProperties {
   @NotNull private AuditLogProperties audit;
-  @NotNull private LogForwarderProperties forwarder;
+  @NotNull private LogForwarderProperties logForwarderProperties;
 
   @Getter
   @Setter
