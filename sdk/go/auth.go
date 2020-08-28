@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"google.golang.org/api/idtoken"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"io/ioutil"
@@ -33,12 +34,14 @@ func (provider *StaticProvider) Token() (string, error) {
 type GoogleProvider struct {
 	token                  *oauth2.Token
 	findDefaultCredentials func(ctx context.Context, scopes ...string) (*google.Credentials, error)
+	makeTokenSource func(ctx context.Context, audience string, opts ...idtoken.ClientOption) (oauth2.TokenSource, error)
 }
 
 func NewGoogleProvider() *GoogleProvider {
 	return &GoogleProvider{
 		token:                  nil,
 		findDefaultCredentials: google.FindDefaultCredentials,
+		makeTokenSource: idtoken.NewTokenSource,
 	}
 }
 
@@ -46,19 +49,23 @@ func NewGoogleProvider() *GoogleProvider {
 func (provider *GoogleProvider) Token() (string, error) {
 	if provider.token == nil || !provider.token.Valid() {
 		// Refresh a Google Id token
-		// Attempt to refresh Token from Google Application Default Credentials
+		// Attempt to id token from Google Application Default Credentials
 		ctx := context.Background()
 		creds, err := provider.findDefaultCredentials(ctx, "openid", "email")
 		if err != nil {
 			return "", err
 		}
-		token, err := creds.TokenSource.Token()
+		// TODO: remove hardcode.
+		aud := "localhost"
+		src, err := provider.makeTokenSource(ctx, aud, idtoken.WithCredentialsJSON(creds.JSON))
 		if err != nil {
 			return "", err
 		}
-		provider.token = token
+		provider.token, err = src.Token()
+		if err != nil {
+			return "", err
+		}
 	}
-
 	return provider.token.AccessToken, nil
 }
 
@@ -97,7 +104,6 @@ func (provider *OAuthProvider) Token() (string, error) {
 			return "", fmt.Errorf("OAuth Endpoint returned unexpected status: %s", resp.Status)
 		}
 		respBytes, err := ioutil.ReadAll(resp.Body)
-		fmt.Println(string(respBytes))
 		if err != nil {
 			return "", err
 		}
@@ -107,6 +113,6 @@ func (provider *OAuthProvider) Token() (string, error) {
 			return "", err
 		}
 	}
-
+	
 	return provider.token.AccessToken, nil
 }

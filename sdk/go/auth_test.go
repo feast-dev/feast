@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"google.golang.org/api/idtoken"
 )
 
 // Returns a mocked google authentication provider
@@ -19,16 +20,25 @@ func mockGoogleProvider(token string) *GoogleProvider {
 	return &GoogleProvider{
 		// mock find default credentials implementation.
 		findDefaultCredentials: func(ctx context.Context, scopes ...string) (*google.Credentials, error) {
-			if scopes[0] != "openid" && scopes[1] != "email" {
+			if len(scopes) != 2 && scopes[0] != "openid" && scopes[1] != "email" {
 				return nil, fmt.Errorf("Got bad scopes. Expected 'openid', 'email'")
 			}
 
 			return &google.Credentials{
-				ProjectID: "",
-				TokenSource: oauth2.StaticTokenSource(&oauth2.Token{
-					AccessToken: token,
-				}),
+				ProjectID: "project_id",
+				JSON: []byte("mock key json"),
 			}, nil
+		},
+		// mock id token source implementation.
+		makeTokenSource: func(ctx context.Context, audience string, opts ...idtoken.ClientOption) (oauth2.TokenSource, error) {
+			// unable to check opts as ClientOption refrences internal type.
+			if len(audience) ==  0 {
+				return nil, fmt.Errorf("Audience cannot be an empty string.")
+			}
+			
+			return oauth2.StaticTokenSource(&oauth2.Token{
+				AccessToken: "google token",
+			}), nil
 		},
 	}
 }
