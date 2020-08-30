@@ -126,7 +126,7 @@ func newAuthInterceptor(provider AuthProvider) grpc.UnaryClientInterceptor {
 		if err != nil {
 			return fmt.Errorf("Failed obtain token from Authentication provider: %v", err)
 		}
-		ctx = metadata.AppendToOutgoingContext(ctx, "Authorization", "Bearer "+token)
+		ctx = metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+token)
 		return invoker(ctx, method, req, reply, cc, opts...)
 	}
 }
