@@ -5,9 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"google.golang.org/api/idtoken"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"google.golang.org/api/idtoken"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -17,7 +17,8 @@ import (
 // to be use when authenticating with Feast.
 type AuthProvider interface {
 	// Get a OIDC ID token that can be used for authenticating with Feast.
-	Token() (string, error)
+	// audience - Target audience of the obtained credentials.
+	Token(audience string) (string, error)
 }
 
 // Defines a AuthProvider that uses a static token
@@ -26,28 +27,28 @@ type StaticProvider struct {
 	StaticToken string
 }
 
-func (provider *StaticProvider) Token() (string, error) {
+func (provider *StaticProvider) Token(_ string) (string, error) {
 	return provider.StaticToken, nil
 }
 
 // Google Authentication Provider obtains credentials from Application Default Credentials
 type GoogleProvider struct {
-	token                  *oauth2.Token
 	findDefaultCredentials func(ctx context.Context, scopes ...string) (*google.Credentials, error)
-	makeTokenSource func(ctx context.Context, audience string, opts ...idtoken.ClientOption) (oauth2.TokenSource, error)
+	makeTokenSource        func(ctx context.Context, audience string, opts ...idtoken.ClientOption) (oauth2.TokenSource, error)
+	token                  *oauth2.Token
+	audience               string
 }
 
 func NewGoogleProvider() *GoogleProvider {
 	return &GoogleProvider{
-		token:                  nil,
 		findDefaultCredentials: google.FindDefaultCredentials,
-		makeTokenSource: idtoken.NewTokenSource,
+		makeTokenSource:        idtoken.NewTokenSource,
 	}
 }
 
 /// Backend Google OAuth used by GoogleProvider to source credentials.
-func (provider *GoogleProvider) Token() (string, error) {
-	if provider.token == nil || !provider.token.Valid() {
+func (provider *GoogleProvider) Token(audience string) (string, error) {
+	if provider.token == nil || !provider.token.Valid() || provider.audience != audience {
 		// Refresh a Google Id token
 		// Attempt to id token from Google Application Default Credentials
 		ctx := context.Background()
@@ -55,13 +56,12 @@ func (provider *GoogleProvider) Token() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		// TODO: remove hardcode.
-		aud := "localhost"
-		src, err := provider.makeTokenSource(ctx, aud, idtoken.WithCredentialsJSON(creds.JSON))
+		src, err := provider.makeTokenSource(ctx, audience, idtoken.WithCredentialsJSON(creds.JSON))
 		if err != nil {
 			return "", err
 		}
 		provider.token, err = src.Token()
+		provider.audience = audience
 		if err != nil {
 			return "", err
 		}
@@ -75,21 +75,19 @@ type OAuthProvider struct {
 	// Client credentials used to authenticate the client when obtaining credentials.
 	ClientId     string
 	ClientSecret string
-	// Target audience of the obtained credentials.
-	Audience string
-	// Target endpoint to make request to refresh credentials.
-	EndpointURL *url.URL
-	token       *oauth2.Token
+	EndpointURL  *url.URL
+	token        *oauth2.Token
+	audience     string
 }
 
-func (provider *OAuthProvider) Token() (string, error) {
-	if provider.token == nil || !provider.token.Valid() {
+func (provider *OAuthProvider) Token(audience string) (string, error) {
+	if provider.token == nil || !provider.token.Valid() || provider.audience != audience {
 		// Refresh Oauth Id token by making Oauth client credentials request
 		reqMap := map[string]string{
 			"grant_type":    "client_credentials",
 			"client_id":     provider.ClientId,
 			"client_secret": provider.ClientSecret,
-			"audience":      provider.Audience,
+			"audience":      audience,
 		}
 		reqBytes, err := json.Marshal(reqMap)
 		if err != nil {
@@ -108,11 +106,12 @@ func (provider *OAuthProvider) Token() (string, error) {
 			return "", err
 		}
 		provider.token = &oauth2.Token{}
+		provider.audience = audience
 		err = json.Unmarshal(respBytes, provider.token)
 		if err != nil {
 			return "", err
 		}
 	}
-	
+
 	return provider.token.AccessToken, nil
 }

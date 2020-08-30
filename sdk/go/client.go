@@ -122,7 +122,8 @@ func (fc *GrpcClient) Close() error {
 func newAuthInterceptor(provider AuthProvider) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn,
 		invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		token, err := provider.Token()
+		// configure service address as token audience.
+		token, err := provider.Token(cc.Target())
 		if err != nil {
 			return fmt.Errorf("Failed obtain token from Authentication provider: %v", err)
 		}

@@ -16,7 +16,7 @@ import (
 )
 
 // Returns a mocked google authentication provider
-func mockGoogleProvider(token string) *GoogleProvider {
+func mockGoogleProvider(token string, targetAudience string) *GoogleProvider {
 	return &GoogleProvider{
 		// mock find default credentials implementation.
 		findDefaultCredentials: func(ctx context.Context, scopes ...string) (*google.Credentials, error) {
@@ -26,16 +26,16 @@ func mockGoogleProvider(token string) *GoogleProvider {
 
 			return &google.Credentials{
 				ProjectID: "project_id",
-				JSON: []byte("mock key json"),
+				JSON:      []byte("mock key json"),
 			}, nil
 		},
 		// mock id token source implementation.
 		makeTokenSource: func(ctx context.Context, audience string, opts ...idtoken.ClientOption) (oauth2.TokenSource, error) {
 			// unable to check opts as ClientOption refrences internal type.
-			if len(audience) ==  0 {
-				return nil, fmt.Errorf("Audience cannot be an empty string.")
+			if targetAudience != audience {
+				return nil, fmt.Errorf("Audience does not match up with target audience")
 			}
-			
+
 			return oauth2.StaticTokenSource(&oauth2.Token{
 				AccessToken: "google token",
 			}), nil
@@ -51,10 +51,9 @@ type OAuthCredientialsRequest struct {
 	Audience     string `json:"audience"`
 }
 
-func mockOAuthProvider(token string) (*httptest.Server, *OAuthProvider) {
+func mockOAuthProvider(token string, audience string) (*httptest.Server, *OAuthProvider) {
 	clientId := "id"
 	clientSecret := "secret"
-	audience := "http://localhost"
 	path := "/oauth"
 
 	// Create a mock OAuth server to test Oauth provider.
@@ -90,17 +89,17 @@ func mockOAuthProvider(token string) (*httptest.Server, *OAuthProvider) {
 	})
 
 	srv := httptest.NewServer(handlers)
-	url, _ := url.Parse(srv.URL + path)
+	endpointURL, _ := url.Parse(srv.URL + path)
 	return srv, &OAuthProvider{
 		ClientId:     "id",
 		ClientSecret: "secret",
-		Audience:     "http://localhost",
-		EndpointURL:  url,
+		EndpointURL:  endpointURL,
 	}
 }
 
 func TestAuthProvider(t *testing.T) {
-	srv, oauthProvider := mockOAuthProvider("oauth token")
+	audience := "localhost"
+	srv, oauthProvider := mockOAuthProvider("oauth token", audience)
 	defer srv.Close()
 
 	tt := []struct {
@@ -121,7 +120,7 @@ func TestAuthProvider(t *testing.T) {
 		},
 		{
 			name:     "Valid Google Authentication Provider get token.",
-			provider: mockGoogleProvider("google token"),
+			provider: mockGoogleProvider("google token", audience),
 			want:     "google token",
 			wantErr:  false,
 			err:      nil,
@@ -137,7 +136,7 @@ func TestAuthProvider(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			token, err := tc.provider.Token()
+			token, err := tc.provider.Token(audience)
 			if err != nil {
 				t.Error(err)
 			}
