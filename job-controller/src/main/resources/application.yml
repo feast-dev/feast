@@ -57,8 +57,8 @@ feast:
           workerMachineType: n1-standard-1
           deadLetterTableSpec: project_id:dataset_id.table_id
           kafkaConsumerProperties:
-            "max.poll.records": "50000"
-            "receive.buffer.bytes": "33554432"
+            "[max.poll.records]": "50000"
+            "[receive.buffer.bytes]": "33554432"
 
     # Configuration options for metric collection for all ingestion jobs
     metrics:
