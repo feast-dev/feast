@@ -28,9 +28,11 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-/*
- * Google auth provider's callCredentials Implementation for serving.
- * Used by CoreSpecService to connect to core.
+/**
+ * GoogleAuthCredentials provides a Google OIDC ID token for making authenticated gRPC calls. Uses
+ * <a href="https://cloud.google.com/docs/authentication/getting-started">Google Application
+ * Default</a> credentials to obtain the OIDC token used for authentication. The given token will be
+ * passed as authorization bearer token when making calls.
  */
 public class GoogleAuthCredentials extends CallCredentials {
   private final IdTokenCredentials credentials;
@@ -38,8 +40,13 @@ public class GoogleAuthCredentials extends CallCredentials {
   private static final Metadata.Key<String> AUTHORIZATION_METADATA_KEY =
       Metadata.Key.of("Authorization", ASCII_STRING_MARSHALLER);
 
+  /**
+   * Constructa new GoogleAuthCredentials with given options.
+   *
+   * @param options a map of options, Required unless specified: audience - Optional, Sets the
+   *     target audience of the token obtained.
+   */
   public GoogleAuthCredentials(Map<String, String> options) throws IOException {
-
     String targetAudience = options.getOrDefault("audience", "https://localhost");
     ServiceAccountCredentials serviceCreds =
         (ServiceAccountCredentials)
