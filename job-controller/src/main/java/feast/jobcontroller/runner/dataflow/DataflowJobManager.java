@@ -51,6 +51,7 @@ import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.joda.time.DateTime;
 
 @Slf4j
 public class DataflowJobManager implements JobManager {
@@ -307,6 +308,9 @@ public class DataflowJobManager implements JobManager {
 
               job.setExtId(dfJob.getId());
               job.setStatus(JobStatus.RUNNING);
+              if (dfJob.getCreateTime() != null) {
+                job.setCreated(DateTime.parse(dfJob.getCreateTime()).toDate());
+              }
 
               return job;
             })

@@ -88,10 +88,10 @@ public abstract class Job {
   }
 
   public void preSave() {
-    if (created == null) {
-      created = new Date();
+    if (this.created == null) {
+      this.created = new Date();
     }
-    lastUpdated = new Date();
+    this.lastUpdated = new Date();
   }
 
   public void setExtId(String extId) {
@@ -100,6 +100,11 @@ public abstract class Job {
 
   public void setStatus(JobStatus status) {
     this.status = status;
+  }
+
+  public void setCreated(Date created) {
+    this.created = created;
+    this.lastUpdated = created;
   }
 
   public boolean hasTerminated() {

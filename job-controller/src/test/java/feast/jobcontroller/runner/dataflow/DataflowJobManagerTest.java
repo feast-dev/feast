@@ -51,6 +51,8 @@ import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.joda.time.DateTime;
+import org.joda.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -237,6 +239,8 @@ public class DataflowJobManagerTest {
 
     Printer jsonPrinter = JsonFormat.printer();
 
+    LocalDateTime created = DateTime.now().toLocalDateTime();
+
     when(dataflow
             .projects()
             .locations()
@@ -248,6 +252,7 @@ public class DataflowJobManagerTest {
             new com.google.api.services.dataflow.model.Job()
                 .setLabels(ImmutableMap.of("application", "feast"))
                 .setId("job-2")
+                .setCreateTime(created.toString())
                 .setEnvironment(
                     new Environment()
                         .setSdkPipelineOptions(
@@ -268,7 +273,9 @@ public class DataflowJobManagerTest {
                 hasProperty("id", equalTo("kafka-to-redis")),
                 hasProperty("source", equalTo(source)),
                 hasProperty("stores", hasValue(store)),
-                hasProperty("extId", equalTo("job-2")))));
+                hasProperty("extId", equalTo("job-2")),
+                hasProperty("created", equalTo(created.toDate())),
+                hasProperty("lastUpdated", equalTo(created.toDate())))));
   }
 
   @Test
