@@ -66,7 +66,7 @@ compile-protos-python: install-python-ci-dependencies
 	cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --python_out=../sdk/python/ --mypy_out=../sdk/python/ tensorflow_metadata/proto/v0/*.proto
 
 install-python: compile-protos-python
-	pip install -e sdk/python --upgrade
+	cd sdk/python; python setup.py develop
 
 test-python:
 	pytest --verbose --color=yes sdk/python/tests
