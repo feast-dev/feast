@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.auth.infra;
+package feast.common.auth.credentials;
 
 import io.grpc.CallCredentials;
 import io.grpc.Metadata;
