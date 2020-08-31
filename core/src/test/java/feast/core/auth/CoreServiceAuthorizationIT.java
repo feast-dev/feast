@@ -133,7 +133,7 @@ public class CoreServiceAuthorizationIT extends BaseIT {
     String ketoAdaptorUrl = String.format("http://%s:%s", ketoAdaptorHost, ketoAdaptorPort);
 
     // Initialize dynamic properties
-    registry.add("feast.security.authorization.options.subjectClaim", () -> subjectClaim);
+    registry.add("feast.security.authentication.options.subjectClaim", () -> subjectClaim);
     registry.add("feast.security.authentication.options.jwkEndpointURI", () -> jwkEndpointURI);
     registry.add("feast.security.authorization.options.authorizationUrl", () -> ketoAdaptorUrl);
   }

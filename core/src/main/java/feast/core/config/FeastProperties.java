@@ -16,9 +16,9 @@
  */
 package feast.core.config;
 
-import feast.auth.config.SecurityProperties;
-import feast.auth.config.SecurityProperties.AuthenticationProperties;
-import feast.auth.config.SecurityProperties.AuthorizationProperties;
+import feast.common.auth.config.SecurityProperties;
+import feast.common.auth.config.SecurityProperties.AuthenticationProperties;
+import feast.common.auth.config.SecurityProperties.AuthorizationProperties;
 import feast.common.logging.config.LoggingProperties;
 import feast.common.validators.OneOfStrings;
 import feast.core.config.FeastProperties.StreamProperties.FeatureStreamOptions;

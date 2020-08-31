@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.auth.config;
+package feast.common.auth.config;
 
 import feast.common.validators.OneOfStrings;
 import java.util.Map;
@@ -33,7 +33,6 @@ public class SecurityProperties {
   @Getter
   @Setter
   public static class AuthenticationProperties {
-
     // Enable authentication
     private boolean enabled;
 
@@ -43,12 +42,13 @@ public class SecurityProperties {
 
     // K/V options to initialize the provider with
     private Map<String, String> options;
+    // Key for Subject Claim option which sets the name of the subject claim field in tokens.
+    public static final String SUBJECT_CLAIM = "subjectClaim";
   }
 
   @Getter
   @Setter
   public static class AuthorizationProperties {
-
     // Enable authorization. Authentication must be enabled if authorization is enabled.
     private boolean enabled;
 

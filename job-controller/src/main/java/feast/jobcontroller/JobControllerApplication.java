@@ -19,10 +19,12 @@ package feast.jobcontroller;
 import feast.jobcontroller.config.FeastProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
+import org.springframework.boot.actuate.autoconfigure.security.servlet.ManagementWebSecurityAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
@@ -31,7 +33,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
     exclude = {
       DataSourceAutoConfiguration.class,
       DataSourceTransactionManagerAutoConfiguration.class,
-      HibernateJpaAutoConfiguration.class
+      HibernateJpaAutoConfiguration.class,
+      // TODO: Disables spring security. Remove when implementing security for JobController.
+      SecurityAutoConfiguration.class,
+      ManagementWebSecurityAutoConfiguration.class,
     })
 @EnableConfigurationProperties(FeastProperties.class)
 @Slf4j

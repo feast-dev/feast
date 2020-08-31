@@ -76,11 +76,6 @@
         </dependency>
         <dependency>
             <groupId>dev.feast</groupId>
-            <artifactId>feast-auth</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>dev.feast</groupId>
             <artifactId>feast-common-test</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>

@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.auth.config;
+package feast.common.auth.config;
 
 import com.google.common.cache.CacheBuilder;
-import feast.auth.utils.AuthUtils;
+import feast.common.auth.utils.AuthUtils;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
@@ -49,7 +49,7 @@ public class CacheConfiguration implements CachingConfigurer {
 
   public static final String AUTHORIZATION_CACHE = "authorization";
 
-  @Autowired SecurityProperties secutiryProps;
+  @Autowired SecurityProperties securityProperties;
 
   @Bean
   public CacheManager cacheManager() {
@@ -83,7 +83,8 @@ public class CacheConfiguration implements CachingConfigurer {
       Authentication authentication = (Authentication) params[1];
       String subject =
           AuthUtils.getSubjectFromAuth(
-              authentication, secutiryProps.getAuthorization().getOptions().get("subjectClaim"));
+              authentication,
+              securityProperties.getAuthorization().getOptions().get("subjectClaim"));
       return String.format("%s-%s-%s", method.getName(), projectId, subject);
     };
   }

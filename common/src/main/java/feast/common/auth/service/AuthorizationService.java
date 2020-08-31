@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.auth.service;
+package feast.common.auth.service;
 
-import feast.auth.authorization.AuthorizationProvider;
-import feast.auth.authorization.AuthorizationResult;
-import feast.auth.config.SecurityProperties;
+import feast.common.auth.authorization.AuthorizationProvider;
+import feast.common.auth.authorization.AuthorizationResult;
+import feast.common.auth.config.SecurityProperties;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;

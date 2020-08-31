@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.auth.utils;
+package feast.common.auth.utils;
 
 import java.util.Map;
 import org.hibernate.validator.internal.constraintvalidators.bv.EmailValidator;
@@ -22,7 +22,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 public class AuthUtils {
-
   // Suppresses default constructor, ensuring non-instantiability.
   private AuthUtils() {}
 

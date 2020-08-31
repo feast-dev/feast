@@ -37,13 +37,13 @@ feast:
       provider: jwt
       options:
         jwkEndpointURI: "https://www.googleapis.com/oauth2/v3/certs"
+        subjectClaim: email
 
     authorization:
       enabled: false
       provider: http
       options:
         authorizationUrl: http://localhost:8082
-        subjectClaim: email
         
     # If set to true, HTTP REST endpoints at /api/v1 implemented by
     # CoreServiceRestController will be accessible in Feast Core WITHOUT

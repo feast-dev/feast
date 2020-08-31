@@ -14,10 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.common.interceptors;
+package feast.common.logging.interceptors;
 
 import com.google.protobuf.Empty;
 import com.google.protobuf.Message;
+import feast.common.auth.config.SecurityProperties;
+import feast.common.auth.config.SecurityProperties.AuthenticationProperties;
+import feast.common.auth.utils.AuthUtils;
 import feast.common.logging.AuditLogger;
 import feast.common.logging.entry.MessageAuditLogEntry;
 import io.grpc.ForwardingServerCall.SimpleForwardingServerCall;
@@ -28,9 +31,13 @@ import io.grpc.ServerCall.Listener;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
 import io.grpc.Status;
+import java.util.Map;
 import org.slf4j.event.Level;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.Nullable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
 
 /**
  * GrpcMessageInterceptor intercepts a GRPC calls to log handling of GRPC messages to the Audit Log.
@@ -38,7 +45,18 @@ import org.springframework.security.core.context.SecurityContextHolder;
  * name and assumed authenticated identity (if authentication is enabled). NOTE:
  * GrpcMessageInterceptor assumes that all service calls are unary (ie single request/response).
  */
+@Component
 public class GrpcMessageInterceptor implements ServerInterceptor {
+  private SecurityProperties securityProperties;
+  /**
+   * Construct GrpcMessageIntercetor. If provided securityProperties, will output the subject claim
+   * specified in securityProperties as identity in {@link MessageAuditLogEntry} instead.
+   */
+  @Autowired
+  public GrpcMessageInterceptor(@Nullable SecurityProperties securityProperties) {
+    this.securityProperties = securityProperties;
+  }
+
   @Override
   public <ReqT, RespT> Listener<ReqT> interceptCall(
       ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
@@ -55,7 +73,7 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
 
     // Attempt Extract current authenticated identity.
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    String identity = (authentication == null) ? "" : authentication.getName();
+    String identity = (authentication != null) ? getIdentity(authentication) : "";
     entryBuilder.setIdentity(identity);
 
     // Register forwarding call to intercept outgoing response and log to audit log
@@ -88,5 +106,21 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
         entryBuilder.setRequest((Message) message);
       }
     };
+  }
+
+  /**
+   * Extract current authenticated identity from given {@link Authentication}. Extracts subject
+   * claim if specified in AuthorizationProperties, otherwise returns authentication subject.
+   */
+  private String getIdentity(Authentication authentication) {
+    // use subject claim as identity if set in security authorization properties
+    if (securityProperties != null) {
+      Map<String, String> options = securityProperties.getAuthorization().getOptions();
+      if (options.containsKey(AuthenticationProperties.SUBJECT_CLAIM)) {
+        return AuthUtils.getSubjectFromAuth(
+            authentication, options.get(AuthenticationProperties.SUBJECT_CLAIM));
+      }
+    }
+    return authentication.getName();
   }
 }

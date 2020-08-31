@@ -102,7 +102,7 @@ public class ServingServiceOauthAuthorizationIT extends BaseAuthIT {
     String ketoAdaptorUrl = String.format("http://%s:%s", ketoAdaptorHost, ketoAdaptorPort);
 
     // Initialize dynamic properties
-    registry.add("feast.security.authorization.options.subjectClaim", () -> subjectClaim);
+    registry.add("feast.security.authentication.options.subjectClaim", () -> subjectClaim);
     registry.add("feast.security.authentication.options.jwkEndpointURI", () -> JWK_URI);
     registry.add("feast.security.authorization.options.authorizationUrl", () -> ketoAdaptorUrl);
     registry.add("grpc.server.port", () -> FEAST_SERVING_PORT);

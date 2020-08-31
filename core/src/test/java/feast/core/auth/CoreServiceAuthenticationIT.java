@@ -87,7 +87,7 @@ public class CoreServiceAuthenticationIT extends BaseIT {
         String.format("http://localhost:%s/.well-known/jwks.json", wireMockRule.port());
 
     // Initialize dynamic properties
-    registry.add("feast.security.authorization.options.subjectClaim", () -> subjectClaim);
+    registry.add("feast.security.authentication.options.subjectClaim", () -> subjectClaim);
     registry.add("feast.security.authentication.options.jwkEndpointURI", () -> jwkEndpointURI);
   }
 
