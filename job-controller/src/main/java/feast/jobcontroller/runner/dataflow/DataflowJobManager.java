@@ -304,6 +304,10 @@ public class DataflowJobManager implements JobManager {
                       .setStores(
                           stores.stream()
                               .collect(Collectors.toMap(StoreProto.Store::getName, s -> s)))
+                      .setLabels(
+                          dfJob.getLabels() == null
+                              ? new HashMap<>()
+                              : new HashMap<>(dfJob.getLabels()))
                       .build();
 
               job.setExtId(dfJob.getId());

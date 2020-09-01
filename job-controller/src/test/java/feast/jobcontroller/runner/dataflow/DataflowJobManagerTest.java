@@ -275,7 +275,8 @@ public class DataflowJobManagerTest {
                 hasProperty("stores", hasValue(store)),
                 hasProperty("extId", equalTo("job-2")),
                 hasProperty("created", equalTo(created.toDate())),
-                hasProperty("lastUpdated", equalTo(created.toDate())))));
+                hasProperty("lastUpdated", equalTo(created.toDate())),
+                hasProperty("labels", hasEntry("application", "feast")))));
   }
 
   @Test
