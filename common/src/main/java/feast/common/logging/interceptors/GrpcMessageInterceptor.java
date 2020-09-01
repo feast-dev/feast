@@ -120,7 +120,7 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
         try {
           return AuthUtils.getSubjectFromAuth(
               authentication, options.get(AuthenticationProperties.SUBJECT_CLAIM));
-        } catch(IllegalStateException e) {
+        } catch (IllegalStateException e) {
           // could not extract claim, revert to authenticated name.
           return authentication.getName();
         }
