@@ -52,12 +52,15 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
   private LoggingProperties loggingProperties;
 
   /**
-   * Construct GrpcMessageIntercetor. 
+   * Construct GrpcMessageIntercetor.
+   *
    * @param loggingProperties properties used to configure logging interceptor.
-   * @param securityProperties If provided, will output the subject claim specified in securityProperties as identity in {@link MessageAuditLogEntry} instead.
+   * @param securityProperties If provided, will output the subject claim specified in
+   *     securityProperties as identity in {@link MessageAuditLogEntry} instead.
    */
   @Autowired
-  public GrpcMessageInterceptor(LoggingProperties loggingProperties,@Nullable SecurityProperties securityProperties) {
+  public GrpcMessageInterceptor(
+      LoggingProperties loggingProperties, @Nullable SecurityProperties securityProperties) {
     this.securityProperties = securityProperties;
     this.loggingProperties = loggingProperties;
   }
