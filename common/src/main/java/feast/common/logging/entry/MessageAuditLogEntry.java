@@ -66,43 +66,23 @@ public abstract class MessageAuditLogEntry extends AuditLogEntry {
   public abstract static class Builder {
     public abstract Builder setId(UUID id);
 
-    public abstract UUID getId();
-
     public abstract Builder setComponent(String component);
 
-    public abstract String getComponent();
-
-    public abstract Builder setVersion(String version);
-
-    public abstract String getVersion();
+    public abstract Builder setVersion(String component);
 
     public abstract Builder setKind(AuditLogEntryKind kind);
 
-    public abstract AuditLogEntryKind getKind();
-
     public abstract Builder setService(String name);
-
-    public abstract String getService();
 
     public abstract Builder setMethod(String name);
 
-    public abstract String getMethod();
-
     public abstract Builder setRequest(Message request);
-
-    public abstract Message getRequest();
 
     public abstract Builder setResponse(Message response);
 
-    public abstract Message getResponse();
-
     public abstract Builder setIdentity(String identity);
 
-    public abstract String getIdentity();
-
     public abstract Builder setStatusCode(Code statusCode);
-
-    public abstract Code getStatusCode();
 
     public abstract MessageAuditLogEntry build();
   }
