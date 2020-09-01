@@ -22,11 +22,11 @@ public class Matchers {
 
   private static Pattern UPPER_SNAKE_CASE_REGEX = Pattern.compile("^[A-Z0-9]+(_[A-Z0-9]+)*$");
   private static Pattern LOWER_SNAKE_CASE_REGEX = Pattern.compile("^[a-z0-9]+(_[a-z0-9]+)*$");
-  private static Pattern VALID_CHARACTERS_REGEX = Pattern.compile("^[a-zA-Z0-9\\-_]*$");
+  private static Pattern VALID_CHARACTERS_REGEX = Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*$");
   private static Pattern VALID_CHARACTERS_REGEX_WITH_ASTERISK_WILDCARD =
       Pattern.compile("^[a-zA-Z0-9\\-_*]*$");
 
-  private static String ERROR_MESSAGE_TEMPLATE = "invalid value for field %s: %s";
+  private static String ERROR_MESSAGE_TEMPLATE = "invalid value for %s: %s";
 
   public static void checkUpperSnakeCase(String input, String fieldName)
       throws IllegalArgumentException {
@@ -57,7 +57,7 @@ public class Matchers {
           String.format(
               ERROR_MESSAGE_TEMPLATE,
               fieldName,
-              "argument must only contain alphanumeric characters, dashes and underscores."));
+              "argument must only contain alphanumeric characters and underscores."));
     }
   }
 

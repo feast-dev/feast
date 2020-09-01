@@ -44,8 +44,8 @@ public class FeatureSetValidator {
       throw new IllegalArgumentException("Feature set label keys must not be empty");
     }
 
-    checkValidCharacters(featureSet.getSpec().getProject(), "project");
-    checkValidCharacters(featureSet.getSpec().getName(), "name");
+    checkValidCharacters(featureSet.getSpec().getProject(), "project::name");
+    checkValidCharacters(featureSet.getSpec().getName(), "featureset::name");
     checkUniqueColumns(
         featureSet.getSpec().getEntitiesList(), featureSet.getSpec().getFeaturesList());
     checkReservedColumns(featureSet.getSpec().getFeaturesList());

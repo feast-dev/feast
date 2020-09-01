@@ -229,6 +229,29 @@ public class SpecServiceIT extends BaseIT {
     }
 
     @Test
+    public void shouldThrowExceptionGivenFeatureSetWithDash() {
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class,
+              () ->
+                  apiClient.simpleApplyFeatureSet(
+                      DataGenerator.createFeatureSet(
+                          DataGenerator.getDefaultSource(),
+                          "project",
+                          "dash-name",
+                          ImmutableMap.of("entity", ValueProto.ValueType.Enum.STRING),
+                          ImmutableMap.of("test_string", ValueProto.ValueType.Enum.STRING))));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo(
+              String.format(
+                  "INTERNAL: invalid value for %s: %s",
+                  "featureset::name",
+                  "argument must only contain alphanumeric characters and underscores.")));
+    }
+
+    @Test
     public void shouldReturnFeatureSetIfFeatureSetHasNotChanged() {
       FeatureSetProto.FeatureSet featureSet = apiClient.getFeatureSet("default", "fs1");
 

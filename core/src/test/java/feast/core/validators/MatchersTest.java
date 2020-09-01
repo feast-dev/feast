@@ -44,7 +44,7 @@ public class MatchersTest {
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage(
         Strings.lenientFormat(
-            "invalid value for field %s: %s",
+            "invalid value for %s: %s",
             "someField",
             "argument must be in upper snake case, and cannot include any special characters."));
     String in = "redis";
@@ -62,7 +62,7 @@ public class MatchersTest {
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage(
         Strings.lenientFormat(
-            "invalid value for field %s: %s",
+            "invalid value for %s: %s",
             "someField",
             "argument must be in lower snake case, and cannot include any special characters."));
     String in = "Invalid_feature name";
