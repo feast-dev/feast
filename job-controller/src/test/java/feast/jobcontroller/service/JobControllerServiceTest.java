@@ -76,6 +76,7 @@ public class JobControllerServiceTest {
     feastProperties = new FeastProperties();
     JobProperties jobProperties = new JobProperties();
     jobProperties.setJobUpdateTimeoutSeconds(5);
+    jobProperties.setJobIdPrefix("test-prefix");
 
     FeastProperties.JobProperties.ControllerProperties.FeatureSetSelector selector =
         new FeastProperties.JobProperties.ControllerProperties.FeatureSetSelector();
@@ -104,7 +105,7 @@ public class JobControllerServiceTest {
             specService,
             jobManager,
             feastProperties,
-            new ConsolidatedJobStrategy(jobRepository),
+            new ConsolidatedJobStrategy(jobRepository, feastProperties.getJobs()),
             mock(KafkaTemplate.class));
 
     controllerWithJobPerStore =
@@ -113,7 +114,7 @@ public class JobControllerServiceTest {
             specService,
             jobManager,
             feastProperties,
-            new JobPerStoreStrategy(jobRepository),
+            new JobPerStoreStrategy(jobRepository, feastProperties.getJobs()),
             mock(KafkaTemplate.class));
   }
 
@@ -286,6 +287,7 @@ public class JobControllerServiceTest {
         controllerWithConsolidation.makeJobUpdateTasks(
             ImmutableList.of(Pair.of(source, ImmutableSet.of(store))));
 
+    assertThat(tasks.get(0).getJob().getId(), containsString("test-prefix"));
     assertThat("CreateTask is expected", tasks.get(0) instanceof CreateJobTask);
   }
 

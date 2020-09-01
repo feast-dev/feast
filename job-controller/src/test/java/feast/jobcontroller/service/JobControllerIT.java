@@ -65,6 +65,7 @@ import org.springframework.util.SocketUtils;
 @SpringBootTest(
     properties = {
       "feast.jobs.enabled=true",
+      "feast.jobs.job_id_prefix=test-prefix",
       "feast.jobs.polling_interval_milliseconds=1000",
       "feast.stream.specsOptions.notifyIntervalMilliseconds=1000",
       "feast.jobs.controller.consolidate-jobs-per-source=true",
@@ -166,6 +167,9 @@ public class JobControllerIT extends BaseIT {
 
     assertThat(
         jobManager.getAllJobs(), containsInAnyOrder(hasProperty("id", equalTo(job.getId()))));
+    assertThat(
+        jobManager.getAllJobs(),
+        containsInAnyOrder(hasProperty("id", containsString("test-prefix"))));
   }
 
   @Test
