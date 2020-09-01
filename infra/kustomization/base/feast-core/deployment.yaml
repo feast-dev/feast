@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: feast-core
+  labels:
+    app: feast-core
+spec:
+  # `replicas` omitted to allow `apply` of manifest while scaled by
+  # HPA and avoid dropping replica count back to 1
+  #replicas: 1
+  selector:
+    matchLabels:
+      app: feast-core
+  template:
+    metadata:
+      labels:
+        app: feast-core
+    spec:
+      volumes:
+      - name: feast-core-config
+        configMap:
+          name: feast-core
+      serviceAccountName: feast-core
+      containers:
+      - name: feast-core
+        image: gcr.io/kf-feast/feast-core:develop
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: feast-core-config
+          mountPath: "/etc/feast/feast-core"
+        ports:
+        - name: http
+          containerPort: 8080
+        - name: grpc
+          containerPort: 6565
+        args:
+        - --spring.config.location=file:/etc/feast/feast-core/application.yaml
+        resources:
+          limits:
+            memory: 3Gi
+            cpu: 3000m
+          requests:
+            cpu: 1000m
+            memory: 3Gi
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+          failureThreshold: 5
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 10
+          failureThreshold: 5

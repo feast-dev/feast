@@ -1,0 +1,6 @@
+
+resources:
+- ../../base/kafka-rest-proxy
+      
+patchesStrategicMerge:
+  - rest-proxy-service.yaml

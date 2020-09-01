@@ -1,0 +1,6 @@
+resources:
+- ../../base/postgres
+- pd.yaml
+
+patchesStrategicMerge:
+- volume-claims.yaml

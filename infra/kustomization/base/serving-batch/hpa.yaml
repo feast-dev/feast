@@ -1,0 +1,13 @@
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: feast-serving-batch
+  namespace: feast
+spec:
+  maxReplicas: 5
+  minReplicas: 2
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: feast-serving-batch
+  targetCPUUtilizationPercentage: 50

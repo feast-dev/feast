@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: feast-core
+
+spec:
+  replicas: 1
+  template:
+    spec:
+      serviceAccountName: feast-ksa
+      containers:
+      - name: feast-core          
+
+        command:
+          - java
+          - -jar
+          - /opt/feast/feast-core.jar
+          - "--spring.config.location=file:/etc/feast/feast-core/"
+          - "--feast.stream.options.bootstrapServers=$(KAFKA_BROKER):9092"
+
+        env:            
+          - name: DB_HOST
+            value: $(DB_HOST)
+            
+          - name: DB_DATABASE
+            valueFrom: 
+              secretKeyRef:
+                name: postgres-secret
+                key: POSTGRES_DB
+
+          - name: SPRING_DATASOURCE_USERNAME
+            valueFrom: 
+              secretKeyRef:
+                name: postgres-secret
+                key: POSTGRES_USER
+
+          - name: SPRING_DATASOURCE_PASSWORD
+            valueFrom: 
+              secretKeyRef:
+                name: postgres-secret
+                key: POSTGRES_PASSWORD         
+
+          - name: spring.profiles.active
+            value: test

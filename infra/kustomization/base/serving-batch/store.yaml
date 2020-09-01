@@ -1,0 +1,9 @@
+bigquery_config:
+  dataset_id: DATASET
+  project_id: PROJECT
+name: bigquery
+subscriptions:
+- name: '*'
+  project: '*'
+  version: '*'
+type: BIGQUERY

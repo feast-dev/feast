@@ -1,0 +1,42 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pzoo
+  namespace: kafka
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pzoo
+  namespace: kafka
+spec:
+  replicas: 1
+  template:
+    spec:
+      initContainers:
+      - name: init-config
+        env:
+        - name: PZOO_REPLICAS
+          value: '1'
+        - name: ZOO_REPLICAS
+          value: '0'
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: zoo
+  namespace: kafka
+spec:
+  replicas: 0
+  template:
+    spec:
+      initContainers:
+      - name: init-config
+        env:
+        - name: PZOO_REPLICAS
+          value: '1'
+        - name: ZOO_REPLICAS
+          value: '0'
+        - name: ID_OFFSET
+          value: '2'

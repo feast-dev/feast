@@ -1,0 +1,14 @@
+# confluent/kafka-rest
+apiVersion: v1
+kind: Service
+metadata:
+  name: rest-proxy
+  labels:
+    app: rest-proxy
+spec:
+  ports:
+    - name: rest-proxy
+      port: 80
+      targetPort: 8082
+  selector:
+    app: rest-proxy

@@ -1,0 +1,26 @@
+grpc:
+  port: 6565
+  enable-reflection: true
+
+spring:
+  jpa:
+    hibernate.ddl-auto: update
+    hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
+    properties.hibernate.event.merge.entity_copy_observer: allow
+    properties.hibernate.format_sql: true
+
+  datasource:
+    driverClassName: org.postgresql.Driver
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_DATABASE:postgres}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:password}
+
+management:
+  metrics:
+    export:
+      simple:
+        enabled: false
+      statsd:
+        enabled: false
+        host: localhost
+        port: 8125

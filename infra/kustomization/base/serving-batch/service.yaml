@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: feast-serving-batch
+  namespace: feast
+  labels:
+    app: feast-serving-batch
+    component: serving
+    release: feast
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+  - name: grpc
+    port: 6566
+    targetPort: 6566
+  selector:
+    app: feast-serving-batch
+    component: serving
+    release: feast

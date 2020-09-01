@@ -1,0 +1,9 @@
+name: redis
+redis_config:
+  host: feast-redis-master.feast.svc
+  port: 6379
+subscriptions:
+- name: '*'
+  project: '*'
+  version: '*'
+type: REDIS

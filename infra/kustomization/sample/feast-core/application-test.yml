@@ -1,0 +1,19 @@
+feast:
+  jobs:
+    metrics:
+      enabled: false
+      host: localhost
+      port: 9125
+      type: statsd
+    runner: DataflowRunner
+    options:
+      project: #GCP_PROJECT_ID#
+      region:  #GCP_PROJECT_REGION#
+    updates:
+      timeoutSeconds: 240
+  stream:
+    options:
+      partitions: 1
+      replicationFactor: 1
+      topic: sample
+    type: kafka

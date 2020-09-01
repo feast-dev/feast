@@ -1,0 +1,41 @@
+resources:
+- ../kafka
+- ../postgres
+- ksa.yaml
+- ../../base/feast-core
+- ../../base/redis
+- ../kafka-rest-proxy
+
+commonLabels:
+  env: sample
+
+namespace: feast
+
+images:
+  - name: feast-core
+    newTag: 0.4.5
+
+vars:
+  - name: KAFKA_BROKER
+    objref:
+      kind: Service
+      name: bootstrap
+      apiVersion: v1
+    fieldref:
+      fieldpath: metadata.name
+  - name: DB_HOST
+    objref:
+      kind: Service
+      name: postgres
+      apiVersion: v1
+    fieldref:
+      fieldpath: metadata.name
+
+configMapGenerator:
+  - name: feast-core-configmap-application
+    behavior: merge
+    files:
+    - application-test.yml
+
+patchesStrategicMerge:
+  - deployment.yaml

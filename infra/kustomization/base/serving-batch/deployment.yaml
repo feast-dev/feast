@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: feast-serving-batch
+  namespace: feast
+  labels:
+    app: feast-serving-batch
+    component: serving
+    release: feast
+spec:
+  # `replicas` omitted to allow `apply` of manifest while scaled by
+  # HPA and avoid dropping replica count back to 1
+  #replicas: 1
+  selector:
+    matchLabels:
+      app: feast-serving-batch
+      component: serving
+      release: feast
+  template:
+    metadata:
+      annotations:
+
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8080"
+        prometheus.io/scrape: "true"
+      labels:
+        app: feast-serving-batch
+        component: serving
+        release: feast
+    spec:
+      # This disables injection of ENV vars for service discovery
+      # injecting the ENV vars creates clashes with the way that Spring Boot
+      # discovers configuration
+      enableServiceLinks: false
+      volumes:
+      - name: feast-serving-batch-config
+        configMap:
+          name: feast-serving-batch
+      serviceAccountName: feast-serving-batch
+      containers:
+      - name: feast-serving-batch
+        image: gcr.io/kf-feast/feast-serving:develop
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: feast-serving-batch-config
+          mountPath: "/etc/feast/feast-serving"
+        args:
+        - "--spring.config.location=file:/etc/feast/feast-serving/application.yaml"
+        ports:
+        - name: http
+          containerPort: 8080
+        - name: grpc
+          containerPort: 6566
+        resources:
+          limits:
+            cpu: 2
+            memory: 1024Mi
+          requests:
+            cpu: 500m
+            memory: 1024Mi
+        readinessProbe:
+          exec:
+            command: ["grpc-health-probe", "-addr=:6566"]
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 10
+          failureThreshold: 5

@@ -1,0 +1,115 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+spec:
+  selector:
+    matchLabels:
+      app: postgres
+      role: master
+  serviceName: postgres-headless
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: postgres
+        role: master
+    spec:
+      securityContext:
+        fsGroup: 1001
+      initContainers:
+        - name: init-chmod-data
+          image: docker.io/bitnami/minideb:stretch
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /bitnami/postgresql/data
+              chmod 700 /bitnami/postgresql/data
+              find /bitnami/postgresql -mindepth 0 -maxdepth 1 -not -name ".snapshot" -not -name "lost+found" | \
+                xargs chown -R 1001:1001
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: postgredb
+              mountPath: /bitnami/postgresql
+              subPath:
+      containers:
+        - name: postgres
+          image: docker.io/bitnami/postgresql:11.5.0-debian-9-r60
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            runAsUser: 1001
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: POSTGRESQL_PORT_NUMBER
+              value: "5432"
+            - name: POSTGRESQL_VOLUME_DIR
+              value: "/bitnami/postgresql"
+            - name: PGDATA
+              value: "/bitnami/postgresql/data"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER       
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_DB
+          ports:
+            - name: tcp-postgres
+              containerPort: 5432             
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U "postgres" -d "feast" -h 127.0.0.1 -p 5432
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - -e
+                - |
+                  pg_isready -U "postgres" -d "feast" -h 127.0.0.1 -p 5432
+                  [ -f /opt/bitnami/postgresql/tmp/.initialized ]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          volumeMounts:
+            - name: postgredb
+              mountPath: /bitnami/postgresql
+              subPath:
+  volumeClaimTemplates:
+    - metadata:
+        name: postgredb
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 1Gi

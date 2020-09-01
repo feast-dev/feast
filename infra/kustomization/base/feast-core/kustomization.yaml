@@ -1,0 +1,19 @@
+
+resources:
+- deployment.yaml
+- service.yaml
+- serviceAccount.yaml
+- hpa.yaml
+
+commonLabels:
+  app: feast-core
+  component: core
+  release: feast-core
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: feast-core
+    files:
+    - application.yaml

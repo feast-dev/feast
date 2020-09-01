@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels:
+    app: redis
+spec:
+  selector:
+    matchLabels:
+      app: redis
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: master
+        image: bitnami/redis:5.0
+        resources:
+          requests:
+            cpu: 100m
+            memory: 150Mi
+          limits:
+            cpu: 300m
+            memory: 150Mi
+        ports:
+        - containerPort: 6379
+        env:
+        - name: ALLOW_EMPTY_PASSWORD
+          value: "yes"
+        args:
+        - /opt/bitnami/scripts/redis/run.sh
+        - --maxmemory 
+        - 100mb

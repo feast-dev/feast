@@ -1,0 +1,39 @@
+# confluent/schema-registry
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: schema-registry
+  labels:
+    app: schema-registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: schema-registry
+  template:
+    metadata:
+      labels:
+        app: schema-registry
+    spec:
+      containers:
+        - name: schema-registry
+          image: confluentinc/cp-schema-registry:5.4.0
+          imagePullPolicy: Always
+          ports:
+            - name: schema-registry
+              containerPort: 8081
+              protocol: TCP
+
+          env:
+          - name: SCHEMA_REGISTRY_HOST_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: SCHEMA_REGISTRY_LISTENERS
+            value: http://0.0.0.0:8081
+          - name: SCHEMA_REGISTRY_KAFKASTORE_GROUP_ID
+            value: schema-registry-540
+          - name: SCHEMA_REGISTRY_MASTER_ELIGIBILITY
+            value: "true"
+          - name: SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS
+            value: PLAINTEXT://$(KAFKA_BROKER):9092            

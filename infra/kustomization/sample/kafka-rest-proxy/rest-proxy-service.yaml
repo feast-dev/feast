@@ -1,0 +1,9 @@
+# confluent/kafka-rest
+apiVersion: v1
+kind: Service
+metadata:
+  name: rest-proxy
+  labels:
+    app: rest-proxy
+spec:
+  type: LoadBalancer

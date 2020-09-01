@@ -1,0 +1,19 @@
+# pick scale-1 and outsider-0 service on https://github.com/Yolean/kubernetes-kafka
+
+resources:
+- ../../base/kafka
+- outsider-0.yaml
+
+patchesStrategicMerge:
+- kafka.yaml
+- zookeeper.yaml
+
+patchesJson6902:
+- target:
+    group: apps
+    version: v1
+    kind: StatefulSet
+    name: kafka
+    namespace: kafka
+  path: kafka-scale1.json
+

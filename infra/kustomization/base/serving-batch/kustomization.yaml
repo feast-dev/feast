@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- deployment.yaml
+- service.yaml
+- hpa.yaml
+- serviceAccount.yaml
+
+namespace: feast
+
+generatorOptions:
+  labels:
+    app: feast-serving-batch
+    component: serving
+    release: feast
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: feast-serving-batch
+    files:
+      - application.yaml
+      - store.yaml

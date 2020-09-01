@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: feast-serving-online
+  namespace: feast
+  labels:
+    app: feast-serving-online
+    component: serving
+    release: feast
+spec:
+  # `replicas` omitted to allow `apply` of manifest while scaled by
+  # HPA and avoid dropping replica count back to 1
+  #replicas: 1
+  selector:
+    matchLabels:
+      app: feast-serving-online
+      component: serving
+      release: feast
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 50%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      annotations:
+
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8080"
+        prometheus.io/scrape: "true"
+      labels:
+        app: feast-serving-online
+        component: serving
+        release: feast
+    spec:
+      # This disables injection of ENV vars for service discovery
+      # injecting the ENV vars creates clashes with the way that Spring Boot
+      # discovers configuration
+      enableServiceLinks: false
+      volumes:
+      - name: feast-serving-online-config
+        configMap:
+          name: feast-serving-online
+
+      containers:
+      - name: feast-serving-online
+        image: gcr.io/kf-feast/feast-serving:develop
+        imagePullPolicy: IfNotPresent
+
+        volumeMounts:
+        - name: feast-serving-online-config
+          mountPath: "/etc/feast/feast-serving"
+
+        args:
+        - "--spring.config.location=file:/etc/feast/feast-serving/application.yaml"
+
+        ports:
+        - name: http
+          containerPort: 8080
+        - name: grpc
+          containerPort: 6566
+
+        resources:
+          limits:
+            cpu: 2
+            memory: 2048Mi
+          requests:
+            cpu: 1
+            memory: 2048Mi
+        readinessProbe:
+          exec:
+            command: ["grpc-health-probe", "-addr=:6566"]
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 10
+          failureThreshold: 5

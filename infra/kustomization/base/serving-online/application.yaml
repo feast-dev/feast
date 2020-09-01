@@ -1,0 +1,21 @@
+feast:
+  core-grpc-port: 6565
+  core-host: feast-core
+  jobs:
+    staging-location: ""
+    store-options: {}
+    store-type: ""
+  store:
+    config-path: /etc/feast/feast-serving/store.yaml
+    redis-pool-max-idle: 64
+    redis-pool-max-size: 128
+  tracing:
+    enabled: false
+    service-name: feast-serving
+    tracer-name: jaeger
+  version: 0.3
+grpc:
+  enable-reflection: true
+  port: 6566
+server:
+  port: 8080

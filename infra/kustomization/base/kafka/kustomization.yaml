@@ -1,0 +1,7 @@
+# https://github.com/Yolean/kubernetes-kafka
+
+bases:
+  - github.com/Yolean/kubernetes-kafka/rbac-namespace-default/?ref=60d01b5
+  - github.com/Yolean/kubernetes-kafka/kafka/?ref=60d01b5
+  - github.com/Yolean/kubernetes-kafka/zookeeper/?ref=60d01b5
+

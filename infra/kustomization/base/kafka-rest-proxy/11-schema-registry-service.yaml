@@ -1,0 +1,10 @@
+# confluent/schema-registry
+apiVersion: v1
+kind: Service
+metadata:
+  name: schema-registry
+spec:
+  ports:
+  - port: 8081
+  selector:
+    app: schema-registry

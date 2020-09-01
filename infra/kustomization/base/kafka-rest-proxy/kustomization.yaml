@@ -1,0 +1,16 @@
+resources:
+  - 10-schema-registry-deployment.yaml
+  - 11-schema-registry-service.yaml
+  - 20-rest-proxy.yaml
+  - 21-rest-service.yaml
+
+namePrefix: kafka-
+
+vars:
+  - name: schema-registry-svc
+    objref:
+      kind: Service
+      name: schema-registry
+      apiVersion: v1
+    fieldref:
+      fieldpath: metadata.name      
