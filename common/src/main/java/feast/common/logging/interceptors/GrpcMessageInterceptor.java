@@ -117,8 +117,13 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
     if (securityProperties != null) {
       Map<String, String> options = securityProperties.getAuthentication().getOptions();
       if (options.containsKey(AuthenticationProperties.SUBJECT_CLAIM)) {
-        return AuthUtils.getSubjectFromAuth(
-            authentication, options.get(AuthenticationProperties.SUBJECT_CLAIM));
+        try {
+          return AuthUtils.getSubjectFromAuth(
+              authentication, options.get(AuthenticationProperties.SUBJECT_CLAIM));
+        } catch(IllegalStateException e) {
+          // could not extract claim, revert to authenticated name.
+          return authentication.getName();
+        }
       }
     }
     return authentication.getName();
