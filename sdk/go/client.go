@@ -8,7 +8,6 @@ import (
 	"go.opencensus.io/plugin/ocgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/metadata"
 )
 
 // Client is a feast serving client.
@@ -30,16 +29,16 @@ type SecurityConfig struct {
 	EnableTLS bool
 	// Optional: Provides path to TLS certificate use the verify Service identity.
 	TLSCertPath string
-	// Optional: Authentication provider used for authentication.
+	// Optional: Credential used for authentication.
 	// Disables authentication if unspecified.
-	AuthProvider AuthProvider
+	Credential *Credential
 }
 
 // NewGrpcClient constructs a client that can interact via grpc with the feast serving instance at the given host:port.
 func NewGrpcClient(host string, port int) (*GrpcClient, error) {
 	return NewAuthGrpcClient(host, port, SecurityConfig{
-		EnableTLS:    false,
-		AuthProvider: nil,
+		EnableTLS:  false,
+		Credential: nil,
 	})
 }
 
@@ -64,10 +63,9 @@ func NewAuthGrpcClient(host string, port int, security SecurityConfig) (*GrpcCli
 		}
 		options = append(options, grpc.WithTransportCredentials(tlsCreds))
 	}
-	// Enable authentication by attaching auth interceptor if auth provider is given.
-	if security.AuthProvider != nil {
-		authInterceptor := newAuthInterceptor(security.AuthProvider)
-		options = append(options, grpc.WithUnaryInterceptor(authInterceptor))
+	// Enable authentication by attaching credentials if given
+	if security.Credential != nil {
+		options = append(options, grpc.WithPerRPCCredentials(security.Credential))
 	}
 
 	conn, err := grpc.Dial(adr, options...)
@@ -113,21 +111,4 @@ func (fc *GrpcClient) GetFeastServingInfo(ctx context.Context, in *serving.GetFe
 // Close the grpc connection.
 func (fc *GrpcClient) Close() error {
 	return fc.conn.Close()
-}
-
-// Utilities
-// Create an GRPC Authentication interceptor with the given AuthProvider.
-// Interceptor will append token from provider to grpc metadata to authenticate with Feast.
-// provider - AuthProvider used to provide credentials
-func newAuthInterceptor(provider AuthProvider) grpc.UnaryClientInterceptor {
-	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn,
-		invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		// configure service address as token audience.
-		token, err := provider.Token(cc.Target())
-		if err != nil {
-			return fmt.Errorf("Failed obtain token from Authentication provider: %v", err)
-		}
-		ctx = metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+token)
-		return invoker(ctx, method, req, reply, cc, opts...)
-	}
 }

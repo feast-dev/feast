@@ -13,105 +13,124 @@ import (
 	"net/url"
 )
 
-// AuthProvider defines an Authentication Provider that provides OIDC ID tokens
-// to be use when authenticating with Feast.
-type AuthProvider interface {
-	// Get a OIDC ID token that can be used for authenticating with Feast.
-	// audience - Target audience of the obtained credentials.
-	Token(audience string) (string, error)
+// Credential provides OIDC ID tokens used when authenticating with Feast.
+// Implements credentials.PerRPCCredentials
+type Credential struct {
+	tokenSrc oauth2.TokenSource
 }
 
-// Defines a AuthProvider that uses a static token
-type StaticProvider struct {
-	// Static token that the AuthProvider uses authenticate.
-	StaticToken string
+// GetRequestMetadata attaches OIDC token as metadata, refreshing tokens if required.
+// This should be called by the GRPC to authenticate each request.
+func (provider *Credential) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
+	token, err := provider.tokenSrc.Token()
+	if err != nil {
+		return map[string]string{}, nil
+	}
+	return map[string]string{
+		"Authorization": "Bearer: " + token.AccessToken,
+	}, nil
 }
 
-func (provider *StaticProvider) Token(_ string) (string, error) {
-	return provider.StaticToken, nil
+// Disable requirement of transport security to allow user to configure it explictly instead.
+func (provider *Credential) RequireTransportSecurity() bool {
+	return false
 }
 
-// Google Authentication Provider obtains credentials from Application Default Credentials
-type GoogleProvider struct {
-	findDefaultCredentials func(ctx context.Context, scopes ...string) (*google.Credentials, error)
-	makeTokenSource        func(ctx context.Context, audience string, opts ...idtoken.ClientOption) (oauth2.TokenSource, error)
-	token                  *oauth2.Token
-	audience               string
-}
-
-func NewGoogleProvider() *GoogleProvider {
-	return &GoogleProvider{
-		findDefaultCredentials: google.FindDefaultCredentials,
-		makeTokenSource:        idtoken.NewTokenSource,
+// Create a Static Authentication Provider that provides a static token
+func NewStaticCredential(token string) *Credential {
+	return &Credential{tokenSrc: oauth2.StaticTokenSource(
+		&oauth2.Token{
+			AccessToken: token,
+		}),
 	}
 }
 
-/// Backend Google OAuth used by GoogleProvider to source credentials.
-func (provider *GoogleProvider) Token(audience string) (string, error) {
-	if provider.token == nil || !provider.token.Valid() || provider.audience != audience {
-		// Refresh a Google Id token
-		// Attempt to id token from Google Application Default Credentials
-		ctx := context.Background()
-		creds, err := provider.findDefaultCredentials(ctx, "openid", "email")
-		if err != nil {
-			return "", err
-		}
-		src, err := provider.makeTokenSource(ctx, audience, idtoken.WithCredentialsJSON(creds.JSON))
-		if err != nil {
-			return "", err
-		}
-		provider.token, err = src.Token()
-		provider.audience = audience
-		if err != nil {
-			return "", err
-		}
+func newGoogleCredential(
+	audience string,
+	findDefaultCredentials func(ctx context.Context, scopes ...string) (*google.Credentials, error),
+	makeTokenSource func(ctx context.Context, audience string, opts ...idtoken.ClientOption) (oauth2.TokenSource, error)) (*Credential, error) {
+	// Refresh a Google Id token
+	// Attempt to id token from Google Application Default Credentials
+	ctx := context.Background()
+	creds, err := findDefaultCredentials(ctx, "openid", "email")
+	if err != nil {
+		return nil, err
 	}
-	return provider.token.AccessToken, nil
+	tokenSrc, err := makeTokenSource(ctx, audience, idtoken.WithCredentialsJSON(creds.JSON))
+	if err != nil {
+		return nil, err
+	}
+	return &Credential{tokenSrc: tokenSrc}, nil
 }
 
-// OAuth Provider obtains credentials by making a client credentials request to
-// an OAuth endpoint.
-type OAuthProvider struct {
-	// Client credentials used to authenticate the client when obtaining credentials.
-	ClientId     string
-	ClientSecret string
-	EndpointURL  *url.URL
-	token        *oauth2.Token
+// Creates a new Google Credential which obtains credentials from Application Default Credentials
+func NewGoogleCredential(audience string) (*Credential, error) {
+	return newGoogleCredential(audience, google.FindDefaultCredentials, idtoken.NewTokenSource)
+}
+
+// Creates a new OAuth credential witch obtains credentials by making a client credentials request to an OAuth endpoint.
+// clientId, clientSecret - Client credentials used to authenticate the client when obtaining credentials.
+// endpointURL - target URL of the OAuth endpoint to make the OAuth request to.
+func NewOAuthCredential(audience string, clientId string, clientSecret string, endpointURL *url.URL) *Credential {
+	tokenSrc := &oAuthTokenSource{
+		clientId:     clientId,
+		clientSecret: clientSecret,
+		endpointURL:  endpointURL,
+		audience:     audience,
+	}
+	return &Credential{tokenSrc: tokenSrc}
+}
+
+// Defines a Token Source that obtains tokens via making a OAuth client credentials request.
+type oAuthTokenSource struct {
+	clientId     string
+	clientSecret string
+	endpointURL  *url.URL
 	audience     string
+	token        *oauth2.Token
 }
 
-func (provider *OAuthProvider) Token(audience string) (string, error) {
-	if provider.token == nil || !provider.token.Valid() || provider.audience != audience {
+// Defines a Oauth cleint credentials request.
+type oAuthClientCredientialsRequest struct {
+	GrantType    string `json:"grant_type"`
+	ClientId     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+	Audience     string `json:"audience"`
+}
+
+// Obtain or Refresh token from OAuth Token Source.
+func (tokenSrc *oAuthTokenSource) Token() (*oauth2.Token, error) {
+	if tokenSrc.token == nil || !tokenSrc.token.Valid() {
 		// Refresh Oauth Id token by making Oauth client credentials request
-		reqMap := map[string]string{
-			"grant_type":    "client_credentials",
-			"client_id":     provider.ClientId,
-			"client_secret": provider.ClientSecret,
-			"audience":      audience,
+		req := &oAuthClientCredientialsRequest{
+			GrantType:    "client_credentials",
+			ClientId:     tokenSrc.clientId,
+			ClientSecret: tokenSrc.clientSecret,
+			Audience:     tokenSrc.audience,
 		}
-		reqBytes, err := json.Marshal(reqMap)
+
+		reqBytes, err := json.Marshal(req)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		resp, err := http.Post(provider.EndpointURL.String(),
+		resp, err := http.Post(tokenSrc.endpointURL.String(),
 			"application/json", bytes.NewBuffer(reqBytes))
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		if resp.StatusCode != http.StatusOK {
-			return "", fmt.Errorf("OAuth Endpoint returned unexpected status: %s", resp.Status)
+			return nil, fmt.Errorf("OAuth Endpoint returned unexpected status: %s", resp.Status)
 		}
 		respBytes, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		provider.token = &oauth2.Token{}
-		provider.audience = audience
-		err = json.Unmarshal(respBytes, provider.token)
+		tokenSrc.token = &oauth2.Token{}
+		err = json.Unmarshal(respBytes, tokenSrc.token)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
-	return provider.token.AccessToken, nil
+	return tokenSrc.token, nil
 }

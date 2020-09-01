@@ -15,43 +15,37 @@ import (
 	"google.golang.org/api/idtoken"
 )
 
-// Returns a mocked google authentication provider
-func mockGoogleProvider(token string, targetAudience string) *GoogleProvider {
-	return &GoogleProvider{
-		// mock find default credentials implementation.
-		findDefaultCredentials: func(ctx context.Context, scopes ...string) (*google.Credentials, error) {
-			if len(scopes) != 2 && scopes[0] != "openid" && scopes[1] != "email" {
-				return nil, fmt.Errorf("Got bad scopes. Expected 'openid', 'email'")
-			}
+// Returns a mocked google credential.
+func mockGoogleCredential(token string, targetAudience string) (*Credential, error) {
+	// mock find default credentials implementation.
+	findDefaultCredentials := func(ctx context.Context, scopes ...string) (*google.Credentials, error) {
+		if len(scopes) != 2 && scopes[0] != "openid" && scopes[1] != "email" {
+			return nil, fmt.Errorf("Got bad scopes. Expected 'openid', 'email'")
+		}
 
-			return &google.Credentials{
-				ProjectID: "project_id",
-				JSON:      []byte("mock key json"),
-			}, nil
-		},
-		// mock id token source implementation.
-		makeTokenSource: func(ctx context.Context, audience string, opts ...idtoken.ClientOption) (oauth2.TokenSource, error) {
-			// unable to check opts as ClientOption refrences internal type.
-			if targetAudience != audience {
-				return nil, fmt.Errorf("Audience does not match up with target audience")
-			}
-
-			return oauth2.StaticTokenSource(&oauth2.Token{
-				AccessToken: "google token",
-			}), nil
-		},
+		return &google.Credentials{
+			ProjectID: "project_id",
+			JSON:      []byte("mock key json"),
+		}, nil
 	}
+
+	// mock id token source implementation.
+	makeTokenSource := func(ctx context.Context, audience string, opts ...idtoken.ClientOption) (oauth2.TokenSource, error) {
+		// unable to check opts as ClientOption refrences internal type.
+		if targetAudience != audience {
+			return nil, fmt.Errorf("Audience does not match up with target audience")
+		}
+
+		return oauth2.StaticTokenSource(&oauth2.Token{
+			AccessToken: "google token",
+		}), nil
+	}
+
+	return newGoogleCredential(targetAudience, findDefaultCredentials, makeTokenSource)
 }
 
-// Create a mock OAuth HTTP server & Oauth Provider
-type OAuthCredientialsRequest struct {
-	GrantType    string `json:"grant_type"`
-	ClientId     string `json:"client_id"`
-	ClientSecret string `json:"client_secret"`
-	Audience     string `json:"audience"`
-}
-
-func mockOAuthProvider(token string, audience string) (*httptest.Server, *OAuthProvider) {
+// Create a mocked OAuth credential with a backing mocked OAuth server.
+func mockOAuthCredential(token string, audience string) (*httptest.Server, *Credential) {
 	clientId := "id"
 	clientSecret := "secret"
 	path := "/oauth"
@@ -62,87 +56,86 @@ func mockOAuthProvider(token string, audience string) (*httptest.Server, *OAuthP
 		reqBytes, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			resp.WriteHeader(http.StatusBadRequest)
-			fmt.Printf("Oauth server failed to read request: %v", err)
 		}
 
-		oauthReq := OAuthCredientialsRequest{}
+		oauthReq := oAuthClientCredientialsRequest{}
 		err = json.Unmarshal(reqBytes, &oauthReq)
 		if err != nil {
 			resp.WriteHeader(http.StatusBadRequest)
-			fmt.Printf("Oauth server failed to read request: %v", err)
 		}
 
 		if oauthReq.GrantType != "client_credentials" ||
 			oauthReq.ClientId != clientId ||
 			oauthReq.ClientSecret != clientSecret ||
 			oauthReq.Audience != audience {
-
 			resp.WriteHeader(http.StatusUnauthorized)
-			fmt.Printf("Oauth server failed authenticate request")
 		}
 
 		_, err = resp.Write([]byte(fmt.Sprintf("{\"access_token\": \"%s\"}", token)))
 		if err != nil {
 			resp.WriteHeader(http.StatusInternalServerError)
-			fmt.Printf("Oauth server failed to write response: %v", err)
 		}
 	})
 
 	srv := httptest.NewServer(handlers)
 	endpointURL, _ := url.Parse(srv.URL + path)
-	return srv, &OAuthProvider{
-		ClientId:     "id",
-		ClientSecret: "secret",
-		EndpointURL:  endpointURL,
-	}
+	return srv, NewOAuthCredential(audience, clientId, clientSecret, endpointURL)
 }
 
-func TestAuthProvider(t *testing.T) {
+func TestCredentials(t *testing.T) {
 	audience := "localhost"
-	srv, oauthProvider := mockOAuthProvider("oauth token", audience)
+	srv, oauthCred := mockOAuthCredential("oauth token", audience)
 	defer srv.Close()
+	googleCred, err := mockGoogleCredential("google token", audience)
+	if err != nil {
+		t.Errorf("Unexpected error creating mock google credential: %v", err)
+	}
 
 	tt := []struct {
-		name     string
-		provider AuthProvider
-		want     string
-		wantErr  bool
-		err      error
+		name       string
+		credential *Credential
+		want       string
+		wantErr    bool
+		err        error
 	}{
 		{
-			name: "Valid Static Authentication Provider get token.",
-			provider: &StaticProvider{
-				StaticToken: "static token",
-			},
-			want:    "static token",
-			wantErr: false,
-			err:     nil,
+			name:       "Valid Static Credential get authentication metadata.",
+			credential: NewStaticCredential("static token"),
+			want:       "static token",
+			wantErr:    false,
+			err:        nil,
 		},
 		{
-			name:     "Valid Google Authentication Provider get token.",
-			provider: mockGoogleProvider("google token", audience),
-			want:     "google token",
-			wantErr:  false,
-			err:      nil,
+			name:       "Valid Google Credential get authentication metadata.",
+			credential: googleCred,
+			want:       "google token",
+			wantErr:    false,
+			err:        nil,
 		},
 		{
-			name:     "Valid OAuth Authentication Provider get token.",
-			provider: oauthProvider,
-			want:     "oauth token",
-			wantErr:  false,
-			err:      nil,
+			name:       "Valid OAuth Credential get authentication metadata.",
+			credential: oauthCred,
+			want:       "oauth token",
+			wantErr:    false,
+			err:        nil,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			token, err := tc.provider.Token(audience)
+			ctx := context.Background()
+			meta, err := tc.credential.GetRequestMetadata(ctx, "feast.serving")
 			if err != nil {
 				t.Error(err)
 			}
+			authKey := "Authorization"
+			if _, ok := meta[authKey]; !ok {
+				t.Errorf("Expected authentication metadata with key: '%s'", authKey)
+			}
 
-			if token != tc.want {
-				t.Fatalf("Authentication provider returned '%s', expected '%s'", token, tc.want)
+			expectedVal := "Bearer: " + tc.want
+			if meta[authKey] != expectedVal {
+				t.Errorf("Expected authentication metadata with value: '%s' Got instead: '%s'", expectedVal, meta[authKey])
 			}
 		})
 	}
