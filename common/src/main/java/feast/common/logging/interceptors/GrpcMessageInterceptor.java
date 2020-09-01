@@ -115,7 +115,7 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
   private String getIdentity(Authentication authentication) {
     // use subject claim as identity if set in security authorization properties
     if (securityProperties != null) {
-      Map<String, String> options = securityProperties.getAuthorization().getOptions();
+      Map<String, String> options = securityProperties.getAuthentication().getOptions();
       if (options.containsKey(AuthenticationProperties.SUBJECT_CLAIM)) {
         return AuthUtils.getSubjectFromAuth(
             authentication, options.get(AuthenticationProperties.SUBJECT_CLAIM));

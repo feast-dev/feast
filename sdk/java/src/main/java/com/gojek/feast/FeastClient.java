@@ -71,6 +71,12 @@ public class FeastClient implements AutoCloseable {
     return new FeastClient(channel, Optional.of(credentials));
   }
 
+  /**
+   * Obtain info about Feast Serving.
+   *
+   * @return {@link feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse} containing
+   *     Feast version, Serving type etc.
+   */
   public GetFeastServingInfoResponse getFeastServingInfo() {
     return stub.getFeastServingInfo(GetFeastServingInfoRequest.newBuilder().build());
   }
