@@ -26,6 +26,11 @@ export COMPOSE_INTERACTIVE_NO_CLI=1
 cd ${PROJECT_ROOT_DIR}/infra/docker-compose/
 cp .env.sample .env
 
+# Replace FEAST_VERSION with latest github image SHA
+tmpfile=$(mktemp /tmp/docker-compose.XXXXXX)
+FEAST_VERSION=$(grep FEAST_VERSION .env | cut -d '=' -f 2-)
+sed "s|$FEAST_VERSION|$LATEST_GH_COMMIT_SHA|g" < .env > $tmpfile && mv $tmpfile .env
+
 # Start Docker Compose containers
 docker-compose up -d
 

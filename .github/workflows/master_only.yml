@@ -64,4 +64,4 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Test docker compose
-        run: ./infra/scripts/test-docker-compose.sh
+        run: ./infra/scripts/test-docker-compose.sh ${GITHUB_SHA}
