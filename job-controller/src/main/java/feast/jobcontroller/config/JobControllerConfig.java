@@ -87,9 +87,9 @@ public class JobControllerConfig {
     Boolean shouldConsolidateJobs =
         feastProperties.getJobs().getController().getConsolidateJobsPerSource();
     if (shouldConsolidateJobs) {
-      return new ConsolidatedJobStrategy(jobRepository);
+      return new ConsolidatedJobStrategy(jobRepository, feastProperties.getJobs());
     } else {
-      return new JobPerStoreStrategy(jobRepository);
+      return new JobPerStoreStrategy(jobRepository, feastProperties.getJobs());
     }
   }
 

@@ -23,6 +23,9 @@ feast:
     # Enabling JobManagement
     enabled: true
 
+    # Prefix for JobId
+    job_id_prefix: ""
+
     # Job update polling interval in milliseconds: how often Feast checks if new jobs should be sent to the runner.
     polling_interval_milliseconds: 60000
 

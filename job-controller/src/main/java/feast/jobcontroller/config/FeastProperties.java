@@ -176,6 +176,10 @@ public class FeastProperties {
     /* Population job metric properties */
     private MetricsProperties metrics;
 
+    @NotNull
+    /* Prefix for JobId to separate consumer groups for independent jobs running in parallel */
+    private String jobIdPrefix;
+
     /* Timeout in seconds for each attempt to update or submit a new job to the runner */
     @Positive private long jobUpdateTimeoutSeconds;
 
