@@ -16,7 +16,6 @@
  */
 package feast.storage.connectors.redis.retriever;
 
-import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
@@ -27,27 +26,52 @@ import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.Value;
 import feast.storage.api.retriever.FeatureSetRequest;
 import feast.storage.api.retriever.OnlineRetriever;
+import feast.storage.connectors.redis.serializer.RedisKeyPrefixSerializer;
+import feast.storage.connectors.redis.serializer.RedisKeySerializer;
 import io.grpc.Status;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import io.lettuce.core.cluster.api.sync.RedisAdvancedClusterCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import javax.annotation.Nullable;
 
 /** Defines a storage retriever */
 public class RedisClusterOnlineRetriever implements OnlineRetriever {
 
   private final RedisAdvancedClusterCommands<byte[], byte[]> syncCommands;
+  private final RedisKeySerializer serializer;
+  @Nullable private final RedisKeySerializer fallbackSerializer;
 
-  private RedisClusterOnlineRetriever(StatefulRedisClusterConnection<byte[], byte[]> connection) {
-    this.syncCommands = connection.sync();
+  static class Builder {
+    private final StatefulRedisClusterConnection<byte[], byte[]> connection;
+    private final RedisKeySerializer serializer;
+    @Nullable private RedisKeySerializer fallbackSerializer;
+
+    Builder(
+        StatefulRedisClusterConnection<byte[], byte[]> connection, RedisKeySerializer serializer) {
+      this.connection = connection;
+      this.serializer = serializer;
+    }
+
+    Builder withFallbackSerializer(RedisKeySerializer fallbackSerializer) {
+      this.fallbackSerializer = fallbackSerializer;
+      return this;
+    }
+
+    RedisClusterOnlineRetriever build() {
+      return new RedisClusterOnlineRetriever(this);
+    }
+  }
+
+  private RedisClusterOnlineRetriever(Builder builder) {
+    this.syncCommands = builder.connection.sync();
+    this.serializer = builder.serializer;
+    this.fallbackSerializer = builder.fallbackSerializer;
   }
 
   public static OnlineRetriever create(Map<String, String> config) {
@@ -59,15 +83,21 @@ public class RedisClusterOnlineRetriever implements OnlineRetriever {
                   return RedisURI.create(hostPortSplit[0], Integer.parseInt(hostPortSplit[1]));
                 })
             .collect(Collectors.toList());
-
     StatefulRedisClusterConnection<byte[], byte[]> connection =
         RedisClusterClient.create(redisURIList).connect(new ByteArrayCodec());
 
-    return new RedisClusterOnlineRetriever(connection);
-  }
+    RedisKeySerializer serializer =
+        new RedisKeyPrefixSerializer(config.getOrDefault("key_prefix", ""));
 
-  public static OnlineRetriever create(StatefulRedisClusterConnection<byte[], byte[]> connection) {
-    return new RedisClusterOnlineRetriever(connection);
+    Builder builder = new Builder(connection, serializer);
+
+    if (Boolean.parseBoolean(config.getOrDefault("enable_fallback", "false"))) {
+      RedisKeySerializer fallbackSerializer =
+          new RedisKeyPrefixSerializer(config.getOrDefault("fallback_prefix", ""));
+      builder = builder.withFallbackSerializer(fallbackSerializer);
+    }
+
+    return builder.build();
   }
 
   /** {@inheritDoc} */
@@ -98,11 +128,9 @@ public class RedisClusterOnlineRetriever implements OnlineRetriever {
         featureSetSpec.getEntitiesList().stream()
             .map(EntitySpec::getName)
             .collect(Collectors.toList());
-    List<RedisKey> redisKeys =
-        entityRows.stream()
-            .map(row -> makeRedisKey(featureSetRef, featureSetEntityNames, row))
-            .collect(Collectors.toList());
-    return redisKeys;
+    return entityRows.stream()
+        .map(row -> makeRedisKey(featureSetRef, featureSetEntityNames, row))
+        .collect(Collectors.toList());
   }
 
   /**
@@ -118,9 +146,7 @@ public class RedisClusterOnlineRetriever implements OnlineRetriever {
     RedisKey.Builder builder = RedisKey.newBuilder().setFeatureSet(featureSet);
     Map<String, Value> fieldsMap = entityRow.getFieldsMap();
     featureSetEntityNames.sort(String::compareTo);
-    for (int i = 0; i < featureSetEntityNames.size(); i++) {
-      String entityName = featureSetEntityNames.get(i);
-
+    for (String entityName : featureSetEntityNames) {
       if (!fieldsMap.containsKey(entityName)) {
         throw Status.INVALID_ARGUMENT
             .withDescription(
@@ -180,18 +206,59 @@ public class RedisClusterOnlineRetriever implements OnlineRetriever {
     try {
       byte[][] binaryKeys =
           keys.stream()
-              .map(AbstractMessageLite::toByteArray)
+              .map(serializer::serialize)
               .collect(Collectors.toList())
               .toArray(new byte[0][0]);
-      return syncCommands.mget(binaryKeys).stream()
-          .map(
-              keyValue -> {
-                if (keyValue == null) {
-                  return null;
-                }
-                return keyValue.getValueOrElse(null);
-              })
-          .collect(Collectors.toList());
+      List<byte[]> redisValues =
+          syncCommands.mget(binaryKeys).stream()
+              .map(
+                  keyValue -> {
+                    if (keyValue == null) {
+                      return null;
+                    }
+                    return keyValue.getValueOrElse(null);
+                  })
+              .collect(Collectors.toList());
+
+      List<byte[]> redisValuesWithFallback = redisValues;
+      if (fallbackSerializer != null) {
+        List<Integer> indexMissingValue =
+            IntStream.range(0, keys.size())
+                .filter(i -> redisValues.get(i) == null)
+                .boxed()
+                .collect(Collectors.toList());
+
+        byte[][] fallbackBinaryKeys =
+            indexMissingValue.stream()
+                .map(i -> fallbackSerializer.serialize(keys.get(i)))
+                .collect(Collectors.toList())
+                .toArray(new byte[0][0]);
+
+        List<byte[]> fallBackValues =
+            syncCommands.mget(fallbackBinaryKeys).stream()
+                .map(
+                    keyValue -> {
+                      if (keyValue == null) {
+                        return null;
+                      }
+                      return keyValue.getValueOrElse(null);
+                    })
+                .collect(Collectors.toList());
+
+        redisValuesWithFallback =
+            IntStream.range(0, keys.size())
+                .mapToObj(
+                    i -> {
+                      if (indexMissingValue.contains(i)) {
+                        return fallBackValues.get(indexMissingValue.indexOf(i));
+                      } else {
+                        return redisValues.get(i);
+                      }
+                    })
+                .collect(Collectors.toList());
+      }
+
+      return redisValuesWithFallback;
     } catch (Exception e) {
       throw Status.NOT_FOUND
           .withDescription("Unable to retrieve feature from Redis")

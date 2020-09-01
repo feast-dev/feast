@@ -31,6 +31,7 @@ import feast.proto.types.ValueProto;
 import feast.storage.api.writer.FailedElement;
 import feast.storage.api.writer.WriteResult;
 import feast.storage.connectors.redis.retriever.FeatureRowDecoder;
+import feast.storage.connectors.redis.serializer.RedisKeySerializer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.HashMap;
@@ -61,8 +62,9 @@ public class RedisCustomIO {
 
   public static Write write(
       RedisIngestionClient redisIngestionClient,
-      PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecs) {
-    return new Write(redisIngestionClient, featureSetSpecs);
+      PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecs,
+      RedisKeySerializer serializer) {
+    return new Write(redisIngestionClient, featureSetSpecs, serializer);
   }
 
   /** ServingStoreWrite data to a Redis server. */
@@ -70,14 +72,17 @@ public class RedisCustomIO {
 
     private PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecs;
     private RedisIngestionClient redisIngestionClient;
+    private RedisKeySerializer serializer;
     private int batchSize;
     private Duration flushFrequency;
 
     public Write(
         RedisIngestionClient redisIngestionClient,
-        PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecs) {
+        PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecs,
+        RedisKeySerializer serializer) {
       this.redisIngestionClient = redisIngestionClient;
       this.featureSetSpecs = featureSetSpecs;
+      this.serializer = serializer;
     }
 
     public Write withBatchSize(int batchSize) {
@@ -108,7 +113,7 @@ public class RedisCustomIO {
               .apply("ExtractResultValues", Values.create())
               .apply("GlobalWindow", Window.<Iterable<FeatureRow>>into(new GlobalWindows()))
               .apply(
-                  ParDo.of(new WriteDoFn(redisIngestionClient, featureSetSpecs))
+                  ParDo.of(new WriteDoFn(redisIngestionClient, featureSetSpecs, serializer))
                       .withOutputTags(successfulInsertsTag, TupleTagList.of(failedInsertsTupleTag))
                       .withSideInputs(featureSetSpecs));
       return WriteResult.in(
@@ -125,13 +130,16 @@ public class RedisCustomIO {
      */
     public static class WriteDoFn extends BatchDoFnWithRedis<Iterable<FeatureRow>, FeatureRow> {
       private final PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecsView;
+      private final RedisKeySerializer serializer;
 
       WriteDoFn(
           RedisIngestionClient redisIngestionClient,
-          PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecsView) {
+          PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecsView,
+          RedisKeySerializer serializer) {
 
         super(redisIngestionClient);
         this.featureSetSpecsView = featureSetSpecsView;
+        this.serializer = serializer;
       }
 
       private FailedElement toFailedElement(
@@ -230,7 +238,7 @@ public class RedisCustomIO {
                       .map(
                           entry ->
                               redisIngestionClient
-                                  .get(entry.getKey().toByteArray())
+                                  .get(serializer.serialize(entry.getKey()))
                                   .thenAccept(
                                       currentValue -> {
                                         FeatureRow newRow = entry.getValue();
@@ -246,7 +254,8 @@ public class RedisCustomIO {
                       .map(
                           row ->
                               redisIngestionClient.set(
-                                  getKey(row, latestSpecs.get(row.getFeatureSet())).toByteArray(),
+                                  serializer.serialize(
+                                      getKey(row, latestSpecs.get(row.getFeatureSet()))),
                                   getValue(row, latestSpecs.get(row.getFeatureSet()))
                                       .toByteArray()))
                       .collect(Collectors.toList()));
