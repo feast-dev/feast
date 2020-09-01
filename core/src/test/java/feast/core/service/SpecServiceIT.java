@@ -246,8 +246,9 @@ public class SpecServiceIT extends BaseIT {
           exc.getMessage(),
           equalTo(
               String.format(
-                  "INTERNAL: invalid value for %s: %s",
-                  "featureset::name",
+                  "INTERNAL: invalid value for %s resource, %s: %s",
+                  "featureset",
+                  "dash-name",
                   "argument must only contain alphanumeric characters and underscores.")));
     }
 

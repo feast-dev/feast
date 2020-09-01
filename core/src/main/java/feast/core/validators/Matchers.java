@@ -26,48 +26,52 @@ public class Matchers {
   private static Pattern VALID_CHARACTERS_REGEX_WITH_ASTERISK_WILDCARD =
       Pattern.compile("^[a-zA-Z0-9\\-_*]*$");
 
-  private static String ERROR_MESSAGE_TEMPLATE = "invalid value for %s: %s";
+  private static String ERROR_MESSAGE_TEMPLATE = "invalid value for %s resource, %s: %s";
 
-  public static void checkUpperSnakeCase(String input, String fieldName)
+  public static void checkUpperSnakeCase(String input, String resource)
       throws IllegalArgumentException {
     if (!UPPER_SNAKE_CASE_REGEX.matcher(input).matches()) {
       throw new IllegalArgumentException(
           String.format(
               ERROR_MESSAGE_TEMPLATE,
-              fieldName,
+              resource,
+              input,
               "argument must be in upper snake case, and cannot include any special characters."));
     }
   }
 
-  public static void checkLowerSnakeCase(String input, String fieldName)
+  public static void checkLowerSnakeCase(String input, String resource)
       throws IllegalArgumentException {
     if (!LOWER_SNAKE_CASE_REGEX.matcher(input).matches()) {
       throw new IllegalArgumentException(
           String.format(
               ERROR_MESSAGE_TEMPLATE,
-              fieldName,
+              resource,
+              input,
               "argument must be in lower snake case, and cannot include any special characters."));
     }
   }
 
-  public static void checkValidCharacters(String input, String fieldName)
+  public static void checkValidCharacters(String input, String resource)
       throws IllegalArgumentException {
     if (!VALID_CHARACTERS_REGEX.matcher(input).matches()) {
       throw new IllegalArgumentException(
           String.format(
               ERROR_MESSAGE_TEMPLATE,
-              fieldName,
+              resource,
+              input,
               "argument must only contain alphanumeric characters and underscores."));
     }
   }
 
-  public static void checkValidCharactersAllowAsterisk(String input, String fieldName)
+  public static void checkValidCharactersAllowAsterisk(String input, String resource)
       throws IllegalArgumentException {
     if (!VALID_CHARACTERS_REGEX_WITH_ASTERISK_WILDCARD.matcher(input).matches()) {
       throw new IllegalArgumentException(
           String.format(
               ERROR_MESSAGE_TEMPLATE,
-              fieldName,
+              resource,
+              input,
               "argument must only contain alphanumeric characters, dashes, underscores, or an asterisk."));
     }
   }

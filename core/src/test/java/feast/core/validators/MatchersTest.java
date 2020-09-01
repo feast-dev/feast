@@ -30,13 +30,13 @@ public class MatchersTest {
   @Test
   public void checkUpperSnakeCaseShouldPassForLegitUpperSnakeCase() {
     String in = "REDIS_DB";
-    checkUpperSnakeCase(in, "someField");
+    checkUpperSnakeCase(in, "featureset");
   }
 
   @Test
   public void checkUpperSnakeCaseShouldPassForLegitUpperSnakeCaseWithNumbers() {
     String in = "REDIS1";
-    checkUpperSnakeCase(in, "someField");
+    checkUpperSnakeCase(in, "featureset");
   }
 
   @Test
@@ -44,17 +44,18 @@ public class MatchersTest {
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage(
         Strings.lenientFormat(
-            "invalid value for %s: %s",
-            "someField",
+            "invalid value for %s resource, %s: %s",
+            "featureset",
+            "redis",
             "argument must be in upper snake case, and cannot include any special characters."));
     String in = "redis";
-    checkUpperSnakeCase(in, "someField");
+    checkUpperSnakeCase(in, "featureset");
   }
 
   @Test
   public void checkLowerSnakeCaseShouldPassForLegitLowerSnakeCase() {
     String in = "feature_name_v1";
-    checkLowerSnakeCase(in, "someField");
+    checkLowerSnakeCase(in, "feature");
   }
 
   @Test
@@ -62,10 +63,11 @@ public class MatchersTest {
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage(
         Strings.lenientFormat(
-            "invalid value for %s: %s",
-            "someField",
+            "invalid value for %s resource, %s: %s",
+            "feature",
+            "Invalid_feature name",
             "argument must be in lower snake case, and cannot include any special characters."));
     String in = "Invalid_feature name";
-    checkLowerSnakeCase(in, "someField");
+    checkLowerSnakeCase(in, "feature");
   }
 }
