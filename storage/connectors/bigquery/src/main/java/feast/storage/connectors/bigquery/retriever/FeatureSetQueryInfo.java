@@ -54,11 +54,11 @@ public class FeatureSetQueryInfo {
   }
 
   public String getProject() {
-    return project;
+    return project.replace("-", "_");
   }
 
   public String getName() {
-    return name;
+    return name.replace("-", "_");
   }
 
   public long getMaxAge() {
