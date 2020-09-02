@@ -31,16 +31,16 @@ public class LoggingProperties {
     // Whether to enable/disable audit logging entirely.
     private boolean enabled;
 
-    // Whether to enable/disable message level (ie request/response) audit logging.
-    private boolean messageLoggingEnabled;
-
-    private LogForwarderProperties logForwarderProperties;
+    private MessageLogging messageLogging;
 
     @Getter
     @Setter
-    public static class LogForwarderProperties {
-      // Whether to enable/disable (request/response) log forwarding entirely.
+    public static class MessageLogging {
+      // Whether to enable/disable message level (ie request/response) audit logging.
       private boolean enabled;
+
+      // Whether to log to console or fluentd
+      private String destination;
 
       // fluentD service host for external (request/response) logging.
       private String fluentdHost;

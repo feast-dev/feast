@@ -52,12 +52,12 @@ public class AuditLogger {
     // This allows us to use the dependencies in the AuditLogger's static methods
     AuditLogger.properties = loggingProperties.getAudit();
     AuditLogger.buildProperties = buildProperties;
-    if (AuditLogger.properties.getLogForwarderProperties().isEnabled()) {
+    if (AuditLogger.properties.getMessageLogging().isEnabled()) {
       AuditLogger.fluentLogger =
           FluentLogger.getLogger(
               "feast",
-              AuditLogger.properties.getLogForwarderProperties().getFluentdHost(),
-              AuditLogger.properties.getLogForwarderProperties().getFluentdPort());
+              AuditLogger.properties.getMessageLogging().getFluentdHost(),
+              AuditLogger.properties.getMessageLogging().getFluentdPort());
     }
   }
 
@@ -124,10 +124,14 @@ public class AuditLogger {
     if (!properties.isEnabled()) {
       return;
     }
+    if (entry.getKind().equals(AuditLogEntryKind.MESSAGE)
+        && !properties.getMessageLogging().isEnabled()) {
+      return;
+    }
 
     // Either forward log to logging layer or log to console
     Map<String, Object> fluentdLogs = new HashMap<>();
-    if (properties.getLogForwarderProperties().isEnabled()) {
+    if (properties.getMessageLogging().getDestination().equals("fluentd")) {
       MessageAuditLogEntry messageAuditLogEntry = (MessageAuditLogEntry) entry;
       try {
         fluentdLogs.put("id", messageAuditLogEntry.getId());
