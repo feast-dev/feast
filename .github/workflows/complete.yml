@@ -142,3 +142,11 @@ jobs:
         with:
           name: load-test-results
           path: load-test-output/
+
+  tests-docker-compose:
+    needs: build-push-docker-images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Test docker compose
+        run: ./infra/scripts/test-docker-compose.sh ${GITHUB_SHA}
