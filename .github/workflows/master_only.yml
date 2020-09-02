@@ -58,10 +58,3 @@ jobs:
               docker push gcr.io/kf-feast/feast-${{ matrix.component }}:latest
             fi
           fi
-
-  tests-docker-compose:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Test docker compose
-        run: ./infra/scripts/test-docker-compose.sh ${GITHUB_SHA}
