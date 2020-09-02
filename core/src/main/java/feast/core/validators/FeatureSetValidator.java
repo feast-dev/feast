@@ -45,15 +45,15 @@ public class FeatureSetValidator {
     }
 
     checkValidCharacters(featureSet.getSpec().getProject(), "project");
-    checkValidCharacters(featureSet.getSpec().getName(), "name");
+    checkValidCharacters(featureSet.getSpec().getName(), "featureset");
     checkUniqueColumns(
         featureSet.getSpec().getEntitiesList(), featureSet.getSpec().getFeaturesList());
     checkReservedColumns(featureSet.getSpec().getFeaturesList());
     for (EntitySpec entitySpec : featureSet.getSpec().getEntitiesList()) {
-      checkValidCharacters(entitySpec.getName(), "entities::name");
+      checkValidCharacters(entitySpec.getName(), "entity");
     }
     for (FeatureSpec featureSpec : featureSet.getSpec().getFeaturesList()) {
-      checkValidCharacters(featureSpec.getName(), "features::name");
+      checkValidCharacters(featureSpec.getName(), "feature");
       if (featureSpec.getLabelsMap().containsKey("")) {
         throw new IllegalArgumentException("Feature label keys must not be empty");
       }

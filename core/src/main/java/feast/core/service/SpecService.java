@@ -98,7 +98,7 @@ public class SpecService {
 
   private FeatureSet getFeatureSet(String projectName, String featureSetName) {
     // Validate input arguments
-    checkValidCharacters(featureSetName, "featureSetName");
+    checkValidCharacters(featureSetName, "featureset");
 
     if (featureSetName.isEmpty()) {
       throw new IllegalArgumentException("No feature set name provided");
@@ -151,8 +151,8 @@ public class SpecService {
           "Invalid listFeatureSetRequest, missing arguments. Must provide feature set name:");
     }
 
-    checkValidCharactersAllowAsterisk(name, "featureSetName");
-    checkValidCharactersAllowAsterisk(project, "projectName");
+    checkValidCharactersAllowAsterisk(name, "featureset");
+    checkValidCharactersAllowAsterisk(project, "project");
 
     // Autofill default project if project not specified
     if (project.isEmpty()) {
@@ -239,7 +239,7 @@ public class SpecService {
       List<String> entities = filter.getEntitiesList();
       Map<String, String> labels = filter.getLabelsMap();
 
-      checkValidCharactersAllowAsterisk(project, "projectName");
+      checkValidCharactersAllowAsterisk(project, "project");
 
       // Autofill default project if project not specified
       if (project.isEmpty()) {
