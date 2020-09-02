@@ -993,6 +993,7 @@ def _infer_online_entity_rows(
     entity_type_map = dict()
 
     for entity in entity_rows_dicts:
+        fields = {}
         for key, value in entity.items():
             # Allow for feast.types.Value
             if isinstance(value, Value):
@@ -1009,9 +1010,8 @@ def _infer_online_entity_rows(
                             f"Input entity {key} has mixed types, {current_dtype} and {entity_type_map[key]}. That is not allowed. "
                         )
                 proto_value = _python_value_to_proto_value(current_dtype, value)
-            entity_row_list.append(
-                GetOnlineFeaturesRequest.EntityRow(fields={key: proto_value})
-            )
+            fields[key] = proto_value
+        entity_row_list.append(GetOnlineFeaturesRequest.EntityRow(fields=fields))
     return entity_row_list
 
 
