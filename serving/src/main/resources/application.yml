@@ -100,12 +100,6 @@ feast:
     redis_port: 6379
 
   logging:
-    # Logging forwarder currently provides a machine readable structured JSON log to an
-    # external fluentd service that can give better insight into what is happening in Feast.
-    logForwarderProperties:
-      enabled: false
-      fluentdHost: localhost
-      fluentdPort: 24224
     # Audit logging provides a machine readable structured JSON log that can give better 
     # insight into what is happening in Feast.
     audit:
@@ -113,6 +107,12 @@ feast:
       enabled: true
       # Whether to enable message level (ie request/response) audit logging
       messageLoggingEnabled: false
+      # Logging forwarder currently provides a machine readable structured JSON log to an
+      # external fluentd service that can give better insight into what is happening in Feast.
+      logForwarderProperties:
+        enabled: false
+        fluentdHost: localhost
+        fluentdPort: 24224
 
 grpc:
   server:

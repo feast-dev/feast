@@ -20,7 +20,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.common.logging.config.LoggingProperties;
 import feast.common.logging.config.LoggingProperties.AuditLogProperties;
-import feast.common.logging.config.LoggingProperties.LogForwarderProperties;
 import feast.common.logging.entry.ActionAuditLogEntry;
 import feast.common.logging.entry.AuditLogEntry;
 import feast.common.logging.entry.LogResource;
@@ -45,7 +44,6 @@ public class AuditLogger {
   private static FluentLogger fluentLogger;
   private static AuditLogProperties properties;
   private static BuildProperties buildProperties;
-  private static LogForwarderProperties logForwarderProperties;
 
   @Autowired
   public AuditLogger(LoggingProperties loggingProperties, BuildProperties buildProperties) {
@@ -54,13 +52,12 @@ public class AuditLogger {
     // This allows us to use the dependencies in the AuditLogger's static methods
     AuditLogger.properties = loggingProperties.getAudit();
     AuditLogger.buildProperties = buildProperties;
-    AuditLogger.logForwarderProperties = loggingProperties.getLogForwarderProperties();
-    if (loggingProperties.getLogForwarderProperties().isEnabled()) {
+    if (AuditLogger.properties.getLogForwarderProperties().isEnabled()) {
       AuditLogger.fluentLogger =
           FluentLogger.getLogger(
               "feast",
-              AuditLogger.logForwarderProperties.getFluentdHost(),
-              AuditLogger.logForwarderProperties.getFluentdPort());
+              AuditLogger.properties.getLogForwarderProperties().getFluentdHost(),
+              AuditLogger.properties.getLogForwarderProperties().getFluentdPort());
     }
   }
 
@@ -69,26 +66,13 @@ public class AuditLogger {
    *
    * @param entryBuilder with all fields set except instance.
    */
-  public static void logMessage(Level level, MessageAuditLogEntry.Builder entryBuilder)
-      throws InvalidProtocolBufferException {
+  public static void logMessage(Level level, MessageAuditLogEntry.Builder entryBuilder) {
     log(
         level,
         entryBuilder
             .setComponent(buildProperties.getArtifact())
             .setVersion(buildProperties.getVersion())
             .build());
-    Map<String, Object> fluentdLogs = new HashMap<>();
-
-    if (logForwarderProperties.isEnabled()) {
-      fluentdLogs.put("id", entryBuilder.build().getId());
-      fluentdLogs.put("service", entryBuilder.build().getService());
-      fluentdLogs.put("status_code", entryBuilder.build().getStatusCode());
-      fluentdLogs.put("method", entryBuilder.build().getMethod());
-      fluentdLogs.put("request", JsonFormat.printer().print(entryBuilder.build().getRequest()));
-      fluentdLogs.put("response", JsonFormat.printer().print(entryBuilder.build().getResponse()));
-      // tag can be used as "service" to split rr logs into separate tables
-      fluentLogger.log("fluentd", fluentdLogs);
-    }
   }
 
   /**
@@ -141,24 +125,45 @@ public class AuditLogger {
       return;
     }
 
-    // Log event to audit log through enabled formats
-    String entryJSON = entry.toJSON();
-    switch (level) {
-      case TRACE:
-        log.trace(AUDIT_MARKER, entryJSON);
-        break;
-      case DEBUG:
-        log.debug(AUDIT_MARKER, entryJSON);
-        break;
-      case INFO:
-        log.info(AUDIT_MARKER, entryJSON);
-        break;
-      case WARN:
-        log.warn(AUDIT_MARKER, entryJSON);
-        break;
-      case ERROR:
-        log.error(AUDIT_MARKER, entryJSON);
-        break;
+    // Either forward log to logging layer or log to console
+    Map<String, Object> fluentdLogs = new HashMap<>();
+    if (properties.getLogForwarderProperties().isEnabled()) {
+      MessageAuditLogEntry messageAuditLogEntry = (MessageAuditLogEntry) entry;
+      try {
+        fluentdLogs.put("id", messageAuditLogEntry.getId());
+        fluentdLogs.put("service", messageAuditLogEntry.getService());
+        fluentdLogs.put("status_code", messageAuditLogEntry.getStatusCode());
+        fluentdLogs.put("method", messageAuditLogEntry.getMethod());
+        fluentdLogs.put("request", JsonFormat.printer().print(messageAuditLogEntry.getRequest()));
+        fluentdLogs.put("response", JsonFormat.printer().print(messageAuditLogEntry.getResponse()));
+        // tag can be used as "service" to split rr logs into separate tables
+        fluentLogger.log("fluentd", fluentdLogs);
+      } catch (InvalidProtocolBufferException e) {
+        throw io.grpc.Status.NOT_FOUND
+            .withDescription("Unable to forward logs to logging service")
+            .withCause(e)
+            .asRuntimeException();
+      }
+    } else {
+      // Log event to audit log through enabled formats
+      String entryJSON = entry.toJSON();
+      switch (level) {
+        case TRACE:
+          log.trace(AUDIT_MARKER, entryJSON);
+          break;
+        case DEBUG:
+          log.debug(AUDIT_MARKER, entryJSON);
+          break;
+        case INFO:
+          log.info(AUDIT_MARKER, entryJSON);
+          break;
+        case WARN:
+          log.warn(AUDIT_MARKER, entryJSON);
+          break;
+        case ERROR:
+          log.error(AUDIT_MARKER, entryJSON);
+          break;
+      }
     }
   }
 }
