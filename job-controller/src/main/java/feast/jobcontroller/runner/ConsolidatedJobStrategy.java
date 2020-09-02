@@ -16,6 +16,7 @@
  */
 package feast.jobcontroller.runner;
 
+import feast.jobcontroller.config.FeastProperties.JobProperties;
 import feast.jobcontroller.dao.JobRepository;
 import feast.jobcontroller.model.Job;
 import feast.jobcontroller.model.JobStatus;
@@ -38,9 +39,11 @@ import org.apache.commons.lang3.tuple.Pair;
  */
 public class ConsolidatedJobStrategy implements JobGroupingStrategy {
   private final JobRepository jobRepository;
+  private final JobProperties jobProperties;
 
-  public ConsolidatedJobStrategy(JobRepository jobRepository) {
+  public ConsolidatedJobStrategy(JobRepository jobRepository, JobProperties jobProperties) {
     this.jobRepository = jobRepository;
+    this.jobProperties = jobProperties;
   }
 
   @Override
@@ -71,6 +74,10 @@ public class ConsolidatedJobStrategy implements JobGroupingStrategy {
                 source.getKafkaSourceConfig().getBootstrapServers(),
                 source.getKafkaSourceConfig().getTopic()),
             dateSuffix);
+    if (this.jobProperties.getJobIdPrefix() != null
+        && !this.jobProperties.getJobIdPrefix().isEmpty()) {
+      jobId = this.jobProperties.getJobIdPrefix() + "-" + jobId;
+    }
     return jobId.replaceAll("_store", "-").toLowerCase();
   }
 

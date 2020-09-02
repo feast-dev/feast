@@ -23,6 +23,9 @@ feast:
     # Enabling JobManagement
     enabled: true
 
+    # Configurable Prefix for JobId to allow jobs working in parallel to separate their Kafka consumer groups
+    job_id_prefix: ""
+
     # Job update polling interval in milliseconds: how often Feast checks if new jobs should be sent to the runner.
     polling_interval_milliseconds: 60000
 
