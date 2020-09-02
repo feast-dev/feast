@@ -81,7 +81,8 @@ public class JobPerStoreStrategy implements JobGroupingStrategy {
                 source.getKafkaSourceConfig().getTopic()),
             Lists.newArrayList(stores).get(0).getName(),
             dateSuffix);
-    if (!this.jobProperties.getJobIdPrefix().isEmpty()) {
+    if (this.jobProperties.getJobIdPrefix() != null
+        && !this.jobProperties.getJobIdPrefix().isEmpty()) {
       jobId = this.jobProperties.getJobIdPrefix() + "-" + jobId;
     }
     return jobId.replaceAll("_store", "-").toLowerCase();

@@ -74,7 +74,8 @@ public class ConsolidatedJobStrategy implements JobGroupingStrategy {
                 source.getKafkaSourceConfig().getBootstrapServers(),
                 source.getKafkaSourceConfig().getTopic()),
             dateSuffix);
-    if (!this.jobProperties.getJobIdPrefix().isEmpty()) {
+    if (this.jobProperties.getJobIdPrefix() != null
+        && !this.jobProperties.getJobIdPrefix().isEmpty()) {
       jobId = this.jobProperties.getJobIdPrefix() + "-" + jobId;
     }
     return jobId.replaceAll("_store", "-").toLowerCase();
