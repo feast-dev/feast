@@ -21,6 +21,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.Streams;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.gson.JsonObject;
@@ -47,6 +48,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.junit.jupiter.api.BeforeAll;
@@ -153,17 +155,18 @@ public class CoreLoggingIT extends BaseIT {
 
   /** Check that expected message audit logs are produced when under load. */
   @Test
-  public void shouldProduceExpectedNumberOfAuditLogs()
+  public void shouldProduceExpectedAuditLogsUnderLoad()
       throws InterruptedException, ExecutionException {
     // Generate artifical requests on core to simulate load.
     int LOAD_SIZE = 40; // Total number of requests to send.
     int BURST_SIZE = 5; // Number of requests to send at once.
 
+    ListStoresRequest request = ListStoresRequest.getDefaultInstance();
     List<ListStoresResponse> responses = new LinkedList<>();
     for (int i = 0; i < LOAD_SIZE; i += 5) {
       List<ListenableFuture<ListStoresResponse>> futures = new LinkedList<>();
       for (int j = 0; j < BURST_SIZE; j++) {
-        futures.add(asyncCoreService.listStores(ListStoresRequest.getDefaultInstance()));
+        futures.add(asyncCoreService.listStores(request));
       }
 
       responses.addAll(Futures.allAsList(futures).get());
@@ -171,11 +174,39 @@ public class CoreLoggingIT extends BaseIT {
     // Wait required to ensure audit logs are flushed into test audit log appender
     Thread.sleep(1000);
 
-    // Pull message audit logs logs from test log appender
+    // Pull message audit logs from test log appender
     List<JsonObject> logJsonObjects =
         parseMessageJsonLogObjects(testAuditLogAppender.getLogs(), "ListStores");
-
     assertEquals(responses.size(), logJsonObjects.size());
+
+    // Extract & Check that request/response are returned correctly
+    JsonFormat.Parser protoJSONParser = JsonFormat.parser();
+    Streams.zip(
+            responses.stream(),
+            logJsonObjects.stream(),
+            (response, logObj) -> Pair.of(response, logObj))
+        .forEach(
+            responseLogJsonPair -> {
+              ListStoresResponse response = responseLogJsonPair.getLeft();
+              JsonObject logObj = responseLogJsonPair.getRight();
+
+              ListStoresRequest.Builder gotRequest = null;
+              ListStoresResponse.Builder gotResponse = null;
+              try {
+                String requestJson = logObj.getAsJsonObject("request").toString();
+                gotRequest = ListStoresRequest.newBuilder();
+                protoJSONParser.merge(requestJson, gotRequest);
+
+                String responseJson = logObj.getAsJsonObject("response").toString();
+                gotResponse = ListStoresResponse.newBuilder();
+                protoJSONParser.merge(responseJson, gotResponse);
+              } catch (InvalidProtocolBufferException e) {
+                throw new RuntimeException(e);
+              }
+
+              assertThat(gotRequest.build(), equalTo(request));
+              assertThat(gotResponse.build(), equalTo(response));
+            });
   }
 
   /**
