@@ -346,20 +346,24 @@ public class SpecService {
               .build();
     }
 
+    String projectName = newFeatureSet.getSpec().getProject();
+    String featureSetName = newFeatureSet.getSpec().getName();
+    List<Boolean> isSubscribedToStores = new ArrayList<>() {};
     for (Store store : storeRepository.findAll()) {
       List<Subscription> subscriptionList = store.getSubscriptions();
-      String projectName = newFeatureSet.getSpec().getProject();
-      String featureSetName = newFeatureSet.getSpec().getName();
       boolean isSubscribed =
           isSubscribedToFeatureSet(subscriptionList, projectName, featureSetName);
-
-      if (!isSubscribed) {
-        throw new RegistrationException(
-            String.format(
-                "The supplied Project and FeatureSet, %s/%s has been blacklisted and is not available for registration.",
-                projectName, featureSetName));
-      }
+      isSubscribedToStores.add(isSubscribed);
     }
+    // Only throw error if FeatureSet is not subscribed by ALL stores
+    if (!isSubscribedToStores.isEmpty()
+        && isSubscribedToStores.stream().allMatch(x -> x == false)) {
+      throw new RegistrationException(
+          String.format(
+              "The supplied Project and FeatureSet, %s/%s has been blacklisted and is not available for registration.",
+              projectName, featureSetName));
+    }
+
     // Validate incoming feature set
     FeatureSetValidator.validateSpec(newFeatureSet);
 
