@@ -114,12 +114,9 @@ lint-go:
 
 build-push-docker:
 	@$(MAKE) build-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-core-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-serving-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-ci-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-jobcontroller-docker registry=$(REGISTRY) version=$(VERSION)
+	@$(MAKE) push-docker registry=$(REGISTRY) version=$(VERSION)
 
-build-docker: build-core-docker build-serving-docker build-ci-docker build-jobcontroller-docker
+push-docker: push-core-docker push-serving-docker push-ci-docker push-jobcontroller-docker
 
 push-core-docker:
 	docker push $(REGISTRY)/feast-core:$(VERSION)
@@ -135,6 +132,8 @@ push-ci-docker:
 
 push-jupyter-docker:
 	docker push $(REGISTRY)/feast-jupyter:$(VERSION)
+
+build-docker: build-core-docker build-serving-docker build-ci-docker build-jobcontroller-docker
 
 build-core-docker:
 	docker build -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .

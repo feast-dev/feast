@@ -5,14 +5,11 @@ on: [push, pull_request]
 jobs:
   build-push-docker-images:
     runs-on: [self-hosted]
-    strategy:
-      max-parallel: 3
-      matrix:
-        component: [core, serving, jobcontroller, jupyter]
     env:
       GITHUB_PR_SHA: ${{ github.event.pull_request.head.sha }}
       REGISTRY: gcr.io/kf-feast
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
+      N_PARALLEL: 4
     steps:
       - uses: actions/checkout@v2
       - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
@@ -25,14 +22,17 @@ jobs:
           infra/scripts/download-maven-cache.sh \
           --archive-uri ${MAVEN_CACHE} \
           --output-dir .
-      - name: Build image
-        run: make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
-      - name: Push image
+      - name: Build images
         run: |
-          docker push ${REGISTRY}/feast-${{ matrix.component }}:${GITHUB_SHA}
+          make -j ${N_PARALLEL} build-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
           if [ -n "${GITHUB_PR_SHA}" ]; then
-            docker tag ${REGISTRY}/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_PR_SHA}
-            docker push ${REGISTRY}/feast-${{ matrix.component }}:${GITHUB_PR_SHA}
+          make -j ${N_PARALLEL} build-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_PR_SHA}
+          fi 
+      - name: Push images
+        run: |
+          make -j ${N_PARALLEL} push-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
+          if [ -n "${GITHUB_PR_SHA}" ]; then
+            make -j ${N_PARALLEL} push-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_PR_SHA}
           fi
 
   lint-java:
