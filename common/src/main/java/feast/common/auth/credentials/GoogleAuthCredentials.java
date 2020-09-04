@@ -41,7 +41,7 @@ public class GoogleAuthCredentials extends CallCredentials {
       Metadata.Key.of("Authorization", ASCII_STRING_MARSHALLER);
 
   /**
-   * Constructa new GoogleAuthCredentials with given options.
+   * Construct a new GoogleAuthCredentials with given options.
    *
    * @param options a map of options, Required unless specified: audience - Optional, Sets the
    *     target audience of the token obtained.
