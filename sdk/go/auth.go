@@ -72,7 +72,7 @@ func NewGoogleCredential(audience string) (*Credential, error) {
 // clientId, clientSecret - Client credentials used to authenticate the client when obtaining credentials.
 // endpointURL - target URL of the OAuth endpoint to make the OAuth request to.
 func NewOAuthCredential(audience string, clientId string, clientSecret string, endpointURL *url.URL) *Credential {
-	tokenSrc := &oAuthTokenSource{
+	tokenSrc := &oauthTokenSource{
 		clientId:     clientId,
 		clientSecret: clientSecret,
 		endpointURL:  endpointURL,
@@ -82,7 +82,7 @@ func NewOAuthCredential(audience string, clientId string, clientSecret string, e
 }
 
 // Defines a Token Source that obtains tokens via making a OAuth client credentials request.
-type oAuthTokenSource struct {
+type oauthTokenSource struct {
 	clientId     string
 	clientSecret string
 	endpointURL  *url.URL
@@ -91,7 +91,7 @@ type oAuthTokenSource struct {
 }
 
 // Defines a Oauth cleint credentials request.
-type oAuthClientCredientialsRequest struct {
+type oauthClientCredientialsRequest struct {
 	GrantType    string `json:"grant_type"`
 	ClientId     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
@@ -99,10 +99,10 @@ type oAuthClientCredientialsRequest struct {
 }
 
 // Obtain or Refresh token from OAuth Token Source.
-func (tokenSrc *oAuthTokenSource) Token() (*oauth2.Token, error) {
+func (tokenSrc *oauthTokenSource) Token() (*oauth2.Token, error) {
 	if tokenSrc.token == nil || !tokenSrc.token.Valid() {
 		// Refresh Oauth Id token by making Oauth client credentials request
-		req := &oAuthClientCredientialsRequest{
+		req := &oauthClientCredientialsRequest{
 			GrantType:    "client_credentials",
 			ClientId:     tokenSrc.clientId,
 			ClientSecret: tokenSrc.clientSecret,

@@ -58,7 +58,7 @@ func mockOAuthCredential(token string, audience string) (*httptest.Server, *Cred
 			resp.WriteHeader(http.StatusBadRequest)
 		}
 
-		oauthReq := oAuthClientCredientialsRequest{}
+		oauthReq := oauthClientCredientialsRequest{}
 		err = json.Unmarshal(reqBytes, &oauthReq)
 		if err != nil {
 			resp.WriteHeader(http.StatusBadRequest)
