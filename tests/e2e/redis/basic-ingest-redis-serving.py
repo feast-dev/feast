@@ -734,6 +734,7 @@ def test_basic_ingest_retrieval_multi_entities(client):
         }
     )
     client.ingest("merchant_fs", merchant_df, timeout=600)
+    time.sleep(15)
 
     online_request_entity = [
         {"driver_id": 0, "merchant_id": 0},
