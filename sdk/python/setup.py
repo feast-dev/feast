@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import re
 import subprocess
 
 from setuptools import find_packages, setup
@@ -59,6 +60,11 @@ README_FILE = os.path.join(repo_root, "README.md")
 with open(os.path.join(README_FILE), "r") as f:
     LONG_DESCRIPTION = f.read()
 
+# Add Support for parsing tags that have a prefix containing '/' (ie 'sdk/go') to setuptools_scm.
+TAG_REGEX = re.compile(
+    r"^(?:[\/\w-]+)?(?P<version>[vV]?\d+(?:\.\d+){0,2}[^\+]*)(?:\+.*)?$"
+)
+
 setup(
     name=NAME,
     author=AUTHOR,
@@ -83,6 +89,6 @@ setup(
         "Programming Language :: Python :: 3.6",
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
-    use_scm_version={"root": "../..", "relative_to": __file__},
+    use_scm_version={"root": "../..", "relative_to": __file__, "tag_regex": TAG_REGEX},
     setup_requires=["setuptools_scm"],
 )
