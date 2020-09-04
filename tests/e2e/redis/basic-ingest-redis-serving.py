@@ -709,6 +709,62 @@ def test_basic_ingest_retrieval_str(client):
 
 @pytest.mark.timeout(600)
 @pytest.mark.run(order=18)
+def test_basic_ingest_retrieval_multi_entities(client):
+    # Set to another project to test ingestion based on current project context
+    client.set_project(PROJECT_NAME + "_NS1")
+    merchant_fs = FeatureSet(
+        name="merchant_fs",
+        features=[Feature(name="merchant_sales", dtype=ValueType.FLOAT)],
+        entities=[
+            Entity("driver_id", ValueType.INT64),
+            Entity("merchant_id", ValueType.INT64),
+        ],
+        max_age=Duration(seconds=3600),
+    )
+    client.apply(merchant_fs)
+
+    N_ROWS = 2
+    time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
+    merchant_df = pd.DataFrame(
+        {
+            "datetime": [time_offset] * N_ROWS,
+            "driver_id": [i for i in range(N_ROWS)],
+            "merchant_id": [i for i in range(N_ROWS)],
+            "merchant_sales": [float(i) + 0.5 for i in range(N_ROWS)],
+        }
+    )
+    client.ingest("merchant_fs", merchant_df, timeout=600)
+
+    online_request_entity = [
+        {"driver_id": 0, "merchant_id": 0},
+        {"driver_id": 1, "merchant_id": 1},
+    ]
+    online_request_features = ["merchant_sales"]
+
+    def try_get_features():
+        response = client.get_online_features(
+            entity_rows=online_request_entity, feature_refs=online_request_features
+        )
+        is_ok = check_online_response("merchant_sales", merchant_df, response)
+        return response, is_ok
+
+    online_features_actual = wait_retry_backoff(
+        retry_fn=try_get_features,
+        timeout_secs=90,
+        timeout_msg="Timed out trying to get online feature values",
+    )
+
+    online_features_expected = {
+        "driver_id": [0, 1],
+        "merchant_id": [0, 1],
+        "merchant_sales": [0.5, 1.5],
+    }
+
+    assert online_features_actual.to_dict() == online_features_expected
+
+
+@pytest.mark.timeout(600)
+@pytest.mark.run(order=19)
 def test_basic_retrieve_feature_row_missing_fields(client, cust_trans_df):
     feature_refs = ["daily_transactions", "total_transactions", "null_values"]
 
@@ -756,7 +812,7 @@ def test_basic_retrieve_feature_row_missing_fields(client, cust_trans_df):
 
 
 @pytest.mark.timeout(600)
-@pytest.mark.run(order=19)
+@pytest.mark.run(order=20)
 def test_basic_retrieve_feature_row_extra_fields(client, cust_trans_df):
     feature_refs = ["daily_transactions", "total_transactions"]
     # apply cust_trans_fs and ingest dataframe
@@ -851,7 +907,7 @@ def all_types_dataframe():
 
 
 @pytest.mark.timeout(45)
-@pytest.mark.run(order=20)
+@pytest.mark.run(order=21)
 def test_all_types_register_feature_set_success(client):
     client.set_project(PROJECT_NAME)
 
@@ -897,7 +953,7 @@ def test_all_types_register_feature_set_success(client):
 
 
 @pytest.mark.timeout(300)
-@pytest.mark.run(order=21)
+@pytest.mark.run(order=22)
 def test_all_types_ingest_success(client, all_types_dataframe):
     # Get all_types feature set
     all_types_fs = client.get_feature_set(name="all_types")
@@ -907,7 +963,7 @@ def test_all_types_ingest_success(client, all_types_dataframe):
 
 
 @pytest.mark.timeout(90)
-@pytest.mark.run(order=22)
+@pytest.mark.run(order=23)
 def test_all_types_retrieve_online_success(client, all_types_dataframe):
     # Poll serving for feature values until the correct values are returned_float_list
     feature_refs = [
