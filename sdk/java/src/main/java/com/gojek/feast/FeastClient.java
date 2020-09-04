@@ -24,10 +24,12 @@ import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
+import io.grpc.CallCredentials;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -43,7 +45,7 @@ public class FeastClient implements AutoCloseable {
   private final ServingServiceBlockingStub stub;
 
   /**
-   * Create a client to access Feast
+   * Create a client to access Feast Serving.
    *
    * @param host hostname or ip address of Feast serving GRPC server
    * @param port port number of Feast serving GRPC server
@@ -51,9 +53,30 @@ public class FeastClient implements AutoCloseable {
    */
   public static FeastClient create(String host, int port) {
     ManagedChannel channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
-    return new FeastClient(channel);
+    return new FeastClient(channel, Optional.empty());
   }
 
+  /**
+   * Create a authenticated client that can access Feast serving with authentication enabled.
+   * Supports the {@link CallCredentials} in the {@link feast.common.auth.credentials} package.
+   *
+   * @param host hostname or ip address of Feast serving GRPC server
+   * @param port port number of Feast serving GRPC server
+   * @param credentials Call credentials used to provide credentials when calling Feast.
+   * @return {@link FeastClient}
+   */
+  public static FeastClient createAuthenticated(
+      String host, int port, CallCredentials credentials) {
+    ManagedChannel channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
+    return new FeastClient(channel, Optional.of(credentials));
+  }
+
+  /**
+   * Obtain info about Feast Serving.
+   *
+   * @return {@link feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse} containing
+   *     Feast version, Serving type etc.
+   */
   public GetFeastServingInfoResponse getFeastServingInfo() {
     return stub.getFeastServingInfo(GetFeastServingInfoRequest.newBuilder().build());
   }
@@ -156,9 +179,13 @@ public class FeastClient implements AutoCloseable {
         .collect(Collectors.toList());
   }
 
-  protected FeastClient(ManagedChannel channel) {
+  protected FeastClient(ManagedChannel channel, Optional<CallCredentials> credentials) {
     this.channel = channel;
-    this.stub = ServingServiceGrpc.newBlockingStub(channel);
+    ServingServiceBlockingStub servingStub = ServingServiceGrpc.newBlockingStub(channel);
+    if (credentials.isPresent()) {
+      servingStub = servingStub.withCallCredentials(credentials.get());
+    }
+    this.stub = servingStub;
   }
 
   public void close() throws Exception {

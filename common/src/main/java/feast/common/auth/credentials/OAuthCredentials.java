@@ -34,9 +34,10 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
-/*
- * Oauth Credentials Implementation for serving.
- * Used by CoreSpecService to connect to core.
+/**
+ * OAuthCredentials uses a OAuth OIDC ID token making authenticated gRPC calls. Makes an OAuth
+ * request to obtain the OIDC token used for authentication. The given token will be passed as
+ * authorization bearer token when making calls.
  */
 public class OAuthCredentials extends CallCredentials {
 
@@ -58,6 +59,15 @@ public class OAuthCredentials extends CallCredentials {
   private Instant tokenExpiryTime;
   private NimbusJwtDecoder jwtDecoder;
 
+  /**
+   * Constructs a new OAuthCredentials with given options.
+   *
+   * @param options a map of options, Required unless specified: grant_type - OAuth grant type.
+   *     Should be set as client_credentials audience - Sets the target audience of the token
+   *     obtained. client_id - Client id to use in the OAuth request. client_secret - Client securet
+   *     to use in the OAuth request. jwtEndpointURI - HTTPS URL used to retrieve a JWK that can be
+   *     used to decode the credential.
+   */
   public OAuthCredentials(Map<String, String> options) {
     this.httpClient = new OkHttpClient();
     if (!(options.containsKey(GRANT_TYPE)

@@ -14,12 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.auth.infra;
+package feast.common.auth.credentials;
 
 import io.grpc.CallCredentials;
 import io.grpc.Metadata;
 import java.util.concurrent.Executor;
 
+/**
+ * JWTCallCredentials provides/attaches a static JWT token for making authenticated gRPC calls. The
+ * given token will be passed as authorization bearer token when making calls.
+ */
 public final class JwtCallCredentials extends CallCredentials {
 
   private String jwt;

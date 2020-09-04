@@ -28,6 +28,8 @@ feast:
       provider: jwt
       options:
         jwkEndpointURI: "https://www.googleapis.com/oauth2/v3/certs"
+        subjectClaim: email
+
     authorization:
       enabled: false
       provider: http

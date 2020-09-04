@@ -21,6 +21,7 @@ import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.mock;
 
 import com.google.protobuf.Timestamp;
+import feast.common.auth.credentials.JwtCallCredentials;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
@@ -30,6 +31,11 @@ import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues
 import feast.proto.serving.ServingServiceGrpc.ServingServiceImplBase;
 import feast.proto.types.ValueProto.Value;
 import io.grpc.ManagedChannel;
+import io.grpc.Metadata;
+import io.grpc.ServerCall;
+import io.grpc.ServerCall.Listener;
+import io.grpc.ServerCallHandler;
+import io.grpc.ServerInterceptor;
 import io.grpc.Status;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
@@ -39,12 +45,18 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class FeastClientTest {
+  private final String AUTH_TOKEN = "test token";
+
   @Rule public GrpcCleanupRule grpcRule;
+  private AtomicBoolean isAuthenticated;
+
   private ServingServiceImplBase servingMock =
       mock(
           ServingServiceImplBase.class,
@@ -54,7 +66,6 @@ public class FeastClientTest {
                 public void getOnlineFeatures(
                     GetOnlineFeaturesRequest request,
                     StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
-
                   if (!request.equals(FeastClientTest.getFakeRequest())) {
                     responseObserver.onError(Status.FAILED_PRECONDITION.asRuntimeException());
                   }
@@ -63,17 +74,37 @@ public class FeastClientTest {
                   responseObserver.onCompleted();
                 }
               }));
+
+  // Mock Authentication interceptor will flag authenticated request by setting isAuthenticated to
+  // true.
+  private ServerInterceptor mockAuthInterceptor =
+      new ServerInterceptor() {
+        @Override
+        public <ReqT, RespT> Listener<ReqT> interceptCall(
+            ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+          final Metadata.Key<String> authorizationKey =
+              Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER);
+          if (headers.containsKey(authorizationKey)) {
+            isAuthenticated.set(true);
+          }
+          return next.startCall(call, headers);
+        }
+      };
+
   private FeastClient client;
+  private FeastClient authenticatedClient;
 
   @Before
   public void setup() throws Exception {
     this.grpcRule = new GrpcCleanupRule();
+    this.isAuthenticated = new AtomicBoolean(false);
     // setup fake serving service
     String serverName = InProcessServerBuilder.generateName();
     this.grpcRule.register(
         InProcessServerBuilder.forName(serverName)
             .directExecutor()
             .addService(this.servingMock)
+            .intercept(mockAuthInterceptor)
             .build()
             .start());
 
@@ -81,13 +112,26 @@ public class FeastClientTest {
     ManagedChannel channel =
         this.grpcRule.register(
             InProcessChannelBuilder.forName(serverName).directExecutor().build());
-    this.client = new FeastClient(channel);
+    this.client = new FeastClient(channel, Optional.empty());
+    this.authenticatedClient =
+        new FeastClient(channel, Optional.of(new JwtCallCredentials(AUTH_TOKEN)));
   }
 
   @Test
   public void shouldGetOnlineFeatures() {
+    shouldGetOnlineFeaturesWithClient(this.client);
+  }
+
+  @Test
+  public void shouldAuthenticateAndGetOnlineFeatures() {
+    isAuthenticated.set(false);
+    shouldGetOnlineFeaturesWithClient(this.authenticatedClient);
+    assertEquals(isAuthenticated.get(), true);
+  }
+
+  private void shouldGetOnlineFeaturesWithClient(FeastClient client) {
     List<Row> rows =
-        this.client.getOnlineFeatures(
+        client.getOnlineFeatures(
             Arrays.asList("driver:name", "rating", "null_value"),
             Arrays.asList(
                 Row.create().set("driver_id", 1).setEntityTimestamp(Instant.ofEpochSecond(100))),
