@@ -10,7 +10,6 @@ jobs:
   build-docker-images:
     runs-on: [self-hosted]
     strategy:
-      max-parallel: 3
       matrix:
         component: [core, serving, jobcontroller, jupyter, ci]
     env:
