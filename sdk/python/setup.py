@@ -61,6 +61,8 @@ with open(os.path.join(README_FILE), "r") as f:
     LONG_DESCRIPTION = f.read()
 
 # Add Support for parsing tags that have a prefix containing '/' (ie 'sdk/go') to setuptools_scm.
+# Regex modified from default tag regex in:
+# https://github.com/pypa/setuptools_scm/blob/2a1b46d38fb2b8aeac09853e660bcd0d7c1bc7be/src/setuptools_scm/config.py#L9
 TAG_REGEX = re.compile(
     r"^(?:[\/\w-]+)?(?P<version>[vV]?\d+(?:\.\d+){0,2}[^\+]*)(?:\+.*)?$"
 )
