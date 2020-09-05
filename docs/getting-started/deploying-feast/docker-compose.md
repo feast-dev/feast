@@ -19,7 +19,7 @@ This guide will bring Feast up using Docker Compose. This will allow you to:
 
 Clone the latest stable version of the [Feast repository](https://github.com/gojek/feast/) and navigate to the `infra/docker-compose` sub-directory:
 
-```
+```text
 git clone --depth 1 --branch v0.6.2 https://github.com/feast-dev/feast.git
 cd feast/infra/docker-compose
 ```
@@ -40,7 +40,7 @@ docker-compose up -d
 
 Once Feast comes up you should be able to connect to a local Jupyter notebook that contains Feast examples. This may take a few minutes.
 
-{% embed url="http://localhost:8888/tree?" %}
+{% embed url="http://localhost:8888/tree?" caption="" %}
 
 ## 3. Start Feast for Training and Online Serving
 
@@ -109,7 +109,5 @@ docker-compose up -d
 
 Once Feast comes up you should be able to connect to a local Jupyter notebook that contains Feast examples. This may take a few minutes.
 
-{% embed url="http://localhost:8888/tree?" %}
-
-## 
+{% embed url="http://localhost:8888/tree?" caption="" %}
 

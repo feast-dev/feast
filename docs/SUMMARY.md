@@ -34,6 +34,7 @@
 
 ## Administration
 
+* [Audit Logging](administration/audit-logging.md)
 * [Troubleshooting](administration/troubleshooting.md)
 * [Upgrading Feast](administration/upgrading.md)
 
