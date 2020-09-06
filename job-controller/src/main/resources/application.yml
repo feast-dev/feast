@@ -16,6 +16,8 @@
 #
 
 feast:
+  # GRPC service address for Feast Core
+  # Feast Job Controller requires connection to Feast Core to retrieve and reload Feast metadata.
   core-host: localhost
   core-port: 6565
 
@@ -36,15 +38,18 @@ feast:
     active_runner: direct
 
     # List of runner configurations. Please see protos/feast/core/Runner.proto for more details
-    # Alternatively see the following for options https://api.docs.feast.dev/grpc/feast.core.pb.html#Runner
     runners:
       - name: direct
         type: DirectRunner
+        # Direct runner options. See also for docs on options:
+        # https://api.docs.feast.dev/grpc/feast.core.pb.html#DirectRunnerConfigOptions
         options:
           tempLocation: gs://bucket/tempLocation
 
       - name: dataflow
         type: DataflowRunner
+        # Dataflow runner options. See also for docs on options:
+        # https://api.docs.feast.dev/grpc/feast.core.pb.html#DataflowRunnerConfigOptions
         options:
           project: my_gcp_project
           region: asia-east1
@@ -105,9 +110,14 @@ feast:
       bootstrapServers: localhost:9092
       replicationFactor: 1
       partitions: 1
+    # Feast Job Controller uses Kafka to push FeatureSets to Ingestion Jobs.
+    # FeatureSet push options. 
     specsOptions:
+      # Kafka topic to use to push FeatureSets.
       specsTopic: feast-specs
+      # Kafka topic to use to obtain acknowledgment on FeatureSets push.
       specsAckTopic: feast-specs-ack
+      # Time interval between pushing FeatureSets.
       notifyIntervalMilliseconds: 1000
         
   logging:
@@ -141,7 +151,9 @@ management:
       simple:
         enabled: false
       statsd:
+        # Enables statsd backend to write metrics.
         enabled: true
+        # Host and port of the statsd instance.
         host: ${STATSD_HOST:localhost}
         port: ${STATSD_PORT:8125}
 
