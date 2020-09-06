@@ -1,14 +1,10 @@
-feast-core
-==========
+# feast-core
+
+![Version: 0.8-SNAPSHOT](https://img.shields.io/badge/Version-0.8-SNAPSHOT-informational?style=flat-square)
+
 Feast Core registers feature specifications.
 
-Current chart version is `0.8-SNAPSHOT`
-
-
-
-
-
-## Chart Values
+## Values
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|

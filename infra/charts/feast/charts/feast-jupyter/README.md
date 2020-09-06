@@ -1,14 +1,10 @@
-feast-jupyter
-=============
+# feast-jupyter
+
+![Version: 0.8-SNAPSHOT](https://img.shields.io/badge/Version-0.8-SNAPSHOT-informational?style=flat-square)
+
 Feast Jupyter provides a Jupyter server with pre-installed Feast SDK
 
-Current chart version is `0.8-SNAPSHOT`
-
-
-
-
-
-## Chart Values
+## Values
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|

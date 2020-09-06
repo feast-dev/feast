@@ -1,14 +1,10 @@
-feast-jobcontroller
-==========
-Feast Job Controller manage ingestion jobs.
+# feast-jobcontroller
 
-Current chart version is `0.8-SNAPSHOT`
+![Version: 0.8-SNAPSHOT](https://img.shields.io/badge/Version-0.8-SNAPSHOT-informational?style=flat-square)
 
+Feast Job Coontroller manage ingestion jobs.
 
-
-
-
-## Chart Values
+## Values
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -42,7 +38,7 @@ Current chart version is `0.8-SNAPSHOT`
 | ingress.http.https.secretNames | object | `{}` | Map of hostname to TLS secret name |
 | ingress.http.whitelist | string | `""` | Allowed client IP source ranges |
 | javaOpts | string | `nil` | [JVM options](https://docs.oracle.com/cd/E22289_01/html/821-1274/configuring-the-default-jvm-and-java-arguments.html). For better performance, it is advised to set the min and max heap: <br> `-Xms2048m -Xmx2048m` |
-| livenessProbe.enabled | bool | `false` | Flag to enabled the probe |
+| livenessProbe.enabled | bool | `true` | Flag to enabled the probe |
 | livenessProbe.failureThreshold | int | `5` | Min consecutive failures for the probe to be considered failed |
 | livenessProbe.initialDelaySeconds | int | `60` | Delay before the probe is initiated |
 | livenessProbe.periodSeconds | int | `10` | How often to perform the probe |
@@ -53,7 +49,7 @@ Current chart version is `0.8-SNAPSHOT`
 | nodeSelector | object | `{}` | Node labels for pod assignment |
 | podLabels | object | `{}` | Labels to be added to Feast Job Controller pods |
 | postgresql.existingSecret | string | `""` | Existing secret to use for authenticating to Postgres |
-| prometheus.enabled | bool | `true` | Flag to enable scraping of Feast Job Controller metrics |
+| prometheus.enabled | bool | `true` | Flag to enable scraping of metrics |
 | readinessProbe.enabled | bool | `true` | Flag to enabled the probe |
 | readinessProbe.failureThreshold | int | `5` | Min consecutive failures for the probe to be considered failed |
 | readinessProbe.initialDelaySeconds | int | `20` | Delay before the probe is initiated |
@@ -63,8 +59,8 @@ Current chart version is `0.8-SNAPSHOT`
 | replicaCount | int | `1` | Number of pods that will be created |
 | resources | object | `{}` | CPU/memory [resource requests/limit](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#resource-requests-and-limits-of-pod-and-container) |
 | service.grpc.nodePort | string | `nil` | Port number that each cluster node will listen to |
-| service.grpc.port | int | `6565` | Service port for GRPC requests |
-| service.grpc.targetPort | int | `6565` | Container port serving GRPC requests |
+| service.grpc.port | int | `6570` | Service port for GRPC requests |
+| service.grpc.targetPort | int | `6570` | Container port serving GRPC requests |
 | service.http.nodePort | string | `nil` | Port number that each cluster node will listen to |
 | service.http.port | int | `80` | Service port for HTTP requests |
 | service.http.targetPort | int | `8080` | Container port serving HTTP requests and Prometheus metrics |

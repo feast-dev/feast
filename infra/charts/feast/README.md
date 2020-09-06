@@ -1,7 +1,6 @@
-feast
-===== 
+# feast
 
-Feature store for machine learning. Current chart version is `0.7-SNAPSHOT`
+Feature store for machine learning. Current chart version is `0.8-SNAPSHOT`
 
 ## TL;DR;
 
@@ -21,21 +20,21 @@ helm install --name myrelease feast-charts/feast \
 ```
 
 ## Introduction
-This chart install Feast deployment on a Kubernetes cluster using the [Helm](https://v2.helm.sh/docs/using_helm/#installing-helm) package manager. 
+This chart install Feast deployment on a Kubernetes cluster using the [Helm](https://v2.helm.sh/docs/using_helm/#installing-helm) package manager.
 
 ## Prerequisites
 - Kubernetes 1.12+
 - Helm 2.15+ (not tested with Helm 3)
 - Persistent Volume support on the underlying infrastructure
 
-## Chart Requirements
+## Requirements
 
 | Repository | Name | Version |
 |------------|------|---------|
-|  | feast-core | 0.7-SNAPSHOT |
-|  | feast-jupyter | 0.7-SNAPSHOT |
-|  | feast-serving | 0.7-SNAPSHOT |
-|  | feast-serving | 0.7-SNAPSHOT |
+|  | feast-core | 0.8-SNAPSHOT |
+|  | feast-jupyter | 0.8-SNAPSHOT |
+|  | feast-serving | 0.8-SNAPSHOT |
+|  | feast-serving | 0.8-SNAPSHOT |
 |  | prometheus-statsd-exporter | 0.1.2 |
 | https://kubernetes-charts-incubator.storage.googleapis.com/ | kafka | 0.20.8 |
 | https://kubernetes-charts.storage.googleapis.com/ | grafana | 5.0.5 |
@@ -43,12 +42,13 @@ This chart install Feast deployment on a Kubernetes cluster using the [Helm](htt
 | https://kubernetes-charts.storage.googleapis.com/ | prometheus | 11.0.2 |
 | https://kubernetes-charts.storage.googleapis.com/ | redis | 10.5.6 |
 
-## Chart Values
+## Values
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | feast-batch-serving.enabled | bool | `false` | Flag to install Feast Batch Serving |
 | feast-core.enabled | bool | `true` | Flag to install Feast Core |
+| feast-jobcontroller.enabled | bool | `true` | Flag to install Feast Job Controller |
 | feast-jupyter.enabled | bool | `true` | Flag to install Feast Jupyter Notebook with SDK |
 | feast-online-serving.enabled | bool | `true` | Flag to install Feast Online Serving |
 | grafana.enabled | bool | `true` | Flag to install Grafana |
@@ -61,8 +61,8 @@ This chart install Feast deployment on a Kubernetes cluster using the [Helm](htt
 ## Configuration and installation details
 
 The default configuration will install Feast with Online Serving. Ingestion
-of features will use Beam [DirectRunner](https://beam.apache.org/documentation/runners/direct/) 
-that runs on the same container where Feast Core is running. 
+of features will use Beam [DirectRunner](https://beam.apache.org/documentation/runners/direct/)
+that runs on the same container where Feast Core is running.
 
 ```bash
 # Create secret for Feast database, replace <your-password> accordingly
@@ -91,11 +91,11 @@ PASSED: myrelease-test-topic-create-consume-produce
 kubectl logs myrelease-feast-online-serving-test
 ```
 
-> The test pods can be safely deleted after the test finishes.  
+> The test pods can be safely deleted after the test finishes. 
 > Check the yaml files in `templates/tests/` folder to see the processes
 > the test pods execute.
 
-### Feast metrics 
+### Feast metrics
 
 Feast default installation includes Grafana, StatsD exporter and Prometheus. Request
 metrics from Feast Core and Feast Serving, as well as ingestion statistic from
@@ -115,7 +115,7 @@ Visit http://localhost:9090 to access the Prometheus server:
 
 To install Feast Batch Serving for retrieval of historical features in offline
 training, access to BigQuery is required. First, create a [service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) key that
-will provide the credentials to access BigQuery. Grant the service account `editor` 
+will provide the credentials to access BigQuery. Grant the service account `editor`
 role so it has write permissions to BigQuery and Cloud Storage.
 
 > In production, it is advised to grant these specific roles, versus `editor`
@@ -151,7 +151,7 @@ feast-core:
 feast-batch-serving:
   enabled: true
   gcpServiceAccount:
-    enabled: true 
+    enabled: true
   application-override.yaml:
     feast:
       active_store: historical
@@ -174,8 +174,8 @@ postgresql:
   existingSecret: feast-postgresql
 ```
 
-> To delete the previous release, run `helm delete --purge myrelease`  
-> Note this will not delete the persistent volume that has been claimed (PVC).  
+> To delete the previous release, run `helm delete --purge myrelease` 
+> Note this will not delete the persistent volume that has been claimed (PVC). 
 > In a test cluster, run `kubectl delete pvc --all` to delete all claimed PVCs.
 
 ```bash
@@ -183,7 +183,7 @@ postgresql:
 helm install --name myrelease -f values-batch-serving.yaml feast-charts/feast
 
 # Wait until all pods are created and running/completed (can take about 5m)
-kubectl get pods 
+kubectl get pods
 
 # Batch Serving is installed so `helm test` will also test for batch retrieval
 helm test myrelease
@@ -194,7 +194,7 @@ helm test myrelease
 Apache Beam [DirectRunner](https://beam.apache.org/documentation/runners/direct/)
 is not suitable for production use case because it is not easy to scale the
 number of workers and there is no convenient API to monitor and manage the
-workers. Feast supports [DataflowRunner](https://beam.apache.org/documentation/runners/dataflow/) which is a managed service on Google Cloud. 
+workers. Feast supports [DataflowRunner](https://beam.apache.org/documentation/runners/dataflow/) which is a managed service on Google Cloud.
 
 > Make sure `feast-gcp-service-account` Kubernetes secret containing the
 > service account has been created and the service account has permissions
@@ -203,10 +203,10 @@ workers. Feast supports [DataflowRunner](https://beam.apache.org/documentation/r
 Since Dataflow workers run outside the Kube cluster and they will need to interact
 with Kafka brokers, Redis stores and StatsD server installed in the cluster,
 these services need to be exposed for access outside the cluster by setting
-`service.type: LoadBalancer`. 
+`service.type: LoadBalancer`.
 
 In a typical use case, 5 `LoadBalancer` (internal) IP addresses are required by
-Feast when running with `DataflowRunner`. In Google Cloud, these (internal) IP 
+Feast when running with `DataflowRunner`. In Google Cloud, these (internal) IP
 addresses should be reserved first:
 ```bash
 # Check with your network configuration which IP addresses are available for use
@@ -216,7 +216,7 @@ gcloud compute addresses create \
   --addresses 10.128.0.11,10.128.0.12,10.128.0.13,10.128.0.14,10.128.0.15
 ```
 
-Use the following Helm values to enable DataflowRuner (and Batch Serving), 
+Use the following Helm values to enable DataflowRuner (and Batch Serving),
 replacing the `<*load_balancer_ip*>` tags with the ip addresses reserved above:
 
 ```yaml
@@ -256,7 +256,7 @@ feast-online-serving:
     feast:
       stores:
       - name: online
-        type: REDIS 
+        type: REDIS
         config:
           host: <redis_service_load_balancer_ip_addresss>
           port: 6379
@@ -268,7 +268,7 @@ feast-online-serving:
 feast-batch-serving:
   enabled: true
   gcpServiceAccount:
-    enabled: true 
+    enabled: true
   application-override.yaml:
     feast:
       active_store: historical
@@ -333,14 +333,14 @@ prometheus-statsd-exporter:
     - 172.16.0.0/12
     - 192.168.0.0/16
     loadBalancerIP: <prometheus_statsd_exporter_load_balancer_ip_address>
-``` 
+```
 
 ```bash
 # Install a new release
 helm install --name myrelease -f values-dataflow-runner.yaml feast-charts/feast
 
 # Wait until all pods are created and running/completed (can take about 5m)
-kubectl get pods 
+kubectl get pods
 
 # Test the installation
 helm test myrelease
@@ -358,7 +358,7 @@ running features ingestion: https://console.cloud.google.com/dataflow
 The `resources` field in the deployment spec is left empty in the examples. In
 production these should be set according to the load each services are expected
 to handle and the service level objectives (SLO). Also Feast Core and Serving
-is Java application and it is [good practice](https://stackoverflow.com/a/6916718/3949303) 
+is Java application and it is [good practice](https://stackoverflow.com/a/6916718/3949303)
 to set the minimum and maximum heap. This is an example reasonable value to set for Feast Serving:
 
 ```yaml
@@ -377,7 +377,7 @@ feast-online-serving:
 Default Feast installation only configures a single instance of Redis
 server. If due to network failures or out of memory error Redis is down,
 Feast serving will fail to respond to requests. Soon, Feast will support
-highly available Redis via [Redis cluster](https://redis.io/topics/cluster-tutorial), 
+highly available Redis via [Redis cluster](https://redis.io/topics/cluster-tutorial),
 sentinel or additional proxies.
 
 ### Documentation development

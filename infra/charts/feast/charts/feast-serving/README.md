@@ -1,14 +1,10 @@
-feast-serving
-=============
+# feast-serving
+
+![Version: 0.8-SNAPSHOT](https://img.shields.io/badge/Version-0.8-SNAPSHOT-informational?style=flat-square)
+
 Feast Serving serves low-latency latest features and historical batch features.
 
-Current chart version is `0.8-SNAPSHOT`
-
-
-
-
-
-## Chart Values
+## Values
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
