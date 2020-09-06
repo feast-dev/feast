@@ -20,29 +20,37 @@ feast:
     # Feature stream type. Only kafka is supported.
     type: kafka
     # Feature stream options.
-    # See the following for options https://api.docs.feast.dev/grpc/feast.core.pb.html#KafkaSourceConfig
+    # See also for docs on options: https://api.docs.feast.dev/grpc/feast.core.pb.html#KafkaSourceConfig
     options:
       topic: feast-features
       bootstrapServers: localhost:9092
       replicationFactor: 1
       partitions: 1
-    specsOptions:
-      specsTopic: feast-specs
-      specsAckTopic: feast-specs-ack
-      notifyIntervalMilliseconds: 1000
       
   security:
     authentication:
+      # Enables authentication. Authentication is optional if only authentication is enabled.
       enabled: false
+      # Authentication provider type. Currently only supports 'jwt' provider. 
       provider: jwt
+      # Authentication provider options.
       options:
+        # Endpoint URL to retrieve the JWK used to verify the JWT use for authentication.
         jwkEndpointURI: "https://www.googleapis.com/oauth2/v3/certs"
+        # Name of JWT claim to extract subject from JWT.
         subjectClaim: email
 
     authorization:
+      # Enables Authorization. Reqiures and forces authentication.
       enabled: false
+      # Authorization provider. Currently only 'http' provider is supported.
       provider: http
+      # Authorization provider optiosn.
       options:
+        # External authorization service endpoint.
+        # Feast delegates authorization this service by making a check access requests.
+        # See https://github.com/feast-dev/feast/blob/master/common/src/main/resources/api.yaml
+        # For external service's API contract.
         authorizationUrl: http://localhost:8082
         
     # If set to true, HTTP REST endpoints at /api/v1 implemented by
@@ -70,6 +78,7 @@ grpc:
   server:
     # The port that Feast Core gRPC service listens on
     port: 6565
+    # Configure TLS support for gRPC service.
     security:
       enabled: false
       certificateChain: server.crt
@@ -86,7 +95,9 @@ spring:
     hibernate.ddl-auto: validate
   datasource:
     driverClassName: org.postgresql.Driver
+    # Postgres SQL DB connection string.
     url: jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:5432}/${DB_DATABASE:postgres}
+    # Postgres SQL DB connection credentials.
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:password}
   flyway:
@@ -98,6 +109,8 @@ management:
       simple:
         enabled: false
       statsd:
+        # Enables statsd backend to write metrics.
         enabled: true
+        # Host and port of the statsd instance.
         host: ${STATSD_HOST:localhost}
         port: ${STATSD_PORT:8125}
