@@ -27,11 +27,15 @@ import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
 import io.grpc.CallCredentials;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
+import java.io.File;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import javax.net.ssl.SSLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,8 +56,11 @@ public class FeastClient implements AutoCloseable {
    * @return {@link FeastClient}
    */
   public static FeastClient create(String host, int port) {
-    ManagedChannel channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
-    return new FeastClient(channel, Optional.empty());
+    try {
+      return FeastClient.createSecure(host, port, Optional.empty(), false, Optional.empty());
+    } catch (SSLException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /**
@@ -62,13 +69,41 @@ public class FeastClient implements AutoCloseable {
    *
    * @param host hostname or ip address of Feast serving GRPC server
    * @param port port number of Feast serving GRPC server
-   * @param credentials Call credentials used to provide credentials when calling Feast.
+   * @param credentials Enables authentication If specified, the call credentials used to provide
+   *     credentials to authenticate with Feast.
+   * @param enableTLS Whether to use TLS transport security is use when connecting to Feast.
+   * @param certificatePath If specified and TLS is enabled, provides path to TLS certificate used
+   *     the verify Service identity.
+   * @throws SSLException If certificatePath is specified but certificate is invalid.
    * @return {@link FeastClient}
    */
-  public static FeastClient createAuthenticated(
-      String host, int port, CallCredentials credentials) {
-    ManagedChannel channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
-    return new FeastClient(channel, Optional.of(credentials));
+  public static FeastClient createSecure(
+      String host,
+      int port,
+      Optional<CallCredentials> credentials,
+      boolean enableTLS,
+      Optional<String> certificatePath)
+      throws SSLException {
+    // Configure client TLS
+    ManagedChannel channel = null;
+    if (enableTLS) {
+      if (certificatePath.isPresent()) {
+        // Use custom certificate for TLS
+        File certificateFile = new File(certificatePath.get());
+        channel =
+            NettyChannelBuilder.forAddress(host, port)
+                .useTransportSecurity()
+                .sslContext(GrpcSslContexts.forClient().trustManager(certificateFile).build())
+                .build();
+      } else {
+        // Use system certificates for TLS
+        channel = ManagedChannelBuilder.forAddress(host, port).useTransportSecurity().build();
+      }
+    } else {
+      // Disable TLS
+      channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
+    }
+    return new FeastClient(channel, credentials);
   }
 
   /**
