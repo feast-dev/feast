@@ -27,7 +27,7 @@ type GrpcClient struct {
 type SecurityConfig struct {
 	// Whether to enable TLS SSL trasnport security if true.
 	EnableTLS bool
-	// Optional: Provides path to TLS certificate use the verify Service identity.
+	// Optional: Provides path to TLS certificate used the verify Service identity.
 	TLSCertPath string
 	// Optional: Credential used for authentication.
 	// Disables authentication if unspecified.
@@ -36,17 +36,17 @@ type SecurityConfig struct {
 
 // NewGrpcClient constructs a client that can interact via grpc with the feast serving instance at the given host:port.
 func NewGrpcClient(host string, port int) (*GrpcClient, error) {
-	return NewAuthGrpcClient(host, port, SecurityConfig{
+	return NewSecureGrpcClient(host, port, SecurityConfig{
 		EnableTLS:  false,
 		Credential: nil,
 	})
 }
 
-// NewAuthGrpcClient constructs a client that can connect with feast serving instances with authentication enabled.
+// NewAuthGrpcClient constructs a secure client that uses security features (ie authentication).
 // host - hostname of the serving host/instance to connect to.
 // port - post of the host to service host/instancf to connect to.
 // securityConfig - security config configures client security.
-func NewAuthGrpcClient(host string, port int, security SecurityConfig) (*GrpcClient, error) {
+func NewSecureGrpcClient(host string, port int, security SecurityConfig) (*GrpcClient, error) {
 	feastCli := &GrpcClient{}
 	adr := fmt.Sprintf("%s:%d", host, port)
 
