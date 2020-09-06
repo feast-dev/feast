@@ -16,6 +16,17 @@
 #
 
 feast:
+  stream:
+    # Feature stream type. Only kafka is supported.
+    type: kafka
+    # Feature stream options.
+    # See also for docs on options: https://api.docs.feast.dev/grpc/feast.core.pb.html#KafkaSourceConfig
+    options:
+      topic: feast-features
+      bootstrapServers: localhost:9092
+      replicationFactor: 1
+      partitions: 1
+      
   security:
     authentication:
       # Enables authentication. Authentication is optional if only authentication is enabled.

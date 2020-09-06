@@ -20,6 +20,8 @@ import feast.common.auth.config.SecurityProperties;
 import feast.common.auth.config.SecurityProperties.AuthenticationProperties;
 import feast.common.auth.config.SecurityProperties.AuthorizationProperties;
 import feast.common.logging.config.LoggingProperties;
+import feast.common.validators.OneOfStrings;
+import feast.core.config.FeastProperties.StreamProperties.FeatureStreamOptions;
 import java.util.Set;
 import javax.annotation.PostConstruct;
 import javax.validation.ConstraintViolation;
@@ -29,6 +31,7 @@ import javax.validation.Validator;
 import javax.validation.ValidatorFactory;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Positive;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,6 +64,10 @@ public class FeastProperties {
   /* Feast Core Build Version */
   @NotBlank private String version = "unknown";
 
+  @NotNull
+  /* Feast Kafka stream properties */
+  private StreamProperties stream;
+
   @NotNull private SecurityProperties security;
 
   @Bean
@@ -76,6 +83,41 @@ public class FeastProperties {
     return getLogging();
   }
 
+  /** Properties used to configure Feast's managed Kafka feature stream. */
+  @Getter
+  @Setter
+  public static class StreamProperties {
+
+    /* Feature stream type. Only "kafka" is supported. */
+    @OneOfStrings({"kafka"})
+    @NotBlank
+    private String type;
+
+    /* Feature stream options */
+    @NotNull private FeatureStreamOptions options;
+
+    /** Feature stream options */
+    @Getter
+    @Setter
+    public static class FeatureStreamOptions {
+
+      /* Kafka topic to use for feature sets without source topics. */
+      @NotBlank private String topic = "feast-features";
+
+      /**
+       * Comma separated list of Kafka bootstrap servers. Used for feature sets without a defined
+       * source.
+       */
+      @NotBlank private String bootstrapServers = "localhost:9092";
+
+      /* Defines the number of copies of managed feature stream Kafka. */
+      @Positive private short replicationFactor = 1;
+
+      /* Number of Kafka partitions to to use for managed feature stream. */
+      @Positive private int partitions = 1;
+    }
+  }
+
   /**
    * Validates all FeastProperties. This method runs after properties have been initialized and
    * individually and conditionally validates each class.
@@ -89,6 +131,20 @@ public class FeastProperties {
     Set<ConstraintViolation<FeastProperties>> violations = validator.validate(this);
     if (!violations.isEmpty()) {
       throw new ConstraintViolationException(violations);
+    }
+
+    // Validate Stream properties
+    Set<ConstraintViolation<StreamProperties>> streamPropertyViolations =
+        validator.validate(getStream());
+    if (!streamPropertyViolations.isEmpty()) {
+      throw new ConstraintViolationException(streamPropertyViolations);
+    }
+
+    // Validate Stream Options
+    Set<ConstraintViolation<FeatureStreamOptions>> featureStreamOptionsViolations =
+        validator.validate(getStream().getOptions());
+    if (!featureStreamOptionsViolations.isEmpty()) {
+      throw new ConstraintViolationException(featureStreamOptionsViolations);
     }
 
     // Validate AuthenticationProperties
