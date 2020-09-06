@@ -57,7 +57,8 @@ public class FeastClient implements AutoCloseable {
    */
   public static FeastClient create(String host, int port) {
     try {
-      return FeastClient.createSecure(host, port, Optional.empty(), false, Optional.empty());
+      // configure client with no security config.
+      return FeastClient.createSecure(host, port, SecurityConfig.newBuilder().build());
     } catch (SSLException e) {
       throw new RuntimeException(e);
     }
@@ -69,27 +70,20 @@ public class FeastClient implements AutoCloseable {
    *
    * @param host hostname or ip address of Feast serving GRPC server
    * @param port port number of Feast serving GRPC server
-   * @param credentials Enables authentication If specified, the call credentials used to provide
-   *     credentials to authenticate with Feast.
-   * @param enableTLS Whether to use TLS transport security is use when connecting to Feast.
-   * @param certificatePath If specified and TLS is enabled, provides path to TLS certificate used
-   *     the verify Service identity.
-   * @throws SSLException If certificatePath is specified but certificate is invalid.
+   * @param securityConfig security options to configure the Feast client. See {@link
+   *     SecurityConfig} for options.
+   * @throws SSLException If certificatePath is specified in security config but certificate is
+   *     invalid.
    * @return {@link FeastClient}
    */
-  public static FeastClient createSecure(
-      String host,
-      int port,
-      Optional<CallCredentials> credentials,
-      boolean enableTLS,
-      Optional<String> certificatePath)
+  public static FeastClient createSecure(String host, int port, SecurityConfig securityConfig)
       throws SSLException {
     // Configure client TLS
     ManagedChannel channel = null;
-    if (enableTLS) {
-      if (certificatePath.isPresent()) {
+    if (securityConfig.isTLSEnabled()) {
+      if (securityConfig.getCertificatePath().isPresent()) {
         // Use custom certificate for TLS
-        File certificateFile = new File(certificatePath.get());
+        File certificateFile = new File(securityConfig.getCertificatePath().get());
         channel =
             NettyChannelBuilder.forAddress(host, port)
                 .useTransportSecurity()
@@ -103,7 +97,7 @@ public class FeastClient implements AutoCloseable {
       // Disable TLS
       channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
     }
-    return new FeastClient(channel, credentials);
+    return new FeastClient(channel, securityConfig.getCredentials());
   }
 
   /**
