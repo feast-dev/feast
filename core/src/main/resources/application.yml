@@ -78,7 +78,7 @@ grpc:
   server:
     # The port that Feast Core gRPC service listens on
     port: 6565
-    # Configure TLS support for gRPC service.
+    # Configure TLS transport secuirty for gRPC service.
     security:
       enabled: false
       certificateChain: server.crt

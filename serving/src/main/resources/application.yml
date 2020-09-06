@@ -1,6 +1,6 @@
 feast:
   # GRPC service address for Feast Core
-  # Feast Serving requires connection to Feast Core to retrieve and reload Feast metadata (e.g. FeatureSpecs, Store information)
+  # Feast Serving requires connection to Feast Core to retrieve and reload Feast metadata. 
   core-host: ${FEAST_CORE_HOST:localhost}
   core-grpc-port: ${FEAST_CORE_GRPC_PORT:6565}
   
@@ -24,17 +24,29 @@ feast:
   
   security:
     authentication:
+      # Enables authentication. Authentication is optional if only authentication is enabled.
       enabled: false
+      # Authentication provider type. Currently only supports 'jwt' provider. 
       provider: jwt
+      # Authentication provider options.
       options:
+        # Endpoint URL to retrieve the JWK used to verify the JWT use for authentication.
         jwkEndpointURI: "https://www.googleapis.com/oauth2/v3/certs"
+        # Name of JWT claim to extract subject from JWT.
         subjectClaim: email
 
     authorization:
+      # Enables Authorization. Reqiures and forces authentication.
       enabled: false
+      # Authorization provider. Currently only 'http' provider is supported.
       provider: http
+      # Authorization provider optiosn.
       options:
-        basePath: http://localhost:3000
+        # External authorization service endpoint.
+        # Feast delegates authorization this service by making a check access requests.
+        # See https://github.com/feast-dev/feast/blob/master/common/src/main/resources/api.yaml
+        # For external service's API contract.
+        authorizationUrl: http://localhost:8082
 
   # List of store configurations
   stores:
@@ -121,6 +133,7 @@ grpc:
     # It is set default to 6566 so it does not conflict with the GRPC server on Feast Core
     # which defaults to port 6565
     port: ${GRPC_PORT:6566}
+    # Configure TLS transport secuirty for gRPC service.
     security:
       enabled: false
       certificateChain: server.crt
