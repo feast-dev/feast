@@ -63,7 +63,7 @@ func NewSecureGrpcClient(host string, port int, security SecurityConfig) (*GrpcC
 			return nil, err
 		}
 		options = append(options, grpc.WithTransportCredentials(tlsCreds))
-	} else if security.EnableTLS {
+	} else {
 		// Use system TLS certificate pool.
 		certPool, err := x509.SystemCertPool()
 		if err != nil {
