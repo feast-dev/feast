@@ -56,12 +56,8 @@ public class FeastClient implements AutoCloseable {
    * @return {@link FeastClient}
    */
   public static FeastClient create(String host, int port) {
-    try {
-      // configure client with no security config.
-      return FeastClient.createSecure(host, port, SecurityConfig.newBuilder().build());
-    } catch (SSLException e) {
-      throw new RuntimeException(e);
-    }
+    // configure client with no security config.
+    return FeastClient.createSecure(host, port, SecurityConfig.newBuilder().build());
   }
 
   /**
@@ -72,23 +68,25 @@ public class FeastClient implements AutoCloseable {
    * @param port port number of Feast serving GRPC server
    * @param securityConfig security options to configure the Feast client. See {@link
    *     SecurityConfig} for options.
-   * @throws SSLException If certificatePath is specified in security config but certificate is
-   *     invalid.
    * @return {@link FeastClient}
    */
-  public static FeastClient createSecure(String host, int port, SecurityConfig securityConfig)
-      throws SSLException {
+  public static FeastClient createSecure(String host, int port, SecurityConfig securityConfig) {
     // Configure client TLS
     ManagedChannel channel = null;
     if (securityConfig.isTLSEnabled()) {
       if (securityConfig.getCertificatePath().isPresent()) {
+        String certificatePath = securityConfig.getCertificatePath().get();
         // Use custom certificate for TLS
-        File certificateFile = new File(securityConfig.getCertificatePath().get());
-        channel =
-            NettyChannelBuilder.forAddress(host, port)
-                .useTransportSecurity()
-                .sslContext(GrpcSslContexts.forClient().trustManager(certificateFile).build())
-                .build();
+        File certificateFile = new File(certificatePath);
+        try {
+          channel =
+              NettyChannelBuilder.forAddress(host, port)
+                  .useTransportSecurity()
+                  .sslContext(GrpcSslContexts.forClient().trustManager(certificateFile).build())
+                  .build();
+        } catch (SSLException e) {
+          throw new IllegalArgumentException(String.format("Invalid Certificate provided at path: %s", certificatePath), e);
+        }
       } else {
         // Use system certificates for TLS
         channel = ManagedChannelBuilder.forAddress(host, port).useTransportSecurity().build();
