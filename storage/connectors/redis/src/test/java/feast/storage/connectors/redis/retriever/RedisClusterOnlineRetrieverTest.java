@@ -23,7 +23,6 @@ import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
 import feast.proto.core.FeatureSetProto.EntitySpec;
@@ -37,12 +36,13 @@ import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.Value;
 import feast.storage.api.retriever.FeatureSetRequest;
 import feast.storage.api.retriever.OnlineRetriever;
+import feast.storage.connectors.redis.serializer.RedisKeyPrefixSerializer;
+import feast.storage.connectors.redis.serializer.RedisKeySerializer;
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import io.lettuce.core.cluster.api.sync.RedisAdvancedClusterCommands;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -53,47 +53,57 @@ public class RedisClusterOnlineRetrieverTest {
 
   @Mock RedisAdvancedClusterCommands<byte[], byte[]> syncCommands;
 
-  private OnlineRetriever redisClusterOnlineRetriever;
-  private byte[][] redisKeyList;
+  RedisKeySerializer serializer = new RedisKeyPrefixSerializer("test:");
+
+  RedisKeySerializer fallbackSerializer = new RedisKeyPrefixSerializer("");
+
+  private List<RedisKey> redisKeys;
+  private FeatureSetRequest featureSetRequest;
+  private List<EntityRow> entityRows;
+  private List<FeatureRow> featureRows;
 
   @Before
   public void setUp() {
     initMocks(this);
     when(connection.sync()).thenReturn(syncCommands);
-    redisClusterOnlineRetriever = RedisClusterOnlineRetriever.create(connection);
-    redisKeyList =
+    redisKeys =
         Lists.newArrayList(
-                RedisKey.newBuilder()
-                    .setFeatureSet("project/featureSet")
-                    .addAllEntities(
-                        Lists.newArrayList(
-                            Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
-                            Field.newBuilder().setName("entity2").setValue(strValue("a")).build()))
-                    .build(),
-                RedisKey.newBuilder()
-                    .setFeatureSet("project/featureSet")
-                    .addAllEntities(
-                        Lists.newArrayList(
-                            Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
-                            Field.newBuilder().setName("entity2").setValue(strValue("b")).build()))
-                    .build())
-            .stream()
-            .map(AbstractMessageLite::toByteArray)
-            .collect(Collectors.toList())
-            .toArray(new byte[0][0]);
-  }
+            RedisKey.newBuilder()
+                .setFeatureSet("project/featureSet")
+                .addAllEntities(
+                    Lists.newArrayList(
+                        Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
+                        Field.newBuilder().setName("entity2").setValue(strValue("a")).build()))
+                .build(),
+            RedisKey.newBuilder()
+                .setFeatureSet("project/featureSet")
+                .addAllEntities(
+                    Lists.newArrayList(
+                        Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
+                        Field.newBuilder().setName("entity2").setValue(strValue("b")).build()))
+                .build());
 
-  @Test
-  public void shouldReturnResponseWithValuesIfKeysPresent() {
-    FeatureSetRequest featureSetRequest =
+    FeatureSetSpec featureSetSpec =
+        FeatureSetSpec.newBuilder()
+            .setProject("project")
+            .setName("featureSet")
+            .addEntities(EntitySpec.newBuilder().setName("entity1"))
+            .addEntities(EntitySpec.newBuilder().setName("entity2"))
+            .addFeatures(FeatureSpec.newBuilder().setName("feature1"))
+            .addFeatures(FeatureSpec.newBuilder().setName("feature2"))
+            .setMaxAge(Duration.newBuilder().setSeconds(30)) // default
+            .build();
+
+    featureSetRequest =
         FeatureSetRequest.newBuilder()
-            .setSpec(getFeatureSetSpec())
+            .setSpec(featureSetSpec)
             .addFeatureReference(
                 FeatureReference.newBuilder().setName("feature1").setProject("project").build())
             .addFeatureReference(
                 FeatureReference.newBuilder().setName("feature2").setProject("project").build())
             .build();
-    List<EntityRow> entityRows =
+
+    entityRows =
         ImmutableList.of(
             EntityRow.newBuilder()
                 .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
@@ -106,7 +116,7 @@ public class RedisClusterOnlineRetrieverTest {
                 .putFields("entity2", strValue("b"))
                 .build());
 
-    List<FeatureRow> featureRows =
+    featureRows =
         Lists.newArrayList(
             FeatureRow.newBuilder()
                 .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
@@ -122,15 +132,23 @@ public class RedisClusterOnlineRetrieverTest {
                         Field.newBuilder().setValue(intValue(2)).build(),
                         Field.newBuilder().setValue(intValue(2)).build()))
                 .build());
+  }
 
-    List<KeyValue<byte[], byte[]>> featureRowBytes =
-        featureRows.stream()
-            .map(x -> KeyValue.from(new byte[1], Optional.of(x.toByteArray())))
-            .collect(Collectors.toList());
+  @Test
+  public void shouldReturnResponseWithValuesIfKeysPresent() {
+    byte[] serializedKey1 = serializer.serialize(redisKeys.get(0));
+    byte[] serializedKey2 = serializer.serialize(redisKeys.get(1));
 
-    redisClusterOnlineRetriever = RedisClusterOnlineRetriever.create(connection);
-    when(connection.sync()).thenReturn(syncCommands);
-    when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
+    KeyValue<byte[], byte[]> keyValue1 =
+        KeyValue.from(serializedKey1, Optional.of(featureRows.get(0).toByteArray()));
+    KeyValue<byte[], byte[]> keyValue2 =
+        KeyValue.from(serializedKey2, Optional.of(featureRows.get(1).toByteArray()));
+
+    List<KeyValue<byte[], byte[]>> featureRowBytes = Lists.newArrayList(keyValue1, keyValue2);
+
+    OnlineRetriever redisClusterOnlineRetriever =
+        new RedisClusterOnlineRetriever.Builder(connection, serializer).build();
+    when(syncCommands.mget(serializedKey1, serializedKey2)).thenReturn(featureRowBytes);
 
     List<Optional<FeatureRow>> expected =
         Lists.newArrayList(
@@ -160,46 +178,18 @@ public class RedisClusterOnlineRetrieverTest {
 
   @Test
   public void shouldReturnNullIfKeysNotPresent() {
-    FeatureSetRequest featureSetRequest =
-        FeatureSetRequest.newBuilder()
-            .setSpec(getFeatureSetSpec())
-            .addFeatureReference(
-                FeatureReference.newBuilder().setName("feature1").setProject("project").build())
-            .addFeatureReference(
-                FeatureReference.newBuilder().setName("feature2").setProject("project").build())
-            .build();
-    List<EntityRow> entityRows =
-        ImmutableList.of(
-            EntityRow.newBuilder()
-                .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .putFields("entity1", intValue(1))
-                .putFields("entity2", strValue("a"))
-                .build(),
-            EntityRow.newBuilder()
-                .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .putFields("entity1", intValue(2))
-                .putFields("entity2", strValue("b"))
-                .build());
+    byte[] serializedKey1 = serializer.serialize(redisKeys.get(0));
+    byte[] serializedKey2 = serializer.serialize(redisKeys.get(1));
 
-    List<FeatureRow> featureRows =
-        Lists.newArrayList(
-            FeatureRow.newBuilder()
-                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .addAllFields(
-                    Lists.newArrayList(
-                        Field.newBuilder().setValue(intValue(1)).build(),
-                        Field.newBuilder().setValue(intValue(1)).build()))
-                .build());
+    KeyValue<byte[], byte[]> keyValue1 =
+        KeyValue.from(serializedKey1, Optional.of(featureRows.get(0).toByteArray()));
+    KeyValue<byte[], byte[]> keyValue2 = KeyValue.empty(serializedKey2);
 
-    List<KeyValue<byte[], byte[]>> featureRowBytes =
-        featureRows.stream()
-            .map(x -> KeyValue.from(new byte[1], Optional.of(x.toByteArray())))
-            .collect(Collectors.toList());
-    featureRowBytes.add(null);
+    List<KeyValue<byte[], byte[]>> featureRowBytes = Lists.newArrayList(keyValue1, keyValue2);
 
-    redisClusterOnlineRetriever = RedisClusterOnlineRetriever.create(connection);
-    when(connection.sync()).thenReturn(syncCommands);
-    when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
+    OnlineRetriever redisClusterOnlineRetriever =
+        new RedisClusterOnlineRetriever.Builder(connection, serializer).build();
+    when(syncCommands.mget(serializedKey1, serializedKey2)).thenReturn(featureRowBytes);
 
     List<Optional<FeatureRow>> expected =
         Lists.newArrayList(
@@ -219,23 +209,60 @@ public class RedisClusterOnlineRetrieverTest {
     assertThat(actual, equalTo(expected));
   }
 
+  @Test
+  public void shouldUseFallbackIfAvailable() {
+    byte[] serializedKey1 = serializer.serialize(redisKeys.get(0));
+    byte[] serializedKey2 = serializer.serialize(redisKeys.get(1));
+    byte[] fallbackSerializedKey2 = fallbackSerializer.serialize(redisKeys.get(1));
+
+    KeyValue<byte[], byte[]> keyValue1 =
+        KeyValue.from(serializedKey1, Optional.of(featureRows.get(0).toByteArray()));
+    KeyValue<byte[], byte[]> keyValue2 = KeyValue.empty(serializedKey2);
+    KeyValue<byte[], byte[]> fallbackKeyValue2 =
+        KeyValue.from(serializedKey2, Optional.of(featureRows.get(1).toByteArray()));
+
+    List<KeyValue<byte[], byte[]>> featureRowBytes = Lists.newArrayList(keyValue1, keyValue2);
+    List<KeyValue<byte[], byte[]>> fallbackFeatureRowBytes = Lists.newArrayList(fallbackKeyValue2);
+
+    OnlineRetriever redisClusterOnlineRetriever =
+        new RedisClusterOnlineRetriever.Builder(connection, serializer)
+            .withFallbackSerializer(fallbackSerializer)
+            .build();
+
+    when(syncCommands.mget(serializedKey1, serializedKey2)).thenReturn(featureRowBytes);
+    when(syncCommands.mget(fallbackSerializedKey2)).thenReturn(fallbackFeatureRowBytes);
+
+    List<Optional<FeatureRow>> expected =
+        Lists.newArrayList(
+            Optional.of(
+                FeatureRow.newBuilder()
+                    .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .setFeatureSet("project/featureSet")
+                    .addAllFields(
+                        Lists.newArrayList(
+                            Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
+                            Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
+                    .build()),
+            Optional.of(
+                FeatureRow.newBuilder()
+                    .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .setFeatureSet("project/featureSet")
+                    .addAllFields(
+                        Lists.newArrayList(
+                            Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
+                            Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
+                    .build()));
+
+    List<Optional<FeatureRow>> actual =
+        redisClusterOnlineRetriever.getOnlineFeatures(entityRows, featureSetRequest);
+    assertThat(actual, equalTo(expected));
+  }
+
   private Value intValue(int val) {
     return Value.newBuilder().setInt64Val(val).build();
   }
 
   private Value strValue(String val) {
     return Value.newBuilder().setStringVal(val).build();
-  }
-
-  private FeatureSetSpec getFeatureSetSpec() {
-    return FeatureSetSpec.newBuilder()
-        .setProject("project")
-        .setName("featureSet")
-        .addEntities(EntitySpec.newBuilder().setName("entity1"))
-        .addEntities(EntitySpec.newBuilder().setName("entity2"))
-        .addFeatures(FeatureSpec.newBuilder().setName("feature1"))
-        .addFeatures(FeatureSpec.newBuilder().setName("feature2"))
-        .setMaxAge(Duration.newBuilder().setSeconds(30)) // default
-        .build();
   }
 }

@@ -134,6 +134,14 @@ message Store {
     int32 max_retries = 3;
     // Optional. How often flush data to redis
     int32 flush_frequency_seconds = 4;
+    // Optional. Append a prefix to the Redis Key
+    string key_prefix = 5;
+    // Optional. Enable fallback to another key prefix if the original key is not present.
+    // Useful for migrating key prefix without re-ingestion. Disabled by default.
+    bool enable_fallback = 6;
+    // Optional. This would be the fallback prefix to use if enable_fallback is true.
+    string fallback_prefix = 7;
+
   }
 
   message Subscription {

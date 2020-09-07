@@ -26,6 +26,9 @@ import feast.proto.core.StoreProto.Store.RedisConfig;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.storage.api.writer.FeatureSink;
 import feast.storage.api.writer.WriteResult;
+import feast.storage.connectors.redis.serializer.RedisKeyPrefixSerializer;
+import feast.storage.connectors.redis.serializer.RedisKeyProtoSerializer;
+import feast.storage.connectors.redis.serializer.RedisKeySerializer;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisConnectionException;
 import io.lettuce.core.RedisURI;
@@ -136,8 +139,10 @@ public abstract class RedisFeatureSink implements FeatureSink {
         flushFrequencySeconds = getRedisClusterConfig().getFlushFrequencySeconds();
       }
 
+      RedisKeySerializer serializer =
+          new RedisKeyPrefixSerializer(getRedisClusterConfig().getKeyPrefix());
       return new RedisCustomIO.Write(
-              new RedisClusterIngestionClient(getRedisClusterConfig()), getSpecsView())
+              new RedisClusterIngestionClient(getRedisClusterConfig()), getSpecsView(), serializer)
           .withFlushFrequency(Duration.standardSeconds(flushFrequencySeconds))
           .withBatchSize(DEFAULT_BATCH_SIZE);
 
@@ -146,8 +151,9 @@ public abstract class RedisFeatureSink implements FeatureSink {
         flushFrequencySeconds = getRedisConfig().getFlushFrequencySeconds();
       }
 
+      RedisKeySerializer serializer = new RedisKeyProtoSerializer();
       return new RedisCustomIO.Write(
-              new RedisStandaloneIngestionClient(getRedisConfig()), getSpecsView())
+              new RedisStandaloneIngestionClient(getRedisConfig()), getSpecsView(), serializer)
           .withFlushFrequency(Duration.standardSeconds(flushFrequencySeconds))
           .withBatchSize(DEFAULT_BATCH_SIZE);
     } else {
