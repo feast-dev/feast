@@ -1,6 +1,6 @@
 # Introduction
 
-Feast \(**Fea**ture **St**ore\) is a tool for managing and serving machine learning features.
+0Feast \(**Fea**ture **St**ore\) is a tool for managing and serving machine learning features.
 
 > Feast is the bridge between your models and your data
 
