@@ -360,7 +360,8 @@ public class SpecService {
         && isSubscribedToStores.stream().allMatch(x -> x == false)) {
       throw new RegistrationException(
           String.format(
-              "The supplied Project and FeatureSet, %s/%s has been blacklisted and is not available for registration.",
+              "The supplied Project and FeatureSet, %s/%s is either not subscribed or blacklisted and is not available for registration. "
+                  + "Please ask your administrator to update subscription in store configuration on serving layer.",
               projectName, featureSetName));
     }
 
