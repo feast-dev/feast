@@ -85,7 +85,8 @@ public class FeastClient implements AutoCloseable {
                   .sslContext(GrpcSslContexts.forClient().trustManager(certificateFile).build())
                   .build();
         } catch (SSLException e) {
-          throw new IllegalArgumentException(String.format("Invalid Certificate provided at path: %s", certificatePath), e);
+          throw new IllegalArgumentException(
+              String.format("Invalid Certificate provided at path: %s", certificatePath), e);
         }
       } else {
         // Use system certificates for TLS
