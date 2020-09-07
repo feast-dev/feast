@@ -2,6 +2,7 @@ package feast
 
 import (
 	"context"
+	"crypto/x509"
 	"fmt"
 	"github.com/feast-dev/feast/sdk/go/protos/feast/serving"
 	"github.com/opentracing/opentracing-go"
@@ -52,17 +53,26 @@ func NewSecureGrpcClient(host string, port int, security SecurityConfig) (*GrpcC
 
 	// Compile grpc dial options from security config.
 	options := []grpc.DialOption{grpc.WithStatsHandler(&ocgrpc.ClientHandler{})}
+	// Configure client TLS.
 	if !security.EnableTLS {
 		options = append(options, grpc.WithInsecure())
-	}
-	// Read TLS certificate from given path instead of using system certs if specified.
-	if security.EnableTLS && security.TLSCertPath != "" {
+	} else if security.EnableTLS && security.TLSCertPath != "" {
+		// Read TLS certificate from given path.
 		tlsCreds, err := credentials.NewClientTLSFromFile(security.TLSCertPath, "")
 		if err != nil {
 			return nil, err
 		}
 		options = append(options, grpc.WithTransportCredentials(tlsCreds))
+	} else if security.EnableTLS {
+		// Use system TLS certificate pool.
+		certPool, err := x509.SystemCertPool()
+		if err != nil {
+			return nil, err
+		}
+		tlsCreds := credentials.NewClientTLSFromCert(certPool, "")
+		options = append(options, grpc.WithTransportCredentials(tlsCreds))
 	}
+
 	// Enable authentication by attaching credentials if given
 	if security.Credential != nil {
 		options = append(options, grpc.WithPerRPCCredentials(security.Credential))
