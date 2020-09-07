@@ -25,6 +25,7 @@
 * [Stores](user-guide/stores.md)
 * [Feature retrieval](user-guide/feature-retrieval.md)
 * [Statistics](user-guide/statistics.md)
+* [Metrics](user-guide/metrics.md)
 
 ## Tutorials
 
