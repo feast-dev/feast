@@ -2,6 +2,7 @@ package feast
 
 import (
 	"context"
+	"crypto/x509"
 	"fmt"
 	"github.com/feast-dev/feast/sdk/go/protos/feast/serving"
 	"github.com/opentracing/opentracing-go"
@@ -27,7 +28,7 @@ type GrpcClient struct {
 type SecurityConfig struct {
 	// Whether to enable TLS SSL trasnport security if true.
 	EnableTLS bool
-	// Optional: Provides path to TLS certificate use the verify Service identity.
+	// Optional: Provides path to TLS certificate used the verify Service identity.
 	TLSCertPath string
 	// Optional: Credential used for authentication.
 	// Disables authentication if unspecified.
@@ -36,33 +37,42 @@ type SecurityConfig struct {
 
 // NewGrpcClient constructs a client that can interact via grpc with the feast serving instance at the given host:port.
 func NewGrpcClient(host string, port int) (*GrpcClient, error) {
-	return NewAuthGrpcClient(host, port, SecurityConfig{
+	return NewSecureGrpcClient(host, port, SecurityConfig{
 		EnableTLS:  false,
 		Credential: nil,
 	})
 }
 
-// NewAuthGrpcClient constructs a client that can connect with feast serving instances with authentication enabled.
+// NewAuthGrpcClient constructs a secure client that uses security features (ie authentication).
 // host - hostname of the serving host/instance to connect to.
 // port - post of the host to service host/instancf to connect to.
 // securityConfig - security config configures client security.
-func NewAuthGrpcClient(host string, port int, security SecurityConfig) (*GrpcClient, error) {
+func NewSecureGrpcClient(host string, port int, security SecurityConfig) (*GrpcClient, error) {
 	feastCli := &GrpcClient{}
 	adr := fmt.Sprintf("%s:%d", host, port)
 
 	// Compile grpc dial options from security config.
 	options := []grpc.DialOption{grpc.WithStatsHandler(&ocgrpc.ClientHandler{})}
+	// Configure client TLS.
 	if !security.EnableTLS {
 		options = append(options, grpc.WithInsecure())
-	}
-	// Read TLS certificate from given path instead of using system certs if specified.
-	if security.EnableTLS && security.TLSCertPath != "" {
+	} else if security.EnableTLS && security.TLSCertPath != "" {
+		// Read TLS certificate from given path.
 		tlsCreds, err := credentials.NewClientTLSFromFile(security.TLSCertPath, "")
 		if err != nil {
 			return nil, err
 		}
 		options = append(options, grpc.WithTransportCredentials(tlsCreds))
+	} else {
+		// Use system TLS certificate pool.
+		certPool, err := x509.SystemCertPool()
+		if err != nil {
+			return nil, err
+		}
+		tlsCreds := credentials.NewClientTLSFromCert(certPool, "")
+		options = append(options, grpc.WithTransportCredentials(tlsCreds))
 	}
+
 	// Enable authentication by attaching credentials if given
 	if security.Credential != nil {
 		options = append(options, grpc.WithPerRPCCredentials(security.Credential))

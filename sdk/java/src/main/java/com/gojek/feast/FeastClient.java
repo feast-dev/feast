@@ -27,11 +27,15 @@ import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
 import io.grpc.CallCredentials;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
+import java.io.File;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import javax.net.ssl.SSLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,8 +56,8 @@ public class FeastClient implements AutoCloseable {
    * @return {@link FeastClient}
    */
   public static FeastClient create(String host, int port) {
-    ManagedChannel channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
-    return new FeastClient(channel, Optional.empty());
+    // configure client with no security config.
+    return FeastClient.createSecure(host, port, SecurityConfig.newBuilder().build());
   }
 
   /**
@@ -62,13 +66,37 @@ public class FeastClient implements AutoCloseable {
    *
    * @param host hostname or ip address of Feast serving GRPC server
    * @param port port number of Feast serving GRPC server
-   * @param credentials Call credentials used to provide credentials when calling Feast.
+   * @param securityConfig security options to configure the Feast client. See {@link
+   *     SecurityConfig} for options.
    * @return {@link FeastClient}
    */
-  public static FeastClient createAuthenticated(
-      String host, int port, CallCredentials credentials) {
-    ManagedChannel channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
-    return new FeastClient(channel, Optional.of(credentials));
+  public static FeastClient createSecure(String host, int port, SecurityConfig securityConfig) {
+    // Configure client TLS
+    ManagedChannel channel = null;
+    if (securityConfig.isTLSEnabled()) {
+      if (securityConfig.getCertificatePath().isPresent()) {
+        String certificatePath = securityConfig.getCertificatePath().get();
+        // Use custom certificate for TLS
+        File certificateFile = new File(certificatePath);
+        try {
+          channel =
+              NettyChannelBuilder.forAddress(host, port)
+                  .useTransportSecurity()
+                  .sslContext(GrpcSslContexts.forClient().trustManager(certificateFile).build())
+                  .build();
+        } catch (SSLException e) {
+          throw new IllegalArgumentException(
+              String.format("Invalid Certificate provided at path: %s", certificatePath), e);
+        }
+      } else {
+        // Use system certificates for TLS
+        channel = ManagedChannelBuilder.forAddress(host, port).useTransportSecurity().build();
+      }
+    } else {
+      // Disable TLS
+      channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
+    }
+    return new FeastClient(channel, securityConfig.getCredentials());
   }
 
   /**
