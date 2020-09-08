@@ -128,11 +128,6 @@ public class AuditLogger {
     if (!properties.isEnabled()) {
       return;
     }
-    if (entry.getKind().equals(AuditLogEntryKind.MESSAGE)
-        && properties.getMessageLogging() != null
-        && !properties.getMessageLogging().isEnabled()) {
-      return;
-    }
 
     // Either forward log to logging layer or log to console
     if (properties.getMessageLogging().getDestination().equals(FLUENTD_DESTINATION)) {
