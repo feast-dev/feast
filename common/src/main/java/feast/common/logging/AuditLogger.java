@@ -20,12 +20,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.common.logging.config.LoggingProperties;
 import feast.common.logging.config.LoggingProperties.AuditLogProperties;
-import feast.common.logging.entry.ActionAuditLogEntry;
-import feast.common.logging.entry.AuditLogEntry;
-import feast.common.logging.entry.LogResource;
+import feast.common.logging.entry.*;
 import feast.common.logging.entry.LogResource.ResourceType;
-import feast.common.logging.entry.MessageAuditLogEntry;
-import feast.common.logging.entry.TransitionAuditLogEntry;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
@@ -133,32 +129,32 @@ public class AuditLogger {
     // Either forward log to logging layer or log to console
     String destination = properties.getMessageLogging().getDestination();
     if (destination.equals(FLUENTD_DESTINATION)) {
-      Map<String, Object> fluentdLogs = new HashMap<>();
-      MessageAuditLogEntry messageAuditLogEntry = (MessageAuditLogEntry) entry;
-      String releaseName;
+      if (entry.getKind() == AuditLogEntryKind.MESSAGE) {
+        Map<String, Object> fluentdLogs = new HashMap<>();
+        MessageAuditLogEntry messageAuditLogEntry = (MessageAuditLogEntry) entry;
+        String releaseName;
 
-      try {
-        releaseName =
-            StringUtils.defaultIfEmpty(
-                System.getenv("RELEASE_NAME"), InetAddress.getLocalHost().getHostAddress());
-      } catch (UnknownHostException e) {
-        releaseName = StringUtils.defaultIfEmpty(System.getenv("RELEASE_NAME"), "");
-      }
+        try {
+          releaseName =
+              StringUtils.defaultIfEmpty(
+                  System.getenv("RELEASE_NAME"), InetAddress.getLocalHost().getHostAddress());
+        } catch (UnknownHostException e) {
+          releaseName = StringUtils.defaultIfEmpty(System.getenv("RELEASE_NAME"), "");
+        }
 
-      fluentdLogs.put("id", messageAuditLogEntry.getId());
-      fluentdLogs.put("service", messageAuditLogEntry.getService());
-      fluentdLogs.put("status_code", messageAuditLogEntry.getStatusCode());
-      fluentdLogs.put("method", messageAuditLogEntry.getMethod());
-      fluentdLogs.put("release_name", releaseName);
-      try {
-        fluentdLogs.put("request", JsonFormat.printer().print(messageAuditLogEntry.getRequest()));
-        fluentdLogs.put("response", JsonFormat.printer().print(messageAuditLogEntry.getResponse()));
-      } catch (InvalidProtocolBufferException e) {
-        log.error(
-            "Request/Response log conversion to JSON failed. Unable to forward logs to logging service.",
-            e);
+        fluentdLogs.put("id", messageAuditLogEntry.getId());
+        fluentdLogs.put("service", messageAuditLogEntry.getService());
+        fluentdLogs.put("status_code", messageAuditLogEntry.getStatusCode());
+        fluentdLogs.put("method", messageAuditLogEntry.getMethod());
+        fluentdLogs.put("release_tag", releaseName);
+        try {
+          fluentdLogs.put("request", JsonFormat.printer().print(messageAuditLogEntry.getRequest()));
+          fluentdLogs.put(
+              "response", JsonFormat.printer().print(messageAuditLogEntry.getResponse()));
+        } catch (InvalidProtocolBufferException e) {
+        }
+        fluentLogger.log("fluentd", fluentdLogs);
       }
-      fluentLogger.log("fluentd", fluentdLogs);
     } else {
       // Log event to audit log through enabled formats
       String entryJSON = entry.toJSON();
