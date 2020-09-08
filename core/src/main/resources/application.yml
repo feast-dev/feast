@@ -114,3 +114,8 @@ management:
         # Host and port of the statsd instance.
         host: ${STATSD_HOST:localhost}
         port: ${STATSD_PORT:8125}
+        
+server:
+  # The port number on which the Tomcat webserver that serves REST API endpoints should listen on
+  # such as Feast Core Service REST API and metrics endpoints
+  port: 8080
