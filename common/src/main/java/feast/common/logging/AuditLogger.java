@@ -42,7 +42,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 public class AuditLogger {
-  private static final String DESTINATION = "fluentd";
+  private static final String FLUENTD_DESTINATION = "fluentd";
   private static final String DEFAULT_RELEASE_NAME = "feast-0-0";
   private static final Marker AUDIT_MARKER = MarkerFactory.getMarker("AUDIT_MARK");
   private static FluentLogger fluentLogger;
@@ -136,7 +136,7 @@ public class AuditLogger {
     }
 
     // Either forward log to logging layer or log to console
-    if (properties.getMessageLogging().getDestination().equals(DESTINATION)) {
+    if (properties.getMessageLogging().getDestination().equals(FLUENTD_DESTINATION)) {
       Map<String, Object> fluentdLogs = new HashMap<>();
       String releaseName =
           StringUtils.defaultIfEmpty(System.getenv("RELEASE_NAME"), DEFAULT_RELEASE_NAME);
