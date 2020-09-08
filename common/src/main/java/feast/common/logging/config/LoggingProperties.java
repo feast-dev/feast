@@ -16,6 +16,7 @@
  */
 package feast.common.logging.config;
 
+import feast.common.validators.OneOfStrings;
 import javax.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
@@ -31,7 +32,23 @@ public class LoggingProperties {
     // Whether to enable/disable audit logging entirely.
     private boolean enabled;
 
-    // Whether to enable/disable message level (ie request/response) audit logging.
-    private boolean messageLoggingEnabled;
+    private MessageLogging messageLogging;
+
+    @Getter
+    @Setter
+    public static class MessageLogging {
+      // Whether to enable/disable message level (ie request/response) audit logging.
+      private boolean enabled;
+
+      // Whether to log to console or fluentd
+      @OneOfStrings({"console", "fluentd"})
+      private String destination;
+
+      // fluentD service host for external (request/response) logging.
+      private String fluentdHost;
+
+      // fluentD service port for external (request/response) logging.
+      private Integer fluentdPort;
+    }
   }
 }

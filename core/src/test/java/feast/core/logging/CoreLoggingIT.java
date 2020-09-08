@@ -59,7 +59,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 @SpringBootTest(
     properties = {
       "feast.logging.audit.enabled=true",
-      "feast.logging.audit.messageLoggingEnabled=true",
+      "feast.logging.audit.messageLogging.enabled=true",
+      "feast.logging.audit.messageLogging.destination=console"
     })
 public class CoreLoggingIT extends BaseIT {
   private static TestLogAppender testAuditLogAppender;

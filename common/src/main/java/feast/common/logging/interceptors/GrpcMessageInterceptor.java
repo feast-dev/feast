@@ -69,7 +69,7 @@ public class GrpcMessageInterceptor implements ServerInterceptor {
   public <ReqT, RespT> Listener<ReqT> interceptCall(
       ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
     // Disable the message logging interceptor entirely if message logging is disabled.
-    if (!loggingProperties.getAudit().isMessageLoggingEnabled()) {
+    if (!loggingProperties.getAudit().getMessageLogging().isEnabled()) {
       return next.startCall(call, headers);
     }
 

@@ -16,15 +16,19 @@
  */
 package feast.common.logging;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import feast.common.logging.config.LoggingProperties;
 import feast.common.logging.config.LoggingProperties.AuditLogProperties;
-import feast.common.logging.entry.ActionAuditLogEntry;
-import feast.common.logging.entry.AuditLogEntry;
-import feast.common.logging.entry.LogResource;
+import feast.common.logging.entry.*;
 import feast.common.logging.entry.LogResource.ResourceType;
-import feast.common.logging.entry.MessageAuditLogEntry;
-import feast.common.logging.entry.TransitionAuditLogEntry;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.fluentd.logger.FluentLogger;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 import org.slf4j.event.Level;
@@ -35,7 +39,9 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 public class AuditLogger {
+  private static final String FLUENTD_DESTINATION = "fluentd";
   private static final Marker AUDIT_MARKER = MarkerFactory.getMarker("AUDIT_MARK");
+  private static FluentLogger fluentLogger;
   private static AuditLogProperties properties;
   private static BuildProperties buildProperties;
 
@@ -46,6 +52,14 @@ public class AuditLogger {
     // This allows us to use the dependencies in the AuditLogger's static methods
     AuditLogger.properties = loggingProperties.getAudit();
     AuditLogger.buildProperties = buildProperties;
+    if (AuditLogger.properties.getMessageLogging() != null
+        && AuditLogger.properties.getMessageLogging().isEnabled()) {
+      AuditLogger.fluentLogger =
+          FluentLogger.getLogger(
+              "feast",
+              AuditLogger.properties.getMessageLogging().getFluentdHost(),
+              AuditLogger.properties.getMessageLogging().getFluentdPort());
+    }
   }
 
   /**
@@ -112,24 +126,55 @@ public class AuditLogger {
       return;
     }
 
-    // Log event to audit log through enabled formats
-    String entryJSON = entry.toJSON();
-    switch (level) {
-      case TRACE:
-        log.trace(AUDIT_MARKER, entryJSON);
-        break;
-      case DEBUG:
-        log.debug(AUDIT_MARKER, entryJSON);
-        break;
-      case INFO:
-        log.info(AUDIT_MARKER, entryJSON);
-        break;
-      case WARN:
-        log.warn(AUDIT_MARKER, entryJSON);
-        break;
-      case ERROR:
-        log.error(AUDIT_MARKER, entryJSON);
-        break;
+    // Either forward log to logging layer or log to console
+    String destination = properties.getMessageLogging().getDestination();
+    if (destination.equals(FLUENTD_DESTINATION)) {
+      if (entry.getKind() == AuditLogEntryKind.MESSAGE) {
+        Map<String, Object> fluentdLogs = new HashMap<>();
+        MessageAuditLogEntry messageAuditLogEntry = (MessageAuditLogEntry) entry;
+        String releaseName;
+
+        try {
+          releaseName =
+              StringUtils.defaultIfEmpty(
+                  System.getenv("RELEASE_NAME"), InetAddress.getLocalHost().getHostAddress());
+        } catch (UnknownHostException e) {
+          releaseName = StringUtils.defaultIfEmpty(System.getenv("RELEASE_NAME"), "");
+        }
+
+        fluentdLogs.put("id", messageAuditLogEntry.getId());
+        fluentdLogs.put("service", messageAuditLogEntry.getService());
+        fluentdLogs.put("status_code", messageAuditLogEntry.getStatusCode());
+        fluentdLogs.put("method", messageAuditLogEntry.getMethod());
+        fluentdLogs.put("release_tag", releaseName);
+        try {
+          fluentdLogs.put("request", JsonFormat.printer().print(messageAuditLogEntry.getRequest()));
+          fluentdLogs.put(
+              "response", JsonFormat.printer().print(messageAuditLogEntry.getResponse()));
+        } catch (InvalidProtocolBufferException e) {
+        }
+        fluentLogger.log("fluentd", fluentdLogs);
+      }
+    } else {
+      // Log event to audit log through enabled formats
+      String entryJSON = entry.toJSON();
+      switch (level) {
+        case TRACE:
+          log.trace(AUDIT_MARKER, entryJSON);
+          break;
+        case DEBUG:
+          log.debug(AUDIT_MARKER, entryJSON);
+          break;
+        case INFO:
+          log.info(AUDIT_MARKER, entryJSON);
+          break;
+        case WARN:
+          log.warn(AUDIT_MARKER, entryJSON);
+          break;
+        case ERROR:
+          log.error(AUDIT_MARKER, entryJSON);
+          break;
+      }
     }
   }
 }
