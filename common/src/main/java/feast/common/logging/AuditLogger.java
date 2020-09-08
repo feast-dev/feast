@@ -20,7 +20,6 @@ import feast.common.logging.config.LoggingProperties;
 import feast.common.logging.config.LoggingProperties.AuditLogProperties;
 import feast.common.logging.entry.ActionAuditLogEntry;
 import feast.common.logging.entry.AuditLogEntry;
-import feast.common.logging.entry.AuditLogEntryKind;
 import feast.common.logging.entry.LogResource;
 import feast.common.logging.entry.LogResource.ResourceType;
 import feast.common.logging.entry.MessageAuditLogEntry;
@@ -110,10 +109,6 @@ public class AuditLogger {
   private static void log(Level level, AuditLogEntry entry) {
     // Check if audit logging is of this specific log entry enabled.
     if (!properties.isEnabled()) {
-      return;
-    }
-    if (entry.getKind().equals(AuditLogEntryKind.MESSAGE)
-        && !properties.isMessageLoggingEnabled()) {
       return;
     }
 
