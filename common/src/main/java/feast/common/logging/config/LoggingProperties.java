@@ -16,6 +16,7 @@
  */
 package feast.common.logging.config;
 
+import feast.common.validators.OneOfStrings;
 import javax.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
@@ -40,6 +41,7 @@ public class LoggingProperties {
       private boolean enabled;
 
       // Whether to log to console or fluentd
+      @OneOfStrings({"console", "fluentd"})
       private String destination;
 
       // fluentD service host for external (request/response) logging.
