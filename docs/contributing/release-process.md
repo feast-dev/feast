@@ -23,13 +23,13 @@ For Feast maintainers, these are the concrete steps for making a new release.
 3. In the root `pom.xml`, remove `-SNAPSHOT` from the `<revision>` property, and commit.
 4. Push. For a new release branch, open a PR against master.
 5. When CI passes, merge. \(Remember _not_ to delete the new release branch\).
-6. Tag the merge commit with the release version, using a `v` prefix. Push the tag.
+6. Tag the merge commit with the release version, using a `v` and `sdk/go/v` prefixes \(ie for version `X.Y.Z` create tags `vX.Y.Z` and `sdk/go/vX.Y.Z`\). Push the tags.
 7. Bump to the next working version and append `-SNAPSHOT` in `pom.xml`.
 8. Commit the POM and open a PR.
 9. Create a [GitHub release](https://github.com/feast-dev/feast/releases) which includes a summary of important changes as well as any artifacts associated with the release. Make sure to include the same change log as added in [CHANGELOG.md](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md). Use `Feast vX.Y.Z` as the title.
 10. Create one final PR to the master branch and also update its [CHANGELOG.md](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md).
 
-When a tag that matches a Semantic Version string is pushed, CI will automatically build and push the relevant artifacts to their repositories or package managers \(docker images, Python wheels, etc\). JVM artifacts are promoted from Sonatype OSSRH to Maven Central, but it sometimes takes some time for them to be available.
+When a tag that matches a Semantic Version string is pushed, CI will automatically build and push the relevant artifacts to their repositories or package managers \(docker images, Python wheels, etc\). JVM artifacts are promoted from Sonatype OSSRH to Maven Central, but it sometimes takes some time for them to be available. The `sdk/go/v tag` is required to version the Go SDK go module so that users can go get a specific tagged release of the Go SDK.
 
 ### Creating a change log
 

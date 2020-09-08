@@ -42,7 +42,7 @@
 ## Reference
 
 * [Configuration Reference](reference/configuration-reference.md)
-* [API](reference/api/README.md)
+* [API Reference](reference/api/README.md)
   * [Core gRPC API](https://api.docs.feast.dev/grpc/feast.core.pb.html)
   * [Serving gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html)
   * [gRPC Types](https://api.docs.feast.dev/grpc/feast.types.pb.html)

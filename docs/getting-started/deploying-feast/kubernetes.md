@@ -2,12 +2,9 @@
 
 ### Overview <a id="m_5245424069798496115gmail-overview-1"></a>
 
-This guide will install Feast into a Kubernetes cluster on Google Cloud Platform. It assumes that all of your services will run within a single Kubernetes cluster. Once Feast is installed you will be able to:
+This guide will install Feast into a Kubernetes cluster on Google Cloud Platform. It assumes that all of your services will run within a single Kubernetes cluster. 
 
-* Define and register features.
-* Load feature data from both batch and streaming sources.
-* Retrieve features for model training.
-* Retrieve features for online serving.
+Kubernetes deployment is recommended when deploying Feast as a shared service for production workloads.
 
 {% hint style="info" %}
 This guide requires [Google Cloud Platform](https://cloud.google.com/) for installation.
@@ -22,15 +19,13 @@ This guide requires [Google Cloud Platform](https://cloud.google.com/) for insta
 
 1. [Google Cloud SDK ](https://cloud.google.com/sdk/install)installed, authenticated, and configured to the project you will use.
 2. [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) installed and configured.
-3. [Helm](https://helm.sh/) \(2.16.0 or greater\) installed. Helm 3 has not been tested yet.
+3. [Helm ](https://helm.sh/)3 installed.
 
 ## 1. Set up Google Cloud Platform
 
-Create a Google Cloud Storage bucket for Feast to stage batch data exports:
-
-```bash
-gsutil mb gs://my-feast-staging-bucket
-```
+{% hint style="info" %}
+Historical Serving currently requires Google Cloud Platform \(GCP\) to function, specifically a Service Account with access to Google Cloud Storage \(GCS\) and BigQuery. 
+{% endhint %}
 
 Create a service account for Feast to use:
 
@@ -44,6 +39,12 @@ gcloud projects add-iam-policy-binding my-gcp-project \
 # Please use "credentials.json" as the file name
 gcloud iam service-accounts keys create credentials.json --iam-account \
 feast-service-account@my-gcp-project.iam.gserviceaccount.com
+```
+
+Create a Google Cloud Storage bucket for Feast to stage batch data exports:
+
+```bash
+gsutil mb gs://my-feast-staging-bucket
 ```
 
 Create a BigQuery dataset for Feast to store historical data:
@@ -70,49 +71,16 @@ kubectl create secret generic feast-gcp-service-account \
   --from-file=credentials.json
 ```
 
-## 3. Set up Helm
+## 3. Install Feast with Helm
 
-Run the following command to provide Tiller with authorization to install Feast:
-
-```bash
-kubectl apply -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: tiller
-  namespace: kube-system
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: tiller
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: cluster-admin
-subjects:
-  - kind: ServiceAccount
-    name: tiller
-    namespace: kube-system
-EOF
-```
-
-Install Tiller:
-
-```bash
-helm init --service-account tiller
-```
-
-## 4. Install Feast with Helm
-
-Add the Feast Helm repository and download the latest charts
+Add the Feast Helm repository and download the latest charts:
 
 ```text
 helm repo add feast-charts https://feast-charts.storage.googleapis.com
 helm repo update
 ```
 
-Create a password for PostgreSQL
+Create secret to store the password for PostgreSQL:
 
 ```text
 kubectl create secret generic feast-postgresql \
@@ -126,49 +94,24 @@ curl https://raw.githubusercontent.com/feast-dev/feast/master/infra/charts/feast
 > values.yaml
 ```
 
-Update `values.yaml` based on your GCP and GKE environment. Minimally the following values must be set
+Update `application-values.yml`in `values.yaml` to configure Feast based on your GCP and GKE environment. Minimally the following properties must be set under `feast.stores[].config`:
 
-* `project_id` is your GCP project id
-* `dataset_id` is your BigQuery dataset id. 
-* `staging_location` is the GCS bucket used for staging data being loaded into BigQuery.
-* `tempLocation` should also be set to the bucket that you want ingestion jobs to load data into BigQuery.
+| Property | Description |
+| :--- | :--- |
+| `project_id` | This is your GCP Project Id. |
+| `dataset_id` | This is your BigQuery dataset id.  |
+| `staging_location` | This is the GCS bucket used for staging data being loaded into BigQuery. |
 
-For more details on configuration parameters, please see the following two files
-
-* [Core](https://github.com/feast-dev/feast/blob/master/core/src/main/resources/application.yml)
-* [Serving](https://github.com/feast-dev/feast/blob/master/serving/src/main/resources/application.yml)
-
-Install the Feast Helm chart:
+Install the Feast Helm chart to deploy Feast:
 
 ```bash
 helm install --name myrelease -f values.yaml feast-charts/feast
 ```
 
-Wait for the system to come online
+Wait for the Feast pods to start running and become become ready:
 
 ```bash
 watch kubectl get pods
-```
-
-This may take a few minutes
-
-```bash
-NAME                                                    READY   STATUS    RESTARTS   AGE
-myrelease-feast-historical-serving-5674f6fb4c-bzsk8      1/1     Running   2          14m
-myrelease-feast-core-7547b455f4-fvppz               1/1     Running   1          14m
-myrelease-feast-jupyter-9b7c4b8fd-bdcbv             1/1     Running   0          14m
-myrelease-feast-online-serving-7884578db5-57xwv     1/1     Running   1          14m
-myrelease-grafana-c976d598c-jbgkh                   1/1     Running   0          14m
-myrelease-kafka-0                                   1/1     Running   0          14m
-myrelease-kafka-1                                   1/1     Running   0          13m
-myrelease-kafka-2                                   1/1     Running   0          14m
-myrelease-postgresql-0                              1/1     Running   0          14m
-myrelease-redis-master-0                            1/1     Running   0          14m
-myrelease-redis-slave-0                             1/1     Running   0          14m
-myrelease-redis-slave-1                             1/1     Running   0          14m
-myrelease-zookeeper-0                               1/1     Running   0          14m
-myrelease-zookeeper-1                               1/1     Running   0          14m
-myrelease-zookeeper-2                               1/1     Running   0          13m
 ```
 
 ## 5. Connect to Feast using Jupyter
@@ -190,8 +133,17 @@ You should now be able to open the Jupyter notebook at [http://localhost:8888/](
 From within the Jupyter Notebook you can now clone the Feast repository
 
 ```text
-git clone https://github.com/feast-dev/feast 
+git clone --branch v0.6.2 https://github.com/feast-dev/feast 
 ```
 
-Please try out our [examples](https://github.com/feast-dev/feast/blob/master/examples/) \(remember to check out the latest stable version\).
+Please try out our [examples](https://github.com/feast-dev/feast/blob/master/examples/).
+
+## 6. Further Reading
+
+* [Feast Concepts](../../user-guide/overview.md)
+* [Feast Examples/Tutorials](https://github.com/feast-dev/feast/tree/master/examples)
+* [Feast Helm Chart Documentation](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/README.md)
+* [Configuring Feast components](../../reference/configuration-reference.md)
+
+
 

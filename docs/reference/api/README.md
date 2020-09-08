@@ -1,4 +1,4 @@
-# API
+# API Reference
 
 The following API docs are available
 
