@@ -16,6 +16,7 @@
  */
 package feast.core.service;
 
+import static feast.common.models.Store.isSubscribedToFeatureSet;
 import static feast.core.validators.Matchers.checkValidCharacters;
 import static feast.core.validators.Matchers.checkValidCharactersAllowAsterisk;
 
@@ -23,6 +24,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.ProjectRepository;
 import feast.core.dao.StoreRepository;
+import feast.core.exception.RegistrationException;
 import feast.core.exception.RetrievalException;
 import feast.core.model.*;
 import feast.core.validators.FeatureSetValidator;
@@ -335,6 +337,34 @@ public class SpecService {
   @Transactional
   public ApplyFeatureSetResponse applyFeatureSet(FeatureSetProto.FeatureSet newFeatureSet)
       throws InvalidProtocolBufferException {
+    // Autofill default project if not specified
+    if (newFeatureSet.getSpec().getProject().isEmpty()) {
+      newFeatureSet =
+          newFeatureSet
+              .toBuilder()
+              .setSpec(newFeatureSet.getSpec().toBuilder().setProject(Project.DEFAULT_NAME).build())
+              .build();
+    }
+
+    String projectName = newFeatureSet.getSpec().getProject();
+    String featureSetName = newFeatureSet.getSpec().getName();
+    List<Boolean> isSubscribedToStores = new ArrayList<>() {};
+    for (Store store : storeRepository.findAll()) {
+      List<Subscription> subscriptionList = store.getSubscriptions();
+      boolean isSubscribed =
+          isSubscribedToFeatureSet(subscriptionList, projectName, featureSetName);
+      isSubscribedToStores.add(isSubscribed);
+    }
+    // Only throw error if FeatureSet is not subscribed by ALL stores
+    if (!isSubscribedToStores.isEmpty()
+        && isSubscribedToStores.stream().allMatch(x -> x == false)) {
+      throw new RegistrationException(
+          String.format(
+              "The supplied Project and FeatureSet, %s/%s is either not subscribed or blacklisted and is not available for registration. "
+                  + "Please ask your administrator to update subscription in store configuration on serving layer.",
+              projectName, featureSetName));
+    }
+
     // Validate incoming feature set
     FeatureSetValidator.validateSpec(newFeatureSet);
 
