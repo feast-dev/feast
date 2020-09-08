@@ -146,7 +146,7 @@ public class AuditLogger {
         fluentdLogs.put("service", messageAuditLogEntry.getService());
         fluentdLogs.put("status_code", messageAuditLogEntry.getStatusCode());
         fluentdLogs.put("method", messageAuditLogEntry.getMethod());
-        fluentdLogs.put("release_tag", releaseName);
+        fluentdLogs.put("release_name", releaseName);
         try {
           fluentdLogs.put("request", JsonFormat.printer().print(messageAuditLogEntry.getRequest()));
           fluentdLogs.put(
