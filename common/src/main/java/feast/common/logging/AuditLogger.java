@@ -26,7 +26,6 @@ import feast.common.logging.entry.LogResource;
 import feast.common.logging.entry.LogResource.ResourceType;
 import feast.common.logging.entry.MessageAuditLogEntry;
 import feast.common.logging.entry.TransitionAuditLogEntry;
-import io.grpc.Status;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -151,11 +150,9 @@ public class AuditLogger {
         fluentdLogs.put("request", JsonFormat.printer().print(messageAuditLogEntry.getRequest()));
         fluentdLogs.put("response", JsonFormat.printer().print(messageAuditLogEntry.getResponse()));
       } catch (InvalidProtocolBufferException e) {
-        throw Status.INTERNAL
-            .withDescription(
-                "Request/Response log conversion to JSON failed. Unable to forward logs to logging service.")
-            .withCause(e)
-            .asRuntimeException();
+        log.error(
+            "Request/Response log conversion to JSON failed. Unable to forward logs to logging service.",
+            e);
       }
       fluentLogger.log("fluentd", fluentdLogs);
     } else {
