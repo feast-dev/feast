@@ -2,30 +2,31 @@
 
 ## 1. Overview
 
-Details how to configure each Feast component
+The Configuration Reference will walk through how to configure each Feast component:
 
-* Feast Core, Serving and Job Controller
-* Feast CLI and Feast Python SDK
+* [Feast Core, Serving and Job Controller](configuration-reference.md#2-feast-core-serving-and-job-controller)
+* [Feast CLI and Feast Python SDK](configuration-reference.md#3-feast-cli-and-feast-python-sdk)
+* [Feast Go and Java SDK](configuration-reference.md#4-feast-java-and-go-sdk)
 
-## 2. Feast Core, Serving and Job Controller
+## [2. Feast Core, Serving and Job Controller](configuration-reference.md#3-feast-cli-and-feast-python-sdk)
 
-Available Configuration Properties for Feast Core, Serving and Job Controller can be found in the corresponding `application.yml` of each component:
+Available Configuration Properties for Feast Core, Serving and Job Controller can be referenced from the corresponding `application.yml` of each component:
 
 | Component | Configuration Reference |
 | :--- | :--- |
-| Core | [core/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/infra/docker-compose/core/core.yml) |
+| Core | [core/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/core/src/main/resources/application.yml) |
 | Serving \(Online/Historical\) | [serving/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/serving/src/main/resources/application.yml) |
 | Job Controller | [job-controller/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/job-controller/src/main/resources/application.yml) |
 
 Configuration Properties for Feast Core, Serving and Job Controller are defined depending on Feast is deployed:
 
-* Docker Compose deployment - Feast is deployed with Docker Compose.
-* Kubernetes deployment - Feast is deployed with Kubernetes.
-* Direct Configuration - Feast is built and run from source code.
+* [Docker Compose deployment](configuration-reference.md#docker-compose-deployment) - Feast is deployed with Docker Compose.
+* [Kubernetes deployment](configuration-reference.md#kubernetes-deployment) - Feast is deployed with Kubernetes.
+* [Direct Configuration](configuration-reference.md#direct-configuration) - Feast is built and run from source code.
 
 ### Docker Compose Deployment
 
-Configuration Properties can be set for each Feast component deployed using docker compose at:
+Configuration Properties from `application.yml` can be set for each Feast component deployed using docker compose at:
 
 | Component | Configuration Path |
 | :--- | :--- |
@@ -51,10 +52,10 @@ feast-core:
 A reference of the sub chart specific configuration can found in its `values.yml`:
 
 * [feast-core](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/charts/feast-core)
-* [feast-serving](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/feast-serving)
+* [feast-serving](https://github.com/feast-dev/feast/tree/master/infra/charts/feast/charts/feast-serving)
 * [feast-jobcontroller](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/charts/feast-jobcontroller)
 
-Configuration Properties can be set via `application-override.yaml` for each component in `values.yml`:
+Configuration Properties can be set via `application-override.yaml` for each component in `values.yaml`:
 
 ```yaml
 # values.yaml
@@ -65,7 +66,7 @@ feast-core:
      # ...
 ```
 
-Futher documentation on configuring Feast via the Kubernetes deployment can be found in the[ Helm Chart Readme.](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/README.md)
+[Learn more ](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/README.md)about configuring the Feast Helm Chart[.](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/README.md)
 
 ### Direct Configuration
 
@@ -73,7 +74,7 @@ If Feast is built and running from source, configuration Properties can be set d
 
 | Component | Configuration Path |
 | :--- | :--- |
-| Core | [core/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/infra/docker-compose/core/core.yml) |
+| Core | [core/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/core/src/main/resources/application.yml) |
 | Serving \(Online/Historical\) | [serving/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/serving/src/main/resources/application.yml) |
 | Job Controller | [job-controller/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/job-controller/src/main/resources/application.yml) |
 
@@ -111,4 +112,26 @@ core_url = localhost:6565
 ```
 
 Available configuration options for Python SDK/CLI be found [here](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/constants.py).
+
+## 4. Feast Java and Go SDK
+
+The Feast Java and Go SDK is configured via arguments passed when instantiating the Feast Client:
+
+* Go SDK
+
+```go
+// configure serving host and port.
+cli := feast.NewGrpcClient("localhost", 6566)
+```
+
+Available configuration parameters can be found in the[ Go SDK API reference.](https://godoc.org/github.com/feast-dev/feast/sdk/go)
+
+* Java SDK
+
+```java
+// configure serving host and port.
+client = FeastClient.create(servingHost, servingPort);
+```
+
+Available configuration parameters can be found in the [Java SDK API reference.](https://javadoc.io/doc/dev.feast/feast-sdk/latest/com/gojek/feast/package-summary.html)
 
