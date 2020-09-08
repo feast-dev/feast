@@ -26,6 +26,7 @@ import feast.common.logging.entry.LogResource;
 import feast.common.logging.entry.LogResource.ResourceType;
 import feast.common.logging.entry.MessageAuditLogEntry;
 import feast.common.logging.entry.TransitionAuditLogEntry;
+import io.grpc.Status;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +42,8 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 public class AuditLogger {
-  private static final String destination = "fluentd";
+  private static final String DESTINATION = "fluentd";
+  private static final String DEFAULT_RELEASE_NAME = "feast-0-0";
   private static final Marker AUDIT_MARKER = MarkerFactory.getMarker("AUDIT_MARK");
   private static FluentLogger fluentLogger;
   private static AuditLogProperties properties;
@@ -128,31 +130,33 @@ public class AuditLogger {
       return;
     }
     if (entry.getKind().equals(AuditLogEntryKind.MESSAGE)
+        && properties.getMessageLogging() != null
         && !properties.getMessageLogging().isEnabled()) {
       return;
     }
 
     // Either forward log to logging layer or log to console
-    if (properties.getMessageLogging().getDestination().equals(destination)) {
+    if (properties.getMessageLogging().getDestination().equals(DESTINATION)) {
       Map<String, Object> fluentdLogs = new HashMap<>();
-      String releaseTag = StringUtils.defaultIfEmpty(System.getenv("RELEASE_TAG"), "default_tag");
+      String releaseName =
+          StringUtils.defaultIfEmpty(System.getenv("RELEASE_NAME"), DEFAULT_RELEASE_NAME);
       MessageAuditLogEntry messageAuditLogEntry = (MessageAuditLogEntry) entry;
 
       fluentdLogs.put("id", messageAuditLogEntry.getId());
       fluentdLogs.put("service", messageAuditLogEntry.getService());
       fluentdLogs.put("status_code", messageAuditLogEntry.getStatusCode());
       fluentdLogs.put("method", messageAuditLogEntry.getMethod());
-      fluentdLogs.put("release_tag", releaseTag);
+      fluentdLogs.put("release_name", releaseName);
       try {
         fluentdLogs.put("request", JsonFormat.printer().print(messageAuditLogEntry.getRequest()));
         fluentdLogs.put("response", JsonFormat.printer().print(messageAuditLogEntry.getResponse()));
       } catch (InvalidProtocolBufferException e) {
-        throw io.grpc.Status.NOT_FOUND
-            .withDescription("Unable to forward logs to logging service")
+        throw Status.INTERNAL
+            .withDescription(
+                "Request/Response log conversion to JSON failed. Unable to forward logs to logging service.")
             .withCause(e)
             .asRuntimeException();
       }
-      // tag can be used as "service" to split rr logs into separate tables
       fluentLogger.log("fluentd", fluentdLogs);
     } else {
       // Log event to audit log through enabled formats
