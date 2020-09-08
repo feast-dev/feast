@@ -8,7 +8,7 @@ The Configuration Reference will walk through how to configure each Feast compon
 * [Feast CLI and Feast Python SDK](configuration-reference.md#3-feast-cli-and-feast-python-sdk)
 * [Feast Go and Java SDK](configuration-reference.md#4-feast-java-and-go-sdk)
 
-## [2. Feast Core, Serving and Job Controller](configuration-reference.md#3-feast-cli-and-feast-python-sdk)
+## 2. Feast Core, Serving and Job Controller
 
 Available Configuration Properties for Feast Core, Serving and Job Controller can be referenced from the corresponding `application.yml` of each component:
 

@@ -373,7 +373,7 @@ Note that Feast currently only supports source of type `KAFKA`, so you must have
 
 ### 4.7 Ingestion and Population of Feature Values
 
-```text
+```python
 # Produce FeatureRow messages to Kafka so it will be ingested by Feast
 # and written to the registered stores.
 # Make sure the value here is the topic assigned to the feature set
@@ -416,8 +416,8 @@ timestamp.FromJsonString(
 )
 row.event_timestamp.CopyFrom(timestamp)
 
-# The format is [PROJECT_NAME]/[FEATURE_NAME]:[VERSION]
-row.feature_set = "your_project_name/driver:1"
+# The format is [PROJECT_NAME]/[FEATURE_NAME]
+row.feature_set = "your_project_name/driver"
 
 producer.send("your-kafka-topic", row.SerializeToString())
 producer.flush()
