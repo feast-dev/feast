@@ -10,7 +10,7 @@ Feast Core is the central management service of a Feast deployment. It's role is
 * Starts and manages [ingestion jobs](data-ingestion.md). These jobs populate [stores](stores.md) from [sources](sources.md) based on the feature sets that are defined and the subscription\(s\) that a [store](stores.md) has. 
 
 {% hint style="info" %}
-Job management may move out of Feast Core to Feast Serving in the future.
+Job management wlll move out of Feast Core to Feast Job controller in the future.
 {% endhint %}
 
 ## **Feast Ingestion**
