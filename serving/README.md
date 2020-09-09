@@ -12,7 +12,6 @@ From the Feast project root directory, run the following Maven command to start 
 # Assumptions: 
 # - Local Feast Core is running on localhost:6565
 mvn -pl serving spring-boot:run -Dspring-boot.run.arguments=\
---feast.store.config-path=./sample_redis_config.yml,\
 --feast.core-host=localhost,\
 --feast.core-port=6565
 ```
@@ -72,19 +71,4 @@ entity_dataset {
   }
 }
 '
-```
-
-```
-python3 <<EOF
-import pandas as pd
-import fastavro
-
-with open("/tmp/000000000000.avro", "rb") as f:
-    reader = fastavro.reader(f)
-    records = [r for r in reader]
-    df = pd.DataFrame.from_records(records)
-    print(df.columns)
-    print(df.shape)
-    print(df.head(5))
-EOF
 ```
