@@ -22,7 +22,7 @@ public class Matchers {
 
   private static Pattern UPPER_SNAKE_CASE_REGEX = Pattern.compile("^[A-Z0-9]+(_[A-Z0-9]+)*$");
   private static Pattern LOWER_SNAKE_CASE_REGEX = Pattern.compile("^[a-z0-9]+(_[a-z0-9]+)*$");
-  private static Pattern VALID_CHARACTERS_REGEX = Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*$");
+  private static Pattern VALID_CHARACTERS_REGEX = Pattern.compile("^[a-zA-Z0-9_][a-zA-Z0-9_]*$");
   private static Pattern VALID_CHARACTERS_REGEX_WITH_ASTERISK_WILDCARD =
       Pattern.compile("^[a-zA-Z0-9\\-_*]*$");
 
