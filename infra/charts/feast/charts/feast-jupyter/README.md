@@ -2,7 +2,7 @@ feast-jupyter
 =============
 Feast Jupyter provides a Jupyter server with pre-installed Feast SDK
 
-Current chart version is `0.7-SNAPSHOT`
+Current chart version is `0.7.0-SNAPSHOT`
 
 
 
@@ -17,5 +17,5 @@ Current chart version is `0.7-SNAPSHOT`
 | gcpServiceAccount.existingSecret.name | string | `"feast-gcp-service-account"` | Name of the existing secret containing the service account |
 | image.pullPolicy | string | `"Always"` | Image pull policy |
 | image.repository | string | `"gcr.io/kf-feast/feast-jupyter"` | Docker image repository |
-| image.tag | string | `"0.6.2"` | Image tag |
+| image.tag | string | `"0.7.0"` | Image tag |
 | replicaCount | int | `1` | Number of pods that will be created |

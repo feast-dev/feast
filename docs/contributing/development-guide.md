@@ -132,7 +132,7 @@ To run Feast Core locally:
 ```bash
 # Feast Core can be configured from the following .yml file
 # $FEAST_REPO/core/src/main/resources/application.yml
-java -jar core/target/feast-core-0.7-SNAPSHOT-exec.jar
+java -jar core/target/feast-core-0.7.0-SNAPSHOT-exec.jar
 ```
 
 Test whether Feast Core is running
@@ -156,7 +156,7 @@ To run Feast Job Controller locally:
 ```bash
 # Feast Job Controller can be configured from the following .yml file
 # $FEAST_REPO/job-controller/src/main/resources/application.yml
-java -jar job-controller/target/feast-job-controller-0.7-SNAPSHOT-exec.jar
+java -jar job-controller/target/feast-job-controller-0.7.0-SNAPSHOT-exec.jar
 ```
 
 Test whether Feast Job Controller is running:
@@ -199,7 +199,7 @@ Once Feast Serving is started, it will register its store with Feast Core \(by n
 Start Feast Serving server on localhost:6566:
 
 ```text
-java -jar serving/target/feast-serving-0.7-SNAPSHOT-exec.jar
+java -jar serving/target/feast-serving-0.7.0-SNAPSHOT-exec.jar
 ```
 
 Test connectivity to Feast Serving
@@ -210,7 +210,7 @@ grpc_cli call localhost:6566 GetFeastServingInfo ''
 
 ```text
 connecting to localhost:6566
-version: "0.6.2-SNAPSHOT"
+version: "0.7.0-SNAPSHOT"
 type: FEAST_SERVING_TYPE_ONLINE
 
 Rpc succeeded with OK status
