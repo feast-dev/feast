@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
+import grpc
 import numpy as np
 import pandas as pd
 import pytest
@@ -28,7 +29,14 @@ from feast.type_map import ValueType
 
 pd.set_option("display.max_columns", None)
 
-PROJECT_NAME = "batch_" + uuid.uuid4().hex.upper()[0:6]
+
+@pytest.fixture(scope="module")
+def project_name(pytestconfig):
+    return (
+        pytestconfig.getoption("project")
+        if pytestconfig.getoption("project")
+        else "batch_" + uuid.uuid4().hex.upper()[0:6]
+    )
 
 
 @pytest.fixture(scope="module")
@@ -57,11 +65,17 @@ def gcs_path(pytestconfig):
 
 
 @pytest.fixture(scope="module")
-def client(core_url, serving_url, allow_dirty):
+def client(core_url, serving_url, allow_dirty, project_name):
     # Get client for core and serving
     client = Client(core_url=core_url, serving_url=serving_url)
-    client.create_project(PROJECT_NAME)
-    client.set_project(PROJECT_NAME)
+    try:
+        client.create_project(project_name)
+    except grpc.RpcError as e:
+        if allow_dirty:
+            print("Project {project_name} already exists, skip creation.")
+        else:
+            raise e
+    client.set_project(project_name)
 
     # Ensure Feast core is active, but empty
     if not allow_dirty:
@@ -95,7 +109,6 @@ def wait_for(fn, timeout: timedelta, sleep=5):
 @pytest.mark.dataflow_runner
 @pytest.mark.run(order=1)
 def test_batch_apply_all_featuresets(client):
-    client.set_project(PROJECT_NAME)
 
     file_fs1 = FeatureSet(
         "file_feature_set",
@@ -197,9 +210,7 @@ def test_batch_get_historical_features_with_file(client):
 
     def check():
         feature_retrieval_job = client.get_historical_features(
-            entity_rows="file://file_feature_set.avro",
-            feature_refs=["feature_value1"],
-            project=PROJECT_NAME,
+            entity_rows="file://file_feature_set.avro", feature_refs=["feature_value1"],
         )
 
         output = feature_retrieval_job.to_dataframe(timeout_sec=180)
@@ -255,9 +266,7 @@ def test_batch_get_historical_features_with_gs_path(client, gcs_path):
 
     def check():
         feature_retrieval_job = client.get_historical_features(
-            entity_rows=f"{gcs_path}/{ts}/*",
-            feature_refs=["feature_value2"],
-            project=PROJECT_NAME,
+            entity_rows=f"{gcs_path}/{ts}/*", feature_refs=["feature_value2"],
         )
 
         output = feature_retrieval_job.to_dataframe(timeout_sec=180)
@@ -301,7 +310,6 @@ def test_batch_order_by_creation_time(client):
         feature_retrieval_job = client.get_historical_features(
             entity_rows=incorrect_df[["datetime", "entity_id"]],
             feature_refs=["feature_value3"],
-            project=PROJECT_NAME,
         )
         output = feature_retrieval_job.to_dataframe(timeout_sec=180)
         print(output.head())
@@ -340,9 +348,7 @@ def test_batch_additional_columns_in_entity_table(client):
 
     def check():
         feature_retrieval_job = client.get_historical_features(
-            entity_rows=entity_df,
-            feature_refs=["feature_value4"],
-            project=PROJECT_NAME,
+            entity_rows=entity_df, feature_refs=["feature_value4"],
         )
         output = feature_retrieval_job.to_dataframe(timeout_sec=180).sort_values(
             by=["entity_id"]
@@ -395,9 +401,7 @@ def test_batch_point_in_time_correctness_join(client):
 
     def check():
         feature_retrieval_job = client.get_historical_features(
-            entity_rows=entity_df,
-            feature_refs=["feature_value5"],
-            project=PROJECT_NAME,
+            entity_rows=entity_df, feature_refs=["feature_value5"],
         )
         output = feature_retrieval_job.to_dataframe(timeout_sec=180)
         print(output.head())
@@ -448,7 +452,6 @@ def test_batch_multiple_featureset_joins(client):
         feature_retrieval_job = client.get_historical_features(
             entity_rows=entity_df,
             feature_refs=["feature_value6", "feature_set_2:other_feature_value7"],
-            project=PROJECT_NAME,
         )
         output = feature_retrieval_job.to_dataframe(timeout_sec=180)
         print(output.head())
@@ -485,7 +488,6 @@ def test_batch_no_max_age(client):
         feature_retrieval_job = client.get_historical_features(
             entity_rows=features_8_df[["datetime", "entity_id"]],
             feature_refs=["feature_value8"],
-            project=PROJECT_NAME,
         )
 
         output = feature_retrieval_job.to_dataframe(timeout_sec=180)
@@ -568,7 +570,6 @@ def test_update_featureset_apply_featureset_and_ingest_first_subset(
         feature_retrieval_job = client.get_historical_features(
             entity_rows=update_featureset_dataframe[["datetime", "entity_id"]].iloc[:5],
             feature_refs=["update_feature1", "update_feature2"],
-            project=PROJECT_NAME,
         )
 
         output = feature_retrieval_job.to_dataframe(timeout_sec=180).sort_values(
@@ -594,7 +595,7 @@ def test_update_featureset_apply_featureset_and_ingest_first_subset(
 @pytest.mark.timeout(600)
 @pytest.mark.run(order=21)
 def test_update_featureset_update_featureset_and_ingest_second_subset(
-    client, update_featureset_dataframe
+    client, update_featureset_dataframe, project_name
 ):
     subset_columns = [
         "datetime",
@@ -618,7 +619,7 @@ def test_update_featureset_update_featureset_and_ingest_second_subset(
     while True:
         ingestion_id = client.ingest(feature_set=update_fs, source=subset_df)
         time.sleep(15)  # wait for rows to get written to bq
-        rows_ingested = get_rows_ingested(client, update_fs, ingestion_id)
+        rows_ingested = get_rows_ingested(client, update_fs, ingestion_id, project_name)
         if rows_ingested == len(subset_df):
             print(f"Number of rows successfully ingested: {rows_ingested}. Continuing.")
             break
@@ -631,7 +632,6 @@ def test_update_featureset_update_featureset_and_ingest_second_subset(
         feature_retrieval_job = client.get_historical_features(
             entity_rows=update_featureset_dataframe[["datetime", "entity_id"]].iloc[5:],
             feature_refs=["update_feature1", "update_feature3", "update_feature4"],
-            project=PROJECT_NAME,
         )
 
         output = feature_retrieval_job.to_dataframe(timeout_sec=180).sort_values(
@@ -668,7 +668,6 @@ def test_update_featureset_retrieve_all_fields(client, update_featureset_datafra
                 "update_feature3",
                 "update_feature4",
             ],
-            project=PROJECT_NAME,
         )
         feature_retrieval_job.result()
 
@@ -679,7 +678,6 @@ def test_update_featureset_retrieve_valid_fields(client, update_featureset_dataf
     feature_retrieval_job = client.get_historical_features(
         entity_rows=update_featureset_dataframe[["datetime", "entity_id"]],
         feature_refs=["update_feature1", "update_feature3", "update_feature4"],
-        project=PROJECT_NAME,
     )
     output = feature_retrieval_job.to_dataframe(timeout_sec=180).sort_values(
         by=["entity_id"]
@@ -706,7 +704,7 @@ def test_update_featureset_retrieve_valid_fields(client, update_featureset_dataf
 @pytest.mark.direct_runner
 @pytest.mark.run(order=31)
 @pytest.mark.timeout(600)
-def test_batch_dataset_statistics(client):
+def test_batch_dataset_statistics(client, project_name):
     fs1 = client.get_feature_set(name="feature_set_1")
     fs2 = client.get_feature_set(name="feature_set_2")
     id_offset = 20
@@ -741,8 +739,8 @@ def test_batch_dataset_statistics(client):
 
     time.sleep(15)  # wait for rows to get written to bq
     while True:
-        rows_ingested1 = get_rows_ingested(client, fs1, ingestion_id1)
-        rows_ingested2 = get_rows_ingested(client, fs2, ingestion_id2)
+        rows_ingested1 = get_rows_ingested(client, fs1, ingestion_id1, project_name)
+        rows_ingested2 = get_rows_ingested(client, fs2, ingestion_id2, project_name)
         if rows_ingested1 == len(features_1_df) and rows_ingested2 == len(
             features_2_df
         ):
@@ -755,7 +753,6 @@ def test_batch_dataset_statistics(client):
     feature_retrieval_job = client.get_historical_features(
         entity_rows=entity_df,
         feature_refs=["feature_value6", "feature_set_2:other_feature_value7"],
-        project=PROJECT_NAME,
         compute_statistics=True,
     )
     output = feature_retrieval_job.to_dataframe(timeout_sec=180)
@@ -780,7 +777,7 @@ def test_batch_dataset_statistics(client):
 
 
 def get_rows_ingested(
-    client: Client, feature_set: FeatureSet, ingestion_id: str
+    client: Client, feature_set: FeatureSet, ingestion_id: str, project_name: str
 ) -> int:
     response = client._core_service.ListStores(
         ListStoresRequest(filter=ListStoresRequest.Filter(name="historical"))
@@ -788,7 +785,7 @@ def get_rows_ingested(
     bq_config = response.store[0].bigquery_config
     project = bq_config.project_id
     dataset = bq_config.dataset_id
-    table = f"{PROJECT_NAME}_{feature_set.name}"
+    table = f"{project_name}_{feature_set.name}"
 
     bq_client = bigquery.Client(project=project)
     rows = bq_client.query(

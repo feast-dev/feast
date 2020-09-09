@@ -3,6 +3,7 @@ import time
 import uuid
 from datetime import datetime, timedelta
 
+import grpc
 import pandas as pd
 import pytest
 import pytz
@@ -22,9 +23,17 @@ from feast.type_map import ValueType
 
 pd.set_option("display.max_columns", None)
 
-PROJECT_NAME = "batch_" + uuid.uuid4().hex.upper()[0:6]
 STORE_NAME = "historical"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+
+@pytest.fixture(scope="module")
+def project_name(pytestconfig):
+    return (
+        pytestconfig.getoption("project")
+        if pytestconfig.getoption("project")
+        else "batch_" + uuid.uuid4().hex.upper()[0:6]
+    )
 
 
 @pytest.fixture(scope="module")
@@ -48,11 +57,17 @@ def gcs_path(pytestconfig):
 
 
 @pytest.fixture(scope="module")
-def client(core_url, allow_dirty):
+def client(core_url, allow_dirty, project_name):
     # Get client for core and serving
     client = Client(core_url=core_url)
-    client.create_project(PROJECT_NAME)
-    client.set_project(PROJECT_NAME)
+    try:
+        client.create_project(project_name)
+    except grpc.RpcError as e:
+        if allow_dirty:
+            print("Project {project_name} already exists, skip creation.")
+        else:
+            raise e
+    client.set_project(project_name)
 
     # Ensure Feast core is active, but empty
     if not allow_dirty:

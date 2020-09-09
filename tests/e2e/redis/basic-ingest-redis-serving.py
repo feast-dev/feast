@@ -37,9 +37,17 @@ from feast.types.Value_pb2 import Value as Value
 from feast.wait import wait_retry_backoff
 
 FLOAT_TOLERANCE = 0.00001
-PROJECT_NAME = "basic_" + uuid.uuid4().hex.upper()[0:6]
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 AUTH_PROVIDER = "google"
+
+
+@pytest.fixture(scope="module")
+def project_name(pytestconfig):
+    return (
+        pytestconfig.getoption("project")
+        if pytestconfig.getoption("project")
+        else "basic_" + uuid.uuid4().hex.upper()[0:6]
+    )
 
 
 def basic_dataframe(entities, features, ingest_time, n_size, null_features=[]):
@@ -123,7 +131,7 @@ def kafka_brokers(pytestconfig):
 
 
 @pytest.fixture(scope="module")
-def client(core_url, serving_url, allow_dirty, enable_auth):
+def client(core_url, serving_url, allow_dirty, enable_auth, project_name):
     # Get client for core and serving
     # if enable_auth is True, Google Id token will be
     # passed in the metadata for authentication.
@@ -133,7 +141,14 @@ def client(core_url, serving_url, allow_dirty, enable_auth):
         enable_auth=enable_auth,
         auth_provider=AUTH_PROVIDER,
     )
-    client.create_project(PROJECT_NAME)
+    try:
+        client.create_project(project_name)
+    except grpc.RpcError as e:
+        if allow_dirty:
+            print("Project {project_name} already exists, skip creation.")
+        else:
+            raise e
+    client.set_project(project_name)
 
     # Ensure Feast core is active, but empty
     if not allow_dirty:
@@ -210,11 +225,8 @@ def test_basic_register_feature_set_success(client):
     cust_trans_fs_expected = FeatureSet.from_yaml(
         f"{DIR_PATH}/basic/cust_trans_fs.yaml"
     )
-    client.set_project(PROJECT_NAME)
     client.apply(cust_trans_fs_expected)
-    cust_trans_fs_actual = client.get_feature_set(
-        "customer_transactions", project=PROJECT_NAME
-    )
+    cust_trans_fs_actual = client.get_feature_set("customer_transactions")
     assert cust_trans_fs_actual == cust_trans_fs_expected
 
     # Register feature set with labels
@@ -231,16 +243,10 @@ def test_basic_register_feature_set_success(client):
         max_age=Duration(seconds=100),
         labels={"key1": "val1"},
     )
-    client.set_project(PROJECT_NAME)
     client.apply(driver_unlabelled_fs)
     client.apply(driver_labeled_fs_expected)
-    driver_fs_actual = client.list_feature_sets(
-        project=PROJECT_NAME, labels={"key1": "val1"}
-    )[0]
+    driver_fs_actual = client.list_feature_sets(labels={"key1": "val1"})[0]
     assert driver_fs_actual == driver_labeled_fs_expected
-
-    # reset client's project for other tests
-    client.set_project()
 
 
 @pytest.mark.timeout(300)
@@ -414,7 +420,6 @@ def test_basic_retrieve_online_entity_nonlistform(
         max_age=Duration(seconds=3600),
     )
 
-    client.set_project(PROJECT_NAME)
     client.apply(customer_fs)
 
     customer_fs = client.get_feature_set(name="customer2")
@@ -521,7 +526,6 @@ def test_basic_retrieve_online_entity_listform(client, list_entity_dataframe):
         max_age=Duration(seconds=3600),
     )
 
-    client.set_project(PROJECT_NAME)
     client.apply(district_fs)
 
     district_fs = client.get_feature_set(name="district")
@@ -603,7 +607,6 @@ def test_basic_retrieve_online_entity_listform(client, list_entity_dataframe):
 @pytest.mark.run(order=16)
 def test_basic_ingest_retrieval_fs(client):
     # Set to another project to test ingestion based on current project context
-    client.set_project(PROJECT_NAME + "_NS1")
     driver_fs = FeatureSet(
         name="driver_fs",
         features=[
@@ -657,7 +660,6 @@ def test_basic_ingest_retrieval_fs(client):
 @pytest.mark.run(order=17)
 def test_basic_ingest_retrieval_str(client):
     # Set to another project to test ingestion based on current project context
-    client.set_project(PROJECT_NAME + "_NS1")
     customer_fs = FeatureSet(
         name="cust_fs",
         features=[
@@ -711,9 +713,8 @@ def test_basic_ingest_retrieval_str(client):
 @pytest.mark.run(order=18)
 def test_basic_ingest_retrieval_multi_entities(client):
     # Set to another project to test ingestion based on current project context
-    client.set_project(PROJECT_NAME + "_NS1")
     merchant_fs = FeatureSet(
-        name="merchant_fs",
+        name="merchant_fs_multi_entities",
         features=[Feature(name="merchant_sales", dtype=ValueType.FLOAT)],
         entities=[
             Entity("driver_id", ValueType.INT64),
@@ -733,7 +734,7 @@ def test_basic_ingest_retrieval_multi_entities(client):
             "merchant_sales": [float(i) + 0.5 for i in range(N_ROWS)],
         }
     )
-    client.ingest("merchant_fs", merchant_df, timeout=600)
+    client.ingest("merchant_fs_multi_entities", merchant_df, timeout=600)
     time.sleep(15)
 
     online_request_entity = [
@@ -770,7 +771,6 @@ def test_basic_retrieve_feature_row_missing_fields(client, cust_trans_df):
     feature_refs = ["daily_transactions", "total_transactions", "null_values"]
 
     # apply cust_trans_fs and ingest dataframe
-    client.set_project(PROJECT_NAME + "_basic_retrieve_missing_fields")
     old_cust_trans_fs = FeatureSet.from_yaml(f"{DIR_PATH}/basic/cust_trans_fs.yaml")
     client.apply(old_cust_trans_fs)
     client.ingest(old_cust_trans_fs, cust_trans_df)
@@ -817,7 +817,6 @@ def test_basic_retrieve_feature_row_missing_fields(client, cust_trans_df):
 def test_basic_retrieve_feature_row_extra_fields(client, cust_trans_df):
     feature_refs = ["daily_transactions", "total_transactions"]
     # apply cust_trans_fs and ingest dataframe
-    client.set_project(PROJECT_NAME + "_basic_retrieve_missing_fields")
     old_cust_trans_fs = FeatureSet.from_yaml(f"{DIR_PATH}/basic/cust_trans_fs.yaml")
     client.apply(old_cust_trans_fs)
     client.ingest(old_cust_trans_fs, cust_trans_df)
@@ -910,7 +909,6 @@ def all_types_dataframe():
 @pytest.mark.timeout(45)
 @pytest.mark.run(order=21)
 def test_all_types_register_feature_set_success(client):
-    client.set_project(PROJECT_NAME)
 
     all_types_fs_expected = FeatureSet(
         name="all_types",
@@ -1024,7 +1022,6 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
 @pytest.mark.run(order=35)
 def test_all_types_ingest_jobs(jobcontroller_client, client, all_types_dataframe):
     # list ingestion jobs given featureset
-    client.set_project(PROJECT_NAME)
 
     all_types_fs = client.get_feature_set(name="all_types")
     ingest_jobs = jobcontroller_client.list_ingest_jobs(
@@ -1249,7 +1246,7 @@ def test_all_types_infer_register_ingest_file_success(client, all_types_parquet_
 
 @pytest.mark.timeout(200)
 @pytest.mark.run(order=60)
-def test_list_entities_and_features(client):
+def test_list_entities_and_features(client, project_name):
     customer_entity = Entity("customer_id", ValueType.INT64)
     driver_entity = Entity("driver_id", ValueType.INT64)
 
@@ -1291,24 +1288,23 @@ def test_list_entities_and_features(client):
         max_age=Duration(seconds=100),
     )
 
-    client.set_project(PROJECT_NAME)
     client.apply(customer_fs)
     client.apply(driver_fs)
 
     # Test for listing of features
     # Case 1: Filter by: project, entities and labels
     filter_by_project_entity_labels_actual = client.list_features_by_ref(
-        project=PROJECT_NAME, entities=["customer_id"], labels={"key1": "val1"}
+        project=project_name, entities=["customer_id"], labels={"key1": "val1"}
     )
 
     # Case 2: Filter by: project, entities
     filter_by_project_entity_actual = client.list_features_by_ref(
-        project=PROJECT_NAME, entities=["driver_id"]
+        project=project_name, entities=["driver_id"]
     )
 
     # Case 3: Filter by: project, labels
     filter_by_project_labels_actual = client.list_features_by_ref(
-        project=PROJECT_NAME, labels={"key1": "val1"}
+        project=project_name, labels={"key1": "val1"}
     )
 
     assert set(filter_by_project_entity_labels_expected) == set(
@@ -1412,7 +1408,6 @@ def test_sources_deduplicate_ingest_jobs(client, jobcontroller_client, kafka_bro
 
 @pytest.mark.run(order=30)
 def test_sink_writes_only_recent_rows(client):
-    client.set_project("default")
 
     feature_refs = ["driver:rating", "driver:cost"]
 
@@ -1507,12 +1502,10 @@ class TestsBasedOnGrpc:
             raise grpc.RpcError(e.details())
         return apply_fs_response.feature_set
 
-    def get_feature_set(self, core_service_stub, name, project, auth_meta_data):
+    def get_feature_set(self, core_service_stub, name, auth_meta_data):
         try:
             get_feature_set_response = core_service_stub.GetFeatureSet(
-                CoreService_pb2.GetFeatureSetRequest(
-                    project=project, name=name.strip(),
-                ),
+                CoreService_pb2.GetFeatureSetRequest(name=name.strip(),),
                 metadata=auth_meta_data,
             )  # type: GetFeatureSetResponse
         except grpc.RpcError as e:
@@ -1524,14 +1517,12 @@ class TestsBasedOnGrpc:
     def test_register_feature_set_with_labels(self, core_service_stub, auth_meta_data):
         feature_set_name = "test_feature_set_labels"
         feature_set_proto = FeatureSet(
-            name=feature_set_name,
-            project=PROJECT_NAME,
-            labels={self.LABEL_KEY: self.LABEL_VALUE},
+            name=feature_set_name, labels={self.LABEL_KEY: self.LABEL_VALUE},
         ).to_proto()
         self.apply_feature_set(core_service_stub, feature_set_proto, auth_meta_data)
 
         retrieved_feature_set = self.get_feature_set(
-            core_service_stub, feature_set_name, PROJECT_NAME, auth_meta_data
+            core_service_stub, feature_set_name, auth_meta_data
         )
 
         assert self.LABEL_KEY in retrieved_feature_set.spec.labels
@@ -1543,7 +1534,6 @@ class TestsBasedOnGrpc:
         feature_set_name = "test_feature_labels"
         feature_set_proto = FeatureSet(
             name=feature_set_name,
-            project=PROJECT_NAME,
             features=[
                 Feature(
                     name="rating",
@@ -1555,7 +1545,7 @@ class TestsBasedOnGrpc:
         self.apply_feature_set(core_service_stub, feature_set_proto, auth_meta_data)
 
         retrieved_feature_set = self.get_feature_set(
-            core_service_stub, feature_set_name, PROJECT_NAME, auth_meta_data
+            core_service_stub, feature_set_name, auth_meta_data
         )
         retrieved_feature = retrieved_feature_set.spec.features[0]
 

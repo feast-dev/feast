@@ -8,3 +8,4 @@ def pytest_addoption(parser):
     )
     parser.addoption("--enable_auth", action="store", default="False")
     parser.addoption("--kafka_brokers", action="store", default="localhost:9092")
+    parser.addoption("--project", action="store", default="")
