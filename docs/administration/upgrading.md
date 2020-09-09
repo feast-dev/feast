@@ -15,7 +15,7 @@ Migrate all project, feature sets, entities, feature names with ‘-’ by recre
 
 Feast now prevents feature sets from being applied if no store is subscribed to that Feature Set.
 
-* Ensure that a store is conifgured to subscribe to the Feature Set before applying the Feature Set.
+* Ensure that a store is configured to subscribe to the Feature Set before applying the Feature Set.
 
 ### Feast Core's Job Coordinator is now Feast Job Controller
 
