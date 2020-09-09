@@ -1,5 +1,87 @@
 # Changelog
 
+## [v0.7.0](https://github.com/feast-dev/feast/tree/v0.7.0) (2020-09-09)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/sdk/go/v0.6.2...v0.7.0)
+
+**Breaking changes:**
+
+- Add request response logging via fluentd [\#961](https://github.com/feast-dev/feast/pull/961) ([terryyylim](https://github.com/terryyylim))
+- Run JobCoontroller as separate application [\#951](https://github.com/feast-dev/feast/pull/951) ([pyalex](https://github.com/pyalex))
+- Output Subject Claim as Identity in Logging interceptor [\#946](https://github.com/feast-dev/feast/pull/946) ([mrzzy](https://github.com/mrzzy))
+- Use JobManager's backend as persistent storage and source of truth [\#903](https://github.com/feast-dev/feast/pull/903) ([pyalex](https://github.com/pyalex))
+- Fix invalid characters for project, featureset, entity and features creation [\#976](https://github.com/feast-dev/feast/pull/976) ([terryyylim](https://github.com/terryyylim))
+
+**Implemented enhancements:**
+
+- Add redis key prefix as an option to Redis cluster [\#975](https://github.com/feast-dev/feast/pull/975) ([khorshuheng](https://github.com/khorshuheng))
+- Authentication Support for Java & Go SDKs [\#971](https://github.com/feast-dev/feast/pull/971) ([mrzzy](https://github.com/mrzzy))
+- Add configurable prefix to Consumer Group in IngestionJob's Kafka reader [\#969](https://github.com/feast-dev/feast/pull/969) ([terryyylim](https://github.com/terryyylim))
+- Configurable kafka consumer in IngestionJob [\#959](https://github.com/feast-dev/feast/pull/959) ([pyalex](https://github.com/pyalex))
+- Restart Ingestion Job on code version update [\#949](https://github.com/feast-dev/feast/pull/949) ([pyalex](https://github.com/pyalex))
+- Redis sink flushes only rows that have more recent eventTimestamp [\#913](https://github.com/feast-dev/feast/pull/913) ([pyalex](https://github.com/pyalex))
+- Dataflow runner options: disk type & streaming engine [\#906](https://github.com/feast-dev/feast/pull/906) ([pyalex](https://github.com/pyalex))
+- Add Structured Audit Logging [\#891](https://github.com/feast-dev/feast/pull/891) ([mrzzy](https://github.com/mrzzy))
+- Add REST endpoints for Feast UI [\#878](https://github.com/feast-dev/feast/pull/878) ([SwampertX](https://github.com/SwampertX))
+- Add caching to authorization [\#884](https://github.com/feast-dev/feast/pull/884) ([jmelinav](https://github.com/jmelinav))
+- Upgrade Feast dependencies [\#876](https://github.com/feast-dev/feast/pull/876) ([pyalex](https://github.com/pyalex))
+
+**Fixed bugs:**
+
+- Fix Java & Go SDK TLS support [\#986](https://github.com/feast-dev/feast/pull/986) ([mrzzy](https://github.com/mrzzy))
+- Fix Python SDK setuptools not supporting tags required for Go SDK to be versioned. [\#983](https://github.com/feast-dev/feast/pull/983) ([mrzzy](https://github.com/mrzzy))
+- Fix Python native types multiple entities online retrieval [\#977](https://github.com/feast-dev/feast/pull/977) ([terryyylim](https://github.com/terryyylim))
+- Prevent historical retrieval from failing on dash in project / featureSet name [\#970](https://github.com/feast-dev/feast/pull/970) ([pyalex](https://github.com/pyalex))
+- Fetch Job's labels from dataflow [\#968](https://github.com/feast-dev/feast/pull/968) ([pyalex](https://github.com/pyalex))
+- Fetch Job's Created Datetime from Dataflow [\#966](https://github.com/feast-dev/feast/pull/966) ([pyalex](https://github.com/pyalex))
+- Fix flaky tests [\#953](https://github.com/feast-dev/feast/pull/953) ([pyalex](https://github.com/pyalex))
+- Prevent field duplications on schema merge in BigQuery sink [\#945](https://github.com/feast-dev/feast/pull/945) ([pyalex](https://github.com/pyalex))
+- Fix Audit Message Logging Interceptor Race Condition [\#938](https://github.com/feast-dev/feast/pull/938) ([mrzzy](https://github.com/mrzzy))
+- Bypass authentication for metric endpoints on Serving. [\#936](https://github.com/feast-dev/feast/pull/936) ([mrzzy](https://github.com/mrzzy))
+- Fix grpc security variables name and missing exec qualifier in docker.dev [\#935](https://github.com/feast-dev/feast/pull/935) ([jmelinav](https://github.com/jmelinav))
+- Remove extra line that duplicates statistics list [\#934](https://github.com/feast-dev/feast/pull/934) ([terryyylim](https://github.com/terryyylim))
+- Fix empty array when retrieving stats data [\#930](https://github.com/feast-dev/feast/pull/930) ([terryyylim](https://github.com/terryyylim))
+- Allow unauthenticated access when Authorization is disabled and to Health Probe [\#927](https://github.com/feast-dev/feast/pull/927) ([mrzzy](https://github.com/mrzzy))
+- Impute default project if empty before authorization is called [\#926](https://github.com/feast-dev/feast/pull/926) ([jmelinav](https://github.com/jmelinav))
+- Fix Github Actions CI load-test job failing due inability to install Feast Python SDK. [\#914](https://github.com/feast-dev/feast/pull/914) ([mrzzy](https://github.com/mrzzy))
+- Fix Online Serving unable to retrieve feature data after Feature Set update. [\#908](https://github.com/feast-dev/feast/pull/908) ([mrzzy](https://github.com/mrzzy))
+- Fix unit tests not running in feast.core package. [\#883](https://github.com/feast-dev/feast/pull/883) ([mrzzy](https://github.com/mrzzy))
+- Exclude dependencies signatures from IngestionJob package [\#879](https://github.com/feast-dev/feast/pull/879) ([pyalex](https://github.com/pyalex))
+- Prevent race condition in BQ sink jobId generation [\#877](https://github.com/feast-dev/feast/pull/877) ([pyalex](https://github.com/pyalex))
+- Add IngestionId & EventTimestamp to FeatureRowBatch to calculate lag metric correctly [\#874](https://github.com/feast-dev/feast/pull/874) ([pyalex](https://github.com/pyalex))
+- Fix Python SDK ingestion for featureset name that exist in multiple projects [\#868](https://github.com/feast-dev/feast/pull/868) ([terryyylim](https://github.com/terryyylim))
+- Fix typo for fluentd request response map key [\#989](https://github.com/feast-dev/feast/pull/989) ([terryyylim](https://github.com/terryyylim))
+- Reduce polling interval for docker-compose test and fix flaky e2e test [\#982](https://github.com/feast-dev/feast/pull/982) ([terryyylim](https://github.com/terryyylim))
+- Fix rate-limiting issue on github actions for master branch [\#974](https://github.com/feast-dev/feast/pull/974) ([terryyylim](https://github.com/terryyylim))
+- Fix docker-compose test [\#973](https://github.com/feast-dev/feast/pull/973) ([terryyylim](https://github.com/terryyylim))
+- Fix Helm chart requirements lock and version linting [\#925](https://github.com/feast-dev/feast/pull/925) ([woop](https://github.com/woop))
+- Fix Github Actions failures due to possible rate limiting. [\#972](https://github.com/feast-dev/feast/pull/972) ([mrzzy](https://github.com/mrzzy))
+- Fix docker image building for PR commits [\#907](https://github.com/feast-dev/feast/pull/907) ([woop](https://github.com/woop))
+
+**Merged pull requests:**
+
+- Add cryptography to python ci-requirements [\#988](https://github.com/feast-dev/feast/pull/988) ([pyalex](https://github.com/pyalex))
+- Allow maps in environment variables in helm charts [\#987](https://github.com/feast-dev/feast/pull/987) ([pyalex](https://github.com/pyalex))
+- Speed up Github Actions Docker builds [\#980](https://github.com/feast-dev/feast/pull/980) ([mrzzy](https://github.com/mrzzy))
+- Use setup.py develop instead of pip install -e [\#967](https://github.com/feast-dev/feast/pull/967) ([pyalex](https://github.com/pyalex))
+- Peg black version [\#963](https://github.com/feast-dev/feast/pull/963) ([terryyylim](https://github.com/terryyylim))
+- Remove FeatureRow compaction in BQ sink [\#960](https://github.com/feast-dev/feast/pull/960) ([pyalex](https://github.com/pyalex))
+- Get job controller deployment for docker compose back [\#958](https://github.com/feast-dev/feast/pull/958) ([pyalex](https://github.com/pyalex))
+- Revert job controller deployment for docker compose [\#957](https://github.com/feast-dev/feast/pull/957) ([woop](https://github.com/woop))
+- JobCoordinator use public API to communicate with Core [\#943](https://github.com/feast-dev/feast/pull/943) ([pyalex](https://github.com/pyalex))
+- Allow Logging Interceptor to be toggled by Message Logging Enabled Flag [\#940](https://github.com/feast-dev/feast/pull/940) ([mrzzy](https://github.com/mrzzy))
+- Throw more informative exception when write\_triggering\_frequency\_seconds is missing [\#917](https://github.com/feast-dev/feast/pull/917) ([pyalex](https://github.com/pyalex))
+- Clean up Feast CI, docker compose, and notebooks [\#916](https://github.com/feast-dev/feast/pull/916) ([woop](https://github.com/woop))
+- Allow use of Kubernetes for Github Actions [\#910](https://github.com/feast-dev/feast/pull/910) ([woop](https://github.com/woop))
+- Wait for docker images to be ready for e2e dataflow test [\#909](https://github.com/feast-dev/feast/pull/909) ([woop](https://github.com/woop))
+- Add docker image building to GitHub Actions and consolidate workflows [\#898](https://github.com/feast-dev/feast/pull/898) ([woop](https://github.com/woop))
+- Add load test GitHub Action [\#897](https://github.com/feast-dev/feast/pull/897) ([woop](https://github.com/woop))
+- Typo in feature sets example. [\#894](https://github.com/feast-dev/feast/pull/894) ([ashwinath](https://github.com/ashwinath))
+- Add auth integration tests [\#892](https://github.com/feast-dev/feast/pull/892) ([woop](https://github.com/woop))
+- Integration Test for Job Coordinator [\#886](https://github.com/feast-dev/feast/pull/886) ([pyalex](https://github.com/pyalex))
+- Add Auth header [\#885](https://github.com/feast-dev/feast/pull/885) ([AnujaVane](https://github.com/AnujaVane))
+- BQ sink produces sample of successful inserts [\#875](https://github.com/feast-dev/feast/pull/875) ([pyalex](https://github.com/pyalex))
+
 ## [v0.6.2](https://github.com/feast-dev/feast/tree/v0.6.2) (2020-08-02)                                                                                                                                                                                                         
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.6.1...v0.6.2)
 
