@@ -47,6 +47,7 @@ declare -a files_to_validate_version=(
   "infra/charts/feast/requirements.yaml,4,${FEAST_MASTER_VERSION}"
   "infra/charts/feast/requirements.lock,4,${FEAST_RELEASE_VERSION}"
   "infra/docker-compose/.env.sample,1,${FEAST_RELEASE_VERSION}"
+  "datatypes/java/README.md,1,${FEAST_RELEASE_VERSION}"
 )
 
 echo
