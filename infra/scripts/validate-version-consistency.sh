@@ -94,6 +94,11 @@ declare -a files_to_validate_version=(
   "infra/charts/feast/requirements.lock,4,${FEAST_MAVEN_VERSION}"
   "infra/docker-compose/.env.sample,1,${FEAST_DOCKER_VERSION}"
   "datatypes/java/README.md,1,${FEAST_MAVEN_VERSION}"
+  "docs/contributing/development-guide.md,4,${FEAST_MAVEN_VERSION}"
+  "docs/administration/audit-logging.md,1,${FEAST_STABLE_VERSION}"
+  "docs/getting-started/deploying-feast/docker-compose.md,1,${FEAST_STABLE_VERSION}"
+  "docs/getting-started/deploying-feast/kubernetes.md,1,${FEAST_STABLE_VERSION}"
+  "README.md,1,${FEAST_STABLE_VERSION}"
 )
 
 echo

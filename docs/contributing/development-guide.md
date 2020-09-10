@@ -210,7 +210,7 @@ grpc_cli call localhost:6566 GetFeastServingInfo ''
 
 ```text
 connecting to localhost:6566
-version: "0.6.2-SNAPSHOT"
+version: "0.7-SNAPSHOT"
 type: FEAST_SERVING_TYPE_ONLINE
 
 Rpc succeeded with OK status
