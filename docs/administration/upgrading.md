@@ -4,14 +4,17 @@
 
 ### Feast Core Validation changes
 
-In v0.7, Feast Core no longer accepts dash in names in:
+In v0.7, Feast Core no longer accepts starting with number \(0-9\) and using dash in names for:
 
 * Project
 * Feature Set
 * Entities
 * Features
 
-Migrate all project, feature sets, entities, feature names with ‘-’ by recreating them with '-' replace with '\_'
+Migrate all project, feature sets, entities, feature names:
+
+* with ‘-’ by recreating them with '-' replace with '\_'
+* recreate any names with a number \(0-9\)  as the first letter to one without.
 
 Feast now prevents feature sets from being applied if no store is subscribed to that Feature Set.
 
@@ -27,14 +30,11 @@ In v0.7, the following changes are made to the Ingestion Job API:
 
 * Changed List Ingestion Job API  to return list of `FeatureSetReference` instead of list of FeatureSet in response.
 * Moved `ListIngestionJobs`, `StopIngestionJob`, `RestartIngestionJob` calls from `CoreService`  to `JobControllerService`.
-* Python SDK/CLI: Added new J[ob Controller client ](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/contrib/job_controller/client.py)and `jobcontroller_url` config option.
+* Python SDK/CLI: Added new [Job Controller client ](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/contrib/job_controller/client.py)and `jobcontroller_url` config option.
 
 Users of the Ingestion Job API via gRPC should migrate by:
 
-* Add new client to connect to Job Controller endpoint to call `JobControllerService` and call `ListIngestionJobs`, `StopIngestionJob`, `RestartIngestionJob`
-
-   from new client.
-
+* Add new client to connect to Job Controller endpoint to call `JobControllerService` and call `ListIngestionJobs`, `StopIngestionJob`, `RestartIngestionJob` from new client.
 * Migrate code to accept feature references instead of feature sets returned in `ListIngestionJobs` response.
 
 Users of Ingestion Job via Python SDK \(ie `feast ingest-jobs list` or `client.stop_ingest_job()` etc.\) should migrate by:
@@ -44,9 +44,9 @@ Users of Ingestion Job via Python SDK \(ie `feast ingest-jobs list` or `client.s
 
 ### Configuration Properties Changes
 
-* Rename `feast.jobs.consolidate-jobs-per-source property` to `feast.jobs.controller. consolidate-jobs-per-sources`
-* Renamed Subject claim property from `feast.security.authorization.options.subjectClaim` to  `feast.security.authentication.options.subjectClaim`
-* `Rename feast.logging.audit.messageLoggingEnabled` to `feast.audit.mesageLogging.enabled.`
+* Rename `feast.jobs.consolidate-jobs-per-source property` to `feast.jobs.controller.consolidate-jobs-per-sources`
+* Rename`feast.security.authorization.options.subjectClaim` to  `feast.security.authentication.options.subjectClaim`
+* Rename `feast.logging.audit.messageLoggingEnabled` to `feast.audit.messageLogging.enabled`
 
 ## Migration v0.5 to v0.6
 
