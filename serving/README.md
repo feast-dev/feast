@@ -11,8 +11,8 @@ From the Feast project root directory, run the following Maven command to start 
 ```bash
 # Assumptions: 
 # - Local Feast Core is running on localhost:6565
+# Uses configuration from serving/src/main/resources/application.yml
 mvn -pl serving spring-boot:run -Dspring-boot.run.arguments=\
---feast.store.config-path=./sample_redis_config.yml,\
 --feast.core-host=localhost,\
 --feast.core-port=6565
 ```
