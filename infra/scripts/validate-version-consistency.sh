@@ -116,11 +116,6 @@ for i in "${files_to_validate_version[@]}"; do
   else
     echo "FAILURE"
     echo
-    echo "File contents:"
-    echo "========================================================="
-    cat "$FILE_PATH"
-    echo "========================================================="
-    echo 
     echo "Expecting $EXPECTED_OCCURRENCES occurrences of $VERSION in $FILE_PATH, but found $ACTUAL_OCCURRENCES"
     IS_LINT_SUCCESS=false
   fi
