@@ -42,7 +42,7 @@ jobs:
       - name: Push versioned release
         run: |
           # Build and push semver tagged commits
-          rx='^v[0-9]+?\.[0-9]+?\.[0-9]+?$'
+          rx='^([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))$ '
           if [[ "${RELEASE_VERSION}" =~ $rx ]]; then
             VERSION_WITHOUT_PREFIX=${RELEASE_VERSION:1}
 
