@@ -75,18 +75,22 @@ declare -a files_to_validate_version=(
   "infra/charts/feast/Chart.yaml,1,${FEAST_MAVEN_VERSION}"
   "infra/charts/feast/charts/feast-core/Chart.yaml,1,${FEAST_MAVEN_VERSION}"
   "infra/charts/feast/charts/feast-core/values.yaml,1,${FEAST_DOCKER_VERSION}"
+  "infra/charts/feast/charts/feast-core/README.md,1,${FEAST_MAVEN_VERSION}"
   "infra/charts/feast/charts/feast-core/README.md,1,${FEAST_DOCKER_VERSION}"
   "infra/charts/feast/charts/feast-serving/Chart.yaml,1,${FEAST_MAVEN_VERSION}"
   "infra/charts/feast/charts/feast-jupyter/values.yaml,1,${FEAST_DOCKER_VERSION}"
   "infra/charts/feast/charts/feast-jupyter/README.md,1,${FEAST_DOCKER_VERSION}"
+  "infra/charts/feast/charts/feast-jupyter/README.md,1,${FEAST_MAVEN_VERSION}"
   "infra/charts/feast/charts/feast-jupyter/Chart.yaml,1,${FEAST_MAVEN_VERSION}"
   "infra/charts/feast/charts/feast-serving/values.yaml,1,${FEAST_DOCKER_VERSION}"
   "infra/charts/feast/charts/feast-serving/README.md,1,${FEAST_DOCKER_VERSION}"
+  "infra/charts/feast/charts/feast-serving/README.md,1,${FEAST_MAVEN_VERSION}"
   "infra/charts/feast/charts/feast-jobcontroller/Chart.yaml,1,${FEAST_MAVEN_VERSION}"
   "infra/charts/feast/charts/feast-jobcontroller/values.yaml,1,${FEAST_DOCKER_VERSION}"
+  "infra/charts/feast/charts/feast-jobcontroller/README.md,1,${FEAST_MAVEN_VERSION}"
   "infra/charts/feast/charts/feast-jobcontroller/README.md,1,${FEAST_DOCKER_VERSION}"
   "infra/charts/feast/requirements.yaml,4,${FEAST_MAVEN_VERSION}"
-  "infra/charts/feast/requirements.lock,4,${FEAST_DOCKER_VERSION}"
+  "infra/charts/feast/requirements.lock,4,${FEAST_MAVEN_VERSION}"
   "infra/docker-compose/.env.sample,1,${FEAST_DOCKER_VERSION}"
 )
 
@@ -109,9 +113,9 @@ for i in "${files_to_validate_version[@]}"; do
   ACTUAL_OCCURRENCES=$(grep -c -P "\bv?$VERSION\b" "$FILE_PATH" || true)
 
   if [ "${ACTUAL_OCCURRENCES}" -eq "${EXPECTED_OCCURRENCES}" ]; then
-    echo "OK: Expecting $EXPECTED_OCCURRENCES occurrences of $VERSION in $FILE_PATH, and found $ACTUAL_OCCURRENCES"
+    echo "OK: Expecting $EXPECTED_OCCURRENCES occurrences of '$VERSION' in $FILE_PATH, and found $ACTUAL_OCCURRENCES"
   else
-    echo "FAIL: Expecting $EXPECTED_OCCURRENCES occurrences of $VERSION in $FILE_PATH, but found $ACTUAL_OCCURRENCES"
+    echo "FAIL: Expecting $EXPECTED_OCCURRENCES occurrences of '$VERSION' in $FILE_PATH, but found $ACTUAL_OCCURRENCES"
     IS_LINT_SUCCESS=false
   fi
 done
