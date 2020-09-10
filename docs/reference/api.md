@@ -8,3 +8,9 @@ The following API docs are available
 * [Go Client SDK](https://godoc.org/github.com/feast-dev/feast/sdk/go): This SDK is used for the retrieval of online features from Feast.
 * [Python SDK](https://api.docs.feast.dev/python/): This is the complete reference to the Feast Python SDK. The SDK is used to manage feature sets, features, jobs, projects, and entities. It can also be used to retrieve training datasets or online features from Feast Serving.
 
+### Community Contributions
+
+The following community provided SDKs are available
+
+* [Node.js SDK](https://github.com/MichaelHirn/feast-client/): A Node.js SDK written in TypeScript. The SDK is used to manage feature sets, features, jobs, projects, and entities.
+
