@@ -94,6 +94,8 @@ echo
 echo "Testing list of files to ensure they have the correct version"
 echo
 
+
+IS_LINT_SUCCESS=true
 for i in "${files_to_validate_version[@]}"; do
   IFS=',' read -r FILE_PATH EXPECTED_OCCURRENCES VERSION <<<"${i}"
   # Disable version lint if '_ANY' specified as version.
@@ -120,6 +122,8 @@ for i in "${files_to_validate_version[@]}"; do
     echo "========================================================="
     echo 
     echo "Expecting $EXPECTED_OCCURRENCES occurrences of $VERSION in $FILE_PATH, but found $ACTUAL_OCCURRENCES"
-    exit 1
+    IS_LINT_SUCCESS=false
   fi
 done
+
+if $IS_LINT_SUCCESS; then exit 0; else exit 1; fi
