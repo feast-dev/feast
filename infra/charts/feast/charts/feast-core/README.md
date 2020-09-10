@@ -23,7 +23,7 @@ Current chart version is `0.7.0-rc.1`
 | gcpServiceAccount.existingSecret.name | string | `"feast-gcp-service-account"` | Name of the existing secret containing the service account |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | image.repository | string | `"gcr.io/kf-feast/feast-core"` | Docker image repository |
-| image.tag | string | `"0.6.2"` | Image tag |
+| image.tag | string | `"0.7.0-rc.1"` | Image tag |
 | ingress.grpc.annotations | object | `{}` | Extra annotations for the ingress |
 | ingress.grpc.auth.enabled | bool | `false` | Flag to enable auth |
 | ingress.grpc.class | string | `"nginx"` | Which ingress controller to use |
