@@ -26,10 +26,7 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_set import FeatureSet, FeatureSetRef
 from feast.grpc.auth import get_auth_metadata_plugin
-from feast.serving.ServingService_pb2 import (
-    GetOnlineFeaturesRequest,
-    GetOnlineFeaturesResponse,
-)
+from feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
 from feast.source import KafkaSource
 from feast.type_map import ValueType
 from feast.types.Value_pb2 import Int64List
@@ -264,13 +261,7 @@ def test_basic_retrieve_online_success(client, cust_trans_df):
     def try_get_features():
         response = client.get_online_features(
             entity_rows=[
-                GetOnlineFeaturesRequest.EntityRow(
-                    fields={
-                        "customer_id": Value(
-                            int64_val=cust_trans_df.iloc[0]["customer_id"]
-                        )
-                    }
-                )
+                {"customer_id": Value(int64_val=cust_trans_df.iloc[0]["customer_id"])}
             ],
             feature_refs=feature_refs,
         )  # type: GetOnlineFeaturesResponse
@@ -305,14 +296,12 @@ def test_basic_retrieve_online_multiple_featureset(client, cust_trans_df, driver
         feature_refs = [mapping[0] for mapping in feature_ref_df_mapping]
         response = client.get_online_features(
             entity_rows=[
-                GetOnlineFeaturesRequest.EntityRow(
-                    fields={
-                        "customer_id": Value(
-                            int64_val=cust_trans_df.iloc[0]["customer_id"]
-                        ),
-                        "driver_id": Value(int64_val=driver_df.iloc[0]["driver_id"]),
-                    }
-                )
+                {
+                    "customer_id": Value(
+                        int64_val=cust_trans_df.iloc[0]["customer_id"]
+                    ),
+                    "driver_id": Value(int64_val=driver_df.iloc[0]["driver_id"]),
+                }
             ],
             feature_refs=feature_refs,
         )  # type: GetOnlineFeaturesResponse
@@ -986,13 +975,7 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
     def try_get_features():
         response = client.get_online_features(
             entity_rows=[
-                GetOnlineFeaturesRequest.EntityRow(
-                    fields={
-                        "user_id": Value(
-                            int64_val=all_types_dataframe.iloc[0]["user_id"]
-                        )
-                    }
-                )
+                {"user_id": Value(int64_val=all_types_dataframe.iloc[0]["user_id"])}
             ],
             feature_refs=feature_refs,
         )  # type: GetOnlineFeaturesResponse
@@ -1134,13 +1117,11 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
     while True:
         response = client.get_online_features(
             entity_rows=[
-                GetOnlineFeaturesRequest.EntityRow(
-                    fields={
-                        "customer_id": Value(
-                            int64_val=large_volume_dataframe.iloc[0]["customer_id"]
-                        )
-                    }
-                )
+                {
+                    "customer_id": Value(
+                        int64_val=large_volume_dataframe.iloc[0]["customer_id"]
+                    )
+                }
             ],
             feature_refs=feature_refs,
         )  # type: GetOnlineFeaturesResponse
@@ -1432,11 +1413,7 @@ def test_sink_writes_only_recent_rows(client):
 
     def try_get_features():
         response = client.get_online_features(
-            entity_rows=[
-                GetOnlineFeaturesRequest.EntityRow(
-                    fields={"driver_id": Value(int64_val=later_df.iloc[0]["driver_id"])}
-                )
-            ],
+            entity_rows=[{"driver_id": Value(int64_val=later_df.iloc[0]["driver_id"])}],
             feature_refs=feature_refs,
         )  # type: GetOnlineFeaturesResponse
         is_ok = all(
