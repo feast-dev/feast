@@ -102,15 +102,9 @@ for i in "${files_to_validate_version[@]}"; do
       continue
   fi
   
-  echo
-  echo
+  echo "========================================================="
   echo "Testing whether versions are correctly set within file: $FILE_PATH"
   echo
-  echo "File contents:"
-  echo "========================================================="
-  cat "$FILE_PATH"
-  echo
-  echo "========================================================="
   ACTUAL_OCCURRENCES=$(grep -c -P "\bv?$VERSION\b" "$FILE_PATH" || true)
 
   if [ "${ACTUAL_OCCURRENCES}" -eq "${EXPECTED_OCCURRENCES}" ]; then
@@ -120,8 +114,12 @@ for i in "${files_to_validate_version[@]}"; do
   else
     echo "FAILURE"
     echo
+    echo "File contents:"
+    echo "========================================================="
+    cat "$FILE_PATH"
+    echo "========================================================="
+    echo 
     echo "Expecting $EXPECTED_OCCURRENCES occurrences of $VERSION in $FILE_PATH, but found $ACTUAL_OCCURRENCES"
     exit 1
   fi
-  echo "========================================================="
 done
