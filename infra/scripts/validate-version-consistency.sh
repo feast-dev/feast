@@ -5,7 +5,8 @@
 # - Docker images version: 'dev' on master, Highest tag on release branches 
 # - Release version: Highest stable commit. Latest tag repo wide, release candidates not included
 # Usage: ./validate-version-consistency.sh 
-# Optionaly set TARGET_MERGE_BRANCH var to the target merge branch to lint against the given merge branch.
+# Optionaly set TARGET_MERGE_BRANCH var to the target merge branch to lint 
+#   versions against the given merge branch.
 set -e
 
 BRANCH_NAME=${TARGET_MERGE_BRANCH-$(git rev-parse --abbrev-ref HEAD)}
@@ -92,6 +93,7 @@ declare -a files_to_validate_version=(
   "infra/charts/feast/requirements.yaml,4,${FEAST_MAVEN_VERSION}"
   "infra/charts/feast/requirements.lock,4,${FEAST_MAVEN_VERSION}"
   "infra/docker-compose/.env.sample,1,${FEAST_DOCKER_VERSION}"
+  "datatypes/java/README.md,1,${FEAST_MAVEN_VERSION}"
 )
 
 echo
