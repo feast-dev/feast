@@ -24,7 +24,7 @@ echo "Linting Maven version: $FEAST_MAVEN_VERSION"
 if [ $BRANCH_NAME = "master" ]
 then
     # Use development version
-    FEAST_DOCKER_VERSION="dev"
+    FEAST_DOCKER_VERSION="develop"
 elif echo "$BRANCH_NAME" | grep -P $RELEASE_BRANCH_REGEX &>/dev/null
 then
     # Use last release tag tagged on the release branch
