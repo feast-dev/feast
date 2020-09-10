@@ -42,8 +42,10 @@ jobs:
       - name: Push versioned release
         run: |
           # Build and push semver tagged commits
-          rx='^v[0-9]+?\.[0-9]+?\.[0-9]+?$'
-          if [[ "${RELEASE_VERSION}" =~ $rx ]]; then
+          # Regular expression should match MAJOR.MINOR.PATCH[-PRERELEASE[.IDENTIFIER]]
+          # eg. v0.7.1 v0.7.2-alpha v0.7.2-rc.1
+          rx='^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))$ '
+          if echo "${RELEASE_VERSION}" | grep -P "$rx" &>/dev/null ; then
             VERSION_WITHOUT_PREFIX=${RELEASE_VERSION:1}
 
             docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX}
