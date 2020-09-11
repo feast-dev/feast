@@ -19,7 +19,7 @@ export FEAST_MASTER_VERSION=$(mvn help:evaluate -Dexpression=project.version -q 
   echo "$FEAST_MASTER_VERSION is missing, please check pom.xml and maven"
   exit 1
 }
-echo "Linting master version: $FEAST_MASTER_VERSION"
+echo "Linting Master Version: $FEAST_MASTER_VERSION"
 
 # Determine Last release tag relative to current branch
 if [ $BRANCH_NAME = "master" ]
@@ -33,6 +33,7 @@ then
     FEAST_MASTER_VERSION=${LAST_MERGED_TAG#"v"}
 else
     # Do not enforce version linting as we don't know if the target merge branch FEAST_RELEASE_VERSION="_ANY"
+    FEAST_RELEASE_VERSION="_ANY"
     echo "WARNING: Skipping docker version lint"
 fi
 [[ -z "$FEAST_RELEASE_VERSION" ]] && {
@@ -40,7 +41,7 @@ fi
   exit 1
 }
 export FEAST_RELEASE_VERSION
-echo "Linting docker image version: $FEAST_RELEASE_VERSION"
+echo "Linting Release Version: $FEAST_RELEASE_VERSION"
 
 # Determine highest stable version (no release candidates) relative to current branch.
 # Regular expression for matching stable tags in the format vMAJOR.MINOR.PATCH
@@ -65,7 +66,7 @@ fi
   exit 1
 }
 export FEAST_STABLE_VERSION
-echo "Linting stable version: $FEAST_STABLE_VERSION"
+echo "Linting Stable Version: $FEAST_STABLE_VERSION"
 
 # List of files to validate with master version (from pom.xml)
 # Structure is a comma separated list of structure
