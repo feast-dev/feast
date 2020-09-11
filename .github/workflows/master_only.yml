@@ -31,21 +31,21 @@ jobs:
         run: make build-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA}
       - name: Push image
         run: make push-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA}
-      - name: Push image to feast dev
+      - name: Push development Docker image
         run: |
           if [ ${GITHUB_REF#refs/*/} == "master" ]; then
-            docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:dev
-            docker push gcr.io/kf-feast/feast-${{ matrix.component }}:dev
+            docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:develop
+            docker push gcr.io/kf-feast/feast-${{ matrix.component }}:develop
           fi
       - name: Get version
         run: echo ::set-env name=RELEASE_VERSION::${GITHUB_REF#refs/*/}
-      - name: Push versioned release
+      - name: Push versioned Docker image
         run: |
           # Build and push semver tagged commits
           # Regular expression should match MAJOR.MINOR.PATCH[-PRERELEASE[.IDENTIFIER]]
           # eg. v0.7.1 v0.7.2-alpha v0.7.2-rc.1
-          rx='^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))$ '
-          if echo "${RELEASE_VERSION}" | grep -P "$rx" &>/dev/null ; then
+          SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
+          if echo "${RELEASE_VERSION}" | grep -P "$SEMVER_REGEX" &>/dev/null ; then
             VERSION_WITHOUT_PREFIX=${RELEASE_VERSION:1}
 
             docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX}
