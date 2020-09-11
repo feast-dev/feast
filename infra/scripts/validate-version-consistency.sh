@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # This script will scan through a list of files to validate that all versions are consistent with
-# - master version:  (could be snapshot)
-# - Docker images version: 'dev' on master, Highest tag on release branches 
-# - Release version: Highest stable commit. Latest tag repo wide, release candidates not included
+# - Master version: version set in maven (could be snapshot)
+# - Release version: 'dev' on master, Lastest tag on release branches.
+# - Stable Version: Highest stable tag. release candidates not included.
 # Usage: ./validate-version-consistency.sh 
 # Optionaly set TARGET_MERGE_BRANCH var to the target merge branch to lint 
 #   versions against the given merge branch.
@@ -14,36 +14,35 @@ BRANCH_NAME=${TARGET_MERGE_BRANCH-$(git rev-parse --abbrev-ref HEAD)}
 RELEASE_BRANCH_REGEX="^v[0-9]+\.[0-9]+-branch$"
 
 # Determine the current Feast version from Maven (pom.xml)
-export FEAST_MAVEN_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-[[ -z "$FEAST_MAVEN_VERSION" ]] && {
-  echo "$FEAST_MAVEN_VERSION is missing, please check pom.xml and maven"
+export FEAST_MASTER_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+[[ -z "$FEAST_MASTER_VERSION" ]] && {
+  echo "$FEAST_MASTER_VERSION is missing, please check pom.xml and maven"
   exit 1
 }
-echo "Linting Maven version: $FEAST_MAVEN_VERSION"
+echo "Linting master version: $FEAST_MASTER_VERSION"
 
-# Determine Docker image version tag relative to current branch
+# Determine Last release tag relative to current branch
 if [ $BRANCH_NAME = "master" ]
 then
     # Use development version
-    FEAST_DOCKER_VERSION="develop"
+    FEAST_RELEASE_VERSION="develop"
 elif echo "$BRANCH_NAME" | grep -P $RELEASE_BRANCH_REGEX &>/dev/null
 then
     # Use last release tag tagged on the release branch
     LAST_MERGED_TAG=$(git tag -l --sort -version:refname --merged | head -n 1)
-    FEAST_DOCKER_VERSION=${LAST_MERGED_TAG#"v"}
+    FEAST_MASTER_VERSION=${LAST_MERGED_TAG#"v"}
 else
-    # Do not enforce version linting as we don't know if the target merge branch
-    FEAST_DOCKER_VERSION="_ANY"
+    # Do not enforce version linting as we don't know if the target merge branch FEAST_RELEASE_VERSION="_ANY"
     echo "WARNING: Skipping docker version lint"
 fi
-[[ -z "$FEAST_DOCKER_VERSION" ]] && {
-  echo "FEAST_DOCKER_VERSION is missing"
+[[ -z "$FEAST_RELEASE_VERSION" ]] && {
+  echo "FEAST_RELEASE_VERSION is missing"
   exit 1
 }
-export FEAST_DOCKER_VERSION
-echo "Linting docker image version: $FEAST_DOCKER_VERSION"
+export FEAST_RELEASE_VERSION
+echo "Linting docker image version: $FEAST_RELEASE_VERSION"
 
-# Determine highest stable version relative to current branch
+# Determine highest stable version (no release candidates) relative to current branch.
 # Regular expression for matching stable tags in the format vMAJOR.MINOR.PATCH
 STABLE_TAG_REGEX="^v[0-9]+\.[0-9]+\.[0-9]+$"
 if [ $BRANCH_NAME = "master" ]
@@ -73,28 +72,28 @@ echo "Linting stable version: $FEAST_STABLE_VERSION"
 # <File to validate>, <Amount of occurrences of specific version to look for>, <version to look for>
 
 declare -a files_to_validate_version=(
-  "infra/charts/feast/Chart.yaml,1,${FEAST_MAVEN_VERSION}"
-  "infra/charts/feast/charts/feast-core/Chart.yaml,1,${FEAST_MAVEN_VERSION}"
-  "infra/charts/feast/charts/feast-core/values.yaml,1,${FEAST_DOCKER_VERSION}"
-  "infra/charts/feast/charts/feast-core/README.md,1,${FEAST_MAVEN_VERSION}"
-  "infra/charts/feast/charts/feast-core/README.md,1,${FEAST_DOCKER_VERSION}"
-  "infra/charts/feast/charts/feast-serving/Chart.yaml,1,${FEAST_MAVEN_VERSION}"
-  "infra/charts/feast/charts/feast-jupyter/values.yaml,1,${FEAST_DOCKER_VERSION}"
-  "infra/charts/feast/charts/feast-jupyter/README.md,1,${FEAST_DOCKER_VERSION}"
-  "infra/charts/feast/charts/feast-jupyter/README.md,1,${FEAST_MAVEN_VERSION}"
-  "infra/charts/feast/charts/feast-jupyter/Chart.yaml,1,${FEAST_MAVEN_VERSION}"
-  "infra/charts/feast/charts/feast-serving/values.yaml,1,${FEAST_DOCKER_VERSION}"
-  "infra/charts/feast/charts/feast-serving/README.md,1,${FEAST_DOCKER_VERSION}"
-  "infra/charts/feast/charts/feast-serving/README.md,1,${FEAST_MAVEN_VERSION}"
-  "infra/charts/feast/charts/feast-jobcontroller/Chart.yaml,1,${FEAST_MAVEN_VERSION}"
-  "infra/charts/feast/charts/feast-jobcontroller/values.yaml,1,${FEAST_DOCKER_VERSION}"
-  "infra/charts/feast/charts/feast-jobcontroller/README.md,1,${FEAST_MAVEN_VERSION}"
-  "infra/charts/feast/charts/feast-jobcontroller/README.md,1,${FEAST_DOCKER_VERSION}"
-  "infra/charts/feast/requirements.yaml,4,${FEAST_MAVEN_VERSION}"
-  "infra/charts/feast/requirements.lock,4,${FEAST_MAVEN_VERSION}"
-  "infra/docker-compose/.env.sample,1,${FEAST_DOCKER_VERSION}"
-  "datatypes/java/README.md,1,${FEAST_MAVEN_VERSION}"
-  "docs/contributing/development-guide.md,4,${FEAST_MAVEN_VERSION}"
+  "infra/charts/feast/Chart.yaml,1,${FEAST_MASTER_VERSION}"
+  "infra/charts/feast/charts/feast-core/Chart.yaml,1,${FEAST_MASTER_VERSION}"
+  "infra/charts/feast/charts/feast-core/values.yaml,1,${FEAST_RELEASE_VERSION}"
+  "infra/charts/feast/charts/feast-core/README.md,1,${FEAST_MASTER_VERSION}"
+  "infra/charts/feast/charts/feast-core/README.md,1,${FEAST_RELEASE_VERSION}"
+  "infra/charts/feast/charts/feast-serving/Chart.yaml,1,${FEAST_MASTER_VERSION}"
+  "infra/charts/feast/charts/feast-jupyter/values.yaml,1,${FEAST_RELEASE_VERSION}"
+  "infra/charts/feast/charts/feast-jupyter/README.md,1,${FEAST_RELEASE_VERSION}"
+  "infra/charts/feast/charts/feast-jupyter/README.md,1,${FEAST_MASTER_VERSION}"
+  "infra/charts/feast/charts/feast-jupyter/Chart.yaml,1,${FEAST_MASTER_VERSION}"
+  "infra/charts/feast/charts/feast-serving/values.yaml,1,${FEAST_RELEASE_VERSION}"
+  "infra/charts/feast/charts/feast-serving/README.md,1,${FEAST_RELEASE_VERSION}"
+  "infra/charts/feast/charts/feast-serving/README.md,1,${FEAST_MASTER_VERSION}"
+  "infra/charts/feast/charts/feast-jobcontroller/Chart.yaml,1,${FEAST_MASTER_VERSION}"
+  "infra/charts/feast/charts/feast-jobcontroller/values.yaml,1,${FEAST_RELEASE_VERSION}"
+  "infra/charts/feast/charts/feast-jobcontroller/README.md,1,${FEAST_MASTER_VERSION}"
+  "infra/charts/feast/charts/feast-jobcontroller/README.md,1,${FEAST_RELEASE_VERSION}"
+  "infra/charts/feast/requirements.yaml,4,${FEAST_MASTER_VERSION}"
+  "infra/charts/feast/requirements.lock,4,${FEAST_MASTER_VERSION}"
+  "infra/docker-compose/.env.sample,1,${FEAST_RELEASE_VERSION}"
+  "datatypes/java/README.md,1,${FEAST_MASTER_VERSION}"
+  "docs/contributing/development-guide.md,4,${FEAST_MASTER_VERSION}"
   "docs/administration/audit-logging.md,1,${FEAST_STABLE_VERSION}"
   "docs/getting-started/deploying-feast/docker-compose.md,1,${FEAST_STABLE_VERSION}"
   "docs/getting-started/deploying-feast/kubernetes.md,1,${FEAST_STABLE_VERSION}"
