@@ -5,7 +5,7 @@ image:
   # image.repository -- Docker image repository
   repository: gcr.io/kf-feast/feast-jupyter
   # image.tag -- Image tag
-  tag: 0.6.2
+  tag: develop
   # image.pullPolicy -- Image pull policy
   pullPolicy: Always
 
