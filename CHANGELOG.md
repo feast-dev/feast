@@ -1,8 +1,8 @@
 # Changelog
 
-## [v0.7.0-rc.2](https://github.com/feast-dev/feast/tree/v0.7.0-rc.2) (2020-09-09)
+## [v0.7.0-rc.3](https://github.com/feast-dev/feast/tree/v0.7.0-rc.3) (2020-09-09)
 
-[Full Changelog](https://github.com/feast-dev/feast/compare/sdk/go/v0.6.2...v0.7.0-rc.2)
+[Full Changelog](https://github.com/feast-dev/feast/compare/sdk/go/v0.6.2...v0.7.0-rc.3)
 
 **Breaking changes:**
 

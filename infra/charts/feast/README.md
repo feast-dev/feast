@@ -1,7 +1,7 @@
 feast
 ===== 
 
-Feature store for machine learning. Current chart version is `0.7.0-rc.2`
+Feature store for machine learning. Current chart version is `0.7.0-rc.3`
 
 ## TL;DR;
 
