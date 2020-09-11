@@ -9,7 +9,10 @@
 #   versions against the given merge branch.
 set -e
 
+# Fetch tags and current branch
+git fetch --prune --unshallow --tags || true
 BRANCH_NAME=${TARGET_MERGE_BRANCH-$(git rev-parse --abbrev-ref HEAD)}
+
 # Matches (ie vMAJOR.MINOR-branch) release branch names
 RELEASE_BRANCH_REGEX="^v[0-9]+\.[0-9]+-branch$"
 
