@@ -99,6 +99,7 @@ declare -a files_to_validate_version=(
   "docs/getting-started/deploying-feast/docker-compose.md,1,${FEAST_STABLE_VERSION}"
   "docs/getting-started/deploying-feast/kubernetes.md,1,${FEAST_STABLE_VERSION}"
   "README.md,1,${FEAST_STABLE_VERSION}"
+  "CHANGELOG.md,2,${FEAST_STABLE_VERSION}"
 )
 
 echo
