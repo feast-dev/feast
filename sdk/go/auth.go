@@ -27,7 +27,7 @@ func (provider *Credential) GetRequestMetadata(ctx context.Context, uri ...strin
 		return map[string]string{}, nil
 	}
 	return map[string]string{
-		"Authorization": "Bearer: " + token.AccessToken,
+		"Authorization": "Bearer " + token.AccessToken,
 	}, nil
 }
 
