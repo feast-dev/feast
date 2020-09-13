@@ -19,10 +19,11 @@ COPY .git .git
 COPY README.md README.md
 RUN pip install -e sdk/python -U
 
-# Switch back to original user and workdir
+# Copy examples and set workdir
 USER $NB_UID
 WORKDIR $HOME
-
 COPY examples .
 
-CMD ["start-notebook.sh", "--NotebookApp.token=''"]
+USER root
+COPY infra/docker/jupyter/entrypoint.sh .
+CMD ["bash", "./entrypoint.sh", "--NotebookApp.token=''"]
