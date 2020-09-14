@@ -133,7 +133,7 @@ func TestCredentials(t *testing.T) {
 				t.Errorf("Expected authentication metadata with key: '%s'", authKey)
 			}
 
-			expectedVal := "Bearer: " + tc.want
+			expectedVal := "Bearer " + tc.want
 			if meta[authKey] != expectedVal {
 				t.Errorf("Expected authentication metadata with value: '%s' Got instead: '%s'", expectedVal, meta[authKey])
 			}
