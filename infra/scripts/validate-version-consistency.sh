@@ -9,6 +9,8 @@
 #   versions against the given merge branch.
 set -e
 
+source infra/scripts/setup-common-functions.sh
+
 # Fetch tags and current branch
 git fetch --prune --unshallow --tags || true
 BRANCH_NAME=${TARGET_MERGE_BRANCH-$(git rev-parse --abbrev-ref HEAD)}
@@ -32,7 +34,7 @@ then
 elif echo "$BRANCH_NAME" | grep -P $RELEASE_BRANCH_REGEX &>/dev/null
 then
     # Use last release tag tagged on the release branch
-    LAST_MERGED_TAG=$(git tag -l --sort -version:refname --merged | head -n 1)
+    LAST_MERGED_TAG=$(get_tag_release -m)
     FEAST_RELEASE_VERSION=${LAST_MERGED_TAG#"v"}
 else
     # Do not enforce version linting as we don't know if the target merge branch FEAST_RELEASE_VERSION="_ANY"
@@ -52,12 +54,12 @@ STABLE_TAG_REGEX="^v[0-9]+\.[0-9]+\.[0-9]+$"
 if [ $BRANCH_NAME = "master" ]
 then
     # Use last stable tag repo wide
-    LAST_STABLE_TAG=$(git tag --sort -version:refname | grep -P "$STABLE_TAG_REGEX" | head -n 1)
+    LAST_STABLE_TAG=$(get_tag_release -s)
     FEAST_STABLE_VERSION=${LAST_STABLE_TAG#"v"}
 elif echo "$BRANCH_NAME" | grep -P $RELEASE_BRANCH_REGEX &>/dev/null
 then
     # Use last stable tag tagged on the release branch
-    LAST_STABLE_MERGE_TAG=$(git tag --sort -version:refname --merged | grep -P "$STABLE_TAG_REGEX" | head -n 1)
+    LAST_STABLE_MERGE_TAG=$(get_tag_release -sm)
     FEAST_STABLE_VERSION=${LAST_STABLE_MERGE_TAG#"v"}
 else
     # Do not enforce version linting as we don't know if the target merge branch

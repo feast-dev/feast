@@ -22,7 +22,7 @@ The Docker Compose deployment will take some time fully startup. During this tim
 Clone the latest stable version of the [Feast repository](https://github.com/gojek/feast/) and setup before we deploy:
 
 ```text
-git clone --depth 1 --branch v0.6.2 https://github.com/feast-dev/feast.git
+git clone --depth 1 --branch v0.7.0 https://github.com/feast-dev/feast.git
 cd feast/infra/docker-compose
 cp .env.sample .env
 ```

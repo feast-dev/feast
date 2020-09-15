@@ -1,6 +1,4 @@
-# Kubernetes \(GKE\)
-
-### Overview <a id="m_5245424069798496115gmail-overview-1"></a>
+# Kubernetes \(Gv0.7.0### Overview <a id="m_5245424069798496115gmail-overview-1"></a>
 
 This guide will install Feast into a Kubernetes cluster on Google Cloud Platform. It assumes that all of your services will run within a single Kubernetes cluster. 
 
@@ -133,7 +131,7 @@ You should now be able to open the Jupyter notebook at [http://localhost:8888/](
 From within the Jupyter Notebook you can now clone the Feast repository
 
 ```text
-git clone --branch v0.6.2 https://github.com/feast-dev/feast 
+git clone --branch v0.7.0 https://github.com/feast-dev/feast 
 ```
 
 Please try out our [examples](https://github.com/feast-dev/feast/blob/master/examples/).
