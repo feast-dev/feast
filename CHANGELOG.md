@@ -57,6 +57,9 @@
 - Fix Helm chart requirements lock and version linting [\#925](https://github.com/feast-dev/feast/pull/925) ([woop](https://github.com/woop))
 - Fix Github Actions failures due to possible rate limiting. [\#972](https://github.com/feast-dev/feast/pull/972) ([mrzzy](https://github.com/mrzzy))
 - Fix docker image building for PR commits [\#907](https://github.com/feast-dev/feast/pull/907) ([woop](https://github.com/woop))
+- Fix Github Actions versioned image push [\#994](https://github.com/feast-dev/feast/pull/994)([mrzzy](https://github.com/mrzzy))
+- Fix Go SDK extra colon in metadata header for Authentication [\#1001](https://github.com/feast-dev/feast/pull/1001)([mrzzy](https://github.com/mrzzy))
+- Fix lint version not pulling tags. [\#999](https://github.com/feast-dev/feast/pull/999)([mrzzy](https://github.com/mrzzy))
 
 **Merged pull requests:**
 
@@ -81,6 +84,7 @@
 - Integration Test for Job Coordinator [\#886](https://github.com/feast-dev/feast/pull/886) ([pyalex](https://github.com/pyalex))
 - Add Auth header [\#885](https://github.com/feast-dev/feast/pull/885) ([AnujaVane](https://github.com/AnujaVane))
 - BQ sink produces sample of successful inserts [\#875](https://github.com/feast-dev/feast/pull/875) ([pyalex](https://github.com/pyalex))
+- Add Branch and RC Awareness to Version Lint & Fix Semver Regex [\#998](https://github.com/feast-dev/feast/pull/998) ([mrzzy](https://github.com/mrzzy))
 
 ## [v0.6.2](https://github.com/feast-dev/feast/tree/v0.6.2) (2020-08-02)                                                                                                                                                                                                         
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.6.1...v0.6.2)
