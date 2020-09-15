@@ -30,7 +30,7 @@ public class BaseAuthIT {
   static final String FEATURE_NAME = "feature_1";
   static final String ENTITY_ID = "entity_id";
   static final String PROJECT_NAME = "project_1";
-  static final int CORE_START_MAX_WAIT_TIME_IN_MINUTES = 3;
+  static final int SERVICE_START_MAX_WAIT_TIME_IN_MINUTES = 3;
   static final String CLIENT_ID = "client_id";
   static final String CLIENT_SECRET = "client_secret";
   static final String TOKEN_URL = "http://localhost:4444/oauth2/token";
@@ -42,6 +42,8 @@ public class BaseAuthIT {
 
   static final String CORE = "core_1";
 
+  static final String JOB_CONTROLLER = "jobcontroller_1";
+
   static final String HYDRA = "hydra_1";
   static final int HYDRA_PORT = 4445;
 
@@ -50,6 +52,8 @@ public class BaseAuthIT {
   static final int REDIS_PORT = 6379;
 
   static final int FEAST_CORE_PORT = 6565;
+
+  static final int FEAST_JOB_CONTROLLER_PORT = 6570;
 
   @DynamicPropertySource
   static void properties(DynamicPropertyRegistry registry) {
