@@ -2,7 +2,7 @@ feast-core
 ==========
 Feast Core registers feature specifications.
 
-Current chart version is `0.7.0`
+Current chart version is `0.7.1-SNAPSHOT`
 
 
 
