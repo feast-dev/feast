@@ -39,6 +39,7 @@
         <module>common</module>
         <module>job-controller</module>
         <module>common-test</module>
+        <module>ingestion-spark</module>
     </modules>
 
     <properties>
