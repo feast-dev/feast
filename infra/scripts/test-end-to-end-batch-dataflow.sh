@@ -123,7 +123,7 @@ Helm install common parts (kafka, redis, etc)
 "
   cd $ORIGINAL_DIR/infra/charts/feast
 
-  helm install --wait --debug --values="values-end-to-end-batch-dataflow-updated.yaml" \
+  helm install --replace --wait --debug --values="values-end-to-end-batch-dataflow-updated.yaml" \
    --set "feast-core.enabled=false" \
    --set "feast-online-serving.enabled=false" \
    --set "feast-batch-serving.enabled=false" \
