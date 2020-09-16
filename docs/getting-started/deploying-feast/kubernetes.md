@@ -61,7 +61,7 @@ Create a Kubernetes cluster:
 gcloud container clusters create feast-cluster \
     --machine-type n1-standard-4 \
     --zone us-central1-a \
-    --scopes=bigquery,storage-rw,compute-ro
+    --scopes=bigquery,storage-rw,compute-ro 
 ```
 
 Create a secret in the GKE cluster from the service account `credentials.json`:
@@ -99,13 +99,13 @@ Update `application-values.yml`in `values.yaml` to configure Feast based on your
 | Property | Description |
 | :--- | :--- |
 | `project_id` | This is your GCP Project Id. |
-| `dataset_id` | This is your BigQuery dataset id.  |
+| `dataset_id` | This is the **dataset name** of the BigQuery dataset to use. |
 | `staging_location` | This is the GCS bucket used for staging data being loaded into BigQuery. |
 
 Install the Feast Helm chart to deploy Feast:
 
 ```bash
-helm install --name myrelease -f values.yaml feast-charts/feast
+helm install feast-release -f values.yaml feast-charts/feast
 ```
 
 Wait for the Feast pods to start running and become become ready:
@@ -128,15 +128,9 @@ Forwarding from 127.0.0.1:8888 -> 8888
 Forwarding from [::1]:8888 -> 8888
 ```
 
-You should now be able to open the Jupyter notebook at [http://localhost:8888/](http://localhost:8888/)
+You should be able to connect at `localhost:8888` to the bundled Jupyter Notebook Server with example notebooks.
 
-From within the Jupyter Notebook you can now clone the Feast repository
-
-```text
-git clone --branch v0.6.2 https://github.com/feast-dev/feast 
-```
-
-Please try out our [examples](https://github.com/feast-dev/feast/blob/master/examples/).
+{% embed url="http://localhost:8888/tree?" caption="" %}
 
 ## 6. Further Reading
 

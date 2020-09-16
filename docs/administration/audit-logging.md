@@ -96,6 +96,24 @@ Fields in Transition Audit Log Type
 
 Feast currently only supports forwarding Request/Response \(Message Audit Log Type\) logs to an external fluentD service with `feast.**` Fluentd tag.
 
+#### Request/Response Log Example
+
+```text
+{
+  "id": "45329ea9-0d48-46c5-b659-4604f6193711",
+  "service": "CoreService"
+  "status_code": "OK",
+  "method": "ListProjects",
+  "request": {},
+  "response": {
+    "projects": [
+      "default", "project1", "project2"
+    ]
+  }
+  "release_name": 506.457.14.512
+}
+```
+
 #### Configuration
 
 The Fluentd Log Forwarder configured with the with the following configuration options in `application.yml`:
@@ -105,4 +123,6 @@ The Fluentd Log Forwarder configured with the with the following configuration o
 | `feast.logging.audit.messageLogging.destination` | `fluentd` |
 | `feast.logging.audit.messageLogging.fluentdHost` | `localhost` |
 | `feast.logging.audit.messageLogging.fluentdPort` | `24224` |
+
+When using Fluentd as the Log forwarder, a Feast `release_name` can be logged instead of the IP address \(eg. IP of Kubernetes pod deployment\), by setting an environment variable `RELEASE_NAME` when deploying Feast.
 
