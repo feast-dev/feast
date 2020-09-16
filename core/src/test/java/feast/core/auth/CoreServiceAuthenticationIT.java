@@ -41,6 +41,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.util.SocketUtils;
 
 @SpringBootTest(
     properties = {
@@ -52,7 +53,7 @@ public class CoreServiceAuthenticationIT extends BaseIT {
   @Autowired FeastProperties feastProperties;
 
   private static int feast_core_port;
-  private static int JWKS_PORT = 45124;
+  private static int JWKS_PORT = SocketUtils.findAvailableTcpPort();
 
   private static JwtHelper jwtHelper = new JwtHelper();
 
