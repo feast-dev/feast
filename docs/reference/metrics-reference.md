@@ -78,7 +78,7 @@ Metrics processed by each staged will be tagged with `metrics_namespace`  to the
 
 **Metrics Bucketing**
 
-Metrics with a `{BUCKET}` are computed at various histogram buckets. Suffix with the following to select the bucket to use:
+Metrics with a `{BUCKET}` are computed on a 60 second window/bucket. Suffix with the following to select the bucket to use:
 
 * `min` - minimum value.
 * `max` - maximum value.
@@ -121,6 +121,13 @@ Metrics with a `{BUCKET}` are computed at various histogram buckets. Suffix with
         <p><code>metrics_namespace</code>
         </p>
         </td>
+    </tr>
+    <tr>
+      <td style="text-align:left"><code>feast_ingestion_feature_value_{BUCKET}</code>
+      </td>
+      <td style="text-align:left">Last value feature for each Feature.</td>
+      <td style="text-align:left"><code>feast_store</code>, <code>feature_project_name</code>, <code>feast_feature_name</code>,<code>feast_featureSet_name</code>, <code>ingest_job_name</code>, <code>metrics_namepace</code>
+      </td>
     </tr>
     <tr>
       <td style="text-align:left"><code>feast_ingestion_feature_row_ingested_count</code>
