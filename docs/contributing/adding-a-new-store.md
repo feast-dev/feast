@@ -22,7 +22,7 @@ Stores are configured in Feast Serving. Feast Serving publishes its store config
 
 Store configuration is always in the form of a map&lt;String, String&gt;. The keys and configuration for stores are defined in [protos](https://github.com/gojek/feast/blob/master/protos/feast/core/Store.proto). This must be added in order to define a new store
 
-Then the store must be configured to be loaded through Feast Serving. The above configuration is loaded through [FeastProperties.java](https://github.com/gojek/feast/blob/a1937c374a4e39b7a75d828e7b7c3b87a64d9d6e/serving/src/main/java/feast/serving/config/FeastProperties.java#L175).
+Then the store must be configured to be loaded through Feast Serving. The above configuration is loaded through [FeastProperties.java](https://github.com/gojek/feast/blob/a1937c374a4e39b7a75d828e7b7c3b87a64d9d6e/serving/src/main/java/feast/serving/config/FeastProperties.java#L175). 
 
 Once configuration is loaded, the store will then be instantiated.
 
@@ -45,6 +45,8 @@ Below is a "happy path" of a batch ingestion process which includes a blocking s
 
 ![](https://user-images.githubusercontent.com/6728866/74807906-91e73c00-5324-11ea-8ba5-2b43c7c5282b.png)
 
+
+
 The complete ingestion flow is executed by a [FeatureSink](https://github.com/gojek/feast/blob/master/storage/api/src/main/java/feast/storage/api/writer/FeatureSink.java). Two methods should be implemented
 
 * [prepareWrite\(\)](https://github.com/gojek/feast/blob/a1937c374a4e39b7a75d828e7b7c3b87a64d9d6e/storage/api/src/main/java/feast/storage/api/writer/FeatureSink.java#L45): Sets up storage backend for writing/ingestion. This method will be called once during pipeline initialisation. Typically this is used to apply schemas.
@@ -64,7 +66,7 @@ The current implementation of batch retrieval starts and ends with a file \(data
 
 Additionally, we have also implemented a [batch retrieval method ](https://github.com/gojek/feast/blob/a1937c374a4e39b7a75d828e7b7c3b87a64d9d6e/sdk/python/feast/client.py#L509)in the Python SDK. Depending on the means through which this new store will export data, this client may have to change. At the very least it would change if Google Cloud Storage isn't used as the staging bucket.
 
-The means through which you implement the export/import of data into the store will depend on your store.
+The means through which you implement the export/import of data into the store will depend on your store. 
 
 #### 2.2.2 Online Serving
 

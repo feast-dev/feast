@@ -12,7 +12,7 @@ feature_set = FeatureSet(
 
 If a user does not provide a source of data then they are required to publish data to Feast. This process is called ingestion.
 
-## Ingesting data
+### Ingesting data
 
 The following example demonstrates how data ingestion works. For a full tutorial please see the [Telco Customer Churn Prediction Notebook](https://github.com/gojek/feast/blob/master/examples/feast-xgboost-churn-prediction-tutorial/Telecom%20Customer%20Churn%20Prediction%20%28with%20Feast%20and%20XGBoost%29.ipynb).
 

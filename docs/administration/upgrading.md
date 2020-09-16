@@ -1,6 +1,54 @@
 # Upgrading Feast
 
-## Migration 0.5 -&gt; 0.6
+## Migration v0.6 to v0.7
+
+### Feast Core Validation changes
+
+In v0.7, Feast Core no longer accepts starting with number \(0-9\) and using dash in names for:
+
+* Project
+* Feature Set
+* Entities
+* Features
+
+Migrate all project, feature sets, entities, feature names:
+
+* with ‘-’ by recreating them with '-' replace with '\_'
+* recreate any names with a number \(0-9\)  as the first letter to one without.
+
+Feast now prevents feature sets from being applied if no store is subscribed to that Feature Set.
+
+* Ensure that a store is configured to subscribe to the Feature Set before applying the Feature Set.
+
+### Feast Core's Job Coordinator is now Feast Job Controller
+
+In v0.7,  Feast Core's Job Coordinator has been decoupled from Feast Core and runs as a separate Feast Job Controller application. See its [Configuration reference](../reference/configuration-reference.md#2-feast-core-serving-and-job-controller) for how to configure Feast Job Controller.
+
+**Ingestion Job API**
+
+In v0.7, the following changes are made to the Ingestion Job API:
+
+* Changed List Ingestion Job API  to return list of `FeatureSetReference` instead of list of FeatureSet in response.
+* Moved `ListIngestionJobs`, `StopIngestionJob`, `RestartIngestionJob` calls from `CoreService`  to `JobControllerService`.
+* Python SDK/CLI: Added new [Job Controller client ](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/contrib/job_controller/client.py)and `jobcontroller_url` config option.
+
+Users of the Ingestion Job API via gRPC should migrate by:
+
+* Add new client to connect to Job Controller endpoint to call `JobControllerService` and call `ListIngestionJobs`, `StopIngestionJob`, `RestartIngestionJob` from new client.
+* Migrate code to accept feature references instead of feature sets returned in `ListIngestionJobs` response.
+
+Users of Ingestion Job via Python SDK \(ie `feast ingest-jobs list` or `client.stop_ingest_job()` etc.\) should migrate by:
+
+* `ingest_job()`methods only: Create a new separate [Job Controller client](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/contrib/job_controller/client.py) to connect to the job controller and call `ingest_job()` methods using the new client.
+* Configure the Feast Job Controller endpoint url via `jobcontroller_url` config option.
+
+### Configuration Properties Changes
+
+* Rename `feast.jobs.consolidate-jobs-per-source property` to `feast.jobs.controller.consolidate-jobs-per-sources`
+* Rename`feast.security.authorization.options.subjectClaim` to  `feast.security.authentication.options.subjectClaim`
+* Rename `feast.logging.audit.messageLoggingEnabled` to `feast.audit.messageLogging.enabled`
+
+## Migration v0.5 to v0.6
 
 ### Database schema
 
@@ -46,7 +94,7 @@ Minor changes:
 
   has now `version` and `delivery_status`.
 
-## Migration 0.4 -&gt; 0.6
+## Migrate v0.4 to v0.6
 
 ### Database
 

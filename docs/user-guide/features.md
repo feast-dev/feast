@@ -2,7 +2,7 @@
 
 A feature is an individual measurable property or characteristic of a phenomenon being observed. Features are the most important concepts within a feature store. Feature data is used both as input to models during training and when models are served in production.
 
-In the context of Feast, features are values that are associated with either one or more entities over time. In Feast, these values are either primitives or lists of primitives. Each feature can also have additional information attached to it.
+In the context of Feast, features are values that are associated with either one or more entities over time. In Feast, these values are either primitives or lists of primitives. Each feature can also have additional information attached to it. 
 
 The following is a YAML representation of a feature specification. This specification would form part of a larger specification within a [feature set](feature-sets.md).
 
@@ -16,7 +16,7 @@ value_type: INT64
 ```
 {% endcode %}
 
-Features can be created through the[ Feast SDK](../getting-started/connecting-to-feast-1/connecting-to-feast.md) as follows
+ Features can be created through the[ Feast SDK](../getting-started/connecting-to-feast-1/connecting-to-feast.md) as follows
 
 ```python
 from feast import Entity, Feature, ValueType, FeatureSet

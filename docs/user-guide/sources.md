@@ -24,7 +24,7 @@ feature_set = FeatureSet(
 )
 ```
 
-Once this feature set is registered, Feast will start an ingestion job that retrieves data from this source and starts to populate all [stores](stores.md) that subscribe to it.
+Once this feature set is registered, Feast will start an ingestion job that retrieves data from this source and  starts to populate all [stores](stores.md) that subscribe to it.
 
 In most cases a feature set \(and by extension its source\) will be used to populate both an online store and a historical store. This allows users to both train and serve their model with the same feature data.
 

@@ -10,5 +10,5 @@ If you would like to deploy a new installation of Feast, then click on `Deployin
 
 {% page-ref page="deploying-feast/" %}
 
-If you are connected to a running Feast deployment, then have a look at our [example tutorials](https://github.com/gojek/feast/tree/master/examples).
+If you are connected to a running Feast deployment, then have a look at our  [example tutorials](https://github.com/gojek/feast/tree/master/examples).
 
