@@ -228,6 +228,10 @@ public class RedisClusterOnlineRetriever implements OnlineRetriever {
                 .boxed()
                 .collect(Collectors.toList());
 
+        if (indexMissingValue.isEmpty()) {
+          return redisValues;
+        }
+
         byte[][] fallbackBinaryKeys =
             indexMissingValue.stream()
                 .map(i -> fallbackSerializer.serialize(keys.get(i)))
