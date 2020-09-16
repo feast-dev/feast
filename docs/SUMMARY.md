@@ -41,6 +41,7 @@
 
 ## Reference
 
+* [Metrics Reference](reference/metrics-reference.md)
 * [Configuration Reference](reference/configuration-reference.md)
 * [API Reference](reference/api/README.md)
   * [Core gRPC API](https://api.docs.feast.dev/grpc/feast.core.pb.html)

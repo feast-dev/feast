@@ -2,47 +2,56 @@
 
 ## 0. Overview
 
-Feast Components \(Core, Serving, Job Controller, Ingestion Jobs\) export metrics that can provide visibility into Feast usage and behavior such as:
+Feast Components export metrics that can provide insight into Feast behavior:
 
-* No. of Feature Sets registered with Feast Core.
-* Online Feature Request latency retrieving from Feast Serving.
-* Lag time between Feature Rows ingested into Feast Ingestion Jobs.
+* [Feast Ingestion Jobs  can be configured to push metrics into StatsD](metrics.md#2-exporting-feast-metrics-to-prometheus)
+* [Prometheus can be configured to scrap metrics from Feast Core and Serving.](metrics.md#2-exporting-feast-metrics-to-prometheus)
 
-## 1. Exporting Metrics to StatsD
+See the [Metrics Reference ](../reference/metrics-reference.md)for documentation on metrics are exported by Feast.
 
-Feast directly supports exporting metrics to a StatsD instance.
+{% hint style="info" %}
+Feast Job Controller currently does not export any metrics on its own. However its `application.yml` is used to configure metrics export for ingestion jobs.
+{% endhint %}
 
-* Metrics export to StatsD for Core, Serving and Job Controller components are configured in the component's coresponding`application.yml`
+## 1. Pushing Ingestion Metrics to StatsD
 
-```yaml
-management:
-  metrics:
-    export:
-      statsd:
-        # Enables Statd metrics export if true.
-        enabled: true
-        # Host and port of the StatsD instance to export to.
-        host: localhost
-        port: 8125
-```
+**Feast Ingestion Job**
 
-* Metrics export for Ingestion for the Ingestion Job component is configured in Job Controller's `application.yml` under `feast.jobs.metrics`
+Feast Ingestion Job can be configured to push Ingestion metrics to a StatsD instance.  Metrics export to StatsD for Ingestion Job is configured in Job Controller's `application.yml` under `feast.jobs.metrics`:
 
 ```yaml
  feast:
    jobs:
     metrics:
       # Enables Statd metrics export if true.
-      enabled: false
-      # Type of metrics sink. Only statsd is currently supported.
+      enabled: true
       type: statsd
-      # Host of the metrics sink.
+      # Host and port of the StatsD instance to export to.
       host: localhost
-      # Port of the metrics sink.
       port: 9125
 ```
 
+{% hint style="info" %}
+If you need Ingestion Metrics in Prometheus or some other metrics backend, use a metrics forwarder to forward Ingestion Metrics from StatsD to the metrics backend of choice. \(ie  Use  [`prometheus-statsd-exporter`](https://github.com/prometheus/statsd_exporter) to forward metrics to Prometheus\).
+{% endhint %}
 
+## 2. Exporting Feast Metrics to Prometheus
 
+**Feast Core and Serving**
 
+Feast Core and Serving exports metrics to a Prometheus instance via Prometheus scraping its `/metrics` endpoint. Metrics export to Prometheus for Core and Serving can be configured via their corresponding `application.yml`
+
+```yaml
+server:
+  # Configures the port where metrics are exposed via /metrics for Prometheus to scrape.
+  port: 8081
+```
+
+[Direct Prometheus](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config) to scrape directly from Core and Serving's `/metrics` endpoint.
+
+## 3. Futher Reading.
+
+See the [Metrics Reference ](../reference/metrics-reference.md)for documentation on metrics are exported by Feast.
+
+## 
 
