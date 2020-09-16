@@ -20,11 +20,13 @@ from bq.testutils import assert_stats_equal, clear_unsupported_fields
 from feast.client import Client
 from feast.contrib.job_controller.client import Client as JCClient
 from feast.core.CoreService_pb2 import ListStoresRequest
+from feast.core.FeatureSet_pb2 import FeatureSetStatus
 from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_set import FeatureSet
 from feast.type_map import ValueType
+from feast.wait import wait_retry_backoff
 
 pd.set_option("display.max_columns", None)
 
@@ -181,6 +183,17 @@ def test_batch_get_historical_features_with_file(client):
     # feature set may be ready (direct runner set ready  right after job submitted),
     # but kafka consumer is not configured
     # give some time to warm up ingestion job
+    wait_retry_backoff(
+        retry_fn=(
+            lambda: (
+                None,
+                client.get_feature_set(name="file_feature_set").status
+                == FeatureSetStatus.STATUS_READY,
+            )
+        ),
+        timeout_secs=480,
+        timeout_msg="Wait for FeatureSet to be READY",
+    )
     time.sleep(20)
 
     client.ingest(file_fs1, features_1_df, timeout=480)
