@@ -6,9 +6,11 @@ The following guide will help you quickly run Feast in your local machine.
 
 The main components of Feast are:
 
-* **Feast Core:** Handles feature registration and ensures that Feast internal metadata is consistent.
-* **Feast Job Controller:** Starts and manages ingestion jobs.
-* **Feast Ingestion Jobs:** Subscribes to streams of FeatureRows and writes these as feature values to registered databases \(online, historical\) that can be read by Feast Serving.
+* **Feast Core:** Handles feature registration, starts and manages ingestion jobs and ensures that Feast internal metadata is consistent.
+* **Feast Ingestion Jobs:** Subscribes to streams of FeatureRows and writes these as feature
+
+  values to registered databases \(online, historical\) that can be read by Feast Serving.
+
 * **Feast Serving:** Service that handles requests for features values, either online or batch.
 
 ## **2 Requirements**
@@ -67,6 +69,8 @@ $ mvn test
 
 ### 3.2 Running integration tests
 
+_Note: integration suite isn't yet separated from unit._
+
 ```text
 $ mvn verify
 ```
@@ -107,7 +111,7 @@ The following section is a quick walk-through to test whether your local Feast d
 
 * PostgreSQL is running in `localhost:5432` and has a database called `postgres` which
 
-  can be accessed with credentials user `postgres` and password `password`. Different database configurations can be supplied here via Feast Core and Job Controllers' `application.yml`.
+  can be accessed with credentials user `postgres` and password `password`. Different database configurations can be supplied here \(`/core/src/main/resources/application.yml`\)
 
 * Redis is running locally and accessible from `localhost:6379`
 * \(optional\) The local environment has been authentication with Google Cloud Platform and has full access to BigQuery. This is only necessary for BigQuery testing/development.
@@ -116,23 +120,17 @@ The following section is a quick walk-through to test whether your local Feast d
 
 ```bash
 git clone https://github.com/feast-dev/feast.git && cd feast && \
-export FEAST_REPO=$(pwd)
-```
-
-Compile and package Feast components
-
-```text
-mvn package -Dmaven.test.skip=true
+export FEAST_HOME_DIR=$(pwd)
 ```
 
 ### 4.3 Starting Feast Core
 
-To run Feast Core locally:
+To run Feast Core locally using Maven:
 
 ```bash
 # Feast Core can be configured from the following .yml file
-# $FEAST_REPO/core/src/main/resources/application.yml
-java -jar core/target/feast-core-0.7.1-SNAPSHOT-exec.jar
+# $FEAST_HOME_DIR/core/src/main/resources/application.yml
+mvn --projects core spring-boot:run
 ```
 
 Test whether Feast Core is running
@@ -149,57 +147,30 @@ connecting to localhost:6565
 Rpc succeeded with OK status
 ```
 
-### 4.4 Starting Feast Job Controller
+### 4.4 Starting Feast Serving
 
-To run Feast Job Controller locally:
+Feast Serving is configured through the `$FEAST_HOME_DIR/serving/src/main/resources/application.yml`. Each Serving deployment must be configured with a store. The default store is Redis \(used for online serving\).
 
-```bash
-# Feast Job Controller can be configured from the following .yml file
-# $FEAST_REPO/job-controller/src/main/resources/application.yml
-java -jar job-controller/target/feast-job-controller-0.7.1-SNAPSHOT-exec.jar
-```
-
-Test whether Feast Job Controller is running:
+The configuration for this default store is located in a separate `.yml` file. The default location is `$FEAST_HOME_DIR/serving/sample_redis_config.yml`:
 
 ```text
-grpc_cli call localhost:6570 ListIngestionJobs ''
-```
-
-The output should list **no** Ingestion Jobs since no Feature Sets have been registered yet
-
-```text
-connecting to localhost:6570
-
-Rpc succeeded with OK status
-```
-
-### 4.5 Starting Feast Serving
-
-Feast Serving is configured through the `$FEAST_REPO/serving/src/main/resources/application.yml`. Each Serving deployment must be configured with a store. Serving uses the store specified by native by `active-store` in `application.yml`
-
-```text
-# Indicates the active store. Only a single store in the last can be active at one time.
-active_store: online
-```
-
-The default store `online` configured is Redis \(used for online serving\):
-
-```text
-  stores:
-    - name: online # Name of the store (referenced by active_store)
-      type: REDIS 
-      config:  # store specific config. In this case specifies the host:port of redis.
-        host: localhost
-        port: 6379
-     # ......
+name: serving
+type: REDIS
+redis_config:
+  host: localhost
+  port: 6379
+subscriptions:
+  - name: "*"
+    project: "*"
+    version: "*"
 ```
 
 Once Feast Serving is started, it will register its store with Feast Core \(by name\) and start to subscribe to a feature sets based on its subscription.
 
-Start Feast Serving server on localhost:6566:
+Start Feast Serving GRPC server on localhost:6566 with store name `serving`
 
 ```text
-java -jar serving/target/feast-serving-0.7.1-SNAPSHOT-exec.jar
+mvn --projects serving spring-boot:run
 ```
 
 Test connectivity to Feast Serving
@@ -210,7 +181,7 @@ grpc_cli call localhost:6566 GetFeastServingInfo ''
 
 ```text
 connecting to localhost:6566
-version: "0.7.1-SNAPSHOT"
+version: "0.6.3-SNAPSHOT"
 type: FEAST_SERVING_TYPE_ONLINE
 
 Rpc succeeded with OK status
@@ -225,7 +196,7 @@ grpc_cli call localhost:6565 ListStores ''
 ```text
 connecting to localhost:6565
 store {
-  name: "online"
+  name: "serving"
   type: REDIS
   subscriptions {
     name: "*"
@@ -241,31 +212,23 @@ store {
 Rpc succeeded with OK status
 ```
 
-In order to use BigQuery as a historical store, it is necessary to start Feast Serving with a different store configured. To do this we switch stores using the `active-store` property:
+In order to use BigQuery as a historical store, it is necessary to start Feast Serving with a different store type.
+
+Copy `$FEAST_HOME_DIR/serving/sample_redis_config.yml` to the following location `$FEAST_HOME_DIR/serving/my_bigquery_config.yml` and update the configuration as below:
 
 ```text
-active_store: historical
+name: bigquery
+type: BIGQUERY
+bigquery_config:
+  project_id: YOUR_GCP_PROJECT_ID
+  dataset_id: YOUR_GCP_DATASET
+subscriptions:
+  - name: "*"
+    version: "*"
+    project: "*"
 ```
 
-Configure the required BigQuery store properties:
-
-```text
-stores: 
-- name: historical
-  type: BIGQUERY
-  config:
-    # GCP Project
-    project_id: my_project
-    # BigQuery Dataset Id
-    dataset_id: my_dataset
-    # staging-location specifies the URI to store intermediate files for batch serving.
-    # Feast Serving client is expected to have read access to this staging location
-    # to download the batch features.
-    # For example: gs://mybucket/myprefix
-    # Please omit the trailing slash in the URI.
-    staging_location: gs://mybucket/myprefix
-# ..........
-```
+Then inside `serving/src/main/resources/application.yml` modify the following key `feast.store.config-path` to point to the new store configuration.
 
 After making these changes, restart Feast Serving:
 
@@ -277,7 +240,7 @@ You should see two stores registered:
 
 ```text
 store {
-  name: "online"
+  name: "serving"
   type: REDIS
   subscriptions {
     name: "*"
@@ -290,7 +253,7 @@ store {
   }
 }
 store {
-  name: "historical"
+  name: "bigquery"
   type: BIGQUERY
   subscriptions {
     name: "*"
@@ -299,12 +262,12 @@ store {
   }
   bigquery_config {
     project_id: "my_project"
-    dataset_id: "my_dataset"
+    dataset_id: "my_bq_dataset"
   }
 }
 ```
 
-### 4.6 Registering a FeatureSet
+### 4.5 Registering a FeatureSet
 
 Create a new FeatureSet in Feast by sending a request to Feast Core:
 
@@ -371,9 +334,9 @@ When a feature set is successfully registered, Feast Core will start an **ingest
 Note that Feast currently only supports source of type `KAFKA`, so you must have access to a running Kafka broker to register a FeatureSet successfully. It is possible to omit the `source` from a Feature Set, but Feast Core will still use Kafka behind the scenes, it is simply abstracted away from the user.
 {% endhint %}
 
-### 4.7 Ingestion and Population of Feature Values
+### 4.6 Ingestion and Population of Feature Values
 
-```python
+```text
 # Produce FeatureRow messages to Kafka so it will be ingested by Feast
 # and written to the registered stores.
 # Make sure the value here is the topic assigned to the feature set
@@ -416,8 +379,8 @@ timestamp.FromJsonString(
 )
 row.event_timestamp.CopyFrom(timestamp)
 
-# The format is [PROJECT_NAME]/[FEATURE_NAME]
-row.feature_set = "your_project_name/driver"
+# The format is [PROJECT_NAME]/[FEATURE_NAME]:[VERSION]
+row.feature_set = "your_project_name/driver:1"
 
 producer.send("your-kafka-topic", row.SerializeToString())
 producer.flush()
@@ -425,7 +388,7 @@ logger.info(row)
 EOF
 ```
 
-### 4.8 Retrieval from Feast Serving
+### 4.7 Retrieval from Feast Serving
 
 Ensure that Feast Serving returns results for the feature value for the specific driver
 
@@ -466,7 +429,7 @@ field_values {
 }
 ```
 
-### 4.9 Summary
+### 4.8 Summary
 
 If you have made it to this point successfully you should have a functioning Feast deployment, at the very least using the Apache Beam DirectRunner for ingestion jobs and Redis for online serving.
 

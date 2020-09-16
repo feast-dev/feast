@@ -25,7 +25,6 @@
 * [Stores](user-guide/stores.md)
 * [Feature retrieval](user-guide/feature-retrieval.md)
 * [Statistics](user-guide/statistics.md)
-* [Metrics](user-guide/metrics.md)
 
 ## Tutorials
 
@@ -35,17 +34,13 @@
 
 ## Administration
 
-* [Security](administration/security.md)
-* [Audit Logging](administration/audit-logging.md)
 * [Troubleshooting](administration/troubleshooting.md)
 * [Upgrading Feast](administration/upgrading.md)
 
 ## Reference
 
-* [Metrics Reference](reference/metrics-reference.md)
 * [Configuration Reference](reference/configuration-reference.md)
-* [API, Supported Versions & Deprecation](reference/api-supported-versions-and-deprecation.md)
-* [API Reference](reference/api/README.md)
+* [API](reference/api/README.md)
   * [Core gRPC API](https://api.docs.feast.dev/grpc/feast.core.pb.html)
   * [Serving gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html)
   * [gRPC Types](https://api.docs.feast.dev/grpc/feast.types.pb.html)
