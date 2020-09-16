@@ -19,11 +19,7 @@
 - Add configurable prefix to Consumer Group in IngestionJob's Kafka reader [\#969](https://github.com/feast-dev/feast/pull/969) ([terryyylim](https://github.com/terryyylim))
 - Configurable kafka consumer in IngestionJob [\#959](https://github.com/feast-dev/feast/pull/959) ([pyalex](https://github.com/pyalex))
 - Restart Ingestion Job on code version update [\#949](https://github.com/feast-dev/feast/pull/949) ([pyalex](https://github.com/pyalex))
-- Redis sink flushes only rows that have more recent eventTimestamp [\#913](https://github.com/feast-dev/feast/pull/913) ([pyalex](https://github.com/pyalex))
-- Dataflow runner options: disk type & streaming engine [\#906](https://github.com/feast-dev/feast/pull/906) ([pyalex](https://github.com/pyalex))
-- Add Structured Audit Logging [\#891](https://github.com/feast-dev/feast/pull/891) ([mrzzy](https://github.com/mrzzy))
 - Add REST endpoints for Feast UI [\#878](https://github.com/feast-dev/feast/pull/878) ([SwampertX](https://github.com/SwampertX))
-- Add caching to authorization [\#884](https://github.com/feast-dev/feast/pull/884) ([jmelinav](https://github.com/jmelinav))
 - Upgrade Feast dependencies [\#876](https://github.com/feast-dev/feast/pull/876) ([pyalex](https://github.com/pyalex))
 
 **Fixed bugs:**
@@ -49,7 +45,6 @@
 - Exclude dependencies signatures from IngestionJob package [\#879](https://github.com/feast-dev/feast/pull/879) ([pyalex](https://github.com/pyalex))
 - Prevent race condition in BQ sink jobId generation [\#877](https://github.com/feast-dev/feast/pull/877) ([pyalex](https://github.com/pyalex))
 - Add IngestionId & EventTimestamp to FeatureRowBatch to calculate lag metric correctly [\#874](https://github.com/feast-dev/feast/pull/874) ([pyalex](https://github.com/pyalex))
-- Fix Python SDK ingestion for featureset name that exist in multiple projects [\#868](https://github.com/feast-dev/feast/pull/868) ([terryyylim](https://github.com/terryyylim))
 - Fix typo for fluentd request response map key [\#989](https://github.com/feast-dev/feast/pull/989) ([terryyylim](https://github.com/terryyylim))
 - Reduce polling interval for docker-compose test and fix flaky e2e test [\#982](https://github.com/feast-dev/feast/pull/982) ([terryyylim](https://github.com/terryyylim))
 - Fix rate-limiting issue on github actions for master branch [\#974](https://github.com/feast-dev/feast/pull/974) ([terryyylim](https://github.com/terryyylim))
@@ -74,7 +69,6 @@
 - Revert job controller deployment for docker compose [\#957](https://github.com/feast-dev/feast/pull/957) ([woop](https://github.com/woop))
 - JobCoordinator use public API to communicate with Core [\#943](https://github.com/feast-dev/feast/pull/943) ([pyalex](https://github.com/pyalex))
 - Allow Logging Interceptor to be toggled by Message Logging Enabled Flag [\#940](https://github.com/feast-dev/feast/pull/940) ([mrzzy](https://github.com/mrzzy))
-- Throw more informative exception when write\_triggering\_frequency\_seconds is missing [\#917](https://github.com/feast-dev/feast/pull/917) ([pyalex](https://github.com/pyalex))
 - Clean up Feast CI, docker compose, and notebooks [\#916](https://github.com/feast-dev/feast/pull/916) ([woop](https://github.com/woop))
 - Allow use of Kubernetes for Github Actions [\#910](https://github.com/feast-dev/feast/pull/910) ([woop](https://github.com/woop))
 - Wait for docker images to be ready for e2e dataflow test [\#909](https://github.com/feast-dev/feast/pull/909) ([woop](https://github.com/woop))
@@ -83,7 +77,6 @@
 - Typo in feature sets example. [\#894](https://github.com/feast-dev/feast/pull/894) ([ashwinath](https://github.com/ashwinath))
 - Add auth integration tests [\#892](https://github.com/feast-dev/feast/pull/892) ([woop](https://github.com/woop))
 - Integration Test for Job Coordinator [\#886](https://github.com/feast-dev/feast/pull/886) ([pyalex](https://github.com/pyalex))
-- Add Auth header [\#885](https://github.com/feast-dev/feast/pull/885) ([AnujaVane](https://github.com/AnujaVane))
 - BQ sink produces sample of successful inserts [\#875](https://github.com/feast-dev/feast/pull/875) ([pyalex](https://github.com/pyalex))
 - Add Branch and RC Awareness to Version Lint & Fix Semver Regex [\#998](https://github.com/feast-dev/feast/pull/998) ([mrzzy](https://github.com/mrzzy))
 
