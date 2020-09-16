@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package com.example;
+
+option java_multiple_files = true;
+option java_package = "com.example.protos";
+
+import "google/protobuf/timestamp.proto";
+
+message TestMessage {
+  int64 s2_id = 1;
+  VehicleType.Enum vehicle_type = 2;
+  int64 unique_drivers = 3;
+  google.protobuf.Timestamp event_timestamp = 4;
+}
+
+message VehicleType {
+  enum Enum {
+    UNKNOWN = 0;
+    CAR = 1;
+    BIKE = 2;
+  }
+}

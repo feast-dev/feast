@@ -31,7 +31,7 @@ import org.apache.spark.sql.functions.col
   * 5. Store invalid rows in parquet format at `deadletter` destination
   */
 object BatchPipeline extends BasePipeline {
-  override def createPipeline(sparkSession: SparkSession, config: IngestionJobConfig): Unit = {
+  override def createPipeline(sparkSession: SparkSession, config: IngestionJobConfig) = {
     val featureTable = config.featureTable
     val projection =
       inputProjection(config.source, featureTable.features, featureTable.entities)
@@ -77,6 +77,7 @@ object BatchPipeline extends BasePipeline {
       case _ => None
     }
 
+    None
   }
 
   /**

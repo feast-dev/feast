@@ -18,6 +18,7 @@ package feast.ingestion
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.streaming.StreamingQuery
 
 trait BasePipeline {
   def createSparkSession(jobConfig: IngestionJobConfig): SparkSession = {
@@ -65,5 +66,5 @@ trait BasePipeline {
       .getOrCreate()
   }
 
-  def createPipeline(sparkSession: SparkSession, config: IngestionJobConfig): Unit
+  def createPipeline(sparkSession: SparkSession, config: IngestionJobConfig): Option[StreamingQuery]
 }

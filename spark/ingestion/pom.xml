@@ -39,7 +39,6 @@
         <project.version>0.7-SNAPSHOT</project.version>
     </properties>
 
-
     <dependencies>
         <dependency>
             <groupId>dev.feast</groupId>
@@ -169,6 +168,19 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>com.dimafeng</groupId>
+            <artifactId>testcontainers-scala-kafka_${scala.version}</artifactId>
+            <version>0.38.3</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>2.5.1</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
 
@@ -276,6 +288,28 @@
                                     </excludes>
                                 </filter>
                             </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>com.github.os72</groupId>
+                <artifactId>protoc-jar-maven-plugin</artifactId>
+                <version>3.11.4</version>
+                <executions>
+                    <execution>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <protocArtifact>com.google.protobuf:protoc:3.12.2</protocArtifact>
+                            <protocVersion>3.12.2</protocVersion>
+                            <inputDirectories>
+                                <include>src/test/proto</include>
+                            </inputDirectories>
+                            <includeStdTypes>true</includeStdTypes>
+                            <outputDirectory>src/test/scala</outputDirectory>
                         </configuration>
                     </execution>
                 </executions>
