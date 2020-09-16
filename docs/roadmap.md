@@ -1,6 +1,6 @@
 # Roadmap
 
-## Feast 0.7 \(Feature Release\)
+## Feast 0.7
 
 [Discussion](https://github.com/feast-dev/feast/issues/834)
 
@@ -8,25 +8,20 @@
 
 ### **New Functionality**
 
-1. Entities as a first-class concept [\#405](https://github.com/feast-dev/feast/issues/405)
-2. ~~Datasets as a first-class concept~~ \(pushed out\)
-3. Feast UI \(MVP\)
-4. Native SDK types instead of proto types
-5. Audit log support
-6. Request/response logging for online serving
+1. Label based Ingestion Job selector for Job Controller [\#903](https://github.com/feast-dev/feast/pull/903)
+2. Authentication Support for Java & Go SDKs [\#971](https://github.com/feast-dev/feast/pull/971)
+3. Automatically Restart Ingestion Jobs on Upgrade [\#949](https://github.com/feast-dev/feast/pull/949)
+4. Structured Audit Logging [\#891](https://github.com/feast-dev/feast/pull/891)
+5. Request Response Logging support via Fluentd [\#961](https://github.com/feast-dev/feast/pull/961)
+6. Feast Core Rest Endpoints [\#878](https://github.com/feast-dev/feast/pull/878)
 
 ### **Technical debt, refactoring, or housekeeping**
 
-1. Improved integration testing framework
-2. Rectify all flaky batch tests
-3. Decouple job management from Feast Core
-4. More descriptive error logs in Feast online serving
+1. Improved integration testing framework [\#886](https://github.com/feast-dev/feast/pull/886)
+2. Rectify all flaky batch tests [\#953](https://github.com/feast-dev/feast/pull/953), [\#982](https://github.com/feast-dev/feast/pull/982)
+3. Decouple job management from Feast Core [\#951](https://github.com/feast-dev/feast/pull/951)
 
-### **Proposals**
-
-1. Training-serving skew detection proposal
-
-## Feast 0.6 \(Feature Release\)
+## Feast 0.6
 
 [Discussion](https://github.com/feast-dev/feast/issues/767)
 
@@ -45,7 +40,7 @@
 1. Improved job life cycle management [\#761](https://github.com/feast-dev/feast/issues/761)
 2. Compute and write metrics for rows prior to store writes [\#763](https://github.com/feast-dev/feast/pull/763) 
 
-## Feast 0.5 \(Technical Release\)
+## Feast 0.5
 
 [Discussion](https://github.com/gojek/feast/issues/527)
 
