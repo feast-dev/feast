@@ -155,8 +155,8 @@ response = client.get_online_features(
 )
 
 for feature in features:
-   # feature values can be obtained from the response's field values
-   response.field_values.fields[feature]
+   # feature value can be obtained from the response's field values
+   value = response.field_values.fields[feature]
 ```
 
 {% hint style="info" %}
@@ -171,7 +171,7 @@ Online Serving also returns Online Field Statuses when retrieving features. Thes
 
 ```python
 for feature in features:
-    # field statuses can be obtained from the response's field values
+    # field status can be obtained from the response's field values
     status = response.field_values.statuses[feature]
 
     if status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND:
