@@ -20,7 +20,7 @@ This guide will bring Feast up using Docker Compose. This will allow you to:
 Clone the latest stable version of the [Feast repository](https://github.com/gojek/feast/) and navigate to the `infra/docker-compose` sub-directory:
 
 ```text
-git clone --depth 1 --branch v0.6.2 https://github.com/feast-dev/feast.git
+git clone --depth 1 --branch v0.7.0a https://github.com/feast-dev/feast.git
 cd feast/infra/docker-compose
 ```
 

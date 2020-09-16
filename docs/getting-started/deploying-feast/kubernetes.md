@@ -22,7 +22,7 @@ This guide requires [Google Cloud Platform](https://cloud.google.com/) for insta
 
 1. [Google Cloud SDK ](https://cloud.google.com/sdk/install)installed, authenticated, and configured to the project you will use.
 2. [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) installed and configured.
-3. [Helm](https://helm.sh/) \(2.16.0 or greater\) installed. Helm 3 has not been tested yet.
+3. [Helm](https://helm.sh/) \(3 or greater\) installed. 
 
 ## 1. Set up Google Cloud Platform
 
@@ -70,40 +70,7 @@ kubectl create secret generic feast-gcp-service-account \
   --from-file=credentials.json
 ```
 
-## 3. Set up Helm
-
-Run the following command to provide Tiller with authorization to install Feast:
-
-```bash
-kubectl apply -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: tiller
-  namespace: kube-system
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: tiller
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: cluster-admin
-subjects:
-  - kind: ServiceAccount
-    name: tiller
-    namespace: kube-system
-EOF
-```
-
-Install Tiller:
-
-```bash
-helm init --service-account tiller
-```
-
-## 4. Install Feast with Helm
+## 3. Install Feast with Helm
 
 Add the Feast Helm repository and download the latest charts
 
@@ -171,7 +138,7 @@ myrelease-zookeeper-1                               1/1     Running   0         
 myrelease-zookeeper-2                               1/1     Running   0          13m
 ```
 
-## 5. Connect to Feast using Jupyter
+## 4. Connect to Feast using Jupyter
 
 Once the pods are all running we can connect to the Jupyter notebook server running in the cluster
 
@@ -185,13 +152,5 @@ Forwarding from 127.0.0.1:8888 -> 8888
 Forwarding from [::1]:8888 -> 8888
 ```
 
-You should now be able to open the Jupyter notebook at [http://localhost:8888/](http://localhost:8888/)
-
-From within the Jupyter Notebook you can now clone the Feast repository
-
-```text
-git clone https://github.com/feast-dev/feast
-```
-
-Please try out our [examples](https://github.com/feast-dev/feast/blob/master/examples/) \(remember to check out the latest stable version\).
+You should now be able to open the Jupyter Notebook Server at [http://localhost:8888/](http://localhost:8888/) to try out some example notebooks.
 
