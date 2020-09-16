@@ -8,7 +8,8 @@ Contributors are encouraged to understand our branch workflow described below, f
 
 * Major and minor releases are cut from the `master` branch.
 * Each major and minor release has a long-lived maintenance branch, for example `v0.3-branch`. This is called a "release branch".
-* From the release branches, patch version releases are tagged, for example `v0.3.0`.
+* From the release branch, pre-release release candidates are tagged ie `v0.3.0-rc.1`
+* From the release candidates,  stable patch version releases are tagged, for example `v0.3.0`.
 
 A release branch should be substantially _feature complete_ with respect to the intended release. Code that is committed to `master` may be merged or cherry-picked on to a release branch, but code that is directly committed to a release branch should be solely applicable to that release \(and should not be committed back to master\).
 
@@ -23,17 +24,22 @@ For Feast maintainers, these are the concrete steps for making a new release.
 3. In the root `pom.xml`, remove `-SNAPSHOT` from the `<revision>` property, and commit.
 4. Push. For a new release branch, open a PR against master.
 5. When CI passes, merge. \(Remember _not_ to delete the new release branch\).
-6. Tag the merge commit with the release version, using a `v`  prefix. \(ie for version `X.Y.Z` create tags `vX.Y.Z` \). Push the tag.
+6. Tag the merge commit with the release version, using a `v` and `sdk/go/v` prefixes \(ie for version `X.Y.Z` create tags `vX.Y.Z` and `sdk/go/vX.Y.Z`\). Push the tags.
 7. Bump to the next working version and append `-SNAPSHOT` in `pom.xml`.
 8. Commit the POM and open a PR.
 9. Create a [GitHub release](https://github.com/feast-dev/feast/releases) which includes a summary of important changes as well as any artifacts associated with the release. Make sure to include the same change log as added in [CHANGELOG.md](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md). Use `Feast vX.Y.Z` as the title.
 10. Create one final PR to the master branch and also update its [CHANGELOG.md](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md).
 
-When a tag that matches a Semantic Version string is pushed, CI will automatically build and push the relevant artifacts to their repositories or package managers \(docker images, Python wheels, etc\). JVM artifacts are promoted from Sonatype OSSRH to Maven Central, but it sometimes takes some time for them to be available.
+When a tag that matches a Semantic Version string is pushed, CI will automatically build and push the relevant artifacts to their repositories or package managers \(docker images, Python wheels, etc\). JVM artifacts are promoted from Sonatype OSSRH to Maven Central, but it sometimes takes some time for them to be available. The `sdk/go/v tag` is required to version the Go SDK go module so that users can go get a specific tagged release of the Go SDK.
 
 ### Creating a change log
 
-We use an [open source change log generator](https://hub.docker.com/r/ferrarimarco/github-changelog-generator/) to generate change logs. The process still requires a little bit of manual effort. 1. Create a GitHub token as [per these instructions ](https://github.com/github-changelog-generator/github-changelog-generator#github-token). The token is used as an input argument \(`-t`\) to the changelog generator. 2. The change log generator configuration below will look for unreleased changes on a specific branch. The branch will be `master` for a major/minor release, or a release branch \(`v0.4-branch`\) for a patch release. You will need to set the branch using the `--release-branch` argument. 3. You should also set the `--future-release` argument. This is the version you are releasing. The version can still be changed at a later date. 4. Update the arguments below and run the command to generate the change log to the console.
+We use an [open source change log generator](https://hub.docker.com/r/ferrarimarco/github-changelog-generator/) to generate change logs. The process still requires a little bit of manual effort. 
+
+1. Create a GitHub token as [per these instructions ](https://github.com/github-changelog-generator/github-changelog-generator#github-token). The token is used as an input argument \(`-t`\) to the changelog generator. 
+2. The change log generator configuration below will look for unreleased changes on a specific branch. The branch will be `master` for a major/minor release, or a release branch \(`v0.4-branch`\) for a patch release. You will need to set the branch using the `--release-branch` argument.
+3. You should also set the `--future-release` argument. This is the version you are releasing. The version can still be changed at a later date. 
+4. Update the arguments below and run the command to generate the change log to the console.
 
 ```text
 docker run -it --rm ferrarimarco/github-changelog-generator \
