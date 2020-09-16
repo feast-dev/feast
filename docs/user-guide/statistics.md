@@ -131,8 +131,8 @@ For insight into data currently flowing into Feast through the population jobs, 
 
 Inflight feature statistics are windowed \(default window length is 30s\) and computed at two points in the feature population pipeline:
 
-1. Prior to store writes, after successful validation 
-2. After successful store writes
+1. Prior to store writes, after successful validation.
+2. After successful store writes.
 
 The following metrics are written at the end of each window as [statsd gauges](https://github.com/statsd/statsd/blob/master/docs/metric_types.md#gauges):
 
@@ -151,14 +151,14 @@ feast_ingestion_feature_value_percentile_99
 the gauge metric type is used over histogram because statsd only supports positive values for histogram metric types, while numerical feature values can be of any double value.
 {% endhint %}
 
-The metrics are tagged with and can be aggregated by the following keys:
+The statistics are tagged with and can be aggregated by the following keys:
 
-| key | description |
+| Tag | Description |
 | :--- | :--- |
-| feast\_store | store the population job is writing to |
-| feast\_project\_name | feast project name |
-| feast\_featureSet\_name | feature set name |
-| feast\_feature\_name | feature name |
-| ingestion\_job\_name | id of the population job writing the feature values. |
-| metrics\_namespace | either `Inflight` or `WriteToStoreSuccess` |
+| `feast_store` | Name of the target store the Ingestion Job is writing to. |
+| `feast_project_name` | Name of the project that the ingested FeatureSet belongs to. |
+| `feast_featureSet_name` | Name of the Feature Set being ingested. |
+| `feast_feature_name` | Name of the Feature being ingested. |
+| `ingestion_job_name` | Name of the Ingestion Job performing data ingestion. Typically this is set to the Id of the Ingestion Job. |
+| `metrics_namespace` | Stage where metrics where computed. Either  `Inflight` or `WriteToStoreSuccess` |
 
