@@ -18,7 +18,7 @@ package feast.storage.connectors.redis.retriever;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.common.collect.ImmutableList;
@@ -147,7 +147,9 @@ public class RedisClusterOnlineRetrieverTest {
     List<KeyValue<byte[], byte[]>> featureRowBytes = Lists.newArrayList(keyValue1, keyValue2);
 
     OnlineRetriever redisClusterOnlineRetriever =
-        new RedisClusterOnlineRetriever.Builder(connection, serializer).build();
+        new RedisClusterOnlineRetriever.Builder(connection, serializer)
+            .withFallbackSerializer(fallbackSerializer)
+            .build();
     when(syncCommands.mget(serializedKey1, serializedKey2)).thenReturn(featureRowBytes);
 
     List<Optional<FeatureRow>> expected =
@@ -174,6 +176,9 @@ public class RedisClusterOnlineRetrieverTest {
     List<Optional<FeatureRow>> actual =
         redisClusterOnlineRetriever.getOnlineFeatures(entityRows, featureSetRequest);
     assertThat(actual, equalTo(expected));
+
+    // check that fallback is used only when there's something to fallback
+    verify(syncCommands, never()).mget();
   }
 
   @Test
