@@ -15,7 +15,7 @@ This document tracks Feast's API compatibility. Users are dependent on Feast pro
 
 ## 1. Release Versioning
 
-Feast follows [semantic versioning ](https://semver.org/)to version its components in the form `MAJOR.MINOR.PATCH`. Different Feast Components are versioned together \(ie Core, Serving, SDKs\). 
+Feast follows [semantic versioning ](https://semver.org/)to version its components in the form `MAJOR.MINOR.PATCH`. Different Feast Components are versioned together \(ie Core, Serving, SDKs\).
 
 * Stable releases are versioned `MAJOR.MINOR.PATCH`
 * Pre-release releases are versioned as `MAJOR.MINOR.PATCH-SNAPSHOT` or `MAJOR.MINOR.PATCH-rc.NUMBER` for release candidates.
@@ -84,7 +84,7 @@ Feast's toleration for Component Skew is as follows:
 
 ## 4. Deprecations
 
-Tracks deprecation in Feast APIs, expiry release and mitigation and migration. 
+Tracks deprecation in Feast APIs, expiry release and mitigation and migration.
 
 {% hint style="warning" %}
 A breaking change or removal can be made to a deprecated API when it reaches its expiry release. Users are encouraged to migrate their systems before the expiry release.
@@ -102,7 +102,7 @@ A breaking change or removal can be made to a deprecated API when it reaches its
   <tbody>
     <tr>
       <td style="text-align:left">Specifying project in <a href="https://github.com/feast-dev/feast/blob/5b72335ca08dad361895fc928918615cd63b2158/protos/feast/serving/ServingService.proto#L83">FeatureReference</a>s
-        when retrieving from Serving via <code>GetOnlineFeatures </code>is no longer
+        when retrieving from Serving via <code>GetOnlineFeatures</code> is no longer
         supported.</td>
       <td style="text-align:left">0.8</td>
       <td style="text-align:left">Serving&apos;s Service API</td>

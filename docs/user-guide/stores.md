@@ -9,11 +9,11 @@ Feast supports two classes of stores
 
 In order to populate these stores, Feast Core creates a long running ingestion job that streams in data from all feature sources to all stores that subscribe to those feature sets.
 
-![](../.gitbook/assets/image%20%282%29.png)
+![](../.gitbook/assets/image%20%282%29%20%283%29.png)
 
 ## Historical Stores
 
-Historical stores maintain a complete history of feature data for the feature sets they are subscribed to. 
+Historical stores maintain a complete history of feature data for the feature sets they are subscribed to.
 
 Feast currently only supports [Google BigQuery](https://cloud.google.com/bigquery) as a feature store, but we have [developed a storage API ](https://github.com/gojek/feast/issues/482)that makes adding a new store possible.
 

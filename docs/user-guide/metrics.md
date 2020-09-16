@@ -17,7 +17,7 @@ Feast Job Controller currently does not export any metrics on its own. However i
 
 **Feast Ingestion Job**
 
-Feast Ingestion Job can be configured to push Ingestion metrics to a StatsD instance.  Metrics export to StatsD for Ingestion Job is configured in Job Controller's `application.yml` under `feast.jobs.metrics`:
+Feast Ingestion Job can be configured to push Ingestion metrics to a StatsD instance. Metrics export to StatsD for Ingestion Job is configured in Job Controller's `application.yml` under `feast.jobs.metrics`:
 
 ```yaml
  feast:
@@ -32,7 +32,7 @@ Feast Ingestion Job can be configured to push Ingestion metrics to a StatsD inst
 ```
 
 {% hint style="info" %}
-If you need Ingestion Metrics in Prometheus or some other metrics backend, use a metrics forwarder to forward Ingestion Metrics from StatsD to the metrics backend of choice. \(ie  Use  [`prometheus-statsd-exporter`](https://github.com/prometheus/statsd_exporter) to forward metrics to Prometheus\).
+If you need Ingestion Metrics in Prometheus or some other metrics backend, use a metrics forwarder to forward Ingestion Metrics from StatsD to the metrics backend of choice. \(ie Use [`prometheus-statsd-exporter`](https://github.com/prometheus/statsd_exporter) to forward metrics to Prometheus\).
 {% endhint %}
 
 ## 2. Exporting Feast Metrics to Prometheus
@@ -52,6 +52,4 @@ server:
 ## 3. Futher Reading.
 
 See the [Metrics Reference ](../reference/metrics-reference.md)for documentation on metrics are exported by Feast.
-
-## 
 

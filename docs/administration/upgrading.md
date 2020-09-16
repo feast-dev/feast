@@ -22,7 +22,7 @@ Feast now prevents feature sets from being applied if no store is subscribed to 
 
 ### Feast Core's Job Coordinator is now Feast Job Controller
 
-In v0.7,  Feast Core's Job Coordinator has been decoupled from Feast Core and runs as a separate Feast Job Controller application. See its [Configuration reference](../reference/configuration-reference.md#2-feast-core-serving-and-job-controller) for how to configure Feast Job Controller.
+In v0.7, Feast Core's Job Coordinator has been decoupled from Feast Core and runs as a separate Feast Job Controller application. See its [Configuration reference](../reference/configuration-reference.md#2-feast-core-serving-and-job-controller) for how to configure Feast Job Controller.
 
 **Ingestion Job API**
 

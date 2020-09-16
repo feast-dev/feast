@@ -1,6 +1,6 @@
-# Kubernetes \(Gv0.7.0### Overview <a id="m_5245424069798496115gmail-overview-1"></a>
+# Kubernetes \(GKE\)
 
-This guide will install Feast into a Kubernetes cluster on Google Cloud Platform. It assumes that all of your services will run within a single Kubernetes cluster. 
+This guide will install Feast into a Kubernetes cluster on Google Cloud Platform. It assumes that all of your services will run within a single Kubernetes cluster.
 
 Kubernetes deployment is recommended when deploying Feast as a shared service for production workloads.
 
@@ -22,7 +22,7 @@ This guide requires [Google Cloud Platform](https://cloud.google.com/) for insta
 ## 1. Set up Google Cloud Platform
 
 {% hint style="info" %}
-Historical Serving currently requires Google Cloud Platform \(GCP\) to function, specifically a Service Account with access to Google Cloud Storage \(GCS\) and BigQuery. 
+Historical Serving currently requires Google Cloud Platform \(GCP\) to function, specifically a Service Account with access to Google Cloud Storage \(GCS\) and BigQuery.
 {% endhint %}
 
 Create a service account for Feast to use:
@@ -33,7 +33,7 @@ gcloud iam service-accounts create feast-service-account
 gcloud projects add-iam-policy-binding my-gcp-project \
   --member serviceAccount:feast-service-account@my-gcp-project.iam.gserviceaccount.com \
   --role roles/editor
-  
+
 # Please use "credentials.json" as the file name
 gcloud iam service-accounts keys create credentials.json --iam-account \
 feast-service-account@my-gcp-project.iam.gserviceaccount.com
@@ -59,7 +59,7 @@ Create a Kubernetes cluster:
 gcloud container clusters create feast-cluster \
     --machine-type n1-standard-4 \
     --zone us-central1-a \
-    --scopes=bigquery,storage-rw,compute-ro 
+    --scopes=bigquery,storage-rw,compute-ro
 ```
 
 Create a secret in the GKE cluster from the service account `credentials.json`:
@@ -136,6 +136,4 @@ You should be able to connect at `localhost:8888` to the bundled Jupyter Noteboo
 * [Feast Examples/Tutorials](https://github.com/feast-dev/feast/tree/master/examples)
 * [Feast Helm Chart Documentation](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/README.md)
 * [Configuring Feast components](../../reference/configuration-reference.md)
-
-
 

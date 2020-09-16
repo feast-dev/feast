@@ -44,7 +44,7 @@ When a tag that matches a Semantic Version string is pushed, CI will automatical
 
 ### Creating a change log
 
-We use an [open source change log generator](https://hub.docker.com/r/ferrarimarco/github-changelog-generator/) to generate change logs. The process still requires a little bit of manual effort. 
+We use an [open source change log generator](https://hub.docker.com/r/ferrarimarco/github-changelog-generator/) to generate change logs. The process still requires a little bit of manual effort.
 
 1. Create a GitHub token as [per these instructions](https://github.com/github-changelog-generator/github-changelog-generator#github-token). The token is used as an input argument \(`-t`\) to the change log generator. 
 2. The change log generator configuration below will look for unreleased changes on a specific branch. The branch will be `master` for a major/minor release, or a release branch \(`v0.4-branch`\) for a patch release. You will need to set the branch using the `--release-branch` argument.

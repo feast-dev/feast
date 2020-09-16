@@ -6,7 +6,7 @@ description: 'Secure Feast with SSL/TLS, Authentication and Authorization.'
 
 ## 1. Overview
 
-![Overview of Feast&apos;s Security Methods.](../.gitbook/assets/untitled-25-1-.jpg)
+![Overview of Feast&apos;s Security Methods.](../.gitbook/assets/untitled-25-1-%20%281%29.jpg)
 
 Feast supports the following security methods:
 
@@ -28,7 +28,7 @@ SSL/TLS can be configured via the following properties in their corresponding `a
 | :--- | :--- |
 | `grpc.server.security.enabled` | Enables SSL/TLS functionality if `true` |
 | `grpc.server.security.certificateChain` | Provide the path to certificate chain. |
-| `grpc.server.security.privateKey` | Provide the to private key.  |
+| `grpc.server.security.privateKey` | Provide the to private key. |
 
 > Read more on enabling SSL/TLS in the[ gRPC starter docs.](https://yidongnan.github.io/grpc-spring-boot-starter/en/server/security.html#enable-transport-layer-security)
 
@@ -54,7 +54,7 @@ Configure SSL/TLS on the Go SDK by passing configuration via `SecurityConfig`:
 ```go
 cli, err := feast.NewSecureGrpcClient("localhost", 6566, feast.SecurityConfig{
     EnableTLS: true,
- 		TLSCertPath: "/path/to/cert.pem",
+         TLSCertPath: "/path/to/cert.pem",
 })Option
 ```
 
@@ -86,7 +86,7 @@ FeastClient client = FeastClient.createSecure("localhost", 6566,
 It is recommended that SSL/TLS be enabled prior to enabling authentication to prevent man in the middle attacks.
 {% endhint %}
 
-Authentication can be enabled to authenticate and identify client requests to Feast Core/Serving. Currently, Feast uses[ ](https://auth0.com/docs/protocols/openid-connect-protocol)[Open ID Connect \(OIDC\)](https://auth0.com/docs/protocols/openid-connect-protocol) ID tokens \(ie  [Google Open ID Connect](https://developers.google.com/identity/protocols/oauth2/openid-connect)\) to authenticate client requests. 
+Authentication can be enabled to authenticate and identify client requests to Feast Core/Serving. Currently, Feast uses[ ](https://auth0.com/docs/protocols/openid-connect-protocol)[Open ID Connect \(OIDC\)](https://auth0.com/docs/protocols/openid-connect-protocol) ID tokens \(ie [Google Open ID Connect](https://developers.google.com/identity/protocols/oauth2/openid-connect)\) to authenticate client requests.
 
 #### Configuring Authentication in Core/Serving
 
@@ -114,14 +114,14 @@ Behind the scenes, Feast Core/Serving authenticates by:
 
 ### **Authenticating Serving with Core**
 
-Feast Serving needs to communicate with Core during normal operation. When both authentication and authorization is enabled on Core, Serving is forced to authenticate its requests to Core. Otherwise, Serving will fail to start with an Authentication failure error when connecting to Core. 
+Feast Serving needs to communicate with Core during normal operation. When both authentication and authorization is enabled on Core, Serving is forced to authenticate its requests to Core. Otherwise, Serving will fail to start with an Authentication failure error when connecting to Core.
 
- Properties used to configure Serving authentication via `application.yml`:
+Properties used to configure Serving authentication via `application.yml`:
 
 | Configuration Property | Description |
 | :--- | :--- |
 | `feast.core-authentication.enabled` | Indicates to Serving to authenticate when communicating with Feast Core. |
-| `feast.core-authentication.provider`  | Selects the provider that Serving will use to retrieve credentials that it will use to authenticate with Core. Valid providers are `google` and `oauth`. |
+| `feast.core-authentication.provider` | Selects the provider that Serving will use to retrieve credentials that it will use to authenticate with Core. Valid providers are `google` and `oauth`. |
 
 {% tabs %}
 {% tab title="Google Provider" %}
@@ -133,50 +133,42 @@ Google Provider automatically extracts the credential from the credential JSON f
 {% tab title="OAuth Provider" %}
 OAuth Provider makes an OAuth [client credentials](https://auth0.com/docs/flows/call-your-api-using-the-client-credentials-flow) request to obtain the credential. It requires the following options to be set at `feast.security.core-authentication.options.`:
 
+| Configuration Property | Description |
+| :--- | :--- |
+
+
+| `oauth_url` | Target URL to make the client credentials request to. |
+| :--- | :--- |
+
+
+| `grant_type` | OAuth grant type. Should be set as `client_credentials` |
+| :--- | :--- |
+
+
+| `client_id` | Client Id used in the client credentials request. |
+| :--- | :--- |
+
+
+| `client_secret` | Client secret used in the client credentials request. |
+| :--- | :--- |
+
+
 <table>
   <thead>
     <tr>
-      <th style="text-align:left">Configuration Property</th>
-      <th style="text-align:left">Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="text-align:left"><code>oauth_url</code>
-      </td>
-      <td style="text-align:left">Target URL to make the client credentials request to.</td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>grant_type</code>
-      </td>
-      <td style="text-align:left">OAuth grant type. Should be set as <code>client_credentials</code>
-      </td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>client_id</code>
-      </td>
-      <td style="text-align:left">Client Id used in the client credentials request.</td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>client_secret</code>
-      </td>
-      <td style="text-align:left">Client secret used in the client credentials request.</td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>audience</code>
-      </td>
-      <td style="text-align:left">
+      <th style="text-align:left"><code>audience</code>
+      </th>
+      <th style="text-align:left">
         <p>Target audience of the credential. Should be set to host URL of Core.</p>
         <p>(ie <code>https://localhost</code> if Core listens on <code>localhost</code>).</p>
-      </td>
+      </th>
     </tr>
-    <tr>
-      <td style="text-align:left"><code>jwkEndpointURI</code>
-      </td>
-      <td style="text-align:left">HTTPS URL used to retrieve a JWK that can be used to decode the credential.</td>
-    </tr>
-  </tbody>
+  </thead>
+  <tbody></tbody>
 </table>
+
+| `jwkEndpointURI` | HTTPS URL used to retrieve a JWK that can be used to decode the credential. |
+| :--- | :--- |
 {% endtab %}
 {% endtabs %}
 
@@ -191,7 +183,7 @@ $ feast config set enable_auth true
 | Configuration Option | Description |
 | :--- | :--- |
 | `enable_auth` | Enables authentication functionality if set to `true`. |
-| `auth_provider` | Use an authentication provider to obtain a credential for authentication. Currently supports `google` and `oauth`.  |
+| `auth_provider` | Use an authentication provider to obtain a credential for authentication. Currently supports `google` and `oauth`. |
 | `auth_token` | Manually specify an static  token for use in authentication. Overrules `auth_provider` if both are set. |
 
 {% tabs %}
@@ -214,45 +206,39 @@ $ export GOOGLE_APPLICATION_CREDENTIALS="path/to/key.json"
 {% tab title="OAuth Provider" %}
 OAuth Provider makes an OAuth [client credentials](https://auth0.com/docs/flows/call-your-api-using-the-client-credentials-flow) request to obtain the credential/token used to authenticate Feast requests. The OAuth provider requires the following config options to be set via `feast config`:
 
+| Configuration Property | Description |
+| :--- | :--- |
+
+
+| `oauth_token_request_url` | Target URL to make the client credentials request to. |
+| :--- | :--- |
+
+
+| `oauth_grant_type` | OAuth grant type. Should be set as `client_credentials` |
+| :--- | :--- |
+
+
+| `oauth_client_id` | Client Id used in the client credentials request. |
+| :--- | :--- |
+
+
+| `oauth_client_secret` | Client secret used in the client credentials request. |
+| :--- | :--- |
+
+
 <table>
   <thead>
     <tr>
-      <th style="text-align:left">Configuration Property</th>
-      <th style="text-align:left">Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="text-align:left"><code>oauth_token_request_url</code>
-      </td>
-      <td style="text-align:left">Target URL to make the client credentials request to.</td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>oauth_grant_type</code>
-      </td>
-      <td style="text-align:left">OAuth grant type. Should be set as <code>client_credentials</code>
-      </td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>oauth_client_id</code>
-      </td>
-      <td style="text-align:left">Client Id used in the client credentials request.</td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>oauth_client_secret</code>
-      </td>
-      <td style="text-align:left">Client secret used in the client credentials request.</td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>oauth_audience</code>
-      </td>
-      <td style="text-align:left">
+      <th style="text-align:left"><code>oauth_audience</code>
+      </th>
+      <th style="text-align:left">
         <p>Target audience of the credential. Should be set to host URL of target
           Service.</p>
         <p>(ie <code>https://localhost</code> if Service listens on <code>localhost</code>).</p>
-      </td>
+      </th>
     </tr>
-  </tbody>
+  </thead>
+  <tbody></tbody>
 </table>
 {% endtab %}
 {% endtabs %}
@@ -267,7 +253,7 @@ Configure the Feast Java SDK to use authentication by specifying credential via 
 cred, _ := feast.NewGoogleCredential("localhost:6566")
 cli, _ := feast.NewSecureGrpcClient("localhost", 6566, feast.SecurityConfig{
   // Specify the credential to provide tokens for Feast Authentication.  
-	Credential: cred, 
+    Credential: cred, 
 })
 ```
 
@@ -299,40 +285,35 @@ OAuth Credential makes an OAuth [client credentials](https://auth0.com/docs/flow
 cred := feast.NewOAuthCredential("localhost:6566", "client_id", "secret", "https://oauth.endpoint/auth")
 ```
 
+| Parameter | Description |
+| :--- | :--- |
+
+
 <table>
   <thead>
     <tr>
-      <th style="text-align:left">Parameter</th>
-      <th style="text-align:left">Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="text-align:left"><code>audience</code>
-      </td>
-      <td style="text-align:left">
+      <th style="text-align:left"><code>audience</code>
+      </th>
+      <th style="text-align:left">
         <p>Target audience of the credential. Should be set to host URL of target
           Service.</p>
         <p>(ie <code>https://localhost</code> if Service listens on <code>localhost</code>).</p>
-      </td>
+      </th>
     </tr>
-    <tr>
-      <td style="text-align:left"><code>clientId</code>
-      </td>
-      <td style="text-align:left">Client Id used in the client credentials request.</td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>clientSecret</code>
-      </td>
-      <td style="text-align:left">Client secret used in the client credentials request.</td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>endpointURL</code>
-      </td>
-      <td style="text-align:left">Target URL to make the client credentials request to.</td>
-    </tr>
-  </tbody>
+  </thead>
+  <tbody></tbody>
 </table>
+
+| `clientId` | Client Id used in the client credentials request. |
+| :--- | :--- |
+
+
+| `clientSecret` | Client secret used in the client credentials request. |
+| :--- | :--- |
+
+
+| `endpointURL` | Target URL to make the client credentials request to. |
+| :--- | :--- |
 {% endtab %}
 {% endtabs %}
 
@@ -387,51 +368,43 @@ CallCredentials credentials = new OAuthCredentials(Map.of(
   "jwkEndpointURI", "https://jwk.endpoint/jwk"));
 ```
 
+| Parameter | Description |
+| :--- | :--- |
+
+
 <table>
   <thead>
     <tr>
-      <th style="text-align:left">Parameter</th>
-      <th style="text-align:left">Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="text-align:left"><code>audience</code>
-      </td>
-      <td style="text-align:left">
+      <th style="text-align:left"><code>audience</code>
+      </th>
+      <th style="text-align:left">
         <p>Target audience of the credential. Should be set to host URL of target
           Service.</p>
         <p>(ie <code>https://localhost</code> if Service listens on <code>localhost</code>).</p>
-      </td>
+      </th>
     </tr>
-    <tr>
-      <td style="text-align:left"><code>grant_type</code>
-      </td>
-      <td style="text-align:left">OAuth grant type. Should be set as <code>client_credentials</code>
-      </td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>client_id</code>
-      </td>
-      <td style="text-align:left">Client Id used in the client credentials request.</td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>client_secret</code>
-      </td>
-      <td style="text-align:left">Client secret used in the client credentials request.</td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>oauth_url</code>
-      </td>
-      <td style="text-align:left">Target URL to make the client credentials request to obtain credential.</td>
-    </tr>
-    <tr>
-      <td style="text-align:left"><code>jwkEndpointURI</code>
-      </td>
-      <td style="text-align:left">HTTPS URL used to retrieve a JWK that can be used to decode the credential.</td>
-    </tr>
-  </tbody>
+  </thead>
+  <tbody></tbody>
 </table>
+
+| `grant_type` | OAuth grant type. Should be set as `client_credentials` |
+| :--- | :--- |
+
+
+| `client_id` | Client Id used in the client credentials request. |
+| :--- | :--- |
+
+
+| `client_secret` | Client secret used in the client credentials request. |
+| :--- | :--- |
+
+
+| `oauth_url` | Target URL to make the client credentials request to obtain credential. |
+| :--- | :--- |
+
+
+| `jwkEndpointURI` | HTTPS URL used to retrieve a JWK that can be used to decode the credential. |
+| :--- | :--- |
 {% endtab %}
 {% endtabs %}
 
@@ -448,7 +421,7 @@ Authorization provides access control to FeatureSets/Features based on project m
 
 ### **Authorization API/Server**
 
-![Feast Authorization Flow](../.gitbook/assets/rsz_untitled23.jpg)
+![Feast Authorization Flow](../.gitbook/assets/rsz_untitled23%20%281%29.jpg)
 
 Feast delegates Authorization grants to a external Authorization Server that implements the [Authorization Open API specification](https://github.com/feast-dev/feast/blob/master/auth/src/main/resources/api.yaml).
 
