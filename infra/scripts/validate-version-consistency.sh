@@ -102,7 +102,6 @@ declare -a files_to_validate_version=(
   "docs/contributing/development-guide.md,4,${FEAST_MASTER_VERSION}"
   "docs/administration/audit-logging.md,1,${FEAST_STABLE_VERSION}"
   "docs/getting-started/deploying-feast/docker-compose.md,1,${FEAST_STABLE_VERSION}"
-  "docs/getting-started/deploying-feast/kubernetes.md,1,${FEAST_STABLE_VERSION}"
   "README.md,1,${FEAST_STABLE_VERSION}"
   "CHANGELOG.md,2,${FEAST_STABLE_VERSION}"
 )
