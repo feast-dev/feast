@@ -19,7 +19,6 @@ import shutil
 import tempfile
 import time
 import uuid
-import warnings
 from collections import OrderedDict
 from math import ceil
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
@@ -90,8 +89,6 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 _logger = logging.getLogger(__name__)
 
 CPU_COUNT: int = multiprocessing.cpu_count()
-
-warnings.simplefilter("once", DeprecationWarning)
 
 
 class Client:
@@ -543,25 +540,6 @@ class Client:
                 entities_dict[entity.name] = entity
         return entities_dict
 
-    def get_batch_features(
-        self,
-        feature_refs: List[str],
-        entity_rows: Union[pd.DataFrame, str],
-        compute_statistics: bool = False,
-        project: str = None,
-    ) -> RetrievalJob:
-        """
-        Deprecated. Please see get_historical_features.
-        """
-        warnings.warn(
-            "The method get_batch_features() is being deprecated. Please use the identical get_historical_features(). "
-            "Feast 0.7 and onwards will not support get_batch_features().",
-            DeprecationWarning,
-        )
-        return self.get_historical_features(
-            feature_refs, entity_rows, compute_statistics, project
-        )
-
     def get_historical_features(
         self,
         feature_refs: List[str],
@@ -683,7 +661,7 @@ class Client:
     def get_online_features(
         self,
         feature_refs: List[str],
-        entity_rows: List[Union[GetOnlineFeaturesRequest.EntityRow, Dict[str, Any]]],
+        entity_rows: List[Dict[str, Any]],
         project: Optional[str] = None,
         omit_entities: bool = False,
     ) -> OnlineResponse:
@@ -964,7 +942,7 @@ class Client:
 
 
 def _infer_online_entity_rows(
-    entity_rows: List[Union[GetOnlineFeaturesRequest.EntityRow, Dict[str, Any]]],
+    entity_rows: List[Dict[str, Any]],
 ) -> List[GetOnlineFeaturesRequest.EntityRow]:
     """
     Builds a list of EntityRow protos from Python native type format passed by user.
@@ -976,18 +954,6 @@ def _infer_online_entity_rows(
     Returns:
         A list of EntityRow protos parsed from args.
     """
-
-    # Maintain backward compatibility with users providing EntityRow Proto
-    if entity_rows and isinstance(entity_rows[0], GetOnlineFeaturesRequest.EntityRow):
-        warnings.warn(
-            "entity_rows parameter will only be accepting Dict format from Feast v0.7 onwards",
-            DeprecationWarning,
-        )
-        entity_rows_proto = cast(
-            List[Union[GetOnlineFeaturesRequest.EntityRow]], entity_rows
-        )
-        return entity_rows_proto
-
     entity_rows_dicts = cast(List[Dict[str, Any]], entity_rows)
     entity_row_list = []
     entity_type_map = dict()

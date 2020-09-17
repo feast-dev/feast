@@ -342,12 +342,14 @@ class TestClient:
             ]
         )
         recieve_response = GetOnlineFeaturesResponse()
+        entity_rows = []
         for row_number in range(1, ROW_COUNT + 1):
             request.entity_rows.append(
                 GetOnlineFeaturesRequest.EntityRow(
                     fields={"driver_id": int_val(row_number)}
                 )
-            ),
+            )
+            entity_rows.append({"driver_id": int_val(row_number)})
             field_values = GetOnlineFeaturesResponse.FieldValues(
                 fields={
                     "driver_id": int_val(row_number),
@@ -370,7 +372,7 @@ class TestClient:
             return_value=recieve_response,
         )
         got_response = mocked_client.get_online_features(
-            entity_rows=request.entity_rows,
+            entity_rows=entity_rows,
             feature_refs=["driver:age", "rating", "null_value"],
             project="driver_project",
         )  # type: GetOnlineFeaturesResponse
