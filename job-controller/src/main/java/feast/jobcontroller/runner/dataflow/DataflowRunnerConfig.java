@@ -16,6 +16,7 @@
  */
 package feast.jobcontroller.runner.dataflow;
 
+import feast.common.validators.OneOfStrings;
 import feast.jobcontroller.runner.option.RunnerConfig;
 import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions;
 import java.util.Map;
@@ -55,7 +56,23 @@ public class DataflowRunnerConfig extends RunnerConfig {
   @NotBlank public String project;
 
   /* The Google Compute Engine region for creating Dataflow jobs. */
-  @NotBlank public String region;
+  @OneOfStrings({
+    "us-west1",
+    "us-central1",
+    "us-east1",
+    "us-east4",
+    "northamerica-northeast1",
+    "europe-west1",
+    "europe-west2",
+    "europe-west3",
+    "europe-west4",
+    "asia-southeast1",
+    "asia-east1",
+    "asia-northeast1",
+    "australia-southeast1"
+  })
+  @NotBlank
+  public String region;
 
   /* GCP availability zone for operations. */
   @NotBlank public String workerZone;
