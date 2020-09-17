@@ -134,13 +134,9 @@ class RetrievalJob:
     ) -> pd.DataFrame:
         """
         Wait until a job is done to get an iterable rows of result. This method
-        will split the response into chunked DataFrame of a specified size to
-        to be yielded to the instance calling it.
+        will return the response as a DataFrame.
 
         Args:
-            max_chunk_size (int):
-                Maximum number of rows that the DataFrame should contain.
-
             timeout_sec (int):
                 Max no of seconds to wait until job is done. If "timeout_sec"
                 is exceeded, an exception will be raised.
@@ -180,14 +176,14 @@ class RetrievalJob:
 
         # Max chunk size defined by user
         for result in self.result(timeout_sec=timeout_sec):
-            result.append(records)
+            records.append(result)
             if len(records) == max_chunk_size:
                 df = pd.DataFrame.from_records(records)
                 records.clear()  # Empty records array
                 yield df
 
         # Handle for last chunk that is < max_chunk_size
-        if not records:
+        if records:
             yield pd.DataFrame.from_records(records)
 
     def __iter__(self):
