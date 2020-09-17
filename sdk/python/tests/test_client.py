@@ -986,9 +986,7 @@ class TestClient:
                 Feature(name="int32_list_feature", dtype=ValueType.INT32_LIST),
                 Feature(name="string_list_feature", dtype=ValueType.STRING_LIST),
                 Feature(name="bytes_list_feature", dtype=ValueType.BYTES_LIST),
-                # Feature(name="bool_list_feature",
-                # dtype=ValueType.BOOL_LIST), # TODO: Add support for this
-                #  type again https://github.com/feast-dev/feast/issues/341
+                Feature(name="bool_list_feature", dtype=ValueType.BOOL_LIST),
                 Feature(name="double_list_feature", dtype=ValueType.DOUBLE_LIST),
             ],
             max_age=Duration(seconds=3600),

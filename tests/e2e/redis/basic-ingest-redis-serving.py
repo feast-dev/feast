@@ -886,12 +886,11 @@ def all_types_dataframe():
                 np.array([b"one", b"two", b"three"]),
                 np.array([b"one", b"two", b"three"]),
             ],
-            # "bool_list_feature": [
-            #     np.array([True, False, True]),
-            #     np.array([True, False, True]),
-            #     np.array([True, False, True]),
-            # ],
-            # TODO: https://github.com/feast-dev/feast/issues/341
+            "bool_list_feature": [
+                [True, False, True],
+                [True, False, True],
+                [True, False, True],
+            ],
         }
     )
 
@@ -918,6 +917,7 @@ def test_all_types_register_feature_set_success(client):
             Feature(name="int32_list_feature", dtype=ValueType.INT32_LIST),
             Feature(name="string_list_feature", dtype=ValueType.STRING_LIST),
             Feature(name="bytes_list_feature", dtype=ValueType.BYTES_LIST),
+            Feature(name="bool_list_feature", dtype=ValueType.BOOL_LIST),
         ],
         max_age=Duration(seconds=3600),
     )
@@ -970,6 +970,7 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
         "string_list_feature",
         "bytes_list_feature",
         "double_list_feature",
+        "bool_list_feature",
     ]
 
     def try_get_features():
@@ -1179,11 +1180,9 @@ def all_types_parquet_file():
             "bytes_list_feature_parquet": [
                 np.array([b"one", b"two", b"three"]) for _ in range(COUNT)
             ],
+            "bool_list_feature_parquet": [[True, False, True] for _ in range(COUNT)],
         }
     )
-
-    # TODO: Boolean list is not being tested.
-    #  https://github.com/feast-dev/feast/issues/341
 
     file_path = os.path.join(tempfile.mkdtemp(), "all_types.parquet")
     df.to_parquet(file_path, allow_truncated_timestamps=True)
