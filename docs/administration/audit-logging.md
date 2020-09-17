@@ -103,6 +103,7 @@ Feast currently only supports forwarding Request/Response \(Message Audit Log Ty
   "id": "45329ea9-0d48-46c5-b659-4604f6193711",
   "service": "CoreService"
   "status_code": "OK",
+  "identity": "105960238928959148073",
   "method": "ListProjects",
   "request": {},
   "response": {

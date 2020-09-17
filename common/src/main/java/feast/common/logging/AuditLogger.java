@@ -143,6 +143,7 @@ public class AuditLogger {
         }
 
         fluentdLogs.put("id", messageAuditLogEntry.getId());
+        fluentdLogs.put("identity", messageAuditLogEntry.getIdentity());
         fluentdLogs.put("service", messageAuditLogEntry.getService());
         fluentdLogs.put("status_code", messageAuditLogEntry.getStatusCode());
         fluentdLogs.put("method", messageAuditLogEntry.getMethod());
