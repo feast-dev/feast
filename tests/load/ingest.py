@@ -47,6 +47,9 @@ df = pd.DataFrame(
         "bytes_list_feature": [
             np.array([b"one", b"two", b"three"]) for _ in range(number_of_entities)
         ],
+        "bool_list_feature": [
+            [True, False, True] for _ in range(number_of_entities)
+        ],
     }
 )
 
@@ -67,6 +70,7 @@ all_types_fs_expected = FeatureSet(
         Feature(name="int32_list_feature", dtype=ValueType.INT32_LIST),
         Feature(name="string_list_feature", dtype=ValueType.STRING_LIST),
         Feature(name="bytes_list_feature", dtype=ValueType.BYTES_LIST),
+        Feature(name="bool_list_feature", dtype=ValueType.BOOL_LIST),
     ],
 )
 

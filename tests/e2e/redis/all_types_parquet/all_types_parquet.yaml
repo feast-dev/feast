@@ -29,4 +29,6 @@ spec:
       valueType: STRING_LIST
     - name: bytes_list_feature_parquet
       valueType: BYTES_LIST
+    - name: bool_list_feature_parquet
+      valueType: BOOL_LIST
   maxAge: 0s
