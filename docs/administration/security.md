@@ -424,7 +424,7 @@ Authorization provides access control to FeatureSets/Features based on project m
 
 ![Feast Authorization Flow](../.gitbook/assets/rsz_untitled23%20%281%29.jpg)
 
-Feast delegates Authorization grants to a external Authorization Server that implements the [Authorization Open API specification](https://github.com/feast-dev/feast/blob/master/auth/src/main/resources/api.yaml).
+Feast delegates Authorization grants to a external Authorization Server that implements the [Authorization Open API specification](https://github.com/feast-dev/feast/blob/v0.7-branch/common/src/main/resources/api.yaml).
 
 * Feast checks whether a user is authorized to make a request by making a `checkAccessRequest` to the Authorization Server.
 * The Authorization Server should return a `AuthorizationResult` with whether user is allowed to make the request.
