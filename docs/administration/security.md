@@ -200,6 +200,7 @@ $ gcloud auth application-default login
 
 ```bash
 $ export GOOGLE_APPLICATION_CREDENTIALS="path/to/key.json"
+$ gcloud auth activate-service-account --key-file ${GOOGLE_APPLICATION_CREDENTIALS}
 ```
 {% endtab %}
 
