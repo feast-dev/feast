@@ -1,10 +1,10 @@
 # Audit Logging
 
-### Introduction
+## Introduction
 
 Feast provides audit logging functionality in order to debug problems and to trace the lineage of events.
 
-### Audit Log Types
+## Audit Log Types
 
 Audit Logs produced by Feast come in three favors:
 
@@ -12,17 +12,17 @@ Audit Logs produced by Feast come in three favors:
 | :--- | :--- |
 | Message Audit Log | Logs service calls that can be used to track Feast request handling. Currently only gRPC request/response is supported. Enabling Message Audit Logs can be resource intensive and significantly increase latency, as such is not recommended on Online Serving. |
 | Transition Audit Log | Logs transitions in status in resources managed by Feast \(ie an Ingestion Job becoming RUNNING\). |
-| Action Audit Log  | Logs actions performed on a specific resource managed by Feast \(ie an Ingestion Job is aborted\). |
+| Action Audit Log | Logs actions performed on a specific resource managed by Feast \(ie an Ingestion Job is aborted\). |
 
-### Configuration
+## Configuration
 
 | Audit Log Type | Description |
 | :--- | :--- |
 | Message Audit Log | Enabled when both `feast.logging.audit.enabled` and `feast.logging.audit.messageLogging.enabled` is set to `true` |
 | Transition Audit Log | Enabled when `feast.logging.audit.enabled` is set to `true` |
-| Action Audit Log  | Enabled when `feast.logging.audit.enabled` is set to `true` |
+| Action Audit Log | Enabled when `feast.logging.audit.enabled` is set to `true` |
 
-### JSON Format
+## JSON Format
 
 Audit Logs produced by Feast are written to the console similar to normal logs but in a structured, machine parsable JSON. Example of a Message Audit Log JSON entry produced:
 
@@ -53,7 +53,7 @@ Audit Logs produced by Feast are written to the console similar to normal logs b
 }
 ```
 
-### Log Entry Schema
+## Log Entry Schema
 
 Fields common to all Audit Log Types:
 
@@ -92,11 +92,11 @@ Fields in Transition Audit Log Type
 | `resource.type` | Type of resource of which the transition occurred \(ie `FeatureSet`\) |
 | `resource.id` | Identifier specifying the specific resource of which the transition occurred. |
 
-### Log Forwarder
+## Log Forwarder
 
 Feast currently only supports forwarding Request/Response \(Message Audit Log Type\) logs to an external fluentD service with `feast.**` Fluentd tag.
 
-#### Request/Response Log Example
+### Request/Response Log Example
 
 ```text
 {
@@ -115,7 +115,7 @@ Feast currently only supports forwarding Request/Response \(Message Audit Log Ty
 }
 ```
 
-#### Configuration
+### Configuration
 
 The Fluentd Log Forwarder configured with the with the following configuration options in `application.yml`:
 

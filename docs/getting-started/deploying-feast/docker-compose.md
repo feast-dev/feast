@@ -2,9 +2,9 @@
 
 ### Overview
 
-This guide will give a walk-though on deploying Feast using Docker Compose. 
+This guide will give a walk-though on deploying Feast using Docker Compose.
 
-The Docker Compose setup is recommended if you are running Feast locally to try things out. It includes a built in Jupyter Notebook Server that is preloaded with Feast example notebooks to get you started. 
+The Docker Compose setup is recommended if you are running Feast locally to try things out. It includes a built in Jupyter Notebook Server that is preloaded with Feast example notebooks to get you started.
 
 ## 0. Requirements
 
@@ -43,7 +43,7 @@ The Docker Compose deployment will take some time fully startup:
 {% endhint %}
 
 {% hint style="info" %}
- You may see `feast_historical_serving` exiting with code 1, this expected and does not affect the functionality of Feast for Online Serving.
+You may see `feast_historical_serving` exiting with code 1, this expected and does not affect the functionality of Feast for Online Serving.
 {% endhint %}
 
 Once deployed, you should be able to connect at `localhost:8888` to the bundled Jupyter Notebook Server and follow in the Online Serving sections of the example notebooks:
@@ -53,12 +53,12 @@ Once deployed, you should be able to connect at `localhost:8888` to the bundled 
 ## 3. Start Feast for Training and Online Serving
 
 {% hint style="info" %}
-Historical serving currently requires Google Cloud Platform to function, specifically a Service Account with access to Google Cloud Storage \(GCS\) and BigQuery. 
+Historical serving currently requires Google Cloud Platform to function, specifically a Service Account with access to Google Cloud Storage \(GCS\) and BigQuery.
 {% endhint %}
 
 ### 3.1 Set up Google Cloud Platform
 
-Create a service account for Feast to use. Make sure to copy the JSON key to `infra/docker-compose/gcp-service-accounts/key.json` under the cloned Feast repository. 
+Create a service account for Feast to use. Make sure to copy the JSON key to `infra/docker-compose/gcp-service-accounts/key.json` under the cloned Feast repository.
 
 ```bash
 gcloud iam service-accounts create feast-service-account
