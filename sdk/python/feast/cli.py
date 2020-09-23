@@ -25,6 +25,7 @@ from feast.client import Client
 from feast.config import Config
 from feast.contrib.job_controller.client import Client as JCClient
 from feast.core.IngestionJob_pb2 import IngestionJobStatus
+from feast.entity import EntityV2
 from feast.feature_set import FeatureSet, FeatureSetRef
 from feast.loaders.yaml import yaml_loader
 
@@ -112,6 +113,108 @@ def config_set(prop, value):
         _logger.error("Error in reading config file")
         _logger.exception(e)
         sys.exit(1)
+
+
+@cli.group(name="entities")
+def entity():
+    """
+    Create and manage entities
+    """
+    pass
+
+
+@entity.command("apply")
+@click.option(
+    "--filename",
+    "-f",
+    help="Path to an entity configuration file that will be applied",
+    type=click.Path(exists=True),
+)
+@click.option(
+    "--project",
+    "-p",
+    help="Project that entity belongs to",
+    type=click.STRING,
+    default="default",
+)
+def entity_create(filename, project):
+    """
+    Create or update an entity
+    """
+
+    entities = [
+        EntityV2.from_dict(entity_dict) for entity_dict in yaml_loader(filename)
+    ]
+    feast_client = Client()  # type: Client
+    feast_client.apply_entity(entities, project)
+
+
+@entity.command("describe")
+@click.argument("name", type=click.STRING)
+@click.option(
+    "--project",
+    "-p",
+    help="Project that entity belongs to",
+    type=click.STRING,
+    default="default",
+)
+def entity_describe(name: str, project: str):
+    """
+    Describe an entity
+    """
+    feast_client = Client()  # type: Client
+    entity = feast_client.get_entity(name=name, project=project)
+
+    if not entity:
+        print(f'Entity with name "{name}" could not be found')
+        return
+
+    print(
+        yaml.dump(
+            yaml.safe_load(str(entity)), default_flow_style=False, sort_keys=False
+        )
+    )
+
+
+@entity.command(name="list")
+@click.option(
+    "--project",
+    "-p",
+    help="Project that entity belongs to",
+    type=click.STRING,
+    default="*",
+)
+@click.option(
+    "--name",
+    "-n",
+    help="Filters entities by name. Wildcards (*) may be included to match multiple entities",
+    type=click.STRING,
+    default="*",
+)
+@click.option(
+    "--labels",
+    "-l",
+    help="Labels to filter for entities",
+    type=click.STRING,
+    default="",
+)
+def entity_list(project: str, name: str, labels: str):
+    """
+    List all entities
+    """
+    feast_client = Client()  # type: Client
+
+    labels_dict = _get_labels_dict(labels)
+
+    table = []
+    for entity in feast_client.list_entities_v2(
+        project=project, name=name, labels=labels_dict
+    ):
+        table.append([entity.name, entity.description, entity.columns])
+
+    from tabulate import tabulate
+
+    print(tabulate(table, headers=["NAME", "DESCRIPTION", "COLUMNS"], tablefmt="plain"))
 
 
 @cli.group(name="features")

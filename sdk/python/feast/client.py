@@ -43,16 +43,22 @@ from feast.constants import (
     FEAST_DEFAULT_OPTIONS,
 )
 from feast.core.CoreService_pb2 import (
+    ApplyEntityRequest,
+    ApplyEntityResponse,
     ApplyFeatureSetRequest,
     ApplyFeatureSetResponse,
     ArchiveProjectRequest,
     ArchiveProjectResponse,
     CreateProjectRequest,
     CreateProjectResponse,
+    GetEntityRequest,
+    GetEntityResponse,
     GetFeastCoreVersionRequest,
     GetFeatureSetRequest,
     GetFeatureSetResponse,
     GetFeatureStatisticsRequest,
+    ListEntitiesRequest,
+    ListEntitiesResponse,
     ListFeatureSetsRequest,
     ListFeatureSetsResponse,
     ListFeaturesRequest,
@@ -62,6 +68,7 @@ from feast.core.CoreService_pb2 import (
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
+from feast.entity import EntityV2
 from feast.feature import Feature, FeatureRef
 from feast.feature_set import Entity, FeatureSet
 from feast.grpc import auth as feast_auth
@@ -352,6 +359,147 @@ class Client:
         # revert to the default project
         if self._project == project:
             self._project = FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY]
+
+    def apply_entity(
+        self, entities: Union[List[EntityV2], EntityV2], project: str = None
+    ):
+        """
+        Idempotently registers entities with Feast Core. Either a single
+        entity or a list can be provided.
+
+        Args:
+            entities: List of entities that will be registered
+
+        Examples:
+            >>> from feast import Client
+            >>> from feast.entity import EntityV2
+            >>> from feast.value_type import ValueType
+            >>>
+            >>> feast_client = Client(core_url="localhost:6565")
+            >>> entity = EntityV2(
+            >>>     name="driver_entity",
+            >>>     description="Driver entity for car rides",
+            >>>     columns={
+            >>>        "driver_id": ValueType.STRING
+            >>>     },
+            >>>     labels={
+            >>>         "key": "val"
+            >>>     }
+            >>> )
+            >>> feast_client.apply_entity(entity)
+        """
+
+        if project is None:
+            if self.project is not None:
+                project = self.project
+            else:
+                raise ValueError("No project has been configured.")
+
+        if not isinstance(entities, list):
+            entities = [entities]
+        for entity in entities:
+            if isinstance(entity, EntityV2):
+                self._apply_entity(project, entity)
+                continue
+            raise ValueError(f"Could not determine entity type to apply {entity}")
+
+    def _apply_entity(self, project: str, entity: EntityV2):
+        """
+        Registers a single entity with Feast
+
+        Args:
+            entity: Entity that will be registered
+        """
+
+        entity.is_valid()
+        entity_proto = entity.to_proto()
+
+        # Convert the entity to a request and send to Feast Core
+        try:
+            apply_entity_response = self._core_service.ApplyEntity(
+                ApplyEntityRequest(project=project, entity=entity_proto),
+                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                metadata=self._get_grpc_metadata(),
+            )  # type: ApplyEntityResponse
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+
+        # Extract the returned entity
+        applied_entity = EntityV2.from_proto(apply_entity_response.entity)
+
+        # Deep copy from the returned entity to the local entity
+        entity._update_from_entity(applied_entity)
+
+    def list_entities_v2(
+        self, project: str = None, name: str = None, labels: Dict[str, str] = dict()
+    ) -> List[EntityV2]:
+        """
+        Retrieve a list of entities from Feast Core
+
+        Args:
+            project: Filter entities based on project name
+            name: Filter entities based on entity name
+            labels: User-defined labels that these entities are associated with
+
+        Returns:
+            List of entities
+        """
+
+        if project is None:
+            if self.project is not None:
+                project = self.project
+            else:
+                raise ValueError("No project has been configured.")
+
+        if name is None:
+            name = "*"
+
+        filter = ListEntitiesRequest.Filter(
+            project=project, entity_name=name, labels=labels
+        )
+
+        # Get latest entities from Feast Core
+        entity_protos = self._core_service.ListEntities(
+            ListEntitiesRequest(filter=filter), metadata=self._get_grpc_metadata(),
+        )  # type: ListEntitiesResponse
+
+        # Extract entities and return
+        entities = []
+        for entity_proto in entity_protos.entities:
+            entity = EntityV2.from_proto(entity_proto)
+            entity._client = self
+            entities.append(entity)
+        return entities
+
+    def get_entity(self, name: str, project: str = None) -> Union[EntityV2, None]:
+        """
+        Retrieves an entity.
+
+        Args:
+            project: Feast project that this entity belongs to
+            name: Name of entity
+
+        Returns:
+            Returns either the specified entity, or raises an exception if
+            none is found
+        """
+
+        if project is None:
+            if self.project is not None:
+                project = self.project
+            else:
+                raise ValueError("No project has been configured.")
+
+        try:
+            get_entity_response = self._core_service.GetEntity(
+                GetEntityRequest(project=project, name=name.strip()),
+                metadata=self._get_grpc_metadata(),
+            )  # type: GetEntityResponse
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+        entity = EntityV2.from_proto(get_entity_response.entity)
+
+        return entity
 
     def apply(self, feature_sets: Union[List[FeatureSet], FeatureSet]):
         """
