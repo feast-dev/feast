@@ -1,0 +1,104 @@
+//
+// Copyright 2020 The Feast Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+
+syntax = "proto3";
+package feast.core;
+
+option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
+option java_outer_classname = "FeatureSource";
+option java_package = "feast.proto.core";
+
+// Defines a Feature Source that can be used source Feature data
+message FeatureSource {
+  // Type of Feature Source.
+  enum SourceType {
+    INVALID = 0;
+    BATCH_FILE = 1;
+    BATCH_BIGQUERY = 2;
+    STREAM_KAFKA = 3;
+    STREAM_KINESIS = 4;
+  }
+  SourceType type = 1;
+
+  // Defines mapping between fields in the sourced data 
+  // and feature names in parent FeatureTable.
+  map<string, string> field_mapping = 2;
+
+  // Defines options for Feature source that sources features from a file
+  message FileOptions {
+    // File Format of the file containing the features
+    enum FileFormat {
+       INVALID = 0;
+       PARQUET = 1;
+       AVRO = 2;
+    }
+    FileFormat file_format = 1;
+
+    // Target URL of file to retrieve and source features from.
+    // s3://path/to/file for AWS S3 storage
+    // gs://path/to/file for GCP GCS storage
+    // file:///path/to/file for local storage
+    string file_url  = 2;
+  }
+
+  // Defines options for Feature source that sources features from a BigQuery Query
+  message BigQueryOptions {
+    // GCP Project ID
+    string project_id = 1;
+
+    // SQL Query used by BQ Source to query feature data.
+    string sql_query = 2;
+  }
+
+  // Defines options for Feature source that sources features from Kafka messages.
+  // Each message should be a Protobuf that can be decoded with the generated
+  // Java Protobuf class at the given class path
+  message KafkaOptions {
+    // Comma separated list of Kafka bootstrap servers. Used for feature sets without a defined source host[:port]]
+    string bootstrap_servers = 1;
+
+    // Kafka topic to collect feature data from.
+    string topic = 2;
+
+    // Classpath to the generated Java Protobuf class that can be used to decode
+    // Feature data from the obtained Kafka message
+    string class_path = 3; 
+  }
+
+  // Defines options for Feature source that sources features from Kinesis records.
+  // Each record should be a Protobuf that can be decoded with the generated
+  // Java Protobuf class at the given class path
+  message KinesisOptions {
+    // AWS region of the Kinesis stream
+    string region = 1;
+
+    // Name of the Kinesis stream to obtain feature data from.
+    string stream_name = 2;
+
+    // Classpath to the generated Java Protobuf class that can be used to decode
+    // Feature data from the obtained Kinesis record
+    string class_path = 3; 
+  }
+
+  // Feature Source options.
+  oneof options {
+    FileOptions file_options = 11;
+    BigQueryOptions bigquery_options = 12;
+    KafkaOptions kafka_options = 13;
+    KinesisOptions kinesis_options = 14;
+  }
+}

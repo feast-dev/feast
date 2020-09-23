@@ -15,6 +15,7 @@
 //
 
 syntax = "proto3";
+
 package feast.core;
 option java_package = "feast.proto.core";
 option java_outer_classname = "EntityProto";
