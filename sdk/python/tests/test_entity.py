@@ -47,7 +47,7 @@ class TestEntity:
         test_entity = EntityV2(
             name="car_driver_entity",
             description="Driver entity for car rides",
-            columns={"driver_id": ValueType.STRING},
+            value_type=ValueType.STRING,
             labels={"team": "matchmaking"},
         )
 
@@ -65,7 +65,7 @@ def test_entity_class_contains_labels():
     entity = EntityV2(
         "my-entity",
         description="My entity",
-        columns={"my_id": ValueType.STRING},
+        value_type=ValueType.STRING,
         labels={"key1": "val1", "key2": "val2"},
     )
     assert "key1" in entity.labels.keys() and entity.labels["key1"] == "val1"
@@ -73,8 +73,6 @@ def test_entity_class_contains_labels():
 
 
 def test_entity_without_labels_empty_dict():
-    entity = EntityV2(
-        "my-entity", description="My entity", columns={"my_id": ValueType.STRING}
-    )
+    entity = EntityV2("my-entity", description="My entity", value_type=ValueType.STRING)
     assert entity.labels == OrderedDict()
     assert len(entity.labels) == 0

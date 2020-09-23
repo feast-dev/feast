@@ -379,9 +379,7 @@ class Client:
             >>> entity = EntityV2(
             >>>     name="driver_entity",
             >>>     description="Driver entity for car rides",
-            >>>     columns={
-            >>>        "driver_id": ValueType.STRING
-            >>>     },
+            >>>     value_type=ValueType.STRING,
             >>>     labels={
             >>>         "key": "val"
             >>>     }

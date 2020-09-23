@@ -50,8 +50,7 @@ public class EntityV2 extends AbstractTimestampEntity {
 
   // Columns of entities
   /** Data type of each entity column: String representation of {@link ValueType} * */
-  @Column(name = "columns", columnDefinition = "text")
-  private String columns;
+  private String type;
 
   // User defined metadata
   @Column(name = "labels", columnDefinition = "text")
@@ -62,13 +61,10 @@ public class EntityV2 extends AbstractTimestampEntity {
   }
 
   public EntityV2(
-      String name,
-      String description,
-      Map<String, ValueType.Enum> columns,
-      Map<String, String> labels) {
+      String name, String description, ValueType.Enum type, Map<String, String> labels) {
     this.name = name;
     this.description = description;
-    this.columns = TypeConversion.convertEnumMapToJsonString(columns);
+    this.type = type.toString();
     this.labels = TypeConversion.convertMapToJsonString(labels);
   }
 
@@ -76,7 +72,7 @@ public class EntityV2 extends AbstractTimestampEntity {
     EntitySpecV2 spec = entityProto.getSpec();
 
     return new EntityV2(
-        spec.getName(), spec.getDescription(), spec.getColumnsMap(), spec.getLabelsMap());
+        spec.getName(), spec.getDescription(), spec.getValueType(), spec.getLabelsMap());
   }
 
   public EntityProto.Entity toProto() {
@@ -89,7 +85,7 @@ public class EntityV2 extends AbstractTimestampEntity {
         EntitySpecV2.newBuilder()
             .setName(getName())
             .setDescription(getDescription())
-            .putAllColumns(TypeConversion.convertJsonStringToEnumMap(columns))
+            .setValueType(ValueType.Enum.valueOf(getType()))
             .putAllLabels(TypeConversion.convertJsonStringToMap(labels));
 
     // Build Entity
@@ -105,14 +101,13 @@ public class EntityV2 extends AbstractTimestampEntity {
    */
   public void updateFromProto(EntityProto.Entity entityProto, String projectName) {
     EntitySpecV2 spec = entityProto.getSpec();
-    String specColumnsMapStr = TypeConversion.convertEnumMapToJsonString(spec.getColumnsMap());
 
-    // Validate no change to columns
-    if (!specColumnsMapStr.equals(getColumns())) {
+    // Validate no change to type
+    if (!spec.getValueType().equals(ValueType.Enum.valueOf(getType()))) {
       throw new IllegalArgumentException(
           String.format(
-              "You are attempting to change the columns of this entity in project %s: Given set of columns \n{%s}\n does not match existing set of columns\n {%s}. This isn't allowed. Please create a new entity.",
-              projectName, specColumnsMapStr, getColumns()));
+              "You are attempting to change the type of this entity in %s project from %s to %s. This isn't allowed. Please create a new entity.",
+              projectName, getType(), spec.getValueType().toString()));
     }
 
     // 2. Update labels

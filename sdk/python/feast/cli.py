@@ -210,11 +210,11 @@ def entity_list(project: str, name: str, labels: str):
     for entity in feast_client.list_entities_v2(
         project=project, name=name, labels=labels_dict
     ):
-        table.append([entity.name, entity.description, entity.columns])
+        table.append([entity.name, entity.description, entity.value_type])
 
     from tabulate import tabulate
 
-    print(tabulate(table, headers=["NAME", "DESCRIPTION", "COLUMNS"], tablefmt="plain"))
+    print(tabulate(table, headers=["NAME", "DESCRIPTION", "TYPE"], tablefmt="plain"))
 
 
 @cli.group(name="features")

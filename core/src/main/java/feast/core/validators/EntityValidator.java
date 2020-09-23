@@ -25,8 +25,8 @@ public class EntityValidator {
     if (entity.getSpec().getName().isEmpty()) {
       throw new IllegalArgumentException("Entity name must be provided");
     }
-    if (entity.getSpec().getColumnsMap().containsKey("")) {
-      throw new IllegalArgumentException("Entity columns keys must not be empty");
+    if (entity.getSpec().getValueType().toString().isEmpty()) {
+      throw new IllegalArgumentException("Entity type must not be empty");
     }
     if (entity.getSpec().getLabelsMap().containsKey("")) {
       throw new IllegalArgumentException("Entity label keys must not be empty");

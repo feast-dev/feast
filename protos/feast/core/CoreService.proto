@@ -81,7 +81,7 @@ service CoreService {
     // Schema changes will update the entity if the changes are valid.
     // Following changes are not valid:
     // - Changes to name
-    // - Changes to columns
+    // - Changes to type
     // - Changes to description
     rpc ApplyEntity (ApplyEntityRequest) returns (ApplyEntityResponse);
 

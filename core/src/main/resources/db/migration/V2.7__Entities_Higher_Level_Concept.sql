@@ -6,8 +6,8 @@ CREATE TABLE entities_v2(
     last_updated timestamp without time zone NOT NULL,
     name character varying(255),
     project_name character varying(255),
+    type character varying(255),
     description text,
-    columns text,
     labels text
 );
 

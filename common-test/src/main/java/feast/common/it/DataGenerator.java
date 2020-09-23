@@ -120,14 +120,14 @@ public class DataGenerator {
   public static EntityProto.Entity createEntity(
       String name,
       String description,
-      Map<String, ValueProto.ValueType.Enum> columns,
+      ValueProto.ValueType.Enum valueType,
       Map<String, String> labels) {
     return EntityProto.Entity.newBuilder()
         .setSpec(
             EntityProto.EntitySpecV2.newBuilder()
                 .setName(name)
                 .setDescription(description)
-                .putAllColumns(columns)
+                .setValueType(valueType)
                 .putAllLabels(labels)
                 .build())
         .build();

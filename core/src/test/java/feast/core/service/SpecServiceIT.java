@@ -33,7 +33,6 @@ import com.google.protobuf.Duration;
 import feast.common.it.BaseIT;
 import feast.common.it.DataGenerator;
 import feast.common.it.SimpleCoreClient;
-import feast.core.util.TypeConversion;
 import feast.proto.core.*;
 import feast.proto.types.ValueProto;
 import io.grpc.ManagedChannel;
@@ -74,18 +73,14 @@ public class SpecServiceIT extends BaseIT {
         DataGenerator.createEntity(
             "entity1",
             "Entity 1 description",
-            ImmutableMap.of(
-                "driver_id", ValueProto.ValueType.Enum.STRING,
-                "customer_id", ValueProto.ValueType.Enum.FLOAT),
+            ValueProto.ValueType.Enum.STRING,
             ImmutableMap.of("label_key", "label_value")));
     apiClient.simpleApplyEntity(
         "default",
         DataGenerator.createEntity(
             "entity2",
             "Entity 2 description",
-            ImmutableMap.of(
-                "driver_id2", ValueProto.ValueType.Enum.STRING,
-                "customer_id2", ValueProto.ValueType.Enum.FLOAT),
+            ValueProto.ValueType.Enum.STRING,
             ImmutableMap.of("label_key2", "label_value2")));
     apiClient.simpleApplyFeatureSet(
         DataGenerator.createFeatureSet(
@@ -693,7 +688,7 @@ public class SpecServiceIT extends BaseIT {
                       DataGenerator.createEntity(
                           "dash-entity",
                           "Dash Entity description",
-                          ImmutableMap.of("entity", ValueProto.ValueType.Enum.STRING),
+                          ValueProto.ValueType.Enum.STRING,
                           ImmutableMap.of("test_key", "test_value"))));
 
       assertThat(
@@ -715,10 +710,7 @@ public class SpecServiceIT extends BaseIT {
           DataGenerator.createEntity(
               "entity1",
               "Entity description",
-              ImmutableMap.of(
-                  "driver_id", ValueProto.ValueType.Enum.STRING,
-                  "customer_id", ValueProto.ValueType.Enum.FLOAT,
-                  "new_id", ValueProto.ValueType.Enum.INT64),
+              ValueProto.ValueType.Enum.FLOAT,
               ImmutableMap.of("label_key", "label_value"));
 
       StatusRuntimeException exc =
@@ -729,11 +721,8 @@ public class SpecServiceIT extends BaseIT {
           exc.getMessage(),
           equalTo(
               String.format(
-                  "INTERNAL: You are attempting to change the columns of this entity in project %s: Given set of columns \n{%s}\n does not match existing set of columns\n {%s}. This isn't allowed. Please create a new entity.",
-                  "default",
-                  TypeConversion.convertEnumMapToJsonString(entity.getSpec().getColumnsMap()),
-                  TypeConversion.convertEnumMapToJsonString(
-                      originalEntity.getSpec().getColumnsMap()))));
+                  "INTERNAL: You are attempting to change the type of this entity in %s project from %s to %s. This isn't allowed. Please create a new entity.",
+                  "default", "STRING", entity.getSpec().getValueType())));
     }
 
     @Test
@@ -751,8 +740,7 @@ public class SpecServiceIT extends BaseIT {
       assertThat(
           response.getEntity().getSpec().getLabelsMap(), equalTo(entity.getSpec().getLabelsMap()));
       assertThat(
-          response.getEntity().getSpec().getColumnsMap(),
-          equalTo(entity.getSpec().getColumnsMap()));
+          response.getEntity().getSpec().getValueType(), equalTo(entity.getSpec().getValueType()));
     }
 
     @Test
@@ -762,7 +750,7 @@ public class SpecServiceIT extends BaseIT {
           DataGenerator.createEntity(
               "new_entity",
               "Entity description",
-              ImmutableMap.of("merchant_id", ValueProto.ValueType.Enum.STRING),
+              ValueProto.ValueType.Enum.STRING,
               ImmutableMap.of("label_key", "label_value"));
 
       CoreServiceProto.ApplyEntityResponse response =
@@ -775,8 +763,7 @@ public class SpecServiceIT extends BaseIT {
       assertThat(
           response.getEntity().getSpec().getLabelsMap(), equalTo(entity.getSpec().getLabelsMap()));
       assertThat(
-          response.getEntity().getSpec().getColumnsMap(),
-          equalTo(entity.getSpec().getColumnsMap()));
+          response.getEntity().getSpec().getValueType(), equalTo(entity.getSpec().getValueType()));
     }
 
     @Test
@@ -785,7 +772,7 @@ public class SpecServiceIT extends BaseIT {
           DataGenerator.createEntity(
               "new_entity2",
               "Entity description",
-              ImmutableMap.of("id", ValueProto.ValueType.Enum.STRING),
+              ValueProto.ValueType.Enum.STRING,
               ImmutableMap.of("key1", "val1"));
       CoreServiceProto.ApplyEntityResponse response =
           apiClient.simpleApplyEntity("new_project", entity);
@@ -797,8 +784,7 @@ public class SpecServiceIT extends BaseIT {
       assertThat(
           response.getEntity().getSpec().getLabelsMap(), equalTo(entity.getSpec().getLabelsMap()));
       assertThat(
-          response.getEntity().getSpec().getColumnsMap(),
-          equalTo(entity.getSpec().getColumnsMap()));
+          response.getEntity().getSpec().getValueType(), equalTo(entity.getSpec().getValueType()));
     }
 
     @Test
@@ -815,7 +801,7 @@ public class SpecServiceIT extends BaseIT {
                       DataGenerator.createEntity(
                           "new_entity3",
                           "Entity description",
-                          ImmutableMap.of("id", ValueProto.ValueType.Enum.STRING),
+                          ValueProto.ValueType.Enum.STRING,
                           ImmutableMap.of("key1", "val1"))));
       assertThat(exc.getMessage(), equalTo("INTERNAL: Project is archived: archived"));
     }
@@ -826,9 +812,7 @@ public class SpecServiceIT extends BaseIT {
           DataGenerator.createEntity(
               "entity1",
               "Entity description",
-              ImmutableMap.of(
-                  "driver_id", ValueProto.ValueType.Enum.STRING,
-                  "customer_id", ValueProto.ValueType.Enum.FLOAT),
+              ValueProto.ValueType.Enum.STRING,
               ImmutableMap.of("label_key", "label_value", "label_key2", "label_value2"));
 
       CoreServiceProto.ApplyEntityResponse response =

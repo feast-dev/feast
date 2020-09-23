@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from collections import OrderedDict
-from typing import Dict, Mapping, MutableMapping, Optional
+from typing import Dict, MutableMapping, Optional
 
 import yaml
 from google.protobuf import json_format
@@ -67,12 +67,12 @@ class EntityV2:
         self,
         name: str,
         description: str,
-        columns: Mapping[str, ValueType],
+        value_type: ValueType,
         labels: Optional[MutableMapping[str, str]] = None,
     ):
         self._name = name
         self._description = description
-        self._columns = columns
+        self._value_type = value_type
         if labels is None:
             self._labels = OrderedDict()  # type: MutableMapping[str, str]
         else:
@@ -84,19 +84,16 @@ class EntityV2:
         if not isinstance(other, EntityV2):
             return NotImplemented
 
-        self.columns = {
-            k: (v.value if isinstance(v, ValueType) else v)
-            for k, v in self.columns.items()
-        }
-        other.columns = {
-            k: (v.value if isinstance(v, ValueType) else v)
-            for k, v in other.columns.items()
-        }
+        if isinstance(self.value_type, int):
+            self.value_type = ValueType(self.value_type).name
+        if isinstance(other.value_type, int):
+            other.value_type = ValueType(other.value_type).name
+
         if (
             self.labels != other.labels
             or self.name != other.name
             or self.description != other.description
-            or self.columns != other.columns
+            or self.value_type != other.value_type
         ):
             return False
 
@@ -134,18 +131,18 @@ class EntityV2:
         self._description = description
 
     @property
-    def columns(self):
+    def value_type(self):
         """
-        Returns the columns of this entity
+        Returns the type of this entity
         """
-        return self._columns
+        return self._value_type
 
-    @columns.setter
-    def columns(self, columns: Mapping[str, ValueType]):
+    @value_type.setter
+    def value_type(self, value_type: ValueType):
         """
-        Set the columns for this entity
+        Set the type for this entity
         """
-        self._columns = columns
+        self._value_type = value_type
 
     @property
     def labels(self):
@@ -185,8 +182,8 @@ class EntityV2:
         if not self.name:
             raise ValueError("No name found in entity.")
 
-        if len(self.columns) == 0:
-            raise ValueError("No columns found in entity {self.name}")
+        if not self.value_type:
+            raise ValueError("No type found in entity {self.value_type}")
 
     @classmethod
     def from_yaml(cls, yml: str):
@@ -234,7 +231,7 @@ class EntityV2:
         entity = cls(
             name=entity_proto.spec.name,
             description=entity_proto.spec.description,
-            columns=entity_proto.spec.columns,  # type: ignore
+            value_type=ValueType(entity_proto.spec.value_type).name,  # type: ignore
             labels=entity_proto.spec.labels,
         )
 
@@ -251,14 +248,13 @@ class EntityV2:
         """
 
         meta = EntityMetaProto(created_timestamp=self.created_timestamp)
+        if isinstance(self.value_type, ValueType):
+            self.value_type = self.value_type.value
 
         spec = EntitySpecProto(
             name=self.name,
             description=self.description,
-            columns={
-                k: (v.value if isinstance(v, ValueType) else v)
-                for k, v in self.columns.items()
-            },
+            value_type=self.value_type,
             labels=self.labels,
         )
 
@@ -300,6 +296,6 @@ class EntityV2:
 
         self.name = entity.name
         self.description = entity.description
-        self.columns = entity.columns
+        self.value_type = entity.value_type
         self.labels = entity.labels
         self.created_timestamp = entity.created_timestamp

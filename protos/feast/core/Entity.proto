@@ -34,8 +34,8 @@ message EntitySpecV2 {
     // Name of the entity.
     string name = 1;
 
-    // Columns of the entity.
-    map<string,feast.types.ValueType.Enum> columns = 2;
+    // Type of the entity.
+    feast.types.ValueType.Enum value_type = 2;
 
     // Description of the entity.
     string description = 3;
