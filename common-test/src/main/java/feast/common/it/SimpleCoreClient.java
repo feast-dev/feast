@@ -35,6 +35,48 @@ public class SimpleCoreClient {
         CoreServiceProto.ApplyFeatureSetRequest.newBuilder().setFeatureSet(featureSet).build());
   }
 
+  public CoreServiceProto.ApplyEntityResponse simpleApplyEntity(
+      String projectName, EntityProto.Entity entity) {
+    return stub.applyEntity(
+        CoreServiceProto.ApplyEntityRequest.newBuilder()
+            .setProject(projectName)
+            .setEntity(entity)
+            .build());
+  }
+
+  public List<EntityProto.Entity> simpleListEntities(String projectName, String entityName) {
+    return stub.listEntities(
+            CoreServiceProto.ListEntitiesRequest.newBuilder()
+                .setFilter(
+                    CoreServiceProto.ListEntitiesRequest.Filter.newBuilder()
+                        .setProject(projectName)
+                        .setEntityName(entityName)
+                        .build())
+                .build())
+        .getEntitiesList();
+  }
+
+  public List<EntityProto.Entity> simpleListEntities(
+      String projectName, String entityName, Map<String, String> labels) {
+    return stub.listEntities(
+            CoreServiceProto.ListEntitiesRequest.newBuilder()
+                .setFilter(
+                    CoreServiceProto.ListEntitiesRequest.Filter.newBuilder()
+                        .setProject(projectName)
+                        .setEntityName(entityName)
+                        .putAllLabels(labels)
+                        .build())
+                .build())
+        .getEntitiesList();
+  }
+
+  public List<EntityProto.Entity> simpleListEntities(
+      CoreServiceProto.ListEntitiesRequest.Filter filter) {
+    return stub.listEntities(
+            CoreServiceProto.ListEntitiesRequest.newBuilder().setFilter(filter).build())
+        .getEntitiesList();
+  }
+
   public List<FeatureSetProto.FeatureSet> simpleListFeatureSets(
       String projectName, String featureSetName, Map<String, String> labels) {
     return stub.listFeatureSets(
@@ -80,6 +122,15 @@ public class SimpleCoreClient {
                 .setProject(projectName)
                 .build())
         .getFeatureSet();
+  }
+
+  public EntityProto.Entity simpleGetEntity(String projectName, String name) {
+    return stub.getEntity(
+            CoreServiceProto.GetEntityRequest.newBuilder()
+                .setName(name)
+                .setProject(projectName)
+                .build())
+        .getEntity();
   }
 
   public void updateFeatureSetStatus(

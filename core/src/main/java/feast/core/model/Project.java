@@ -52,6 +52,13 @@ public class Project {
       mappedBy = "project")
   private Set<FeatureSet> featureSets;
 
+  @OneToMany(
+      cascade = CascadeType.ALL,
+      fetch = FetchType.EAGER,
+      orphanRemoval = true,
+      mappedBy = "project")
+  private Set<EntityV2> entities;
+
   public Project() {
     super();
   }
@@ -59,11 +66,17 @@ public class Project {
   public Project(String name) {
     this.name = name;
     this.featureSets = new HashSet<>();
+    this.entities = new HashSet<>();
   }
 
   public void addFeatureSet(FeatureSet featureSet) {
     featureSet.setProject(this);
     featureSets.add(featureSet);
+  }
+
+  public void addEntity(EntityV2 entity) {
+    entity.setProject(this);
+    entities.add(entity);
   }
 
   @Override
