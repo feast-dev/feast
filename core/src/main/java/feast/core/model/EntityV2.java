@@ -60,6 +60,12 @@ public class EntityV2 extends AbstractTimestampEntity {
     super();
   }
 
+  /**
+   * EntityV2 object supports Entity registration outside of FeatureSet.
+   *
+   * <p>This data model supports Scalar Entity and would allow ease of discovery of entities and
+   * reasoning when used in association with FeatureTable.
+   */
   public EntityV2(
       String name, String description, ValueType.Enum type, Map<String, String> labels) {
     this.name = name;
@@ -110,12 +116,13 @@ public class EntityV2 extends AbstractTimestampEntity {
               projectName, getType(), spec.getValueType().toString()));
     }
 
-    // 2. Update labels
+    // 2. Update description, labels
+    this.setDescription(spec.getDescription());
     this.setLabels(TypeConversion.convertMapToJsonString(spec.getLabelsMap()));
   }
 
   /**
-   * Return a boolean to facilitate streaming elements on the basis of given predicate.
+   * Determine whether an entity has all the specified labels.
    *
    * @param labelsFilter labels contain key-value mapping for labels attached to the Entity
    * @return boolean True if Entity contains all labels in the labelsFilter

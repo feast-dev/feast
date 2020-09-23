@@ -19,7 +19,6 @@ import shutil
 import tempfile
 import time
 import uuid
-from collections import OrderedDict
 from math import ceil
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
@@ -70,7 +69,7 @@ from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
 from feast.entity import EntityV2
 from feast.feature import Feature, FeatureRef
-from feast.feature_set import Entity, FeatureSet
+from feast.feature_set import FeatureSet
 from feast.grpc import auth as feast_auth
 from feast.grpc.grpc import create_grpc_channel
 from feast.job import RetrievalJob
@@ -294,6 +293,8 @@ class Client:
         Returns:
             Project name
         """
+        if not self._config.get(CONFIG_PROJECT_KEY):
+            raise ValueError("No project has been configured.")
         return self._config.get(CONFIG_PROJECT_KEY)
 
     def set_project(self, project: Optional[str] = None):
@@ -388,16 +389,13 @@ class Client:
         """
 
         if project is None:
-            if self.project is not None:
-                project = self.project
-            else:
-                raise ValueError("No project has been configured.")
+            project = self.project
 
         if not isinstance(entities, list):
             entities = [entities]
         for entity in entities:
             if isinstance(entity, EntityV2):
-                self._apply_entity(project, entity)
+                self._apply_entity(project, entity)  # type: ignore
                 continue
             raise ValueError(f"Could not determine entity type to apply {entity}")
 
@@ -428,7 +426,7 @@ class Client:
         # Deep copy from the returned entity to the local entity
         entity._update_from_entity(applied_entity)
 
-    def list_entities_v2(
+    def list_entities(
         self, project: str = None, name: str = None, labels: Dict[str, str] = dict()
     ) -> List[EntityV2]:
         """
@@ -444,10 +442,7 @@ class Client:
         """
 
         if project is None:
-            if self.project is not None:
-                project = self.project
-            else:
-                raise ValueError("No project has been configured.")
+            project = self.project
 
         if name is None:
             name = "*"
@@ -483,10 +478,7 @@ class Client:
         """
 
         if project is None:
-            if self.project is not None:
-                project = self.project
-            else:
-                raise ValueError("No project has been configured.")
+            project = self.project
 
         try:
             get_entity_response = self._core_service.GetEntity(
@@ -673,18 +665,6 @@ class Client:
             features_dict[feature_ref] = feature
 
         return features_dict
-
-    def list_entities(self) -> Dict[str, Entity]:
-        """
-        Returns a dictionary of entities across all feature sets
-        Returns:
-            Dictionary of entities, indexed by name
-        """
-        entities_dict = OrderedDict()
-        for fs in self.list_feature_sets():
-            for entity in fs.entities:
-                entities_dict[entity.name] = entity
-        return entities_dict
 
     def get_historical_features(
         self,

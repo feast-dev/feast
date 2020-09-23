@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import OrderedDict
+import socket
 from concurrent import futures
+from contextlib import closing
 
 import grpc
 import pytest
@@ -24,8 +25,15 @@ from feast.entity import EntityV2
 from feast.value_type import ValueType
 from feast_core_server import CoreServicer
 
-CORE_URL = "core.feast.local"
-SERVING_URL = "serving.feast.local"
+
+def find_free_port():
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind(("", 0))
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return s.getsockname()[1]
+
+
+free_port = find_free_port()
 
 
 class TestEntity:
@@ -33,14 +41,14 @@ class TestEntity:
     def server(self):
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         Core.add_CoreServiceServicer_to_server(CoreServicer(), server)
-        server.add_insecure_port("[::]:50051")
+        server.add_insecure_port(f"[::]:{free_port}")
         server.start()
         yield server
         server.stop(0)
 
     @pytest.fixture
     def client(self, server):
-        return Client(core_url="localhost:50051")
+        return Client(core_url=f"localhost:{free_port}")
 
     def test_entity_import_export_yaml(self):
 
@@ -74,5 +82,5 @@ def test_entity_class_contains_labels():
 
 def test_entity_without_labels_empty_dict():
     entity = EntityV2("my-entity", description="My entity", value_type=ValueType.STRING)
-    assert entity.labels == OrderedDict()
+    assert entity.labels == dict()
     assert len(entity.labels) == 0

@@ -207,7 +207,7 @@ def entity_list(project: str, name: str, labels: str):
     labels_dict = _get_labels_dict(labels)
 
     table = []
-    for entity in feast_client.list_entities_v2(
+    for entity in feast_client.list_entities(
         project=project, name=name, labels=labels_dict
     ):
         table.append([entity.name, entity.description, entity.value_type])

@@ -1428,7 +1428,7 @@ def test_basic_retrieve_entity_labels(client):
     client.apply_entity(merchant_entity_1)
     client.apply_entity(merchant_entity_2)
     client.apply_entity(ride_entity)
-    merchant_entities_list = client.list_entities_v2(labels={"team": "sales"})
+    merchant_entities_list = client.list_entities(labels={"team": "sales"})
     assert len(merchant_entities_list) == 2
     assert merchant_entities_list[0].name == "merchant_id"
     assert merchant_entities_list[1].name == "merchant_id2"

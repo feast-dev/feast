@@ -82,7 +82,6 @@ service CoreService {
     // Following changes are not valid:
     // - Changes to name
     // - Changes to type
-    // - Changes to description
     rpc ApplyEntity (ApplyEntityRequest) returns (ApplyEntityResponse);
 
     // Returns all entity references and respective entities matching that filter. If none are found

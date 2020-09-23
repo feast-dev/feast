@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import OrderedDict
 from typing import Dict, MutableMapping, Optional
 
 import yaml
@@ -74,7 +73,7 @@ class EntityV2:
         self._description = description
         self._value_type = value_type
         if labels is None:
-            self._labels = OrderedDict()  # type: MutableMapping[str, str]
+            self._labels = dict()  # type: MutableMapping[str, str]
         else:
             self._labels = labels
 
@@ -82,7 +81,7 @@ class EntityV2:
 
     def __eq__(self, other):
         if not isinstance(other, EntityV2):
-            return NotImplemented
+            raise TypeError("Comparisons should only involve EntityV2 class objects.")
 
         if isinstance(self.value_type, int):
             self.value_type = ValueType(self.value_type).name

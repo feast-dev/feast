@@ -243,6 +243,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     }
   }
 
+  /* Registers an entity to Feast Core */
   @Override
   public void applyEntity(
       ApplyEntityRequest request, StreamObserver<ApplyEntityResponse> responseObserver) {
