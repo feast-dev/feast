@@ -33,6 +33,7 @@ import com.google.protobuf.Duration;
 import feast.common.it.BaseIT;
 import feast.common.it.DataGenerator;
 import feast.common.it.SimpleCoreClient;
+import feast.core.util.TypeConversion;
 import feast.proto.core.*;
 import feast.proto.types.ValueProto;
 import io.grpc.ManagedChannel;
@@ -68,6 +69,24 @@ public class SpecServiceIT extends BaseIT {
   public void initState() {
     SourceProto.Source source = DataGenerator.getDefaultSource();
 
+    apiClient.simpleApplyEntity(
+        "default",
+        DataGenerator.createEntity(
+            "entity1",
+            "Entity 1 description",
+            ImmutableMap.of(
+                "driver_id", ValueProto.ValueType.Enum.STRING,
+                "customer_id", ValueProto.ValueType.Enum.FLOAT),
+            ImmutableMap.of("label_key", "label_value")));
+    apiClient.simpleApplyEntity(
+        "default",
+        DataGenerator.createEntity(
+            "entity2",
+            "Entity 2 description",
+            ImmutableMap.of(
+                "driver_id2", ValueProto.ValueType.Enum.STRING,
+                "customer_id2", ValueProto.ValueType.Enum.FLOAT),
+            ImmutableMap.of("label_key2", "label_value2")));
     apiClient.simpleApplyFeatureSet(
         DataGenerator.createFeatureSet(
             source,
@@ -88,7 +107,7 @@ public class SpecServiceIT extends BaseIT {
             "project1",
             "fs3",
             ImmutableList.of(
-                DataGenerator.createEntity("user_id", ValueProto.ValueType.Enum.STRING)),
+                DataGenerator.createEntitySpec("user_id", ValueProto.ValueType.Enum.STRING)),
             ImmutableList.of(
                 DataGenerator.createFeature(
                     "feature1", ValueProto.ValueType.Enum.INT32, Collections.emptyMap()),
@@ -101,7 +120,7 @@ public class SpecServiceIT extends BaseIT {
             "project1",
             "fs4",
             ImmutableList.of(
-                DataGenerator.createEntity("customer_id", ValueProto.ValueType.Enum.STRING)),
+                DataGenerator.createEntitySpec("customer_id", ValueProto.ValueType.Enum.STRING)),
             ImmutableList.of(
                 DataGenerator.createFeature(
                     "feature2",
@@ -114,7 +133,7 @@ public class SpecServiceIT extends BaseIT {
             "project1",
             "fs5",
             ImmutableList.of(
-                DataGenerator.createEntity("customer_id", ValueProto.ValueType.Enum.STRING)),
+                DataGenerator.createEntitySpec("customer_id", ValueProto.ValueType.Enum.STRING)),
             ImmutableList.of(
                 DataGenerator.createFeature(
                     "feature3",
@@ -196,6 +215,81 @@ public class SpecServiceIT extends BaseIT {
     @Test
     public void shouldThrowExceptionGivenMissingFeatureSetName() {
       assertThrows(StatusRuntimeException.class, () -> apiClient.simpleListFeatureSets("", ""));
+    }
+  }
+
+  @Nested
+  class ListEntities {
+    @Test
+    public void shouldGetAllEntitiesIfOnlyWildcardsProvided() {
+      List<EntityProto.Entity> entities = apiClient.simpleListEntities("*", "*");
+
+      assertThat(entities, hasSize(2));
+    }
+
+    @Test
+    public void shouldGetAllEntitiesMatchingNameWithWildcardSearch() {
+      List<EntityProto.Entity> entities = apiClient.simpleListEntities("default", "ent*");
+
+      assertThat(entities, hasSize(2));
+      assertThat(entities, hasItem(hasProperty("spec", hasProperty("name", equalTo("entity1")))));
+      assertThat(entities, hasItem(hasProperty("spec", hasProperty("name", equalTo("entity2")))));
+    }
+
+    @Test
+    public void shouldFilterEntitiesByNameAndProject() {
+      List<EntityProto.Entity> entities = apiClient.simpleListEntities("default", "entity1");
+
+      assertThat(entities, hasItem(hasProperty("spec", hasProperty("name", equalTo("entity1")))));
+    }
+
+    @Test
+    public void shouldFilterEntitiesByLabels() {
+      List<EntityProto.Entity> entities =
+          apiClient.simpleListEntities(
+              "default", "*", ImmutableMap.of("label_key2", "label_value2"));
+
+      assertThat(entities, hasSize(1));
+      assertThat(entities, hasItem(hasProperty("spec", hasProperty("name", equalTo("entity2")))));
+    }
+
+    @Test
+    public void shouldUseDefaultProjectIfProjectUnspecified() {
+      List<EntityProto.Entity> entities = apiClient.simpleListEntities("", "*");
+
+      assertThat(entities, hasSize(2));
+      assertThat(entities, hasItem(hasProperty("spec", hasProperty("name", equalTo("entity1")))));
+      assertThat(entities, hasItem(hasProperty("spec", hasProperty("name", equalTo("entity2")))));
+    }
+
+    @Test
+    public void shouldThrowExceptionGivenMissingEntityName() {
+      StatusRuntimeException exc =
+          assertThrows(StatusRuntimeException.class, () -> apiClient.simpleListEntities("", ""));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo(
+              "INVALID_ARGUMENT: Invalid ListEntitiesRequest, missing arguments. Must provide entity name."));
+    }
+
+    @Test
+    public void shouldThrowExceptionGivenWildcardProjectWildcardName() {
+      CoreServiceProto.ListEntitiesRequest.Filter filter =
+          CoreServiceProto.ListEntitiesRequest.Filter.newBuilder()
+              .setProject("def*")
+              .setEntityName("ent*")
+              .build();
+      StatusRuntimeException exc =
+          assertThrows(StatusRuntimeException.class, () -> apiClient.simpleListEntities(filter));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo(
+              String.format(
+                  "INVALID_ARGUMENT: Invalid ListEntitiesRequest. Project name cannot be a pattern. It may only be "
+                      + "a specific project name or an asterisk: \n%s",
+                  filter.toString())));
     }
   }
 
@@ -547,7 +641,8 @@ public class SpecServiceIT extends BaseIT {
                   "project1",
                   "fs4",
                   ImmutableList.of(
-                      DataGenerator.createEntity("customer_id", ValueProto.ValueType.Enum.STRING)),
+                      DataGenerator.createEntitySpec(
+                          "customer_id", ValueProto.ValueType.Enum.STRING)),
                   ImmutableList.of(
                       DataGenerator.createFeature(
                           "feature2",
@@ -574,13 +669,173 @@ public class SpecServiceIT extends BaseIT {
                   "",
                   "some",
                   ImmutableList.of(
-                      DataGenerator.createEntity("customer_id", ValueProto.ValueType.Enum.STRING)),
+                      DataGenerator.createEntitySpec(
+                          "customer_id", ValueProto.ValueType.Enum.STRING)),
                   ImmutableList.of(),
                   ImmutableMap.of("label", "some")));
 
       assertThat(
           response.getStatus(), equalTo(CoreServiceProto.ApplyFeatureSetResponse.Status.CREATED));
       assertThat(response.getFeatureSet().getSpec().getLabelsMap(), hasEntry("label", "some"));
+    }
+  }
+
+  @Nested
+  class ApplyEntity {
+    @Test
+    public void shouldThrowExceptionGivenEntityWithDash() {
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class,
+              () ->
+                  apiClient.simpleApplyEntity(
+                      "default",
+                      DataGenerator.createEntity(
+                          "dash-entity",
+                          "Dash Entity description",
+                          ImmutableMap.of("entity", ValueProto.ValueType.Enum.STRING),
+                          ImmutableMap.of("test_key", "test_value"))));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo(
+              String.format(
+                  "INTERNAL: invalid value for %s resource, %s: %s",
+                  "entity",
+                  "dash-entity",
+                  "argument must only contain alphanumeric characters and underscores.")));
+    }
+
+    @Test
+    public void shouldThrowExceptionIfColumnsChanged() {
+      String projectName = "default";
+      EntityProto.Entity originalEntity = apiClient.simpleGetEntity(projectName, "entity1");
+
+      EntityProto.Entity entity =
+          DataGenerator.createEntity(
+              "entity1",
+              "Entity description",
+              ImmutableMap.of(
+                  "driver_id", ValueProto.ValueType.Enum.STRING,
+                  "customer_id", ValueProto.ValueType.Enum.FLOAT,
+                  "new_id", ValueProto.ValueType.Enum.INT64),
+              ImmutableMap.of("label_key", "label_value"));
+
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class, () -> apiClient.simpleApplyEntity("default", entity));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo(
+              String.format(
+                  "INTERNAL: You are attempting to change the columns of this entity in project %s: Given set of columns \n{%s}\n does not match existing set of columns\n {%s}. This isn't allowed. Please create a new entity.",
+                  "default",
+                  TypeConversion.convertEnumMapToJsonString(entity.getSpec().getColumnsMap()),
+                  TypeConversion.convertEnumMapToJsonString(
+                      originalEntity.getSpec().getColumnsMap()))));
+    }
+
+    @Test
+    public void shouldReturnEntityIfEntityHasNotChanged() {
+      String projectName = "default";
+      EntityProto.Entity entity = apiClient.simpleGetEntity(projectName, "entity1");
+
+      CoreServiceProto.ApplyEntityResponse response =
+          apiClient.simpleApplyEntity(projectName, entity);
+
+      assertThat(response.getEntity().getSpec().getName(), equalTo(entity.getSpec().getName()));
+      assertThat(
+          response.getEntity().getSpec().getDescription(),
+          equalTo(entity.getSpec().getDescription()));
+      assertThat(
+          response.getEntity().getSpec().getLabelsMap(), equalTo(entity.getSpec().getLabelsMap()));
+      assertThat(
+          response.getEntity().getSpec().getColumnsMap(),
+          equalTo(entity.getSpec().getColumnsMap()));
+    }
+
+    @Test
+    public void shouldApplyEntityIfNotExists() {
+      String projectName = "default";
+      EntityProto.Entity entity =
+          DataGenerator.createEntity(
+              "new_entity",
+              "Entity description",
+              ImmutableMap.of("merchant_id", ValueProto.ValueType.Enum.STRING),
+              ImmutableMap.of("label_key", "label_value"));
+
+      CoreServiceProto.ApplyEntityResponse response =
+          apiClient.simpleApplyEntity(projectName, entity);
+
+      assertThat(response.getEntity().getSpec().getName(), equalTo(entity.getSpec().getName()));
+      assertThat(
+          response.getEntity().getSpec().getDescription(),
+          equalTo(entity.getSpec().getDescription()));
+      assertThat(
+          response.getEntity().getSpec().getLabelsMap(), equalTo(entity.getSpec().getLabelsMap()));
+      assertThat(
+          response.getEntity().getSpec().getColumnsMap(),
+          equalTo(entity.getSpec().getColumnsMap()));
+    }
+
+    @Test
+    public void shouldCreateProjectWhenNotAlreadyExists() {
+      EntityProto.Entity entity =
+          DataGenerator.createEntity(
+              "new_entity2",
+              "Entity description",
+              ImmutableMap.of("id", ValueProto.ValueType.Enum.STRING),
+              ImmutableMap.of("key1", "val1"));
+      CoreServiceProto.ApplyEntityResponse response =
+          apiClient.simpleApplyEntity("new_project", entity);
+
+      assertThat(response.getEntity().getSpec().getName(), equalTo(entity.getSpec().getName()));
+      assertThat(
+          response.getEntity().getSpec().getDescription(),
+          equalTo(entity.getSpec().getDescription()));
+      assertThat(
+          response.getEntity().getSpec().getLabelsMap(), equalTo(entity.getSpec().getLabelsMap()));
+      assertThat(
+          response.getEntity().getSpec().getColumnsMap(),
+          equalTo(entity.getSpec().getColumnsMap()));
+    }
+
+    @Test
+    public void shouldFailWhenProjectIsArchived() {
+      apiClient.createProject("archived");
+      apiClient.archiveProject("archived");
+
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class,
+              () ->
+                  apiClient.simpleApplyEntity(
+                      "archived",
+                      DataGenerator.createEntity(
+                          "new_entity3",
+                          "Entity description",
+                          ImmutableMap.of("id", ValueProto.ValueType.Enum.STRING),
+                          ImmutableMap.of("key1", "val1"))));
+      assertThat(exc.getMessage(), equalTo("INTERNAL: Project is archived: archived"));
+    }
+
+    @Test
+    public void shouldUpdateLabels() {
+      EntityProto.Entity entity =
+          DataGenerator.createEntity(
+              "entity1",
+              "Entity description",
+              ImmutableMap.of(
+                  "driver_id", ValueProto.ValueType.Enum.STRING,
+                  "customer_id", ValueProto.ValueType.Enum.FLOAT),
+              ImmutableMap.of("label_key", "label_value", "label_key2", "label_value2"));
+
+      CoreServiceProto.ApplyEntityResponse response =
+          apiClient.simpleApplyEntity("default", entity);
+
+      assertThat(
+          response.getEntity().getSpec().getLabelsMap(), equalTo(entity.getSpec().getLabelsMap()));
     }
   }
 
@@ -621,6 +876,25 @@ public class SpecServiceIT extends BaseIT {
       assertThat(
           exc.getMessage(),
           equalTo("INTERNAL: Feature set with name \"unknown\" could not be found."));
+    }
+  }
+
+  @Nested
+  class GetEntity {
+    @Test
+    public void shouldThrowExceptionGivenMissingEntity() {
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class, () -> apiClient.simpleGetEntity("default", ""));
+
+      assertThat(exc.getMessage(), equalTo("INVALID_ARGUMENT: No entity name provided"));
+    }
+
+    public void shouldRetrieveFromDefaultIfProjectNotSpecified() {
+      String entityName = "entity1";
+      EntityProto.Entity entity = apiClient.simpleGetEntity("", entityName);
+
+      assertThat(entity.getSpec().getName(), equalTo(entityName));
     }
   }
 
