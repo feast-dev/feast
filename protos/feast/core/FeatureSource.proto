@@ -19,7 +19,7 @@ syntax = "proto3";
 package feast.core;
 
 option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
-option java_outer_classname = "FeatureSource";
+option java_outer_classname = "FeatureSourceProto";
 option java_package = "feast.proto.core";
 
 // Defines a Feature Source that can be used source Feature data

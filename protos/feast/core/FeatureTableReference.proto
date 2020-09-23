@@ -19,7 +19,7 @@ syntax = "proto3";
 package feast.core;
 
 option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
-option java_outer_classname = "FeatureTableReference";
+option java_outer_classname = "FeatureTableReferenceProto";
 option java_package = "feast.proto.core";
 
 // Defines a composite key that refers to a unique FeatureTable
