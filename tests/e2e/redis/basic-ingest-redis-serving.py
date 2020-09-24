@@ -22,7 +22,7 @@ from feast.core import CoreService_pb2
 from feast.core.CoreService_pb2 import ApplyFeatureSetResponse, GetFeatureSetResponse
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.IngestionJob_pb2 import IngestionJobStatus
-from feast.entity import Entity, EntityV2
+from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_set import FeatureSet, FeatureSetRef
 from feast.grpc.auth import get_auth_metadata_plugin
@@ -1388,50 +1388,6 @@ def test_sources_deduplicate_ingest_jobs(client, jobcontroller_client, kafka_bro
 
     while not is_same_jobs():
         time.sleep(1)
-
-
-@pytest.mark.run(order=80)
-def test_basic_register_entity_success(client):
-    car_driver_entity_expected = EntityV2(
-        name="driver_id",
-        description="Driver entity for car rides",
-        value_type=ValueType.STRING,
-        labels={"team": "matchmaking"},
-    )
-    client.apply_entity(car_driver_entity_expected)
-
-    car_driver_entity_actual = client.get_entity("driver_id")
-    assert car_driver_entity_actual == car_driver_entity_expected
-
-
-@pytest.mark.run(order=81)
-def test_basic_retrieve_entity_labels(client):
-    merchant_entity_1 = EntityV2(
-        name="merchant_id",
-        description="Merchant entity for sales",
-        value_type=ValueType.STRING,
-        labels={"team": "sales"},
-    )
-    merchant_entity_2 = EntityV2(
-        name="merchant_id2",
-        description="Merchant entity for sales2",
-        value_type=ValueType.STRING,
-        labels={"team": "sales"},
-    )
-    ride_entity = EntityV2(
-        name="ride_id",
-        description="Ride entity for rides",
-        value_type=ValueType.STRING,
-        labels={"team": "matchmaking"},
-    )
-
-    client.apply_entity(merchant_entity_1)
-    client.apply_entity(merchant_entity_2)
-    client.apply_entity(ride_entity)
-    merchant_entities_list = client.list_entities(labels={"team": "sales"})
-    assert len(merchant_entities_list) == 2
-    assert merchant_entities_list[0].name == "merchant_id"
-    assert merchant_entities_list[1].name == "merchant_id2"
 
 
 @pytest.mark.run(order=30)
