@@ -117,19 +117,16 @@ public class DataGenerator {
     return FeatureSetProto.EntitySpec.newBuilder().setName(name).setValueType(valueType).build();
   }
 
-  public static EntityProto.Entity createEntity(
+  public static EntityProto.EntitySpecV2 createEntitySpecV2(
       String name,
       String description,
       ValueProto.ValueType.Enum valueType,
       Map<String, String> labels) {
-    return EntityProto.Entity.newBuilder()
-        .setSpec(
-            EntityProto.EntitySpecV2.newBuilder()
-                .setName(name)
-                .setDescription(description)
-                .setValueType(valueType)
-                .putAllLabels(labels)
-                .build())
+    return EntityProto.EntitySpecV2.newBuilder()
+        .setName(name)
+        .setDescription(description)
+        .setValueType(valueType)
+        .putAllLabels(labels)
         .build();
   }
 

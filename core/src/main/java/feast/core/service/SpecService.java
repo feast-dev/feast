@@ -115,9 +115,7 @@ public class SpecService {
     checkValidCharacters(projectName, "project");
     checkValidCharacters(entityName, "entity");
 
-    EntityV2 entity;
-
-    entity = entityRepository.findEntityByNameAndProject_Name(entityName, projectName);
+    EntityV2 entity = entityRepository.findEntityByNameAndProject_Name(entityName, projectName);
 
     if (entity == null) {
       throw new RetrievalException(
@@ -461,24 +459,25 @@ public class SpecService {
   }
 
   /**
-   * Creates or updates a entity in the repository.
+   * Creates or updates an entity in the repository.
    *
    * <p>This function is idempotent. If no changes are detected in the incoming entity's schema,
    * this method will return the existing entity stored in the repository. If project is not
    * specified, the entity will be assigned to the 'default' project.
    *
-   * @param newEntity Entity that will be created or updated.
+   * @param newEntitySpec EntitySpecV2 that will be used to create or update an Entity.
    * @param projectName Project namespace of Entity which is to be created/updated
    */
   @Transactional
-  public ApplyEntityResponse applyEntity(EntityProto.Entity newEntity, String projectName) {
+  public ApplyEntityResponse applyEntity(
+      EntityProto.EntitySpecV2 newEntitySpec, String projectName) {
     // Autofill default project if not specified
     if (projectName == null || projectName.isEmpty()) {
       projectName = Project.DEFAULT_NAME;
     }
 
     // Validate incoming entity
-    EntityValidator.validateSpec(newEntity);
+    EntityValidator.validateSpec(newEntitySpec);
 
     // Find project or create new one if it does not exist
     Project project = projectRepository.findById(projectName).orElse(new Project(projectName));
@@ -490,16 +489,15 @@ public class SpecService {
 
     // Retrieve existing Entity
     EntityV2 entity =
-        entityRepository.findEntityByNameAndProject_Name(
-            newEntity.getSpec().getName(), projectName);
+        entityRepository.findEntityByNameAndProject_Name(newEntitySpec.getName(), projectName);
 
+    EntityProto.Entity newEntity = EntityProto.Entity.newBuilder().setSpec(newEntitySpec).build();
     if (entity == null) {
       // Create new entity since it doesn't exist
-      newEntity = newEntity.toBuilder().setSpec(newEntity.getSpec()).build();
       entity = EntityV2.fromProto(newEntity);
     } else {
       // If the entity remains unchanged, we do nothing.
-      if (entity.toProto().getSpec().equals(newEntity.getSpec())) {
+      if (entity.toProto().getSpec().equals(newEntitySpec)) {
         return ApplyEntityResponse.newBuilder().setEntity(entity.toProto()).build();
       }
       entity.updateFromProto(newEntity, projectName);

@@ -21,17 +21,17 @@ import static feast.core.validators.Matchers.checkValidCharacters;
 import feast.proto.core.EntityProto;
 
 public class EntityValidator {
-  public static void validateSpec(EntityProto.Entity entity) {
-    if (entity.getSpec().getName().isEmpty()) {
+  public static void validateSpec(EntityProto.EntitySpecV2 entitySpec) {
+    if (entitySpec.getName().isEmpty()) {
       throw new IllegalArgumentException("Entity name must be provided");
     }
-    if (entity.getSpec().getValueType().toString().isEmpty()) {
+    if (entitySpec.getValueType().toString().isEmpty()) {
       throw new IllegalArgumentException("Entity type must not be empty");
     }
-    if (entity.getSpec().getLabelsMap().containsKey("")) {
+    if (entitySpec.getLabelsMap().containsKey("")) {
       throw new IllegalArgumentException("Entity label keys must not be empty");
     }
 
-    checkValidCharacters(entity.getSpec().getName(), "entity");
+    checkValidCharacters(entitySpec.getName(), "entity");
   }
 }

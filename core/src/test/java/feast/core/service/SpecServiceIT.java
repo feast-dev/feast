@@ -70,14 +70,14 @@ public class SpecServiceIT extends BaseIT {
 
     apiClient.simpleApplyEntity(
         "default",
-        DataGenerator.createEntity(
+        DataGenerator.createEntitySpecV2(
             "entity1",
             "Entity 1 description",
             ValueProto.ValueType.Enum.STRING,
             ImmutableMap.of("label_key", "label_value")));
     apiClient.simpleApplyEntity(
         "default",
-        DataGenerator.createEntity(
+        DataGenerator.createEntitySpecV2(
             "entity2",
             "Entity 2 description",
             ValueProto.ValueType.Enum.STRING,
@@ -685,7 +685,7 @@ public class SpecServiceIT extends BaseIT {
               () ->
                   apiClient.simpleApplyEntity(
                       "default",
-                      DataGenerator.createEntity(
+                      DataGenerator.createEntitySpecV2(
                           "dash-entity",
                           "Dash Entity description",
                           ValueProto.ValueType.Enum.STRING,
@@ -702,12 +702,11 @@ public class SpecServiceIT extends BaseIT {
     }
 
     @Test
-    public void shouldThrowExceptionIfColumnsChanged() {
+    public void shouldThrowExceptionIfTypeChanged() {
       String projectName = "default";
-      EntityProto.Entity originalEntity = apiClient.simpleGetEntity(projectName, "entity1");
 
-      EntityProto.Entity entity =
-          DataGenerator.createEntity(
+      EntityProto.EntitySpecV2 spec =
+          DataGenerator.createEntitySpecV2(
               "entity1",
               "Entity description",
               ValueProto.ValueType.Enum.FLOAT,
@@ -715,76 +714,64 @@ public class SpecServiceIT extends BaseIT {
 
       StatusRuntimeException exc =
           assertThrows(
-              StatusRuntimeException.class, () -> apiClient.simpleApplyEntity("default", entity));
+              StatusRuntimeException.class, () -> apiClient.simpleApplyEntity("default", spec));
 
       assertThat(
           exc.getMessage(),
           equalTo(
               String.format(
                   "INTERNAL: You are attempting to change the type of this entity in %s project from %s to %s. This isn't allowed. Please create a new entity.",
-                  "default", "STRING", entity.getSpec().getValueType())));
+                  "default", "STRING", spec.getValueType())));
     }
 
     @Test
     public void shouldReturnEntityIfEntityHasNotChanged() {
       String projectName = "default";
-      EntityProto.Entity entity = apiClient.simpleGetEntity(projectName, "entity1");
+      EntityProto.EntitySpecV2 spec = apiClient.simpleGetEntity(projectName, "entity1").getSpec();
 
       CoreServiceProto.ApplyEntityResponse response =
-          apiClient.simpleApplyEntity(projectName, entity);
+          apiClient.simpleApplyEntity(projectName, spec);
 
-      assertThat(response.getEntity().getSpec().getName(), equalTo(entity.getSpec().getName()));
-      assertThat(
-          response.getEntity().getSpec().getDescription(),
-          equalTo(entity.getSpec().getDescription()));
-      assertThat(
-          response.getEntity().getSpec().getLabelsMap(), equalTo(entity.getSpec().getLabelsMap()));
-      assertThat(
-          response.getEntity().getSpec().getValueType(), equalTo(entity.getSpec().getValueType()));
+      assertThat(response.getEntity().getSpec().getName(), equalTo(spec.getName()));
+      assertThat(response.getEntity().getSpec().getDescription(), equalTo(spec.getDescription()));
+      assertThat(response.getEntity().getSpec().getLabelsMap(), equalTo(spec.getLabelsMap()));
+      assertThat(response.getEntity().getSpec().getValueType(), equalTo(spec.getValueType()));
     }
 
     @Test
     public void shouldApplyEntityIfNotExists() {
       String projectName = "default";
-      EntityProto.Entity entity =
-          DataGenerator.createEntity(
+      EntityProto.EntitySpecV2 spec =
+          DataGenerator.createEntitySpecV2(
               "new_entity",
               "Entity description",
               ValueProto.ValueType.Enum.STRING,
               ImmutableMap.of("label_key", "label_value"));
 
       CoreServiceProto.ApplyEntityResponse response =
-          apiClient.simpleApplyEntity(projectName, entity);
+          apiClient.simpleApplyEntity(projectName, spec);
 
-      assertThat(response.getEntity().getSpec().getName(), equalTo(entity.getSpec().getName()));
-      assertThat(
-          response.getEntity().getSpec().getDescription(),
-          equalTo(entity.getSpec().getDescription()));
-      assertThat(
-          response.getEntity().getSpec().getLabelsMap(), equalTo(entity.getSpec().getLabelsMap()));
-      assertThat(
-          response.getEntity().getSpec().getValueType(), equalTo(entity.getSpec().getValueType()));
+      assertThat(response.getEntity().getSpec().getName(), equalTo(spec.getName()));
+      assertThat(response.getEntity().getSpec().getDescription(), equalTo(spec.getDescription()));
+      assertThat(response.getEntity().getSpec().getLabelsMap(), equalTo(spec.getLabelsMap()));
+      assertThat(response.getEntity().getSpec().getValueType(), equalTo(spec.getValueType()));
     }
 
     @Test
     public void shouldCreateProjectWhenNotAlreadyExists() {
-      EntityProto.Entity entity =
-          DataGenerator.createEntity(
+      EntityProto.EntitySpecV2 spec =
+          DataGenerator.createEntitySpecV2(
               "new_entity2",
               "Entity description",
               ValueProto.ValueType.Enum.STRING,
               ImmutableMap.of("key1", "val1"));
       CoreServiceProto.ApplyEntityResponse response =
-          apiClient.simpleApplyEntity("new_project", entity);
+          apiClient.simpleApplyEntity("new_project", spec);
 
-      assertThat(response.getEntity().getSpec().getName(), equalTo(entity.getSpec().getName()));
-      assertThat(
-          response.getEntity().getSpec().getDescription(),
-          equalTo(entity.getSpec().getDescription()));
-      assertThat(
-          response.getEntity().getSpec().getLabelsMap(), equalTo(entity.getSpec().getLabelsMap()));
-      assertThat(
-          response.getEntity().getSpec().getValueType(), equalTo(entity.getSpec().getValueType()));
+      assertThat(response.getEntity().getSpec().getName(), equalTo(spec.getName()));
+      assertThat(response.getEntity().getSpec().getDescription(), equalTo(spec.getDescription()));
+      assertThat(response.getEntity().getSpec().getLabelsMap(), equalTo(spec.getLabelsMap()));
+      assertThat(response.getEntity().getSpec().getValueType(), equalTo(spec.getValueType()));
     }
 
     @Test
@@ -798,7 +785,7 @@ public class SpecServiceIT extends BaseIT {
               () ->
                   apiClient.simpleApplyEntity(
                       "archived",
-                      DataGenerator.createEntity(
+                      DataGenerator.createEntitySpecV2(
                           "new_entity3",
                           "Entity description",
                           ValueProto.ValueType.Enum.STRING,
@@ -808,18 +795,16 @@ public class SpecServiceIT extends BaseIT {
 
     @Test
     public void shouldUpdateLabels() {
-      EntityProto.Entity entity =
-          DataGenerator.createEntity(
+      EntityProto.EntitySpecV2 spec =
+          DataGenerator.createEntitySpecV2(
               "entity1",
               "Entity description",
               ValueProto.ValueType.Enum.STRING,
               ImmutableMap.of("label_key", "label_value", "label_key2", "label_value2"));
 
-      CoreServiceProto.ApplyEntityResponse response =
-          apiClient.simpleApplyEntity("default", entity);
+      CoreServiceProto.ApplyEntityResponse response = apiClient.simpleApplyEntity("default", spec);
 
-      assertThat(
-          response.getEntity().getSpec().getLabelsMap(), equalTo(entity.getSpec().getLabelsMap()));
+      assertThat(response.getEntity().getSpec().getLabelsMap(), equalTo(spec.getLabelsMap()));
     }
   }
 

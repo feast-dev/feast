@@ -28,7 +28,7 @@ import feast.core.service.SpecService;
 import feast.core.service.StatsService;
 import feast.proto.core.CoreServiceGrpc.CoreServiceImplBase;
 import feast.proto.core.CoreServiceProto.*;
-import feast.proto.core.EntityProto.Entity;
+import feast.proto.core.EntityProto.EntitySpecV2;
 import feast.proto.core.FeatureSetProto.FeatureSet;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -251,10 +251,10 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     String projectId = null;
 
     try {
-      Entity entity = request.getEntity();
+      EntitySpecV2 spec = request.getSpec();
       projectId = request.getProject();
       authorizationService.authorizeRequest(SecurityContextHolder.getContext(), projectId);
-      ApplyEntityResponse response = specService.applyEntity(entity, projectId);
+      ApplyEntityResponse response = specService.applyEntity(spec, projectId);
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (org.hibernate.exception.ConstraintViolationException e) {

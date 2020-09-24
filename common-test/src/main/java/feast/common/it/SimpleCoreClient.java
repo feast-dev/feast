@@ -36,11 +36,11 @@ public class SimpleCoreClient {
   }
 
   public CoreServiceProto.ApplyEntityResponse simpleApplyEntity(
-      String projectName, EntityProto.Entity entity) {
+      String projectName, EntityProto.EntitySpecV2 spec) {
     return stub.applyEntity(
         CoreServiceProto.ApplyEntityRequest.newBuilder()
             .setProject(projectName)
-            .setEntity(entity)
+            .setSpec(spec)
             .build());
   }
 

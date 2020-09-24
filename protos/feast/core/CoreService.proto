@@ -271,7 +271,7 @@ message ListStoresResponse {
 message ApplyEntityRequest {
     // If project is unspecified, will default to 'default' project.
     // If project specified does not exist, the project would be automatically created.
-    feast.core.Entity entity = 1;
+    feast.core.EntitySpecV2 spec = 1;
 
     // Name of project that this entity belongs to.
     string project = 2;

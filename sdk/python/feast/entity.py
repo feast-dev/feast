@@ -78,6 +78,7 @@ class EntityV2:
             self._labels = labels
 
         self._created_timestamp: Optional[Timestamp] = None
+        self._last_updated_timestamp: Optional[Timestamp] = None
 
     def __eq__(self, other):
         if not isinstance(other, EntityV2):
@@ -165,12 +166,12 @@ class EntityV2:
         """
         return self._created_timestamp
 
-    @created_timestamp.setter
-    def created_timestamp(self, created_timestamp):
+    @property
+    def last_updated_timestamp(self):
         """
-        Sets the status of this entity
+        Returns the last_updated_timestamp of this entity
         """
-        self._created_timestamp = created_timestamp
+        return self._last_updated_timestamp
 
     def is_valid(self):
         """
@@ -235,6 +236,7 @@ class EntityV2:
         )
 
         entity._created_timestamp = entity_proto.meta.created_timestamp
+        entity._last_updated_timestamp = entity_proto.meta.last_updated_timestamp
 
         return entity
 
@@ -246,7 +248,10 @@ class EntityV2:
             EntityV2Proto protobuf
         """
 
-        meta = EntityMetaProto(created_timestamp=self.created_timestamp)
+        meta = EntityMetaProto(
+            created_timestamp=self.created_timestamp,
+            last_updated_timestamp=self.last_updated_timestamp,
+        )
         if isinstance(self.value_type, ValueType):
             self.value_type = self.value_type.value
 
@@ -285,6 +290,27 @@ class EntityV2:
         entity_dict = self.to_dict()
         return yaml.dump(entity_dict, allow_unicode=True, sort_keys=False)
 
+    def to_spec_proto(self) -> EntitySpecProto:
+        """
+        Converts an EntityV2 object to its protobuf representation.
+        Used when passing EntitySpecV2 object to Feast request.
+
+        Returns:
+            EntitySpecV2 protobuf
+        """
+
+        if isinstance(self.value_type, ValueType):
+            self.value_type = self.value_type.value
+
+        spec = EntitySpecProto(
+            name=self.name,
+            description=self.description,
+            value_type=self.value_type,
+            labels=self.labels,
+        )
+
+        return spec
+
     def _update_from_entity(self, entity):
         """
         Deep replaces one entity with another
@@ -297,4 +323,5 @@ class EntityV2:
         self.description = entity.description
         self.value_type = entity.value_type
         self.labels = entity.labels
-        self.created_timestamp = entity.created_timestamp
+        self._created_timestamp = entity.created_timestamp
+        self._last_updated_timestamp = entity.last_updated_timestamp

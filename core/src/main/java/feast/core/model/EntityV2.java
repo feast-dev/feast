@@ -61,7 +61,7 @@ public class EntityV2 extends AbstractTimestampEntity {
   }
 
   /**
-   * EntityV2 object supports Entity registration outside of FeatureSet.
+   * EntityV2 object supports Entity registration in FeatureTable.
    *
    * <p>This data model supports Scalar Entity and would allow ease of discovery of entities and
    * reasoning when used in association with FeatureTable.
@@ -85,7 +85,9 @@ public class EntityV2 extends AbstractTimestampEntity {
     EntityMeta.Builder meta =
         EntityMeta.newBuilder()
             .setCreatedTimestamp(
-                Timestamp.newBuilder().setSeconds(super.getCreated().getTime() / 1000L));
+                Timestamp.newBuilder().setSeconds(super.getCreated().getTime() / 1000L))
+            .setLastUpdatedTimestamp(
+                Timestamp.newBuilder().setSeconds(super.getLastUpdated().getTime() / 1000L));
 
     EntitySpecV2.Builder spec =
         EntitySpecV2.newBuilder()

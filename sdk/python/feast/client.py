@@ -408,12 +408,12 @@ class Client:
         """
 
         entity.is_valid()
-        entity_proto = entity.to_proto()
+        entity_proto = entity.to_spec_proto()
 
         # Convert the entity to a request and send to Feast Core
         try:
             apply_entity_response = self._core_service.ApplyEntity(
-                ApplyEntityRequest(project=project, entity=entity_proto),
+                ApplyEntityRequest(project=project, spec=entity_proto),  # type: ignore
                 timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
                 metadata=self._get_grpc_metadata(),
             )  # type: ApplyEntityResponse
