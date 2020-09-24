@@ -25,17 +25,39 @@ import "google/protobuf/timestamp.proto";
 import "tensorflow_metadata/proto/v0/statistics.proto";
 import "feast/core/Entity.proto";
 import "feast/core/FeatureSet.proto";
-import "feast/core/FeatureTable.proto";
 import "feast/core/Store.proto";
 import "feast/core/FeatureSetReference.proto";
-import "feast/core/FeatureTableReference.proto";
 import "feast/core/IngestionJob.proto";
 
 service CoreService {
     // Retrieve version information about this Feast deployment
     rpc GetFeastCoreVersion (GetFeastCoreVersionRequest) returns (GetFeastCoreVersionResponse);
-    
-    /* Stores */
+
+    // Returns a specific feature set
+    rpc GetFeatureSet (GetFeatureSetRequest) returns (GetFeatureSetResponse);
+
+    // Returns a specific entity
+    rpc GetEntity (GetEntityRequest) returns (GetEntityResponse);
+
+    // Retrieve feature set details given a filter.
+    //
+    // Returns all feature sets matching that filter. If none are found,
+    // an empty list will be returned.
+    // If no filter is provided in the request, the response will contain all the feature
+    // sets currently stored in the registry.
+    rpc ListFeatureSets (ListFeatureSetsRequest) returns (ListFeatureSetsResponse);
+
+    // Returns all feature references and respective features matching that filter. If none are found
+    // an empty map will be returned
+    // If no filter is provided in the request, the response will contain all the features
+    // currently stored in the default project.
+    rpc ListFeatures (ListFeaturesRequest) returns (ListFeaturesResponse);
+
+    // Get feature statistics computed over the data in the batch stores.
+    //
+    // Returns a dataset containing TFDV statistics mapped to each valid historical store.
+    rpc GetFeatureStatistics (GetFeatureStatisticsRequest) returns (GetFeatureStatisticsResponse);
+
     // Retrieve store details given a filter.
     //
     // Returns all stores matching that filter. If none are found, an empty list will be returned.
@@ -43,15 +65,15 @@ service CoreService {
     // stored in the registry.
     rpc ListStores (ListStoresRequest) returns (ListStoresResponse);
 
-    // Updates core with the configuration of the store.
+    // Create or update and existing feature set.
     //
-    // If the changes are valid, core will return the given store configuration in response, and
-    // start or update the necessary feature population jobs for the updated store.
-    rpc UpdateStore (UpdateStoreRequest) returns (UpdateStoreResponse);
-
-    /* Entities */
-    // Returns a specific entity
-    rpc GetEntity (GetEntityRequest) returns (GetEntityResponse);
+    // This function is idempotent - it will not create a new feature set if schema does not change.
+    // Schema changes will update the feature set if the changes are valid.
+    // All changes except the following are valid:
+    // - Changes to feature set id (name, project)
+    // - Changes to entities
+    // - Changes to feature name and type
+    rpc ApplyFeatureSet (ApplyFeatureSetRequest) returns (ApplyFeatureSetResponse);
 
     // Create or update and existing entity.
     //
@@ -68,40 +90,25 @@ service CoreService {
     // currently stored in the default project.
     rpc ListEntities (ListEntitiesRequest) returns (ListEntitiesResponse);
 
-
-    /* Features */
-    // Returns all feature references and respective features matching that filter. If none are found
-    // an empty map will be returned
-    // If no filter is provided in the request, the response will contain all the features
-    // currently stored in the default project.
-    rpc ListFeatures (ListFeaturesRequest) returns (ListFeaturesResponse);
-
-    // Get feature statistics computed over the data in the batch stores.
+    // Updates core with the configuration of the store.
     //
-    // Returns a dataset containing TFDV statistics mapped to each valid historical store.
-    rpc GetFeatureStatistics (GetFeatureStatisticsRequest) returns (GetFeatureStatisticsResponse);
+    // If the changes are valid, core will return the given store configuration in response, and
+    // start or update the necessary feature population jobs for the updated store.
+    rpc UpdateStore (UpdateStoreRequest) returns (UpdateStoreResponse);
 
-    /* Feature Sets */
-    // Returns a specific feature set
-    rpc GetFeatureSet (GetFeatureSetRequest) returns (GetFeatureSetResponse);
+    // Creates a project. Projects serve as namespaces within which resources like features will be
+    // created. Feature set names as must be unique within a project while field (Feature/Entity) names
+    // must be unique within a Feature Set. Project names themselves must be globally unique.
+    rpc CreateProject (CreateProjectRequest) returns (CreateProjectResponse);
 
-    // Retrieve feature set details given a filter.
-    //
-    // Returns all feature sets matching that filter. If none are found,
-    // an empty list will be returned.
-    // If no filter is provided in the request, the response will contain all the feature
-    // sets currently stored in the registry.
-    rpc ListFeatureSets (ListFeatureSetsRequest) returns (ListFeatureSetsResponse);
+    // Archives a project. Archived projects will continue to exist and function, but won't be visible
+    // through the Core API. Any existing ingestion or serving requests will continue to function,
+    // but will result in warning messages being logged. It is not possible to unarchive a project
+    // through the Core API
+    rpc ArchiveProject (ArchiveProjectRequest) returns (ArchiveProjectResponse);
 
-    // Create or update and existing feature set.
-    //
-    // This function is idempotent - it will not create a new feature set if schema does not change.
-    // Schema changes will update the feature set if the changes are valid.
-    // All changes except the following are valid:
-    // - Changes to feature set id (name, project)
-    // - Changes to entities
-    // - Changes to feature name and type
-    rpc ApplyFeatureSet (ApplyFeatureSetRequest) returns (ApplyFeatureSetResponse);
+    // Lists all projects active projects.
+    rpc ListProjects (ListProjectsRequest) returns (ListProjectsResponse);
 
     // Internal API for Job Controller to update featureSet's status once responsible ingestion job is running
     rpc UpdateFeatureSetStatus (UpdateFeatureSetStatusRequest) returns (UpdateFeatureSetStatusResponse);
@@ -126,20 +133,6 @@ service CoreService {
     // Returns a specific feature table
     rpc GetFeatureTable (GetFeatureTableRequest) returns (GetFeatureTableResponse);
 
-    /* Projects */
-    // Creates a project. Projects serve as namespaces within which resources like features will be
-    // created. Feature set names as must be unique within a project while field (Feature/Entity) names
-    // must be unique within a Feature Set. Project names themselves must be globally unique.
-    rpc CreateProject (CreateProjectRequest) returns (CreateProjectResponse);
-
-    // Archives a project. Archived projects will continue to exist and function, but won't be visible
-    // through the Core API. Any existing ingestion or serving requests will continue to function,
-    // but will result in warning messages being logged. It is not possible to unarchive a project
-    // through the Core API
-    rpc ArchiveProject (ArchiveProjectRequest) returns (ArchiveProjectResponse);
-
-    // Lists all projects active projects.
-    rpc ListProjects (ListProjectsRequest) returns (ListProjectsResponse);
 }
 
 service JobControllerService {
