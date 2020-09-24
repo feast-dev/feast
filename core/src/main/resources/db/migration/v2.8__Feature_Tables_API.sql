@@ -5,7 +5,8 @@ CREATE TABLE feature_sources (
     id bigint NOT NULL,
     type character varying(255) NOT NULL,
     field_mapping character varying(255),
-    options character varying(255) NOT NULL,
+    -- Options are stored as Protobuf encoded as JSON
+    options text varying(255) NOT NULL,
 
     CONSTRAINT feature_sources_pkey PRIMARY KEY (id)
 );
