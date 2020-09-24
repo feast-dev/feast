@@ -15,7 +15,7 @@ ALTER TABLE ONLY entities_v2
     ADD CONSTRAINT entities_v2_pkey PRIMARY KEY (id);
 
 ALTER TABLE ONLY entities_v2
-    ADD CONSTRAINT entities_v2_ukey UNIQUE (name, project_name);
+    ADD CONSTRAINT entities_v2_project_ukey UNIQUE (name, project_name);
 
 ALTER TABLE ONLY entities_v2
-    ADD CONSTRAINT entities_v2_fkey FOREIGN KEY (project_name) REFERENCES projects(name);
+    ADD CONSTRAINT entities_v2_project_fkey FOREIGN KEY (project_name) REFERENCES projects(name);
