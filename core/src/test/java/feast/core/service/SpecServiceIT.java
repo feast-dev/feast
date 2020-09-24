@@ -223,15 +223,6 @@ public class SpecServiceIT extends BaseIT {
     }
 
     @Test
-    public void shouldGetAllEntitiesMatchingNameWithWildcardSearch() {
-      List<EntityProto.Entity> entities = apiClient.simpleListEntities("default", "ent*");
-
-      assertThat(entities, hasSize(2));
-      assertThat(entities, hasItem(hasProperty("spec", hasProperty("name", equalTo("entity1")))));
-      assertThat(entities, hasItem(hasProperty("spec", hasProperty("name", equalTo("entity2")))));
-    }
-
-    @Test
     public void shouldFilterEntitiesByNameAndProject() {
       List<EntityProto.Entity> entities = apiClient.simpleListEntities("default", "entity1");
 
@@ -241,8 +232,7 @@ public class SpecServiceIT extends BaseIT {
     @Test
     public void shouldFilterEntitiesByLabels() {
       List<EntityProto.Entity> entities =
-          apiClient.simpleListEntities(
-              "default", "*", ImmutableMap.of("label_key2", "label_value2"));
+          apiClient.simpleListEntities("*", "*", ImmutableMap.of("label_key2", "label_value2"));
 
       assertThat(entities, hasSize(1));
       assertThat(entities, hasItem(hasProperty("spec", hasProperty("name", equalTo("entity2")))));
@@ -250,11 +240,10 @@ public class SpecServiceIT extends BaseIT {
 
     @Test
     public void shouldUseDefaultProjectIfProjectUnspecified() {
-      List<EntityProto.Entity> entities = apiClient.simpleListEntities("", "*");
+      List<EntityProto.Entity> entities = apiClient.simpleListEntities("", "entity1");
 
-      assertThat(entities, hasSize(2));
+      assertThat(entities, hasSize(1));
       assertThat(entities, hasItem(hasProperty("spec", hasProperty("name", equalTo("entity1")))));
-      assertThat(entities, hasItem(hasProperty("spec", hasProperty("name", equalTo("entity2")))));
     }
 
     @Test
@@ -284,6 +273,25 @@ public class SpecServiceIT extends BaseIT {
               String.format(
                   "INVALID_ARGUMENT: Invalid ListEntitiesRequest. Project name cannot be a pattern. It may only be "
                       + "a specific project name or an asterisk: \n%s",
+                  filter.toString())));
+    }
+
+    @Test
+    public void shouldThrowExceptionGivenWildcardName() {
+      CoreServiceProto.ListEntitiesRequest.Filter filter =
+          CoreServiceProto.ListEntitiesRequest.Filter.newBuilder()
+              .setProject("default")
+              .setEntityName("ent*")
+              .build();
+      StatusRuntimeException exc =
+          assertThrows(StatusRuntimeException.class, () -> apiClient.simpleListEntities(filter));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo(
+              String.format(
+                  "INVALID_ARGUMENT: Invalid ListEntitiesRequest. Entity name cannot be a pattern. It may only be "
+                      + "a specific entity name: \n%s",
                   filter.toString())));
     }
   }
