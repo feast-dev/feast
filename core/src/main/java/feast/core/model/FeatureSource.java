@@ -46,11 +46,11 @@ public class FeatureSource {
 
   /** Type of this feature batch source */
   @Enumerated(EnumType.STRING)
-  @Column(name = "type")
+  @Column(name = "type", nullable = false)
   private SourceType type;
 
   /** Source type specific configuration options. Stored as Protobuf encoded as JSON string. */
-  @Column(name = "options")
+  @Column(name = "options", nullable = false)
   private String optionsJSON;
 
   private FeatureSource(SourceType type, String optionsJSON) {
