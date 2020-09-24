@@ -53,7 +53,7 @@ message FeatureTableSpec {
 
     // List names of entities to associate with the Features defined in this 
     // Feature Table.
-    repeated string entity_name = 2;
+    repeated string entities = 2;
 
     // List of features specifications for each feature defined with this feature table.
     repeated FeatureSpecV2 features = 3;
