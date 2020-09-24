@@ -377,17 +377,18 @@ public class SpecService {
       }
     } else if (!project.contains("*")) {
       // Matching a specific project
-      if (name.contains("*")) {
-        // Find all entities matching a pattern in a specific project
-        entities =
-            entityRepository.findAllByNameLikeAndProject_NameOrderByNameAsc(
-                name.replace('*', '%'), project);
-      } else if (!name.contains("*")) {
+      if (!name.contains("*")) {
         // Find a specific entity in a specific project
         EntityV2 entity = entityRepository.findEntityByNameAndProject_Name(name, project);
         if (entity != null) {
           entities.add(entity);
         }
+      } else {
+        throw new IllegalArgumentException(
+            String.format(
+                "Invalid ListEntitiesRequest. Entity name cannot be a pattern. It may only be "
+                    + "a specific entity name: \n%s",
+                filter.toString()));
       }
     } else {
       throw new IllegalArgumentException(
