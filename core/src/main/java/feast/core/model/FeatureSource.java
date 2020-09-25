@@ -18,8 +18,12 @@ package feast.core.model;
 
 import static feast.proto.core.FeatureSourceProto.FeatureSource.SourceType.*;
 
+import java.util.Map;
+
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
+
+import feast.core.util.TypeConversion;
 import feast.proto.core.FeatureSourceProto;
 import feast.proto.core.FeatureSourceProto.FeatureSource.BigQueryOptions;
 import feast.proto.core.FeatureSourceProto.FeatureSource.FileOptions;
@@ -40,22 +44,26 @@ import lombok.Getter;
 @Table(name = "feature_sources")
 public class FeatureSource {
   @Column(name = "id")
-  @Id
-  @GeneratedValue
-  private long id;
+  @Id @GeneratedValue private long id;
 
-  /** Type of this feature batch source */
+  // Type of this Feature Source
   @Enumerated(EnumType.STRING)
   @Column(name = "type", nullable = false)
   private SourceType type;
 
-  /** Source type specific configuration options. Stored as Protobuf encoded as JSON string. */
+  // Source type specific configuration options stored as Protobuf encoded as JSON string
   @Column(name = "options", nullable = false)
   private String optionsJSON;
 
-  private FeatureSource(SourceType type, String optionsJSON) {
+  // Field mapping between sourced fields (key) and feature fields (value).
+  // Stored as serialized JSON string.
+  @Column(name = "field_mapping", columnDefinition = "text")
+  private String fieldMapJSON;
+
+  private FeatureSource(SourceType type, String optionsJSON, String fieldMapJSON) {
     this.type = type;
     this.optionsJSON = optionsJSON;
+    this.fieldMapJSON = fieldMapJSON;
   }
 
   /**
@@ -71,7 +79,9 @@ public class FeatureSource {
       throw new InvalidProtocolBufferException("Missing Feature Store type: Type unset");
     }
 
-    // Serialize options as string by converting to JSON
+    // Serialize options and field mapping as string by converting to JSON
+    String fieldMapJSON = TypeConversion.convertMapToJsonString(spec.getFieldMappingMap());
+
     JsonFormat.Printer jsonPrinter = JsonFormat.printer();
     String optionsJSON = null;
     switch (spec.getType()) {
@@ -92,7 +102,7 @@ public class FeatureSource {
             String.format("Unsupported Feature Store Type: %s", spec.getType()));
     }
 
-    return new FeatureSource(spec.getType(), optionsJSON);
+    return new FeatureSource(spec.getType(), optionsJSON, fieldMapJSON);
   }
 
   /**
@@ -104,7 +114,9 @@ public class FeatureSource {
     FeatureSourceProto.FeatureSource.Builder spec = FeatureSourceProto.FeatureSource.newBuilder();
     spec.setType(getType());
 
-    // Parse options from stored options JSON
+    // Parse field mapping and options from JSON
+    spec.putAllFieldMapping(TypeConversion.convertJsonStringToMap(getFieldMapJSON()));
+
     JsonFormat.Parser jsonParser = JsonFormat.parser();
     try {
       switch (getType()) {
