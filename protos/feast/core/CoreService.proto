@@ -508,5 +508,5 @@ message ListFeatureTablesRequest {
 
 message ListFeatureTablesResponse {
     // List of matching Feature Tables
-    repeated FeatureTable table = 1;
+    repeated FeatureTable tables = 1;
 }
