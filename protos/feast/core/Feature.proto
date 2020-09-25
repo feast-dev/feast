@@ -25,10 +25,10 @@ option java_package = "feast.proto.core";
 import "feast/types/Value.proto";
 
 message FeatureSpecV2 {
-    // Name of the feature.
+    // Name of the feature. Not updatable.
     string name = 1;
 
-    // Value type of the feature.
+    // Value type of the feature. Not updatable.
     feast.types.ValueType.Enum value_type = 2;
 
     // Labels for user defined metadata on a feature

@@ -38,34 +38,37 @@ message FeatureTable {
 }
 
 message FeatureTableSpec {
-    // Name of the feature set. Must be unique.
+    // Name of the feature set. Must be unique. Not updated.
     string name = 1;
+    
+    // Name of the project that contains the Feature Table. Not updatable.
+    string project = 2;
 
     // List names of entities to associate with the Features defined in this 
-    // Feature Table.
-    repeated string entity_name = 2;
+    // Feature Table. Not updatable.
+    repeated string entities = 3;
 
     // List of features specifications for each feature defined with this feature table.
-    repeated FeatureSpecV2 features = 3;
+    repeated FeatureSpecV2 features = 4;
 
     // User defined metadata
-    map<string,string> labels = 4;
+    map<string,string> labels = 5;
 
     // Features in this feature table can only be retrieved from online serving
     // younger than max age. Age is measured as the duration of time between 
     // the feature's event timestamp and when the feature is retrieved
     // Feature values outside max age will be returned as unset values and indicated to end user
-    google.protobuf.Duration max_age = 5;
+    google.protobuf.Duration max_age = 6;
 
     // Batch/Offline Feature Source to source batch/offline feature data.
     // Only batch feature sources can be specified 
     // (ie source type should start with 'BATCH_')
-    FeatureSource batch_source = 6;
+    FeatureSource batch_source = 7;
 
     // Stream/Online Feature Source to source stream/online feature data.
     // Only stream feature sources can be specified 
     // (ie source type should start with 'STREAM_')
-    FeatureSource stream_source = 7;
+    FeatureSource stream_source = 8;
 }
 
 message FeatureTableMeta {
