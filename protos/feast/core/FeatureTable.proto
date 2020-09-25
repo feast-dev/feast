@@ -41,9 +41,6 @@ message FeatureTableSpec {
     // Name of the feature set. Must be unique. Not updated.
     string name = 1;
     
-    // Name of the project that contains the Feature Table. Not updatable.
-    string project = 2;
-
     // List names of entities to associate with the Features defined in this 
     // Feature Table. Not updatable.
     repeated string entities = 3;
