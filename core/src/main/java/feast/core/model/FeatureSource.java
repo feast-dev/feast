@@ -108,11 +108,7 @@ public class FeatureSource {
     return new FeatureSource(spec.getType(), optionsJSON, fieldMapJSON);
   }
 
-  /**
-   * Convert this FeatureSource to its Protobuf representation.
-   *
-   * @return Converted Protobuf representation.
-   */
+  /** Convert this FeatureSource to its Protobuf representation. */
   public FeatureSourceProto.FeatureSource toProto() {
     FeatureSourceProto.FeatureSource.Builder spec = FeatureSourceProto.FeatureSource.newBuilder();
     spec.setType(getType());
