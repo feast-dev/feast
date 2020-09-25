@@ -4,7 +4,7 @@
 CREATE TABLE feature_sources (
     id bigint NOT NULL,
     type character varying(255) NOT NULL,
-    field_mapping character varying(255),
+    field_mapping text NOT NULL,
     -- Options are stored as Protobuf encoded as JSON string.
     options text varying(255) NOT NULL,
 
@@ -18,10 +18,11 @@ CREATE TABLE feature_tables (
     name character varying(255) NOT NULL,
     created timestamp without time zone NOT NULL,
     last_updated timestamp without time zone NOT NULL,
-    labels text,
-    max_age bigint,
+    labels text NOT NULL,
+    max_age bigint NOT NULL,
     stream_source_id bigint,
     batch_source_id bigint,
+    revision bigint NOT NULL ,
 
     CONSTRAINT feature_tables_pkey PRIMARY KEY (id),
     CONSTRAINT feature_tables_project_fkey FOREIGN KEY (project_name) 
@@ -53,6 +54,7 @@ CREATE TABLE features_v2 (
     feature_table_id bigint NOT NULL,
     name character varying(255),
     type character varying(255),
+    labels text NOT NULL,
 
     CONSTRAINT features_v2_pkey PRIMARY KEY (id),
     CONSTRAINT features_v2_feature_table_fkey FOREIGN KEY (feature_table_id) 
