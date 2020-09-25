@@ -482,7 +482,7 @@ message ListFeatureTablesRequest {
         // Optional. Specifies the name of the project to list Feature Tables in.
         // If '*' would list Feature Tables in all projects
         // If unspecified would list Feature Tables in the default project.
-        string project_name = 1;
+        string project = 1;
 
         // Optional. Pattern to match the name of  desired feature tables.
         // '*' can be used to match 0 or more characters in the name.
@@ -490,7 +490,7 @@ message ListFeatureTablesRequest {
         // - * can be used to match all feature sets
         // - my-feature-set* can be used to match all features prefixed by "my-feature-set"
         // If unspecified would disable matching by Feature Table name.
-        string name_pattern = 2;
+        string feature_table_name = 2;
 
         // Optional. Feature Tables with all matching labels will be returned.
         // If unspecified would list Feature Tables without filtering by labels.
