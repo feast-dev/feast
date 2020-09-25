@@ -469,11 +469,16 @@ message ApplyFeatureTableResponse {
 }
 
 message GetFeatureTableRequest {
-    // Feature Table applied.
-    FeatureTableReference table_ref = 1;
+    // Optional. Name of the Project to retrieve the Feature Table from.
+    // If unspecified, will apply FeatureTable to the default project.
+    string project_name = 1;
+
+    // Name of the FeatureTable to retrieve.
+    string name = 2;
 }
 
 message GetFeatureTableResponse {
+    // The Feature Table retrieved.
     FeatureTable table = 1;
 }
 
@@ -502,6 +507,6 @@ message ListFeatureTablesRequest {
 }
 
 message ListFeatureTablesResponse {
-    // List of references to matching Feature Tables
-    repeated FeatureTableReference table_refs = 1;
+    // List of matching Feature Tables
+    repeate FeatureTable table = 1;
 }

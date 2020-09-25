@@ -18,11 +18,8 @@ package feast.core.model;
 
 import static feast.proto.core.FeatureSourceProto.FeatureSource.SourceType.*;
 
-import java.util.Map;
-
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-
 import feast.core.util.TypeConversion;
 import feast.proto.core.FeatureSourceProto;
 import feast.proto.core.FeatureSourceProto.FeatureSource.BigQueryOptions;
@@ -30,6 +27,7 @@ import feast.proto.core.FeatureSourceProto.FeatureSource.FileOptions;
 import feast.proto.core.FeatureSourceProto.FeatureSource.KafkaOptions;
 import feast.proto.core.FeatureSourceProto.FeatureSource.KinesisOptions;
 import feast.proto.core.FeatureSourceProto.FeatureSource.SourceType;
+import java.util.Objects;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -44,7 +42,9 @@ import lombok.Getter;
 @Table(name = "feature_sources")
 public class FeatureSource {
   @Column(name = "id")
-  @Id @GeneratedValue private long id;
+  @Id
+  @GeneratedValue
+  private long id;
 
   // Type of this Feature Source
   @Enumerated(EnumType.STRING)
@@ -70,13 +70,12 @@ public class FeatureSource {
    * Construct a FeatureSource from the given Protobuf representation spec
    *
    * @param spec Protobuf representation of Feature source to construct from.
-   * @throws InvalidProtocolBufferException when provided with a invalid Protobuf spec
+   * @throws IllegalArgumentException when provided with a invalid Protobuf spec
    * @throws UnsupportedOperationException if source type is unsupported.
    */
-  public static FeatureSource fromProto(FeatureSourceProto.FeatureSource spec)
-      throws InvalidProtocolBufferException {
+  public static FeatureSource fromProto(FeatureSourceProto.FeatureSource spec) {
     if (spec.getType().equals(SourceType.INVALID)) {
-      throw new InvalidProtocolBufferException("Missing Feature Store type: Type unset");
+      throw new IllegalArgumentException("Missing Feature Store type: Type unset");
     }
 
     // Serialize options and field mapping as string by converting to JSON
@@ -84,22 +83,26 @@ public class FeatureSource {
 
     JsonFormat.Printer jsonPrinter = JsonFormat.printer();
     String optionsJSON = null;
-    switch (spec.getType()) {
-      case BATCH_FILE:
-        optionsJSON = jsonPrinter.print(spec.getFileOptions());
-        break;
-      case BATCH_BIGQUERY:
-        optionsJSON = jsonPrinter.print(spec.getBigqueryOptions());
-        break;
-      case STREAM_KAFKA:
-        optionsJSON = jsonPrinter.print(spec.getKafkaOptions());
-        break;
-      case STREAM_KINESIS:
-        optionsJSON = jsonPrinter.print(spec.getKinesisOptions());
-        break;
-      default:
-        throw new UnsupportedOperationException(
-            String.format("Unsupported Feature Store Type: %s", spec.getType()));
+    try {
+      switch (spec.getType()) {
+        case BATCH_FILE:
+          optionsJSON = jsonPrinter.print(spec.getFileOptions());
+          break;
+        case BATCH_BIGQUERY:
+          optionsJSON = jsonPrinter.print(spec.getBigqueryOptions());
+          break;
+        case STREAM_KAFKA:
+          optionsJSON = jsonPrinter.print(spec.getKafkaOptions());
+          break;
+        case STREAM_KINESIS:
+          optionsJSON = jsonPrinter.print(spec.getKinesisOptions());
+          break;
+        default:
+          throw new UnsupportedOperationException(
+              String.format("Unsupported Feature Store Type: %s", spec.getType()));
+      }
+    } catch (InvalidProtocolBufferException e) {
+      throw new IllegalArgumentException("Unexpected error when converting options to JSON:", e);
     }
 
     return new FeatureSource(spec.getType(), optionsJSON, fieldMapJSON);
@@ -149,5 +152,22 @@ public class FeatureSource {
     }
 
     return spec.build();
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(super.hashCode(), getType(), getOptionsJSON());
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    FeatureSource feature = (FeatureSource) o;
+    return getType().equals(feature.getType()) && getOptionsJSON().equals(feature.getOptionsJSON());
   }
 }
