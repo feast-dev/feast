@@ -27,17 +27,7 @@ import "feast/types/Value.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "feast/core/FeatureSource.proto";
-
-message FeatureSpecV2 {
-    // Name of the feature.
-    string name = 1;
-
-    // Value type of the feature.
-    feast.types.ValueType.Enum value_type = 2;
-
-    // Labels for user defined metadata on a feature
-    map<string,string> labels = 3;
-}
+import "feast/core/Feature.proto";
 
 message FeatureTable {
     // User-specified specifications of this feature table.
