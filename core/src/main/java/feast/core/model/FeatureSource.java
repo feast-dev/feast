@@ -18,16 +18,14 @@ package feast.core.model;
 
 import static feast.proto.core.FeatureSourceProto.FeatureSourceSpec.SourceType.*;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
 import feast.core.util.TypeConversion;
 import feast.proto.core.FeatureSourceProto.FeatureSourceSpec;
 import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.BigQueryOptions;
 import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.FileOptions;
+import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.FileOptions.FileFormat;
 import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.KafkaOptions;
 import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.KinesisOptions;
 import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.SourceType;
-import java.util.Objects;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -35,10 +33,13 @@ import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Getter
+@Setter(AccessLevel.PRIVATE)
 @Table(name = "feature_sources")
 public class FeatureSource {
   @Column(name = "id")
@@ -51,19 +52,49 @@ public class FeatureSource {
   @Column(name = "type", nullable = false)
   private SourceType type;
 
-  // Source type specific configuration options stored as Protobuf encoded as JSON string
-  @Column(name = "options", nullable = false)
-  private String optionsJSON;
+  // Source type specific options
+  // File Options
+  @Enumerated(EnumType.STRING)
+  @Column(name = "file_format")
+  private FileFormat fileFormat;
+
+  @Column(name = "file_url")
+  private String fileURL;
+
+  // BigQuery Options
+  @Column(name = "bigquery_project_id")
+  private String bigQueryProjectId;
+
+  @Column(name = "bigquery_sql_query")
+  private String bigQuerySQLQuery;
+
+  // Kafka Options
+  @Column(name = "kafka_bootstrap_servers")
+  private String kafkaBootstrapServers;
+
+  @Column(name = "kafka_topic")
+  private String kafkaTopic;
+
+  @Column(name = "kafka_class_path")
+  private String kafkaClassPath;
+
+  // Kinesis Options
+  @Column(name = "kinesis_region")
+  private String kinesisRegion;
+
+  @Column(name = "kinesis_stream_name")
+  private String kinesisStreamName;
+
+  @Column(name = "kinesis_class_path")
+  private String kinesisClassPath;
 
   // Field mapping between sourced fields (key) and feature fields (value).
   // Stored as serialized JSON string.
   @Column(name = "field_mapping", columnDefinition = "text")
   private String fieldMapJSON;
 
-  private FeatureSource(SourceType type, String optionsJSON, String fieldMapJSON) {
+  private FeatureSource(SourceType type) {
     this.type = type;
-    this.optionsJSON = optionsJSON;
-    this.fieldMapJSON = fieldMapJSON;
   }
 
   /**
@@ -78,34 +109,36 @@ public class FeatureSource {
       throw new IllegalArgumentException("Missing Feature Store type: Type unset");
     }
 
-    // Serialize options and field mapping as string by converting to JSON
-    String fieldMapJSON = TypeConversion.convertMapToJsonString(spec.getFieldMappingMap());
-
-    JsonFormat.Printer jsonPrinter = JsonFormat.printer();
-    String optionsJSON = null;
-    try {
-      switch (spec.getType()) {
-        case BATCH_FILE:
-          optionsJSON = jsonPrinter.print(spec.getFileOptions());
-          break;
-        case BATCH_BIGQUERY:
-          optionsJSON = jsonPrinter.print(spec.getBigqueryOptions());
-          break;
-        case STREAM_KAFKA:
-          optionsJSON = jsonPrinter.print(spec.getKafkaOptions());
-          break;
-        case STREAM_KINESIS:
-          optionsJSON = jsonPrinter.print(spec.getKinesisOptions());
-          break;
-        default:
-          throw new UnsupportedOperationException(
-              String.format("Unsupported Feature Store Type: %s", spec.getType()));
-      }
-    } catch (InvalidProtocolBufferException e) {
-      throw new IllegalArgumentException("Unexpected error when converting options to JSON:", e);
+    FeatureSource source = new FeatureSource(spec.getType());
+    // Copy source type specific options
+    switch (spec.getType()) {
+      case BATCH_FILE:
+        source.setFileURL(spec.getFileOptions().getFileUrl());
+        source.setFileFormat(spec.getFileOptions().getFileFormat());
+        break;
+      case BATCH_BIGQUERY:
+        source.setBigQueryProjectId(spec.getBigqueryOptions().getProjectId());
+        source.setBigQuerySQLQuery(spec.getBigqueryOptions().getSqlQuery());
+        break;
+      case STREAM_KAFKA:
+        source.setKafkaBootstrapServers(spec.getKafkaOptions().getBootstrapServers());
+        source.setKafkaTopic(spec.getKafkaOptions().getTopic());
+        source.setKafkaClassPath(spec.getKafkaOptions().getClassPath());
+        break;
+      case STREAM_KINESIS:
+        source.setKinesisRegion(spec.getKinesisOptions().getRegion());
+        source.setKinesisStreamName(spec.getKinesisOptions().getStreamName());
+        source.setKinesisClassPath(spec.getKinesisOptions().getClassPath());
+        break;
+      default:
+        throw new UnsupportedOperationException(
+            String.format("Unsupported Feature Store Type: %s", spec.getType()));
     }
 
-    return new FeatureSource(spec.getType(), optionsJSON, fieldMapJSON);
+    // Store field mapping as serialised JSON
+    source.setFieldMapJSON(TypeConversion.convertMapToJsonString(spec.getFieldMappingMap()));
+
+    return source;
   }
 
   /** Convert this FeatureSource to its Protobuf representation. */
@@ -113,47 +146,48 @@ public class FeatureSource {
     FeatureSourceSpec.Builder spec = FeatureSourceSpec.newBuilder();
     spec.setType(getType());
 
+    // Extract source type specific options
+    switch (getType()) {
+      case BATCH_FILE:
+        FileOptions.Builder fileOptions = FileOptions.newBuilder();
+        fileOptions.setFileUrl(getFileURL());
+        fileOptions.setFileFormat(getFileFormat());
+        spec.setFileOptions(fileOptions.build());
+        break;
+      case BATCH_BIGQUERY:
+        BigQueryOptions.Builder bigQueryOptions = BigQueryOptions.newBuilder();
+        bigQueryOptions.setProjectId(getBigQueryProjectId());
+        bigQueryOptions.setSqlQuery(getBigQuerySQLQuery());
+        spec.setBigqueryOptions(bigQueryOptions.build());
+        break;
+      case STREAM_KAFKA:
+        KafkaOptions.Builder kafkaOptions = KafkaOptions.newBuilder();
+        kafkaOptions.setBootstrapServers(getKafkaBootstrapServers());
+        kafkaOptions.setTopic(getKafkaTopic());
+        kafkaOptions.setClassPath(getKafkaClassPath());
+        spec.setKafkaOptions(kafkaOptions.build());
+        break;
+      case STREAM_KINESIS:
+        KinesisOptions.Builder kinesisOptions = KinesisOptions.newBuilder();
+        kinesisOptions.setRegion(getKinesisRegion());
+        kinesisOptions.setStreamName(getKinesisStreamName());
+        kinesisOptions.setClassPath(getKinesisClassPath());
+        spec.setKinesisOptions(kinesisOptions.build());
+        break;
+      default:
+        throw new UnsupportedOperationException(
+            String.format("Unsupported Feature Store Type: %s", getType()));
+    }
+
     // Parse field mapping and options from JSON
     spec.putAllFieldMapping(TypeConversion.convertJsonStringToMap(getFieldMapJSON()));
-
-    // Contruct JSON parrser - ignore unknown fields required to maintain compatiblity when removing fields
-    JsonFormat.Parser jsonParser = JsonFormat.parser().ignoringUnknownFields();
-    try {
-      switch (getType()) {
-        case BATCH_FILE:
-          FileOptions.Builder fileOptions = FileOptions.newBuilder();
-          jsonParser.merge(getOptionsJSON(), fileOptions);
-          spec.setFileOptions(fileOptions.build());
-          break;
-        case BATCH_BIGQUERY:
-          BigQueryOptions.Builder bigQueryOptions = BigQueryOptions.newBuilder();
-          jsonParser.merge(getOptionsJSON(), bigQueryOptions);
-          spec.setBigqueryOptions(bigQueryOptions.build());
-          break;
-        case STREAM_KAFKA:
-          KafkaOptions.Builder kafkaOptions = KafkaOptions.newBuilder();
-          jsonParser.merge(getOptionsJSON(), kafkaOptions);
-          spec.setKafkaOptions(kafkaOptions.build());
-          break;
-        case STREAM_KINESIS:
-          KinesisOptions.Builder kinesisOptions = KinesisOptions.newBuilder();
-          jsonParser.merge(getOptionsJSON(), kinesisOptions);
-          spec.setKinesisOptions(kinesisOptions.build());
-          break;
-        default:
-          throw new UnsupportedOperationException(
-              String.format("Unsupported Feature Store Type: %s", getType()));
-      }
-    } catch (InvalidProtocolBufferException e) {
-      throw new RuntimeException("Unexpected exception when parsing FeatureSource options", e);
-    }
 
     return spec.build();
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(super.hashCode(), getType(), getOptionsJSON());
+    return toProto().hashCode();
   }
 
   @Override
@@ -164,7 +198,7 @@ public class FeatureSource {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    FeatureSource feature = (FeatureSource) o;
-    return getType().equals(feature.getType()) && getOptionsJSON().equals(feature.getOptionsJSON());
+    FeatureSource other = (FeatureSource) o;
+    return this.toProto().equals(other.toProto());
   }
 }

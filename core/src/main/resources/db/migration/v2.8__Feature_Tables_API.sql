@@ -1,12 +1,23 @@
--- Migration to Create Tables for Feature Tables API
-
 -- Feature Sources SQL table used to Store Feature project
 CREATE TABLE feature_sources (
     id bigint NOT NULL,
     type character varying(255) NOT NULL,
     field_mapping text NOT NULL,
-    -- Options are stored as Protobuf encoded as JSON string.
-    options text varying(255) NOT NULL,
+    -- Only the options corresponding to type should set & non-null
+    -- File Options
+    file_format character varying(255),
+    file_url character varying(255),
+    -- Bigquery Options
+    bigquery_project_id character varying(255),
+    bigquery_sql_query text,
+    -- Kafka Options
+    kafka_bootstrap_servers character varying(255),
+    kafka_topic character varying(255),
+    kafka_class_path character varying(255),
+    -- Kinesis Options
+    kinesis_region character varying(255),
+    kinesis_stream_name character varying(255),
+    kinesis_class_path character varray(255),
 
     CONSTRAINT feature_sources_pkey PRIMARY KEY (id)
 );
