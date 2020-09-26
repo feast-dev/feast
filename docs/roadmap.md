@@ -1,5 +1,25 @@
 # Roadmap
 
+## Feast 0.8
+
+[Discussion](https://github.com/feast-dev/feast/issues/1018)
+
+[Feast 0.8 RFC](https://docs.google.com/document/d/1snRxVb8ipWZjCiLlfkR4Oc28p7Fkv_UXjvxBFWjRBj4/edit#heading=h.yvkhw2cuvx5)
+
+### **New Functionality**
+
+1. Add support for AWS \(data sources and deployment\)
+2. Add support for local deployment
+3. Add support for Spark based ingestion
+4. Add support for Spark based historical retrieval
+
+### **Technical debt, refactoring, or housekeeping**
+
+1. Move job management functionality to SDK
+2. Remove Apache Beam based ingestion
+3. Allow direct ingestion from batch sources that does not pass through stream
+4. Remove Feast Historical Serving abstraction to allow direct access from Feast SDK to data sources for retrieval
+
 ## Feast 0.7
 
 [Discussion](https://github.com/feast-dev/feast/issues/834)
