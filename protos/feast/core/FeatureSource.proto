@@ -23,7 +23,7 @@ option java_outer_classname = "FeatureSourceProto";
 option java_package = "feast.proto.core";
 
 // Defines a Feature Source that can be used source Feature data
-message FeatureSource {
+message FeatureSourceSpec {
   // Type of Feature Source.
   enum SourceType {
     INVALID = 0;

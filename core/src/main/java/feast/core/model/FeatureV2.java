@@ -17,10 +17,8 @@
 package feast.core.model;
 
 import feast.core.util.TypeConversion;
-import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureProto.FeatureSpecV2;
 import feast.proto.types.ValueProto.ValueType;
-
 import java.util.Map;
 import java.util.Objects;
 import javax.persistence.*;
@@ -69,14 +67,15 @@ public class FeatureV2 {
     String labelsJSON = TypeConversion.convertMapToJsonString(spec.getLabelsMap());
     return new FeatureV2(spec.getName(), spec.getValueType(), labelsJSON);
   }
-  
-  /** Convert this Feature to its Protobuf representation.  */
+
+  /** Convert this Feature to its Protobuf representation. */
   public FeatureSpecV2 toProto() {
-      Map<String, String> labels = TypeConversion.convertJsonStringToMap(getLabelsJSON());
-      return FeatureSpecV2.newBuilder()
-          .setName(getName())
-          .setValueType(getType())
-          .putAllLabels(labels).build();
+    Map<String, String> labels = TypeConversion.convertJsonStringToMap(getLabelsJSON());
+    return FeatureSpecV2.newBuilder()
+        .setName(getName())
+        .setValueType(getType())
+        .putAllLabels(labels)
+        .build();
   }
 
   /**

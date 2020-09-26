@@ -16,17 +16,17 @@
  */
 package feast.core.model;
 
-import static feast.proto.core.FeatureSourceProto.FeatureSource.SourceType.*;
+import static feast.proto.core.FeatureSourceProto.FeatureSourceSpec.SourceType.*;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.util.TypeConversion;
-import feast.proto.core.FeatureSourceProto;
-import feast.proto.core.FeatureSourceProto.FeatureSource.BigQueryOptions;
-import feast.proto.core.FeatureSourceProto.FeatureSource.FileOptions;
-import feast.proto.core.FeatureSourceProto.FeatureSource.KafkaOptions;
-import feast.proto.core.FeatureSourceProto.FeatureSource.KinesisOptions;
-import feast.proto.core.FeatureSourceProto.FeatureSource.SourceType;
+import feast.proto.core.FeatureSourceProto.FeatureSourceSpec;
+import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.BigQueryOptions;
+import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.FileOptions;
+import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.KafkaOptions;
+import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.KinesisOptions;
+import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.SourceType;
 import java.util.Objects;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -73,7 +73,7 @@ public class FeatureSource {
    * @throws IllegalArgumentException when provided with a invalid Protobuf spec
    * @throws UnsupportedOperationException if source type is unsupported.
    */
-  public static FeatureSource fromProto(FeatureSourceProto.FeatureSource spec) {
+  public static FeatureSource fromProto(FeatureSourceSpec spec) {
     if (spec.getType().equals(SourceType.INVALID)) {
       throw new IllegalArgumentException("Missing Feature Store type: Type unset");
     }
@@ -109,14 +109,15 @@ public class FeatureSource {
   }
 
   /** Convert this FeatureSource to its Protobuf representation. */
-  public FeatureSourceProto.FeatureSource toProto() {
-    FeatureSourceProto.FeatureSource.Builder spec = FeatureSourceProto.FeatureSource.newBuilder();
+  public FeatureSourceSpec toProto() {
+    FeatureSourceSpec.Builder spec = FeatureSourceSpec.newBuilder();
     spec.setType(getType());
 
     // Parse field mapping and options from JSON
     spec.putAllFieldMapping(TypeConversion.convertJsonStringToMap(getFieldMapJSON()));
 
-    JsonFormat.Parser jsonParser = JsonFormat.parser();
+    // Contruct JSON parrser - ignore unknown fields required to maintain compatiblity when removing fields
+    JsonFormat.Parser jsonParser = JsonFormat.parser().ignoringUnknownFields();
     try {
       switch (getType()) {
         case BATCH_FILE:

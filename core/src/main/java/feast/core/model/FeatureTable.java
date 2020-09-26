@@ -16,16 +16,18 @@
  */
 package feast.core.model;
 
+import com.google.protobuf.Duration;
+import com.google.protobuf.Timestamp;
 import feast.core.dao.EntityRepository;
 import feast.core.util.TypeConversion;
-import feast.proto.core.FeatureTableProto;
 import feast.proto.core.FeatureProto.FeatureSpecV2;
-
+import feast.proto.core.FeatureTableProto;
+import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import java.util.Collection;
-import java.util.Set;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -39,10 +41,6 @@ import javax.persistence.ManyToMany;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
-
-import com.google.protobuf.Duration;
-import com.google.protobuf.Timestamp;
-
 import lombok.Getter;
 
 @Getter
@@ -120,8 +118,8 @@ public class FeatureTable extends AbstractTimestampEntity {
   }
 
   /**
-   * Construct Feature from Protobuf spec representation in the given project
-   * with entities registered in entity repository.
+   * Construct Feature from Protobuf spec representation in the given project with entities
+   * registered in entity repository.
    *
    * @param projectName the name of the project that the constructed Feature table belongs.
    * @param spec the Protobuf spec to contruct the Feature from.
@@ -130,15 +128,16 @@ public class FeatureTable extends AbstractTimestampEntity {
    * @return constructed Feature from the given Protobuf spec.
    */
   public static FeatureTable fromProto(
-      String projectName, FeatureTableProto.FeatureTableSpec spec, EntityRepository entityRepo) {
+      String projectName, FeatureTableSpec spec, EntityRepository entityRepo) {
     // Convert types of fields into storable format
     Set<FeatureV2> features =
         spec.getFeaturesList().stream().map(FeatureV2::fromProto).collect(Collectors.toSet());
     FeatureSource streamSource = FeatureSource.fromProto(spec.getStreamSource());
     FeatureSource batchSource = FeatureSource.fromProto(spec.getBatchSource());
-    Set<EntityV2> entities = FeatureTable.resolveEntities(projectName, entityRepo, spec.getEntitiesList());
+    Set<EntityV2> entities =
+        FeatureTable.resolveEntities(projectName, entityRepo, spec.getEntitiesList());
     String labelsJSON = TypeConversion.convertMapToJsonString(spec.getLabelsMap());
-  
+
     return new FeatureTable(
         spec.getName(),
         projectName,
@@ -155,78 +154,90 @@ public class FeatureTable extends AbstractTimestampEntity {
    *
    * @param spec the Protobuf spec to update the FeatureTable from.
    * @throws IllegalArgumentException if the update will make prohibited changes.
-  */
-  public void updateFromProto(FeatureTableProto.FeatureTableSpec spec) {
+   */
+  public void updateFromProto(FeatureTableSpec spec) {
     // Check for prohibited changes made in spec
-    if(!getName().equals(spec.getName())) {
+    if (!getName().equals(spec.getName())) {
       throw new IllegalArgumentException(
-          String.format("Updating the name of a registered FeatureTable is not allowed: %s to %s",
-            getName(), spec.getName()));
+          String.format(
+              "Updating the name of a registered FeatureTable is not allowed: %s to %s",
+              getName(), spec.getName()));
     }
-    List<String> entityNames = getEntities().stream().map(EntityV2::getName).collect(Collectors.toList());
-    if(!entityNames.equals(spec.getEntitiesList())) {
+    List<String> entityNames =
+        getEntities().stream().map(EntityV2::getName).collect(Collectors.toList());
+    if (!entityNames.equals(spec.getEntitiesList())) {
       throw new IllegalArgumentException(
-          String.format("Updating the entities of a registered FeatureTable is not allowed: %s to %s",
-            entityNames, spec.getEntitiesList()));
+          String.format(
+              "Updating the entities of a registered FeatureTable is not allowed: %s to %s",
+              entityNames, spec.getEntitiesList()));
     }
-   
+
     // Convert types of fields & update FeatureTable based on spec
     this.maxAgeSecs = spec.getMaxAge().getSeconds();
     this.labelsJSON = TypeConversion.convertMapToJsonString(spec.getLabelsMap());
     this.batchSource = FeatureSource.fromProto(spec.getBatchSource());
     this.streamSource = FeatureSource.fromProto(spec.getStreamSource());
     // Bump revision no.
-    this.revision ++;
+    this.revision++;
   }
-  
+
   /** Convert this Feature Table to its Protobuf representation */
   public FeatureTableProto.FeatureTable toProto() {
     // Convert field types to Protobuf compatible types
     Timestamp creationTime = TypeConversion.convertTimestamp(getCreated());
     Timestamp updatedTime = TypeConversion.convertTimestamp(getLastUpdated());
-    List<FeatureSpecV2> featureSpecs = getFeatures().stream().map(FeatureV2::toProto).collect(Collectors.toList());
-    List<String> entityNames = getEntities().stream().map(EntityV2::getName).collect(Collectors.toList());
+    List<FeatureSpecV2> featureSpecs =
+        getFeatures().stream().map(FeatureV2::toProto).collect(Collectors.toList());
+    List<String> entityNames =
+        getEntities().stream().map(EntityV2::getName).collect(Collectors.toList());
     Map<String, String> labels = TypeConversion.convertJsonStringToMap(getLabelsJSON());
 
     return FeatureTableProto.FeatureTable.newBuilder()
-      .setMeta(FeatureTableProto.FeatureTableMeta.newBuilder()
-          .setRevision(getRevision())
-          .setCreatedTimestamp(creationTime)
-          .setLastUpdatedTimestamp(updatedTime)
-          .build())
-      .setSpec(FeatureTableProto.FeatureTableSpec.newBuilder()
-          .setName(getName())
-          .setMaxAge(Duration.newBuilder().setSeconds(getMaxAgeSecs()).build())
-          .addAllEntities(entityNames)
-          .addAllFeatures(featureSpecs)
-          .putAllLabels(labels)
-          .build())
-      .build();
+        .setMeta(
+            FeatureTableProto.FeatureTableMeta.newBuilder()
+                .setRevision(getRevision())
+                .setCreatedTimestamp(creationTime)
+                .setLastUpdatedTimestamp(updatedTime)
+                .build())
+        .setSpec(
+            FeatureTableSpec.newBuilder()
+                .setName(getName())
+                .setMaxAge(Duration.newBuilder().setSeconds(getMaxAgeSecs()).build())
+                .addAllEntities(entityNames)
+                .addAllFeatures(featureSpecs)
+                .putAllLabels(labels)
+                .build())
+        .build();
   }
-  
+
   /** Use given entity repository to resolve entity names to entity native objects */
-  private static Set<EntityV2> resolveEntities(String projectName, EntityRepository repo, Collection<String> names) {
+  private static Set<EntityV2> resolveEntities(
+      String projectName, EntityRepository repo, Collection<String> names) {
     return names.stream()
-            .map(
-                entityName -> {
-                  EntityV2 entity =
-                      repo.findEntityByNameAndProject_Name(entityName, projectName);
-                  if (entity == null) {
-                    throw new IllegalArgumentException(
-                        String.format(
-                            "Feature Table refers to no existent Entity with name %s in project %s.",
-                            entityName, projectName));
-                  }
-                  return entity;
-                })
-            .collect(Collectors.toSet());
+        .map(
+            entityName -> {
+              EntityV2 entity = repo.findEntityByNameAndProject_Name(entityName, projectName);
+              if (entity == null) {
+                throw new IllegalArgumentException(
+                    String.format(
+                        "Feature Table refers to no existent Entity with name %s in project %s.",
+                        entityName, projectName));
+              }
+              return entity;
+            })
+        .collect(Collectors.toSet());
   }
-  
+
   @Override
   public int hashCode() {
     return Objects.hash(
-        getName(), getProject(), getFeatures(), getEntities(), getMaxAgeSecs(),
-        getBatchSource(), getStreamSource());
+        getName(),
+        getProject(),
+        getFeatures(),
+        getEntities(),
+        getMaxAgeSecs(),
+        getBatchSource(),
+        getStreamSource());
   }
 
   @Override
@@ -239,13 +250,12 @@ public class FeatureTable extends AbstractTimestampEntity {
     }
 
     FeatureTable other = (FeatureTable) o;
-    
-    return getName().equals(other.getName()) &&
-        getProject().equals(other.getProject()) &&
-        getLabelsJSON().equals(other.getLabelsJSON()) &&
-        getMaxAgeSecs() == getMaxAgeSecs() &&
-        getBatchSource().equals(getBatchSource()) &&
-        getStreamSource().equals(getStreamSource());
+
+    return getName().equals(other.getName())
+        && getProject().equals(other.getProject())
+        && getLabelsJSON().equals(other.getLabelsJSON())
+        && getMaxAgeSecs() == getMaxAgeSecs()
+        && getBatchSource().equals(getBatchSource())
+        && getStreamSource().equals(getStreamSource());
   }
-  
 }

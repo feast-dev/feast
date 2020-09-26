@@ -60,12 +60,12 @@ message FeatureTableSpec {
     // Batch/Offline Feature Source to source batch/offline feature data.
     // Only batch feature sources can be specified 
     // (ie source type should start with 'BATCH_')
-    FeatureSource batch_source = 7;
+    FeatureSourceSpec batch_source = 7;
 
     // Stream/Online Feature Source to source stream/online feature data.
     // Only stream feature sources can be specified 
     // (ie source type should start with 'STREAM_')
-    FeatureSource stream_source = 8;
+    FeatureSourceSpec stream_source = 8;
 }
 
 message FeatureTableMeta {
