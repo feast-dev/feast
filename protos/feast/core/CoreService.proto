@@ -485,7 +485,6 @@ message GetFeatureTableResponse {
 message ListFeatureTablesRequest {
     message Filter {
         // Optional. Specifies the name of the project to list Feature Tables in.
-        // If '*' would list Feature Tables in all projects
         // If unspecified would list Feature Tables in the default project.
         string project = 1;
 
@@ -495,7 +494,7 @@ message ListFeatureTablesRequest {
         // - * can be used to match all feature sets
         // - my-feature-set* can be used to match all features prefixed by "my-feature-set"
         // If unspecified would disable matching by Feature Table name.
-        string feature_table_name = 2;
+        string table_name = 2;
 
         // Optional. Feature Tables with all matching labels will be returned.
         // If unspecified would list Feature Tables without filtering by labels.

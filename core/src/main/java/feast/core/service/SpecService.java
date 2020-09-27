@@ -23,6 +23,7 @@ import static feast.core.validators.Matchers.checkValidCharactersAllowAsterisk;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.dao.EntityRepository;
 import feast.core.dao.FeatureSetRepository;
+import feast.core.dao.FeatureTableRepository;
 import feast.core.dao.ProjectRepository;
 import feast.core.dao.StoreRepository;
 import feast.core.exception.RegistrationException;
@@ -30,17 +31,24 @@ import feast.core.exception.RetrievalException;
 import feast.core.model.*;
 import feast.core.validators.EntityValidator;
 import feast.core.validators.FeatureSetValidator;
+import feast.core.validators.FeatureTableValidator;
 import feast.proto.core.CoreServiceProto.ApplyEntityResponse;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse.Status;
+import feast.proto.core.CoreServiceProto.ApplyFeatureTableRequest;
+import feast.proto.core.CoreServiceProto.ApplyFeatureTableResponse;
 import feast.proto.core.CoreServiceProto.GetEntityRequest;
 import feast.proto.core.CoreServiceProto.GetEntityResponse;
 import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
 import feast.proto.core.CoreServiceProto.GetFeatureSetResponse;
+import feast.proto.core.CoreServiceProto.GetFeatureTableRequest;
+import feast.proto.core.CoreServiceProto.GetFeatureTableResponse;
 import feast.proto.core.CoreServiceProto.ListEntitiesRequest;
 import feast.proto.core.CoreServiceProto.ListEntitiesResponse;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.proto.core.CoreServiceProto.ListFeatureTablesRequest;
+import feast.proto.core.CoreServiceProto.ListFeatureTablesResponse;
 import feast.proto.core.CoreServiceProto.ListFeaturesRequest;
 import feast.proto.core.CoreServiceProto.ListFeaturesResponse;
 import feast.proto.core.CoreServiceProto.ListStoresRequest;
@@ -53,12 +61,15 @@ import feast.proto.core.CoreServiceProto.UpdateStoreResponse;
 import feast.proto.core.EntityProto;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.FeatureSetStatus;
+import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.Subscription;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,6 +86,7 @@ public class SpecService {
 
   private final EntityRepository entityRepository;
   private final FeatureSetRepository featureSetRepository;
+  private final FeatureTableRepository tableRepository;
   private final ProjectRepository projectRepository;
   private final StoreRepository storeRepository;
   private final Source defaultSource;
@@ -83,11 +95,13 @@ public class SpecService {
   public SpecService(
       EntityRepository entityRepository,
       FeatureSetRepository featureSetRepository,
+      FeatureTableRepository tableRepository,
       StoreRepository storeRepository,
       ProjectRepository projectRepository,
       Source defaultSource) {
     this.entityRepository = entityRepository;
     this.featureSetRepository = featureSetRepository;
+    this.tableRepository = tableRepository;
     this.storeRepository = storeRepository;
     this.projectRepository = projectRepository;
     this.defaultSource = defaultSource;
@@ -297,6 +311,7 @@ public class SpecService {
       // Currently defaults to all FeatureSets
       List<FeatureSet> featureSets =
           featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc("%", project);
+      // TODO: List features in Feature Tables.
 
       ListFeaturesResponse.Builder response = ListFeaturesResponse.newBuilder();
       if (entities.size() > 0) {
@@ -624,5 +639,97 @@ public class SpecService {
         .setStatus(UpdateStoreResponse.Status.UPDATED)
         .setStore(updateStoreRequest.getStore())
         .build();
+  }
+
+  /**
+   * Applies the given Feature Table to the Feature Table registry. Creates the Feature Table if
+   * does not exist, otherwise updates the existing feature Table. Applies feature table in project
+   * if specified, otherwise in default project.
+   *
+   * @param request contain apply feature Table parameters.
+   * @return response containing the applied feature table.
+   */
+  @Transactional
+  public ApplyFeatureTableResponse applyFeatureTable(ApplyFeatureTableRequest request) {
+    // Autofill default project if project unspecified
+    String projectName =
+        (request.getProject().isEmpty()) ? Project.DEFAULT_NAME : request.getProject();
+
+    // Check that specfication provided is valid
+    FeatureTableSpec applySpec = request.getTableSpec();
+    FeatureTableValidator.validateSpec(applySpec);
+
+    // Create or update depending on whether there is an existing Feature Table
+    Optional<FeatureTable> existingTable =
+        tableRepository.findFeatureTableByNameAndProject_Name(applySpec.getName(), projectName);
+    FeatureTable applyTable = FeatureTable.fromProto(projectName, applySpec, entityRepository);
+    if (existingTable.isPresent() && applyTable.equals(existingTable.get())) {
+      // Skip update if no change is detected
+      return ApplyFeatureTableResponse.newBuilder().setTable(existingTable.get().toProto()).build();
+    }
+    if (existingTable.isPresent()) {
+      existingTable.get().updateFromProto(applySpec);
+      applyTable = existingTable.get();
+    }
+
+    // Commit Feature table to database and return applied feature table
+    tableRepository.saveAndFlush(applyTable);
+    return ApplyFeatureTableResponse.newBuilder().setTable(applyTable.toProto()).build();
+  }
+
+  /**
+   * List the Feature Tables matching the filter in the given filter. Scopes down listing to project
+   * if specified, the default project otherwise. '*' can be used in name filter to match 0 or more
+   * characters in Feature Table name.
+   *
+   * @param request containing listing parameters.
+   * @return response containing feature tables that
+   */
+  @Transactional
+  public ListFeatureTablesResponse listFeatureTables(ListFeatureTablesRequest request) {
+    ListFeatureTablesRequest.Filter filter = request.getFilter();
+    // Scope listing to default project if unspecified
+    String projectName =
+        (filter.getProject().isEmpty()) ? Project.DEFAULT_NAME : filter.getProject();
+
+    // Query for matching tables based on filter
+    List<FeatureTable> matchingTables = null;
+    if (!filter.getTableName().contains("*")) {
+      matchingTables =
+          tableRepository.findAllByNameAndProject_Name(filter.getTableName(), projectName);
+    } else {
+      String namePattern = filter.getTableName().replace('*', '%');
+      matchingTables = tableRepository.findAllByNameLikeAndProject_Name(namePattern, projectName);
+    }
+
+    return ListFeatureTablesResponse.newBuilder()
+        .addAllTables(
+            matchingTables.stream().map(FeatureTable::toProto).collect(Collectors.toList()))
+        .build();
+  }
+
+  /**
+   * Get the Feature Table with the name and project specified in the request. Gets feature table in
+   * project if specified, otherwise in default project.
+   *
+   * @param request containing the retrieval parameters.
+   * @throws NoSuchElementException if no feature table matches given request.
+   * @return response containing the requested feature table.
+   */
+  @Transactional
+  public GetFeatureTableResponse getFeatureTable(GetFeatureTableRequest request) {
+    // Autofill default project if project unspecified
+    String projectName =
+        (request.getProject().isEmpty()) ? Project.DEFAULT_NAME : request.getProject();
+
+    Optional<FeatureTable> retrieveTable =
+        tableRepository.findFeatureTableByNameAndProject_Name(request.getName(), projectName);
+    if (retrieveTable.isEmpty()) {
+      throw new NoSuchElementException(
+          String.format(
+              "No such Feature Table: (project:%, name:%)", projectName, request.getName()));
+    }
+
+    return GetFeatureTableResponse.newBuilder().setTable(retrieveTable.get().toProto()).build();
   }
 }

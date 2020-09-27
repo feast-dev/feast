@@ -39,6 +39,7 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.JoinTable;
 import javax.persistence.ManyToMany;
+import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
@@ -58,7 +59,8 @@ public class FeatureTable extends AbstractTimestampEntity {
   private String name;
 
   // Name of the Project that this FeatureTable belongs to
-  @Column(name = "project_name", nullable = false)
+  @ManyToOne
+  @JoinColumn(name = "project_name", nullable = false)
   private Project project;
 
   // Features defined in this Feature Table
@@ -278,6 +280,8 @@ public class FeatureTable extends AbstractTimestampEntity {
     return getName().equals(other.getName())
         && getProject().equals(other.getProject())
         && getLabelsJSON().equals(other.getLabelsJSON())
+        && getFeatures().containsAll(other.getFeatures())
+        && getEntities().containsAll(other.getEntities())
         && getMaxAgeSecs() == getMaxAgeSecs()
         && getBatchSource().equals(getBatchSource())
         && getStreamSource().equals(getStreamSource());
