@@ -17,8 +17,15 @@
 package feast.common.it;
 
 import com.google.common.collect.ImmutableList;
+import com.google.protobuf.Duration;
 import feast.proto.core.EntityProto;
+import feast.proto.core.FeatureProto.FeatureSpecV2;
 import feast.proto.core.FeatureSetProto;
+import feast.proto.core.FeatureSourceProto.FeatureSourceSpec;
+import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.FileOptions;
+import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.FileOptions.FileFormat;
+import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.KafkaOptions;
+import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
 import feast.proto.types.ValueProto;
@@ -192,5 +199,50 @@ public class DataGenerator {
       SourceProto.Source source, String projectName, String name) {
     return createFeatureSet(
         source, projectName, name, Collections.emptyMap(), Collections.emptyMap());
+  }
+
+  // Create a Feature Table spec without feature sources configured.
+  public static FeatureTableSpec createFeatureTableSpec(
+      String name,
+      List<String> entities,
+      Map<String, ValueProto.ValueType.Enum> features,
+      int maxAgeSecs,
+      Map<String, String> labels) {
+
+    return FeatureTableSpec.newBuilder()
+        .setName(name)
+        .addAllEntities(entities)
+        .addAllFeatures(
+            features.entrySet().stream()
+                .map(
+                    entry ->
+                        FeatureSpecV2.newBuilder()
+                            .setName(entry.getKey())
+                            .setValueType(entry.getValue())
+                            .build())
+                .collect(Collectors.toList()))
+        .setMaxAge(Duration.newBuilder().setSeconds(3600).build())
+        .build();
+  }
+
+  public static FeatureSourceSpec createFileFeatureSourceSpec(String fileURL) {
+    return FeatureSourceSpec.newBuilder()
+        .setType(FeatureSourceSpec.SourceType.BATCH_FILE)
+        .setFileOptions(
+            FileOptions.newBuilder().setFileFormat(FileFormat.PARQUET).setFileUrl(fileURL).build())
+        .build();
+  }
+
+  public static FeatureSourceSpec createKafkaFeatureSourceSpec(
+      String servers, String topic, String classPath) {
+    return FeatureSourceSpec.newBuilder()
+        .setType(FeatureSourceSpec.SourceType.STREAM_KAFKA)
+        .setKafkaOptions(
+            KafkaOptions.newBuilder()
+                .setTopic(topic)
+                .setBootstrapServers(servers)
+                .setClassPath(classPath)
+                .build())
+        .build();
   }
 }

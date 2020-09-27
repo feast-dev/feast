@@ -23,6 +23,7 @@ import feast.core.util.TypeConversion;
 import feast.proto.core.FeatureProto.FeatureSpecV2;
 import feast.proto.core.FeatureTableProto;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
+import feast.proto.types.ValueProto.ValueType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -156,13 +157,15 @@ public class FeatureTable extends AbstractTimestampEntity {
    * @throws IllegalArgumentException if the update will make prohibited changes.
    */
   public void updateFromProto(FeatureTableSpec spec) {
-    // Check for prohibited changes made in spec
+    // Check for prohibited changes made in spec:
+    // Name cannot be changed
     if (!getName().equals(spec.getName())) {
       throw new IllegalArgumentException(
           String.format(
               "Updating the name of a registered FeatureTable is not allowed: %s to %s",
               getName(), spec.getName()));
     }
+    // Entities cannot be changed
     List<String> entityNames =
         getEntities().stream().map(EntityV2::getName).collect(Collectors.toList());
     if (!entityNames.equals(spec.getEntitiesList())) {
@@ -171,8 +174,27 @@ public class FeatureTable extends AbstractTimestampEntity {
               "Updating the entities of a registered FeatureTable is not allowed: %s to %s",
               entityNames, spec.getEntitiesList()));
     }
+    // Feature type cannot change
+    Map<String, ValueType.Enum> featureTypes =
+        getFeatures().stream().collect(Collectors.toMap(FeatureV2::getName, FeatureV2::getType));
+    spec.getFeaturesList()
+        .forEach(
+            featureSpec -> {
+              String name = featureSpec.getName();
+              if (featureTypes.containsKey(name)) {
+                // Check for feature type changes
+                if (!featureTypes.get(name).equals(featureSpec.getValueType())) {
+                  throw new IllegalArgumentException(
+                      String.format(
+                          "Updating the value type of registered Feature is not allowed: %s: %s to %s",
+                          name, featureTypes.get(name), featureSpec.getValueType()));
+                }
+              }
+            });
 
     // Convert types of fields & update FeatureTable based on spec
+    this.features =
+        spec.getFeaturesList().stream().map(FeatureV2::fromProto).collect(Collectors.toSet());
     this.maxAgeSecs = spec.getMaxAge().getSeconds();
     this.labelsJSON = TypeConversion.convertMapToJsonString(spec.getLabelsMap());
     this.batchSource = FeatureSource.fromProto(spec.getBatchSource());
@@ -205,6 +227,8 @@ public class FeatureTable extends AbstractTimestampEntity {
                 .setMaxAge(Duration.newBuilder().setSeconds(getMaxAgeSecs()).build())
                 .addAllEntities(entityNames)
                 .addAllFeatures(featureSpecs)
+                .setBatchSource(getBatchSource().toProto())
+                .setStreamSource(getStreamSource().toProto())
                 .putAllLabels(labels)
                 .build())
         .build();
