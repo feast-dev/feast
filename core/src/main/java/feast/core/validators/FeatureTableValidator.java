@@ -1,0 +1,65 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package feast.core.validators;
+
+import static feast.core.validators.Matchers.*;
+
+import feast.proto.core.FeatureProto.FeatureSpecV2;
+import feast.proto.core.FeatureTableProto.FeatureTableSpec;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class FeatureTableValidator {
+  protected static final List<String> RESERVED_NAMES =
+      List.of("created_timestamp", "event_timestamp");
+
+  public static void validateSpec(FeatureTableSpec spec) {
+    if (spec.getName().isEmpty()) {
+      throw new IllegalArgumentException("FeatureTable name must be provided");
+    }
+    if (spec.getLabelsMap().containsKey("")) {
+      throw new IllegalArgumentException("FeatureTable cannot have labels with empty key.");
+    }
+
+    checkValidCharacters(spec.getName(), "FeatureTable");
+    spec.getFeaturesList().forEach(FeatureTableValidator::validateFeatureSpec);
+
+    // Check that features and entities defined in FeatureTable do not use reserved names
+    List<String> fieldNames = new LinkedList<>(spec.getEntitiesList());
+    fieldNames.addAll(
+        spec.getFeaturesList().stream().map(FeatureSpecV2::getName).collect(Collectors.toList()));
+    if (fieldNames.containsAll(RESERVED_NAMES)) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Reserved names has been used as Feature(s) names. Reserved: %s", RESERVED_NAMES));
+    }
+
+    // Check that Feaure and Entity names in FeatureTable do not collide with each other
+    if (hasDuplicates(fieldNames)) {
+      throw new IllegalArgumentException(
+          String.format("Entity and Feature names within a Feature Table should be unique."));
+    }
+  }
+
+  private static void validateFeatureSpec(FeatureSpecV2 spec) {
+    checkValidCharacters(spec.getName(), "Feature");
+    if (spec.getLabelsMap().containsKey("")) {
+      throw new IllegalArgumentException("Features cannot have labels with empty key.");
+    }
+  }
+}

@@ -16,6 +16,8 @@
  */
 package feast.core.validators;
 
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.regex.Pattern;
 
 public class Matchers {
@@ -74,5 +76,9 @@ public class Matchers {
               input,
               "argument must only contain alphanumeric characters, dashes, underscores, or an asterisk."));
     }
+  }
+
+  public static boolean hasDuplicates(Collection<String> strings) {
+    return (new HashSet<>(strings)).size() < strings.size();
   }
 }
