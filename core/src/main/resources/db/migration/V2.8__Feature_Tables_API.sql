@@ -17,7 +17,7 @@ CREATE TABLE feature_sources (
     -- Kinesis Options
     kinesis_region character varying(255),
     kinesis_stream_name character varying(255),
-    kinesis_class_path character varray(255),
+    kinesis_class_path character varying(255),
 
     CONSTRAINT feature_sources_pkey PRIMARY KEY (id)
 );
@@ -33,7 +33,7 @@ CREATE TABLE feature_tables (
     max_age bigint NOT NULL,
     stream_source_id bigint,
     batch_source_id bigint,
-    revision bigint NOT NULL ,
+    revision int NOT NULL ,
 
     CONSTRAINT feature_tables_pkey PRIMARY KEY (id),
     CONSTRAINT feature_tables_project_fkey FOREIGN KEY (project_name) 

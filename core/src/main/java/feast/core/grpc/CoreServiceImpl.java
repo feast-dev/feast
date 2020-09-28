@@ -17,7 +17,6 @@
 package feast.core.grpc;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import java.util.NoSuchElementException;
 import feast.common.auth.service.AuthorizationService;
 import feast.common.logging.interceptors.GrpcMessageInterceptor;
 import feast.core.config.FeastProperties;
@@ -35,6 +34,7 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.server.service.GrpcService;
@@ -449,16 +449,15 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   @Override
-  public void listFeatureTables(ListFeatureTablesRequest request,
+  public void listFeatureTables(
+      ListFeatureTablesRequest request,
       StreamObserver<ListFeatureTablesResponse> responseObserver) {
     try {
       ListFeatureTablesResponse response = specService.listFeatureTables(request);
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (IllegalArgumentException e) {
-      log.error(
-          String.format(
-              "ListFeatureTable: Invalid list Feature Table Request"));
+      log.error(String.format("ListFeatureTable: Invalid list Feature Table Request"));
       responseObserver.onError(
           Status.INVALID_ARGUMENT
               .withDescription(e.getMessage())
@@ -470,18 +469,20 @@ public class CoreServiceImpl extends CoreServiceImplBase {
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
   }
-  
+
   @Override
-  public void getFeatureTable(GetFeatureTableRequest request,
-      StreamObserver<GetFeatureTableResponse> responseObserver) {
+  public void getFeatureTable(
+      GetFeatureTableRequest request, StreamObserver<GetFeatureTableResponse> responseObserver) {
     try {
       GetFeatureTableResponse response = specService.getFeatureTable(request);
-      
+
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (NoSuchElementException e) {
-      log.error(String.format("GetFeatureTable: No such Feature Table: (project: %s, name: %s)", 
-            request.getProject(), request.getName()));
+      log.error(
+          String.format(
+              "GetFeatureTable: No such Feature Table: (project: %s, name: %s)",
+              request.getProject(), request.getName()));
       responseObserver.onError(
           Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     } catch (Exception e) {

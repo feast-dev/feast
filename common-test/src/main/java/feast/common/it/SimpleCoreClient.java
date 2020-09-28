@@ -17,6 +17,8 @@
 package feast.common.it;
 
 import feast.proto.core.*;
+import feast.proto.core.CoreServiceProto.ApplyFeatureTableRequest;
+import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -189,5 +191,15 @@ public class SimpleCoreClient {
                 .setName(featureSetName)
                 .build())
         .getFeatureSet();
+  }
+
+  public FeatureTableProto.FeatureTable applyFeatureTable(
+      String projectName, FeatureTableSpec spec) {
+    return stub.applyFeatureTable(
+            ApplyFeatureTableRequest.newBuilder()
+                .setProject(projectName)
+                .setTableSpec(spec)
+                .build())
+        .getTable();
   }
 }

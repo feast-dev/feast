@@ -48,7 +48,7 @@ import lombok.Getter;
 @Getter
 @Entity
 @Table(
-    name = "feature_table",
+    name = "feature_tables",
     uniqueConstraints = @UniqueConstraint(columnNames = {"name", "project_name"}))
 public class FeatureTable extends AbstractTimestampEntity {
 
@@ -102,7 +102,9 @@ public class FeatureTable extends AbstractTimestampEntity {
   @Column(name = "revision", nullable = false)
   private int revision;
 
-  private FeatureTable(
+  public FeatureTable() {};
+
+  public FeatureTable(
       String name,
       String projectName,
       Set<FeatureV2> features,

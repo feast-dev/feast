@@ -219,6 +219,7 @@ public class DataGenerator {
                         FeatureSpecV2.newBuilder()
                             .setName(entry.getKey())
                             .setValueType(entry.getValue())
+                            .putAllLabels(labels)
                             .build())
                 .collect(Collectors.toList()))
         .setMaxAge(Duration.newBuilder().setSeconds(3600).build())

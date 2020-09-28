@@ -51,7 +51,9 @@ public class FeatureV2 {
   @Column(name = "labels", columnDefinition = "text")
   private String labelsJSON;
 
-  private FeatureV2(String name, ValueType.Enum type, String labelsJSON) {
+  public FeatureV2() {};
+
+  public FeatureV2(String name, ValueType.Enum type, String labelsJSON) {
     this.name = name;
     this.type = type;
     this.labelsJSON = labelsJSON;

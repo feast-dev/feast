@@ -76,5 +76,5 @@ message FeatureTableMeta {
     google.protobuf.Timestamp last_updated_timestamp = 2;
 
     // Auto incrementing revision no. of this Feature Table
-    int32 revision = 3;
+    int64 revision = 3;
 }

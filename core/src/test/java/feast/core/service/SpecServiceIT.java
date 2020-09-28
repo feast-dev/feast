@@ -34,6 +34,7 @@ import feast.common.it.BaseIT;
 import feast.common.it.DataGenerator;
 import feast.common.it.SimpleCoreClient;
 import feast.proto.core.*;
+import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import feast.proto.types.ValueProto;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -931,6 +932,152 @@ public class SpecServiceIT extends BaseIT {
       assertThat(result5, aMapWithSize(2));
       assertThat(result5, hasKey(equalTo("default/fs1:total")));
       assertThat(result5, hasKey(equalTo("default/fs2:sum")));
+    }
+  }
+
+  @Nested
+  public class ApplyFeatureTable {
+    private FeatureTableSpec getTestSpec() {
+      return DataGenerator.createFeatureTableSpec(
+          "ft",
+          List.of("entity1", "entity2"),
+          Map.of(
+              "feature1", ValueProto.ValueType.Enum.INT64,
+              "feature2", ValueProto.ValueType.Enum.FLOAT),
+          3600,
+          Map.of());
+    }
+
+    @Test
+    public void shouldApplyNewValidTable() {
+      // Should automatically create nonexistent project when applying feature set.
+      FeatureTableProto.FeatureTable table =
+          apiClient.applyFeatureTable("nonexistent", getTestSpec());
+
+      assertThat(table.getSpec(), equalTo(getTestSpec()));
+      assertThat(table.getMeta().getRevision(), equalTo(1));
+    }
+
+    @Test
+    public void shouldUpdateExistingTableWithValidSpec() {
+      FeatureTableProto.FeatureTable table = apiClient.applyFeatureTable("default", getTestSpec());
+
+      FeatureTableSpec updatedSpec =
+          DataGenerator.createFeatureTableSpec(
+              "ft",
+              List.of("entity1", "entity2"),
+              Map.of(
+                  "feature1", ValueProto.ValueType.Enum.INT64,
+                  "feature2", ValueProto.ValueType.Enum.FLOAT,
+                  "feature3", ValueProto.ValueType.Enum.INT64,
+                  "feature4", ValueProto.ValueType.Enum.INT64),
+              2100,
+              Map.of("test", "labels"));
+      FeatureTableProto.FeatureTable updatedTable =
+          apiClient.applyFeatureTable("default", updatedSpec);
+
+      assertThat(updatedTable.getSpec(), equalTo(updatedSpec));
+      assertThat(updatedTable.getMeta().getRevision(), equalTo(table.getMeta().getRevision() + 1));
+    }
+
+    @Test
+    public void shouldNotUpdateIfNoChanges() {
+      FeatureTableProto.FeatureTable table = apiClient.applyFeatureTable("default", getTestSpec());
+      FeatureTableProto.FeatureTable updatedTable =
+          apiClient.applyFeatureTable("default", getTestSpec());
+
+      assertThat(updatedTable.getMeta().getRevision(), equalTo(table.getMeta().getRevision()));
+    }
+
+    @Test
+    public void shouldErrorOnReservedNames() {
+      // Reserved name used as feature name
+      assertThrows(
+          StatusRuntimeException.class,
+          () ->
+              apiClient.applyFeatureTable(
+                  "default",
+                  DataGenerator.createFeatureTableSpec(
+                      "ft",
+                      List.of("entity1"),
+                      Map.of("event_timestamp", ValueProto.ValueType.Enum.INT64),
+                      3600,
+                      Map.of())));
+
+      // Reserved name used in as entity namf
+      assertThrows(
+          StatusRuntimeException.class,
+          () ->
+              apiClient.applyFeatureTable(
+                  "default",
+                  DataGenerator.createFeatureTableSpec(
+                      "ft",
+                      List.of("created_timestamp"),
+                      Map.of("feature1", ValueProto.ValueType.Enum.INT64),
+                      3600,
+                      Map.of())));
+    }
+
+    @Test
+    public void shouldErrorOnInvalidName() {
+      // Invalid feature table name
+      assertThrows(
+          StatusRuntimeException.class,
+          () ->
+              apiClient.applyFeatureTable(
+                  "default",
+                  DataGenerator.createFeatureTableSpec(
+                      "f-t",
+                      List.of("entity1"),
+                      Map.of("feature1", ValueProto.ValueType.Enum.INT64),
+                      3600,
+                      Map.of())));
+
+      // Invalid feature name
+      assertThrows(
+          StatusRuntimeException.class,
+          () ->
+              apiClient.applyFeatureTable(
+                  "default",
+                  DataGenerator.createFeatureTableSpec(
+                      "ft",
+                      List.of("entity1"),
+                      Map.of("feature-1", ValueProto.ValueType.Enum.INT64),
+                      3600,
+                      Map.of())));
+    }
+
+    @Test
+    public void shouldErrorOnNotFoundEntityName() {
+      assertThrows(
+          StatusRuntimeException.class,
+          () ->
+              apiClient.applyFeatureTable(
+                  "default",
+                  DataGenerator.createFeatureTableSpec(
+                      "ft1",
+                      List.of("entity_not_found"),
+                      Map.of("feature1", ValueProto.ValueType.Enum.INT64),
+                      3600,
+                      Map.of())));
+    }
+
+    @Test
+    public void shouldErrorOnArchivedProject() {
+      apiClient.createProject("archived");
+      apiClient.archiveProject("archived");
+
+      assertThrows(
+          StatusRuntimeException.class,
+          () ->
+              apiClient.applyFeatureTable(
+                  "archived",
+                  DataGenerator.createFeatureTableSpec(
+                      "ft1",
+                      List.of("entity1", "entity2"),
+                      Map.of("feature1", ValueProto.ValueType.Enum.INT64),
+                      3600,
+                      Map.of())));
     }
   }
 }

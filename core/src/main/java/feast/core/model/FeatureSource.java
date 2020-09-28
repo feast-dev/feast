@@ -93,7 +93,9 @@ public class FeatureSource {
   @Column(name = "field_mapping", columnDefinition = "text")
   private String fieldMapJSON;
 
-  private FeatureSource(SourceType type) {
+  public FeatureSource() {};
+
+  public FeatureSource(SourceType type) {
     this.type = type;
   }
 
