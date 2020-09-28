@@ -17,6 +17,7 @@
 package feast.core.grpc;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.NoSuchElementException;
 import feast.common.auth.service.AuthorizationService;
 import feast.common.logging.interceptors.GrpcMessageInterceptor;
 import feast.core.config.FeastProperties;
@@ -285,8 +286,8 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     String projectId = null;
 
     try {
-      FeatureSet featureSet = specService.imputeProjectName(request.getFeatureSet());
-      projectId = featureSet.getSpec().getProject();
+      FeatureSet featureSet = request.getFeatureSet();
+      projectId = SpecService.resolveProjectName(featureSet.getSpec().getProject());
       authorizationService.authorizeRequest(SecurityContextHolder.getContext(), projectId);
       ApplyFeatureSetResponse response = specService.applyFeatureSet(featureSet);
       responseObserver.onNext(response);
@@ -387,6 +388,104 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onCompleted();
     } catch (Exception e) {
       log.error("Exception has occurred in the listProjects method: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void applyFeatureTable(
+      ApplyFeatureTableRequest request,
+      StreamObserver<ApplyFeatureTableResponse> responseObserver) {
+    String projectName = SpecService.resolveProjectName(request.getProject());
+    String tableName = request.getTableSpec().getName();
+
+    try {
+      // Check if user has authorization to apply feature table
+      authorizationService.authorizeRequest(SecurityContextHolder.getContext(), projectName);
+
+      ApplyFeatureTableResponse response = specService.applyFeatureTable(request);
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (AccessDeniedException e) {
+      log.info(
+          String.format(
+              "ApplyFeatureTable: wNot authorized to access project to apply: %s", projectName));
+      responseObserver.onError(
+          Status.PERMISSION_DENIED
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
+    } catch (org.hibernate.exception.ConstraintViolationException e) {
+      log.error(
+          String.format(
+              "ApplyFeatureTable: Unable to apply Feature Table due to a conflict: "
+                  + "Ensure that name is unique within Project: (name: %s, project: %s)",
+              projectName, tableName));
+      responseObserver.onError(
+          Status.ALREADY_EXISTS.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    } catch (IllegalArgumentException e) {
+      log.error(
+          String.format(
+              "ApplyFeatureTable: Invalid apply Feature Table Request: (name: %s, project: %s)",
+              projectName, tableName));
+      responseObserver.onError(
+          Status.INVALID_ARGUMENT
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
+    } catch (UnsupportedOperationException e) {
+      log.error(
+          String.format(
+              "ApplyFeatureTable: Unsupported apply Feature Table Request: (name: %s, project: %s)",
+              projectName, tableName));
+      responseObserver.onError(
+          Status.UNIMPLEMENTED.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    } catch (Exception e) {
+      log.error("ApplyFeatureTable Exception has occurred:", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void listFeatureTables(ListFeatureTablesRequest request,
+      StreamObserver<ListFeatureTablesResponse> responseObserver) {
+    try {
+      ListFeatureTablesResponse response = specService.listFeatureTables(request);
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (IllegalArgumentException e) {
+      log.error(
+          String.format(
+              "ListFeatureTable: Invalid list Feature Table Request"));
+      responseObserver.onError(
+          Status.INVALID_ARGUMENT
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
+    } catch (Exception e) {
+      log.error("ListFeatureTable: Exception has occurred: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+  
+  @Override
+  public void getFeatureTable(GetFeatureTableRequest request,
+      StreamObserver<GetFeatureTableResponse> responseObserver) {
+    try {
+      GetFeatureTableResponse response = specService.getFeatureTable(request);
+      
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (NoSuchElementException e) {
+      log.error(String.format("GetFeatureTable: No such Feature Table: (project: %s, name: %s)", 
+            request.getProject(), request.getName()));
+      responseObserver.onError(
+          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    } catch (Exception e) {
+      log.error("GetFeatureTable: Exception has occurred: ", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }

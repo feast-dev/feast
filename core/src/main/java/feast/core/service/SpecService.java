@@ -590,18 +590,12 @@ public class SpecService {
   }
 
   /**
-   * Sets project to 'default' if project is not specified in feature set
+   * Resolves the project name by returning name if given, autofilling default project otherwise.
    *
-   * @param featureSet Feature set which needs to be imputed with default project.
+   * @param projectName name of the project to resolve.
    */
-  public FeatureSetProto.FeatureSet imputeProjectName(FeatureSetProto.FeatureSet featureSet) {
-    if (featureSet.getSpec().getProject().isEmpty()) {
-      return featureSet
-          .toBuilder()
-          .setSpec(featureSet.getSpec().toBuilder().setProject(Project.DEFAULT_NAME).build())
-          .build();
-    }
-    return featureSet;
+  public static String resolveProjectName(String projectName) {
+    return (projectName.isEmpty()) ? Project.DEFAULT_NAME : projectName;
   }
 
   /**
@@ -647,17 +641,25 @@ public class SpecService {
    * if specified, otherwise in default project.
    *
    * @param request contain apply feature Table parameters.
+   * @throws NoSuchElementException projects and entities referenced in request do not exist.
    * @return response containing the applied feature table.
    */
   @Transactional
   public ApplyFeatureTableResponse applyFeatureTable(ApplyFeatureTableRequest request) {
-    // Autofill default project if project unspecified
-    String projectName =
-        (request.getProject().isEmpty()) ? Project.DEFAULT_NAME : request.getProject();
+    String projectName = resolveProjectName(request.getProject());
 
     // Check that specfication provided is valid
     FeatureTableSpec applySpec = request.getTableSpec();
     FeatureTableValidator.validateSpec(applySpec);
+
+    // Prevent apply if the project is archived.
+    Project project = projectRepository.findById(projectName).orElse(new Project(projectName));
+    if (project.isArchived()) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Cannot apply Feature Table to archived Project: (table: %s, project: %s)",
+              applySpec.getName(), projectName));
+    }
 
     // Create or update depending on whether there is an existing Feature Table
     Optional<FeatureTable> existingTable =
@@ -688,9 +690,7 @@ public class SpecService {
   @Transactional
   public ListFeatureTablesResponse listFeatureTables(ListFeatureTablesRequest request) {
     ListFeatureTablesRequest.Filter filter = request.getFilter();
-    // Scope listing to default project if unspecified
-    String projectName =
-        (filter.getProject().isEmpty()) ? Project.DEFAULT_NAME : filter.getProject();
+    String projectName = resolveProjectName(filter.getProject());
 
     // Query for matching tables based on filter
     List<FeatureTable> matchingTables = null;
@@ -718,9 +718,7 @@ public class SpecService {
    */
   @Transactional
   public GetFeatureTableResponse getFeatureTable(GetFeatureTableRequest request) {
-    // Autofill default project if project unspecified
-    String projectName =
-        (request.getProject().isEmpty()) ? Project.DEFAULT_NAME : request.getProject();
+    String projectName = resolveProjectName(request.getProject());
 
     Optional<FeatureTable> retrieveTable =
         tableRepository.findFeatureTableByNameAndProject_Name(request.getName(), projectName);

@@ -88,11 +88,13 @@ public class FeatureTable extends AbstractTimestampEntity {
   private long maxAgeSecs;
 
   // Streaming Feature Source used to obtain data for features from a stream
-  @Column(name = "stream_source_id")
+  @ManyToOne
+  @JoinColumn(name = "stream_source_id")
   private FeatureSource streamSource;
 
   // Batched Feature Source used to obtain data for features from a batch of data
-  @Column(name = "batch_source_id")
+  @ManyToOne
+  @JoinColumn(name = "batch_source_id")
   private FeatureSource batchSource;
 
   // Autoincrementing version no. of this Feature Table.
