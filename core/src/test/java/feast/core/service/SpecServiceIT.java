@@ -82,6 +82,13 @@ public class SpecServiceIT extends BaseIT {
             "Entity 2 description",
             ValueProto.ValueType.Enum.STRING,
             ImmutableMap.of("label_key2", "label_value2")));
+    apiClient.simpleApplyEntity(
+        "project1",
+        DataGenerator.createEntitySpecV2(
+            "entity3",
+            "Entity 3 description",
+            ValueProto.ValueType.Enum.STRING,
+            ImmutableMap.of("label_key2", "label_value2")));
     apiClient.simpleApplyFeatureSet(
         DataGenerator.createFeatureSet(
             source,
@@ -216,23 +223,9 @@ public class SpecServiceIT extends BaseIT {
   @Nested
   class ListEntities {
     @Test
-    public void shouldGetAllEntitiesIfOnlyWildcardsProvided() {
-      List<EntityProto.Entity> entities = apiClient.simpleListEntities("*", "*");
-
-      assertThat(entities, hasSize(2));
-    }
-
-    @Test
-    public void shouldFilterEntitiesByNameAndProject() {
-      List<EntityProto.Entity> entities = apiClient.simpleListEntities("default", "entity1");
-
-      assertThat(entities, hasItem(hasProperty("spec", hasProperty("name", equalTo("entity1")))));
-    }
-
-    @Test
     public void shouldFilterEntitiesByLabels() {
       List<EntityProto.Entity> entities =
-          apiClient.simpleListEntities("*", "*", ImmutableMap.of("label_key2", "label_value2"));
+          apiClient.simpleListEntities("", ImmutableMap.of("label_key2", "label_value2"));
 
       assertThat(entities, hasSize(1));
       assertThat(entities, hasItem(hasProperty("spec", hasProperty("name", equalTo("entity2")))));
@@ -240,30 +233,25 @@ public class SpecServiceIT extends BaseIT {
 
     @Test
     public void shouldUseDefaultProjectIfProjectUnspecified() {
-      List<EntityProto.Entity> entities = apiClient.simpleListEntities("", "entity1");
+      List<EntityProto.Entity> entities = apiClient.simpleListEntities("");
 
-      assertThat(entities, hasSize(1));
+      assertThat(entities, hasSize(2));
       assertThat(entities, hasItem(hasProperty("spec", hasProperty("name", equalTo("entity1")))));
     }
 
     @Test
-    public void shouldThrowExceptionGivenMissingEntityName() {
-      StatusRuntimeException exc =
-          assertThrows(StatusRuntimeException.class, () -> apiClient.simpleListEntities("", ""));
+    public void shouldFilterEntitiesByProjectAndLabels() {
+      List<EntityProto.Entity> entities =
+          apiClient.simpleListEntities("project1", ImmutableMap.of("label_key2", "label_value2"));
 
-      assertThat(
-          exc.getMessage(),
-          equalTo(
-              "INVALID_ARGUMENT: Invalid ListEntitiesRequest, missing arguments. Must provide entity name."));
+      assertThat(entities, hasSize(1));
+      assertThat(entities, hasItem(hasProperty("spec", hasProperty("name", equalTo("entity3")))));
     }
 
     @Test
-    public void shouldThrowExceptionGivenWildcardProjectWildcardName() {
+    public void shouldThrowExceptionGivenWildcardProject() {
       CoreServiceProto.ListEntitiesRequest.Filter filter =
-          CoreServiceProto.ListEntitiesRequest.Filter.newBuilder()
-              .setProject("def*")
-              .setEntityName("ent*")
-              .build();
+          CoreServiceProto.ListEntitiesRequest.Filter.newBuilder().setProject("default*").build();
       StatusRuntimeException exc =
           assertThrows(StatusRuntimeException.class, () -> apiClient.simpleListEntities(filter));
 
@@ -271,28 +259,9 @@ public class SpecServiceIT extends BaseIT {
           exc.getMessage(),
           equalTo(
               String.format(
-                  "INVALID_ARGUMENT: Invalid ListEntitiesRequest. Project name cannot be a pattern. It may only be "
-                      + "a specific project name or an asterisk: \n%s",
-                  filter.toString())));
-    }
-
-    @Test
-    public void shouldThrowExceptionGivenWildcardName() {
-      CoreServiceProto.ListEntitiesRequest.Filter filter =
-          CoreServiceProto.ListEntitiesRequest.Filter.newBuilder()
-              .setProject("default")
-              .setEntityName("ent*")
-              .build();
-      StatusRuntimeException exc =
-          assertThrows(StatusRuntimeException.class, () -> apiClient.simpleListEntities(filter));
-
-      assertThat(
-          exc.getMessage(),
-          equalTo(
-              String.format(
-                  "INVALID_ARGUMENT: Invalid ListEntitiesRequest. Entity name cannot be a pattern. It may only be "
-                      + "a specific entity name: \n%s",
-                  filter.toString())));
+                  "INVALID_ARGUMENT: invalid value for project resource, %s: "
+                      + "argument must only contain alphanumeric characters and underscores.",
+                  filter.getProject())));
     }
   }
 

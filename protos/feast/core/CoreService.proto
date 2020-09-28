@@ -204,25 +204,12 @@ message ListEntitiesRequest {
     Filter filter = 1;
 
     message Filter {
-        // Name of project that the entities belongs to. This can be one of
-        // - [project_name]
-        // - *
-        // If an asterisk is provided, filtering on projects will be disabled. All projects will
-        // be matched. It is NOT possible to provide an asterisk with a string in order to do
-        // pattern matching.
+        // Optional. Specifies the name of the project to list Entities in.
+        // It is NOT possible to provide an asterisk with a string in order to do pattern matching.
         // If unspecified, this field will default to the default project 'default'.
         string project = 3;
 
-        // Name of the desired entity. Asterisks can be used as wildcards in the name.
-        // Matching on names is only permitted if a specific project is defined. It is disallowed
-        // If the project name is set to "*"
-        // e.g.
-        // - * can be used to match all entities
-        // - my-entity* can be used to match all entities prefixed by "my-entity-set"
-        // - my-entity-6 can be used to select a single entity
-        string entity_name = 1;
-
-        // User defined metadata for entity.
+        // Optional. User defined metadata for entity.
         // Entities with all matching labels will be returned.
         map<string,string> labels = 4;
     }

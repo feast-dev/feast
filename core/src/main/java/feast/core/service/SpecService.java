@@ -343,60 +343,17 @@ public class SpecService {
    * @return ListEntitiesResponse with list of entities found matching the filter
    */
   public ListEntitiesResponse listEntities(ListEntitiesRequest.Filter filter) {
-    String name = filter.getEntityName();
     String project = filter.getProject();
     Map<String, String> labelsFilter = filter.getLabelsMap();
-
-    if (name.isEmpty()) {
-      throw new IllegalArgumentException(
-          "Invalid ListEntitiesRequest, missing arguments. Must provide entity name.");
-    }
-
-    checkValidCharactersAllowAsterisk(name, "entity");
-    checkValidCharactersAllowAsterisk(project, "project");
 
     // Autofill default project if project not specified
     if (project.isEmpty()) {
       project = Project.DEFAULT_NAME;
     }
 
-    List<EntityV2> entities = new ArrayList<>() {};
+    checkValidCharacters(project, "project");
 
-    if (project.equals("*")) {
-      // Matching a wildcard project
-      if (name.contains("*")) {
-        entities =
-            entityRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc(
-                name.replace('*', '%'), project.replace('*', '%'));
-      } else {
-        throw new IllegalArgumentException(
-            String.format(
-                "Invalid ListEntitiesRequest. Entity name must be set to "
-                    + "\"*\" if the project name and entity name aren't set explicitly: \n%s",
-                filter.toString()));
-      }
-    } else if (!project.contains("*")) {
-      // Matching a specific project
-      if (!name.contains("*")) {
-        // Find a specific entity in a specific project
-        EntityV2 entity = entityRepository.findEntityByNameAndProject_Name(name, project);
-        if (entity != null) {
-          entities.add(entity);
-        }
-      } else {
-        throw new IllegalArgumentException(
-            String.format(
-                "Invalid ListEntitiesRequest. Entity name cannot be a pattern. It may only be "
-                    + "a specific entity name: \n%s",
-                filter.toString()));
-      }
-    } else {
-      throw new IllegalArgumentException(
-          String.format(
-              "Invalid ListEntitiesRequest. Project name cannot be a pattern. It may only be "
-                  + "a specific project name or an asterisk: \n%s",
-              filter.toString()));
-    }
+    List<EntityV2> entities = entityRepository.findAllByProject_Name(project);
 
     ListEntitiesResponse.Builder response = ListEntitiesResponse.newBuilder();
     if (entities.size() > 0) {

@@ -427,14 +427,13 @@ class Client:
         entity._update_from_entity(applied_entity)
 
     def list_entities(
-        self, project: str = None, name: str = None, labels: Dict[str, str] = dict()
+        self, project: str = None, labels: Dict[str, str] = dict()
     ) -> List[EntityV2]:
         """
         Retrieve a list of entities from Feast Core
 
         Args:
             project: Filter entities based on project name
-            name: Filter entities based on entity name
             labels: User-defined labels that these entities are associated with
 
         Returns:
@@ -444,12 +443,7 @@ class Client:
         if project is None:
             project = self.project
 
-        if name is None:
-            name = "*"
-
-        filter = ListEntitiesRequest.Filter(
-            project=project, entity_name=name, labels=labels
-        )
+        filter = ListEntitiesRequest.Filter(project=project, labels=labels)
 
         # Get latest entities from Feast Core
         entity_protos = self._core_service.ListEntities(

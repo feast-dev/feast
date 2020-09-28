@@ -25,13 +25,9 @@ public interface EntityRepository extends JpaRepository<EntityV2, String> {
 
   long count();
 
+  // Find all EntityV2s by project
+  List<EntityV2> findAllByProject_Name(String project);
+
   // Find single EntityV2 by project and name
   EntityV2 findEntityByNameAndProject_Name(String name, String project);
-
-  // Find all EntityV2s matching the given name pattern with a specific project
-  List<EntityV2> findAllByNameLikeAndProject_NameOrderByNameAsc(String name, String project_name);
-
-  // Find all EntityV2s matching the given name pattern and project pattern
-  List<EntityV2> findAllByNameLikeAndProject_NameLikeOrderByNameAsc(
-      String name, String project_name);
 }

@@ -44,26 +44,24 @@ public class SimpleCoreClient {
             .build());
   }
 
-  public List<EntityProto.Entity> simpleListEntities(String projectName, String entityName) {
+  public List<EntityProto.Entity> simpleListEntities(String projectName) {
     return stub.listEntities(
             CoreServiceProto.ListEntitiesRequest.newBuilder()
                 .setFilter(
                     CoreServiceProto.ListEntitiesRequest.Filter.newBuilder()
                         .setProject(projectName)
-                        .setEntityName(entityName)
                         .build())
                 .build())
         .getEntitiesList();
   }
 
   public List<EntityProto.Entity> simpleListEntities(
-      String projectName, String entityName, Map<String, String> labels) {
+      String projectName, Map<String, String> labels) {
     return stub.listEntities(
             CoreServiceProto.ListEntitiesRequest.newBuilder()
                 .setFilter(
                     CoreServiceProto.ListEntitiesRequest.Filter.newBuilder()
                         .setProject(projectName)
-                        .setEntityName(entityName)
                         .putAllLabels(labels)
                         .build())
                 .build())

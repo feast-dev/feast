@@ -182,14 +182,7 @@ def entity_describe(name: str, project: str):
     "-p",
     help="Project that entity belongs to",
     type=click.STRING,
-    default="*",
-)
-@click.option(
-    "--name",
-    "-n",
-    help="Filters entities by name. Wildcards (*) may be included to match multiple entities",
-    type=click.STRING,
-    default="*",
+    default="",
 )
 @click.option(
     "--labels",
@@ -198,7 +191,7 @@ def entity_describe(name: str, project: str):
     type=click.STRING,
     default="",
 )
-def entity_list(project: str, name: str, labels: str):
+def entity_list(project: str, labels: str):
     """
     List all entities
     """
@@ -207,9 +200,7 @@ def entity_list(project: str, name: str, labels: str):
     labels_dict = _get_labels_dict(labels)
 
     table = []
-    for entity in feast_client.list_entities(
-        project=project, name=name, labels=labels_dict
-    ):
+    for entity in feast_client.list_entities(project=project, labels=labels_dict):
         table.append([entity.name, entity.description, entity.value_type])
 
     from tabulate import tabulate
