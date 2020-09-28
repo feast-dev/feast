@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.persistence.CascadeType;
@@ -216,12 +217,11 @@ public class FeatureTable extends AbstractTimestampEntity {
     // Convert field types to Protobuf compatible types
     Timestamp creationTime = TypeConversion.convertTimestamp(getCreated());
     Timestamp updatedTime = TypeConversion.convertTimestamp(getLastUpdated());
+
     List<FeatureSpecV2> featureSpecs =
         getFeatures().stream().map(FeatureV2::toProto).collect(Collectors.toList());
-    // Sort entity names to ensure entities are listed in a deterministic order
-    // This is required as entities are stored as set, which does not store order
     List<String> entityNames =
-        getEntities().stream().map(EntityV2::getName).sorted().collect(Collectors.toList());
+        getEntities().stream().map(EntityV2::getName).collect(Collectors.toList());
     Map<String, String> labels = TypeConversion.convertJsonStringToMap(getLabelsJSON());
 
     FeatureTableSpec.Builder spec =
@@ -290,29 +290,14 @@ public class FeatureTable extends AbstractTimestampEntity {
 
     FeatureTable other = (FeatureTable) o;
 
-    System.out.println(
-        ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-    System.out.println(
-        String.format(
-            "equals:\nname:%b\nproject:%b\nlabels:%b\nfeatures:%b\nentities:%b\nbatch:%b\nstream:%b",
-            getName().equals(other.getName()),
-            getProject().equals(other.getProject()),
-            getLabelsJSON().equals(other.getLabelsJSON()),
-            getFeatures().containsAll(other.getFeatures()),
-            getEntities().containsAll(other.getEntities()),
-            getMaxAgeSecs() == getMaxAgeSecs(),
-            getBatchSource().equals(getBatchSource()),
-            getStreamSource().equals(getStreamSource())));
-    System.out.println(
-        ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-
     return getName().equals(other.getName())
         && getProject().equals(other.getProject())
         && getLabelsJSON().equals(other.getLabelsJSON())
         && getFeatures().containsAll(other.getFeatures())
         && getEntities().containsAll(other.getEntities())
         && getMaxAgeSecs() == getMaxAgeSecs()
-        && getBatchSource().equals(getBatchSource())
-        && getStreamSource().equals(getStreamSource());
+        && Optional.ofNullable(getBatchSource()).equals(Optional.ofNullable(other.getBatchSource()))
+        && Optional.ofNullable(getStreamSource())
+            .equals(Optional.ofNullable(other.getStreamSource()));
   }
 }

@@ -26,6 +26,7 @@ import static org.hamcrest.collection.IsMapWithSize.aMapWithSize;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.IsIterableContaining.hasItem;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import avro.shaded.com.google.common.collect.ImmutableMap;
@@ -33,6 +34,7 @@ import com.google.protobuf.Duration;
 import feast.common.it.BaseIT;
 import feast.common.it.DataGenerator;
 import feast.common.it.SimpleCoreClient;
+import feast.common.util.TestUtil;
 import feast.proto.core.*;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import feast.proto.types.ValueProto;
@@ -957,7 +959,7 @@ public class SpecServiceIT extends BaseIT {
     public void shouldApplyNewValidTable() {
       FeatureTableProto.FeatureTable table = apiClient.applyFeatureTable("default", getTestSpec());
 
-      assertThat(table.getSpec(), equalTo(getTestSpec()));
+      assertTrue(TestUtil.compareFeatureTableSpec(table.getSpec(), getTestSpec()));
       assertThat(table.getMeta().getRevision(), equalTo(1L));
     }
 
@@ -967,22 +969,27 @@ public class SpecServiceIT extends BaseIT {
 
       FeatureTableSpec updatedSpec =
           DataGenerator.createFeatureTableSpec(
-              "ft",
-              List.of("entity1", "entity2"),
-              Map.of(
-                  "feature2", ValueProto.ValueType.Enum.FLOAT,
-                  "feature3", ValueProto.ValueType.Enum.INT64,
-                  "feature4", ValueProto.ValueType.Enum.INT64),
-              2100,
-              Map.of("test", "labels"));
+                  "ft",
+                  List.of("entity1", "entity2"),
+                  Map.of(
+                      "feature2", ValueProto.ValueType.Enum.FLOAT,
+                      "feature3", ValueProto.ValueType.Enum.INT64,
+                      "feature4", ValueProto.ValueType.Enum.INT64),
+                  2100,
+                  Map.of("test", "labels"))
+              .toBuilder()
+              .setStreamSource(DataGenerator.createFileFeatureSourceSpec("file:///path/to/file"))
+              .setBatchSource(
+                  DataGenerator.createKafkaFeatureSourceSpec(
+                      "localhost:9092", "topic", "class.path"))
+              .build();
       FeatureTableProto.FeatureTable updatedTable =
           apiClient.applyFeatureTable("default", updatedSpec);
 
-      assertThat(updatedTable.getSpec(), equalTo(updatedSpec));
+      assertTrue(TestUtil.compareFeatureTableSpec(updatedTable.getSpec(), updatedSpec));
       assertThat(updatedTable.getMeta().getRevision(), equalTo(table.getMeta().getRevision() + 1L));
     }
 
-    /*
     @Test
     public void shouldNotUpdateIfNoChanges() {
       FeatureTableProto.FeatureTable table = apiClient.applyFeatureTable("default", getTestSpec());
@@ -991,7 +998,6 @@ public class SpecServiceIT extends BaseIT {
 
       assertThat(updatedTable.getMeta().getRevision(), equalTo(table.getMeta().getRevision()));
     }
-    */
 
     @Test
     public void shouldErrorOnReservedNames() {

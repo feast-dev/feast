@@ -109,7 +109,7 @@ public class FeatureV2 {
 
   @Override
   public int hashCode() {
-    return Objects.hash(super.hashCode(), getName(), getType(), getLabelsJSON());
+    return Objects.hash(getName(), getType(), getLabelsJSON());
   }
 
   @Override
@@ -120,6 +120,7 @@ public class FeatureV2 {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
+
     FeatureV2 feature = (FeatureV2) o;
     return getName().equals(feature.getName())
         && getType().equals(feature.getType())
