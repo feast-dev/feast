@@ -71,20 +71,33 @@ public class SpecServiceIT extends BaseIT {
   public void initState() {
     SourceProto.Source source = DataGenerator.getDefaultSource();
 
-    apiClient.simpleApplyEntity(
-        "default",
+    EntityProto.EntitySpecV2 entitySpec1 =
         DataGenerator.createEntitySpecV2(
             "entity1",
             "Entity 1 description",
             ValueProto.ValueType.Enum.STRING,
-            ImmutableMap.of("label_key", "label_value")));
-    apiClient.simpleApplyEntity(
-        "default",
+            ImmutableMap.of("label_key", "label_value"));
+    EntityProto.EntitySpecV2 entitySpec2 =
         DataGenerator.createEntitySpecV2(
             "entity2",
             "Entity 2 description",
             ValueProto.ValueType.Enum.STRING,
-            ImmutableMap.of("label_key2", "label_value2")));
+            ImmutableMap.of("label_key2", "label_value2"));
+    apiClient.simpleApplyEntity("default", entitySpec1);
+    apiClient.simpleApplyEntity("default", entitySpec2);
+    apiClient.applyFeatureTable(
+        "default",
+        DataGenerator.createFeatureTableSpec(
+            "featuretable1",
+            Arrays.asList("entity1", "entity2"),
+            new HashMap<>() {
+              {
+                put("feature1", ValueProto.ValueType.Enum.STRING);
+                put("feature2", ValueProto.ValueType.Enum.FLOAT);
+              }
+            },
+            7200,
+            ImmutableMap.of("feat_key2", "feat_value2")));
     apiClient.simpleApplyEntity(
         "project1",
         DataGenerator.createEntitySpecV2(
@@ -257,6 +270,59 @@ public class SpecServiceIT extends BaseIT {
           CoreServiceProto.ListEntitiesRequest.Filter.newBuilder().setProject("default*").build();
       StatusRuntimeException exc =
           assertThrows(StatusRuntimeException.class, () -> apiClient.simpleListEntities(filter));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo(
+              String.format(
+                  "INVALID_ARGUMENT: invalid value for project resource, %s: "
+                      + "argument must only contain alphanumeric characters and underscores.",
+                  filter.getProject())));
+    }
+  }
+
+  @Nested
+  class ListFeatureTables {
+    @Test
+    public void shouldFilterFeatureTablesByProjectAndLabels() {
+      CoreServiceProto.ListFeatureTablesRequest.Filter filter =
+          CoreServiceProto.ListFeatureTablesRequest.Filter.newBuilder()
+              .setProject("default")
+              .putAllLabels(ImmutableMap.of("feat_key2", "feat_value2"))
+              .build();
+      List<FeatureTableProto.FeatureTable> featureTables =
+          apiClient.simpleListFeatureTables(filter);
+
+      assertThat(featureTables, hasSize(1));
+      assertThat(
+          featureTables,
+          hasItem(hasProperty("spec", hasProperty("name", equalTo("featuretable1")))));
+    }
+
+    @Test
+    public void shouldUseDefaultProjectIfProjectUnspecified() {
+      CoreServiceProto.ListFeatureTablesRequest.Filter filter =
+          CoreServiceProto.ListFeatureTablesRequest.Filter.newBuilder()
+              .setProject("default")
+              .build();
+      List<FeatureTableProto.FeatureTable> featureTables =
+          apiClient.simpleListFeatureTables(filter);
+
+      assertThat(featureTables, hasSize(1));
+      assertThat(
+          featureTables,
+          hasItem(hasProperty("spec", hasProperty("name", equalTo("featuretable1")))));
+    }
+
+    @Test
+    public void shouldThrowExceptionGivenWildcardProject() {
+      CoreServiceProto.ListFeatureTablesRequest.Filter filter =
+          CoreServiceProto.ListFeatureTablesRequest.Filter.newBuilder()
+              .setProject("default*")
+              .build();
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class, () -> apiClient.simpleListFeatureTables(filter));
 
       assertThat(
           exc.getMessage(),

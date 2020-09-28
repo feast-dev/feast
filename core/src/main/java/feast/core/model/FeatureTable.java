@@ -267,6 +267,26 @@ public class FeatureTable extends AbstractTimestampEntity {
         .collect(Collectors.toSet());
   }
 
+  /**
+   * Determine whether an feature table has all the specified labels.
+   *
+   * @param labelsFilter labels contain key-value mapping for labels attached to the Feature Table
+   * @return boolean True if Entity contains all labels in the labelsFilter
+   */
+  public boolean hasAllLabels(Map<String, String> labelsFilter) {
+    Map<String, String> LabelsMap = this.getLabelsMap();
+    for (String key : labelsFilter.keySet()) {
+      if (!LabelsMap.containsKey(key) || !LabelsMap.get(key).equals(labelsFilter.get(key))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  public Map<String, String> getLabelsMap() {
+    return TypeConversion.convertJsonStringToMap(getLabelsJSON());
+  }
+
   @Override
   public int hashCode() {
     return Objects.hash(

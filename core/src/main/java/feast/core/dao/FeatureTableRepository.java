@@ -26,6 +26,9 @@ public interface FeatureTableRepository extends JpaRepository<FeatureTable, Long
   // Find single feature table by project and name
   Optional<FeatureTable> findFeatureTableByNameAndProject_Name(String name, String projectName);
 
+  // Find feature tables by project
+  List<FeatureTable> findAllByProject_Name(String projectName);
+
   // Find all feature tables matching the given name and project
   List<FeatureTable> findAllByNameAndProject_Name(String name, String project_name);
 

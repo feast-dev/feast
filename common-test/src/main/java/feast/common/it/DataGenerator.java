@@ -19,6 +19,7 @@ package feast.common.it;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Duration;
 import feast.proto.core.EntityProto;
+import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureProto.FeatureSpecV2;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSourceProto.FeatureSourceSpec;
@@ -137,6 +138,15 @@ public class DataGenerator {
         .build();
   }
 
+  public static FeatureProto.FeatureSpecV2 createFeatureSpecV2(
+      String name, ValueProto.ValueType.Enum valueType, Map<String, String> labels) {
+    return FeatureProto.FeatureSpecV2.newBuilder()
+        .setName(name)
+        .setValueType(valueType)
+        .putAllLabels(labels)
+        .build();
+  }
+
   public static FeatureSetProto.FeatureSet createFeatureSet(
       SourceProto.Source source,
       String projectName,
@@ -223,6 +233,7 @@ public class DataGenerator {
                             .build())
                 .collect(Collectors.toList()))
         .setMaxAge(Duration.newBuilder().setSeconds(3600).build())
+        .putAllLabels(labels)
         .build();
   }
 

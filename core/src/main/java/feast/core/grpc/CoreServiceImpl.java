@@ -453,7 +453,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       ListFeatureTablesRequest request,
       StreamObserver<ListFeatureTablesResponse> responseObserver) {
     try {
-      ListFeatureTablesResponse response = specService.listFeatureTables(request);
+      ListFeatureTablesResponse response = specService.listFeatureTables(request.getFilter());
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (IllegalArgumentException e) {

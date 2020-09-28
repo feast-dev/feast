@@ -681,31 +681,33 @@ public class SpecService {
 
   /**
    * List the Feature Tables matching the filter in the given filter. Scopes down listing to project
-   * if specified, the default project otherwise. '*' can be used in name filter to match 0 or more
-   * characters in Feature Table name.
+   * if specified, the default project otherwise.
    *
-   * @param request containing listing parameters.
+   * @param filter Filter containing the desired project and labels
    * @return response containing feature tables that
    */
   @Transactional
-  public ListFeatureTablesResponse listFeatureTables(ListFeatureTablesRequest request) {
-    ListFeatureTablesRequest.Filter filter = request.getFilter();
+  public ListFeatureTablesResponse listFeatureTables(ListFeatureTablesRequest.Filter filter) {
     String projectName = resolveProjectName(filter.getProject());
+    Map<String, String> labelsFilter = filter.getLabelsMap();
 
-    // Query for matching tables based on filter
-    List<FeatureTable> matchingTables = null;
-    if (!filter.getTableName().contains("*")) {
+    checkValidCharacters(projectName, "project");
+
+    List<FeatureTable> matchingTables = tableRepository.findAllByProject_Name(projectName);
+
+    ListFeatureTablesResponse.Builder response = ListFeatureTablesResponse.newBuilder();
+
+    if (matchingTables.size() > 0) {
       matchingTables =
-          tableRepository.findAllByNameAndProject_Name(filter.getTableName(), projectName);
-    } else {
-      String namePattern = filter.getTableName().replace('*', '%');
-      matchingTables = tableRepository.findAllByNameLikeAndProject_Name(namePattern, projectName);
+          matchingTables.stream()
+              .filter(table -> table.hasAllLabels(labelsFilter))
+              .collect(Collectors.toList());
+    }
+    for (FeatureTable table : matchingTables) {
+      response.addTables(table.toProto());
     }
 
-    return ListFeatureTablesResponse.newBuilder()
-        .addAllTables(
-            matchingTables.stream().map(FeatureTable::toProto).collect(Collectors.toList()))
-        .build();
+    return response.build();
   }
 
   /**

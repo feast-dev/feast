@@ -77,6 +77,13 @@ public class SimpleCoreClient {
         .getEntitiesList();
   }
 
+  public List<FeatureTableProto.FeatureTable> simpleListFeatureTables(
+      CoreServiceProto.ListFeatureTablesRequest.Filter filter) {
+    return stub.listFeatureTables(
+            CoreServiceProto.ListFeatureTablesRequest.newBuilder().setFilter(filter).build())
+        .getTablesList();
+  }
+
   public List<FeatureSetProto.FeatureSet> simpleListFeatureSets(
       String projectName, String featureSetName, Map<String, String> labels) {
     return stub.listFeatureSets(
