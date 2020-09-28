@@ -29,40 +29,23 @@
     <name>Feast Spark Ingestion</name>
     <artifactId>feast-ingestion-spark</artifactId>
     <version>0.7-SNAPSHOT</version>
-    <!--    <groupId>dev.feast</groupId>-->
 
     <properties>
         <scala.version>2.12</scala.version>
         <scala.fullVersion>${scala.version}.12</scala.fullVersion>
-        <spark.version>3.0.1</spark.version>
+        <spark.version>2.4.7</spark.version>
         <scala-maven-plugin.version>4.4.0</scala-maven-plugin.version>
         <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
         <project.version>0.7-SNAPSHOT</project.version>
     </properties>
 
-    <!--    <repositories>-->
-    <!--        <repository>-->
-    <!--            <id>scala-tools.org</id>-->
-    <!--            <name>Scala-tools Maven2 Repository</name>-->
-    <!--            <url>https://oss.sonatype.org/content/groups/scala-tools/</url>-->
-    <!--        </repository>-->
-    <!--    </repositories>-->
-
-    <!--    <pluginRepositories>-->
-    <!--        <pluginRepository>-->
-    <!--            <id>scala-tools.org</id>-->
-    <!--            <name>Scala-tools Maven2 Repository</name>-->
-    <!--            <url>http://scala-tools.org/repo-releases</url>-->
-    <!--        </pluginRepository>-->
-    <!--    </pluginRepositories>-->
-
 
     <dependencies>
-        <!--        <dependency>-->
-        <!--            <groupId>dev.feast</groupId>-->
-        <!--            <artifactId>datatypes-java</artifactId>-->
-        <!--            <version>${project.version}</version>-->
-        <!--        </dependency>-->
+            <dependency>
+                <groupId>dev.feast</groupId>
+                <artifactId>datatypes-java</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
         <!--        <dependency>-->
         <!--            <groupId>dev.feast</groupId>-->
@@ -103,11 +86,23 @@
         </dependency>
 
         <dependency>
-            <groupId>org.apache.spark</groupId>
-            <artifactId>spark-sql-kafka-0-10_${scala.version}</artifactId>
-            <version>${spark.version}</version>
+            <groupId>org.codehaus.janino</groupId>
+            <artifactId>janino</artifactId>
+            <version>3.0.16</version>
         </dependency>
 
+
+        <!--        <dependency>-->
+<!--            <groupId>org.apache.spark</groupId>-->
+<!--            <artifactId>spark-sql-kafka-0-10_${scala.version}</artifactId>-->
+<!--            <version>${spark.version}</version>-->
+<!--        </dependency>-->
+
+<!--        <dependency>-->
+<!--            <groupId>org.apache.spark</groupId>-->
+<!--            <artifactId>spark-streaming-kafka-0-10_${scala.version}</artifactId>-->
+<!--            <version>${spark.version}</version>-->
+<!--        </dependency>-->
 
         <dependency>
             <groupId>com.github.scopt</groupId>
@@ -115,6 +110,67 @@
             <version>3.7.1</version>
         </dependency>
 
+
+        <dependency>
+            <groupId>com.thesamet.scalapb</groupId>
+            <artifactId>sparksql-scalapb_${scala.version}</artifactId>
+            <version>0.10.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.cloud.spark</groupId>
+            <artifactId>spark-bigquery_${scala.version}</artifactId>
+            <version>0.17.2</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-bigquery</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>joda-time</groupId>
+            <artifactId>joda-time</artifactId>
+            <version>2.10.6</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.redislabs</groupId>
+            <artifactId>spark-redis_${scala.version}</artifactId>
+            <version>2.5.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.arrow</groupId>
+            <artifactId>arrow-vector</artifactId>
+            <version>0.16.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+            <version>4.1.52.Final</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.scalatest</groupId>
+            <artifactId>scalatest_${scala.version}</artifactId>
+            <version>3.2.2</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.scalacheck</groupId>
+            <artifactId>scalacheck_${scala.version}</artifactId>
+            <version>1.14.3</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.dimafeng</groupId>
+            <artifactId>testcontainers-scala-scalatest_${scala.version}</artifactId>
+            <version>0.38.3</version>
+        </dependency>
 
     </dependencies>
 
@@ -146,6 +202,24 @@
                 <configuration>
                     <scalaVersion>${scala.fullVersion}</scalaVersion>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.scalatest</groupId>
+                <artifactId>scalatest-maven-plugin</artifactId>
+                <version>2.0.0</version>
+                <configuration>
+                    <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+                    <junitxml>.</junitxml>
+                    <filereports>TestSuiteReport.txt</filereports>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>integration-test</id>
+                        <goals>
+                            <goal>integration-test</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
