@@ -1,5 +1,7 @@
 package feast.ingestion.utils
 
+import java.sql
+
 import com.google.protobuf.{Message, Timestamp}
 import feast.proto.types.ValueProto
 import org.apache.spark.sql.types.{DataType, DoubleType, FloatType, IntegerType, LongType, StringType, TimestampType}
@@ -27,6 +29,10 @@ object TypeConversion {
       case ValueProto.Value.ValCase.FLOAT_VAL => v.getFloatVal
       case ValueProto.Value.ValCase.VAL_NOT_SET => throw new RuntimeException(s"$v not a ValueProto")
     }
+  )
+
+  implicit def timestampAsScala(t: Timestamp): AsScala[java.sql.Timestamp] = new AsScala[java.sql.Timestamp](
+    new sql.Timestamp(t.getSeconds * 1000)
   )
 
 }

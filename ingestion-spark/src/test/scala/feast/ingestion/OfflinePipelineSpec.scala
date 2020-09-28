@@ -4,7 +4,7 @@ import java.nio.file.Files
 
 import com.dimafeng.testcontainers.{ForAllTestContainer, GenericContainer}
 import com.google.protobuf.Timestamp
-import feast.ingestion.utils.TypeConversion.protoValueAsScala
+import feast.ingestion.utils.TypeConversion._
 import feast.proto.types.ValueProto
 import feast.proto.types.ValueProto.ValueType
 import org.apache.spark.SparkConf
@@ -63,7 +63,7 @@ class OfflinePipelineSpec extends UnitSpec with ForAllTestContainer {
       customer <- Gen.asciiPrintableStr
       feature1 <- Gen.choose(0, 100)
       feature2 <- Gen.choose(0, 1)
-      eventTimestamp <- Gen.choose(0, 30 * 24 * 3600).map(DateTime.now().minusSeconds(_))
+      eventTimestamp <- Gen.choose(0, 30 * 24 * 3600).map(DateTime.now().withMillisOfSecond(0).minusSeconds(_))
     }
       yield Row(customer, feature1, feature2, new java.sql.Timestamp(eventTimestamp.getMillis))
 
@@ -85,7 +85,7 @@ class OfflinePipelineSpec extends UnitSpec with ForAllTestContainer {
       val m: Matcher[Map[String, Any]] = contain.allElementsOf(Seq(
         "feature1" -> row.feature1,
         "feature2" -> row.feature2,
-        "_ts:test-fs" -> Timestamp.newBuilder().setSeconds(row.eventTimestamp.getTime / 1000).build()
+        "_ts:test-fs" -> row.eventTimestamp
       )).matcher
 
       m compose {
@@ -93,7 +93,7 @@ class OfflinePipelineSpec extends UnitSpec with ForAllTestContainer {
           .map(e => (
             new String(e._1),
             if (new String(e._1).startsWith("_ts"))
-              Timestamp.parseFrom(e._2) else
+              Timestamp.parseFrom(e._2).asScala else
               ValueProto.Value.parseFrom(e._2).asScala
           ))
       }
@@ -114,13 +114,6 @@ class OfflinePipelineSpec extends UnitSpec with ForAllTestContainer {
       r => {
         val storedValues = jedis.hgetAll(s"customer:${r.customer}".getBytes).asScala.toMap
         storedValues should beStoredRow(r)
-        //        val m = contain allElementsOf(Seq(
-        //                  "feature1" -> r.feature1,
-        //                  "feature2" -> r.feature2,
-        //                  "_ts:test-fs" -> r.eventTimestamp
-        //                ))
-        //
-        //        storedValues should m
       }
     )
 
