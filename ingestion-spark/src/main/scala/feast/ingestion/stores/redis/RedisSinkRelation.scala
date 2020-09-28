@@ -38,7 +38,7 @@ class RedisSinkRelation(override val sqlContext: SQLContext,
     dataToStore.foreachPartition { partition: Iterator[Row] =>
       // grouped iterator to only allocate memory for a portion of rows
       partition.grouped(config.iteratorGroupingSize).foreach { batch =>
-        val rowsWithKey: Map[String, Row] = compactRowsToLatest(batch.map(row => dataKeyId(row) -> row)).toMap
+        val rowsWithKey: Map[String, Row] = compactRowsToLatestTimestamp(batch.map(row => dataKeyId(row) -> row)).toMap
 
         groupKeysByNode(redisConfig.hosts, rowsWithKey.keysIterator).foreach { case (node, keys) =>
           val conn = node.connect()
@@ -73,7 +73,7 @@ class RedisSinkRelation(override val sqlContext: SQLContext,
     }
   }
 
-  private def compactRowsToLatest(rows: Seq[(String, Row)]) = rows
+  private def compactRowsToLatestTimestamp(rows: Seq[(String, Row)]) = rows
     .groupBy(_._1)
     .values
     .map(_.maxBy(_._2.getAs[java.sql.Timestamp](config.timestampColumn).getTime))

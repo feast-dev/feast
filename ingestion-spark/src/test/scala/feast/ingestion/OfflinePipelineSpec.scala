@@ -111,7 +111,6 @@ class OfflinePipelineSpec extends UnitSpec with ForAllTestContainer with BeforeA
     }
   }
 
-
   "Parquet source file" should "be ingested in redis" in new Scope with SparkContext with DataHelper {
     val gen = rowGenerator(DateTime.parse("2020-08-01"), DateTime.parse("2020-09-01"))
     val rows = generateDistinctRows(gen, 10000)
@@ -129,7 +128,7 @@ class OfflinePipelineSpec extends UnitSpec with ForAllTestContainer with BeforeA
     )
   }
 
-  "Ingested rows" should "be compacted before storing" in new Scope with SparkContext with DataHelper {
+  "Ingested rows" should "be compacted before storing by timestamp column" in new Scope with SparkContext with DataHelper {
     val entities = (0 to 10000).map(_.toString)
 
     val genLatest = rowGenerator(DateTime.parse("2020-08-15"), DateTime.parse("2020-09-01"), Some(Gen.oneOf(entities)))
