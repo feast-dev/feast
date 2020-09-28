@@ -23,6 +23,7 @@ option java_package = "feast.proto.core";
 
 import "google/protobuf/timestamp.proto";
 import "tensorflow_metadata/proto/v0/statistics.proto";
+import "feast/core/Entity.proto";
 import "feast/core/FeatureSet.proto";
 import "feast/core/Store.proto";
 import "feast/core/FeatureSetReference.proto";
@@ -34,6 +35,9 @@ service CoreService {
 
     // Returns a specific feature set
     rpc GetFeatureSet (GetFeatureSetRequest) returns (GetFeatureSetResponse);
+
+    // Returns a specific entity
+    rpc GetEntity (GetEntityRequest) returns (GetEntityResponse);
 
     // Retrieve feature set details given a filter.
     //
@@ -70,6 +74,21 @@ service CoreService {
     // - Changes to entities
     // - Changes to feature name and type
     rpc ApplyFeatureSet (ApplyFeatureSetRequest) returns (ApplyFeatureSetResponse);
+
+    // Create or update and existing entity.
+    //
+    // This function is idempotent - it will not create a new entity if schema does not change.
+    // Schema changes will update the entity if the changes are valid.
+    // Following changes are not valid:
+    // - Changes to name
+    // - Changes to type
+    rpc ApplyEntity (ApplyEntityRequest) returns (ApplyEntityResponse);
+
+    // Returns all entity references and respective entities matching that filter. If none are found
+    // an empty map will be returned
+    // If no filter is provided in the request, the response will contain all the entities
+    // currently stored in the default project.
+    rpc ListEntities (ListEntitiesRequest) returns (ListEntitiesResponse);
 
     // Updates core with the configuration of the store.
     //
@@ -166,6 +185,40 @@ message ListFeatureSetsResponse {
     repeated feast.core.FeatureSet feature_sets = 1;
 }
 
+// Request for a single entity
+message GetEntityRequest {
+    // Name of entity (required).
+    string name = 1;
+
+    // Name of project the entity belongs to. If omitted will default to 'default' project.
+    string project = 2;
+}
+
+// Response containing a single entity
+message GetEntityResponse {
+    feast.core.Entity entity = 1;
+}
+
+// Retrieves details for all versions of a specific entity
+message ListEntitiesRequest {
+    Filter filter = 1;
+
+    message Filter {
+        // Optional. Specifies the name of the project to list Entities in.
+        // It is NOT possible to provide an asterisk with a string in order to do pattern matching.
+        // If unspecified, this field will default to the default project 'default'.
+        string project = 3;
+
+        // Optional. User defined metadata for entity.
+        // Entities with all matching labels will be returned.
+        map<string,string> labels = 4;
+    }
+}
+
+message ListEntitiesResponse {
+    repeated feast.core.Entity entities = 1;
+}
+
 message ListFeaturesRequest {
     message Filter {
         // User defined metadata for feature.
@@ -200,6 +253,19 @@ message ListStoresRequest {
 
 message ListStoresResponse {
     repeated feast.core.Store store = 1;
+}
+
+message ApplyEntityRequest {
+    // If project is unspecified, will default to 'default' project.
+    // If project specified does not exist, the project would be automatically created.
+    feast.core.EntitySpecV2 spec = 1;
+
+    // Name of project that this entity belongs to.
+    string project = 2;
+}
+
+message ApplyEntityResponse {
+    feast.core.Entity entity = 1;
 }
 
 message ApplyFeatureSetRequest {

@@ -17,6 +17,7 @@
 package feast.common.it;
 
 import com.google.common.collect.ImmutableList;
+import feast.proto.core.EntityProto;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
@@ -111,9 +112,22 @@ public class DataGenerator {
         .build();
   }
 
-  public static FeatureSetProto.EntitySpec createEntity(
+  public static FeatureSetProto.EntitySpec createEntitySpec(
       String name, ValueProto.ValueType.Enum valueType) {
     return FeatureSetProto.EntitySpec.newBuilder().setName(name).setValueType(valueType).build();
+  }
+
+  public static EntityProto.EntitySpecV2 createEntitySpecV2(
+      String name,
+      String description,
+      ValueProto.ValueType.Enum valueType,
+      Map<String, String> labels) {
+    return EntityProto.EntitySpecV2.newBuilder()
+        .setName(name)
+        .setDescription(description)
+        .setValueType(valueType)
+        .putAllLabels(labels)
+        .build();
   }
 
   public static FeatureSetProto.FeatureSet createFeatureSet(
@@ -152,7 +166,7 @@ public class DataGenerator {
                 .putAllLabels(labels)
                 .addAllEntities(
                     entities.entrySet().stream()
-                        .map(entry -> createEntity(entry.getKey(), entry.getValue()))
+                        .map(entry -> createEntitySpec(entry.getKey(), entry.getValue()))
                         .collect(Collectors.toList()))
                 .addAllFeatures(
                     features.entrySet().stream()

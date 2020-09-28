@@ -28,6 +28,7 @@ import feast.core.service.SpecService;
 import feast.core.service.StatsService;
 import feast.proto.core.CoreServiceGrpc.CoreServiceImplBase;
 import feast.proto.core.CoreServiceProto.*;
+import feast.proto.core.EntityProto.EntitySpecV2;
 import feast.proto.core.FeatureSetProto.FeatureSet;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -96,6 +97,31 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   @Override
+  public void getEntity(
+      GetEntityRequest request, StreamObserver<GetEntityResponse> responseObserver) {
+    try {
+      GetEntityResponse response = specService.getEntity(request);
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (RetrievalException e) {
+      log.error("Unable to fetch entity requested in GetEntity method: ", e);
+      responseObserver.onError(
+          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    } catch (IllegalArgumentException e) {
+      log.error("Illegal arguments provided to GetEntity method: ", e);
+      responseObserver.onError(
+          Status.INVALID_ARGUMENT
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
+    } catch (Exception e) {
+      log.error("Exception has occurred in GetEntity method: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
+  @Override
   public void listFeatureSets(
       ListFeatureSetsRequest request, StreamObserver<ListFeatureSetsResponse> responseObserver) {
     try {
@@ -130,6 +156,32 @@ public class CoreServiceImpl extends CoreServiceImplBase {
           Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     } catch (Exception e) {
       log.error("Exception has occurred in ListFeatures method: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
+  /** Retrieve a list of entities */
+  @Override
+  public void listEntities(
+      ListEntitiesRequest request, StreamObserver<ListEntitiesResponse> responseObserver) {
+    try {
+      ListEntitiesResponse response = specService.listEntities(request.getFilter());
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (IllegalArgumentException e) {
+      log.error("Illegal arguments provided to ListEntities method: ", e);
+      responseObserver.onError(
+          Status.INVALID_ARGUMENT
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
+    } catch (RetrievalException e) {
+      log.error("Unable to fetch entities requested in ListEntities method: ", e);
+      responseObserver.onError(
+          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    } catch (Exception e) {
+      log.error("Exception has occurred in ListEntities method: ", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
@@ -186,6 +238,41 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onCompleted();
     } catch (RetrievalException e) {
       log.error("Exception has occurred in ListStores method: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
+  /* Registers an entity to Feast Core */
+  @Override
+  public void applyEntity(
+      ApplyEntityRequest request, StreamObserver<ApplyEntityResponse> responseObserver) {
+
+    String projectId = null;
+
+    try {
+      EntitySpecV2 spec = request.getSpec();
+      projectId = request.getProject();
+      authorizationService.authorizeRequest(SecurityContextHolder.getContext(), projectId);
+      ApplyEntityResponse response = specService.applyEntity(spec, projectId);
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (org.hibernate.exception.ConstraintViolationException e) {
+      log.error(
+          "Unable to persist this entity due to a constraint violation. Please ensure that"
+              + " field names are unique within the project namespace: ",
+          e);
+      responseObserver.onError(
+          Status.ALREADY_EXISTS.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    } catch (AccessDeniedException e) {
+      log.info(String.format("User prevented from accessing project: %s", projectId));
+      responseObserver.onError(
+          Status.PERMISSION_DENIED
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
+    } catch (Exception e) {
+      log.error("Exception has occurred in ApplyEntity method: ", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }

@@ -18,6 +18,7 @@ package feast.core.util;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import feast.proto.types.ValueProto.ValueType.Enum;
 import java.lang.reflect.Type;
 import java.util.*;
 
@@ -62,12 +63,36 @@ public class TypeConversion {
   }
 
   /**
+   * Unmarshals a given json string to Enum map
+   *
+   * @param jsonString valid json formatted string
+   * @return map of keys to Enum values in json string
+   */
+  public static Map<String, Enum> convertJsonStringToEnumMap(String jsonString) {
+    if (jsonString == null || jsonString.equals("") || jsonString.equals("{}")) {
+      return Collections.emptyMap();
+    }
+    Type stringMapType = new TypeToken<Map<String, Enum>>() {}.getType();
+    return gson.fromJson(jsonString, stringMapType);
+  }
+
+  /**
    * Marshals a given map into its corresponding json string
    *
    * @param map
    * @return json string corresponding to given map
    */
   public static String convertMapToJsonString(Map<String, String> map) {
+    return gson.toJson(map);
+  }
+
+  /**
+   * Marshals a given Enum map into its corresponding json string
+   *
+   * @param map
+   * @return json string corresponding to given Enum map
+   */
+  public static String convertEnumMapToJsonString(Map<String, Enum> map) {
     return gson.toJson(map);
   }
 }

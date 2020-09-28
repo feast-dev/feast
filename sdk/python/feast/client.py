@@ -19,7 +19,6 @@ import shutil
 import tempfile
 import time
 import uuid
-from collections import OrderedDict
 from math import ceil
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
@@ -43,16 +42,22 @@ from feast.constants import (
     FEAST_DEFAULT_OPTIONS,
 )
 from feast.core.CoreService_pb2 import (
+    ApplyEntityRequest,
+    ApplyEntityResponse,
     ApplyFeatureSetRequest,
     ApplyFeatureSetResponse,
     ArchiveProjectRequest,
     ArchiveProjectResponse,
     CreateProjectRequest,
     CreateProjectResponse,
+    GetEntityRequest,
+    GetEntityResponse,
     GetFeastCoreVersionRequest,
     GetFeatureSetRequest,
     GetFeatureSetResponse,
     GetFeatureStatisticsRequest,
+    ListEntitiesRequest,
+    ListEntitiesResponse,
     ListFeatureSetsRequest,
     ListFeatureSetsResponse,
     ListFeaturesRequest,
@@ -62,8 +67,9 @@ from feast.core.CoreService_pb2 import (
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
+from feast.entity import EntityV2
 from feast.feature import Feature, FeatureRef
-from feast.feature_set import Entity, FeatureSet
+from feast.feature_set import FeatureSet
 from feast.grpc import auth as feast_auth
 from feast.grpc.grpc import create_grpc_channel
 from feast.job import RetrievalJob
@@ -287,6 +293,8 @@ class Client:
         Returns:
             Project name
         """
+        if not self._config.get(CONFIG_PROJECT_KEY):
+            raise ValueError("No project has been configured.")
         return self._config.get(CONFIG_PROJECT_KEY)
 
     def set_project(self, project: Optional[str] = None):
@@ -352,6 +360,130 @@ class Client:
         # revert to the default project
         if self._project == project:
             self._project = FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY]
+
+    def apply_entity(
+        self, entities: Union[List[EntityV2], EntityV2], project: str = None
+    ):
+        """
+        Idempotently registers entities with Feast Core. Either a single
+        entity or a list can be provided.
+
+        Args:
+            entities: List of entities that will be registered
+
+        Examples:
+            >>> from feast import Client
+            >>> from feast.entity import EntityV2
+            >>> from feast.value_type import ValueType
+            >>>
+            >>> feast_client = Client(core_url="localhost:6565")
+            >>> entity = EntityV2(
+            >>>     name="driver_entity",
+            >>>     description="Driver entity for car rides",
+            >>>     value_type=ValueType.STRING,
+            >>>     labels={
+            >>>         "key": "val"
+            >>>     }
+            >>> )
+            >>> feast_client.apply_entity(entity)
+        """
+
+        if project is None:
+            project = self.project
+
+        if not isinstance(entities, list):
+            entities = [entities]
+        for entity in entities:
+            if isinstance(entity, EntityV2):
+                self._apply_entity(project, entity)  # type: ignore
+                continue
+            raise ValueError(f"Could not determine entity type to apply {entity}")
+
+    def _apply_entity(self, project: str, entity: EntityV2):
+        """
+        Registers a single entity with Feast
+
+        Args:
+            entity: Entity that will be registered
+        """
+
+        entity.is_valid()
+        entity_proto = entity.to_spec_proto()
+
+        # Convert the entity to a request and send to Feast Core
+        try:
+            apply_entity_response = self._core_service.ApplyEntity(
+                ApplyEntityRequest(project=project, spec=entity_proto),  # type: ignore
+                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                metadata=self._get_grpc_metadata(),
+            )  # type: ApplyEntityResponse
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+
+        # Extract the returned entity
+        applied_entity = EntityV2.from_proto(apply_entity_response.entity)
+
+        # Deep copy from the returned entity to the local entity
+        entity._update_from_entity(applied_entity)
+
+    def list_entities(
+        self, project: str = None, labels: Dict[str, str] = dict()
+    ) -> List[EntityV2]:
+        """
+        Retrieve a list of entities from Feast Core
+
+        Args:
+            project: Filter entities based on project name
+            labels: User-defined labels that these entities are associated with
+
+        Returns:
+            List of entities
+        """
+
+        if project is None:
+            project = self.project
+
+        filter = ListEntitiesRequest.Filter(project=project, labels=labels)
+
+        # Get latest entities from Feast Core
+        entity_protos = self._core_service.ListEntities(
+            ListEntitiesRequest(filter=filter), metadata=self._get_grpc_metadata(),
+        )  # type: ListEntitiesResponse
+
+        # Extract entities and return
+        entities = []
+        for entity_proto in entity_protos.entities:
+            entity = EntityV2.from_proto(entity_proto)
+            entity._client = self
+            entities.append(entity)
+        return entities
+
+    def get_entity(self, name: str, project: str = None) -> Union[EntityV2, None]:
+        """
+        Retrieves an entity.
+
+        Args:
+            project: Feast project that this entity belongs to
+            name: Name of entity
+
+        Returns:
+            Returns either the specified entity, or raises an exception if
+            none is found
+        """
+
+        if project is None:
+            project = self.project
+
+        try:
+            get_entity_response = self._core_service.GetEntity(
+                GetEntityRequest(project=project, name=name.strip()),
+                metadata=self._get_grpc_metadata(),
+            )  # type: GetEntityResponse
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+        entity = EntityV2.from_proto(get_entity_response.entity)
+
+        return entity
 
     def apply(self, feature_sets: Union[List[FeatureSet], FeatureSet]):
         """
@@ -527,18 +659,6 @@ class Client:
             features_dict[feature_ref] = feature
 
         return features_dict
-
-    def list_entities(self) -> Dict[str, Entity]:
-        """
-        Returns a dictionary of entities across all feature sets
-        Returns:
-            Dictionary of entities, indexed by name
-        """
-        entities_dict = OrderedDict()
-        for fs in self.list_feature_sets():
-            for entity in fs.entities:
-                entities_dict[entity.name] = entity
-        return entities_dict
 
     def get_historical_features(
         self,

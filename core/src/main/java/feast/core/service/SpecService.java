@@ -21,17 +21,24 @@ import static feast.core.validators.Matchers.checkValidCharacters;
 import static feast.core.validators.Matchers.checkValidCharactersAllowAsterisk;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import feast.core.dao.EntityRepository;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.ProjectRepository;
 import feast.core.dao.StoreRepository;
 import feast.core.exception.RegistrationException;
 import feast.core.exception.RetrievalException;
 import feast.core.model.*;
+import feast.core.validators.EntityValidator;
 import feast.core.validators.FeatureSetValidator;
+import feast.proto.core.CoreServiceProto.ApplyEntityResponse;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse.Status;
+import feast.proto.core.CoreServiceProto.GetEntityRequest;
+import feast.proto.core.CoreServiceProto.GetEntityResponse;
 import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
 import feast.proto.core.CoreServiceProto.GetFeatureSetResponse;
+import feast.proto.core.CoreServiceProto.ListEntitiesRequest;
+import feast.proto.core.CoreServiceProto.ListEntitiesResponse;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.proto.core.CoreServiceProto.ListFeaturesRequest;
@@ -43,6 +50,7 @@ import feast.proto.core.CoreServiceProto.UpdateFeatureSetStatusRequest;
 import feast.proto.core.CoreServiceProto.UpdateFeatureSetStatusResponse;
 import feast.proto.core.CoreServiceProto.UpdateStoreRequest;
 import feast.proto.core.CoreServiceProto.UpdateStoreResponse;
+import feast.proto.core.EntityProto;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.FeatureSetStatus;
 import feast.proto.core.SourceProto;
@@ -65,6 +73,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class SpecService {
 
+  private final EntityRepository entityRepository;
   private final FeatureSetRepository featureSetRepository;
   private final ProjectRepository projectRepository;
   private final StoreRepository storeRepository;
@@ -72,14 +81,51 @@ public class SpecService {
 
   @Autowired
   public SpecService(
+      EntityRepository entityRepository,
       FeatureSetRepository featureSetRepository,
       StoreRepository storeRepository,
       ProjectRepository projectRepository,
       Source defaultSource) {
+    this.entityRepository = entityRepository;
     this.featureSetRepository = featureSetRepository;
     this.storeRepository = storeRepository;
     this.projectRepository = projectRepository;
     this.defaultSource = defaultSource;
+  }
+
+  /**
+   * Get an entity matching the entity name and set project. The entity name and project are
+   * required. If the project is omitted, the default would be used.
+   *
+   * @param request GetEntityRequest Request
+   * @return Returns a GetEntityResponse containing an entity
+   */
+  public GetEntityResponse getEntity(GetEntityRequest request) {
+    String projectName = request.getProject();
+    String entityName = request.getName();
+
+    if (entityName.isEmpty()) {
+      throw new IllegalArgumentException("No entity name provided");
+    }
+    // Autofill default project if project is not specified
+    if (projectName.isEmpty()) {
+      projectName = Project.DEFAULT_NAME;
+    }
+
+    checkValidCharacters(projectName, "project");
+    checkValidCharacters(entityName, "entity");
+
+    EntityV2 entity = entityRepository.findEntityByNameAndProject_Name(entityName, projectName);
+
+    if (entity == null) {
+      throw new RetrievalException(
+          String.format("Entity with name \"%s\" could not be found.", entityName));
+    }
+
+    // Build GetEntityResponse
+    GetEntityResponse response = GetEntityResponse.newBuilder().setEntity(entity.toProto()).build();
+
+    return response;
   }
 
   /**
@@ -277,6 +323,52 @@ public class SpecService {
     }
   }
 
+  /**
+   * Return a list of entities matching the entity name, project and labels provided in the filter.
+   * All fields are required. Use '*' in entity name and project, and empty map in labels in order
+   * to return all entities in all projects.
+   *
+   * <p>Project name can be explicitly provided, or an asterisk can be provided to match all
+   * projects. It is not possible to provide a combination of asterisks/wildcards and text. If the
+   * project name is omitted, the default project would be used.
+   *
+   * <p>The entity name in the filter accepts an asterisk as a wildcard. All matching entities will
+   * be returned. Regex is not supported. Explicitly defining an entity name is not possible if a
+   * project name is not set explicitly.
+   *
+   * <p>The labels in the filter accepts a map. All entities which contain every provided label will
+   * be returned.
+   *
+   * @param filter Filter containing the desired entity name, project and labels
+   * @return ListEntitiesResponse with list of entities found matching the filter
+   */
+  public ListEntitiesResponse listEntities(ListEntitiesRequest.Filter filter) {
+    String project = filter.getProject();
+    Map<String, String> labelsFilter = filter.getLabelsMap();
+
+    // Autofill default project if project not specified
+    if (project.isEmpty()) {
+      project = Project.DEFAULT_NAME;
+    }
+
+    checkValidCharacters(project, "project");
+
+    List<EntityV2> entities = entityRepository.findAllByProject_Name(project);
+
+    ListEntitiesResponse.Builder response = ListEntitiesResponse.newBuilder();
+    if (entities.size() > 0) {
+      entities =
+          entities.stream()
+              .filter(entity -> entity.hasAllLabels(labelsFilter))
+              .collect(Collectors.toList());
+      for (EntityV2 entity : entities) {
+        response.addEntities(entity.toProto());
+      }
+    }
+
+    return response.build();
+  }
+
   /** Update FeatureSet's status by given FeatureSetReference and new status */
   public UpdateFeatureSetStatusResponse updateFeatureSetStatus(
       UpdateFeatureSetStatusRequest request) {
@@ -322,6 +414,61 @@ public class SpecService {
           .withCause(e)
           .asRuntimeException();
     }
+  }
+
+  /**
+   * Creates or updates an entity in the repository.
+   *
+   * <p>This function is idempotent. If no changes are detected in the incoming entity's schema,
+   * this method will return the existing entity stored in the repository. If project is not
+   * specified, the entity will be assigned to the 'default' project.
+   *
+   * @param newEntitySpec EntitySpecV2 that will be used to create or update an Entity.
+   * @param projectName Project namespace of Entity which is to be created/updated
+   */
+  @Transactional
+  public ApplyEntityResponse applyEntity(
+      EntityProto.EntitySpecV2 newEntitySpec, String projectName) {
+    // Autofill default project if not specified
+    if (projectName == null || projectName.isEmpty()) {
+      projectName = Project.DEFAULT_NAME;
+    }
+
+    // Validate incoming entity
+    EntityValidator.validateSpec(newEntitySpec);
+
+    // Find project or create new one if it does not exist
+    Project project = projectRepository.findById(projectName).orElse(new Project(projectName));
+
+    // Ensure that the project retrieved from repository is not archived
+    if (project.isArchived()) {
+      throw new IllegalArgumentException(String.format("Project is archived: %s", projectName));
+    }
+
+    // Retrieve existing Entity
+    EntityV2 entity =
+        entityRepository.findEntityByNameAndProject_Name(newEntitySpec.getName(), projectName);
+
+    EntityProto.Entity newEntity = EntityProto.Entity.newBuilder().setSpec(newEntitySpec).build();
+    if (entity == null) {
+      // Create new entity since it doesn't exist
+      entity = EntityV2.fromProto(newEntity);
+    } else {
+      // If the entity remains unchanged, we do nothing.
+      if (entity.toProto().getSpec().equals(newEntitySpec)) {
+        return ApplyEntityResponse.newBuilder().setEntity(entity.toProto()).build();
+      }
+      entity.updateFromProto(newEntity, projectName);
+    }
+
+    // Persist the EntityV2 object
+    project.addEntity(entity);
+    projectRepository.saveAndFlush(project);
+
+    // Build ApplyEntityResponse
+    ApplyEntityResponse response =
+        ApplyEntityResponse.newBuilder().setEntity(entity.toProto()).build();
+    return response;
   }
 
   /**
