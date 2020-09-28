@@ -53,7 +53,8 @@ public class FeatureV2 {
 
   public FeatureV2() {};
 
-  public FeatureV2(String name, ValueType.Enum type, String labelsJSON) {
+  public FeatureV2(FeatureTable table, String name, ValueType.Enum type, String labelsJSON) {
+    this.featureTable = table;
     this.name = name;
     this.type = type;
     this.labelsJSON = labelsJSON;
@@ -62,12 +63,13 @@ public class FeatureV2 {
   /**
    * Construct Feature from Protobuf spec representation.
    *
+   * @param table the FeatureTable to associate the constructed feature with.
    * @param spec the Protobuf spec to contruct the Feature from.
    * @return constructed Feature from the given Protobuf spec.
    */
-  public static FeatureV2 fromProto(FeatureSpecV2 spec) {
+  public static FeatureV2 fromProto(FeatureTable table, FeatureSpecV2 spec) {
     String labelsJSON = TypeConversion.convertMapToJsonString(spec.getLabelsMap());
-    return new FeatureV2(spec.getName(), spec.getValueType(), labelsJSON);
+    return new FeatureV2(table, spec.getName(), spec.getValueType(), labelsJSON);
   }
 
   /** Convert this Feature to its Protobuf representation. */
@@ -103,11 +105,6 @@ public class FeatureV2 {
 
     // Update Feature based on spec
     this.labelsJSON = TypeConversion.convertMapToJsonString(spec.getLabelsMap());
-  }
-
-  /** Whether the Feature is archived */
-  public boolean isArchived() {
-    return getFeatureTable().getProject().isArchived();
   }
 
   @Override

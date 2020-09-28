@@ -107,10 +107,6 @@ public class FeatureSource {
    * @throws UnsupportedOperationException if source type is unsupported.
    */
   public static FeatureSource fromProto(FeatureSourceSpec spec) {
-    if (spec.getType().equals(SourceType.INVALID)) {
-      throw new IllegalArgumentException("Missing Feature Store type: Type unset");
-    }
-
     FeatureSource source = new FeatureSource(spec.getType());
     // Copy source type specific options
     switch (spec.getType()) {

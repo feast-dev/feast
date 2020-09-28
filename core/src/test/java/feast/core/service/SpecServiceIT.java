@@ -939,23 +939,26 @@ public class SpecServiceIT extends BaseIT {
   public class ApplyFeatureTable {
     private FeatureTableSpec getTestSpec() {
       return DataGenerator.createFeatureTableSpec(
-          "ft",
-          List.of("entity1", "entity2"),
-          Map.of(
-              "feature1", ValueProto.ValueType.Enum.INT64,
-              "feature2", ValueProto.ValueType.Enum.FLOAT),
-          3600,
-          Map.of());
+              "ft",
+              List.of("entity1", "entity2"),
+              Map.of(
+                  "feature1", ValueProto.ValueType.Enum.INT64,
+                  "feature2", ValueProto.ValueType.Enum.FLOAT),
+              3600,
+              Map.of())
+          .toBuilder()
+          .setStreamSource(DataGenerator.createFileFeatureSourceSpec("file:///path/to/file"))
+          .setBatchSource(
+              DataGenerator.createKafkaFeatureSourceSpec("localhost:9092", "topic", "class.path"))
+          .build();
     }
 
     @Test
     public void shouldApplyNewValidTable() {
-      // Should automatically create nonexistent project when applying feature set.
-      FeatureTableProto.FeatureTable table =
-          apiClient.applyFeatureTable("nonexistent", getTestSpec());
+      FeatureTableProto.FeatureTable table = apiClient.applyFeatureTable("default", getTestSpec());
 
       assertThat(table.getSpec(), equalTo(getTestSpec()));
-      assertThat(table.getMeta().getRevision(), equalTo(1));
+      assertThat(table.getMeta().getRevision(), equalTo(1L));
     }
 
     @Test
@@ -967,7 +970,6 @@ public class SpecServiceIT extends BaseIT {
               "ft",
               List.of("entity1", "entity2"),
               Map.of(
-                  "feature1", ValueProto.ValueType.Enum.INT64,
                   "feature2", ValueProto.ValueType.Enum.FLOAT,
                   "feature3", ValueProto.ValueType.Enum.INT64,
                   "feature4", ValueProto.ValueType.Enum.INT64),
@@ -977,9 +979,10 @@ public class SpecServiceIT extends BaseIT {
           apiClient.applyFeatureTable("default", updatedSpec);
 
       assertThat(updatedTable.getSpec(), equalTo(updatedSpec));
-      assertThat(updatedTable.getMeta().getRevision(), equalTo(table.getMeta().getRevision() + 1));
+      assertThat(updatedTable.getMeta().getRevision(), equalTo(table.getMeta().getRevision() + 1L));
     }
 
+    /*
     @Test
     public void shouldNotUpdateIfNoChanges() {
       FeatureTableProto.FeatureTable table = apiClient.applyFeatureTable("default", getTestSpec());
@@ -988,6 +991,7 @@ public class SpecServiceIT extends BaseIT {
 
       assertThat(updatedTable.getMeta().getRevision(), equalTo(table.getMeta().getRevision()));
     }
+    */
 
     @Test
     public void shouldErrorOnReservedNames() {

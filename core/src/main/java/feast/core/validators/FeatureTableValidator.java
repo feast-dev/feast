@@ -20,13 +20,14 @@ import static feast.core.validators.Matchers.*;
 
 import feast.proto.core.FeatureProto.FeatureSpecV2;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class FeatureTableValidator {
-  protected static final List<String> RESERVED_NAMES =
-      List.of("created_timestamp", "event_timestamp");
+  protected static final Set<String> RESERVED_NAMES =
+      Set.of("created_timestamp", "event_timestamp");
 
   public static void validateSpec(FeatureTableSpec spec) {
     if (spec.getName().isEmpty()) {
@@ -40,10 +41,10 @@ public class FeatureTableValidator {
     spec.getFeaturesList().forEach(FeatureTableValidator::validateFeatureSpec);
 
     // Check that features and entities defined in FeatureTable do not use reserved names
-    List<String> fieldNames = new LinkedList<>(spec.getEntitiesList());
+    Set<String> fieldNames = new HashSet<>(spec.getEntitiesList());
     fieldNames.addAll(
         spec.getFeaturesList().stream().map(FeatureSpecV2::getName).collect(Collectors.toList()));
-    if (fieldNames.containsAll(RESERVED_NAMES)) {
+    if (!Collections.disjoint(fieldNames, RESERVED_NAMES)) {
       throw new IllegalArgumentException(
           String.format(
               "Reserved names has been used as Feature(s) names. Reserved: %s", RESERVED_NAMES));
