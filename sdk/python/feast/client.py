@@ -46,6 +46,8 @@ from feast.core.CoreService_pb2 import (
     ApplyEntityResponse,
     ApplyFeatureSetRequest,
     ApplyFeatureSetResponse,
+    ApplyFeatureTableRequest,
+    ApplyFeatureTableResponse,
     ArchiveProjectRequest,
     ArchiveProjectResponse,
     CreateProjectRequest,
@@ -56,12 +58,16 @@ from feast.core.CoreService_pb2 import (
     GetFeatureSetRequest,
     GetFeatureSetResponse,
     GetFeatureStatisticsRequest,
+    GetFeatureTableRequest,
+    GetFeatureTableResponse,
     ListEntitiesRequest,
     ListEntitiesResponse,
     ListFeatureSetsRequest,
     ListFeatureSetsResponse,
     ListFeaturesRequest,
     ListFeaturesResponse,
+    ListFeatureTablesRequest,
+    ListFeatureTablesResponse,
     ListProjectsRequest,
     ListProjectsResponse,
 )
@@ -70,6 +76,7 @@ from feast.core.FeatureSet_pb2 import FeatureSetStatus
 from feast.entity import EntityV2
 from feast.feature import Feature, FeatureRef
 from feast.feature_set import FeatureSet
+from feast.feature_table import FeatureTable
 from feast.grpc import auth as feast_auth
 from feast.grpc.grpc import create_grpc_channel
 from feast.job import RetrievalJob
@@ -484,6 +491,119 @@ class Client:
         entity = EntityV2.from_proto(get_entity_response.entity)
 
         return entity
+
+    def apply_feature_table(
+        self,
+        feature_tables: Union[List[FeatureTable], FeatureTable],
+        project: str = None,
+    ):
+        """
+        Idempotently registers feature tables with Feast Core. Either a single
+        feature table or a list can be provided.
+
+        Args:
+            feature_tables: List of feature tables that will be registered
+        """
+
+        if project is None:
+            project = self.project
+
+        if not isinstance(feature_tables, list):
+            feature_tables = [feature_tables]
+        for feature_table in feature_tables:
+            if isinstance(feature_table, FeatureTable):
+                self._apply_feature_table(project, feature_table)  # type: ignore
+                continue
+            raise ValueError(
+                f"Could not determine feature table type to apply {feature_table}"
+            )
+
+    def _apply_feature_table(self, project: str, feature_table: FeatureTable):
+        """
+        Registers a single feature table with Feast
+
+        Args:
+            feature_table: Feature table that will be registered
+        """
+
+        feature_table.is_valid()
+        feature_table_proto = feature_table.to_spec_proto()
+
+        # Convert the feature table to a request and send to Feast Core
+        try:
+            apply_feature_table_response = self._core_service.ApplyFeatureTable(
+                ApplyFeatureTableRequest(project=project, table_spec=feature_table_proto),  # type: ignore
+                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                metadata=self._get_grpc_metadata(),
+            )  # type: ApplyFeatureTableResponse
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+
+        # Extract the returned feature table
+        applied_feature_table = FeatureTable.from_proto(
+            apply_feature_table_response.table
+        )
+
+        # Deep copy from the returned feature table to the local entity
+        feature_table._update_from_feature_table(applied_feature_table)
+
+    def list_feature_tables(
+        self, project: str = None, labels: Dict[str, str] = dict()
+    ) -> List[FeatureTable]:
+        """
+        Retrieve a list of feature tables from Feast Core
+
+        Args:
+            project: Filter feature tables based on project name
+
+        Returns:
+            List of feature tables
+        """
+
+        if project is None:
+            project = self.project
+
+        filter = ListFeatureTablesRequest.Filter(project=project, labels=labels)
+
+        # Get latest feature tables from Feast Core
+        feature_table_protos = self._core_service.ListFeatureTables(
+            ListFeatureTablesRequest(filter=filter), metadata=self._get_grpc_metadata(),
+        )  # type: ListFeatureTablesResponse
+
+        # Extract feature tables and return
+        feature_tables = []
+        for feature_table_proto in feature_table_protos.tables:
+            feature_table = FeatureTable.from_proto(feature_table_proto)
+            feature_table._client = self
+            feature_tables.append(feature_table)
+        return feature_tables
+
+    def get_feature_table(
+        self, name: str, project: str = None
+    ) -> Union[FeatureTable, None]:
+        """
+        Retrieves a feature table.
+
+        Args:
+            project: Feast project that this feature table belongs to
+            name: Name of feature table
+
+        Returns:
+            Returns either the specified feature table, or raises an exception if
+            none is found
+        """
+
+        if project is None:
+            project = self.project
+
+        try:
+            get_feature_table_response = self._core_service.GetFeatureTable(
+                GetFeatureTableRequest(project=project, name=name.strip()),
+                metadata=self._get_grpc_metadata(),
+            )  # type: GetFeatureTableResponse
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+        return FeatureTable.from_proto(get_feature_table_response.table)
 
     def apply(self, feature_sets: Union[List[FeatureSet], FeatureSet]):
         """

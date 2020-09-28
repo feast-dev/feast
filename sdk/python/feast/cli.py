@@ -27,6 +27,7 @@ from feast.contrib.job_controller.client import Client as JCClient
 from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.entity import EntityV2
 from feast.feature_set import FeatureSet, FeatureSetRef
+from feast.feature_table import FeatureTable
 from feast.loaders.yaml import yaml_loader
 
 _logger = logging.getLogger(__name__)
@@ -206,6 +207,88 @@ def entity_list(project: str, labels: str):
     from tabulate import tabulate
 
     print(tabulate(table, headers=["NAME", "DESCRIPTION", "TYPE"], tablefmt="plain"))
+
+
+@cli.group(name="feature-tables")
+def feature_table():
+    """
+    Create and manage feature tables
+    """
+    pass
+
+
+@feature_table.command("apply")
+@click.option(
+    "--filename",
+    "-f",
+    help="Path to a feature table configuration file that will be applied",
+    type=click.Path(exists=True),
+)
+def feature_table_create(filename):
+    """
+    Create or update a feature table
+    """
+
+    feature_tables = [
+        FeatureTable.from_dict(ft_dict) for ft_dict in yaml_loader(filename)
+    ]
+    feast_client = Client()  # type: Client
+    feast_client.apply_feature_table(feature_tables)
+
+
+@feature_table.command("describe")
+@click.argument("name", type=click.STRING)
+@click.option(
+    "--project",
+    "-p",
+    help="Project that feature table belongs to",
+    type=click.STRING,
+    default="default",
+)
+def feature_table_describe(name: str, project: str):
+    """
+    Describe a feature table
+    """
+    feast_client = Client()  # type: Client
+    ft = feast_client.get_feature_table(name=name, project=project)
+
+    if not ft:
+        print(f'Feature table with name "{name}" could not be found')
+        return
+
+    print(yaml.dump(yaml.safe_load(str(ft)), default_flow_style=False, sort_keys=False))
+
+
+@feature_table.command(name="list")
+@click.option(
+    "--project",
+    "-p",
+    help="Project that feature table belongs to",
+    type=click.STRING,
+    default="",
+)
+@click.option(
+    "--labels",
+    "-l",
+    help="Labels to filter for feature tables",
+    type=click.STRING,
+    default="",
+)
+def feature_table_list(project: str, labels: str):
+    """
+    List all feature tables
+    """
+    feast_client = Client()  # type: Client
+
+    labels_dict = _get_labels_dict(labels)
+
+    table = []
+    for ft in feast_client.list_feature_tables(project=project, labels=labels_dict):
+        table.append([ft.name, ft.entities])
+
+    from tabulate import tabulate
+
+    print(tabulate(table, headers=["NAME", "ENTITIES"], tablefmt="plain"))
 
 
 @cli.group(name="features")
