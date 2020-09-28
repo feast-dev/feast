@@ -7,5 +7,7 @@ class RedisSinkMetricSource extends Source {
 
   override val metricRegistry: MetricRegistry = new MetricRegistry
 
-  val METRIC_TOTAL_ROWS_INSERTED = metricRegistry.counter(MetricRegistry.name("rowsInserted"))
+  val METRIC_TOTAL_ROWS_INSERTED = metricRegistry.counter(MetricRegistry.name("feast_ingestion_feature_row_ingested_count"))
+
+  val METRIC_ROWS_LAG = metricRegistry.histogram(MetricRegistry.name("feast_ingestion_feature_row_lag_ms"))
 }

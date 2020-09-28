@@ -2,11 +2,16 @@ package feast.ingestion
 
 import feast.ingestion.sources.bq.BigQueryReader
 import feast.ingestion.sources.file.FileReader
+import feast.ingestion.validation.RowValidator
 import org.apache.spark.sql.{Column, SparkSession}
 import org.apache.spark.sql.functions.col
 
 object OfflinePipeline extends BasePipeline {
   override def createPipeline(sparkSession: SparkSession, config: IngestionJobConfig): Unit = {
+    val projection = inputProjection(
+      config.featureTable.offline_source.get, config.featureTable.features, config.featureTable.entities)
+    val validator = new RowValidator(config.featureTable)
+
     val input = config.featureTable.offline_source match {
       case Some(source: BQSource) =>
         BigQueryReader.createBatchSource(
@@ -21,8 +26,12 @@ object OfflinePipeline extends BasePipeline {
         )
     }
 
-    val projection = inputProjection(config.featureTable.offline_source.get, config.featureTable.features, config.featureTable.entities)
-    input.select(projection: _*)
+    val projected = input.select(projection: _*).cache()
+
+    val validRows = projected
+      .filter(validator.checkAll)
+
+    validRows
       .write
       .format("feast.ingestion.stores.redis")
       .option("entity_columns", config.featureTable.entities.map(_.name).mkString(","))
@@ -30,10 +39,21 @@ object OfflinePipeline extends BasePipeline {
       .option("namespace", config.featureTable.name)
       .option("timestamp_column", config.featureTable.offline_source.get.timestampColumn)
       .save()
+
+    config.deadLetterPath match {
+      case Some(path) =>
+        projected
+          .filter(!validator.checkAll)
+          .write
+          .format("parquet")
+          .save(path)
+      case _ => None
+    }
+
   }
 
   private def inputProjection(source: OfflineSource, features: Seq[Field], entities: Seq[Field]): Array[Column] = {
-    val mainColumns =
+    val featureColumns =
       if (source.mapping.nonEmpty)
         source.mapping
       else features.map(f => (f.name, f.name))
@@ -41,7 +61,7 @@ object OfflinePipeline extends BasePipeline {
     val timestampColumn = Seq((source.timestampColumn, source.timestampColumn))
     val entitiesColumns = entities.map(e => (e.name, e.name))
 
-    (mainColumns ++ entitiesColumns ++ timestampColumn).map {
+    (featureColumns ++ entitiesColumns ++ timestampColumn).map {
       case (alias, source) => col(source).alias(alias)
     }.toArray
   }

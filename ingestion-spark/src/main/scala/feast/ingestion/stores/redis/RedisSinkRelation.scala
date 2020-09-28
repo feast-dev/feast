@@ -60,7 +60,10 @@ class RedisSinkRelation(override val sqlContext: SQLContext,
               case Some(t) if !t.before(row.getAs[java.sql.Timestamp](config.timestampColumn)) => ()
               case _ =>
                 if (metricSource.nonEmpty) {
+                  val lag = System.currentTimeMillis() - row.getAs[java.sql.Timestamp](config.timestampColumn).getTime
+
                   metricSource.get.METRIC_TOTAL_ROWS_INSERTED.inc()
+                  metricSource.get.METRIC_ROWS_LAG.update(lag)
                 }
 
                 val encodedRow = persistence.encodeRow(config.entityColumns, timestampField, row)

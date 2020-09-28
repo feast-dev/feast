@@ -22,5 +22,6 @@ case class IngestionJobConfig(
                                startTime: DateTime = DateTime.now(),
                                endTime: DateTime = DateTime.now(),
                                store: StoreConfig = RedisConfig("localhost:6379"),
-                               metrics: Option[MetricConfig] = Some(StatsDConfig("localhost", 9125))
+                               metrics: Option[MetricConfig] = Some(StatsDConfig("localhost", 9125)),
+                               deadLetterPath: Option[String] = None
                              )

@@ -1,6 +1,6 @@
 package feast.ingestion
 
-import java.nio.file.Files
+import java.nio.file.{Files, Paths}
 
 import com.dimafeng.testcontainers.{ForAllTestContainer, GenericContainer}
 import com.google.protobuf.Timestamp
@@ -14,7 +14,6 @@ import org.joda.time.{DateTime, Seconds}
 import org.scalacheck._
 import org.scalatest._
 import matchers.should.Matchers._
-
 import org.scalatest.matchers.Matcher
 import redis.clients.jedis.Jedis
 
@@ -25,7 +24,7 @@ import scala.reflect.runtime.universe.TypeTag
 case class Row(customer: String, feature1: Int, feature2: Float, eventTimestamp: java.sql.Timestamp)
 
 
-class OfflinePipelineSpec extends UnitSpec with ForAllTestContainer with BeforeAndAfter {
+class OfflinePipelineSpec extends UnitSpec with ForAllTestContainer {
 
   override val container = GenericContainer("redis:6.0.8", exposedPorts = Seq(6379))
 
@@ -49,7 +48,7 @@ class OfflinePipelineSpec extends UnitSpec with ForAllTestContainer with BeforeA
     def storeAsParquet[T <: Product : TypeTag](rows: Seq[T]): String = {
       import self.sparkSession.implicits._
 
-      val tempPath = Files.createTempDirectory("test-dir").toFile.toString + "/rows"
+      val tempPath = Paths.get(Files.createTempDirectory("test-dir").toString, "rows").toString
 
       sparkSession.createDataset(rows)
         .withColumn("date", to_date($"eventTimestamp"))
