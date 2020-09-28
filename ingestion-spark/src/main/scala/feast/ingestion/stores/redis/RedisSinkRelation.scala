@@ -8,16 +8,16 @@ import org.apache.spark.SparkEnv
 import org.apache.spark.metrics.source.RedisSinkMetricSource
 import org.apache.spark.sql.sources.{BaseRelation, InsertableRelation}
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.{DataFrame, Row, SQLContext}
 
 
 class RedisSinkRelation(override val sqlContext: SQLContext,
                         config: SparkRedisConfig) extends BaseRelation
-  with InsertableRelation with Serializable
-{
+  with InsertableRelation with Serializable {
   private implicit val redisConfig: RedisConfig = {
     new RedisConfig(
-        new RedisEndpoint(sqlContext.sparkContext.getConf)
+      new RedisEndpoint(sqlContext.sparkContext.getConf)
     )
   }
 
@@ -30,10 +30,15 @@ class RedisSinkRelation(override val sqlContext: SQLContext,
   val persistence = new HashTypePersistence(config)
 
   override def insert(data: DataFrame, overwrite: Boolean): Unit = {
-    data.foreachPartition { partition: Iterator[Row] =>
+    val dataToStore =
+      if (config.repartitionByEntity)
+        data.repartition(config.entityColumns.map(col): _*)
+      else data
+
+    dataToStore.foreachPartition { partition: Iterator[Row] =>
       // grouped iterator to only allocate memory for a portion of rows
       partition.grouped(config.iteratorGroupingSize).foreach { batch =>
-        val rowsWithKey: Map[String, Row] = batch.map(row => dataKeyId(row) -> row).toMap
+        val rowsWithKey: Map[String, Row] = compactRowsToLatest(batch.map(row => dataKeyId(row) -> row)).toMap
 
         groupKeysByNode(redisConfig.hosts, rowsWithKey.keysIterator).foreach { case (node, keys) =>
           val conn = node.connect()
@@ -59,7 +64,7 @@ class RedisSinkRelation(override val sqlContext: SQLContext,
                 }
 
                 val encodedRow = persistence.encodeRow(config.entityColumns, timestampField, row)
-                persistence.save(pipeline, key, encodedRow, ttl=0)
+                persistence.save(pipeline, key, encodedRow, ttl = 0)
             }
           }
           conn.close()
@@ -67,6 +72,12 @@ class RedisSinkRelation(override val sqlContext: SQLContext,
       }
     }
   }
+
+  private def compactRowsToLatest(rows: Seq[(String, Row)]) = rows
+    .groupBy(_._1)
+    .values
+    .map(_.maxBy(_._2.getAs[java.sql.Timestamp](config.timestampColumn).getTime))
+
 
   private def dataKeyId(row: Row): String = {
     val entityKey = config.entityColumns.map(row.getAs[Any]).map(_.toString).mkString(":")
