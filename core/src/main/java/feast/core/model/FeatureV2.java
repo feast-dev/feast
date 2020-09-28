@@ -39,7 +39,7 @@ public class FeatureV2 {
 
   // Feature Table where this Feature is defined in.
   @ManyToOne(fetch = FetchType.LAZY)
-  @Column(name = "feature_table_id", nullable = false)
+  @JoinColumn(name = "feature_table_id", nullable = false)
   private FeatureTable featureTable;
 
   // Value type of the feature. String representation of ValueType.

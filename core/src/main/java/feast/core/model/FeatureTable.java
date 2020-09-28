@@ -59,8 +59,8 @@ public class FeatureTable extends AbstractTimestampEntity {
   private String name;
 
   // Name of the Project that this FeatureTable belongs to
-  @ManyToOne
-  @JoinColumn(name = "project_name", nullable = false)
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "project_name")
   private Project project;
 
   // Features defined in this Feature Table
@@ -117,7 +117,7 @@ public class FeatureTable extends AbstractTimestampEntity {
     this.maxAgeSecs = maxAgeSecs;
     this.streamSource = streamSource;
     this.batchSource = batchSource;
-    this.revision = 0;
+    this.revision = 1;
   }
 
   /**
@@ -138,7 +138,8 @@ public class FeatureTable extends AbstractTimestampEntity {
     FeatureSource streamSource = FeatureSource.fromProto(spec.getStreamSource());
     FeatureSource batchSource = FeatureSource.fromProto(spec.getBatchSource());
     Set<EntityV2> entities =
-        FeatureTable.resolveEntities(projectName, entityRepo, spec.getEntitiesList());
+        FeatureTable.resolveEntities(
+            projectName, spec.getName(), entityRepo, spec.getEntitiesList());
     String labelsJSON = TypeConversion.convertMapToJsonString(spec.getLabelsMap());
 
     return new FeatureTable(
@@ -238,7 +239,7 @@ public class FeatureTable extends AbstractTimestampEntity {
 
   /** Use given entity repository to resolve entity names to entity native objects */
   private static Set<EntityV2> resolveEntities(
-      String projectName, EntityRepository repo, Collection<String> names) {
+      String projectName, String tableName, EntityRepository repo, Collection<String> names) {
     return names.stream()
         .map(
             entityName -> {
@@ -246,8 +247,8 @@ public class FeatureTable extends AbstractTimestampEntity {
               if (entity == null) {
                 throw new IllegalArgumentException(
                     String.format(
-                        "Feature Table refers to no existent Entity with name %s in project %s.",
-                        entityName, projectName));
+                        "Feature Table refers to no existent Entity: (table: %s, entity: %s, project: %s)",
+                        tableName, entityName, projectName));
               }
               return entity;
             })
