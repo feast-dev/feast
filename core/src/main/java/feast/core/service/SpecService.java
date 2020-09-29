@@ -721,15 +721,23 @@ public class SpecService {
   @Transactional
   public GetFeatureTableResponse getFeatureTable(GetFeatureTableRequest request) {
     String projectName = resolveProjectName(request.getProject());
+    String featureTableName = request.getName();
+
+    checkValidCharacters(projectName, "project");
+    checkValidCharacters(featureTableName, "featureTable");
 
     Optional<FeatureTable> retrieveTable =
-        tableRepository.findFeatureTableByNameAndProject_Name(request.getName(), projectName);
+        tableRepository.findFeatureTableByNameAndProject_Name(featureTableName, projectName);
     if (retrieveTable.isEmpty()) {
       throw new NoSuchElementException(
           String.format(
-              "No such Feature Table: (project:%, name:%)", projectName, request.getName()));
+              "No such Feature Table: (project: %s, name: %s)", projectName, featureTableName));
     }
 
-    return GetFeatureTableResponse.newBuilder().setTable(retrieveTable.get().toProto()).build();
+    // Build GetFeatureTableResponse
+    GetFeatureTableResponse response =
+        GetFeatureTableResponse.newBuilder().setTable(retrieveTable.get().toProto()).build();
+
+    return response;
   }
 }

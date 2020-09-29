@@ -140,6 +140,15 @@ public class SimpleCoreClient {
         .getEntity();
   }
 
+  public FeatureTableProto.FeatureTable simpleGetFeatureTable(String projectName, String name) {
+    return stub.getFeatureTable(
+            CoreServiceProto.GetFeatureTableRequest.newBuilder()
+                .setName(name)
+                .setProject(projectName)
+                .build())
+        .getTable();
+  }
+
   public void updateFeatureSetStatus(
       String projectName, String name, FeatureSetProto.FeatureSetStatus status) {
     stub.updateFeatureSetStatus(

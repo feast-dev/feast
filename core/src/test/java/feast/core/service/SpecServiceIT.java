@@ -914,6 +914,51 @@ public class SpecServiceIT extends BaseIT {
   }
 
   @Nested
+  class GetFeatureTable {
+    @Test
+    public void shouldThrowExceptionGivenNoSuchFeatureTable() {
+      String projectName = "default";
+      String featureTableName = "invalid_table";
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class,
+              () -> apiClient.simpleGetFeatureTable(projectName, featureTableName));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo(
+              String.format(
+                  "NOT_FOUND: No such Feature Table: (project: %s, name: %s)",
+                  projectName, featureTableName)));
+    }
+
+    @Test
+    public void shouldReturnFeatureTableIfExists() {
+      FeatureTableSpec featureTableSpec =
+          DataGenerator.createFeatureTableSpec(
+              "featuretable1",
+              Arrays.asList("entity1", "entity2"),
+              new HashMap<>() {
+                {
+                  put("feature1", ValueProto.ValueType.Enum.STRING);
+                  put("feature2", ValueProto.ValueType.Enum.FLOAT);
+                }
+              },
+              7200,
+              ImmutableMap.of("feat_key2", "feat_value2"));
+      FeatureTableProto.FeatureTable featureTable =
+          apiClient.simpleGetFeatureTable("default", "featuretable1");
+
+      assertThat(featureTable.getSpec().getName(), equalTo(featureTableSpec.getName()));
+      assertThat(
+          featureTable.getSpec().getEntitiesList(), equalTo(featureTableSpec.getEntitiesList()));
+      assertThat(
+          featureTable.getSpec().getFeaturesList(), equalTo(featureTableSpec.getFeaturesList()));
+      assertThat(featureTable.getSpec().getLabelsMap(), equalTo(featureTableSpec.getLabelsMap()));
+    }
+  }
+
+  @Nested
   class ListStores {
     @Test
     public void shouldReturnAllStoresIfNoNameProvided() {
