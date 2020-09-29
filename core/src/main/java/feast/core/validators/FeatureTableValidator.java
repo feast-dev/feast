@@ -20,8 +20,8 @@ import static feast.core.validators.Matchers.*;
 
 import feast.proto.core.FeatureProto.FeatureSpecV2;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -41,7 +41,7 @@ public class FeatureTableValidator {
     spec.getFeaturesList().forEach(FeatureTableValidator::validateFeatureSpec);
 
     // Check that features and entities defined in FeatureTable do not use reserved names
-    Set<String> fieldNames = new HashSet<>(spec.getEntitiesList());
+    ArrayList<String> fieldNames = new ArrayList<>(spec.getEntitiesList());
     fieldNames.addAll(
         spec.getFeaturesList().stream().map(FeatureSpecV2::getName).collect(Collectors.toList()));
     if (!Collections.disjoint(fieldNames, RESERVED_NAMES)) {
@@ -50,7 +50,7 @@ public class FeatureTableValidator {
               "Reserved names has been used as Feature(s) names. Reserved: %s", RESERVED_NAMES));
     }
 
-    // Check that Feaure and Entity names in FeatureTable do not collide with each other
+    // Check that Feature and Entity names in FeatureTable do not collide with each other
     if (hasDuplicates(fieldNames)) {
       throw new IllegalArgumentException(
           String.format("Entity and Feature names within a Feature Table should be unique."));
