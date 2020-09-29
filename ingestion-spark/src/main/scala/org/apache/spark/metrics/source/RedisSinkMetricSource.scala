@@ -19,7 +19,7 @@ package org.apache.spark.metrics.source
 import com.codahale.metrics.MetricRegistry
 
 class RedisSinkMetricSource extends Source {
-  override val sourceName: String = "redis_sink"
+  override val sourceName: String = RedisSinkMetricSource.sourceName
 
   override val metricRegistry: MetricRegistry = new MetricRegistry
 
@@ -28,4 +28,8 @@ class RedisSinkMetricSource extends Source {
 
   val METRIC_ROWS_LAG =
     metricRegistry.histogram(MetricRegistry.name("feast_ingestion_feature_row_lag_ms"))
+}
+
+object RedisSinkMetricSource {
+  val sourceName = "redis_sink"
 }

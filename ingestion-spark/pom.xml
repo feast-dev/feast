@@ -214,9 +214,10 @@
                 </configuration>
                 <executions>
                     <execution>
-                        <id>integration-test</id>
+                        <id>test</id>
+                        <phase>integration-test</phase>
                         <goals>
-                            <goal>integration-test</goal>
+                            <goal>test</goal>
                         </goals>
                     </execution>
                 </executions>
