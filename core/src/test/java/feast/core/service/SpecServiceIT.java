@@ -42,6 +42,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
 import java.util.*;
+import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.junit.jupiter.api.BeforeAll;
@@ -1114,6 +1115,70 @@ public class SpecServiceIT extends BaseIT {
           apiClient.applyFeatureTable("default", getTestSpec());
 
       assertThat(updatedTable.getMeta().getRevision(), equalTo(table.getMeta().getRevision()));
+    }
+
+    @Test
+    public void shouldErrorIfEntityChangeOnUpdate() {
+      List<String> entities = Arrays.asList("entity1", "entity2");
+      FeatureTableProto.FeatureTableSpec spec =
+          DataGenerator.createFeatureTableSpec(
+                  "featuretable1",
+                  Arrays.asList("entity1"),
+                  new HashMap<>() {
+                    {
+                      put("feature1", ValueProto.ValueType.Enum.STRING);
+                      put("feature2", ValueProto.ValueType.Enum.FLOAT);
+                    }
+                  },
+                  7200,
+                  ImmutableMap.of("feat_key2", "feat_value2"))
+              .toBuilder()
+              .setBatchSource(
+                  DataGenerator.createFileFeatureSourceSpec("file:///path/to/file", "ts_col", ""))
+              .build();
+
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class, () -> apiClient.applyFeatureTable("default", spec));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo(
+              String.format(
+                  "INVALID_ARGUMENT: Updating the entities of a registered FeatureTable is not allowed: %s to %s",
+                  entities.stream().collect(Collectors.toSet()),
+                  spec.getEntitiesList().stream().collect(Collectors.toSet()))));
+    }
+
+    @Test
+    public void shouldErrorIfFeatureValueTypeChangeOnUpdate() {
+      FeatureTableProto.FeatureTableSpec spec =
+          DataGenerator.createFeatureTableSpec(
+                  "featuretable1",
+                  Arrays.asList("entity1", "entity2"),
+                  new HashMap<>() {
+                    {
+                      put("feature1", ValueProto.ValueType.Enum.STRING);
+                      put("feature2", ValueProto.ValueType.Enum.STRING_LIST);
+                    }
+                  },
+                  7200,
+                  ImmutableMap.of("feat_key2", "feat_value2"))
+              .toBuilder()
+              .setBatchSource(
+                  DataGenerator.createFileFeatureSourceSpec("file:///path/to/file", "ts_col", ""))
+              .build();
+
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class, () -> apiClient.applyFeatureTable("default", spec));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo(
+              String.format(
+                  "INVALID_ARGUMENT: Updating the value type of a registered Feature is not allowed: %s to %s",
+                  ValueProto.ValueType.Enum.FLOAT, ValueProto.ValueType.Enum.STRING_LIST)));
     }
 
     @Test
