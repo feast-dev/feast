@@ -237,16 +237,19 @@ public class DataGenerator {
         .build();
   }
 
-  public static FeatureSourceSpec createFileFeatureSourceSpec(String fileURL) {
+  public static FeatureSourceSpec createFileFeatureSourceSpec(
+      String fileURL, String tsColumn, String datePartitionColumn) {
     return FeatureSourceSpec.newBuilder()
         .setType(FeatureSourceSpec.SourceType.BATCH_FILE)
         .setFileOptions(
             FileOptions.newBuilder().setFileFormat(FileFormat.PARQUET).setFileUrl(fileURL).build())
+        .setTsColumn(tsColumn)
+        .setDatePartitionColumn(datePartitionColumn)
         .build();
   }
 
   public static FeatureSourceSpec createKafkaFeatureSourceSpec(
-      String servers, String topic, String classPath) {
+      String servers, String topic, String classPath, String tsColumn) {
     return FeatureSourceSpec.newBuilder()
         .setType(FeatureSourceSpec.SourceType.STREAM_KAFKA)
         .setKafkaOptions(
@@ -255,6 +258,7 @@ public class DataGenerator {
                 .setBootstrapServers(servers)
                 .setClassPath(classPath)
                 .build())
+        .setTsColumn(tsColumn)
         .build();
   }
 }

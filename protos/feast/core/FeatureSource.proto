@@ -38,6 +38,13 @@ message FeatureSourceSpec {
   // and fields in parent FeatureTable.
   map<string, string> field_mapping = 2;
 
+  // Must specify timestamp column name
+  string ts_column = 3;
+
+  // (Optional) Specify partition column
+  // useful for file sources
+  string date_partition_column = 4;
+
   // Defines options for Feature source that sources features from a file
   message FileOptions {
     // File Format of the file containing the features

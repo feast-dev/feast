@@ -1055,9 +1055,11 @@ public class SpecServiceIT extends BaseIT {
               3600,
               Map.of())
           .toBuilder()
-          .setStreamSource(DataGenerator.createFileFeatureSourceSpec("file:///path/to/file"))
+          .setStreamSource(
+              DataGenerator.createFileFeatureSourceSpec("file:///path/to/file", "ts_col", ""))
           .setBatchSource(
-              DataGenerator.createKafkaFeatureSourceSpec("localhost:9092", "topic", "class.path"))
+              DataGenerator.createKafkaFeatureSourceSpec(
+                  "localhost:9092", "topic", "class.path", "ts_col"))
           .build();
     }
 
@@ -1084,10 +1086,11 @@ public class SpecServiceIT extends BaseIT {
                   2100,
                   Map.of("test", "labels"))
               .toBuilder()
-              .setStreamSource(DataGenerator.createFileFeatureSourceSpec("file:///path/to/file"))
+              .setStreamSource(
+                  DataGenerator.createFileFeatureSourceSpec("file:///path/to/file", "ts_col", ""))
               .setBatchSource(
                   DataGenerator.createKafkaFeatureSourceSpec(
-                      "localhost:9092", "topic", "class.path"))
+                      "localhost:9092", "topic", "class.path", "ts_col"))
               .build();
       FeatureTableProto.FeatureTable updatedTable =
           apiClient.applyFeatureTable("default", updatedSpec);

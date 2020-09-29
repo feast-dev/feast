@@ -303,6 +303,8 @@ class FeatureTable:
             type=feature_source.type,
             field_mapping=feature_source.field_mapping,
             options=feature_source_options,
+            ts_column=feature_source.ts_column,
+            date_partition_column=feature_source.date_partition_column,
         ).to_proto()
 
         return feature_source_proto

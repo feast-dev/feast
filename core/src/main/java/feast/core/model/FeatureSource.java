@@ -93,6 +93,12 @@ public class FeatureSource {
   @Column(name = "field_mapping", columnDefinition = "text")
   private String fieldMapJSON;
 
+  @Column(name = "ts_column")
+  private String tsColumn;
+
+  @Column(name = "date_partition_column")
+  private String datePartitionColumn;
+
   public FeatureSource() {};
 
   public FeatureSource(SourceType type) {
@@ -135,6 +141,10 @@ public class FeatureSource {
 
     // Store field mapping as serialised JSON
     source.setFieldMapJSON(TypeConversion.convertMapToJsonString(spec.getFieldMappingMap()));
+
+    // Set timestamp mapping columns
+    source.setTsColumn(spec.getTsColumn());
+    source.setDatePartitionColumn(spec.getDatePartitionColumn());
 
     return source;
   }
@@ -179,6 +189,9 @@ public class FeatureSource {
 
     // Parse field mapping and options from JSON
     spec.putAllFieldMapping(TypeConversion.convertJsonStringToMap(getFieldMapJSON()));
+
+    spec.setTsColumn(getTsColumn());
+    spec.setDatePartitionColumn(getDatePartitionColumn());
 
     return spec.build();
   }

@@ -57,8 +57,9 @@ public class FeatureSourceTest {
 
   private List<FeatureSourceSpec> getTestSpecs() {
     return List.of(
-        DataGenerator.createFileFeatureSourceSpec("file:///path/to/file"),
-        DataGenerator.createKafkaFeatureSourceSpec("localhost:9092", "topic", "class.path"),
+        DataGenerator.createFileFeatureSourceSpec("file:///path/to/file", "ts_col", ""),
+        DataGenerator.createKafkaFeatureSourceSpec(
+            "localhost:9092", "topic", "class.path", "ts_col"),
         FeatureSourceSpec.newBuilder()
             .setType(BATCH_BIGQUERY)
             .setBigqueryOptions(

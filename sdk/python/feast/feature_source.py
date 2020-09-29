@@ -14,7 +14,7 @@
 
 
 import enum
-from typing import MutableMapping
+from typing import MutableMapping, Optional
 
 from feast.core.FeatureSource_pb2 import FeatureSourceSpec as FeatureSourceSpecProto
 
@@ -401,10 +401,14 @@ class FeatureSourceSpec:
         type: str,
         field_mapping: MutableMapping[str, str],
         options: FeatureSourceSpecOptions,
+        ts_column: str,
+        date_partition_column: Optional[str] = "",
     ):
         self._type = type
         self._field_mapping = field_mapping
         self._options = options
+        self._ts_column = ts_column
+        self._date_partition_column = date_partition_column
 
     @property
     def type(self):
@@ -448,6 +452,34 @@ class FeatureSourceSpec:
         """
         self._options = options
 
+    @property
+    def ts_column(self):
+        """
+        Returns the timestamp column of this feature source
+        """
+        return self._ts_column
+
+    @ts_column.setter
+    def ts_column(self, ts_column):
+        """
+        Sets the timestamp column of this feature source
+        """
+        self._ts_column = ts_column
+
+    @property
+    def date_partition_column(self):
+        """
+        Returns the date partition column of this feature source
+        """
+        return self._date_partition_column
+
+    @date_partition_column.setter
+    def date_partition_column(self, date_partition_column):
+        """
+        Sets the date partition column of this feature source
+        """
+        self._date_partition_column = date_partition_column
+
     @classmethod
     def from_proto(cls, feature_source_proto: FeatureSourceSpecProto):
         """
@@ -461,33 +493,24 @@ class FeatureSourceSpec:
         """
 
         if isinstance(cls.options, FileOptions):
-            feature_source = cls(
-                type=feature_source_proto.type,
-                field_mapping=feature_source_proto.field_mapping,
-                file_options=feature_source_proto.options,
-            )
+            feature_source = cls(file_options=feature_source_proto.options,)
         if isinstance(cls.options, BigQueryOptions):
-            feature_source = cls(
-                type=feature_source_proto.type,
-                field_mapping=feature_source_proto.field_mapping,
-                bigquery_options=feature_source_proto.options,
-            )
+            feature_source = cls(bigquery_options=feature_source_proto.options,)
         if isinstance(cls.options, KafkaOptions):
-            feature_source = cls(
-                type=feature_source_proto.type,
-                field_mapping=feature_source_proto.field_mapping,
-                kafka_options=feature_source_proto.options,
-            )
+            feature_source = cls(kafka_options=feature_source_proto.options,)
         if isinstance(cls.options, KinesisOptions):
-            feature_source = cls(
-                type=feature_source_proto.type,
-                field_mapping=feature_source_proto.field_mapping,
-                kinesis_options=feature_source_proto.options,
-            )
+            feature_source = cls(kinesis_options=feature_source_proto.options,)
         else:
             raise TypeError(
                 "FeatureSourceSpec.from_proto: Provided Feature Source option is invalid. Only FileOptions, BigQueryOptions, KafkaOptions and KinesisOptions are supported currently."
             )
+
+        feature_source = cls(
+            type=feature_source_proto.type,
+            field_mapping=feature_source_proto.field_mapping,
+            ts_column=feature_source_proto.ts_column,
+            date_partition_column=feature_source_proto.date_partition_column,
+        )
 
         return feature_source
 
@@ -528,5 +551,8 @@ class FeatureSourceSpec:
             raise TypeError(
                 "FeatureSourceSpec.to_proto: Provided Feature Source option is invalid. Only FileOptions, BigQueryOptions, KafkaOptions and KinesisOptions are supported currently."
             )
+
+        feature_source_proto.ts_column = self.ts_column
+        feature_source_proto.date_partition_column = self.date_partition_column
 
         return feature_source_proto

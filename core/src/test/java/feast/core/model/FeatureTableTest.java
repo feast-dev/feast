@@ -128,9 +128,11 @@ public class FeatureTableTest {
                 3500,
                 Map.of("test", "label"))
             .toBuilder()
-            .setStreamSource(DataGenerator.createFileFeatureSourceSpec("file:///path/to/file"))
+            .setStreamSource(
+                DataGenerator.createFileFeatureSourceSpec("file:///path/to/file", "ts_col", ""))
             .setBatchSource(
-                DataGenerator.createKafkaFeatureSourceSpec("localhost:9092", "topic", "class.path"))
+                DataGenerator.createKafkaFeatureSourceSpec(
+                    "localhost:9092", "topic", "class.path", "ts_col"))
             .build();
     return spec;
   }
