@@ -28,8 +28,7 @@
 
     <name>Feast Spark Ingestion</name>
     <artifactId>feast-ingestion-spark</artifactId>
-    <version>0.7-SNAPSHOT</version>
-
+    
     <properties>
         <scala.version>2.12</scala.version>
         <scala.fullVersion>${scala.version}.12</scala.fullVersion>
