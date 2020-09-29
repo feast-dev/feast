@@ -35,7 +35,7 @@ message FeatureSourceSpec {
   SourceType type = 1;
 
   // Defines mapping between fields in the sourced data 
-  // and feature names in parent FeatureTable.
+  // and fields in parent FeatureTable.
   map<string, string> field_mapping = 2;
 
   // Defines options for Feature source that sources features from a file
