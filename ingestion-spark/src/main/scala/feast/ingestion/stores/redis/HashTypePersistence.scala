@@ -1,5 +1,20 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2020 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package feast.ingestion.stores.redis
-
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
@@ -11,10 +26,14 @@ import feast.ingestion.utils.TypeConversion
 import scala.util.hashing.MurmurHash3
 
 class HashTypePersistence(config: SparkRedisConfig) extends Serializable {
-  def encodeRow(keyColumns: Array[String], timestampField: String, value: Row): Map[Array[Byte], Array[Byte]] = {
+  def encodeRow(
+      keyColumns: Array[String],
+      timestampField: String,
+      value: Row
+  ): Map[Array[Byte], Array[Byte]] = {
     val fields = value.schema.fields.map(_.name)
-    val types = value.schema.fields.map(f => (f.name, f.dataType)).toMap
-    val kvMap = value.getValuesMap[Any](fields)
+    val types  = value.schema.fields.map(f => (f.name, f.dataType)).toMap
+    val kvMap  = value.getValuesMap[Any](fields)
 
     val values = kvMap
       .filter { case (_, v) =>
@@ -29,9 +48,12 @@ class HashTypePersistence(config: SparkRedisConfig) extends Serializable {
         encodeKey(k) -> encodeValue(v, types(k))
       }
 
-    val timestamp = Seq((
-      timestampField.getBytes,
-      encodeValue(value.getAs[Timestamp](config.timestampColumn), TimestampType)))
+    val timestamp = Seq(
+      (
+        timestampField.getBytes,
+        encodeValue(value.getAs[Timestamp](config.timestampColumn), TimestampType)
+      )
+    )
 
     values ++ timestamp
   }
@@ -45,14 +67,23 @@ class HashTypePersistence(config: SparkRedisConfig) extends Serializable {
     MurmurHash3.stringHash(fullFeatureReference).toHexString.getBytes
   }
 
-  def save(pipeline: Pipeline, key: String, value: Map[Array[Byte], Array[Byte]], ttl: Int): Unit = {
+  def save(
+      pipeline: Pipeline,
+      key: String,
+      value: Map[Array[Byte], Array[Byte]],
+      ttl: Int
+  ): Unit = {
     pipeline.hset(key.getBytes, value.asJava)
     if (ttl > 0) {
       pipeline.expire(key, ttl)
     }
   }
 
-  def getTimestamp(pipeline: Pipeline, key: String, timestampField: String): Response[Array[Byte]] = {
+  def getTimestamp(
+      pipeline: Pipeline,
+      key: String,
+      timestampField: String
+  ): Response[Array[Byte]] = {
     pipeline.hget(key.getBytes(), timestampField.getBytes)
   }
 

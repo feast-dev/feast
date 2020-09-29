@@ -1,3 +1,19 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2020 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package feast.ingestion
 
 import feast.ingestion.sources.bq.BigQueryReader
@@ -9,7 +25,8 @@ import org.apache.spark.sql.functions.col
 object OfflinePipeline extends BasePipeline {
   override def createPipeline(sparkSession: SparkSession, config: IngestionJobConfig): Unit = {
     val featureTable = config.featureTable
-    val projection = inputProjection(featureTable.offline_source.get, featureTable.features, featureTable.entities)
+    val projection =
+      inputProjection(featureTable.offline_source.get, featureTable.features, featureTable.entities)
     val validator = new RowValidator(featureTable)
 
     val input = config.featureTable.offline_source match {
@@ -22,7 +39,10 @@ object OfflinePipeline extends BasePipeline {
         )
       case Some(source: GSSource) =>
         FileReader.createBatchSource(
-          sparkSession.sqlContext, source, config.startTime, config.endTime
+          sparkSession.sqlContext,
+          source,
+          config.startTime,
+          config.endTime
         )
     }
 
@@ -31,8 +51,7 @@ object OfflinePipeline extends BasePipeline {
     val validRows = projected
       .filter(validator.checkAll)
 
-    validRows
-      .write
+    validRows.write
       .format("feast.ingestion.stores.redis")
       .option("entity_columns", featureTable.entities.map(_.name).mkString(","))
       .option("namespace", featureTable.name)
@@ -52,17 +71,22 @@ object OfflinePipeline extends BasePipeline {
 
   }
 
-  private def inputProjection(source: OfflineSource, features: Seq[Field], entities: Seq[Field]): Array[Column] = {
+  private def inputProjection(
+      source: OfflineSource,
+      features: Seq[Field],
+      entities: Seq[Field]
+  ): Array[Column] = {
     val featureColumns =
       if (source.mapping.nonEmpty)
         source.mapping
       else features.map(f => (f.name, f.name))
 
     val timestampColumn = Seq((source.timestampColumn, source.timestampColumn))
-    val entitiesColumns = entities.filter(e => !source.mapping.contains(e.name)).map(e => (e.name, e.name))
+    val entitiesColumns =
+      entities.filter(e => !source.mapping.contains(e.name)).map(e => (e.name, e.name))
 
-    (featureColumns ++ entitiesColumns ++ timestampColumn).map {
-      case (alias, source) => col(source).alias(alias)
+    (featureColumns ++ entitiesColumns ++ timestampColumn).map { case (alias, source) =>
+      col(source).alias(alias)
     }.toArray
   }
 }
