@@ -83,9 +83,10 @@ class RedisSinkRelation(override val sqlContext: SQLContext,
 
 
   private def dataKeyId(row: Row): String = {
-    val entityKey = config.entityColumns.map(row.getAs[Any]).map(_.toString).mkString(":")
-    val entityPrefix = config.entityColumns.sorted.mkString("_")
-    s"${entityPrefix}:$entityKey"
+    val sortedEntities = config.entityColumns.sorted
+    val entityKey = sortedEntities.map(row.getAs[Any]).map(_.toString).mkString(":")
+    val entityPrefix = sortedEntities.mkString("_")
+    s"${config.projectName}_${entityPrefix}:$entityKey"
   }
 
   private def timestampField: String = {

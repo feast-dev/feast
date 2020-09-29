@@ -8,9 +8,9 @@ import org.apache.spark.sql.functions.col
 
 object OfflinePipeline extends BasePipeline {
   override def createPipeline(sparkSession: SparkSession, config: IngestionJobConfig): Unit = {
-    val projection = inputProjection(
-      config.featureTable.offline_source.get, config.featureTable.features, config.featureTable.entities)
-    val validator = new RowValidator(config.featureTable)
+    val featureTable = config.featureTable
+    val projection = inputProjection(featureTable.offline_source.get, featureTable.features, featureTable.entities)
+    val validator = new RowValidator(featureTable)
 
     val input = config.featureTable.offline_source match {
       case Some(source: BQSource) =>
@@ -34,10 +34,10 @@ object OfflinePipeline extends BasePipeline {
     validRows
       .write
       .format("feast.ingestion.stores.redis")
-      .option("entity_columns", config.featureTable.entities.map(_.name).mkString(","))
-      .option("entity_names", config.featureTable.entities.map(_.name).mkString(","))
-      .option("namespace", config.featureTable.name)
-      .option("timestamp_column", config.featureTable.offline_source.get.timestampColumn)
+      .option("entity_columns", featureTable.entities.map(_.name).mkString(","))
+      .option("namespace", featureTable.name)
+      .option("project_name", featureTable.project)
+      .option("timestamp_column", featureTable.offline_source.get.timestampColumn)
       .save()
 
     config.deadLetterPath match {
@@ -59,7 +59,7 @@ object OfflinePipeline extends BasePipeline {
       else features.map(f => (f.name, f.name))
 
     val timestampColumn = Seq((source.timestampColumn, source.timestampColumn))
-    val entitiesColumns = entities.map(e => (e.name, e.name))
+    val entitiesColumns = entities.filter(e => !source.mapping.contains(e.name)).map(e => (e.name, e.name))
 
     (featureColumns ++ entitiesColumns ++ timestampColumn).map {
       case (alias, source) => col(source).alias(alias)

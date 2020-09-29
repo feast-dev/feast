@@ -15,16 +15,17 @@ import org.scalacheck._
 import org.scalatest._
 import matchers.should.Matchers._
 import org.scalatest.matchers.Matcher
+
 import redis.clients.jedis.Jedis
 
-import scala.jdk.CollectionConverters.mapAsScalaMapConverter
+import scala.jdk.CollectionConverters._
 import scala.reflect.runtime.universe.TypeTag
-
+import scala.util.hashing.MurmurHash3
 
 case class Row(customer: String, feature1: Int, feature2: Float, eventTimestamp: java.sql.Timestamp)
 
 
-class OfflinePipelineSpec extends UnitSpec with ForAllTestContainer {
+class OfflinePipelineIT extends UnitSpec with ForAllTestContainer {
 
   override val container = GenericContainer("redis:6.0.8", exposedPorts = Seq(6379))
 
@@ -33,7 +34,7 @@ class OfflinePipelineSpec extends UnitSpec with ForAllTestContainer {
       .setMaster("local[4]")
       .setAppName("Testing")
       .set("spark.redis.host", container.host)
-      .set("spark.default.parallelism", "20")
+      .set("spark.default.parallelism", "8")
       .set("spark.redis.port", container.mappedPort(6379).toString)
 
     val sparkSession = SparkSession
@@ -45,10 +46,13 @@ class OfflinePipelineSpec extends UnitSpec with ForAllTestContainer {
   trait DataHelper {
     self: SparkContext =>
 
+    def generateTempPath(last: String) =
+      Paths.get(Files.createTempDirectory("test-dir").toString, last).toString
+
     def storeAsParquet[T <: Product : TypeTag](rows: Seq[T]): String = {
       import self.sparkSession.implicits._
 
-      val tempPath = Paths.get(Files.createTempDirectory("test-dir").toString, "rows").toString
+      val tempPath = generateTempPath("rows")
 
       sparkSession.createDataset(rows)
         .withColumn("date", to_date($"eventTimestamp"))
@@ -60,7 +64,7 @@ class OfflinePipelineSpec extends UnitSpec with ForAllTestContainer {
     }
   }
 
-  trait Scope {
+  trait Scope extends SparkContext with DataHelper {
     val jedis = new Jedis("localhost", container.mappedPort(6379))
     jedis.flushAll()
 
@@ -79,6 +83,7 @@ class OfflinePipelineSpec extends UnitSpec with ForAllTestContainer {
     val config = IngestionJobConfig(
       featureTable = FeatureTable(
         name = "test-fs",
+        project = "default",
         entities = Seq(Field("customer", ValueType.Enum.STRING)),
         features = Seq(
           Field("feature1", ValueType.Enum.INT32),
@@ -89,12 +94,18 @@ class OfflinePipelineSpec extends UnitSpec with ForAllTestContainer {
       endTime = DateTime.parse("2020-09-01")
     )
 
-    def beStoredRow(row: Row) = {
-      val m: Matcher[Map[String, Any]] = contain.allElementsOf(Seq(
-        "feature1" -> row.feature1,
-        "feature2" -> row.feature2,
-        "_ts:test-fs" -> row.eventTimestamp
-      )).matcher
+    def encodeEntityKey(row: Row, featureTable: FeatureTable) = {
+      val entityPrefix = featureTable.entities.map(_.name).mkString("_")
+      s"${featureTable.project}_${entityPrefix}:${row.customer}".getBytes
+    }
+
+    def encodeFeatureKey(featureTable: FeatureTable)(feature: String): String = {
+      val fullReference = s"${featureTable.name}:$feature"
+      MurmurHash3.stringHash(fullReference).toHexString
+    }
+
+    def beStoredRow(mappedRow: Map[String, Any]) = {
+      val m: Matcher[Map[String, Any]] = contain.allElementsOf(mappedRow).matcher
 
       m compose {
         (_: Map[Array[Byte], Array[Byte]])
@@ -110,7 +121,7 @@ class OfflinePipelineSpec extends UnitSpec with ForAllTestContainer {
     }
   }
 
-  "Parquet source file" should "be ingested in redis" in new Scope with SparkContext with DataHelper {
+  "Parquet source file" should "be ingested in redis" in new Scope {
     val gen = rowGenerator(DateTime.parse("2020-08-01"), DateTime.parse("2020-09-01"))
     val rows = generateDistinctRows(gen, 10000)
     val tempPath = storeAsParquet(rows)
@@ -119,15 +130,21 @@ class OfflinePipelineSpec extends UnitSpec with ForAllTestContainer {
 
     OfflinePipeline.createPipeline(sparkSession, configWithOfflineSource)
 
+    val featureKeyEncoder: String => String = encodeFeatureKey(config.featureTable)
+
     rows.foreach(
       r => {
-        val storedValues = jedis.hgetAll(s"customer:${r.customer}".getBytes).asScala.toMap
-        storedValues should beStoredRow(r)
+        val storedValues = jedis.hgetAll(encodeEntityKey(r, config.featureTable)).asScala.toMap
+        storedValues should beStoredRow(Map(
+          featureKeyEncoder("feature1") -> r.feature1,
+          featureKeyEncoder("feature2") -> r.feature2,
+          "_ts:test-fs" -> r.eventTimestamp
+        ))
       }
     )
   }
 
-  "Ingested rows" should "be compacted before storing by timestamp column" in new Scope with SparkContext with DataHelper {
+  "Ingested rows" should "be compacted before storing by timestamp column" in new Scope {
     val entities = (0 to 10000).map(_.toString)
 
     val genLatest = rowGenerator(DateTime.parse("2020-08-15"), DateTime.parse("2020-09-01"), Some(Gen.oneOf(entities)))
@@ -142,15 +159,21 @@ class OfflinePipelineSpec extends UnitSpec with ForAllTestContainer {
 
     OfflinePipeline.createPipeline(sparkSession, configWithOfflineSource)
 
+    val featureKeyEncoder: String => String = encodeFeatureKey(config.featureTable)
+
     latest.foreach(
       r => {
-        val storedValues = jedis.hgetAll(s"customer:${r.customer}".getBytes).asScala.toMap
-        storedValues should beStoredRow(r)
+        val storedValues = jedis.hgetAll(encodeEntityKey(r, config.featureTable)).asScala.toMap
+        storedValues should beStoredRow(Map(
+          featureKeyEncoder("feature1") -> r.feature1,
+          featureKeyEncoder("feature2") -> r.feature2,
+          "_ts:test-fs" -> r.eventTimestamp
+        ))
       }
     )
   }
 
-  "Old rows in ingestion" should "not overwrite more recent rows from storage" in new Scope with SparkContext with DataHelper {
+  "Old rows in ingestion" should "not overwrite more recent rows from storage" in new Scope {
     val entities = (0 to 10000).map(_.toString)
 
     val genLatest = rowGenerator(DateTime.parse("2020-08-15"), DateTime.parse("2020-09-01"), Some(Gen.oneOf(entities)))
@@ -171,10 +194,76 @@ class OfflinePipelineSpec extends UnitSpec with ForAllTestContainer {
 
     OfflinePipeline.createPipeline(sparkSession, config2)
 
+    val featureKeyEncoder: String => String = encodeFeatureKey(config.featureTable)
+
     latest.foreach(
       r => {
-        val storedValues = jedis.hgetAll(s"customer:${r.customer}".getBytes).asScala.toMap
-        storedValues should beStoredRow(r)
+        val storedValues = jedis.hgetAll(encodeEntityKey(r, config.featureTable)).asScala.toMap
+        storedValues should beStoredRow(Map(
+          featureKeyEncoder("feature1") -> r.feature1,
+          featureKeyEncoder("feature2") -> r.feature2,
+          "_ts:test-fs" -> r.eventTimestamp
+        ))
+      }
+    )
+  }
+
+  "Invalid rows" should "not be ingested and stored to deadletter instead" in new Scope {
+    val gen = rowGenerator(DateTime.parse("2020-08-01"), DateTime.parse("2020-09-01"))
+    val rows = generateDistinctRows(gen, 100)
+
+    val rowsWithNullEntity = rows.map(_.copy(customer = null))
+
+    val tempPath = storeAsParquet(rowsWithNullEntity)
+    val deadletterConfig = config.copy(
+      featureTable = config.featureTable.copy(offline_source = Some(GSSource(tempPath, Map.empty, "eventTimestamp"))),
+      deadLetterPath = Some(generateTempPath("deadletters"))
+    )
+
+    OfflinePipeline.createPipeline(sparkSession, deadletterConfig)
+
+    jedis.keys("*").toArray should be (empty)
+
+    sparkSession.read
+      .parquet(deadletterConfig.deadLetterPath.get)
+      .count() should be (rows.length)
+  }
+
+  "Columns from source" should "be mapped according to configuration" in new Scope {
+    val gen = rowGenerator(DateTime.parse("2020-08-01"), DateTime.parse("2020-09-01"))
+    val rows = generateDistinctRows(gen, 100)
+
+    val tempPath = storeAsParquet(rows)
+
+    val configWithMapping = config.copy(
+      featureTable = config.featureTable.copy(
+        entities = Seq(Field("entity", ValueType.Enum.STRING)),
+        features = Seq(
+          Field("new_feature1", ValueType.Enum.INT32),
+          Field("new_feature2", ValueType.Enum.FLOAT)
+        ),
+        offline_source = Some(GSSource(
+          tempPath,
+          Map(
+            "entity" -> "customer",
+            "new_feature1" -> "feature1",
+            "new_feature2" -> "feature2"
+          ),
+          "eventTimestamp")))
+    )
+
+    OfflinePipeline.createPipeline(sparkSession, configWithMapping)
+
+    val featureKeyEncoder: String => String = encodeFeatureKey(config.featureTable)
+
+    rows.foreach(
+      r => {
+        val storedValues = jedis.hgetAll(encodeEntityKey(r, configWithMapping.featureTable)).asScala.toMap
+        storedValues should beStoredRow(Map(
+          featureKeyEncoder("new_feature1") -> r.feature1,
+          featureKeyEncoder("new_feature2") -> r.feature2,
+          "_ts:test-fs" -> r.eventTimestamp
+        ))
       }
     )
   }

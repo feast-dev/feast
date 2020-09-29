@@ -8,8 +8,7 @@ import redis.clients.jedis.{Pipeline, Response}
 import scala.jdk.CollectionConverters._
 import com.google.protobuf.Timestamp
 import feast.ingestion.utils.TypeConversion
-import feast.proto.types.ValueProto
-
+import scala.util.hashing.MurmurHash3
 
 class HashTypePersistence(config: SparkRedisConfig) extends Serializable {
   def encodeRow(keyColumns: Array[String], timestampField: String, value: Row): Map[Array[Byte], Array[Byte]] = {
@@ -27,7 +26,7 @@ class HashTypePersistence(config: SparkRedisConfig) extends Serializable {
         !keyColumns.contains(k) && k != config.timestampColumn
       }
       .map { case (k, v) =>
-        k.getBytes -> encodeValue(v, types(k))
+        encodeKey(k) -> encodeValue(v, types(k))
       }
 
     val timestamp = Seq((
@@ -39,6 +38,11 @@ class HashTypePersistence(config: SparkRedisConfig) extends Serializable {
 
   def encodeValue(value: Any, `type`: DataType): Array[Byte] = {
     TypeConversion.sqlTypeToProtoValue(value, `type`).toByteArray
+  }
+
+  def encodeKey(key: String): Array[Byte] = {
+    val fullFeatureReference = s"${config.namespace}:$key"
+    MurmurHash3.stringHash(fullFeatureReference).toHexString.getBytes
   }
 
   def save(pipeline: Pipeline, key: String, value: Map[Array[Byte], Array[Byte]], ttl: Int): Unit = {

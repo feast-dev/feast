@@ -17,7 +17,8 @@ object IngestionJob {
 
     opt[String](name="feature-table-spec")
       .action((x, c) => c.copy(featureTable = FeatureTable(
-        name="jaeger-car",
+        name = "jaeger-car",
+        project = "default",
         entities = Seq(Field(name="customer", `type` = ValueType.Enum.STRING)),
         features = Seq(
           Field("car_customer_id_avg_customer_distance_cancelled", ValueType.Enum.FLOAT),
