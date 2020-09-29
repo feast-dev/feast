@@ -23,15 +23,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 /** JPA repository for querying FeatureTables stored. */
 public interface FeatureTableRepository extends JpaRepository<FeatureTable, Long> {
-  // Find single feature table by project and name
+  // Find single FeatureTable by project and name
   Optional<FeatureTable> findFeatureTableByNameAndProject_Name(String name, String projectName);
 
-  // Find feature tables by project
+  // Find FeatureTables by project
   List<FeatureTable> findAllByProject_Name(String projectName);
-
-  // Find all feature tables matching the given name and project
-  List<FeatureTable> findAllByNameAndProject_Name(String name, String project_name);
-
-  // Find all feature tables matching the given name pattern and project
-  List<FeatureTable> findAllByNameLikeAndProject_Name(String name, String project_name);
 }

@@ -10,8 +10,7 @@ CREATE TABLE feature_sources (
     file_format character varying(255),
     file_url character varying(255),
     -- Bigquery Options
-    bigquery_project_id character varying(255),
-    bigquery_sql_query text,
+    bigquery_table_ref character varying(255),
     -- Kafka Options
     kafka_bootstrap_servers character varying(255),
     kafka_topic character varying(255),

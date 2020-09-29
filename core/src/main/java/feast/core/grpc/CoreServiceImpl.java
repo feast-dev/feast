@@ -410,7 +410,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     } catch (AccessDeniedException e) {
       log.info(
           String.format(
-              "ApplyFeatureTable: wNot authorized to access project to apply: %s", projectName));
+              "ApplyFeatureTable: Not authorized to access project to apply: %s", projectName));
       responseObserver.onError(
           Status.PERMISSION_DENIED
               .withDescription(e.getMessage())

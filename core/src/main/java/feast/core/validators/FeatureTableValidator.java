@@ -36,9 +36,21 @@ public class FeatureTableValidator {
     if (spec.getLabelsMap().containsKey("")) {
       throw new IllegalArgumentException("FeatureTable cannot have labels with empty key.");
     }
+    if (spec.getEntitiesCount() == 0) {
+      throw new IllegalArgumentException("FeatureTable entities list cannot be empty.");
+    }
+    if (spec.getFeaturesCount() == 0) {
+      throw new IllegalArgumentException("FeatureTable features list cannot be empty.");
+    }
 
     checkValidCharacters(spec.getName(), "FeatureTable");
     spec.getFeaturesList().forEach(FeatureTableValidator::validateFeatureSpec);
+
+    // Check that BigQuery reference defined for BigQuery source is valid
+    if (!spec.getBatchSource().getBigqueryOptions().getTableRef().isEmpty()) {
+      checkValidBigQueryTableRef(
+          spec.getBatchSource().getBigqueryOptions().getTableRef(), "FeatureTable");
+    }
 
     // Check that features and entities defined in FeatureTable do not use reserved names
     ArrayList<String> fieldNames = new ArrayList<>(spec.getEntitiesList());

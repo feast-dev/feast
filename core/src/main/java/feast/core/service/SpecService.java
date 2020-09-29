@@ -636,19 +636,20 @@ public class SpecService {
   }
 
   /**
-   * Applies the given Feature Table to the Feature Table registry. Creates the Feature Table if
-   * does not exist, otherwise updates the existing feature Table. Applies feature table in project
-   * if specified, otherwise in default project.
+   * Applies the given FeatureTable to the FeatureTable registry. Creates the FeatureTable if does
+   * not exist, otherwise updates the existing FeatureTable. Applies FeatureTable in project if
+   * specified, otherwise in default project.
    *
-   * @param request contain apply feature Table parameters.
+   * @param request Contains FeatureTable spec and project parameters used to create or update a
+   *     FeatureTable.
    * @throws NoSuchElementException projects and entities referenced in request do not exist.
-   * @return response containing the applied feature table.
+   * @return response containing the applied FeatureTable spec.
    */
   @Transactional
   public ApplyFeatureTableResponse applyFeatureTable(ApplyFeatureTableRequest request) {
     String projectName = resolveProjectName(request.getProject());
 
-    // Check that specfication provided is valid
+    // Check that specification provided is valid
     FeatureTableSpec applySpec = request.getTableSpec();
     FeatureTableValidator.validateSpec(applySpec);
 
@@ -664,27 +665,27 @@ public class SpecService {
     // Create or update depending on whether there is an existing Feature Table
     Optional<FeatureTable> existingTable =
         tableRepository.findFeatureTableByNameAndProject_Name(applySpec.getName(), projectName);
-    FeatureTable applyTable = FeatureTable.fromProto(projectName, applySpec, entityRepository);
-    if (existingTable.isPresent() && applyTable.equals(existingTable.get())) {
+    FeatureTable table = FeatureTable.fromProto(projectName, applySpec, entityRepository);
+    if (existingTable.isPresent() && table.equals(existingTable.get())) {
       // Skip update if no change is detected
       return ApplyFeatureTableResponse.newBuilder().setTable(existingTable.get().toProto()).build();
     }
     if (existingTable.isPresent()) {
       existingTable.get().updateFromProto(applySpec);
-      applyTable = existingTable.get();
+      table = existingTable.get();
     }
 
-    // Commit Feature table to database and return applied feature table
-    tableRepository.saveAndFlush(applyTable);
-    return ApplyFeatureTableResponse.newBuilder().setTable(applyTable.toProto()).build();
+    // Commit FeatureTable to database and return applied FeatureTable
+    tableRepository.saveAndFlush(table);
+    return ApplyFeatureTableResponse.newBuilder().setTable(table.toProto()).build();
   }
 
   /**
-   * List the Feature Tables matching the filter in the given filter. Scopes down listing to project
+   * List the FeatureTables matching the filter in the given filter. Scopes down listing to project
    * if specified, the default project otherwise.
    *
    * @param filter Filter containing the desired project and labels
-   * @return response containing feature tables that
+   * @return ListFeatureTablesResponse with list of FeatureTables found matching the filter
    */
   @Transactional
   public ListFeatureTablesResponse listFeatureTables(ListFeatureTablesRequest.Filter filter) {
@@ -711,12 +712,12 @@ public class SpecService {
   }
 
   /**
-   * Get the Feature Table with the name and project specified in the request. Gets feature table in
+   * Get the FeatureTable with the name and project specified in the request. Gets FeatureTable in
    * project if specified, otherwise in default project.
    *
    * @param request containing the retrieval parameters.
-   * @throws NoSuchElementException if no feature table matches given request.
-   * @return response containing the requested feature table.
+   * @throws NoSuchElementException if no FeatureTable matches given request.
+   * @return response containing the requested FeatureTable.
    */
   @Transactional
   public GetFeatureTableResponse getFeatureTable(GetFeatureTableRequest request) {

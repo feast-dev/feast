@@ -14,7 +14,7 @@
 
 
 import enum
-from typing import MutableMapping, Optional
+from typing import MutableMapping, Optional, Union
 
 from feast.core.FeatureSource_pb2 import FeatureSourceSpec as FeatureSourceSpecProto
 
@@ -41,25 +41,7 @@ class FileFormat(enum.Enum):
     AVRO = 2
 
 
-class FeatureSourceSpecOptions:
-    """
-    FeatureSourceSpec options that can be used to source features
-    """
-
-    def to_proto(self):
-        """
-        Unimplemented to_proto method for a field. This should be extended.
-        """
-        pass
-
-    def from_proto(self, proto):
-        """
-        Unimplemented from_proto method for a field. This should be extended.
-        """
-        pass
-
-
-class FileOptions(FeatureSourceSpecOptions):
+class FileOptions:
     """
     FeatureSourceSpec File options used to source features from a file
     """
@@ -132,44 +114,29 @@ class FileOptions(FeatureSourceSpecOptions):
         return file_options_proto
 
 
-class BigQueryOptions(FeatureSourceSpecOptions):
+class BigQueryOptions:
     """
     FeatureSourceSpec BigQuery options used to source features from BigQuery query
     """
 
     def __init__(
-        self, project_id: str, sql_query: str,
+        self, table_ref: str,
     ):
-        self._project_id = project_id
-        self._sql_query = sql_query
+        self._table_ref = table_ref
 
     @property
-    def project_id(self):
+    def table_ref(self):
         """
-        Returns the project id of this file
+        Returns the table ref of this BQ table
         """
-        return self._project_id
+        return self._table_ref
 
-    @project_id.setter
-    def project_id(self, project_id):
+    @table_ref.setter
+    def table_ref(self, table_ref):
         """
-        Sets the project id of this file
+        Sets the table ref of this BQ table
         """
-        self._project_id = project_id
-
-    @property
-    def sql_query(self):
-        """
-        Returns the sql query of this file
-        """
-        return self._sql_query
-
-    @sql_query.setter
-    def sql_query(self, sql_query):
-        """
-        Sets the sql query of this file
-        """
-        self._sql_query = sql_query
+        self._table_ref = table_ref
 
     @classmethod
     def from_proto(cls, bigquery_options_proto: FeatureSourceSpecProto.BigQueryOptions):
@@ -183,10 +150,7 @@ class BigQueryOptions(FeatureSourceSpecOptions):
             Returns a BigQueryOptions object based on the bigquery_options protobuf
         """
 
-        bigquery_options = cls(
-            project_id=bigquery_options_proto.project_id,
-            sql_query=bigquery_options_proto.sql_query,
-        )
+        bigquery_options = cls(table_ref=bigquery_options_proto.table_ref,)
 
         return bigquery_options
 
@@ -199,13 +163,13 @@ class BigQueryOptions(FeatureSourceSpecOptions):
         """
 
         bigquery_options_proto = FeatureSourceSpecProto.BigQueryOptions(
-            project_id=self.project_id, sql_query=self.sql_query,
+            table_ref=self.table_ref,
         )
 
         return bigquery_options_proto
 
 
-class KafkaOptions(FeatureSourceSpecOptions):
+class KafkaOptions:
     """
     FeatureSourceSpec Kafka options used to source features from Kafka messages
     """
@@ -298,7 +262,7 @@ class KafkaOptions(FeatureSourceSpecOptions):
         return kafka_options_proto
 
 
-class KinesisOptions(FeatureSourceSpecOptions):
+class KinesisOptions:
     """
     FeatureSourceSpec Kinesis options used to source features from Kinesis records
     """
@@ -400,7 +364,7 @@ class FeatureSourceSpec:
         self,
         type: str,
         field_mapping: MutableMapping[str, str],
-        options: FeatureSourceSpecOptions,
+        options: Union[BigQueryOptions, FileOptions, KafkaOptions, KinesisOptions],
         ts_column: str,
         date_partition_column: Optional[str] = "",
     ):

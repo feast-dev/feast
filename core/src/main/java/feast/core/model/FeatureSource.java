@@ -26,6 +26,7 @@ import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.FileOptions.FileFor
 import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.KafkaOptions;
 import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.KinesisOptions;
 import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.SourceType;
+import java.util.Map;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -62,11 +63,8 @@ public class FeatureSource {
   private String fileURL;
 
   // BigQuery Options
-  @Column(name = "bigquery_project_id")
-  private String bigQueryProjectId;
-
-  @Column(name = "bigquery_sql_query")
-  private String bigQuerySQLQuery;
+  @Column(name = "bigquery_table_ref")
+  private String bigQueryTableRef;
 
   // Kafka Options
   @Column(name = "kafka_bootstrap_servers")
@@ -121,8 +119,7 @@ public class FeatureSource {
         source.setFileFormat(spec.getFileOptions().getFileFormat());
         break;
       case BATCH_BIGQUERY:
-        source.setBigQueryProjectId(spec.getBigqueryOptions().getProjectId());
-        source.setBigQuerySQLQuery(spec.getBigqueryOptions().getSqlQuery());
+        source.setBigQueryTableRef(spec.getBigqueryOptions().getTableRef());
         break;
       case STREAM_KAFKA:
         source.setKafkaBootstrapServers(spec.getKafkaOptions().getBootstrapServers());
@@ -164,8 +161,7 @@ public class FeatureSource {
         break;
       case BATCH_BIGQUERY:
         BigQueryOptions.Builder bigQueryOptions = BigQueryOptions.newBuilder();
-        bigQueryOptions.setProjectId(getBigQueryProjectId());
-        bigQueryOptions.setSqlQuery(getBigQuerySQLQuery());
+        bigQueryOptions.setTableRef(getBigQueryTableRef());
         spec.setBigqueryOptions(bigQueryOptions.build());
         break;
       case STREAM_KAFKA:
@@ -194,6 +190,10 @@ public class FeatureSource {
     spec.setDatePartitionColumn(getDatePartitionColumn());
 
     return spec.build();
+  }
+
+  public Map<String, String> getFieldsMap() {
+    return TypeConversion.convertJsonStringToMap(getFieldMapJSON());
   }
 
   @Override

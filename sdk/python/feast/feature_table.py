@@ -45,8 +45,8 @@ class FeatureTable:
         name: str,
         entities: Union[str, List[str]],
         features: Union[FeatureV2, List[FeatureV2]],
-        batch_source: FeatureSourceSpec = None,
-        stream_source: FeatureSourceSpec = None,
+        batch_source: FeatureSourceSpec,
+        stream_source: Optional[FeatureSourceSpec] = None,
         max_age: Optional[Duration] = None,
         labels: Optional[MutableMapping[str, str]] = None,
     ):
@@ -267,12 +267,10 @@ class FeatureTable:
             )
         elif (
             source_type == "BATCH_BIGQUERY"
-            and feature_source.bigquery_options.project_id
-            and feature_source.bigquery_options.sql_query
+            and feature_source.bigquery_options.table_ref
         ):
             feature_source_options = BigQueryOptions(
-                project_id=feature_source.bigquery_options.project_id,
-                sql_query=feature_source.bigquery_options.sql_query,
+                table_ref=feature_source.bigquery_options.table_ref,
             )
         elif (
             source_type == "STREAM_KAFKA"
@@ -336,13 +334,11 @@ class FeatureTable:
                 else feature_table_proto.spec.max_age
             ),
             batch_source=(
-                None
-                if not feature_table_proto.spec.batch_source
-                else cls._to_feature_source(feature_table_proto.spec.batch_source)
+                cls._to_feature_source(feature_table_proto.spec.batch_source)
             ),
             stream_source=(
                 None
-                if not feature_table_proto.spec.stream_source
+                if not feature_table_proto.spec.stream_source.ByteSize()
                 else cls._to_feature_source(feature_table_proto.spec.stream_source)
             ),
         )

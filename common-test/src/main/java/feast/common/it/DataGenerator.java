@@ -23,6 +23,7 @@ import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureProto.FeatureSpecV2;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSourceProto.FeatureSourceSpec;
+import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.BigQueryOptions;
 import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.FileOptions;
 import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.FileOptions.FileFormat;
 import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.KafkaOptions;
@@ -243,6 +244,16 @@ public class DataGenerator {
         .setType(FeatureSourceSpec.SourceType.BATCH_FILE)
         .setFileOptions(
             FileOptions.newBuilder().setFileFormat(FileFormat.PARQUET).setFileUrl(fileURL).build())
+        .setTsColumn(tsColumn)
+        .setDatePartitionColumn(datePartitionColumn)
+        .build();
+  }
+
+  public static FeatureSourceSpec createBigQueryFeatureSourceSpec(
+      String bigQueryTableRef, String tsColumn, String datePartitionColumn) {
+    return FeatureSourceSpec.newBuilder()
+        .setType(FeatureSourceSpec.SourceType.BATCH_BIGQUERY)
+        .setBigqueryOptions(BigQueryOptions.newBuilder().setTableRef(bigQueryTableRef).build())
         .setTsColumn(tsColumn)
         .setDatePartitionColumn(datePartitionColumn)
         .build();

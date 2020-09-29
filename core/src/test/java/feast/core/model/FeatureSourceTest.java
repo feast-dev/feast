@@ -21,7 +21,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsEqual.equalTo;
 
 import feast.common.it.DataGenerator;
-import feast.core.util.TypeConversion;
 import feast.proto.core.FeatureSourceProto.FeatureSourceSpec;
 import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.BigQueryOptions;
 import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.KinesisOptions;
@@ -39,8 +38,7 @@ public class FeatureSourceTest {
             spec -> {
               FeatureSource source =
                   FeatureSource.fromProto(spec.toBuilder().putAllFieldMapping(expectedMap).build());
-              Map<String, String> actualMap =
-                  TypeConversion.convertJsonStringToMap(source.getFieldMapJSON());
+              Map<String, String> actualMap = source.getFieldsMap();
               assertThat(actualMap, equalTo(actualMap));
             });
   }
@@ -63,10 +61,7 @@ public class FeatureSourceTest {
         FeatureSourceSpec.newBuilder()
             .setType(BATCH_BIGQUERY)
             .setBigqueryOptions(
-                BigQueryOptions.newBuilder()
-                    .setProjectId("projectid")
-                    .setSqlQuery("SELECT * FROM B")
-                    .build())
+                BigQueryOptions.newBuilder().setTableRef("project:dataset.table").build())
             .build(),
         FeatureSourceSpec.newBuilder()
             .setType(STREAM_KINESIS)

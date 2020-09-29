@@ -64,11 +64,8 @@ message FeatureSourceSpec {
 
   // Defines options for Feature source that sources features from a BigQuery Query
   message BigQueryOptions {
-    // GCP Project ID
-    string project_id = 1;
-
-    // SQL Query used by BQ Source to query feature data.
-    string sql_query = 2;
+    // Full table reference in the form of [project:dataset.table]
+    string table_ref = 1;
   }
 
   // Defines options for Feature source that sources features from Kafka messages.

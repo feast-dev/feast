@@ -99,11 +99,11 @@ public class FeatureTable extends AbstractTimestampEntity {
 
   // Batched Feature Source used to obtain data for features from a batch of data
   @OneToOne(cascade = CascadeType.ALL)
-  @JoinColumn(name = "batch_source_id", nullable = true)
+  @JoinColumn(name = "batch_source_id", nullable = false)
   private FeatureSource batchSource;
 
-  // Autoincrementing version no. of this Feature Table.
-  // Autoincrements every update made to the feature set.
+  // Autoincrementing version no. of this FeatureTable.
+  // Autoincrements every update made to the FeatureTable.
   @Column(name = "revision", nullable = false)
   private int revision;
 
@@ -112,14 +112,14 @@ public class FeatureTable extends AbstractTimestampEntity {
   };
 
   /**
-   * Construct Feature from Protobuf spec representation in the given project with entities
+   * Construct FeatureTable from Protobuf spec representation in the given project with entities
    * registered in entity repository.
    *
-   * @param projectName the name of the project that the constructed Feature table belongs.
-   * @param spec the Protobuf spec to contruct the Feature from.
+   * @param projectName the name of the project that the constructed FeatureTable belongs.
+   * @param spec the Protobuf spec to construct the Feature from.
    * @param entityRepo {@link EntityRepository} used to resolve entity names.
    * @throws IllegalArgumentException if the Protobuf spec provided is invalid.
-   * @return constructed Feature from the given Protobuf spec.
+   * @return constructed FeatureTable from the given Protobuf spec.
    */
   public static FeatureTable fromProto(
       String projectName, FeatureTableSpec spec, EntityRepository entityRepo) {
@@ -142,13 +142,11 @@ public class FeatureTable extends AbstractTimestampEntity {
     table.setLabelsJSON(labelsJSON);
 
     table.setMaxAgeSecs(spec.getMaxAge().getSeconds());
+    table.setBatchSource(FeatureSource.fromProto(spec.getBatchSource()));
 
-    // Configure sources only if set
+    // Configure stream source only if set
     if (!spec.getStreamSource().equals(FeatureSourceSpec.getDefaultInstance())) {
       table.setStreamSource(FeatureSource.fromProto(spec.getStreamSource()));
-    }
-    if (!spec.getBatchSource().equals(FeatureSourceSpec.getDefaultInstance())) {
-      table.setBatchSource(FeatureSource.fromProto(spec.getBatchSource()));
     }
 
     return table;
@@ -202,11 +200,9 @@ public class FeatureTable extends AbstractTimestampEntity {
     this.maxAgeSecs = spec.getMaxAge().getSeconds();
     this.labelsJSON = TypeConversion.convertMapToJsonString(spec.getLabelsMap());
 
+    this.batchSource = FeatureSource.fromProto(spec.getBatchSource());
     if (!spec.getStreamSource().equals(FeatureSourceSpec.getDefaultInstance())) {
       this.streamSource = FeatureSource.fromProto(spec.getStreamSource());
-    }
-    if (!spec.getBatchSource().equals(FeatureSourceSpec.getDefaultInstance())) {
-      this.batchSource = FeatureSource.fromProto(spec.getBatchSource());
     }
     // Bump revision no.
     this.revision++;
@@ -228,14 +224,12 @@ public class FeatureTable extends AbstractTimestampEntity {
         FeatureTableSpec.newBuilder()
             .setName(getName())
             .setMaxAge(Duration.newBuilder().setSeconds(getMaxAgeSecs()).build())
+            .setBatchSource(getBatchSource().toProto())
             .addAllEntities(entityNames)
             .addAllFeatures(featureSpecs)
             .putAllLabels(labels);
     if (getStreamSource() != null) {
       spec.setStreamSource(getStreamSource().toProto());
-    }
-    if (getBatchSource() != null) {
-      spec.setBatchSource(getBatchSource().toProto());
     }
 
     return FeatureTableProto.FeatureTable.newBuilder()
@@ -268,9 +262,9 @@ public class FeatureTable extends AbstractTimestampEntity {
   }
 
   /**
-   * Determine whether an feature table has all the specified labels.
+   * Determine whether a FeatureTable has all the specified labels.
    *
-   * @param labelsFilter labels contain key-value mapping for labels attached to the Feature Table
+   * @param labelsFilter labels contain key-value mapping for labels attached to the FeatureTable
    * @return boolean True if Entity contains all labels in the labelsFilter
    */
   public boolean hasAllLabels(Map<String, String> labelsFilter) {

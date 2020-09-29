@@ -88,16 +88,20 @@ public class SpecServiceIT extends BaseIT {
     apiClient.applyFeatureTable(
         "default",
         DataGenerator.createFeatureTableSpec(
-            "featuretable1",
-            Arrays.asList("entity1", "entity2"),
-            new HashMap<>() {
-              {
-                put("feature1", ValueProto.ValueType.Enum.STRING);
-                put("feature2", ValueProto.ValueType.Enum.FLOAT);
-              }
-            },
-            7200,
-            ImmutableMap.of("feat_key2", "feat_value2")));
+                "featuretable1",
+                Arrays.asList("entity1", "entity2"),
+                new HashMap<>() {
+                  {
+                    put("feature1", ValueProto.ValueType.Enum.STRING);
+                    put("feature2", ValueProto.ValueType.Enum.FLOAT);
+                  }
+                },
+                7200,
+                ImmutableMap.of("feat_key2", "feat_value2"))
+            .toBuilder()
+            .setBatchSource(
+                DataGenerator.createFileFeatureSourceSpec("file:///path/to/file", "ts_col", ""))
+            .build());
     apiClient.simpleApplyEntity(
         "project1",
         DataGenerator.createEntitySpecV2(
@@ -936,16 +940,20 @@ public class SpecServiceIT extends BaseIT {
     public void shouldReturnFeatureTableIfExists() {
       FeatureTableSpec featureTableSpec =
           DataGenerator.createFeatureTableSpec(
-              "featuretable1",
-              Arrays.asList("entity1", "entity2"),
-              new HashMap<>() {
-                {
-                  put("feature1", ValueProto.ValueType.Enum.STRING);
-                  put("feature2", ValueProto.ValueType.Enum.FLOAT);
-                }
-              },
-              7200,
-              ImmutableMap.of("feat_key2", "feat_value2"));
+                  "featuretable1",
+                  Arrays.asList("entity1", "entity2"),
+                  new HashMap<>() {
+                    {
+                      put("feature1", ValueProto.ValueType.Enum.STRING);
+                      put("feature2", ValueProto.ValueType.Enum.FLOAT);
+                    }
+                  },
+                  7200,
+                  ImmutableMap.of("feat_key2", "feat_value2"))
+              .toBuilder()
+              .setBatchSource(
+                  DataGenerator.createFileFeatureSourceSpec("file:///path/to/file", "ts_col", ""))
+              .build();
       FeatureTableProto.FeatureTable featureTable =
           apiClient.simpleGetFeatureTable("default", "featuretable1");
 
@@ -1055,9 +1063,9 @@ public class SpecServiceIT extends BaseIT {
               3600,
               Map.of())
           .toBuilder()
-          .setStreamSource(
-              DataGenerator.createFileFeatureSourceSpec("file:///path/to/file", "ts_col", ""))
           .setBatchSource(
+              DataGenerator.createFileFeatureSourceSpec("file:///path/to/file", "ts_col", ""))
+          .setStreamSource(
               DataGenerator.createKafkaFeatureSourceSpec(
                   "localhost:9092", "topic", "class.path", "ts_col"))
           .build();
@@ -1109,6 +1117,33 @@ public class SpecServiceIT extends BaseIT {
     }
 
     @Test
+    public void shouldErrorOnInvalidBigQueryTableRef() {
+      String invalidTableRef = "invalid.bq:path";
+      FeatureTableProto.FeatureTableSpec spec =
+          DataGenerator.createFeatureTableSpec(
+                  "ft",
+                  List.of("entity1"),
+                  Map.of("event_timestamp", ValueProto.ValueType.Enum.INT64),
+                  3600,
+                  Map.of())
+              .toBuilder()
+              .setBatchSource(
+                  DataGenerator.createBigQueryFeatureSourceSpec(invalidTableRef, "ts_col", ""))
+              .build();
+
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class, () -> apiClient.applyFeatureTable("default", spec));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo(
+              String.format(
+                  "INVALID_ARGUMENT: invalid value for FeatureTable resource, %s: argument must be in the form of <project:dataset.table> .",
+                  invalidTableRef)));
+    }
+
+    @Test
     public void shouldErrorOnReservedNames() {
       // Reserved name used as feature name
       assertThrows(
@@ -1117,24 +1152,34 @@ public class SpecServiceIT extends BaseIT {
               apiClient.applyFeatureTable(
                   "default",
                   DataGenerator.createFeatureTableSpec(
-                      "ft",
-                      List.of("entity1"),
-                      Map.of("event_timestamp", ValueProto.ValueType.Enum.INT64),
-                      3600,
-                      Map.of())));
+                          "ft",
+                          List.of("entity1"),
+                          Map.of("event_timestamp", ValueProto.ValueType.Enum.INT64),
+                          3600,
+                          Map.of())
+                      .toBuilder()
+                      .setBatchSource(
+                          DataGenerator.createFileFeatureSourceSpec(
+                              "file:///path/to/file", "ts_col", ""))
+                      .build()));
 
-      // Reserved name used in as entity namf
+      // Reserved name used in as entity name
       assertThrows(
           StatusRuntimeException.class,
           () ->
               apiClient.applyFeatureTable(
                   "default",
                   DataGenerator.createFeatureTableSpec(
-                      "ft",
-                      List.of("created_timestamp"),
-                      Map.of("feature1", ValueProto.ValueType.Enum.INT64),
-                      3600,
-                      Map.of())));
+                          "ft",
+                          List.of("created_timestamp"),
+                          Map.of("feature1", ValueProto.ValueType.Enum.INT64),
+                          3600,
+                          Map.of())
+                      .toBuilder()
+                      .setBatchSource(
+                          DataGenerator.createFileFeatureSourceSpec(
+                              "file:///path/to/file", "ts_col", ""))
+                      .build()));
     }
 
     @Test
@@ -1146,11 +1191,16 @@ public class SpecServiceIT extends BaseIT {
               apiClient.applyFeatureTable(
                   "default",
                   DataGenerator.createFeatureTableSpec(
-                      "f-t",
-                      List.of("entity1"),
-                      Map.of("feature1", ValueProto.ValueType.Enum.INT64),
-                      3600,
-                      Map.of())));
+                          "f-t",
+                          List.of("entity1"),
+                          Map.of("feature1", ValueProto.ValueType.Enum.INT64),
+                          3600,
+                          Map.of())
+                      .toBuilder()
+                      .setBatchSource(
+                          DataGenerator.createFileFeatureSourceSpec(
+                              "file:///path/to/file", "ts_col", ""))
+                      .build()));
 
       // Invalid feature name
       assertThrows(
@@ -1159,11 +1209,16 @@ public class SpecServiceIT extends BaseIT {
               apiClient.applyFeatureTable(
                   "default",
                   DataGenerator.createFeatureTableSpec(
-                      "ft",
-                      List.of("entity1"),
-                      Map.of("feature-1", ValueProto.ValueType.Enum.INT64),
-                      3600,
-                      Map.of())));
+                          "ft",
+                          List.of("entity1"),
+                          Map.of("feature-1", ValueProto.ValueType.Enum.INT64),
+                          3600,
+                          Map.of())
+                      .toBuilder()
+                      .setBatchSource(
+                          DataGenerator.createFileFeatureSourceSpec(
+                              "file:///path/to/file", "ts_col", ""))
+                      .build()));
     }
 
     @Test
@@ -1174,11 +1229,16 @@ public class SpecServiceIT extends BaseIT {
               apiClient.applyFeatureTable(
                   "default",
                   DataGenerator.createFeatureTableSpec(
-                      "ft1",
-                      List.of("entity_not_found"),
-                      Map.of("feature1", ValueProto.ValueType.Enum.INT64),
-                      3600,
-                      Map.of())));
+                          "ft1",
+                          List.of("entity_not_found"),
+                          Map.of("feature1", ValueProto.ValueType.Enum.INT64),
+                          3600,
+                          Map.of())
+                      .toBuilder()
+                      .setBatchSource(
+                          DataGenerator.createFileFeatureSourceSpec(
+                              "file:///path/to/file", "ts_col", ""))
+                      .build()));
     }
 
     @Test
@@ -1192,11 +1252,16 @@ public class SpecServiceIT extends BaseIT {
               apiClient.applyFeatureTable(
                   "archived",
                   DataGenerator.createFeatureTableSpec(
-                      "ft1",
-                      List.of("entity1", "entity2"),
-                      Map.of("feature1", ValueProto.ValueType.Enum.INT64),
-                      3600,
-                      Map.of())));
+                          "ft1",
+                          List.of("entity1", "entity2"),
+                          Map.of("feature1", ValueProto.ValueType.Enum.INT64),
+                          3600,
+                          Map.of())
+                      .toBuilder()
+                      .setBatchSource(
+                          DataGenerator.createFileFeatureSourceSpec(
+                              "file:///path/to/file", "ts_col", ""))
+                      .build()));
     }
   }
 }
