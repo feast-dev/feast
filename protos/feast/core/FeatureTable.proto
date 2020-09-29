@@ -23,7 +23,6 @@ option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 option java_outer_classname = "FeatureTableProto";
 option java_package = "feast.proto.core";
 
-import "feast/types/Value.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "feast/core/FeatureSource.proto";

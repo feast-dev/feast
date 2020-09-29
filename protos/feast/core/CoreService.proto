@@ -28,7 +28,6 @@ import "feast/core/FeatureSet.proto";
 import "feast/core/FeatureTable.proto";
 import "feast/core/Store.proto";
 import "feast/core/FeatureSetReference.proto";
-import "feast/core/FeatureTableReference.proto";
 import "feast/core/IngestionJob.proto";
 
 service CoreService {
