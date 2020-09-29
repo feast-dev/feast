@@ -42,7 +42,6 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
 import java.util.*;
-import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.junit.jupiter.api.BeforeAll;
@@ -1146,8 +1145,7 @@ public class SpecServiceIT extends BaseIT {
           equalTo(
               String.format(
                   "INVALID_ARGUMENT: Updating the entities of a registered FeatureTable is not allowed: %s to %s",
-                  entities.stream().collect(Collectors.toSet()),
-                  spec.getEntitiesList().stream().collect(Collectors.toSet()))));
+                  entities, spec.getEntitiesList())));
     }
 
     @Test
