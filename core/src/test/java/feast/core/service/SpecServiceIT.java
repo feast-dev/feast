@@ -949,12 +949,7 @@ public class SpecServiceIT extends BaseIT {
       FeatureTableProto.FeatureTable featureTable =
           apiClient.simpleGetFeatureTable("default", "featuretable1");
 
-      assertThat(featureTable.getSpec().getName(), equalTo(featureTableSpec.getName()));
-      assertThat(
-          featureTable.getSpec().getEntitiesList(), equalTo(featureTableSpec.getEntitiesList()));
-      assertThat(
-          featureTable.getSpec().getFeaturesList(), equalTo(featureTableSpec.getFeaturesList()));
-      assertThat(featureTable.getSpec().getLabelsMap(), equalTo(featureTableSpec.getLabelsMap()));
+      assertTrue(TestUtil.compareFeatureTableSpec(featureTable.getSpec(), featureTableSpec));
     }
   }
 
