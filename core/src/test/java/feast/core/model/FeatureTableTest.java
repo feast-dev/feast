@@ -17,15 +17,15 @@
 package feast.core.model;
 
 import static feast.proto.types.ValueProto.ValueType.Enum.*;
-import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import feast.common.it.DataGenerator;
+import feast.common.util.TestUtil;
 import feast.core.dao.EntityRepository;
-import feast.core.util.TypeConversion;
 import feast.proto.core.EntityProto;
 import feast.proto.core.FeatureProto.FeatureSpecV2;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
@@ -58,7 +58,7 @@ public class FeatureTableTest {
 
     FeatureTable table = FeatureTable.fromProto(PROJECT_NAME, spec, entityRepo);
 
-    Map<String, String> actualLabels = TypeConversion.convertJsonStringToMap(table.getLabelsJSON());
+    Map<String, String> actualLabels = table.getLabelsMap();
     assertThat(actualLabels, equalTo(expectedLabels));
   }
 
@@ -88,7 +88,7 @@ public class FeatureTableTest {
     table.updateFromProto(expectedSpec);
     FeatureTableSpec actualSpec = table.toProto().getSpec();
 
-    assertThat(actualSpec, equalTo(expectedSpec));
+    assertTrue(TestUtil.compareFeatureTableSpec(actualSpec, expectedSpec));
   }
 
   @Test(expected = IllegalArgumentException.class)
