@@ -25,6 +25,7 @@ import feast.proto.core.FeatureSourceProto.FeatureSourceSpec;
 import feast.proto.core.FeatureTableProto;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -170,7 +171,7 @@ public class FeatureTable extends AbstractTimestampEntity {
     // - Entities cannot be changed
     List<String> entityNames =
         getEntities().stream().map(EntityV2::getName).collect(Collectors.toList());
-    if (!entityNames.containsAll(spec.getEntitiesList())) {
+    if (!new HashSet<>(entityNames).equals(new HashSet<>(spec.getEntitiesList()))) {
       throw new IllegalArgumentException(
           String.format(
               "Updating the entities of a registered FeatureTable is not allowed: %s to %s",
