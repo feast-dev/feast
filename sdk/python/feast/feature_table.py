@@ -23,9 +23,9 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
 from feast.core.FeatureTable_pb2 import FeatureTableMeta as FeatureTableMetaProto
 from feast.core.FeatureTable_pb2 import FeatureTableSpec as FeatureTableSpecProto
-from feast.feature_source import (
+from feast.data_source import (
     BigQueryOptions,
-    FeatureSourceSpec,
+    DataSource,
     FileOptions,
     KafkaOptions,
     KinesisOptions,
@@ -45,8 +45,8 @@ class FeatureTable:
         name: str,
         entities: Union[str, List[str]],
         features: Union[FeatureV2, List[FeatureV2]],
-        batch_source: FeatureSourceSpec,
-        stream_source: Optional[FeatureSourceSpec] = None,
+        batch_source: Optional[DataSource] = None,
+        stream_source: Optional[DataSource] = None,
         max_age: Optional[Duration] = None,
         labels: Optional[MutableMapping[str, str]] = None,
     ):
@@ -139,7 +139,7 @@ class FeatureTable:
         return self._batch_source
 
     @batch_source.setter
-    def batch_source(self, batch_source: FeatureSourceSpec):
+    def batch_source(self, batch_source: DataSource):
         """
         Sets the batch source of this feature table
         """
@@ -153,7 +153,7 @@ class FeatureTable:
         return self._stream_source
 
     @stream_source.setter
-    def stream_source(self, stream_source: FeatureSourceSpec):
+    def stream_source(self, stream_source: DataSource):
         """
         Sets the stream source of this feature table
         """
@@ -249,63 +249,60 @@ class FeatureTable:
         return cls.from_proto(feature_table_proto)
 
     @classmethod
-    def _to_feature_source(cls, feature_source):
+    def _to_data_source(cls, data_source):
         """
-        Convert dict to feature source.
+        Convert dict to data source.
         """
 
-        source_type = SourceType(feature_source.type).name
+        source_type = SourceType(data_source.type).name
 
         if (
             source_type == "BATCH_FILE"
-            and feature_source.file_options.file_format
-            and feature_source.file_options.file_url
+            and data_source.file_options.file_format
+            and data_source.file_options.file_url
         ):
-            feature_source_options = FileOptions(
-                file_format=feature_source.file_options.file_format,
-                file_url=feature_source.file_options.file_url,
+            data_source_options = FileOptions(
+                file_format=data_source.file_options.file_format,
+                file_url=data_source.file_options.file_url,
             )
-        elif (
-            source_type == "BATCH_BIGQUERY"
-            and feature_source.bigquery_options.table_ref
-        ):
-            feature_source_options = BigQueryOptions(
-                table_ref=feature_source.bigquery_options.table_ref,
+        elif source_type == "BATCH_BIGQUERY" and data_source.bigquery_options.table_ref:
+            data_source_options = BigQueryOptions(
+                table_ref=data_source.bigquery_options.table_ref,
             )
         elif (
             source_type == "STREAM_KAFKA"
-            and feature_source.kafka_options.bootstrap_servers
-            and feature_source.kafka_options.topic
-            and feature_source.kafka_options.class_path
+            and data_source.kafka_options.bootstrap_servers
+            and data_source.kafka_options.topic
+            and data_source.kafka_options.class_path
         ):
-            feature_source_options = KafkaOptions(
-                bootstrap_servers=feature_source.kafka_options.bootstrap_servers,
-                class_path=feature_source.kafka_options.class_path,
-                topic=feature_source.kafka_options.topic,
+            data_source_options = KafkaOptions(
+                bootstrap_servers=data_source.kafka_options.bootstrap_servers,
+                class_path=data_source.kafka_options.class_path,
+                topic=data_source.kafka_options.topic,
             )
         elif (
             source_type == "STREAM_KINESIS"
-            and feature_source.kinesis_options.class_path
-            and feature_source.kinesis_options.region
-            and feature_source.kinesis_options.stream_name
+            and data_source.kinesis_options.class_path
+            and data_source.kinesis_options.region
+            and data_source.kinesis_options.stream_name
         ):
-            feature_source_options = KinesisOptions(
-                class_path=feature_source.kinesis_options.class_path,
-                region=feature_source.kinesis_options.region,
-                stream_name=feature_source.kinesis_options.stream_name,
+            data_source_options = KinesisOptions(
+                class_path=data_source.kinesis_options.class_path,
+                region=data_source.kinesis_options.region,
+                stream_name=data_source.kinesis_options.stream_name,
             )
         else:
             raise ValueError("Could not identify the source type being added")
 
-        feature_source_proto = FeatureSourceSpec(
-            type=feature_source.type,
-            field_mapping=feature_source.field_mapping,
-            options=feature_source_options,
-            ts_column=feature_source.ts_column,
-            date_partition_column=feature_source.date_partition_column,
+        data_source_proto = DataSource(
+            type=data_source.type,
+            field_mapping=data_source.field_mapping,
+            options=data_source_options,
+            ts_column=data_source.ts_column,
+            date_partition_column=data_source.date_partition_column,
         ).to_proto()
 
-        return feature_source_proto
+        return data_source_proto
 
     @classmethod
     def from_proto(cls, feature_table_proto: FeatureTableProto):
@@ -334,12 +331,14 @@ class FeatureTable:
                 else feature_table_proto.spec.max_age
             ),
             batch_source=(
-                cls._to_feature_source(feature_table_proto.spec.batch_source)
+                None
+                if not feature_table_proto.spec.batch_source.ByteSize()
+                else cls._to_data_source(feature_table_proto.spec.batch_source)
             ),
             stream_source=(
                 None
                 if not feature_table_proto.spec.stream_source.ByteSize()
-                else cls._to_feature_source(feature_table_proto.spec.stream_source)
+                else cls._to_data_source(feature_table_proto.spec.stream_source)
             ),
         )
 

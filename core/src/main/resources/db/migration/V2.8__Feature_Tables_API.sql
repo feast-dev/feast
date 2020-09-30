@@ -1,26 +1,15 @@
--- Feature Sources SQL table used to Store Feature project
-CREATE TABLE feature_sources (
+-- Data Sources SQL table used to Store Feature project
+CREATE TABLE data_sources (
     id bigint NOT NULL,
     type character varying(255) NOT NULL,
     field_mapping text NOT NULL,
     ts_column character varying(255),
     date_partition_column character varying(255),
     -- Only the options corresponding to type should set & non-null
-    -- File Options
-    file_format character varying(255),
-    file_url character varying(255),
-    -- Bigquery Options
-    bigquery_table_ref character varying(255),
-    -- Kafka Options
-    kafka_bootstrap_servers character varying(255),
-    kafka_topic character varying(255),
-    kafka_class_path character varying(255),
-    -- Kinesis Options
-    kinesis_region character varying(255),
-    kinesis_stream_name character varying(255),
-    kinesis_class_path character varying(255),
+    -- DataSource Options
+    config text,
 
-    CONSTRAINT feature_sources_pkey PRIMARY KEY (id)
+    CONSTRAINT data_sources_pkey PRIMARY KEY (id)
 );
 
 -- Feature Table SQL table used to store FeatureTables protobuf
@@ -39,10 +28,10 @@ CREATE TABLE feature_tables (
     CONSTRAINT feature_tables_pkey PRIMARY KEY (id),
     CONSTRAINT feature_tables_project_fkey FOREIGN KEY (project_name) 
         REFERENCES projects(name),
-    CONSTRAINT feature_tables_stream_feature_source_fkey FOREIGN KEY (stream_source_id) 
-        REFERENCES feature_sources(id),
-    CONSTRAINT feature_tables_batch_feature_source_fkey FOREIGN KEY (batch_source_id) 
-        REFERENCES feature_sources(id),
+    CONSTRAINT feature_tables_stream_data_source_fkey FOREIGN KEY (stream_source_id) 
+        REFERENCES data_sources(id),
+    CONSTRAINT feature_tables_batch_data_source_fkey FOREIGN KEY (batch_source_id) 
+        REFERENCES data_sources(id),
     -- Feature Tables must be unique within a project
     CONSTRAINT feature_tables_unique_project UNIQUE (name, project_name)
 );

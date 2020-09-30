@@ -100,7 +100,8 @@ public class SpecServiceIT extends BaseIT {
                 ImmutableMap.of("feat_key2", "feat_value2"))
             .toBuilder()
             .setBatchSource(
-                DataGenerator.createFileFeatureSourceSpec("file:///path/to/file", "ts_col", ""))
+                DataGenerator.createFileDataSourceSpec(
+                    "file:///path/to/file", "parquet", "ts_col", ""))
             .build());
     apiClient.simpleApplyEntity(
         "project1",
@@ -952,7 +953,8 @@ public class SpecServiceIT extends BaseIT {
                   ImmutableMap.of("feat_key2", "feat_value2"))
               .toBuilder()
               .setBatchSource(
-                  DataGenerator.createFileFeatureSourceSpec("file:///path/to/file", "ts_col", ""))
+                  DataGenerator.createFileDataSourceSpec(
+                      "file:///path/to/file", "parquet", "ts_col", ""))
               .build();
       FeatureTableProto.FeatureTable featureTable =
           apiClient.simpleGetFeatureTable("default", "featuretable1");
@@ -1064,9 +1066,10 @@ public class SpecServiceIT extends BaseIT {
               Map.of())
           .toBuilder()
           .setBatchSource(
-              DataGenerator.createFileFeatureSourceSpec("file:///path/to/file", "ts_col", ""))
+              DataGenerator.createFileDataSourceSpec(
+                  "file:///path/to/file", "parquet", "ts_col", ""))
           .setStreamSource(
-              DataGenerator.createKafkaFeatureSourceSpec(
+              DataGenerator.createKafkaDataSourceSpec(
                   "localhost:9092", "topic", "class.path", "ts_col"))
           .build();
     }
@@ -1076,7 +1079,7 @@ public class SpecServiceIT extends BaseIT {
       FeatureTableProto.FeatureTable table = apiClient.applyFeatureTable("default", getTestSpec());
 
       assertTrue(TestUtil.compareFeatureTableSpec(table.getSpec(), getTestSpec()));
-      assertThat(table.getMeta().getRevision(), equalTo(1L));
+      assertThat(table.getMeta().getRevision(), equalTo(0L));
     }
 
     @Test
@@ -1095,9 +1098,10 @@ public class SpecServiceIT extends BaseIT {
                   Map.of("test", "labels"))
               .toBuilder()
               .setStreamSource(
-                  DataGenerator.createFileFeatureSourceSpec("file:///path/to/file", "ts_col", ""))
+                  DataGenerator.createFileDataSourceSpec(
+                      "file:///path/to/file", "parquet", "ts_col", ""))
               .setBatchSource(
-                  DataGenerator.createKafkaFeatureSourceSpec(
+                  DataGenerator.createKafkaDataSourceSpec(
                       "localhost:9092", "topic", "class.path", "ts_col"))
               .build();
       FeatureTableProto.FeatureTable updatedTable =
@@ -1117,6 +1121,27 @@ public class SpecServiceIT extends BaseIT {
     }
 
     @Test
+    public void shouldErrorOnMissingBatchSource() {
+      FeatureTableProto.FeatureTableSpec spec =
+          DataGenerator.createFeatureTableSpec(
+                  "ft",
+                  List.of("entity1"),
+                  Map.of("event_timestamp", ValueProto.ValueType.Enum.INT64),
+                  3600,
+                  Map.of())
+              .toBuilder()
+              .build();
+
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class, () -> apiClient.applyFeatureTable("default", spec));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo("INVALID_ARGUMENT: FeatureTable batch source cannot be empty."));
+    }
+
+    @Test
     public void shouldErrorIfEntityChangeOnUpdate() {
       List<String> entities = Arrays.asList("entity1", "entity2");
       FeatureTableProto.FeatureTableSpec spec =
@@ -1133,7 +1158,8 @@ public class SpecServiceIT extends BaseIT {
                   ImmutableMap.of("feat_key2", "feat_value2"))
               .toBuilder()
               .setBatchSource(
-                  DataGenerator.createFileFeatureSourceSpec("file:///path/to/file", "ts_col", ""))
+                  DataGenerator.createFileDataSourceSpec(
+                      "file:///path/to/file", "parquet", "ts_col", ""))
               .build();
 
       StatusRuntimeException exc =
@@ -1164,7 +1190,8 @@ public class SpecServiceIT extends BaseIT {
                   ImmutableMap.of("feat_key2", "feat_value2"))
               .toBuilder()
               .setBatchSource(
-                  DataGenerator.createFileFeatureSourceSpec("file:///path/to/file", "ts_col", ""))
+                  DataGenerator.createFileDataSourceSpec(
+                      "file:///path/to/file", "parquet", "ts_col", ""))
               .build();
 
       StatusRuntimeException exc =
@@ -1191,7 +1218,7 @@ public class SpecServiceIT extends BaseIT {
                   Map.of())
               .toBuilder()
               .setBatchSource(
-                  DataGenerator.createBigQueryFeatureSourceSpec(invalidTableRef, "ts_col", ""))
+                  DataGenerator.createBigQueryDataSourceSpec(invalidTableRef, "ts_col", ""))
               .build();
 
       StatusRuntimeException exc =
@@ -1222,8 +1249,8 @@ public class SpecServiceIT extends BaseIT {
                           Map.of())
                       .toBuilder()
                       .setBatchSource(
-                          DataGenerator.createFileFeatureSourceSpec(
-                              "file:///path/to/file", "ts_col", ""))
+                          DataGenerator.createFileDataSourceSpec(
+                              "file:///path/to/file", "parquet", "ts_col", ""))
                       .build()));
 
       // Reserved name used in as entity name
@@ -1240,8 +1267,8 @@ public class SpecServiceIT extends BaseIT {
                           Map.of())
                       .toBuilder()
                       .setBatchSource(
-                          DataGenerator.createFileFeatureSourceSpec(
-                              "file:///path/to/file", "ts_col", ""))
+                          DataGenerator.createFileDataSourceSpec(
+                              "file:///path/to/file", "parquet", "ts_col", ""))
                       .build()));
     }
 
@@ -1261,8 +1288,8 @@ public class SpecServiceIT extends BaseIT {
                           Map.of())
                       .toBuilder()
                       .setBatchSource(
-                          DataGenerator.createFileFeatureSourceSpec(
-                              "file:///path/to/file", "ts_col", ""))
+                          DataGenerator.createFileDataSourceSpec(
+                              "file:///path/to/file", "parquet", "ts_col", ""))
                       .build()));
 
       // Invalid feature name
@@ -1279,8 +1306,8 @@ public class SpecServiceIT extends BaseIT {
                           Map.of())
                       .toBuilder()
                       .setBatchSource(
-                          DataGenerator.createFileFeatureSourceSpec(
-                              "file:///path/to/file", "ts_col", ""))
+                          DataGenerator.createFileDataSourceSpec(
+                              "file:///path/to/file", "parquet", "ts_col", ""))
                       .build()));
     }
 
@@ -1299,8 +1326,8 @@ public class SpecServiceIT extends BaseIT {
                           Map.of())
                       .toBuilder()
                       .setBatchSource(
-                          DataGenerator.createFileFeatureSourceSpec(
-                              "file:///path/to/file", "ts_col", ""))
+                          DataGenerator.createFileDataSourceSpec(
+                              "file:///path/to/file", "parquet", "ts_col", ""))
                       .build()));
     }
 
@@ -1322,8 +1349,8 @@ public class SpecServiceIT extends BaseIT {
                           Map.of())
                       .toBuilder()
                       .setBatchSource(
-                          DataGenerator.createFileFeatureSourceSpec(
-                              "file:///path/to/file", "ts_col", ""))
+                          DataGenerator.createFileDataSourceSpec(
+                              "file:///path/to/file", "parquet", "ts_col", ""))
                       .build()));
     }
   }

@@ -16,12 +16,12 @@
 import enum
 from typing import MutableMapping, Optional, Union
 
-from feast.core.FeatureSource_pb2 import FeatureSourceSpec as FeatureSourceSpecProto
+from feast.core.DataSource_pb2 import DataSource as DataSourceProto
 
 
 class SourceType(enum.Enum):
     """
-    FeatureSource value type. Used to define source types in FeatureSource.
+    DataSource value type. Used to define source types in DataSource.
     """
 
     UNKNOWN = 0
@@ -31,23 +31,13 @@ class SourceType(enum.Enum):
     STREAM_KINESIS = 4
 
 
-class FileFormat(enum.Enum):
-    """
-    FileOptions value type. Used to define source types in FeatureSource.
-    """
-
-    UNKNOWN = 0
-    PARQUET = 1
-    AVRO = 2
-
-
 class FileOptions:
     """
-    FeatureSourceSpec File options used to source features from a file
+    DataSource File options used to source features from a file
     """
 
     def __init__(
-        self, file_format: FileFormat, file_url: str,
+        self, file_format: str, file_url: str,
     ):
         self._file_format = file_format
         self._file_url = file_url
@@ -81,25 +71,25 @@ class FileOptions:
         self._file_url = file_url
 
     @classmethod
-    def from_proto(cls, file_options_proto: FeatureSourceSpecProto.FileOptions):
+    def from_proto(cls, file_options_proto: DataSourceProto.FileOptions):
         """
         Creates a FileOptions from a protobuf representation of a file option
 
         Args:
-            file_options_proto: A protobuf representation of a FeatureSourceSpec
+            file_options_proto: A protobuf representation of a DataSource
 
         Returns:
             Returns a FileOptions object based on the file_options protobuf
         """
 
         file_options = cls(
-            file_format=FileFormat(file_options_proto.file_format),
+            file_format=file_options_proto.file_format,
             file_url=file_options_proto.file_url,
         )
 
         return file_options
 
-    def to_proto(self) -> FeatureSourceSpecProto.FileOptions:
+    def to_proto(self) -> DataSourceProto.FileOptions:
         """
         Converts an FileOptionsProto object to its protobuf representation.
 
@@ -107,7 +97,7 @@ class FileOptions:
             FileOptionsProto protobuf
         """
 
-        file_options_proto = FeatureSourceSpecProto.FileOptions(
+        file_options_proto = DataSourceProto.FileOptions(
             file_format=self.file_format, file_url=self.file_url,
         )
 
@@ -116,7 +106,7 @@ class FileOptions:
 
 class BigQueryOptions:
     """
-    FeatureSourceSpec BigQuery options used to source features from BigQuery query
+    DataSource BigQuery options used to source features from BigQuery query
     """
 
     def __init__(
@@ -139,12 +129,12 @@ class BigQueryOptions:
         self._table_ref = table_ref
 
     @classmethod
-    def from_proto(cls, bigquery_options_proto: FeatureSourceSpecProto.BigQueryOptions):
+    def from_proto(cls, bigquery_options_proto: DataSourceProto.BigQueryOptions):
         """
         Creates a BigQueryOptions from a protobuf representation of a BigQuery option
 
         Args:
-            bigquery_options_proto: A protobuf representation of a FeatureSourceSpec
+            bigquery_options_proto: A protobuf representation of a DataSource
 
         Returns:
             Returns a BigQueryOptions object based on the bigquery_options protobuf
@@ -154,7 +144,7 @@ class BigQueryOptions:
 
         return bigquery_options
 
-    def to_proto(self) -> FeatureSourceSpecProto.BigQueryOptions:
+    def to_proto(self) -> DataSourceProto.BigQueryOptions:
         """
         Converts an BigQueryOptionsProto object to its protobuf representation.
 
@@ -162,7 +152,7 @@ class BigQueryOptions:
             BigQueryOptionsProto protobuf
         """
 
-        bigquery_options_proto = FeatureSourceSpecProto.BigQueryOptions(
+        bigquery_options_proto = DataSourceProto.BigQueryOptions(
             table_ref=self.table_ref,
         )
 
@@ -171,7 +161,7 @@ class BigQueryOptions:
 
 class KafkaOptions:
     """
-    FeatureSourceSpec Kafka options used to source features from Kafka messages
+    DataSource Kafka options used to source features from Kafka messages
     """
 
     def __init__(
@@ -226,12 +216,12 @@ class KafkaOptions:
         self._topic = topic
 
     @classmethod
-    def from_proto(cls, kafka_options_proto: FeatureSourceSpecProto.KafkaOptions):
+    def from_proto(cls, kafka_options_proto: DataSourceProto.KafkaOptions):
         """
         Creates a KafkaOptions from a protobuf representation of a kafka option
 
         Args:
-            kafka_options_proto: A protobuf representation of a FeatureSourceSpec
+            kafka_options_proto: A protobuf representation of a DataSource
 
         Returns:
             Returns a BigQueryOptions object based on the kafka_options protobuf
@@ -245,7 +235,7 @@ class KafkaOptions:
 
         return kafka_options
 
-    def to_proto(self) -> FeatureSourceSpecProto.KafkaOptions:
+    def to_proto(self) -> DataSourceProto.KafkaOptions:
         """
         Converts an KafkaOptionsProto object to its protobuf representation.
 
@@ -253,7 +243,7 @@ class KafkaOptions:
             KafkaOptionsProto protobuf
         """
 
-        kafka_options_proto = FeatureSourceSpecProto.KafkaOptions(
+        kafka_options_proto = DataSourceProto.KafkaOptions(
             bootstrap_servers=self.bootstrap_servers,
             class_path=self.class_path,
             topic=self.topic,
@@ -264,7 +254,7 @@ class KafkaOptions:
 
 class KinesisOptions:
     """
-    FeatureSourceSpec Kinesis options used to source features from Kinesis records
+    DataSource Kinesis options used to source features from Kinesis records
     """
 
     def __init__(
@@ -319,12 +309,12 @@ class KinesisOptions:
         self._stream_name = stream_name
 
     @classmethod
-    def from_proto(cls, kinesis_options_proto: FeatureSourceSpecProto.KinesisOptions):
+    def from_proto(cls, kinesis_options_proto: DataSourceProto.KinesisOptions):
         """
         Creates a KinesisOptions from a protobuf representation of a kinesis option
 
         Args:
-            kinesis_options_proto: A protobuf representation of a FeatureSourceSpec
+            kinesis_options_proto: A protobuf representation of a DataSource
 
         Returns:
             Returns a KinesisOptions object based on the kinesis_options protobuf
@@ -338,7 +328,7 @@ class KinesisOptions:
 
         return kinesis_options
 
-    def to_proto(self) -> FeatureSourceSpecProto.KinesisOptions:
+    def to_proto(self) -> DataSourceProto.KinesisOptions:
         """
         Converts an KinesisOptionsProto object to its protobuf representation.
 
@@ -346,7 +336,7 @@ class KinesisOptions:
             KinesisOptionsProto protobuf
         """
 
-        kinesis_options_proto = FeatureSourceSpecProto.KinesisOptions(
+        kinesis_options_proto = DataSourceProto.KinesisOptions(
             class_path=self.class_path,
             region=self.region,
             stream_name=self.stream_name,
@@ -355,9 +345,9 @@ class KinesisOptions:
         return kinesis_options_proto
 
 
-class FeatureSourceSpec:
+class DataSource:
     """
-    FeatureSourceSpec that can be used source features
+    DataSource that can be used source features
     """
 
     def __init__(
@@ -377,146 +367,146 @@ class FeatureSourceSpec:
     @property
     def type(self):
         """
-        Returns the type of this feature source
+        Returns the type of this data source
         """
         return self._type
 
     @type.setter
     def type(self, type):
         """
-        Sets the type of this feature source
+        Sets the type of this data source
         """
         self._type = type
 
     @property
     def field_mapping(self):
         """
-        Returns the field mapping of this feature source
+        Returns the field mapping of this data source
         """
         return self._field_mapping
 
     @field_mapping.setter
     def field_mapping(self, field_mapping):
         """
-        Sets the field mapping of this feature source
+        Sets the field mapping of this data source
         """
         self._field_mapping = field_mapping
 
     @property
     def options(self):
         """
-        Returns the options of this feature source
+        Returns the options of this data source
         """
         return self._options
 
     @options.setter
     def options(self, options):
         """
-        Sets the options of this feature source
+        Sets the options of this data source
         """
         self._options = options
 
     @property
     def ts_column(self):
         """
-        Returns the timestamp column of this feature source
+        Returns the timestamp column of this data source
         """
         return self._ts_column
 
     @ts_column.setter
     def ts_column(self, ts_column):
         """
-        Sets the timestamp column of this feature source
+        Sets the timestamp column of this data source
         """
         self._ts_column = ts_column
 
     @property
     def date_partition_column(self):
         """
-        Returns the date partition column of this feature source
+        Returns the date partition column of this data source
         """
         return self._date_partition_column
 
     @date_partition_column.setter
     def date_partition_column(self, date_partition_column):
         """
-        Sets the date partition column of this feature source
+        Sets the date partition column of this data source
         """
         self._date_partition_column = date_partition_column
 
     @classmethod
-    def from_proto(cls, feature_source_proto: FeatureSourceSpecProto):
+    def from_proto(cls, data_source_proto: DataSourceProto):
         """
-        Creates a FeatureSourceSpec from a protobuf representation of an feature source
+        Creates a DataSource from a protobuf representation of an data source
 
         Args:
-            feature_source_proto: A protobuf representation of a FeatureSourceSpec
+            data_source_proto: A protobuf representation of a DataSource
 
         Returns:
-            Returns a FeatureSourceSpec object based on the feature_source protobuf
+            Returns a DataSource object based on the data_source protobuf
         """
 
         if isinstance(cls.options, FileOptions):
-            feature_source = cls(file_options=feature_source_proto.options,)
+            data_source = cls(file_options=data_source_proto.options,)
         if isinstance(cls.options, BigQueryOptions):
-            feature_source = cls(bigquery_options=feature_source_proto.options,)
+            data_source = cls(bigquery_options=data_source_proto.options,)
         if isinstance(cls.options, KafkaOptions):
-            feature_source = cls(kafka_options=feature_source_proto.options,)
+            data_source = cls(kafka_options=data_source_proto.options,)
         if isinstance(cls.options, KinesisOptions):
-            feature_source = cls(kinesis_options=feature_source_proto.options,)
+            data_source = cls(kinesis_options=data_source_proto.options,)
         else:
             raise TypeError(
-                "FeatureSourceSpec.from_proto: Provided Feature Source option is invalid. Only FileOptions, BigQueryOptions, KafkaOptions and KinesisOptions are supported currently."
+                "DataSource.from_proto: Provided DataSource option is invalid. Only FileOptions, BigQueryOptions, KafkaOptions and KinesisOptions are supported currently."
             )
 
-        feature_source = cls(
-            type=feature_source_proto.type,
-            field_mapping=feature_source_proto.field_mapping,
-            ts_column=feature_source_proto.ts_column,
-            date_partition_column=feature_source_proto.date_partition_column,
+        data_source = cls(
+            type=data_source_proto.type,
+            field_mapping=data_source_proto.field_mapping,
+            ts_column=data_source_proto.ts_column,
+            date_partition_column=data_source_proto.date_partition_column,
         )
 
-        return feature_source
+        return data_source
 
-    def to_proto(self) -> FeatureSourceSpecProto:
+    def to_proto(self) -> DataSourceProto:
         """
-        Converts an FeatureSourceSpecProto object to its protobuf representation.
-        Used when passing FeatureSourceSpecProto object to Feast request.
+        Converts an DataSourceProto object to its protobuf representation.
+        Used when passing DataSourceProto object to Feast request.
 
         Returns:
-            FeatureSourceSpecProto protobuf
+            DataSourceProto protobuf
         """
 
         if isinstance(self.options, FileOptions):
-            feature_source_proto = FeatureSourceSpecProto(
+            data_source_proto = DataSourceProto(
                 type=self.type,
                 field_mapping=self.field_mapping,
                 file_options=self.options.to_proto(),
             )
         elif isinstance(self.options, BigQueryOptions):
-            feature_source_proto = FeatureSourceSpecProto(
+            data_source_proto = DataSourceProto(
                 type=self.type,
                 field_mapping=self.field_mapping,
                 bigquery_options=self.options.to_proto(),
             )
         elif isinstance(self.options, KafkaOptions):
-            feature_source_proto = FeatureSourceSpecProto(
+            data_source_proto = DataSourceProto(
                 type=self.type,
                 field_mapping=self.field_mapping,
                 kafka_options=self.options.to_proto(),
             )
         elif isinstance(self.options, KinesisOptions):
-            feature_source_proto = FeatureSourceSpecProto(
+            data_source_proto = DataSourceProto(
                 type=self.type,
                 field_mapping=self.field_mapping,
                 kinesis_options=self.options.to_proto(),
             )
         else:
             raise TypeError(
-                "FeatureSourceSpec.to_proto: Provided Feature Source option is invalid. Only FileOptions, BigQueryOptions, KafkaOptions and KinesisOptions are supported currently."
+                "DataSource.to_proto: Provided DataSource option is invalid. Only FileOptions, BigQueryOptions, KafkaOptions and KinesisOptions are supported currently."
             )
 
-        feature_source_proto.ts_column = self.ts_column
-        feature_source_proto.date_partition_column = self.date_partition_column
+        data_source_proto.ts_column = self.ts_column
+        data_source_proto.date_partition_column = self.date_partition_column
 
-        return feature_source_proto
+        return data_source_proto

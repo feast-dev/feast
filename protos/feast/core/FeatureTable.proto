@@ -25,7 +25,7 @@ option java_package = "feast.proto.core";
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
-import "feast/core/FeatureSource.proto";
+import "feast/core/DataSource.proto";
 import "feast/core/Feature.proto";
 
 message FeatureTable {
@@ -56,15 +56,15 @@ message FeatureTableSpec {
     // Feature values outside max age will be returned as unset values and indicated to end user
     google.protobuf.Duration max_age = 6;
 
-    // Batch/Offline Feature Source to source batch/offline feature data.
-    // Only batch feature sources can be specified 
+    // Batch/Offline DataSource to source batch/offline feature data.
+    // Only batch DataSource can be specified 
     // (ie source type should start with 'BATCH_')
-    FeatureSourceSpec batch_source = 7;
+    DataSource batch_source = 7;
 
-    // Stream/Online Feature Source to source stream/online feature data.
-    // Only stream feature sources can be specified 
+    // Stream/Online DataSource to source stream/online feature data.
+    // Only stream DataSource can be specified 
     // (ie source type should start with 'STREAM_')
-    FeatureSourceSpec stream_source = 8;
+    DataSource stream_source = 8;
 }
 
 message FeatureTableMeta {

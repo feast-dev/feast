@@ -42,6 +42,9 @@ public class FeatureTableValidator {
     if (spec.getFeaturesCount() == 0) {
       throw new IllegalArgumentException("FeatureTable features list cannot be empty.");
     }
+    if (!spec.hasBatchSource()) {
+      throw new IllegalArgumentException("FeatureTable batch source cannot be empty.");
+    }
 
     checkValidCharacters(spec.getName(), "FeatureTable");
     spec.getFeaturesList().forEach(FeatureTableValidator::validateFeatureSpec);

@@ -16,16 +16,16 @@
  */
 package feast.core.model;
 
-import static feast.proto.core.FeatureSourceProto.FeatureSourceSpec.SourceType.*;
+import static feast.proto.core.DataSourceProto.DataSource.SourceType.*;
 
 import feast.core.util.TypeConversion;
-import feast.proto.core.FeatureSourceProto.FeatureSourceSpec;
-import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.BigQueryOptions;
-import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.FileOptions;
-import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.FileOptions.FileFormat;
-import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.KafkaOptions;
-import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.KinesisOptions;
-import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.SourceType;
+import feast.proto.core.DataSourceProto;
+import feast.proto.core.DataSourceProto.DataSource.BigQueryOptions;
+import feast.proto.core.DataSourceProto.DataSource.FileOptions;
+import feast.proto.core.DataSourceProto.DataSource.KafkaOptions;
+import feast.proto.core.DataSourceProto.DataSource.KinesisOptions;
+import feast.proto.core.DataSourceProto.DataSource.SourceType;
+import java.util.HashMap;
 import java.util.Map;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -41,50 +41,21 @@ import lombok.Setter;
 @Entity
 @Getter
 @Setter(AccessLevel.PRIVATE)
-@Table(name = "feature_sources")
-public class FeatureSource {
+@Table(name = "data_sources")
+public class DataSource {
   @Column(name = "id")
   @Id
   @GeneratedValue
   private long id;
 
-  // Type of this Feature Source
+  // Type of this Data Source
   @Enumerated(EnumType.STRING)
   @Column(name = "type", nullable = false)
   private SourceType type;
 
-  // Source type specific options
-  // File Options
-  @Enumerated(EnumType.STRING)
-  @Column(name = "file_format")
-  private FileFormat fileFormat;
-
-  @Column(name = "file_url")
-  private String fileURL;
-
-  // BigQuery Options
-  @Column(name = "bigquery_table_ref")
-  private String bigQueryTableRef;
-
-  // Kafka Options
-  @Column(name = "kafka_bootstrap_servers")
-  private String kafkaBootstrapServers;
-
-  @Column(name = "kafka_topic")
-  private String kafkaTopic;
-
-  @Column(name = "kafka_class_path")
-  private String kafkaClassPath;
-
-  // Kinesis Options
-  @Column(name = "kinesis_region")
-  private String kinesisRegion;
-
-  @Column(name = "kinesis_stream_name")
-  private String kinesisStreamName;
-
-  @Column(name = "kinesis_class_path")
-  private String kinesisClassPath;
+  // DataSource Options
+  @Column(name = "config")
+  private String configJSON;
 
   // Field mapping between sourced fields (key) and feature fields (value).
   // Stored as serialized JSON string.
@@ -97,44 +68,48 @@ public class FeatureSource {
   @Column(name = "date_partition_column")
   private String datePartitionColumn;
 
-  public FeatureSource() {};
+  public DataSource() {};
 
-  public FeatureSource(SourceType type) {
+  public DataSource(SourceType type) {
     this.type = type;
   }
 
   /**
-   * Construct a FeatureSource from the given Protobuf representation spec
+   * Construct a DataSource from the given Protobuf representation spec
    *
-   * @param spec Protobuf representation of Feature source to construct from.
+   * @param spec Protobuf representation of DataSource to construct from.
    * @throws IllegalArgumentException when provided with a invalid Protobuf spec
    * @throws UnsupportedOperationException if source type is unsupported.
    */
-  public static FeatureSource fromProto(FeatureSourceSpec spec) {
-    FeatureSource source = new FeatureSource(spec.getType());
+  public static DataSource fromProto(DataSourceProto.DataSource spec) {
+    DataSource source = new DataSource(spec.getType());
     // Copy source type specific options
+    Map<String, String> dataSourceConfigMap = new HashMap<>();
     switch (spec.getType()) {
       case BATCH_FILE:
-        source.setFileURL(spec.getFileOptions().getFileUrl());
-        source.setFileFormat(spec.getFileOptions().getFileFormat());
+        dataSourceConfigMap.put("file_url", spec.getFileOptions().getFileUrl());
+        dataSourceConfigMap.put("file_format", spec.getFileOptions().getFileFormat());
         break;
       case BATCH_BIGQUERY:
-        source.setBigQueryTableRef(spec.getBigqueryOptions().getTableRef());
+        dataSourceConfigMap.put("table_ref", spec.getBigqueryOptions().getTableRef());
         break;
       case STREAM_KAFKA:
-        source.setKafkaBootstrapServers(spec.getKafkaOptions().getBootstrapServers());
-        source.setKafkaTopic(spec.getKafkaOptions().getTopic());
-        source.setKafkaClassPath(spec.getKafkaOptions().getClassPath());
+        dataSourceConfigMap.put("bootstrap_servers", spec.getKafkaOptions().getBootstrapServers());
+        dataSourceConfigMap.put("class_path", spec.getKafkaOptions().getClassPath());
+        dataSourceConfigMap.put("topic", spec.getKafkaOptions().getTopic());
         break;
       case STREAM_KINESIS:
-        source.setKinesisRegion(spec.getKinesisOptions().getRegion());
-        source.setKinesisStreamName(spec.getKinesisOptions().getStreamName());
-        source.setKinesisClassPath(spec.getKinesisOptions().getClassPath());
+        dataSourceConfigMap.put("class_path", spec.getKinesisOptions().getClassPath());
+        dataSourceConfigMap.put("region", spec.getKinesisOptions().getRegion());
+        dataSourceConfigMap.put("stream_name", spec.getKinesisOptions().getStreamName());
         break;
       default:
         throw new UnsupportedOperationException(
             String.format("Unsupported Feature Store Type: %s", spec.getType()));
     }
+
+    // Store DataSource mapping as serialised JSON
+    source.setConfigJSON(TypeConversion.convertMapToJsonString(dataSourceConfigMap));
 
     // Store field mapping as serialised JSON
     source.setFieldMapJSON(TypeConversion.convertMapToJsonString(spec.getFieldMappingMap()));
@@ -146,36 +121,38 @@ public class FeatureSource {
     return source;
   }
 
-  /** Convert this FeatureSource to its Protobuf representation. */
-  public FeatureSourceSpec toProto() {
-    FeatureSourceSpec.Builder spec = FeatureSourceSpec.newBuilder();
+  /** Convert this DataSource to its Protobuf representation. */
+  public DataSourceProto.DataSource toProto() {
+    DataSourceProto.DataSource.Builder spec = DataSourceProto.DataSource.newBuilder();
     spec.setType(getType());
 
     // Extract source type specific options
+    Map<String, String> dataSourceConfigMap =
+        TypeConversion.convertJsonStringToMap(getConfigJSON());
     switch (getType()) {
       case BATCH_FILE:
         FileOptions.Builder fileOptions = FileOptions.newBuilder();
-        fileOptions.setFileUrl(getFileURL());
-        fileOptions.setFileFormat(getFileFormat());
+        fileOptions.setFileUrl(dataSourceConfigMap.get("file_url"));
+        fileOptions.setFileFormat(dataSourceConfigMap.get("file_format"));
         spec.setFileOptions(fileOptions.build());
         break;
       case BATCH_BIGQUERY:
         BigQueryOptions.Builder bigQueryOptions = BigQueryOptions.newBuilder();
-        bigQueryOptions.setTableRef(getBigQueryTableRef());
+        bigQueryOptions.setTableRef(dataSourceConfigMap.get("table_ref"));
         spec.setBigqueryOptions(bigQueryOptions.build());
         break;
       case STREAM_KAFKA:
         KafkaOptions.Builder kafkaOptions = KafkaOptions.newBuilder();
-        kafkaOptions.setBootstrapServers(getKafkaBootstrapServers());
-        kafkaOptions.setTopic(getKafkaTopic());
-        kafkaOptions.setClassPath(getKafkaClassPath());
+        kafkaOptions.setBootstrapServers(dataSourceConfigMap.get("bootstrap_servers"));
+        kafkaOptions.setClassPath(dataSourceConfigMap.get("class_path"));
+        kafkaOptions.setTopic(dataSourceConfigMap.get("topic"));
         spec.setKafkaOptions(kafkaOptions.build());
         break;
       case STREAM_KINESIS:
         KinesisOptions.Builder kinesisOptions = KinesisOptions.newBuilder();
-        kinesisOptions.setRegion(getKinesisRegion());
-        kinesisOptions.setStreamName(getKinesisStreamName());
-        kinesisOptions.setClassPath(getKinesisClassPath());
+        kinesisOptions.setClassPath(dataSourceConfigMap.get("class_path"));
+        kinesisOptions.setRegion(dataSourceConfigMap.get("region"));
+        kinesisOptions.setStreamName(dataSourceConfigMap.get("stream_name"));
         spec.setKinesisOptions(kinesisOptions.build());
         break;
       default:
@@ -209,7 +186,7 @@ public class FeatureSource {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    FeatureSource other = (FeatureSource) o;
+    DataSource other = (DataSource) o;
     return this.toProto().equals(other.toProto());
   }
 }

@@ -21,13 +21,7 @@ import pytest
 
 from feast.client import Client
 from feast.core import CoreService_pb2_grpc as Core
-from feast.feature_source import (
-    FeatureSourceSpec,
-    FileFormat,
-    FileOptions,
-    KafkaOptions,
-    SourceType,
-)
+from feast.data_source import DataSource, FileOptions, KafkaOptions, SourceType
 from feast.feature_table import FeatureTable
 from feast.feature_v2 import FeatureV2
 from feast.value_type import ValueType
@@ -60,20 +54,18 @@ class TestFeatureTable:
 
     def test_feature_table_import_export_yaml(self):
 
-        batch_source = FeatureSourceSpec(
+        batch_source = DataSource(
             type=SourceType(1).name,
             field_mapping={
                 "ride_distance": "ride_distance",
                 "ride_duration": "ride_duration",
             },
-            options=FileOptions(
-                file_format=FileFormat(2).name, file_url="data/test.avro"
-            ),
+            options=FileOptions(file_format="avro", file_url="data/test.avro"),
             ts_column="ts_col",
             date_partition_column="date_partition_col",
         )
 
-        stream_source = FeatureSourceSpec(
+        stream_source = DataSource(
             type=SourceType(3).name,
             field_mapping={
                 "ride_distance": "ride_distance",

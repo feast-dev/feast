@@ -20,8 +20,8 @@ import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
 import feast.core.dao.EntityRepository;
 import feast.core.util.TypeConversion;
+import feast.proto.core.DataSourceProto;
 import feast.proto.core.FeatureProto.FeatureSpecV2;
-import feast.proto.core.FeatureSourceProto.FeatureSourceSpec;
 import feast.proto.core.FeatureTableProto;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import java.util.Collection;
@@ -94,24 +94,22 @@ public class FeatureTable extends AbstractTimestampEntity {
   @Column(name = "max_age", nullable = false)
   private long maxAgeSecs;
 
-  // Streaming Feature Source used to obtain data for features from a stream
+  // Streaming DataSource used to obtain data for features from a stream
   @OneToOne(cascade = CascadeType.ALL)
   @JoinColumn(name = "stream_source_id", nullable = true)
-  private FeatureSource streamSource;
+  private DataSource streamSource;
 
-  // Batched Feature Source used to obtain data for features from a batch of data
+  // Batched DataSource used to obtain data for features from a batch of data
   @OneToOne(cascade = CascadeType.ALL)
   @JoinColumn(name = "batch_source_id", nullable = false)
-  private FeatureSource batchSource;
+  private DataSource batchSource;
 
   // Autoincrementing version no. of this FeatureTable.
   // Autoincrements every update made to the FeatureTable.
   @Column(name = "revision", nullable = false)
   private int revision;
 
-  public FeatureTable() {
-    this.revision = 1;
-  };
+  public FeatureTable() {};
 
   /**
    * Construct FeatureTable from Protobuf spec representation in the given project with entities
@@ -144,11 +142,11 @@ public class FeatureTable extends AbstractTimestampEntity {
     table.setLabelsJSON(labelsJSON);
 
     table.setMaxAgeSecs(spec.getMaxAge().getSeconds());
-    table.setBatchSource(FeatureSource.fromProto(spec.getBatchSource()));
+    table.setBatchSource(DataSource.fromProto(spec.getBatchSource()));
 
     // Configure stream source only if set
-    if (!spec.getStreamSource().equals(FeatureSourceSpec.getDefaultInstance())) {
-      table.setStreamSource(FeatureSource.fromProto(spec.getStreamSource()));
+    if (!spec.getStreamSource().equals(DataSourceProto.DataSource.getDefaultInstance())) {
+      table.setStreamSource(DataSource.fromProto(spec.getStreamSource()));
     }
 
     return table;
@@ -203,10 +201,13 @@ public class FeatureTable extends AbstractTimestampEntity {
     this.maxAgeSecs = spec.getMaxAge().getSeconds();
     this.labelsJSON = TypeConversion.convertMapToJsonString(spec.getLabelsMap());
 
-    this.batchSource = FeatureSource.fromProto(spec.getBatchSource());
-    if (!spec.getStreamSource().equals(FeatureSourceSpec.getDefaultInstance())) {
-      this.streamSource = FeatureSource.fromProto(spec.getStreamSource());
+    this.batchSource = DataSource.fromProto(spec.getBatchSource());
+    if (!spec.getStreamSource().equals(DataSourceProto.DataSource.getDefaultInstance())) {
+      this.streamSource = DataSource.fromProto(spec.getStreamSource());
+    } else {
+      this.streamSource = null;
     }
+
     // Bump revision no.
     this.revision++;
   }

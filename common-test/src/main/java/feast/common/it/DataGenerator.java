@@ -18,15 +18,14 @@ package feast.common.it;
 
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Duration;
+import feast.proto.core.DataSourceProto.DataSource;
+import feast.proto.core.DataSourceProto.DataSource.BigQueryOptions;
+import feast.proto.core.DataSourceProto.DataSource.FileOptions;
+import feast.proto.core.DataSourceProto.DataSource.KafkaOptions;
 import feast.proto.core.EntityProto;
 import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureProto.FeatureSpecV2;
 import feast.proto.core.FeatureSetProto;
-import feast.proto.core.FeatureSourceProto.FeatureSourceSpec;
-import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.BigQueryOptions;
-import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.FileOptions;
-import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.FileOptions.FileFormat;
-import feast.proto.core.FeatureSourceProto.FeatureSourceSpec.KafkaOptions;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
@@ -212,7 +211,7 @@ public class DataGenerator {
         source, projectName, name, Collections.emptyMap(), Collections.emptyMap());
   }
 
-  // Create a Feature Table spec without feature sources configured.
+  // Create a Feature Table spec without DataSources configured.
   public static FeatureTableSpec createFeatureTableSpec(
       String name,
       List<String> entities,
@@ -238,31 +237,31 @@ public class DataGenerator {
         .build();
   }
 
-  public static FeatureSourceSpec createFileFeatureSourceSpec(
-      String fileURL, String tsColumn, String datePartitionColumn) {
-    return FeatureSourceSpec.newBuilder()
-        .setType(FeatureSourceSpec.SourceType.BATCH_FILE)
+  public static DataSource createFileDataSourceSpec(
+      String fileURL, String fileFormat, String tsColumn, String datePartitionColumn) {
+    return DataSource.newBuilder()
+        .setType(DataSource.SourceType.BATCH_FILE)
         .setFileOptions(
-            FileOptions.newBuilder().setFileFormat(FileFormat.PARQUET).setFileUrl(fileURL).build())
+            FileOptions.newBuilder().setFileFormat(fileFormat).setFileUrl(fileURL).build())
         .setTsColumn(tsColumn)
         .setDatePartitionColumn(datePartitionColumn)
         .build();
   }
 
-  public static FeatureSourceSpec createBigQueryFeatureSourceSpec(
+  public static DataSource createBigQueryDataSourceSpec(
       String bigQueryTableRef, String tsColumn, String datePartitionColumn) {
-    return FeatureSourceSpec.newBuilder()
-        .setType(FeatureSourceSpec.SourceType.BATCH_BIGQUERY)
+    return DataSource.newBuilder()
+        .setType(DataSource.SourceType.BATCH_BIGQUERY)
         .setBigqueryOptions(BigQueryOptions.newBuilder().setTableRef(bigQueryTableRef).build())
         .setTsColumn(tsColumn)
         .setDatePartitionColumn(datePartitionColumn)
         .build();
   }
 
-  public static FeatureSourceSpec createKafkaFeatureSourceSpec(
+  public static DataSource createKafkaDataSourceSpec(
       String servers, String topic, String classPath, String tsColumn) {
-    return FeatureSourceSpec.newBuilder()
-        .setType(FeatureSourceSpec.SourceType.STREAM_KAFKA)
+    return DataSource.newBuilder()
+        .setType(DataSource.SourceType.STREAM_KAFKA)
         .setKafkaOptions(
             KafkaOptions.newBuilder()
                 .setTopic(topic)

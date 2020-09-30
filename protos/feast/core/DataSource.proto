@@ -19,12 +19,12 @@ syntax = "proto3";
 package feast.core;
 
 option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
-option java_outer_classname = "FeatureSourceProto";
+option java_outer_classname = "DataSourceProto";
 option java_package = "feast.proto.core";
 
-// Defines a Feature Source that can be used source Feature data
-message FeatureSourceSpec {
-  // Type of Feature Source.
+// Defines a Data Source that can be used source Feature data
+message DataSource {
+  // Type of Data Source.
   enum SourceType {
     INVALID = 0;
     BATCH_FILE = 1;
@@ -45,15 +45,10 @@ message FeatureSourceSpec {
   // useful for file sources
   string date_partition_column = 4;
 
-  // Defines options for Feature source that sources features from a file
+  // Defines options for DataSource that sources features from a file
   message FileOptions {
     // File Format of the file containing the features
-    enum FileFormat {
-       INVALID = 0;
-       PARQUET = 1;
-       AVRO = 2;
-    }
-    FileFormat file_format = 1;
+    string file_format = 1;
 
     // Target URL of file to retrieve and source features from.
     // s3://path/to/file for AWS S3 storage
@@ -62,17 +57,17 @@ message FeatureSourceSpec {
     string file_url  = 2;
   }
 
-  // Defines options for Feature source that sources features from a BigQuery Query
+  // Defines options for DataSource that sources features from a BigQuery Query
   message BigQueryOptions {
     // Full table reference in the form of [project:dataset.table]
     string table_ref = 1;
   }
 
-  // Defines options for Feature source that sources features from Kafka messages.
+  // Defines options for DataSource that sources features from Kafka messages.
   // Each message should be a Protobuf that can be decoded with the generated
   // Java Protobuf class at the given class path
   message KafkaOptions {
-    // Comma separated list of Kafka bootstrap servers. Used for feature sets without a defined source host[:port]]
+    // Comma separated list of Kafka bootstrap servers. Used for feature tables without a defined source host[:port]]
     string bootstrap_servers = 1;
 
     // Kafka topic to collect feature data from.
@@ -83,7 +78,7 @@ message FeatureSourceSpec {
     string class_path = 3; 
   }
 
-  // Defines options for Feature source that sources features from Kinesis records.
+  // Defines options for DataSource that sources features from Kinesis records.
   // Each record should be a Protobuf that can be decoded with the generated
   // Java Protobuf class at the given class path
   message KinesisOptions {
@@ -98,7 +93,7 @@ message FeatureSourceSpec {
     string class_path = 3; 
   }
 
-  // Feature Source options.
+  // DataSource options.
   oneof options {
     FileOptions file_options = 11;
     BigQueryOptions bigquery_options = 12;
