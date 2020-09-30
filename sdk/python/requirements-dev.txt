@@ -38,3 +38,5 @@ flake8
 black==19.10b0
 boto3
 moto
+pyspark==3.*
+pyspark-stubs==3.*
