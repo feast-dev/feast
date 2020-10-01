@@ -1,4 +1,6 @@
+import pathlib
 from datetime import datetime
+from os import path
 
 import pytest
 from pyspark.sql import DataFrame, SparkSession
@@ -10,7 +12,11 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-from feast.pyspark.batch_retrieval_job import as_of_join, join_entity_to_feature_tables
+from feast.pyspark.batch_retrieval_job import (
+    as_of_join,
+    batch_retrieval,
+    join_entity_to_feature_tables,
+)
 
 
 @pytest.yield_fixture(scope="module")
@@ -475,6 +481,117 @@ def test_multiple_join(
         (1001, 8001, datetime(year=2020, month=9, day=2), 100.0, 300,),
         (1001, 8002, datetime(year=2020, month=9, day=2), 100.0, 500,),
         (2001, 8002, datetime(year=2020, month=9, day=3), None, 500,),
+    ]
+    expected_joined_df = spark.createDataFrame(
+        spark.sparkContext.parallelize(expected_joined_data), expected_joined_schema
+    )
+
+    assert_dataframe_equal(joined_df, expected_joined_df)
+
+
+def test_batch_retrieval(spark):
+    test_data_dir = path.join(pathlib.Path(__file__).parent.absolute(), "data")
+    batch_retrieval_conf = {
+        "entity": {
+            "format": "csv",
+            "path": f"file://{path.join(test_data_dir,  'customer_driver_pairs.csv')}",
+            "options": {"inferSchema": "true", "header": "true"},
+        },
+        "tables": [
+            {
+                "format": "csv",
+                "path": f"file://{path.join(test_data_dir,  'bookings.csv')}",
+                "name": "bookings",
+                "options": {"inferSchema": "true", "header": "true"},
+            },
+            {
+                "format": "csv",
+                "path": f"file://{path.join(test_data_dir,  'transactions.csv')}",
+                "name": "transactions",
+                "options": {"inferSchema": "true", "header": "true"},
+            },
+        ],
+        "queries": [
+            {
+                "table": "transactions",
+                "features": ["daily_transactions"],
+                "join": ["customer_id"],
+                "max_age": "1 day",
+            },
+            {
+                "table": "bookings",
+                "features": ["completed_bookings"],
+                "join": ["driver_id"],
+            },
+        ],
+    }
+
+    joined_df = batch_retrieval(spark, batch_retrieval_conf)
+
+    expected_joined_schema = StructType(
+        [
+            StructField("customer_id", IntegerType()),
+            StructField("driver_id", IntegerType()),
+            StructField("event_timestamp", TimestampType()),
+            StructField("transactions__daily_transactions", FloatType()),
+            StructField("bookings__completed_bookings", IntegerType()),
+        ]
+    )
+
+    expected_joined_data = [
+        (1001, 8001, datetime(year=2020, month=9, day=2), 100.0, 300,),
+        (1001, 8002, datetime(year=2020, month=9, day=2), 100.0, 500,),
+        (2001, 8002, datetime(year=2020, month=9, day=3), None, 500,),
+    ]
+    expected_joined_df = spark.createDataFrame(
+        spark.sparkContext.parallelize(expected_joined_data), expected_joined_schema
+    )
+
+    assert_dataframe_equal(joined_df, expected_joined_df)
+
+
+def test_batch_retrieval_with_mapping(spark):
+    test_data_dir = path.join(pathlib.Path(__file__).parent.absolute(), "data")
+    batch_retrieval_conf = {
+        "entity": {
+            "format": "csv",
+            "path": f"file://{path.join(test_data_dir,  'column_mapping_test_entity.csv')}",
+            "options": {"inferSchema": "true", "header": "true"},
+            "col_mapping": {"id": "customer_id"},
+        },
+        "tables": [
+            {
+                "format": "csv",
+                "path": f"file://{path.join(test_data_dir,  'column_mapping_test_feature.csv')}",
+                "name": "bookings",
+                "options": {"inferSchema": "true", "header": "true"},
+                "col_mapping": {
+                    "datetime": "event_timestamp",
+                    "created_datetime": "created_timestamp",
+                },
+            },
+        ],
+        "queries": [
+            {
+                "table": "bookings",
+                "features": ["total_bookings"],
+                "join": ["customer_id"],
+            }
+        ],
+    }
+
+    joined_df = batch_retrieval(spark, batch_retrieval_conf)
+
+    expected_joined_schema = StructType(
+        [
+            StructField("customer_id", IntegerType()),
+            StructField("event_timestamp", TimestampType()),
+            StructField("bookings__total_bookings", IntegerType()),
+        ]
+    )
+
+    expected_joined_data = [
+        (1001, datetime(year=2020, month=9, day=2), 200),
     ]
     expected_joined_df = spark.createDataFrame(
         spark.sparkContext.parallelize(expected_joined_data), expected_joined_schema

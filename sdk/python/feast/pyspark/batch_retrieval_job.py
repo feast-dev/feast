@@ -40,6 +40,38 @@ def as_of_join(
     Returns:
         DataFrame: Join result.
 
+    Example:
+        >>> entity.show()
+            +------+-------------------+
+            |entity|    event_timestamp|
+            +------+-------------------+
+            |  1001|2020-09-02 00:00:00|
+            +------+-------------------+
+
+        >>> feature_table.show()
+            +------+-------+-------------------+-------------------+
+            |entity|feature|    event_timestamp|  created_timestamp|
+            +------+-------+-------------------+-------------------+
+            |    10|    200|2020-09-01 00:00:00|2020-09-02 00:00:00|
+            +------+-------+-------------------+-------------------+
+            |    10|    400|2020-09-01 00:00:00|2020-09-01 00:00:00|
+            +------+-------+-------------------+-------------------+
+        >>> df = as_of_join(entity, ["entity"], feature_table, ["feature"], feature_prefix = "prefix_")
+        >>> df.show()
+            +------+-------------------+--------------+
+            |entity|    event_timestamp|prefix_feature|
+            +------+-------------------+--------------+
+            |  1001|2020-09-02 00:00:00|           200|
+            +------+-------------------+--------------+
+
+        >>> df = as_of_join(entity, ["entity"], feature_table, ["feature"], max_age = "12 hour")
+        >>> df.show()
+            +------+-------------------+-------+
+            |entity|    event_timestamp|feature|
+            +------+-------------------+-------+
+            |  1001|2020-09-02 00:00:00|   null|
+            +------+-------------------+-------+
+
     """
     entity_with_id = entity.withColumn("_row_nr", monotonically_increasing_id())
 
@@ -104,6 +136,56 @@ def join_entity_to_feature_tables(
     Returns:
         DataFrame: Join result.
 
+    Example:
+        >>> entity.show()
+            +------+-------------------+
+            |entity|    event_timestamp|
+            +------+-------------------+
+            |  1001|2020-09-02 00:00:00|
+            +------+-------------------+
+
+        >>> feature1.show()
+            +------+--------+-------------------+-------------------+
+            |entity|feature1|    event_timestamp|  created_timestamp|
+            +------+--------+-------------------+-------------------+
+            |    10|     200|2020-09-01 00:00:00|2020-09-01 00:00:00|
+            +------+--------+-------------------+-------------------
+
+        >>> feature2.show()
+            +------+--------+-------------------+-------------------+
+            |entity|feature2|    event_timestamp|  created_timestamp|
+            +------+--------+-------------------+-------------------+
+            |    10|     400|2020-09-01 00:00:00|2020-09-01 00:00:00|
+            +------+--------+-------------------+-------------------
+
+
+        >>> tables = {"table1": feature1, "table2": feature2}
+
+        >>> query_conf = [
+                {
+                    "table": "table1",
+                    "features": ["feature1"],
+                    "join": ["entity"],
+                },
+                {
+                    "table": "table2",
+                    "features": ["feature2"],
+                    "join": ["entity"],
+                },
+            ]
+
+        >>> joined_df = join_entity_to_feature_tables(
+                query_conf,
+                entity,
+                tables
+            )
+
+        >>> joined_df.show()
+            +------+-------------------+----------------+----------------+
+            |entity|    event_timestamp|table1__feature1|table2__feature2|
+            +------+-------------------+----------------+----------------+
+            |  1001|2020-09-02 00:00:00|             200|             400|
+            +------+-------------------+----------------+----------------+
     """
     joined = entity
     for query in query_conf:
@@ -127,46 +209,71 @@ def batch_retrieval(spark: SparkSession, conf: Dict) -> DataFrame:
         conf (Dict):
             Configuration for the retrieval job, in json format. Sample configuration as follows:
 
-            sample_conf = {
-                "entity": {
-                    "format": "csv",
-                    "path": "file:///some_dir/customer_driver_pairs.csv",
-                    "options": {"inferSchema": "true", "header": "true"},
-                },
-                "tables": [
-                    {
-                        "format": "parquet",
-                        "path": "gs://some_bucket/bookings.parquet",
-                        "view": "bookings",
-                    },
-                    {
-                        "format": "avro",
-                        "path": ""s3://some_bucket/transactions.parquet"",
-                        "view": "transactions",
-                    },
-                ],
-                "queries": [
-                    {
-                        "table": "transactions",
-                        "features": ["daily_transactions"],
-                        "join": ["customer_id"],
-                        "max_age": "2 day",
-                    },
-                    {
-                        "table": "bookings",
-                        "features": ["completed_bookings"],
-                        "join": ["driver_id"],
-                    },
-                ],
-                "output":
-                    "format": "parquet"
-                    "path": "gs://some_bucket/output.parquet"
-            }
-
     Returns:
         DataFrame: Join result.
 
+    Example:
+        sample_conf = {
+            "entity": {
+                "format": "csv",
+                "path": "file:///some_dir/customer_driver_pairs.csv",
+                "options": {"inferSchema": "true", "header": "true"},
+                "col_mapping": {
+                    "id": "driver_id"
+                }
+            },
+            "tables": [
+                {
+                    "format": "parquet",
+                    "path": "gs://some_bucket/bookings.parquet",
+                    "name": "bookings",
+                    "col_mapping": {
+                        "id": "driver_id"
+                    }
+                },
+                {
+                    "format": "avro",
+                    "path": ""s3://some_bucket/transactions.parquet"",
+                    "name": "transactions",
+                },
+            ],
+            "queries": [
+                {
+                    "table": "transactions",
+                    "features": ["daily_transactions"],
+                    "join": ["customer_id"],
+                    "max_age": "2 day",
+                },
+                {
+                    "table": "bookings",
+                    "features": ["completed_bookings"],
+                    "join": ["driver_id"],
+                },
+            ],
+            "output":
+                "format": "parquet"
+                "path": "gs://some_bucket/output.parquet"
+        }
+
+        The values for the `format` and `path` should be recognizable by the Spark cluster where the job
+        is going to run on. For example, if you specify `bigquery` as input format, then you should ensure
+        that the Spark Big Query connector is installed on the cluster. Like wise, s3a connector is required
+        for Amazon S3 path.
+
+        `options` is optional. If present, the options will be used when reading / writing the input / output.
+
+        If necessary, `col_mapping` can be provided to map the columns of the dataframes before performing
+        the join operation. `col_mapping` is a dictionary where the key is the source column and the value
+        is the mapped column.
+
     """
+
+    def map_column(df: DataFrame, col_mapping: Dict[str, str]):
+        projection = [
+            col(col_name).alias(col_mapping.get(col_name, col_name))
+            for col_name in df.columns
+        ]
+        return df.select(projection)
 
     entity = conf["entity"]
     entity_df = (
@@ -174,15 +281,20 @@ def batch_retrieval(spark: SparkSession, conf: Dict) -> DataFrame:
         .options(**entity.get("options", {}))
         .load(entity["path"])
     )
+    entity_col_mapping = conf["entity"].get("col_mapping", {})
+    mapped_entity_df = map_column(entity_df, entity_col_mapping)
 
     tables = {
-        table_spec["view"]: spark.read.format(table_spec["format"])
-        .options(**table_spec.get("options", {}))
-        .load(table_spec["path"])
+        table_spec["name"]: map_column(
+            spark.read.format(table_spec["format"])
+            .options(**table_spec.get("options", {}))
+            .load(table_spec["path"]),
+            table_spec.get("col_mapping", {}),
+        )
         for table_spec in conf["tables"]
     }
 
-    return join_entity_to_feature_tables(conf["queries"], entity_df, tables)
+    return join_entity_to_feature_tables(conf["queries"], mapped_entity_df, tables)
 
 
 def start_job(spark: SparkSession, conf: Dict):
