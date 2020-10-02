@@ -26,6 +26,7 @@ import static org.hamcrest.collection.IsMapWithSize.aMapWithSize;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.IsIterableContaining.hasItem;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import avro.shaded.com.google.common.collect.ImmutableMap;
@@ -33,7 +34,9 @@ import com.google.protobuf.Duration;
 import feast.common.it.BaseIT;
 import feast.common.it.DataGenerator;
 import feast.common.it.SimpleCoreClient;
+import feast.common.util.TestUtil;
 import feast.proto.core.*;
+import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import feast.proto.types.ValueProto;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -68,20 +71,38 @@ public class SpecServiceIT extends BaseIT {
   public void initState() {
     SourceProto.Source source = DataGenerator.getDefaultSource();
 
-    apiClient.simpleApplyEntity(
-        "default",
+    EntityProto.EntitySpecV2 entitySpec1 =
         DataGenerator.createEntitySpecV2(
             "entity1",
             "Entity 1 description",
             ValueProto.ValueType.Enum.STRING,
-            ImmutableMap.of("label_key", "label_value")));
-    apiClient.simpleApplyEntity(
-        "default",
+            ImmutableMap.of("label_key", "label_value"));
+    EntityProto.EntitySpecV2 entitySpec2 =
         DataGenerator.createEntitySpecV2(
             "entity2",
             "Entity 2 description",
             ValueProto.ValueType.Enum.STRING,
-            ImmutableMap.of("label_key2", "label_value2")));
+            ImmutableMap.of("label_key2", "label_value2"));
+    apiClient.simpleApplyEntity("default", entitySpec1);
+    apiClient.simpleApplyEntity("default", entitySpec2);
+    apiClient.applyFeatureTable(
+        "default",
+        DataGenerator.createFeatureTableSpec(
+                "featuretable1",
+                Arrays.asList("entity1", "entity2"),
+                new HashMap<>() {
+                  {
+                    put("feature1", ValueProto.ValueType.Enum.STRING);
+                    put("feature2", ValueProto.ValueType.Enum.FLOAT);
+                  }
+                },
+                7200,
+                ImmutableMap.of("feat_key2", "feat_value2"))
+            .toBuilder()
+            .setBatchSource(
+                DataGenerator.createFileDataSourceSpec(
+                    "file:///path/to/file", "parquet", "ts_col", ""))
+            .build());
     apiClient.simpleApplyEntity(
         "project1",
         DataGenerator.createEntitySpecV2(
@@ -254,6 +275,59 @@ public class SpecServiceIT extends BaseIT {
           CoreServiceProto.ListEntitiesRequest.Filter.newBuilder().setProject("default*").build();
       StatusRuntimeException exc =
           assertThrows(StatusRuntimeException.class, () -> apiClient.simpleListEntities(filter));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo(
+              String.format(
+                  "INVALID_ARGUMENT: invalid value for project resource, %s: "
+                      + "argument must only contain alphanumeric characters and underscores.",
+                  filter.getProject())));
+    }
+  }
+
+  @Nested
+  class ListFeatureTables {
+    @Test
+    public void shouldFilterFeatureTablesByProjectAndLabels() {
+      CoreServiceProto.ListFeatureTablesRequest.Filter filter =
+          CoreServiceProto.ListFeatureTablesRequest.Filter.newBuilder()
+              .setProject("default")
+              .putAllLabels(ImmutableMap.of("feat_key2", "feat_value2"))
+              .build();
+      List<FeatureTableProto.FeatureTable> featureTables =
+          apiClient.simpleListFeatureTables(filter);
+
+      assertThat(featureTables, hasSize(1));
+      assertThat(
+          featureTables,
+          hasItem(hasProperty("spec", hasProperty("name", equalTo("featuretable1")))));
+    }
+
+    @Test
+    public void shouldUseDefaultProjectIfProjectUnspecified() {
+      CoreServiceProto.ListFeatureTablesRequest.Filter filter =
+          CoreServiceProto.ListFeatureTablesRequest.Filter.newBuilder()
+              .setProject("default")
+              .build();
+      List<FeatureTableProto.FeatureTable> featureTables =
+          apiClient.simpleListFeatureTables(filter);
+
+      assertThat(featureTables, hasSize(1));
+      assertThat(
+          featureTables,
+          hasItem(hasProperty("spec", hasProperty("name", equalTo("featuretable1")))));
+    }
+
+    @Test
+    public void shouldThrowExceptionGivenWildcardProject() {
+      CoreServiceProto.ListFeatureTablesRequest.Filter filter =
+          CoreServiceProto.ListFeatureTablesRequest.Filter.newBuilder()
+              .setProject("default*")
+              .build();
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class, () -> apiClient.simpleListFeatureTables(filter));
 
       assertThat(
           exc.getMessage(),
@@ -845,6 +919,51 @@ public class SpecServiceIT extends BaseIT {
   }
 
   @Nested
+  class GetFeatureTable {
+    @Test
+    public void shouldThrowExceptionGivenNoSuchFeatureTable() {
+      String projectName = "default";
+      String featureTableName = "invalid_table";
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class,
+              () -> apiClient.simpleGetFeatureTable(projectName, featureTableName));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo(
+              String.format(
+                  "NOT_FOUND: No such Feature Table: (project: %s, name: %s)",
+                  projectName, featureTableName)));
+    }
+
+    @Test
+    public void shouldReturnFeatureTableIfExists() {
+      FeatureTableSpec featureTableSpec =
+          DataGenerator.createFeatureTableSpec(
+                  "featuretable1",
+                  Arrays.asList("entity1", "entity2"),
+                  new HashMap<>() {
+                    {
+                      put("feature1", ValueProto.ValueType.Enum.STRING);
+                      put("feature2", ValueProto.ValueType.Enum.FLOAT);
+                    }
+                  },
+                  7200,
+                  ImmutableMap.of("feat_key2", "feat_value2"))
+              .toBuilder()
+              .setBatchSource(
+                  DataGenerator.createFileDataSourceSpec(
+                      "file:///path/to/file", "parquet", "ts_col", ""))
+              .build();
+      FeatureTableProto.FeatureTable featureTable =
+          apiClient.simpleGetFeatureTable("default", "featuretable1");
+
+      assertTrue(TestUtil.compareFeatureTableSpec(featureTable.getSpec(), featureTableSpec));
+    }
+  }
+
+  @Nested
   class ListStores {
     @Test
     public void shouldReturnAllStoresIfNoNameProvided() {
@@ -931,6 +1050,308 @@ public class SpecServiceIT extends BaseIT {
       assertThat(result5, aMapWithSize(2));
       assertThat(result5, hasKey(equalTo("default/fs1:total")));
       assertThat(result5, hasKey(equalTo("default/fs2:sum")));
+    }
+  }
+
+  @Nested
+  public class ApplyFeatureTable {
+    private FeatureTableSpec getTestSpec() {
+      return DataGenerator.createFeatureTableSpec(
+              "ft",
+              List.of("entity1", "entity2"),
+              Map.of(
+                  "feature1", ValueProto.ValueType.Enum.INT64,
+                  "feature2", ValueProto.ValueType.Enum.FLOAT),
+              3600,
+              Map.of())
+          .toBuilder()
+          .setBatchSource(
+              DataGenerator.createFileDataSourceSpec(
+                  "file:///path/to/file", "parquet", "ts_col", ""))
+          .setStreamSource(
+              DataGenerator.createKafkaDataSourceSpec(
+                  "localhost:9092", "topic", "class.path", "ts_col"))
+          .build();
+    }
+
+    @Test
+    public void shouldApplyNewValidTable() {
+      FeatureTableProto.FeatureTable table = apiClient.applyFeatureTable("default", getTestSpec());
+
+      assertTrue(TestUtil.compareFeatureTableSpec(table.getSpec(), getTestSpec()));
+      assertThat(table.getMeta().getRevision(), equalTo(0L));
+    }
+
+    @Test
+    public void shouldUpdateExistingTableWithValidSpec() {
+      FeatureTableProto.FeatureTable table = apiClient.applyFeatureTable("default", getTestSpec());
+
+      FeatureTableSpec updatedSpec =
+          DataGenerator.createFeatureTableSpec(
+                  "ft",
+                  List.of("entity1", "entity2"),
+                  Map.of(
+                      "feature2", ValueProto.ValueType.Enum.FLOAT,
+                      "feature3", ValueProto.ValueType.Enum.INT64,
+                      "feature4", ValueProto.ValueType.Enum.INT64),
+                  2100,
+                  Map.of("test", "labels"))
+              .toBuilder()
+              .setStreamSource(
+                  DataGenerator.createFileDataSourceSpec(
+                      "file:///path/to/file", "parquet", "ts_col", ""))
+              .setBatchSource(
+                  DataGenerator.createKafkaDataSourceSpec(
+                      "localhost:9092", "topic", "class.path", "ts_col"))
+              .build();
+      FeatureTableProto.FeatureTable updatedTable =
+          apiClient.applyFeatureTable("default", updatedSpec);
+
+      assertTrue(TestUtil.compareFeatureTableSpec(updatedTable.getSpec(), updatedSpec));
+      assertThat(updatedTable.getMeta().getRevision(), equalTo(table.getMeta().getRevision() + 1L));
+    }
+
+    @Test
+    public void shouldNotUpdateIfNoChanges() {
+      FeatureTableProto.FeatureTable table = apiClient.applyFeatureTable("default", getTestSpec());
+      FeatureTableProto.FeatureTable updatedTable =
+          apiClient.applyFeatureTable("default", getTestSpec());
+
+      assertThat(updatedTable.getMeta().getRevision(), equalTo(table.getMeta().getRevision()));
+    }
+
+    @Test
+    public void shouldErrorOnMissingBatchSource() {
+      FeatureTableProto.FeatureTableSpec spec =
+          DataGenerator.createFeatureTableSpec(
+                  "ft",
+                  List.of("entity1"),
+                  Map.of("event_timestamp", ValueProto.ValueType.Enum.INT64),
+                  3600,
+                  Map.of())
+              .toBuilder()
+              .build();
+
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class, () -> apiClient.applyFeatureTable("default", spec));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo("INVALID_ARGUMENT: FeatureTable batch source cannot be empty."));
+    }
+
+    @Test
+    public void shouldErrorIfEntityChangeOnUpdate() {
+      List<String> entities = Arrays.asList("entity1", "entity2");
+      FeatureTableProto.FeatureTableSpec spec =
+          DataGenerator.createFeatureTableSpec(
+                  "featuretable1",
+                  Arrays.asList("entity1"),
+                  new HashMap<>() {
+                    {
+                      put("feature1", ValueProto.ValueType.Enum.STRING);
+                      put("feature2", ValueProto.ValueType.Enum.FLOAT);
+                    }
+                  },
+                  7200,
+                  ImmutableMap.of("feat_key2", "feat_value2"))
+              .toBuilder()
+              .setBatchSource(
+                  DataGenerator.createFileDataSourceSpec(
+                      "file:///path/to/file", "parquet", "ts_col", ""))
+              .build();
+
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class, () -> apiClient.applyFeatureTable("default", spec));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo(
+              String.format(
+                  "INVALID_ARGUMENT: Updating the entities of a registered FeatureTable is not allowed: %s to %s",
+                  entities, spec.getEntitiesList())));
+    }
+
+    @Test
+    public void shouldErrorIfFeatureValueTypeChangeOnUpdate() {
+      FeatureTableProto.FeatureTableSpec spec =
+          DataGenerator.createFeatureTableSpec(
+                  "featuretable1",
+                  Arrays.asList("entity1", "entity2"),
+                  new HashMap<>() {
+                    {
+                      put("feature1", ValueProto.ValueType.Enum.STRING);
+                      put("feature2", ValueProto.ValueType.Enum.STRING_LIST);
+                    }
+                  },
+                  7200,
+                  ImmutableMap.of("feat_key2", "feat_value2"))
+              .toBuilder()
+              .setBatchSource(
+                  DataGenerator.createFileDataSourceSpec(
+                      "file:///path/to/file", "parquet", "ts_col", ""))
+              .build();
+
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class, () -> apiClient.applyFeatureTable("default", spec));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo(
+              String.format(
+                  "INVALID_ARGUMENT: Updating the value type of a registered Feature is not allowed: %s to %s",
+                  ValueProto.ValueType.Enum.FLOAT, ValueProto.ValueType.Enum.STRING_LIST)));
+    }
+
+    @Test
+    public void shouldErrorOnInvalidBigQueryTableRef() {
+      String invalidTableRef = "invalid.bq:path";
+      FeatureTableProto.FeatureTableSpec spec =
+          DataGenerator.createFeatureTableSpec(
+                  "ft",
+                  List.of("entity1"),
+                  Map.of("event_timestamp", ValueProto.ValueType.Enum.INT64),
+                  3600,
+                  Map.of())
+              .toBuilder()
+              .setBatchSource(
+                  DataGenerator.createBigQueryDataSourceSpec(invalidTableRef, "ts_col", ""))
+              .build();
+
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class, () -> apiClient.applyFeatureTable("default", spec));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo(
+              String.format(
+                  "INVALID_ARGUMENT: invalid value for FeatureTable resource, %s: argument must be in the form of <project:dataset.table> .",
+                  invalidTableRef)));
+    }
+
+    @Test
+    public void shouldErrorOnReservedNames() {
+      // Reserved name used as feature name
+      assertThrows(
+          StatusRuntimeException.class,
+          () ->
+              apiClient.applyFeatureTable(
+                  "default",
+                  DataGenerator.createFeatureTableSpec(
+                          "ft",
+                          List.of("entity1"),
+                          Map.of("event_timestamp", ValueProto.ValueType.Enum.INT64),
+                          3600,
+                          Map.of())
+                      .toBuilder()
+                      .setBatchSource(
+                          DataGenerator.createFileDataSourceSpec(
+                              "file:///path/to/file", "parquet", "ts_col", ""))
+                      .build()));
+
+      // Reserved name used in as entity name
+      assertThrows(
+          StatusRuntimeException.class,
+          () ->
+              apiClient.applyFeatureTable(
+                  "default",
+                  DataGenerator.createFeatureTableSpec(
+                          "ft",
+                          List.of("created_timestamp"),
+                          Map.of("feature1", ValueProto.ValueType.Enum.INT64),
+                          3600,
+                          Map.of())
+                      .toBuilder()
+                      .setBatchSource(
+                          DataGenerator.createFileDataSourceSpec(
+                              "file:///path/to/file", "parquet", "ts_col", ""))
+                      .build()));
+    }
+
+    @Test
+    public void shouldErrorOnInvalidName() {
+      // Invalid feature table name
+      assertThrows(
+          StatusRuntimeException.class,
+          () ->
+              apiClient.applyFeatureTable(
+                  "default",
+                  DataGenerator.createFeatureTableSpec(
+                          "f-t",
+                          List.of("entity1"),
+                          Map.of("feature1", ValueProto.ValueType.Enum.INT64),
+                          3600,
+                          Map.of())
+                      .toBuilder()
+                      .setBatchSource(
+                          DataGenerator.createFileDataSourceSpec(
+                              "file:///path/to/file", "parquet", "ts_col", ""))
+                      .build()));
+
+      // Invalid feature name
+      assertThrows(
+          StatusRuntimeException.class,
+          () ->
+              apiClient.applyFeatureTable(
+                  "default",
+                  DataGenerator.createFeatureTableSpec(
+                          "ft",
+                          List.of("entity1"),
+                          Map.of("feature-1", ValueProto.ValueType.Enum.INT64),
+                          3600,
+                          Map.of())
+                      .toBuilder()
+                      .setBatchSource(
+                          DataGenerator.createFileDataSourceSpec(
+                              "file:///path/to/file", "parquet", "ts_col", ""))
+                      .build()));
+    }
+
+    @Test
+    public void shouldErrorOnNotFoundEntityName() {
+      assertThrows(
+          StatusRuntimeException.class,
+          () ->
+              apiClient.applyFeatureTable(
+                  "default",
+                  DataGenerator.createFeatureTableSpec(
+                          "ft1",
+                          List.of("entity_not_found"),
+                          Map.of("feature1", ValueProto.ValueType.Enum.INT64),
+                          3600,
+                          Map.of())
+                      .toBuilder()
+                      .setBatchSource(
+                          DataGenerator.createFileDataSourceSpec(
+                              "file:///path/to/file", "parquet", "ts_col", ""))
+                      .build()));
+    }
+
+    @Test
+    public void shouldErrorOnArchivedProject() {
+      apiClient.createProject("archived");
+      apiClient.archiveProject("archived");
+
+      assertThrows(
+          StatusRuntimeException.class,
+          () ->
+              apiClient.applyFeatureTable(
+                  "archived",
+                  DataGenerator.createFeatureTableSpec(
+                          "ft1",
+                          List.of("entity1", "entity2"),
+                          Map.of("feature1", ValueProto.ValueType.Enum.INT64),
+                          3600,
+                          Map.of())
+                      .toBuilder()
+                      .setBatchSource(
+                          DataGenerator.createFileDataSourceSpec(
+                              "file:///path/to/file", "parquet", "ts_col", ""))
+                      .build()));
     }
   }
 }

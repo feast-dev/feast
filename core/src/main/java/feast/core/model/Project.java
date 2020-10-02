@@ -59,6 +59,13 @@ public class Project {
       mappedBy = "project")
   private Set<EntityV2> entities;
 
+  @OneToMany(
+      cascade = CascadeType.ALL,
+      fetch = FetchType.EAGER,
+      orphanRemoval = true,
+      mappedBy = "project")
+  private Set<FeatureTable> featureTables;
+
   public Project() {
     super();
   }
@@ -67,6 +74,7 @@ public class Project {
     this.name = name;
     this.featureSets = new HashSet<>();
     this.entities = new HashSet<>();
+    this.featureTables = new HashSet<>();
   }
 
   public void addFeatureSet(FeatureSet featureSet) {

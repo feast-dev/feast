@@ -25,6 +25,7 @@ import "google/protobuf/timestamp.proto";
 import "tensorflow_metadata/proto/v0/statistics.proto";
 import "feast/core/Entity.proto";
 import "feast/core/FeatureSet.proto";
+import "feast/core/FeatureTable.proto";
 import "feast/core/Store.proto";
 import "feast/core/FeatureSetReference.proto";
 import "feast/core/IngestionJob.proto";
@@ -112,6 +113,26 @@ service CoreService {
 
     // Internal API for Job Controller to update featureSet's status once responsible ingestion job is running
     rpc UpdateFeatureSetStatus (UpdateFeatureSetStatusRequest) returns (UpdateFeatureSetStatusResponse);
+
+    /* Feature Tables */
+    // Create or update an existing feature table.
+    // This function is idempotent - it will not create a new feature table if the schema does not change.
+    // Schema changes will update the feature table if the changes are valid.
+    // All changes except the following are valid:
+    // - Changes to feature table name.
+    // - Changes to entities
+    // - Changes to feature name and type
+    rpc ApplyFeatureTable (ApplyFeatureTableRequest) returns (ApplyFeatureTableResponse);
+
+    // List feature tables that match a given filter.
+    // Returns the references of the Feature Tables matching that filter. If none are found,
+    // an empty list will be returned.
+    // If no filter is provided in the request, the response will match all the feature
+    // tables currently stored in the registry.
+    rpc ListFeatureTables (ListFeatureTablesRequest) returns (ListFeatureTablesResponse);
+
+    // Returns a specific feature table
+    rpc GetFeatureTable (GetFeatureTableRequest) returns (GetFeatureTableResponse);
 
 }
 
@@ -433,3 +454,49 @@ message UpdateFeatureSetStatusRequest {
 }
 
 message UpdateFeatureSetStatusResponse {}
+
+message ApplyFeatureTableRequest {
+    // Optional. Name of the Project to apply the Feature Table to.
+    // If unspecified, will apply FeatureTable to the default project.
+    string project = 1;
+    // Feature Table specification to apply
+    FeatureTableSpec table_spec = 2;
+}
+
+message ApplyFeatureTableResponse {
+    FeatureTable table = 1;
+}
+
+message GetFeatureTableRequest {
+    // Optional. Name of the Project to retrieve the Feature Table from.
+    // If unspecified, will apply FeatureTable to the default project.
+    string project = 1;
+
+    // Name of the FeatureTable to retrieve.
+    string name = 2;
+}
+
+message GetFeatureTableResponse {
+    // The Feature Table retrieved.
+    FeatureTable table = 1;
+}
+
+message ListFeatureTablesRequest {
+    message Filter {
+        // Optional. Specifies the name of the project to list Feature Tables in.
+        // If unspecified would list Feature Tables in the default project.
+        string project = 1;
+
+        // Optional. Feature Tables with all matching labels will be returned.
+        // If unspecified would list Feature Tables without filtering by labels.
+        map<string,string> labels = 3;
+    }
+
+    // Filter used when listing Feature Tables
+    Filter filter = 1;
+}
+
+message ListFeatureTablesResponse {
+    // List of matching Feature Tables
+    repeated FeatureTable tables = 1;
+}

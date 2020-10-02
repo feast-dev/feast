@@ -100,9 +100,7 @@ public class CoreServiceAuthTest {
 
     StreamRecorder<ApplyFeatureSetResponse> responseObserver = StreamRecorder.create();
     FeatureSetProto.FeatureSet incomingFeatureSet = newDummyFeatureSet("f2", 1, project).toProto();
-    doReturn(incomingFeatureSet)
-        .when(specService)
-        .imputeProjectName(any(FeatureSetProto.FeatureSet.class));
+
     FeatureSetProto.FeatureSetSpec incomingFeatureSetSpec =
         incomingFeatureSet.getSpec().toBuilder().build();
     FeatureSetProto.FeatureSet spec =

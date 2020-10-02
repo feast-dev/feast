@@ -16,10 +16,14 @@
  */
 package feast.core.validators;
 
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.regex.Pattern;
 
 public class Matchers {
 
+  private static Pattern BIGQUERY_TABLE_REF_REGEX =
+      Pattern.compile("[a-zA-Z0-9-]+[:]+[a-zA-Z0-9]+[.]+[a-zA-Z0-9_]*");
   private static Pattern UPPER_SNAKE_CASE_REGEX = Pattern.compile("^[A-Z0-9]+(_[A-Z0-9]+)*$");
   private static Pattern LOWER_SNAKE_CASE_REGEX = Pattern.compile("^[a-z0-9]+(_[a-z0-9]+)*$");
   private static Pattern VALID_CHARACTERS_REGEX = Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*$");
@@ -74,5 +78,21 @@ public class Matchers {
               input,
               "argument must only contain alphanumeric characters, dashes, underscores, or an asterisk."));
     }
+  }
+
+  public static void checkValidBigQueryTableRef(String input, String resource)
+      throws IllegalArgumentException {
+    if (!BIGQUERY_TABLE_REF_REGEX.matcher(input).matches()) {
+      throw new IllegalArgumentException(
+          String.format(
+              ERROR_MESSAGE_TEMPLATE,
+              resource,
+              input,
+              "argument must be in the form of <project:dataset.table> ."));
+    }
+  }
+
+  public static boolean hasDuplicates(Collection<String> strings) {
+    return (new HashSet<>(strings)).size() < strings.size();
   }
 }

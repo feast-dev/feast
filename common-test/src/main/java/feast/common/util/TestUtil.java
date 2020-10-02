@@ -21,6 +21,10 @@ import static org.mockito.Mockito.when;
 
 import feast.common.logging.AuditLogger;
 import feast.common.logging.config.LoggingProperties;
+import feast.proto.core.FeatureProto.FeatureSpecV2;
+import feast.proto.core.FeatureTableProto.FeatureTableSpec;
+import java.util.Comparator;
+import java.util.stream.Collectors;
 import org.springframework.boot.info.BuildProperties;
 
 public class TestUtil {
@@ -36,5 +40,35 @@ public class TestUtil {
     when(buildProperties.getVersion()).thenReturn("0.6");
 
     new AuditLogger(loggingProperties, buildProperties);
+  }
+
+  /**
+   * Compare if two Feature Table specs are equal. Disregards order of features/entities in spec.
+   */
+  public static boolean compareFeatureTableSpec(FeatureTableSpec spec, FeatureTableSpec otherSpec) {
+    spec =
+        spec.toBuilder()
+            .clearFeatures()
+            .addAllFeatures(
+                spec.getFeaturesList().stream()
+                    .sorted(Comparator.comparing(FeatureSpecV2::getName))
+                    .collect(Collectors.toSet()))
+            .clearEntities()
+            .addAllEntities(spec.getEntitiesList().stream().sorted().collect(Collectors.toSet()))
+            .build();
+
+    otherSpec =
+        otherSpec
+            .toBuilder()
+            .clearFeatures()
+            .addAllFeatures(
+                spec.getFeaturesList().stream()
+                    .sorted(Comparator.comparing(FeatureSpecV2::getName))
+                    .collect(Collectors.toSet()))
+            .clearEntities()
+            .addAllEntities(spec.getEntitiesList().stream().sorted().collect(Collectors.toSet()))
+            .build();
+
+    return spec.equals(otherSpec);
   }
 }

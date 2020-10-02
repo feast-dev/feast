@@ -17,8 +17,16 @@
 package feast.common.it;
 
 import com.google.common.collect.ImmutableList;
+import com.google.protobuf.Duration;
+import feast.proto.core.DataSourceProto.DataSource;
+import feast.proto.core.DataSourceProto.DataSource.BigQueryOptions;
+import feast.proto.core.DataSourceProto.DataSource.FileOptions;
+import feast.proto.core.DataSourceProto.DataSource.KafkaOptions;
 import feast.proto.core.EntityProto;
+import feast.proto.core.FeatureProto;
+import feast.proto.core.FeatureProto.FeatureSpecV2;
 import feast.proto.core.FeatureSetProto;
+import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
 import feast.proto.types.ValueProto;
@@ -130,6 +138,15 @@ public class DataGenerator {
         .build();
   }
 
+  public static FeatureProto.FeatureSpecV2 createFeatureSpecV2(
+      String name, ValueProto.ValueType.Enum valueType, Map<String, String> labels) {
+    return FeatureProto.FeatureSpecV2.newBuilder()
+        .setName(name)
+        .setValueType(valueType)
+        .putAllLabels(labels)
+        .build();
+  }
+
   public static FeatureSetProto.FeatureSet createFeatureSet(
       SourceProto.Source source,
       String projectName,
@@ -192,5 +209,66 @@ public class DataGenerator {
       SourceProto.Source source, String projectName, String name) {
     return createFeatureSet(
         source, projectName, name, Collections.emptyMap(), Collections.emptyMap());
+  }
+
+  // Create a Feature Table spec without DataSources configured.
+  public static FeatureTableSpec createFeatureTableSpec(
+      String name,
+      List<String> entities,
+      Map<String, ValueProto.ValueType.Enum> features,
+      int maxAgeSecs,
+      Map<String, String> labels) {
+
+    return FeatureTableSpec.newBuilder()
+        .setName(name)
+        .addAllEntities(entities)
+        .addAllFeatures(
+            features.entrySet().stream()
+                .map(
+                    entry ->
+                        FeatureSpecV2.newBuilder()
+                            .setName(entry.getKey())
+                            .setValueType(entry.getValue())
+                            .putAllLabels(labels)
+                            .build())
+                .collect(Collectors.toList()))
+        .setMaxAge(Duration.newBuilder().setSeconds(3600).build())
+        .putAllLabels(labels)
+        .build();
+  }
+
+  public static DataSource createFileDataSourceSpec(
+      String fileURL, String fileFormat, String timestampColumn, String datePartitionColumn) {
+    return DataSource.newBuilder()
+        .setType(DataSource.SourceType.BATCH_FILE)
+        .setFileOptions(
+            FileOptions.newBuilder().setFileFormat(fileFormat).setFileUrl(fileURL).build())
+        .setTimestampColumn(timestampColumn)
+        .setDatePartitionColumn(datePartitionColumn)
+        .build();
+  }
+
+  public static DataSource createBigQueryDataSourceSpec(
+      String bigQueryTableRef, String timestampColumn, String datePartitionColumn) {
+    return DataSource.newBuilder()
+        .setType(DataSource.SourceType.BATCH_BIGQUERY)
+        .setBigqueryOptions(BigQueryOptions.newBuilder().setTableRef(bigQueryTableRef).build())
+        .setTimestampColumn(timestampColumn)
+        .setDatePartitionColumn(datePartitionColumn)
+        .build();
+  }
+
+  public static DataSource createKafkaDataSourceSpec(
+      String servers, String topic, String classPath, String timestampColumn) {
+    return DataSource.newBuilder()
+        .setType(DataSource.SourceType.STREAM_KAFKA)
+        .setKafkaOptions(
+            KafkaOptions.newBuilder()
+                .setTopic(topic)
+                .setBootstrapServers(servers)
+                .setClassPath(classPath)
+                .build())
+        .setTimestampColumn(timestampColumn)
+        .build();
   }
 }

@@ -17,6 +17,8 @@
 package feast.common.it;
 
 import feast.proto.core.*;
+import feast.proto.core.CoreServiceProto.ApplyFeatureTableRequest;
+import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -75,6 +77,13 @@ public class SimpleCoreClient {
         .getEntitiesList();
   }
 
+  public List<FeatureTableProto.FeatureTable> simpleListFeatureTables(
+      CoreServiceProto.ListFeatureTablesRequest.Filter filter) {
+    return stub.listFeatureTables(
+            CoreServiceProto.ListFeatureTablesRequest.newBuilder().setFilter(filter).build())
+        .getTablesList();
+  }
+
   public List<FeatureSetProto.FeatureSet> simpleListFeatureSets(
       String projectName, String featureSetName, Map<String, String> labels) {
     return stub.listFeatureSets(
@@ -129,6 +138,15 @@ public class SimpleCoreClient {
                 .setProject(projectName)
                 .build())
         .getEntity();
+  }
+
+  public FeatureTableProto.FeatureTable simpleGetFeatureTable(String projectName, String name) {
+    return stub.getFeatureTable(
+            CoreServiceProto.GetFeatureTableRequest.newBuilder()
+                .setName(name)
+                .setProject(projectName)
+                .build())
+        .getTable();
   }
 
   public void updateFeatureSetStatus(
@@ -189,5 +207,15 @@ public class SimpleCoreClient {
                 .setName(featureSetName)
                 .build())
         .getFeatureSet();
+  }
+
+  public FeatureTableProto.FeatureTable applyFeatureTable(
+      String projectName, FeatureTableSpec spec) {
+    return stub.applyFeatureTable(
+            ApplyFeatureTableRequest.newBuilder()
+                .setProject(projectName)
+                .setTableSpec(spec)
+                .build())
+        .getTable();
   }
 }
