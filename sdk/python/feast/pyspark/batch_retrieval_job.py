@@ -120,6 +120,48 @@ def as_of_join(
     )
 
 
+class SchemaMismatchError(Exception):
+    pass
+
+
+class MissingColumnError(Exception):
+    pass
+
+
+class TimestampColumnError(Exception):
+    pass
+
+
+def verify_schema(
+    df: DataFrame, expected_dtypes: Dict[str, str], is_feature_table: bool = False
+):
+    actual_dtypes = dict(df.dtypes)
+
+    if not set(expected_dtypes.keys()).issubset(set(actual_dtypes.keys())):
+        raise MissingColumnError("")
+
+    for column, expected_type in expected_dtypes.items():
+        if actual_dtypes[column] != expected_type:
+            raise SchemaMismatchError(
+                f"Schema mismatch. Expected schema: {expected_dtypes}, Actual schema: {actual_dtypes}",
+            )
+    expected_timestamp_cols = (
+        ["event_timestamp", "created_timestamp"]
+        if is_feature_table
+        else ["event_timestamp"]
+    )
+
+    for timestamp_col in expected_timestamp_cols:
+        if timestamp_col not in df.columns:
+            raise MissingColumnError(
+                f"{timestamp_col} not found. Input columns: {', '.join(df.columns)}"
+            )
+        elif actual_dtypes[timestamp_col] != "timestamp":
+            raise TimestampColumnError(
+                f"{timestamp_col} is expected to be of timestamp type. Actual type: {actual_dtypes[timestamp_col]}"
+            )
+
+
 def join_entity_to_feature_tables(
     query_conf: List[Dict[str, Any]], entity: DataFrame, tables: Dict[str, DataFrame]
 ) -> DataFrame:
@@ -220,6 +262,9 @@ def batch_retrieval(spark: SparkSession, conf: Dict) -> DataFrame:
                 "options": {"inferSchema": "true", "header": "true"},
                 "col_mapping": {
                     "id": "driver_id"
+                },
+                "dtypes": {
+                    "driver_id": "integer"
                 }
             },
             "tables": [
@@ -229,6 +274,9 @@ def batch_retrieval(spark: SparkSession, conf: Dict) -> DataFrame:
                     "name": "bookings",
                     "col_mapping": {
                         "id": "driver_id"
+                    },
+                    "dtypes": {
+                        "driver_id": "integer"
                     }
                 },
                 {
@@ -266,6 +314,12 @@ def batch_retrieval(spark: SparkSession, conf: Dict) -> DataFrame:
         the join operation. `col_mapping` is a dictionary where the key is the source column and the value
         is the mapped column.
 
+        `dtypes` is an optional parameter which helps the spark job to check whether the input dataframes
+        (after the col mapping) have the correct data types. The key is the column name, whereas the values
+        is the simple string format of the Spark data types, similar to the value returned by DataFrame.dtypes().
+        Please refer to https://spark.apache.org/docs/latest/api/python/_modules/pyspark/sql/types.html for more
+        information.
+
     """
 
     def map_column(df: DataFrame, col_mapping: Dict[str, str]):
@@ -281,8 +335,10 @@ def batch_retrieval(spark: SparkSession, conf: Dict) -> DataFrame:
         .options(**entity.get("options", {}))
         .load(entity["path"])
     )
+
     entity_col_mapping = conf["entity"].get("col_mapping", {})
     mapped_entity_df = map_column(entity_df, entity_col_mapping)
+    verify_schema(mapped_entity_df, entity.get("dtypes", {}))
 
     tables = {
         table_spec["name"]: map_column(
@@ -293,6 +349,13 @@ def batch_retrieval(spark: SparkSession, conf: Dict) -> DataFrame:
         )
         for table_spec in conf["tables"]
     }
+
+    for table_spec in conf["tables"]:
+        verify_schema(
+            tables[table_spec["name"]],
+            table_spec.get("dtypes", {}),
+            is_feature_table=True,
+        )
 
     return join_entity_to_feature_tables(conf["queries"], mapped_entity_df, tables)
 

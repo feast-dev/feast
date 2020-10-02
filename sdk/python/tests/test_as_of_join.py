@@ -4,6 +4,7 @@ from os import path
 
 import pytest
 from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.functions import lit
 from pyspark.sql.types import (
     FloatType,
     IntegerType,
@@ -13,9 +14,13 @@ from pyspark.sql.types import (
 )
 
 from feast.pyspark.batch_retrieval_job import (
+    MissingColumnError,
+    SchemaMismatchError,
+    TimestampColumnError,
     as_of_join,
     batch_retrieval,
     join_entity_to_feature_tables,
+    verify_schema,
 )
 
 
@@ -496,6 +501,7 @@ def test_batch_retrieval(spark):
             "format": "csv",
             "path": f"file://{path.join(test_data_dir,  'customer_driver_pairs.csv')}",
             "options": {"inferSchema": "true", "header": "true"},
+            "dtypes": {"customer_id": "int", "driver_id": "int"},
         },
         "tables": [
             {
@@ -503,12 +509,14 @@ def test_batch_retrieval(spark):
                 "path": f"file://{path.join(test_data_dir,  'bookings.csv')}",
                 "name": "bookings",
                 "options": {"inferSchema": "true", "header": "true"},
+                "dtypes": {"driver_id": "int"},
             },
             {
                 "format": "csv",
                 "path": f"file://{path.join(test_data_dir,  'transactions.csv')}",
                 "name": "transactions",
                 "options": {"inferSchema": "true", "header": "true"},
+                "dtypes": {"customer_id": "int"},
             },
         ],
         "queries": [
@@ -558,6 +566,7 @@ def test_batch_retrieval_with_mapping(spark):
             "path": f"file://{path.join(test_data_dir,  'column_mapping_test_entity.csv')}",
             "options": {"inferSchema": "true", "header": "true"},
             "col_mapping": {"id": "customer_id"},
+            "dtypes": {"customer_id": "int"},
         },
         "tables": [
             {
@@ -569,6 +578,7 @@ def test_batch_retrieval_with_mapping(spark):
                     "datetime": "event_timestamp",
                     "created_datetime": "created_timestamp",
                 },
+                "dtypes": {"customer_id": "int"},
             },
         ],
         "queries": [
@@ -598,3 +608,63 @@ def test_batch_retrieval_with_mapping(spark):
     )
 
     assert_dataframe_equal(joined_df, expected_joined_df)
+
+
+def test_schema_verification(spark):
+    entity_schema = StructType(
+        [
+            StructField("customer_id", IntegerType()),
+            StructField("event_timestamp", TimestampType()),
+        ]
+    )
+
+    entity_data = [
+        (1001, datetime(year=2020, month=9, day=2)),
+    ]
+
+    entity_df = spark.createDataFrame(
+        spark.sparkContext.parallelize(entity_data), entity_schema
+    )
+
+    with pytest.raises(MissingColumnError):
+        verify_schema(entity_df, {"driver_id": "int"}, False)
+
+    with pytest.raises(SchemaMismatchError):
+        verify_schema(entity_df, {"customer_id": "string"}, False)
+
+    with pytest.raises(MissingColumnError):
+        verify_schema(entity_df.drop("event_timestamp"), {"customer_id": "int"}, False)
+
+    feature_schema = StructType(
+        [
+            StructField("customer_id", IntegerType()),
+            StructField("event_timestamp", TimestampType()),
+            StructField("created_timestamp", TimestampType()),
+        ]
+    )
+
+    feature_data = [
+        (
+            1001,
+            datetime(year=2020, month=9, day=2),
+            datetime(year=2020, month=9, day=2),
+        ),
+    ]
+
+    feature_df = spark.createDataFrame(
+        spark.sparkContext.parallelize(feature_data), feature_schema
+    )
+
+    with pytest.raises(MissingColumnError):
+        verify_schema(
+            feature_df.drop("created_timestamp"), {"customer_id": "int"}, True
+        )
+
+    with pytest.raises(TimestampColumnError):
+        verify_schema(
+            feature_df.drop("created_timestamp").withColumn(
+                "created_timestamp", lit("test")
+            ),
+            {"customer_id": "int"},
+            True,
+        )
