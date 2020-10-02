@@ -238,28 +238,28 @@ public class DataGenerator {
   }
 
   public static DataSource createFileDataSourceSpec(
-      String fileURL, String fileFormat, String tsColumn, String datePartitionColumn) {
+      String fileURL, String fileFormat, String timestampColumn, String datePartitionColumn) {
     return DataSource.newBuilder()
         .setType(DataSource.SourceType.BATCH_FILE)
         .setFileOptions(
             FileOptions.newBuilder().setFileFormat(fileFormat).setFileUrl(fileURL).build())
-        .setTsColumn(tsColumn)
+        .setTimestampColumn(timestampColumn)
         .setDatePartitionColumn(datePartitionColumn)
         .build();
   }
 
   public static DataSource createBigQueryDataSourceSpec(
-      String bigQueryTableRef, String tsColumn, String datePartitionColumn) {
+      String bigQueryTableRef, String timestampColumn, String datePartitionColumn) {
     return DataSource.newBuilder()
         .setType(DataSource.SourceType.BATCH_BIGQUERY)
         .setBigqueryOptions(BigQueryOptions.newBuilder().setTableRef(bigQueryTableRef).build())
-        .setTsColumn(tsColumn)
+        .setTimestampColumn(timestampColumn)
         .setDatePartitionColumn(datePartitionColumn)
         .build();
   }
 
   public static DataSource createKafkaDataSourceSpec(
-      String servers, String topic, String classPath, String tsColumn) {
+      String servers, String topic, String classPath, String timestampColumn) {
     return DataSource.newBuilder()
         .setType(DataSource.SourceType.STREAM_KAFKA)
         .setKafkaOptions(
@@ -268,7 +268,7 @@ public class DataGenerator {
                 .setBootstrapServers(servers)
                 .setClassPath(classPath)
                 .build())
-        .setTsColumn(tsColumn)
+        .setTimestampColumn(timestampColumn)
         .build();
   }
 }

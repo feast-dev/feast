@@ -39,7 +39,7 @@ message DataSource {
   map<string, string> field_mapping = 2;
 
   // Must specify timestamp column name
-  string ts_column = 3;
+  string timestamp_column = 3;
 
   // (Optional) Specify partition column
   // useful for file sources

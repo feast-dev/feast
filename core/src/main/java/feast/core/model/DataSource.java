@@ -62,8 +62,8 @@ public class DataSource {
   @Column(name = "field_mapping", columnDefinition = "text")
   private String fieldMapJSON;
 
-  @Column(name = "ts_column")
-  private String tsColumn;
+  @Column(name = "timestamp_column")
+  private String timestampColumn;
 
   @Column(name = "date_partition_column")
   private String datePartitionColumn;
@@ -115,7 +115,7 @@ public class DataSource {
     source.setFieldMapJSON(TypeConversion.convertMapToJsonString(spec.getFieldMappingMap()));
 
     // Set timestamp mapping columns
-    source.setTsColumn(spec.getTsColumn());
+    source.setTimestampColumn(spec.getTimestampColumn());
     source.setDatePartitionColumn(spec.getDatePartitionColumn());
 
     return source;
@@ -163,7 +163,7 @@ public class DataSource {
     // Parse field mapping and options from JSON
     spec.putAllFieldMapping(TypeConversion.convertJsonStringToMap(getFieldMapJSON()));
 
-    spec.setTsColumn(getTsColumn());
+    spec.setTimestampColumn(getTimestampColumn());
     spec.setDatePartitionColumn(getDatePartitionColumn());
 
     return spec.build();

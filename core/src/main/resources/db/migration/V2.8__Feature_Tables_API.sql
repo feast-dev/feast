@@ -3,7 +3,7 @@ CREATE TABLE data_sources (
     id bigint NOT NULL,
     type character varying(255) NOT NULL,
     field_mapping text NOT NULL,
-    ts_column character varying(255),
+    timestamp_column character varying(255),
     date_partition_column character varying(255),
     -- Only the options corresponding to type should set & non-null
     -- DataSource Options

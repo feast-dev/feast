@@ -298,7 +298,7 @@ class FeatureTable:
             type=data_source.type,
             field_mapping=data_source.field_mapping,
             options=data_source_options,
-            ts_column=data_source.ts_column,
+            timestamp_column=data_source.timestamp_column,
             date_partition_column=data_source.date_partition_column,
         ).to_proto()
 

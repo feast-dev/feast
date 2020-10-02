@@ -61,7 +61,7 @@ class TestFeatureTable:
                 "ride_duration": "ride_duration",
             },
             options=FileOptions(file_format="avro", file_url="data/test.avro"),
-            ts_column="ts_col",
+            timestamp_column="ts_col",
             date_partition_column="date_partition_col",
         )
 
@@ -76,7 +76,7 @@ class TestFeatureTable:
                 class_path="random/path/to/class",
                 topic="test_topic",
             ),
-            ts_column="ts_col",
+            timestamp_column="ts_col",
         )
 
         test_feature_table = FeatureTable(

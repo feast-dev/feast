@@ -355,13 +355,13 @@ class DataSource:
         type: str,
         field_mapping: Dict[str, str],
         options: Union[BigQueryOptions, FileOptions, KafkaOptions, KinesisOptions],
-        ts_column: str,
+        timestamp_column: str,
         date_partition_column: Optional[str] = "",
     ):
         self._type = type
         self._field_mapping = field_mapping
         self._options = options
-        self._ts_column = ts_column
+        self._timestamp_column = timestamp_column
         self._date_partition_column = date_partition_column
 
     @property
@@ -407,18 +407,18 @@ class DataSource:
         self._options = options
 
     @property
-    def ts_column(self):
+    def timestamp_column(self):
         """
         Returns the timestamp column of this data source
         """
-        return self._ts_column
+        return self._timestamp_column
 
-    @ts_column.setter
-    def ts_column(self, ts_column):
+    @timestamp_column.setter
+    def timestamp_column(self, timestamp_column):
         """
         Sets the timestamp column of this data source
         """
-        self._ts_column = ts_column
+        self._timestamp_column = timestamp_column
 
     @property
     def date_partition_column(self):
@@ -462,7 +462,7 @@ class DataSource:
         data_source = cls(
             type=data_source_proto.type,
             field_mapping=data_source_proto.field_mapping,
-            ts_column=data_source_proto.ts_column,
+            timestamp_column=data_source_proto.timestamp_column,
             date_partition_column=data_source_proto.date_partition_column,
         )
 
@@ -506,7 +506,7 @@ class DataSource:
                 "DataSource.to_proto: Provided DataSource option is invalid. Only FileOptions, BigQueryOptions, KafkaOptions and KinesisOptions are supported currently."
             )
 
-        data_source_proto.ts_column = self.ts_column
+        data_source_proto.timestamp_column = self.timestamp_column
         data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
