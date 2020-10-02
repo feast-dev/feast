@@ -14,7 +14,7 @@
 
 
 import enum
-from typing import MutableMapping, Optional, Union
+from typing import Dict, Optional, Union
 
 from feast.core.DataSource_pb2 import DataSource as DataSourceProto
 
@@ -353,7 +353,7 @@ class DataSource:
     def __init__(
         self,
         type: str,
-        field_mapping: MutableMapping[str, str],
+        field_mapping: Dict[str, str],
         options: Union[BigQueryOptions, FileOptions, KafkaOptions, KinesisOptions],
         ts_column: str,
         date_partition_column: Optional[str] = "",
