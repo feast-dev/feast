@@ -40,7 +40,7 @@ import scala.util.hashing.MurmurHash3
 
 case class Row(customer: String, feature1: Int, feature2: Float, eventTimestamp: java.sql.Timestamp)
 
-class OfflinePipelineIT extends UnitSpec with ForAllTestContainer {
+class BatchPipelineIT extends UnitSpec with ForAllTestContainer {
 
   override val container = GenericContainer("redis:6.0.8", exposedPorts = Seq(6379))
 
@@ -143,13 +143,11 @@ class OfflinePipelineIT extends UnitSpec with ForAllTestContainer {
     val gen      = rowGenerator(DateTime.parse("2020-08-01"), DateTime.parse("2020-09-01"))
     val rows     = generateDistinctRows(gen, 10000)
     val tempPath = storeAsParquet(rows)
-    val configWithOfflineSource = config.copy(featureTable =
-      config.featureTable.copy(offline_source =
-        Some(GSSource(tempPath, Map.empty, "eventTimestamp"))
-      )
+    val configWithOfflineSource = config.copy(
+      source = FileSource(tempPath, Map.empty, "eventTimestamp")
     )
 
-    OfflinePipeline.createPipeline(sparkSession, configWithOfflineSource)
+    BatchPipeline.createPipeline(sparkSession, configWithOfflineSource)
 
     val featureKeyEncoder: String => String = encodeFeatureKey(config.featureTable)
 
@@ -183,13 +181,10 @@ class OfflinePipelineIT extends UnitSpec with ForAllTestContainer {
     val old = generateDistinctRows(genOld, 10000)
 
     val tempPath = storeAsParquet(latest ++ old)
-    val configWithOfflineSource = config.copy(featureTable =
-      config.featureTable.copy(offline_source =
-        Some(GSSource(tempPath, Map.empty, "eventTimestamp"))
-      )
-    )
+    val configWithOfflineSource =
+      config.copy(source = FileSource(tempPath, Map.empty, "eventTimestamp"))
 
-    OfflinePipeline.createPipeline(sparkSession, configWithOfflineSource)
+    BatchPipeline.createPipeline(sparkSession, configWithOfflineSource)
 
     val featureKeyEncoder: String => String = encodeFeatureKey(config.featureTable)
 
@@ -216,13 +211,9 @@ class OfflinePipelineIT extends UnitSpec with ForAllTestContainer {
     val latest = generateDistinctRows(genLatest, 10000)
 
     val tempPath1 = storeAsParquet(latest)
-    val config1 = config.copy(featureTable =
-      config.featureTable.copy(offline_source =
-        Some(GSSource(tempPath1, Map.empty, "eventTimestamp"))
-      )
-    )
+    val config1   = config.copy(source = FileSource(tempPath1, Map.empty, "eventTimestamp"))
 
-    OfflinePipeline.createPipeline(sparkSession, config1)
+    BatchPipeline.createPipeline(sparkSession, config1)
 
     val genOld = rowGenerator(
       DateTime.parse("2020-08-01"),
@@ -232,13 +223,9 @@ class OfflinePipelineIT extends UnitSpec with ForAllTestContainer {
     val old = generateDistinctRows(genOld, 10000)
 
     val tempPath2 = storeAsParquet(old)
-    val config2 = config.copy(featureTable =
-      config.featureTable.copy(offline_source =
-        Some(GSSource(tempPath2, Map.empty, "eventTimestamp"))
-      )
-    )
+    val config2   = config.copy(source = FileSource(tempPath2, Map.empty, "eventTimestamp"))
 
-    OfflinePipeline.createPipeline(sparkSession, config2)
+    BatchPipeline.createPipeline(sparkSession, config2)
 
     val featureKeyEncoder: String => String = encodeFeatureKey(config.featureTable)
 
@@ -262,12 +249,11 @@ class OfflinePipelineIT extends UnitSpec with ForAllTestContainer {
 
     val tempPath = storeAsParquet(rowsWithNullEntity)
     val deadletterConfig = config.copy(
-      featureTable = config.featureTable
-        .copy(offline_source = Some(GSSource(tempPath, Map.empty, "eventTimestamp"))),
+      source = FileSource(tempPath, Map.empty, "eventTimestamp"),
       deadLetterPath = Some(generateTempPath("deadletters"))
     )
 
-    OfflinePipeline.createPipeline(sparkSession, deadletterConfig)
+    BatchPipeline.createPipeline(sparkSession, deadletterConfig)
 
     jedis.keys("*").toArray should be(empty)
 
@@ -288,22 +274,20 @@ class OfflinePipelineIT extends UnitSpec with ForAllTestContainer {
         features = Seq(
           Field("new_feature1", ValueType.Enum.INT32),
           Field("new_feature2", ValueType.Enum.FLOAT)
-        ),
-        offline_source = Some(
-          GSSource(
-            tempPath,
-            Map(
-              "entity"       -> "customer",
-              "new_feature1" -> "feature1",
-              "new_feature2" -> "feature2"
-            ),
-            "eventTimestamp"
-          )
         )
+      ),
+      source = FileSource(
+        tempPath,
+        Map(
+          "entity"       -> "customer",
+          "new_feature1" -> "feature1",
+          "new_feature2" -> "feature2"
+        ),
+        "eventTimestamp"
       )
     )
 
-    OfflinePipeline.createPipeline(sparkSession, configWithMapping)
+    BatchPipeline.createPipeline(sparkSession, configWithMapping)
 
     val featureKeyEncoder: String => String = encodeFeatureKey(config.featureTable)
 

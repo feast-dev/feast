@@ -30,6 +30,13 @@ trait BasePipeline {
       .setAppName(s"${jobConfig.mode} IngestionJob for ${jobConfig.featureTable.name}")
       .setMaster("local")
 
+    jobConfig.store match {
+      case RedisConfig(host, port) =>
+        conf
+          .set("spark.redis.host", host)
+          .set("spark.redis.port", port.toString)
+    }
+
     jobConfig.metrics match {
       case Some(c: StatsDConfig) =>
         conf
@@ -37,11 +44,19 @@ trait BasePipeline {
             "spark.metrics.conf.*.source.redis.class",
             "org.apache.spark.metrics.source.RedisSinkMetricSource"
           )
-          .set("spark.metrics.conf.*.sink.statsd.class", "org.apache.spark.metrics.sink.StatsdSink")
+          .set(
+            "spark.metrics.conf.*.source.redis.labels",
+            s"feature_table=${jobConfig.featureTable.name}"
+          )
+          .set(
+            "spark.metrics.conf.*.sink.statsd.class",
+            "org.apache.spark.metrics.sink.StatsdSinkWithTags"
+          )
           .set("spark.metrics.conf.*.sink.statsd.host", c.host)
           .set("spark.metrics.conf.*.sink.statsd.port", c.port.toString)
           .set("spark.metrics.conf.*.sink.statsd.period", "1")
           .set("spark.metrics.conf.*.sink.statsd.unit", "seconds")
+          .set("spark.metrics.namespace", jobConfig.mode.toString)
     }
 
     SparkSession

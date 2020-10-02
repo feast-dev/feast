@@ -24,11 +24,12 @@
         <groupId>dev.feast</groupId>
         <artifactId>feast-parent</artifactId>
         <version>${revision}</version>
+        <relativePath>../..</relativePath>
     </parent>
 
     <name>Feast Spark Ingestion</name>
     <artifactId>feast-ingestion-spark</artifactId>
-    
+
     <properties>
         <scala.version>2.12</scala.version>
         <scala.fullVersion>${scala.version}.12</scala.fullVersion>
@@ -149,6 +150,12 @@
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
             <version>4.1.52.Final</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.json4s</groupId>
+            <artifactId>json4s-ext_${scala.version}</artifactId>
+            <version>3.7.0-M6</version>
         </dependency>
 
         <dependency>

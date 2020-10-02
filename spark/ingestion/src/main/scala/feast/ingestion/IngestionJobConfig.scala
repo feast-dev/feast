@@ -16,21 +16,37 @@
  */
 package feast.ingestion
 
+import feast.ingestion.Modes.Modes
+import org.joda.time.DateTime
+
+object Modes extends Enumeration {
+  type Modes = Value
+  val Offline, Online = Value
+}
+
+abstract class StoreConfig
+
+case class RedisConfig(host: String, port: Int) extends StoreConfig
+
+abstract class MetricConfig
+
+case class StatsDConfig(host: String, port: Int) extends MetricConfig
+
 abstract class Source {
   def mapping: Map[String, String]
 
   def timestampColumn: String
 }
 
-abstract class OfflineSource extends Source
+abstract class BatchSource extends Source
 
-abstract class OnlineSource extends Source
+abstract class StreamingSource extends Source
 
-case class GSSource(
+case class FileSource(
     path: String,
     override val mapping: Map[String, String],
     override val timestampColumn: String
-) extends OfflineSource
+) extends BatchSource
 
 case class BQSource(
     project: String,
@@ -38,14 +54,20 @@ case class BQSource(
     table: String,
     override val mapping: Map[String, String],
     override val timestampColumn: String
-) extends OfflineSource
+) extends BatchSource
 
 case class KafkaSource(
     bootstrapServers: String,
     topic: String,
     override val mapping: Map[String, String],
     override val timestampColumn: String
-) extends OnlineSource
+) extends StreamingSource
+
+case class Sources(
+    file: Option[FileSource] = None,
+    bq: Option[BQSource] = None,
+    kafka: Option[KafkaSource] = None
+)
 
 case class Field(name: String, `type`: feast.proto.types.ValueProto.ValueType.Enum)
 
@@ -53,7 +75,16 @@ case class FeatureTable(
     name: String,
     project: String,
     entities: Seq[Field],
-    features: Seq[Field],
-    offline_source: Option[OfflineSource] = None,
-    online_source: Option[OnlineSource] = None
+    features: Seq[Field]
+)
+
+case class IngestionJobConfig(
+    mode: Modes = Modes.Offline,
+    featureTable: FeatureTable = null,
+    source: Source = null,
+    startTime: DateTime = DateTime.now(),
+    endTime: DateTime = DateTime.now(),
+    store: StoreConfig = RedisConfig("localhost", 6379),
+    metrics: Option[MetricConfig] = Some(StatsDConfig("localhost", 9125)),
+    deadLetterPath: Option[String] = None
 )

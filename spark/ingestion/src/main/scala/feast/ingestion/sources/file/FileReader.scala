@@ -18,7 +18,7 @@ package feast.ingestion.sources.file
 
 import java.sql.Timestamp
 
-import feast.ingestion.GSSource
+import feast.ingestion.FileSource
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.{DataFrame, SQLContext}
 import org.joda.time.DateTime
@@ -26,7 +26,7 @@ import org.joda.time.DateTime
 object FileReader {
   def createBatchSource(
       sqlContext: SQLContext,
-      source: GSSource,
+      source: FileSource,
       start: DateTime,
       end: DateTime
   ): DataFrame = {

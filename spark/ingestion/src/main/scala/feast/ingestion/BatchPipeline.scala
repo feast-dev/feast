@@ -22,22 +22,22 @@ import feast.ingestion.validation.RowValidator
 import org.apache.spark.sql.{Column, SparkSession}
 import org.apache.spark.sql.functions.col
 
-object OfflinePipeline extends BasePipeline {
+object BatchPipeline extends BasePipeline {
   override def createPipeline(sparkSession: SparkSession, config: IngestionJobConfig): Unit = {
     val featureTable = config.featureTable
     val projection =
-      inputProjection(featureTable.offline_source.get, featureTable.features, featureTable.entities)
+      inputProjection(config.source, featureTable.features, featureTable.entities)
     val validator = new RowValidator(featureTable)
 
-    val input = config.featureTable.offline_source match {
-      case Some(source: BQSource) =>
+    val input = config.source match {
+      case source: BQSource =>
         BigQueryReader.createBatchSource(
           sparkSession.sqlContext,
           source,
           config.startTime,
           config.endTime
         )
-      case Some(source: GSSource) =>
+      case source: FileSource =>
         FileReader.createBatchSource(
           sparkSession.sqlContext,
           source,
@@ -56,7 +56,7 @@ object OfflinePipeline extends BasePipeline {
       .option("entity_columns", featureTable.entities.map(_.name).mkString(","))
       .option("namespace", featureTable.name)
       .option("project_name", featureTable.project)
-      .option("timestamp_column", featureTable.offline_source.get.timestampColumn)
+      .option("timestamp_column", config.source.timestampColumn)
       .save()
 
     config.deadLetterPath match {
@@ -72,7 +72,7 @@ object OfflinePipeline extends BasePipeline {
   }
 
   private def inputProjection(
-      source: OfflineSource,
+      source: Source,
       features: Seq[Field],
       entities: Seq[Field]
   ): Array[Column] = {

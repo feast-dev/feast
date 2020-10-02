@@ -17,17 +17,29 @@
 package org.apache.spark.metrics.source
 
 import com.codahale.metrics.MetricRegistry
+import org.apache.spark.{SparkConf, SparkEnv}
 
 class RedisSinkMetricSource extends Source {
   override val sourceName: String = RedisSinkMetricSource.sourceName
 
   override val metricRegistry: MetricRegistry = new MetricRegistry
 
+  private val sparkConfig = Option(SparkEnv.get).map(_.conf).getOrElse(new SparkConf(true))
+
+  private val metricLabels = sparkConfig.get("spark.metrics.conf.*.source.redis.labels")
+
+  private def nameWithLabels(name: String) =
+    if (metricLabels.isEmpty) {
+      name
+    } else {
+      s"$name#$metricLabels"
+    }
+
   val METRIC_TOTAL_ROWS_INSERTED =
-    metricRegistry.counter(MetricRegistry.name("feast_ingestion_feature_row_ingested_count"))
+    metricRegistry.counter(nameWithLabels("feast_ingestion_feature_row_ingested_count"))
 
   val METRIC_ROWS_LAG =
-    metricRegistry.histogram(MetricRegistry.name("feast_ingestion_feature_row_lag_ms"))
+    metricRegistry.histogram(nameWithLabels("feast_ingestion_feature_row_lag_ms"))
 }
 
 object RedisSinkMetricSource {
