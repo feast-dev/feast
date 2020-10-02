@@ -15,7 +15,7 @@
 import json
 import logging
 import sys
-from typing import Dict, List
+from typing import Dict
 
 import click
 import pkg_resources
@@ -23,10 +23,7 @@ import yaml
 
 from feast.client import Client
 from feast.config import Config
-from feast.contrib.job_controller.client import Client as JCClient
-from feast.core.IngestionJob_pb2 import IngestionJobStatus
-from feast.entity import EntityV2
-from feast.feature_set import FeatureSet, FeatureSetRef
+from feast.entity import Entity
 from feast.feature_table import FeatureTable
 from feast.loaders.yaml import yaml_loader
 
@@ -143,9 +140,7 @@ def entity_create(filename, project):
     Create or update an entity
     """
 
-    entities = [
-        EntityV2.from_dict(entity_dict) for entity_dict in yaml_loader(filename)
-    ]
+    entities = [Entity.from_dict(entity_dict) for entity_dict in yaml_loader(filename)]
     feast_client = Client()  # type: Client
     feast_client.apply_entity(entities, project)
 
@@ -215,6 +210,21 @@ def feature_table():
     Create and manage feature tables
     """
     pass
+
+
+def _get_labels_dict(label_str: str) -> Dict[str, str]:
+    """
+    Converts CLI input labels string to dictionary format if provided string is valid.
+    """
+    labels_dict: Dict[str, str] = {}
+    labels_kv = label_str.split(",")
+    if label_str == "":
+        return labels_dict
+    if len(labels_kv) % 2 == 1:
+        raise ValueError("Uneven key-value label pairs were entered")
+    for k, v in zip(labels_kv[0::2], labels_kv[1::2]):
+        labels_dict[k] = v
+    return labels_dict
 
 
 @feature_table.command("apply")
@@ -291,170 +301,6 @@ def feature_table_list(project: str, labels: str):
     print(tabulate(table, headers=["NAME", "ENTITIES"], tablefmt="plain"))
 
 
-@cli.group(name="features")
-def feature():
-    """
-    Manage feature
-    """
-    pass
-
-
-def _convert_entity_string_to_list(entities_str: str) -> List[str]:
-    """
-    Converts CLI input entities string to list format if provided string is valid.
-    """
-    if entities_str == "":
-        return []
-    return entities_str.split(",")
-
-
-@feature.command(name="list")
-@click.option(
-    "--project",
-    "-p",
-    help="Project that feature belongs to",
-    type=click.STRING,
-    default="*",
-)
-@click.option(
-    "--entities",
-    "-n",
-    help="Entities to filter for features",
-    type=click.STRING,
-    default="",
-)
-@click.option(
-    "--labels",
-    "-l",
-    help="Labels to filter for features",
-    type=click.STRING,
-    default="",
-)
-def feature_list(project: str, entities: str, labels: str):
-    """
-    List all features
-    """
-    feast_client = Client()  # type: Client
-
-    entities_list = _convert_entity_string_to_list(entities)
-    labels_dict: Dict[str, str] = _get_labels_dict(labels)
-
-    table = []
-    for feature_ref, feature in feast_client.list_features_by_ref(
-        project=project, entities=entities_list, labels=labels_dict
-    ).items():
-        table.append([feature.name, feature.dtype, repr(feature_ref)])
-
-    from tabulate import tabulate
-
-    print(tabulate(table, headers=["NAME", "DTYPE", "REFERENCE"], tablefmt="plain"))
-
-
-@cli.group(name="feature-sets")
-def feature_set():
-    """
-    Create and manage feature sets
-    """
-    pass
-
-
-def _get_labels_dict(label_str: str) -> Dict[str, str]:
-    """
-    Converts CLI input labels string to dictionary format if provided string is valid.
-    """
-    labels_dict: Dict[str, str] = {}
-    labels_kv = label_str.split(",")
-    if label_str == "":
-        return labels_dict
-    if len(labels_kv) % 2 == 1:
-        raise ValueError("Uneven key-value label pairs were entered")
-    for k, v in zip(labels_kv[0::2], labels_kv[1::2]):
-        labels_dict[k] = v
-    return labels_dict
-
-
-@feature_set.command(name="list")
-@click.option(
-    "--project",
-    "-p",
-    help="Project that feature set belongs to",
-    type=click.STRING,
-    default="*",
-)
-@click.option(
-    "--name",
-    "-n",
-    help="Filters feature sets by name. Wildcards (*) may be included to match multiple feature sets",
-    type=click.STRING,
-    default="*",
-)
-@click.option(
-    "--labels",
-    "-l",
-    help="Labels to filter for feature sets",
-    type=click.STRING,
-    default="",
-)
-def feature_set_list(project: str, name: str, labels: str):
-    """
-    List all feature sets
-    """
-    feast_client = Client()  # type: Client
-
-    labels_dict = _get_labels_dict(labels)
-
-    table = []
-    for fs in feast_client.list_feature_sets(
-        project=project, name=name, labels=labels_dict
-    ):
-        table.append([fs.name, repr(fs)])
-
-    from tabulate import tabulate
-
-    print(tabulate(table, headers=["NAME", "REFERENCE"], tablefmt="plain"))
-
-
-@feature_set.command("apply")
-# TODO: add project option to overwrite project setting.
-@click.option(
-    "--filename",
-    "-f",
-    help="Path to a feature set configuration file that will be applied",
-    type=click.Path(exists=True),
-)
-def feature_set_create(filename):
-    """
-    Create or update a feature set
-    """
-
-    feature_sets = [FeatureSet.from_dict(fs_dict) for fs_dict in yaml_loader(filename)]
-    feast_client = Client()  # type: Client
-    feast_client.apply(feature_sets)
-
-
-@feature_set.command("describe")
-@click.argument("name", type=click.STRING)
-@click.option(
-    "--project",
-    "-p",
-    help="Project that feature set belongs to",
-    type=click.STRING,
-    default="default",
-)
-def feature_set_describe(name: str, project: str):
-    """
-    Describe a feature set
-    """
-    feast_client = Client()  # type: Client
-    fs = feast_client.get_feature_set(name=name, project=project)
-
-    if not fs:
-        print(f'Feature set with name "{name}" could not be found')
-        return
-
-    print(yaml.dump(yaml.safe_load(str(fs)), default_flow_style=False, sort_keys=False))
-
-
 @cli.group(name="projects")
 def project():
     """
@@ -497,143 +343,6 @@ def project_list():
     from tabulate import tabulate
 
     print(tabulate(table, headers=["NAME"], tablefmt="plain"))
-
-
-@cli.group(name="ingest-jobs")
-def ingest_job():
-    """
-    Manage ingestion jobs
-    """
-    pass
-
-
-@ingest_job.command("list")
-@click.option("--job-id", "-i", help="Show only ingestion jobs with the given job id")
-@click.option(
-    "--feature-set-ref",
-    "-f",
-    help="Show only ingestion job targeting the feature set with the given reference",
-)
-@click.option(
-    "--store-name",
-    "-s",
-    help="List only ingestion job that ingest into feast store with given name",
-)
-# TODO: types
-def ingest_job_list(job_id, feature_set_ref, store_name):
-    """
-    List ingestion jobs
-    """
-    # parse feature set reference
-    if feature_set_ref is not None:
-        feature_set_ref = FeatureSetRef.from_str(feature_set_ref)
-
-    # pull & render ingestion jobs as a table
-    feast_client = JCClient()
-    table = []
-    for ingest_job in feast_client.list_ingest_jobs(
-        job_id=job_id, feature_set_ref=feature_set_ref, store_name=store_name
-    ):
-        table.append([ingest_job.id, IngestionJobStatus.Name(ingest_job.status)])
-
-    from tabulate import tabulate
-
-    print(tabulate(table, headers=["ID", "STATUS"], tablefmt="plain"))
-
-
-@ingest_job.command("describe")
-@click.argument("job_id")
-def ingest_job_describe(job_id: str):
-    """
-    Describe the ingestion job with the given id.
-    """
-    # find ingestion job for id
-    feast_client = JCClient()
-    jobs = feast_client.list_ingest_jobs(job_id=job_id)
-    if len(jobs) < 1:
-        print(f"Ingestion Job with id {job_id} could not be found")
-        sys.exit(1)
-    job = jobs[0]
-
-    # pretty render ingestion job as yaml
-    print(
-        yaml.dump(yaml.safe_load(str(job)), default_flow_style=False, sort_keys=False)
-    )
-
-
-@ingest_job.command("stop")
-@click.option(
-    "--wait", "-w", is_flag=True, help="Wait for the ingestion job to fully stop."
-)
-@click.option(
-    "--timeout",
-    "-t",
-    default=600,
-    help="Timeout in seconds to wait for the job to stop.",
-)
-@click.argument("job_id")
-def ingest_job_stop(wait: bool, timeout: int, job_id: str):
-    """
-    Stop ingestion job for id.
-    """
-    # find ingestion job for id
-    feast_client = JCClient()
-    jobs = feast_client.list_ingest_jobs(job_id=job_id)
-    if len(jobs) < 1:
-        print(f"Ingestion Job with id {job_id} could not be found")
-        sys.exit(1)
-    job = jobs[0]
-
-    feast_client.stop_ingest_job(job)
-
-    # wait for ingestion job to stop
-    if wait:
-        job.wait(IngestionJobStatus.ABORTED, timeout=timeout)
-
-
-@ingest_job.command("restart")
-@click.argument("job_id")
-def ingest_job_restart(job_id: str):
-    """
-    Restart job for id.
-    Waits for the job to fully restart.
-    """
-    # find ingestion job for id
-    feast_client = JCClient()
-    jobs = feast_client.list_ingest_jobs(job_id=job_id)
-    if len(jobs) < 1:
-        print(f"Ingestion Job with id {job_id} could not be found")
-        sys.exit(1)
-    job = jobs[0]
-
-    feast_client.restart_ingest_job(job)
-
-
-@cli.command()
-@click.option(
-    "--name", "-n", help="Feature set name to ingest data into", required=True
-)
-@click.option(
-    "--filename",
-    "-f",
-    help="Path to file to be ingested",
-    type=click.Path(exists=True),
-    required=True,
-)
-@click.option(
-    "--file-type",
-    "-t",
-    type=click.Choice(["CSV"], case_sensitive=False),
-    help="Type of file to ingest. Defaults to CSV.",
-)
-def ingest(name, filename, file_type):
-    """
-    Ingest feature data into a feature set
-    """
-
-    feast_client = Client()  # type: Client
-    feature_set = feast_client.get_feature_set(name=name)
-    feature_set.ingest_file(file_path=filename)
 
 
 if __name__ == "__main__":
