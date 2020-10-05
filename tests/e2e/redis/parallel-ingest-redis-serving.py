@@ -83,7 +83,9 @@ class TestBasicIngestionRetrieval:
         assert actual_get_feature_table == self.basic_ft_spec
 
         # ListFeatureTables Check
-        actual_list_feature_table = client.list_feature_tables()[0]
+        actual_list_feature_table = [
+            ft for ft in client.list_feature_tables() if ft.name == "dev_featuretable"
+        ][0]
         assert actual_list_feature_table == self.basic_ft_spec
 
     def test_basic_retrieval(self, client):
@@ -173,7 +175,9 @@ class TestAllTypesIngestionRetrieval:
         assert actual_get_feature_table == self.alltypes_ft_spec
 
         # ListFeatureTables Check
-        actual_list_feature_table = client.list_feature_tables()[0]
+        actual_list_feature_table = [
+            ft for ft in client.list_feature_tables() if ft.name == "alltypes"
+        ][0]
         assert actual_list_feature_table == self.alltypes_ft_spec
 
     def test_alltypes_retrieval(self, client):
