@@ -151,9 +151,7 @@ management:
       simple:
         enabled: false
       statsd:
-        # Enables statsd backend to write metrics.
         enabled: true
-        # Host and port of the statsd instance.
         host: ${STATSD_HOST:localhost}
         port: ${STATSD_PORT:8125}
 

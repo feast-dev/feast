@@ -143,4 +143,5 @@ server:
   # The port number on which the Tomcat webserver that serves REST API endpoints should listen
   # It is set by default to 8081 so it does not conflict with Tomcat webserver on Feast Core
   # if both Feast Core and Serving are running on the same machine
+  # Serving exposes its metrics on /metrics endpoint on this port.
   port: ${SERVER_PORT:8081}

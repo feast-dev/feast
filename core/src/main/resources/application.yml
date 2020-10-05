@@ -109,13 +109,12 @@ management:
       simple:
         enabled: false
       statsd:
-        # Enables statsd backend to write metrics.
         enabled: true
-        # Host and port of the statsd instance.
         host: ${STATSD_HOST:localhost}
         port: ${STATSD_PORT:8125}
         
 server:
-  # The port number on which the Tomcat webserver that serves REST API endpoints should listen on
-  # such as Feast Core Service REST API and metrics endpoints
+  # The port number on which the Tomcat webserver that serves REST API endpoints should listen on.
+  # Endpoints include Feast Core Service REST API and /metrics endpoint.
+  # Core exposes its metrics on /metrics endpoint on this port.
   port: 8080
