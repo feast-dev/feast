@@ -21,7 +21,7 @@ import pytest
 
 from feast.client import Client
 from feast.core import CoreService_pb2_grpc as Core
-from feast.entity import EntityV2
+from feast.entity import Entity
 from feast.value_type import ValueType
 from feast_core_server import CoreServicer
 
@@ -52,7 +52,7 @@ class TestEntity:
 
     def test_entity_import_export_yaml(self):
 
-        test_entity = EntityV2(
+        test_entity = Entity(
             name="car_driver_entity",
             description="Driver entity for car rides",
             value_type=ValueType.STRING,
@@ -63,14 +63,14 @@ class TestEntity:
         string_yaml = test_entity.to_yaml()
 
         # Create a new entity object from the YAML string
-        actual_entity_from_string = EntityV2.from_yaml(string_yaml)
+        actual_entity_from_string = Entity.from_yaml(string_yaml)
 
         # Ensure equality is upheld to original entity
         assert test_entity == actual_entity_from_string
 
 
 def test_entity_class_contains_labels():
-    entity = EntityV2(
+    entity = Entity(
         "my-entity",
         description="My entity",
         value_type=ValueType.STRING,
@@ -81,6 +81,6 @@ def test_entity_class_contains_labels():
 
 
 def test_entity_without_labels_empty_dict():
-    entity = EntityV2("my-entity", description="My entity", value_type=ValueType.STRING)
+    entity = Entity("my-entity", description="My entity", value_type=ValueType.STRING)
     assert entity.labels == dict()
     assert len(entity.labels) == 0

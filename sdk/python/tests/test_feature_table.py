@@ -22,8 +22,8 @@ import pytest
 from feast.client import Client
 from feast.core import CoreService_pb2_grpc as Core
 from feast.data_source import DataSource, FileOptions, KafkaOptions, SourceType
+from feast.feature import Feature
 from feast.feature_table import FeatureTable
-from feast.feature_v2 import FeatureV2
 from feast.value_type import ValueType
 from feast_core_server import CoreServicer
 
@@ -82,8 +82,8 @@ class TestFeatureTable:
         test_feature_table = FeatureTable(
             name="car_driver",
             features=[
-                FeatureV2(name="ride_distance", dtype=ValueType.FLOAT).to_proto(),
-                FeatureV2(name="ride_duration", dtype=ValueType.STRING).to_proto(),
+                Feature(name="ride_distance", dtype=ValueType.FLOAT).to_proto(),
+                Feature(name="ride_duration", dtype=ValueType.STRING).to_proto(),
             ],
             entities=["car_driver_entity"],
             labels={"team": "matchmaking"},
