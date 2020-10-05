@@ -2,11 +2,11 @@ from pkg_resources import DistributionNotFound, get_distribution
 
 from .client import Client
 from .data_source import (
-    BigQueryOptions,
+    BigQuerySource,
     DataSource,
-    FileOptions,
-    KafkaOptions,
-    KinesisOptions,
+    FileSource,
+    KafkaSource,
+    KinesisSource,
     SourceType,
 )
 from .entity import Entity
@@ -24,10 +24,10 @@ __all__ = [
     "Client",
     "Entity",
     "DataSource",
-    "BigQueryOptions",
-    "FileOptions",
-    "KafkaOptions",
-    "KinesisOptions",
+    "BigQuerySource",
+    "FileSource",
+    "KafkaSource",
+    "KinesisSource",
     "Feature",
     "FeatureTable",
     "SourceType",

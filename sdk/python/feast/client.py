@@ -638,20 +638,13 @@ class Client:
             source, chunk_size, max_workers
         )
 
-        current_time = time.time()
-        while True:
-            if timeout is not None and time.time() - current_time >= timeout:
-                raise TimeoutError("Timed out waiting for feature table to be ready")
-            fetched_feature_table: Optional[FeatureTable] = self.get_feature_table(
-                name, project
-            )
-            if fetched_feature_table is not None:
-                feature_table = fetched_feature_table
-                break
-            time.sleep(3)
-
-        if timeout is not None:
-            timeout = timeout - int(time.time() - current_time)
+        fetched_feature_table: Optional[FeatureTable] = self.get_feature_table(
+            name, project
+        )
+        if fetched_feature_table is not None:
+            feature_table = fetched_feature_table
+        else:
+            raise Exception(f"FeatureTable, {name} cannot be found.")
 
         # Check 1) Only parquet file format for FeatureTable batch source is supported
         if (

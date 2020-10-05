@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, MutableMapping, Optional
+from typing import Dict, List, MutableMapping, Optional, Union
 
 import yaml
 from google.protobuf import json_format
@@ -25,11 +25,11 @@ from feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
 from feast.core.FeatureTable_pb2 import FeatureTableMeta as FeatureTableMetaProto
 from feast.core.FeatureTable_pb2 import FeatureTableSpec as FeatureTableSpecProto
 from feast.data_source import (
-    BigQueryOptions,
+    BigQuerySource,
     DataSource,
-    FileOptions,
-    KafkaOptions,
-    KinesisOptions,
+    FileSource,
+    KafkaSource,
+    KinesisSource,
     SourceType,
 )
 from feast.feature import Feature
@@ -47,8 +47,8 @@ class FeatureTable:
         name: str,
         entities: List[str],
         features: List[Feature],
-        batch_source: Optional[DataSource] = None,
-        stream_source: Optional[DataSource] = None,
+        batch_source: Union[BigQuerySource, FileSource] = None,
+        stream_source: Optional[Union[KafkaSource, KinesisSource]] = None,
         max_age: Optional[Duration] = None,
         labels: Optional[MutableMapping[str, str]] = None,
     ):
@@ -275,46 +275,54 @@ class FeatureTable:
             and data_source.file_options.file_format
             and data_source.file_options.file_url
         ):
-            data_source_options = FileOptions(
+            data_source_proto = FileSource(
+                type=data_source.type,
+                field_mapping=data_source.field_mapping,
                 file_format=data_source.file_options.file_format,
                 file_url=data_source.file_options.file_url,
-            )
+                timestamp_column=data_source.timestamp_column,
+                date_partition_column=data_source.date_partition_column,
+            ).to_proto()
         elif source_type == "BATCH_BIGQUERY" and data_source.bigquery_options.table_ref:
-            data_source_options = BigQueryOptions(
+            data_source_proto = BigQuerySource(
+                type=data_source.type,
+                field_mapping=data_source.field_mapping,
                 table_ref=data_source.bigquery_options.table_ref,
-            )
+                timestamp_column=data_source.timestamp_column,
+                date_partition_column=data_source.date_partition_column,
+            ).to_proto()
         elif (
             source_type == "STREAM_KAFKA"
             and data_source.kafka_options.bootstrap_servers
             and data_source.kafka_options.topic
             and data_source.kafka_options.class_path
         ):
-            data_source_options = KafkaOptions(
+            data_source_proto = KafkaSource(
+                type=data_source.type,
+                field_mapping=data_source.field_mapping,
                 bootstrap_servers=data_source.kafka_options.bootstrap_servers,
                 class_path=data_source.kafka_options.class_path,
                 topic=data_source.kafka_options.topic,
-            )
+                timestamp_column=data_source.timestamp_column,
+                date_partition_column=data_source.date_partition_column,
+            ).to_proto()
         elif (
             source_type == "STREAM_KINESIS"
             and data_source.kinesis_options.class_path
             and data_source.kinesis_options.region
             and data_source.kinesis_options.stream_name
         ):
-            data_source_options = KinesisOptions(
+            data_source_proto = KinesisSource(
+                type=data_source.type,
+                field_mapping=data_source.field_mapping,
                 class_path=data_source.kinesis_options.class_path,
                 region=data_source.kinesis_options.region,
                 stream_name=data_source.kinesis_options.stream_name,
-            )
+                timestamp_column=data_source.timestamp_column,
+                date_partition_column=data_source.date_partition_column,
+            ).to_proto()
         else:
             raise ValueError("Could not identify the source type being added")
-
-        data_source_proto = DataSource(
-            type=data_source.type,
-            field_mapping=data_source.field_mapping,
-            options=data_source_options,
-            timestamp_column=data_source.timestamp_column,
-            date_partition_column=data_source.date_partition_column,
-        ).to_proto()
 
         return data_source_proto
 
