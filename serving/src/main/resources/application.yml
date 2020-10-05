@@ -75,7 +75,7 @@ feast:
       config:  # Store specific configuration.
         # GCP Project
         project_id: my_project
-        # BigQuery Dataset Id
+        # Name of the BigQuery dataset to use
         dataset_id: my_dataset
         # staging-location specifies the URI to store intermediate files for batch serving.
         # Feast Serving client is expected to have read access to this staging location
