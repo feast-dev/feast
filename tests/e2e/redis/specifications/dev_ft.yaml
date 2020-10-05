@@ -1,0 +1,38 @@
+spec:
+  name: dev_featuretable
+  entities:
+    - driver_id
+    - customer_id
+  features:
+    - name: dev_feature_float
+      valueType: FLOAT
+    - name: dev_feature_string
+      valueType: STRING
+      labels:
+        feature_key1: feature_val1
+  batchSource:
+    type: BATCH_FILE
+    fieldMapping:
+      dev_entity: dev_entity_field
+      dev_feature_float: dev_feature_float_field
+      dev_feature_string: dev_feature_string_field
+    timestampColumn: datetime_col
+    datePartitionColumn: datetime
+    file_options:
+      file_format: PARQUET
+      file_url: gs://example/feast/*
+  streamSource:
+    type: STREAM_KAFKA
+    field_mapping:
+      dev_entity: dev_entity_field
+      dev_feature_float: dev_feature_float_field
+      dev_feature_string: dev_feature_string_field
+    timestampColumn: datetime_col
+    kafka_options:
+      bootstrap_servers: "localhost:9094"
+      topic: test_topic
+      class_path: random/path/to/test
+  maxAge: 14400s
+  labels:
+    key1: val1
+    key2: val2

@@ -119,7 +119,8 @@ cd tests/e2e
 
 set +e
 export GOOGLE_APPLICATION_CREDENTIALS=/etc/gcloud/service-account.json
-pytest redis/* --enable_auth=${ENABLE_AUTH} --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+CORE_NO=$(nproc --all)
+pytest redis/parallel-ingest-redis-serving.py -n CORE_NO --dist=loadscope --enable_auth=${ENABLE_AUTH} --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 
 if [[ ${TEST_EXIT_CODE} != 0 ]]; then
