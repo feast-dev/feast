@@ -103,7 +103,7 @@ cd tests/e2e
 
 set +e
 CORE_NO=$(nproc --all)
-pytest redis/parallel-ingest-redis-serving.py -n CORE_NO --dist=loadscope --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+pytest redis/parallel-ingest-redis-serving.py -n ${CORE_NO} --dist=loadscope --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 
 if [[ ${TEST_EXIT_CODE} != 0 ]]; then
