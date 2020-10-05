@@ -68,7 +68,7 @@ from feast.grpc import auth as feast_auth
 from feast.grpc.grpc import create_grpc_channel
 from feast.loaders.ingest import (
     BATCH_INGESTION_PRODUCTION_TIMEOUT,
-    check_field_mappings,
+    _check_field_mappings,
 )
 from feast.serving.ServingService_pb2 import GetFeastServingInfoRequest
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
@@ -625,7 +625,7 @@ class Client:
             >>>     )
             >>> client.set_project("project1")
             >>>
-            >>> driver_ft = client.get_feature_table(name="driver")
+            >>> driver_ft = client.get_feature_table("driver")
             >>> client.ingest(driver_ft, ft_df)
         """
 
@@ -670,7 +670,7 @@ class Client:
             )
 
         # Check 2) Check if FeatureTable batch source field mappings can be found in provided source table
-        check_field_mappings(
+        _check_field_mappings(
             column_names, name, feature_table.batch_source.field_mapping
         )
 

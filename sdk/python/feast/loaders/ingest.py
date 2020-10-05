@@ -8,7 +8,7 @@ BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS = 300
 BATCH_INGESTION_PRODUCTION_TIMEOUT = 120  # type: int
 
 
-def check_field_mappings(
+def _check_field_mappings(
     column_names: List[str],
     feature_table_name: str,
     feature_table_field_mappings: Dict[str, str],

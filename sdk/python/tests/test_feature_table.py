@@ -21,7 +21,7 @@ import pytest
 
 from feast.client import Client
 from feast.core import CoreService_pb2_grpc as Core
-from feast.data_source import DataSource, FileOptions, KafkaOptions, SourceType
+from feast.data_source import DataSource, FileOptions, KafkaOptions
 from feast.feature import Feature
 from feast.feature_table import FeatureTable
 from feast.value_type import ValueType
@@ -55,7 +55,7 @@ class TestFeatureTable:
     def test_feature_table_import_export_yaml(self):
 
         batch_source = DataSource(
-            type=SourceType(1).name,
+            type="BATCH_FILE",
             field_mapping={
                 "ride_distance": "ride_distance",
                 "ride_duration": "ride_duration",
@@ -66,7 +66,7 @@ class TestFeatureTable:
         )
 
         stream_source = DataSource(
-            type=SourceType(3).name,
+            type="STREAM_KAFKA",
             field_mapping={
                 "ride_distance": "ride_distance",
                 "ride_duration": "ride_duration",
@@ -82,13 +82,13 @@ class TestFeatureTable:
         test_feature_table = FeatureTable(
             name="car_driver",
             features=[
-                Feature(name="ride_distance", dtype=ValueType.FLOAT).to_proto(),
-                Feature(name="ride_duration", dtype=ValueType.STRING).to_proto(),
+                Feature(name="ride_distance", dtype=ValueType.FLOAT),
+                Feature(name="ride_duration", dtype=ValueType.STRING),
             ],
             entities=["car_driver_entity"],
             labels={"team": "matchmaking"},
-            batch_source=batch_source.to_proto(),
-            stream_source=stream_source.to_proto(),
+            batch_source=batch_source,
+            stream_source=stream_source,
         )
 
         # Create a string YAML representation of the feature table

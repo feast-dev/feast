@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, MutableMapping, Optional, Union
+from typing import Dict, List, MutableMapping, Optional
 
 import yaml
 from google.protobuf import json_format
@@ -20,6 +20,7 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToDict, MessageToJson
 from google.protobuf.timestamp_pb2 import Timestamp
 
+from feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
 from feast.core.FeatureTable_pb2 import FeatureTableMeta as FeatureTableMetaProto
 from feast.core.FeatureTable_pb2 import FeatureTableSpec as FeatureTableSpecProto
@@ -33,6 +34,7 @@ from feast.data_source import (
 )
 from feast.feature import Feature
 from feast.loaders import yaml as feast_yaml
+from feast.value_type import ValueType
 
 
 class FeatureTable:
@@ -43,8 +45,8 @@ class FeatureTable:
     def __init__(
         self,
         name: str,
-        entities: Union[str, List[str]],
-        features: Union[Feature, List[Feature]],
+        entities: List[str],
+        features: List[Feature],
         batch_source: Optional[DataSource] = None,
         stream_source: Optional[DataSource] = None,
         max_age: Optional[Duration] = None,
@@ -52,9 +54,19 @@ class FeatureTable:
     ):
         self._name = name
         self._entities = entities
-        self._features = features
-        self._batch_source = batch_source
-        self._stream_source = stream_source
+        self._features = [
+            feature.to_proto() for feature in features if isinstance(feature, Feature)
+        ]
+        self._batch_source = (
+            batch_source.to_proto()
+            if isinstance(batch_source, DataSource)
+            else batch_source
+        )
+        self._stream_source = (
+            stream_source.to_proto()
+            if isinstance(stream_source, DataSource)
+            else stream_source
+        )
         if labels is None:
             self._labels = dict()  # type: MutableMapping[str, str]
         else:
@@ -141,7 +153,7 @@ class FeatureTable:
         return self._batch_source
 
     @batch_source.setter
-    def batch_source(self, batch_source: DataSource):
+    def batch_source(self, batch_source: DataSourceProto):
         """
         Sets the batch source of this feature table
         """
@@ -155,7 +167,7 @@ class FeatureTable:
         return self._stream_source
 
     @stream_source.setter
-    def stream_source(self, stream_source: DataSource):
+    def stream_source(self, stream_source: DataSourceProto):
         """
         Sets the stream source of this feature table
         """
@@ -322,7 +334,11 @@ class FeatureTable:
             name=feature_table_proto.spec.name,
             entities=[entity for entity in feature_table_proto.spec.entities],
             features=[
-                Feature.from_proto(feature).to_proto()
+                Feature(
+                    name=feature.name,
+                    dtype=ValueType(feature.value_type),
+                    labels=feature.labels,
+                )
                 for feature in feature_table_proto.spec.features
             ],
             labels=feature_table_proto.spec.labels,

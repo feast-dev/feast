@@ -39,7 +39,7 @@ from feast.core.Feature_pb2 import FeatureSpecV2 as FeatureSpecProto
 from feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
 from feast.core.FeatureTable_pb2 import FeatureTableMeta as FeatureTableMetaProto
 from feast.core.FeatureTable_pb2 import FeatureTableSpec as FeatureTableSpecProto
-from feast.data_source import DataSource, FileOptions, KafkaOptions, SourceType
+from feast.data_source import DataSource, FileOptions, KafkaOptions
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_table import FeatureTable
@@ -457,7 +457,7 @@ class TestClient:
                         ],
                         entities=["my_entity_1"],
                         batch_source=DataSourceProto(
-                            type=SourceType(1).name,
+                            type="BATCH_FILE",
                             field_mapping={
                                 "ride_distance": "ride_distance",
                                 "ride_duration": "ride_duration",
@@ -498,7 +498,7 @@ class TestClient:
         )
 
         batch_source = DataSourceProto(
-            type=SourceType(1).name,
+            type="BATCH_FILE",
             field_mapping={
                 "ride_distance": "ride_distance",
                 "ride_duration": "ride_duration",
@@ -569,7 +569,7 @@ class TestClient:
 
         # Create Feature Tables
         batch_source = DataSource(
-            type=SourceType(1).name,
+            type="BATCH_FILE",
             field_mapping={
                 "ride_distance": "ride_distance",
                 "ride_duration": "ride_duration",
@@ -580,7 +580,7 @@ class TestClient:
         )
 
         stream_source = DataSource(
-            type=SourceType(3).name,
+            type="STREAM_KAFKA",
             field_mapping={
                 "ride_distance": "ride_distance",
                 "ride_duration": "ride_duration",
@@ -596,17 +596,15 @@ class TestClient:
         ft1 = FeatureTable(
             name="my-feature-table-1",
             features=[
-                Feature(name="fs1-my-feature-1", dtype=ValueType.INT64).to_proto(),
-                Feature(name="fs1-my-feature-2", dtype=ValueType.STRING).to_proto(),
-                Feature(
-                    name="fs1-my-feature-3", dtype=ValueType.STRING_LIST
-                ).to_proto(),
-                Feature(name="fs1-my-feature-4", dtype=ValueType.BYTES_LIST).to_proto(),
+                Feature(name="fs1-my-feature-1", dtype=ValueType.INT64),
+                Feature(name="fs1-my-feature-2", dtype=ValueType.STRING),
+                Feature(name="fs1-my-feature-3", dtype=ValueType.STRING_LIST),
+                Feature(name="fs1-my-feature-4", dtype=ValueType.BYTES_LIST),
             ],
             entities=["fs1-my-entity-1"],
             labels={"team": "matchmaking"},
-            batch_source=batch_source.to_proto(),
-            stream_source=stream_source.to_proto(),
+            batch_source=batch_source,
+            stream_source=stream_source,
         )
 
         # Register Feature Table with Core
