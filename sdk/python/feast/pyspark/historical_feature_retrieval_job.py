@@ -8,7 +8,7 @@ from pyspark.sql.functions import col, expr, monotonically_increasing_id, row_nu
 
 def as_of_join(
     entity: DataFrame,
-    join_keys: List[str],
+    entity_keys: List[str],
     feature_table: DataFrame,
     features: List[str],
     feature_prefix: str = "",
@@ -16,24 +16,26 @@ def as_of_join(
 ) -> DataFrame:
     """Perform an as of join between entity and feature table, given a maximum age tolerance.
     Join conditions:
-    1. Join keys values match.
+    1. Entity primary key(s) value matches.
     2. Feature event timestamp is the closest match possible to the entity event timestamp,
        but must not be more recent than the entity event timestamp, and the difference must
        not be greater than max_age, unless max_age is not specified.
     3. If more than one feature table rows satisfy condition 1 and 2, feature row with the
        most recent created timestamp will be chosen.
+    4. If none of the above conditions are satisfied, the feature rows will have null values.
 
     Args:
         entity (DataFrame):
             Entity dataframe. Must contain the column event_timestamp.
-        join_keys (List[str]):
-            Column names for the join keys.
+        entity_keys (List[str]):
+            Primary keys for the entity.
         feature_table (DataFrame):
             Feature table dataframe. Must contain the columns event_timestamp and created_timestamp.
         features (List[str]):
             The feature columns which should be present in the result dataframe.
         feature_prefix (str):
-            Feature column prefix for the result dataframe.
+            Feature column prefix for the result dataframe. Useful for cases where the entity dataframe
+            contains one or more columns that share the same name as the features.
         max_age (str):
             Tolerance for the feature event timestamp recency.
 
@@ -80,7 +82,9 @@ def as_of_join(
 
     projection = [
         col(col_name).alias(f"{feature_prefix}{col_name}")
-        for col_name in join_keys + features + ["event_timestamp", "created_timestamp"]
+        for col_name in entity_keys
+        + features
+        + ["event_timestamp", "created_timestamp"]
     ]
 
     selected_feature_table = feature_table.select(projection)
@@ -95,7 +99,7 @@ def as_of_join(
             >= entity_with_id.event_timestamp - expr(f"INTERVAL {max_age}")
         )
 
-    for key in join_keys:
+    for key in entity_keys:
         join_cond = join_cond & (
             entity_with_id[key] == selected_feature_table[f"{feature_prefix}{key}"]
         )
@@ -103,12 +107,12 @@ def as_of_join(
     conditional_join = entity_with_id.join(
         selected_feature_table, join_cond, "leftOuter"
     )
-    for key in join_keys:
+    for key in entity_keys:
         conditional_join = conditional_join.drop(
             selected_feature_table[f"{feature_prefix}{key}"]
         )
 
-    window = Window.partitionBy("_row_nr", *join_keys).orderBy(
+    window = Window.partitionBy("_row_nr", *entity_keys).orderBy(
         col(feature_event_timestamp).desc(), col(feature_created_timestamp).desc()
     )
     filter_most_recent_feature_timestamp = conditional_join.withColumn(
@@ -135,6 +139,29 @@ class TimestampColumnError(Exception):
 def verify_schema(
     df: DataFrame, expected_dtypes: Dict[str, str], is_feature_table: bool = False
 ):
+    """Verify if a dataframe has correct data types for as of joins.
+    Verification criteria:
+    1. There is a column named `event_timestamp` of `Timestamp` type.
+    2. For feature table, `created_timestamp` must be present as well.
+    3. The dataframe should contains all the columns specified in `expected_dtypes`,
+       and has the same data type.
+
+    Args:
+        df (DataFrame):
+            Input dataframe.
+        expected_dtypes (Dict[str, str]):
+            A map which defines the expected data types. The key is the column that
+            must be present in the dataframe, whereas the corresponding value is the
+            expected data types of that column.
+        is_feature_table (bool):
+            Whether the input dataframe represents a feature table.
+
+    Raises:
+        MissingColumnError: If one or more required columns are missing.
+        TimestampColumnError: If the timestamp column has the wrong type.
+        SchemaMismatchError: If one or more column has the wrong data types as
+                             compared to `expected_dtypes`"""
+
     actual_dtypes = dict(df.dtypes)
 
     if not set(expected_dtypes.keys()).issubset(set(actual_dtypes.keys())):
@@ -242,7 +269,7 @@ def join_entity_to_feature_tables(
     return joined
 
 
-def batch_retrieval(spark: SparkSession, conf: Dict) -> DataFrame:
+def retrieve_historical_features(spark: SparkSession, conf: Dict) -> DataFrame:
     """Retrieve batch features based on given configuration.
 
     Args:
@@ -361,7 +388,7 @@ def batch_retrieval(spark: SparkSession, conf: Dict) -> DataFrame:
 
 
 def start_job(spark: SparkSession, conf: Dict):
-    result = batch_retrieval(spark, conf)
+    result = retrieve_historical_features(spark, conf)
     output = conf["output"]
     result.write.format(output["format"]).options(**output.get("options", {})).mode(
         "overwrite"

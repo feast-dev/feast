@@ -13,13 +13,13 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-from feast.pyspark.batch_retrieval_job import (
+from feast.pyspark.historical_feature_retrieval_job import (
     MissingColumnError,
     SchemaMismatchError,
     TimestampColumnError,
     as_of_join,
-    batch_retrieval,
     join_entity_to_feature_tables,
+    retrieve_historical_features,
     verify_schema,
 )
 
@@ -333,7 +333,7 @@ def test_join_with_composite_entity(
     assert_dataframe_equal(joined_df, expected_joined_df)
 
 
-def test_entity_filter(
+def test_select_subset_of_columns_as_entity_primary_keys(
     spark: SparkSession,
     composite_entity_schema: StructType,
     customer_feature_schema: StructType,
@@ -494,7 +494,7 @@ def test_multiple_join(
     assert_dataframe_equal(joined_df, expected_joined_df)
 
 
-def test_batch_retrieval(spark):
+def test_historical_feature_retrieval(spark):
     test_data_dir = path.join(pathlib.Path(__file__).parent.absolute(), "data")
     batch_retrieval_conf = {
         "entity": {
@@ -534,7 +534,7 @@ def test_batch_retrieval(spark):
         ],
     }
 
-    joined_df = batch_retrieval(spark, batch_retrieval_conf)
+    joined_df = retrieve_historical_features(spark, batch_retrieval_conf)
 
     expected_joined_schema = StructType(
         [
@@ -549,7 +549,9 @@ def test_batch_retrieval(spark):
     expected_joined_data = [
         (1001, 8001, datetime(year=2020, month=9, day=2), 100.0, 300,),
         (1001, 8002, datetime(year=2020, month=9, day=2), 100.0, 500,),
+        (1001, 8002, datetime(year=2020, month=9, day=3), None, 500,),
         (2001, 8002, datetime(year=2020, month=9, day=3), None, 500,),
+        (2001, 8002, datetime(year=2020, month=9, day=4), None, 500,),
     ]
     expected_joined_df = spark.createDataFrame(
         spark.sparkContext.parallelize(expected_joined_data), expected_joined_schema
@@ -558,7 +560,7 @@ def test_batch_retrieval(spark):
     assert_dataframe_equal(joined_df, expected_joined_df)
 
 
-def test_batch_retrieval_with_mapping(spark):
+def test_historical_feature_retrieval_with_mapping(spark):
     test_data_dir = path.join(pathlib.Path(__file__).parent.absolute(), "data")
     batch_retrieval_conf = {
         "entity": {
@@ -590,7 +592,7 @@ def test_batch_retrieval_with_mapping(spark):
         ],
     }
 
-    joined_df = batch_retrieval(spark, batch_retrieval_conf)
+    joined_df = retrieve_historical_features(spark, batch_retrieval_conf)
 
     expected_joined_schema = StructType(
         [
@@ -602,6 +604,10 @@ def test_batch_retrieval_with_mapping(spark):
 
     expected_joined_data = [
         (1001, datetime(year=2020, month=9, day=2), 200),
+        (1001, datetime(year=2020, month=9, day=3), 200),
+        (2001, datetime(year=2020, month=9, day=4), 600),
+        (2001, datetime(year=2020, month=9, day=4), 600),
+        (3001, datetime(year=2020, month=9, day=4), 700),
     ]
     expected_joined_df = spark.createDataFrame(
         spark.sparkContext.parallelize(expected_joined_data), expected_joined_schema
