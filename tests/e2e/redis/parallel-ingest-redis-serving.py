@@ -80,15 +80,11 @@ class TestBasicIngestionRetrieval:
 
         # GetFeatureTable Check
         actual_get_feature_table = client.get_feature_table(name="dev_featuretable")
-        assert actual_get_feature_table.name == self.basic_ft_spec.name
-        assert actual_get_feature_table.entities == self.basic_ft_spec.entities
-        assert actual_get_feature_table.features == self.basic_ft_spec.features
+        assert actual_get_feature_table == self.basic_ft_spec
 
         # ListFeatureTables Check
         actual_list_feature_table = client.list_feature_tables()[0]
-        assert actual_list_feature_table.name == self.basic_ft_spec.name
-        assert actual_list_feature_table.entities == self.basic_ft_spec.entities
-        assert actual_list_feature_table.features == self.basic_ft_spec.features
+        assert actual_list_feature_table == self.basic_ft_spec
 
     def test_basic_retrieval(self, client):
         # TODO: Add ingest and retrieval check
@@ -174,15 +170,11 @@ class TestAllTypesIngestionRetrieval:
 
         # GetFeatureTable Check
         actual_get_feature_table = client.get_feature_table(name="alltypes")
-        assert actual_get_feature_table.name == self.alltypes_ft_spec.name
-        assert actual_get_feature_table.entities == self.alltypes_ft_spec.entities
-        assert actual_get_feature_table.features == self.alltypes_ft_spec.features
+        assert actual_get_feature_table == self.alltypes_ft_spec
 
         # ListFeatureTables Check
         actual_list_feature_table = client.list_feature_tables()[0]
-        assert actual_list_feature_table.name == self.alltypes_ft_spec.name
-        assert actual_list_feature_table.entities == self.alltypes_ft_spec.entities
-        assert actual_list_feature_table.features == self.alltypes_ft_spec.features
+        assert actual_list_feature_table == self.alltypes_ft_spec
 
     def test_alltypes_retrieval(self, client):
         # TODO: Add ingest and retrieval check
