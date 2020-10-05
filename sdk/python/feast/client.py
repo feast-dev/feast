@@ -588,11 +588,11 @@ class Client:
         timeout: int = BATCH_INGESTION_PRODUCTION_TIMEOUT,
     ) -> None:
         """
-        Batch load feature data into batch source of a specific feature table.
+        Batch load feature data into a FeatureTable.
 
         Args:
             feature_table (typing.Union[str, feast.feature_table.FeatureTable]):
-                Feature table object or the string name of the feature table
+                FeatureTable object or the string name of the feature table
 
             source (typing.Union[pd.DataFrame, str]):
                 Either a file path or Pandas Dataframe to ingest into Feast
@@ -634,13 +634,11 @@ class Client:
         if isinstance(feature_table, FeatureTable):
             name = feature_table.name
 
-        # Read table and get row count
         dir_path, dest_path, column_names = _read_table_from_source(
             source, chunk_size, max_workers
         )
 
         current_time = time.time()
-        print("Waiting for feature table to be ready for ingestion...")
         while True:
             if timeout is not None and time.time() - current_time >= timeout:
                 raise TimeoutError("Timed out waiting for feature table to be ready")

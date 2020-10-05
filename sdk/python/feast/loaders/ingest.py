@@ -28,7 +28,9 @@ def _check_field_mappings(
             f'Provided data source does not contain entity "datetime" in columns {column_names}'
         )
 
-    specified_field_mappings = [v for k, v in feature_table_field_mappings.items()]
+    specified_field_mappings = list()
+    for k, v in feature_table_field_mappings.items():
+        specified_field_mappings.append(v)
 
     is_valid = all(col_name in column_names for col_name in specified_field_mappings)
 

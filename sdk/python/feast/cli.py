@@ -215,6 +215,12 @@ def feature_table():
 def _get_labels_dict(label_str: str) -> Dict[str, str]:
     """
     Converts CLI input labels string to dictionary format if provided string is valid.
+
+    Args:
+        label_str: A comma-separated string of key-value pairs
+
+    Returns:
+        Dict of key-value label pairs
     """
     labels_dict: Dict[str, str] = {}
     labels_kv = label_str.split(",")

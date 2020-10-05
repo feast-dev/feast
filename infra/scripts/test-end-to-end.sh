@@ -120,7 +120,7 @@ cd tests/e2e
 set +e
 export GOOGLE_APPLICATION_CREDENTIALS=/etc/gcloud/service-account.json
 CORE_NO=$(nproc --all)
-pytest src/* -n ${CORE_NO} --dist=loadscope --enable_auth=${ENABLE_AUTH} --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+pytest *.py -n ${CORE_NO} --dist=loadscope --enable_auth=${ENABLE_AUTH} --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 
 if [[ ${TEST_EXIT_CODE} != 0 ]]; then
