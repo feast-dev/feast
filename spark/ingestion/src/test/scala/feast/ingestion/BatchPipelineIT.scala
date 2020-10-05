@@ -273,15 +273,14 @@ class BatchPipelineIT extends UnitSpec with ForAllTestContainer {
         entities = Seq(Field("entity", ValueType.Enum.STRING)),
         features = Seq(
           Field("new_feature1", ValueType.Enum.INT32),
-          Field("new_feature2", ValueType.Enum.FLOAT)
+          Field("feature2", ValueType.Enum.FLOAT)
         )
       ),
       source = FileSource(
         tempPath,
         Map(
           "entity"       -> "customer",
-          "new_feature1" -> "feature1",
-          "new_feature2" -> "feature2"
+          "new_feature1" -> "feature1"
         ),
         "eventTimestamp"
       )
@@ -297,7 +296,7 @@ class BatchPipelineIT extends UnitSpec with ForAllTestContainer {
       storedValues should beStoredRow(
         Map(
           featureKeyEncoder("new_feature1") -> r.feature1,
-          featureKeyEncoder("new_feature2") -> r.feature2,
+          featureKeyEncoder("feature2")     -> r.feature2,
           "_ts:test-fs"                     -> r.eventTimestamp
         )
       )
