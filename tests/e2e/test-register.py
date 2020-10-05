@@ -5,7 +5,7 @@ import pytest
 from google.protobuf.duration_pb2 import Duration
 
 from feast.client import Client
-from feast.data_source import DataSource, FileOptions
+from feast.data_source import FileSource, KafkaSource
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_table import FeatureTable
@@ -48,6 +48,46 @@ def driver_entity():
 
 
 @pytest.fixture
+def basic_featuretable():
+    batch_source = FileSource(
+        type="BATCH_FILE",
+        field_mapping={
+            "dev_entity": "dev_entity_field",
+            "dev_feature_float": "dev_feature_float_field",
+            "dev_feature_string": "dev_feature_string_field",
+        },
+        file_format="PARQUET",
+        file_url="gs://example/feast/*",
+        timestamp_column="datetime_col",
+        date_partition_column="datetime",
+    )
+    stream_source = KafkaSource(
+        type="STREAM_KAFKA",
+        field_mapping={
+            "dev_entity": "dev_entity_field",
+            "dev_feature_float": "dev_feature_float_field",
+            "dev_feature_string": "dev_feature_string_field",
+        },
+        bootstrap_servers="localhost:9094",
+        class_path="random/path/to/class",
+        topic="test_topic",
+        timestamp_column="datetime_col",
+    )
+    return FeatureTable(
+        name="basic_featuretable",
+        entities=["driver_id", "customer_id"],
+        features=[
+            Feature(name="dev_feature_float", dtype=ValueType.FLOAT),
+            Feature(name="dev_feature_string", dtype=ValueType.STRING),
+        ],
+        max_age=Duration(seconds=3600),
+        batch_source=batch_source,
+        stream_source=stream_source,
+        labels={"key1": "val1", "key2": "val2"},
+    )
+
+
+@pytest.fixture
 def alltypes_entity():
     return Entity(
         name="alltypes_id",
@@ -59,13 +99,14 @@ def alltypes_entity():
 
 @pytest.fixture
 def alltypes_featuretable():
-    batch_source = DataSource(
+    batch_source = FileSource(
         type="BATCH_FILE",
         field_mapping={
             "ride_distance": "ride_distance",
             "ride_duration": "ride_duration",
         },
-        options=FileOptions(file_format="parquet", file_url="file://feast/*"),
+        file_format="parquet",
+        file_url="file://feast/*",
         timestamp_column="ts_col",
         date_partition_column="date_partition_col",
     )
@@ -94,8 +135,12 @@ def alltypes_featuretable():
     )
 
 
-def test_get_list_basic(client: Client, customer_entity: Entity, driver_entity: Entity):
-    basic_ft_spec = FeatureTable.from_yaml(f"{DIR_PATH}/specifications/dev_ft.yaml")
+def test_get_list_basic(
+    client: Client,
+    customer_entity: Entity,
+    driver_entity: Entity,
+    basic_featuretable: FeatureTable,
+):
 
     # ApplyEntity
     client.apply_entity(customer_entity)
@@ -117,17 +162,17 @@ def test_get_list_basic(client: Client, customer_entity: Entity, driver_entity: 
     assert len(actual_matchmaking_entities) == 1
 
     # ApplyFeatureTable
-    client.apply_feature_table(basic_ft_spec)
+    client.apply_feature_table(basic_featuretable)
 
     # GetFeatureTable Check
-    actual_get_feature_table = client.get_feature_table(name="dev_featuretable")
-    assert actual_get_feature_table == basic_ft_spec
+    actual_get_feature_table = client.get_feature_table(name="basic_featuretable")
+    assert actual_get_feature_table == basic_featuretable
 
     # ListFeatureTables Check
     actual_list_feature_table = [
-        ft for ft in client.list_feature_tables() if ft.name == "dev_featuretable"
+        ft for ft in client.list_feature_tables() if ft.name == "basic_featuretable"
     ][0]
-    assert actual_list_feature_table == basic_ft_spec
+    assert actual_list_feature_table == basic_featuretable
 
 
 def test_get_list_alltypes(
