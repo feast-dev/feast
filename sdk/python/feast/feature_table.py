@@ -31,7 +31,7 @@ from feast.data_source import (
     KinesisOptions,
     SourceType,
 )
-from feast.feature_v2 import FeatureV2
+from feast.feature import Feature
 from feast.loaders import yaml as feast_yaml
 
 
@@ -44,7 +44,7 @@ class FeatureTable:
         self,
         name: str,
         entities: Union[str, List[str]],
-        features: Union[FeatureV2, List[FeatureV2]],
+        features: Union[Feature, List[Feature]],
         batch_source: Optional[DataSource] = None,
         stream_source: Optional[DataSource] = None,
         max_age: Optional[Duration] = None,
@@ -320,7 +320,7 @@ class FeatureTable:
             name=feature_table_proto.spec.name,
             entities=[entity for entity in feature_table_proto.spec.entities],
             features=[
-                FeatureV2.from_proto(feature).to_proto()
+                Feature.from_proto(feature).to_proto()
                 for feature in feature_table_proto.spec.features
             ],
             labels=feature_table_proto.spec.labels,
@@ -420,7 +420,7 @@ class FeatureTable:
         Deep replaces one feature table with another
 
         Args:
-            feature_table: Feature set to use as a source of configuration
+            feature_table: Feature table to use as a source of configuration
         """
 
         self.name = feature_table.name

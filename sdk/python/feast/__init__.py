@@ -1,10 +1,17 @@
 from pkg_resources import DistributionNotFound, get_distribution
 
 from .client import Client
+from .data_source import (
+    BigQueryOptions,
+    DataSource,
+    FileOptions,
+    KafkaOptions,
+    KinesisOptions,
+    SourceType,
+)
 from .entity import Entity
 from .feature import Feature
-from .feature_set import FeatureSet
-from .source import KafkaSource, Source
+from .feature_table import FeatureTable
 from .value_type import ValueType
 
 try:
@@ -16,9 +23,13 @@ except DistributionNotFound:
 __all__ = [
     "Client",
     "Entity",
+    "DataSource",
+    "BigQueryOptions",
+    "FileOptions",
+    "KafkaOptions",
+    "KinesisOptions",
     "Feature",
-    "FeatureSet",
-    "Source",
-    "KafkaSource",
+    "FeatureTable",
+    "SourceType",
     "ValueType",
 ]

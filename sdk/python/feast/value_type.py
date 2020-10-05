@@ -19,7 +19,7 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 
 class ValueType(enum.Enum):
     """
-    Feature value type. Used to define data types in Feature Sets.
+    Feature value type. Used to define data types in Feature Tables.
     """
 
     UNKNOWN = 0
