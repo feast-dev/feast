@@ -72,7 +72,6 @@ class TestBasicIngestionRetrieval:
         actual_matchmaking_entities = client.list_entities(
             labels=matchmaking_filtering_labels
         )
-
         assert len(actual_common_entities) == 2
         assert len(actual_matchmaking_entities) == 1
 
@@ -168,8 +167,6 @@ class TestAllTypesIngestionRetrieval:
         actual_alltypes_entities = client.list_entities(
             labels=alltypes_filtering_labels
         )
-
-        assert len(client.list_entities()) == 1
         assert len(actual_alltypes_entities) == 1
 
         # ApplyFeatureTable
