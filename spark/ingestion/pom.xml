@@ -41,25 +41,23 @@
 
 
     <dependencies>
-            <dependency>
-                <groupId>dev.feast</groupId>
-                <artifactId>datatypes-java</artifactId>
-                <version>${project.version}</version>
-            </dependency>
+        <dependency>
+            <groupId>dev.feast</groupId>
+            <artifactId>datatypes-java</artifactId>
+            <version>${project.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>*</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
 
-        <!--        <dependency>-->
-        <!--            <groupId>dev.feast</groupId>-->
-        <!--            <artifactId>feast-common</artifactId>-->
-        <!--            <version>${project.version}</version>-->
-        <!--        </dependency>-->
-
-        <!--        <dependency>-->
-        <!--            <groupId>dev.feast</groupId>-->
-        <!--            <artifactId>feast-common-test</artifactId>-->
-        <!--            <version>${project.version}</version>-->
-        <!--            <scope>test</scope>-->
-        <!--        </dependency>-->
-
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>3.12.2</version>
+        </dependency>
 
         <dependency>
             <groupId>org.scala-lang</groupId>
@@ -68,21 +66,30 @@
         </dependency>
 
         <dependency>
+            <groupId>org.scala-lang.modules</groupId>
+            <artifactId>scala-collection-compat_${scala.version}</artifactId>
+            <version>2.2.0</version>
+        </dependency>
+
+        <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_${scala.version}</artifactId>
             <version>${spark.version}</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-streaming_${scala.version}</artifactId>
             <version>${spark.version}</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_${scala.version}</artifactId>
             <version>${spark.version}</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -91,18 +98,12 @@
             <version>3.0.16</version>
         </dependency>
 
-
-        <!--        <dependency>-->
-<!--            <groupId>org.apache.spark</groupId>-->
-<!--            <artifactId>spark-sql-kafka-0-10_${scala.version}</artifactId>-->
-<!--            <version>${spark.version}</version>-->
-<!--        </dependency>-->
-
-<!--        <dependency>-->
-<!--            <groupId>org.apache.spark</groupId>-->
-<!--            <artifactId>spark-streaming-kafka-0-10_${scala.version}</artifactId>-->
-<!--            <version>${spark.version}</version>-->
-<!--        </dependency>-->
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-sql-kafka-0-10_${scala.version}</artifactId>
+            <version>${spark.version}</version>
+            <scope>provided</scope>
+        </dependency>
 
         <dependency>
             <groupId>com.github.scopt</groupId>
@@ -110,22 +111,11 @@
             <version>3.7.1</version>
         </dependency>
 
-
-        <dependency>
-            <groupId>com.thesamet.scalapb</groupId>
-            <artifactId>sparksql-scalapb_${scala.version}</artifactId>
-            <version>0.10.4</version>
-        </dependency>
-
         <dependency>
             <groupId>com.google.cloud.spark</groupId>
             <artifactId>spark-bigquery_${scala.version}</artifactId>
             <version>0.17.2</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.google.cloud</groupId>
-            <artifactId>google-cloud-bigquery</artifactId>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -176,6 +166,7 @@
             <groupId>com.dimafeng</groupId>
             <artifactId>testcontainers-scala-scalatest_${scala.version}</artifactId>
             <version>0.38.3</version>
+            <scope>test</scope>
         </dependency>
 
     </dependencies>
@@ -255,6 +246,35 @@
                         <goals>
                             <goal>compile</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <relocations>
+                                <relocation>
+                                    <pattern>com.google.protobuf</pattern>
+                                    <shadedPattern>com.google.protobuf.vendor</shadedPattern>
+                                </relocation>
+                            </relocations>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

@@ -54,7 +54,7 @@ trait BasePipeline {
           )
           .set("spark.metrics.conf.*.sink.statsd.host", c.host)
           .set("spark.metrics.conf.*.sink.statsd.port", c.port.toString)
-          .set("spark.metrics.conf.*.sink.statsd.period", "1")
+          .set("spark.metrics.conf.*.sink.statsd.period", "30")
           .set("spark.metrics.conf.*.sink.statsd.unit", "seconds")
           .set("spark.metrics.namespace", jobConfig.mode.toString)
     }

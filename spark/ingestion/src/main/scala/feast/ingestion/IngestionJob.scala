@@ -29,7 +29,8 @@ object IngestionJob {
     new JavaEnumNameSerializer[feast.proto.types.ValueProto.ValueType.Enum]()
 
   val parser = new scopt.OptionParser[IngestionJobConfig]("IngestionJon") {
-    head("feast.ingestion.IngestionJob", "0.8")
+    // ToDo: read version from Manifest
+    head("feast.ingestion.IngestionJob", "0.8-SNAPSHOT")
 
     opt[Modes]("mode")
       .action((x, c) => c.copy(mode = x))

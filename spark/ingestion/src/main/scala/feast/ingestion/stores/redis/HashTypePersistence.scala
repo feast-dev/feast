@@ -25,7 +25,14 @@ import com.google.protobuf.Timestamp
 import feast.ingestion.utils.TypeConversion
 import scala.util.hashing.MurmurHash3
 
-class HashTypePersistence(config: SparkRedisConfig) extends Serializable {
+/**
+  * Use Redis hash type as storage layout. Every feature is stored as separate entry in Hash.
+  * Also additional `timestamp` column is stored per FeatureTable to track update time.
+  *
+  * Keys are hashed as murmur3(`featureTableName` : `featureName`).
+  * Values are serialized with protobuf (`ValueProto`).
+  */
+class HashTypePersistence(config: SparkRedisConfig) extends Persistence with Serializable {
   def encodeRow(
       keyColumns: Array[String],
       timestampField: String,

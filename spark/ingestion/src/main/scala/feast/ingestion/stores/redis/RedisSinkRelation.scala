@@ -27,6 +27,15 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.{DataFrame, Row, SQLContext}
 
+/**
+  * High-level writer to Redis. Relies on `Persistence` implementation for actual storage layout.
+  * Here we define general flow:
+  *
+  * 1. Deduplicate rows within one batch (group by key and get only latest (by timestamp))
+  * 2. Read last-stored timestamp from Redis
+  * 3. Check if current timestamp is more recent than already saved one
+  * 4. Save to storage if it's the case
+  */
 class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisConfig)
     extends BaseRelation
     with InsertableRelation
@@ -43,9 +52,10 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
 
   override def schema: StructType = ???
 
-  val persistence = new HashTypePersistence(config)
+  val persistence: Persistence = new HashTypePersistence(config)
 
   override def insert(data: DataFrame, overwrite: Boolean): Unit = {
+    // repartition for deduplication
     val dataToStore =
       if (config.repartitionByEntity)
         data.repartition(config.entityColumns.map(col): _*)
@@ -54,11 +64,13 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
     dataToStore.foreachPartition { partition: Iterator[Row] =>
       // grouped iterator to only allocate memory for a portion of rows
       partition.grouped(config.iteratorGroupingSize).foreach { batch =>
+        // group by key and keep only latest row per each key
         val rowsWithKey: Map[String, Row] =
           compactRowsToLatestTimestamp(batch.map(row => dataKeyId(row) -> row)).toMap
 
         groupKeysByNode(redisConfig.hosts, rowsWithKey.keysIterator).foreach { case (node, keys) =>
           val conn = node.connect()
+          // retrieve latest stored timestamp per key
           val timestamps = mapWithPipeline(conn, keys) { (pipeline, key) =>
             persistence.getTimestamp(pipeline, key, timestampField)
           }
@@ -104,6 +116,9 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
     .values
     .map(_.maxBy(_._2.getAs[java.sql.Timestamp](config.timestampColumn).getTime))
 
+  /**
+    * Key is built from entities columns values with prefix of entities columns names.
+    */
   private def dataKeyId(row: Row): String = {
     val sortedEntities = config.entityColumns.sorted
     val entityKey      = sortedEntities.map(row.getAs[Any]).map(_.toString).mkString(":")

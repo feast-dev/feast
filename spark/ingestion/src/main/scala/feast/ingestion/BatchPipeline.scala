@@ -22,6 +22,14 @@ import feast.ingestion.validation.RowValidator
 import org.apache.spark.sql.{Column, SparkSession}
 import org.apache.spark.sql.functions.col
 
+/**
+  * Batch Ingestion Flow:
+  * 1. Read from source (BQ | File)
+  * 2. Map source columns to FeatureTable's schema
+  * 3. Validate
+  * 4. Store valid rows in redis
+  * 5. Store invalid rows in parquet format at `deadletter` destination
+  */
 object BatchPipeline extends BasePipeline {
   override def createPipeline(sparkSession: SparkSession, config: IngestionJobConfig): Unit = {
     val featureTable = config.featureTable
@@ -71,19 +79,23 @@ object BatchPipeline extends BasePipeline {
 
   }
 
+  /**
+    * Build column projection using custom mapping with fallback to feature|entity names.
+    */
   private def inputProjection(
       source: Source,
       features: Seq[Field],
       entities: Seq[Field]
   ): Array[Column] = {
-    val featureColumns =
-      if (source.mapping.nonEmpty)
-        source.mapping
-      else features.map(f => (f.name, f.name))
+    val featureColumns = features
+      .filter(f => !source.mapping.contains(f.name))
+      .map(f => (f.name, f.name)) ++ source.mapping
 
     val timestampColumn = Seq((source.timestampColumn, source.timestampColumn))
     val entitiesColumns =
-      entities.filter(e => !source.mapping.contains(e.name)).map(e => (e.name, e.name))
+      entities
+        .filter(e => !source.mapping.contains(e.name))
+        .map(e => (e.name, e.name))
 
     (featureColumns ++ entitiesColumns ++ timestampColumn).map { case (alias, source) =>
       col(source).alias(alias)
