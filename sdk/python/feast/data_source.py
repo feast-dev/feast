@@ -352,12 +352,12 @@ class DataSource:
 
     def __init__(
         self,
-        field_mapping: Dict[str, str],
         timestamp_column: str,
+        field_mapping: Optional[Dict[str, str]] = dict(),
         date_partition_column: Optional[str] = "",
     ):
-        self._field_mapping = field_mapping
         self._timestamp_column = timestamp_column
+        self._field_mapping = field_mapping
         self._date_partition_column = date_partition_column
 
     @property
@@ -419,13 +419,13 @@ class DataSource:
 class FileSource(DataSource):
     def __init__(
         self,
-        field_mapping,
-        timestamp_column,
-        file_format,
-        file_url,
-        date_partition_column="",
+        timestamp_column: str,
+        file_format: str,
+        file_url: str,
+        field_mapping: Optional[Dict[str, str]] = dict(),
+        date_partition_column: Optional[str] = "",
     ):
-        super().__init__(field_mapping, timestamp_column, date_partition_column)
+        super().__init__(timestamp_column, field_mapping, date_partition_column)
         self._file_options = FileOptions(file_format=file_format, file_url=file_url)
 
     @property
@@ -468,9 +468,13 @@ class FileSource(DataSource):
 
 class BigQuerySource(DataSource):
     def __init__(
-        self, field_mapping, timestamp_column, table_ref, date_partition_column=""
+        self,
+        timestamp_column: str,
+        table_ref: str,
+        field_mapping: Optional[Dict[str, str]] = dict(),
+        date_partition_column: Optional[str] = "",
     ):
-        super().__init__(field_mapping, timestamp_column, date_partition_column)
+        super().__init__(timestamp_column, field_mapping, date_partition_column)
         self._bigquery_options = BigQueryOptions(table_ref=table_ref,)
 
     @property
@@ -514,14 +518,14 @@ class BigQuerySource(DataSource):
 class KafkaSource(DataSource):
     def __init__(
         self,
-        field_mapping,
-        timestamp_column,
-        bootstrap_servers,
-        class_path,
-        topic,
-        date_partition_column="",
+        timestamp_column: str,
+        bootstrap_servers: str,
+        class_path: str,
+        topic: str,
+        field_mapping: Optional[Dict[str, str]] = dict(),
+        date_partition_column: Optional[str] = "",
     ):
-        super().__init__(field_mapping, timestamp_column, date_partition_column)
+        super().__init__(timestamp_column, field_mapping, date_partition_column)
         self._kafka_options = KafkaOptions(
             bootstrap_servers=bootstrap_servers, class_path=class_path, topic=topic
         )
@@ -567,14 +571,14 @@ class KafkaSource(DataSource):
 class KinesisSource(DataSource):
     def __init__(
         self,
-        field_mapping,
-        timestamp_column,
-        class_path,
-        region,
-        stream_name,
-        date_partition_column="",
+        timestamp_column: str,
+        class_path: str,
+        region: str,
+        stream_name: str,
+        field_mapping: Optional[Dict[str, str]] = dict(),
+        date_partition_column: Optional[str] = "",
     ):
-        super().__init__(field_mapping, timestamp_column, date_partition_column)
+        super().__init__(timestamp_column, field_mapping, date_partition_column)
         self._kinesis_options = KinesisOptions(
             class_path=class_path, region=region, stream_name=stream_name
         )

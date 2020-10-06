@@ -26,6 +26,7 @@ def _check_field_mappings(
     Args:
         column_names: Column names in provided ingestion source
         feature_table_name: Name of FeatureTable
+        feature_table_timestamp_column: Timestamp column of FeatureTable
         feature_table_field_mappings: Field mappings of FeatureTable
     """
 

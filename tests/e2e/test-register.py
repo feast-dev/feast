@@ -98,10 +98,6 @@ def alltypes_entity():
 @pytest.fixture
 def alltypes_featuretable():
     batch_source = FileSource(
-        field_mapping={
-            "ride_distance": "ride_distance",
-            "ride_duration": "ride_duration",
-        },
         file_format="parquet",
         file_url="file://feast/*",
         timestamp_column="ts_col",

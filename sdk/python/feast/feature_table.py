@@ -262,9 +262,9 @@ class FeatureTable:
         return cls.from_proto(feature_table_proto)
 
     @classmethod
-    def _to_data_source(cls, data_source):
+    def _get_data_source_proto(cls, data_source):
         """
-        Convert dict to data source.
+        Convert data source config in FeatureTable spec to a DataSource proto.
         """
 
         if data_source.file_options.file_format and data_source.file_options.file_url:
@@ -346,12 +346,12 @@ class FeatureTable:
             batch_source=(
                 None
                 if not feature_table_proto.spec.batch_source.ByteSize()
-                else cls._to_data_source(feature_table_proto.spec.batch_source)
+                else cls._get_data_source_proto(feature_table_proto.spec.batch_source)
             ),
             stream_source=(
                 None
                 if not feature_table_proto.spec.stream_source.ByteSize()
-                else cls._to_data_source(feature_table_proto.spec.stream_source)
+                else cls._get_data_source_proto(feature_table_proto.spec.stream_source)
             ),
         )
 

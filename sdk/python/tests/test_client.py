@@ -350,10 +350,6 @@ class TestClient:
 
         # Create Feature Tables
         batch_source = FileSource(
-            field_mapping={
-                "ride_distance": "ride_distance",
-                "ride_duration": "ride_duration",
-            },
             file_format="parquet",
             file_url="file://feast/*",
             timestamp_column="ts_col",
@@ -361,10 +357,6 @@ class TestClient:
         )
 
         stream_source = KafkaSource(
-            field_mapping={
-                "ride_distance": "ride_distance",
-                "ride_duration": "ride_duration",
-            },
             bootstrap_servers="localhost:9094",
             class_path="random/path/to/class",
             topic="test_topic",
@@ -457,10 +449,6 @@ class TestClient:
                         entities=["dev_entity"],
                         batch_source=DataSourceProto(
                             type="BATCH_FILE",
-                            field_mapping={
-                                "dev_feature_float": "dev_feature_float",
-                                "dev_feature_string": "dev_feature_string",
-                            },
                             file_options=DataSourceProto.FileOptions(
                                 file_format="parquet", file_url="file://feast/*"
                             ),
