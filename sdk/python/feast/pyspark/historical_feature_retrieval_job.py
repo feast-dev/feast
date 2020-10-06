@@ -1,4 +1,5 @@
 import json
+from datetime import timedelta
 from typing import Any, Dict, List
 
 from pyspark import SparkFiles
@@ -12,7 +13,7 @@ def as_of_join(
     feature_table: DataFrame,
     features: List[str],
     feature_prefix: str = "",
-    max_age: str = None,
+    max_age: int = None,
 ) -> DataFrame:
     """Perform an as of join between entity and feature table, given a maximum age tolerance.
     Join conditions:
@@ -36,8 +37,8 @@ def as_of_join(
         feature_prefix (str):
             Feature column prefix for the result dataframe. Useful for cases where the entity dataframe
             contains one or more columns that share the same name as the features.
-        max_age (str):
-            Tolerance for the feature event timestamp recency.
+        max_age (int):
+            Tolerance for the feature event timestamp recency, in seconds.
 
     Returns:
         DataFrame: Join result.
@@ -66,7 +67,7 @@ def as_of_join(
             |  1001|2020-09-02 00:00:00|           200|
             +------+-------------------+--------------+
 
-        >>> df = as_of_join(entity, ["entity"], feature_table, ["feature"], max_age = "12 hour")
+        >>> df = as_of_join(entity, ["entity"], feature_table, ["feature"], max_age = 12 * 60 * 60)
         >>> df.show()
             +------+-------------------+-------+
             |entity|    event_timestamp|feature|
@@ -96,7 +97,7 @@ def as_of_join(
     if max_age:
         join_cond = join_cond & (
             selected_feature_table[feature_event_timestamp]
-            >= entity_with_id.event_timestamp - expr(f"INTERVAL {max_age}")
+            >= entity_with_id.event_timestamp - expr(f"INTERVAL {max_age} seconds")
         )
 
     for key in entity_keys:
@@ -317,7 +318,7 @@ def retrieve_historical_features(spark: SparkSession, conf: Dict) -> DataFrame:
                     "table": "transactions",
                     "features": ["daily_transactions"],
                     "join": ["customer_id"],
-                    "max_age": "2 day",
+                    "max_age": 172800,
                 },
                 {
                     "table": "bookings",
@@ -336,6 +337,9 @@ def retrieve_historical_features(spark: SparkSession, conf: Dict) -> DataFrame:
         for Amazon S3 path.
 
         `options` is optional. If present, the options will be used when reading / writing the input / output.
+
+        `max_age` is in seconds, and determines the lower bound of the timestamp of the retrieved feature.
+        If not specified, this would be unbounded.
 
         If necessary, `col_mapping` can be provided to map the columns of the dataframes before performing
         the join operation. `col_mapping` is a dictionary where the key is the source column and the value
@@ -383,6 +387,18 @@ def retrieve_historical_features(spark: SparkSession, conf: Dict) -> DataFrame:
             table_spec.get("dtypes", {}),
             is_feature_table=True,
         )
+
+    max_timestamp = mapped_entity_df.agg({"event_timestamp": "max"}).collect()[0][0]
+    min_timestamp = mapped_entity_df.agg({"event_timestamp": "min"}).collect()[0][0]
+
+    for query in conf["queries"]:
+        max_age = query.get("max_age")
+        if max_age:
+            tables[query["table"]] = tables[query["table"]].filter(
+                col("event_timestamp").between(
+                    min_timestamp - timedelta(seconds=max_age), max_timestamp
+                )
+            )
 
     return join_entity_to_feature_tables(conf["queries"], mapped_entity_df, tables)
 

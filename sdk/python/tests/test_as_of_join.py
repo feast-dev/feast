@@ -1,6 +1,10 @@
+import os
 import pathlib
-from datetime import datetime
+import shutil
+import tempfile
+from datetime import datetime, timedelta
 from os import path
+from typing import Any, Dict, List
 
 import pytest
 from pyspark.sql import DataFrame, SparkSession
@@ -33,6 +37,62 @@ def spark(pytestconfig):
     )
     yield spark_session
     spark_session.stop()
+
+
+@pytest.yield_fixture(scope="module")
+def large_entity_csv_file(pytestconfig, spark):
+    start_datetime = datetime(year=2020, month=8, day=31)
+    nr_rows = 1000
+    entity_data = [
+        (1000 + i, start_datetime + timedelta(days=i)) for i in range(nr_rows)
+    ]
+    temp_dir = tempfile.mkdtemp()
+    file_path = os.path.join(temp_dir, "large_entity")
+    entity_schema = StructType(
+        [
+            StructField("customer_id", IntegerType()),
+            StructField("event_timestamp", TimestampType()),
+        ]
+    )
+    large_entity_df = spark.createDataFrame(
+        spark.sparkContext.parallelize(entity_data), entity_schema
+    )
+
+    large_entity_df.write.option("header", "true").csv(file_path)
+    yield file_path
+    shutil.rmtree(temp_dir)
+
+
+@pytest.yield_fixture(scope="module")
+def large_feature_csv_file(pytestconfig, spark):
+    start_datetime = datetime(year=2020, month=8, day=30)
+    nr_rows = 1000
+    feature_data = [
+        (
+            1000 + i,
+            start_datetime + timedelta(days=i),
+            start_datetime + timedelta(days=i + 1),
+            i * 10,
+        )
+        for i in range(nr_rows)
+    ]
+    temp_dir = tempfile.mkdtemp()
+    file_path = os.path.join(temp_dir, "large_feature")
+    feature_schema = StructType(
+        [
+            StructField("customer_id", IntegerType()),
+            StructField("event_timestamp", TimestampType()),
+            StructField("created_timestamp", TimestampType()),
+            StructField("total_bookings", IntegerType()),
+        ]
+    )
+    large_feature_df = spark.createDataFrame(
+        spark.sparkContext.parallelize(feature_data), feature_schema
+    )
+
+    large_feature_df.write.option("header", "true").csv(file_path)
+    yield file_path
+    shutil.rmtree(temp_dir)
 
 
 @pytest.fixture
@@ -235,7 +295,7 @@ def test_join_with_max_age(
         feature_table_df,
         ["daily_transactions"],
         feature_prefix="transactions__",
-        max_age="1 day",
+        max_age=86400,
     )
 
     expected_joined_schema = StructType(
@@ -308,7 +368,7 @@ def test_join_with_composite_entity(
         feature_table_df,
         ["customer_rating", "driver_rating"],
         feature_prefix="ratings__",
-        max_age="1 day",
+        max_age=86400,
     )
 
     expected_joined_schema = StructType(
@@ -397,12 +457,12 @@ def test_multiple_join(
     customer_feature_schema: StructType,
     driver_feature_schema: StructType,
 ):
-    query_conf = [
+    query_conf: List[Dict[str, Any]] = [
         {
             "table": "transactions",
             "features": ["daily_transactions"],
             "join": ["customer_id"],
-            "max_age": "1 day",
+            "max_age": 86400,
         },
         {
             "table": "bookings",
@@ -524,7 +584,7 @@ def test_historical_feature_retrieval(spark):
                 "table": "transactions",
                 "features": ["daily_transactions"],
                 "join": ["customer_id"],
-                "max_age": "1 day",
+                "max_age": 86400,
             },
             {
                 "table": "bookings",
@@ -562,7 +622,7 @@ def test_historical_feature_retrieval(spark):
 
 def test_historical_feature_retrieval_with_mapping(spark):
     test_data_dir = path.join(pathlib.Path(__file__).parent.absolute(), "data")
-    batch_retrieval_conf = {
+    retrieval_conf = {
         "entity": {
             "format": "csv",
             "path": f"file://{path.join(test_data_dir,  'column_mapping_test_entity.csv')}",
@@ -592,7 +652,7 @@ def test_historical_feature_retrieval_with_mapping(spark):
         ],
     }
 
-    joined_df = retrieve_historical_features(spark, batch_retrieval_conf)
+    joined_df = retrieve_historical_features(spark, retrieval_conf)
 
     expected_joined_schema = StructType(
         [
@@ -614,6 +674,53 @@ def test_historical_feature_retrieval_with_mapping(spark):
     )
 
     assert_dataframe_equal(joined_df, expected_joined_df)
+
+
+def test_large_historical_feature_retrieval(
+    spark, large_entity_csv_file, large_feature_csv_file
+):
+    nr_rows = 1000
+    start_datetime = datetime(year=2020, month=8, day=31)
+    expected_join_data = [
+        (1000 + i, start_datetime + timedelta(days=i), i * 10) for i in range(nr_rows)
+    ]
+    expected_join_data_schema = StructType(
+        [
+            StructField("customer_id", IntegerType()),
+            StructField("event_timestamp", TimestampType()),
+            StructField("feature__total_bookings", IntegerType()),
+        ]
+    )
+
+    expected_join_data_df = spark.createDataFrame(
+        spark.sparkContext.parallelize(expected_join_data), expected_join_data_schema
+    )
+
+    retrieval_conf = {
+        "entity": {
+            "format": "csv",
+            "path": f"file://{large_entity_csv_file}",
+            "options": {"inferSchema": "true", "header": "true"},
+        },
+        "tables": [
+            {
+                "format": "csv",
+                "path": f"file://{large_feature_csv_file}",
+                "name": "feature",
+                "options": {"inferSchema": "true", "header": "true"},
+            },
+        ],
+        "queries": [
+            {
+                "table": "feature",
+                "features": ["total_bookings"],
+                "join": ["customer_id"],
+            }
+        ],
+    }
+
+    joined_df = retrieve_historical_features(spark, retrieval_conf)
+    assert_dataframe_equal(joined_df, expected_join_data_df)
 
 
 def test_schema_verification(spark):
