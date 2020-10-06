@@ -11,15 +11,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 import pkgutil
 import socket
 from concurrent import futures
+from datetime import datetime, timedelta
 from unittest import mock
 
 import grpc
+import numpy as np
+import pandas as pd
 import pytest
+import pytz
 from google.protobuf.duration_pb2 import Duration
 from mock import MagicMock, patch
+from pandas.util.testing import assert_frame_equal
+from pyarrow import parquet as pq
 from pytest_lazyfixture import lazy_fixture
 
 from feast.client import Client
@@ -627,6 +634,89 @@ class TestClient:
             == ValueProto.ValueType.BYTES_LIST
             and feature_tables[0].entities[0] == "fs1-my-entity-1"
         )
+
+    @pytest.mark.parametrize(
+        "mocked_client", [lazy_fixture("mock_client")],
+    )
+    def test_ingest(self, mocked_client, mocker):
+        mocked_client._core_service_stub = Core.CoreServiceStub(
+            grpc.insecure_channel("")
+        )
+
+        N_ROWS = 100
+        time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
+        final_offset = (
+            [time_offset] * 33
+            + [time_offset - timedelta(days=1)] * 33
+            + [time_offset - timedelta(days=2)] * 34
+        )
+        final_part_offset = (
+            [time_offset - timedelta(days=99)] * 33
+            + [time_offset - timedelta(days=100)] * 33
+            + [time_offset - timedelta(days=101)] * 34
+        )
+        ft_df = pd.DataFrame(
+            {
+                "datetime": final_offset,
+                "datetime_col": final_part_offset,
+                "dev_feature_float": [np.float(row) for row in range(N_ROWS)],
+                "dev_feature_string": ["feat_" + str(row) for row in range(N_ROWS)],
+            }
+        )
+
+        mocker.patch.object(
+            mocked_client._core_service_stub,
+            "GetFeatureTable",
+            return_value=GetFeatureTableResponse(
+                table=FeatureTableProto(
+                    spec=FeatureTableSpecProto(
+                        name="ingest_featuretable",
+                        max_age=Duration(seconds=3600),
+                        features=[
+                            FeatureSpecProto(
+                                name="dev_feature_float",
+                                value_type=ValueProto.ValueType.FLOAT,
+                            ),
+                            FeatureSpecProto(
+                                name="dev_feature_string",
+                                value_type=ValueProto.ValueType.STRING,
+                            ),
+                        ],
+                        entities=["dev_entity"],
+                        batch_source=DataSourceProto(
+                            type="BATCH_FILE",
+                            field_mapping={
+                                "dev_feature_float": "dev_feature_float",
+                                "dev_feature_string": "dev_feature_string",
+                            },
+                            file_options=DataSourceProto.FileOptions(
+                                file_format="parquet", file_url="file://feast/*"
+                            ),
+                            timestamp_column="datetime",
+                            date_partition_column="datetime_col",
+                        ),
+                    ),
+                    meta=FeatureTableMetaProto(),
+                )
+            ),
+        )
+
+        mocked_client.set_project("my_project")
+        ft = mocked_client.get_feature_table("ingest_featuretable")
+        mocked_client.ingest(ft, ft_df, timeout=600)
+
+        dest_fpath = os.path.join("feast/")
+        pq_df = pq.read_table(dest_fpath).to_pandas()
+
+        ft_df.sort_values(by=["dev_feature_float"], inplace=True)
+        pq_df.sort_values(by=["dev_feature_float"], inplace=True)
+        pq_df = pq_df.reindex(sorted(pq_df.columns), axis=1)
+        ft_df = ft_df.reindex(sorted(ft_df.columns), axis=1)
+        ft_df.reset_index(drop=True, inplace=True)
+        pq_df.reset_index(drop=True, inplace=True)
+        pq_df["datetime_col"] = pd.to_datetime(pq_df.datetime_col).dt.tz_convert("UTC")
+
+        assert_frame_equal(ft_df, pq_df)
 
     @patch("grpc.channel_ready_future")
     def test_secure_channel_creation_with_secure_client(

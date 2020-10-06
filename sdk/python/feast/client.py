@@ -668,9 +668,14 @@ class Client:
             feature_table.batch_source.field_mapping,
         )
         # Partition dataset by date
-        date_partition_dest_path = _partition_by_date(
-            column_names, feature_table, dest_path,
-        )
+        date_partition_dest_path = None
+        if feature_table.batch_source.date_partition_column:
+            date_partition_dest_path = _partition_by_date(
+                column_names,
+                feature_table.batch_source.date_partition_column,
+                feature_table.batch_source.timestamp_column,
+                dest_path,
+            )
 
         batch_source_type = SourceType(feature_table.batch_source.type).name
 
@@ -682,19 +687,32 @@ class Client:
                 uri = urlparse(file_url)
                 staging_client = get_staging_client(uri.scheme)
 
-                file_paths = list()
-                for (dirpath, dirnames, filenames) in os.walk(date_partition_dest_path):
-                    file_paths += [os.path.join(dirpath, file) for file in filenames]
-                for path in file_paths:
-                    file_name = path.split("/")[-1]
-                    partition_date = path.split("/")[-2].split("=")[-1]
+                if date_partition_dest_path is not None:
+                    file_paths = list()
+                    for (dirpath, dirnames, filenames) in os.walk(
+                        date_partition_dest_path
+                    ):
+                        file_paths += [
+                            os.path.join(dirpath, file) for file in filenames
+                        ]
+                    for path in file_paths:
+                        file_name = path.split("/")[-1]
+                        partition_col = path.split("/")[-2]
+                        staging_client.upload_file(
+                            path,
+                            uri.hostname,
+                            str(uri.path).strip("/")
+                            + "/"
+                            + partition_col
+                            + "/"
+                            + file_name,
+                        )
+                else:
+                    file_name = dest_path.split("/")[-1]
                     staging_client.upload_file(
-                        path,
+                        dest_path,
                         uri.hostname,
-                        str(uri.path).strip("/")
-                        + "/"
-                        + f"date={partition_date}/"
-                        + file_name,
+                        str(uri.path).strip("/") + "/" + file_name,
                     )
             if batch_source_type == "BATCH_BIGQUERY":
                 from google.cloud import bigquery

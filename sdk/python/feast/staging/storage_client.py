@@ -14,7 +14,9 @@
 # limitations under the License.
 
 
+import os
 import re
+import shutil
 from abc import ABC, ABCMeta, abstractmethod
 from tempfile import TemporaryFile
 from typing import List
@@ -227,8 +229,10 @@ class LocalFSClient(AbstractStagingClient):
     def list_files(self, bucket: str, path: str) -> List[str]:
         raise NotImplementedError("list files not implemented for Local file")
 
-    def upload_file(self, local_path: str, bucket: str, remote_path: str):
-        pass  # For test cases
+    def upload_file(self, local_path: str, folder: str, remote_path: str):
+        dest_fpath = os.path.join(folder + "/" + remote_path)
+        os.makedirs(os.path.dirname(dest_fpath), exist_ok=True)
+        shutil.copy(local_path, dest_fpath)
 
 
 storage_clients = {GS: GCSClient, S3: S3Client, LOCAL_FILE: LocalFSClient}

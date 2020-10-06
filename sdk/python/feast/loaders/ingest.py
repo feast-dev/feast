@@ -5,8 +5,6 @@ import pandas as pd
 import pyarrow as pa
 from pyarrow import parquet as pq
 
-from feast.feature_table import FeatureTable
-
 GRPC_CONNECTION_TIMEOUT_DEFAULT = 3  # type: int
 GRPC_CONNECTION_TIMEOUT_APPLY = 300  # type: int
 FEAST_SERVING_URL_ENV_KEY = "FEAST_SERVING_URL"  # type: str
@@ -50,7 +48,10 @@ def _check_field_mappings(
 
 
 def _partition_by_date(
-    column_names: List[str], feature_table: FeatureTable, file_path: str,
+    column_names: List[str],
+    feature_table_date_partition_column: str,
+    feature_table_timestamp_column: str,
+    file_path: str,
 ) -> str:
     """
     Partitions dataset by date based on timestamp_column.
@@ -69,29 +70,17 @@ def _partition_by_date(
     # Date-partitioned dataset temp path
     dir_path = tempfile.mkdtemp()
 
-    # Case: date_partition_column is provided and dataset contains it
-    if (
-        feature_table.batch_source.date_partition_column
-        and feature_table.batch_source.date_partition_column in column_names
-    ):
-        table = pa.Table.from_pandas(df)
-        pq.write_to_dataset(
-            table=table,
-            root_path=dir_path,
-            partition_cols=[feature_table.batch_source.date_partition_column],
-        )
-        return dir_path
-
     # Case: date_partition_column is provided and dataset does not contain it
-    if feature_table.batch_source.date_partition_column:
-        feast_partition_col = feature_table.batch_source.date_partition_column
-    else:
-        feast_partition_col = "feast_partition_col"
+    if feature_table_date_partition_column not in column_names:
+        df[feature_table_date_partition_column] = df[
+            feature_table_timestamp_column
+        ].dt.date
 
-    df[feast_partition_col] = df[feature_table.batch_source.timestamp_column].dt.date
     table = pa.Table.from_pandas(df)
     pq.write_to_dataset(
-        table=table, root_path=dir_path, partition_cols=[feast_partition_col]
+        table=table,
+        root_path=dir_path,
+        partition_cols=[feature_table_date_partition_column],
     )
 
     return dir_path
