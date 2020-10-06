@@ -55,7 +55,6 @@ class TestFeatureTable:
     def test_feature_table_import_export_yaml(self):
 
         batch_source = FileSource(
-            type="BATCH_FILE",
             field_mapping={
                 "ride_distance": "ride_distance",
                 "ride_duration": "ride_duration",
@@ -67,7 +66,6 @@ class TestFeatureTable:
         )
 
         stream_source = KafkaSource(
-            type="STREAM_KAFKA",
             field_mapping={
                 "ride_distance": "ride_distance",
                 "ride_duration": "ride_duration",

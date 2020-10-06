@@ -50,7 +50,6 @@ def driver_entity():
 @pytest.fixture
 def basic_featuretable():
     batch_source = FileSource(
-        type="BATCH_FILE",
         field_mapping={
             "dev_entity": "dev_entity_field",
             "dev_feature_float": "dev_feature_float_field",
@@ -62,7 +61,6 @@ def basic_featuretable():
         date_partition_column="datetime",
     )
     stream_source = KafkaSource(
-        type="STREAM_KAFKA",
         field_mapping={
             "dev_entity": "dev_entity_field",
             "dev_feature_float": "dev_feature_float_field",
@@ -100,7 +98,6 @@ def alltypes_entity():
 @pytest.fixture
 def alltypes_featuretable():
     batch_source = FileSource(
-        type="BATCH_FILE",
         field_mapping={
             "ride_distance": "ride_distance",
             "ride_duration": "ride_duration",

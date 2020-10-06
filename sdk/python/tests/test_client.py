@@ -576,7 +576,6 @@ class TestClient:
 
         # Create Feature Tables
         batch_source = FileSource(
-            type="BATCH_FILE",
             field_mapping={
                 "ride_distance": "ride_distance",
                 "ride_duration": "ride_duration",
@@ -588,7 +587,6 @@ class TestClient:
         )
 
         stream_source = KafkaSource(
-            type="STREAM_KAFKA",
             field_mapping={
                 "ride_distance": "ride_distance",
                 "ride_duration": "ride_duration",

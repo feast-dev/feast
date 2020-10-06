@@ -60,7 +60,7 @@ from feast.core.CoreService_pb2 import (
     ListProjectsResponse,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
-from feast.data_source import SourceType
+from feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.entity import Entity
 from feast.feature_table import FeatureTable
 from feast.grpc import auth as feast_auth
@@ -649,7 +649,7 @@ class Client:
         # Check 1) Only parquet file format for FeatureTable batch source is supported
         if (
             feature_table.batch_source
-            and SourceType(feature_table.batch_source.type).name == "BATCH_FILE"
+            and feature_table.batch_source.type == DataSourceProto.BATCH_FILE
             and "".join(
                 feature_table.batch_source.file_options.file_format.split()
             ).lower()
@@ -677,10 +677,11 @@ class Client:
                 dest_path,
             )
 
-        batch_source_type = SourceType(feature_table.batch_source.type).name
-
         try:
-            if batch_source_type == "BATCH_FILE":
+            if (
+                feature_table.batch_source.file_options.file_format
+                and feature_table.batch_source.file_options.file_url
+            ):
                 from urllib.parse import urlparse
 
                 file_url = feature_table.batch_source.file_options.file_url[:-1]
@@ -714,7 +715,7 @@ class Client:
                         uri.hostname,
                         str(uri.path).strip("/") + "/" + file_name,
                     )
-            if batch_source_type == "BATCH_BIGQUERY":
+            if feature_table.batch_source.bigquery_options.table_ref:
                 from google.cloud import bigquery
 
                 bq_table_ref = feature_table.batch_source.bigquery_options.table_ref
@@ -741,9 +742,7 @@ class Client:
             print("Removing temporary file(s)...")
             shutil.rmtree(dir_path)
 
-        print(
-            f"Data has been successfully ingested into FeatureTable {batch_source_type} batch source."
-        )
+        print("Data has been successfully ingested into FeatureTable batch source.")
 
     def _get_grpc_metadata(self):
         """

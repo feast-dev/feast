@@ -352,29 +352,13 @@ class DataSource:
 
     def __init__(
         self,
-        type: str,
         field_mapping: Dict[str, str],
         timestamp_column: str,
         date_partition_column: Optional[str] = "",
     ):
-        self._type = type
         self._field_mapping = field_mapping
         self._timestamp_column = timestamp_column
         self._date_partition_column = date_partition_column
-
-    @property
-    def type(self):
-        """
-        Returns the type of this data source
-        """
-        return self._type
-
-    @type.setter
-    def type(self, type):
-        """
-        Sets the type of this data source
-        """
-        self._type = type
 
     @property
     def field_mapping(self):
@@ -435,14 +419,13 @@ class DataSource:
 class FileSource(DataSource):
     def __init__(
         self,
-        type,
         field_mapping,
         timestamp_column,
         file_format,
         file_url,
         date_partition_column="",
     ):
-        super().__init__(type, field_mapping, timestamp_column, date_partition_column)
+        super().__init__(field_mapping, timestamp_column, date_partition_column)
         self._file_options = FileOptions(file_format=file_format, file_url=file_url)
 
     @property
@@ -462,7 +445,6 @@ class FileSource(DataSource):
     def from_proto(cls, data_source_proto):
 
         data_source = cls(
-            type=data_source_proto.type,
             field_mapping=data_source_proto.field_mapping,
             file_options=cls.file_options,
             timestamp_column=data_source_proto.timestamp_column,
@@ -473,7 +455,7 @@ class FileSource(DataSource):
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
-            type=self.type,
+            type=DataSourceProto.BATCH_FILE,
             field_mapping=self.field_mapping,
             file_options=self.file_options.to_proto(),
         )
@@ -486,9 +468,9 @@ class FileSource(DataSource):
 
 class BigQuerySource(DataSource):
     def __init__(
-        self, type, field_mapping, timestamp_column, table_ref, date_partition_column=""
+        self, field_mapping, timestamp_column, table_ref, date_partition_column=""
     ):
-        super().__init__(type, field_mapping, timestamp_column, date_partition_column)
+        super().__init__(field_mapping, timestamp_column, date_partition_column)
         self._bigquery_options = BigQueryOptions(table_ref=table_ref,)
 
     @property
@@ -508,7 +490,6 @@ class BigQuerySource(DataSource):
     def from_proto(cls, data_source_proto):
 
         data_source = cls(
-            type=data_source_proto.type,
             field_mapping=data_source_proto.field_mapping,
             bigquery_options=cls.bigquery_options,
             timestamp_column=data_source_proto.timestamp_column,
@@ -519,7 +500,7 @@ class BigQuerySource(DataSource):
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
-            type=self.type,
+            type=DataSourceProto.BATCH_BIGQUERY,
             field_mapping=self.field_mapping,
             bigquery_options=self.bigquery_options.to_proto(),
         )
@@ -533,7 +514,6 @@ class BigQuerySource(DataSource):
 class KafkaSource(DataSource):
     def __init__(
         self,
-        type,
         field_mapping,
         timestamp_column,
         bootstrap_servers,
@@ -541,7 +521,7 @@ class KafkaSource(DataSource):
         topic,
         date_partition_column="",
     ):
-        super().__init__(type, field_mapping, timestamp_column, date_partition_column)
+        super().__init__(field_mapping, timestamp_column, date_partition_column)
         self._kafka_options = KafkaOptions(
             bootstrap_servers=bootstrap_servers, class_path=class_path, topic=topic
         )
@@ -563,7 +543,6 @@ class KafkaSource(DataSource):
     def from_proto(cls, data_source_proto):
 
         data_source = cls(
-            type=data_source_proto.type,
             field_mapping=data_source_proto.field_mapping,
             kafka_options=cls.kafka_options,
             timestamp_column=data_source_proto.timestamp_column,
@@ -574,7 +553,7 @@ class KafkaSource(DataSource):
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
-            type=self.type,
+            type=DataSourceProto.STREAM_KAFKA,
             field_mapping=self.field_mapping,
             kafka_options=self.kafka_options.to_proto(),
         )
@@ -588,7 +567,6 @@ class KafkaSource(DataSource):
 class KinesisSource(DataSource):
     def __init__(
         self,
-        type,
         field_mapping,
         timestamp_column,
         class_path,
@@ -596,7 +574,7 @@ class KinesisSource(DataSource):
         stream_name,
         date_partition_column="",
     ):
-        super().__init__(type, field_mapping, timestamp_column, date_partition_column)
+        super().__init__(field_mapping, timestamp_column, date_partition_column)
         self._kinesis_options = KinesisOptions(
             class_path=class_path, region=region, stream_name=stream_name
         )
@@ -618,7 +596,6 @@ class KinesisSource(DataSource):
     def from_proto(cls, data_source_proto):
 
         data_source = cls(
-            type=data_source_proto.type,
             field_mapping=data_source_proto.field_mapping,
             kinesis_options=cls.kinesis_options,
             timestamp_column=data_source_proto.timestamp_column,
@@ -629,7 +606,7 @@ class KinesisSource(DataSource):
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
-            type=self.type,
+            type=DataSourceProto.STREAM_KINESIS,
             field_mapping=self.field_mapping,
             kinesis_options=self.kinesis_options.to_proto(),
         )

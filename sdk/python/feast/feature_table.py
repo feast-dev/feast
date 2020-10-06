@@ -30,7 +30,6 @@ from feast.data_source import (
     FileSource,
     KafkaSource,
     KinesisSource,
-    SourceType,
 )
 from feast.feature import Feature
 from feast.loaders import yaml as feast_yaml
@@ -268,37 +267,27 @@ class FeatureTable:
         Convert dict to data source.
         """
 
-        source_type = SourceType(data_source.type).name
-
-        if (
-            source_type == "BATCH_FILE"
-            and data_source.file_options.file_format
-            and data_source.file_options.file_url
-        ):
+        if data_source.file_options.file_format and data_source.file_options.file_url:
             data_source_proto = FileSource(
-                type=data_source.type,
                 field_mapping=data_source.field_mapping,
                 file_format=data_source.file_options.file_format,
                 file_url=data_source.file_options.file_url,
                 timestamp_column=data_source.timestamp_column,
                 date_partition_column=data_source.date_partition_column,
             ).to_proto()
-        elif source_type == "BATCH_BIGQUERY" and data_source.bigquery_options.table_ref:
+        elif data_source.bigquery_options.table_ref:
             data_source_proto = BigQuerySource(
-                type=data_source.type,
                 field_mapping=data_source.field_mapping,
                 table_ref=data_source.bigquery_options.table_ref,
                 timestamp_column=data_source.timestamp_column,
                 date_partition_column=data_source.date_partition_column,
             ).to_proto()
         elif (
-            source_type == "STREAM_KAFKA"
-            and data_source.kafka_options.bootstrap_servers
+            data_source.kafka_options.bootstrap_servers
             and data_source.kafka_options.topic
             and data_source.kafka_options.class_path
         ):
             data_source_proto = KafkaSource(
-                type=data_source.type,
                 field_mapping=data_source.field_mapping,
                 bootstrap_servers=data_source.kafka_options.bootstrap_servers,
                 class_path=data_source.kafka_options.class_path,
@@ -307,13 +296,11 @@ class FeatureTable:
                 date_partition_column=data_source.date_partition_column,
             ).to_proto()
         elif (
-            source_type == "STREAM_KINESIS"
-            and data_source.kinesis_options.class_path
+            data_source.kinesis_options.class_path
             and data_source.kinesis_options.region
             and data_source.kinesis_options.stream_name
         ):
             data_source_proto = KinesisSource(
-                type=data_source.type,
                 field_mapping=data_source.field_mapping,
                 class_path=data_source.kinesis_options.class_path,
                 region=data_source.kinesis_options.region,
