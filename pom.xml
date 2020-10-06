@@ -39,6 +39,7 @@
         <module>common</module>
         <module>job-controller</module>
         <module>common-test</module>
+        <module>spark/ingestion</module>
     </modules>
 
     <properties>
@@ -84,6 +85,27 @@
         <google.auth.library.oauth2.http.version>0.20.0</google.auth.library.oauth2.http.version>
         <org.hibernate.validator.version>6.1.2.Final</org.hibernate.validator.version>
         <auto.value.version>1.6.6</auto.value.version>
+
+        <license.content><![CDATA[
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-$YEAR The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+]]>
+        </license.content>
+        <parent.basedir>${maven.multiModuleProjectDirectory}</parent.basedir>
 
         <skipUTs>false</skipUTs>
         <feast.auth.providers.http.client.package.name>feast.common.auth.providers.http.client</feast.auth.providers.http.client.package.name>
@@ -528,26 +550,7 @@
                 <configuration>
                     <java>
                         <licenseHeader>
-                          <content>
-<![CDATA[
-/*
- * SPDX-License-Identifier: Apache-2.0
- * Copyright 2018-$YEAR The Feast Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-]]>
-                          </content>
+                          <content>${license.content}</content>
                         </licenseHeader>
                         <googleJavaFormat>
                             <version>1.7</version>
@@ -558,6 +561,15 @@
                         </excludes>
                         <removeUnusedImports />
                     </java>
+                    <scala>
+                        <licenseHeader>
+                            <content>${license.content}</content>
+                        </licenseHeader>
+                        <scalafmt>
+                            <version>2.7.2</version>
+                            <file>${parent.basedir}/.scalafmt.conf</file>
+                        </scalafmt>
+                    </scala>
                 </configuration>
                 <executions>
                   <!-- Move check to fail faster, but after compilation. Default is verify phase -->
