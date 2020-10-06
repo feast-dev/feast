@@ -435,7 +435,7 @@ class Client:
             entities.append(entity)
         return entities
 
-    def get_entity(self, name: str, project: str = None) -> Union[Entity, None]:
+    def get_entity(self, name: str, project: str = None) -> Entity:
         """
         Retrieves an entity.
 
@@ -548,9 +548,7 @@ class Client:
             feature_tables.append(feature_table)
         return feature_tables
 
-    def get_feature_table(
-        self, name: str, project: str = None
-    ) -> Union[FeatureTable, None]:
+    def get_feature_table(self, name: str, project: str = None) -> FeatureTable:
         """
         Retrieves a feature table.
 

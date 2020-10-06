@@ -351,5 +351,25 @@ def project_list():
     print(tabulate(table, headers=["NAME"], tablefmt="plain"))
 
 
+@cli.command()
+@click.option(
+    "--feature-table",
+    "-t",
+    help="Feature table name to ingest data into",
+    required=True,
+)
+@click.option("--start-time", "-s", help="Interval start", required=True)
+@click.option("--end-time", "-e", help="Interval end", required=True)
+def sync_offline_to_online(feature_table: str, start_time: str, end_time: str):
+    """
+    Sync offline store to online.
+    """
+    import feast.pyspark.aws.jobs
+
+    client = Client()
+    table = client.get_feature_table(feature_table)
+    feast.pyspark.aws.jobs.sync_offline_to_online(client, table, start_time, end_time)
+
+
 if __name__ == "__main__":
     cli()
