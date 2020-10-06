@@ -1,4 +1,11 @@
+import tempfile
 from typing import Dict, List
+
+import pandas as pd
+import pyarrow as pa
+from pyarrow import parquet as pq
+
+from feast.feature_table import FeatureTable
 
 GRPC_CONNECTION_TIMEOUT_DEFAULT = 3  # type: int
 GRPC_CONNECTION_TIMEOUT_APPLY = 300  # type: int
@@ -11,21 +18,22 @@ BATCH_INGESTION_PRODUCTION_TIMEOUT = 120  # type: int
 def _check_field_mappings(
     column_names: List[str],
     feature_table_name: str,
+    feature_table_timestamp_column: str,
     feature_table_field_mappings: Dict[str, str],
 ) -> None:
     """
-        Checks that all specified field mappings in FeatureTable can be found in
-        column names of specified ingestion source.
+    Checks that all specified field mappings in FeatureTable can be found in
+    column names of specified ingestion source.
 
-        Args:
-            column_names: Column names in provided ingestion source
-            feature_table_name: Name of FeatureTable
-            feature_table_field_mappings: Field mappings of FeatureTable
+    Args:
+        column_names: Column names in provided ingestion source
+        feature_table_name: Name of FeatureTable
+        feature_table_field_mappings: Field mappings of FeatureTable
     """
 
-    if "datetime" not in column_names:
+    if feature_table_timestamp_column not in column_names:
         raise ValueError(
-            f'Provided data source does not contain entity "datetime" in columns {column_names}'
+            f"Provided data source does not contain timestamp column {feature_table_timestamp_column} in columns {column_names}"
         )
 
     specified_field_mappings = list()
@@ -39,3 +47,51 @@ def _check_field_mappings(
             f"Provided data source does not contain all field mappings previously "
             f"defined for FeatureTable, {feature_table_name}."
         )
+
+
+def _partition_by_date(
+    column_names: List[str], feature_table: FeatureTable, file_path: str,
+) -> str:
+    """
+    Partitions dataset by date based on timestamp_column.
+    Assumes date_partition_column is in date format if provided.
+
+    Args:
+        column_names: Column names in provided ingestion source
+        feature_table: FeatureTable
+        file_path: File path to existing parquet file that's not yet partitioned
+
+    Returns:
+        str:
+            Root directory which contains date partitioned files.
+    """
+    df = pd.read_parquet(file_path)
+    # Date-partitioned dataset temp path
+    dir_path = tempfile.mkdtemp()
+
+    # Case: date_partition_column is provided and dataset contains it
+    if (
+        feature_table.batch_source.date_partition_column
+        and feature_table.batch_source.date_partition_column in column_names
+    ):
+        table = pa.Table.from_pandas(df)
+        pq.write_to_dataset(
+            table=table,
+            root_path=dir_path,
+            partition_cols=[feature_table.batch_source.date_partition_column],
+        )
+        return dir_path
+
+    # Case: date_partition_column is provided and dataset does not contain it
+    if feature_table.batch_source.date_partition_column:
+        feast_partition_col = feature_table.batch_source.date_partition_column
+    else:
+        feast_partition_col = "feast_partition_col"
+
+    df[feast_partition_col] = df[feature_table.batch_source.timestamp_column].dt.date
+    table = pa.Table.from_pandas(df)
+    pq.write_to_dataset(
+        table=table, root_path=dir_path, partition_cols=[feast_partition_col]
+    )
+
+    return dir_path

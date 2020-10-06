@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import datetime
 import logging
 import multiprocessing
 import os
@@ -69,6 +68,7 @@ from feast.grpc.grpc import create_grpc_channel
 from feast.loaders.ingest import (
     BATCH_INGESTION_PRODUCTION_TIMEOUT,
     _check_field_mappings,
+    _partition_by_date,
 )
 from feast.serving.ServingService_pb2 import GetFeastServingInfoRequest
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
@@ -634,10 +634,6 @@ class Client:
         if isinstance(feature_table, FeatureTable):
             name = feature_table.name
 
-        dir_path, dest_path, column_names = _read_table_from_source(
-            source, chunk_size, max_workers
-        )
-
         fetched_feature_table: Optional[FeatureTable] = self.get_feature_table(
             name, project
         )
@@ -645,6 +641,10 @@ class Client:
             feature_table = fetched_feature_table
         else:
             raise Exception(f"FeatureTable, {name} cannot be found.")
+
+        dir_path, dest_path, column_names = _read_table_from_source(
+            source, chunk_size, max_workers
+        )
 
         # Check 1) Only parquet file format for FeatureTable batch source is supported
         if (
@@ -662,7 +662,14 @@ class Client:
 
         # Check 2) Check if FeatureTable batch source field mappings can be found in provided source table
         _check_field_mappings(
-            column_names, name, feature_table.batch_source.field_mapping
+            column_names,
+            name,
+            feature_table.batch_source.timestamp_column,
+            feature_table.batch_source.field_mapping,
+        )
+        # Partition dataset by date
+        date_partition_dest_path = _partition_by_date(
+            column_names, feature_table, dest_path,
         )
 
         batch_source_type = SourceType(feature_table.batch_source.type).name
@@ -675,36 +682,41 @@ class Client:
                 uri = urlparse(file_url)
                 staging_client = get_staging_client(uri.scheme)
 
-                file_name = dest_path.split("/")[-1]
-                date_today = datetime.datetime.today().strftime("%Y-%m-%d")
-
-                staging_client.upload_file(
-                    dest_path,
-                    uri.hostname,
-                    str(uri.path).strip("/") + "/" + f"date={date_today}/" + file_name,
-                )
+                file_paths = list()
+                for (dirpath, dirnames, filenames) in os.walk(date_partition_dest_path):
+                    file_paths += [os.path.join(dirpath, file) for file in filenames]
+                for path in file_paths:
+                    file_name = path.split("/")[-1]
+                    partition_date = path.split("/")[-2].split("=")[-1]
+                    staging_client.upload_file(
+                        path,
+                        uri.hostname,
+                        str(uri.path).strip("/")
+                        + "/"
+                        + f"date={partition_date}/"
+                        + file_name,
+                    )
             if batch_source_type == "BATCH_BIGQUERY":
                 from google.cloud import bigquery
 
                 bq_table_ref = feature_table.batch_source.bigquery_options.table_ref
                 gcp_project, dataset_table = bq_table_ref.split(":")
-                dataset, table = dataset_table.split(".")
 
                 client = bigquery.Client(project=gcp_project)
 
-                table_ref = client.dataset(dataset).table(table)
+                bq_table_ref = bq_table_ref.replace(":", ".")
+                table = bigquery.table.Table(bq_table_ref)
+
                 job_config = bigquery.LoadJobConfig()
                 job_config.source_format = bigquery.SourceFormat.PARQUET
 
-                # Check for date partitioning column in FeatureTable spec
-                if feature_table.batch_source.date_partition_column:
-                    time_partitioning_obj = bigquery.table.TimePartitioning(
-                        field=feature_table.batch_source.date_partition_column
-                    )
-                    job_config.time_partitioning = time_partitioning_obj
+                time_partitioning_obj = bigquery.table.TimePartitioning(
+                    field=feature_table.batch_source.timestamp_column
+                )
+                job_config.time_partitioning = time_partitioning_obj
                 with open(dest_path, "rb") as source_file:
                     client.load_table_from_file(
-                        source_file, table_ref, job_config=job_config
+                        source_file, table, job_config=job_config
                     )
         finally:
             # Remove parquet file(s) that were created earlier
