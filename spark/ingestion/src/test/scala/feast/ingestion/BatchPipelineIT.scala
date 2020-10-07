@@ -16,71 +16,30 @@
  */
 package feast.ingestion
 
-import java.nio.file.{Files, Paths}
-
+import collection.JavaConverters._
 import com.dimafeng.testcontainers.{ForAllTestContainer, GenericContainer}
-import com.google.protobuf.Timestamp
-import feast.ingestion.utils.TypeConversion._
-import feast.proto.types.ValueProto
 import feast.proto.types.ValueProto.ValueType
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions._
 import org.joda.time.{DateTime, Seconds}
 import org.scalacheck._
 import org.scalatest._
-import matchers.should.Matchers._
-import org.scalatest.matchers.Matcher
 
 import redis.clients.jedis.Jedis
 
-import scala.jdk.CollectionConverters._
-import scala.reflect.runtime.universe.TypeTag
-import scala.util.hashing.MurmurHash3
+import feast.ingestion.helpers.RedisStorageHelper._
+import feast.ingestion.helpers.DataHelper._
 
 case class Row(customer: String, feature1: Int, feature2: Float, eventTimestamp: java.sql.Timestamp)
 
-class BatchPipelineIT extends UnitSpec with ForAllTestContainer {
+class BatchPipelineIT extends SparkSpec with ForAllTestContainer {
 
   override val container = GenericContainer("redis:6.0.8", exposedPorts = Seq(6379))
 
-  trait SparkContext {
-    val sparkConf = new SparkConf()
-      .setMaster("local[4]")
-      .setAppName("Testing")
-      .set("spark.redis.host", container.host)
-      .set("spark.default.parallelism", "8")
-      .set("spark.redis.port", container.mappedPort(6379).toString)
+  override def withSparkConfOverrides(conf: SparkConf): SparkConf = conf
+    .set("spark.redis.host", container.host)
+    .set("spark.redis.port", container.mappedPort(6379).toString)
 
-    val sparkSession = SparkSession
-      .builder()
-      .config(sparkConf)
-      .getOrCreate()
-  }
-
-  trait DataHelper {
-    self: SparkContext =>
-
-    def generateTempPath(last: String) =
-      Paths.get(Files.createTempDirectory("test-dir").toString, last).toString
-
-    def storeAsParquet[T <: Product: TypeTag](rows: Seq[T]): String = {
-      import self.sparkSession.implicits._
-
-      val tempPath = generateTempPath("rows")
-
-      sparkSession
-        .createDataset(rows)
-        .withColumn("date", to_date($"eventTimestamp"))
-        .write
-        .partitionBy("date")
-        .save(tempPath)
-
-      tempPath
-    }
-  }
-
-  trait Scope extends SparkContext with DataHelper {
+  trait Scope {
     val jedis = new Jedis("localhost", container.mappedPort(6379))
     jedis.flushAll()
 
@@ -94,8 +53,13 @@ class BatchPipelineIT extends UnitSpec with ForAllTestContainer {
           .map(start.withMillisOfSecond(0).plusSeconds)
       } yield Row(customer, feature1, feature2, new java.sql.Timestamp(eventTimestamp.getMillis))
 
-    def generateDistinctRows(gen: Gen[Row], N: Int) =
-      Gen.listOfN(N, gen).sample.get.groupBy(_.customer).map(_._2.head).toSeq
+    def encodeEntityKey(row: Row, featureTable: FeatureTable): Array[Byte] = {
+      val entityPrefix = featureTable.entities.map(_.name).mkString("_")
+      s"${featureTable.project}_${entityPrefix}:${row.customer}".getBytes
+    }
+
+    def groupByEntity(row: Row) =
+      new String(encodeEntityKey(row, config.featureTable))
 
     val config = IngestionJobConfig(
       featureTable = FeatureTable(
@@ -110,39 +74,12 @@ class BatchPipelineIT extends UnitSpec with ForAllTestContainer {
       startTime = DateTime.parse("2020-08-01"),
       endTime = DateTime.parse("2020-09-01")
     )
-
-    def encodeEntityKey(row: Row, featureTable: FeatureTable): Array[Byte] = {
-      val entityPrefix = featureTable.entities.map(_.name).mkString("_")
-      s"${featureTable.project}_${entityPrefix}:${row.customer}".getBytes
-    }
-
-    def encodeFeatureKey(featureTable: FeatureTable)(feature: String): String = {
-      val fullReference = s"${featureTable.name}:$feature"
-      MurmurHash3.stringHash(fullReference).toHexString
-    }
-
-    def beStoredRow(mappedRow: Map[String, Any]) = {
-      val m: Matcher[Map[String, Any]] = contain.allElementsOf(mappedRow).matcher
-
-      m compose {
-        (_: Map[Array[Byte], Array[Byte]])
-          .map { case (k, v) =>
-            (
-              new String(k),
-              if (new String(k).startsWith("_ts"))
-                Timestamp.parseFrom(v).asScala
-              else
-                ValueProto.Value.parseFrom(v).asScala
-            )
-          }
-      }
-    }
   }
 
   "Parquet source file" should "be ingested in redis" in new Scope {
     val gen      = rowGenerator(DateTime.parse("2020-08-01"), DateTime.parse("2020-09-01"))
-    val rows     = generateDistinctRows(gen, 10000)
-    val tempPath = storeAsParquet(rows)
+    val rows     = generateDistinctRows(gen, 10000, groupByEntity)
+    val tempPath = storeAsParquet(sparkSession, rows)
     val configWithOfflineSource = config.copy(
       source = FileSource(tempPath, Map.empty, "eventTimestamp")
     )
@@ -171,16 +108,16 @@ class BatchPipelineIT extends UnitSpec with ForAllTestContainer {
       DateTime.parse("2020-09-01"),
       Some(Gen.oneOf(entities))
     )
-    val latest = generateDistinctRows(genLatest, 10000)
+    val latest = generateDistinctRows(genLatest, 10000, groupByEntity)
 
     val genOld = rowGenerator(
       DateTime.parse("2020-08-01"),
       DateTime.parse("2020-08-14"),
       Some(Gen.oneOf(entities))
     )
-    val old = generateDistinctRows(genOld, 10000)
+    val old = generateDistinctRows(genOld, 10000, groupByEntity)
 
-    val tempPath = storeAsParquet(latest ++ old)
+    val tempPath = storeAsParquet(sparkSession, latest ++ old)
     val configWithOfflineSource =
       config.copy(source = FileSource(tempPath, Map.empty, "eventTimestamp"))
 
@@ -208,9 +145,9 @@ class BatchPipelineIT extends UnitSpec with ForAllTestContainer {
       DateTime.parse("2020-09-01"),
       Some(Gen.oneOf(entities))
     )
-    val latest = generateDistinctRows(genLatest, 10000)
+    val latest = generateDistinctRows(genLatest, 10000, groupByEntity)
 
-    val tempPath1 = storeAsParquet(latest)
+    val tempPath1 = storeAsParquet(sparkSession, latest)
     val config1   = config.copy(source = FileSource(tempPath1, Map.empty, "eventTimestamp"))
 
     BatchPipeline.createPipeline(sparkSession, config1)
@@ -220,9 +157,9 @@ class BatchPipelineIT extends UnitSpec with ForAllTestContainer {
       DateTime.parse("2020-08-14"),
       Some(Gen.oneOf(entities))
     )
-    val old = generateDistinctRows(genOld, 10000)
+    val old = generateDistinctRows(genOld, 10000, groupByEntity)
 
-    val tempPath2 = storeAsParquet(old)
+    val tempPath2 = storeAsParquet(sparkSession, old)
     val config2   = config.copy(source = FileSource(tempPath2, Map.empty, "eventTimestamp"))
 
     BatchPipeline.createPipeline(sparkSession, config2)
@@ -243,11 +180,11 @@ class BatchPipelineIT extends UnitSpec with ForAllTestContainer {
 
   "Invalid rows" should "not be ingested and stored to deadletter instead" in new Scope {
     val gen  = rowGenerator(DateTime.parse("2020-08-01"), DateTime.parse("2020-09-01"))
-    val rows = generateDistinctRows(gen, 100)
+    val rows = generateDistinctRows(gen, 100, groupByEntity)
 
     val rowsWithNullEntity = rows.map(_.copy(customer = null))
 
-    val tempPath = storeAsParquet(rowsWithNullEntity)
+    val tempPath = storeAsParquet(sparkSession, rowsWithNullEntity)
     val deadletterConfig = config.copy(
       source = FileSource(tempPath, Map.empty, "eventTimestamp"),
       deadLetterPath = Some(generateTempPath("deadletters"))
@@ -264,9 +201,9 @@ class BatchPipelineIT extends UnitSpec with ForAllTestContainer {
 
   "Columns from source" should "be mapped according to configuration" in new Scope {
     val gen  = rowGenerator(DateTime.parse("2020-08-01"), DateTime.parse("2020-09-01"))
-    val rows = generateDistinctRows(gen, 100)
+    val rows = generateDistinctRows(gen, 100, groupByEntity)
 
-    val tempPath = storeAsParquet(rows)
+    val tempPath = storeAsParquet(sparkSession, rows)
 
     val configWithMapping = config.copy(
       featureTable = config.featureTable.copy(

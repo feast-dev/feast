@@ -79,27 +79,4 @@ object BatchPipeline extends BasePipeline {
 
     None
   }
-
-  /**
-    * Build column projection using custom mapping with fallback to feature|entity names.
-    */
-  private def inputProjection(
-      source: Source,
-      features: Seq[Field],
-      entities: Seq[Field]
-  ): Array[Column] = {
-    val featureColumns = features
-      .filter(f => !source.mapping.contains(f.name))
-      .map(f => (f.name, f.name)) ++ source.mapping
-
-    val timestampColumn = Seq((source.timestampColumn, source.timestampColumn))
-    val entitiesColumns =
-      entities
-        .filter(e => !source.mapping.contains(e.name))
-        .map(e => (e.name, e.name))
-
-    (featureColumns ++ entitiesColumns ++ timestampColumn).map { case (alias, source) =>
-      col(source).alias(alias)
-    }.toArray
-  }
 }

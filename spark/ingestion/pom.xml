@@ -36,7 +36,6 @@
         <spark.version>2.4.7</spark.version>
         <scala-maven-plugin.version>4.4.0</scala-maven-plugin.version>
         <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
-        <project.version>0.7-SNAPSHOT</project.version>
     </properties>
 
     <dependencies>

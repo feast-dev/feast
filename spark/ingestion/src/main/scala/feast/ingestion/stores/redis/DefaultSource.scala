@@ -16,16 +16,14 @@
  */
 package feast.ingestion.stores.redis
 
-import org.apache.spark.sql.execution.streaming.Sink
 import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode}
-import org.apache.spark.sql.sources.{BaseRelation, CreatableRelationProvider, StreamSinkProvider}
-import org.apache.spark.sql.streaming.OutputMode
+import org.apache.spark.sql.sources.{BaseRelation, CreatableRelationProvider}
 
 /**
   * Entrypoint to Redis Storage. Implements only `CreatableRelationProvider` since it's only possible write to Redis.
   * Here we parse configuration from spark parameters & provide SparkRedisConfig to `RedisSinkRelation`
   */
-class RedisRelationProvider extends CreatableRelationProvider with StreamSinkProvider {
+class RedisRelationProvider extends CreatableRelationProvider {
   override def createRelation(
       sqlContext: SQLContext,
       mode: SaveMode,
@@ -39,13 +37,6 @@ class RedisRelationProvider extends CreatableRelationProvider with StreamSinkPro
 
     relation
   }
-
-  override def createSink(
-      sqlContext: SQLContext,
-      parameters: Map[String, String],
-      partitionColumns: Seq[String],
-      outputMode: OutputMode
-  ): Sink = {}
 }
 
 class DefaultSource extends RedisRelationProvider

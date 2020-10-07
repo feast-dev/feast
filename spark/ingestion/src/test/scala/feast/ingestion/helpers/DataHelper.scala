@@ -14,28 +14,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.ingestion
+package feast.ingestion.helpers
 
 import java.nio.file.{Files, Paths}
 
-import com.google.protobuf.Timestamp
-import feast.proto.types.ValueProto
-
-import org.scalacheck.Gen
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest._
-import matchers._
-
-import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.to_date
-
+import org.scalacheck.Gen
 import scala.reflect.runtime.universe.TypeTag
-import scala.util.hashing.MurmurHash3
 
-abstract class UnitSpec
-    extends AnyFlatSpec
-    with should.Matchers
-    with OptionValues
-    with Inside
-    with Inspectors
+object DataHelper {
+  def generateRows[A](gen: Gen[A], N: Int): Seq[A] =
+    Gen.listOfN(N, gen).sample.get
+
+  def generateDistinctRows[A](gen: Gen[A], N: Int, entityFun: A => String): Seq[A] =
+    generateRows(gen, N).groupBy(entityFun).map(_._2.head).toSeq
+
+  def generateTempPath(last: String): String =
+    Paths.get(Files.createTempDirectory("test-dir").toString, last).toString
+
+  def storeAsParquet[T <: Product: TypeTag](sparkSession: SparkSession, rows: Seq[T]): String = {
+    import sparkSession.implicits._
+
+    val tempPath = generateTempPath("rows")
+
+    sparkSession
+      .createDataset(rows)
+      .withColumn("date", to_date($"eventTimestamp"))
+      .write
+      .partitionBy("date")
+      .save(tempPath)
+
+    tempPath
+  }
+}

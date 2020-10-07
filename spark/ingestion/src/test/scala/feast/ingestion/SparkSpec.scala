@@ -16,26 +16,27 @@
  */
 package feast.ingestion
 
-import java.nio.file.{Files, Paths}
-
-import com.google.protobuf.Timestamp
-import feast.proto.types.ValueProto
-
-import org.scalacheck.Gen
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest._
-import matchers._
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.to_date
+import org.scalatest.BeforeAndAfter
 
-import scala.reflect.runtime.universe.TypeTag
-import scala.util.hashing.MurmurHash3
+class SparkSpec extends UnitSpec with BeforeAndAfter {
+  var sparkSession: SparkSession                         = null
+  def withSparkConfOverrides(conf: SparkConf): SparkConf = conf
 
-abstract class UnitSpec
-    extends AnyFlatSpec
-    with should.Matchers
-    with OptionValues
-    with Inside
-    with Inspectors
+  before {
+    val sparkConf = new SparkConf()
+      .setMaster("local[4]")
+      .setAppName("Testing")
+      .set("spark.default.parallelism", "8")
+
+    sparkSession = SparkSession
+      .builder()
+      .config(withSparkConfOverrides(sparkConf))
+      .getOrCreate()
+  }
+
+  after {
+    sparkSession.stop()
+  }
+}
