@@ -360,6 +360,19 @@ class DataSource:
         self._field_mapping = field_mapping
         self._date_partition_column = date_partition_column
 
+    def __eq__(self, other):
+        if not isinstance(other, DataSource):
+            raise TypeError("Comparisons should only involve DataSource class objects.")
+
+        if (
+            self.timestamp_column != other.timestamp_column
+            or self.field_mapping != other.field_mapping
+            or self.date_partition_column != other.date_partition_column
+        ):
+            return False
+
+        return True
+
     @property
     def field_mapping(self):
         """
@@ -428,6 +441,18 @@ class FileSource(DataSource):
         super().__init__(timestamp_column, field_mapping, date_partition_column)
         self._file_options = FileOptions(file_format=file_format, file_url=file_url)
 
+    def __eq__(self, other):
+        if not isinstance(other, FileSource):
+            raise TypeError("Comparisons should only involve FileSource class objects.")
+
+        if (
+            self.file_options.file_url != other.file_options.file_url
+            or self.file_options.file_format != other.file_options.file_format
+        ):
+            return False
+
+        return True
+
     @property
     def file_options(self):
         """
@@ -476,6 +501,17 @@ class BigQuerySource(DataSource):
     ):
         super().__init__(timestamp_column, field_mapping, date_partition_column)
         self._bigquery_options = BigQueryOptions(table_ref=table_ref,)
+
+    def __eq__(self, other):
+        if not isinstance(other, BigQuerySource):
+            raise TypeError(
+                "Comparisons should only involve BigQuerySource class objects."
+            )
+
+        if self.bigquery_options.table_ref != other.bigquery_options.table_ref:
+            return False
+
+        return True
 
     @property
     def bigquery_options(self):
@@ -530,6 +566,22 @@ class KafkaSource(DataSource):
             bootstrap_servers=bootstrap_servers, class_path=class_path, topic=topic
         )
 
+    def __eq__(self, other):
+        if not isinstance(other, KafkaSource):
+            raise TypeError(
+                "Comparisons should only involve KafkaSource class objects."
+            )
+
+        if (
+            self.kafka_options.bootstrap_servers
+            != other.kafka_options.bootstrap_servers
+            or self.kafka_options.class_path != other.kafka_options.class_path
+            or self.kafka_options.topic != other.kafka_options.topic
+        ):
+            return False
+
+        return True
+
     @property
     def kafka_options(self):
         """
@@ -582,6 +634,21 @@ class KinesisSource(DataSource):
         self._kinesis_options = KinesisOptions(
             class_path=class_path, region=region, stream_name=stream_name
         )
+
+    def __eq__(self, other):
+        if not isinstance(other, KinesisSource):
+            raise TypeError(
+                "Comparisons should only involve KinesisSource class objects."
+            )
+
+        if (
+            self.kinesis_options.class_path != other.kinesis_options.class_path
+            or self.kinesis_options.region != other.kinesis_options.region
+            or self.kinesis_options.stream_name != other.kinesis_options.stream_name
+        ):
+            return False
+
+        return True
 
     @property
     def kinesis_options(self):

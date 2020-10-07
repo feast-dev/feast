@@ -20,7 +20,6 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToDict, MessageToJson
 from google.protobuf.timestamp_pb2 import Timestamp
 
-from feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
 from feast.core.FeatureTable_pb2 import FeatureTableMeta as FeatureTableMetaProto
 from feast.core.FeatureTable_pb2 import FeatureTableSpec as FeatureTableSpecProto
@@ -53,19 +52,9 @@ class FeatureTable:
     ):
         self._name = name
         self._entities = entities
-        self._features = [
-            feature.to_proto() for feature in features if isinstance(feature, Feature)
-        ]
-        self._batch_source = (
-            batch_source.to_proto()
-            if isinstance(batch_source, DataSource)
-            else batch_source
-        )
-        self._stream_source = (
-            stream_source.to_proto()
-            if isinstance(stream_source, DataSource)
-            else stream_source
-        )
+        self._features = features
+        self._batch_source = batch_source
+        self._stream_source = stream_source
         if labels is None:
             self._labels = dict()  # type: MutableMapping[str, str]
         else:
@@ -110,7 +99,7 @@ class FeatureTable:
         return self._name
 
     @name.setter
-    def name(self, name):
+    def name(self, name: str):
         """
         Sets the name of this feature table
         """
@@ -124,7 +113,7 @@ class FeatureTable:
         return self._entities
 
     @entities.setter
-    def entities(self, entities):
+    def entities(self, entities: List[str]):
         """
         Sets the entities of this feature table
         """
@@ -138,7 +127,7 @@ class FeatureTable:
         return self._features
 
     @features.setter
-    def features(self, features):
+    def features(self, features: List[Feature]):
         """
         Sets the features of this feature table
         """
@@ -152,7 +141,7 @@ class FeatureTable:
         return self._batch_source
 
     @batch_source.setter
-    def batch_source(self, batch_source: DataSourceProto):
+    def batch_source(self, batch_source: Union[BigQuerySource, FileSource]):
         """
         Sets the batch source of this feature table
         """
@@ -166,7 +155,7 @@ class FeatureTable:
         return self._stream_source
 
     @stream_source.setter
-    def stream_source(self, stream_source: DataSourceProto):
+    def stream_source(self, stream_source: Union[KafkaSource, KinesisSource]):
         """
         Sets the stream source of this feature table
         """
@@ -182,7 +171,7 @@ class FeatureTable:
         return self._max_age
 
     @max_age.setter
-    def max_age(self, max_age):
+    def max_age(self, max_age: Duration):
         """
         Set the maximum age for this feature table
         """
@@ -262,56 +251,56 @@ class FeatureTable:
         return cls.from_proto(feature_table_proto)
 
     @classmethod
-    def _get_data_source_proto(cls, data_source):
+    def _get_data_source(cls, data_source):
         """
-        Convert data source config in FeatureTable spec to a DataSource proto.
+        Convert data source config in FeatureTable spec to a DataSource class object.
         """
 
         if data_source.file_options.file_format and data_source.file_options.file_url:
-            data_source_proto = FileSource(
+            data_source_obj = FileSource(
                 field_mapping=data_source.field_mapping,
                 file_format=data_source.file_options.file_format,
                 file_url=data_source.file_options.file_url,
                 timestamp_column=data_source.timestamp_column,
                 date_partition_column=data_source.date_partition_column,
-            ).to_proto()
+            )
         elif data_source.bigquery_options.table_ref:
-            data_source_proto = BigQuerySource(
+            data_source_obj = BigQuerySource(
                 field_mapping=data_source.field_mapping,
                 table_ref=data_source.bigquery_options.table_ref,
                 timestamp_column=data_source.timestamp_column,
                 date_partition_column=data_source.date_partition_column,
-            ).to_proto()
+            )
         elif (
             data_source.kafka_options.bootstrap_servers
             and data_source.kafka_options.topic
             and data_source.kafka_options.class_path
         ):
-            data_source_proto = KafkaSource(
+            data_source_obj = KafkaSource(
                 field_mapping=data_source.field_mapping,
                 bootstrap_servers=data_source.kafka_options.bootstrap_servers,
                 class_path=data_source.kafka_options.class_path,
                 topic=data_source.kafka_options.topic,
                 timestamp_column=data_source.timestamp_column,
                 date_partition_column=data_source.date_partition_column,
-            ).to_proto()
+            )
         elif (
             data_source.kinesis_options.class_path
             and data_source.kinesis_options.region
             and data_source.kinesis_options.stream_name
         ):
-            data_source_proto = KinesisSource(
+            data_source_obj = KinesisSource(
                 field_mapping=data_source.field_mapping,
                 class_path=data_source.kinesis_options.class_path,
                 region=data_source.kinesis_options.region,
                 stream_name=data_source.kinesis_options.stream_name,
                 timestamp_column=data_source.timestamp_column,
                 date_partition_column=data_source.date_partition_column,
-            ).to_proto()
+            )
         else:
             raise ValueError("Could not identify the source type being added")
 
-        return data_source_proto
+        return data_source_obj
 
     @classmethod
     def from_proto(cls, feature_table_proto: FeatureTableProto):
@@ -346,12 +335,12 @@ class FeatureTable:
             batch_source=(
                 None
                 if not feature_table_proto.spec.batch_source.ByteSize()
-                else cls._get_data_source_proto(feature_table_proto.spec.batch_source)
+                else cls._get_data_source(feature_table_proto.spec.batch_source)
             ),
             stream_source=(
                 None
                 if not feature_table_proto.spec.stream_source.ByteSize()
-                else cls._get_data_source_proto(feature_table_proto.spec.stream_source)
+                else cls._get_data_source(feature_table_proto.spec.stream_source)
             ),
         )
 
@@ -375,11 +364,23 @@ class FeatureTable:
         spec = FeatureTableSpecProto(
             name=self.name,
             entities=self.entities,
-            features=self.features,
+            features=[
+                feature.to_proto()
+                for feature in self.features
+                if type(feature) == Feature
+            ],
             labels=self.labels,
             max_age=self.max_age,
-            batch_source=self.batch_source,
-            stream_source=self.stream_source,
+            batch_source=(
+                self.batch_source.to_proto()
+                if issubclass(type(self.batch_source), DataSource)
+                else self.batch_source
+            ),
+            stream_source=(
+                self.stream_source.to_proto()
+                if issubclass(type(self.stream_source), DataSource)
+                else self.stream_source
+            ),
         )
 
         return FeatureTableProto(spec=spec, meta=meta)
@@ -396,11 +397,23 @@ class FeatureTable:
         spec = FeatureTableSpecProto(
             name=self.name,
             entities=self.entities,
-            features=self.features,
+            features=[
+                feature.to_proto()
+                for feature in self.features
+                if type(feature) == Feature
+            ],
             labels=self.labels,
             max_age=self.max_age,
-            batch_source=self.batch_source,
-            stream_source=self.stream_source,
+            batch_source=(
+                self.batch_source.to_proto()
+                if issubclass(type(self.batch_source), DataSource)
+                else self.batch_source
+            ),
+            stream_source=(
+                self.stream_source.to_proto()
+                if issubclass(type(self.stream_source), DataSource)
+                else self.stream_source
+            ),
         )
 
         return spec

@@ -60,7 +60,7 @@ from feast.core.CoreService_pb2 import (
     ListProjectsResponse,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
-from feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.data_source import BigQuerySource, FileSource
 from feast.entity import Entity
 from feast.feature_table import FeatureTable
 from feast.grpc import auth as feast_auth
@@ -649,7 +649,7 @@ class Client:
         # Check 1) Only parquet file format for FeatureTable batch source is supported
         if (
             feature_table.batch_source
-            and feature_table.batch_source.type == DataSourceProto.BATCH_FILE
+            and issubclass(type(feature_table.batch_source), FileSource)
             and "".join(
                 feature_table.batch_source.file_options.file_format.split()
             ).lower()
@@ -678,10 +678,7 @@ class Client:
             )
 
         try:
-            if (
-                feature_table.batch_source.file_options.file_format
-                and feature_table.batch_source.file_options.file_url
-            ):
+            if issubclass(type(feature_table.batch_source), FileSource):
                 from urllib.parse import urlparse
 
                 file_url = feature_table.batch_source.file_options.file_url[:-1]
@@ -715,7 +712,7 @@ class Client:
                         uri.hostname,
                         str(uri.path).strip("/") + "/" + file_name,
                     )
-            if feature_table.batch_source.bigquery_options.table_ref:
+            if issubclass(type(feature_table.batch_source), BigQuerySource):
                 from google.cloud import bigquery
 
                 bq_table_ref = feature_table.batch_source.bigquery_options.table_ref

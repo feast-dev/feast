@@ -387,15 +387,13 @@ class TestClient:
             len(feature_tables) == 1
             and feature_tables[0].name == "my-feature-table-1"
             and feature_tables[0].features[0].name == "fs1-my-feature-1"
-            and feature_tables[0].features[0].value_type == ValueProto.ValueType.INT64
+            and feature_tables[0].features[0].dtype == ValueType.INT64
             and feature_tables[0].features[1].name == "fs1-my-feature-2"
-            and feature_tables[0].features[1].value_type == ValueProto.ValueType.STRING
+            and feature_tables[0].features[1].dtype == ValueType.STRING
             and feature_tables[0].features[2].name == "fs1-my-feature-3"
-            and feature_tables[0].features[2].value_type
-            == ValueProto.ValueType.STRING_LIST
+            and feature_tables[0].features[2].dtype == ValueType.STRING_LIST
             and feature_tables[0].features[3].name == "fs1-my-feature-4"
-            and feature_tables[0].features[3].value_type
-            == ValueProto.ValueType.BYTES_LIST
+            and feature_tables[0].features[3].dtype == ValueType.BYTES_LIST
             and feature_tables[0].entities[0] == "fs1-my-entity-1"
         )
 
