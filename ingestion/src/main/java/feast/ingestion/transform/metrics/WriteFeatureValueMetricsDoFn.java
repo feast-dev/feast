@@ -24,12 +24,9 @@ import com.timgroup.statsd.StatsDClient;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.Value;
-import java.util.ArrayList;
-import java.util.DoubleSummaryStatistics;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
@@ -149,6 +146,10 @@ public abstract class WriteFeatureValueMetricsDoFn
       }
     }
 
+    String[] split = context.getPipelineOptions().getJobName().split("-");
+    String jobNameWithoutTimestamp =
+        Arrays.stream(split).limit(split.length - 1).collect(Collectors.joining("-"));
+
     for (Entry<String, DoubleSummaryStatistics> entry : featureNameToStats.entrySet()) {
       String featureName = entry.getKey();
       DoubleSummaryStatistics stats = entry.getValue();
@@ -157,7 +158,7 @@ public abstract class WriteFeatureValueMetricsDoFn
         FEATURE_SET_PROJECT_TAG_KEY + ":" + projectName,
         FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
         FEATURE_TAG_KEY + ":" + featureName,
-        INGESTION_JOB_NAME_KEY + ":" + context.getPipelineOptions().getJobName(),
+        INGESTION_JOB_NAME_KEY + ":" + jobNameWithoutTimestamp,
         METRICS_NAMESPACE_KEY + ":" + getMetricsNamespace(),
       };
 
