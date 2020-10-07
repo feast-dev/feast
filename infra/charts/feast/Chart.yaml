@@ -1,4 +1,4 @@
 apiVersion: v1
 description: Feature store for machine learning.
 name: feast
-version: 0.7.1-SNAPSHOT
+version: 0.7.1

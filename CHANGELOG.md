@@ -1,6 +1,13 @@
 # Changelog
 
-## [v0.7.0](https://github.com/feast-dev/feast/tree/v0.7.1) (2020-09-09)
+## [v0.7.1](https://github.com/feast-dev/feast/tree/v0.7.1) (2020-10-07)
+[Full Changelog](https://github.com/feast-dev/feast/compare/sdk/go/v0.7.0...v0.7.1)
+
+**Fixed bugs:**
+
+- Provide stable jobName in RowMetrics labels [\#1028](https://github.com/feast-dev/feast/pull/1028) ([pyalex](https://github.com/pyalex))
+
+## [v0.7.0](https://github.com/feast-dev/feast/tree/v0.7.0) (2020-09-09)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/sdk/go/v0.6.2...v0.7.0)
 
