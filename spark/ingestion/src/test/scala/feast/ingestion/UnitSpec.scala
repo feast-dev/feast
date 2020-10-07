@@ -16,22 +16,9 @@
  */
 package feast.ingestion
 
-import java.nio.file.{Files, Paths}
-
-import com.google.protobuf.Timestamp
-import feast.proto.types.ValueProto
-
-import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest._
 import matchers._
-
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.to_date
-
-import scala.reflect.runtime.universe.TypeTag
-import scala.util.hashing.MurmurHash3
 
 abstract class UnitSpec
     extends AnyFlatSpec
