@@ -686,3 +686,47 @@ class KinesisSource(DataSource):
         data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
+
+
+def _get_data_source(data_source):
+    """
+    Convert data source config in FeatureTable spec to a DataSource class object.
+    """
+
+    if issubclass(type(data_source), FileSource):
+        data_source_obj = FileSource(
+            field_mapping=data_source.field_mapping,
+            file_format=data_source.file_options.file_format,
+            file_url=data_source.file_options.file_url,
+            timestamp_column=data_source.timestamp_column,
+            date_partition_column=data_source.date_partition_column,
+        )
+    elif issubclass(type(data_source), BigQuerySource):
+        data_source_obj = BigQuerySource(
+            field_mapping=data_source.field_mapping,
+            table_ref=data_source.bigquery_options.table_ref,
+            timestamp_column=data_source.timestamp_column,
+            date_partition_column=data_source.date_partition_column,
+        )
+    elif issubclass(type(data_source), KafkaSource):
+        data_source_obj = KafkaSource(
+            field_mapping=data_source.field_mapping,
+            bootstrap_servers=data_source.kafka_options.bootstrap_servers,
+            class_path=data_source.kafka_options.class_path,
+            topic=data_source.kafka_options.topic,
+            timestamp_column=data_source.timestamp_column,
+            date_partition_column=data_source.date_partition_column,
+        )
+    elif issubclass(type(data_source), KinesisSource):
+        data_source_obj = KinesisSource(
+            field_mapping=data_source.field_mapping,
+            class_path=data_source.kinesis_options.class_path,
+            region=data_source.kinesis_options.region,
+            stream_name=data_source.kinesis_options.stream_name,
+            timestamp_column=data_source.timestamp_column,
+            date_partition_column=data_source.date_partition_column,
+        )
+    else:
+        raise ValueError("Could not identify the source type being added")
+
+    return data_source_obj

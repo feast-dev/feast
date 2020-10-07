@@ -3,7 +3,6 @@ from pkg_resources import DistributionNotFound, get_distribution
 from .client import Client
 from .data_source import (
     BigQuerySource,
-    DataSource,
     FileSource,
     KafkaSource,
     KinesisSource,
@@ -23,7 +22,6 @@ except DistributionNotFound:
 __all__ = [
     "Client",
     "Entity",
-    "DataSource",
     "BigQuerySource",
     "FileSource",
     "KafkaSource",

@@ -29,6 +29,7 @@ from feast.data_source import (
     FileSource,
     KafkaSource,
     KinesisSource,
+    _get_data_source,
 )
 from feast.feature import Feature
 from feast.loaders import yaml as feast_yaml
@@ -80,7 +81,7 @@ class FeatureTable:
         ):
             return False
 
-        if sorted(self.entities) != sorted(other.entities):
+        if self.entities != other.entities:
             return False
         if self.features != other.features:
             return False
@@ -251,58 +252,6 @@ class FeatureTable:
         return cls.from_proto(feature_table_proto)
 
     @classmethod
-    def _get_data_source(cls, data_source):
-        """
-        Convert data source config in FeatureTable spec to a DataSource class object.
-        """
-
-        if data_source.file_options.file_format and data_source.file_options.file_url:
-            data_source_obj = FileSource(
-                field_mapping=data_source.field_mapping,
-                file_format=data_source.file_options.file_format,
-                file_url=data_source.file_options.file_url,
-                timestamp_column=data_source.timestamp_column,
-                date_partition_column=data_source.date_partition_column,
-            )
-        elif data_source.bigquery_options.table_ref:
-            data_source_obj = BigQuerySource(
-                field_mapping=data_source.field_mapping,
-                table_ref=data_source.bigquery_options.table_ref,
-                timestamp_column=data_source.timestamp_column,
-                date_partition_column=data_source.date_partition_column,
-            )
-        elif (
-            data_source.kafka_options.bootstrap_servers
-            and data_source.kafka_options.topic
-            and data_source.kafka_options.class_path
-        ):
-            data_source_obj = KafkaSource(
-                field_mapping=data_source.field_mapping,
-                bootstrap_servers=data_source.kafka_options.bootstrap_servers,
-                class_path=data_source.kafka_options.class_path,
-                topic=data_source.kafka_options.topic,
-                timestamp_column=data_source.timestamp_column,
-                date_partition_column=data_source.date_partition_column,
-            )
-        elif (
-            data_source.kinesis_options.class_path
-            and data_source.kinesis_options.region
-            and data_source.kinesis_options.stream_name
-        ):
-            data_source_obj = KinesisSource(
-                field_mapping=data_source.field_mapping,
-                class_path=data_source.kinesis_options.class_path,
-                region=data_source.kinesis_options.region,
-                stream_name=data_source.kinesis_options.stream_name,
-                timestamp_column=data_source.timestamp_column,
-                date_partition_column=data_source.date_partition_column,
-            )
-        else:
-            raise ValueError("Could not identify the source type being added")
-
-        return data_source_obj
-
-    @classmethod
     def from_proto(cls, feature_table_proto: FeatureTableProto):
         """
         Creates a feature table from a protobuf representation of a feature table
@@ -332,15 +281,11 @@ class FeatureTable:
                 and feature_table_proto.spec.max_age.nanos == 0
                 else feature_table_proto.spec.max_age
             ),
-            batch_source=(
-                None
-                if not feature_table_proto.spec.batch_source.ByteSize()
-                else cls._get_data_source(feature_table_proto.spec.batch_source)
-            ),
+            batch_source=_get_data_source(feature_table_proto.spec.batch_source),
             stream_source=(
                 None
                 if not feature_table_proto.spec.stream_source.ByteSize()
-                else cls._get_data_source(feature_table_proto.spec.stream_source)
+                else _get_data_source(feature_table_proto.spec.stream_source)
             ),
         )
 
@@ -365,9 +310,8 @@ class FeatureTable:
             name=self.name,
             entities=self.entities,
             features=[
-                feature.to_proto()
+                feature.to_proto() if type(feature) == Feature else feature
                 for feature in self.features
-                if type(feature) == Feature
             ],
             labels=self.labels,
             max_age=self.max_age,
@@ -398,9 +342,8 @@ class FeatureTable:
             name=self.name,
             entities=self.entities,
             features=[
-                feature.to_proto()
+                feature.to_proto() if type(feature) == Feature else feature
                 for feature in self.features
-                if type(feature) == Feature
             ],
             labels=self.labels,
             max_age=self.max_age,
