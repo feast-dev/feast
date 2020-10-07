@@ -1,11 +1,17 @@
 import os
+import time
 import uuid
+from datetime import datetime
 
+import numpy as np
+import pandas as pd
 import pytest
+import pytz
 from google.protobuf.duration_pb2 import Duration
+from pandas.testing import assert_frame_equal
 
 from feast.client import Client
-from feast.data_source import FileSource, KafkaSource
+from feast.data_source import BigQuerySource, FileSource, KafkaSource
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_table import FeatureTable
@@ -13,6 +19,7 @@ from feast.value_type import ValueType
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 PROJECT_NAME = "basic_" + uuid.uuid4().hex.upper()[0:6]
+SUFFIX = str(int(datetime.now().timestamp()))
 
 
 @pytest.fixture(scope="module")
@@ -25,6 +32,11 @@ def client(pytestconfig):
     client.set_project(PROJECT_NAME)
 
     return client
+
+
+@pytest.fixture
+def bq_table_id():
+    return f"kf-feast:feaste2e.table{SUFFIX}"
 
 
 @pytest.fixture
@@ -82,6 +94,34 @@ def basic_featuretable():
         batch_source=batch_source,
         stream_source=stream_source,
         labels={"key1": "val1", "key2": "val2"},
+    )
+
+
+@pytest.fixture
+def bq_dataset():
+    N_ROWS = 100
+    time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
+    return pd.DataFrame(
+        {
+            "datetime": [time_offset] * N_ROWS,
+            "dev_feature_float": [np.float(row) for row in range(N_ROWS)],
+            "dev_feature_string": ["feat_" + str(row) for row in range(N_ROWS)],
+        }
+    )
+
+
+@pytest.fixture
+def bq_featuretable(bq_table_id):
+    batch_source = BigQuerySource(table_ref=bq_table_id, timestamp_column="datetime",)
+    return FeatureTable(
+        name="basic_featuretable",
+        entities=["driver_id", "customer_id"],
+        features=[
+            Feature(name="dev_feature_float", dtype=ValueType.FLOAT),
+            Feature(name="dev_feature_string", dtype=ValueType.STRING),
+        ],
+        max_age=Duration(seconds=3600),
+        batch_source=batch_source,
     )
 
 
@@ -194,3 +234,38 @@ def test_get_list_alltypes(
         ft for ft in client.list_feature_tables() if ft.name == "alltypes"
     ][0]
     assert actual_list_feature_table == alltypes_featuretable
+
+
+def test_ingest(
+    client: Client,
+    customer_entity: Entity,
+    driver_entity: Entity,
+    bq_featuretable: FeatureTable,
+    bq_dataset: pd.DataFrame,
+    bq_table_id: str,
+):
+    gcp_project, _ = bq_table_id.split(":")
+    bq_table_id = bq_table_id.replace(":", ".")
+
+    # ApplyEntity
+    client.apply_entity(customer_entity)
+    client.apply_entity(driver_entity)
+
+    # ApplyFeatureTable
+    client.apply_feature_table(bq_featuretable)
+    client.ingest(bq_featuretable, bq_dataset, timeout=120)
+
+    # Give time to allow data to propagate to BQ table
+    time.sleep(15)
+
+    from google.cloud import bigquery
+
+    bq_client = bigquery.Client(project=gcp_project)
+    query_string = f"SELECT * FROM `{bq_table_id}`"
+
+    job = bq_client.query(query_string)
+    query_df = job.to_dataframe()
+
+    assert_frame_equal(query_df, bq_dataset)
+
+    bq_client.delete_table(bq_table_id, not_found_ok=True)
