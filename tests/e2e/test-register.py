@@ -1,15 +1,11 @@
 import os
 import uuid
-from datetime import datetime
 
-import numpy as np
-import pandas as pd
 import pytest
-import pytz
 from google.protobuf.duration_pb2 import Duration
 
 from feast.client import Client
-from feast.data_source import BigQuerySource, FileSource, KafkaSource
+from feast.data_source import FileSource, KafkaSource
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_table import FeatureTable
@@ -17,7 +13,6 @@ from feast.value_type import ValueType
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 PROJECT_NAME = "basic_" + uuid.uuid4().hex.upper()[0:6]
-SUFFIX = str(int(datetime.now().timestamp()))
 
 
 @pytest.fixture(scope="module")
@@ -87,36 +82,6 @@ def basic_featuretable():
         batch_source=batch_source,
         stream_source=stream_source,
         labels={"key1": "val1", "key2": "val2"},
-    )
-
-
-@pytest.fixture
-def bq_dataset():
-    N_ROWS = 100
-    time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
-    return pd.DataFrame(
-        {
-            "datetime": [time_offset] * N_ROWS,
-            "dev_feature_float": [np.float(row) for row in range(N_ROWS)],
-            "dev_feature_string": ["feat_" + str(row) for row in range(N_ROWS)],
-        }
-    )
-
-
-@pytest.fixture
-def bq_featuretable():
-    batch_source = BigQuerySource(
-        table_ref=f"kf-feast:feaste2e.table{SUFFIX}", timestamp_column="datetime",
-    )
-    return FeatureTable(
-        name="basic_featuretable",
-        entities=["driver_id", "customer_id"],
-        features=[
-            Feature(name="dev_feature_float", dtype=ValueType.FLOAT),
-            Feature(name="dev_feature_string", dtype=ValueType.STRING),
-        ],
-        max_age=Duration(seconds=3600),
-        batch_source=batch_source,
     )
 
 
@@ -229,22 +194,3 @@ def test_get_list_alltypes(
         ft for ft in client.list_feature_tables() if ft.name == "alltypes"
     ][0]
     assert actual_list_feature_table == alltypes_featuretable
-
-
-def test_ingest(
-    client: Client, bq_featuretable: FeatureTable, bq_dataset: pd.DataFrame
-):
-    # ApplyFeatureTable
-    client.apply_feature_table(bq_featuretable)
-    client.ingest(bq_featuretable, bq_dataset, timeout=600)
-
-    from google.cloud import bigquery
-
-    bq_client = bigquery.Client(project="kf-feast")
-    query_string = f"SELECT COUNT(*) FROM `kf-feast.feaste2e.table{SUFFIX}`"
-
-    job = bq_client.query(query_string)
-    results = job.result()
-
-    for row in results:
-        assert row[0] == 100
