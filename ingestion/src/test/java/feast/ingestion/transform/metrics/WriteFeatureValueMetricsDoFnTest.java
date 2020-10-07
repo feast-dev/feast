@@ -62,7 +62,7 @@ public class WriteFeatureValueMetricsDoFnTest {
   @Test
   public void shouldSendCorrectStatsDMetrics() throws IOException, InterruptedException {
     PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
-    pipelineOptions.setJobName("job");
+    pipelineOptions.setJobName("job-12345678");
 
     Map<String, Iterable<FeatureRow>> input =
         readTestInput("feast/ingestion/transform/WriteFeatureValueMetricsDoFnTest.input");

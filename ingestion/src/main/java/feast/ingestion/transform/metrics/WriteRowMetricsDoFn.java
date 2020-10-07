@@ -25,9 +25,11 @@ import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.Value;
 import feast.proto.types.ValueProto.Value.ValCase;
 import java.time.Clock;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
@@ -192,11 +194,15 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<String, Iterable<Featu
       }
     }
 
+    String[] split = c.getPipelineOptions().getJobName().split("-");
+    String jobNameWithoutTimestamp =
+        Arrays.stream(split).limit(split.length - 1).collect(Collectors.joining("-"));
+
     String[] tags = {
       STORE_TAG_KEY + ":" + getStoreName(),
       FEATURE_SET_PROJECT_TAG_KEY + ":" + featureSetProject,
       FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
-      INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName(),
+      INGESTION_JOB_NAME_KEY + ":" + jobNameWithoutTimestamp,
       METRICS_NAMESPACE_KEY + ":" + getMetricsNamespace(),
     };
 
