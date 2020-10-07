@@ -693,7 +693,7 @@ def _get_data_source(data_source):
     Convert data source config in FeatureTable spec to a DataSource class object.
     """
 
-    if issubclass(type(data_source), FileSource):
+    if data_source.file_options.file_format and data_source.file_options.file_url:
         data_source_obj = FileSource(
             field_mapping=data_source.field_mapping,
             file_format=data_source.file_options.file_format,
@@ -701,14 +701,18 @@ def _get_data_source(data_source):
             timestamp_column=data_source.timestamp_column,
             date_partition_column=data_source.date_partition_column,
         )
-    elif issubclass(type(data_source), BigQuerySource):
+    elif data_source.bigquery_options.table_ref:
         data_source_obj = BigQuerySource(
             field_mapping=data_source.field_mapping,
             table_ref=data_source.bigquery_options.table_ref,
             timestamp_column=data_source.timestamp_column,
             date_partition_column=data_source.date_partition_column,
         )
-    elif issubclass(type(data_source), KafkaSource):
+    elif (
+        data_source.kafka_options.bootstrap_servers
+        and data_source.kafka_options.topic
+        and data_source.kafka_options.class_path
+    ):
         data_source_obj = KafkaSource(
             field_mapping=data_source.field_mapping,
             bootstrap_servers=data_source.kafka_options.bootstrap_servers,
@@ -717,7 +721,11 @@ def _get_data_source(data_source):
             timestamp_column=data_source.timestamp_column,
             date_partition_column=data_source.date_partition_column,
         )
-    elif issubclass(type(data_source), KinesisSource):
+    elif (
+        data_source.kinesis_options.class_path
+        and data_source.kinesis_options.region
+        and data_source.kinesis_options.stream_name
+    ):
         data_source_obj = KinesisSource(
             field_mapping=data_source.field_mapping,
             class_path=data_source.kinesis_options.class_path,
