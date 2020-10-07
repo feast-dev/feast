@@ -251,6 +251,43 @@ class TestClient:
             serving_url=f"localhost:{serving_server}",
         )
 
+    @pytest.fixture
+    def partitioned_df(self):
+        # Partitioned DataFrame
+        N_ROWS = 100
+        time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
+        final_offset = (
+            [time_offset] * 33
+            + [time_offset - timedelta(days=1)] * 33
+            + [time_offset - timedelta(days=2)] * 34
+        )
+        final_part_offset = (
+            [time_offset - timedelta(days=99)] * 33
+            + [time_offset - timedelta(days=100)] * 33
+            + [time_offset - timedelta(days=101)] * 34
+        )
+        return pd.DataFrame(
+            {
+                "datetime": final_offset,
+                "datetime_col": final_part_offset,
+                "dev_feature_float": [np.float(row) for row in range(N_ROWS)],
+                "dev_feature_string": ["feat_" + str(row) for row in range(N_ROWS)],
+            }
+        )
+
+    @pytest.fixture
+    def non_partitioned_df(self):
+        # Non-Partitioned DataFrame
+        N_ROWS = 100
+        time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
+        return pd.DataFrame(
+            {
+                "datetime": [time_offset] * N_ROWS,
+                "dev_feature_float": [np.float(row) for row in range(N_ROWS)],
+                "dev_feature_string": ["feat_" + str(row) for row in range(N_ROWS)],
+            }
+        )
+
     @pytest.mark.parametrize(
         "mocked_client",
         [lazy_fixture("mock_client"), lazy_fixture("secure_mock_client")],
@@ -400,30 +437,13 @@ class TestClient:
     @pytest.mark.parametrize(
         "mocked_client", [lazy_fixture("mock_client")],
     )
-    def test_ingest(self, mocked_client, mocker):
+    def test_ingest_dataframe_partition(self, mocked_client, mocker, partitioned_df):
+        """
+        Test ingestion with local FileSource, using DataFrame.
+        Partition column stated but not provided in Dataset.
+        """
         mocked_client._core_service_stub = Core.CoreServiceStub(
             grpc.insecure_channel("")
-        )
-
-        N_ROWS = 100
-        time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
-        final_offset = (
-            [time_offset] * 33
-            + [time_offset - timedelta(days=1)] * 33
-            + [time_offset - timedelta(days=2)] * 34
-        )
-        final_part_offset = (
-            [time_offset - timedelta(days=99)] * 33
-            + [time_offset - timedelta(days=100)] * 33
-            + [time_offset - timedelta(days=101)] * 34
-        )
-        ft_df = pd.DataFrame(
-            {
-                "datetime": final_offset,
-                "datetime_col": final_part_offset,
-                "dev_feature_float": [np.float(row) for row in range(N_ROWS)],
-                "dev_feature_string": ["feat_" + str(row) for row in range(N_ROWS)],
-            }
         )
 
         mocker.patch.object(
@@ -461,20 +481,165 @@ class TestClient:
 
         mocked_client.set_project("my_project")
         ft = mocked_client.get_feature_table("ingest_featuretable")
-        mocked_client.ingest(ft, ft_df, timeout=600)
+        mocked_client.ingest(ft, partitioned_df, timeout=600)
 
         dest_fpath = os.path.join("feast/")
         pq_df = pq.read_table(dest_fpath).to_pandas()
 
-        ft_df.sort_values(by=["dev_feature_float"], inplace=True)
+        # Format Dataframes before comparing them
+        partitioned_df.sort_values(by=["dev_feature_float"], inplace=True)
         pq_df.sort_values(by=["dev_feature_float"], inplace=True)
         pq_df = pq_df.reindex(sorted(pq_df.columns), axis=1)
-        ft_df = ft_df.reindex(sorted(ft_df.columns), axis=1)
-        ft_df.reset_index(drop=True, inplace=True)
+        partitioned_df = partitioned_df.reindex(sorted(partitioned_df.columns), axis=1)
+        partitioned_df.reset_index(drop=True, inplace=True)
         pq_df.reset_index(drop=True, inplace=True)
         pq_df["datetime_col"] = pd.to_datetime(pq_df.datetime_col).dt.tz_convert("UTC")
 
-        assert_frame_equal(ft_df, pq_df)
+        assert_frame_equal(partitioned_df, pq_df)
+
+    @pytest.mark.parametrize(
+        "mocked_client", [lazy_fixture("mock_client")],
+    )
+    def test_ingest_dataframe_no_partition(
+        self, mocked_client, mocker, non_partitioned_df
+    ):
+        """
+        Test ingestion with local FileSource, using DataFrame.
+        Partition column not stated.
+        """
+        mocked_client._core_service_stub = Core.CoreServiceStub(
+            grpc.insecure_channel("")
+        )
+
+        mocker.patch.object(
+            mocked_client._core_service_stub,
+            "GetFeatureTable",
+            return_value=GetFeatureTableResponse(
+                table=FeatureTableProto(
+                    spec=FeatureTableSpecProto(
+                        name="ingest_featuretable",
+                        max_age=Duration(seconds=3600),
+                        features=[
+                            FeatureSpecProto(
+                                name="dev_feature_float",
+                                value_type=ValueProto.ValueType.FLOAT,
+                            ),
+                            FeatureSpecProto(
+                                name="dev_feature_string",
+                                value_type=ValueProto.ValueType.STRING,
+                            ),
+                        ],
+                        entities=["dev_entity"],
+                        batch_source=DataSourceProto(
+                            type="BATCH_FILE",
+                            file_options=DataSourceProto.FileOptions(
+                                file_format="parquet", file_url="file://feast2/*"
+                            ),
+                            timestamp_column="datetime",
+                        ),
+                    ),
+                    meta=FeatureTableMetaProto(),
+                )
+            ),
+        )
+
+        mocked_client.set_project("my_project")
+        ft = mocked_client.get_feature_table("ingest_featuretable")
+        mocked_client.ingest(ft, non_partitioned_df, timeout=600)
+
+        # Since not partitioning, we're only looking for single file
+        dest_fpath = os.path.join("feast2/")
+        single_file = [
+            f
+            for f in os.listdir(dest_fpath)
+            if os.path.isfile(os.path.join(dest_fpath, f))
+        ][0]
+        pq_df = pq.read_table(dest_fpath + single_file).to_pandas()
+
+        # Format Dataframes before comparing them
+        non_partitioned_df.sort_values(by=["dev_feature_float"], inplace=True)
+        pq_df.sort_values(by=["dev_feature_float"], inplace=True)
+        pq_df = pq_df.reindex(sorted(pq_df.columns), axis=1)
+        non_partitioned_df = non_partitioned_df.reindex(
+            sorted(non_partitioned_df.columns), axis=1
+        )
+        non_partitioned_df.reset_index(drop=True, inplace=True)
+        pq_df.reset_index(drop=True, inplace=True)
+
+        assert_frame_equal(non_partitioned_df, pq_df)
+
+    @pytest.mark.parametrize(
+        "mocked_client", [lazy_fixture("mock_client")],
+    )
+    def test_ingest_csv(self, mocked_client, mocker):
+        """
+        Test ingestion with local FileSource, using CSV file.
+        Partition column is provided.
+        """
+        mocked_client._core_service_stub = Core.CoreServiceStub(
+            grpc.insecure_channel("")
+        )
+
+        mocker.patch.object(
+            mocked_client._core_service_stub,
+            "GetFeatureTable",
+            return_value=GetFeatureTableResponse(
+                table=FeatureTableProto(
+                    spec=FeatureTableSpecProto(
+                        name="ingest_featuretable",
+                        max_age=Duration(seconds=3600),
+                        features=[
+                            FeatureSpecProto(
+                                name="dev_feature_float",
+                                value_type=ValueProto.ValueType.FLOAT,
+                            ),
+                            FeatureSpecProto(
+                                name="dev_feature_string",
+                                value_type=ValueProto.ValueType.STRING,
+                            ),
+                        ],
+                        entities=["dev_entity"],
+                        batch_source=DataSourceProto(
+                            type="BATCH_FILE",
+                            file_options=DataSourceProto.FileOptions(
+                                file_format="parquet", file_url="file://feast3/*"
+                            ),
+                            timestamp_column="datetime",
+                            date_partition_column="datetime_col",
+                        ),
+                    ),
+                    meta=FeatureTableMetaProto(),
+                )
+            ),
+        )
+
+        partitioned_df = pd.read_csv(
+            os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                "./data/dev_featuretable.csv",
+            )
+        )
+
+        mocked_client.set_project("my_project")
+        ft = mocked_client.get_feature_table("ingest_featuretable")
+        mocked_client.ingest(ft, partitioned_df, timeout=600)
+
+        dest_fpath = os.path.join("feast3/")
+        pq_df = pq.read_table(dest_fpath).to_pandas()
+
+        # Format Dataframes before comparing them
+        partitioned_df.sort_values(by=["dev_feature_float"], inplace=True)
+        pq_df.sort_values(by=["dev_feature_float"], inplace=True)
+        pq_df = pq_df.reindex(sorted(pq_df.columns), axis=1)
+        partitioned_df = partitioned_df.reindex(sorted(partitioned_df.columns), axis=1)
+        partitioned_df.reset_index(drop=True, inplace=True)
+        pq_df.reset_index(drop=True, inplace=True)
+        partitioned_df["datetime_col"] = pd.to_datetime(
+            partitioned_df.datetime_col
+        ).dt.tz_convert("UTC")
+        pq_df["datetime_col"] = pd.to_datetime(pq_df.datetime_col).dt.tz_convert("UTC")
+
+        assert_frame_equal(partitioned_df, pq_df)
 
     @patch("grpc.channel_ready_future")
     def test_secure_channel_creation_with_secure_client(

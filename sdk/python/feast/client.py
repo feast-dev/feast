@@ -13,17 +13,11 @@
 # limitations under the License.
 import logging
 import multiprocessing
-import os
 import shutil
-import tempfile
-import time
-from math import ceil
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
 import grpc
 import pandas as pd
-import pyarrow as pa
-from pyarrow import parquet as pq
 
 from feast.config import Config
 from feast.constants import (
@@ -68,11 +62,14 @@ from feast.grpc.grpc import create_grpc_channel
 from feast.loaders.ingest import (
     BATCH_INGESTION_PRODUCTION_TIMEOUT,
     _check_field_mappings,
-    _partition_by_date,
+    _read_table_from_source,
+    _upload_to_bq_source,
+    _upload_to_file_source,
+    _write_non_partitioned_table_from_source,
+    _write_partitioned_table_from_source,
 )
 from feast.serving.ServingService_pb2 import GetFeastServingInfoRequest
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
-from feast.staging.storage_client import get_staging_client
 
 _logger = logging.getLogger(__name__)
 
@@ -642,10 +639,6 @@ class Client:
         else:
             raise Exception(f"FeatureTable, {name} cannot be found.")
 
-        dir_path, dest_path, column_names = _read_table_from_source(
-            source, chunk_size, max_workers
-        )
-
         # Check 1) Only parquet file format for FeatureTable batch source is supported
         if (
             feature_table.batch_source
@@ -660,6 +653,7 @@ class Client:
                 f"Only BATCH_FILE source with parquet format is supported for batch ingestion."
             )
 
+        pyarrow_table, column_names = _read_table_from_source(source)
         # Check 2) Check if FeatureTable batch source field mappings can be found in provided source table
         _check_field_mappings(
             column_names,
@@ -667,77 +661,42 @@ class Client:
             feature_table.batch_source.timestamp_column,
             feature_table.batch_source.field_mapping,
         )
-        # Partition dataset by date
-        date_partition_dest_path = None
-        if feature_table.batch_source.date_partition_column:
-            date_partition_dest_path = _partition_by_date(
+
+        dir_path = None
+        to_partition = False
+        if feature_table.batch_source.date_partition_column and issubclass(
+            type(feature_table.batch_source), FileSource
+        ):
+            to_partition = True
+            dest_path = _write_partitioned_table_from_source(
                 column_names,
+                pyarrow_table,
                 feature_table.batch_source.date_partition_column,
                 feature_table.batch_source.timestamp_column,
-                dest_path,
+            )
+        else:
+            dir_path, dest_path = _write_non_partitioned_table_from_source(
+                column_names, pyarrow_table, chunk_size, max_workers,
             )
 
         try:
             if issubclass(type(feature_table.batch_source), FileSource):
-                from urllib.parse import urlparse
-
                 file_url = feature_table.batch_source.file_options.file_url[:-1]
-                uri = urlparse(file_url)
-                staging_client = get_staging_client(uri.scheme)
-
-                if date_partition_dest_path is not None:
-                    file_paths = list()
-                    for (dirpath, dirnames, filenames) in os.walk(
-                        date_partition_dest_path
-                    ):
-                        file_paths += [
-                            os.path.join(dirpath, file) for file in filenames
-                        ]
-                    for path in file_paths:
-                        file_name = path.split("/")[-1]
-                        partition_col = path.split("/")[-2]
-                        staging_client.upload_file(
-                            path,
-                            uri.hostname,
-                            str(uri.path).strip("/")
-                            + "/"
-                            + partition_col
-                            + "/"
-                            + file_name,
-                        )
-                else:
-                    file_name = dest_path.split("/")[-1]
-                    staging_client.upload_file(
-                        dest_path,
-                        uri.hostname,
-                        str(uri.path).strip("/") + "/" + file_name,
-                    )
+                _upload_to_file_source(file_url, to_partition, dest_path)
             if issubclass(type(feature_table.batch_source), BigQuerySource):
-                from google.cloud import bigquery
-
                 bq_table_ref = feature_table.batch_source.bigquery_options.table_ref
-                gcp_project, dataset_table = bq_table_ref.split(":")
-
-                client = bigquery.Client(project=gcp_project)
-
-                bq_table_ref = bq_table_ref.replace(":", ".")
-                table = bigquery.table.Table(bq_table_ref)
-
-                job_config = bigquery.LoadJobConfig()
-                job_config.source_format = bigquery.SourceFormat.PARQUET
-
-                time_partitioning_obj = bigquery.table.TimePartitioning(
-                    field=feature_table.batch_source.timestamp_column
+                feature_table_timestamp_column = (
+                    feature_table.batch_source.timestamp_column
                 )
-                job_config.time_partitioning = time_partitioning_obj
-                with open(dest_path, "rb") as source_file:
-                    client.load_table_from_file(
-                        source_file, table, job_config=job_config
-                    )
+
+                _upload_to_bq_source(
+                    bq_table_ref, feature_table_timestamp_column, dest_path
+                )
         finally:
             # Remove parquet file(s) that were created earlier
             print("Removing temporary file(s)...")
-            shutil.rmtree(dir_path)
+            if dir_path:
+                shutil.rmtree(dir_path)
 
         print("Data has been successfully ingested into FeatureTable batch source.")
 
@@ -751,74 +710,3 @@ class Client:
         if self._config.getboolean(CONFIG_ENABLE_AUTH_KEY) and self._auth_metadata:
             return self._auth_metadata.get_signed_meta()
         return ()
-
-
-def _read_table_from_source(
-    source: Union[pd.DataFrame, str], chunk_size: int, max_workers: int
-) -> Tuple[str, str, List[str]]:
-    """
-    Infers a data source type (path or Pandas DataFrame) and reads it in as
-    a PyArrow Table.
-
-    The PyArrow Table that is read will be written to a parquet file with row
-    group size determined by the minimum of:
-        * (table.num_rows / max_workers)
-        * chunk_size
-
-    The parquet file that is created will be passed as file path to the
-    multiprocessing pool workers.
-
-    Args:
-        source (Union[pd.DataFrame, str]):
-            Either a string path or Pandas DataFrame.
-
-        chunk_size (int):
-            Number of worker processes to use to encode values.
-
-        max_workers (int):
-            Amount of rows to load and ingest at a time.
-
-    Returns:
-        Tuple[str, str, List[str]]:
-            Tuple containing parent directory path, destination path to
-            parquet file and column names of pyarrow table.
-    """
-
-    # Pandas DataFrame detected
-    if isinstance(source, pd.DataFrame):
-        table = pa.Table.from_pandas(df=source)
-
-    # Inferring a string path
-    elif isinstance(source, str):
-        file_path = source
-        filename, file_ext = os.path.splitext(file_path)
-
-        if ".csv" in file_ext:
-            from pyarrow import csv
-
-            table = csv.read_csv(filename)
-        elif ".json" in file_ext:
-            from pyarrow import json
-
-            table = json.read_json(filename)
-        else:
-            table = pq.read_table(file_path)
-    else:
-        raise ValueError(f"Unknown data source provided for ingestion: {source}")
-
-    # Ensure that PyArrow table is initialised
-    assert isinstance(table, pa.lib.Table)
-
-    # Write table as parquet file with a specified row_group_size
-    dir_path = tempfile.mkdtemp()
-    tmp_table_name = f"{int(time.time())}.parquet"
-    dest_path = f"{dir_path}/{tmp_table_name}"
-    row_group_size = min(ceil(table.num_rows / max_workers), chunk_size)
-    pq.write_table(table=table, where=dest_path, row_group_size=row_group_size)
-
-    column_names = table.column_names
-
-    # Remove table from memory
-    del table
-
-    return dir_path, dest_path, column_names
