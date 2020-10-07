@@ -2,10 +2,8 @@
 
 set -e
 set -o pipefail
-[[ $1 == "True" ]] && ENABLE_AUTH="true" || ENABLE_AUTH="false"
-echo "Authenication enabled : ${ENABLE_AUTH}"
 
-test -z ${GOOGLE_APPLICATION_CREDENTIALS} && GOOGLE_APPLICATION_CREDENTIALS="/etc/gcloud/service-account.json"
+test -z ${GOOGLE_APPLICATION_CREDENTIALS} && GOOGLE_APPLICATION_CREDENTIALS="/etc/service-account/service-account.json"
 test -z ${SKIP_BUILD_JARS} && SKIP_BUILD_JARS="false"
 test -z ${GOOGLE_CLOUD_PROJECT} && GOOGLE_CLOUD_PROJECT="kf-feast"
 test -z ${TEMP_BUCKET} && TEMP_BUCKET="feast-templocation-kf-feast"
@@ -32,7 +30,6 @@ This script will run end-to-end tests for Feast Core and Online Serving.
 source ${SCRIPTS_DIR}/setup-common-functions.sh
 
 install_test_tools
-install_gcloud_sdk
 install_and_start_local_redis_cluster
 install_and_start_local_postgres
 install_and_start_local_zookeeper_and_kafka
