@@ -2,7 +2,7 @@ feast-jobcontroller
 ==========
 Feast Job Controller manage ingestion jobs.
 
-Current chart version is `0.7.1`
+Current chart version is `0.7.2-SNAPSHOT`
 
 
 
