@@ -2,6 +2,8 @@
 
 set -e
 set -o pipefail
+[[ $1 == "True" ]] && ENABLE_AUTH="true" || ENABLE_AUTH="false"
+echo "Authenication enabled : ${ENABLE_AUTH}"
 
 test -z ${GOOGLE_APPLICATION_CREDENTIALS} && GOOGLE_APPLICATION_CREDENTIALS="/etc/gcloud/service-account.json"
 test -z ${SKIP_BUILD_JARS} && SKIP_BUILD_JARS="false"

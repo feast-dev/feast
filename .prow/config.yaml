@@ -147,7 +147,7 @@ presubmits:
     spec:
       containers:
       - image: maven:3.6-jdk-11
-        command: ["infra/scripts/test-end-to-end.sh"]
+        command: ["infra/scripts/test-end-to-end.sh", "True"]
         resources:
           requests:
             cpu: "6"
@@ -199,7 +199,7 @@ presubmits:
     spec:
       containers:
       - image: maven:3.6-jdk-11
-        command: ["infra/scripts/test-end-to-end-redis-cluster.sh"]
+        command: ["infra/scripts/test-end-to-end-redis-cluster.sh", "True"]
         resources:
           requests:
             cpu: "6"
