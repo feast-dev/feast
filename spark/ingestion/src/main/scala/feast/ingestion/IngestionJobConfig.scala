@@ -26,7 +26,7 @@ object Modes extends Enumeration {
 
 abstract class StoreConfig
 
-case class RedisConfig(host: String, port: Int) extends StoreConfig
+case class RedisConfig(host: String, port: Int, ssl: Boolean) extends StoreConfig
 
 abstract class MetricConfig
 
@@ -84,7 +84,7 @@ case class IngestionJobConfig(
     source: Source = null,
     startTime: DateTime = DateTime.now(),
     endTime: DateTime = DateTime.now(),
-    store: StoreConfig = RedisConfig("localhost", 6379),
+    store: StoreConfig = RedisConfig("localhost", 6379, false),
     metrics: Option[MetricConfig] = Some(StatsDConfig("localhost", 9125)),
     deadLetterPath: Option[String] = None
 )

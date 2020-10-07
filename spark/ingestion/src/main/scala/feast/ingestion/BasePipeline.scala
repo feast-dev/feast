@@ -31,10 +31,11 @@ trait BasePipeline {
       .setMaster("local")
 
     jobConfig.store match {
-      case RedisConfig(host, port) =>
+      case RedisConfig(host, port, ssl) =>
         conf
           .set("spark.redis.host", host)
           .set("spark.redis.port", port.toString)
+          .set("spark.redis.ssl", ssl.toString)
     }
 
     jobConfig.metrics match {
