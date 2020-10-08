@@ -24,15 +24,15 @@ from feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
 from feast.core.FeatureTable_pb2 import FeatureTableMeta as FeatureTableMetaProto
 from feast.core.FeatureTable_pb2 import FeatureTableSpec as FeatureTableSpecProto
 from feast.data_source import (
-    BigQueryOptions,
+    BigQuerySource,
     DataSource,
-    FileOptions,
-    KafkaOptions,
-    KinesisOptions,
-    SourceType,
+    FileSource,
+    KafkaSource,
+    KinesisSource,
 )
-from feast.feature_v2 import FeatureV2
+from feast.feature import Feature
 from feast.loaders import yaml as feast_yaml
+from feast.value_type import ValueType
 
 
 class FeatureTable:
@@ -43,10 +43,10 @@ class FeatureTable:
     def __init__(
         self,
         name: str,
-        entities: Union[str, List[str]],
-        features: Union[FeatureV2, List[FeatureV2]],
-        batch_source: Optional[DataSource] = None,
-        stream_source: Optional[DataSource] = None,
+        entities: List[str],
+        features: List[Feature],
+        batch_source: Union[BigQuerySource, FileSource] = None,
+        stream_source: Optional[Union[KafkaSource, KinesisSource]] = None,
         max_age: Optional[Duration] = None,
         labels: Optional[MutableMapping[str, str]] = None,
     ):
@@ -82,6 +82,8 @@ class FeatureTable:
 
         if self.entities != other.entities:
             return False
+        if self.features != other.features:
+            return False
         if self.batch_source != other.batch_source:
             return False
         if self.stream_source != other.stream_source:
@@ -97,7 +99,7 @@ class FeatureTable:
         return self._name
 
     @name.setter
-    def name(self, name):
+    def name(self, name: str):
         """
         Sets the name of this feature table
         """
@@ -111,7 +113,7 @@ class FeatureTable:
         return self._entities
 
     @entities.setter
-    def entities(self, entities):
+    def entities(self, entities: List[str]):
         """
         Sets the entities of this feature table
         """
@@ -125,7 +127,7 @@ class FeatureTable:
         return self._features
 
     @features.setter
-    def features(self, features):
+    def features(self, features: List[Feature]):
         """
         Sets the features of this feature table
         """
@@ -139,7 +141,7 @@ class FeatureTable:
         return self._batch_source
 
     @batch_source.setter
-    def batch_source(self, batch_source: DataSource):
+    def batch_source(self, batch_source: Union[BigQuerySource, FileSource]):
         """
         Sets the batch source of this feature table
         """
@@ -153,7 +155,7 @@ class FeatureTable:
         return self._stream_source
 
     @stream_source.setter
-    def stream_source(self, stream_source: DataSource):
+    def stream_source(self, stream_source: Union[KafkaSource, KinesisSource]):
         """
         Sets the stream source of this feature table
         """
@@ -169,7 +171,7 @@ class FeatureTable:
         return self._max_age
 
     @max_age.setter
-    def max_age(self, max_age):
+    def max_age(self, max_age: Duration):
         """
         Set the maximum age for this feature table
         """
@@ -249,62 +251,6 @@ class FeatureTable:
         return cls.from_proto(feature_table_proto)
 
     @classmethod
-    def _to_data_source(cls, data_source):
-        """
-        Convert dict to data source.
-        """
-
-        source_type = SourceType(data_source.type).name
-
-        if (
-            source_type == "BATCH_FILE"
-            and data_source.file_options.file_format
-            and data_source.file_options.file_url
-        ):
-            data_source_options = FileOptions(
-                file_format=data_source.file_options.file_format,
-                file_url=data_source.file_options.file_url,
-            )
-        elif source_type == "BATCH_BIGQUERY" and data_source.bigquery_options.table_ref:
-            data_source_options = BigQueryOptions(
-                table_ref=data_source.bigquery_options.table_ref,
-            )
-        elif (
-            source_type == "STREAM_KAFKA"
-            and data_source.kafka_options.bootstrap_servers
-            and data_source.kafka_options.topic
-            and data_source.kafka_options.class_path
-        ):
-            data_source_options = KafkaOptions(
-                bootstrap_servers=data_source.kafka_options.bootstrap_servers,
-                class_path=data_source.kafka_options.class_path,
-                topic=data_source.kafka_options.topic,
-            )
-        elif (
-            source_type == "STREAM_KINESIS"
-            and data_source.kinesis_options.class_path
-            and data_source.kinesis_options.region
-            and data_source.kinesis_options.stream_name
-        ):
-            data_source_options = KinesisOptions(
-                class_path=data_source.kinesis_options.class_path,
-                region=data_source.kinesis_options.region,
-                stream_name=data_source.kinesis_options.stream_name,
-            )
-        else:
-            raise ValueError("Could not identify the source type being added")
-
-        data_source_proto = DataSource(
-            type=data_source.type,
-            field_mapping=data_source.field_mapping,
-            options=data_source_options,
-            timestamp_column=data_source.timestamp_column,
-            date_partition_column=data_source.date_partition_column,
-        ).to_proto()
-
-        return data_source_proto
-
-    @classmethod
     def from_proto(cls, feature_table_proto: FeatureTableProto):
         """
         Creates a feature table from a protobuf representation of a feature table
@@ -320,7 +266,11 @@ class FeatureTable:
             name=feature_table_proto.spec.name,
             entities=[entity for entity in feature_table_proto.spec.entities],
             features=[
-                FeatureV2.from_proto(feature).to_proto()
+                Feature(
+                    name=feature.name,
+                    dtype=ValueType(feature.value_type),
+                    labels=feature.labels,
+                )
                 for feature in feature_table_proto.spec.features
             ],
             labels=feature_table_proto.spec.labels,
@@ -330,15 +280,11 @@ class FeatureTable:
                 and feature_table_proto.spec.max_age.nanos == 0
                 else feature_table_proto.spec.max_age
             ),
-            batch_source=(
-                None
-                if not feature_table_proto.spec.batch_source.ByteSize()
-                else cls._to_data_source(feature_table_proto.spec.batch_source)
-            ),
+            batch_source=DataSource.from_proto(feature_table_proto.spec.batch_source),
             stream_source=(
                 None
                 if not feature_table_proto.spec.stream_source.ByteSize()
-                else cls._to_data_source(feature_table_proto.spec.stream_source)
+                else DataSource.from_proto(feature_table_proto.spec.stream_source)
             ),
         )
 
@@ -362,11 +308,22 @@ class FeatureTable:
         spec = FeatureTableSpecProto(
             name=self.name,
             entities=self.entities,
-            features=self.features,
+            features=[
+                feature.to_proto() if type(feature) == Feature else feature
+                for feature in self.features
+            ],
             labels=self.labels,
             max_age=self.max_age,
-            batch_source=self.batch_source,
-            stream_source=self.stream_source,
+            batch_source=(
+                self.batch_source.to_proto()
+                if issubclass(type(self.batch_source), DataSource)
+                else self.batch_source
+            ),
+            stream_source=(
+                self.stream_source.to_proto()
+                if issubclass(type(self.stream_source), DataSource)
+                else self.stream_source
+            ),
         )
 
         return FeatureTableProto(spec=spec, meta=meta)
@@ -383,11 +340,22 @@ class FeatureTable:
         spec = FeatureTableSpecProto(
             name=self.name,
             entities=self.entities,
-            features=self.features,
+            features=[
+                feature.to_proto() if type(feature) == Feature else feature
+                for feature in self.features
+            ],
             labels=self.labels,
             max_age=self.max_age,
-            batch_source=self.batch_source,
-            stream_source=self.stream_source,
+            batch_source=(
+                self.batch_source.to_proto()
+                if issubclass(type(self.batch_source), DataSource)
+                else self.batch_source
+            ),
+            stream_source=(
+                self.stream_source.to_proto()
+                if issubclass(type(self.stream_source), DataSource)
+                else self.stream_source
+            ),
         )
 
         return spec
@@ -420,7 +388,7 @@ class FeatureTable:
         Deep replaces one feature table with another
 
         Args:
-            feature_table: Feature set to use as a source of configuration
+            feature_table: Feature table to use as a source of configuration
         """
 
         self.name = feature_table.name

@@ -22,9 +22,6 @@ from google.protobuf.json_format import MessageToDict
 from google.protobuf.timestamp_pb2 import Timestamp
 from pyarrow.lib import TimestampType
 
-from feast.constants import DATETIME_COLUMN
-from feast.types import FeatureRow_pb2 as FeatureRowProto
-from feast.types import Field_pb2 as FieldProto
 from feast.types.Value_pb2 import (
     BoolList,
     BytesList,
@@ -161,87 +158,6 @@ def python_type_to_feast_value_type(
             )
 
     return type_map[value.dtype.__str__()]
-
-
-def convert_df_to_feature_rows(dataframe: pd.DataFrame, feature_set):
-    """
-    Returns a function that converts a Pandas Series to a Feast FeatureRow
-    for a given Feature Set and Pandas Dataframe
-
-    Args:
-        dataframe: Dataframe that will be converted
-        feature_set: Feature set used as schema for conversion
-
-    Returns:
-        Function that will do conversion
-    """
-
-    def convert_series_to_proto_values(row: pd.Series):
-        """
-        Converts a Pandas Series to a Feast FeatureRow
-
-        Args:
-            row: pd.Series The row that should be converted
-
-        Returns:
-            Feast FeatureRow
-        """
-
-        feature_row = FeatureRowProto.FeatureRow(
-            event_timestamp=_pd_datetime_to_timestamp_proto(
-                dataframe[DATETIME_COLUMN].dtype, row[DATETIME_COLUMN]
-            ),
-            feature_set=feature_set.project + "/" + feature_set.name,
-        )
-
-        for field_name, field in feature_set.fields.items():
-            feature_row.fields.extend(
-                [
-                    FieldProto.Field(
-                        name=field.name,
-                        value=_python_value_to_proto_value(
-                            field.dtype, row[field.name]
-                        ),
-                    )
-                ]
-            )
-        return feature_row
-
-    return convert_series_to_proto_values
-
-
-def convert_dict_to_proto_values(
-    row: dict, df_datetime_dtype: pd.DataFrame.dtypes, feature_set
-) -> FeatureRowProto.FeatureRow:
-    """
-    Encode a dictionary describing a feature row into a FeatureRows object.
-
-    Args:
-        row: Dictionary describing a feature row.
-        df_datetime_dtype:  Pandas dtype of datetime column.
-        feature_set: Feature set describing feature row.
-
-    Returns:
-        FeatureRow
-    """
-
-    feature_row = FeatureRowProto.FeatureRow(
-        event_timestamp=_pd_datetime_to_timestamp_proto(
-            df_datetime_dtype, row[DATETIME_COLUMN]
-        ),
-        feature_set=f"{feature_set.project}/{feature_set.name}",
-    )
-
-    for field_name, field in feature_set.fields.items():
-        feature_row.fields.extend(
-            [
-                FieldProto.Field(
-                    name=field.name,
-                    value=_python_value_to_proto_value(field.dtype, row[field.name]),
-                )
-            ]
-        )
-    return feature_row
 
 
 def _pd_datetime_to_timestamp_proto(dtype, value) -> Timestamp:

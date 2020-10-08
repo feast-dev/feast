@@ -86,7 +86,7 @@ lint-python:
 	cd ${ROOT_DIR}/sdk/python; flake8 feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; black --check feast tests
 
-	cd ${ROOT_DIR}/tests/e2e; mypy redis/
+	cd ${ROOT_DIR}/tests/e2e; mypy .
 	cd ${ROOT_DIR}/tests/e2e; isort . --check-only
 	cd ${ROOT_DIR}/tests/e2e; flake8 .
 	cd ${ROOT_DIR}/tests/e2e; black --check .

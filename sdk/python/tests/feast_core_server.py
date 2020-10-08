@@ -7,16 +7,20 @@ from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.core import CoreService_pb2_grpc as Core
 from feast.core.CoreService_pb2 import (
-    ApplyFeatureSetRequest,
-    ApplyFeatureSetResponse,
+    ApplyEntityRequest,
+    ApplyEntityResponse,
+    ApplyFeatureTableRequest,
+    ApplyFeatureTableResponse,
     GetFeastCoreVersionResponse,
-    ListFeatureSetsRequest,
-    ListFeatureSetsResponse,
+    ListEntitiesRequest,
+    ListEntitiesResponse,
+    ListFeatureTablesRequest,
+    ListFeatureTablesResponse,
 )
-from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
-from feast.core.FeatureSet_pb2 import FeatureSetMeta, FeatureSetStatus
-from feast.core.Source_pb2 import KafkaSourceConfig as KafkaSourceConfigProto
-from feast.core.Source_pb2 import SourceType as SourceTypeProto
+from feast.core.Entity_pb2 import Entity as EntityProto
+from feast.core.Entity_pb2 import EntityMeta
+from feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
+from feast.core.FeatureTable_pb2 import FeatureTableMeta
 
 _logger = logging.getLogger(__name__)
 
@@ -56,57 +60,61 @@ class AllowAuthInterceptor(grpc.ServerInterceptor):
 
 class CoreServicer(Core.CoreServiceServicer):
     def __init__(self):
-        self._feature_sets = dict()
+        self._feature_tables = dict()
+        self._entities = dict()
 
     def GetFeastCoreVersion(self, request, context):
-        return GetFeastCoreVersionResponse(version="0.3.2")
+        return GetFeastCoreVersionResponse(version="0.10.0")
 
-    def ListFeatureSets(self, request: ListFeatureSetsRequest, context):
+    def ListFeatureTables(self, request: ListFeatureTablesRequest, context):
 
-        filtered_feature_set_response = [
-            fs
-            for fs in list(self._feature_sets.values())
-            if (
-                not request.filter.feature_set_name
-                or request.filter.feature_set_name == "*"
-                or fs.spec.name == request.filter.feature_set_name
-            )
-        ]
+        filtered_feature_table_response = list(self._feature_tables.values())
 
-        return ListFeatureSetsResponse(feature_sets=filtered_feature_set_response)
+        return ListFeatureTablesResponse(tables=filtered_feature_table_response)
 
-    def ApplyFeatureSet(self, request: ApplyFeatureSetRequest, context):
-        feature_set = request.feature_set
+    def ApplyFeatureTable(self, request: ApplyFeatureTableRequest, context):
+        feature_table_spec = request.table_spec
 
-        if feature_set.spec.source.type == SourceTypeProto.INVALID:
-            feature_set.spec.source.kafka_source_config.CopyFrom(
-                KafkaSourceConfigProto(bootstrap_servers="server.com", topic="topic1")
-            )
-            feature_set.spec.source.type = SourceTypeProto.KAFKA
-
-        feature_set_meta = FeatureSetMeta(
-            status=FeatureSetStatus.STATUS_READY,
-            created_timestamp=Timestamp(seconds=10),
+        feature_table_meta = FeatureTableMeta(created_timestamp=Timestamp(seconds=10),)
+        applied_feature_table = FeatureTableProto(
+            spec=feature_table_spec, meta=feature_table_meta
         )
-        applied_feature_set = FeatureSetProto(
-            spec=feature_set.spec, meta=feature_set_meta
-        )
-        self._feature_sets[feature_set.spec.name] = applied_feature_set
+        self._feature_tables[feature_table_spec.name] = applied_feature_table
 
         _logger.info(
-            "registered feature set "
-            + feature_set.spec.name
+            "registered feature table "
+            + feature_table_spec.name
             + " with "
-            + str(len(feature_set.spec.entities))
+            + str(len(feature_table_spec.entities))
             + " entities and "
-            + str(len(feature_set.spec.features))
+            + str(len(feature_table_spec.features))
             + " features"
         )
 
-        return ApplyFeatureSetResponse(
-            feature_set=applied_feature_set,
-            status=ApplyFeatureSetResponse.Status.CREATED,
+        return ApplyFeatureTableResponse(table=applied_feature_table,)
+
+    def ListEntities(self, request: ListEntitiesRequest, context):
+
+        filtered_entities_response = list(self._entities.values())
+
+        return ListEntitiesResponse(entities=filtered_entities_response)
+
+    def ApplyEntity(self, request: ApplyEntityRequest, context):
+        entity_spec = request.spec
+
+        entity_meta = EntityMeta(created_timestamp=Timestamp(seconds=10),)
+        applied_entity = EntityProto(spec=entity_spec, meta=entity_meta)
+        self._entities[entity_spec.name] = applied_entity
+
+        _logger.info(
+            "registered entity "
+            + entity_spec.name
+            + " with "
+            + str(entity_spec.value_type)
+            + " value"
         )
+
+        return ApplyEntityResponse(entity=applied_entity,)
 
 
 def serve():

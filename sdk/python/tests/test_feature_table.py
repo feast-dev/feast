@@ -21,9 +21,9 @@ import pytest
 
 from feast.client import Client
 from feast.core import CoreService_pb2_grpc as Core
-from feast.data_source import DataSource, FileOptions, KafkaOptions, SourceType
+from feast.data_source import FileSource, KafkaSource
+from feast.feature import Feature
 from feast.feature_table import FeatureTable
-from feast.feature_v2 import FeatureV2
 from feast.value_type import ValueType
 from feast_core_server import CoreServicer
 
@@ -54,41 +54,38 @@ class TestFeatureTable:
 
     def test_feature_table_import_export_yaml(self):
 
-        batch_source = DataSource(
-            type=SourceType(1).name,
+        batch_source = FileSource(
             field_mapping={
                 "ride_distance": "ride_distance",
                 "ride_duration": "ride_duration",
             },
-            options=FileOptions(file_format="avro", file_url="data/test.avro"),
+            file_format="parquet",
+            file_url="file://feast/*",
             timestamp_column="ts_col",
             date_partition_column="date_partition_col",
         )
 
-        stream_source = DataSource(
-            type=SourceType(3).name,
+        stream_source = KafkaSource(
             field_mapping={
                 "ride_distance": "ride_distance",
                 "ride_duration": "ride_duration",
             },
-            options=KafkaOptions(
-                bootstrap_servers="localhost:9094",
-                class_path="random/path/to/class",
-                topic="test_topic",
-            ),
+            bootstrap_servers="localhost:9094",
+            class_path="random/path/to/class",
+            topic="test_topic",
             timestamp_column="ts_col",
         )
 
         test_feature_table = FeatureTable(
             name="car_driver",
             features=[
-                FeatureV2(name="ride_distance", dtype=ValueType.FLOAT).to_proto(),
-                FeatureV2(name="ride_duration", dtype=ValueType.STRING).to_proto(),
+                Feature(name="ride_distance", dtype=ValueType.FLOAT),
+                Feature(name="ride_duration", dtype=ValueType.STRING),
             ],
             entities=["car_driver_entity"],
             labels={"team": "matchmaking"},
-            batch_source=batch_source.to_proto(),
-            stream_source=stream_source.to_proto(),
+            batch_source=batch_source,
+            stream_source=stream_source,
         )
 
         # Create a string YAML representation of the feature table

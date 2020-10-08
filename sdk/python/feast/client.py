@@ -11,22 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import datetime
 import logging
 import multiprocessing
-import os
 import shutil
-import tempfile
-import time
-import uuid
-from math import ceil
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Dict, List, Optional, Union
 
 import grpc
 import pandas as pd
-import pyarrow as pa
-from google.protobuf.timestamp_pb2 import Timestamp
-from pyarrow import parquet as pq
 
 from feast.config import Config
 from feast.constants import (
@@ -44,8 +35,6 @@ from feast.constants import (
 from feast.core.CoreService_pb2 import (
     ApplyEntityRequest,
     ApplyEntityResponse,
-    ApplyFeatureSetRequest,
-    ApplyFeatureSetResponse,
     ApplyFeatureTableRequest,
     ApplyFeatureTableResponse,
     ArchiveProjectRequest,
@@ -55,49 +44,32 @@ from feast.core.CoreService_pb2 import (
     GetEntityRequest,
     GetEntityResponse,
     GetFeastCoreVersionRequest,
-    GetFeatureSetRequest,
-    GetFeatureSetResponse,
-    GetFeatureStatisticsRequest,
     GetFeatureTableRequest,
     GetFeatureTableResponse,
     ListEntitiesRequest,
     ListEntitiesResponse,
-    ListFeatureSetsRequest,
-    ListFeatureSetsResponse,
-    ListFeaturesRequest,
-    ListFeaturesResponse,
     ListFeatureTablesRequest,
     ListFeatureTablesResponse,
     ListProjectsRequest,
     ListProjectsResponse,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
-from feast.core.FeatureSet_pb2 import FeatureSetStatus
-from feast.entity import EntityV2
-from feast.feature import Feature, FeatureRef
-from feast.feature_set import FeatureSet
+from feast.data_source import BigQuerySource, FileSource
+from feast.entity import Entity
 from feast.feature_table import FeatureTable
 from feast.grpc import auth as feast_auth
 from feast.grpc.grpc import create_grpc_channel
-from feast.job import RetrievalJob
-from feast.loaders.abstract_producer import get_producer
-from feast.loaders.file import export_source_to_staging_location
-from feast.loaders.ingest import KAFKA_CHUNK_PRODUCTION_TIMEOUT, get_feature_row_chunks
-from feast.online_response import OnlineResponse
-from feast.serving.ServingService_pb2 import (
-    DataFormat,
-    DatasetSource,
-    FeastServingType,
-    FeatureReference,
-    GetBatchFeaturesRequest,
-    GetFeastServingInfoRequest,
-    GetFeastServingInfoResponse,
-    GetOnlineFeaturesRequest,
+from feast.loaders.ingest import (
+    BATCH_INGESTION_PRODUCTION_TIMEOUT,
+    _check_field_mappings,
+    _read_table_from_source,
+    _upload_to_bq_source,
+    _upload_to_file_source,
+    _write_non_partitioned_table_from_source,
+    _write_partitioned_table_from_source,
 )
+from feast.serving.ServingService_pb2 import GetFeastServingInfoRequest
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
-from feast.type_map import _python_value_to_proto_value, python_type_to_feast_value_type
-from feast.types.Value_pb2 import Value as Value
-from tensorflow_metadata.proto.v0 import statistics_pb2
 
 _logger = logging.getLogger(__name__)
 
@@ -368,9 +340,7 @@ class Client:
         if self._project == project:
             self._project = FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY]
 
-    def apply_entity(
-        self, entities: Union[List[EntityV2], EntityV2], project: str = None
-    ):
+    def apply_entity(self, entities: Union[List[Entity], Entity], project: str = None):
         """
         Idempotently registers entities with Feast Core. Either a single
         entity or a list can be provided.
@@ -380,11 +350,11 @@ class Client:
 
         Examples:
             >>> from feast import Client
-            >>> from feast.entity import EntityV2
+            >>> from feast.entity import Entity
             >>> from feast.value_type import ValueType
             >>>
             >>> feast_client = Client(core_url="localhost:6565")
-            >>> entity = EntityV2(
+            >>> entity = Entity(
             >>>     name="driver_entity",
             >>>     description="Driver entity for car rides",
             >>>     value_type=ValueType.STRING,
@@ -401,12 +371,12 @@ class Client:
         if not isinstance(entities, list):
             entities = [entities]
         for entity in entities:
-            if isinstance(entity, EntityV2):
+            if isinstance(entity, Entity):
                 self._apply_entity(project, entity)  # type: ignore
                 continue
             raise ValueError(f"Could not determine entity type to apply {entity}")
 
-    def _apply_entity(self, project: str, entity: EntityV2):
+    def _apply_entity(self, project: str, entity: Entity):
         """
         Registers a single entity with Feast
 
@@ -428,14 +398,14 @@ class Client:
             raise grpc.RpcError(e.details())
 
         # Extract the returned entity
-        applied_entity = EntityV2.from_proto(apply_entity_response.entity)
+        applied_entity = Entity.from_proto(apply_entity_response.entity)
 
         # Deep copy from the returned entity to the local entity
         entity._update_from_entity(applied_entity)
 
     def list_entities(
         self, project: str = None, labels: Dict[str, str] = dict()
-    ) -> List[EntityV2]:
+    ) -> List[Entity]:
         """
         Retrieve a list of entities from Feast Core
 
@@ -460,12 +430,12 @@ class Client:
         # Extract entities and return
         entities = []
         for entity_proto in entity_protos.entities:
-            entity = EntityV2.from_proto(entity_proto)
+            entity = Entity.from_proto(entity_proto)
             entity._client = self
             entities.append(entity)
         return entities
 
-    def get_entity(self, name: str, project: str = None) -> Union[EntityV2, None]:
+    def get_entity(self, name: str, project: str = None) -> Union[Entity, None]:
         """
         Retrieves an entity.
 
@@ -488,7 +458,7 @@ class Client:
             )  # type: GetEntityResponse
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
-        entity = EntityV2.from_proto(get_entity_response.entity)
+        entity = Entity.from_proto(get_entity_response.entity)
 
         return entity
 
@@ -605,370 +575,21 @@ class Client:
             raise grpc.RpcError(e.details())
         return FeatureTable.from_proto(get_feature_table_response.table)
 
-    def apply(self, feature_sets: Union[List[FeatureSet], FeatureSet]):
-        """
-        Idempotently registers feature set(s) with Feast Core. Either a single
-        feature set or a list can be provided.
-
-        Args:
-            feature_sets: List of feature sets that will be registered
-        """
-        if not isinstance(feature_sets, list):
-            feature_sets = [feature_sets]
-        for feature_set in feature_sets:
-            if isinstance(feature_set, FeatureSet):
-                self._apply_feature_set(feature_set)
-                continue
-            raise ValueError(
-                f"Could not determine feature set type to apply {feature_set}"
-            )
-
-    def _apply_feature_set(self, feature_set: FeatureSet):
-        """
-        Registers a single feature set with Feast
-
-        Args:
-            feature_set: Feature set that will be registered
-        """
-
-        feature_set.is_valid()
-        feature_set_proto = feature_set.to_proto()
-        if len(feature_set_proto.spec.project) == 0:
-            if self.project is not None:
-                feature_set_proto.spec.project = self.project
-
-        # Convert the feature set to a request and send to Feast Core
-        try:
-            apply_fs_response = self._core_service.ApplyFeatureSet(
-                ApplyFeatureSetRequest(feature_set=feature_set_proto),
-                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
-                metadata=self._get_grpc_metadata(),
-            )  # type: ApplyFeatureSetResponse
-        except grpc.RpcError as e:
-            raise grpc.RpcError(e.details())
-
-        # Extract the returned feature set
-        applied_fs = FeatureSet.from_proto(apply_fs_response.feature_set)
-
-        # If the feature set has changed, update the local copy
-        if apply_fs_response.status == ApplyFeatureSetResponse.Status.CREATED:
-            print(f'Feature set created: "{applied_fs.name}"')
-
-        if apply_fs_response.status == ApplyFeatureSetResponse.Status.UPDATED:
-            print(f'Feature set updated: "{applied_fs.name}"')
-
-        # If no change has been applied, do nothing
-        if apply_fs_response.status == ApplyFeatureSetResponse.Status.NO_CHANGE:
-            print(f"No change detected or applied: {feature_set.name}")
-
-        # Deep copy from the returned feature set to the local feature set
-        feature_set._update_from_feature_set(applied_fs)
-
-    def list_feature_sets(
-        self, project: str = None, name: str = None, labels: Dict[str, str] = dict()
-    ) -> List[FeatureSet]:
-        """
-        Retrieve a list of feature sets from Feast Core
-
-        Args:
-            project: Filter feature sets based on project name
-            name: Filter feature sets based on feature set name
-
-        Returns:
-            List of feature sets
-        """
-
-        if project is None:
-            if self.project is not None:
-                project = self.project
-            else:
-                project = "*"
-
-        if name is None:
-            name = "*"
-
-        filter = ListFeatureSetsRequest.Filter(
-            project=project, feature_set_name=name, labels=labels
-        )
-
-        # Get latest feature sets from Feast Core
-        feature_set_protos = self._core_service.ListFeatureSets(
-            ListFeatureSetsRequest(filter=filter), metadata=self._get_grpc_metadata(),
-        )  # type: ListFeatureSetsResponse
-
-        # Extract feature sets and return
-        feature_sets = []
-        for feature_set_proto in feature_set_protos.feature_sets:
-            feature_set = FeatureSet.from_proto(feature_set_proto)
-            feature_set._client = self
-            feature_sets.append(feature_set)
-        return feature_sets
-
-    def get_feature_set(
-        self, name: str, project: str = None
-    ) -> Union[FeatureSet, None]:
-        """
-        Retrieves a feature set.
-
-        Args:
-            project: Feast project that this feature set belongs to
-            name: Name of feature set
-
-        Returns:
-            Returns either the specified feature set, or raises an exception if
-            none is found
-        """
-
-        if project is None:
-            if self.project is not None:
-                project = self.project
-            else:
-                raise ValueError("No project has been configured.")
-
-        try:
-            get_feature_set_response = self._core_service.GetFeatureSet(
-                GetFeatureSetRequest(project=project, name=name.strip()),
-                metadata=self._get_grpc_metadata(),
-            )  # type: GetFeatureSetResponse
-        except grpc.RpcError as e:
-            raise grpc.RpcError(e.details())
-        return FeatureSet.from_proto(get_feature_set_response.feature_set)
-
-    def list_features_by_ref(
-        self,
-        project: str = None,
-        entities: List[str] = list(),
-        labels: Dict[str, str] = dict(),
-    ) -> Dict[FeatureRef, Feature]:
-        """
-        Returns a list of features based on filters provided.
-
-        Args:
-            project: Feast project that these features belongs to
-            entities: Feast entity that these features are associated with
-            labels: Feast labels that these features are associated with
-
-        Returns:
-            Dictionary of <feature references: features>
-
-        Examples:
-            >>> from feast import Client
-            >>>
-            >>> feast_client = Client(core_url="localhost:6565")
-            >>> features = list_features_by_ref(project="test_project", entities=["driver_id"], labels={"key1":"val1","key2":"val2"})
-            >>> print(features)
-        """
-        if project is None:
-            if self.project is not None:
-                project = self.project
-            else:
-                project = "default"
-
-        filter = ListFeaturesRequest.Filter(
-            project=project, entities=entities, labels=labels
-        )
-
-        feature_protos = self._core_service.ListFeatures(
-            ListFeaturesRequest(filter=filter), metadata=self._get_grpc_metadata(),
-        )  # type: ListFeaturesResponse
-
-        features_dict = {}
-        for ref_str, feature_proto in feature_protos.features.items():
-            feature_ref = FeatureRef.from_str(ref_str, ignore_project=True)
-            feature = Feature.from_proto(feature_proto)
-            features_dict[feature_ref] = feature
-
-        return features_dict
-
-    def get_historical_features(
-        self,
-        feature_refs: List[str],
-        entity_rows: Union[pd.DataFrame, str],
-        compute_statistics: bool = False,
-        project: str = None,
-    ) -> RetrievalJob:
-        """
-        Retrieves historical features from a Feast Serving deployment.
-
-        Args:
-            feature_refs: List of feature references that will be returned for each entity.
-                Each feature reference should have the following format:
-                "feature_set:feature" where "feature_set" & "feature" refer to
-                the feature and feature set names respectively.
-                Only the feature name is required.
-            entity_rows (Union[pd.DataFrame, str]):
-                Pandas dataframe containing entities and a 'datetime' column.
-                Each entity in a feature set must be present as a column in this
-                dataframe. The datetime column must contain timestamps in
-                datetime64 format.
-            compute_statistics (bool):
-                Indicates whether Feast should compute statistics over the retrieved dataset.
-            project: Specifies the project which contain the FeatureSets
-                which the requested features belong to.
-
-        Returns:
-            feast.job.RetrievalJob:
-                Returns a retrival job object that can be used to monitor retrieval
-                progress asynchronously, and can be used to materialize the
-                results.
-
-        Examples:
-            >>> from feast import Client
-            >>> from datetime import datetime
-            >>>
-            >>> feast_client = Client(core_url="localhost:6565", serving_url="localhost:6566")
-            >>> feature_refs = ["my_project/bookings_7d", "booking_14d"]
-            >>> entity_rows = pd.DataFrame(
-            >>>         {
-            >>>            "datetime": [pd.datetime.now() for _ in range(3)],
-            >>>            "customer": [1001, 1002, 1003],
-            >>>         }
-            >>>     )
-            >>> feature_retrieval_job = feast_client.get_historical_features(
-            >>>     feature_refs, entity_rows, project="my_project")
-            >>> df = feature_retrieval_job.to_dataframe()
-            >>> print(df)
-        """
-
-        # Retrieve serving information to determine store type and
-        # staging location
-        serving_info = self._serving_service.GetFeastServingInfo(
-            GetFeastServingInfoRequest(),
-            timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
-            metadata=self._get_grpc_metadata(),
-        )  # type: GetFeastServingInfoResponse
-
-        if serving_info.type != FeastServingType.FEAST_SERVING_TYPE_BATCH:
-            raise Exception(
-                f'You are connected to a store "{self.serving_url}" which '
-                f"does not support batch retrieval "
-            )
-
-        if isinstance(entity_rows, pd.DataFrame):
-            # Pandas DataFrame detected
-
-            # Remove timezone from datetime column
-            if isinstance(
-                entity_rows["datetime"].dtype, pd.core.dtypes.dtypes.DatetimeTZDtype
-            ):
-                entity_rows["datetime"] = pd.DatetimeIndex(
-                    entity_rows["datetime"]
-                ).tz_localize(None)
-        elif isinstance(entity_rows, str):
-            # String based source
-            if not entity_rows.endswith((".avro", "*")):
-                raise Exception(
-                    "Only .avro and wildcard paths are accepted as entity_rows"
-                )
-        else:
-            raise Exception(
-                f"Only pandas.DataFrame and str types are allowed"
-                f" as entity_rows, but got {type(entity_rows)}."
-            )
-
-        # Export and upload entity row DataFrame to staging location
-        # provided by Feast
-        staged_files = export_source_to_staging_location(
-            entity_rows, serving_info.job_staging_location
-        )  # type: List[str]
-        request = GetBatchFeaturesRequest(
-            features=_build_feature_references(
-                feature_ref_strs=feature_refs,
-                project=project if project is not None else self.project,
-            ),
-            dataset_source=DatasetSource(
-                file_source=DatasetSource.FileSource(
-                    file_uris=staged_files, data_format=DataFormat.DATA_FORMAT_AVRO
-                )
-            ),
-            compute_statistics=compute_statistics,
-        )
-
-        # Retrieve Feast Job object to manage life cycle of retrieval
-        try:
-            response = self._serving_service.GetBatchFeatures(
-                request, metadata=self._get_grpc_metadata()
-            )
-        except grpc.RpcError as e:
-            raise grpc.RpcError(e.details())
-
-        return RetrievalJob(
-            response.job,
-            self._serving_service,
-            auth_metadata_plugin=self._auth_metadata,
-        )
-
-    def get_online_features(
-        self,
-        feature_refs: List[str],
-        entity_rows: List[Dict[str, Any]],
-        project: Optional[str] = None,
-        omit_entities: bool = False,
-    ) -> OnlineResponse:
-        """
-        Retrieves the latest online feature data from Feast Serving
-
-        Args:
-            feature_refs: List of feature references that will be returned for each entity.
-                Each feature reference should have the following format:
-                "feature_set:feature" where "feature_set" & "feature" refer to
-                the feature and feature set names respectively.
-                Only the feature name is required.
-            entity_rows: A list of dictionaries where each key is an entity and each value is
-                feast.types.Value or Python native form.
-            project: Optionally specify the the project override. If specified, uses given project for retrieval.
-                Overrides the projects specified in Feature References if also are specified.
-            omit_entities: If true will omit entity values in the returned feature data.
-        Returns:
-            GetOnlineFeaturesResponse containing the feature data in records.
-            Each EntityRow provided will yield one record, which contains
-            data fields with data value and field status metadata (if included).
-
-        Examples:
-            >>> from feast import Client
-            >>>
-            >>> feast_client = Client(core_url="localhost:6565", serving_url="localhost:6566")
-            >>> feature_refs = ["daily_transactions"]
-            >>> entity_rows = [{"customer_id": 0},{"customer_id": 1}]
-            >>>
-            >>> online_response = feast_client.get_online_features(
-            >>>     feature_refs, entity_rows, project="my_project")
-            >>> online_response_dict = online_response.to_dict()
-            >>> print(online_response_dict)
-            {'daily_transactions': [1.1,1.2], 'customer_id': [0,1]}
-        """
-
-        try:
-            response = self._serving_service.GetOnlineFeatures(
-                GetOnlineFeaturesRequest(
-                    omit_entities_in_response=omit_entities,
-                    features=_build_feature_references(feature_ref_strs=feature_refs),
-                    entity_rows=_infer_online_entity_rows(entity_rows),
-                    project=project if project is not None else self.project,
-                ),
-                metadata=self._get_grpc_metadata(),
-            )
-        except grpc.RpcError as e:
-            raise grpc.RpcError(e.details())
-
-        response = OnlineResponse(response)
-        return response
-
     def ingest(
         self,
-        feature_set: Union[str, FeatureSet],
+        feature_table: Union[str, FeatureTable],
         source: Union[pd.DataFrame, str],
+        project: str = None,
         chunk_size: int = 10000,
         max_workers: int = max(CPU_COUNT - 1, 1),
-        disable_progress_bar: bool = False,
-        timeout: int = KAFKA_CHUNK_PRODUCTION_TIMEOUT,
-    ) -> str:
+        timeout: int = BATCH_INGESTION_PRODUCTION_TIMEOUT,
+    ) -> None:
         """
-        Loads feature data into Feast for a specific feature set.
+        Batch load feature data into a FeatureTable.
 
         Args:
-            feature_set (typing.Union[str, feast.feature_set.FeatureSet]):
-                Feature set object or the string name of the feature set
+            feature_table (typing.Union[str, feast.feature_table.FeatureTable]):
+                FeatureTable object or the string name of the feature table
 
             source (typing.Union[pd.DataFrame, str]):
                 Either a file path or Pandas Dataframe to ingest into Feast
@@ -977,27 +598,22 @@ class Client:
                     * csv
                     * json
 
+            project: Feast project to locate FeatureTable
+
             chunk_size (int):
                 Amount of rows to load and ingest at a time.
 
             max_workers (int):
                 Number of worker processes to use to encode values.
 
-            disable_progress_bar (bool):
-                Disable printing of progress statistics.
-
             timeout (int):
                 Timeout in seconds to wait for completion.
-
-        Returns:
-            str:
-                ingestion id for this dataset
 
         Examples:
             >>> from feast import Client
             >>>
             >>> client = Client(core_url="localhost:6565")
-            >>> fs_df = pd.DataFrame(
+            >>> ft_df = pd.DataFrame(
             >>>         {
             >>>            "datetime": [pd.datetime.now()],
             >>>            "driver": [1001],
@@ -1005,169 +621,85 @@ class Client:
             >>>         }
             >>>     )
             >>> client.set_project("project1")
-            >>> client.ingest("driver", fs_df)
             >>>
-            >>> driver_fs = client.get_feature_set(name="driver", project="project1")
-            >>> client.ingest(driver_fs, fs_df)
+            >>> driver_ft = client.get_feature_table("driver")
+            >>> client.ingest(driver_ft, ft_df)
         """
 
-        if isinstance(feature_set, FeatureSet):
-            name = feature_set.name
-            project = feature_set.project
-        elif isinstance(feature_set, str):
-            if self.project is not None:
-                project = self.project
-            else:
-                project = "default"
-            name = feature_set
+        if project is None:
+            project = self.project
+        if isinstance(feature_table, FeatureTable):
+            name = feature_table.name
+
+        fetched_feature_table: Optional[FeatureTable] = self.get_feature_table(
+            name, project
+        )
+        if fetched_feature_table is not None:
+            feature_table = fetched_feature_table
         else:
-            raise Exception("Feature set name must be provided")
+            raise Exception(f"FeatureTable, {name} cannot be found.")
 
-        # Read table and get row count
-        dir_path, dest_path = _read_table_from_source(source, chunk_size, max_workers)
-
-        pq_file = pq.ParquetFile(dest_path)
-
-        row_count = pq_file.metadata.num_rows
-
-        current_time = time.time()
-
-        print("Waiting for feature set to be ready for ingestion...")
-        while True:
-            if timeout is not None and time.time() - current_time >= timeout:
-                raise TimeoutError("Timed out waiting for feature set to be ready")
-            fetched_feature_set: Optional[FeatureSet] = self.get_feature_set(
-                name, project
+        # Check 1) Only parquet file format for FeatureTable batch source is supported
+        if (
+            feature_table.batch_source
+            and issubclass(type(feature_table.batch_source), FileSource)
+            and "".join(
+                feature_table.batch_source.file_options.file_format.split()
+            ).lower()
+            != "parquet"
+        ):
+            raise Exception(
+                f"No suitable batch source found for FeatureTable, {name}."
+                f"Only BATCH_FILE source with parquet format is supported for batch ingestion."
             )
-            if (
-                fetched_feature_set is not None
-                and fetched_feature_set.status == FeatureSetStatus.STATUS_READY
-            ):
-                feature_set = fetched_feature_set
-                break
-            time.sleep(3)
 
-        if timeout is not None:
-            timeout = timeout - int(time.time() - current_time)
+        pyarrow_table, column_names = _read_table_from_source(source)
+        # Check 2) Check if FeatureTable batch source field mappings can be found in provided source table
+        _check_field_mappings(
+            column_names,
+            name,
+            feature_table.batch_source.timestamp_column,
+            feature_table.batch_source.field_mapping,
+        )
+
+        dir_path = None
+        with_partitions = False
+        if (
+            issubclass(type(feature_table.batch_source), FileSource)
+            and feature_table.batch_source.date_partition_column
+        ):
+            with_partitions = True
+            dest_path = _write_partitioned_table_from_source(
+                column_names,
+                pyarrow_table,
+                feature_table.batch_source.date_partition_column,
+                feature_table.batch_source.timestamp_column,
+            )
+        else:
+            dir_path, dest_path = _write_non_partitioned_table_from_source(
+                column_names, pyarrow_table, chunk_size, max_workers,
+            )
 
         try:
-            # Kafka configs
-            brokers = feature_set.get_kafka_source_brokers()
-            topic = feature_set.get_kafka_source_topic()
-            producer = get_producer(brokers, row_count, disable_progress_bar)
-
-            # Loop optimization declarations
-            produce = producer.produce
-            flush = producer.flush
-            ingestion_id = _generate_ingestion_id(feature_set)
-
-            # Transform and push data to Kafka
-            if feature_set.source.source_type == "Kafka":
-                for chunk in get_feature_row_chunks(
-                    file=dest_path,
-                    row_groups=list(range(pq_file.num_row_groups)),
-                    fs=feature_set,
-                    ingestion_id=ingestion_id,
-                    max_workers=max_workers,
-                ):
-
-                    # Push FeatureRow one chunk at a time to kafka
-                    for serialized_row in chunk:
-                        produce(topic=topic, value=serialized_row)
-
-                    # Force a flush after each chunk
-                    flush(timeout=timeout)
-
-                    # Remove chunk from memory
-                    del chunk
-
-            else:
-                raise Exception(
-                    f"Could not determine source type for feature set "
-                    f'"{feature_set.name}" with source type '
-                    f'"{feature_set.source.source_type}"'
+            if issubclass(type(feature_table.batch_source), FileSource):
+                file_url = feature_table.batch_source.file_options.file_url[:-1]
+                _upload_to_file_source(file_url, with_partitions, dest_path)
+            if issubclass(type(feature_table.batch_source), BigQuerySource):
+                bq_table_ref = feature_table.batch_source.bigquery_options.table_ref
+                feature_table_timestamp_column = (
+                    feature_table.batch_source.timestamp_column
                 )
 
-            # Print ingestion statistics
-            producer.print_results()
+                _upload_to_bq_source(
+                    bq_table_ref, feature_table_timestamp_column, dest_path
+                )
         finally:
             # Remove parquet file(s) that were created earlier
             print("Removing temporary file(s)...")
-            shutil.rmtree(dir_path)
+            if dir_path:
+                shutil.rmtree(dir_path)
 
-        return ingestion_id
-
-    def get_statistics(
-        self,
-        feature_set_id: str,
-        store: str,
-        features: List[str] = [],
-        ingestion_ids: Optional[List[str]] = None,
-        start_date: Optional[datetime.datetime] = None,
-        end_date: Optional[datetime.datetime] = None,
-        force_refresh: bool = False,
-        project: Optional[str] = None,
-    ) -> statistics_pb2.DatasetFeatureStatisticsList:
-        """
-        Retrieves the feature featureStatistics computed over the data in the batch
-        stores.
-
-        Args:
-            feature_set_id: Feature set id to retrieve batch featureStatistics for. If project
-                is not provided, the default ("default") will be used.
-            store: Name of the store to retrieve feature featureStatistics over. This
-                store must be a historical store.
-            features: Optional list of feature names to filter from the results.
-            ingestion_ids: Optional list of dataset Ids by which to filter data
-                before retrieving featureStatistics. Cannot be used with start_date
-                and end_date.
-                If multiple dataset ids are provided, unaggregatable featureStatistics
-                will be dropped.
-            start_date: Optional start date over which to filter statistical data.
-                Data from this date will be included.
-                Cannot be used with dataset_ids. If the provided period spans
-                multiple days, unaggregatable featureStatistics will be dropped.
-            end_date: Optional end date over which to filter statistical data.
-                Data from this data will not be included.
-                Cannot be used with dataset_ids. If the provided period spans
-                multiple days, unaggregatable featureStatistics will be dropped.
-            force_refresh: Setting this flag to true will force a recalculation
-                of featureStatistics and overwrite results currently in the cache, if any.
-            project: Manual override for default project.
-
-        Returns:
-           Returns a tensorflow DatasetFeatureStatisticsList containing TFDV featureStatistics.
-        """
-
-        if ingestion_ids is not None and (
-            start_date is not None or end_date is not None
-        ):
-            raise ValueError(
-                "Only one of dataset_id or [start_date, end_date] can be provided."
-            )
-
-        if project != "" and "/" not in feature_set_id:
-            feature_set_id = f"{project}/{feature_set_id}"
-
-        request = GetFeatureStatisticsRequest(
-            feature_set_id=feature_set_id,
-            features=features,
-            store=store,
-            force_refresh=force_refresh,
-        )
-        if ingestion_ids is not None:
-            request.ingestion_ids.extend(ingestion_ids)
-        else:
-            if start_date is not None:
-                request.start_date.CopyFrom(
-                    Timestamp(seconds=int(start_date.timestamp()))
-                )
-            if end_date is not None:
-                request.end_date.CopyFrom(Timestamp(seconds=int(end_date.timestamp())))
-
-        return self._core_service.GetFeatureStatistics(
-            request
-        ).dataset_feature_statistics_list
+        print("Data has been successfully ingested into FeatureTable batch source.")
 
     def _get_grpc_metadata(self):
         """
@@ -1179,148 +711,3 @@ class Client:
         if self._config.getboolean(CONFIG_ENABLE_AUTH_KEY) and self._auth_metadata:
             return self._auth_metadata.get_signed_meta()
         return ()
-
-
-def _infer_online_entity_rows(
-    entity_rows: List[Dict[str, Any]],
-) -> List[GetOnlineFeaturesRequest.EntityRow]:
-    """
-    Builds a list of EntityRow protos from Python native type format passed by user.
-
-    Args:
-        entity_rows: A list of dictionaries where each key is an entity and each value is
-            feast.types.Value or Python native form.
-
-    Returns:
-        A list of EntityRow protos parsed from args.
-    """
-    entity_rows_dicts = cast(List[Dict[str, Any]], entity_rows)
-    entity_row_list = []
-    entity_type_map = dict()
-
-    for entity in entity_rows_dicts:
-        fields = {}
-        for key, value in entity.items():
-            # Allow for feast.types.Value
-            if isinstance(value, Value):
-                proto_value = value
-            else:
-                # Infer the specific type for this row
-                current_dtype = python_type_to_feast_value_type(name=key, value=value)
-
-                if key not in entity_type_map:
-                    entity_type_map[key] = current_dtype
-                else:
-                    if current_dtype != entity_type_map[key]:
-                        raise TypeError(
-                            f"Input entity {key} has mixed types, {current_dtype} and {entity_type_map[key]}. That is not allowed. "
-                        )
-                proto_value = _python_value_to_proto_value(current_dtype, value)
-            fields[key] = proto_value
-        entity_row_list.append(GetOnlineFeaturesRequest.EntityRow(fields=fields))
-    return entity_row_list
-
-
-def _build_feature_references(
-    feature_ref_strs: List[str], project: Optional[str] = None
-) -> List[FeatureReference]:
-    """
-    Builds a list of FeatureReference protos from string feature set references
-
-    Args:
-        feature_ref_strs: List of string feature references
-        project: Optionally specifies the project in the parsed feature references.
-
-    Returns:
-        A list of FeatureReference protos parsed from args.
-    """
-    feature_refs = [FeatureRef.from_str(ref_str) for ref_str in feature_ref_strs]
-    feature_ref_protos = [ref.to_proto() for ref in feature_refs]
-    # apply project if specified
-    if project is not None:
-        for feature_ref_proto in feature_ref_protos:
-            feature_ref_proto.project = project
-    return feature_ref_protos
-
-
-def _generate_ingestion_id(feature_set: FeatureSet) -> str:
-    """
-    Generates a UUID from the feature set name, version, and the current time.
-
-    Args:
-        feature_set: Feature set of the dataset to be ingested.
-
-    Returns:
-        UUID unique to current time and the feature set provided.
-    """
-    uuid_str = f"{feature_set.name}_{int(time.time())}"
-    return str(uuid.uuid3(uuid.NAMESPACE_DNS, uuid_str))
-
-
-def _read_table_from_source(
-    source: Union[pd.DataFrame, str], chunk_size: int, max_workers: int
-) -> Tuple[str, str]:
-    """
-    Infers a data source type (path or Pandas DataFrame) and reads it in as
-    a PyArrow Table.
-
-    The PyArrow Table that is read will be written to a parquet file with row
-    group size determined by the minimum of:
-        * (table.num_rows / max_workers)
-        * chunk_size
-
-    The parquet file that is created will be passed as file path to the
-    multiprocessing pool workers.
-
-    Args:
-        source (Union[pd.DataFrame, str]):
-            Either a string path or Pandas DataFrame.
-
-        chunk_size (int):
-            Number of worker processes to use to encode values.
-
-        max_workers (int):
-            Amount of rows to load and ingest at a time.
-
-    Returns:
-        Tuple[str, str]:
-            Tuple containing parent directory path and destination path to
-            parquet file.
-    """
-
-    # Pandas DataFrame detected
-    if isinstance(source, pd.DataFrame):
-        table = pa.Table.from_pandas(df=source)
-
-    # Inferring a string path
-    elif isinstance(source, str):
-        file_path = source
-        filename, file_ext = os.path.splitext(file_path)
-
-        if ".csv" in file_ext:
-            from pyarrow import csv
-
-            table = csv.read_csv(filename)
-        elif ".json" in file_ext:
-            from pyarrow import json
-
-            table = json.read_json(filename)
-        else:
-            table = pq.read_table(file_path)
-    else:
-        raise ValueError(f"Unknown data source provided for ingestion: {source}")
-
-    # Ensure that PyArrow table is initialised
-    assert isinstance(table, pa.lib.Table)
-
-    # Write table as parquet file with a specified row_group_size
-    dir_path = tempfile.mkdtemp()
-    tmp_table_name = f"{int(time.time())}.parquet"
-    dest_path = f"{dir_path}/{tmp_table_name}"
-    row_group_size = min(ceil(table.num_rows / max_workers), chunk_size)
-    pq.write_table(table=table, where=dest_path, row_group_size=row_group_size)
-
-    # Remove table from memory
-    del table
-
-    return dir_path, dest_path

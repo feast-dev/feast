@@ -5,8 +5,8 @@ from typing import Dict
 
 import grpc
 
-from feast.core import FeatureSet_pb2 as FeatureSetProto
-from feast.core.CoreService_pb2 import ListFeatureSetsResponse
+from feast.core import FeatureTable_pb2 as FeatureTableProto
+from feast.core.CoreService_pb2 import ListFeatureTablesResponse
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.serving import ServingService_pb2_grpc as Serving
 from feast.serving.ServingService_pb2 import GetFeastServingInfoResponse
@@ -19,9 +19,9 @@ class ServingServicer(Serving.ServingServiceServicer):
         if core_url:
             self.__core_channel = None
             self.__connect_core(core_url)
-            self._feature_sets = (
+            self._feature_tables = (
                 dict()
-            )  # type: Dict[str, FeatureSetProto.FeatureSetSpec]
+            )  # type: Dict[str, FeatureTableProto.FeatureTable]
 
     def __connect_core(self, core_url: str):
         if not core_url:
@@ -40,18 +40,18 @@ class ServingServicer(Serving.ServingServiceServicer):
         else:
             self._core_service_stub = CoreServiceStub(self.__core_channel)
 
-    def __get_feature_sets_from_core(self):
-        # Get updated list of feature sets
-        feature_sets = (
-            self._core_service_stub.ListFeatureSets
-        )  # type: ListFeatureSetsResponse
+    def __get_feature_tables_from_core(self):
+        # Get updated list of feature tables
+        feature_tables = (
+            self._core_service_stub.ListFeatureTables
+        )  # type: ListFeatureTablesResponse
 
-        # Store each feature set locally
-        for feature_set in list(feature_sets.feature_sets):
-            self._feature_sets[feature_set.name] = feature_set
+        # Store each feature table locally
+        for feature_table in list(feature_tables.tables):
+            self._feature_tables[feature_table.name] = feature_table
 
     def GetFeastServingVersion(self, request, context):
-        return GetFeastServingInfoResponse(version="0.3.2")
+        return GetFeastServingInfoResponse(version="0.10.0")
 
 
 def serve():

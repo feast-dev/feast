@@ -22,42 +22,11 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from feast.core.Entity_pb2 import Entity as EntityV2Proto
 from feast.core.Entity_pb2 import EntityMeta as EntityMetaProto
 from feast.core.Entity_pb2 import EntitySpecV2 as EntitySpecProto
-from feast.core.FeatureSet_pb2 import EntitySpec as EntityProto
-from feast.field import Field
 from feast.loaders import yaml as feast_yaml
-from feast.types import Value_pb2 as ValueTypeProto
 from feast.value_type import ValueType
 
 
-class Entity(Field):
-    """Entity field type"""
-
-    def to_proto(self) -> EntityProto:
-        """
-        Converts Entity to its Protocol Buffer representation
-
-        Returns:
-            Returns EntitySpec object
-        """
-        value_type = ValueTypeProto.ValueType.Enum.Value(self.dtype.name)
-        return EntityProto(name=self.name, value_type=value_type,)
-
-    @classmethod
-    def from_proto(cls, entity_proto: EntityProto):
-        """
-        Creates a Feast Entity object from its Protocol Buffer representation
-
-        Args:
-            entity_proto: EntitySpec protobuf object
-
-        Returns:
-            Entity object
-        """
-        entity = cls(name=entity_proto.name, dtype=ValueType(entity_proto.value_type))
-        return entity
-
-
-class EntityV2:
+class Entity:
     """
     Represents a collection of entities and associated metadata.
     """
@@ -81,8 +50,8 @@ class EntityV2:
         self._last_updated_timestamp: Optional[Timestamp] = None
 
     def __eq__(self, other):
-        if not isinstance(other, EntityV2):
-            raise TypeError("Comparisons should only involve EntityV2 class objects.")
+        if not isinstance(other, Entity):
+            raise TypeError("Comparisons should only involve Entity class objects.")
 
         if isinstance(self.value_type, int):
             self.value_type = ValueType(self.value_type).name
