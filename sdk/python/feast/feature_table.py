@@ -29,7 +29,6 @@ from feast.data_source import (
     FileSource,
     KafkaSource,
     KinesisSource,
-    _get_data_source,
 )
 from feast.feature import Feature
 from feast.loaders import yaml as feast_yaml
@@ -281,11 +280,11 @@ class FeatureTable:
                 and feature_table_proto.spec.max_age.nanos == 0
                 else feature_table_proto.spec.max_age
             ),
-            batch_source=_get_data_source(feature_table_proto.spec.batch_source),
+            batch_source=DataSource.from_proto(feature_table_proto.spec.batch_source),
             stream_source=(
                 None
                 if not feature_table_proto.spec.stream_source.ByteSize()
-                else _get_data_source(feature_table_proto.spec.stream_source)
+                else DataSource.from_proto(feature_table_proto.spec.stream_source)
             ),
         )
 

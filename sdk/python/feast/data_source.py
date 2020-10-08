@@ -415,12 +415,57 @@ class DataSource:
         """
         self._date_partition_column = date_partition_column
 
-    @classmethod
-    def from_proto(cls, data_source_proto: DataSourceProto):
+    @staticmethod
+    def from_proto(data_source):
         """
-        Creates a DataSource from a protobuf representation of a data source
+        Convert data source config in FeatureTable spec to a DataSource class object.
         """
-        raise NotImplementedError
+
+        if data_source.file_options.file_format and data_source.file_options.file_url:
+            data_source_obj = FileSource(
+                field_mapping=data_source.field_mapping,
+                file_format=data_source.file_options.file_format,
+                file_url=data_source.file_options.file_url,
+                timestamp_column=data_source.timestamp_column,
+                date_partition_column=data_source.date_partition_column,
+            )
+        elif data_source.bigquery_options.table_ref:
+            data_source_obj = BigQuerySource(
+                field_mapping=data_source.field_mapping,
+                table_ref=data_source.bigquery_options.table_ref,
+                timestamp_column=data_source.timestamp_column,
+                date_partition_column=data_source.date_partition_column,
+            )
+        elif (
+            data_source.kafka_options.bootstrap_servers
+            and data_source.kafka_options.topic
+            and data_source.kafka_options.class_path
+        ):
+            data_source_obj = KafkaSource(
+                field_mapping=data_source.field_mapping,
+                bootstrap_servers=data_source.kafka_options.bootstrap_servers,
+                class_path=data_source.kafka_options.class_path,
+                topic=data_source.kafka_options.topic,
+                timestamp_column=data_source.timestamp_column,
+                date_partition_column=data_source.date_partition_column,
+            )
+        elif (
+            data_source.kinesis_options.class_path
+            and data_source.kinesis_options.region
+            and data_source.kinesis_options.stream_name
+        ):
+            data_source_obj = KinesisSource(
+                field_mapping=data_source.field_mapping,
+                class_path=data_source.kinesis_options.class_path,
+                region=data_source.kinesis_options.region,
+                stream_name=data_source.kinesis_options.stream_name,
+                timestamp_column=data_source.timestamp_column,
+                date_partition_column=data_source.date_partition_column,
+            )
+        else:
+            raise ValueError("Could not identify the source type being added")
+
+        return data_source_obj
 
     def to_proto(self) -> DataSourceProto:
         """
@@ -467,6 +512,7 @@ class FileSource(DataSource):
         """
         self._file_options = file_options
 
+    @classmethod
     def from_proto(cls, data_source_proto):
 
         data_source = cls(
@@ -527,6 +573,7 @@ class BigQuerySource(DataSource):
         """
         self._bigquery_options = bigquery_options
 
+    @classmethod
     def from_proto(cls, data_source_proto):
 
         data_source = cls(
@@ -596,6 +643,7 @@ class KafkaSource(DataSource):
         """
         self._kafka_options = kafka_options
 
+    @classmethod
     def from_proto(cls, data_source_proto):
 
         data_source = cls(
@@ -664,6 +712,7 @@ class KinesisSource(DataSource):
         """
         self._kinesis_options = kinesis_options
 
+    @classmethod
     def from_proto(cls, data_source_proto):
 
         data_source = cls(
@@ -686,55 +735,3 @@ class KinesisSource(DataSource):
         data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
-
-
-def _get_data_source(data_source):
-    """
-    Convert data source config in FeatureTable spec to a DataSource class object.
-    """
-
-    if data_source.file_options.file_format and data_source.file_options.file_url:
-        data_source_obj = FileSource(
-            field_mapping=data_source.field_mapping,
-            file_format=data_source.file_options.file_format,
-            file_url=data_source.file_options.file_url,
-            timestamp_column=data_source.timestamp_column,
-            date_partition_column=data_source.date_partition_column,
-        )
-    elif data_source.bigquery_options.table_ref:
-        data_source_obj = BigQuerySource(
-            field_mapping=data_source.field_mapping,
-            table_ref=data_source.bigquery_options.table_ref,
-            timestamp_column=data_source.timestamp_column,
-            date_partition_column=data_source.date_partition_column,
-        )
-    elif (
-        data_source.kafka_options.bootstrap_servers
-        and data_source.kafka_options.topic
-        and data_source.kafka_options.class_path
-    ):
-        data_source_obj = KafkaSource(
-            field_mapping=data_source.field_mapping,
-            bootstrap_servers=data_source.kafka_options.bootstrap_servers,
-            class_path=data_source.kafka_options.class_path,
-            topic=data_source.kafka_options.topic,
-            timestamp_column=data_source.timestamp_column,
-            date_partition_column=data_source.date_partition_column,
-        )
-    elif (
-        data_source.kinesis_options.class_path
-        and data_source.kinesis_options.region
-        and data_source.kinesis_options.stream_name
-    ):
-        data_source_obj = KinesisSource(
-            field_mapping=data_source.field_mapping,
-            class_path=data_source.kinesis_options.class_path,
-            region=data_source.kinesis_options.region,
-            stream_name=data_source.kinesis_options.stream_name,
-            timestamp_column=data_source.timestamp_column,
-            date_partition_column=data_source.date_partition_column,
-        )
-    else:
-        raise ValueError("Could not identify the source type being added")
-
-    return data_source_obj
