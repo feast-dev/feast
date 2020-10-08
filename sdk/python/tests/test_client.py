@@ -16,6 +16,7 @@ import pkgutil
 import socket
 from concurrent import futures
 from datetime import datetime, timedelta
+from typing import Tuple
 from unittest import mock
 
 import grpc
@@ -449,33 +450,8 @@ class TestClient:
         mocker.patch.object(
             mocked_client._core_service_stub,
             "GetFeatureTable",
-            return_value=GetFeatureTableResponse(
-                table=FeatureTableProto(
-                    spec=FeatureTableSpecProto(
-                        name="ingest_featuretable",
-                        max_age=Duration(seconds=3600),
-                        features=[
-                            FeatureSpecProto(
-                                name="dev_feature_float",
-                                value_type=ValueProto.ValueType.FLOAT,
-                            ),
-                            FeatureSpecProto(
-                                name="dev_feature_string",
-                                value_type=ValueProto.ValueType.STRING,
-                            ),
-                        ],
-                        entities=["dev_entity"],
-                        batch_source=DataSourceProto(
-                            type="BATCH_FILE",
-                            file_options=DataSourceProto.FileOptions(
-                                file_format="parquet", file_url="file://feast/*"
-                            ),
-                            timestamp_column="datetime",
-                            date_partition_column="datetime_col",
-                        ),
-                    ),
-                    meta=FeatureTableMetaProto(),
-                )
+            return_value=_ingest_test_getfeaturetable_mocked_resp(
+                "file://feast/*", "datetime_col"
             ),
         )
 
@@ -486,14 +462,9 @@ class TestClient:
         dest_fpath = os.path.join("feast/")
         pq_df = pq.read_table(dest_fpath).to_pandas()
 
-        # Format Dataframes before comparing them
-        partitioned_df.sort_values(by=["dev_feature_float"], inplace=True)
-        pq_df.sort_values(by=["dev_feature_float"], inplace=True)
-        pq_df = pq_df.reindex(sorted(pq_df.columns), axis=1)
-        partitioned_df = partitioned_df.reindex(sorted(partitioned_df.columns), axis=1)
-        partitioned_df.reset_index(drop=True, inplace=True)
-        pq_df.reset_index(drop=True, inplace=True)
-        pq_df["datetime_col"] = pd.to_datetime(pq_df.datetime_col).dt.tz_convert("UTC")
+        partitioned_df, pq_df = _ingest_test_format_dataframes(
+            partitioned_df, pq_df, True
+        )
 
         assert_frame_equal(partitioned_df, pq_df)
 
@@ -514,33 +485,7 @@ class TestClient:
         mocker.patch.object(
             mocked_client._core_service_stub,
             "GetFeatureTable",
-            return_value=GetFeatureTableResponse(
-                table=FeatureTableProto(
-                    spec=FeatureTableSpecProto(
-                        name="ingest_featuretable",
-                        max_age=Duration(seconds=3600),
-                        features=[
-                            FeatureSpecProto(
-                                name="dev_feature_float",
-                                value_type=ValueProto.ValueType.FLOAT,
-                            ),
-                            FeatureSpecProto(
-                                name="dev_feature_string",
-                                value_type=ValueProto.ValueType.STRING,
-                            ),
-                        ],
-                        entities=["dev_entity"],
-                        batch_source=DataSourceProto(
-                            type="BATCH_FILE",
-                            file_options=DataSourceProto.FileOptions(
-                                file_format="parquet", file_url="file://feast2/*"
-                            ),
-                            timestamp_column="datetime",
-                        ),
-                    ),
-                    meta=FeatureTableMetaProto(),
-                )
-            ),
+            return_value=_ingest_test_getfeaturetable_mocked_resp("file://feast2/*"),
         )
 
         mocked_client.set_project("my_project")
@@ -556,15 +501,9 @@ class TestClient:
         ][0]
         pq_df = pq.read_table(dest_fpath + single_file).to_pandas()
 
-        # Format Dataframes before comparing them
-        non_partitioned_df.sort_values(by=["dev_feature_float"], inplace=True)
-        pq_df.sort_values(by=["dev_feature_float"], inplace=True)
-        pq_df = pq_df.reindex(sorted(pq_df.columns), axis=1)
-        non_partitioned_df = non_partitioned_df.reindex(
-            sorted(non_partitioned_df.columns), axis=1
+        non_partitioned_df, pq_df = _ingest_test_format_dataframes(
+            non_partitioned_df, pq_df
         )
-        non_partitioned_df.reset_index(drop=True, inplace=True)
-        pq_df.reset_index(drop=True, inplace=True)
 
         assert_frame_equal(non_partitioned_df, pq_df)
 
@@ -583,33 +522,8 @@ class TestClient:
         mocker.patch.object(
             mocked_client._core_service_stub,
             "GetFeatureTable",
-            return_value=GetFeatureTableResponse(
-                table=FeatureTableProto(
-                    spec=FeatureTableSpecProto(
-                        name="ingest_featuretable",
-                        max_age=Duration(seconds=3600),
-                        features=[
-                            FeatureSpecProto(
-                                name="dev_feature_float",
-                                value_type=ValueProto.ValueType.FLOAT,
-                            ),
-                            FeatureSpecProto(
-                                name="dev_feature_string",
-                                value_type=ValueProto.ValueType.STRING,
-                            ),
-                        ],
-                        entities=["dev_entity"],
-                        batch_source=DataSourceProto(
-                            type="BATCH_FILE",
-                            file_options=DataSourceProto.FileOptions(
-                                file_format="parquet", file_url="file://feast3/*"
-                            ),
-                            timestamp_column="datetime",
-                            date_partition_column="datetime_col",
-                        ),
-                    ),
-                    meta=FeatureTableMetaProto(),
-                )
+            return_value=_ingest_test_getfeaturetable_mocked_resp(
+                "file://feast3/*", "datetime_col"
             ),
         )
 
@@ -627,17 +541,9 @@ class TestClient:
         dest_fpath = os.path.join("feast3/")
         pq_df = pq.read_table(dest_fpath).to_pandas()
 
-        # Format Dataframes before comparing them
-        partitioned_df.sort_values(by=["dev_feature_float"], inplace=True)
-        pq_df.sort_values(by=["dev_feature_float"], inplace=True)
-        pq_df = pq_df.reindex(sorted(pq_df.columns), axis=1)
-        partitioned_df = partitioned_df.reindex(sorted(partitioned_df.columns), axis=1)
-        partitioned_df.reset_index(drop=True, inplace=True)
-        pq_df.reset_index(drop=True, inplace=True)
-        partitioned_df["datetime_col"] = pd.to_datetime(
-            partitioned_df.datetime_col
-        ).dt.tz_convert("UTC")
-        pq_df["datetime_col"] = pd.to_datetime(pq_df.datetime_col).dt.tz_convert("UTC")
+        partitioned_df, pq_df = _ingest_test_format_dataframes(
+            partitioned_df, pq_df, True
+        )
 
         assert_frame_equal(partitioned_df, pq_df)
 
@@ -710,3 +616,66 @@ class TestClient:
     ):
         client = Client(core_url=f"localhost:{insecure_core_server_that_blocks_auth}")
         client.list_feature_tables()
+
+
+def _ingest_test_getfeaturetable_mocked_resp(
+    file_url: str, date_partition_col: str = None
+):
+    return GetFeatureTableResponse(
+        table=FeatureTableProto(
+            spec=FeatureTableSpecProto(
+                name="ingest_featuretable",
+                max_age=Duration(seconds=3600),
+                features=[
+                    FeatureSpecProto(
+                        name="dev_feature_float", value_type=ValueProto.ValueType.FLOAT,
+                    ),
+                    FeatureSpecProto(
+                        name="dev_feature_string",
+                        value_type=ValueProto.ValueType.STRING,
+                    ),
+                ],
+                entities=["dev_entity"],
+                batch_source=DataSourceProto(
+                    file_options=DataSourceProto.FileOptions(
+                        file_format="parquet", file_url=file_url
+                    ),
+                    timestamp_column="datetime",
+                    date_partition_column=date_partition_col
+                    if date_partition_col is not None
+                    else None,
+                ),
+            ),
+            meta=FeatureTableMetaProto(),
+        )
+    )
+
+
+def _ingest_test_format_dataframes(
+    partitioned_df: pd.DataFrame, pq_df: pd.DataFrame, with_partitions: bool = False
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Format Dataframes before comparing them through assertion.
+
+    Args:
+        partitioned_df: DataFrame from pytest fixture
+        pq_df: DataFrame from parquet files
+        with_partitions: Flag to indicate if data has been partitioned
+
+    Returns:
+        Formatted DataFrames for comparison
+    """
+    partitioned_df.sort_values(by=["dev_feature_float"], inplace=True)
+    pq_df.sort_values(by=["dev_feature_float"], inplace=True)
+    pq_df = pq_df.reindex(sorted(pq_df.columns), axis=1)
+    partitioned_df = partitioned_df.reindex(sorted(partitioned_df.columns), axis=1)
+    partitioned_df.reset_index(drop=True, inplace=True)
+    pq_df.reset_index(drop=True, inplace=True)
+
+    if with_partitions:
+        partitioned_df["datetime_col"] = pd.to_datetime(
+            partitioned_df.datetime_col
+        ).dt.tz_convert("UTC")
+        pq_df["datetime_col"] = pd.to_datetime(pq_df.datetime_col).dt.tz_convert("UTC")
+
+    return partitioned_df, pq_df
