@@ -1,3 +1,4 @@
+import glob
 import os
 import tempfile
 import time
@@ -171,7 +172,9 @@ def _read_table_from_source(
     return table, column_names
 
 
-def _upload_to_file_source(file_url: str, to_partition: bool, dest_path: str) -> None:
+def _upload_to_file_source(
+    file_url: str, with_partitions: bool, dest_path: str
+) -> None:
     """
     Uploads data into a FileSource. Currently supports GCS, S3 and Local FS.
 
@@ -183,11 +186,8 @@ def _upload_to_file_source(file_url: str, to_partition: bool, dest_path: str) ->
     uri = urlparse(file_url)
     staging_client = get_staging_client(uri.scheme)
 
-    if to_partition:
-        file_paths = list()
-        for (dirpath, dirnames, filenames) in os.walk(dest_path):
-            file_paths += [os.path.join(dirpath, file) for file in filenames]
-        for path in file_paths:
+    if with_partitions:
+        for path in glob.glob(os.path.join(dest_path, "**/*")):
             file_name = path.split("/")[-1]
             partition_col = path.split("/")[-2]
             staging_client.upload_file(

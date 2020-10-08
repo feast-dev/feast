@@ -663,11 +663,12 @@ class Client:
         )
 
         dir_path = None
-        to_partition = False
-        if feature_table.batch_source.date_partition_column and issubclass(
-            type(feature_table.batch_source), FileSource
+        with_partitions = False
+        if (
+            issubclass(type(feature_table.batch_source), FileSource)
+            and feature_table.batch_source.date_partition_column
         ):
-            to_partition = True
+            with_partitions = True
             dest_path = _write_partitioned_table_from_source(
                 column_names,
                 pyarrow_table,
@@ -682,7 +683,7 @@ class Client:
         try:
             if issubclass(type(feature_table.batch_source), FileSource):
                 file_url = feature_table.batch_source.file_options.file_url[:-1]
-                _upload_to_file_source(file_url, to_partition, dest_path)
+                _upload_to_file_source(file_url, with_partitions, dest_path)
             if issubclass(type(feature_table.batch_source), BigQuerySource):
                 bq_table_ref = feature_table.batch_source.bigquery_options.table_ref
                 feature_table_timestamp_column = (
