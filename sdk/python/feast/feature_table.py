@@ -80,9 +80,9 @@ class FeatureTable:
         ):
             return False
 
-        if self.entities != other.entities:
+        if sorted(self.entities) != sorted(other.entities):
             return False
-        if self.features != other.features:
+        if sorted(self.features) != sorted(other.features):
             return False
         if self.batch_source != other.batch_source:
             return False

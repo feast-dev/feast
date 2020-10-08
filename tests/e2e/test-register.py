@@ -1,5 +1,4 @@
 import os
-import time
 import uuid
 from datetime import datetime
 
@@ -16,6 +15,7 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_table import FeatureTable
 from feast.value_type import ValueType
+from feast.wait import wait_retry_backoff
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 PROJECT_NAME = "basic_" + uuid.uuid4().hex.upper()[0:6]
@@ -236,6 +236,7 @@ def test_get_list_alltypes(
     assert actual_list_feature_table == alltypes_featuretable
 
 
+@pytest.mark.bq
 def test_ingest(
     client: Client,
     customer_entity: Entity,
@@ -255,12 +256,31 @@ def test_ingest(
     client.apply_feature_table(bq_featuretable)
     client.ingest(bq_featuretable, bq_dataset, timeout=120)
 
-    # Give time to allow data to propagate to BQ table
-    time.sleep(15)
-
+    from google.api_core.exceptions import NotFound
     from google.cloud import bigquery
 
     bq_client = bigquery.Client(project=gcp_project)
+
+    # Poll BQ for table until the table has been created
+    def try_get_table():
+        table_exist = False
+        table_resp = None
+        try:
+            table_resp = bq_client.get_table(bq_table_id)
+
+            if table_resp and table_resp.table_id == bq_table_id.split(".")[-1]:
+                table_exist = True
+        except NotFound:
+            pass
+
+        return table_resp, table_exist
+
+    wait_retry_backoff(
+        retry_fn=try_get_table,
+        timeout_secs=30,
+        timeout_msg="Timed out trying to get bigquery table",
+    )
+
     query_string = f"SELECT * FROM `{bq_table_id}`"
 
     job = bq_client.query(query_string)
