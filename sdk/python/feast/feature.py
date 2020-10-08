@@ -46,6 +46,9 @@ class Feature:
             return False
         return True
 
+    def __lt__(self, other):
+        return self.name < other.name
+
     @property
     def name(self):
         """
