@@ -1,8 +1,8 @@
+import argparse
 import json
 from datetime import timedelta
 from typing import Any, Dict, List
 
-from pyspark import SparkFiles
 from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql.functions import col, expr, monotonically_increasing_id, row_number
 
@@ -270,14 +270,19 @@ def join_entity_to_feature_tables(
     return joined
 
 
-def retrieve_historical_features(spark: SparkSession, conf: Dict) -> DataFrame:
+def retrieve_historical_features(
+    spark: SparkSession, conf: Dict, entity_df: DataFrame = None
+) -> DataFrame:
     """Retrieve batch features based on given configuration.
 
     Args:
         spark (SparkSession):
             Spark session.
         conf (Dict):
-            Configuration for the retrieval job, in json format. Sample configuration as follows:
+            Configuration for the retrieval job, in json format.
+        entity_df (DataFrame):
+            Optional. If provided, the entity will be used directly and conf["entity"] will be ignored.
+            This is useful for exploring historical feature retrieval in a Jupyter notebook.
 
     Returns:
         DataFrame: Join result.
@@ -360,16 +365,19 @@ def retrieve_historical_features(spark: SparkSession, conf: Dict) -> DataFrame:
         ]
         return df.select(projection)
 
-    entity = conf["entity"]
-    entity_df = (
-        spark.read.format(entity["format"])
-        .options(**entity.get("options", {}))
-        .load(entity["path"])
-    )
+    if entity_df is None:
+        entity = conf["entity"]
+        entity_df = (
+            spark.read.format(entity["format"])
+            .options(**entity.get("options", {}))
+            .load(entity["path"])
+        )
 
-    entity_col_mapping = conf["entity"].get("col_mapping", {})
-    mapped_entity_df = map_column(entity_df, entity_col_mapping)
-    verify_schema(mapped_entity_df, entity.get("dtypes", {}))
+        entity_col_mapping = conf["entity"].get("col_mapping", {})
+        mapped_entity_df = map_column(entity_df, entity_col_mapping)
+        verify_schema(mapped_entity_df, entity.get("dtypes", {}))
+    else:
+        mapped_entity_df = entity_df
 
     tables = {
         table_spec["name"]: map_column(
@@ -412,10 +420,12 @@ def start_job(spark: SparkSession, conf: Dict):
 
 
 if __name__ == "__main__":
-    spark = SparkSession.builder.appName("Batch Retrieval").getOrCreate()
-    spark.sparkContext.addFile("config.json")
-    config_file_path = SparkFiles.get("config.json")
-    with open(config_file_path, "r") as config_file:
-        conf = json.load(config_file)
-        start_job(spark, conf)
+    spark = SparkSession.builder.getOrCreate()
+    parser = argparse.ArgumentParser(description="Retrieval job arguments")
+    parser.add_argument(
+        "config_json", type=str, help="Configuration in json string format"
+    )
+    args = parser.parse_args()
+    conf = json.loads(args.config_json)
+    start_job(spark, conf)
     spark.stop()
