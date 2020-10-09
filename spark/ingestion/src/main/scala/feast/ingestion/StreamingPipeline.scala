@@ -16,21 +16,12 @@
  */
 package feast.ingestion
 
-import java.sql
-
-import com.google.protobuf.Descriptors.{Descriptor, EnumValueDescriptor, FieldDescriptor}
-import com.google.protobuf.{AbstractMessage, ByteString, GeneratedMessageV3, Parser, Timestamp}
+import feast.ingestion.registry.proto.ProtoRegistryFactory
 import org.apache.spark.sql.{DataFrame, Row, SaveMode, SparkSession}
 import org.apache.spark.sql.functions.udf
-import org.apache.spark.sql.types._
-import com.google.protobuf.Descriptors.FieldDescriptor.JavaType._
-import feast.ingestion.BatchPipeline.inputProjection
 import feast.ingestion.utils.ProtoReflection
 import feast.ingestion.validation.RowValidator
 import org.apache.spark.sql.streaming.StreamingQuery
-
-import scala.collection.convert.ImplicitConversions._
-import collection.JavaConverters._
 
 object StreamingPipeline extends BasePipeline with Serializable {
   override def createPipeline(
@@ -42,15 +33,10 @@ object StreamingPipeline extends BasePipeline with Serializable {
     val featureTable = config.featureTable
     val projection =
       inputProjection(config.source, featureTable.features, featureTable.entities)
-    val validator = new RowValidator(featureTable)
+    val validator = new RowValidator(featureTable, config.source.timestampColumn)
 
-    val defaultInstance = defaultInstanceFromProtoClass(
-      config.source.asInstanceOf[StreamingSource].classpath
-    )
-    val protoParser = udf(
-      ProtoReflection.createMessageParser(defaultInstance),
-      inferSchemaFromProto(defaultInstance)
-    )
+    val messageParser =
+      protoParser(sparkSession, config.source.asInstanceOf[StreamingSource].classpath)
 
     val input = config.source match {
       case source: KafkaSource =>
@@ -62,7 +48,7 @@ object StreamingPipeline extends BasePipeline with Serializable {
     }
 
     val projected = input
-      .withColumn("features", protoParser($"value"))
+      .withColumn("features", messageParser($"value"))
       .select("features.*")
       .select(projection: _*)
 
@@ -105,17 +91,11 @@ object StreamingPipeline extends BasePipeline with Serializable {
     Some(query)
   }
 
-  private def defaultInstanceFromProtoClass(className: String): GeneratedMessageV3 =
-    Class
-      .forName(className, true, getClass.getClassLoader)
-      .asInstanceOf[Class[GeneratedMessageV3]]
-      .getMethod("getDefaultInstance")
-      .invoke(null)
-      .asInstanceOf[GeneratedMessageV3]
+  private def protoParser(sparkSession: SparkSession, className: String) = {
+    val protoRegistry = ProtoRegistryFactory.resolveProtoRegistry(sparkSession)
 
-  private def inferSchemaFromProto(defaultInstance: GeneratedMessageV3) =
-    StructType(
-      defaultInstance.getDescriptorForType.getFields.flatMap(ProtoReflection.structFieldFor)
-    )
+    val parser: Array[Byte] => Row = ProtoReflection.createMessageParser(protoRegistry, className)
 
+    udf(parser, ProtoReflection.inferSchema(protoRegistry.getProtoDescriptor(className)))
+  }
 }

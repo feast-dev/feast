@@ -35,7 +35,7 @@ object BatchPipeline extends BasePipeline {
     val featureTable = config.featureTable
     val projection =
       inputProjection(config.source, featureTable.features, featureTable.entities)
-    val validator = new RowValidator(featureTable)
+    val validator = new RowValidator(featureTable, config.source.timestampColumn)
 
     val input = config.source match {
       case source: BQSource =>

@@ -18,9 +18,10 @@ package feast.ingestion.utils
 
 import java.sql
 
-import com.google.protobuf.Descriptors.{EnumValueDescriptor, FieldDescriptor}
+import com.google.protobuf.Descriptors.{Descriptor, EnumValueDescriptor, FieldDescriptor}
 import com.google.protobuf.Descriptors.FieldDescriptor.JavaType._
-import com.google.protobuf.{AbstractMessage, ByteString, GeneratedMessageV3, Timestamp}
+import com.google.protobuf.{AbstractMessage, ByteString, DynamicMessage}
+import feast.ingestion.registry.proto.ProtoRegistry
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
 
@@ -40,6 +41,13 @@ object ProtoReflection {
       case MESSAGE =>
         fd.getMessageType.getFullName match {
           case "google.protobuf.Timestamp" => Some(TimestampType)
+          case name if name.endsWith(".MapEntry") =>
+            Some(
+              MapType(
+                structFieldFor(fd.getMessageType.getFields.head).get.dataType,
+                structFieldFor(fd.getMessageType.getFields.last).get.dataType
+              )
+            )
           case _ =>
             Option(fd.getMessageType.getFields.flatMap(structFieldFor))
               .filter(_.nonEmpty)
@@ -50,58 +58,75 @@ object ProtoReflection {
     dataType.map(dt =>
       StructField(
         fd.getName,
-        if (fd.isRepeated) ArrayType(dt, containsNull = false) else dt,
+        if (fd.isRepeated && !dt.isInstanceOf[MapType]) ArrayType(dt, containsNull = false) else dt,
         nullable = !fd.isRequired && !fd.isRepeated
       )
     )
   }
 
-  /**
-    * @param defaultInstance except protobuf message instance because it's serializable
-    *                        and both parser & fields descriptor can be extracted from it
-    */
-  def createMessageParser(defaultInstance: GeneratedMessageV3): Array[Byte] => Row = {
-    def toRowData(fd: FieldDescriptor, obj: AnyRef): AnyRef = {
-      fd.getJavaType match {
-        case BYTE_STRING => obj.asInstanceOf[ByteString].toByteArray
-        case ENUM        => obj.asInstanceOf[EnumValueDescriptor].getName
-        case MESSAGE =>
-          fd.getMessageType.getFullName match {
-            case "google.protobuf.Timestamp" =>
-              new sql.Timestamp(obj.asInstanceOf[Timestamp].getSeconds * 1000)
-            case _ => messageToRow(obj.asInstanceOf[AbstractMessage])
-          }
+  def inferSchema(protoDescriptor: Descriptor): StructType =
+    StructType(
+      protoDescriptor.getFields.flatMap(ProtoReflection.structFieldFor)
+    )
 
-        case _ => obj
-      }
+  private def toRowData(fd: FieldDescriptor, obj: AnyRef): AnyRef = {
+    fd.getJavaType match {
+      case BYTE_STRING => obj.asInstanceOf[ByteString].toByteArray
+      case ENUM        => obj.asInstanceOf[EnumValueDescriptor].getName
+      case MESSAGE =>
+        fd.getMessageType.getFullName match {
+          case "google.protobuf.Timestamp" =>
+            val seconds = obj
+              .asInstanceOf[DynamicMessage]
+              .getField(fd.getMessageType.findFieldByName("seconds"))
+              .asInstanceOf[Long]
+
+            new sql.Timestamp(seconds * 1000)
+          case _ => messageToRow(fd.getMessageType, obj.asInstanceOf[AbstractMessage])
+        }
+
+      case _ => obj
     }
+  }
 
-    def defaultValue(fd: FieldDescriptor): AnyRef = {
-      fd.getJavaType match {
-        case ENUM    => null
-        case MESSAGE => null
-        case _       => fd.getDefaultValue
-      }
+  private def defaultValue(fd: FieldDescriptor): AnyRef = {
+    fd.getJavaType match {
+      case ENUM    => null
+      case MESSAGE => null
+      case _       => fd.getDefaultValue
     }
+  }
 
-    def messageToRow(message: AbstractMessage) = {
-      val fields = message.getAllFields
+  private def messageToRow(protoDescriptor: Descriptor, message: AbstractMessage): Row = {
+    val fields = message.getAllFields
 
-      Row(defaultInstance.getDescriptorForType.getFields.map { fd =>
-        if (fields.containsKey(fd)) {
-          val obj = fields.get(fd)
-          if (fd.isRepeated) {
-            obj.asInstanceOf[java.util.List[Object]].map(toRowData(fd, _))
-          } else {
-            toRowData(fd, obj)
-          }
+    Row(protoDescriptor.getFields.map { fd =>
+      if (fields.containsKey(fd)) {
+        val obj = fields.get(fd)
+        if (fd.getJavaType.equals(MESSAGE) && fd.getMessageType.getFullName.endsWith(".MapEntry")) {
+          obj
+            .asInstanceOf[java.util.List[Object]]
+            .map(toRowData(fd, _))
+            .map { r =>
+              (r.asInstanceOf[Row].get(0), r.asInstanceOf[Row].get(1))
+            }
+            .toMap
         } else if (fd.isRepeated) {
-          Seq()
-        } else defaultValue(fd)
-      }: _*)
-    }
+          obj.asInstanceOf[java.util.List[Object]].map(toRowData(fd, _))
+        } else {
+          toRowData(fd, obj)
+        }
+      } else if (fd.isRepeated) {
+        Seq()
+      } else defaultValue(fd)
+    }: _*)
+  }
 
-    bytes: Array[Byte] =>
-      messageToRow(defaultInstance.getParserForType.parseFrom(bytes).asInstanceOf[AbstractMessage])
+  def createMessageParser(protoRegistry: ProtoRegistry, className: String)(
+      bytes: Array[Byte]
+  ): Row = {
+    val protoDescriptor = protoRegistry.getProtoDescriptor(className)
+
+    messageToRow(protoDescriptor, DynamicMessage.parseFrom(protoDescriptor, bytes))
   }
 }

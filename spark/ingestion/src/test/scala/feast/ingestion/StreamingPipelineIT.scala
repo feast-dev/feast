@@ -28,13 +28,12 @@ import feast.proto.types.ValueProto.ValueType
 import org.apache.spark.SparkConf
 import org.joda.time.DateTime
 import org.apache.kafka.clients.producer._
-import com.example.protos.{TestMessage, VehicleType}
-import com.google.protobuf.Timestamp
+import com.example.protos.{AllTypesMessage, InnerMessage, TestMessage, VehicleType}
+import com.google.protobuf.{AbstractMessage, ByteString, Timestamp}
 import org.scalacheck.Gen
 import redis.clients.jedis.Jedis
 
 import collection.JavaConverters._
-
 import feast.ingestion.helpers.RedisStorageHelper._
 import feast.ingestion.helpers.DataHelper._
 
@@ -56,8 +55,8 @@ class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
 
     val producer = new KafkaProducer[Void, Array[Byte]](props)
 
-    def sendToKafka(topic: String, m: TestMessage): Unit = {
-      producer.send(new ProducerRecord[Void, Array[Byte]](topic, null, m.toByteArray))
+    def sendToKafka(topic: String, m: AbstractMessage): Unit = {
+      producer.send(new ProducerRecord[Void, Array[Byte]](topic, null, m.toByteArray)).get
     }
   }
 
@@ -155,5 +154,106 @@ class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
     sparkSession.read
       .parquet(configWithDeadletter.deadLetterPath.get)
       .count() should be(2 * rows.length)
+  }
+
+  "All protobuf types" should "be correctly converted" in new Scope {
+    val configWithKafka = config.copy(
+      source = kafkaSource.copy(
+        classpath = "com.example.protos.AllTypesMessage",
+        mapping = Map(
+          "map_value"     -> "map.key",
+          "inner_double"  -> "inner.double",
+          "inner_float"   -> "inner.float",
+          "inner_integer" -> "inner.integer",
+          "inner_long"    -> "inner.long"
+        )
+      ),
+      featureTable = FeatureTable(
+        name = "all-types-fs",
+        project = "default",
+        entities = Seq(
+          Field("string", ValueType.Enum.STRING)
+        ),
+        features = Seq(
+          Field("double", ValueType.Enum.DOUBLE),
+          Field("float", ValueType.Enum.FLOAT),
+          Field("integer", ValueType.Enum.INT32),
+          Field("long", ValueType.Enum.INT64),
+          Field("uinteger", ValueType.Enum.INT32),
+          Field("ulong", ValueType.Enum.INT64),
+          Field("sinteger", ValueType.Enum.INT32),
+          Field("slong", ValueType.Enum.INT64),
+          Field("finteger", ValueType.Enum.INT32),
+          Field("flong", ValueType.Enum.INT64),
+          Field("sfinteger", ValueType.Enum.INT32),
+          Field("sflong", ValueType.Enum.INT64),
+          Field("bool", ValueType.Enum.BOOL),
+          Field("bytes", ValueType.Enum.BYTES),
+          Field("map_value", ValueType.Enum.STRING),
+          Field("inner_double", ValueType.Enum.DOUBLE_LIST),
+          Field("inner_float", ValueType.Enum.FLOAT_LIST),
+          Field("inner_integer", ValueType.Enum.INT32_LIST),
+          Field("inner_long", ValueType.Enum.INT64_LIST)
+        )
+      )
+    )
+    val query = StreamingPipeline.createPipeline(sparkSession, configWithKafka).get
+    query.processAllAvailable() // to init kafka consumer
+
+    val message = AllTypesMessage.newBuilder
+      .setDouble(1.0)
+      .setFloat(1.0.toFloat)
+      .setLong(1L)
+      .setInteger(1)
+      .setUinteger(1)
+      .setUlong(1L)
+      .setSlong(1L)
+      .setSinteger(1)
+      .setFlong(1L)
+      .setFinteger(1)
+      .setSfinteger(1)
+      .setSflong(1L)
+      .setBool(true)
+      .setString("test")
+      .setBytes(ByteString.copyFrom("test", "UTF-8"))
+      .putAllMap(Map("key" -> "value", "key2" -> "value2").asJava)
+      .setEventTimestamp(Timestamp.newBuilder().setSeconds(DateTime.now.getMillis / 1000))
+      .setInner(
+        InnerMessage
+          .newBuilder()
+          .addDouble(1)
+          .addFloat(1)
+          .addInteger(1)
+          .addLong(1)
+          .setEnum(InnerMessage.Enum.one)
+      )
+      .build
+
+    sendToKafka(kafkaSource.topic, message)
+    query.processAllAvailable()
+
+    val allTypesKeyEncoder: String => String = encodeFeatureKey(configWithKafka.featureTable)
+    val storedValues                         = jedis.hgetAll(s"default_string:test".getBytes).asScala.toMap
+    storedValues should beStoredRow(
+      Map(
+        allTypesKeyEncoder("double")        -> 1,
+        allTypesKeyEncoder("float")         -> 1.0,
+        allTypesKeyEncoder("long")          -> 1,
+        allTypesKeyEncoder("integer")       -> 1,
+        allTypesKeyEncoder("slong")         -> 1,
+        allTypesKeyEncoder("sinteger")      -> 1,
+        allTypesKeyEncoder("flong")         -> 1,
+        allTypesKeyEncoder("finteger")      -> 1,
+        allTypesKeyEncoder("sflong")        -> 1,
+        allTypesKeyEncoder("sfinteger")     -> 1,
+        allTypesKeyEncoder("bool")          -> true,
+        allTypesKeyEncoder("bytes")         -> ByteString.copyFrom("test", "UTF-8"),
+        allTypesKeyEncoder("map_value")     -> "value",
+        allTypesKeyEncoder("inner_double")  -> List(1.0),
+        allTypesKeyEncoder("inner_float")   -> List(1.0f),
+        allTypesKeyEncoder("inner_integer") -> List(1),
+        allTypesKeyEncoder("inner_long")    -> List(1L)
+      )
+    )
   }
 }

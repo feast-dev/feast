@@ -36,6 +36,7 @@
         <spark.version>2.4.7</spark.version>
         <scala-maven-plugin.version>4.4.0</scala-maven-plugin.version>
         <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
+        <protobuf.version>3.12.2</protobuf.version>
     </properties>
 
     <dependencies>
@@ -54,7 +55,13 @@
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
-            <version>3.12.2</version>
+            <version>${protobuf.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.gojek</groupId>
+            <artifactId>stencil</artifactId>
+            <version>4.2.0</version>
         </dependency>
 
         <dependency>
@@ -100,7 +107,12 @@
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql-kafka-0-10_${scala.version}</artifactId>
             <version>${spark.version}</version>
-            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>2.5.1</version>
         </dependency>
 
         <dependency>
@@ -171,13 +183,6 @@
             <groupId>com.dimafeng</groupId>
             <artifactId>testcontainers-scala-kafka_${scala.version}</artifactId>
             <version>0.38.3</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-clients</artifactId>
-            <version>2.5.1</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -302,8 +307,8 @@
                             <goal>run</goal>
                         </goals>
                         <configuration>
-                            <protocArtifact>com.google.protobuf:protoc:3.12.2</protocArtifact>
-                            <protocVersion>3.12.2</protocVersion>
+                            <protocArtifact>com.google.protobuf:protoc:${protobuf.version}</protocArtifact>
+                            <protocVersion>${protobuf.version}</protocVersion>
                             <inputDirectories>
                                 <include>src/test/proto</include>
                             </inputDirectories>
