@@ -2,9 +2,15 @@ import abc
 import json
 import os
 import subprocess
-import uuid
-from typing import Any, Dict
+from typing import List
 from urllib.parse import urlparse
+
+from feast.pyspark.historical_feature_retrieval_job import (
+    EntitySource,
+    FeatureTable,
+    FeatureTableSource,
+    FileDestination,
+)
 
 
 class SparkJobFailure(Exception):
@@ -129,9 +135,21 @@ class JobLauncher(abc.ABC):
     Submits spark jobs to a spark cluster. Currently supports only historical feature retrieval jobs.
     """
 
+    # entity_source: Source,
+    # feature_tables_sources: List[Source],
+    # feature_tables: List[FeatureTable],
+    # destination
+
     @abc.abstractmethod
     def historical_feature_retrieval(
-        self, pyspark_script: str, config: Dict[str, Any], job_id: str, **kwargs
+        self,
+        pyspark_script: str,
+        entity_source: EntitySource,
+        feature_tables_sources: List[FeatureTableSource],
+        feature_tables: List[FeatureTable],
+        destination: FileDestination,
+        job_id: str,
+        **kwargs,
     ) -> RetrievalJob:
         """
         Submits a historical feature retrieval job to a Spark cluster.
@@ -139,8 +157,11 @@ class JobLauncher(abc.ABC):
         Args:
             pyspark_script (str):
                 Local file path to the pyspark script for historical feature retrieval.
-            config (Dict[str, Any]):
-                Configuration for the pyspark job.
+            entity_source (EntitySource): Entity data source.
+            feature_tables_sources (FeatureTableSource): List of feature tables data sources.
+            feature_tables (List[FeatureTable]): List of feature table specification.
+                The order of the feature table must correspond to that of feature_tables_sources.
+            destination (FileDestination): Retrieval job output destination.
             job_id (str):
                 A job id that is unique for each job submission.
 
@@ -179,7 +200,14 @@ class StandaloneCluster(JobLauncher):
         return os.path.join(self.spark_home, "bin/spark-submit")
 
     def historical_feature_retrieval(
-        self, pyspark_script: str, config: Dict[str, Any], job_id: str, **kwargs
+        self,
+        pyspark_script: str,
+        entity_source: EntitySource,
+        feature_tables_sources: List[FeatureTableSource],
+        feature_tables: List[FeatureTable],
+        destination: FileDestination,
+        job_id: str,
+        **kwargs,
     ) -> RetrievalJob:
         submission_cmd = [
             self.spark_submit_script_path,
@@ -188,11 +216,18 @@ class StandaloneCluster(JobLauncher):
             "--name",
             job_id,
             pyspark_script,
-            json.dumps(config),
+            "--feature-tables",
+            json.dumps([ft._asdict() for ft in feature_tables]),
+            "--feature-tables-sources",
+            json.dumps([fts._asdict() for fts in feature_tables_sources]),
+            "--entity-source",
+            json.dumps(entity_source._asdict()),
+            "--destination",
+            json.dumps(destination._asdict()),
         ]
 
         process = subprocess.Popen(submission_cmd, shell=True)
-        output_file = config["output"]["path"]
+        output_file = destination.path
         return StandaloneClusterRetrievalJob(job_id, process, output_file)
 
 
@@ -234,21 +269,16 @@ class DataprocCluster(JobLauncher):
         self.project_id = project_id
         self.region = region
         self.job_client = dataproc_v1.JobControllerClient(
-            client_options={
-                "api_endpoint": "{}-dataproc.googleapis.com:443".format(region)
-            }
+            client_options={"api_endpoint": f"{region}-dataproc.googleapis.com:443"}
         )
 
-    def _stage_files(self, pyspark_script: str) -> str:
+    def _stage_files(self, pyspark_script: str, job_id: str) -> str:
         from google.cloud import storage
 
         client = storage.Client()
         bucket = client.get_bucket(self.staging_bucket)
         blob_path = os.path.join(
-            self.remote_path,
-            "temp",
-            str(uuid.uuid4()),
-            os.path.basename(pyspark_script),
+            self.remote_path, job_id, os.path.basename(pyspark_script),
         )
         blob = bucket.blob(blob_path)
         blob.upload_from_filename(pyspark_script)
@@ -256,19 +286,35 @@ class DataprocCluster(JobLauncher):
         return f"gs://{self.staging_bucket}/{blob_path}"
 
     def historical_feature_retrieval(
-        self, pyspark_script: str, config: Dict[str, Any], job_id: str, **kwargs
-    ):
-        pyspark_gcs = self._stage_files(pyspark_script)
+        self,
+        pyspark_script: str,
+        entity_source: EntitySource,
+        feature_tables_sources: List[FeatureTableSource],
+        feature_tables: List[FeatureTable],
+        destination: FileDestination,
+        job_id: str,
+        **kwargs,
+    ) -> RetrievalJob:
+        pyspark_gcs = self._stage_files(pyspark_script, job_id)
         job = {
             "reference": {"job_id": job_id},
             "placement": {"cluster_name": self.cluster_name},
             "pyspark_job": {
                 "main_python_file_uri": pyspark_gcs,
-                "args": [json.dumps(config)],
+                "args": [
+                    "--feature-tables",
+                    json.dumps([ft._asdict() for ft in feature_tables]),
+                    "--feature-tables-sources",
+                    json.dumps([fts._asdict() for fts in feature_tables_sources]),
+                    "--entity-source",
+                    json.dumps(entity_source._asdict()),
+                    "--destination",
+                    json.dumps(destination._asdict()),
+                ],
             },
         }
         operation = self.job_client.submit_job_as_operation(
             request={"project_id": self.project_id, "region": self.region, "job": job}
         )
-        output_file = config["output"]["path"]
+        output_file = destination.path
         return DataprocRetrievalJob(job_id, operation, output_file)
