@@ -83,13 +83,38 @@ public class SpecServiceIT extends BaseIT {
             "Entity 2 description",
             ValueProto.ValueType.Enum.STRING,
             ImmutableMap.of("label_key2", "label_value2"));
+    EntityProto.EntitySpecV2 entitySpec3 =
+        DataGenerator.createEntitySpecV2(
+            "entity3",
+            "Entity 3 description",
+            ValueProto.ValueType.Enum.STRING,
+            ImmutableMap.of("label_key3", "label_value3"));
     apiClient.simpleApplyEntity("default", entitySpec1);
     apiClient.simpleApplyEntity("default", entitySpec2);
+    apiClient.simpleApplyEntity("default2", entitySpec3);
     apiClient.applyFeatureTable(
         "default",
         DataGenerator.createFeatureTableSpec(
                 "featuretable1",
                 Arrays.asList("entity1", "entity2"),
+                new HashMap<>() {
+                  {
+                    put("feature1", ValueProto.ValueType.Enum.STRING);
+                    put("feature2", ValueProto.ValueType.Enum.FLOAT);
+                  }
+                },
+                7200,
+                ImmutableMap.of("feat_key2", "feat_value2"))
+            .toBuilder()
+            .setBatchSource(
+                DataGenerator.createFileDataSourceSpec(
+                    "file:///path/to/file", "parquet", "ts_col", ""))
+            .build());
+    apiClient.applyFeatureTable(
+        "default2",
+        DataGenerator.createFeatureTableSpec(
+                "featuretable1",
+                Arrays.asList("entity3"),
                 new HashMap<>() {
                   {
                     put("feature1", ValueProto.ValueType.Enum.STRING);
@@ -305,18 +330,13 @@ public class SpecServiceIT extends BaseIT {
     }
 
     @Test
-    public void shouldUseDefaultProjectIfProjectUnspecified() {
+    public void shouldReturnAllFeatureTablesIfProjectUnspecified() {
       CoreServiceProto.ListFeatureTablesRequest.Filter filter =
-          CoreServiceProto.ListFeatureTablesRequest.Filter.newBuilder()
-              .setProject("default")
-              .build();
+          CoreServiceProto.ListFeatureTablesRequest.Filter.newBuilder().build();
       List<FeatureTableProto.FeatureTable> featureTables =
           apiClient.simpleListFeatureTables(filter);
 
-      assertThat(featureTables, hasSize(1));
-      assertThat(
-          featureTables,
-          hasItem(hasProperty("spec", hasProperty("name", equalTo("featuretable1")))));
+      assertThat(featureTables, hasSize(2));
     }
 
     @Test

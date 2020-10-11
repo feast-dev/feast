@@ -682,19 +682,28 @@ public class SpecService {
 
   /**
    * List the FeatureTables matching the filter in the given filter. Scopes down listing to project
-   * if specified, the default project otherwise.
+   * if specified, otherwise all FeatureTables will be returned.
    *
    * @param filter Filter containing the desired project and labels
    * @return ListFeatureTablesResponse with list of FeatureTables found matching the filter
    */
   @Transactional
   public ListFeatureTablesResponse listFeatureTables(ListFeatureTablesRequest.Filter filter) {
-    String projectName = resolveProjectName(filter.getProject());
+    String projectName = filter.getProject();
     Map<String, String> labelsFilter = filter.getLabelsMap();
 
-    checkValidCharacters(projectName, "project");
+    if (projectName.isEmpty()) {
+      projectName = "*";
+    }
 
-    List<FeatureTable> matchingTables = tableRepository.findAllByProject_Name(projectName);
+    List<FeatureTable> matchingTables;
+    if (projectName.equals("*")) {
+      matchingTables =
+          tableRepository.findAllByProject_NameLikeOrderByNameAsc(projectName.replace('*', '%'));
+    } else {
+      checkValidCharacters(projectName, "project");
+      matchingTables = tableRepository.findAllByProject_Name(projectName);
+    }
 
     ListFeatureTablesResponse.Builder response = ListFeatureTablesResponse.newBuilder();
 
