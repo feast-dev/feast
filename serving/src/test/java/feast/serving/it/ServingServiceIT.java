@@ -18,12 +18,13 @@ package feast.serving.it;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.Hashing;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
 import com.squareup.okhttp.Response;
+import feast.common.it.DataGenerator;
 import feast.common.models.FeatureV2;
 import feast.proto.core.EntityProto;
 import feast.proto.serving.ServingAPIProto;
@@ -32,9 +33,7 @@ import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc;
 import feast.proto.storage.RedisProto;
 import feast.proto.types.ValueProto;
-import feast.storage.api.retriever.Feature;
 import io.grpc.ManagedChannel;
-import io.lettuce.core.KeyValue;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
@@ -45,8 +44,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
-import java.util.stream.Collectors;
 import org.junit.ClassRule;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.runners.model.InitializationError;
@@ -66,15 +65,8 @@ public class ServingServiceIT extends BaseAuthIT {
   static final Map<String, String> options = new HashMap<>();
   static final String timestampPrefix = "_ts";
   static CoreSimpleAPIClient coreClient;
+  static ServingServiceGrpc.ServingServiceBlockingStub servingStub;
   static RedisCommands<byte[], byte[]> syncCommands;
-
-  // To decode bytes back to Feature Reference
-  static Map<String, ServingAPIProto.FeatureReferenceV2> byteToFeatureReferenceMap =
-      new HashMap<>();
-  // To check whether redis ValueK is a timestamp field
-  static Map<String, Boolean> isTimestampMap = new HashMap<>();
-  static List<List<byte[]>> featureReferenceWithTsByteArrays = new ArrayList<>();
-  static RedisProto.RedisKeyV2 redisKey = null;
 
   static final int FEAST_SERVING_PORT = 6566;
   @LocalServerPort private int metricsPort;
@@ -88,19 +80,13 @@ public class ServingServiceIT extends BaseAuthIT {
               FEAST_CORE_PORT,
               Wait.forLogMessage(".*gRPC Server started.*\\n", 1)
                   .withStartupTimeout(Duration.ofMinutes(SERVICE_START_MAX_WAIT_TIME_IN_MINUTES)))
-          .withExposedService(
-              JOB_CONTROLLER,
-              FEAST_JOB_CONTROLLER_PORT,
-              Wait.forLogMessage(".*gRPC Server started.*\\n", 1)
-                  .withStartupTimeout(Duration.ofMinutes(SERVICE_START_MAX_WAIT_TIME_IN_MINUTES)))
           .withExposedService(REDIS, REDIS_PORT);
 
   @BeforeAll
   static void globalSetup() throws IOException, InitializationError, InterruptedException {
-    // Create Core client
     coreClient = TestUtils.getApiClientForCore(FEAST_CORE_PORT);
+    servingStub = TestUtils.getServingServiceStub(false, FEAST_SERVING_PORT, null);
 
-    // Create Redis client
     RedisClient redisClient =
         RedisClient.create(
             new RedisURI(
@@ -132,70 +118,46 @@ public class ServingServiceIT extends BaseAuthIT {
             add(entityName);
           }
         };
-    HashMap<String, ValueProto.ValueType.Enum> features = new HashMap<>();
 
-    // Feature 1
-    String feature1 = "trip_cost";
-    ValueProto.Value feature1Value = ValueProto.Value.newBuilder().setDoubleVal(42.2).build();
     ServingAPIProto.FeatureReferenceV2 feature1Reference =
-        ServingAPIProto.FeatureReferenceV2.newBuilder()
-            .setFeatureTable(featureTableName)
-            .setName(feature1)
-            .build();
-
-    // Feature 2
-    String feature2 = "trip_distance";
-    ValueProto.Value feature2Value = ValueProto.Value.newBuilder().setInt64Val(42).build();
+        DataGenerator.createFeatureReference("rides", "trip_cost");
     ServingAPIProto.FeatureReferenceV2 feature2Reference =
-        ServingAPIProto.FeatureReferenceV2.newBuilder()
-            .setFeatureTable(featureTableName)
-            .setName(feature2)
-            .build();
-
-    // Feature 2
-    String feature3 = "trip_empty";
-    ValueProto.Value feature3Value = ValueProto.Value.newBuilder().build();
+        DataGenerator.createFeatureReference("rides", "trip_distance");
     ServingAPIProto.FeatureReferenceV2 feature3Reference =
-        ServingAPIProto.FeatureReferenceV2.newBuilder()
-            .setFeatureTable(featureTableName)
-            .setName(feature3)
-            .build();
+        DataGenerator.createFeatureReference("rides", "trip_empty");
 
     // Event Timestamp
     String eventTimestampKey = timestampPrefix + ":" + featureTableName;
     Timestamp eventTimestampValue = Timestamp.newBuilder().setSeconds(100).build();
 
-    features.put(feature1, ValueProto.ValueType.Enum.INT64);
-    features.put(feature2, ValueProto.ValueType.Enum.DOUBLE);
-    features.put(feature3, ValueProto.ValueType.Enum.DOUBLE);
+    ImmutableMap<String, ValueProto.ValueType.Enum> features =
+        ImmutableMap.of(
+            "trip_cost", ValueProto.ValueType.Enum.INT64,
+            "trip_distance", ValueProto.ValueType.Enum.DOUBLE,
+            "trip_empty", ValueProto.ValueType.Enum.DOUBLE);
 
     TestUtils.applyFeatureTable(coreClient, projectName, featureTableName, entities, features);
 
     // Serialize Redis Key with Entity i.e <default_driver_id_1>
-    redisKey =
+    RedisProto.RedisKeyV2 redisKey =
         RedisProto.RedisKeyV2.newBuilder()
             .setProject(projectName)
             .addEntityNames(entityName)
             .addEntityValues(entityValue)
             .build();
 
-    // Murmur hash Redis Value Field i.e murmur(<rides:trip_distance>)
-    Map<ServingAPIProto.FeatureReferenceV2, ValueProto.Value> featureReferenceValueMap =
-        new HashMap<>() {
-          {
-            put(feature1Reference, feature1Value);
-            put(feature2Reference, feature2Value);
-            put(feature3Reference, feature3Value);
-          }
-        };
+    ImmutableMap<ServingAPIProto.FeatureReferenceV2, ValueProto.Value> featureReferenceValueMap =
+        ImmutableMap.of(
+            feature1Reference, DataGenerator.createDoubleValue(42.2),
+            feature2Reference, DataGenerator.createInt64Value(42),
+            feature3Reference, DataGenerator.createEmptyValue());
 
     // Insert timestamp into Redis and isTimestampMap only once
     syncCommands.hset(
         redisKey.toByteArray(), eventTimestampKey.getBytes(), eventTimestampValue.toByteArray());
-    isTimestampMap.put(Arrays.toString(eventTimestampKey.getBytes()), true);
     featureReferenceValueMap.forEach(
         (featureReference, featureValue) -> {
-          List<byte[]> currentFeatureWithTsByteArrays = new ArrayList<>();
+          // Murmur hash Redis Feature Field i.e murmur(<rides:trip_distance>)
           String delimitedFeatureReference =
               featureReference.getFeatureTable() + ":" + featureReference.getName();
           byte[] featureReferenceBytes =
@@ -205,13 +167,6 @@ public class ServingServiceIT extends BaseAuthIT {
           // Insert features into Redis
           syncCommands.hset(
               redisKey.toByteArray(), featureReferenceBytes, featureValue.toByteArray());
-          currentFeatureWithTsByteArrays.add(featureReferenceBytes);
-          isTimestampMap.put(Arrays.toString(featureReferenceBytes), false);
-          byteToFeatureReferenceMap.put(featureReferenceBytes.toString(), featureReference);
-
-          currentFeatureWithTsByteArrays.add(eventTimestampKey.getBytes());
-
-          featureReferenceWithTsByteArrays.add(currentFeatureWithTsByteArrays);
         });
 
     // set up options for call credentials
@@ -221,6 +176,11 @@ public class ServingServiceIT extends BaseAuthIT {
     options.put("jwkEndpointURI", JWK_URI);
     options.put("audience", AUDIENCE);
     options.put("grant_type", GRANT_TYPE);
+  }
+
+  @AfterAll
+  static void tearDown() {
+    ((ManagedChannel) servingStub.getChannel()).shutdown();
   }
 
   /** Test that Feast Serving metrics endpoint can be accessed with authentication enabled */
@@ -236,155 +196,16 @@ public class ServingServiceIT extends BaseAuthIT {
     assertTrue(!response.body().string().isEmpty());
   }
 
-  //  @Test
-  //  public void shouldAllowUnauthenticatedGetOnlineFeatures() {
-  //    // apply feature set
-  //    CoreSimpleAPIClient coreClient =
-  //        TestUtils.getSecureApiClientForCore(FEAST_CORE_PORT, options);
-  //    TestUtils.applyFeatureTable(coreClient, PROJECT_NAME, ENTITY_ID, FEATURE_NAME);
-  //    ServingServiceGrpc.ServingServiceBlockingStub servingStub =
-  //        TestUtils.getServingServiceStub(false, FEAST_SERVING_PORT, null);
-  //
-  //    GetOnlineFeaturesRequestV2 onlineFeatureRequest =
-  //        TestUtils.createOnlineFeatureRequest(PROJECT_NAME, FEATURE_NAME, ENTITY_ID, 1);
-  //    GetOnlineFeaturesResponse featureResponse =
-  //        servingStub.getOnlineFeaturesV2(onlineFeatureRequest);
-  //    assertEquals(1, featureResponse.getFieldValuesCount());
-  //    Map<String, ValueProto.Value> fieldsMap = featureResponse.getFieldValues(0).getFieldsMap();
-  //
-  //    assertTrue(fieldsMap.containsKey(ENTITY_ID));
-  //    assertTrue(fieldsMap.containsKey(FEATURE_NAME));
-  //
-  //    ((ManagedChannel) servingStub.getChannel()).shutdown();
-  //  }
-
-  @Test
-  public void shouldRegisterAndRetrieveFromRedis() throws InvalidProtocolBufferException {
-    String featureTableName = "rides";
-
-    // Feature 1
-    String feature1 = "trip_cost";
-    ValueProto.Value feature1Value = ValueProto.Value.newBuilder().setDoubleVal(42.2).build();
-    ServingAPIProto.FeatureReferenceV2 feature1Reference =
-        ServingAPIProto.FeatureReferenceV2.newBuilder()
-            .setFeatureTable(featureTableName)
-            .setName(feature1)
-            .build();
-
-    // Feature 2
-    String feature2 = "trip_distance";
-    ValueProto.Value feature2Value = ValueProto.Value.newBuilder().setInt64Val(42).build();
-    ServingAPIProto.FeatureReferenceV2 feature2Reference =
-        ServingAPIProto.FeatureReferenceV2.newBuilder()
-            .setFeatureTable(featureTableName)
-            .setName(feature2)
-            .build();
-
-    // Feature 2
-    String feature3 = "trip_empty";
-    ValueProto.Value feature3Value = ValueProto.Value.newBuilder().build();
-    ServingAPIProto.FeatureReferenceV2 feature3Reference =
-        ServingAPIProto.FeatureReferenceV2.newBuilder()
-            .setFeatureTable(featureTableName)
-            .setName(feature3)
-            .build();
-
-    // Retrieve multiple value from Redis
-    List<Optional<Feature>> retrievedFeatures = new ArrayList<>();
-    for (List<byte[]> currentFeatureReferenceWithTs : featureReferenceWithTsByteArrays) {
-      ServingAPIProto.FeatureReferenceV2 featureReference = null;
-      ValueProto.Value featureValue = null;
-      Timestamp eventTimestamp = null;
-
-      List<KeyValue<byte[], byte[]>> currentRedisValuesList =
-          syncCommands.hmget(
-              redisKey.toByteArray(),
-              currentFeatureReferenceWithTs.get(0),
-              currentFeatureReferenceWithTs.get(1));
-
-      for (int i = 0; i < currentRedisValuesList.size(); i++) {
-        if (currentRedisValuesList.get(i).hasValue()) {
-          try {
-            byte[] redisValueK = currentRedisValuesList.get(i).getKey();
-            byte[] redisValueV = currentRedisValuesList.get(i).getValue();
-
-            // Decode data from Redis into Feature object fields
-            if (isTimestampMap.get(Arrays.toString(redisValueK))) {
-              eventTimestamp = Timestamp.parseFrom(redisValueV);
-            } else {
-              featureReference = byteToFeatureReferenceMap.get(redisValueK.toString());
-              featureValue = ValueProto.Value.parseFrom(redisValueV);
-            }
-          } catch (InvalidProtocolBufferException e) {
-            e.printStackTrace();
-          }
-        }
-      }
-      // Check for null featureReference i.e key is not found
-      if (featureReference != null) {
-        Feature feature =
-            Feature.builder()
-                .setFeatureReference(featureReference)
-                .setFeatureValue(featureValue)
-                .setEventTimestamp(eventTimestamp)
-                .build();
-        retrievedFeatures.add(Optional.of(feature));
-      }
-    }
-
-    List<ValueProto.Value> expectedValues =
-        new ArrayList<>() {
-          {
-            add(feature1Value);
-            add(feature2Value);
-            add(feature3Value);
-          }
-        };
-    List<ServingAPIProto.FeatureReferenceV2> expectedFeatureReferences =
-        new ArrayList<>() {
-          {
-            add(feature1Reference);
-            add(feature2Reference);
-            add(feature3Reference);
-          }
-        };
-    assertEquals(3, retrievedFeatures.size());
-    assertEquals(
-        expectedFeatureReferences.stream()
-            .map(featureReference -> featureReference.getName())
-            .sorted()
-            .collect(Collectors.toList()),
-        retrievedFeatures.stream()
-            .map(feature -> feature.get().getFeatureReference().getName())
-            .sorted()
-            .collect(Collectors.toList()));
-    assertEquals(
-        expectedFeatureReferences.stream()
-            .map(featureReference -> featureReference.getFeatureTable())
-            .collect(Collectors.toList()),
-        retrievedFeatures.stream()
-            .map(feature -> feature.get().getFeatureReference().getFeatureTable())
-            .collect(Collectors.toList()));
-  }
-
   @Test
   public void shouldRegisterAndGetOnlineFeatures() {
-    ServingServiceGrpc.ServingServiceBlockingStub servingStub =
-        TestUtils.getServingServiceStub(false, FEAST_SERVING_PORT, null);
-
     // getOnlineFeatures Information
     String projectName = "default";
-    String featureTableName = "rides";
     String entityName = "driver_id";
     ValueProto.Value entityValue = ValueProto.Value.newBuilder().setInt64Val(1).build();
-    String feature1 = "trip_cost";
 
     // Instantiate EntityRows
     GetOnlineFeaturesRequestV2.EntityRow entityRow1 =
-        GetOnlineFeaturesRequestV2.EntityRow.newBuilder()
-            .setTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .putFields(entityName, entityValue)
-            .build();
+        DataGenerator.createEntityRow(entityName, DataGenerator.createInt64Value(1), 100);
     List<GetOnlineFeaturesRequestV2.EntityRow> entityRows =
         new ArrayList<>() {
           {
@@ -393,12 +214,8 @@ public class ServingServiceIT extends BaseAuthIT {
         };
 
     // Instantiate FeatureReferences
-    ValueProto.Value feature1Value = ValueProto.Value.newBuilder().setDoubleVal(42.2).build();
     ServingAPIProto.FeatureReferenceV2 feature1Reference =
-        ServingAPIProto.FeatureReferenceV2.newBuilder()
-            .setFeatureTable(featureTableName)
-            .setName(feature1)
-            .build();
+        DataGenerator.createFeatureReference("rides", "trip_cost");
     List<ServingAPIProto.FeatureReferenceV2> featureReferences =
         new ArrayList<>() {
           {
@@ -412,23 +229,19 @@ public class ServingServiceIT extends BaseAuthIT {
     GetOnlineFeaturesResponse featureResponse =
         servingStub.getOnlineFeaturesV2(onlineFeatureRequest);
 
-    Map<String, ValueProto.Value> expectedValueMap =
-        new HashMap<>() {
-          {
-            put(entityName, entityValue);
-            put(FeatureV2.getFeatureStringRef(feature1Reference), feature1Value);
-          }
-        };
+    ImmutableMap<String, ValueProto.Value> expectedValueMap =
+        ImmutableMap.of(
+            entityName,
+            entityValue,
+            FeatureV2.getFeatureStringRef(feature1Reference),
+            DataGenerator.createDoubleValue(42.2));
 
-    Map<String, GetOnlineFeaturesResponse.FieldStatus> expectedStatusMap =
-        new HashMap<>() {
-          {
-            put(entityName, GetOnlineFeaturesResponse.FieldStatus.PRESENT);
-            put(
-                FeatureV2.getFeatureStringRef(feature1Reference),
-                GetOnlineFeaturesResponse.FieldStatus.PRESENT);
-          }
-        };
+    ImmutableMap<String, GetOnlineFeaturesResponse.FieldStatus> expectedStatusMap =
+        ImmutableMap.of(
+            entityName,
+            GetOnlineFeaturesResponse.FieldStatus.PRESENT,
+            FeatureV2.getFeatureStringRef(feature1Reference),
+            GetOnlineFeaturesResponse.FieldStatus.PRESENT);
 
     GetOnlineFeaturesResponse.FieldValues expectedFieldValues =
         GetOnlineFeaturesResponse.FieldValues.newBuilder()
@@ -442,32 +255,19 @@ public class ServingServiceIT extends BaseAuthIT {
           }
         };
 
-    assertEquals(1, 1);
     assertEquals(expectedFieldValuesList, featureResponse.getFieldValuesList());
-
-    ((ManagedChannel) servingStub.getChannel()).shutdown();
   }
 
   @Test
   public void shouldRegisterAndGetOnlineFeaturesWithNotFound() {
-    ServingServiceGrpc.ServingServiceBlockingStub servingStub =
-        TestUtils.getServingServiceStub(false, FEAST_SERVING_PORT, null);
-
     // getOnlineFeatures Information
     String projectName = "default";
-    String featureTableName = "rides";
     String entityName = "driver_id";
     ValueProto.Value entityValue = ValueProto.Value.newBuilder().setInt64Val(1).build();
-    String feature1 = "trip_cost";
-    String notFoundFeature = "trip_transaction";
-    String emptyFeature = "trip_empty";
 
     // Instantiate EntityRows
     GetOnlineFeaturesRequestV2.EntityRow entityRow1 =
-        GetOnlineFeaturesRequestV2.EntityRow.newBuilder()
-            .setTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .putFields(entityName, entityValue)
-            .build();
+        DataGenerator.createEntityRow(entityName, DataGenerator.createInt64Value(1), 100);
     List<GetOnlineFeaturesRequestV2.EntityRow> entityRows =
         new ArrayList<>() {
           {
@@ -476,24 +276,13 @@ public class ServingServiceIT extends BaseAuthIT {
         };
 
     // Instantiate FeatureReferences
-    ValueProto.Value featureValue = ValueProto.Value.newBuilder().setDoubleVal(42.2).build();
     ServingAPIProto.FeatureReferenceV2 featureReference =
-        ServingAPIProto.FeatureReferenceV2.newBuilder()
-            .setFeatureTable(featureTableName)
-            .setName(feature1)
-            .build();
-    ValueProto.Value notFoundFeatureValue = ValueProto.Value.newBuilder().build();
+        DataGenerator.createFeatureReference("rides", "trip_cost");
     ServingAPIProto.FeatureReferenceV2 notFoundFeatureReference =
-        ServingAPIProto.FeatureReferenceV2.newBuilder()
-            .setFeatureTable(featureTableName)
-            .setName(notFoundFeature)
-            .build();
-    ValueProto.Value emptyFeatureValue = ValueProto.Value.newBuilder().build();
+        DataGenerator.createFeatureReference("rides", "trip_transaction");
     ServingAPIProto.FeatureReferenceV2 emptyFeatureReference =
-        ServingAPIProto.FeatureReferenceV2.newBuilder()
-            .setFeatureTable(featureTableName)
-            .setName(emptyFeature)
-            .build();
+        DataGenerator.createFeatureReference("rides", "trip_empty");
+
     List<ServingAPIProto.FeatureReferenceV2> featureReferences =
         new ArrayList<>() {
           {
@@ -509,31 +298,27 @@ public class ServingServiceIT extends BaseAuthIT {
     GetOnlineFeaturesResponse featureResponse =
         servingStub.getOnlineFeaturesV2(onlineFeatureRequest);
 
-    Map<String, ValueProto.Value> expectedValueMap =
-        new HashMap<>() {
-          {
-            put(entityName, entityValue);
-            put(FeatureV2.getFeatureStringRef(featureReference), featureValue);
-            put(FeatureV2.getFeatureStringRef(notFoundFeatureReference), notFoundFeatureValue);
-            put(FeatureV2.getFeatureStringRef(emptyFeatureReference), emptyFeatureValue);
-          }
-        };
+    ImmutableMap<String, ValueProto.Value> expectedValueMap =
+        ImmutableMap.of(
+            entityName,
+            entityValue,
+            FeatureV2.getFeatureStringRef(featureReference),
+            DataGenerator.createDoubleValue(42.2),
+            FeatureV2.getFeatureStringRef(notFoundFeatureReference),
+            DataGenerator.createEmptyValue(),
+            FeatureV2.getFeatureStringRef(emptyFeatureReference),
+            DataGenerator.createEmptyValue());
 
-    Map<String, GetOnlineFeaturesResponse.FieldStatus> expectedStatusMap =
-        new HashMap<>() {
-          {
-            put(entityName, GetOnlineFeaturesResponse.FieldStatus.PRESENT);
-            put(
-                FeatureV2.getFeatureStringRef(featureReference),
-                GetOnlineFeaturesResponse.FieldStatus.PRESENT);
-            put(
-                FeatureV2.getFeatureStringRef(notFoundFeatureReference),
-                GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND);
-            put(
-                FeatureV2.getFeatureStringRef(emptyFeatureReference),
-                GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE);
-          }
-        };
+    ImmutableMap<String, GetOnlineFeaturesResponse.FieldStatus> expectedStatusMap =
+        ImmutableMap.of(
+            entityName,
+            GetOnlineFeaturesResponse.FieldStatus.PRESENT,
+            FeatureV2.getFeatureStringRef(featureReference),
+            GetOnlineFeaturesResponse.FieldStatus.PRESENT,
+            FeatureV2.getFeatureStringRef(notFoundFeatureReference),
+            GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND,
+            FeatureV2.getFeatureStringRef(emptyFeatureReference),
+            GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE);
 
     GetOnlineFeaturesResponse.FieldValues expectedFieldValues =
         GetOnlineFeaturesResponse.FieldValues.newBuilder()
@@ -547,9 +332,6 @@ public class ServingServiceIT extends BaseAuthIT {
           }
         };
 
-    assertEquals(1, 1);
     assertEquals(expectedFieldValuesList, featureResponse.getFieldValuesList());
-
-    ((ManagedChannel) servingStub.getChannel()).shutdown();
   }
 }

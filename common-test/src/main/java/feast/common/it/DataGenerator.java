@@ -18,6 +18,7 @@ package feast.common.it;
 
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Duration;
+import com.google.protobuf.Timestamp;
 import feast.proto.core.DataSourceProto.DataSource;
 import feast.proto.core.DataSourceProto.DataSource.BigQueryOptions;
 import feast.proto.core.DataSourceProto.DataSource.FileOptions;
@@ -29,6 +30,7 @@ import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
+import feast.proto.serving.ServingAPIProto;
 import feast.proto.types.ValueProto;
 import java.util.Collections;
 import java.util.HashMap;
@@ -269,6 +271,34 @@ public class DataGenerator {
                 .setClassPath(classPath)
                 .build())
         .setEventTimestampColumn(timestampColumn)
+        .build();
+  }
+
+  public static ValueProto.Value createEmptyValue() {
+    return ValueProto.Value.newBuilder().build();
+  }
+
+  public static ValueProto.Value createDoubleValue(double value) {
+    return ValueProto.Value.newBuilder().setDoubleVal(value).build();
+  }
+
+  public static ValueProto.Value createInt64Value(long value) {
+    return ValueProto.Value.newBuilder().setInt64Val(value).build();
+  }
+
+  public static ServingAPIProto.FeatureReferenceV2 createFeatureReference(
+      String featureTableName, String featureName) {
+    return ServingAPIProto.FeatureReferenceV2.newBuilder()
+        .setFeatureTable(featureTableName)
+        .setName(featureName)
+        .build();
+  }
+
+  public static ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow createEntityRow(
+      String entityName, ValueProto.Value entityValue, long seconds) {
+    return ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow.newBuilder()
+        .setTimestamp(Timestamp.newBuilder().setSeconds(seconds))
+        .putFields(entityName, entityValue)
         .build();
   }
 }

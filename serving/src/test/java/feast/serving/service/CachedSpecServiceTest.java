@@ -24,18 +24,28 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import com.google.common.collect.ImmutableMap;
+import feast.common.it.DataGenerator;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.proto.core.CoreServiceProto.ListFeatureTablesRequest;
+import feast.proto.core.CoreServiceProto.ListFeatureTablesResponse;
+import feast.proto.core.CoreServiceProto.ListProjectsRequest;
+import feast.proto.core.CoreServiceProto.ListProjectsResponse;
 import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
+import feast.proto.core.FeatureTableProto;
+import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import feast.proto.core.StoreProto.Store;
 import feast.proto.core.StoreProto.Store.Subscription;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
+import feast.proto.types.ValueProto;
 import feast.serving.exception.SpecRetrievalException;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.specs.CoreSpecService;
 import feast.storage.api.retriever.FeatureSetRequest;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -81,8 +91,50 @@ public class CachedSpecServiceTest {
     this.setupFeatureSetAndStoreSubscription(
         "default", "fs3", List.of(FeatureSpec.newBuilder().setName("feature4").build()));
 
+    this.setupProject("default");
+    this.setupFeatureTableAndProject("default");
+
     when(this.coreService.registerStore(store)).thenReturn(store);
     cachedSpecService = new CachedSpecService(this.coreService, this.store);
+  }
+
+  private void setupProject(String project) {
+    when(coreService.listProjects(ListProjectsRequest.newBuilder().build()))
+        .thenReturn(ListProjectsResponse.newBuilder().addProjects(project).build());
+  }
+
+  private void setupFeatureTableAndProject(String project) {
+    String featureTableName = "tablename";
+    List<String> entities =
+        new ArrayList<>() {
+          {
+            add("entity1");
+          }
+        };
+    ImmutableMap<String, ValueProto.ValueType.Enum> features =
+        ImmutableMap.of(
+            "trip_cost", ValueProto.ValueType.Enum.INT64,
+            "trip_distance", ValueProto.ValueType.Enum.DOUBLE,
+            "trip_empty", ValueProto.ValueType.Enum.DOUBLE);
+    FeatureTableSpec ftSpec =
+        DataGenerator.createFeatureTableSpec(
+            featureTableName,
+            entities,
+            new HashMap<>() {
+              {
+                putAll(features);
+              }
+            },
+            7200,
+            ImmutableMap.of("feat_key2", "feat_value2"));
+    FeatureTableProto.FeatureTable featureTable =
+        FeatureTableProto.FeatureTable.newBuilder().setSpec(ftSpec).build();
+
+    when(coreService.listFeatureTables(
+            ListFeatureTablesRequest.newBuilder()
+                .setFilter(ListFeatureTablesRequest.Filter.newBuilder().setProject(project).build())
+                .build()))
+        .thenReturn(ListFeatureTablesResponse.newBuilder().addTables(featureTable).build());
   }
 
   private void setupFeatureSetAndStoreSubscription(

@@ -18,7 +18,7 @@ package feast.serving.it;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import avro.shaded.com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Duration;
 import feast.common.auth.credentials.OAuthCredentials;
 import feast.proto.core.CoreServiceGrpc;
@@ -119,7 +119,7 @@ public class TestUtils {
       String projectName,
       String featureTableName,
       List<String> entities,
-      HashMap<String, ValueProto.ValueType.Enum> features) {
+      ImmutableMap<String, ValueProto.ValueType.Enum> features) {
     FeatureTableSpec expectedFeatureTableSpec =
         createFeatureTableSpec(
                 featureTableName,
