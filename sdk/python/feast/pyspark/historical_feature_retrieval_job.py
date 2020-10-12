@@ -1,3 +1,4 @@
+import abc
 import argparse
 import json
 from datetime import datetime, timedelta
@@ -7,52 +8,159 @@ from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql.functions import col, expr, monotonically_increasing_id, row_number
 
 
-class EntitySource(NamedTuple):
+class Source(abc.ABC):
     """
-    Source for the entity dataframe. The values for the `format` and `path` should be
-    recognizable by the Spark cluster where the job is going to run on. For example, s3a
-    connector is required for Amazon S3 path. Spark avro package should be on the class
-    path of the spark cluster if the format is `avro`.
+    Source for an entity or feature dataframe.
+
+    Attributes:
+        timestamp_column (str): Column representing the event timestamp.
+        created_timestamp_column (str): Column representing the creation timestamp. Required
+            only if the source corresponds to a feature table.
+        mapping (Optional[Dict[str, str]]): If present, the source column will be renamed
+            based on the mapping.
+    """
+
+    def __init__(
+        self,
+        timestamp_column: str,
+        created_timestamp_column: Optional[str],
+        mapping: Optional[Dict[str, str]] = None,
+    ):
+
+        self.timestamp_column = timestamp_column
+        self.created_timestamp_column = created_timestamp_column
+        self.mapping = mapping if mapping else {}
+
+    @property
+    def spark_read_options(self) -> Dict[str, str]:
+        """
+        Return a dictionary of options which will be passed to spark when reading the
+        data source. Refer to
+        https://spark.apache.org/docs/latest/sql-data-sources-load-save-functions.html#manually-specifying-options
+        for possible options.
+        """
+        return {}
+
+    @property
+    @abc.abstractmethod
+    def spark_format(self) -> str:
+        """
+        Return the format corresponding to the datasource. Must be a format that is recognizable by
+        the spark cluster which the historical feature retrieval job will run on.
+        """
+        raise NotImplementedError
+
+    @property
+    @abc.abstractmethod
+    def spark_path(self) -> str:
+        """
+        Return an uri that points to the datasource. The uri scheme must be recognizable by
+        the spark cluster which the historical feature retrieval job will run on.
+        """
+        raise NotImplementedError
+
+
+class FileSource(Source):
+    """
+    A file source which could either be located on the local file system or a remote directory .
 
     Attributes:
         format (str): File format.
-        path (str): uri to the file source.
-        timestamp_column (str): Column representing the event timestamp.
+        path (str): Uri to the file.
         mapping (Dict[str, str]): Optional. If present, the source column will be renamed
             based on the mapping.
-        options (Dict[str, str]): Spark read options.
+        timestamp_column (str): Column representing the event timestamp.
+        created_timestamp_column (str): Column representing the creation timestamp. Required
+            only if the source corresponds to a feature table.
+        mapping (Optional[Dict[str, str]]): Optional. If present, the source column will be renamed
+            based on the mapping.
+        options (Optional[Dict[str, str]]): Options to be passed to spark while reading the file source.
     """
 
-    format: str
-    path: str
-    timestamp_column: str
-    mapping: Dict[str, str] = {}
-    options: Dict[str, str] = {}
+    def __init__(
+        self,
+        format: str,
+        path: str,
+        timestamp_column: str,
+        created_timestamp_column: Optional[str] = None,
+        mapping: Optional[Dict[str, str]] = None,
+        options: Optional[Dict[str, str]] = None,
+    ):
+        super().__init__(timestamp_column, created_timestamp_column, mapping)
+        self.format = format
+        self.path = path
+        self.options = options if options else {}
+
+    @property
+    def spark_format(self) -> str:
+        return self.format
+
+    @property
+    def spark_path(self) -> str:
+        return self.path
+
+    @property
+    def spark_read_options(self) -> Dict[str, str]:
+        return self.options
 
 
-class FeatureTableSource(NamedTuple):
+class BQSource(Source):
     """
-    Source for the Feature Table dataframe. The values for the `format` and `path` should be
-    recognizable by the Spark cluster where the job is going to run on. For example, s3a
-    connector is required for Amazon S3 path. Spark avro package should be on the class
-    path of the spark cluster if the format is `avro`.
+    Big query datasource, which depends on spark bigquery connector (https://github.com/GoogleCloudDataproc/spark-bigquery-connector).
 
     Attributes:
-        format (str): File format.
-        path (str): uri to the file source.
-        timestamp_column (str): Column representing the event timestamp.
-        created_timestamp_column (str): Column representing the creation timestamp. Not required for entity.
+        project (str): GCP project id.
+        dataset (str): BQ dataset.
+        table (str): BQ table.
         mapping (Dict[str, str]): Optional. If present, the source column will be renamed
             based on the mapping.
-        options (Dict[str, str]): Spark read options.
+        timestamp_column (str): Column representing the event timestamp.
+        created_timestamp_column (str): Column representing the creation timestamp. Required
+            only if the source corresponds to a feature table.
     """
 
-    format: str
-    path: str
-    timestamp_column: str
-    created_timestamp_column: str
-    mapping: Dict[str, str] = {}
-    options: Dict[str, str] = {}
+    def __init__(
+        self,
+        project: str,
+        dataset: str,
+        table: str,
+        timestamp_column: str,
+        created_timestamp_column: Optional[str],
+        mapping: Optional[Dict[str, str]],
+    ):
+        super().__init__(timestamp_column, created_timestamp_column, mapping)
+        self.project = project
+        self.dataset = dataset
+        self.table = table
+
+    @property
+    def spark_format(self) -> str:
+        return "bigquery"
+
+    @property
+    def spark_path(self) -> str:
+        return f"{self.project}:{self.dataset}.{self.table}"
+
+
+def _source_from_dict(dct: Dict) -> Source:
+    if "file" in dct.keys():
+        return FileSource(
+            dct["format"],
+            dct["path"],
+            dct["timestamp_column"],
+            dct.get("created_timestamp_column"),
+            dct.get("mapping"),
+            dct.get("options"),
+        )
+    else:
+        return BQSource(
+            dct["project"],
+            dct["dataset"],
+            dct["table"],
+            dct.get("mapping", {}),
+            dct["timestamp_column"],
+            dct.get("created_timestamp_column"),
+        )
 
 
 class Field(NamedTuple):
@@ -151,20 +259,22 @@ class EntityDataframe(NamedTuple):
     timestamp_column: str
 
     @classmethod
-    def from_source(cls, spark: SparkSession, source: EntitySource):
+    def from_source(cls, spark: SparkSession, source: Source):
         """
         Construct an EntityDataframe instance based on the Source.
 
         Args:
             spark (SparkSession): Spark session.
-            source (EntitySource): Entity table source.
+            source (Source): Entity table source.
 
         Returns:
             EntityDataframe: Instance of EntityDataframe.
         """
 
         df = (
-            spark.read.format(source.format).options(**source.options).load(source.path)
+            spark.read.format(source.spark_format)
+            .options(**source.spark_read_options)
+            .load(source.spark_path)
         )
 
         mapped_entity_df = _map_column(df, source.mapping)
@@ -216,7 +326,7 @@ class FeatureTableDataframe(NamedTuple):
         cls,
         spark: SparkSession,
         feature_table: FeatureTable,
-        source: FeatureTableSource,
+        source: Source,
         entity_min_timestamp: datetime,
         entity_max_timestamp: datetime,
     ):
@@ -229,7 +339,7 @@ class FeatureTableDataframe(NamedTuple):
         Args:
             spark (SparkSession): Spark session.
             feature_table (FeatureTable): Feature table specification.
-            source (FeatureTableSource): Feature table source.
+            source (Source): Feature table source.
             entity_min_timestamp (datetime): Minimum datetime for the entity dataframe.
             entity_max_timestamp (datetime): Maximum datetime for the entity dataframe.
 
@@ -240,7 +350,9 @@ class FeatureTableDataframe(NamedTuple):
             SchemaError: If the feature table has missing columns or wrong column types.
         """
         source_df = (
-            spark.read.format(source.format).options(**source.options).load(source.path)
+            spark.read.format(source.spark_format)
+            .options(**source.spark_read_options)
+            .load(source.spark_path)
         )
 
         mapped_source_df = _map_column(source_df, source.mapping)
@@ -291,6 +403,9 @@ class FeatureTableDataframe(NamedTuple):
         )
 
         time_range_filtered_df = subset_source_df.filter(feature_table_timestamp_filter)
+
+        if source.created_timestamp_column is None:
+            raise ValueError("Created timestamp must be specified for feature table.")
 
         return FeatureTableDataframe(
             name=feature_table.name,
@@ -524,16 +639,16 @@ class SchemaError(Exception):
 
 def retrieve_historical_features(
     spark: SparkSession,
-    entity_source: EntitySource,
-    feature_tables_sources: List[FeatureTableSource],
+    entity_source: Source,
+    feature_tables_sources: List[Source],
     feature_tables: List[FeatureTable],
 ) -> DataFrame:
     """Retrieve historical features based on given configurations.
 
     Args:
         spark (SparkSession): Spark session.
-        entity_source (EntitySource): Entity data source.
-        feature_tables_sources (FeatureTableSource): List of feature tables data sources.
+        entity_source (Source): Entity data source.
+        feature_tables_sources (Source): List of feature tables data sources.
         feature_tables (List[FeatureTable]): List of feature table specification.
             The order of the feature table must correspond to that of feature_tables_sources.
 
@@ -541,7 +656,7 @@ def retrieve_historical_features(
         DataFrame: Join result.
 
     Example:
-        >>> entity_source = EntitySource(
+        >>> entity_source = FileSource(
                 format="csv",
                 path="file:///some_dir/customer_driver_pairs.csv"),
                 options={"inferSchema": "true", "header": "true"},
@@ -549,12 +664,12 @@ def retrieve_historical_features(
             )
 
         >>> feature_tables_sources = [
-                Source(
+                FileSource(
                     format="parquet",
                     path="gs://some_bucket/bookings.parquet"),
                     mapping={"id": "driver_id"}
                 ),
-                Source(
+                FileSource(
                     format="avro",
                     path="s3://some_bucket/transactions.avro"),
                 )
@@ -576,9 +691,9 @@ def retrieve_historical_features(
     """
 
     entity_df = (
-        spark.read.format(entity_source.format)
-        .options(**entity_source.options)
-        .load(entity_source.path)
+        spark.read.format(entity_source.spark_format)
+        .options(**entity_source.spark_read_options)
+        .load(entity_source.spark_path)
     )
 
     mapped_entity_df = _map_column(entity_df, entity_source.mapping)
@@ -620,8 +735,8 @@ def retrieve_historical_features(
 
 def start_job(
     spark: SparkSession,
-    entity_source: EntitySource,
-    feature_tables_sources: List[FeatureTableSource],
+    entity_source: Source,
+    feature_tables_sources: List[Source],
     feature_tables: List[FeatureTable],
     destination: FileDestination,
 ):
@@ -655,9 +770,9 @@ if __name__ == "__main__":
     args = _get_args()
     feature_tables = [FeatureTable(**dct) for dct in json.loads(args.feature_tables)]
     feature_tables_sources = [
-        FeatureTableSource(**dct) for dct in json.loads(args.feature_tables_source)
+        _source_from_dict(dct) for dct in json.loads(args.feature_tables_source)
     ]
-    entity_source = EntitySource(**json.loads(args.entity_source))
+    entity_source = _source_from_dict(json.loads(args.entity_source))
     destination = FileDestination(**json.loads(args.destination))
     start_job(spark, entity_source, feature_tables_sources, feature_tables, destination)
     spark.stop()

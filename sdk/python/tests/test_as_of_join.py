@@ -17,11 +17,10 @@ from pyspark.sql.types import (
 
 from feast.pyspark.historical_feature_retrieval_job import (
     EntityDataframe,
-    EntitySource,
     FeatureTable,
     FeatureTableDataframe,
-    FeatureTableSource,
     Field,
+    FileSource,
     SchemaError,
     as_of_join,
     join_entity_to_feature_tables,
@@ -574,20 +573,20 @@ def test_multiple_join(
 
 def test_historical_feature_retrieval(spark: SparkSession):
     test_data_dir = path.join(pathlib.Path(__file__).parent.absolute(), "data")
-    entity_source = EntitySource(
+    entity_source = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'customer_driver_pairs.csv')}",
         timestamp_column="event_timestamp",
         options={"inferSchema": "true", "header": "true"},
     )
-    booking_source = FeatureTableSource(
+    booking_source = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'bookings.csv')}",
         timestamp_column="event_timestamp",
         created_timestamp_column="created_timestamp",
         options={"inferSchema": "true", "header": "true"},
     )
-    transaction_source = FeatureTableSource(
+    transaction_source = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'transactions.csv')}",
         timestamp_column="event_timestamp",
@@ -639,14 +638,14 @@ def test_historical_feature_retrieval(spark: SparkSession):
 
 def test_historical_feature_retrieval_with_mapping(spark: SparkSession):
     test_data_dir = path.join(pathlib.Path(__file__).parent.absolute(), "data")
-    entity_source = EntitySource(
+    entity_source = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'column_mapping_test_entity.csv')}",
         timestamp_column="event_timestamp",
         mapping={"id": "customer_id"},
         options={"inferSchema": "true", "header": "true"},
     )
-    booking_source = FeatureTableSource(
+    booking_source = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'column_mapping_test_feature.csv')}",
         timestamp_column="datetime",
@@ -705,14 +704,14 @@ def test_large_historical_feature_retrieval(
         spark.sparkContext.parallelize(expected_join_data), expected_join_data_schema
     )
 
-    entity_source = EntitySource(
+    entity_source = FileSource(
         format="csv",
         path=f"file://{large_entity_csv_file}",
         timestamp_column="event_timestamp",
         mapping={"id": "customer_id"},
         options={"inferSchema": "true", "header": "true"},
     )
-    feature_source = FeatureTableSource(
+    feature_source = FileSource(
         format="csv",
         path=f"file://{large_feature_csv_file}",
         timestamp_column="event_timestamp",
@@ -733,33 +732,33 @@ def test_large_historical_feature_retrieval(
 
 def test_historical_feature_retrieval_with_schema_errors(spark: SparkSession):
     test_data_dir = path.join(pathlib.Path(__file__).parent.absolute(), "data")
-    entity_source = EntitySource(
+    entity_source = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'customer_driver_pairs.csv')}",
         timestamp_column="event_timestamp",
         options={"inferSchema": "true", "header": "true"},
     )
-    entity_source_missing_timestamp = EntitySource(
+    entity_source_missing_timestamp = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'customer_driver_pairs.csv')}",
         timestamp_column="datetime",
         options={"inferSchema": "true", "header": "true"},
     )
-    entity_source_missing_entity = EntitySource(
+    entity_source_missing_entity = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'customers.csv')}",
         timestamp_column="event_timestamp",
         options={"inferSchema": "true", "header": "true"},
     )
 
-    booking_source = FeatureTableSource(
+    booking_source = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'bookings.csv')}",
         timestamp_column="event_timestamp",
         created_timestamp_column="created_timestamp",
         options={"inferSchema": "true", "header": "true"},
     )
-    booking_source_missing_timestamp = FeatureTableSource(
+    booking_source_missing_timestamp = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'bookings.csv')}",
         timestamp_column="datetime",
