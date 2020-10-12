@@ -58,7 +58,7 @@ object BatchPipeline extends BasePipeline {
 
     TypeCheck.allTypesMatch(projected.schema, featureTable) match {
       case Left(error) =>
-        throw new RuntimeException(s"Dataframes columns don't match expected feature types: $error")
+        throw new RuntimeException(s"Dataframe columns don't match expected feature types: $error")
       case _ => ()
     }
 
