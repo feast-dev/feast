@@ -4,6 +4,16 @@ variable "region" {
 variable "name_prefix" {
 }
 
+variable "vpc_id" {
+}
+
+variable "subnet_filter_tag" {
+  type = map(string)
+  default = {
+          private = "True"
+        }
+}
+
 variable "postgres_db_name" {
   default = "feast"
 }

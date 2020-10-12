@@ -39,7 +39,18 @@ provider "kubernetes" {
   version                = "~> 1.11"
 }
 
-data "aws_availability_zones" "available" {
+data "aws_vpc" "selected" {
+  id = var.vpc_id
+}
+
+data "aws_subnet_ids" "subnets" {
+  vpc_id = var.vpc_id
+  tags = var.subnet_filter_tag
+}
+
+data "aws_subnet" "subnets" {
+  for_each = data.aws_subnet_ids.subnets.ids
+  id       = each.value
 }
 
 locals {
@@ -53,35 +64,8 @@ resource "random_string" "suffix" {
 
 resource "aws_security_group" "all_worker_mgmt" {
   name_prefix = "${var.name_prefix}-worker"
-  vpc_id      = module.vpc.vpc_id
-
-  tags = var.tags
-}
-
-module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "2.47.0"
-
-  name                 = "${var.name_prefix}-vpc"
-  cidr                 = "10.0.0.0/16"
-  azs                  = data.aws_availability_zones.available.names
-  private_subnets      = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
-  public_subnets       = ["10.0.4.0/24", "10.0.5.0/24", "10.0.6.0/24"]
-  enable_nat_gateway   = true
-  single_nat_gateway   = true
-  enable_dns_hostnames = true
-
-  public_subnet_tags = {
-    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
-    "kubernetes.io/role/elb"                      = "1"
-  }
-
-  private_subnet_tags = {
-    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
-    "kubernetes.io/role/internal-elb"             = "1"
-  }
-
-  tags = var.tags
+  tags = var.tag
+  vpc_id      = data.aws_vpc.selected.id
 }
 
 module "eks" {
@@ -90,11 +74,11 @@ module "eks" {
 
   cluster_name    = local.cluster_name
   cluster_version = "1.17"
-  subnets         = module.vpc.private_subnets
+  subnets         = data.aws_subnet_ids.subnets.ids
 
   tags = var.tags
 
-  vpc_id = module.vpc.vpc_id
+  vpc_id = data.aws_vpc.selected.id
 
   worker_groups = [
     {

@@ -10,7 +10,7 @@ resource "aws_emr_cluster" "persistent_cluster" {
   release_label                     = "emr-6.0.0"
 
   ec2_attributes {
-    subnet_id                         = module.vpc.private_subnets[0]
+    subnet_id                         = data.aws_subnet.subnets[0]
     additional_master_security_groups = aws_security_group.all_worker_mgmt.id
     additional_slave_security_groups  = aws_security_group.all_worker_mgmt.id
     instance_profile                  = data.aws_iam_instance_profile.emr_default_role.arn
