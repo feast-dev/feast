@@ -69,7 +69,7 @@ class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
         name = "driver-fs",
         project = "default",
         entities = Seq(
-          Field("s2_id", ValueType.Enum.INT32),
+          Field("s2_id", ValueType.Enum.INT64),
           Field("vehicle_type", ValueType.Enum.STRING)
         ),
         features = Seq(
@@ -255,5 +255,26 @@ class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
         allTypesKeyEncoder("inner_long")    -> List(1L)
       )
     )
+  }
+
+  "Expected feature types" should "match source types" in new Scope {
+    val configWithKafka = config.copy(
+      source = kafkaSource,
+      featureTable = FeatureTable(
+        name = "driver-fs",
+        project = "default",
+        entities = Seq(
+          Field("s2_id", ValueType.Enum.STRING),
+          Field("vehicle_type", ValueType.Enum.INT32)
+        ),
+        features = Seq(
+          Field("unique_drivers", ValueType.Enum.FLOAT)
+        )
+      )
+    )
+
+    assertThrows[RuntimeException] {
+      StreamingPipeline.createPipeline(sparkSession, configWithKafka).get
+    }
   }
 }

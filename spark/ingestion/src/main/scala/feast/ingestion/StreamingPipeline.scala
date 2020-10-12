@@ -20,9 +20,18 @@ import feast.ingestion.registry.proto.ProtoRegistryFactory
 import org.apache.spark.sql.{DataFrame, Row, SaveMode, SparkSession}
 import org.apache.spark.sql.functions.udf
 import feast.ingestion.utils.ProtoReflection
-import feast.ingestion.validation.RowValidator
+import feast.ingestion.validation.{RowValidator, TypeCheck}
 import org.apache.spark.sql.streaming.StreamingQuery
 
+/**
+  * Streaming pipeline (currently in micro-batches mode only, since we need to have multiple sinks: redis & deadletters).
+  * Flow:
+  * 1. Read from streaming source (currently only Kafka)
+  * 2. Parse bytes from streaming source into Row with schema inferenced from provided class (Protobuf)
+  * 3. Map columns according to provided mapping rules
+  * 4. Validate
+  * 5. (In batches) store to redis valid rows / write to deadletter (parquet) invalid
+  */
 object StreamingPipeline extends BasePipeline with Serializable {
   override def createPipeline(
       sparkSession: SparkSession,
@@ -51,6 +60,12 @@ object StreamingPipeline extends BasePipeline with Serializable {
       .withColumn("features", messageParser($"value"))
       .select("features.*")
       .select(projection: _*)
+
+    TypeCheck.allTypesMatch(projected.schema, featureTable) match {
+      case Left(error) =>
+        throw new RuntimeException(s"Dataframes columns don't match expected feature types: $error")
+      case _ => ()
+    }
 
     val query = projected.writeStream
       .foreachBatch { (batchDF: DataFrame, batchID: Long) =>

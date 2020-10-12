@@ -18,7 +18,7 @@ package feast.ingestion
 
 import feast.ingestion.sources.bq.BigQueryReader
 import feast.ingestion.sources.file.FileReader
-import feast.ingestion.validation.RowValidator
+import feast.ingestion.validation.{RowValidator, TypeCheck}
 import org.apache.spark.sql.{Column, SparkSession}
 import org.apache.spark.sql.functions.col
 
@@ -55,6 +55,12 @@ object BatchPipeline extends BasePipeline {
     }
 
     val projected = input.select(projection: _*).cache()
+
+    TypeCheck.allTypesMatch(projected.schema, featureTable) match {
+      case Left(error) =>
+        throw new RuntimeException(s"Dataframes columns don't match expected feature types: $error")
+      case _ => ()
+    }
 
     val validRows = projected
       .filter(validator.checkAll)
