@@ -163,7 +163,6 @@ public class RedisOnlineRetrieverV2 implements OnlineRetrieverV2 {
 
               // Decode data from Redis into Feature object fields
               if (isTimestampMap.get(Arrays.toString(redisValueK))) {
-                redisValueV = redisValuesList.get(i).getValueOrElse(new byte[0]);
                 eventTimestamp = Timestamp.parseFrom(redisValueV);
               } else {
                 featureReference = byteToFeatureReferenceMap.get(redisValueK.toString());
