@@ -22,6 +22,8 @@ import static org.hamcrest.core.IsEqual.equalTo;
 
 import feast.common.it.DataGenerator;
 import feast.proto.core.DataSourceProto;
+import feast.proto.core.DataSourceProto.DataFormat;
+import feast.proto.core.DataSourceProto.DataFormat.ProtoFormat;
 import feast.proto.core.DataSourceProto.DataSource.BigQueryOptions;
 import feast.proto.core.DataSourceProto.DataSource.KinesisOptions;
 import java.util.List;
@@ -68,7 +70,11 @@ public class DataSourceTest {
                 KinesisOptions.newBuilder()
                     .setRegion("ap-nowhere1")
                     .setStreamName("stream")
-                    .setClassPath("class.path")
+                    .setRecordFormat(
+                        DataFormat.newBuilder()
+                            .setProtoFormat(
+                                ProtoFormat.newBuilder().setClassPath("class.path").build())
+                            .build())
                     .build())
             .build());
   }

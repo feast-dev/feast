@@ -20,6 +20,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
+import feast.proto.core.DataSourceProto.DataFormat;
+import feast.proto.core.DataSourceProto.DataFormat.ParquetFormat;
+import feast.proto.core.DataSourceProto.DataFormat.ProtoFormat;
 import feast.proto.core.DataSourceProto.DataSource;
 import feast.proto.core.DataSourceProto.DataSource.BigQueryOptions;
 import feast.proto.core.DataSourceProto.DataSource.FileOptions;
@@ -270,7 +273,13 @@ public class DataGenerator {
     return DataSource.newBuilder()
         .setType(DataSource.SourceType.BATCH_FILE)
         .setFileOptions(
-            FileOptions.newBuilder().setFileFormat(fileFormat).setFileUrl(fileURL).build())
+            FileOptions.newBuilder()
+                .setFileFormat(
+                    DataFormat.newBuilder()
+                        .setParquetFormat(ParquetFormat.getDefaultInstance())
+                        .build())
+                .setFileUrl(fileURL)
+                .build())
         .setEventTimestampColumn(timestampColumn)
         .setDatePartitionColumn(datePartitionColumn)
         .build();
@@ -294,7 +303,10 @@ public class DataGenerator {
             KafkaOptions.newBuilder()
                 .setTopic(topic)
                 .setBootstrapServers(servers)
-                .setClassPath(classPath)
+                .setMessageFormat(
+                    DataFormat.newBuilder()
+                        .setProtoFormat(ProtoFormat.newBuilder().setClassPath(classPath).build())
+                        .build())
                 .build())
         .setEventTimestampColumn(timestampColumn)
         .build();

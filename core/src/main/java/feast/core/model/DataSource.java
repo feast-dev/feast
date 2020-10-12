@@ -16,10 +16,11 @@
  */
 package feast.core.model;
 
-import static feast.proto.core.DataSourceProto.DataSource.SourceType.*;
-
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import feast.core.util.TypeConversion;
 import feast.proto.core.DataSourceProto;
+import feast.proto.core.DataSourceProto.DataFormat;
 import feast.proto.core.DataSourceProto.DataSource.BigQueryOptions;
 import feast.proto.core.DataSourceProto.DataSource.FileOptions;
 import feast.proto.core.DataSourceProto.DataSource.KafkaOptions;
@@ -88,27 +89,35 @@ public class DataSource {
     DataSource source = new DataSource(spec.getType());
     // Copy source type specific options
     Map<String, String> dataSourceConfigMap = new HashMap<>();
-    switch (spec.getType()) {
-      case BATCH_FILE:
-        dataSourceConfigMap.put("file_url", spec.getFileOptions().getFileUrl());
-        dataSourceConfigMap.put("file_format", spec.getFileOptions().getFileFormat());
-        break;
-      case BATCH_BIGQUERY:
-        dataSourceConfigMap.put("table_ref", spec.getBigqueryOptions().getTableRef());
-        break;
-      case STREAM_KAFKA:
-        dataSourceConfigMap.put("bootstrap_servers", spec.getKafkaOptions().getBootstrapServers());
-        dataSourceConfigMap.put("class_path", spec.getKafkaOptions().getClassPath());
-        dataSourceConfigMap.put("topic", spec.getKafkaOptions().getTopic());
-        break;
-      case STREAM_KINESIS:
-        dataSourceConfigMap.put("class_path", spec.getKinesisOptions().getClassPath());
-        dataSourceConfigMap.put("region", spec.getKinesisOptions().getRegion());
-        dataSourceConfigMap.put("stream_name", spec.getKinesisOptions().getStreamName());
-        break;
-      default:
-        throw new UnsupportedOperationException(
-            String.format("Unsupported Feature Store Type: %s", spec.getType()));
+    JsonFormat.Printer json = JsonFormat.printer();
+    try {
+      switch (spec.getType()) {
+        case BATCH_FILE:
+          dataSourceConfigMap.put("file_url", spec.getFileOptions().getFileUrl());
+          dataSourceConfigMap.put("file_format", json.print(spec.getFileOptions().getFileFormat()));
+          break;
+        case BATCH_BIGQUERY:
+          dataSourceConfigMap.put("table_ref", spec.getBigqueryOptions().getTableRef());
+          break;
+        case STREAM_KAFKA:
+          dataSourceConfigMap.put(
+              "bootstrap_servers", spec.getKafkaOptions().getBootstrapServers());
+          dataSourceConfigMap.put(
+              "message_format", json.print(spec.getKafkaOptions().getMessageFormat()));
+          dataSourceConfigMap.put("topic", spec.getKafkaOptions().getTopic());
+          break;
+        case STREAM_KINESIS:
+          dataSourceConfigMap.put(
+              "record_format", json.print(spec.getKinesisOptions().getRecordFormat()));
+          dataSourceConfigMap.put("region", spec.getKinesisOptions().getRegion());
+          dataSourceConfigMap.put("stream_name", spec.getKinesisOptions().getStreamName());
+          break;
+        default:
+          throw new UnsupportedOperationException(
+              String.format("Unsupported Feature Store Type: %s", spec.getType()));
+      }
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException("Unexpected exception convering DataFormat Proto to JSON", e);
     }
 
     // Store DataSource mapping as serialised JSON
@@ -137,7 +146,7 @@ public class DataSource {
       case BATCH_FILE:
         FileOptions.Builder fileOptions = FileOptions.newBuilder();
         fileOptions.setFileUrl(dataSourceConfigMap.get("file_url"));
-        fileOptions.setFileFormat(dataSourceConfigMap.get("file_format"));
+        fileOptions.setFileFormat(parseFormat(dataSourceConfigMap.get("file_format")));
         spec.setFileOptions(fileOptions.build());
         break;
       case BATCH_BIGQUERY:
@@ -148,15 +157,15 @@ public class DataSource {
       case STREAM_KAFKA:
         KafkaOptions.Builder kafkaOptions = KafkaOptions.newBuilder();
         kafkaOptions.setBootstrapServers(dataSourceConfigMap.get("bootstrap_servers"));
-        kafkaOptions.setClassPath(dataSourceConfigMap.get("class_path"));
         kafkaOptions.setTopic(dataSourceConfigMap.get("topic"));
+        kafkaOptions.setMessageFormat(parseFormat(dataSourceConfigMap.get("message_format")));
         spec.setKafkaOptions(kafkaOptions.build());
         break;
       case STREAM_KINESIS:
         KinesisOptions.Builder kinesisOptions = KinesisOptions.newBuilder();
-        kinesisOptions.setClassPath(dataSourceConfigMap.get("class_path"));
         kinesisOptions.setRegion(dataSourceConfigMap.get("region"));
         kinesisOptions.setStreamName(dataSourceConfigMap.get("stream_name"));
+        kinesisOptions.setRecordFormat(parseFormat(dataSourceConfigMap.get("record_format")));
         spec.setKinesisOptions(kinesisOptions.build());
         break;
       default:
@@ -193,5 +202,16 @@ public class DataSource {
     }
     DataSource other = (DataSource) o;
     return this.toProto().equals(other.toProto());
+  }
+
+  /** Parse the given data format in JSON representation to its protobuf representation. */
+  private DataFormat parseFormat(String formatJSON) {
+    try {
+      DataFormat.Builder format = DataFormat.newBuilder();
+      JsonFormat.parser().merge(formatJSON, format);
+      return format.build();
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException("Unexpected exception convering DataFormat JSON to Proto", e);
+    }
   }
 }
