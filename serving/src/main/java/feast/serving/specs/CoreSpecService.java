@@ -21,6 +21,10 @@ import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
 import feast.proto.core.CoreServiceProto.GetFeatureSetResponse;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.proto.core.CoreServiceProto.ListFeatureTablesRequest;
+import feast.proto.core.CoreServiceProto.ListFeatureTablesResponse;
+import feast.proto.core.CoreServiceProto.ListProjectsRequest;
+import feast.proto.core.CoreServiceProto.ListProjectsResponse;
 import feast.proto.core.CoreServiceProto.UpdateStoreRequest;
 import feast.proto.core.CoreServiceProto.UpdateStoreResponse;
 import feast.proto.core.StoreProto.Store;
@@ -78,5 +82,14 @@ public class CoreSpecService {
     } catch (Exception e) {
       throw new RuntimeException("Unable to update store configuration", e);
     }
+  }
+
+  public ListProjectsResponse listProjects(ListProjectsRequest listProjectsRequest) {
+    return blockingStub.listProjects(listProjectsRequest);
+  }
+
+  public ListFeatureTablesResponse listFeatureTables(
+      ListFeatureTablesRequest listFeatureTablesRequest) {
+    return blockingStub.listFeatureTables(listFeatureTablesRequest);
   }
 }

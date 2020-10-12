@@ -37,6 +37,7 @@ import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.types.ValueProto.Value;
 import feast.serving.config.FeastProperties;
 import feast.serving.service.ServingService;
+import feast.serving.service.ServingServiceV2;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.jaegertracing.Configuration;
@@ -52,6 +53,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 public class ServingServiceGRpcControllerTest {
 
   @Mock private ServingService mockServingService;
+
+  @Mock private ServingServiceV2 mockServingServiceV2;
 
   @Mock private StreamObserver<GetOnlineFeaturesResponse> mockStreamObserver;
 
@@ -94,7 +97,7 @@ public class ServingServiceGRpcControllerTest {
     AuthorizationService authorizationservice =
         new AuthorizationService(feastProperties.getSecurity(), authProvider);
     return new ServingServiceGRpcController(
-        authorizationservice, mockServingService, feastProperties, tracer);
+        authorizationservice, mockServingService, mockServingServiceV2, feastProperties, tracer);
   }
 
   @Test

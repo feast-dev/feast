@@ -2,7 +2,7 @@ version: '3'
 
 services:
   core:
-    image: gcr.io/kf-feast/feast-core:latest
+    image: gcr.io/kf-feast/feast-core:develop
     volumes: 
       - ./core/application-it.yml:/etc/feast/application.yml
     environment:

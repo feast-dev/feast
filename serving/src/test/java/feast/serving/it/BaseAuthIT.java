@@ -49,6 +49,7 @@ public class BaseAuthIT {
 
   static CoreSimpleAPIClient insecureApiClient;
 
+  static final String REDIS = "redis_1";
   static final int REDIS_PORT = 6379;
 
   static final int FEAST_CORE_PORT = 6565;

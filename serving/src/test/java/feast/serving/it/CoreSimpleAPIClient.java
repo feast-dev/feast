@@ -18,7 +18,9 @@ package feast.serving.it;
 
 import feast.proto.core.CoreServiceGrpc;
 import feast.proto.core.CoreServiceProto;
+import feast.proto.core.EntityProto;
 import feast.proto.core.FeatureSetProto;
+import feast.proto.core.FeatureTableProto;
 
 public class CoreSimpleAPIClient {
   private CoreServiceGrpc.CoreServiceBlockingStub stub;
@@ -39,5 +41,32 @@ public class CoreSimpleAPIClient {
                 .setProject(projectName)
                 .build())
         .getFeatureSet();
+  }
+
+  public void simpleApplyEntity(EntityProto.EntitySpecV2 entitySpec) {
+    stub.applyEntity(CoreServiceProto.ApplyEntityRequest.newBuilder().setSpec(entitySpec).build());
+  }
+
+  public EntityProto.Entity getEntity(String projectName, String name) {
+    return stub.getEntity(
+            CoreServiceProto.GetEntityRequest.newBuilder()
+                .setProject(projectName)
+                .setName(name)
+                .build())
+        .getEntity();
+  }
+
+  public void simpleApplyFeatureTable(FeatureTableProto.FeatureTableSpec featureTable) {
+    stub.applyFeatureTable(
+        CoreServiceProto.ApplyFeatureTableRequest.newBuilder().setTableSpec(featureTable).build());
+  }
+
+  public FeatureTableProto.FeatureTable simpleGetFeatureTable(String projectName, String name) {
+    return stub.getFeatureTable(
+            CoreServiceProto.GetFeatureTableRequest.newBuilder()
+                .setName(name)
+                .setProject(projectName)
+                .build())
+        .getTable();
   }
 }

@@ -18,6 +18,7 @@ package feast.serving.specs;
 
 import static feast.common.models.Feature.getFeatureStringWithProjectRef;
 import static feast.common.models.FeatureSet.getFeatureSetStringRef;
+import static feast.common.models.FeatureTable.getFeatureTableStringRef;
 import static java.util.stream.Collectors.groupingBy;
 
 import com.google.common.cache.CacheBuilder;
@@ -25,12 +26,18 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.proto.core.CoreServiceProto.ListFeatureTablesRequest;
+import feast.proto.core.CoreServiceProto.ListFeatureTablesResponse;
+import feast.proto.core.CoreServiceProto.ListProjectsRequest;
 import feast.proto.core.FeatureSetProto.FeatureSet;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
+import feast.proto.core.FeatureTableProto.FeatureTable;
+import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store;
 import feast.proto.core.StoreProto.Store.Subscription;
+import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.serving.exception.SpecRetrievalException;
 import feast.storage.api.retriever.FeatureSetRequest;
@@ -77,6 +84,14 @@ public class CachedSpecService {
           .help("epoch time of the last time the cache was updated")
           .register();
 
+  private final LoadingCache<String, FeatureTableSpec> featureTableCache;
+  private static Gauge featureTablesCount =
+      Gauge.build()
+          .name("feature_table_count")
+          .subsystem("feast_serving")
+          .help("number of feature sets served by this instance")
+          .register();
+
   public CachedSpecService(CoreSpecService coreService, StoreProto.Store store) {
     this.coreService = coreService;
     this.store = coreService.registerStore(store);
@@ -88,6 +103,13 @@ public class CachedSpecService {
     featureSetCache =
         CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(featureSetCacheLoader);
     featureSetCache.putAll(featureSets);
+
+    Map<String, FeatureTableSpec> featureTables = getFeatureTableMap();
+    CacheLoader<String, FeatureTableSpec> featureTableCacheLoader =
+        CacheLoader.from(featureTables::get);
+    featureTableCache =
+        CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(featureTableCacheLoader);
+    featureTableCache.putAll(featureTables);
   }
 
   /**
@@ -218,6 +240,13 @@ public class CachedSpecService {
     featureToFeatureSetMapping = getFeatureToFeatureSetMapping(featureSetMap);
 
     featureSetsCount.set(featureSetCache.size());
+
+    Map<String, FeatureTableSpec> featureTableMap = getFeatureTableMap();
+
+    featureTableCache.invalidateAll();
+    featureTableCache.putAll(featureTableMap);
+
+    featureTablesCount.set(featureTableCache.size());
     cacheLastUpdated.set(System.currentTimeMillis());
   }
 
@@ -333,5 +362,50 @@ public class CachedSpecService {
     }
     return Pair.of(
         getFeatureStringWithProjectRef(featureRef.build()), getFeatureSetStringRef(featureSetSpec));
+  }
+
+  /**
+   * Provides a map for easy retrieval of FeatureTable spec using FeatureTable reference
+   *
+   * @return Map in the format of <project/featuretable_name: FeatureTableSpec>
+   */
+  private Map<String, FeatureTableSpec> getFeatureTableMap() {
+    HashMap<String, FeatureTableSpec> featureTables = new HashMap<>();
+
+    List<String> projects =
+        coreService.listProjects(ListProjectsRequest.newBuilder().build()).getProjectsList();
+
+    for (String project : projects) {
+      try {
+        ListFeatureTablesResponse featureTablesResponse =
+            coreService.listFeatureTables(
+                ListFeatureTablesRequest.newBuilder()
+                    .setFilter(ListFeatureTablesRequest.Filter.newBuilder().setProject(project))
+                    .build());
+        for (FeatureTable featureTable : featureTablesResponse.getTablesList()) {
+          FeatureTableSpec spec = featureTable.getSpec();
+          // Key of Map is in the form of <project/featuretable_name>
+          featureTables.put(getFeatureTableStringRef(project, spec), spec);
+        }
+      } catch (StatusRuntimeException e) {
+        throw new RuntimeException(
+            String.format("Unable to retrieve specs matching project %s", project), e);
+      }
+    }
+    return featureTables;
+  }
+
+  public FeatureTableSpec getFeatureTableSpec(
+      String project, ServingAPIProto.FeatureReferenceV2 featureReference) {
+    String featureTableRefStr = project + "/" + featureReference.getFeatureTable();
+    FeatureTableSpec featureTableSpec;
+    try {
+      featureTableSpec = featureTableCache.get(featureTableRefStr);
+    } catch (ExecutionException e) {
+      throw new SpecRetrievalException(
+          String.format("Unable to find FeatureTable with name: %s", featureTableRefStr), e);
+    }
+
+    return featureTableSpec;
   }
 }

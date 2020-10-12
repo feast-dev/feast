@@ -19,6 +19,7 @@ package feast.serving.util;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.serving.ServingAPIProto.GetBatchFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import io.grpc.Status;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -26,6 +27,15 @@ import java.util.stream.Collectors;
 public class RequestHelper {
 
   public static void validateOnlineRequest(GetOnlineFeaturesRequest request) {
+    // EntityDataSetRow shall not be empty
+    if (request.getEntityRowsCount() <= 0) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription("Entity value must be provided")
+          .asRuntimeException();
+    }
+  }
+
+  public static void validateOnlineRequest(GetOnlineFeaturesRequestV2 request) {
     // EntityDataSetRow shall not be empty
     if (request.getEntityRowsCount() <= 0) {
       throw Status.INVALID_ARGUMENT
