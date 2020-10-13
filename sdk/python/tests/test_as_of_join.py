@@ -4,11 +4,9 @@ import shutil
 import tempfile
 from datetime import datetime, timedelta
 from os import path
-from typing import Any, Dict, List
 
 import pytest
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.functions import lit
 from pyspark.sql.types import (
     FloatType,
     IntegerType,
@@ -18,13 +16,13 @@ from pyspark.sql.types import (
 )
 
 from feast.pyspark.historical_feature_retrieval_job import (
-    MissingColumnError,
-    SchemaMismatchError,
-    TimestampColumnError,
+    FeatureTable,
+    Field,
+    FileSource,
+    SchemaError,
     as_of_join,
     join_entity_to_feature_tables,
     retrieve_historical_features,
-    verify_schema,
 )
 
 
@@ -227,12 +225,19 @@ def test_join_without_max_age(
         spark.sparkContext.parallelize(feature_table_data), customer_feature_schema
     )
 
+    feature_table = FeatureTable(
+        name="transactions",
+        features=[Field("daily_transactions", "double")],
+        entities=[Field("customer_id", "int32")],
+    )
+
     joined_df = as_of_join(
         entity_df,
-        ["customer_id"],
+        "event_timestamp",
         feature_table_df,
-        ["daily_transactions"],
-        feature_prefix="transactions__",
+        feature_table,
+        "event_timestamp",
+        "created_timestamp",
     )
 
     expected_joined_schema = StructType(
@@ -288,14 +293,20 @@ def test_join_with_max_age(
     feature_table_df = spark.createDataFrame(
         spark.sparkContext.parallelize(feature_table_data), customer_feature_schema
     )
+    feature_table = FeatureTable(
+        name="transactions",
+        features=[Field("daily_transactions", "double")],
+        entities=[Field("customer_id", "int32")],
+        max_age=86400,
+    )
 
     joined_df = as_of_join(
         entity_df,
-        ["customer_id"],
+        "event_timestamp",
         feature_table_df,
-        ["daily_transactions"],
-        feature_prefix="transactions__",
-        max_age=86400,
+        feature_table,
+        "event_timestamp",
+        "created_timestamp",
     )
 
     expected_joined_schema = StructType(
@@ -361,14 +372,20 @@ def test_join_with_composite_entity(
     feature_table_df = spark.createDataFrame(
         spark.sparkContext.parallelize(feature_table_data), rating_feature_schema,
     )
+    feature_table = FeatureTable(
+        name="ratings",
+        features=[Field("customer_rating", "double"), Field("driver_rating", "double")],
+        entities=[Field("customer_id", "int32"), Field("driver_id", "int32")],
+        max_age=86400,
+    )
 
     joined_df = as_of_join(
         entity_df,
-        ["customer_id", "driver_id"],
+        "event_timestamp",
         feature_table_df,
-        ["customer_rating", "driver_rating"],
-        feature_prefix="ratings__",
-        max_age=86400,
+        feature_table,
+        "event_timestamp",
+        "created_timestamp",
     )
 
     expected_joined_schema = StructType(
@@ -423,13 +440,19 @@ def test_select_subset_of_columns_as_entity_primary_keys(
     feature_table_df = spark.createDataFrame(
         spark.sparkContext.parallelize(feature_table_data), customer_feature_schema
     )
+    feature_table = FeatureTable(
+        name="transactions",
+        features=[Field("daily_transactions", "double")],
+        entities=[Field("customer_id", "int32")],
+    )
 
     joined_df = as_of_join(
         entity_df,
-        ["customer_id"],
+        "event_timestamp",
         feature_table_df,
-        ["daily_transactions"],
-        feature_prefix="transactions__",
+        feature_table,
+        "event_timestamp",
+        "created_timestamp",
     )
 
     expected_joined_schema = StructType(
@@ -457,19 +480,6 @@ def test_multiple_join(
     customer_feature_schema: StructType,
     driver_feature_schema: StructType,
 ):
-    query_conf: List[Dict[str, Any]] = [
-        {
-            "table": "transactions",
-            "features": ["daily_transactions"],
-            "join": ["customer_id"],
-            "max_age": 86400,
-        },
-        {
-            "table": "bookings",
-            "features": ["completed_bookings"],
-            "join": ["driver_id"],
-        },
-    ]
 
     entity_data = [
         (1001, 8001, datetime(year=2020, month=9, day=2)),
@@ -496,6 +506,12 @@ def test_multiple_join(
     ]
     customer_table_df = spark.createDataFrame(
         spark.sparkContext.parallelize(customer_table_data), customer_feature_schema
+    )
+    customer_table = FeatureTable(
+        name="transactions",
+        features=[Field("daily_transactions", "double")],
+        entities=[Field("customer_id", "int32")],
+        max_age=86400,
     )
 
     driver_table_data = [
@@ -528,9 +544,20 @@ def test_multiple_join(
         spark.sparkContext.parallelize(driver_table_data), driver_feature_schema
     )
 
-    tables = {"transactions": customer_table_df, "bookings": driver_table_df}
+    driver_table = FeatureTable(
+        name="bookings",
+        features=[Field("completed_bookings", "int32")],
+        entities=[Field("driver_id", "int32")],
+    )
 
-    joined_df = join_entity_to_feature_tables(query_conf, entity_df, tables)
+    joined_df = join_entity_to_feature_tables(
+        entity_df,
+        "event_timestamp",
+        [customer_table_df, driver_table_df],
+        [customer_table, driver_table],
+        ["event_timestamp"] * 2,
+        ["created_timestamp"] * 2,
+    )
 
     expected_joined_schema = StructType(
         [
@@ -554,47 +581,46 @@ def test_multiple_join(
     assert_dataframe_equal(joined_df, expected_joined_df)
 
 
-def test_historical_feature_retrieval(spark):
+def test_historical_feature_retrieval(spark: SparkSession):
     test_data_dir = path.join(pathlib.Path(__file__).parent.absolute(), "data")
-    batch_retrieval_conf = {
-        "entity": {
-            "format": "csv",
-            "path": f"file://{path.join(test_data_dir,  'customer_driver_pairs.csv')}",
-            "options": {"inferSchema": "true", "header": "true"},
-            "dtypes": {"customer_id": "int", "driver_id": "int"},
-        },
-        "tables": [
-            {
-                "format": "csv",
-                "path": f"file://{path.join(test_data_dir,  'bookings.csv')}",
-                "name": "bookings",
-                "options": {"inferSchema": "true", "header": "true"},
-                "dtypes": {"driver_id": "int"},
-            },
-            {
-                "format": "csv",
-                "path": f"file://{path.join(test_data_dir,  'transactions.csv')}",
-                "name": "transactions",
-                "options": {"inferSchema": "true", "header": "true"},
-                "dtypes": {"customer_id": "int"},
-            },
-        ],
-        "queries": [
-            {
-                "table": "transactions",
-                "features": ["daily_transactions"],
-                "join": ["customer_id"],
-                "max_age": 86400,
-            },
-            {
-                "table": "bookings",
-                "features": ["completed_bookings"],
-                "join": ["driver_id"],
-            },
-        ],
-    }
+    entity_source = FileSource(
+        format="csv",
+        path=f"file://{path.join(test_data_dir,  'customer_driver_pairs.csv')}",
+        event_timestamp_column="event_timestamp",
+        options={"inferSchema": "true", "header": "true"},
+    )
+    booking_source = FileSource(
+        format="csv",
+        path=f"file://{path.join(test_data_dir,  'bookings.csv')}",
+        event_timestamp_column="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        options={"inferSchema": "true", "header": "true"},
+    )
+    transaction_source = FileSource(
+        format="csv",
+        path=f"file://{path.join(test_data_dir,  'transactions.csv')}",
+        event_timestamp_column="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        options={"inferSchema": "true", "header": "true"},
+    )
+    booking_table = FeatureTable(
+        name="bookings",
+        entities=[Field("driver_id", "int32")],
+        features=[Field("completed_bookings", "int32")],
+    )
+    transaction_table = FeatureTable(
+        name="transactions",
+        entities=[Field("customer_id", "int32")],
+        features=[Field("daily_transactions", "double")],
+        max_age=86400,
+    )
 
-    joined_df = retrieve_historical_features(spark, batch_retrieval_conf)
+    joined_df = retrieve_historical_features(
+        spark,
+        entity_source,
+        [transaction_source, booking_source],
+        [transaction_table, booking_table],
+    )
 
     expected_joined_schema = StructType(
         [
@@ -620,39 +646,31 @@ def test_historical_feature_retrieval(spark):
     assert_dataframe_equal(joined_df, expected_joined_df)
 
 
-def test_historical_feature_retrieval_with_mapping(spark):
+def test_historical_feature_retrieval_with_mapping(spark: SparkSession):
     test_data_dir = path.join(pathlib.Path(__file__).parent.absolute(), "data")
-    retrieval_conf = {
-        "entity": {
-            "format": "csv",
-            "path": f"file://{path.join(test_data_dir,  'column_mapping_test_entity.csv')}",
-            "options": {"inferSchema": "true", "header": "true"},
-            "col_mapping": {"id": "customer_id"},
-            "dtypes": {"customer_id": "int"},
-        },
-        "tables": [
-            {
-                "format": "csv",
-                "path": f"file://{path.join(test_data_dir,  'column_mapping_test_feature.csv')}",
-                "name": "bookings",
-                "options": {"inferSchema": "true", "header": "true"},
-                "col_mapping": {
-                    "datetime": "event_timestamp",
-                    "created_datetime": "created_timestamp",
-                },
-                "dtypes": {"customer_id": "int"},
-            },
-        ],
-        "queries": [
-            {
-                "table": "bookings",
-                "features": ["total_bookings"],
-                "join": ["customer_id"],
-            }
-        ],
-    }
+    entity_source = FileSource(
+        format="csv",
+        path=f"file://{path.join(test_data_dir,  'column_mapping_test_entity.csv')}",
+        event_timestamp_column="event_timestamp",
+        field_mapping={"id": "customer_id"},
+        options={"inferSchema": "true", "header": "true"},
+    )
+    booking_source = FileSource(
+        format="csv",
+        path=f"file://{path.join(test_data_dir,  'column_mapping_test_feature.csv')}",
+        event_timestamp_column="datetime",
+        created_timestamp_column="created_datetime",
+        options={"inferSchema": "true", "header": "true"},
+    )
+    booking_table = FeatureTable(
+        name="bookings",
+        entities=[Field("customer_id", "int32")],
+        features=[Field("total_bookings", "int32")],
+    )
 
-    joined_df = retrieve_historical_features(spark, retrieval_conf)
+    joined_df = retrieve_historical_features(
+        spark, entity_source, [booking_source], [booking_table],
+    )
 
     expected_joined_schema = StructType(
         [
@@ -677,7 +695,7 @@ def test_historical_feature_retrieval_with_mapping(spark):
 
 
 def test_large_historical_feature_retrieval(
-    spark, large_entity_csv_file, large_feature_csv_file
+    spark: SparkSession, large_entity_csv_file: str, large_feature_csv_file: str
 ):
     nr_rows = 1000
     start_datetime = datetime(year=2020, month=8, day=31)
@@ -696,88 +714,104 @@ def test_large_historical_feature_retrieval(
         spark.sparkContext.parallelize(expected_join_data), expected_join_data_schema
     )
 
-    retrieval_conf = {
-        "entity": {
-            "format": "csv",
-            "path": f"file://{large_entity_csv_file}",
-            "options": {"inferSchema": "true", "header": "true"},
-        },
-        "tables": [
-            {
-                "format": "csv",
-                "path": f"file://{large_feature_csv_file}",
-                "name": "feature",
-                "options": {"inferSchema": "true", "header": "true"},
-            },
-        ],
-        "queries": [
-            {
-                "table": "feature",
-                "features": ["total_bookings"],
-                "join": ["customer_id"],
-            }
-        ],
-    }
+    entity_source = FileSource(
+        format="csv",
+        path=f"file://{large_entity_csv_file}",
+        event_timestamp_column="event_timestamp",
+        field_mapping={"id": "customer_id"},
+        options={"inferSchema": "true", "header": "true"},
+    )
+    feature_source = FileSource(
+        format="csv",
+        path=f"file://{large_feature_csv_file}",
+        event_timestamp_column="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        options={"inferSchema": "true", "header": "true"},
+    )
+    feature_table = FeatureTable(
+        name="feature",
+        entities=[Field("customer_id", "int32")],
+        features=[Field("total_bookings", "int32")],
+    )
 
-    joined_df = retrieve_historical_features(spark, retrieval_conf)
+    joined_df = retrieve_historical_features(
+        spark, entity_source, [feature_source], [feature_table]
+    )
     assert_dataframe_equal(joined_df, expected_join_data_df)
 
 
-def test_schema_verification(spark):
-    entity_schema = StructType(
-        [
-            StructField("customer_id", IntegerType()),
-            StructField("event_timestamp", TimestampType()),
-        ]
+def test_historical_feature_retrieval_with_schema_errors(spark: SparkSession):
+    test_data_dir = path.join(pathlib.Path(__file__).parent.absolute(), "data")
+    entity_source = FileSource(
+        format="csv",
+        path=f"file://{path.join(test_data_dir,  'customer_driver_pairs.csv')}",
+        event_timestamp_column="event_timestamp",
+        options={"inferSchema": "true", "header": "true"},
+    )
+    entity_source_missing_timestamp = FileSource(
+        format="csv",
+        path=f"file://{path.join(test_data_dir,  'customer_driver_pairs.csv')}",
+        event_timestamp_column="datetime",
+        options={"inferSchema": "true", "header": "true"},
+    )
+    entity_source_missing_entity = FileSource(
+        format="csv",
+        path=f"file://{path.join(test_data_dir,  'customers.csv')}",
+        event_timestamp_column="event_timestamp",
+        options={"inferSchema": "true", "header": "true"},
     )
 
-    entity_data = [
-        (1001, datetime(year=2020, month=9, day=2)),
-    ]
-
-    entity_df = spark.createDataFrame(
-        spark.sparkContext.parallelize(entity_data), entity_schema
+    booking_source = FileSource(
+        format="csv",
+        path=f"file://{path.join(test_data_dir,  'bookings.csv')}",
+        event_timestamp_column="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        options={"inferSchema": "true", "header": "true"},
+    )
+    booking_source_missing_timestamp = FileSource(
+        format="csv",
+        path=f"file://{path.join(test_data_dir,  'bookings.csv')}",
+        event_timestamp_column="datetime",
+        created_timestamp_column="created_datetime",
+        options={"inferSchema": "true", "header": "true"},
+    )
+    booking_table = FeatureTable(
+        name="bookings",
+        entities=[Field("driver_id", "int32")],
+        features=[Field("completed_bookings", "int32")],
+    )
+    booking_table_missing_features = FeatureTable(
+        name="bookings",
+        entities=[Field("driver_id", "int32")],
+        features=[Field("nonexist_feature", "int32")],
+    )
+    booking_table_wrong_column_type = FeatureTable(
+        name="bookings",
+        entities=[Field("driver_id", "string")],
+        features=[Field("completed_bookings", "int32")],
     )
 
-    with pytest.raises(MissingColumnError):
-        verify_schema(entity_df, {"driver_id": "int"}, False)
-
-    with pytest.raises(SchemaMismatchError):
-        verify_schema(entity_df, {"customer_id": "string"}, False)
-
-    with pytest.raises(MissingColumnError):
-        verify_schema(entity_df.drop("event_timestamp"), {"customer_id": "int"}, False)
-
-    feature_schema = StructType(
-        [
-            StructField("customer_id", IntegerType()),
-            StructField("event_timestamp", TimestampType()),
-            StructField("created_timestamp", TimestampType()),
-        ]
-    )
-
-    feature_data = [
-        (
-            1001,
-            datetime(year=2020, month=9, day=2),
-            datetime(year=2020, month=9, day=2),
-        ),
-    ]
-
-    feature_df = spark.createDataFrame(
-        spark.sparkContext.parallelize(feature_data), feature_schema
-    )
-
-    with pytest.raises(MissingColumnError):
-        verify_schema(
-            feature_df.drop("created_timestamp"), {"customer_id": "int"}, True
+    with pytest.raises(SchemaError):
+        retrieve_historical_features(
+            spark, entity_source_missing_timestamp, [booking_source], [booking_table],
         )
 
-    with pytest.raises(TimestampColumnError):
-        verify_schema(
-            feature_df.drop("created_timestamp").withColumn(
-                "created_timestamp", lit("test")
-            ),
-            {"customer_id": "int"},
-            True,
+    with pytest.raises(SchemaError):
+        retrieve_historical_features(
+            spark, entity_source, [booking_source_missing_timestamp], [booking_table],
+        )
+
+    with pytest.raises(SchemaError):
+        retrieve_historical_features(
+            spark, entity_source, [booking_source], [booking_table_missing_features],
+        )
+
+    with pytest.raises(SchemaError):
+        retrieve_historical_features(
+            spark, entity_source, [booking_source], [booking_table_wrong_column_type],
+        )
+
+    with pytest.raises(SchemaError):
+        retrieve_historical_features(
+            spark, entity_source_missing_entity, [booking_source], [booking_table],
         )
