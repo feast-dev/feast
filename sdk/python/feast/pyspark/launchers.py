@@ -140,8 +140,8 @@ class JobLauncher(abc.ABC):
         Args:
             pyspark_script (str): Local file path to the pyspark script for historical feature
                 retrieval.
-            entity_source_conf (List[Dict]): Entity data source configuration.
-            feature_tables_sources_conf (Dict): List of feature tables data sources configurations.
+            entity_source_conf (Dict): Entity data source configuration.
+            feature_tables_sources_conf (List[Dict]): List of feature tables data sources configurations.
             feature_tables_conf (List[Dict]): List of feature table specification.
                 The order of the feature table must correspond to that of feature_tables_sources.
             destination_conf (Dict): Retrieval job output destination.
@@ -150,6 +150,103 @@ class JobLauncher(abc.ABC):
         Raises:
             SparkJobFailure: The spark job submission failed, encountered error
                 during execution, or timeout.
+
+        Examples:
+            >>> # Entity source from file
+            >>> entity_source_conf = {
+                    "file": {
+                        "format": "parquet",
+                        "path": "gs://some-gcs-bucket/customer",
+                        "event_timestamp_column": "event_timestamp",
+                        "options": {
+                            "mergeSchema": "true"
+                        } # Optional. Options to be passed to Spark while reading the dataframe from source.
+                        "field_map": {
+                            "id": "customer_id"
+                        } # Optional. Map the columns, where the key is the original column name and the value is the new column name.
+
+                    }
+                }
+
+            >>> # Entity source from BigQuery
+            >>> entity_source_conf = {
+                    "bq": {
+                        "project": "gcp_project_id",
+                        "dataset": "bq_dataset",
+                        "table": "customer",
+                        "event_timestamp_column": "event_timestamp",
+                    }
+                }
+
+            >>> feature_table_sources_conf = [
+                    {
+                        "bq": {
+                            "project": "gcp_project_id",
+                            "dataset": "bq_dataset",
+                            "table": "customer_transactions",
+                            "event_timestamp_column": "event_timestamp",
+                            "created_timestamp_column": "created_timestamp" # This field is mandatory for feature tables.
+                        }
+                   },
+
+                   {
+                        "file": {
+                            "format": "parquet",
+                            "path": "gs://some-gcs-bucket/customer_profile",
+                            "event_timestamp_column": "event_timestamp",
+                            "created_timestamp_column": "created_timestamp",
+                            "options": {
+                                "mergeSchema": "true"
+                            }
+                        }
+                   },
+                ]
+
+
+            >>> feature_tables_conf = [
+                    {
+                        "name": "customer_transactions",
+                        "entities": [
+                            {
+                                "name": "customer
+                                "type": "int32"
+                            }
+                        ],
+                        "features": [
+                            {
+                                "name": "total_transactions"
+                                "type": "double"
+                            },
+                            {
+                                "name": "total_discounts"
+                                "type": "double"
+                            }
+                        ],
+                        "max_age": 86400 # In seconds.
+                    },
+
+                    {
+                        "name": "customer_profile",
+                        "entities": [
+                            {
+                                "name": "customer
+                                "type": "int32"
+                            }
+                        ],
+                        "features": [
+                            {
+                                "name": "is_vip"
+                                "type": "bool"
+                            }
+                        ],
+
+                    }
+                ]
+
+            >>> destination_conf = {
+                    "format": "parquet",
+                    "path": "gs://some-gcs-bucket/retrieval_output"
+                }
 
         Returns:
             str: file uri to the result file.
