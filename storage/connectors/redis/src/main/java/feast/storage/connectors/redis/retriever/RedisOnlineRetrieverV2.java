@@ -19,13 +19,13 @@ package feast.storage.connectors.redis.retriever;
 import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.Timestamp;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow;
 import feast.proto.storage.RedisProto.RedisKeyV2;
-import feast.proto.types.ValueProto;
 import feast.storage.api.retriever.Feature;
 import feast.storage.api.retriever.OnlineRetrieverV2;
+import feast.storage.connectors.redis.common.RedisHashDecoder;
+import feast.storage.connectors.redis.common.RedisKeyGenerator;
 import io.grpc.Status;
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.RedisClient;
@@ -66,41 +66,10 @@ public class RedisOnlineRetrieverV2 implements OnlineRetrieverV2 {
   public List<List<Optional<Feature>>> getOnlineFeatures(
       String project, List<EntityRow> entityRows, List<FeatureReferenceV2> featureReferences) {
 
-    List<RedisKeyV2> redisKeys = buildRedisKeys(project, entityRows);
+    List<RedisKeyV2> redisKeys = RedisKeyGenerator.buildRedisKeys(project, entityRows);
     List<List<Optional<Feature>>> features = getFeaturesFromRedis(redisKeys, featureReferences);
 
     return features;
-  }
-
-  private List<RedisKeyV2> buildRedisKeys(String project, List<EntityRow> entityRows) {
-    List<RedisKeyV2> redisKeys =
-        entityRows.stream()
-            .map(entityRow -> makeRedisKey(project, entityRow))
-            .collect(Collectors.toList());
-
-    return redisKeys;
-  }
-
-  /**
-   * Create {@link RedisKeyV2}
-   *
-   * @param project Project where request for features was called from
-   * @param entityRow {@link EntityRow}
-   * @return {@link RedisKeyV2}
-   */
-  private RedisKeyV2 makeRedisKey(String project, EntityRow entityRow) {
-    RedisKeyV2.Builder builder = RedisKeyV2.newBuilder().setProject(project);
-    Map<String, ValueProto.Value> fieldsMap = entityRow.getFieldsMap();
-    List<String> entityNames = new ArrayList<>(new HashSet<>(fieldsMap.keySet()));
-
-    // Sort entity names by alphabetical order
-    entityNames.sort(String::compareTo);
-
-    for (String entityName : entityNames) {
-      builder.addEntityNames(entityName);
-      builder.addEntityValues(fieldsMap.get(entityName));
-    }
-    return builder.build();
   }
 
   private List<List<Optional<Feature>>> getFeaturesFromRedis(
@@ -132,7 +101,8 @@ public class RedisOnlineRetrieverV2 implements OnlineRetrieverV2 {
               byteToFeatureReferenceMap.put(featureReferenceBytes.toString(), featureReference);
 
               // eg. <_ts:featuretable_name>
-              byte[] featureTableTsBytes = getTimestampRedisHashKeyBytes(featureReference);
+              byte[] featureTableTsBytes =
+                  RedisHashDecoder.getTimestampRedisHashKeyBytes(featureReference, timestampPrefix);
               isTimestampMap.put(Arrays.toString(featureTableTsBytes), true);
               featureReferenceWithTsByteList.add(featureTableTsBytes);
             });
@@ -157,7 +127,8 @@ public class RedisOnlineRetrieverV2 implements OnlineRetrieverV2 {
           try {
             List<KeyValue<byte[], byte[]>> redisValuesList = future.get();
             List<Optional<Feature>> curRedisKeyFeatures =
-                retrieveFeature(redisValuesList, isTimestampMap, byteToFeatureReferenceMap);
+                RedisHashDecoder.retrieveFeature(
+                    redisValuesList, isTimestampMap, byteToFeatureReferenceMap, timestampPrefix);
             features.add(curRedisKeyFeatures);
           } catch (InterruptedException | ExecutionException | InvalidProtocolBufferException e) {
             throw Status.UNKNOWN
@@ -167,63 +138,5 @@ public class RedisOnlineRetrieverV2 implements OnlineRetrieverV2 {
           }
         });
     return features;
-  }
-
-  /**
-   * Converts all retrieved Redis Hash values based on EntityRows into {@link Feature}
-   *
-   * @param redisHashValues retrieved Redis Hash values based on EntityRows
-   * @param isTimestampMap map to determine if Redis Hash key is a timestamp field
-   * @param byteToFeatureReferenceMap map to decode bytes back to FeatureReference
-   * @return List of {@link Feature}
-   * @throws InvalidProtocolBufferException
-   */
-  private List<Optional<Feature>> retrieveFeature(
-      List<KeyValue<byte[], byte[]>> redisHashValues,
-      Map<String, Boolean> isTimestampMap,
-      Map<String, FeatureReferenceV2> byteToFeatureReferenceMap)
-      throws InvalidProtocolBufferException {
-    List<Optional<Feature>> allFeatures = new ArrayList<>();
-    Map<FeatureReferenceV2, Optional<Feature.Builder>> allFeaturesBuilderMap = new HashMap<>();
-    Map<String, Timestamp> featureTableTimestampMap = new HashMap<>();
-
-    for (int i = 0; i < redisHashValues.size(); i++) {
-      if (redisHashValues.get(i).hasValue()) {
-        byte[] redisValueK = redisHashValues.get(i).getKey();
-        byte[] redisValueV = redisHashValues.get(i).getValue();
-
-        // Decode data from Redis into Feature object fields
-        if (isTimestampMap.get(Arrays.toString(redisValueK))) {
-          Timestamp eventTimestamp = Timestamp.parseFrom(redisValueV);
-          featureTableTimestampMap.put(Arrays.toString(redisValueK), eventTimestamp);
-        } else {
-          FeatureReferenceV2 featureReference =
-              byteToFeatureReferenceMap.get(redisValueK.toString());
-          ValueProto.Value featureValue = ValueProto.Value.parseFrom(redisValueV);
-
-          Feature.Builder featureBuilder =
-              Feature.builder().setFeatureReference(featureReference).setFeatureValue(featureValue);
-          allFeaturesBuilderMap.put(featureReference, Optional.of(featureBuilder));
-        }
-      }
-    }
-
-    // Add timestamp to features
-    if (allFeaturesBuilderMap.size() > 0) {
-      for (Map.Entry<FeatureReferenceV2, Optional<Feature.Builder>> entry :
-          allFeaturesBuilderMap.entrySet()) {
-        byte[] timestampFeatureTableHashKeyBytes = getTimestampRedisHashKeyBytes(entry.getKey());
-        Timestamp curFeatureTimestamp =
-            featureTableTimestampMap.get(Arrays.toString(timestampFeatureTableHashKeyBytes));
-        Feature curFeature = entry.getValue().get().setEventTimestamp(curFeatureTimestamp).build();
-        allFeatures.add(Optional.of(curFeature));
-      }
-    }
-    return allFeatures;
-  }
-
-  private byte[] getTimestampRedisHashKeyBytes(FeatureReferenceV2 featureReference) {
-    String timestampRedisHashKeyStr = timestampPrefix + ":" + featureReference.getFeatureTable();
-    return timestampRedisHashKeyStr.getBytes();
   }
 }

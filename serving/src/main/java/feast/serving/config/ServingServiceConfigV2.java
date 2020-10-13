@@ -23,6 +23,7 @@ import feast.serving.service.OnlineServingServiceV2;
 import feast.serving.service.ServingServiceV2;
 import feast.serving.specs.CachedSpecService;
 import feast.storage.api.retriever.OnlineRetrieverV2;
+import feast.storage.connectors.redis.retriever.RedisClusterOnlineRetrieverV2;
 import feast.storage.connectors.redis.retriever.RedisOnlineRetrieverV2;
 import io.opentracing.Tracer;
 import java.util.Map;
@@ -44,11 +45,14 @@ public class ServingServiceConfigV2 {
     Map<String, String> config = store.getConfig();
 
     switch (storeType) {
+      case REDIS_CLUSTER:
+        OnlineRetrieverV2 redisClusterRetriever = RedisClusterOnlineRetrieverV2.create(config);
+        servingService = new OnlineServingServiceV2(redisClusterRetriever, specService, tracer);
+        break;
       case REDIS:
         OnlineRetrieverV2 redisRetriever = RedisOnlineRetrieverV2.create(config);
         servingService = new OnlineServingServiceV2(redisRetriever, specService, tracer);
         break;
-      case REDIS_CLUSTER:
       case CASSANDRA:
       case UNRECOGNIZED:
       case INVALID:
