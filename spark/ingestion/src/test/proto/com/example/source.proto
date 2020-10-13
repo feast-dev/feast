@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package com.example;
+
+option java_multiple_files = true;
+option java_package = "com.example.protos";
+
+import "google/protobuf/timestamp.proto";
+
+message TestMessage {
+  int64 s2_id = 1;
+  VehicleType.Enum vehicle_type = 2;
+  int64 unique_drivers = 3;
+  google.protobuf.Timestamp event_timestamp = 4;
+}
+
+message VehicleType {
+  enum Enum {
+    UNKNOWN = 0;
+    CAR = 1;
+    BIKE = 2;
+  }
+}
+
+message InnerMessage {
+  repeated double double = 1;
+  repeated float float = 2;
+  repeated int32 integer = 3;
+  repeated int64 long = 4;
+  enum Enum {
+    zero = 0;
+    one = 1;
+  }
+  Enum enum = 5;
+}
+
+message AllTypesMessage {
+  double double = 1;
+  float float = 2;
+  int32 integer = 3;
+  int64 long = 4;
+  uint32 uinteger = 5;
+  uint64 ulong = 6;
+  sint32 sinteger = 7;
+  sint64 slong = 8;
+  fixed32 finteger = 9;
+  fixed64 flong = 10;
+  sfixed32 sfinteger = 11;
+  sfixed64 sflong = 13;
+  bool bool = 14;
+  string string = 15;
+  bytes bytes = 16;
+  map<string, string> map = 17;
+  InnerMessage inner = 18;
+
+  google.protobuf.Timestamp event_timestamp = 19;
+}

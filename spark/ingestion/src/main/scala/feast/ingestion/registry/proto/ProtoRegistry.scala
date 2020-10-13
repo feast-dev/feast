@@ -14,22 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.ingestion.validation
+package feast.ingestion.registry.proto
 
-import feast.ingestion.FeatureTable
-import org.apache.spark.sql.Column
-import org.apache.spark.sql.functions.col
+import com.google.protobuf.Descriptors.Descriptor
 
-class RowValidator(featureTable: FeatureTable, timestampColumn: String) extends Serializable {
-  def allEntitiesPresent: Column =
-    featureTable.entities.map(e => col(e.name).isNotNull).reduce(_.&&(_))
-
-  def atLeastOneFeatureNotNull: Column =
-    featureTable.features.map(f => col(f.name).isNotNull).reduce(_.||(_))
-
-  def timestampPresent: Column =
-    col(timestampColumn).isNotNull
-
-  def checkAll: Column =
-    allEntitiesPresent && atLeastOneFeatureNotNull && timestampPresent
+trait ProtoRegistry extends Serializable {
+  def getProtoDescriptor(className: String): Descriptor
 }

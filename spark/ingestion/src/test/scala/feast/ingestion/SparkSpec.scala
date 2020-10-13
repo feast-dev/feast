@@ -14,22 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.ingestion.validation
+package feast.ingestion
 
-import feast.ingestion.FeatureTable
-import org.apache.spark.sql.Column
-import org.apache.spark.sql.functions.col
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.SparkSession
+import org.scalatest.BeforeAndAfter
 
-class RowValidator(featureTable: FeatureTable, timestampColumn: String) extends Serializable {
-  def allEntitiesPresent: Column =
-    featureTable.entities.map(e => col(e.name).isNotNull).reduce(_.&&(_))
+class SparkSpec extends UnitSpec with BeforeAndAfter {
+  var sparkSession: SparkSession                         = null
+  def withSparkConfOverrides(conf: SparkConf): SparkConf = conf
 
-  def atLeastOneFeatureNotNull: Column =
-    featureTable.features.map(f => col(f.name).isNotNull).reduce(_.||(_))
+  before {
+    val sparkConf = new SparkConf()
+      .setMaster("local[4]")
+      .setAppName("Testing")
+      .set("spark.default.parallelism", "8")
 
-  def timestampPresent: Column =
-    col(timestampColumn).isNotNull
+    sparkSession = SparkSession
+      .builder()
+      .config(withSparkConfOverrides(sparkConf))
+      .getOrCreate()
+  }
 
-  def checkAll: Column =
-    allEntitiesPresent && atLeastOneFeatureNotNull && timestampPresent
+  after {
+    sparkSession.stop()
+  }
 }

@@ -17,7 +17,7 @@
 package feast.ingestion.stores.redis
 
 import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode}
-import org.apache.spark.sql.sources.{BaseRelation, CreatableRelationProvider, RelationProvider}
+import org.apache.spark.sql.sources.{BaseRelation, CreatableRelationProvider}
 
 /**
   * Entrypoint to Redis Storage. Implements only `CreatableRelationProvider` since it's only possible write to Redis.

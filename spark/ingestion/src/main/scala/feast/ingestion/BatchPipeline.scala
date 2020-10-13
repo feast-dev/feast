@@ -18,7 +18,7 @@ package feast.ingestion
 
 import feast.ingestion.sources.bq.BigQueryReader
 import feast.ingestion.sources.file.FileReader
-import feast.ingestion.validation.RowValidator
+import feast.ingestion.validation.{RowValidator, TypeCheck}
 import org.apache.spark.sql.{Column, SparkSession}
 import org.apache.spark.sql.functions.col
 
@@ -31,11 +31,11 @@ import org.apache.spark.sql.functions.col
   * 5. Store invalid rows in parquet format at `deadletter` destination
   */
 object BatchPipeline extends BasePipeline {
-  override def createPipeline(sparkSession: SparkSession, config: IngestionJobConfig): Unit = {
+  override def createPipeline(sparkSession: SparkSession, config: IngestionJobConfig) = {
     val featureTable = config.featureTable
     val projection =
       inputProjection(config.source, featureTable.features, featureTable.entities)
-    val validator = new RowValidator(featureTable)
+    val validator = new RowValidator(featureTable, config.source.timestampColumn)
 
     val input = config.source match {
       case source: BQSource =>
@@ -55,6 +55,12 @@ object BatchPipeline extends BasePipeline {
     }
 
     val projected = input.select(projection: _*).cache()
+
+    TypeCheck.allTypesMatch(projected.schema, featureTable) match {
+      case Some(error) =>
+        throw new RuntimeException(s"Dataframe columns don't match expected feature types: $error")
+      case _ => ()
+    }
 
     val validRows = projected
       .filter(validator.checkAll)
@@ -77,28 +83,6 @@ object BatchPipeline extends BasePipeline {
       case _ => None
     }
 
-  }
-
-  /**
-    * Build column projection using custom mapping with fallback to feature|entity names.
-    */
-  private def inputProjection(
-      source: Source,
-      features: Seq[Field],
-      entities: Seq[Field]
-  ): Array[Column] = {
-    val featureColumns = features
-      .filter(f => !source.mapping.contains(f.name))
-      .map(f => (f.name, f.name)) ++ source.mapping
-
-    val timestampColumn = Seq((source.timestampColumn, source.timestampColumn))
-    val entitiesColumns =
-      entities
-        .filter(e => !source.mapping.contains(e.name))
-        .map(e => (e.name, e.name))
-
-    (featureColumns ++ entitiesColumns ++ timestampColumn).map { case (alias, source) =>
-      col(source).alias(alias)
-    }.toArray
+    None
   }
 }

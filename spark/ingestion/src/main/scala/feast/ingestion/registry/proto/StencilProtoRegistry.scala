@@ -14,22 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.ingestion.validation
+package feast.ingestion.registry.proto
+import java.util.Collections
 
-import feast.ingestion.FeatureTable
-import org.apache.spark.sql.Column
-import org.apache.spark.sql.functions.col
+import com.google.protobuf.Descriptors
+import com.gojek.de.stencil.StencilClientFactory
+import com.gojek.de.stencil.client.StencilClient
 
-class RowValidator(featureTable: FeatureTable, timestampColumn: String) extends Serializable {
-  def allEntitiesPresent: Column =
-    featureTable.entities.map(e => col(e.name).isNotNull).reduce(_.&&(_))
+class StencilProtoRegistry(val url: String) extends ProtoRegistry {
 
-  def atLeastOneFeatureNotNull: Column =
-    featureTable.features.map(f => col(f.name).isNotNull).reduce(_.||(_))
+  val stencilClient: StencilClient =
+    StencilClientFactory.getClient(url, Collections.emptyMap[String, String])
 
-  def timestampPresent: Column =
-    col(timestampColumn).isNotNull
-
-  def checkAll: Column =
-    allEntitiesPresent && atLeastOneFeatureNotNull && timestampPresent
+  override def getProtoDescriptor(className: String): Descriptors.Descriptor = {
+    stencilClient.get(className)
+  }
 }

@@ -40,7 +40,9 @@ abstract class Source {
 
 abstract class BatchSource extends Source
 
-abstract class StreamingSource extends Source
+abstract class StreamingSource extends Source {
+  def classpath: String
+}
 
 case class FileSource(
     path: String,
@@ -59,6 +61,7 @@ case class BQSource(
 case class KafkaSource(
     bootstrapServers: String,
     topic: String,
+    override val classpath: String,
     override val mapping: Map[String, String],
     override val timestampColumn: String
 ) extends StreamingSource

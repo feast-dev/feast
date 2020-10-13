@@ -17,7 +17,9 @@
 package feast.ingestion
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{Column, SparkSession}
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.streaming.StreamingQuery
 
 trait BasePipeline {
   def createSparkSession(jobConfig: IngestionJobConfig): SparkSession = {
@@ -66,5 +68,28 @@ trait BasePipeline {
       .getOrCreate()
   }
 
-  def createPipeline(sparkSession: SparkSession, config: IngestionJobConfig): Unit
+  def createPipeline(sparkSession: SparkSession, config: IngestionJobConfig): Option[StreamingQuery]
+
+  /**
+    * Build column projection using custom mapping with fallback to feature|entity names.
+    */
+  def inputProjection(
+      source: Source,
+      features: Seq[Field],
+      entities: Seq[Field]
+  ): Array[Column] = {
+    val featureColumns = features
+      .filter(f => !source.mapping.contains(f.name))
+      .map(f => (f.name, f.name)) ++ source.mapping
+
+    val timestampColumn = Seq((source.timestampColumn, source.timestampColumn))
+    val entitiesColumns =
+      entities
+        .filter(e => !source.mapping.contains(e.name))
+        .map(e => (e.name, e.name))
+
+    (featureColumns ++ entitiesColumns ++ timestampColumn).map { case (alias, source) =>
+      col(source).alias(alias)
+    }.toArray
+  }
 }

@@ -16,9 +16,9 @@
  */
 package feast.ingestion
 
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest._
 import matchers._
-import org.scalatest.flatspec.AnyFlatSpec
 
 abstract class UnitSpec
     extends AnyFlatSpec
