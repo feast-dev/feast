@@ -18,66 +18,46 @@ package feast.storage.connectors.redis.retriever;
 
 import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow;
-import feast.proto.storage.RedisProto.RedisKeyV2;
+import feast.proto.serving.ServingAPIProto;
+import feast.proto.storage.RedisProto;
 import feast.storage.api.retriever.Feature;
 import feast.storage.api.retriever.OnlineRetrieverV2;
 import feast.storage.connectors.redis.common.RedisHashDecoder;
 import feast.storage.connectors.redis.common.RedisKeyGenerator;
 import io.grpc.Status;
 import io.lettuce.core.KeyValue;
-import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisFuture;
-import io.lettuce.core.RedisURI;
-import io.lettuce.core.api.StatefulRedisConnection;
-import io.lettuce.core.api.async.RedisAsyncCommands;
-import io.lettuce.core.codec.ByteArrayCodec;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-public class RedisOnlineRetrieverV2 implements OnlineRetrieverV2 {
+public class OnlineRetriever implements OnlineRetrieverV2 {
 
   private static final String timestampPrefix = "_ts";
-  private final RedisAsyncCommands<byte[], byte[]> asyncCommands;
+  RedisClientWrapper redisClientWrapper;
 
-  private RedisOnlineRetrieverV2(StatefulRedisConnection<byte[], byte[]> connection) {
-    this.asyncCommands = connection.async();
-
-    // Disable auto-flushing
-    this.asyncCommands.setAutoFlushCommands(false);
-  }
-
-  public static OnlineRetrieverV2 create(Map<String, String> config) {
-
-    StatefulRedisConnection<byte[], byte[]> connection =
-        RedisClient.create(
-                RedisURI.create(config.get("host"), Integer.parseInt(config.get("port"))))
-            .connect(new ByteArrayCodec());
-
-    return new RedisOnlineRetrieverV2(connection);
-  }
-
-  public static OnlineRetrieverV2 create(StatefulRedisConnection<byte[], byte[]> connection) {
-    return new RedisOnlineRetrieverV2(connection);
+  public OnlineRetriever(RedisClientWrapper redisClientWrapper) {
+    this.redisClientWrapper = redisClientWrapper;
   }
 
   @Override
   public List<List<Optional<Feature>>> getOnlineFeatures(
-      String project, List<EntityRow> entityRows, List<FeatureReferenceV2> featureReferences) {
+      String project,
+      List<ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow> entityRows,
+      List<ServingAPIProto.FeatureReferenceV2> featureReferences) {
 
-    List<RedisKeyV2> redisKeys = RedisKeyGenerator.buildRedisKeys(project, entityRows);
+    List<RedisProto.RedisKeyV2> redisKeys = RedisKeyGenerator.buildRedisKeys(project, entityRows);
     List<List<Optional<Feature>>> features = getFeaturesFromRedis(redisKeys, featureReferences);
 
     return features;
   }
 
   private List<List<Optional<Feature>>> getFeaturesFromRedis(
-      List<RedisKeyV2> redisKeys, List<FeatureReferenceV2> featureReferences) {
+      List<RedisProto.RedisKeyV2> redisKeys,
+      List<ServingAPIProto.FeatureReferenceV2> featureReferences) {
     List<List<Optional<Feature>>> features = new ArrayList<>();
     // To decode bytes back to Feature Reference
-    Map<String, FeatureReferenceV2> byteToFeatureReferenceMap = new HashMap<>();
+    Map<String, ServingAPIProto.FeatureReferenceV2> byteToFeatureReferenceMap = new HashMap<>();
 
     // Serialize using proto
     List<byte[]> binaryRedisKeys =
@@ -106,11 +86,11 @@ public class RedisOnlineRetrieverV2 implements OnlineRetrieverV2 {
       byte[][] featureReferenceWithTsByteArrays =
           featureReferenceWithTsByteList.toArray(new byte[0][]);
       // Access redis keys and extract features
-      futures.add(asyncCommands.hmget(binaryRedisKey, featureReferenceWithTsByteArrays));
+      futures.add(redisClientWrapper.hmget(binaryRedisKey, featureReferenceWithTsByteArrays));
     }
 
     // Write all commands to the transport layer
-    asyncCommands.flushCommands();
+    redisClientWrapper.flushCommands();
 
     futures.forEach(
         future -> {
