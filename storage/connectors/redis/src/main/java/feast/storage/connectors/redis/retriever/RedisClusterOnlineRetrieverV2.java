@@ -17,7 +17,6 @@
 package feast.storage.connectors.redis.retriever;
 
 import com.google.common.collect.Lists;
-import com.google.common.hash.Hashing;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.storage.RedisProto;
@@ -35,7 +34,6 @@ import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import io.lettuce.core.cluster.api.async.RedisAdvancedClusterAsyncCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -75,6 +73,9 @@ public class RedisClusterOnlineRetrieverV2 implements OnlineRetrieverV2 {
     this.asyncCommands = builder.connection.async();
     this.serializer = builder.serializer;
     this.fallbackSerializer = builder.fallbackSerializer;
+
+    // Disable auto-flushing
+    this.asyncCommands.setAutoFlushCommands(false);
   }
 
   public static OnlineRetrieverV2 create(Map<String, String> config) {
@@ -154,8 +155,6 @@ public class RedisClusterOnlineRetrieverV2 implements OnlineRetrieverV2 {
     List<List<Optional<Feature>>> features = new ArrayList<>();
     // To decode bytes back to Feature Reference
     Map<String, ServingAPIProto.FeatureReferenceV2> byteToFeatureReferenceMap = new HashMap<>();
-    // To check whether redis ValueK is a timestamp field
-    Map<String, Boolean> isTimestampMap = new HashMap<>();
 
     // Serialize using proto
     List<byte[]> binaryRedisKeys =
@@ -167,25 +166,16 @@ public class RedisClusterOnlineRetrieverV2 implements OnlineRetrieverV2 {
             featureReference -> {
 
               // eg. murmur(<featuretable_name:feature_name>)
-              String delimitedFeatureReference =
-                  featureReference.getFeatureTable() + ":" + featureReference.getName();
               byte[] featureReferenceBytes =
-                  Hashing.murmur3_32()
-                      .hashString(delimitedFeatureReference, StandardCharsets.UTF_8)
-                      .asBytes();
+                  RedisHashDecoder.getFeatureReferenceRedisHashKeyBytes(featureReference);
               featureReferenceWithTsByteList.add(featureReferenceBytes);
-              isTimestampMap.put(Arrays.toString(featureReferenceBytes), false);
               byteToFeatureReferenceMap.put(featureReferenceBytes.toString(), featureReference);
 
               // eg. <_ts:featuretable_name>
               byte[] featureTableTsBytes =
                   RedisHashDecoder.getTimestampRedisHashKeyBytes(featureReference, timestampPrefix);
-              isTimestampMap.put(Arrays.toString(featureTableTsBytes), true);
               featureReferenceWithTsByteList.add(featureTableTsBytes);
             });
-
-    // Disable auto-flushing
-    asyncCommands.setAutoFlushCommands(false);
 
     // Perform a series of independent calls
     List<RedisFuture<List<KeyValue<byte[], byte[]>>>> futures = Lists.newArrayList();
@@ -206,7 +196,7 @@ public class RedisClusterOnlineRetrieverV2 implements OnlineRetrieverV2 {
             List<KeyValue<byte[], byte[]>> redisValuesList = future.get();
             List<Optional<Feature>> curRedisKeyFeatures =
                 RedisHashDecoder.retrieveFeature(
-                    redisValuesList, isTimestampMap, byteToFeatureReferenceMap, timestampPrefix);
+                    redisValuesList, byteToFeatureReferenceMap, timestampPrefix);
             features.add(curRedisKeyFeatures);
           } catch (InterruptedException | ExecutionException | InvalidProtocolBufferException e) {
             throw Status.UNKNOWN

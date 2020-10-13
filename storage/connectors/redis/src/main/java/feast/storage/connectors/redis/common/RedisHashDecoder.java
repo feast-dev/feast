@@ -16,12 +16,14 @@
  */
 package feast.storage.connectors.redis.common;
 
+import com.google.common.hash.Hashing;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.types.ValueProto;
 import feast.storage.api.retriever.Feature;
 import io.lettuce.core.KeyValue;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class RedisHashDecoder {
@@ -30,14 +32,12 @@ public class RedisHashDecoder {
    * Converts all retrieved Redis Hash values based on EntityRows into {@link Feature}
    *
    * @param redisHashValues retrieved Redis Hash values based on EntityRows
-   * @param isTimestampMap map to determine if Redis Hash key is a timestamp field
    * @param byteToFeatureReferenceMap map to decode bytes back to FeatureReference
    * @return List of {@link Feature}
    * @throws InvalidProtocolBufferException
    */
   public static List<Optional<Feature>> retrieveFeature(
       List<KeyValue<byte[], byte[]>> redisHashValues,
-      Map<String, Boolean> isTimestampMap,
       Map<String, ServingAPIProto.FeatureReferenceV2> byteToFeatureReferenceMap,
       String timestampPrefix)
       throws InvalidProtocolBufferException {
@@ -52,9 +52,9 @@ public class RedisHashDecoder {
         byte[] redisValueV = redisHashValues.get(i).getValue();
 
         // Decode data from Redis into Feature object fields
-        if (isTimestampMap.get(Arrays.toString(redisValueK))) {
+        if (new String(redisValueK).startsWith(timestampPrefix)) {
           Timestamp eventTimestamp = Timestamp.parseFrom(redisValueV);
-          featureTableTimestampMap.put(Arrays.toString(redisValueK), eventTimestamp);
+          featureTableTimestampMap.put(new String(redisValueK), eventTimestamp);
         } else {
           ServingAPIProto.FeatureReferenceV2 featureReference =
               byteToFeatureReferenceMap.get(redisValueK.toString());
@@ -68,17 +68,15 @@ public class RedisHashDecoder {
     }
 
     // Add timestamp to features
-    if (allFeaturesBuilderMap.size() > 0) {
-      for (Map.Entry<ServingAPIProto.FeatureReferenceV2, Optional<Feature.Builder>> entry :
-          allFeaturesBuilderMap.entrySet()) {
-        byte[] timestampFeatureTableHashKeyBytes =
-            RedisHashDecoder.getTimestampRedisHashKeyBytes(entry.getKey(), timestampPrefix);
-        Timestamp curFeatureTimestamp =
-            featureTableTimestampMap.get(Arrays.toString(timestampFeatureTableHashKeyBytes));
-        Feature curFeature = entry.getValue().get().setEventTimestamp(curFeatureTimestamp).build();
-        allFeatures.add(Optional.of(curFeature));
-      }
+    for (Map.Entry<ServingAPIProto.FeatureReferenceV2, Optional<Feature.Builder>> entry :
+        allFeaturesBuilderMap.entrySet()) {
+      String timestampRedisHashKeyStr = timestampPrefix + ":" + entry.getKey().getFeatureTable();
+      Timestamp curFeatureTimestamp = featureTableTimestampMap.get(timestampRedisHashKeyStr);
+
+      Feature curFeature = entry.getValue().get().setEventTimestamp(curFeatureTimestamp).build();
+      allFeatures.add(Optional.of(curFeature));
     }
+
     return allFeatures;
   }
 
@@ -86,5 +84,14 @@ public class RedisHashDecoder {
       ServingAPIProto.FeatureReferenceV2 featureReference, String timestampPrefix) {
     String timestampRedisHashKeyStr = timestampPrefix + ":" + featureReference.getFeatureTable();
     return timestampRedisHashKeyStr.getBytes();
+  }
+
+  public static byte[] getFeatureReferenceRedisHashKeyBytes(
+      ServingAPIProto.FeatureReferenceV2 featureReference) {
+    String delimitedFeatureReference =
+        featureReference.getFeatureTable() + ":" + featureReference.getName();
+    return Hashing.murmur3_32()
+        .hashString(delimitedFeatureReference, StandardCharsets.UTF_8)
+        .asBytes();
   }
 }
