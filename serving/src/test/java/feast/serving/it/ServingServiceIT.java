@@ -51,6 +51,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.DockerComposeContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
@@ -67,7 +69,7 @@ public class ServingServiceIT extends BaseAuthIT {
   static ServingServiceGrpc.ServingServiceBlockingStub servingStub;
   static RedisCommands<byte[], byte[]> syncCommands;
 
-  static final int FEAST_SERVING_PORT = 6566;
+  static final int FEAST_SERVING_PORT = 6568;
   @LocalServerPort private int metricsPort;
 
   @ClassRule @Container
@@ -80,6 +82,11 @@ public class ServingServiceIT extends BaseAuthIT {
               Wait.forLogMessage(".*gRPC Server started.*\\n", 1)
                   .withStartupTimeout(Duration.ofMinutes(SERVICE_START_MAX_WAIT_TIME_IN_MINUTES)))
           .withExposedService(REDIS, REDIS_PORT);
+
+  @DynamicPropertySource
+  static void initialize(DynamicPropertyRegistry registry) {
+    registry.add("grpc.server.port", () -> FEAST_SERVING_PORT);
+  }
 
   @BeforeAll
   static void globalSetup() {
