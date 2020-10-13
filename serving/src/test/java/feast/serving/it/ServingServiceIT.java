@@ -48,7 +48,6 @@ import org.junit.ClassRule;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.runners.model.InitializationError;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.test.context.ActiveProfiles;
@@ -83,7 +82,7 @@ public class ServingServiceIT extends BaseAuthIT {
           .withExposedService(REDIS, REDIS_PORT);
 
   @BeforeAll
-  static void globalSetup() throws IOException, InitializationError, InterruptedException {
+  static void globalSetup() {
     coreClient = TestUtils.getApiClientForCore(FEAST_CORE_PORT);
     servingStub = TestUtils.getServingServiceStub(false, FEAST_SERVING_PORT, null);
 
@@ -136,7 +135,8 @@ public class ServingServiceIT extends BaseAuthIT {
             "trip_distance", ValueProto.ValueType.Enum.DOUBLE,
             "trip_empty", ValueProto.ValueType.Enum.DOUBLE);
 
-    TestUtils.applyFeatureTable(coreClient, projectName, featureTableName, entities, features);
+    TestUtils.applyFeatureTable(
+        coreClient, projectName, featureTableName, entities, features, 7200);
 
     // Serialize Redis Key with Entity i.e <default_driver_id_1>
     RedisProto.RedisKeyV2 redisKey =
@@ -319,6 +319,68 @@ public class ServingServiceIT extends BaseAuthIT {
             GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND,
             FeatureV2.getFeatureStringRef(emptyFeatureReference),
             GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE);
+
+    GetOnlineFeaturesResponse.FieldValues expectedFieldValues =
+        GetOnlineFeaturesResponse.FieldValues.newBuilder()
+            .putAllFields(expectedValueMap)
+            .putAllStatuses(expectedStatusMap)
+            .build();
+    List<GetOnlineFeaturesResponse.FieldValues> expectedFieldValuesList =
+        new ArrayList<>() {
+          {
+            add(expectedFieldValues);
+          }
+        };
+
+    assertEquals(expectedFieldValuesList, featureResponse.getFieldValuesList());
+  }
+
+  @Test
+  public void shouldGetOnlineFeaturesOutsideMaxAge() {
+    String projectName = "default";
+    String entityName = "driver_id";
+    ValueProto.Value entityValue = ValueProto.Value.newBuilder().setInt64Val(1).build();
+
+    // Instantiate EntityRows
+    GetOnlineFeaturesRequestV2.EntityRow entityRow1 =
+        DataGenerator.createEntityRow(entityName, DataGenerator.createInt64Value(1), 7400);
+    List<GetOnlineFeaturesRequestV2.EntityRow> entityRows =
+        new ArrayList<>() {
+          {
+            add(entityRow1);
+          }
+        };
+
+    // Instantiate FeatureReferences
+    ServingAPIProto.FeatureReferenceV2 featureReference =
+        DataGenerator.createFeatureReference("rides", "trip_cost");
+
+    List<ServingAPIProto.FeatureReferenceV2> featureReferences =
+        new ArrayList<>() {
+          {
+            add(featureReference);
+          }
+        };
+
+    // Build GetOnlineFeaturesRequestV2
+    GetOnlineFeaturesRequestV2 onlineFeatureRequest =
+        TestUtils.createOnlineFeatureRequest(projectName, featureReferences, entityRows);
+    GetOnlineFeaturesResponse featureResponse =
+        servingStub.getOnlineFeaturesV2(onlineFeatureRequest);
+
+    ImmutableMap<String, ValueProto.Value> expectedValueMap =
+        ImmutableMap.of(
+            entityName,
+            entityValue,
+            FeatureV2.getFeatureStringRef(featureReference),
+            DataGenerator.createEmptyValue());
+
+    ImmutableMap<String, GetOnlineFeaturesResponse.FieldStatus> expectedStatusMap =
+        ImmutableMap.of(
+            entityName,
+            GetOnlineFeaturesResponse.FieldStatus.PRESENT,
+            FeatureV2.getFeatureStringRef(featureReference),
+            GetOnlineFeaturesResponse.FieldStatus.OUTSIDE_MAX_AGE);
 
     GetOnlineFeaturesResponse.FieldValues expectedFieldValues =
         GetOnlineFeaturesResponse.FieldValues.newBuilder()

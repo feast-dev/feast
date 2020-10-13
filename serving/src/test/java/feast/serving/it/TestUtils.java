@@ -84,7 +84,6 @@ public class TestUtils {
                             .putAllLabels(labels)
                             .build())
                 .collect(Collectors.toList()))
-        .setMaxAge(Duration.newBuilder().setSeconds(3600).build())
         .putAllLabels(labels)
         .build();
   }
@@ -119,7 +118,8 @@ public class TestUtils {
       String projectName,
       String featureTableName,
       List<String> entities,
-      ImmutableMap<String, ValueProto.ValueType.Enum> features) {
+      ImmutableMap<String, ValueProto.ValueType.Enum> features,
+      int maxAgeSecs) {
     FeatureTableSpec expectedFeatureTableSpec =
         createFeatureTableSpec(
                 featureTableName,
@@ -129,7 +129,7 @@ public class TestUtils {
                     putAll(features);
                   }
                 },
-                7200,
+                maxAgeSecs,
                 ImmutableMap.of("feat_key2", "feat_value2"))
             .toBuilder()
             .setBatchSource(

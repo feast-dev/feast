@@ -16,6 +16,7 @@
  */
 package feast.storage.connectors.redis.retriever;
 
+import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
@@ -28,21 +29,23 @@ import feast.storage.api.retriever.OnlineRetrieverV2;
 import io.grpc.Status;
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisFuture;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
-import io.lettuce.core.api.sync.RedisCommands;
+import io.lettuce.core.api.async.RedisAsyncCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 public class RedisOnlineRetrieverV2 implements OnlineRetrieverV2 {
 
   private static final String timestampPrefix = "_ts";
-  private final RedisCommands<byte[], byte[]> syncCommands;
+  private final RedisAsyncCommands<byte[], byte[]> asyncCommands;
 
   private RedisOnlineRetrieverV2(StatefulRedisConnection<byte[], byte[]> connection) {
-    this.syncCommands = connection.sync();
+    this.asyncCommands = connection.async();
   }
 
   public static OnlineRetrieverV2 create(Map<String, String> config) {
@@ -112,46 +115,57 @@ public class RedisOnlineRetrieverV2 implements OnlineRetrieverV2 {
     List<byte[]> binaryRedisKeys =
         redisKeys.stream().map(redisKey -> redisKey.toByteArray()).collect(Collectors.toList());
 
-    try {
-      List<byte[]> featureReferenceWithTsByteList = new ArrayList<>();
-      featureReferences.stream()
-          .forEach(
-              featureReference -> {
+    List<byte[]> featureReferenceWithTsByteList = new ArrayList<>();
+    featureReferences.stream()
+        .forEach(
+            featureReference -> {
 
-                // eg. murmur(<featuretable_name:feature_name>)
-                String delimitedFeatureReference =
-                    featureReference.getFeatureTable() + ":" + featureReference.getName();
-                byte[] featureReferenceBytes =
-                    Hashing.murmur3_32()
-                        .hashString(delimitedFeatureReference, StandardCharsets.UTF_8)
-                        .asBytes();
-                featureReferenceWithTsByteList.add(featureReferenceBytes);
-                isTimestampMap.put(Arrays.toString(featureReferenceBytes), false);
-                byteToFeatureReferenceMap.put(featureReferenceBytes.toString(), featureReference);
+              // eg. murmur(<featuretable_name:feature_name>)
+              String delimitedFeatureReference =
+                  featureReference.getFeatureTable() + ":" + featureReference.getName();
+              byte[] featureReferenceBytes =
+                  Hashing.murmur3_32()
+                      .hashString(delimitedFeatureReference, StandardCharsets.UTF_8)
+                      .asBytes();
+              featureReferenceWithTsByteList.add(featureReferenceBytes);
+              isTimestampMap.put(Arrays.toString(featureReferenceBytes), false);
+              byteToFeatureReferenceMap.put(featureReferenceBytes.toString(), featureReference);
 
-                // eg. <_ts:featuretable_name>
-                byte[] featureTableTsBytes = getTimestampRedisHashKeyBytes(featureReference);
-                isTimestampMap.put(Arrays.toString(featureTableTsBytes), true);
-                featureReferenceWithTsByteList.add(featureTableTsBytes);
-              });
+              // eg. <_ts:featuretable_name>
+              byte[] featureTableTsBytes = getTimestampRedisHashKeyBytes(featureReference);
+              isTimestampMap.put(Arrays.toString(featureTableTsBytes), true);
+              featureReferenceWithTsByteList.add(featureTableTsBytes);
+            });
 
+    // Disable auto-flushing
+    asyncCommands.setAutoFlushCommands(false);
+
+    // Perform a series of independent calls
+    List<RedisFuture<List<KeyValue<byte[], byte[]>>>> futures = Lists.newArrayList();
+    for (byte[] binaryRedisKey : binaryRedisKeys) {
+      byte[][] featureReferenceWithTsByteArrays =
+          featureReferenceWithTsByteList.toArray(new byte[0][]);
       // Access redis keys and extract features
-      for (byte[] binaryRedisKey : binaryRedisKeys) {
-        byte[][] featureReferenceWithTsByteArrays =
-            featureReferenceWithTsByteList.toArray(new byte[0][]);
-        // Always 2 fields (i.e feature and timestamp)
-        List<KeyValue<byte[], byte[]>> redisValuesList =
-            syncCommands.hmget(binaryRedisKey, featureReferenceWithTsByteArrays);
-        List<Optional<Feature>> curRedisKeyFeatures =
-            retrieveFeature(redisValuesList, isTimestampMap, byteToFeatureReferenceMap);
-        features.add(curRedisKeyFeatures);
-      }
-    } catch (InvalidProtocolBufferException e) {
-      throw Status.UNKNOWN
-          .withDescription("Unexpected error when pulling data from from Redis.")
-          .withCause(e)
-          .asRuntimeException();
+      futures.add(asyncCommands.hmget(binaryRedisKey, featureReferenceWithTsByteArrays));
     }
+
+    // Write all commands to the transport layer
+    asyncCommands.flushCommands();
+
+    futures.forEach(
+        future -> {
+          try {
+            List<KeyValue<byte[], byte[]>> redisValuesList = future.get();
+            List<Optional<Feature>> curRedisKeyFeatures =
+                retrieveFeature(redisValuesList, isTimestampMap, byteToFeatureReferenceMap);
+            features.add(curRedisKeyFeatures);
+          } catch (InterruptedException | ExecutionException | InvalidProtocolBufferException e) {
+            throw Status.UNKNOWN
+                .withDescription("Unexpected error when pulling data from from Redis.")
+                .withCause(e)
+                .asRuntimeException();
+          }
+        });
     return features;
   }
 
