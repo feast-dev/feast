@@ -64,13 +64,9 @@ def export_source_to_staging_location(
 
     # Prepare Avro file to be exported to staging location
     if isinstance(source, pd.DataFrame):
-        # DataFrame provided as a source
-        uri_path = None  # type: Optional[str]
-        if uri.scheme == "file":
-            uri_path = uri.path
         # Remote gs staging location provided by serving
         dir_path, file_name, source_path = export_dataframe_to_local(
-            df=source, dir_path=uri_path
+            df=source
         )
     elif isinstance(source, str):
         source_uri = urlparse(source)
