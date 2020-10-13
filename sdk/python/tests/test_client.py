@@ -390,7 +390,8 @@ class TestClient:
         batch_source = FileSource(
             file_format="parquet",
             file_url="file://feast/*",
-            timestamp_column="ts_col",
+            event_timestamp_column="ts_col",
+            created_timestamp_column="timestamp",
             date_partition_column="date_partition_col",
         )
 
@@ -398,7 +399,8 @@ class TestClient:
             bootstrap_servers="localhost:9094",
             class_path="random/path/to/class",
             topic="test_topic",
-            timestamp_column="ts_col",
+            event_timestamp_column="ts_col",
+            created_timestamp_column="timestamp",
         )
 
         ft1 = FeatureTable(
@@ -438,7 +440,9 @@ class TestClient:
     @pytest.mark.parametrize(
         "mocked_client", [lazy_fixture("mock_client")],
     )
-    def test_ingest_dataframe_partition(self, mocked_client, mocker, partitioned_df):
+    def test_ingest_dataframe_partition(
+        self, mocked_client, mocker, partitioned_df, tmp_path
+    ):
         """
         Test ingestion with local FileSource, using DataFrame.
         Partition column stated but not provided in Dataset.
@@ -451,7 +455,7 @@ class TestClient:
             mocked_client._core_service_stub,
             "GetFeatureTable",
             return_value=_ingest_test_getfeaturetable_mocked_resp(
-                "file://feast/*", "datetime_col"
+                f"file://{tmp_path}", "date"
             ),
         )
 
@@ -459,8 +463,7 @@ class TestClient:
         ft = mocked_client.get_feature_table("ingest_featuretable")
         mocked_client.ingest(ft, partitioned_df, timeout=600)
 
-        dest_fpath = os.path.join("feast/")
-        pq_df = pq.read_table(dest_fpath).to_pandas()
+        pq_df = pq.read_table(tmp_path).to_pandas().drop(columns=["date"])
 
         partitioned_df, pq_df = _ingest_test_format_dataframes(
             partitioned_df, pq_df, True
@@ -472,7 +475,7 @@ class TestClient:
         "mocked_client", [lazy_fixture("mock_client")],
     )
     def test_ingest_dataframe_no_partition(
-        self, mocked_client, mocker, non_partitioned_df
+        self, mocked_client, mocker, non_partitioned_df, tmp_path
     ):
         """
         Test ingestion with local FileSource, using DataFrame.
@@ -485,7 +488,7 @@ class TestClient:
         mocker.patch.object(
             mocked_client._core_service_stub,
             "GetFeatureTable",
-            return_value=_ingest_test_getfeaturetable_mocked_resp("file://feast2/*"),
+            return_value=_ingest_test_getfeaturetable_mocked_resp(f"file://{tmp_path}"),
         )
 
         mocked_client.set_project("my_project")
@@ -493,13 +496,10 @@ class TestClient:
         mocked_client.ingest(ft, non_partitioned_df, timeout=600)
 
         # Since not partitioning, we're only looking for single file
-        dest_fpath = os.path.join("feast2/")
         single_file = [
-            f
-            for f in os.listdir(dest_fpath)
-            if os.path.isfile(os.path.join(dest_fpath, f))
+            f for f in os.listdir(tmp_path) if os.path.isfile(os.path.join(tmp_path, f))
         ][0]
-        pq_df = pq.read_table(dest_fpath + single_file).to_pandas()
+        pq_df = pq.read_table(tmp_path / single_file).to_pandas()
 
         non_partitioned_df, pq_df = _ingest_test_format_dataframes(
             non_partitioned_df, pq_df
@@ -510,7 +510,7 @@ class TestClient:
     @pytest.mark.parametrize(
         "mocked_client", [lazy_fixture("mock_client")],
     )
-    def test_ingest_csv(self, mocked_client, mocker):
+    def test_ingest_csv(self, mocked_client, mocker, tmp_path):
         """
         Test ingestion with local FileSource, using CSV file.
         Partition column is provided.
@@ -523,7 +523,7 @@ class TestClient:
             mocked_client._core_service_stub,
             "GetFeatureTable",
             return_value=_ingest_test_getfeaturetable_mocked_resp(
-                "file://feast3/*", "datetime_col"
+                f"file://{tmp_path}", "date"
             ),
         )
 
@@ -531,15 +531,15 @@ class TestClient:
             os.path.join(
                 os.path.dirname(os.path.realpath(__file__)),
                 "./data/dev_featuretable.csv",
-            )
+            ),
+            parse_dates=["datetime"],
         )
 
         mocked_client.set_project("my_project")
         ft = mocked_client.get_feature_table("ingest_featuretable")
         mocked_client.ingest(ft, partitioned_df, timeout=600)
 
-        dest_fpath = os.path.join("feast3/")
-        pq_df = pq.read_table(dest_fpath).to_pandas()
+        pq_df = pq.read_table(tmp_path).to_pandas().drop(columns=["date"])
 
         partitioned_df, pq_df = _ingest_test_format_dataframes(
             partitioned_df, pq_df, True
@@ -640,7 +640,8 @@ def _ingest_test_getfeaturetable_mocked_resp(
                     file_options=DataSourceProto.FileOptions(
                         file_format="parquet", file_url=file_url
                     ),
-                    timestamp_column="datetime",
+                    event_timestamp_column="datetime",
+                    created_timestamp_column="timestamp",
                     date_partition_column=date_partition_col
                     if date_partition_col is not None
                     else None,

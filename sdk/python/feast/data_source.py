@@ -352,11 +352,13 @@ class DataSource:
 
     def __init__(
         self,
-        timestamp_column: str,
+        event_timestamp_column: str,
+        created_timestamp_column: str,
         field_mapping: Optional[Dict[str, str]] = dict(),
         date_partition_column: Optional[str] = "",
     ):
-        self._timestamp_column = timestamp_column
+        self._event_timestamp_column = event_timestamp_column
+        self._created_timestamp_column = created_timestamp_column
         self._field_mapping = field_mapping
         self._date_partition_column = date_partition_column
 
@@ -365,7 +367,8 @@ class DataSource:
             raise TypeError("Comparisons should only involve DataSource class objects.")
 
         if (
-            self.timestamp_column != other.timestamp_column
+            self.event_timestamp_column != other.event_timestamp_column
+            or self.created_timestamp_column != other.created_timestamp_column
             or self.field_mapping != other.field_mapping
             or self.date_partition_column != other.date_partition_column
         ):
@@ -388,18 +391,32 @@ class DataSource:
         self._field_mapping = field_mapping
 
     @property
-    def timestamp_column(self):
+    def event_timestamp_column(self):
         """
-        Returns the timestamp column of this data source
+        Returns the event timestamp column of this data source
         """
-        return self._timestamp_column
+        return self._event_timestamp_column
 
-    @timestamp_column.setter
-    def timestamp_column(self, timestamp_column):
+    @event_timestamp_column.setter
+    def event_timestamp_column(self, event_timestamp_column):
         """
-        Sets the timestamp column of this data source
+        Sets the event timestamp column of this data source
         """
-        self._timestamp_column = timestamp_column
+        self._event_timestamp_column = event_timestamp_column
+
+    @property
+    def created_timestamp_column(self):
+        """
+        Returns the created timestamp column of this data source
+        """
+        return self._created_timestamp_column
+
+    @created_timestamp_column.setter
+    def created_timestamp_column(self, created_timestamp_column):
+        """
+        Sets the event timestamp column of this data source
+        """
+        self._created_timestamp_column = created_timestamp_column
 
     @property
     def date_partition_column(self):
@@ -426,14 +443,16 @@ class DataSource:
                 field_mapping=data_source.field_mapping,
                 file_format=data_source.file_options.file_format,
                 file_url=data_source.file_options.file_url,
-                timestamp_column=data_source.timestamp_column,
+                event_timestamp_column=data_source.event_timestamp_column,
+                created_timestamp_column=data_source.created_timestamp_column,
                 date_partition_column=data_source.date_partition_column,
             )
         elif data_source.bigquery_options.table_ref:
             data_source_obj = BigQuerySource(
                 field_mapping=data_source.field_mapping,
                 table_ref=data_source.bigquery_options.table_ref,
-                timestamp_column=data_source.timestamp_column,
+                event_timestamp_column=data_source.event_timestamp_column,
+                created_timestamp_column=data_source.created_timestamp_column,
                 date_partition_column=data_source.date_partition_column,
             )
         elif (
@@ -446,7 +465,8 @@ class DataSource:
                 bootstrap_servers=data_source.kafka_options.bootstrap_servers,
                 class_path=data_source.kafka_options.class_path,
                 topic=data_source.kafka_options.topic,
-                timestamp_column=data_source.timestamp_column,
+                event_timestamp_column=data_source.event_timestamp_column,
+                created_timestamp_column=data_source.created_timestamp_column,
                 date_partition_column=data_source.date_partition_column,
             )
         elif (
@@ -459,7 +479,8 @@ class DataSource:
                 class_path=data_source.kinesis_options.class_path,
                 region=data_source.kinesis_options.region,
                 stream_name=data_source.kinesis_options.stream_name,
-                timestamp_column=data_source.timestamp_column,
+                event_timestamp_column=data_source.event_timestamp_column,
+                created_timestamp_column=data_source.created_timestamp_column,
                 date_partition_column=data_source.date_partition_column,
             )
         else:
@@ -477,13 +498,19 @@ class DataSource:
 class FileSource(DataSource):
     def __init__(
         self,
-        timestamp_column: str,
+        event_timestamp_column: str,
+        created_timestamp_column: str,
         file_format: str,
         file_url: str,
         field_mapping: Optional[Dict[str, str]] = dict(),
         date_partition_column: Optional[str] = "",
     ):
-        super().__init__(timestamp_column, field_mapping, date_partition_column)
+        super().__init__(
+            event_timestamp_column,
+            created_timestamp_column,
+            field_mapping,
+            date_partition_column,
+        )
         self._file_options = FileOptions(file_format=file_format, file_url=file_url)
 
     def __eq__(self, other):
@@ -512,18 +539,6 @@ class FileSource(DataSource):
         """
         self._file_options = file_options
 
-    @classmethod
-    def from_proto(cls, data_source_proto):
-
-        data_source = cls(
-            field_mapping=data_source_proto.field_mapping,
-            file_options=cls.file_options,
-            timestamp_column=data_source_proto.timestamp_column,
-            date_partition_column=data_source_proto.date_partition_column,
-        )
-
-        return data_source
-
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             type=DataSourceProto.BATCH_FILE,
@@ -531,7 +546,8 @@ class FileSource(DataSource):
             file_options=self.file_options.to_proto(),
         )
 
-        data_source_proto.timestamp_column = self.timestamp_column
+        data_source_proto.event_timestamp_column = self.event_timestamp_column
+        data_source_proto.created_timestamp_column = self.created_timestamp_column
         data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
@@ -540,12 +556,18 @@ class FileSource(DataSource):
 class BigQuerySource(DataSource):
     def __init__(
         self,
-        timestamp_column: str,
+        event_timestamp_column: str,
+        created_timestamp_column: str,
         table_ref: str,
         field_mapping: Optional[Dict[str, str]] = dict(),
         date_partition_column: Optional[str] = "",
     ):
-        super().__init__(timestamp_column, field_mapping, date_partition_column)
+        super().__init__(
+            event_timestamp_column,
+            created_timestamp_column,
+            field_mapping,
+            date_partition_column,
+        )
         self._bigquery_options = BigQueryOptions(table_ref=table_ref,)
 
     def __eq__(self, other):
@@ -573,18 +595,6 @@ class BigQuerySource(DataSource):
         """
         self._bigquery_options = bigquery_options
 
-    @classmethod
-    def from_proto(cls, data_source_proto):
-
-        data_source = cls(
-            field_mapping=data_source_proto.field_mapping,
-            bigquery_options=cls.bigquery_options,
-            timestamp_column=data_source_proto.timestamp_column,
-            date_partition_column=data_source_proto.date_partition_column,
-        )
-
-        return data_source
-
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             type=DataSourceProto.BATCH_BIGQUERY,
@@ -592,7 +602,8 @@ class BigQuerySource(DataSource):
             bigquery_options=self.bigquery_options.to_proto(),
         )
 
-        data_source_proto.timestamp_column = self.timestamp_column
+        data_source_proto.event_timestamp_column = self.event_timestamp_column
+        data_source_proto.created_timestamp_column = self.created_timestamp_column
         data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
@@ -601,14 +612,20 @@ class BigQuerySource(DataSource):
 class KafkaSource(DataSource):
     def __init__(
         self,
-        timestamp_column: str,
+        event_timestamp_column: str,
+        created_timestamp_column: str,
         bootstrap_servers: str,
         class_path: str,
         topic: str,
         field_mapping: Optional[Dict[str, str]] = dict(),
         date_partition_column: Optional[str] = "",
     ):
-        super().__init__(timestamp_column, field_mapping, date_partition_column)
+        super().__init__(
+            event_timestamp_column,
+            created_timestamp_column,
+            field_mapping,
+            date_partition_column,
+        )
         self._kafka_options = KafkaOptions(
             bootstrap_servers=bootstrap_servers, class_path=class_path, topic=topic
         )
@@ -643,18 +660,6 @@ class KafkaSource(DataSource):
         """
         self._kafka_options = kafka_options
 
-    @classmethod
-    def from_proto(cls, data_source_proto):
-
-        data_source = cls(
-            field_mapping=data_source_proto.field_mapping,
-            kafka_options=cls.kafka_options,
-            timestamp_column=data_source_proto.timestamp_column,
-            date_partition_column=data_source_proto.date_partition_column,
-        )
-
-        return data_source
-
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             type=DataSourceProto.STREAM_KAFKA,
@@ -662,7 +667,8 @@ class KafkaSource(DataSource):
             kafka_options=self.kafka_options.to_proto(),
         )
 
-        data_source_proto.timestamp_column = self.timestamp_column
+        data_source_proto.event_timestamp_column = self.event_timestamp_column
+        data_source_proto.created_timestamp_column = self.created_timestamp_column
         data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
@@ -671,14 +677,20 @@ class KafkaSource(DataSource):
 class KinesisSource(DataSource):
     def __init__(
         self,
-        timestamp_column: str,
+        event_timestamp_column: str,
+        created_timestamp_column: str,
         class_path: str,
         region: str,
         stream_name: str,
         field_mapping: Optional[Dict[str, str]] = dict(),
         date_partition_column: Optional[str] = "",
     ):
-        super().__init__(timestamp_column, field_mapping, date_partition_column)
+        super().__init__(
+            event_timestamp_column,
+            created_timestamp_column,
+            field_mapping,
+            date_partition_column,
+        )
         self._kinesis_options = KinesisOptions(
             class_path=class_path, region=region, stream_name=stream_name
         )
@@ -712,18 +724,6 @@ class KinesisSource(DataSource):
         """
         self._kinesis_options = kinesis_options
 
-    @classmethod
-    def from_proto(cls, data_source_proto):
-
-        data_source = cls(
-            field_mapping=data_source_proto.field_mapping,
-            kinesis_options=cls.kinesis_options,
-            timestamp_column=data_source_proto.timestamp_column,
-            date_partition_column=data_source_proto.date_partition_column,
-        )
-
-        return data_source
-
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             type=DataSourceProto.STREAM_KINESIS,
@@ -731,7 +731,8 @@ class KinesisSource(DataSource):
             kinesis_options=self.kinesis_options.to_proto(),
         )
 
-        data_source_proto.timestamp_column = self.timestamp_column
+        data_source_proto.event_timestamp_column = self.event_timestamp_column
+        data_source_proto.created_timestamp_column = self.created_timestamp_column
         data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto

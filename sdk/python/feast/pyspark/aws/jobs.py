@@ -142,8 +142,10 @@ def _batch_source_to_json(batch_source):
     return {
         "file": {
             "path": batch_source.file_options.file_url,
-            "mapping": dict(batch_source.field_mapping),
-            "timestampColumn": batch_source.timestamp_column,
+            "field_mapping": dict(batch_source.field_mapping),
+            "event_timestamp_column": batch_source.event_timestamp_column,
+            "created_timestamp_column": batch_source.created_timestamp_column,
+            "date_partition_column": batch_source.date_partition_column,
         }
     }
 

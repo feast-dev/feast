@@ -33,9 +33,11 @@ abstract class MetricConfig
 case class StatsDConfig(host: String, port: Int) extends MetricConfig
 
 abstract class Source {
-  def mapping: Map[String, String]
+  def fieldMapping: Map[String, String]
 
-  def timestampColumn: String
+  def eventTimestampColumn: String
+  def createdTimestampColumn: Option[String]
+  def datePartitionColumn: Option[String]
 }
 
 abstract class BatchSource extends Source
@@ -46,24 +48,30 @@ abstract class StreamingSource extends Source {
 
 case class FileSource(
     path: String,
-    override val mapping: Map[String, String],
-    override val timestampColumn: String
+    override val fieldMapping: Map[String, String],
+    override val eventTimestampColumn: String,
+    override val createdTimestampColumn: Option[String] = None,
+    override val datePartitionColumn: Option[String] = None
 ) extends BatchSource
 
 case class BQSource(
     project: String,
     dataset: String,
     table: String,
-    override val mapping: Map[String, String],
-    override val timestampColumn: String
+    override val fieldMapping: Map[String, String],
+    override val eventTimestampColumn: String,
+    override val createdTimestampColumn: Option[String] = None,
+    override val datePartitionColumn: Option[String] = None
 ) extends BatchSource
 
 case class KafkaSource(
     bootstrapServers: String,
     topic: String,
     override val classpath: String,
-    override val mapping: Map[String, String],
-    override val timestampColumn: String
+    override val fieldMapping: Map[String, String],
+    override val eventTimestampColumn: String,
+    override val createdTimestampColumn: Option[String] = None,
+    override val datePartitionColumn: Option[String] = None
 ) extends StreamingSource
 
 case class Sources(

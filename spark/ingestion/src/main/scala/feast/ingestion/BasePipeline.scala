@@ -79,13 +79,13 @@ trait BasePipeline {
       entities: Seq[Field]
   ): Array[Column] = {
     val featureColumns = features
-      .filter(f => !source.mapping.contains(f.name))
-      .map(f => (f.name, f.name)) ++ source.mapping
+      .filter(f => !source.fieldMapping.contains(f.name))
+      .map(f => (f.name, f.name)) ++ source.fieldMapping
 
-    val timestampColumn = Seq((source.timestampColumn, source.timestampColumn))
+    val timestampColumn = Seq((source.eventTimestampColumn, source.eventTimestampColumn))
     val entitiesColumns =
       entities
-        .filter(e => !source.mapping.contains(e.name))
+        .filter(e => !source.fieldMapping.contains(e.name))
         .map(e => (e.name, e.name))
 
     (featureColumns ++ entitiesColumns ++ timestampColumn).map { case (alias, source) =>

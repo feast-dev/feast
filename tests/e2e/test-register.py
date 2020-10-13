@@ -69,7 +69,8 @@ def basic_featuretable():
         },
         file_format="PARQUET",
         file_url="gs://example/feast/*",
-        timestamp_column="datetime_col",
+        event_timestamp_column="datetime_col",
+        created_timestamp_column="timestamp",
         date_partition_column="datetime",
     )
     stream_source = KafkaSource(
@@ -81,7 +82,8 @@ def basic_featuretable():
         bootstrap_servers="localhost:9094",
         class_path="random/path/to/class",
         topic="test_topic",
-        timestamp_column="datetime_col",
+        event_timestamp_column="datetime_col",
+        created_timestamp_column="timestamp",
     )
     return FeatureTable(
         name="basic_featuretable",
@@ -112,7 +114,11 @@ def bq_dataset():
 
 @pytest.fixture
 def bq_featuretable(bq_table_id):
-    batch_source = BigQuerySource(table_ref=bq_table_id, timestamp_column="datetime",)
+    batch_source = BigQuerySource(
+        table_ref=bq_table_id,
+        event_timestamp_column="datetime",
+        created_timestamp_column="timestamp",
+    )
     return FeatureTable(
         name="basic_featuretable",
         entities=["driver_id", "customer_id"],
@@ -140,7 +146,8 @@ def alltypes_featuretable():
     batch_source = FileSource(
         file_format="parquet",
         file_url="file://feast/*",
-        timestamp_column="ts_col",
+        event_timestamp_column="ts_col",
+        created_timestamp_column="timestamp",
         date_partition_column="date_partition_col",
     )
     return FeatureTable(

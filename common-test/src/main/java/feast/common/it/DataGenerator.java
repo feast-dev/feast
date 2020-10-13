@@ -243,7 +243,7 @@ public class DataGenerator {
         .setType(DataSource.SourceType.BATCH_FILE)
         .setFileOptions(
             FileOptions.newBuilder().setFileFormat(fileFormat).setFileUrl(fileURL).build())
-        .setTimestampColumn(timestampColumn)
+        .setEventTimestampColumn(timestampColumn)
         .setDatePartitionColumn(datePartitionColumn)
         .build();
   }
@@ -253,7 +253,7 @@ public class DataGenerator {
     return DataSource.newBuilder()
         .setType(DataSource.SourceType.BATCH_BIGQUERY)
         .setBigqueryOptions(BigQueryOptions.newBuilder().setTableRef(bigQueryTableRef).build())
-        .setTimestampColumn(timestampColumn)
+        .setEventTimestampColumn(timestampColumn)
         .setDatePartitionColumn(datePartitionColumn)
         .build();
   }
@@ -268,7 +268,7 @@ public class DataGenerator {
                 .setBootstrapServers(servers)
                 .setClassPath(classPath)
                 .build())
-        .setTimestampColumn(timestampColumn)
+        .setEventTimestampColumn(timestampColumn)
         .build();
   }
 }

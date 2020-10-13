@@ -105,8 +105,8 @@ class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
       bootstrapServers = kafkaContainer.bootstrapServers,
       topic = "topic",
       classpath = "com.example.protos.TestMessage",
-      mapping = Map.empty,
-      timestampColumn = "event_timestamp"
+      fieldMapping = Map.empty,
+      eventTimestampColumn = "event_timestamp"
     )
     val featureKeyEncoder: String => String = encodeFeatureKey(config.featureTable)
   }
@@ -160,7 +160,7 @@ class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
     val configWithKafka = config.copy(
       source = kafkaSource.copy(
         classpath = "com.example.protos.AllTypesMessage",
-        mapping = Map(
+        fieldMapping = Map(
           "map_value"     -> "map.key",
           "inner_double"  -> "inner.double",
           "inner_float"   -> "inner.float",

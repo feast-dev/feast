@@ -39,7 +39,7 @@ object IngestionJob {
 
     opt[String](name = "source")
       .action((x, c) =>
-        parseJSON(x).extract[Sources] match {
+        parseJSON(x).camelizeKeys.extract[Sources] match {
           case Sources(file: Some[FileSource], _, _)   => c.copy(source = file.get)
           case Sources(_, bq: Some[BQSource], _)       => c.copy(source = bq.get)
           case Sources(_, _, kafka: Some[KafkaSource]) => c.copy(source = kafka.get)
@@ -49,7 +49,7 @@ object IngestionJob {
       .text("JSON-encoded source object (e.g. {\"kafka\":{\"bootstrapServers\":...}}")
 
     opt[String](name = "feature-table")
-      .action((x, c) => c.copy(featureTable = parseJSON(x).extract[FeatureTable]))
+      .action((x, c) => c.copy(featureTable = parseJSON(x).camelizeKeys.extract[FeatureTable]))
       .required()
       .text("JSON-encoded FeatureTableSpec object")
 

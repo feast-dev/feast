@@ -656,7 +656,7 @@ class Client:
         _check_field_mappings(
             column_names,
             name,
-            feature_table.batch_source.timestamp_column,
+            feature_table.batch_source.event_timestamp_column,
             feature_table.batch_source.field_mapping,
         )
 
@@ -671,7 +671,7 @@ class Client:
                 column_names,
                 pyarrow_table,
                 feature_table.batch_source.date_partition_column,
-                feature_table.batch_source.timestamp_column,
+                feature_table.batch_source.event_timestamp_column,
             )
         else:
             dir_path, dest_path = _write_non_partitioned_table_from_source(
@@ -680,12 +680,12 @@ class Client:
 
         try:
             if issubclass(type(feature_table.batch_source), FileSource):
-                file_url = feature_table.batch_source.file_options.file_url[:-1]
+                file_url = feature_table.batch_source.file_options.file_url.rstrip("*")
                 _upload_to_file_source(file_url, with_partitions, dest_path)
             if issubclass(type(feature_table.batch_source), BigQuerySource):
                 bq_table_ref = feature_table.batch_source.bigquery_options.table_ref
                 feature_table_timestamp_column = (
-                    feature_table.batch_source.timestamp_column
+                    feature_table.batch_source.event_timestamp_column
                 )
 
                 _upload_to_bq_source(
