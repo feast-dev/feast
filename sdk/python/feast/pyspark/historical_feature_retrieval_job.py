@@ -246,178 +246,6 @@ class FileDestination(NamedTuple):
     path: str
 
 
-class EntityDataframe(NamedTuple):
-    """
-    Entity dataframe with specification.
-
-    Attributes:
-        df (DataFrame): Dataframe for the table.
-        timestamp_column (str): Column representing the event timestamp.
-    """
-
-    df: DataFrame
-    timestamp_column: str
-
-    @classmethod
-    def from_source(cls, spark: SparkSession, source: Source):
-        """
-        Construct an EntityDataframe instance based on the Source.
-
-        Args:
-            spark (SparkSession): Spark session.
-            source (Source): Entity table source.
-
-        Returns:
-            EntityDataframe: Instance of EntityDataframe.
-        """
-
-        df = (
-            spark.read.format(source.spark_format)
-            .options(**source.spark_read_options)
-            .load(source.spark_path)
-        )
-
-        mapped_entity_df = _map_column(df, source.mapping)
-
-        return EntityDataframe(
-            df=mapped_entity_df, timestamp_column=source.timestamp_column
-        )
-
-
-class FeatureTableDataframe(NamedTuple):
-    """
-    Feature table dataframe with specification.
-
-    Attributes:
-        name (str): Table name.
-        df (DataFrame): Dataframe for the table.
-        timestamp_column (str): Column representing the event timestamp.
-        created_timestamp_column (str): Column representing the creation timestamp.
-        max_age (int): In seconds. determines the lower bound of the timestamp of the retrieved feature.
-            If not specified, this would be unbounded
-        entities (List[Field]): Primary keys for the features.
-        features (List[Field]): Feature list.
-    """
-
-    name: str
-    df: DataFrame
-    timestamp_column: str
-    created_timestamp_column: str
-    entities: List[Field]
-    features: List[Field]
-    max_age: Optional[int] = None
-
-    @property
-    def entity_names(self):
-        """
-        Returns columns names for the entities.
-        """
-        return [field.name for field in self.entities]
-
-    @property
-    def feature_names(self):
-        """
-        Returns columns names for the features.
-        """
-        return [field.name for field in self.features]
-
-    @classmethod
-    def from_feature_table_and_source(
-        cls,
-        spark: SparkSession,
-        feature_table: FeatureTable,
-        source: Source,
-        entity_min_timestamp: datetime,
-        entity_max_timestamp: datetime,
-    ):
-        """
-        Construct a FeatureTableDataframe instance based on FeatureTable and the
-        corresponding Source. The entity minimum and maximum timestamp, along with
-        the max age of the feature table, will be used to compute the lower and upper
-        bound of the feature table event timestamp.
-
-        Args:
-            spark (SparkSession): Spark session.
-            feature_table (FeatureTable): Feature table specification.
-            source (Source): Feature table source.
-            entity_min_timestamp (datetime): Minimum datetime for the entity dataframe.
-            entity_max_timestamp (datetime): Maximum datetime for the entity dataframe.
-
-        Returns:
-            FeatureTableDataframe: Instance of FeatureTableDataframe.
-
-        Raises:
-            SchemaError: If the feature table has missing columns or wrong column types.
-        """
-        source_df = (
-            spark.read.format(source.spark_format)
-            .options(**source.spark_read_options)
-            .load(source.spark_path)
-        )
-
-        mapped_source_df = _map_column(source_df, source.mapping)
-
-        column_selection = (
-            feature_table.feature_names
-            + feature_table.entity_names
-            + [source.timestamp_column, source.created_timestamp_column]
-        )
-
-        missing_columns = set(column_selection) - set(mapped_source_df.columns)
-        if len(missing_columns) > 0:
-            raise SchemaError(
-                f"{', '.join(missing_columns)} are missing for feature table {feature_table.name}."
-            )
-
-        feature_table_dtypes = dict(mapped_source_df.dtypes)
-        for field in feature_table.entities + feature_table.features:
-            column_type = feature_table_dtypes.get(field.name)
-            if column_type != field.spark_type:
-                raise SchemaError(
-                    f"{field.name} should be of {field.spark_type} type, but is {column_type} instead"
-                )
-
-        for timestamp_column in [
-            source.timestamp_column,
-            source.created_timestamp_column,
-        ]:
-            column_type = feature_table_dtypes.get(timestamp_column)
-            if column_type != "timestamp":
-                raise SchemaError(
-                    f"{timestamp_column} should be of timestamp type, but is {column_type} instead"
-                )
-
-        subset_source_df = mapped_source_df.select(
-            feature_table.feature_names
-            + feature_table.entity_names
-            + [source.timestamp_column, source.created_timestamp_column]
-        )
-
-        feature_table_timestamp_filter = (
-            col(source.timestamp_column).between(
-                entity_min_timestamp - timedelta(seconds=feature_table.max_age),
-                entity_max_timestamp,
-            )
-            if feature_table.max_age
-            else col(source.timestamp_column) <= entity_max_timestamp
-        )
-
-        time_range_filtered_df = subset_source_df.filter(feature_table_timestamp_filter)
-
-        if source.created_timestamp_column is None:
-            raise ValueError("Created timestamp must be specified for feature table.")
-
-        return FeatureTableDataframe(
-            name=feature_table.name,
-            df=time_range_filtered_df,
-            timestamp_column=source.timestamp_column,
-            created_timestamp_column=source.created_timestamp_column,
-            max_age=feature_table.max_age,
-            entities=feature_table.entities,
-            features=feature_table.features,
-        )
-
-
 def _map_column(df: DataFrame, col_mapping: Dict[str, str]):
     projection = [
         col(col_name).alias(col_mapping.get(col_name, col_name))
@@ -427,7 +255,12 @@ def _map_column(df: DataFrame, col_mapping: Dict[str, str]):
 
 
 def as_of_join(
-    entity: EntityDataframe, feature_table: FeatureTableDataframe,
+    entity_df: DataFrame,
+    entity_event_timestamp_column: str,
+    feature_table_df: DataFrame,
+    feature_table: FeatureTable,
+    feature_event_timestamp_column: str,
+    feature_created_timestamp_column: str,
 ) -> DataFrame:
     """Perform an as of join between entity and feature table, given a maximum age tolerance.
     Join conditions:
@@ -440,21 +273,32 @@ def as_of_join(
     4. If none of the above conditions are satisfied, the feature rows will have null values.
 
     Args:
-        entity (EntityDataFrame): Entity dataframe and specification.
-        feature_table (FeatureTableDataframe): Feature table dataframe and specification.
+        entity_df (DataFrame): Spark dataframe representing the entities, to be joined with
+            the feature tables.
+        entity_event_timestamp_column (str): Column name in entity_df which represents
+            event timestamp.
+        feature_table_df (Dataframe): Spark dataframe representing the feature table.
+        feature_table (FeatureTable): Feature table specification, which provide information on
+            how the join should be performed, such as the entity primary keys and max age.
+        feature_event_timestamp_column (str): Column name in feature_table_df which represents
+            event timestamp.
+        feature_created_timestamp_column (str): Column name in feature_table_df which represents
+            when the feature is created.
 
     Returns:
-        DataFrame: Join result.
+        DataFrame: Join result, which contains all the original columns from entity_df, as well
+            as all the features specified in feature_table, where the feature columns will
+            be prefixed with feature table name.
 
     Example:
-        >>> entity.df.show()
+        >>> entity_df.show()
             +------+-------------------+
             |entity|    event_timestamp|
             +------+-------------------+
             |  1001|2020-09-02 00:00:00|
             +------+-------------------+
 
-        >>> feature_table_1.df.show()
+        >>> feature_table_1_df.show()
             +------+-------+-------------------+-------------------+
             |entity|feature|    event_timestamp|  created_timestamp|
             +------+-------+-------------------+-------------------+
@@ -466,7 +310,8 @@ def as_of_join(
             None
         >>> feature_table_1.name
             'table1'
-        >>> df = as_of_join(entity, feature_table_1)
+        >>> df = as_of_join(entity_df, "event_timestamp", feature_table_1_df, feature_table_1,
+                            "event_timestamp", "created_timestamp")
         >>> df.show()
             +------+-------------------+---------------+
             |entity|    event_timestamp|table1__feature|
@@ -486,7 +331,8 @@ def as_of_join(
             43200
         >>> feature_table_2.name
             'table2'
-        >>> df = as_of_join(entity, feature_table_2)
+        >>> df = as_of_join(entity_df, "event_timestamp", feature_table_2_df, feature_table_2,
+                            "event_timestamp", "created_timestamp")
         >>> df.show()
             +------+-------------------+---------------+
             |entity|    event_timestamp|table2__feature|
@@ -495,53 +341,57 @@ def as_of_join(
             +------+-------------------+---------------+
 
     """
-    entity_with_id = entity.df.withColumn("_row_nr", monotonically_increasing_id())
+    entity_with_id = entity_df.withColumn("_row_nr", monotonically_increasing_id())
 
-    feature_event_timestamp = f"{feature_table.name}__{feature_table.timestamp_column}"
-    feature_created_timestamp = (
-        f"{feature_table.name}__{feature_table.created_timestamp_column}"
+    feature_event_timestamp_column_with_prefix = (
+        f"{feature_table.name}__{feature_event_timestamp_column}"
+    )
+    feature_created_timestamp_column_with_prefix = (
+        f"{feature_table.name}__{feature_created_timestamp_column}"
     )
 
     projection = [
         col(col_name).alias(f"{feature_table.name}__{col_name}")
-        for col_name in feature_table.df.columns
+        for col_name in feature_table_df.columns
     ]
 
-    aliased_feature_table = feature_table.df.select(projection)
+    aliased_feature_table_df = feature_table_df.select(projection)
 
     join_cond = (
-        entity_with_id[entity.timestamp_column]
-        >= aliased_feature_table[feature_event_timestamp]
+        entity_with_id[entity_event_timestamp_column]
+        >= aliased_feature_table_df[feature_event_timestamp_column_with_prefix]
     )
     if feature_table.max_age:
         join_cond = join_cond & (
-            aliased_feature_table[feature_event_timestamp]
-            >= entity_with_id[entity.timestamp_column]
+            aliased_feature_table_df[feature_event_timestamp_column_with_prefix]
+            >= entity_with_id[entity_event_timestamp_column]
             - expr(f"INTERVAL {feature_table.max_age} seconds")
         )
 
     for key in feature_table.entity_names:
         join_cond = join_cond & (
-            entity_with_id[key] == aliased_feature_table[f"{feature_table.name}__{key}"]
+            entity_with_id[key]
+            == aliased_feature_table_df[f"{feature_table.name}__{key}"]
         )
 
     conditional_join = entity_with_id.join(
-        aliased_feature_table, join_cond, "leftOuter"
+        aliased_feature_table_df, join_cond, "leftOuter"
     )
     for key in feature_table.entity_names:
         conditional_join = conditional_join.drop(
-            aliased_feature_table[f"{feature_table.name}__{key}"]
+            aliased_feature_table_df[f"{feature_table.name}__{key}"]
         )
 
     window = Window.partitionBy("_row_nr", *feature_table.entity_names).orderBy(
-        col(feature_event_timestamp).desc(), col(feature_created_timestamp).desc()
+        col(feature_event_timestamp_column_with_prefix).desc(),
+        col(feature_created_timestamp_column_with_prefix).desc(),
     )
     filter_most_recent_feature_timestamp = conditional_join.withColumn(
         "_rank", row_number().over(window)
     ).filter(col("_rank") == 1)
 
     return filter_most_recent_feature_timestamp.select(
-        entity.df.columns
+        entity_df.columns
         + [
             f"{feature_table.name}__{feature}"
             for feature in feature_table.feature_names
@@ -550,18 +400,32 @@ def as_of_join(
 
 
 def join_entity_to_feature_tables(
-    entity: EntityDataframe, feature_tables: List[FeatureTableDataframe]
+    entity_df: DataFrame,
+    entity_event_timestamp_column: str,
+    feature_table_dfs: List[DataFrame],
+    feature_tables: List[FeatureTable],
+    feature_event_timestamp_columns: List[str],
+    feature_created_timestamp_columns: List[str],
 ) -> DataFrame:
-    """Perform as of join between entity and multiple feature table. Returns a DataFrame.
+    """Perform as of join between entity and multiple feature table.
 
     Args:
-        entity (EntityDataFrame):
-            Entity dataframe and specification.
-        feature_tables (List[FeatureTableDataframe]):
-            List of feature tables dataframes and their corresponding specification.
+        entity_df (DataFrame): Spark dataframe representing the entities, to be joined with
+            the feature tables.
+        entity_event_timestamp_column (str): Column name in entity_df which represents
+            event timestamp.
+        feature_table_dfs (List[Dataframe]): List of Spark dataframes representing the feature tables.
+        feature_tables (List[FeatureTable]): List of feature table specification. The length and ordering
+            of this argument must follow that of feature_table_dfs.
+        feature_event_timestamp_columns (List[str]): Column names which represent event timestamp for the
+            feature tables. The length and ordering of this argument must follow that of feature_table_dfs.
+        feature_created_timestamp_columns (str): Column names which represent when the feature is created.
+            The length and ordering of this argument must follow that of feature_table_dfs.
 
     Returns:
-        DataFrame: Join result.
+        DataFrame: Join result, which contains all the original columns from entity_df, as well
+            as all the features specified in feature_tables, where the feature columns will
+            be prefixed with feature table name.
 
     Example:
         >>> entity_df.show()
@@ -571,8 +435,6 @@ def join_entity_to_feature_tables(
             |  1001|2020-09-02 00:00:00|
             +------+-------------------+
 
-        >>> entity = EntityDataframe(entity_df, "event_timestamp")
-
         >>> table1_df.show()
             +------+--------+-------------------+-------------------+
             |entity|feature1|    event_timestamp|  created_timestamp|
@@ -580,13 +442,10 @@ def join_entity_to_feature_tables(
             |    10|     200|2020-09-01 00:00:00|2020-09-01 00:00:00|
             +------+--------+-------------------+-------------------
 
-        >>> table1 = FeatureTableDataframe(
+        >>> table1 = FeatureTable(
                 name="table1",
-                df=table1_df,
                 features=[Field("feature1", "int32")],
                 entities=[Field("entity", "int32")],
-                timestamp_column="event_timestamp",
-                created_timestamp_column="created_timestamp",
             )
 
         >>> table2_df.show()
@@ -596,15 +455,11 @@ def join_entity_to_feature_tables(
             |    10|     400|2020-09-01 00:00:00|2020-09-01 00:00:00|
             +------+--------+-------------------+-------------------
 
-        >>> table2 = FeatureTableDataframe(
+        >>> table2 = FeatureTable(
                 name="table2",
-                df=table2_df,
                 features=[Field("feature2", "int32")],
                 entities=[Field("entity", "int32")],
-                timestamp_column="event_timestamp",
-                created_timestamp_column="created_timestamp",
             )
-
 
         >>> tables = [table1, table2]
 
@@ -612,6 +467,9 @@ def join_entity_to_feature_tables(
                 entity,
                 tables,
             )
+        >>> joined_df = join_entity_to_feature_tables(entity_df, "event_timestamp",
+                [table1_df, table2_df], [table1, table2],
+                ["event_timestamp"] * 2, ["created_timestamp"] * 2)
 
         >>> joined_df.show()
             +------+-------------------+----------------+----------------+
@@ -620,12 +478,28 @@ def join_entity_to_feature_tables(
             |  1001|2020-09-02 00:00:00|             200|             400|
             +------+-------------------+----------------+----------------+
     """
-    joined = entity
+    joined_df = entity_df
 
-    for feature_table in feature_tables:
-        joined_df = as_of_join(joined, feature_table)
-        joined = EntityDataframe(joined_df, entity.timestamp_column)
-    return joined.df
+    for (
+        feature_table_df,
+        feature_table,
+        feature_event_timestamp_column,
+        feature_created_timestamp_column,
+    ) in zip(
+        feature_table_dfs,
+        feature_tables,
+        feature_event_timestamp_columns,
+        feature_created_timestamp_columns,
+    ):
+        joined_df = as_of_join(
+            joined_df,
+            entity_event_timestamp_column,
+            feature_table_df,
+            feature_table,
+            feature_event_timestamp_column,
+            feature_created_timestamp_column,
+        )
+    return joined_df
 
 
 class SchemaError(Exception):
@@ -635,6 +509,101 @@ class SchemaError(Exception):
     """
 
     pass
+
+
+def _filter_feature_table_by_time_range(
+    feature_table_df: DataFrame,
+    feature_table: FeatureTable,
+    feature_event_timestamp_column: str,
+    entity_df: DataFrame,
+    entity_event_timestamp_column: str,
+):
+    entity_max_timestamp = entity_df.agg(
+        {entity_event_timestamp_column: "max"}
+    ).collect()[0][0]
+    entity_min_timestamp = entity_df.agg(
+        {entity_event_timestamp_column: "min"}
+    ).collect()[0][0]
+
+    feature_table_timestamp_filter = (
+        col(feature_event_timestamp_column).between(
+            entity_min_timestamp - timedelta(seconds=feature_table.max_age),
+            entity_max_timestamp,
+        )
+        if feature_table.max_age
+        else col(feature_event_timestamp_column) <= entity_max_timestamp
+    )
+
+    time_range_filtered_df = feature_table_df.filter(feature_table_timestamp_filter)
+
+    return time_range_filtered_df
+
+
+def _read_and_verify_entity_df_from_source(
+    spark: SparkSession, source: Source
+) -> DataFrame:
+    entity_df = (
+        spark.read.format(source.spark_format)
+        .options(**source.spark_read_options)
+        .load(source.spark_path)
+    )
+
+    mapped_entity_df = _map_column(entity_df, source.mapping)
+
+    if source.timestamp_column not in mapped_entity_df.columns:
+        raise SchemaError(
+            f"{source.timestamp_column} is missing for the entity dataframe."
+        )
+
+    return mapped_entity_df
+
+
+def _read_and_verify_feature_table_df_from_source(
+    spark: SparkSession, feature_table: FeatureTable, source: Source,
+) -> DataFrame:
+    source_df = (
+        spark.read.format(source.spark_format)
+        .options(**source.spark_read_options)
+        .load(source.spark_path)
+    )
+
+    mapped_source_df = _map_column(source_df, source.mapping)
+
+    column_selection = (
+        feature_table.feature_names
+        + feature_table.entity_names
+        + [source.timestamp_column, source.created_timestamp_column]
+    )
+
+    missing_columns = set(column_selection) - set(mapped_source_df.columns)
+    if len(missing_columns) > 0:
+        raise SchemaError(
+            f"{', '.join(missing_columns)} are missing for feature table {feature_table.name}."
+        )
+
+    feature_table_dtypes = dict(mapped_source_df.dtypes)
+    for field in feature_table.entities + feature_table.features:
+        column_type = feature_table_dtypes.get(field.name)
+        if column_type != field.spark_type:
+            raise SchemaError(
+                f"{field.name} should be of {field.spark_type} type, but is {column_type} instead"
+            )
+
+    for timestamp_column in [
+        source.timestamp_column,
+        source.created_timestamp_column,
+    ]:
+        column_type = feature_table_dtypes.get(timestamp_column)
+        if column_type != "timestamp":
+            raise SchemaError(
+                f"{timestamp_column} should be of timestamp type, but is {column_type} instead"
+            )
+
+    return mapped_source_df.select(
+        feature_table.feature_names
+        + feature_table.entity_names
+        + [source.timestamp_column, source.created_timestamp_column]
+    )
 
 
 def retrieve_historical_features(
@@ -647,13 +616,20 @@ def retrieve_historical_features(
 
     Args:
         spark (SparkSession): Spark session.
-        entity_source (Source): Entity data source.
-        feature_tables_sources (Source): List of feature tables data sources.
-        feature_tables (List[FeatureTable]): List of feature table specification.
-            The order of the feature table must correspond to that of feature_tables_sources.
+        entity_source (Source): Entity data source, which describe where and how to retrieve the Spark dataframe
+            representing the entities.
+        feature_tables_sources (Source): List of feature tables data sources, which describe where and how to
+            retrieve the feature table representing the feature tables.
+        feature_tables (List[FeatureTable]): List of feature table specification. The specification describes which
+            features should be present in the final join result, as well as the maximum age. The order of the feature
+            table must correspond to that of feature_tables_sources.
 
     Returns:
-        DataFrame: Join result.
+        DataFrame: A dataframe contains all the features specified in feature_table, where the feature columns will
+            be prefixed with feature table name.
+
+    Raises:
+        SchemaError: If either the entity or feature table has missing columns or wrong column types.
 
     Example:
         >>> entity_source = FileSource(
@@ -689,48 +665,57 @@ def retrieve_historical_features(
                 ),
             ]
     """
+    entity_df = _read_and_verify_entity_df_from_source(spark, entity_source)
 
-    entity_df = (
-        spark.read.format(entity_source.spark_format)
-        .options(**entity_source.spark_read_options)
-        .load(entity_source.spark_path)
-    )
-
-    mapped_entity_df = _map_column(entity_df, entity_source.mapping)
-
-    if entity_source.timestamp_column not in mapped_entity_df.columns:
-        raise SchemaError(
-            f"{entity_source.timestamp_column} is missing for the entity dataframe."
-        )
-
-    max_timestamp = mapped_entity_df.agg(
-        {entity_source.timestamp_column: "max"}
-    ).collect()[0][0]
-    min_timestamp = mapped_entity_df.agg(
-        {entity_source.timestamp_column: "min"}
-    ).collect()[0][0]
-
-    tables = [
-        FeatureTableDataframe.from_feature_table_and_source(
-            spark, feature_table, source, min_timestamp, max_timestamp
-        )
+    feature_table_dfs = [
+        _read_and_verify_feature_table_df_from_source(spark, feature_table, source,)
         for feature_table, source in zip(feature_tables, feature_tables_sources)
     ]
 
-    entity = EntityDataframe(mapped_entity_df, entity_source.timestamp_column)
+    feature_event_timestamp_columns = [
+        source.timestamp_column for source in feature_tables_sources
+    ]
+    feature_created_timestamp_columns: List[str] = []
+    for source in feature_tables_sources:
+        if source.created_timestamp_column:
+            feature_created_timestamp_columns.append(source.created_timestamp_column)
+        else:
+            raise SchemaError(
+                "Created timestamp column must not be none for feature table."
+            )
 
     expected_entities = []
-    for table in tables:
-        expected_entities.extend(table.entities)
+    for feature_table in feature_tables:
+        expected_entities.extend(feature_table.entities)
 
-    entity_dtypes = dict(entity.df.dtypes)
+    entity_dtypes = dict(entity_df.dtypes)
     for expected_entity in expected_entities:
         if entity_dtypes.get(expected_entity.name) != expected_entity.spark_type:
             raise SchemaError(
                 f"{expected_entity.name} ({expected_entity.spark_type}) is not present in the entity dataframe."
             )
 
-    return join_entity_to_feature_tables(entity, tables)
+    feature_table_dfs = [
+        _filter_feature_table_by_time_range(
+            feature_table_df,
+            feature_table,
+            feature_table_source.timestamp_column,
+            entity_df,
+            entity_source.timestamp_column,
+        )
+        for feature_table_df, feature_table, feature_table_source in zip(
+            feature_table_dfs, feature_tables, feature_tables_sources
+        )
+    ]
+
+    return join_entity_to_feature_tables(
+        entity_df,
+        entity_source.timestamp_column,
+        feature_table_dfs,
+        feature_tables,
+        feature_event_timestamp_columns,
+        feature_created_timestamp_columns,
+    )
 
 
 def start_job(

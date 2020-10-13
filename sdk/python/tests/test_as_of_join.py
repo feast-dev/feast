@@ -16,9 +16,7 @@ from pyspark.sql.types import (
 )
 
 from feast.pyspark.historical_feature_retrieval_job import (
-    EntityDataframe,
     FeatureTable,
-    FeatureTableDataframe,
     Field,
     FileSource,
     SchemaError,
@@ -227,17 +225,20 @@ def test_join_without_max_age(
         spark.sparkContext.parallelize(feature_table_data), customer_feature_schema
     )
 
-    entity = EntityDataframe(entity_df, "event_timestamp")
-    feature_table = FeatureTableDataframe(
+    feature_table = FeatureTable(
         name="transactions",
-        df=feature_table_df,
         features=[Field("daily_transactions", "double")],
         entities=[Field("customer_id", "int32")],
-        timestamp_column="event_timestamp",
-        created_timestamp_column="created_timestamp",
     )
 
-    joined_df = as_of_join(entity, feature_table)
+    joined_df = as_of_join(
+        entity_df,
+        "event_timestamp",
+        feature_table_df,
+        feature_table,
+        "event_timestamp",
+        "created_timestamp",
+    )
 
     expected_joined_schema = StructType(
         [
@@ -274,7 +275,6 @@ def test_join_with_max_age(
     entity_df = spark.createDataFrame(
         spark.sparkContext.parallelize(entity_data), single_entity_schema
     )
-    entity = EntityDataframe(entity_df, "event_timestamp")
 
     feature_table_data = [
         (
@@ -293,17 +293,21 @@ def test_join_with_max_age(
     feature_table_df = spark.createDataFrame(
         spark.sparkContext.parallelize(feature_table_data), customer_feature_schema
     )
-    feature_table = FeatureTableDataframe(
+    feature_table = FeatureTable(
         name="transactions",
-        df=feature_table_df,
         features=[Field("daily_transactions", "double")],
         entities=[Field("customer_id", "int32")],
-        timestamp_column="event_timestamp",
-        created_timestamp_column="created_timestamp",
         max_age=86400,
     )
 
-    joined_df = as_of_join(entity, feature_table)
+    joined_df = as_of_join(
+        entity_df,
+        "event_timestamp",
+        feature_table_df,
+        feature_table,
+        "event_timestamp",
+        "created_timestamp",
+    )
 
     expected_joined_schema = StructType(
         [
@@ -338,7 +342,6 @@ def test_join_with_composite_entity(
     entity_df = spark.createDataFrame(
         spark.sparkContext.parallelize(entity_data), composite_entity_schema
     )
-    entity = EntityDataframe(entity_df, "event_timestamp")
 
     feature_table_data = [
         (
@@ -369,17 +372,21 @@ def test_join_with_composite_entity(
     feature_table_df = spark.createDataFrame(
         spark.sparkContext.parallelize(feature_table_data), rating_feature_schema,
     )
-    feature_table = FeatureTableDataframe(
+    feature_table = FeatureTable(
         name="ratings",
-        df=feature_table_df,
         features=[Field("customer_rating", "double"), Field("driver_rating", "double")],
         entities=[Field("customer_id", "int32"), Field("driver_id", "int32")],
-        timestamp_column="event_timestamp",
-        created_timestamp_column="created_timestamp",
         max_age=86400,
     )
 
-    joined_df = as_of_join(entity, feature_table)
+    joined_df = as_of_join(
+        entity_df,
+        "event_timestamp",
+        feature_table_df,
+        feature_table,
+        "event_timestamp",
+        "created_timestamp",
+    )
 
     expected_joined_schema = StructType(
         [
@@ -415,7 +422,6 @@ def test_select_subset_of_columns_as_entity_primary_keys(
     entity_df = spark.createDataFrame(
         spark.sparkContext.parallelize(entity_data), composite_entity_schema
     )
-    entity = EntityDataframe(entity_df, "event_timestamp")
 
     feature_table_data = [
         (
@@ -434,16 +440,20 @@ def test_select_subset_of_columns_as_entity_primary_keys(
     feature_table_df = spark.createDataFrame(
         spark.sparkContext.parallelize(feature_table_data), customer_feature_schema
     )
-    feature_table = FeatureTableDataframe(
+    feature_table = FeatureTable(
         name="transactions",
-        df=feature_table_df,
         features=[Field("daily_transactions", "double")],
         entities=[Field("customer_id", "int32")],
-        timestamp_column="event_timestamp",
-        created_timestamp_column="created_timestamp",
     )
 
-    joined_df = as_of_join(entity, feature_table)
+    joined_df = as_of_join(
+        entity_df,
+        "event_timestamp",
+        feature_table_df,
+        feature_table,
+        "event_timestamp",
+        "created_timestamp",
+    )
 
     expected_joined_schema = StructType(
         [
@@ -479,7 +489,6 @@ def test_multiple_join(
     entity_df = spark.createDataFrame(
         spark.sparkContext.parallelize(entity_data), composite_entity_schema
     )
-    entity = EntityDataframe(entity_df, "event_timestamp")
 
     customer_table_data = [
         (
@@ -498,13 +507,10 @@ def test_multiple_join(
     customer_table_df = spark.createDataFrame(
         spark.sparkContext.parallelize(customer_table_data), customer_feature_schema
     )
-    customer_table = FeatureTableDataframe(
+    customer_table = FeatureTable(
         name="transactions",
-        df=customer_table_df,
         features=[Field("daily_transactions", "double")],
         entities=[Field("customer_id", "int32")],
-        timestamp_column="event_timestamp",
-        created_timestamp_column="created_timestamp",
         max_age=86400,
     )
 
@@ -538,16 +544,20 @@ def test_multiple_join(
         spark.sparkContext.parallelize(driver_table_data), driver_feature_schema
     )
 
-    driver_table = FeatureTableDataframe(
+    driver_table = FeatureTable(
         name="bookings",
-        df=driver_table_df,
         features=[Field("completed_bookings", "int32")],
         entities=[Field("driver_id", "int32")],
-        timestamp_column="event_timestamp",
-        created_timestamp_column="created_timestamp",
     )
 
-    joined_df = join_entity_to_feature_tables(entity, [customer_table, driver_table])
+    joined_df = join_entity_to_feature_tables(
+        entity_df,
+        "event_timestamp",
+        [customer_table_df, driver_table_df],
+        [customer_table, driver_table],
+        ["event_timestamp"] * 2,
+        ["created_timestamp"] * 2,
+    )
 
     expected_joined_schema = StructType(
         [
