@@ -84,7 +84,9 @@ class FileSource(Source):
         field_mapping: Optional[Dict[str, str]] = None,
         options: Optional[Dict[str, str]] = None,
     ):
-        super().__init__(event_timestamp_column, created_timestamp_column, field_mapping)
+        super().__init__(
+            event_timestamp_column, created_timestamp_column, field_mapping
+        )
         self.format = format
         self.path = path
         self.options = options if options else {}
@@ -126,7 +128,9 @@ class BQSource(Source):
         created_timestamp_column: Optional[str],
         field_mapping: Optional[Dict[str, str]],
     ):
-        super().__init__(event_timestamp_column, created_timestamp_column, field_mapping)
+        super().__init__(
+            event_timestamp_column, created_timestamp_column, field_mapping
+        )
         self.project = project
         self.dataset = dataset
         self.table = table
