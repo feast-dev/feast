@@ -14,7 +14,7 @@
 
 
 import enum
-from abc import ABC, abstractclassmethod, abstractmethod
+from abc import ABC, abstractmethod
 from typing import Dict, Optional
 
 from feast.core.DataSource_pb2 import DataFormat as DataFormatProto
