@@ -19,8 +19,8 @@ package feast.ingestion.registry.proto
 import org.apache.spark.sql.SparkSession
 
 object ProtoRegistryFactory {
-  val CONFIG_PREFIX       = "feast.ingestion.registry.proto"
-  val PROTO_REGISTRY_KIND = s"$CONFIG_PREFIX.kind"
+  val CONFIG_PREFIX       = "feast.ingestion.registry.proto."
+  val PROTO_REGISTRY_KIND = s"${CONFIG_PREFIX}kind"
   val DEFAULT_KIND        = "local"
 
   def resolveProtoRegistry(sparkSession: SparkSession): ProtoRegistry = {

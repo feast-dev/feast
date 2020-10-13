@@ -185,12 +185,24 @@
             <version>0.38.3</version>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>com.github.tomakehurst</groupId>
+            <artifactId>wiremock-jre8</artifactId>
+            <version>2.27.2</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
 
     <build>
         <sourceDirectory>src/main/scala</sourceDirectory>
         <testSourceDirectory>src/test/scala</testSourceDirectory>
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+            </testResource>
+        </testResources>
         <plugins>
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
@@ -313,7 +325,18 @@
                                 <include>src/test/proto</include>
                             </inputDirectories>
                             <includeStdTypes>true</includeStdTypes>
-                            <outputDirectory>src/test/scala</outputDirectory>
+                            <outputTargets>
+                                <outputTarget>
+                                    <type>java</type>
+                                    <addSources>none</addSources>
+                                    <outputDirectory>src/test/scala</outputDirectory>
+                                </outputTarget>
+                                <outputTarget>
+                                    <type>descriptor</type>
+                                    <addSources>none</addSources>
+                                    <outputDirectory>src/test/resources/stencil/__files</outputDirectory>
+                                </outputTarget>
+                            </outputTargets>
                         </configuration>
                     </execution>
                 </executions>
