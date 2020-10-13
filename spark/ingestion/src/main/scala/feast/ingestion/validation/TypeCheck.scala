@@ -42,26 +42,27 @@ object TypeCheck {
 
   /**
     * Verify whether types declared in FeatureTable match correspondent columns
-    * @param schema Spark's dataframe columns
+    *
+    * @param schema       Spark's dataframe columns
     * @param featureTable definition of expected schema
-    * @return true if all match
+    * @return error details if some column doesn't match
     */
-  def allTypesMatch(schema: StructType, featureTable: FeatureTable): Either[String, Boolean] = {
+  def allTypesMatch(schema: StructType, featureTable: FeatureTable): Option[String] = {
     val typeByField =
       (featureTable.entities ++ featureTable.features).map(f => f.name -> f.`type`).toMap
 
     schema.fields
       .map(f =>
         if (typeByField.contains(f.name) && !typesMatch(typeByField(f.name), f.dataType)) {
-          Left(
+          Some(
             s"Feature ${f.name} has different type ${f.dataType} instead of expected ${typeByField(f.name)}"
           )
-        } else Right(true)
+        } else None
       )
-      .foldLeft[Either[String, Boolean]](Right(true)) {
-        case (Left(error), _)        => Left(error)
-        case (Right(_), Left(error)) => Left(error)
-        case _                       => Right(true)
+      .foldLeft[Option[String]](None) {
+        case (Some(error), _) => Some(error)
+        case (_, Some(error)) => Some(error)
+        case _                => None
       }
   }
 }

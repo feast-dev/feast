@@ -62,7 +62,7 @@ object StreamingPipeline extends BasePipeline with Serializable {
       .select(projection: _*)
 
     TypeCheck.allTypesMatch(projected.schema, featureTable) match {
-      case Left(error) =>
+      case Some(error) =>
         throw new RuntimeException(s"Dataframe columns don't match expected feature types: $error")
       case _ => ()
     }

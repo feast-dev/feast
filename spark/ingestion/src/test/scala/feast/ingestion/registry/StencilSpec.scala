@@ -56,7 +56,7 @@ class StencilSpec extends SparkSpec with BeforeAndAfterAll {
     implicit val encoder: ExpressionEncoder[BinaryRecord] = ExpressionEncoder[BinaryRecord]
   }
 
-  "Streaming pipeline" should "be able to fetch proto classes from external repos" in new Scope {
+  "Proto parser" should "be able to retrieve proto descriptors from external repos" in new Scope {
     val testMessage = TestMessage
       .newBuilder()
       .setS2Id(1)
