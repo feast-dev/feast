@@ -97,7 +97,7 @@ public class TestUtils {
                 .setFileFormat(fileFormat)
                 .setFileUrl(fileURL)
                 .build())
-        .setTimestampColumn(timestampColumn)
+        .setEventTimestampColumn(timestampColumn)
         .setDatePartitionColumn(datePartitionColumn)
         .build();
   }
