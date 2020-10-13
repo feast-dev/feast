@@ -1,7 +1,7 @@
 import abc
 import argparse
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Dict, List, NamedTuple, Optional
 
 from pyspark.sql import DataFrame, SparkSession, Window
@@ -13,10 +13,10 @@ class Source(abc.ABC):
     Source for an entity or feature dataframe.
 
     Attributes:
-        timestamp_column (str): Column representing the event timestamp.
+        event_timestamp_column (str): Column representing the event timestamp.
         created_timestamp_column (str): Column representing the creation timestamp. Required
             only if the source corresponds to a feature table.
-        mapping (Optional[Dict[str, str]]): If present, the source column will be renamed
+        field_map (Optional[Dict[str, str]]): If present, the source column will be renamed
             based on the mapping.
     """
 
@@ -24,12 +24,12 @@ class Source(abc.ABC):
         self,
         timestamp_column: str,
         created_timestamp_column: Optional[str],
-        mapping: Optional[Dict[str, str]] = None,
+        field_map: Optional[Dict[str, str]] = None,
     ):
 
         self.timestamp_column = timestamp_column
         self.created_timestamp_column = created_timestamp_column
-        self.mapping = mapping if mapping else {}
+        self.field_map = field_map if field_map else {}
 
     @property
     def spark_read_options(self) -> Dict[str, str]:
@@ -67,12 +67,12 @@ class FileSource(Source):
     Attributes:
         format (str): File format.
         path (str): Uri to the file.
-        mapping (Dict[str, str]): Optional. If present, the source column will be renamed
+        field_map (Dict[str, str]): Optional. If present, the source column will be renamed
             based on the mapping.
         timestamp_column (str): Column representing the event timestamp.
         created_timestamp_column (str): Column representing the creation timestamp. Required
             only if the source corresponds to a feature table.
-        mapping (Optional[Dict[str, str]]): Optional. If present, the source column will be renamed
+        field_map (Optional[Dict[str, str]]): Optional. If present, the source column will be renamed
             based on the mapping.
         options (Optional[Dict[str, str]]): Options to be passed to spark while reading the file source.
     """
@@ -83,10 +83,10 @@ class FileSource(Source):
         path: str,
         timestamp_column: str,
         created_timestamp_column: Optional[str] = None,
-        mapping: Optional[Dict[str, str]] = None,
+        field_map: Optional[Dict[str, str]] = None,
         options: Optional[Dict[str, str]] = None,
     ):
-        super().__init__(timestamp_column, created_timestamp_column, mapping)
+        super().__init__(timestamp_column, created_timestamp_column, field_map)
         self.format = format
         self.path = path
         self.options = options if options else {}
@@ -112,7 +112,7 @@ class BQSource(Source):
         project (str): GCP project id.
         dataset (str): BQ dataset.
         table (str): BQ table.
-        mapping (Dict[str, str]): Optional. If present, the source column will be renamed
+        field_map (Dict[str, str]): Optional. If present, the source column will be renamed
             based on the mapping.
         timestamp_column (str): Column representing the event timestamp.
         created_timestamp_column (str): Column representing the creation timestamp. Required
@@ -126,9 +126,9 @@ class BQSource(Source):
         table: str,
         timestamp_column: str,
         created_timestamp_column: Optional[str],
-        mapping: Optional[Dict[str, str]],
+        field_map: Optional[Dict[str, str]],
     ):
-        super().__init__(timestamp_column, created_timestamp_column, mapping)
+        super().__init__(timestamp_column, created_timestamp_column, field_map)
         self.project = project
         self.dataset = dataset
         self.table = table
@@ -149,7 +149,7 @@ def _source_from_dict(dct: Dict) -> Source:
             dct["path"],
             dct["timestamp_column"],
             dct.get("created_timestamp_column"),
-            dct.get("mapping"),
+            dct.get("field_map"),
             dct.get("options"),
         )
     else:
@@ -157,7 +157,7 @@ def _source_from_dict(dct: Dict) -> Source:
             dct["project"],
             dct["dataset"],
             dct["table"],
-            dct.get("mapping", {}),
+            dct.get("field_map", {}),
             dct["timestamp_column"],
             dct.get("created_timestamp_column"),
         )
@@ -548,7 +548,7 @@ def _read_and_verify_entity_df_from_source(
         .load(source.spark_path)
     )
 
-    mapped_entity_df = _map_column(entity_df, source.mapping)
+    mapped_entity_df = _map_column(entity_df, source.field_map)
 
     if source.timestamp_column not in mapped_entity_df.columns:
         raise SchemaError(
@@ -567,7 +567,7 @@ def _read_and_verify_feature_table_df_from_source(
         .load(source.spark_path)
     )
 
-    mapped_source_df = _map_column(source_df, source.mapping)
+    mapped_source_df = _map_column(source_df, source.field_map)
 
     column_selection = (
         feature_table.feature_names
@@ -636,14 +636,14 @@ def retrieve_historical_features(
                 format="csv",
                 path="file:///some_dir/customer_driver_pairs.csv"),
                 options={"inferSchema": "true", "header": "true"},
-                mapping={"id": "driver_id"}
+                field_map={"id": "driver_id"}
             )
 
         >>> feature_tables_sources = [
                 FileSource(
                     format="parquet",
                     path="gs://some_bucket/bookings.parquet"),
-                    mapping={"id": "driver_id"}
+                    field_map={"id": "driver_id"}
                 ),
                 FileSource(
                     format="avro",

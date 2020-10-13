@@ -157,7 +157,7 @@ class JobLauncher(abc.ABC):
         raise NotImplementedError
 
 
-class StandaloneCluster(JobLauncher):
+class StandaloneClusterLauncher(JobLauncher):
     """
     Submits jobs to a standalone Spark cluster in client mode.
     """
@@ -214,7 +214,7 @@ class StandaloneCluster(JobLauncher):
         return StandaloneClusterRetrievalJob(job_id, process, output_file)
 
 
-class DataprocCluster(JobLauncher):
+class DataprocClusterLauncher(JobLauncher):
     """
     Submits jobs to an existing Dataproc cluster. Depends on google-cloud-dataproc and
     google-cloud-storage, which are optional dependencies that the user has to installed in
