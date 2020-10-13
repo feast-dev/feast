@@ -22,12 +22,12 @@ class Source(abc.ABC):
 
     def __init__(
         self,
-        timestamp_column: str,
+        event_timestamp_column: str,
         created_timestamp_column: Optional[str],
         field_map: Optional[Dict[str, str]] = None,
     ):
 
-        self.timestamp_column = timestamp_column
+        self.event_timestamp_column = event_timestamp_column
         self.created_timestamp_column = created_timestamp_column
         self.field_map = field_map if field_map else {}
 
@@ -67,12 +67,10 @@ class FileSource(Source):
     Attributes:
         format (str): File format.
         path (str): Uri to the file.
-        field_map (Dict[str, str]): Optional. If present, the source column will be renamed
-            based on the mapping.
-        timestamp_column (str): Column representing the event timestamp.
+        event_timestamp_column (str): Column representing the event timestamp.
         created_timestamp_column (str): Column representing the creation timestamp. Required
             only if the source corresponds to a feature table.
-        field_map (Optional[Dict[str, str]]): Optional. If present, the source column will be renamed
+        field_map (Dict[str, str]): Optional. If present, the source column will be renamed
             based on the mapping.
         options (Optional[Dict[str, str]]): Options to be passed to spark while reading the file source.
     """
@@ -81,12 +79,12 @@ class FileSource(Source):
         self,
         format: str,
         path: str,
-        timestamp_column: str,
+        event_timestamp_column: str,
         created_timestamp_column: Optional[str] = None,
         field_map: Optional[Dict[str, str]] = None,
         options: Optional[Dict[str, str]] = None,
     ):
-        super().__init__(timestamp_column, created_timestamp_column, field_map)
+        super().__init__(event_timestamp_column, created_timestamp_column, field_map)
         self.format = format
         self.path = path
         self.options = options if options else {}
@@ -114,7 +112,7 @@ class BQSource(Source):
         table (str): BQ table.
         field_map (Dict[str, str]): Optional. If present, the source column will be renamed
             based on the mapping.
-        timestamp_column (str): Column representing the event timestamp.
+        event_timestamp_column (str): Column representing the event timestamp.
         created_timestamp_column (str): Column representing the creation timestamp. Required
             only if the source corresponds to a feature table.
     """
@@ -124,11 +122,11 @@ class BQSource(Source):
         project: str,
         dataset: str,
         table: str,
-        timestamp_column: str,
+        event_timestamp_column: str,
         created_timestamp_column: Optional[str],
         field_map: Optional[Dict[str, str]],
     ):
-        super().__init__(timestamp_column, created_timestamp_column, field_map)
+        super().__init__(event_timestamp_column, created_timestamp_column, field_map)
         self.project = project
         self.dataset = dataset
         self.table = table
@@ -147,7 +145,7 @@ def _source_from_dict(dct: Dict) -> Source:
         return FileSource(
             dct["format"],
             dct["path"],
-            dct["timestamp_column"],
+            dct["event_timestamp_column"],
             dct.get("created_timestamp_column"),
             dct.get("field_map"),
             dct.get("options"),
@@ -158,7 +156,7 @@ def _source_from_dict(dct: Dict) -> Source:
             dct["dataset"],
             dct["table"],
             dct.get("field_map", {}),
-            dct["timestamp_column"],
+            dct["event_timestamp_column"],
             dct.get("created_timestamp_column"),
         )
 
@@ -550,9 +548,9 @@ def _read_and_verify_entity_df_from_source(
 
     mapped_entity_df = _map_column(entity_df, source.field_map)
 
-    if source.timestamp_column not in mapped_entity_df.columns:
+    if source.event_timestamp_column not in mapped_entity_df.columns:
         raise SchemaError(
-            f"{source.timestamp_column} is missing for the entity dataframe."
+            f"{source.event_timestamp_column} is missing for the entity dataframe."
         )
 
     return mapped_entity_df
@@ -572,7 +570,7 @@ def _read_and_verify_feature_table_df_from_source(
     column_selection = (
         feature_table.feature_names
         + feature_table.entity_names
-        + [source.timestamp_column, source.created_timestamp_column]
+        + [source.event_timestamp_column, source.created_timestamp_column]
     )
 
     missing_columns = set(column_selection) - set(mapped_source_df.columns)
@@ -590,7 +588,7 @@ def _read_and_verify_feature_table_df_from_source(
             )
 
     for timestamp_column in [
-        source.timestamp_column,
+        source.event_timestamp_column,
         source.created_timestamp_column,
     ]:
         column_type = feature_table_dtypes.get(timestamp_column)
@@ -602,7 +600,7 @@ def _read_and_verify_feature_table_df_from_source(
     return mapped_source_df.select(
         feature_table.feature_names
         + feature_table.entity_names
-        + [source.timestamp_column, source.created_timestamp_column]
+        + [source.event_timestamp_column, source.created_timestamp_column]
     )
 
 
@@ -673,7 +671,7 @@ def retrieve_historical_features(
     ]
 
     feature_event_timestamp_columns = [
-        source.timestamp_column for source in feature_tables_sources
+        source.event_timestamp_column for source in feature_tables_sources
     ]
     feature_created_timestamp_columns: List[str] = []
     for source in feature_tables_sources:
@@ -699,9 +697,9 @@ def retrieve_historical_features(
         _filter_feature_table_by_time_range(
             feature_table_df,
             feature_table,
-            feature_table_source.timestamp_column,
+            feature_table_source.event_timestamp_column,
             entity_df,
-            entity_source.timestamp_column,
+            entity_source.event_timestamp_column,
         )
         for feature_table_df, feature_table, feature_table_source in zip(
             feature_table_dfs, feature_tables, feature_tables_sources
@@ -710,7 +708,7 @@ def retrieve_historical_features(
 
     return join_entity_to_feature_tables(
         entity_df,
-        entity_source.timestamp_column,
+        entity_source.event_timestamp_column,
         feature_table_dfs,
         feature_tables,
         feature_event_timestamp_columns,

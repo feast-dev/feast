@@ -586,20 +586,20 @@ def test_historical_feature_retrieval(spark: SparkSession):
     entity_source = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'customer_driver_pairs.csv')}",
-        timestamp_column="event_timestamp",
+        event_timestamp_column="event_timestamp",
         options={"inferSchema": "true", "header": "true"},
     )
     booking_source = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'bookings.csv')}",
-        timestamp_column="event_timestamp",
+        event_timestamp_column="event_timestamp",
         created_timestamp_column="created_timestamp",
         options={"inferSchema": "true", "header": "true"},
     )
     transaction_source = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'transactions.csv')}",
-        timestamp_column="event_timestamp",
+        event_timestamp_column="event_timestamp",
         created_timestamp_column="created_timestamp",
         options={"inferSchema": "true", "header": "true"},
     )
@@ -651,14 +651,14 @@ def test_historical_feature_retrieval_with_mapping(spark: SparkSession):
     entity_source = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'column_mapping_test_entity.csv')}",
-        timestamp_column="event_timestamp",
+        event_timestamp_column="event_timestamp",
         field_map={"id": "customer_id"},
         options={"inferSchema": "true", "header": "true"},
     )
     booking_source = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'column_mapping_test_feature.csv')}",
-        timestamp_column="datetime",
+        event_timestamp_column="datetime",
         created_timestamp_column="created_datetime",
         options={"inferSchema": "true", "header": "true"},
     )
@@ -717,14 +717,14 @@ def test_large_historical_feature_retrieval(
     entity_source = FileSource(
         format="csv",
         path=f"file://{large_entity_csv_file}",
-        timestamp_column="event_timestamp",
+        event_timestamp_column="event_timestamp",
         field_map={"id": "customer_id"},
         options={"inferSchema": "true", "header": "true"},
     )
     feature_source = FileSource(
         format="csv",
         path=f"file://{large_feature_csv_file}",
-        timestamp_column="event_timestamp",
+        event_timestamp_column="event_timestamp",
         created_timestamp_column="created_timestamp",
         options={"inferSchema": "true", "header": "true"},
     )
@@ -745,33 +745,33 @@ def test_historical_feature_retrieval_with_schema_errors(spark: SparkSession):
     entity_source = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'customer_driver_pairs.csv')}",
-        timestamp_column="event_timestamp",
+        event_timestamp_column="event_timestamp",
         options={"inferSchema": "true", "header": "true"},
     )
     entity_source_missing_timestamp = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'customer_driver_pairs.csv')}",
-        timestamp_column="datetime",
+        event_timestamp_column="datetime",
         options={"inferSchema": "true", "header": "true"},
     )
     entity_source_missing_entity = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'customers.csv')}",
-        timestamp_column="event_timestamp",
+        event_timestamp_column="event_timestamp",
         options={"inferSchema": "true", "header": "true"},
     )
 
     booking_source = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'bookings.csv')}",
-        timestamp_column="event_timestamp",
+        event_timestamp_column="event_timestamp",
         created_timestamp_column="created_timestamp",
         options={"inferSchema": "true", "header": "true"},
     )
     booking_source_missing_timestamp = FileSource(
         format="csv",
         path=f"file://{path.join(test_data_dir,  'bookings.csv')}",
-        timestamp_column="datetime",
+        event_timestamp_column="datetime",
         created_timestamp_column="created_datetime",
         options={"inferSchema": "true", "header": "true"},
     )
