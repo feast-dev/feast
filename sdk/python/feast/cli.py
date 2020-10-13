@@ -371,5 +371,58 @@ def sync_offline_to_online(feature_table: str, start_time: str, end_time: str):
     feast.pyspark.aws.jobs.sync_offline_to_online(client, table, start_time, end_time)
 
 
+@cli.command()
+@click.option(
+    "--feature-table",
+    "-t",
+    help="Feature table name to ingest data into",
+    required=True,
+)
+@click.option(
+    "--jar", "-j", help="Feature table name to ingest data into", default="",
+)
+def start_stream_to_online(feature_table: str, jar: str):
+    """
+    Start stream to online sync job.
+    """
+    import feast.pyspark.aws.jobs
+
+    client = Client()
+    table = client.get_feature_table(feature_table)
+    feast.pyspark.aws.jobs.start_stream_to_online(client, table, [jar] if jar else [])
+
+
+@cli.command()
+@click.option(
+    "--feature-table",
+    "-t",
+    help="Feature table name to ingest data into",
+    required=True,
+)
+def stop_stream_to_online(feature_table: str):
+    """
+    Start stream to online sync job.
+    """
+    import feast.pyspark.aws.jobs
+
+    feast.pyspark.aws.jobs.stop_stream_to_online(feature_table)
+
+
+@cli.command()
+def list_emr_jobs():
+    """
+    List jobs.
+    """
+    from tabulate import tabulate
+
+    import feast.pyspark.aws.jobs
+
+    jobs = feast.pyspark.aws.jobs.list_jobs(None, None)
+
+    print(
+        tabulate(jobs, headers=feast.pyspark.aws.jobs.JobInfo._fields, tablefmt="plain")
+    )
+
+
 if __name__ == "__main__":
     cli()
