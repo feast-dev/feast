@@ -21,7 +21,7 @@ import pytest
 
 from feast.client import Client
 from feast.core import CoreService_pb2_grpc as Core
-from feast.data_source import FileSource, KafkaSource
+from feast.data_source import FileSource, KafkaSource, ParquetFormat, ProtoFormat
 from feast.feature import Feature
 from feast.feature_table import FeatureTable
 from feast.value_type import ValueType
@@ -59,7 +59,7 @@ class TestFeatureTable:
                 "ride_distance": "ride_distance",
                 "ride_duration": "ride_duration",
             },
-            file_format="parquet",
+            file_format=ParquetFormat(),
             file_url="file://feast/*",
             event_timestamp_column="ts_col",
             created_timestamp_column="timestamp",
@@ -72,7 +72,7 @@ class TestFeatureTable:
                 "ride_duration": "ride_duration",
             },
             bootstrap_servers="localhost:9094",
-            class_path="random/path/to/class",
+            message_format=ProtoFormat(class_path="class.path"),
             topic="test_topic",
             event_timestamp_column="ts_col",
             created_timestamp_column="timestamp",
