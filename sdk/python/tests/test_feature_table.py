@@ -61,7 +61,8 @@ class TestFeatureTable:
             },
             file_format="parquet",
             file_url="file://feast/*",
-            timestamp_column="ts_col",
+            event_timestamp_column="ts_col",
+            created_timestamp_column="timestamp",
             date_partition_column="date_partition_col",
         )
 
@@ -73,7 +74,8 @@ class TestFeatureTable:
             bootstrap_servers="localhost:9094",
             class_path="random/path/to/class",
             topic="test_topic",
-            timestamp_column="ts_col",
+            event_timestamp_column="ts_col",
+            created_timestamp_column="timestamp",
         )
 
         test_feature_table = FeatureTable(

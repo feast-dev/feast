@@ -33,7 +33,7 @@ object BigQueryReader {
     sqlContext.read
       .format("bigquery")
       .load(s"${source.project}.${source.dataset}.${source.table}")
-      .filter(col(source.timestampColumn) >= new Timestamp(start.getMillis))
-      .filter(col(source.timestampColumn) < new Timestamp(end.getMillis))
+      .filter(col(source.eventTimestampColumn) >= new Timestamp(start.getMillis))
+      .filter(col(source.eventTimestampColumn) < new Timestamp(end.getMillis))
   }
 }

@@ -38,12 +38,15 @@ message DataSource {
   // and fields in parent FeatureTable.
   map<string, string> field_mapping = 2;
 
-  // Must specify timestamp column name
-  string timestamp_column = 3;
+  // Must specify event timestamp column name
+  string event_timestamp_column = 3;
 
   // (Optional) Specify partition column
   // useful for file sources
   string date_partition_column = 4;
+
+  // Must specify creation timestamp column name
+  string created_timestamp_column = 5;
 
   // Defines options for DataSource that sources features from a file
   message FileOptions {

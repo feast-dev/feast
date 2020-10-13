@@ -42,7 +42,7 @@ object StreamingPipeline extends BasePipeline with Serializable {
     val featureTable = config.featureTable
     val projection =
       inputProjection(config.source, featureTable.features, featureTable.entities)
-    val validator = new RowValidator(featureTable, config.source.timestampColumn)
+    val validator = new RowValidator(featureTable, config.source.eventTimestampColumn)
 
     val messageParser =
       protoParser(sparkSession, config.source.asInstanceOf[StreamingSource].classpath)
@@ -79,7 +79,7 @@ object StreamingPipeline extends BasePipeline with Serializable {
           .option("entity_columns", featureTable.entities.map(_.name).mkString(","))
           .option("namespace", featureTable.name)
           .option("project_name", featureTable.project)
-          .option("timestamp_column", config.source.timestampColumn)
+          .option("timestamp_column", config.source.eventTimestampColumn)
           .save()
 
         config.deadLetterPath match {
