@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"fmt"
+
 	"github.com/feast-dev/feast/sdk/go/protos/feast/serving"
 	"github.com/opentracing/opentracing-go"
 	"go.opencensus.io/plugin/ocgrpc"
@@ -43,16 +44,25 @@ func NewGrpcClient(host string, port int) (*GrpcClient, error) {
 	})
 }
 
-// NewAuthGrpcClient constructs a secure client that uses security features (ie authentication).
+// NewSecureGrpcClient constructs a secure client that uses security features (ie authentication).
 // host - hostname of the serving host/instance to connect to.
 // port - post of the host to service host/instancf to connect to.
 // securityConfig - security config configures client security.
 func NewSecureGrpcClient(host string, port int, security SecurityConfig) (*GrpcClient, error) {
+	return NewSecureGrpcClientWithDialOptions(host, port, security)
+}
+
+// NewSecureGrpcClientWithDialOptions constructs a secure client that uses security features (ie authentication) along with custom grpc dial options.
+// host - hostname of the serving host/instance to connect to.
+// port - post of the host to service host/instancf to connect to.
+// securityConfig - security config configures client security.
+// opts - grpc.DialOptions which should be used with this connection
+func NewSecureGrpcClientWithDialOptions(host string, port int, security SecurityConfig, opts ...grpc.DialOption) (*GrpcClient, error) {
 	feastCli := &GrpcClient{}
 	adr := fmt.Sprintf("%s:%d", host, port)
 
 	// Compile grpc dial options from security config.
-	options := []grpc.DialOption{grpc.WithStatsHandler(&ocgrpc.ClientHandler{})}
+	options := append(opts, grpc.WithStatsHandler(&ocgrpc.ClientHandler{}))
 	// Configure client TLS.
 	if !security.EnableTLS {
 		options = append(options, grpc.WithInsecure())
