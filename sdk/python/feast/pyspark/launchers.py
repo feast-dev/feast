@@ -161,7 +161,7 @@ class JobLauncher(abc.ABC):
                         "options": {
                             "mergeSchema": "true"
                         } # Optional. Options to be passed to Spark while reading the dataframe from source.
-                        "field_map": {
+                        "field_mapping": {
                             "id": "customer_id"
                         } # Optional. Map the columns, where the key is the original column name and the value is the new column name.
 
