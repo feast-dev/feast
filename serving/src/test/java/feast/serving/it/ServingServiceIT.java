@@ -18,6 +18,7 @@ package feast.serving.it;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.Timestamp;
@@ -118,12 +119,7 @@ public class ServingServiceIT extends BaseAuthIT {
 
     // Apply FeatureTable
     String featureTableName = "rides";
-    List<String> entities =
-        new ArrayList<>() {
-          {
-            add(entityName);
-          }
-        };
+    ImmutableList<String> entities = ImmutableList.of(entityName);
 
     ServingAPIProto.FeatureReferenceV2 feature1Reference =
         DataGenerator.createFeatureReference("rides", "trip_cost");
@@ -213,22 +209,13 @@ public class ServingServiceIT extends BaseAuthIT {
     // Instantiate EntityRows
     GetOnlineFeaturesRequestV2.EntityRow entityRow1 =
         DataGenerator.createEntityRow(entityName, DataGenerator.createInt64Value(1), 100);
-    List<GetOnlineFeaturesRequestV2.EntityRow> entityRows =
-        new ArrayList<>() {
-          {
-            add(entityRow1);
-          }
-        };
+    ImmutableList<GetOnlineFeaturesRequestV2.EntityRow> entityRows = ImmutableList.of(entityRow1);
 
     // Instantiate FeatureReferences
     ServingAPIProto.FeatureReferenceV2 feature1Reference =
         DataGenerator.createFeatureReference("rides", "trip_cost");
-    List<ServingAPIProto.FeatureReferenceV2> featureReferences =
-        new ArrayList<>() {
-          {
-            add(feature1Reference);
-          }
-        };
+    ImmutableList<ServingAPIProto.FeatureReferenceV2> featureReferences =
+        ImmutableList.of(feature1Reference);
 
     // Build GetOnlineFeaturesRequestV2
     GetOnlineFeaturesRequestV2 onlineFeatureRequest =
@@ -255,12 +242,8 @@ public class ServingServiceIT extends BaseAuthIT {
             .putAllFields(expectedValueMap)
             .putAllStatuses(expectedStatusMap)
             .build();
-    List<GetOnlineFeaturesResponse.FieldValues> expectedFieldValuesList =
-        new ArrayList<>() {
-          {
-            add(expectedFieldValues);
-          }
-        };
+    ImmutableList<GetOnlineFeaturesResponse.FieldValues> expectedFieldValuesList =
+        ImmutableList.of(expectedFieldValues);
 
     assertEquals(expectedFieldValuesList, featureResponse.getFieldValuesList());
   }
@@ -275,12 +258,7 @@ public class ServingServiceIT extends BaseAuthIT {
     // Instantiate EntityRows
     GetOnlineFeaturesRequestV2.EntityRow entityRow1 =
         DataGenerator.createEntityRow(entityName, DataGenerator.createInt64Value(1), 100);
-    List<GetOnlineFeaturesRequestV2.EntityRow> entityRows =
-        new ArrayList<>() {
-          {
-            add(entityRow1);
-          }
-        };
+    ImmutableList<GetOnlineFeaturesRequestV2.EntityRow> entityRows = ImmutableList.of(entityRow1);
 
     // Instantiate FeatureReferences
     ServingAPIProto.FeatureReferenceV2 featureReference =
@@ -290,14 +268,8 @@ public class ServingServiceIT extends BaseAuthIT {
     ServingAPIProto.FeatureReferenceV2 emptyFeatureReference =
         DataGenerator.createFeatureReference("rides", "trip_empty");
 
-    List<ServingAPIProto.FeatureReferenceV2> featureReferences =
-        new ArrayList<>() {
-          {
-            add(featureReference);
-            add(notFoundFeatureReference);
-            add(emptyFeatureReference);
-          }
-        };
+    ImmutableList<ServingAPIProto.FeatureReferenceV2> featureReferences =
+        ImmutableList.of(featureReference, notFoundFeatureReference, emptyFeatureReference);
 
     // Build GetOnlineFeaturesRequestV2
     GetOnlineFeaturesRequestV2 onlineFeatureRequest =
@@ -332,12 +304,8 @@ public class ServingServiceIT extends BaseAuthIT {
             .putAllFields(expectedValueMap)
             .putAllStatuses(expectedStatusMap)
             .build();
-    List<GetOnlineFeaturesResponse.FieldValues> expectedFieldValuesList =
-        new ArrayList<>() {
-          {
-            add(expectedFieldValues);
-          }
-        };
+    ImmutableList<GetOnlineFeaturesResponse.FieldValues> expectedFieldValuesList =
+        ImmutableList.of(expectedFieldValues);
 
     assertEquals(expectedFieldValuesList, featureResponse.getFieldValuesList());
   }
@@ -351,23 +319,14 @@ public class ServingServiceIT extends BaseAuthIT {
     // Instantiate EntityRows
     GetOnlineFeaturesRequestV2.EntityRow entityRow1 =
         DataGenerator.createEntityRow(entityName, DataGenerator.createInt64Value(1), 7400);
-    List<GetOnlineFeaturesRequestV2.EntityRow> entityRows =
-        new ArrayList<>() {
-          {
-            add(entityRow1);
-          }
-        };
+    ImmutableList<GetOnlineFeaturesRequestV2.EntityRow> entityRows = ImmutableList.of(entityRow1);
 
     // Instantiate FeatureReferences
     ServingAPIProto.FeatureReferenceV2 featureReference =
         DataGenerator.createFeatureReference("rides", "trip_cost");
 
-    List<ServingAPIProto.FeatureReferenceV2> featureReferences =
-        new ArrayList<>() {
-          {
-            add(featureReference);
-          }
-        };
+    ImmutableList<ServingAPIProto.FeatureReferenceV2> featureReferences =
+        ImmutableList.of(featureReference);
 
     // Build GetOnlineFeaturesRequestV2
     GetOnlineFeaturesRequestV2 onlineFeatureRequest =
@@ -394,12 +353,8 @@ public class ServingServiceIT extends BaseAuthIT {
             .putAllFields(expectedValueMap)
             .putAllStatuses(expectedStatusMap)
             .build();
-    List<GetOnlineFeaturesResponse.FieldValues> expectedFieldValuesList =
-        new ArrayList<>() {
-          {
-            add(expectedFieldValues);
-          }
-        };
+    ImmutableList<GetOnlineFeaturesResponse.FieldValues> expectedFieldValuesList =
+        ImmutableList.of(expectedFieldValues);
 
     assertEquals(expectedFieldValuesList, featureResponse.getFieldValuesList());
   }
