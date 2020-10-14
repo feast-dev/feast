@@ -46,10 +46,10 @@ public class RedisHashDecoder {
         new HashMap<>();
     Map<String, Timestamp> featureTableTimestampMap = new HashMap<>();
 
-    for (int i = 0; i < redisHashValues.size(); i++) {
-      if (redisHashValues.get(i).hasValue()) {
-        byte[] redisValueK = redisHashValues.get(i).getKey();
-        byte[] redisValueV = redisHashValues.get(i).getValue();
+    for (KeyValue<byte[], byte[]> entity : redisHashValues) {
+      if (entity.hasValue()) {
+        byte[] redisValueK = entity.getKey();
+        byte[] redisValueV = entity.getValue();
 
         // Decode data from Redis into Feature object fields
         if (new String(redisValueK).startsWith(timestampPrefix)) {

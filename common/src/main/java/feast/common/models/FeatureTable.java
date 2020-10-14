@@ -17,6 +17,7 @@
 package feast.common.models;
 
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
+import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 
 public class FeatureTable {
 
@@ -29,5 +30,17 @@ public class FeatureTable {
    */
   public static String getFeatureTableStringRef(String project, FeatureTableSpec featureTableSpec) {
     return String.format("%s/%s", project, featureTableSpec.getName());
+  }
+
+  /**
+   * Accepts FeatureReferenceV2 object and returns its reference in String
+   * "project/featuretable_name".
+   *
+   * @param featureReference {@link FeatureReferenceV2}
+   * @return String format of FeatureTableReference
+   */
+  public static String getFeatureTableStringRef(
+      String project, FeatureReferenceV2 featureReference) {
+    return String.format("%s/%s", project, featureReference.getFeatureTable());
   }
 }

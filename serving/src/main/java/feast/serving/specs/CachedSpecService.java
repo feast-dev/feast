@@ -397,7 +397,7 @@ public class CachedSpecService {
 
   public FeatureTableSpec getFeatureTableSpec(
       String project, ServingAPIProto.FeatureReferenceV2 featureReference) {
-    String featureTableRefStr = project + "/" + featureReference.getFeatureTable();
+    String featureTableRefStr = getFeatureTableStringRef(project, featureReference);
     FeatureTableSpec featureTableSpec;
     try {
       featureTableSpec = featureTableCache.get(featureTableRefStr);
