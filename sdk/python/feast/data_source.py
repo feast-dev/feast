@@ -109,6 +109,7 @@ class ProtoFormat(DataFormat):
             proto_format=DataFormatProto.ProtoFormat(class_path=self.class_path)
         )
 
+
 class FileOptions:
     """
     DataSource File options used to source features from a file
@@ -535,7 +536,9 @@ class DataSource:
             data_source_obj = KafkaSource(
                 field_mapping=data_source.field_mapping,
                 bootstrap_servers=data_source.kafka_options.bootstrap_servers,
-                message_format=DataFormat.from_proto(data_source.kafka_options.message_format),
+                message_format=DataFormat.from_proto(
+                    data_source.kafka_options.message_format
+                ),
                 topic=data_source.kafka_options.topic,
                 event_timestamp_column=data_source.event_timestamp_column,
                 created_timestamp_column=data_source.created_timestamp_column,
@@ -548,7 +551,9 @@ class DataSource:
         ):
             data_source_obj = KinesisSource(
                 field_mapping=data_source.field_mapping,
-                record_format=DataFormat.from_proto(data_source.kinesis_options.record_format),
+                record_format=DataFormat.from_proto(
+                    data_source.kinesis_options.record_format
+                ),
                 region=data_source.kinesis_options.region,
                 stream_name=data_source.kinesis_options.stream_name,
                 event_timestamp_column=data_source.event_timestamp_column,
