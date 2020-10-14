@@ -19,7 +19,7 @@ from feast.data_source import (
 )
 from feast.entity import Entity
 from feast.feature import Feature
-from feast.feature_table import FeatureTable)
+from feast.feature_table import FeatureTable
 from feast.value_type import ValueType
 from feast.wait import wait_retry_backoff
 
