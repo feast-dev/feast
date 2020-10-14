@@ -22,21 +22,16 @@ import static org.mockito.Mockito.mock;
 
 import com.google.protobuf.Timestamp;
 import feast.common.auth.credentials.JwtCallCredentials;
-import feast.proto.serving.ServingAPIProto.FeatureReference;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
+import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceImplBase;
 import feast.proto.types.ValueProto.Value;
-import io.grpc.ManagedChannel;
-import io.grpc.Metadata;
-import io.grpc.ServerCall;
+import io.grpc.*;
 import io.grpc.ServerCall.Listener;
-import io.grpc.ServerCallHandler;
-import io.grpc.ServerInterceptor;
-import io.grpc.Status;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -63,8 +58,8 @@ public class FeastClientTest {
           delegatesTo(
               new ServingServiceImplBase() {
                 @Override
-                public void getOnlineFeatures(
-                    GetOnlineFeaturesRequest request,
+                public void getOnlineFeaturesV2(
+                    GetOnlineFeaturesRequestV2 request,
                     StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
                   if (!request.equals(FeastClientTest.getFakeRequest())) {
                     responseObserver.onError(Status.FAILED_PRECONDITION.asRuntimeException());
@@ -132,7 +127,7 @@ public class FeastClientTest {
   private void shouldGetOnlineFeaturesWithClient(FeastClient client) {
     List<Row> rows =
         client.getOnlineFeatures(
-            Arrays.asList("driver:name", "rating", "null_value"),
+            Arrays.asList("driver:name", "driver:rating", "driver:null_value"),
             Arrays.asList(
                 Row.create().set("driver_id", 1).setEntityTimestamp(Instant.ofEpochSecond(100))),
             "driver_project");
@@ -143,8 +138,8 @@ public class FeastClientTest {
           {
             put("driver_id", intValue(1));
             put("driver:name", strValue("david"));
-            put("rating", intValue(3));
-            put("null_value", Value.newBuilder().build());
+            put("driver:rating", intValue(3));
+            put("driver:null_value", Value.newBuilder().build());
           }
         });
     assertEquals(
@@ -153,21 +148,24 @@ public class FeastClientTest {
           {
             put("driver_id", FieldStatus.PRESENT);
             put("driver:name", FieldStatus.PRESENT);
-            put("rating", FieldStatus.PRESENT);
-            put("null_value", FieldStatus.NULL_VALUE);
+            put("driver:rating", FieldStatus.PRESENT);
+            put("driver:null_value", FieldStatus.NULL_VALUE);
           }
         });
   }
 
-  private static GetOnlineFeaturesRequest getFakeRequest() {
+  private static GetOnlineFeaturesRequestV2 getFakeRequest() {
     // setup mock serving service stub
-    return GetOnlineFeaturesRequest.newBuilder()
-        .addFeatures(FeatureReference.newBuilder().setFeatureSet("driver").setName("name").build())
-        .addFeatures(FeatureReference.newBuilder().setName("rating").build())
-        .addFeatures(FeatureReference.newBuilder().setName("null_value").build())
+    return GetOnlineFeaturesRequestV2.newBuilder()
+        .addFeatures(
+            FeatureReferenceV2.newBuilder().setFeatureTable("driver").setName("name").build())
+        .addFeatures(
+            FeatureReferenceV2.newBuilder().setFeatureTable("driver").setName("rating").build())
+        .addFeatures(
+            FeatureReferenceV2.newBuilder().setFeatureTable("driver").setName("null_value").build())
         .addEntityRows(
             EntityRow.newBuilder()
-                .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+                .setTimestamp(Timestamp.newBuilder().setSeconds(100))
                 .putFields("driver_id", intValue(1)))
         .setProject("driver_project")
         .build();
@@ -181,10 +179,10 @@ public class FeastClientTest {
                 .putStatuses("driver_id", FieldStatus.PRESENT)
                 .putFields("driver:name", strValue("david"))
                 .putStatuses("driver:name", FieldStatus.PRESENT)
-                .putFields("rating", intValue(3))
-                .putStatuses("rating", FieldStatus.PRESENT)
-                .putFields("null_value", Value.newBuilder().build())
-                .putStatuses("null_value", FieldStatus.NULL_VALUE)
+                .putFields("driver:rating", intValue(3))
+                .putStatuses("driver:rating", FieldStatus.PRESENT)
+                .putFields("driver:null_value", Value.newBuilder().build())
+                .putStatuses("driver:null_value", FieldStatus.NULL_VALUE)
                 .build())
         .build();
   }
