@@ -145,7 +145,7 @@ class BigQuerySource(Source):
 
 
 def _source_from_dict(dct: Dict) -> Source:
-    if "file" in dct.keys():
+    if "file" in dct:
         return FileSource(
             dct["file"]["format"],
             dct["file"]["path"],

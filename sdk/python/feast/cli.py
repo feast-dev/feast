@@ -424,5 +424,39 @@ def list_emr_jobs():
     )
 
 
+@cli.command()
+@click.option(
+    "--features",
+    "-f",
+    help="Features in feature_table:feature format, comma separated",
+    required=True,
+)
+@click.option(
+    "--entity-df-path",
+    "-e",
+    help="Path to entity df in CSV format. It is assumed to have event_timestamp column and a header.",
+    required=True,
+)
+@click.option("--destination", "-d", help="Destination", default="")
+def get_historical_features(features: str, entity_df_path: str, destination: str):
+    """
+    Get historical features
+    """
+    import pandas
+
+    import feast.pyspark.aws.jobs
+
+    client = Client()
+
+    entity_df = pandas.read_csv(entity_df_path, sep=None, engine="python",)
+
+    entity_df["event_timestamp"] = pandas.to_datetime(entity_df["event_timestamp"])
+
+    result_path = feast.pyspark.aws.jobs.historical_feature_retrieval(
+        client, features.split(","), entity_df
+    )
+    print(result_path)
+
+
 if __name__ == "__main__":
     cli()

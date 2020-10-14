@@ -4,11 +4,16 @@ import logging
 import os
 import random
 import string
+import tempfile
 import time
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple
+from collections import defaultdict
+from io import BytesIO
+from pathlib import Path
+from typing import IO, Any, Dict, List, NamedTuple, Optional, Tuple
 
 import boto3
 import botocore
+import pandas
 import yaml
 
 from feast.client import Client
@@ -22,6 +27,7 @@ log = logging.getLogger("aws")
 # aws:
 #   logS3Prefix: "..a prefix for logs.."
 #   artifactS3Prefix: "..a prefix for jars.."
+#   dataframeS3Prefix: "..a prefix for dataframes.."
 #   existingClusterId: "..."                  # You need to set either existingClusterId
 #   runJobFlowTemplate:                       # or runJobFlowTemplate
 #     Name: "feast-ingestion-test"
@@ -92,6 +98,7 @@ log = logging.getLogger("aws")
 SUPPORTED_EMR_VERSION = "emr-6.0.0"
 STREAM_TO_ONLINE_JOB_TYPE = "STREAM_TO_ONLINE_JOB"
 OFFLINE_TO_ONLINE_JOB_TYPE = "OFFLINE_TO_ONLINE_JOB"
+HISTORICAL_RETRIEVAL_JOB_TYPE = "HISTORICAL_RETRIEVAL_JOB"
 
 
 # EMR Step states considered "active", i.e. not terminated
@@ -135,13 +142,14 @@ def _load_job_service_config(config_path: str):
 
 
 def _random_string(length) -> str:
-    return "".join(random.choice(string.ascii_letters) for _ in range(length))
+    return "".join(random.choice(string.ascii_lowercase) for _ in range(length))
 
 
 def _batch_source_to_json(batch_source):
     return {
         "file": {
             "path": batch_source.file_options.file_url,
+            "format": batch_source.file_options.file_format,
             "field_mapping": dict(batch_source.field_mapping),
             "event_timestamp_column": batch_source.event_timestamp_column,
             "created_timestamp_column": batch_source.created_timestamp_column,
@@ -162,11 +170,17 @@ def _stream_source_to_json(stream_source):
     }
 
 
-def _feature_table_to_json(client: Client, feature_table):
+def _feature_table_to_json(client: Client, feature_table, features=Optional[List[str]]):
+    """
+    Convert feature_table info to a dict format to be serialized as JSON.
+
+    Features is an optional list of features to include. If not specified, we include all
+    features in the result.
+    """
     return {
         "features": [
             {"name": f.name, "type": ValueType(f.dtype).name}
-            for f in feature_table.features
+            for f in (feature_table.features if not features else features)
         ],
         "project": "default",
         "name": feature_table.name,
@@ -184,24 +198,46 @@ def _s3_split_path(path: str) -> Tuple[str, str]:
     return bucket, key
 
 
-def _hash_file(local_path: str) -> str:
-    """ Compute sha256 hash of a file """
+def _hash_fileobj(fileobj: IO[bytes]) -> str:
+    """ Compute sha256 hash of a file. File pointer will be reset to 0 on return. """
+    fileobj.seek(0)
     h = hashlib.sha256()
-    with open(local_path, "rb") as f:
-        for block in iter(lambda: f.read(2 ** 20), b""):
-            h.update(block)
+    for block in iter(lambda: fileobj.read(2 ** 20), b""):
+        h.update(block)
+    fileobj.seek(0)
     return h.hexdigest()
 
 
-def _s3_upload(local_path: str, remote_path: str) -> str:
+def _s3_upload(
+    fileobj: IO[bytes],
+    local_path: str,
+    *,
+    remote_path: Optional[str] = None,
+    remote_path_prefix: Optional[str] = None,
+    remote_path_suffix: Optional[str] = None,
+) -> str:
     """
     Upload a local file to S3. We store the file sha256 sum in S3 metadata and skip the upload
     if the file hasn't changed.
+
+    You can either specify remote_path or remote_path_prefix+remote_path_suffix. In the latter case,
+    the remote path will be computed as $remote_path_prefix/$sha256$remote_path_suffix
     """
+
+    assert (remote_path is not None) or (
+        remote_path_prefix is not None and remote_path_suffix is not None
+    )
+
+    sha256sum = _hash_fileobj(fileobj)
+
+    if remote_path is None:
+        assert remote_path_prefix is not None
+        remote_path = os.path.join(
+            remote_path_prefix, f"{sha256sum}{remote_path_suffix}"
+        )
+
     bucket, key = _s3_split_path(remote_path)
     client = boto3.client("s3")
-
-    sha256sum = _hash_file(local_path)
 
     try:
         head_response = client.head_object(Bucket=bucket, Key=key)
@@ -210,21 +246,15 @@ def _s3_upload(local_path: str, remote_path: str) -> str:
             return remote_path
         else:
             log.info("Uploading {local_path} to {remote_path}")
-            client.upload_file(
-                local_path,
-                bucket,
-                key,
-                ExtraArgs={"Metadata": {"sha256sum": sha256sum}},
+            client.upload_fileobj(
+                fileobj, bucket, key, ExtraArgs={"Metadata": {"sha256sum": sha256sum}},
             )
             return remote_path
     except botocore.exceptions.ClientError as e:
         if e.response["Error"]["Code"] == "404":
             log.info("Uploading {local_path} to {remote_path}")
-            client.upload_file(
-                local_path,
-                bucket,
-                key,
-                ExtraArgs={"Metadata": {"sha256sum": sha256sum}},
+            client.upload_fileobj(
+                fileobj, bucket, key, ExtraArgs={"Metadata": {"sha256sum": sha256sum}},
             )
             return remote_path
         else:
@@ -232,9 +262,12 @@ def _s3_upload(local_path: str, remote_path: str) -> str:
 
 
 def _upload_jar(jar_s3_prefix: str, local_path: str) -> str:
-    return _s3_upload(
-        local_path, os.path.join(jar_s3_prefix, os.path.basename(local_path))
-    )
+    with open(local_path, "rb") as f:
+        return _s3_upload(
+            f,
+            local_path,
+            remote_path=os.path.join(jar_s3_prefix, os.path.basename(local_path)),
+        )
 
 
 def _get_ingestion_jar_s3_path(config) -> str:
@@ -307,7 +340,14 @@ def _sync_offline_to_online_step(
     }
 
 
-def _submit_emr_job(step: Dict[str, Any], config: Dict[str, Any]):
+def _submit_emr_job(
+    step: Dict[str, Any], config: Dict[str, Any]
+) -> Tuple[str, Optional[str]]:
+    """
+    Submit EMR job using a new or existing cluster.
+
+    Returns a tuple of JobId, StepId
+    """
     aws_config = config.get("aws", {})
 
     emr = boto3.client("emr", region_name=aws_config.get("region"))
@@ -317,7 +357,7 @@ def _submit_emr_job(step: Dict[str, Any], config: Dict[str, Any]):
         step_ids = emr.add_job_flow_steps(
             JobFlowId=aws_config["existingClusterId"], Steps=[step],
         )
-        print(step_ids)
+        return (aws_config["existingClusterId"], step_ids["StepIds"][0])
     else:
         jobTemplate = aws_config["runJobFlowTemplate"]
         step["ActionOnFailure"] = "TERMINATE_CLUSTER"
@@ -330,7 +370,7 @@ def _submit_emr_job(step: Dict[str, Any], config: Dict[str, Any]):
             )
 
         job = emr.run_job_flow(**jobTemplate)
-        print(job)
+        return (job["JobFlowId"], None)
 
 
 def sync_offline_to_online(
@@ -516,3 +556,159 @@ def stop_stream_to_online(table_name: str):
     Stop offline-to-online ingestion job for the table.
     """
     _cancel_job(STREAM_TO_ONLINE_JOB_TYPE, table_name)
+
+
+def _upload_dataframe(s3prefix: str, df: pandas.DataFrame) -> str:
+    with tempfile.NamedTemporaryFile() as f:
+        df.to_parquet(f)
+        return _s3_upload(
+            f, f.name, remote_path_prefix=s3prefix, remote_path_suffix=".parquet"
+        )
+
+
+def _historical_retrieval_step(
+    pyspark_script_path: str,
+    entity_source_conf: Dict,
+    feature_tables_sources_conf: List[Dict],
+    feature_tables_conf: List[Dict],
+    destination_conf: Dict,
+) -> Dict[str, Any]:
+
+    return {
+        "Name": "Feast Historical Retrieval",
+        "HadoopJarStep": {
+            "Properties": [
+                {
+                    "Key": "feast.step_metadata.job_type",
+                    "Value": HISTORICAL_RETRIEVAL_JOB_TYPE,
+                },
+            ],
+            "Args": [
+                "spark-submit",
+                pyspark_script_path,
+                "--feature-tables",
+                json.dumps(feature_tables_conf),
+                "--feature-tables-sources",
+                json.dumps(feature_tables_sources_conf),
+                "--entity-source",
+                json.dumps(entity_source_conf),
+                "--destination",
+                json.dumps(destination_conf),
+            ],
+            "Jar": "command-runner.jar",
+        },
+    }
+
+
+def _historical_feature_retrieval(
+    pyspark_script: str,
+    entity_source_conf: Dict,
+    feature_tables_sources_conf: List[Dict],
+    feature_tables_conf: List[Dict],
+    destination_conf: Dict,
+    config,
+):
+    aws_config = config.get("aws", {})
+    pyspark_script_path = _s3_upload(
+        BytesIO(pyspark_script.encode("utf8")),
+        local_path="historical_retrieval.py",
+        remote_path_prefix=aws_config["artifactS3Prefix"],
+        remote_path_suffix=".py",
+    )
+    step = _historical_retrieval_step(
+        pyspark_script_path,
+        entity_source_conf,
+        feature_tables_sources_conf,
+        feature_tables_conf,
+        destination_conf,
+    )
+    _submit_emr_job(step, config)
+
+
+def _parse_feature_refs(
+    client, feature_refs: List[str]
+) -> Tuple[List[FeatureTable], List[Dict[str, Any]]]:
+    """
+    Return feature table objects and feature tables conf containing the subset of the features.
+    """
+
+    table_features = defaultdict(list)
+
+    for ref in feature_refs:
+        parts = ref.split(":", 1)
+        table_name = parts[0]
+
+        if len(parts) == 2:
+            table_features[table_name].append(parts[1])
+        else:
+            table_features[table_name].append("*")
+
+    res_dicts = []
+    res_tables = []
+    for table_name in table_features:
+        table = client.get_feature_table(table_name)
+        res_tables.append(table)
+        feature_filter = set(table_features)
+        features = [
+            f.name
+            for f in table.features
+            if f.name in feature_filter or "*" in feature_filter
+        ]
+
+        res_dicts.append(_feature_table_to_json(client, table, features))
+    return res_tables, res_dicts
+
+
+def historical_feature_retrieval(
+    client: Client,
+    feature_refs: List[str],
+    entity_df: pandas.DataFrame,
+    destination: Optional[str] = None,
+) -> str:
+    """
+    Run the historical retrieval job.
+
+    Args:
+        feature_refs (List[str]): feature names in table:feature format.
+        entity_df: entity dataframe, must contain an event_timestamp column
+        destination: s3 location to write results to. If not provided, we'll generate a random path
+            under dataframeS3Prefix.
+
+    Returns:
+        str: path to the result in parquet format.
+    """
+    config = _load_job_service_config(_get_config_path())
+    aws_config = config.get("aws", {})
+
+    with open(Path(__file__).parent / "../historical_feature_retrieval_job.py") as f:
+        pyspark_script = f.read()
+
+    entity_df_path = _upload_dataframe(aws_config["dataframeS3Prefix"], entity_df)
+
+    entity_source_conf = {
+        "file": {
+            "path": entity_df_path,
+            "event_timestamp_column": "event_timestamp",
+            "format": "parquet",
+        }
+    }
+
+    feature_tables, feature_tables_conf = _parse_feature_refs(client, feature_refs)
+
+    if destination:
+        result_path = destination
+    else:
+        result_path = os.path.join(
+            aws_config["dataframeS3Prefix"], _random_string(8) + ".parquet"
+        )
+    _historical_feature_retrieval(
+        pyspark_script=pyspark_script,
+        entity_source_conf=entity_source_conf,
+        feature_tables_sources_conf=[
+            _batch_source_to_json(ft.batch_source) for ft in feature_tables
+        ],
+        feature_tables_conf=feature_tables_conf,
+        destination_conf={"format": "parquet", "path": result_path},
+        config=config,
+    )
+    return result_path
