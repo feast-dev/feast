@@ -19,7 +19,7 @@ from feast.data_source import (
 )
 from feast.entity import Entity
 from feast.feature import Feature
-from feast.feature_table import FeatureTable
+from feast.feature_table import FeatureTable)
 from feast.value_type import ValueType
 from feast.wait import wait_retry_backoff
 
@@ -150,7 +150,7 @@ def alltypes_entity():
 @pytest.fixture
 def alltypes_featuretable():
     batch_source = FileSource(
-        file_format="parquet",
+        file_format=ParquetFormat(),
         file_url="file://feast/*",
         event_timestamp_column="ts_col",
         created_timestamp_column="timestamp",
