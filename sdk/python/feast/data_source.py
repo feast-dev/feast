@@ -45,6 +45,9 @@ class DataFormat(ABC):
         """
         pass
 
+    def __eq__(self, other):
+        return self.to_proto() == other.to_proto()
+
     @classmethod
     def from_proto(cls, proto):
         """
@@ -94,10 +97,10 @@ class ProtoFormat(DataFormat):
 
     def __init__(self, class_path: str):
         """
-        Construct a new Avro data format.
+        Construct a new Protobuf data format.
 
         Args:
-            schema_json: Avro schema definition in JSON
+            class_path: Class path to the Java Protobuf class that can be used to decode protobuf messages.;
         """
         self.class_path = class_path
 
@@ -105,7 +108,6 @@ class ProtoFormat(DataFormat):
         return DataFormatProto(
             proto_format=DataFormatProto.ProtoFormat(class_path=self.class_path)
         )
-
 
 class FileOptions:
     """
@@ -511,7 +513,7 @@ class DataSource:
         if data_source.file_options.file_format and data_source.file_options.file_url:
             data_source_obj = FileSource(
                 field_mapping=data_source.field_mapping,
-                file_format=data_source.file_options.file_format,
+                file_format=DataFormat.from_proto(data_source.file_options.file_format),
                 file_url=data_source.file_options.file_url,
                 event_timestamp_column=data_source.event_timestamp_column,
                 created_timestamp_column=data_source.created_timestamp_column,
@@ -533,7 +535,7 @@ class DataSource:
             data_source_obj = KafkaSource(
                 field_mapping=data_source.field_mapping,
                 bootstrap_servers=data_source.kafka_options.bootstrap_servers,
-                message_format=data_source.kafka_options.message_format,
+                message_format=DataFormat.from_proto(data_source.kafka_options.message_format),
                 topic=data_source.kafka_options.topic,
                 event_timestamp_column=data_source.event_timestamp_column,
                 created_timestamp_column=data_source.created_timestamp_column,
@@ -546,7 +548,7 @@ class DataSource:
         ):
             data_source_obj = KinesisSource(
                 field_mapping=data_source.field_mapping,
-                record_format=data_source.kinesis_options.record_format,
+                record_format=DataFormat.from_proto(data_source.kinesis_options.record_format),
                 region=data_source.kinesis_options.region,
                 stream_name=data_source.kinesis_options.stream_name,
                 event_timestamp_column=data_source.event_timestamp_column,
@@ -592,7 +594,6 @@ class FileSource(DataSource):
             or self.file_options.file_format != other.file_options.file_format
         ):
             return False
-
         return True
 
     @property
