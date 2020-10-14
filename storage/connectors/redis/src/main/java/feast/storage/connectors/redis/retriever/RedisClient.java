@@ -27,7 +27,7 @@ import java.util.Map;
 
 public class RedisClient implements RedisClientAdapter {
 
-  public final RedisAsyncCommands<byte[], byte[]> asyncCommands;
+  private final RedisAsyncCommands<byte[], byte[]> asyncCommands;
 
   @Override
   public RedisFuture<List<KeyValue<byte[], byte[]>>> hmget(byte[] key, byte[]... fields) {

@@ -32,9 +32,9 @@ import javax.annotation.Nullable;
 
 public class RedisClusterClient implements RedisClientAdapter {
 
-  public final RedisAdvancedClusterAsyncCommands<byte[], byte[]> asyncCommands;
-  public final RedisKeySerializerV2 serializer;
-  @Nullable public final RedisKeySerializerV2 fallbackSerializer;
+  private final RedisAdvancedClusterAsyncCommands<byte[], byte[]> asyncCommands;
+  private final RedisKeySerializerV2 serializer;
+  @Nullable private final RedisKeySerializerV2 fallbackSerializer;
 
   @Override
   public RedisFuture<List<KeyValue<byte[], byte[]>>> hmget(byte[] key, byte[]... fields) {
