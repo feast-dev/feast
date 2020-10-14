@@ -13,7 +13,7 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 	tt := []struct {
 		name    string
 		req     OnlineFeaturesRequest
-		want    *serving.GetOnlineFeaturesRequest
+		want    *serving.GetOnlineFeaturesRequestV2
 		wantErr bool
 		err     error
 	}{
@@ -22,7 +22,6 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 			req: OnlineFeaturesRequest{
 				Features: []string{
 					"driver:driver_id",
-					"driver_id",
 				},
 				Entities: []Row{
 					{"entity1": Int64Val(1), "entity2": StrVal("bob")},
@@ -31,17 +30,14 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 				},
 				Project: "driver_project",
 			},
-			want: &serving.GetOnlineFeaturesRequest{
-				Features: []*serving.FeatureReference{
+			want: &serving.GetOnlineFeaturesRequestV2{
+				Features: []*serving.FeatureReferenceV2{
 					{
-						FeatureSet: "driver",
-						Name:       "driver_id",
-					},
-					{
-						Name: "driver_id",
+						FeatureTable: "driver",
+						Name:         "driver_id",
 					},
 				},
-				EntityRows: []*serving.GetOnlineFeaturesRequest_EntityRow{
+				EntityRows: []*serving.GetOnlineFeaturesRequestV2_EntityRow{
 					{
 						Fields: map[string]*types.Value{
 							"entity1": Int64Val(1),
@@ -61,8 +57,7 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 						},
 					},
 				},
-				OmitEntitiesInResponse: false,
-				Project:                "driver_project",
+				Project: "driver_project",
 			},
 			wantErr: false,
 			err:     nil,
@@ -76,6 +71,16 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 			},
 			wantErr: true,
 			err:     fmt.Errorf(ErrInvalidFeatureRef, "/fs1:feature1"),
+		},
+		{
+			name: "invalid_feature_name",
+			req: OnlineFeaturesRequest{
+				Features: []string{"feature1"},
+				Entities: []Row{},
+				Project:  "my_project",
+			},
+			wantErr: true,
+			err:     fmt.Errorf(ErrInvalidFeatureRef, "feature1"),
 		},
 	}
 	for _, tc := range tt {

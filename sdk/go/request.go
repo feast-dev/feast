@@ -10,13 +10,13 @@ var (
 	// ErrInvalidFeatureRef indicates that the user has provided a feature reference
 	// with the wrong structure or contents
 	ErrInvalidFeatureRef = "Invalid Feature Reference %s provided, " +
-		"feature reference must be in the format [featureset:]name"
+		"feature reference must be in the format featureTableName:featureName"
 )
 
-// OnlineFeaturesRequest wrapper on feast.serving.GetOnlineFeaturesRequest.
+// OnlineFeaturesRequest wrapper on feast.serving.GetOnlineFeaturesRequestV2.
 type OnlineFeaturesRequest struct {
 	// Features is the list of features to obtain from Feast. Each feature can be given as
-	// the format feature_set:feature, where "feature_set" & "feature" are feature set name
+	// the format feature_table:feature, where "feature_table" & "feature" are feature table name
 	// and feature name respectively. The only required components is feature name.
 	Features []string
 
@@ -26,41 +26,37 @@ type OnlineFeaturesRequest struct {
 	// Project optionally specifies the project override. If specified, uses given project for retrieval.
 	// Overrides the projects specified in Feature References if also specified.
 	Project string
-
-	// whether to omit the entities fields in the response.
-	OmitEntities bool
 }
 
 // Builds the feast-specified request payload from the wrapper.
-func (r OnlineFeaturesRequest) buildRequest() (*serving.GetOnlineFeaturesRequest, error) {
+func (r OnlineFeaturesRequest) buildRequest() (*serving.GetOnlineFeaturesRequestV2, error) {
 	featureRefs, err := buildFeatureRefs(r.Features)
 	if err != nil {
 		return nil, err
 	}
 
 	// build request entity rows from native entities
-	entityRows := make([]*serving.GetOnlineFeaturesRequest_EntityRow, len(r.Entities))
+	entityRows := make([]*serving.GetOnlineFeaturesRequestV2_EntityRow, len(r.Entities))
 	for i, entity := range r.Entities {
-		entityRows[i] = &serving.GetOnlineFeaturesRequest_EntityRow{
+		entityRows[i] = &serving.GetOnlineFeaturesRequestV2_EntityRow{
 			Fields: entity,
 		}
 	}
 
-	return &serving.GetOnlineFeaturesRequest{
-		Features:               featureRefs,
-		EntityRows:             entityRows,
-		OmitEntitiesInResponse: r.OmitEntities,
-		Project:                r.Project,
+	return &serving.GetOnlineFeaturesRequestV2{
+		Features:   featureRefs,
+		EntityRows: entityRows,
+		Project:    r.Project,
 	}, nil
 }
 
 // Creates a slice of FeatureReferences from string representation in
-// the format featureset:feature.
+// the format featuretable:feature.
 // featureRefStrs - string feature references to parse.
 // Returns parsed FeatureReferences.
 // Returns an error when the format of the string feature reference is invalid
-func buildFeatureRefs(featureRefStrs []string) ([]*serving.FeatureReference, error) {
-	var featureRefs []*serving.FeatureReference
+func buildFeatureRefs(featureRefStrs []string) ([]*serving.FeatureReferenceV2, error) {
+	var featureRefs []*serving.FeatureReferenceV2
 
 	for _, featureRefStr := range featureRefStrs {
 		featureRef, err := parseFeatureRef(featureRefStr)
@@ -76,35 +72,21 @@ func buildFeatureRefs(featureRefStrs []string) ([]*serving.FeatureReference, err
 // featureRefStr - the string feature reference to parse.
 // Returns parsed FeatureReference.
 // Returns an error when the format of the string feature reference is invalid
-func parseFeatureRef(featureRefStr string) (*serving.FeatureReference, error) {
+func parseFeatureRef(featureRefStr string) (*serving.FeatureReferenceV2, error) {
 	if len(featureRefStr) == 0 {
 		return nil, fmt.Errorf(ErrInvalidFeatureRef, featureRefStr)
 	}
 
-	var featureRef serving.FeatureReference
-	if strings.Contains(featureRefStr, "/") {
+	var featureRef serving.FeatureReferenceV2
+	if strings.Contains(featureRefStr, "/") || !strings.Contains(featureRefStr, ":") {
 		return nil, fmt.Errorf(ErrInvalidFeatureRef, featureRefStr)
 	}
-	// parse featureset if specified
+	// parse featuretable if specified
 	if strings.Contains(featureRefStr, ":") {
 		refSplit := strings.Split(featureRefStr, ":")
-		featureRef.FeatureSet, featureRefStr = refSplit[0], refSplit[1]
+		featureRef.FeatureTable, featureRefStr = refSplit[0], refSplit[1]
 	}
 	featureRef.Name = featureRefStr
 
 	return &featureRef, nil
-}
-
-// Converts a FeatureReference proto into a string
-// featureRef - The FeatureReference to render as string
-// Returns string representation of the given FeatureReference
-func toFeatureRefStr(featureRef *serving.FeatureReference) string {
-	refStr := ""
-	// In protov3, unset string and default to ""
-	if len(featureRef.FeatureSet) > 0 {
-		refStr += featureRef.FeatureSet + ":"
-	}
-	refStr += featureRef.Name
-
-	return refStr
 }

@@ -26,8 +26,7 @@ func TestGetOnlineFeatures(t *testing.T) {
 			req: OnlineFeaturesRequest{
 				Features: []string{
 					"driver:rating",
-					"rating",
-					"null_value",
+					"driver:null_value",
 				},
 				Entities: []Row{
 					{"driver_id": Int64Val(1)},
@@ -39,14 +38,12 @@ func TestGetOnlineFeatures(t *testing.T) {
 					FieldValues: []*serving.GetOnlineFeaturesResponse_FieldValues{
 						{
 							Fields: map[string]*types.Value{
-								"driver:rating": Int64Val(1),
-								"rating":        Int64Val(1),
-								"null_value":    {},
+								"driver:rating":     Int64Val(1),
+								"driver:null_value": {},
 							},
 							Statuses: map[string]serving.GetOnlineFeaturesResponse_FieldStatus{
-								"driver:rating": serving.GetOnlineFeaturesResponse_PRESENT,
-								"rating":        serving.GetOnlineFeaturesResponse_PRESENT,
-								"null_value":    serving.GetOnlineFeaturesResponse_NULL_VALUE,
+								"driver:rating":     serving.GetOnlineFeaturesResponse_PRESENT,
+								"driver:null_value": serving.GetOnlineFeaturesResponse_NULL_VALUE,
 							},
 						},
 					},
@@ -65,7 +62,7 @@ func TestGetOnlineFeatures(t *testing.T) {
 			_, traceCtx := opentracing.StartSpanFromContext(ctx, "get_online_features")
 			rawRequest, _ := tc.req.buildRequest()
 			resp := tc.want.RawResponse
-			cli.EXPECT().GetOnlineFeatures(traceCtx, rawRequest).Return(resp, nil).Times(1)
+			cli.EXPECT().GetOnlineFeaturesV2(traceCtx, rawRequest).Return(resp, nil).Times(1)
 
 			client := &GrpcClient{
 				cli: cli,
