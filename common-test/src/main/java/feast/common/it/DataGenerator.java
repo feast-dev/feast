@@ -271,7 +271,7 @@ public class DataGenerator {
   }
 
   public static DataSource createFileDataSourceSpec(
-      String fileURL, String fileFormat, String timestampColumn, String datePartitionColumn) {
+      String fileURL, String timestampColumn, String datePartitionColumn) {
     return DataSource.newBuilder()
         .setType(DataSource.SourceType.BATCH_FILE)
         .setFileOptions(

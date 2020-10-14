@@ -52,7 +52,7 @@ public class DataSourceTest {
 
   private List<DataSourceProto.DataSource> getTestSpecs() {
     return List.of(
-        DataGenerator.createFileDataSourceSpec("file:///path/to/file", "parquet", "ts_col", ""),
+        DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""),
         DataGenerator.createKafkaDataSourceSpec("localhost:9092", "topic", "class.path", "ts_col"),
         DataGenerator.createBigQueryDataSourceSpec("project:dataset.table", "ts_col", "dt_col"),
         DataGenerator.createKinesisDataSourceSpec("ap-nowhere1", "stream", "class.path", "ts_col"));
