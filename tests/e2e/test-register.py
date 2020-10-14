@@ -10,7 +10,7 @@ from google.protobuf.duration_pb2 import Duration
 from pandas.testing import assert_frame_equal
 
 from feast.client import Client
-from feast.data_source import BigQuerySource, FileSource, KafkaSource
+from feast.data_source import BigQuerySource, FileSource, KafkaSource, ParquetFormat, ProtoFormat
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_table import FeatureTable
@@ -67,7 +67,7 @@ def basic_featuretable():
             "dev_feature_float": "dev_feature_float_field",
             "dev_feature_string": "dev_feature_string_field",
         },
-        file_format="PARQUET",
+        file_format=ParquetFormat(),
         file_url="gs://example/feast/*",
         event_timestamp_column="datetime_col",
         created_timestamp_column="timestamp",
@@ -80,7 +80,7 @@ def basic_featuretable():
             "dev_feature_string": "dev_feature_string_field",
         },
         bootstrap_servers="localhost:9094",
-        class_path="random/path/to/class",
+        message_format=ProtoFormat(class_path="class.path"),
         topic="test_topic",
         event_timestamp_column="datetime_col",
         created_timestamp_column="timestamp",
