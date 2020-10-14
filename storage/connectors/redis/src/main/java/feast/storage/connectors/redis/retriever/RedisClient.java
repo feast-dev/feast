@@ -25,7 +25,7 @@ import io.lettuce.core.codec.ByteArrayCodec;
 import java.util.List;
 import java.util.Map;
 
-public class RedisClient implements RedisClientWrapper {
+public class RedisClient implements RedisClientAdapter {
 
   public final RedisAsyncCommands<byte[], byte[]> asyncCommands;
 
@@ -46,7 +46,7 @@ public class RedisClient implements RedisClientWrapper {
     this.asyncCommands.setAutoFlushCommands(false);
   }
 
-  public static RedisClientWrapper create(Map<String, String> config) {
+  public static RedisClientAdapter create(Map<String, String> config) {
     StatefulRedisConnection<byte[], byte[]> connection =
         io.lettuce.core.RedisClient.create(
                 RedisURI.create(config.get("host"), Integer.parseInt(config.get("port"))))

@@ -34,10 +34,10 @@ import java.util.stream.Collectors;
 public class OnlineRetriever implements OnlineRetrieverV2 {
 
   private static final String timestampPrefix = "_ts";
-  RedisClientWrapper redisClientWrapper;
+  private RedisClientAdapter redisClientAdapter;
 
-  public OnlineRetriever(RedisClientWrapper redisClientWrapper) {
-    this.redisClientWrapper = redisClientWrapper;
+  public OnlineRetriever(RedisClientAdapter redisClientAdapter) {
+    this.redisClientAdapter = redisClientAdapter;
   }
 
   @Override
@@ -86,11 +86,11 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
       byte[][] featureReferenceWithTsByteArrays =
           featureReferenceWithTsByteList.toArray(new byte[0][]);
       // Access redis keys and extract features
-      futures.add(redisClientWrapper.hmget(binaryRedisKey, featureReferenceWithTsByteArrays));
+      futures.add(redisClientAdapter.hmget(binaryRedisKey, featureReferenceWithTsByteArrays));
     }
 
     // Write all commands to the transport layer
-    redisClientWrapper.flushCommands();
+    redisClientAdapter.flushCommands();
 
     futures.forEach(
         future -> {

@@ -45,12 +45,12 @@ public class ServingServiceConfigV2 {
 
     switch (storeType) {
       case REDIS_CLUSTER:
-        RedisClientWrapper redisClusterClient = RedisClusterClient.create(config);
+        RedisClientAdapter redisClusterClient = RedisClusterClient.create(config);
         OnlineRetrieverV2 redisClusterRetriever = new OnlineRetriever(redisClusterClient);
         servingService = new OnlineServingServiceV2(redisClusterRetriever, specService, tracer);
         break;
       case REDIS:
-        RedisClientWrapper redisClient = RedisClient.create(config);
+        RedisClientAdapter redisClient = RedisClient.create(config);
         OnlineRetrieverV2 redisRetriever = new OnlineRetriever(redisClient);
         servingService = new OnlineServingServiceV2(redisRetriever, specService, tracer);
         break;

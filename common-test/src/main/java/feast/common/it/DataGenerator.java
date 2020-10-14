@@ -17,6 +17,7 @@
 package feast.common.it;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
 import feast.proto.core.DataSourceProto.DataSource;
@@ -235,6 +236,31 @@ public class DataGenerator {
                             .build())
                 .collect(Collectors.toList()))
         .setMaxAge(Duration.newBuilder().setSeconds(3600).build())
+        .putAllLabels(labels)
+        .build();
+  }
+
+  public static FeatureTableSpec createFeatureTableSpec(
+      String name,
+      List<String> entities,
+      ImmutableMap<String, ValueProto.ValueType.Enum> features,
+      int maxAgeSecs,
+      Map<String, String> labels) {
+
+    return FeatureTableSpec.newBuilder()
+        .setName(name)
+        .addAllEntities(entities)
+        .addAllFeatures(
+            features.entrySet().stream()
+                .map(
+                    entry ->
+                        FeatureSpecV2.newBuilder()
+                            .setName(entry.getKey())
+                            .setValueType(entry.getValue())
+                            .putAllLabels(labels)
+                            .build())
+                .collect(Collectors.toList()))
+        .setMaxAge(Duration.newBuilder().setSeconds(maxAgeSecs).build())
         .putAllLabels(labels)
         .build();
   }

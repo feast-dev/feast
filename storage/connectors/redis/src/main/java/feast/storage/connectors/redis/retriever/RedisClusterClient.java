@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
-public class RedisClusterClient implements RedisClientWrapper {
+public class RedisClusterClient implements RedisClientAdapter {
 
   public final RedisAdvancedClusterAsyncCommands<byte[], byte[]> asyncCommands;
   public final RedisKeySerializerV2 serializer;
@@ -77,7 +77,7 @@ public class RedisClusterClient implements RedisClientWrapper {
     this.asyncCommands.setAutoFlushCommands(false);
   }
 
-  public static RedisClientWrapper create(Map<String, String> config) {
+  public static RedisClientAdapter create(Map<String, String> config) {
     List<RedisURI> redisURIList =
         Arrays.stream(config.get("connection_string").split(","))
             .map(
