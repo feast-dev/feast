@@ -102,8 +102,7 @@ public class DataSourceValidatorTest {
 
   private Map<SourceType, DataSourceProto.DataSource> getTestSpecsMap() {
     return Map.of(
-        BATCH_FILE,
-            DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""),
+        BATCH_FILE, DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""),
         BATCH_BIGQUERY,
             DataGenerator.createKafkaDataSourceSpec(
                 "localhost:9092", "topic", "class.path", "ts_col"),

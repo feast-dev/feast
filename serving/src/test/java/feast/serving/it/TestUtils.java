@@ -19,16 +19,12 @@ package feast.serving.it;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.Duration;
 import feast.common.auth.credentials.OAuthCredentials;
 import feast.common.it.DataGenerator;
 import feast.proto.core.CoreServiceGrpc;
 import feast.proto.core.CoreServiceGrpc.CoreServiceBlockingStub;
-import feast.proto.core.DataSourceProto.DataSource;
-import feast.proto.core.DataSourceProto.DataFormat.ParquetFormat;
 import feast.proto.core.EntityProto.Entity;
 import feast.proto.core.EntityProto.EntitySpecV2;
-import feast.proto.core.FeatureProto.FeatureSpecV2;
 import feast.proto.core.FeatureTableProto.FeatureTable;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
@@ -39,7 +35,6 @@ import io.grpc.CallCredentials;
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class TestUtils {
 
@@ -85,7 +80,12 @@ public class TestUtils {
       ImmutableMap<String, ValueProto.ValueType.Enum> features,
       int maxAgeSecs) {
     FeatureTableSpec expectedFeatureTableSpec =
-        DataGenerator.createFeatureTableSpec(featureTableName, entities, features, maxAgeSecs, Map.of("feat_key2", "feat_value2"))
+        DataGenerator.createFeatureTableSpec(
+                featureTableName,
+                entities,
+                features,
+                maxAgeSecs,
+                Map.of("feat_key2", "feat_value2"))
             .toBuilder()
             .setBatchSource(
                 DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", "dt_col"))
