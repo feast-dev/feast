@@ -89,6 +89,7 @@ class GCSClient(AbstractStagingClient):
         url = uri.geturl()
         file_obj = TemporaryFile()
         self.gcs_client.download_blob_to_file(url, file_obj)
+        file_obj.seek(0)
         return file_obj
 
     def list_files(self, bucket: str, path: str) -> List[str]:

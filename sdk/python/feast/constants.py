@@ -67,7 +67,10 @@ CONFIG_MAX_WAIT_INTERVAL_KEY = "max_wait_interval"
 # Spark Job Config
 CONFIG_SPARK_LAUNCHER = "spark_launcher"  # standalone, dataproc, emr
 
+CONFIG_SPARK_INGESTION_JOB_JAR = "spark_ingestion_jar"
+
 CONFIG_SPARK_STANDALONE_MASTER = "spark_standalone_master"
+CONFIG_SPARK_HOME = "spark_home"
 
 CONFIG_SPARK_DATAPROC_CLUSTER_NAME = "dataproc_cluster_name"
 CONFIG_SPARK_DATAPROC_PROJECT = "dataproc_project"
@@ -109,4 +112,6 @@ FEAST_DEFAULT_OPTIONS = {
     CONFIG_MAX_WAIT_INTERVAL_KEY: "60",
     # Authentication Provider - Google OpenID/OAuth
     CONFIG_AUTH_PROVIDER: "google",
+    CONFIG_SPARK_LAUNCHER: "dataproc",
+    CONFIG_SPARK_INGESTION_JOB_JAR: "gs://feast-jobs/feast-ingestion-spark-0.8-SNAPSHOT.jar",
 }

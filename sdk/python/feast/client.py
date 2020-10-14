@@ -17,6 +17,7 @@ import shutil
 import uuid
 from itertools import groupby
 from typing import Any, Dict, List, Optional, Union
+from datetime import datetime
 
 import grpc
 import pandas as pd
@@ -78,11 +79,13 @@ from feast.pyspark.abc import RetrievalJob
 from feast.pyspark.launcher import (
     start_historical_feature_retrieval_job,
     start_historical_feature_retrieval_spark_session,
+    start_offline_to_online_ingestion,
 )
 from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoRequest,
     GetOnlineFeaturesRequestV2,
 )
+from feast.pyspark.abc import SparkJob
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 
 _logger = logging.getLogger(__name__)
@@ -883,3 +886,11 @@ class Client:
             ]
             feature_tables.append(feature_table)
         return feature_tables
+
+    def start_offline_to_online_ingestion(
+        self,
+        feature_table: Union[FeatureTable, str],
+        start: Union[datetime, str],
+        end: Union[datetime, str],
+    ) -> SparkJob:
+        return start_offline_to_online_ingestion(feature_table, start, end, self)
