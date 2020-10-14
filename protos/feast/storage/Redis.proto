@@ -17,6 +17,7 @@
 syntax = "proto3";
 
 import "feast/types/Field.proto";
+import "feast/types/Value.proto";
 
 package feast.storage;
 
@@ -35,4 +36,12 @@ message RedisKey {
   // contained within this feature row. The entities should be sorted 
   // by the entity name alphabetically in ascending order.
   repeated feast.types.Field entities = 3;
+}
+
+message RedisKeyV2 {
+  string project = 1;
+
+  repeated string entity_names = 2;
+
+  repeated feast.types.Value entity_values = 3;
 }

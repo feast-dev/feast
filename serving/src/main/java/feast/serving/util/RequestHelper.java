@@ -17,8 +17,10 @@
 package feast.serving.util;
 
 import feast.proto.serving.ServingAPIProto.FeatureReference;
+import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import feast.proto.serving.ServingAPIProto.GetBatchFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import io.grpc.Status;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -31,6 +33,17 @@ public class RequestHelper {
       throw Status.INVALID_ARGUMENT
           .withDescription("Entity value must be provided")
           .asRuntimeException();
+    }
+  }
+
+  public static void validateOnlineRequest(GetOnlineFeaturesRequestV2 request) {
+    // All EntityRows should not be empty
+    if (request.getEntityRowsCount() <= 0) {
+      throw new IllegalArgumentException("Entity value must be provided");
+    }
+    // All FeatureReferences should have FeatureTable name and Feature name
+    for (FeatureReferenceV2 featureReference : request.getFeaturesList()) {
+      validateOnlineRequestFeatureReference(featureReference);
     }
   }
 
@@ -55,6 +68,15 @@ public class RequestHelper {
       throw Status.INVALID_ARGUMENT
           .withDescription("Feature names must be unique within the request")
           .asRuntimeException();
+    }
+  }
+
+  public static void validateOnlineRequestFeatureReference(FeatureReferenceV2 featureReference) {
+    if (featureReference.getFeatureTable().isEmpty()) {
+      throw new IllegalArgumentException("FeatureTable name must be provided in FeatureReference");
+    }
+    if (featureReference.getName().isEmpty()) {
+      throw new IllegalArgumentException("Feature name must be provided in FeatureReference");
     }
   }
 }

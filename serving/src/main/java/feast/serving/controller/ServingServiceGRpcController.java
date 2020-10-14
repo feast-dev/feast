@@ -18,6 +18,7 @@ package feast.serving.controller;
 
 import feast.common.auth.service.AuthorizationService;
 import feast.common.logging.interceptors.GrpcMessageInterceptor;
+import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.serving.ServingAPIProto.GetBatchFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetBatchFeaturesResponse;
@@ -32,6 +33,7 @@ import feast.serving.config.FeastProperties;
 import feast.serving.exception.SpecRetrievalException;
 import feast.serving.interceptors.GrpcMonitoringInterceptor;
 import feast.serving.service.ServingService;
+import feast.serving.service.ServingServiceV2;
 import feast.serving.util.RequestHelper;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -53,6 +55,7 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
   private static final Logger log =
       org.slf4j.LoggerFactory.getLogger(ServingServiceGRpcController.class);
   private final ServingService servingService;
+  private final ServingServiceV2 servingServiceV2;
   private final String version;
   private final Tracer tracer;
   private final AuthorizationService authorizationService;
@@ -61,10 +64,12 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
   public ServingServiceGRpcController(
       AuthorizationService authorizationService,
       ServingService servingService,
+      ServingServiceV2 servingServiceV2,
       FeastProperties feastProperties,
       Tracer tracer) {
     this.authorizationService = authorizationService;
     this.servingService = servingService;
+    this.servingServiceV2 = servingServiceV2;
     this.version = feastProperties.getVersion();
     this.tracer = tracer;
   }
@@ -168,5 +173,39 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
                     SecurityContextHolder.getContext(), project);
               });
     }
+  }
+
+  @Override
+  public void getOnlineFeaturesV2(
+      ServingAPIProto.GetOnlineFeaturesRequestV2 request,
+      StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
+    Span span = tracer.buildSpan("getOnlineFeaturesV2").start();
+    try (Scope scope = tracer.scopeManager().activate(span, false)) {
+      // authorize for the project in request object.
+      if (request.getProject() != null && !request.getProject().isEmpty()) {
+        // project set at root level overrides the project set at feature table level
+        this.authorizationService.authorizeRequest(
+            SecurityContextHolder.getContext(), request.getProject());
+      }
+      RequestHelper.validateOnlineRequest(request);
+      GetOnlineFeaturesResponse onlineFeatures = servingServiceV2.getOnlineFeatures(request);
+      responseObserver.onNext(onlineFeatures);
+      responseObserver.onCompleted();
+    } catch (SpecRetrievalException e) {
+      log.error("Failed to retrieve specs in SpecService", e);
+      responseObserver.onError(
+          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asException());
+    } catch (AccessDeniedException e) {
+      log.info(String.format("User prevented from accessing one of the projects in request"));
+      responseObserver.onError(
+          Status.PERMISSION_DENIED
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
+    } catch (Exception e) {
+      log.warn("Failed to get Online Features", e);
+      responseObserver.onError(e);
+    }
+    span.finish();
   }
 }
