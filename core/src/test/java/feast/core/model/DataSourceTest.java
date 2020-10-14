@@ -16,16 +16,11 @@
  */
 package feast.core.model;
 
-import static feast.proto.core.DataSourceProto.DataSource.SourceType.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsEqual.equalTo;
 
 import feast.common.it.DataGenerator;
 import feast.proto.core.DataSourceProto;
-import feast.proto.core.DataSourceProto.DataFormat;
-import feast.proto.core.DataSourceProto.DataFormat.ProtoFormat;
-import feast.proto.core.DataSourceProto.DataSource.BigQueryOptions;
-import feast.proto.core.DataSourceProto.DataSource.KinesisOptions;
 import java.util.List;
 import java.util.Map;
 import org.junit.Test;
@@ -59,23 +54,7 @@ public class DataSourceTest {
     return List.of(
         DataGenerator.createFileDataSourceSpec("file:///path/to/file", "parquet", "ts_col", ""),
         DataGenerator.createKafkaDataSourceSpec("localhost:9092", "topic", "class.path", "ts_col"),
-        DataSourceProto.DataSource.newBuilder()
-            .setType(BATCH_BIGQUERY)
-            .setBigqueryOptions(
-                BigQueryOptions.newBuilder().setTableRef("project:dataset.table").build())
-            .build(),
-        DataSourceProto.DataSource.newBuilder()
-            .setType(STREAM_KINESIS)
-            .setKinesisOptions(
-                KinesisOptions.newBuilder()
-                    .setRegion("ap-nowhere1")
-                    .setStreamName("stream")
-                    .setRecordFormat(
-                        DataFormat.newBuilder()
-                            .setProtoFormat(
-                                ProtoFormat.newBuilder().setClassPath("class.path").build())
-                            .build())
-                    .build())
-            .build());
+        DataGenerator.createBigQueryDataSourceSpec("project:dataset.table", "ts_col", "dt_col"),
+        DataGenerator.createKinesisDataSourceSpec("ap-nowhere1", "stream", "class.path", "ts_col"));
   }
 }
