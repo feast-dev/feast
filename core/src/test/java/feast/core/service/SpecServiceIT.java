@@ -1213,7 +1213,7 @@ public class SpecServiceIT extends BaseIT {
           DataGenerator.createFeatureTableSpec(
                   "ft",
                   List.of("entity1"),
-                  Map.of("event_timestamp", ValueProto.ValueType.Enum.INT64),
+                  Map.of("feature", ValueProto.ValueType.Enum.INT64),
                   3600,
                   Map.of())
               .toBuilder()
