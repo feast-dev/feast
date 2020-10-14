@@ -333,6 +333,8 @@ public class DataGenerator {
     return ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow.newBuilder()
         .setTimestamp(Timestamp.newBuilder().setSeconds(seconds))
         .putFields(entityName, entityValue)
+        .build();
+  }
 
   public static DataSource createKinesisDataSourceSpec(
       String region, String streamName, String classPath, String timestampColumn) {

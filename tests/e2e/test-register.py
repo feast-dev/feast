@@ -10,7 +10,13 @@ from google.protobuf.duration_pb2 import Duration
 from pandas.testing import assert_frame_equal
 
 from feast.client import Client
-from feast.data_source import BigQuerySource, FileSource, KafkaSource, ParquetFormat, ProtoFormat
+from feast.data_source import (
+    BigQuerySource,
+    FileSource,
+    KafkaSource,
+    ParquetFormat,
+    ProtoFormat,
+)
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_table import FeatureTable
