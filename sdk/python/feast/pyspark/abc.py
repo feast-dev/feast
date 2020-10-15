@@ -86,8 +86,113 @@ class RetrievalJobParameters(SparkJobParameters):
         feature_tables_sources: List[Dict],
         entity_source: Dict,
         destination: Dict,
-        **kwargs,
     ):
+        """
+        Args:
+            entity_source (Dict): Entity data source configuration.
+            feature_tables_sources (List[Dict]): List of feature tables data sources configurations.
+            feature_tables (List[Dict]): List of feature table specification.
+                The order of the feature table must correspond to that of feature_tables_sources.
+            destination (Dict): Retrieval job output destination.
+
+        Examples:
+            >>> # Entity source from file
+            >>> entity_source = {
+                    "file": {
+                        "format": "parquet",
+                        "path": "gs://some-gcs-bucket/customer",
+                        "event_timestamp_column": "event_timestamp",
+                        "options": {
+                            "mergeSchema": "true"
+                        } # Optional. Options to be passed to Spark while reading the dataframe from source.
+                        "field_mapping": {
+                            "id": "customer_id"
+                        } # Optional. Map the columns, where the key is the original column name and the value is the new column name.
+
+                    }
+                }
+
+            >>> # Entity source from BigQuery
+            >>> entity_source = {
+                    "bq": {
+                        "project": "gcp_project_id",
+                        "dataset": "bq_dataset",
+                        "table": "customer",
+                        "event_timestamp_column": "event_timestamp",
+                    }
+                }
+
+            >>> feature_tables_sources = [
+                    {
+                        "bq": {
+                            "project": "gcp_project_id",
+                            "dataset": "bq_dataset",
+                            "table": "customer_transactions",
+                            "event_timestamp_column": "event_timestamp",
+                            "created_timestamp_column": "created_timestamp" # This field is mandatory for feature tables.
+                        }
+                   },
+
+                   {
+                        "file": {
+                            "format": "parquet",
+                            "path": "gs://some-gcs-bucket/customer_profile",
+                            "event_timestamp_column": "event_timestamp",
+                            "created_timestamp_column": "created_timestamp",
+                            "options": {
+                                "mergeSchema": "true"
+                            }
+                        }
+                   },
+                ]
+
+
+            >>> feature_tables = [
+                    {
+                        "name": "customer_transactions",
+                        "entities": [
+                            {
+                                "name": "customer
+                                "type": "int32"
+                            }
+                        ],
+                        "features": [
+                            {
+                                "name": "total_transactions"
+                                "type": "double"
+                            },
+                            {
+                                "name": "total_discounts"
+                                "type": "double"
+                            }
+                        ],
+                        "max_age": 86400 # In seconds.
+                    },
+
+                    {
+                        "name": "customer_profile",
+                        "entities": [
+                            {
+                                "name": "customer
+                                "type": "int32"
+                            }
+                        ],
+                        "features": [
+                            {
+                                "name": "is_vip"
+                                "type": "bool"
+                            }
+                        ],
+
+                    }
+                ]
+
+            >>> destination = {
+                    "format": "parquet",
+                    "path": "gs://some-gcs-bucket/retrieval_output"
+                }
+
+        """
         self._feature_tables = feature_tables
         self._feature_tables_sources = feature_tables_sources
         self._entity_source = entity_source
@@ -113,6 +218,9 @@ class RetrievalJobParameters(SparkJobParameters):
             "--destination",
             json.dumps(self._destination),
         ]
+
+    def get_destination_path(self) -> str:
+        return self._destination["path"]
 
 
 class RetrievalJob(SparkJob):
@@ -150,7 +258,6 @@ class IngestionJobParameters(SparkJobParameters):
         start: datetime,
         end: datetime,
         jar: str,
-        **kwargs,
     ):
         self._feature_table = feature_table
         self._source = source
@@ -198,139 +305,32 @@ class JobLauncher(abc.ABC):
 
     @abc.abstractmethod
     def historical_feature_retrieval(
-        self,
-        entity_source_conf: Dict,
-        feature_tables_sources_conf: List[Dict],
-        feature_tables_conf: List[Dict],
-        destination_conf: Dict,
-        **kwargs,
+        self, retrieval_job_params: RetrievalJobParameters
     ) -> RetrievalJob:
         """
         Submits a historical feature retrieval job to a Spark cluster.
-
-        Args:
-            entity_source_conf (Dict): Entity data source configuration.
-            feature_tables_sources_conf (List[Dict]): List of feature tables data sources configurations.
-            feature_tables_conf (List[Dict]): List of feature table specification.
-                The order of the feature table must correspond to that of feature_tables_sources.
-            destination_conf (Dict): Retrieval job output destination.
 
         Raises:
             SparkJobFailure: The spark job submission failed, encountered error
                 during execution, or timeout.
 
-        Examples:
-            >>> # Entity source from file
-            >>> entity_source_conf = {
-                    "file": {
-                        "format": "parquet",
-                        "path": "gs://some-gcs-bucket/customer",
-                        "event_timestamp_column": "event_timestamp",
-                        "options": {
-                            "mergeSchema": "true"
-                        } # Optional. Options to be passed to Spark while reading the dataframe from source.
-                        "field_mapping": {
-                            "id": "customer_id"
-                        } # Optional. Map the columns, where the key is the original column name and the value is the new column name.
-
-                    }
-                }
-
-            >>> # Entity source from BigQuery
-            >>> entity_source_conf = {
-                    "bq": {
-                        "project": "gcp_project_id",
-                        "dataset": "bq_dataset",
-                        "table": "customer",
-                        "event_timestamp_column": "event_timestamp",
-                    }
-                }
-
-            >>> feature_table_sources_conf = [
-                    {
-                        "bq": {
-                            "project": "gcp_project_id",
-                            "dataset": "bq_dataset",
-                            "table": "customer_transactions",
-                            "event_timestamp_column": "event_timestamp",
-                            "created_timestamp_column": "created_timestamp" # This field is mandatory for feature tables.
-                        }
-                   },
-
-                   {
-                        "file": {
-                            "format": "parquet",
-                            "path": "gs://some-gcs-bucket/customer_profile",
-                            "event_timestamp_column": "event_timestamp",
-                            "created_timestamp_column": "created_timestamp",
-                            "options": {
-                                "mergeSchema": "true"
-                            }
-                        }
-                   },
-                ]
-
-
-            >>> feature_tables_conf = [
-                    {
-                        "name": "customer_transactions",
-                        "entities": [
-                            {
-                                "name": "customer
-                                "type": "int32"
-                            }
-                        ],
-                        "features": [
-                            {
-                                "name": "total_transactions"
-                                "type": "double"
-                            },
-                            {
-                                "name": "total_discounts"
-                                "type": "double"
-                            }
-                        ],
-                        "max_age": 86400 # In seconds.
-                    },
-
-                    {
-                        "name": "customer_profile",
-                        "entities": [
-                            {
-                                "name": "customer
-                                "type": "int32"
-                            }
-                        ],
-                        "features": [
-                            {
-                                "name": "is_vip"
-                                "type": "bool"
-                            }
-                        ],
-
-                    }
-                ]
-
-            >>> destination_conf = {
-                    "format": "parquet",
-                    "path": "gs://some-gcs-bucket/retrieval_output"
-                }
-
         Returns:
-            str: file uri to the result file.
+            RetrievalJob: wrapper around remote job that returns file uri to the result file.
         """
         raise NotImplementedError
 
     @abc.abstractmethod
     def offline_to_online_ingestion(
-        self,
-        jar_path: str,
-        source_conf: Dict,
-        feature_table_conf: Dict,
-        start: datetime,
-        end: datetime,
+        self, ingestion_job_params: IngestionJobParameters
     ) -> IngestionJob:
         """
         Submits a batch ingestion job to a Spark cluster.
+
+        Raises:
+            SparkJobFailure: The spark job submission failed, encountered error
+                during execution, or timeout.
+
+        Returns:
+            IngestionJob: wrapper around remote job that can be used to check when job completed.
         """
         raise NotImplementedError

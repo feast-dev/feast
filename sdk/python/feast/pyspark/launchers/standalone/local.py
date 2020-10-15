@@ -1,8 +1,6 @@
 import os
 import subprocess
 import uuid
-from datetime import datetime
-from typing import Dict, List
 
 from feast.pyspark.abc import (
     IngestionJob,
@@ -118,41 +116,15 @@ class StandaloneClusterLauncher(JobLauncher):
         return subprocess.Popen(submission_cmd)
 
     def historical_feature_retrieval(
-        self,
-        entity_source_conf: Dict,
-        feature_tables_sources_conf: List[Dict],
-        feature_tables_conf: List[Dict],
-        destination_conf: Dict,
-        **kwargs,
+        self, job_params: RetrievalJobParameters
     ) -> RetrievalJob:
         job_id = str(uuid.uuid4())
-
-        job_parameters = RetrievalJobParameters(
-            feature_tables=feature_tables_conf,
-            feature_tables_sources=feature_tables_sources_conf,
-            entity_source=entity_source_conf,
-            destination=destination_conf,
-        )
         return StandaloneClusterRetrievalJob(
-            job_id, self.spark_submit(job_parameters), destination_conf["path"]
+            job_id, self.spark_submit(job_params), job_params.get_destination_path()
         )
 
     def offline_to_online_ingestion(
-        self,
-        jar_path: str,
-        source_conf: Dict,
-        feature_table_conf: Dict,
-        start: datetime,
-        end: datetime,
+        self, job_params: IngestionJobParameters
     ) -> IngestionJob:
         job_id = str(uuid.uuid4())
-
-        job_params = IngestionJobParameters(
-            feature_table=feature_table_conf,
-            source=source_conf,
-            start=start,
-            end=end,
-            jar=jar_path,
-        )
-
         return StandaloneClusterIngestionJob(job_id, self.spark_submit(job_params))
