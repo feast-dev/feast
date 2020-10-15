@@ -1,4 +1,3 @@
-import os
 import pathlib
 from typing import TYPE_CHECKING, List, Union
 
@@ -124,10 +123,10 @@ def start_historical_feature_retrieval_job(
     job_id: str,
 ) -> RetrievalJob:
     launcher = resolve_launcher(client._config)
-    retrieval_job_pyspark_script = os.path.join(
-        pathlib.Path(__file__).parent.absolute(),
-        "pyspark",
-        "historical_feature_retrieval_job.py",
+    retrieval_job_pyspark_script = str(
+        pathlib.Path(__file__).parent.absolute()
+        / "pyspark"
+        / "historical_feature_retrieval_job.py"
     )
     return launcher.historical_feature_retrieval(
         pyspark_script=retrieval_job_pyspark_script,

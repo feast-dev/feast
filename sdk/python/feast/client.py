@@ -74,14 +74,14 @@ from feast.loaders.ingest import (
     _write_partitioned_table_from_source,
 )
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
-from feast.serving.ServingService_pb2 import (
-    GetFeastServingInfoRequest,
-    GetOnlineFeaturesRequestV2,
-)
 from feast.pyspark.abc import RetrievalJob
 from feast.pyspark.launcher import (
     start_historical_feature_retrieval_job,
     start_historical_feature_retrieval_spark_session,
+)
+from feast.serving.ServingService_pb2 import (
+    GetFeastServingInfoRequest,
+    GetOnlineFeaturesRequestV2,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 
@@ -815,7 +815,6 @@ class Client:
 
         response = OnlineResponse(response)
         return response
-
 
     def get_historical_features(
         self,

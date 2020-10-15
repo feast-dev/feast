@@ -12,6 +12,7 @@ import pytest
 from google.protobuf.duration_pb2 import Duration
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import (
+    BooleanType,
     DoubleType,
     IntegerType,
     StructField,
@@ -65,7 +66,7 @@ def spark():
     spark_session.stop()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def server():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     Core.add_CoreServiceServicer_to_server(CoreServicer(), server)
@@ -75,17 +76,17 @@ def server():
     server.stop(0)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def client(server):
     return Client(core_url=f"localhost:{free_port}")
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def driver_entity(client):
     return client.apply_entity(Entity("driver_id", "description", ValueType.INT32))
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def customer_entity(client):
     return client.apply_entity(Entity("customer_id", "description", ValueType.INT32))
 
@@ -100,7 +101,7 @@ def create_temp_parquet_file(
     return temp_dir, f"file://{file_path}"
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def transactions_feature_table(spark, client):
     schema = StructType(
         [
@@ -108,6 +109,7 @@ def transactions_feature_table(spark, client):
             StructField("event_timestamp", TimestampType()),
             StructField("created_timestamp", TimestampType()),
             StructField("total_transactions", DoubleType()),
+            StructField("is_vip", BooleanType()),
         ]
     )
     df_data = [
@@ -116,30 +118,35 @@ def transactions_feature_table(spark, client):
             datetime(year=2020, month=9, day=1),
             datetime(year=2020, month=9, day=1),
             50.0,
+            True,
         ),
         (
             1001,
             datetime(year=2020, month=9, day=1),
             datetime(year=2020, month=9, day=2),
             100.0,
+            True,
         ),
         (
             2001,
             datetime(year=2020, month=9, day=1),
             datetime(year=2020, month=9, day=1),
             400.0,
+            False,
         ),
         (
             1001,
             datetime(year=2020, month=9, day=2),
             datetime(year=2020, month=9, day=1),
             200.0,
+            False,
         ),
         (
             1001,
             datetime(year=2020, month=9, day=4),
             datetime(year=2020, month=9, day=1),
             300.0,
+            False,
         ),
     ]
     temp_dir, file_uri = create_temp_parquet_file(
@@ -148,7 +155,10 @@ def transactions_feature_table(spark, client):
     file_source = FileSource(
         "event_timestamp", "created_timestamp", "parquet", file_uri
     )
-    features = [Feature("total_transactions", ValueType.DOUBLE)]
+    features = [
+        Feature("total_transactions", ValueType.DOUBLE),
+        Feature("is_vip", ValueType.BOOL),
+    ]
     feature_table = FeatureTable(
         "transactions", ["customer_id"], features, batch_source=file_source
     )
@@ -156,7 +166,7 @@ def transactions_feature_table(spark, client):
     shutil.rmtree(temp_dir)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def bookings_feature_table(spark, client):
     schema = StructType(
         [
@@ -201,6 +211,51 @@ def bookings_feature_table(spark, client):
     shutil.rmtree(temp_dir)
 
 
+@pytest.fixture()
+def bookings_feature_table_with_mapping(spark, client):
+    schema = StructType(
+        [
+            StructField("id", IntegerType()),
+            StructField("datetime", TimestampType()),
+            StructField("created_datetime", TimestampType()),
+            StructField("total_completed_bookings", IntegerType()),
+        ]
+    )
+    df_data = [
+        (
+            8001,
+            datetime(year=2020, month=9, day=1),
+            datetime(year=2020, month=9, day=1),
+            100,
+        ),
+        (
+            8001,
+            datetime(year=2020, month=9, day=2),
+            datetime(year=2020, month=9, day=2),
+            150,
+        ),
+        (
+            8002,
+            datetime(year=2020, month=9, day=2),
+            datetime(year=2020, month=9, day=2),
+            200,
+        ),
+    ]
+    temp_dir, file_uri = create_temp_parquet_file(spark, "bookings", schema, df_data)
+
+    file_source = FileSource(
+        "datetime", "created_datetime", "parquet", file_uri, {"id": "driver_id"}
+    )
+    features = [Feature("total_completed_bookings", ValueType.INT32)]
+    max_age = Duration()
+    max_age.FromSeconds(86400)
+    feature_table = FeatureTable(
+        "bookings", ["driver_id"], features, batch_source=file_source, max_age=max_age
+    )
+    yield client.apply_feature_table(feature_table)
+    shutil.rmtree(temp_dir)
+
+
 def test_historical_feature_retrieval_from_local_spark_session(
     spark,
     client,
@@ -227,12 +282,12 @@ def test_historical_feature_retrieval_from_local_spark_session(
     temp_dir, file_uri = create_temp_parquet_file(
         spark, "customer_driver_pair", schema, df_data
     )
-    entity_source = FileSource(
+    customer_driver_pairs_source = FileSource(
         "event_timestamp", "created_timestamp", "parquet", file_uri
     )
     joined_df = client.get_historical_features_df(
         ["transactions:total_transactions", "bookings:total_completed_bookings"],
-        entity_source,
+        customer_driver_pairs_source,
     )
     expected_joined_df_schema = StructType(
         [
@@ -250,6 +305,47 @@ def test_historical_feature_retrieval_from_local_spark_session(
         (1001, 8001, datetime(year=2020, month=9, day=2), 200.0, 150),
         (1001, 8001, datetime(year=2020, month=9, day=3), 200.0, 150),
         (1001, 8001, datetime(year=2020, month=9, day=4), 300.0, None),
+    ]
+    expected_joined_df = spark.createDataFrame(
+        spark.sparkContext.parallelize(expected_joined_df_data),
+        expected_joined_df_schema,
+    )
+    assert_dataframe_equal(joined_df, expected_joined_df)
+    shutil.rmtree(temp_dir)
+
+
+def test_historical_feature_retrieval_with_field_mappings_from_local_spark_session(
+    spark, client, driver_entity, bookings_feature_table_with_mapping,
+):
+    schema = StructType(
+        [
+            StructField("driver_id", IntegerType()),
+            StructField("event_timestamp", TimestampType()),
+        ]
+    )
+    df_data = [
+        (8001, datetime(year=2020, month=9, day=1)),
+        (8001, datetime(year=2020, month=9, day=2)),
+        (8002, datetime(year=2020, month=9, day=1)),
+    ]
+    temp_dir, file_uri = create_temp_parquet_file(spark, "drivers", schema, df_data)
+    entity_source = FileSource(
+        "event_timestamp", "created_timestamp", "parquet", file_uri
+    )
+    joined_df = client.get_historical_features_df(
+        ["bookings:total_completed_bookings"], entity_source,
+    )
+    expected_joined_df_schema = StructType(
+        [
+            StructField("driver_id", IntegerType()),
+            StructField("event_timestamp", TimestampType()),
+            StructField("bookings__total_completed_bookings", IntegerType()),
+        ]
+    )
+    expected_joined_df_data = [
+        (8001, datetime(year=2020, month=9, day=1), 100),
+        (8001, datetime(year=2020, month=9, day=2), 150),
+        (8002, datetime(year=2020, month=9, day=1), None),
     ]
     expected_joined_df = spark.createDataFrame(
         spark.sparkContext.parallelize(expected_joined_df_data),
