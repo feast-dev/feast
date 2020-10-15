@@ -128,3 +128,8 @@ class StandaloneClusterLauncher(JobLauncher):
     ) -> IngestionJob:
         job_id = str(uuid.uuid4())
         return StandaloneClusterIngestionJob(job_id, self.spark_submit(job_params))
+
+    def stage_dataframe(
+        self, df, event_timestamp_column: str, created_timestamp_column: str,
+    ):
+        raise NotImplementedError

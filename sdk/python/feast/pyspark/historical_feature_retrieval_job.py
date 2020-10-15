@@ -773,7 +773,7 @@ if __name__ == "__main__":
     spark = SparkSession.builder.getOrCreate()
     args = _get_args()
     feature_tables_conf = json.loads(args.feature_tables)
-    feature_tables_sources_conf = json.loads(args.feature_tables_source)
+    feature_tables_sources_conf = json.loads(args.feature_tables_sources)
     entity_source_conf = json.loads(args.entity_source)
     destination_conf = json.loads(args.destination)
     start_job(

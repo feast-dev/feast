@@ -153,3 +153,8 @@ class DataprocClusterLauncher(JobLauncher):
         self, job_params: IngestionJobParameters
     ) -> IngestionJob:
         return DataprocIngestionJob(self.dataproc_submit(job_params))
+
+    def stage_dataframe(
+        self, df, event_timestamp_column: str, created_timestamp_column: str,
+    ):
+        raise NotImplementedError

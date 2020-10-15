@@ -76,6 +76,7 @@ from feast.loaders.ingest import (
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
 from feast.pyspark.abc import RetrievalJob, SparkJob
 from feast.pyspark.launcher import (
+    stage_dataframe,
     start_historical_feature_retrieval_job,
     start_historical_feature_retrieval_spark_session,
     start_offline_to_online_ingestion,
@@ -885,9 +886,16 @@ class Client:
         return feature_tables
 
     def start_offline_to_online_ingestion(
-        self,
-        feature_table: Union[FeatureTable, str],
-        start: Union[datetime, str],
-        end: Union[datetime, str],
+        self, feature_table: Union[FeatureTable, str], start: datetime, end: datetime,
     ) -> SparkJob:
         return start_offline_to_online_ingestion(feature_table, start, end, self)  # type: ignore
+
+    def stage_dataframe(
+        self,
+        df: pd.DataFrame,
+        event_timestamp_column: str,
+        created_timestamp_column: str,
+    ) -> FileSource:
+        return stage_dataframe(
+            df, event_timestamp_column, created_timestamp_column, self
+        )
