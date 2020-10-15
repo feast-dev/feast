@@ -5,26 +5,24 @@ from datetime import datetime
 from typing import Dict, List
 
 from feast.pyspark.abc import (
-    RetrievalJob,
-    SparkJobFailure,
-    JobLauncher,
-    SparkJob,
-    SparkJobStatus,
     IngestionJob,
+    IngestionJobParameters,
+    JobLauncher,
+    RetrievalJob,
+    RetrievalJobParameters,
+    SparkJobFailure,
+    SparkJobParameters,
+    SparkJobStatus,
 )
 
 
-class StandaloneClusterSparkJob(SparkJob):
-    def __init__(self, job_id: str, **kwargs):
-        super().__init__(**kwargs)
+class StandaloneClusterJobMixin:
+    def __init__(self, job_id: str, process: subprocess.Popen):
         self._job_id = job_id
-        self._process = None
+        self._process = process
 
     def get_id(self) -> str:
         return self._job_id
-
-    def set_process(self, process: subprocess.Popen):
-        self._process = process
 
     def get_status(self) -> SparkJobStatus:
         code = self._process.poll()
@@ -37,40 +35,20 @@ class StandaloneClusterSparkJob(SparkJob):
         return SparkJobStatus.COMPLETED
 
 
-class StandaloneClusterIngestionJob(IngestionJob, StandaloneClusterSparkJob):
-    def __init__(
-        self,
-        job_id: str,
-        feature_table: Dict,
-        source: Dict,
-        start: datetime,
-        end: datetime,
-        jar: str,
-    ):
-        super().__init__(
-            job_id=job_id,
-            feature_table=feature_table,
-            source=source,
-            start=start,
-            end=end,
-            jar=jar,
-        )
+class StandaloneClusterIngestionJob(StandaloneClusterJobMixin, IngestionJob):
+    """
+    Ingestion job result for a standalone spark cluster
+    """
+
+    pass
 
 
-class StandaloneClusterRetrievalJob(RetrievalJob, StandaloneClusterSparkJob):
+class StandaloneClusterRetrievalJob(StandaloneClusterJobMixin, RetrievalJob):
     """
     Historical feature retrieval job result for a standalone spark cluster
     """
 
-    def __init__(
-        self,
-        job_id: str,
-        output_file_uri: str,
-        feature_tables: List[Dict],
-        feature_tables_sources: List[Dict],
-        entity_source: Dict,
-        destination: Dict,
-    ):
+    def __init__(self, job_id: str, process: subprocess.Popen, output_file_uri: str):
         """
         This is the returned historical feature retrieval job result for StandaloneClusterLauncher.
 
@@ -79,17 +57,8 @@ class StandaloneClusterRetrievalJob(RetrievalJob, StandaloneClusterSparkJob):
             process (subprocess.Popen): Pyspark driver process, spawned by the launcher.
             output_file_uri (str): Uri to the historical feature retrieval job output file.
         """
-        super().__init__(
-            job_id=job_id,
-            feature_tables=feature_tables,
-            feature_tables_sources=feature_tables_sources,
-            entity_source=entity_source,
-            destination=destination,
-        )
+        super().__init__(job_id, process)
         self._output_file_uri = output_file_uri
-
-    def get_id(self) -> str:
-        return self.job_id
 
     def get_output_file_uri(self, timeout_sec: int = None):
         with self._process as p:
@@ -131,24 +100,22 @@ class StandaloneClusterLauncher(JobLauncher):
     def spark_submit_script_path(self):
         return os.path.join(self.spark_home, "bin/spark-submit")
 
-    def spark_submit(self, job: StandaloneClusterSparkJob) -> subprocess.Popen:
+    def spark_submit(self, job_params: SparkJobParameters) -> subprocess.Popen:
         submission_cmd = [
             self.spark_submit_script_path,
             "--master",
             self.master_url,
             "--name",
-            job.get_name(),
+            job_params.get_name(),
         ]
 
-        if job.get_class_name():
-            submission_cmd.extend(["--class", job.get_class_name()])
+        if job_params.get_class_name():
+            submission_cmd.extend(["--class", job_params.get_class_name()])
 
-        submission_cmd.append(job.get_main_file_path())
-        submission_cmd.extend(job.get_arguments())
+        submission_cmd.append(job_params.get_main_file_path())
+        submission_cmd.extend(job_params.get_arguments())
 
-        process = subprocess.Popen(submission_cmd)
-        job.set_process(process)
-        return process
+        return subprocess.Popen(submission_cmd)
 
     def historical_feature_retrieval(
         self,
@@ -158,17 +125,17 @@ class StandaloneClusterLauncher(JobLauncher):
         destination_conf: Dict,
         **kwargs,
     ) -> RetrievalJob:
-        job = StandaloneClusterRetrievalJob(
-            job_id=str(uuid.uuid4()),
-            output_file_uri=destination_conf["path"],
+        job_id = str(uuid.uuid4())
+
+        job_parameters = RetrievalJobParameters(
             feature_tables=feature_tables_conf,
             feature_tables_sources=feature_tables_sources_conf,
             entity_source=entity_source_conf,
             destination=destination_conf,
         )
-
-        self.spark_submit(job)
-        return job
+        return StandaloneClusterRetrievalJob(
+            job_id, self.spark_submit(job_parameters), destination_conf["path"]
+        )
 
     def offline_to_online_ingestion(
         self,
@@ -178,8 +145,9 @@ class StandaloneClusterLauncher(JobLauncher):
         start: datetime,
         end: datetime,
     ) -> IngestionJob:
-        job = StandaloneClusterIngestionJob(
-            job_id=str(uuid.uuid4()),
+        job_id = str(uuid.uuid4())
+
+        job_params = IngestionJobParameters(
             feature_table=feature_table_conf,
             source=source_conf,
             start=start,
@@ -187,5 +155,4 @@ class StandaloneClusterLauncher(JobLauncher):
             jar=jar_path,
         )
 
-        self.spark_submit(job)
-        return job
+        return StandaloneClusterIngestionJob(job_id, self.spark_submit(job_params))

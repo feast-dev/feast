@@ -1,31 +1,28 @@
 import os
 import uuid
 from datetime import datetime
-
-from feast.pyspark.abc import (
-    RetrievalJob,
-    SparkJobFailure,
-    JobLauncher,
-    SparkJobStatus,
-    SparkJob,
-    IngestionJob,
-)
-from google.api_core.operation import Operation
-from google.cloud import dataproc_v1
-from google.cloud import storage
-
 from typing import Dict, List, cast
 from urllib.parse import urlparse
 
-from google.cloud.dataproc_v1 import Job as DataprocJob, JobStatus
+from google.api_core.operation import Operation
+from google.cloud import dataproc_v1, storage
+from google.cloud.dataproc_v1 import Job as DataprocJob
+from google.cloud.dataproc_v1 import JobStatus
+
+from feast.pyspark.abc import (
+    IngestionJob,
+    IngestionJobParameters,
+    JobLauncher,
+    RetrievalJob,
+    RetrievalJobParameters,
+    SparkJobFailure,
+    SparkJobParameters,
+    SparkJobStatus,
+)
 
 
-class DataprocSparkJob(SparkJob):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._operation = None  # type: Operation
-
-    def set_operation(self, operation: Operation):
+class DataprocJobMixin:
+    def __init__(self, operation: Operation):
         """
         :param operation: (google.api.core.operation.Operation): A Future for the spark job result,
                 returned by the dataproc client.
@@ -47,19 +44,19 @@ class DataprocSparkJob(SparkJob):
         return SparkJobStatus.FAILED
 
 
-class DataprocRetrievalJob(RetrievalJob, DataprocSparkJob):
+class DataprocRetrievalJob(DataprocJobMixin, RetrievalJob):
     """
     Historical feature retrieval job result for a Dataproc cluster
     """
 
-    def __init__(self, output_file_uri, **kwargs):
+    def __init__(self, operation: Operation, output_file_uri: str):
         """
         This is the returned historical feature retrieval job result for DataprocClusterLauncher.
 
         Args:
             output_file_uri (str): Uri to the historical feature retrieval job output file.
         """
-        super().__init__(**kwargs)
+        super().__init__(operation)
         self._output_file_uri = output_file_uri
 
     def get_output_file_uri(self, timeout_sec=None):
@@ -70,18 +67,10 @@ class DataprocRetrievalJob(RetrievalJob, DataprocSparkJob):
         return self._output_file_uri
 
 
-class DataprocIngestionJob(IngestionJob, DataprocSparkJob):
-    def __init__(
-        self,
-        feature_table: Dict,
-        source: Dict,
-        start: datetime,
-        end: datetime,
-        jar: str,
-    ):
-        super().__init__(
-            feature_table=feature_table, source=source, start=start, end=end, jar=jar
-        )
+class DataprocIngestionJob(DataprocJobMixin, IngestionJob):
+    """
+    Ingestion job result for a Dataproc cluster
+    """
 
 
 class DataprocClusterLauncher(JobLauncher):
@@ -135,26 +124,24 @@ class DataprocClusterLauncher(JobLauncher):
 
         return f"gs://{self.staging_bucket}/{blob_path}"
 
-    def dataproc_submit(self, job: DataprocSparkJob) -> Operation:
+    def dataproc_submit(self, job_params: SparkJobParameters) -> Operation:
         local_job_id = str(uuid.uuid4())
-        pyspark_gcs = self._stage_files(job.get_main_file_path(), local_job_id)
+        pyspark_gcs = self._stage_files(job_params.get_main_file_path(), local_job_id)
         job_config = {
             "reference": {"job_id": local_job_id},
             "placement": {"cluster_name": self.cluster_name},
             "pyspark_job": {
                 "main_python_file_uri": pyspark_gcs,
-                "args": job.get_arguments(),
+                "args": job_params.get_arguments(),
             },
         }
-        operation = self.job_client.submit_job_as_operation(
+        return self.job_client.submit_job_as_operation(
             request={
                 "project_id": self.project_id,
                 "region": self.region,
                 "job": job_config,
             }
         )
-        job.set_operation(operation)
-        return operation
 
     def historical_feature_retrieval(
         self,
@@ -164,15 +151,16 @@ class DataprocClusterLauncher(JobLauncher):
         destination_conf: Dict,
         **kwargs,
     ) -> RetrievalJob:
-        job = DataprocRetrievalJob(
-            output_file_uri=destination_conf["path"],
+        job_params = RetrievalJobParameters(
             feature_tables=feature_tables_conf,
             feature_tables_sources=feature_tables_sources_conf,
             entity_source=entity_source_conf,
             destination=destination_conf,
         )
-        self.dataproc_submit(job)
-        return job
+
+        return DataprocRetrievalJob(
+            self.dataproc_submit(job_params), destination_conf["path"]
+        )
 
     def offline_to_online_ingestion(
         self,
@@ -182,12 +170,11 @@ class DataprocClusterLauncher(JobLauncher):
         start: datetime,
         end: datetime,
     ) -> IngestionJob:
-        job = DataprocIngestionJob(
+        job_params = IngestionJobParameters(
             feature_table=feature_table_conf,
             source=source_conf,
             start=start,
             end=end,
             jar=jar_path,
         )
-        self.dataproc_submit(job)
-        return job
+        return DataprocIngestionJob(self.dataproc_submit(job_params))

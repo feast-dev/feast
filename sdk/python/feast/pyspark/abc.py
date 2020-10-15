@@ -1,9 +1,9 @@
 import abc
-import os
 import json
+import os
 from datetime import datetime
-from typing import Dict, List, Optional
 from enum import Enum
+from typing import Dict, List, Optional
 
 
 class SparkJobFailure(Exception):
@@ -44,6 +44,8 @@ class SparkJob(abc.ABC):
         """
         raise NotImplementedError
 
+
+class SparkJobParameters(abc.ABC):
     @abc.abstractmethod
     def get_name(self) -> str:
         """
@@ -77,11 +79,7 @@ class SparkJob(abc.ABC):
         raise NotImplementedError
 
 
-class RetrievalJob(SparkJob):
-    """
-    Container for the historical feature retrieval job result
-    """
-
+class RetrievalJobParameters(SparkJobParameters):
     def __init__(
         self,
         feature_tables: List[Dict],
@@ -90,14 +88,14 @@ class RetrievalJob(SparkJob):
         destination: Dict,
         **kwargs,
     ):
-        super().__init__(**kwargs)
         self._feature_tables = feature_tables
         self._feature_tables_sources = feature_tables_sources
         self._entity_source = entity_source
         self._destination = destination
 
     def get_name(self) -> str:
-        return f"HistoryRetrieval-{self.get_id()}"
+        all_feature_tables_names = [ft["name"] for ft in self._feature_tables]
+        return f"HistoryRetrieval-{all_feature_tables_names}"
 
     def get_main_file_path(self) -> str:
         return os.path.join(
@@ -115,6 +113,12 @@ class RetrievalJob(SparkJob):
             "--destination",
             json.dumps(self._destination),
         ]
+
+
+class RetrievalJob(SparkJob):
+    """
+    Container for the historical feature retrieval job result
+    """
 
     @abc.abstractmethod
     def get_output_file_uri(self, timeout_sec=None):
@@ -138,7 +142,7 @@ class RetrievalJob(SparkJob):
         raise NotImplementedError
 
 
-class IngestionJob(SparkJob):
+class IngestionJobParameters(SparkJobParameters):
     def __init__(
         self,
         feature_table: Dict,
@@ -148,7 +152,6 @@ class IngestionJob(SparkJob):
         jar: str,
         **kwargs,
     ):
-        super().__init__(**kwargs)
         self._feature_table = feature_table
         self._source = source
         self._start = start
@@ -156,7 +159,10 @@ class IngestionJob(SparkJob):
         self._jar = jar
 
     def get_name(self) -> str:
-        return f"BatchIngestion-{self.get_id()}"
+        return (
+            f"BatchIngestion-{self._feature_table['name']}-"
+            f"{self._start.strftime('%Y-%m-%d')}-{self._end.strftime('%Y-%m-%d')}"
+        )
 
     def get_main_file_path(self) -> str:
         return self._jar
@@ -177,6 +183,12 @@ class IngestionJob(SparkJob):
             "--end",
             self._end.strftime("%Y-%m-%dT%H:%M:%S"),
         ]
+
+
+class IngestionJob(SparkJob):
+    """
+    Container for the ingestion job result
+    """
 
 
 class JobLauncher(abc.ABC):

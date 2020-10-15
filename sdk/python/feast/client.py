@@ -15,9 +15,9 @@ import logging
 import multiprocessing
 import shutil
 import uuid
+from datetime import datetime
 from itertools import groupby
 from typing import Any, Dict, List, Optional, Union
-from datetime import datetime
 
 import grpc
 import pandas as pd
@@ -75,7 +75,7 @@ from feast.loaders.ingest import (
     _write_partitioned_table_from_source,
 )
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
-from feast.pyspark.abc import RetrievalJob
+from feast.pyspark.abc import RetrievalJob, SparkJob
 from feast.pyspark.launcher import (
     start_historical_feature_retrieval_job,
     start_historical_feature_retrieval_spark_session,
@@ -85,7 +85,6 @@ from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoRequest,
     GetOnlineFeaturesRequestV2,
 )
-from feast.pyspark.abc import SparkJob
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 
 _logger = logging.getLogger(__name__)
@@ -893,4 +892,4 @@ class Client:
         start: Union[datetime, str],
         end: Union[datetime, str],
     ) -> SparkJob:
-        return start_offline_to_online_ingestion(feature_table, start, end, self)
+        return start_offline_to_online_ingestion(feature_table, start, end, self)  # type: ignore

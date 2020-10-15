@@ -1,17 +1,25 @@
-from typing import TYPE_CHECKING, List, Union
-
-from datetime import datetime
-from urllib.parse import urlparse
-import tempfile
 import shutil
+import tempfile
+from datetime import datetime
+from typing import TYPE_CHECKING, List, Union
+from urllib.parse import urlparse
 
 from feast.config import Config
-from feast.constants import *
+from feast.constants import (
+    CONFIG_SPARK_DATAPROC_CLUSTER_NAME,
+    CONFIG_SPARK_DATAPROC_PROJECT,
+    CONFIG_SPARK_DATAPROC_REGION,
+    CONFIG_SPARK_DATAPROC_STAGING_LOCATION,
+    CONFIG_SPARK_HOME,
+    CONFIG_SPARK_INGESTION_JOB_JAR,
+    CONFIG_SPARK_LAUNCHER,
+    CONFIG_SPARK_STANDALONE_MASTER,
+)
 from feast.data_source import BigQuerySource, DataSource, FileSource
 from feast.feature_table import FeatureTable
-from feast.pyspark.abc import JobLauncher, RetrievalJob, IngestionJob
-from feast.value_type import ValueType
+from feast.pyspark.abc import IngestionJob, JobLauncher, RetrievalJob
 from feast.staging.storage_client import get_staging_client
+from feast.value_type import ValueType
 
 if TYPE_CHECKING:
     from feast.client import Client
