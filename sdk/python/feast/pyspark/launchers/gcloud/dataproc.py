@@ -146,7 +146,7 @@ class DataprocClusterLauncher(JobLauncher):
         self, job_params: RetrievalJobParameters
     ) -> RetrievalJob:
         return DataprocRetrievalJob(
-            self.dataproc_submit(job_params), job_params.destination_path
+            self.dataproc_submit(job_params), job_params.get_destination_path()
         )
 
     def offline_to_online_ingestion(

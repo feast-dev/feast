@@ -120,7 +120,7 @@ class StandaloneClusterLauncher(JobLauncher):
     ) -> RetrievalJob:
         job_id = str(uuid.uuid4())
         return StandaloneClusterRetrievalJob(
-            job_id, self.spark_submit(job_params), job_params.destination_path
+            job_id, self.spark_submit(job_params), job_params.get_destination_path()
         )
 
     def offline_to_online_ingestion(

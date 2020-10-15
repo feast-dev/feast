@@ -219,8 +219,7 @@ class RetrievalJobParameters(SparkJobParameters):
             json.dumps(self._destination),
         ]
 
-    @property
-    def destination_path(self) -> str:
+    def get_destination_path(self) -> str:
         return self._destination["path"]
 
 
