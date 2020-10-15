@@ -21,7 +21,7 @@ pytest-timeout
 pytest-ordering==0.6.*
 PyYAML==5.1.*
 fastavro==0.*
-pyarrow
+pyarrow<1.1,>=0.15.1
 Sphinx
 sphinx-rtd-theme
 toml==0.10.*
@@ -29,7 +29,7 @@ tqdm==4.*
 confluent_kafka
 google
 pandavro==1.5.*
-kafka-python==1.*
+kafka-python<2.1,>=1.*
 tabulate==0.8.*
 isort>=5
 mypy
