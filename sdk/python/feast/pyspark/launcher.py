@@ -126,7 +126,6 @@ def start_historical_feature_retrieval_job(
     feature_tables: List[FeatureTable],
     output_format: str,
     output_path: str,
-    job_id: str,
 ) -> RetrievalJob:
     launcher = resolve_launcher(client._config)
     return launcher.historical_feature_retrieval(
@@ -140,7 +139,6 @@ def start_historical_feature_retrieval_job(
             for feature_table in feature_tables
         ],
         destination_conf={"format": output_format, "path": output_path},
-        job_id=job_id,
     )
 
 

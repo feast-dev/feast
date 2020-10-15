@@ -819,10 +819,9 @@ class Client:
             CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION
         )
         output_format = self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT)
-        job_id = f"historical-feature-{str(uuid.uuid4())}"
 
         return start_historical_feature_retrieval_job(
-            self, entity_source, feature_tables, output_format, output_location, job_id
+            self, entity_source, feature_tables, output_format, output_location
         )
 
     def get_historical_features_df(

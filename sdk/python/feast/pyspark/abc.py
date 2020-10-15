@@ -214,7 +214,6 @@ class JobLauncher(abc.ABC):
             feature_tables_conf (List[Dict]): List of feature table specification.
                 The order of the feature table must correspond to that of feature_tables_sources.
             destination_conf (Dict): Retrieval job output destination.
-            job_id (str): A job id that is unique for each job submission.
 
         Raises:
             SparkJobFailure: The spark job submission failed, encountered error
