@@ -147,14 +147,14 @@ def start_historical_feature_retrieval_job(
 def _download_jar(remote_jar: str) -> str:
     remote_jar_parts = urlparse(remote_jar)
 
-    f = tempfile.NamedTemporaryFile(suffix=".jar", delete=False)
-    with f:
+    local_temp_jar = tempfile.NamedTemporaryFile(suffix=".jar", delete=False)
+    with local_temp_jar:
         shutil.copyfileobj(
             get_staging_client(remote_jar_parts.scheme).download_file(remote_jar_parts),
-            f,
+            local_temp_jar,
         )
 
-    return f.name
+    return local_temp_jar.name
 
 
 def start_offline_to_online_ingestion(

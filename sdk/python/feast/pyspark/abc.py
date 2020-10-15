@@ -331,4 +331,7 @@ class JobLauncher(abc.ABC):
         start: datetime,
         end: datetime,
     ) -> IngestionJob:
+        """
+        Submits a batch ingestion job to a Spark cluster.
+        """
         raise NotImplementedError
