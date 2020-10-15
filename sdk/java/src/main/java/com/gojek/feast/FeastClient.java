@@ -109,6 +109,21 @@ public class FeastClient implements AutoCloseable {
   }
 
   /**
+   * Get online features from Feast, without indicating project, will use `default`.
+   *
+   * <p>See {@link #getOnlineFeatures(List, List, String)}
+   *
+   * @param featureRefs list of string feature references to retrieve in the following format
+   *     featureTable:feature, where 'featureTable' and 'feature' refer to the FeatureTable and
+   *     Feature names respectively. Only the Feature name is required.
+   * @param rows list of {@link Row} to select the entities to retrieve the features for.
+   * @return list of {@link Row} containing retrieved data fields.
+   */
+  public List<Row> getOnlineFeatures(List<String> featureRefs, List<Row> rows) {
+    return getOnlineFeatures(featureRefs, rows, "");
+  }
+
+  /**
    * Get online features from Feast.
    *
    * <p>Example of retrieving online features for the driver FeatureTable, with features driver_id
@@ -127,7 +142,7 @@ public class FeastClient implements AutoCloseable {
    *     featureTable:feature, where 'featureTable' and 'feature' refer to the FeatureTable and
    *     Feature names respectively. Only the Feature name is required.
    * @param rows list of {@link Row} to select the entities to retrieve the features for
-   * @param project {@link String} Specifies the project override. If specifed uses the project for
+   * @param project {@link String} Specifies the project override. If specified uses the project for
    *     retrieval. Overrides the projects set in Feature References if also specified.
    * @return list of {@link Row} containing retrieved data fields.
    */
