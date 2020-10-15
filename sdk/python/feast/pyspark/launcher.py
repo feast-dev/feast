@@ -1,5 +1,8 @@
-import pathlib
+import shutil
+import tempfile
+from datetime import datetime
 from typing import TYPE_CHECKING, List, Union
+from urllib.parse import urlparse
 
 from feast.config import Config
 from feast.constants import (
@@ -7,12 +10,15 @@ from feast.constants import (
     CONFIG_SPARK_DATAPROC_PROJECT,
     CONFIG_SPARK_DATAPROC_REGION,
     CONFIG_SPARK_DATAPROC_STAGING_LOCATION,
+    CONFIG_SPARK_HOME,
+    CONFIG_SPARK_INGESTION_JOB_JAR,
     CONFIG_SPARK_LAUNCHER,
     CONFIG_SPARK_STANDALONE_MASTER,
 )
 from feast.data_source import BigQuerySource, DataSource, FileSource
 from feast.feature_table import FeatureTable
-from feast.pyspark.abc import JobLauncher, RetrievalJob
+from feast.pyspark.abc import IngestionJob, JobLauncher, RetrievalJob
+from feast.staging.storage_client import get_staging_client
 from feast.value_type import ValueType
 
 if TYPE_CHECKING:
@@ -23,7 +29,7 @@ def _standalone_launcher(config: Config) -> JobLauncher:
     from feast.pyspark.launchers import standalone
 
     return standalone.StandaloneClusterLauncher(
-        config.get(CONFIG_SPARK_STANDALONE_MASTER)
+        config.get(CONFIG_SPARK_STANDALONE_MASTER), config.get(CONFIG_SPARK_HOME)
     )
 
 
@@ -51,7 +57,7 @@ _SOURCES = {
 }
 
 
-def source_to_argument(source: DataSource):
+def _source_to_argument(source: DataSource):
     common_properties = {
         "field_mapping": dict(source.field_mapping),
         "event_timestamp_column": source.event_timestamp_column,
@@ -72,7 +78,7 @@ def source_to_argument(source: DataSource):
     return {kind: properties}
 
 
-def feature_table_to_argument(client: "Client", feature_table: FeatureTable):
+def _feature_table_to_argument(client: "Client", feature_table: FeatureTable):
     return {
         "features": [
             {"name": f.name, "type": ValueType(f.dtype).name}
@@ -102,13 +108,13 @@ def start_historical_feature_retrieval_spark_session(
     spark_session = SparkSession.builder.getOrCreate()
     return retrieve_historical_features(
         spark=spark_session,
-        entity_source_conf=source_to_argument(entity_source),
+        entity_source_conf=_source_to_argument(entity_source),
         feature_tables_sources_conf=[
-            source_to_argument(feature_table.batch_source)
+            _source_to_argument(feature_table.batch_source)
             for feature_table in feature_tables
         ],
         feature_tables_conf=[
-            feature_table_to_argument(client, feature_table)
+            _feature_table_to_argument(client, feature_table)
             for feature_table in feature_tables
         ],
     )
@@ -120,25 +126,46 @@ def start_historical_feature_retrieval_job(
     feature_tables: List[FeatureTable],
     output_format: str,
     output_path: str,
-    job_id: str,
 ) -> RetrievalJob:
     launcher = resolve_launcher(client._config)
-    retrieval_job_pyspark_script = str(
-        pathlib.Path(__file__).parent.absolute()
-        / "pyspark"
-        / "historical_feature_retrieval_job.py"
-    )
     return launcher.historical_feature_retrieval(
-        pyspark_script=retrieval_job_pyspark_script,
-        entity_source_conf=source_to_argument(entity_source),
+        entity_source_conf=_source_to_argument(entity_source),
         feature_tables_sources_conf=[
-            source_to_argument(feature_table.batch_source)
+            _source_to_argument(feature_table.batch_source)
             for feature_table in feature_tables
         ],
         feature_tables_conf=[
-            feature_table_to_argument(client, feature_table)
+            _feature_table_to_argument(client, feature_table)
             for feature_table in feature_tables
         ],
         destination_conf={"format": output_format, "path": output_path},
-        job_id=job_id,
+    )
+
+
+def _download_jar(remote_jar: str) -> str:
+    remote_jar_parts = urlparse(remote_jar)
+
+    local_temp_jar = tempfile.NamedTemporaryFile(suffix=".jar", delete=False)
+    with local_temp_jar:
+        shutil.copyfileobj(
+            get_staging_client(remote_jar_parts.scheme).download_file(remote_jar_parts),
+            local_temp_jar,
+        )
+
+    return local_temp_jar.name
+
+
+def start_offline_to_online_ingestion(
+    feature_table: FeatureTable, start: datetime, end: datetime, client: "Client"
+) -> IngestionJob:
+
+    launcher = resolve_launcher(client._config)
+    local_jar_path = _download_jar(client._config.get(CONFIG_SPARK_INGESTION_JOB_JAR))
+
+    return launcher.offline_to_online_ingestion(
+        jar_path=local_jar_path,
+        source_conf=_source_to_argument(feature_table.batch_source),
+        feature_table_conf=_feature_table_to_argument(client, feature_table),
+        start=start,
+        end=end,
     )

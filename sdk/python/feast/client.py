@@ -14,7 +14,7 @@
 import logging
 import multiprocessing
 import shutil
-import uuid
+from datetime import datetime
 from itertools import groupby
 from typing import Any, Dict, List, Optional, Union
 
@@ -74,10 +74,11 @@ from feast.loaders.ingest import (
     _write_partitioned_table_from_source,
 )
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
-from feast.pyspark.abc import RetrievalJob
+from feast.pyspark.abc import RetrievalJob, SparkJob
 from feast.pyspark.launcher import (
     start_historical_feature_retrieval_job,
     start_historical_feature_retrieval_spark_session,
+    start_offline_to_online_ingestion,
 )
 from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoRequest,
@@ -817,10 +818,9 @@ class Client:
             CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION
         )
         output_format = self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT)
-        job_id = f"historical-feature-{str(uuid.uuid4())}"
 
         return start_historical_feature_retrieval_job(
-            self, entity_source, feature_tables, output_format, output_location, job_id
+            self, entity_source, feature_tables, output_format, output_location
         )
 
     def get_historical_features_df(
@@ -883,3 +883,11 @@ class Client:
             ]
             feature_tables.append(feature_table)
         return feature_tables
+
+    def start_offline_to_online_ingestion(
+        self,
+        feature_table: Union[FeatureTable, str],
+        start: Union[datetime, str],
+        end: Union[datetime, str],
+    ) -> SparkJob:
+        return start_offline_to_online_ingestion(feature_table, start, end, self)  # type: ignore
