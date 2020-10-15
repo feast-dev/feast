@@ -14,6 +14,8 @@
 import logging
 import multiprocessing
 import shutil
+import uuid
+from itertools import groupby
 from typing import Any, Dict, List, Optional, Union
 
 import grpc
@@ -30,6 +32,8 @@ from feast.constants import (
     CONFIG_SERVING_ENABLE_SSL_KEY,
     CONFIG_SERVING_SERVER_SSL_CERT_KEY,
     CONFIG_SERVING_URL_KEY,
+    CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT,
+    CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION,
     FEAST_DEFAULT_OPTIONS,
 )
 from feast.core.CoreService_pb2 import (
@@ -73,6 +77,11 @@ from feast.online_response import OnlineResponse, _infer_online_entity_rows
 from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoRequest,
     GetOnlineFeaturesRequestV2,
+)
+from feast.pyspark.abc import RetrievalJob
+from feast.pyspark.launcher import (
+    start_historical_feature_retrieval_job,
+    start_historical_feature_retrieval_spark_session,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 
@@ -238,6 +247,48 @@ class Client:
             value: True to enable client-side SSL/TLS
         """
         self._config.set(CONFIG_SERVING_ENABLE_SSL_KEY, value)
+
+    @property
+    def historical_feature_output_location(self) -> str:
+        """
+        Uri for the output location of the historical feature retrieval job. Must be reachable
+        by the spark cluster running the job.
+
+        Returns:
+            Historical feature output location uri
+        """
+        return self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION)
+
+    @historical_feature_output_location.setter
+    def historical_feature_output_location(self, value: str):
+        """
+        Set the historical feature output location.
+
+        Args:
+            value: Historical feature output location uri
+        """
+        self._config.set(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION, value)
+
+    @property
+    def historical_feature_output_format(self) -> str:
+        """
+        Output format of the historical feature retrieval job. Must be a format that is
+        recognizable by the Spark cluster running the job.
+
+        Returns:
+            Output format of the historical feature retrieval job
+        """
+        return self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT)
+
+    @historical_feature_output_format.setter
+    def historical_feature_output_format(self, value: str):
+        """
+        Set the historical feature output file format.
+
+        Args:
+            value: Historical feature output file format
+        """
+        self._config.set(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT, value)
 
     def version(self):
         """
@@ -723,7 +774,6 @@ class Client:
     ) -> OnlineResponse:
         """
         Retrieves the latest online feature data from Feast Serving.
-
         Args:
             feature_refs: List of feature references that will be returned for each entity.
                 Each feature reference should have the following format:
@@ -733,12 +783,10 @@ class Client:
             entity_rows: A list of dictionaries where each key-value is an entity-name, entity-value pair.
             project: Optionally specify the the project override. If specified, uses given project for retrieval.
                 Overrides the projects specified in Feature References if also are specified.
-
         Returns:
             GetOnlineFeaturesResponse containing the feature data in records.
             Each EntityRow provided will yield one record, which contains
             data fields with data value and field status metadata (if included).
-
         Examples:
             >>> from feast import Client
             >>>
@@ -767,3 +815,112 @@ class Client:
 
         response = OnlineResponse(response)
         return response
+
+
+    def get_historical_features(
+        self,
+        feature_refs: List[str],
+        entity_source: Union[FileSource, BigQuerySource],
+        project: str = None,
+    ) -> RetrievalJob:
+        """
+        Launch a historical feature retrieval job.
+
+        Args:
+            feature_refs: List of feature references that will be returned for each entity.
+                Each feature reference should have the following format:
+                "feature_table:feature" where "feature_table" & "feature" refer to
+                the feature and feature table names respectively.
+            entity_source (Union[FileSource, BigQuerySource]): Source for the entity rows.
+                The user needs to make sure that the source is accessible from the Spark cluster
+                that will be used for the retrieval job.
+            project: Specifies the project that contains the feature tables
+                which the requested features belong to.
+
+        Returns:
+                Returns a retrieval job object that can be used to monitor retrieval
+                progress asynchronously, and can be used to materialize the
+                results.
+
+        Examples:
+            >>> from feast import Client
+            >>> from datetime import datetime
+            >>> feast_client = Client(core_url="localhost:6565")
+            >>> feature_refs = ["bookings:bookings_7d", "bookings:booking_14d"]
+            >>> entity_source = FileSource("event_timestamp", "parquet", "gs://some-bucket/customer")
+            >>> feature_retrieval_job = feast_client.get_historical_features(
+            >>>     feature_refs, entity_source, project="my_project")
+            >>> output_file_uri = feature_retrieval_job.get_output_file_uri()
+                "gs://some-bucket/output/
+        """
+        feature_tables = self._get_feature_tables_from_feature_refs(
+            feature_refs, project
+        )
+        output_location = self.historical_feature_output_location
+        output_format = self.historical_feature_output_format
+        job_id = f"historical-feature-{str(uuid.uuid4())}"
+
+        return start_historical_feature_retrieval_job(
+            self, entity_source, feature_tables, output_format, output_location, job_id
+        )
+
+    def get_historical_features_df(
+        self,
+        feature_refs: List[str],
+        entity_source: Union[FileSource, BigQuerySource],
+        project: str = None,
+    ):
+        """
+        Launch a historical feature retrieval job.
+
+        Args:
+            feature_refs: List of feature references that will be returned for each entity.
+                Each feature reference should have the following format:
+                "feature_table:feature" where "feature_table" & "feature" refer to
+                the feature and feature table names respectively.
+            entity_source (Union[FileSource, BigQuerySource]): Source for the entity rows.
+                The user needs to make sure that the source is accessible from the Spark cluster
+                that will be used for the retrieval job.
+            project: Specifies the project that contains the feature tables
+                which the requested features belong to.
+
+        Returns:
+                Returns the historical feature retrieval result in the form of Spark dataframe.
+
+        Examples:
+            >>> from feast import Client
+            >>> from datetime import datetime
+            >>> from pyspark.sql import SparkSession
+            >>> spark = SparkSession.builder.getOrCreate()
+            >>> feast_client = Client(core_url="localhost:6565")
+            >>> feature_refs = ["bookings:bookings_7d", "bookings:booking_14d"]
+            >>> entity_source = FileSource("event_timestamp", "parquet", "gs://some-bucket/customer")
+            >>> df = feast_client.get_historical_features(
+            >>>     feature_refs, entity_source, project="my_project")
+        """
+        feature_tables = self._get_feature_tables_from_feature_refs(
+            feature_refs, project
+        )
+        return start_historical_feature_retrieval_spark_session(
+            self, entity_source, feature_tables
+        )
+
+    def _get_feature_tables_from_feature_refs(
+        self, feature_refs: List[str], project: Optional[str]
+    ):
+        feature_refs_grouped_by_table = [
+            (feature_table_name, list(grouped_feature_refs))
+            for feature_table_name, grouped_feature_refs in groupby(
+                feature_refs, lambda x: x.split(":")[0]
+            )
+        ]
+
+        feature_tables = []
+        for feature_table_name, grouped_feature_refs in feature_refs_grouped_by_table:
+            feature_table = self.get_feature_table(feature_table_name, project)
+            feature_names = [f.split(":")[-1] for f in grouped_feature_refs]
+            feature_table.features = [
+                f for f in feature_table.features if f.name in feature_names
+            ]
+            feature_tables.append(feature_table)
+        return feature_tables

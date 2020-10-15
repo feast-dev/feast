@@ -11,7 +11,11 @@ from feast.core.CoreService_pb2 import (
     ApplyEntityResponse,
     ApplyFeatureTableRequest,
     ApplyFeatureTableResponse,
+    GetEntityRequest,
+    GetEntityResponse,
     GetFeastCoreVersionResponse,
+    GetFeatureTableRequest,
+    GetFeatureTableResponse,
     ListEntitiesRequest,
     ListEntitiesResponse,
     ListFeatureTablesRequest,
@@ -66,6 +70,14 @@ class CoreServicer(Core.CoreServiceServicer):
     def GetFeastCoreVersion(self, request, context):
         return GetFeastCoreVersionResponse(version="0.10.0")
 
+    def GetFeatureTable(self, request: GetFeatureTableRequest, context):
+        filtered_table = [
+            table
+            for table in self._feature_tables.values()
+            if table.spec.name == request.name
+        ]
+        return GetFeatureTableResponse(table=filtered_table[0])
+
     def ListFeatureTables(self, request: ListFeatureTablesRequest, context):
 
         filtered_feature_table_response = list(self._feature_tables.values())
@@ -92,6 +104,14 @@ class CoreServicer(Core.CoreServiceServicer):
         )
 
         return ApplyFeatureTableResponse(table=applied_feature_table,)
+
+    def GetEntity(self, request: GetEntityRequest, context):
+        filtered_entities = [
+            entity
+            for entity in self._entities.values()
+            if entity.spec.name == request.name
+        ]
+        return GetEntityResponse(entity=filtered_entities[0])
 
     def ListEntities(self, request: ListEntitiesRequest, context):
 
