@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import MutableMapping, Optional
+from typing import List, MutableMapping, Optional
 
 from feast.core.Feature_pb2 import FeatureSpecV2 as FeatureSpecProto
 from feast.serving.ServingService_pb2 import FeatureReferenceV2 as FeatureRefProto
@@ -147,3 +147,19 @@ class FeatureRef:
         """
 
         return self.proto
+
+
+def _build_feature_references(feature_ref_strs: List[str]) -> List[FeatureRefProto]:
+    """
+    Builds a list of FeatureReference protos from a list of FeatureReference strings
+
+    Args:
+        feature_ref_strs: List of string feature references
+    Returns:
+        A list of FeatureReference protos parsed from args.
+    """
+
+    feature_refs = [FeatureRef.from_str(ref_str) for ref_str in feature_ref_strs]
+    feature_ref_protos = [ref.to_proto() for ref in feature_refs]
+
+    return feature_ref_protos

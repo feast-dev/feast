@@ -56,7 +56,7 @@ from feast.core.CoreService_pb2 import (
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.data_source import BigQuerySource, FileSource
 from feast.entity import Entity
-from feast.feature import FeatureRef
+from feast.feature import _build_feature_references
 from feast.feature_table import FeatureTable
 from feast.grpc import auth as feast_auth
 from feast.grpc.grpc import create_grpc_channel
@@ -71,7 +71,6 @@ from feast.loaders.ingest import (
 )
 from feast.online_response import OnlineResponse
 from feast.serving.ServingService_pb2 import (
-    FeatureReferenceV2,
     GetFeastServingInfoRequest,
     GetOnlineFeaturesRequestV2,
 )
@@ -770,22 +769,6 @@ class Client:
 
         response = OnlineResponse(response)
         return response
-
-
-def _build_feature_references(feature_ref_strs: List[str]) -> List[FeatureReferenceV2]:
-    """
-    Builds a list of FeatureReference protos from a list of FeatureReference strings
-
-    Args:
-        feature_ref_strs: List of string feature references
-    Returns:
-        A list of FeatureReference protos parsed from args.
-    """
-
-    feature_refs = [FeatureRef.from_str(ref_str) for ref_str in feature_ref_strs]
-    feature_ref_protos = [ref.to_proto() for ref in feature_refs]
-
-    return feature_ref_protos
 
 
 def _infer_online_entity_rows(
