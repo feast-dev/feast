@@ -158,7 +158,7 @@ def _download_jar(remote_jar: str) -> str:
 
 
 def start_offline_to_online_ingestion(
-    feature_table: FeatureTable, start: datetime, end: datetime, client: 'Client'
+    feature_table: FeatureTable, start: datetime, end: datetime, client: "Client"
 ) -> IngestionJob:
 
     launcher = resolve_launcher(client._config)
