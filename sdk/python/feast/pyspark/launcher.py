@@ -17,7 +17,13 @@ from feast.constants import (
 )
 from feast.data_source import BigQuerySource, DataSource, FileSource
 from feast.feature_table import FeatureTable
-from feast.pyspark.abc import IngestionJob, JobLauncher, RetrievalJob
+from feast.pyspark.abc import (
+    IngestionJob,
+    IngestionJobParameters,
+    JobLauncher,
+    RetrievalJob,
+    RetrievalJobParameters,
+)
 from feast.staging.storage_client import get_staging_client
 from feast.value_type import ValueType
 
@@ -129,16 +135,18 @@ def start_historical_feature_retrieval_job(
 ) -> RetrievalJob:
     launcher = resolve_launcher(client._config)
     return launcher.historical_feature_retrieval(
-        entity_source_conf=_source_to_argument(entity_source),
-        feature_tables_sources_conf=[
-            _source_to_argument(feature_table.batch_source)
-            for feature_table in feature_tables
-        ],
-        feature_tables_conf=[
-            _feature_table_to_argument(client, feature_table)
-            for feature_table in feature_tables
-        ],
-        destination_conf={"format": output_format, "path": output_path},
+        RetrievalJobParameters(
+            entity_source=_source_to_argument(entity_source),
+            feature_tables_sources=[
+                _source_to_argument(feature_table.batch_source)
+                for feature_table in feature_tables
+            ],
+            feature_tables=[
+                _feature_table_to_argument(client, feature_table)
+                for feature_table in feature_tables
+            ],
+            destination={"format": output_format, "path": output_path},
+        )
     )
 
 
@@ -163,9 +171,11 @@ def start_offline_to_online_ingestion(
     local_jar_path = _download_jar(client._config.get(CONFIG_SPARK_INGESTION_JOB_JAR))
 
     return launcher.offline_to_online_ingestion(
-        jar_path=local_jar_path,
-        source_conf=_source_to_argument(feature_table.batch_source),
-        feature_table_conf=_feature_table_to_argument(client, feature_table),
-        start=start,
-        end=end,
+        IngestionJobParameters(
+            jar=local_jar_path,
+            source=_source_to_argument(feature_table.batch_source),
+            feature_table=_feature_table_to_argument(client, feature_table),
+            start=start,
+            end=end,
+        )
     )

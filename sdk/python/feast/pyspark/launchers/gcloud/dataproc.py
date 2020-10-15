@@ -1,7 +1,6 @@
 import os
 import uuid
-from datetime import datetime
-from typing import Dict, List, cast
+from typing import cast
 from urllib.parse import urlparse
 
 from google.api_core.operation import Operation
@@ -144,37 +143,13 @@ class DataprocClusterLauncher(JobLauncher):
         )
 
     def historical_feature_retrieval(
-        self,
-        entity_source_conf: Dict,
-        feature_tables_sources_conf: List[Dict],
-        feature_tables_conf: List[Dict],
-        destination_conf: Dict,
-        **kwargs,
+        self, job_params: RetrievalJobParameters
     ) -> RetrievalJob:
-        job_params = RetrievalJobParameters(
-            feature_tables=feature_tables_conf,
-            feature_tables_sources=feature_tables_sources_conf,
-            entity_source=entity_source_conf,
-            destination=destination_conf,
-        )
-
         return DataprocRetrievalJob(
-            self.dataproc_submit(job_params), destination_conf["path"]
+            self.dataproc_submit(job_params), job_params.destination_path
         )
 
     def offline_to_online_ingestion(
-        self,
-        jar_path: str,
-        source_conf: Dict,
-        feature_table_conf: Dict,
-        start: datetime,
-        end: datetime,
+        self, job_params: IngestionJobParameters
     ) -> IngestionJob:
-        job_params = IngestionJobParameters(
-            feature_table=feature_table_conf,
-            source=source_conf,
-            start=start,
-            end=end,
-            jar=jar_path,
-        )
         return DataprocIngestionJob(self.dataproc_submit(job_params))
