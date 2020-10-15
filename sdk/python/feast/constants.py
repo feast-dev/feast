@@ -64,6 +64,20 @@ CONFIG_AUTH_PROVIDER = "auth_provider"
 CONFIG_TIMEOUT_KEY = "timeout"
 CONFIG_MAX_WAIT_INTERVAL_KEY = "max_wait_interval"
 
+# Spark Job Config
+CONFIG_SPARK_LAUNCHER = "spark_launcher"  # standalone, dataproc, emr
+
+CONFIG_SPARK_STANDALONE_MASTER = "spark_standalone_master"
+
+CONFIG_SPARK_DATAPROC_CLUSTER_NAME = "dataproc_cluster_name"
+CONFIG_SPARK_DATAPROC_PROJECT = "dataproc_project"
+CONFIG_SPARK_DATAPROC_REGION = "dataproc_region"
+CONFIG_SPARK_DATAPROC_STAGING_LOCATION = "dataproc_staging_location"
+
+CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT = "historical_feature_output_format"
+CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION = "historical_feature_output_location"
+
+
 # Configuration option default values
 FEAST_DEFAULT_OPTIONS = {
     # Default Feast project to use

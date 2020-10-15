@@ -9,7 +9,7 @@ pytest-lazy-fixture==0.6.3
 pytest-mock
 pytest-timeout
 pytest-ordering==0.6.*
-pyspark==3.*
+pyspark==2.4.2
 pandas~=1.0.0
 mock==2.0.0
 pandavro==1.5.*

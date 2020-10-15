@@ -2,7 +2,7 @@ import abc
 import argparse
 import json
 from datetime import timedelta
-from typing import Dict, List, NamedTuple, Optional
+from typing import Any, Dict, List, NamedTuple, Optional
 
 from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql.functions import col, expr, monotonically_increasing_id, row_number
@@ -104,7 +104,7 @@ class FileSource(Source):
         return self.options
 
 
-class BQSource(Source):
+class BigQuerySource(Source):
     """
     Big query datasource, which depends on spark bigquery connector (https://github.com/GoogleCloudDataproc/spark-bigquery-connector).
 
@@ -147,21 +147,21 @@ class BQSource(Source):
 def _source_from_dict(dct: Dict) -> Source:
     if "file" in dct.keys():
         return FileSource(
-            dct["format"],
-            dct["path"],
-            dct["event_timestamp_column"],
-            dct.get("created_timestamp_column"),
-            dct.get("field_mapping"),
-            dct.get("options"),
+            dct["file"]["format"],
+            dct["file"]["path"],
+            dct["file"]["event_timestamp_column"],
+            dct["file"].get("created_timestamp_column"),
+            dct["file"].get("field_mapping"),
+            dct["file"].get("options"),
         )
     else:
-        return BQSource(
-            dct["project"],
-            dct["dataset"],
-            dct["table"],
-            dct.get("field_mapping", {}),
-            dct["event_timestamp_column"],
-            dct.get("created_timestamp_column"),
+        return BigQuerySource(
+            dct["bq"]["project"],
+            dct["bq"]["dataset"],
+            dct["bq"]["table"],
+            dct["bq"].get("field_mapping", {}),
+            dct["bq"]["event_timestamp_column"],
+            dct["bq"].get("created_timestamp_column"),
         )
 
 
@@ -610,19 +610,19 @@ def _read_and_verify_feature_table_df_from_source(
 
 def retrieve_historical_features(
     spark: SparkSession,
-    entity_source: Source,
-    feature_tables_sources: List[Source],
-    feature_tables: List[FeatureTable],
+    entity_source_conf: Dict,
+    feature_tables_sources_conf: List[Dict],
+    feature_tables_conf: List[Dict],
 ) -> DataFrame:
-    """Retrieve historical features based on given configurations.
+    """Retrieve historical features based on given configurations. The argument can be either
 
     Args:
         spark (SparkSession): Spark session.
-        entity_source (Source): Entity data source, which describe where and how to retrieve the Spark dataframe
+        entity_source_conf (Dict): Entity data source, which describe where and how to retrieve the Spark dataframe
             representing the entities.
-        feature_tables_sources (Source): List of feature tables data sources, which describe where and how to
+        feature_tables_sources_conf (Dict): List of feature tables data sources, which describe where and how to
             retrieve the feature table representing the feature tables.
-        feature_tables (List[FeatureTable]): List of feature table specification. The specification describes which
+        feature_tables_conf (List[Dict]): List of feature table specification. The specification describes which
             features should be present in the final join result, as well as the maximum age. The order of the feature
             table must correspond to that of feature_tables_sources.
 
@@ -634,39 +634,45 @@ def retrieve_historical_features(
         SchemaError: If either the entity or feature table has missing columns or wrong column types.
 
     Example:
-        >>> entity_source = FileSource(
-                format="csv",
-                path="file:///some_dir/customer_driver_pairs.csv"),
-                options={"inferSchema": "true", "header": "true"},
-                field_mapping={"id": "driver_id"}
-            )
+        >>> entity_source_conf = {
+                "format": "csv",
+                "path": "file:///some_dir/customer_driver_pairs.csv"),
+                "options": {"inferSchema": "true", "header": "true"},
+                "field_mapping": {"id": "driver_id"}
+            }
 
-        >>> feature_tables_sources = [
-                FileSource(
-                    format="parquet",
-                    path="gs://some_bucket/bookings.parquet"),
-                    field_mapping={"id": "driver_id"}
-                ),
-                FileSource(
-                    format="avro",
-                    path="s3://some_bucket/transactions.avro"),
-                )
+        >>> feature_tables_sources_conf = [
+                {
+                    "format": "parquet",
+                    "path": "gs://some_bucket/bookings.parquet"),
+                    "field_mapping": {"id": "driver_id"}
+                },
+                {
+                    "format": "avro",
+                    "path": "s3://some_bucket/transactions.avro"),
+                }
             ]
 
-        >>> feature_tables = [
-                FeatureTable(
-                    name="bookings",
-                    entities=[Field("driver_id", "int32")],
-                    features=[Field("completed_bookings", "int32")],
-                ),
-                FeatureTable(
-                    name="transactions",
-                    entities=[Field("customer_id", "int32")],
-                    features=[Field("total_transactions", "double")],
-                    max_age=172800
-                ),
+        >>> feature_tables_conf = [
+                {
+                    "name": "bookings",
+                    "entities": [{"name": "driver_id", "type": "int32"}],
+                    "features": [{"name": "completed_bookings", "type": "int32"}],
+                },
+                {
+                    "name": "transactions",
+                    "entities": [{"name": "customer_id", "type": "int32"}],
+                    "features": [{"name": "total_transactions", "type": "double"}],
+                    "max_age": 172800
+                },
             ]
     """
+    feature_tables = [_feature_table_from_dict(dct) for dct in feature_tables_conf]
+    feature_tables_sources = [
+        _source_from_dict(dct) for dct in feature_tables_sources_conf
+    ]
+    entity_source = _source_from_dict(entity_source_conf)
+
     entity_df = _read_and_verify_entity_df_from_source(spark, entity_source)
 
     feature_table_dfs = [
@@ -722,14 +728,15 @@ def retrieve_historical_features(
 
 def start_job(
     spark: SparkSession,
-    entity_source: Source,
-    feature_tables_sources: List[Source],
-    feature_tables: List[FeatureTable],
-    destination: FileDestination,
+    entity_source_conf: Dict,
+    feature_tables_sources_conf: List[Dict],
+    feature_tables_conf: List[Dict],
+    destination_conf: Dict,
 ):
     result = retrieve_historical_features(
-        spark, entity_source, feature_tables_sources, feature_tables
+        spark, entity_source_conf, feature_tables_sources_conf, feature_tables_conf
     )
+    destination = FileDestination(**destination_conf)
     result.write.format(destination.format).mode("overwrite").save(destination.path)
 
 
@@ -752,14 +759,28 @@ def _get_args():
     return parser.parse_args()
 
 
+def _feature_table_from_dict(dct: Dict[str, Any]) -> FeatureTable:
+    return FeatureTable(
+        name=dct["name"],
+        entities=[Field(**e) for e in dct["entities"]],
+        features=[Field(**f) for f in dct["features"]],
+        max_age=dct.get("max_age"),
+        project=dct.get("project"),
+    )
+
+
 if __name__ == "__main__":
     spark = SparkSession.builder.getOrCreate()
     args = _get_args()
-    feature_tables = [FeatureTable(**dct) for dct in json.loads(args.feature_tables)]
-    feature_tables_sources = [
-        _source_from_dict(dct) for dct in json.loads(args.feature_tables_source)
-    ]
-    entity_source = _source_from_dict(json.loads(args.entity_source))
-    destination = FileDestination(**json.loads(args.destination))
-    start_job(spark, entity_source, feature_tables_sources, feature_tables, destination)
+    feature_tables_conf = json.loads(args.feature_tables)
+    feature_tables_sources_conf = json.loads(args.feature_tables_source)
+    entity_source_conf = json.loads(args.entity_source)
+    destination_conf = json.loads(args.destination)
+    start_job(
+        spark,
+        entity_source_conf,
+        feature_tables_sources_conf,
+        feature_tables_conf,
+        destination_conf,
+    )
     spark.stop()
