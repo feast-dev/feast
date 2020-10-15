@@ -95,7 +95,7 @@ class RetrievalJobParameters(SparkJobParameters):
 
     def get_name(self) -> str:
         all_feature_tables_names = [ft["name"] for ft in self._feature_tables]
-        return f"HistoryRetrieval-{all_feature_tables_names}"
+        return f"HistoryRetrieval-{'-'.join(all_feature_tables_names)}"
 
     def get_main_file_path(self) -> str:
         return os.path.join(
