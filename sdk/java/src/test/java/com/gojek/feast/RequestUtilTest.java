@@ -21,8 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.TextFormat;
-import feast.common.models.Feature;
-import feast.proto.serving.ServingAPIProto.FeatureReference;
+import feast.common.models.FeatureV2;
+import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -38,20 +38,22 @@ class RequestUtilTest {
   private static Stream<Arguments> provideValidFeatureRefs() {
     return Stream.of(
         Arguments.of(
-            Arrays.asList("driver:driver_id", "driver_id"),
+            Arrays.asList("driver:driver_id"),
             Arrays.asList(
-                FeatureReference.newBuilder().setFeatureSet("driver").setName("driver_id").build(),
-                FeatureReference.newBuilder().setName("driver_id").build())));
+                FeatureReferenceV2.newBuilder()
+                    .setFeatureTable("driver")
+                    .setName("driver_id")
+                    .build())));
   }
 
   @ParameterizedTest
   @MethodSource("provideValidFeatureRefs")
-  void createFeatureSets_ShouldReturnFeatureSetsForValidFeatureRefs(
-      List<String> input, List<FeatureReference> expected) {
-    List<FeatureReference> actual = RequestUtil.createFeatureRefs(input);
-    // Order of the actual and expected featureSets do no not matter
-    actual.sort(Comparator.comparing(FeatureReference::getName));
-    expected.sort(Comparator.comparing(FeatureReference::getName));
+  void createFeatureRefs_ShouldReturnFeaturesForValidFeatureRefs(
+      List<String> input, List<FeatureReferenceV2> expected) {
+    List<FeatureReferenceV2> actual = RequestUtil.createFeatureRefs(input);
+    // Order of the actual and expected FeatureTables do no not matter
+    actual.sort(Comparator.comparing(FeatureReferenceV2::getName));
+    expected.sort(Comparator.comparing(FeatureReferenceV2::getName));
     assertEquals(expected.size(), actual.size());
     for (int i = 0; i < expected.size(); i++) {
       String expectedString = TextFormat.printer().printToString(expected.get(i));
@@ -63,13 +65,10 @@ class RequestUtilTest {
   @ParameterizedTest
   @MethodSource("provideValidFeatureRefs")
   void renderFeatureRef_ShouldReturnFeatureRefString(
-      List<String> expected, List<FeatureReference> input) {
-    input =
-        input.stream()
-            .map(ref -> ref.toBuilder().clearProject().build())
-            .collect(Collectors.toList());
+      List<String> expected, List<FeatureReferenceV2> input) {
+    input = input.stream().map(ref -> ref.toBuilder().build()).collect(Collectors.toList());
     List<String> actual =
-        input.stream().map(ref -> Feature.getFeatureStringRef(ref)).collect(Collectors.toList());
+        input.stream().map(ref -> FeatureV2.getFeatureStringRef(ref)).collect(Collectors.toList());
     assertEquals(expected.size(), actual.size());
     for (int i = 0; i < expected.size(); i++) {
       assertEquals(expected.get(i), actual.get(i));
@@ -77,18 +76,29 @@ class RequestUtilTest {
   }
 
   private static Stream<Arguments> provideInvalidFeatureRefs() {
-    return Stream.of(Arguments.of(ImmutableList.of("project/feature", "")));
+    return Stream.of(Arguments.of(ImmutableList.of("project/feature")));
+  }
+
+  private static Stream<Arguments> provideMissingFeatureTableFeatureRefs() {
+    return Stream.of(Arguments.of(ImmutableList.of("feature")));
   }
 
   @ParameterizedTest
   @MethodSource("provideInvalidFeatureRefs")
-  void createFeatureSets_ShouldThrowExceptionForInvalidFeatureRefs(List<String> input) {
+  void createFeatureRefs_ShouldThrowExceptionForProjectInFeatureRefs(List<String> input) {
+    assertThrows(IllegalArgumentException.class, () -> RequestUtil.createFeatureRefs(input));
+  }
+
+  @ParameterizedTest
+  @MethodSource("provideMissingFeatureTableFeatureRefs")
+  void createFeatureRefs_ShouldThrowExceptionForMissingFeatureTableInFeatureRefs(
+      List<String> input) {
     assertThrows(IllegalArgumentException.class, () -> RequestUtil.createFeatureRefs(input));
   }
 
   @ParameterizedTest
   @NullSource
-  void createFeatureSets_ShouldThrowExceptionForNullFeatureRefs(List<String> input) {
+  void createFeatureRefs_ShouldThrowExceptionForNullFeatureRefs(List<String> input) {
     assertThrows(IllegalArgumentException.class, () -> RequestUtil.createFeatureRefs(input));
   }
 }

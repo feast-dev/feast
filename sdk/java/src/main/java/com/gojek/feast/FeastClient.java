@@ -16,11 +16,11 @@
  */
 package com.gojek.feast;
 
-import feast.proto.serving.ServingAPIProto.FeatureReference;
+import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
@@ -102,21 +102,20 @@ public class FeastClient implements AutoCloseable {
   /**
    * Obtain info about Feast Serving.
    *
-   * @return {@link feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse} containing
-   *     Feast version, Serving type etc.
+   * @return {@link GetFeastServingInfoResponse} containing Feast version, Serving type etc.
    */
   public GetFeastServingInfoResponse getFeastServingInfo() {
     return stub.getFeastServingInfo(GetFeastServingInfoRequest.newBuilder().build());
   }
 
   /**
-   * Get online features from Feast from FeatureSets
+   * Get online features from Feast, without indicating project, will use `default`.
    *
-   * <p>See {@link #getOnlineFeatures(List, List, String, boolean)}
+   * <p>See {@link #getOnlineFeatures(List, List, String)}
    *
    * @param featureRefs list of string feature references to retrieve in the following format
-   *     featureSet:feature, where 'featureSet' and 'feature' refer to the FeatureSet and Feature
-   *     names respectively. Only the Feature name is required.
+   *     featureTable:feature, where 'featureTable' and 'feature' refer to the FeatureTable and
+   *     Feature names respectively. Only the Feature name is required.
    * @param rows list of {@link Row} to select the entities to retrieve the features for.
    * @return list of {@link Row} containing retrieved data fields.
    */
@@ -127,25 +126,8 @@ public class FeastClient implements AutoCloseable {
   /**
    * Get online features from Feast.
    *
-   * <p>See {@link #getOnlineFeatures(List, List, String, boolean)}
-   *
-   * @param featureRefs list of string feature references to retrieve in the following format
-   *     featureSet:feature, where 'featureSet' and 'feature' refer to the FeatureSet and Feature
-   *     names respectively. Only the Feature name is required.
-   * @param rows list of {@link Row} to select the entities to retrieve the features for
-   * @param project {@link String} Specifies the project override. If specifed uses the project for
-   *     retrieval. Overrides the projects set in Feature References if also specified.
-   * @return list of {@link Row} containing retrieved data fields.
-   */
-  public List<Row> getOnlineFeatures(List<String> featureRefs, List<Row> rows, String project) {
-    return getOnlineFeatures(featureRefs, rows, project, false);
-  }
-
-  /**
-   * Get online features from Feast.
-   *
-   * <p>Example of retrieving online features for the driver featureset, with features driver_id and
-   * driver_name
+   * <p>Example of retrieving online features for the driver FeatureTable, with features driver_id
+   * and driver_name
    *
    * <pre>{@code
    * FeastClient client = FeastClient.create("localhost", 6566);
@@ -157,18 +139,15 @@ public class FeastClient implements AutoCloseable {
    * }</pre>
    *
    * @param featureRefs list of string feature references to retrieve in the following format
-   *     featureSet:feature, where 'featureSet' and 'feature' refer to the FeatureSet and Feature
-   *     names respectively. Only the Feature name is required.
+   *     featureTable:feature, where 'featureTable' and 'feature' refer to the FeatureTable and
+   *     Feature names respectively. Only the Feature name is required.
    * @param rows list of {@link Row} to select the entities to retrieve the features for
-   * @param project {@link String} Specifies the project override. If specifed uses the project for
+   * @param project {@link String} Specifies the project override. If specified uses the project for
    *     retrieval. Overrides the projects set in Feature References if also specified.
-   * @param omitEntitiesInResponse if true, the returned {@link Row} will not contain field and
-   *     value for the entity
    * @return list of {@link Row} containing retrieved data fields.
    */
-  public List<Row> getOnlineFeatures(
-      List<String> featureRefs, List<Row> rows, String project, boolean omitEntitiesInResponse) {
-    List<FeatureReference> features = RequestUtil.createFeatureRefs(featureRefs);
+  public List<Row> getOnlineFeatures(List<String> featureRefs, List<Row> rows, String project) {
+    List<FeatureReferenceV2> features = RequestUtil.createFeatureRefs(featureRefs);
     // build entity rows and collect entity references
     HashSet<String> entityRefs = new HashSet<>();
     List<EntityRow> entityRows =
@@ -177,19 +156,18 @@ public class FeastClient implements AutoCloseable {
                 row -> {
                   entityRefs.addAll(row.getFields().keySet());
                   return EntityRow.newBuilder()
-                      .setEntityTimestamp(row.getEntityTimestamp())
+                      .setTimestamp(row.getEntityTimestamp())
                       .putAllFields(row.getFields())
                       .build();
                 })
             .collect(Collectors.toList());
 
     GetOnlineFeaturesResponse response =
-        stub.getOnlineFeatures(
-            GetOnlineFeaturesRequest.newBuilder()
+        stub.getOnlineFeaturesV2(
+            GetOnlineFeaturesRequestV2.newBuilder()
                 .addAllFeatures(features)
                 .addAllEntityRows(entityRows)
                 .setProject(project)
-                .setOmitEntitiesInResponse(omitEntitiesInResponse)
                 .build());
 
     return response.getFieldValuesList().stream()

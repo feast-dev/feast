@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import MutableMapping, Optional
+from typing import List, MutableMapping, Optional
 
 from feast.core.Feature_pb2 import FeatureSpecV2 as FeatureSpecProto
+from feast.serving.ServingService_pb2 import FeatureReferenceV2 as FeatureRefProto
 from feast.types import Value_pb2 as ValueTypeProto
 from feast.value_type import ValueType
 
@@ -95,3 +96,70 @@ class Feature:
         )
 
         return feature
+
+
+class FeatureRef:
+    """ Feature Reference represents a reference to a specific feature. """
+
+    def __init__(self, name: str, feature_table: str = None):
+        self.proto = FeatureRefProto(name=name, feature_table=feature_table)
+
+    @classmethod
+    def from_proto(cls, proto: FeatureRefProto):
+        """
+        Construct a feature reference from the given FeatureReference proto
+        Arg:
+            proto: Protobuf FeatureReference to construct from
+        Returns:
+            FeatureRef that refers to the given feature
+        """
+        return cls(name=proto.name, feature_table=proto.feature_table)
+
+    @classmethod
+    def from_str(cls, feature_ref_str: str):
+        """
+        Parse the given string feature reference into FeatureRef model
+        String feature reference should be in the format feature_table:feature.
+        Where "feature_table" and "name" are the feature_table name and feature name
+        respectively.
+        Args:
+            feature_ref_str: String representation of the feature reference
+        Returns:
+            FeatureRef that refers to the given feature
+        """
+        proto = FeatureRefProto()
+
+        # parse feature table name if specified
+        if ":" in feature_ref_str:
+            proto.feature_table, proto.name = feature_ref_str.split(":")
+        else:
+            raise ValueError(
+                f"Unsupported feature reference: {feature_ref_str} - Feature reference string should be in the form [featuretable_name:featurename]"
+            )
+
+        return cls.from_proto(proto)
+
+    def to_proto(self) -> FeatureRefProto:
+        """
+        Convert and return this feature table reference to protobuf.
+        Returns:
+            Protobuf respresentation of this feature table reference.
+        """
+
+        return self.proto
+
+
+def _build_feature_references(feature_ref_strs: List[str]) -> List[FeatureRefProto]:
+    """
+    Builds a list of FeatureReference protos from a list of FeatureReference strings
+
+    Args:
+        feature_ref_strs: List of string feature references
+    Returns:
+        A list of FeatureReference protos parsed from args.
+    """
+
+    feature_refs = [FeatureRef.from_str(ref_str) for ref_str in feature_ref_strs]
+    feature_ref_protos = [ref.to_proto() for ref in feature_refs]
+
+    return feature_ref_protos

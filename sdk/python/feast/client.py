@@ -14,7 +14,7 @@
 import logging
 import multiprocessing
 import shutil
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import grpc
 import pandas as pd
@@ -56,6 +56,7 @@ from feast.core.CoreService_pb2 import (
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.data_source import BigQuerySource, FileSource
 from feast.entity import Entity
+from feast.feature import _build_feature_references
 from feast.feature_table import FeatureTable
 from feast.grpc import auth as feast_auth
 from feast.grpc.grpc import create_grpc_channel
@@ -68,7 +69,11 @@ from feast.loaders.ingest import (
     _write_non_partitioned_table_from_source,
     _write_partitioned_table_from_source,
 )
-from feast.serving.ServingService_pb2 import GetFeastServingInfoRequest
+from feast.online_response import OnlineResponse, _infer_online_entity_rows
+from feast.serving.ServingService_pb2 import (
+    GetFeastServingInfoRequest,
+    GetOnlineFeaturesRequestV2,
+)
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 
 _logger = logging.getLogger(__name__)
@@ -709,3 +714,56 @@ class Client:
         if self._config.getboolean(CONFIG_ENABLE_AUTH_KEY) and self._auth_metadata:
             return self._auth_metadata.get_signed_meta()
         return ()
+
+    def get_online_features(
+        self,
+        feature_refs: List[str],
+        entity_rows: List[Dict[str, Any]],
+        project: Optional[str] = None,
+    ) -> OnlineResponse:
+        """
+        Retrieves the latest online feature data from Feast Serving.
+
+        Args:
+            feature_refs: List of feature references that will be returned for each entity.
+                Each feature reference should have the following format:
+                "feature_table:feature" where "feature_table" & "feature" refer to
+                the feature and feature table names respectively.
+                Only the feature name is required.
+            entity_rows: A list of dictionaries where each key-value is an entity-name, entity-value pair.
+            project: Optionally specify the the project override. If specified, uses given project for retrieval.
+                Overrides the projects specified in Feature References if also are specified.
+
+        Returns:
+            GetOnlineFeaturesResponse containing the feature data in records.
+            Each EntityRow provided will yield one record, which contains
+            data fields with data value and field status metadata (if included).
+
+        Examples:
+            >>> from feast import Client
+            >>>
+            >>> feast_client = Client(core_url="localhost:6565", serving_url="localhost:6566")
+            >>> feature_refs = ["sales:daily_transactions"]
+            >>> entity_rows = [{"customer_id": 0},{"customer_id": 1}]
+            >>>
+            >>> online_response = feast_client.get_online_features(
+            >>>     feature_refs, entity_rows, project="my_project")
+            >>> online_response_dict = online_response.to_dict()
+            >>> print(online_response_dict)
+            {'sales:daily_transactions': [1.1,1.2], 'sales:customer_id': [0,1]}
+        """
+
+        try:
+            response = self._serving_service.GetOnlineFeaturesV2(
+                GetOnlineFeaturesRequestV2(
+                    features=_build_feature_references(feature_ref_strs=feature_refs),
+                    entity_rows=_infer_online_entity_rows(entity_rows),
+                    project=project if project is not None else self.project,
+                ),
+                metadata=self._get_grpc_metadata(),
+            )
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+
+        response = OnlineResponse(response)
+        return response
