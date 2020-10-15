@@ -64,7 +64,7 @@ Exported Feast Serving metrics may be filtered by the following tags/keys
 Feast Ingestion computes both metrics an statistics on [data ingestion.](../user-guide/data-ingestion.md) Make sure you familar with data ingestion concepts before proceeding.
 
 {% hint style="info" %}
-For documentation on Feature value statistics computed by the Ingestion Job see [Statistics](../user-guide/statistics.md#inflight-feature-statistics)
+For documentation on Feature value statistics computed by the Ingestion Job see [Statistics]()
 {% endhint %}
 
 **Metrics Namespace**

@@ -24,14 +24,12 @@
 * [Data ingestion](user-guide/data-ingestion.md)
 * [Stores](user-guide/stores.md)
 * [Feature retrieval](user-guide/feature-retrieval.md)
-* [Statistics](user-guide/statistics.md)
 * [Metrics](user-guide/metrics.md)
 
 ## Tutorials
 
 * [Basic Tutorial](https://github.com/feast-dev/feast/blob/master/examples/basic/basic.ipynb)
 * [Churn Prediction \(XGBoost\)](https://github.com/feast-dev/feast/blob/master/examples/feast-xgboost-churn-prediction-tutorial/Telecom%20Customer%20Churn%20Prediction%20%28with%20Feast%20and%20XGBoost%29.ipynb)
-* [Feast Statistics with TFDV and Facets](https://github.com/feast-dev/feast/blob/master/examples/statistics/Historical%20Feature%20Statistics%20with%20Feast%2C%20TFDV%20and%20Facets.ipynb)
 
 ## Administration
 
