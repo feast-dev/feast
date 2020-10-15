@@ -248,48 +248,6 @@ class Client:
         """
         self._config.set(CONFIG_SERVING_ENABLE_SSL_KEY, value)
 
-    @property
-    def historical_feature_output_location(self) -> str:
-        """
-        Uri for the output location of the historical feature retrieval job. Must be reachable
-        by the spark cluster running the job.
-
-        Returns:
-            Historical feature output location uri
-        """
-        return self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION)
-
-    @historical_feature_output_location.setter
-    def historical_feature_output_location(self, value: str):
-        """
-        Set the historical feature output location.
-
-        Args:
-            value: Historical feature output location uri
-        """
-        self._config.set(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION, value)
-
-    @property
-    def historical_feature_output_format(self) -> str:
-        """
-        Output format of the historical feature retrieval job. Must be a format that is
-        recognizable by the Spark cluster running the job.
-
-        Returns:
-            Output format of the historical feature retrieval job
-        """
-        return self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT)
-
-    @historical_feature_output_format.setter
-    def historical_feature_output_format(self, value: str):
-        """
-        Set the historical feature output file format.
-
-        Args:
-            value: Historical feature output file format
-        """
-        self._config.set(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT, value)
-
     def version(self):
         """
         Returns version information from Feast Core and Feast Serving
@@ -855,8 +813,10 @@ class Client:
         feature_tables = self._get_feature_tables_from_feature_refs(
             feature_refs, project
         )
-        output_location = self.historical_feature_output_location
-        output_format = self.historical_feature_output_format
+        output_location = self._config.get(
+            CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION
+        )
+        output_format = self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT)
         job_id = f"historical-feature-{str(uuid.uuid4())}"
 
         return start_historical_feature_retrieval_job(
