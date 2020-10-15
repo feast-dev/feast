@@ -61,7 +61,7 @@ build-java-no-tests:
 # Python SDK
 
 install-python-ci-dependencies:
-	pip install -r sdk/python/requirements-ci.txt
+	pip install --no-cache-dir -r sdk/python/requirements-ci.txt
 
 compile-protos-python: install-python-ci-dependencies
 	@$(foreach dir,$(PROTO_TYPE_SUBDIRS),cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --python_out=../sdk/python/ --mypy_out=../sdk/python/ feast/$(dir)/*.proto;)
@@ -121,14 +121,18 @@ build-push-docker:
 	@$(MAKE) push-serving-docker registry=$(REGISTRY) version=$(VERSION)
 	@$(MAKE) push-ci-docker registry=$(REGISTRY) version=$(VERSION)
 	@$(MAKE) push-jobcontroller-docker registry=$(REGISTRY) version=$(VERSION)
+	@$(MAKE) push-jobservice-docker registry=$(REGISTRY) version=$(VERSION)
 
-build-docker: build-core-docker build-serving-docker build-ci-docker build-jobcontroller-docker
+build-docker: build-core-docker build-serving-docker build-ci-docker build-jobcontroller-docker build-jobservice-docker
 
 push-core-docker:
 	docker push $(REGISTRY)/feast-core:$(VERSION)
 
 push-jobcontroller-docker:
 	docker push $(REGISTRY)/feast-jobcontroller:$(VERSION)
+
+push-jobservice-docker:
+	docker push $(REGISTRY)/feast-jobservice:$(VERSION)
 
 push-serving-docker:
 	docker push $(REGISTRY)/feast-serving:$(VERSION)
@@ -141,6 +145,9 @@ push-jupyter-docker:
 
 build-core-docker:
 	docker build -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
+
+build-jobservice-docker:
+	docker build -t $(REGISTRY)/feast-jobservice:$(VERSION) -f infra/docker/jobservice/Dockerfile .
 
 build-jobcontroller-docker:
 	docker build -t $(REGISTRY)/feast-jobcontroller:$(VERSION) -f infra/docker/jobcontroller/Dockerfile .

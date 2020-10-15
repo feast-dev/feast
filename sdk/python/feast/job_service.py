@@ -1,0 +1,37 @@
+from concurrent.futures import ThreadPoolExecutor
+
+import grpc
+
+import feast
+from feast.core import JobService_pb2_grpc
+
+
+class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
+    def __init__(self):
+        self.client = feast.Client()
+
+    def StartOfflineToOnlineIngestionJob(self, request, context):
+        """Start job to ingest data from offline store into online store
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
+    def GetHistoricalFeatures(self, request, context):
+        """Produce a training dataset, return a job id that will provide a file reference
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
+
+def start_job_service():
+    """
+    Start Feast Job Service
+    """
+    server = grpc.server(ThreadPoolExecutor())
+    JobService_pb2_grpc.add_JobServiceServicer_to_server(JobServiceServicer(), server)
+    server.add_insecure_port("[::]:6568")
+    server.start()
+    print("Feast job server listening on port :6568")
+    server.wait_for_termination()

@@ -84,7 +84,7 @@ message FeatureReference {
 message FeatureReferenceV2 {
     // Name of the Feature Table to retrieve the feature from.
     string feature_table = 1;
-  
+
     // Name of the Feature to retrieve the feature from.
     string name = 2;
 }
@@ -120,27 +120,26 @@ message GetOnlineFeaturesRequest {
 message GetOnlineFeaturesRequestV2 {
     // List of features that are being retrieved
     repeated FeatureReferenceV2 features = 4;
-  
+
     // List of entity rows, containing entity id and timestamp data.
     // Used during retrieval of feature rows and for joining feature
     // rows into a final dataset
     repeated EntityRow entity_rows = 2;
-  
+
     // Optional field to specify project name override. If specified, uses the
     // given project for retrieval. Overrides the projects specified in
     // Feature References if both are specified.
     string project = 5;
-  
+
     message EntityRow {
-      // Request timestamp of this row. This value will be used,
-      // together with maxAge, to determine feature staleness.
-      google.protobuf.Timestamp timestamp = 1;
-  
-      // Map containing mapping of entity name to entity value.
-      map<string,feast.types.Value> fields = 2;
+        // Request timestamp of this row. This value will be used,
+        // together with maxAge, to determine feature staleness.
+        google.protobuf.Timestamp timestamp = 1;
+
+        // Map containing mapping of entity name to entity value.
+        map<string,feast.types.Value> fields = 2;
     }
-  }
-  
+}
 
 message GetBatchFeaturesRequest {
     // List of features that are being retrieved
