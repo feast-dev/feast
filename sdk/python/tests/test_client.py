@@ -294,6 +294,29 @@ class TestClient:
             }
         )
 
+    @pytest.fixture
+    def get_online_features_fields_statuses(self):
+        ROW_COUNT = 100
+        fields_statuses_tuple_list = []
+        for row_number in range(0, ROW_COUNT):
+            fields_statuses_tuple_list.append(
+                (
+                    {
+                        "driver_id": ValueProto.Value(int64_val=row_number),
+                        "driver:age": ValueProto.Value(int64_val=1),
+                        "driver:rating": ValueProto.Value(string_val="9"),
+                        "driver:null_value": ValueProto.Value(),
+                    },
+                    {
+                        "driver_id": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
+                        "driver:age": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
+                        "driver:rating": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
+                        "driver:null_value": GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE,
+                    },
+                )
+            )
+        return fields_statuses_tuple_list
+
     @pytest.mark.parametrize(
         "mocked_client",
         [lazy_fixture("mock_client"), lazy_fixture("secure_mock_client")],
@@ -549,18 +572,14 @@ class TestClient:
             "secure_mock_client_with_auth",
         ],
     )
-    def test_get_online_features(self, mocked_client, auth_metadata, mocker):
+    def test_get_online_features(
+        self, mocked_client, auth_metadata, mocker, get_online_features_fields_statuses
+    ):
         ROW_COUNT = 100
 
         mocked_client._serving_service_stub = Serving.ServingServiceStub(
             grpc.insecure_channel("")
         )
-
-        def int_val(x):
-            return ValueProto.Value(int64_val=x)
-
-        def string_val(x):
-            return ValueProto.Value(string_val=x)
 
         request = GetOnlineFeaturesRequestV2(project="driver_project")
         request.features.extend(
@@ -573,28 +592,18 @@ class TestClient:
 
         receive_response = GetOnlineFeaturesResponse()
         entity_rows = []
-        for row_number in range(1, ROW_COUNT + 1):
+        for row_number in range(0, ROW_COUNT):
+            fields = get_online_features_fields_statuses[row_number][0]
+            statuses = get_online_features_fields_statuses[row_number][1]
             request.entity_rows.append(
                 GetOnlineFeaturesRequestV2.EntityRow(
-                    fields={"driver_id": int_val(row_number)}
+                    fields={"driver_id": ValueProto.Value(int64_val=row_number)}
                 )
             )
-            entity_rows.append({"driver_id": int_val(row_number)})
-            field_values = GetOnlineFeaturesResponse.FieldValues(
-                fields={
-                    "driver_id": int_val(row_number),
-                    "driver:age": int_val(1),
-                    "driver:rating": string_val("9"),
-                    "driver:null_value": ValueProto.Value(),
-                },
-                statuses={
-                    "driver_id": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
-                    "driver:age": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
-                    "driver:rating": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
-                    "driver:null_value": GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE,
-                },
+            entity_rows.append({"driver_id": ValueProto.Value(int64_val=row_number)})
+            receive_response.field_values.append(
+                GetOnlineFeaturesResponse.FieldValues(fields=fields, statuses=statuses)
             )
-            receive_response.field_values.append(field_values)
 
         mocker.patch.object(
             mocked_client._serving_service_stub,
@@ -610,16 +619,16 @@ class TestClient:
             request, metadata=auth_metadata
         )
 
-        got_fields = got_response.field_values[0].fields
-        got_statuses = got_response.field_values[0].statuses
+        got_fields = got_response.field_values[1].fields
+        got_statuses = got_response.field_values[1].statuses
         assert (
-            got_fields["driver_id"] == int_val(1)
+            got_fields["driver_id"] == ValueProto.Value(int64_val=1)
             and got_statuses["driver_id"]
             == GetOnlineFeaturesResponse.FieldStatus.PRESENT
-            and got_fields["driver:age"] == int_val(1)
+            and got_fields["driver:age"] == ValueProto.Value(int64_val=1)
             and got_statuses["driver:age"]
             == GetOnlineFeaturesResponse.FieldStatus.PRESENT
-            and got_fields["driver:rating"] == string_val("9")
+            and got_fields["driver:rating"] == ValueProto.Value(string_val="9")
             and got_statuses["driver:rating"]
             == GetOnlineFeaturesResponse.FieldStatus.PRESENT
             and got_fields["driver:null_value"] == ValueProto.Value()
@@ -643,19 +652,13 @@ class TestClient:
         ],
     )
     def test_get_online_features_multi_entities(
-        self, mocked_client, auth_metadata, mocker
+        self, mocked_client, auth_metadata, mocker, get_online_features_fields_statuses
     ):
         ROW_COUNT = 100
 
         mocked_client._serving_service_stub = Serving.ServingServiceStub(
             grpc.insecure_channel("")
         )
-
-        def int_val(x):
-            return ValueProto.Value(int64_val=x)
-
-        def string_val(x):
-            return ValueProto.Value(string_val=x)
 
         request = GetOnlineFeaturesRequestV2(project="driver_project")
         request.features.extend(
@@ -668,35 +671,29 @@ class TestClient:
 
         receive_response = GetOnlineFeaturesResponse()
         entity_rows = []
-        for row_number in range(1, ROW_COUNT + 1):
+        for row_number in range(0, ROW_COUNT):
+            fields = get_online_features_fields_statuses[row_number][0]
+            fields["driver_id2"] = ValueProto.Value(int64_val=1)
+            statuses = get_online_features_fields_statuses[row_number][1]
+            statuses["driver_id2"] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
+
             request.entity_rows.append(
                 GetOnlineFeaturesRequestV2.EntityRow(
                     fields={
-                        "driver_id": int_val(row_number),
-                        "driver_id2": int_val(row_number),
+                        "driver_id": ValueProto.Value(int64_val=row_number),
+                        "driver_id2": ValueProto.Value(int64_val=row_number),
                     }
                 )
             )
             entity_rows.append(
-                {"driver_id": int_val(row_number), "driver_id2": int_val(row_number)}
+                {
+                    "driver_id": ValueProto.Value(int64_val=row_number),
+                    "driver_id2": ValueProto.Value(int64_val=row_number),
+                }
             )
-            field_values = GetOnlineFeaturesResponse.FieldValues(
-                fields={
-                    "driver_id": int_val(row_number),
-                    "driver_id2": int_val(row_number),
-                    "driver:age": int_val(1),
-                    "driver:rating": string_val("9"),
-                    "driver:null_value": ValueProto.Value(),
-                },
-                statuses={
-                    "driver_id": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
-                    "driver_id2": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
-                    "driver:age": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
-                    "driver:rating": GetOnlineFeaturesResponse.FieldStatus.PRESENT,
-                    "driver:null_value": GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE,
-                },
+            receive_response.field_values.append(
+                GetOnlineFeaturesResponse.FieldValues(fields=fields, statuses=statuses)
             )
-            receive_response.field_values.append(field_values)
 
         mocker.patch.object(
             mocked_client._serving_service_stub,
@@ -712,19 +709,19 @@ class TestClient:
             request, metadata=auth_metadata
         )
 
-        got_fields = got_response.field_values[0].fields
-        got_statuses = got_response.field_values[0].statuses
+        got_fields = got_response.field_values[1].fields
+        got_statuses = got_response.field_values[1].statuses
         assert (
-            got_fields["driver_id"] == int_val(1)
+            got_fields["driver_id"] == ValueProto.Value(int64_val=1)
             and got_statuses["driver_id"]
             == GetOnlineFeaturesResponse.FieldStatus.PRESENT
-            and got_fields["driver_id2"] == int_val(1)
+            and got_fields["driver_id2"] == ValueProto.Value(int64_val=1)
             and got_statuses["driver_id2"]
             == GetOnlineFeaturesResponse.FieldStatus.PRESENT
-            and got_fields["driver:age"] == int_val(1)
+            and got_fields["driver:age"] == ValueProto.Value(int64_val=1)
             and got_statuses["driver:age"]
             == GetOnlineFeaturesResponse.FieldStatus.PRESENT
-            and got_fields["driver:rating"] == string_val("9")
+            and got_fields["driver:rating"] == ValueProto.Value(string_val="9")
             and got_statuses["driver:rating"]
             == GetOnlineFeaturesResponse.FieldStatus.PRESENT
             and got_fields["driver:null_value"] == ValueProto.Value()

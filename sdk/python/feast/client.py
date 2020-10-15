@@ -14,7 +14,7 @@
 import logging
 import multiprocessing
 import shutil
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, Union
 
 import grpc
 import pandas as pd
@@ -69,14 +69,12 @@ from feast.loaders.ingest import (
     _write_non_partitioned_table_from_source,
     _write_partitioned_table_from_source,
 )
-from feast.online_response import OnlineResponse
+from feast.online_response import OnlineResponse, _infer_online_entity_rows
 from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoRequest,
     GetOnlineFeaturesRequestV2,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
-from feast.type_map import _python_value_to_proto_value, python_type_to_feast_value_type
-from feast.types.Value_pb2 import Value as Value
 
 _logger = logging.getLogger(__name__)
 
@@ -769,42 +767,3 @@ class Client:
 
         response = OnlineResponse(response)
         return response
-
-
-def _infer_online_entity_rows(
-    entity_rows: List[Dict[str, Any]]
-) -> List[GetOnlineFeaturesRequestV2.EntityRow]:
-    """
-    Builds a list of EntityRow protos from Python native type format passed by user.
-
-    Args:
-        entity_rows: A list of dictionaries where each key-value is an entity-name, entity-value pair.
-    Returns:
-        A list of EntityRow protos parsed from args.
-    """
-
-    entity_rows_dicts = cast(List[Dict[str, Any]], entity_rows)
-    entity_row_list = []
-    entity_type_map = dict()
-
-    for entity in entity_rows_dicts:
-        fields = {}
-        for key, value in entity.items():
-            # Allow for feast.types.Value
-            if isinstance(value, Value):
-                proto_value = value
-            else:
-                # Infer the specific type for this row
-                current_dtype = python_type_to_feast_value_type(name=key, value=value)
-
-                if key not in entity_type_map:
-                    entity_type_map[key] = current_dtype
-                else:
-                    if current_dtype != entity_type_map[key]:
-                        raise TypeError(
-                            f"Input entity {key} has mixed types, {current_dtype} and {entity_type_map[key]}. That is not allowed. "
-                        )
-                proto_value = _python_value_to_proto_value(current_dtype, value)
-            fields[key] = proto_value
-        entity_row_list.append(GetOnlineFeaturesRequestV2.EntityRow(fields=fields))
-    return entity_row_list
