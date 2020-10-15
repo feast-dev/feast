@@ -59,6 +59,7 @@ def staging_path(pytestconfig, tmp_path):
     return os.path.join(staging_path, str(uuid.uuid4()))
 
 
+@pytest.mark.skip
 def test_offline_ingestion(feast_client: Client, staging_path: str):
     entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
 
