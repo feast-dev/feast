@@ -23,11 +23,11 @@ import org.apache.spark.SparkConf
 import org.joda.time.{DateTime, Seconds}
 import org.scalacheck._
 import org.scalatest._
-
 import redis.clients.jedis.Jedis
-
 import feast.ingestion.helpers.RedisStorageHelper._
 import feast.ingestion.helpers.DataHelper._
+import feast.proto.storage.RedisProto.RedisKeyV2
+import feast.proto.types.ValueProto
 
 case class Row(customer: String, feature1: Int, feature2: Float, eventTimestamp: java.sql.Timestamp)
 
@@ -54,8 +54,13 @@ class BatchPipelineIT extends SparkSpec with ForAllTestContainer {
       } yield Row(customer, feature1, feature2, new java.sql.Timestamp(eventTimestamp.getMillis))
 
     def encodeEntityKey(row: Row, featureTable: FeatureTable): Array[Byte] = {
-      val entityPrefix = featureTable.entities.map(_.name).mkString("_")
-      s"${featureTable.project}_${entityPrefix}:${row.customer}".getBytes
+      RedisKeyV2
+        .newBuilder()
+        .setProject(featureTable.project)
+        .addAllEntityNames(featureTable.entities.map(_.name).sorted.asJava)
+        .addEntityValues(ValueProto.Value.newBuilder().setStringVal(row.customer))
+        .build
+        .toByteArray
     }
 
     def groupByEntity(row: Row) =

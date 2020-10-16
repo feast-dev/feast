@@ -76,11 +76,11 @@ class HashTypePersistence(config: SparkRedisConfig) extends Persistence with Ser
 
   def save(
       pipeline: Pipeline,
-      key: String,
+      key: Array[Byte],
       value: Map[Array[Byte], Array[Byte]],
       ttl: Int
   ): Unit = {
-    pipeline.hset(key.getBytes, value.asJava)
+    pipeline.hset(key, value.asJava)
     if (ttl > 0) {
       pipeline.expire(key, ttl)
     }
@@ -88,10 +88,10 @@ class HashTypePersistence(config: SparkRedisConfig) extends Persistence with Ser
 
   def getTimestamp(
       pipeline: Pipeline,
-      key: String,
+      key: Array[Byte],
       timestampField: String
   ): Response[Array[Byte]] = {
-    pipeline.hget(key.getBytes(), timestampField.getBytes)
+    pipeline.hget(key, timestampField.getBytes)
   }
 
 }
