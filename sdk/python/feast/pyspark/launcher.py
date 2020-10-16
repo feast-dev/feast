@@ -6,10 +6,18 @@ from urllib.parse import urlparse
 
 from feast.config import Config
 from feast.constants import (
+    CONFIG_REDIS_HOST,
+    CONFIG_REDIS_PORT,
+    CONFIG_REDIS_SSL,
     CONFIG_SPARK_DATAPROC_CLUSTER_NAME,
     CONFIG_SPARK_DATAPROC_PROJECT,
     CONFIG_SPARK_DATAPROC_REGION,
     CONFIG_SPARK_DATAPROC_STAGING_LOCATION,
+    CONFIG_SPARK_EMR_CLUSTER_ID,
+    CONFIG_SPARK_EMR_CLUSTER_TEMPLATE_PATH,
+    CONFIG_SPARK_EMR_LOG_LOCATION,
+    CONFIG_SPARK_EMR_REGION,
+    CONFIG_SPARK_EMR_STAGING_LOCATION,
     CONFIG_SPARK_HOME,
     CONFIG_SPARK_INGESTION_JOB_JAR,
     CONFIG_SPARK_LAUNCHER,
@@ -50,7 +58,27 @@ def _dataproc_launcher(config: Config) -> JobLauncher:
     )
 
 
-_launchers = {"standalone": _standalone_launcher, "dataproc": _dataproc_launcher}
+def _emr_launcher(config: Config) -> JobLauncher:
+    from feast.pyspark.launchers import aws
+
+    def _get_optional(option):
+        if config.exists(option):
+            return config.get(option)
+
+    return aws.EmrClusterLauncher(
+        region=config.get(CONFIG_SPARK_EMR_REGION),
+        existing_cluster_id=_get_optional(CONFIG_SPARK_EMR_CLUSTER_ID),
+        new_cluster_template_path=_get_optional(CONFIG_SPARK_EMR_CLUSTER_TEMPLATE_PATH),
+        staging_location=config.get(CONFIG_SPARK_EMR_STAGING_LOCATION),
+        emr_log_location=config.get(CONFIG_SPARK_EMR_LOG_LOCATION),
+    )
+
+
+_launchers = {
+    "standalone": _standalone_launcher,
+    "dataproc": _dataproc_launcher,
+    "emr": _emr_launcher,
+}
 
 
 def resolve_launcher(config: Config) -> JobLauncher:
@@ -177,5 +205,17 @@ def start_offline_to_online_ingestion(
             feature_table=_feature_table_to_argument(client, feature_table),
             start=start,
             end=end,
+            redis_host=client._config.get(CONFIG_REDIS_HOST),
+            redis_port=client._config.getint(CONFIG_REDIS_PORT),
+            redis_ssl=client._config.getboolean(CONFIG_REDIS_SSL),
         )
+    )
+
+
+def stage_dataframe(
+    df, event_timestamp_column: str, created_timestamp_column: str, client: "Client"
+) -> FileSource:
+    launcher = resolve_launcher(client._config)
+    return launcher.stage_dataframe(
+        df, event_timestamp_column, created_timestamp_column,
     )

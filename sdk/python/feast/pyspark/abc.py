@@ -5,6 +5,10 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional
 
+import pandas
+
+from feast.data_source import FileSource
+
 
 class SparkJobFailure(Exception):
     """
@@ -258,18 +262,30 @@ class IngestionJobParameters(SparkJobParameters):
         start: datetime,
         end: datetime,
         jar: str,
+        redis_host: str,
+        redis_port: int,
+        redis_ssl: bool,
     ):
         self._feature_table = feature_table
         self._source = source
         self._start = start
         self._end = end
         self._jar = jar
+        self._redis_host = redis_host
+        self._redis_port = redis_port
+        self._redis_ssl = redis_ssl
 
     def get_name(self) -> str:
         return (
-            f"BatchIngestion-{self._feature_table['name']}-"
+            f"BatchIngestion-{self.get_feature_table_name()}-"
             f"{self._start.strftime('%Y-%m-%d')}-{self._end.strftime('%Y-%m-%d')}"
         )
+
+    def _get_redis_config(self):
+        return dict(host=self._redis_host, port=self._redis_port, ssl=self._redis_ssl)
+
+    def get_feature_table_name(self) -> str:
+        return self._feature_table["name"]
 
     def get_main_file_path(self) -> str:
         return self._jar
@@ -289,6 +305,8 @@ class IngestionJobParameters(SparkJobParameters):
             self._start.strftime("%Y-%m-%dT%H:%M:%S"),
             "--end",
             self._end.strftime("%Y-%m-%dT%H:%M:%S"),
+            "--redis",
+            json.dumps(self._get_redis_config()),
         ]
 
 
@@ -332,5 +350,20 @@ class JobLauncher(abc.ABC):
 
         Returns:
             IngestionJob: wrapper around remote job that can be used to check when job completed.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def stage_dataframe(
+        self,
+        df: pandas.DataFrame,
+        event_timestamp_column: str,
+        created_timestamp_column: str,
+    ) -> FileSource:
+        """
+        Upload a pandas dataframe so it is available to the Spark cluster.
+
+        Returns:
+            FileSource: representing the uploaded dataframe.
         """
         raise NotImplementedError

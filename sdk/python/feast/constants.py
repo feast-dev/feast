@@ -80,6 +80,16 @@ CONFIG_SPARK_DATAPROC_STAGING_LOCATION = "dataproc_staging_location"
 CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT = "historical_feature_output_format"
 CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION = "historical_feature_output_location"
 
+CONFIG_REDIS_HOST = "redis_host"
+CONFIG_REDIS_PORT = "redis_port"
+CONFIG_REDIS_SSL = "redis_ssl"
+
+CONFIG_SPARK_EMR_REGION = "emr_region"
+CONFIG_SPARK_EMR_CLUSTER_ID = "emr_cluster_id"
+CONFIG_SPARK_EMR_CLUSTER_TEMPLATE_PATH = "emr_cluster_template_path"
+CONFIG_SPARK_EMR_STAGING_LOCATION = "emr_staging_location"
+CONFIG_SPARK_EMR_LOG_LOCATION = "emr_log_location"
+
 
 # Configuration option default values
 FEAST_DEFAULT_OPTIONS = {

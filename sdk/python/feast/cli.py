@@ -364,11 +364,13 @@ def sync_offline_to_online(feature_table: str, start_time: str, end_time: str):
     """
     Sync offline store to online.
     """
-    import feast.pyspark.aws.jobs
+    from datetime import datetime
 
     client = Client()
     table = client.get_feature_table(feature_table)
-    feast.pyspark.aws.jobs.sync_offline_to_online(client, table, start_time, end_time)
+    client.start_offline_to_online_ingestion(
+        table, datetime.fromisoformat(start_time), datetime.fromisoformat(end_time)
+    )
 
 
 @cli.command()
@@ -422,6 +424,41 @@ def list_emr_jobs():
     print(
         tabulate(jobs, headers=feast.pyspark.aws.jobs.JobInfo._fields, tablefmt="plain")
     )
+
+
+@cli.command()
+@click.option(
+    "--features",
+    "-f",
+    help="Features in feature_table:feature format, comma separated",
+    required=True,
+)
+@click.option(
+    "--entity-df-path",
+    "-e",
+    help="Path to entity df in CSV format. It is assumed to have event_timestamp column and a header.",
+    required=True,
+)
+@click.option("--destination", "-d", help="Destination", default="")
+def get_historical_features(features: str, entity_df_path: str, destination: str):
+    """
+    Get historical features
+    """
+    import pandas
+
+    client = Client()
+
+    # TODO: clean this up
+    entity_df = pandas.read_csv(entity_df_path, sep=None, engine="python",)
+
+    entity_df["event_timestamp"] = pandas.to_datetime(entity_df["event_timestamp"])
+
+    uploaded_df = client.stage_dataframe(
+        entity_df, "event_timestamp", "created_timestamp"
+    )
+
+    job = client.get_historical_features(features.split(","), uploaded_df,)
+    print(job.get_output_file_uri())
 
 
 if __name__ == "__main__":
