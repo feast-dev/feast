@@ -39,14 +39,12 @@ REQUIRED = [
     "protobuf>=3.10",
     "PyYAML==5.1.*",
     "fastavro>=0.22.11,<0.23",
-    "kafka-python==1.*",
     "tabulate==0.8.*",
     "toml==0.10.*",
     "tqdm==4.*",
     "pyarrow<0.16.0,>=0.15.1",
     "numpy",
     "google",
-    "confluent_kafka",
 ]
 
 # README file from Feast repo root directory
