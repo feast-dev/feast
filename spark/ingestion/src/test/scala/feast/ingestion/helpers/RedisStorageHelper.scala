@@ -16,19 +16,21 @@
  */
 package feast.ingestion.helpers
 
+import java.nio.charset.StandardCharsets
+import java.nio.{ByteBuffer, ByteOrder}
+
 import com.google.protobuf.Timestamp
 import feast.ingestion.FeatureTable
 import feast.proto.types.ValueProto
 import feast.ingestion.utils.TypeConversion._
 import org.scalatest.matchers.Matcher
 import org.scalatest.matchers.must.Matchers.contain
-
-import scala.util.hashing.MurmurHash3
+import com.google.common.hash.Hashing
 
 object RedisStorageHelper {
   def encodeFeatureKey(featureTable: FeatureTable)(feature: String): String = {
     val fullReference = s"${featureTable.name}:$feature"
-    MurmurHash3.stringHash(fullReference).toHexString
+    Hashing.murmur3_32.hashString(fullReference, StandardCharsets.UTF_8).asInt.toHexString
   }
 
   def beStoredRow(mappedRow: Map[String, Any]): Matcher[Map[Array[Byte], Array[Byte]]] = {
@@ -37,13 +39,13 @@ object RedisStorageHelper {
     m compose {
       (_: Map[Array[Byte], Array[Byte]])
         .map { case (k, v) =>
-          (
-            new String(k),
-            if (new String(k).startsWith("_ts"))
-              Timestamp.parseFrom(v).asScala
-            else
+          if (k.length == 4)
+            (
+              ByteBuffer.wrap(k).order(ByteOrder.LITTLE_ENDIAN).getInt.toHexString,
               ValueProto.Value.parseFrom(v).asScala
-          )
+            )
+          else
+            (new String(k), Timestamp.parseFrom(v).asScala)
         }
     }
   }

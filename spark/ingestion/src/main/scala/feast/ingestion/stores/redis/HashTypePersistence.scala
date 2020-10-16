@@ -19,11 +19,13 @@ package feast.ingestion.stores.redis
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
 import redis.clients.jedis.{Pipeline, Response}
+import java.nio.charset.StandardCharsets
+
+import com.google.common.hash.Hashing
 
 import scala.jdk.CollectionConverters._
 import com.google.protobuf.Timestamp
 import feast.ingestion.utils.TypeConversion
-import scala.util.hashing.MurmurHash3
 
 /**
   * Use Redis hash type as storage layout. Every feature is stored as separate entry in Hash.
@@ -71,7 +73,7 @@ class HashTypePersistence(config: SparkRedisConfig) extends Persistence with Ser
 
   def encodeKey(key: String): Array[Byte] = {
     val fullFeatureReference = s"${config.namespace}:$key"
-    MurmurHash3.stringHash(fullFeatureReference).toHexString.getBytes
+    Hashing.murmur3_32.hashString(fullFeatureReference, StandardCharsets.UTF_8).asBytes()
   }
 
   def save(
