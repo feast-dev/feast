@@ -47,8 +47,7 @@ def _init_config(path: str):
     config_dir = os.path.dirname(path)
     config_dir = config_dir.rstrip("/") + "/"
 
-    if not os.path.exists(os.path.dirname(config_dir)):
-        os.makedirs(os.path.dirname(config_dir))
+    os.makedirs(os.path.dirname(config_dir), exist_ok=True)
 
     # Create the configuration file itself
     config = ConfigParser(defaults=DEFAULTS)
