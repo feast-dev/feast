@@ -12,8 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
+import hashlib
 import os
 import re
 import shutil
@@ -192,6 +191,13 @@ class S3Client(AbstractStagingClient):
         else:
             return [f"{S3}://{bucket}/{path.lstrip('/')}"]
 
+    def _hash_file(self, local_path: str):
+        h = hashlib.sha256()
+        with open(local_path, "rb") as f:
+            for block in iter(lambda: f.read(2 ** 20), b""):
+                h.update(block)
+        return h.hexdigest()
+
     def upload_file(self, local_path: str, bucket: str, remote_path: str):
         """
         Uploads file to s3.
@@ -201,8 +207,36 @@ class S3Client(AbstractStagingClient):
             bucket (str): s3 Bucket name
             remote_path (str): relative path to the folder to which the files need to be uploaded
         """
-        with open(local_path, "rb") as file:
-            self.s3_client.upload_fileobj(file, bucket, remote_path)
+
+        sha256sum = self._hash_file(local_path)
+
+        import botocore
+
+        try:
+            head_response = self.s3_client.head_object(Bucket=bucket, Key=remote_path)
+            if head_response["Metadata"]["sha256sum"] == sha256sum:
+                # File already exists
+                return remote_path
+            else:
+                print(f"Uploading {local_path} to {remote_path}")
+                self.s3_client.upload_file(
+                    local_path,
+                    bucket,
+                    remote_path,
+                    ExtraArgs={"Metadata": {"sha256sum": sha256sum}},
+                )
+                return remote_path
+        except botocore.exceptions.ClientError as e:
+            if e.response["Error"]["Code"] != "404":
+                raise
+
+        self.s3_client.upload_file(
+            local_path,
+            bucket,
+            remote_path,
+            ExtraArgs={"Metadata": {"sha256sum": sha256sum}},
+        )
+        return remote_path
 
 
 class LocalFSClient(AbstractStagingClient):

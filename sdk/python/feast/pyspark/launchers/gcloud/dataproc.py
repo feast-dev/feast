@@ -4,7 +4,7 @@ from typing import cast
 from urllib.parse import urlparse
 
 from google.api_core.operation import Operation
-from google.cloud import dataproc_v1, storage
+from google.cloud import dataproc_v1
 from google.cloud.dataproc_v1 import Job as DataprocJob
 from google.cloud.dataproc_v1 import JobStatus
 
@@ -18,6 +18,7 @@ from feast.pyspark.abc import (
     SparkJobParameters,
     SparkJobStatus,
 )
+from feast.staging.storage_client import get_staging_client
 
 
 class DataprocJobMixin:
@@ -113,13 +114,11 @@ class DataprocClusterLauncher(JobLauncher):
         )
 
     def _stage_files(self, pyspark_script: str, job_id: str) -> str:
-        client = storage.Client()
-        bucket = client.get_bucket(self.staging_bucket)
+        staging_client = get_staging_client("gs")
         blob_path = os.path.join(
             self.remote_path, job_id, os.path.basename(pyspark_script),
         )
-        blob = bucket.blob(blob_path)
-        blob.upload_from_filename(pyspark_script)
+        staging_client.upload_file(blob_path, self.staging_bucket, pyspark_script)
 
         return f"gs://{self.staging_bucket}/{blob_path}"
 
