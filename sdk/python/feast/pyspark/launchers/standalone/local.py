@@ -3,14 +3,16 @@ import subprocess
 import uuid
 
 from feast.pyspark.abc import (
-    IngestionJob,
-    IngestionJobParameters,
+    BatchIngestionJob,
+    BatchIngestionJobParameters,
     JobLauncher,
     RetrievalJob,
     RetrievalJobParameters,
     SparkJobFailure,
     SparkJobParameters,
     SparkJobStatus,
+    StreamIngestionJob,
+    StreamIngestionJobParameters,
 )
 
 
@@ -33,7 +35,7 @@ class StandaloneClusterJobMixin:
         return SparkJobStatus.COMPLETED
 
 
-class StandaloneClusterIngestionJob(StandaloneClusterJobMixin, IngestionJob):
+class StandaloneClusterBatchIngestionJob(StandaloneClusterJobMixin, BatchIngestionJob):
     """
     Ingestion job result for a standalone spark cluster
     """
@@ -124,10 +126,15 @@ class StandaloneClusterLauncher(JobLauncher):
         )
 
     def offline_to_online_ingestion(
-        self, job_params: IngestionJobParameters
-    ) -> IngestionJob:
+        self, job_params: BatchIngestionJobParameters
+    ) -> BatchIngestionJob:
         job_id = str(uuid.uuid4())
-        return StandaloneClusterIngestionJob(job_id, self.spark_submit(job_params))
+        return StandaloneClusterBatchIngestionJob(job_id, self.spark_submit(job_params))
+
+    def start_stream_to_online_ingestion(
+        self, ingestion_job_params: StreamIngestionJobParameters
+    ) -> StreamIngestionJob:
+        raise NotImplementedError
 
     def stage_dataframe(
         self, df, event_timestamp_column: str, created_timestamp_column: str,

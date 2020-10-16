@@ -254,7 +254,7 @@ class RetrievalJob(SparkJob):
         raise NotImplementedError
 
 
-class IngestionJobParameters(SparkJobParameters):
+class BatchIngestionJobParameters(SparkJobParameters):
     def __init__(
         self,
         feature_table: Dict,
@@ -310,9 +310,65 @@ class IngestionJobParameters(SparkJobParameters):
         ]
 
 
-class IngestionJob(SparkJob):
+class StreamIngestionJobParameters(SparkJobParameters):
+    def __init__(
+        self,
+        feature_table: Dict,
+        source: Dict,
+        jar: str,
+        extra_jars: List[str],
+        redis_host: str,
+        redis_port: int,
+        redis_ssl: bool,
+    ):
+        self._feature_table = feature_table
+        self._source = source
+        self._jar = jar
+        self._extra_jars = extra_jars
+        self._redis_host = redis_host
+        self._redis_port = redis_port
+        self._redis_ssl = redis_ssl
+
+    def get_name(self) -> str:
+        return f"StreamIngestion-{self.get_feature_table_name()}"
+
+    def _get_redis_config(self):
+        return dict(host=self._redis_host, port=self._redis_port, ssl=self._redis_ssl)
+
+    def get_feature_table_name(self) -> str:
+        return self._feature_table["name"]
+
+    def get_main_file_path(self) -> str:
+        return self._jar
+
+    def get_extra_jar_paths(self) -> List[str]:
+        return self._extra_jars
+
+    def get_class_name(self) -> Optional[str]:
+        return "feast.ingestion.IngestionJob"
+
+    def get_arguments(self) -> List[str]:
+        return [
+            "--mode",
+            "online",
+            "--feature-table",
+            json.dumps(self._feature_table),
+            "--source",
+            json.dumps(self._source),
+            "--redis",
+            json.dumps(self._get_redis_config()),
+        ]
+
+
+class BatchIngestionJob(SparkJob):
     """
     Container for the ingestion job result
+    """
+
+
+class StreamIngestionJob(SparkJob):
+    """
+    Container for the streaming ingestion job result
     """
 
 
@@ -339,8 +395,8 @@ class JobLauncher(abc.ABC):
 
     @abc.abstractmethod
     def offline_to_online_ingestion(
-        self, ingestion_job_params: IngestionJobParameters
-    ) -> IngestionJob:
+        self, ingestion_job_params: BatchIngestionJobParameters
+    ) -> BatchIngestionJob:
         """
         Submits a batch ingestion job to a Spark cluster.
 
@@ -349,7 +405,23 @@ class JobLauncher(abc.ABC):
                 during execution, or timeout.
 
         Returns:
-            IngestionJob: wrapper around remote job that can be used to check when job completed.
+            BatchIngestionJob: wrapper around remote job that can be used to check when job completed.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def start_stream_to_online_ingestion(
+        self, ingestion_job_params: StreamIngestionJobParameters
+    ) -> StreamIngestionJob:
+        """
+        Starts a stream ingestion job to a Spark cluster.
+
+        Raises:
+            SparkJobFailure: The spark job submission failed, encountered error
+                during execution, or timeout.
+
+        Returns:
+            StreamIngestionJob: wrapper around remote job.
         """
         raise NotImplementedError
 

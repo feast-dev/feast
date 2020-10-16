@@ -387,11 +387,10 @@ def start_stream_to_online(feature_table: str, jar: str):
     """
     Start stream to online sync job.
     """
-    import feast.pyspark.aws.jobs
 
     client = Client()
     table = client.get_feature_table(feature_table)
-    feast.pyspark.aws.jobs.start_stream_to_online(client, table, [jar] if jar else [])
+    client.start_stream_to_online_ingestion(table, [jar] if jar else [])
 
 
 @cli.command()

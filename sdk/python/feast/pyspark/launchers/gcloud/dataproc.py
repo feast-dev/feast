@@ -9,14 +9,16 @@ from google.cloud.dataproc_v1 import Job as DataprocJob
 from google.cloud.dataproc_v1 import JobStatus
 
 from feast.pyspark.abc import (
-    IngestionJob,
-    IngestionJobParameters,
+    BatchIngestionJob,
+    BatchIngestionJobParameters,
     JobLauncher,
     RetrievalJob,
     RetrievalJobParameters,
     SparkJobFailure,
     SparkJobParameters,
     SparkJobStatus,
+    StreamIngestionJob,
+    StreamIngestionJobParameters,
 )
 from feast.staging.storage_client import get_staging_client
 
@@ -67,7 +69,7 @@ class DataprocRetrievalJob(DataprocJobMixin, RetrievalJob):
         return self._output_file_uri
 
 
-class DataprocIngestionJob(DataprocJobMixin, IngestionJob):
+class DataprocBatchIngestionJob(DataprocJobMixin, BatchIngestionJob):
     """
     Ingestion job result for a Dataproc cluster
     """
@@ -149,9 +151,14 @@ class DataprocClusterLauncher(JobLauncher):
         )
 
     def offline_to_online_ingestion(
-        self, job_params: IngestionJobParameters
-    ) -> IngestionJob:
-        return DataprocIngestionJob(self.dataproc_submit(job_params))
+        self, job_params: BatchIngestionJobParameters
+    ) -> BatchIngestionJob:
+        return DataprocBatchIngestionJob(self.dataproc_submit(job_params))
+
+    def start_stream_to_online_ingestion(
+        self, ingestion_job_params: StreamIngestionJobParameters
+    ) -> StreamIngestionJob:
+        raise NotImplementedError
 
     def stage_dataframe(
         self, df, event_timestamp_column: str, created_timestamp_column: str,

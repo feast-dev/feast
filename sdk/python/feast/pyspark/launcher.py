@@ -1,7 +1,7 @@
 import shutil
 import tempfile
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Union, cast
+from typing import TYPE_CHECKING, List, Union
 from urllib.parse import urlparse
 
 from feast.config import Config
@@ -23,14 +23,16 @@ from feast.constants import (
     CONFIG_SPARK_LAUNCHER,
     CONFIG_SPARK_STANDALONE_MASTER,
 )
-from feast.data_source import BigQuerySource, DataSource, FileSource
+from feast.data_source import BigQuerySource, DataSource, FileSource, KafkaSource
 from feast.feature_table import FeatureTable
 from feast.pyspark.abc import (
-    IngestionJob,
-    IngestionJobParameters,
+    BatchIngestionJob,
+    BatchIngestionJobParameters,
     JobLauncher,
     RetrievalJob,
     RetrievalJobParameters,
+    StreamIngestionJob,
+    StreamIngestionJobParameters,
 )
 from feast.staging.storage_client import get_staging_client
 from feast.value_type import ValueType
@@ -85,10 +87,7 @@ def resolve_launcher(config: Config) -> JobLauncher:
     return _launchers[config.get(CONFIG_SPARK_LAUNCHER)](config)
 
 
-_SOURCES = {
-    FileSource: ("file", "file_options"),
-    BigQuerySource: ("bq", "bigquery_options"),
-}
+_SOURCES = {FileSource: "file", BigQuerySource: "bq", KafkaSource: "kafka"}
 
 
 def _source_to_argument(source: DataSource):
@@ -99,16 +98,19 @@ def _source_to_argument(source: DataSource):
         "date_partition_column": source.date_partition_column,
     }
 
-    kind, option_field = _SOURCES[type(source)]
+    kind = _SOURCES[type(source)]
     properties = {**common_properties}
-    if type(source) == FileSource:
-        file_source = cast(FileSource, source)
-        properties["path"] = file_source.file_options.file_url
-        properties["format"] = str(file_source.file_options.file_format)
+    if isinstance(source, FileSource):
+        properties["path"] = source.file_options.file_url
+        properties["format"] = str(source.file_options.file_format)
         return {kind: properties}
-    if type(source) == BigQuerySource:
-        bq_source = cast(BigQuerySource, source)
-        properties["table_ref"] = bq_source.bigquery_options.table_ref
+    if isinstance(source, BigQuerySource):
+        properties["table_ref"] = source.bigquery_options.table_ref
+        return {kind: properties}
+    if isinstance(source, KafkaSource):
+        properties["topic"] = source.kafka_options.topic
+        properties["classpath"] = source.kafka_options.class_path
+        properties["bootstrap_servers"] = source.kafka_options.bootstrap_servers
         return {kind: properties}
     raise NotImplementedError(f"Unsupported Datasource: {type(source)}")
 
@@ -194,18 +196,38 @@ def _download_jar(remote_jar: str) -> str:
 
 def start_offline_to_online_ingestion(
     feature_table: FeatureTable, start: datetime, end: datetime, client: "Client"
-) -> IngestionJob:
+) -> BatchIngestionJob:
 
     launcher = resolve_launcher(client._config)
     local_jar_path = _download_jar(client._config.get(CONFIG_SPARK_INGESTION_JOB_JAR))
 
     return launcher.offline_to_online_ingestion(
-        IngestionJobParameters(
+        BatchIngestionJobParameters(
             jar=local_jar_path,
             source=_source_to_argument(feature_table.batch_source),
             feature_table=_feature_table_to_argument(client, feature_table),
             start=start,
             end=end,
+            redis_host=client._config.get(CONFIG_REDIS_HOST),
+            redis_port=client._config.getint(CONFIG_REDIS_PORT),
+            redis_ssl=client._config.getboolean(CONFIG_REDIS_SSL),
+        )
+    )
+
+
+def start_stream_to_online_ingestion(
+    feature_table: FeatureTable, extra_jars: List[str], client: "Client"
+) -> StreamIngestionJob:
+
+    launcher = resolve_launcher(client._config)
+    local_jar_path = _download_jar(client._config.get(CONFIG_SPARK_INGESTION_JOB_JAR))
+
+    return launcher.start_stream_to_online_ingestion(
+        StreamIngestionJobParameters(
+            jar=local_jar_path,
+            extra_jars=extra_jars,
+            source=_source_to_argument(feature_table.stream_source),
+            feature_table=_feature_table_to_argument(client, feature_table),
             redis_host=client._config.get(CONFIG_REDIS_HOST),
             redis_port=client._config.getint(CONFIG_REDIS_PORT),
             redis_ssl=client._config.getboolean(CONFIG_REDIS_SSL),
