@@ -20,15 +20,16 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
-import feast.proto.core.DataSourceProto.DataFormat;
-import feast.proto.core.DataSourceProto.DataFormat.AvroFormat;
-import feast.proto.core.DataSourceProto.DataFormat.ParquetFormat;
-import feast.proto.core.DataSourceProto.DataFormat.ProtoFormat;
 import feast.proto.core.DataSourceProto.DataSource;
 import feast.proto.core.DataSourceProto.DataSource.BigQueryOptions;
 import feast.proto.core.DataSourceProto.DataSource.FileOptions;
 import feast.proto.core.DataSourceProto.DataSource.KafkaOptions;
 import feast.proto.core.DataSourceProto.DataSource.KinesisOptions;
+import feast.proto.core.DataSourceProto.FileFormat;
+import feast.proto.core.DataSourceProto.FileFormat.ParquetFormat;
+import feast.proto.core.DataSourceProto.StreamFormat;
+import feast.proto.core.DataSourceProto.StreamFormat.AvroFormat;
+import feast.proto.core.DataSourceProto.StreamFormat.ProtoFormat;
 import feast.proto.core.EntityProto;
 import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureProto.FeatureSpecV2;
@@ -344,24 +345,24 @@ public class DataGenerator {
             KinesisOptions.newBuilder()
                 .setRegion("ap-nowhere1")
                 .setStreamName("stream")
-                .setRecordFormat(createProtoFormat("classPath"))
+                .setRecordFormat(createProtoFormat(classPath))
                 .build())
         .setEventTimestampColumn(timestampColumn)
         .build();
   }
 
-  public static DataFormat createParquetFormat() {
-    return DataFormat.newBuilder().setParquetFormat(ParquetFormat.getDefaultInstance()).build();
+  public static FileFormat createParquetFormat() {
+    return FileFormat.newBuilder().setParquetFormat(ParquetFormat.getDefaultInstance()).build();
   }
 
-  public static DataFormat createAvroFormat(String schemaJSON) {
-    return DataFormat.newBuilder()
+  public static StreamFormat createAvroFormat(String schemaJSON) {
+    return StreamFormat.newBuilder()
         .setAvroFormat(AvroFormat.newBuilder().setSchemaJson(schemaJSON).build())
         .build();
   }
 
-  public static DataFormat createProtoFormat(String classPath) {
-    return DataFormat.newBuilder()
+  public static StreamFormat createProtoFormat(String classPath) {
+    return StreamFormat.newBuilder()
         .setProtoFormat(ProtoFormat.newBuilder().setClassPath(classPath).build())
         .build();
   }

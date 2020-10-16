@@ -17,55 +17,65 @@
 package feast.core.validators;
 
 import static feast.core.validators.Matchers.*;
-import static feast.proto.core.DataSourceProto.DataFormat.FormatCase.*;
 import static feast.proto.core.DataSourceProto.DataSource.SourceType.*;
 
-import feast.proto.core.DataSourceProto.DataFormat.FormatCase;
 import feast.proto.core.DataSourceProto.DataSource;
-import feast.proto.core.DataSourceProto.DataSource.SourceType;
-import java.util.Map;
-import java.util.Set;
+import feast.proto.core.DataSourceProto.FileFormat;
+import feast.proto.core.DataSourceProto.StreamFormat;
 
 public class DataSourceValidator {
-  // Map data source type to its supported data formats
-  public static final Map<SourceType, Set<FormatCase>> SUPPORTED_FORMATS =
-      Map.of(
-          BATCH_FILE, Set.of(PARQUET_FORMAT),
-          STREAM_KAFKA, Set.of(PROTO_FORMAT),
-          STREAM_KINESIS, Set.of(PROTO_FORMAT));
-
   /** Validate if the given DataSource protobuf spec is valid. */
   public static void validate(DataSource spec) {
     switch (spec.getType()) {
       case BATCH_FILE:
-        // Verify that DataFormat is supported by file source
-        FormatCase fileFormat = spec.getFileOptions().getFileFormat().getFormatCase();
-        validateFormat(spec.getType(), fileFormat);
+        FileFormat.FormatCase fileFormat = spec.getFileOptions().getFileFormat().getFormatCase();
+        switch (fileFormat) {
+          case PARQUET_FORMAT:
+            break;
+          default:
+            throw new UnsupportedOperationException(
+                String.format("Unsupported File Format: %s", fileFormat));
+        }
         break;
+
       case BATCH_BIGQUERY:
         checkValidBigQueryTableRef(spec.getBigqueryOptions().getTableRef(), "FeatureTable");
         break;
+
       case STREAM_KAFKA:
-        // Verify that DataFormat is supported by kafka data source
-        FormatCase messageFormat = spec.getKafkaOptions().getMessageFormat().getFormatCase();
-        validateFormat(spec.getType(), messageFormat);
+        StreamFormat.FormatCase messageFormat =
+            spec.getKafkaOptions().getMessageFormat().getFormatCase();
+        switch (messageFormat) {
+          case PROTO_FORMAT:
+            checkValidClassPath(
+                spec.getKafkaOptions().getMessageFormat().getProtoFormat().getClassPath(),
+                "FeatureTable");
+            break;
+          default:
+            throw new UnsupportedOperationException(
+                String.format(
+                    "Unsupported Stream Format for Kafka Source Type: %s", messageFormat));
+        }
         break;
+
       case STREAM_KINESIS:
-        // Verify that DataFormat is supported by kinesis data source
-        FormatCase recordFormat = spec.getKinesisOptions().getRecordFormat().getFormatCase();
-        validateFormat(spec.getType(), recordFormat);
+        // Verify tht DataFormat is supported by kinesis data source
+        StreamFormat.FormatCase recordFormat =
+            spec.getKinesisOptions().getRecordFormat().getFormatCase();
+        switch (recordFormat) {
+          case PROTO_FORMAT:
+            checkValidClassPath(
+                spec.getKinesisOptions().getRecordFormat().getProtoFormat().getClassPath(),
+                "FeatureTable");
+            break;
+          default:
+            throw new UnsupportedOperationException(
+                String.format("Unsupported Stream Format for Kafka Source Type: %s", recordFormat));
+        }
         break;
       default:
         throw new UnsupportedOperationException(
             String.format("Unsupported Feature Store Type: %s", spec.getType()));
-    }
-  }
-
-  /** Valdiates if the given data format is valid for the given data source type. */
-  private static void validateFormat(SourceType sourceType, FormatCase format) {
-    if (!SUPPORTED_FORMATS.get(sourceType).contains(format)) {
-      throw new UnsupportedOperationException(
-          String.format("Unsupported Data Format for %s DataSource: %s", sourceType, format));
     }
   }
 }
