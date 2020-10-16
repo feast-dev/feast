@@ -22,8 +22,18 @@ option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 option java_outer_classname = "DataSourceProto";
 option java_package = "feast.proto.core";
 
-// Defines the data format and format specific options
-message DataFormat {
+// Defines the file format encoding the features/entity data in files
+message FileFormat {
+  // Defines options for the Parquet data format
+  message ParquetFormat {}
+  
+  oneof format {
+    ParquetFormat parquet_format = 1;
+  }
+}
+
+// Defines the data format encoding features/entity data in data streams
+message StreamFormat {
   // Defines options for the protobuf data format
   message ProtoFormat {
     // Classpath to the generated Java Protobuf class that can be used to decode
@@ -38,14 +48,10 @@ message DataFormat {
     string schema_json = 1;
   }
 
-  // Defines options for the Parquet data format
-  message ParquetFormat {}
-
   // Specifies the data format and format specific options
   oneof format {
-    ProtoFormat proto_format = 1;
-    AvroFormat avro_format = 2;
-    ParquetFormat parquet_format = 3;
+    AvroFormat avro_format = 1;
+    ProtoFormat proto_format = 2;
   }
 }
 
@@ -77,9 +83,7 @@ message DataSource {
 
   // Defines options for DataSource that sources features from a file
   message FileOptions {
-    // Defines the file format encoding the features/entity data
-    // File Data Sources support Avro and Parquet as data formats.
-    DataFormat file_format = 1;
+    FileFormat file_format = 1;
 
     // Target URL of file to retrieve and source features from.
     // s3://path/to/file for AWS S3 storage
@@ -104,9 +108,8 @@ message DataSource {
     // Kafka topic to collect feature data from.
     string topic = 2;
 
-    // Defines the data format encoding feature/entity data in Kafka messages.
-    // Kafka Data Sources support Avro and Proto as data formats.
-    DataFormat message_format = 3;
+    // Defines the stream data format encoding feature/entity data in Kafka messages.
+    StreamFormat message_format = 3;
   }
 
   // Defines options for DataSource that sources features from Kinesis records.
@@ -121,7 +124,7 @@ message DataSource {
 
     // Defines the data format encoding the feature/entity data in Kinesis records.
     // Kinesis Data Sources support Avro and Proto as data formats.
-    DataFormat record_format = 3;
+    StreamFormat record_format = 3;
   }
 
   // DataSource options.
