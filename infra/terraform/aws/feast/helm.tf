@@ -101,8 +101,8 @@ locals {
 }
 
 resource "helm_release" "feast" {
-  name  = "feast"
-  chart = "../../charts/feast"
+  name       = "feast"
+  chart      = "../../../charts/feast"
 
   wait = false
 

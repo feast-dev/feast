@@ -1,6 +1,6 @@
 resource "aws_security_group" "broker" {
   name_prefix = "${var.name_prefix}-kafka-broker"
-  vpc_id      = module.vpc.vpc_id
+  vpc_id      = data.aws_vpc.selected.id
 
   ingress {
     description     = "Allow connections from the worker group"
@@ -28,7 +28,7 @@ resource "aws_msk_cluster" "msk" {
   broker_node_group_info {
     instance_type   = "kafka.t3.small"
     ebs_volume_size = 100
-    client_subnets  = [module.vpc.private_subnets[0], module.vpc.private_subnets[1]]
+    client_subnets = data.aws_subnet_ids.subnets.ids
     security_groups = [aws_security_group.broker.id]
   }
 
