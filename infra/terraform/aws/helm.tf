@@ -40,7 +40,7 @@ locals {
                     stream = {
                         type = "kafka"
                         options = {
-                            bootstrapServers = "myrelease-kafka:9092"
+                            bootstrapServers = ${aws_msk_cluster.msk.bootstrap_brokers}
                             topic = "feast"
                         }
                     }
