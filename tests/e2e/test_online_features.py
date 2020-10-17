@@ -46,6 +46,8 @@ def ingestion_job_jar(pytestconfig, feast_version):
 
 @pytest.fixture(scope="session")
 def feast_client(pytestconfig, ingestion_job_jar):
+    redis_host, redis_port = pytestconfig.getoption("redis_url").split(":")
+
     if pytestconfig.getoption("env") == "local":
         return Client(
             core_url=pytestconfig.getoption("core_url"),
@@ -54,6 +56,8 @@ def feast_client(pytestconfig, ingestion_job_jar):
             spark_standalone_master="local",
             spark_home=os.path.dirname(pyspark.__file__),
             spark_ingestion_jar=ingestion_job_jar,
+            redis_host=redis_host,
+            redis_port=redis_port,
         )
 
     if pytestconfig.getoption("env") == "gcloud":
