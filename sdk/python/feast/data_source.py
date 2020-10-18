@@ -14,17 +14,11 @@
 
 
 import enum
-from abc import ABC, abstractmethod
 from typing import Dict, Optional
 
-from feast.data_format import (
-    FileFormat,
-    StreamFormat,
-    ProtoFormat,
-    AvroFormat,
-    ParquetFormat,
-)
 from feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.data_format import FileFormat, StreamFormat
+
 
 class SourceType(enum.Enum):
     """
@@ -36,6 +30,7 @@ class SourceType(enum.Enum):
     BATCH_BIGQUERY = 2
     STREAM_KAFKA = 3
     STREAM_KINESIS = 4
+
 
 class FileOptions:
     """

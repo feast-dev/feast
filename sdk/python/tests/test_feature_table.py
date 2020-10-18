@@ -21,8 +21,8 @@ import pytest
 
 from feast.client import Client
 from feast.core import CoreService_pb2_grpc as Core
-from feast.data_source import FileSource, KafkaSource
 from feast.data_format import ParquetFormat, ProtoFormat
+from feast.data_source import FileSource, KafkaSource
 from feast.feature import Feature
 from feast.feature_table import FeatureTable
 from feast.value_type import ValueType

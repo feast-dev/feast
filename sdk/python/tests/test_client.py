@@ -41,7 +41,8 @@ from feast.core.Feature_pb2 import FeatureSpecV2 as FeatureSpecProto
 from feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
 from feast.core.FeatureTable_pb2 import FeatureTableMeta as FeatureTableMetaProto
 from feast.core.FeatureTable_pb2 import FeatureTableSpec as FeatureTableSpecProto
-from feast.data_source import FileSource, KafkaSource, ParquetFormat, ProtoFormat
+from feast.data_format import ParquetFormat, ProtoFormat
+from feast.data_source import FileSource, KafkaSource
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_table import FeatureTable

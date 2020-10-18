@@ -58,7 +58,8 @@ from feast.core.CoreService_pb2 import (
     ListProjectsResponse,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
-from feast.data_source import BigQuerySource, FileSource, ParquetFormat
+from feast.data_format import ParquetFormat
+from feast.data_source import BigQuerySource, FileSource
 from feast.entity import Entity
 from feast.feature import _build_feature_references
 from feast.feature_table import FeatureTable
