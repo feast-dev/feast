@@ -14,6 +14,8 @@ from feast.data_source import (
     BigQuerySource,
     FileSource,
     KafkaSource,
+)
+from feast.data_format import (
     ParquetFormat,
     ProtoFormat,
 )
