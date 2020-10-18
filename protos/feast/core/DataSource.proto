@@ -22,38 +22,7 @@ option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 option java_outer_classname = "DataSourceProto";
 option java_package = "feast.proto.core";
 
-// Defines the file format encoding the features/entity data in files
-message FileFormat {
-  // Defines options for the Parquet data format
-  message ParquetFormat {}
-  
-  oneof format {
-    ParquetFormat parquet_format = 1;
-  }
-}
-
-// Defines the data format encoding features/entity data in data streams
-message StreamFormat {
-  // Defines options for the protobuf data format
-  message ProtoFormat {
-    // Classpath to the generated Java Protobuf class that can be used to decode
-    // Feature data from the obtained stream message
-    string class_path = 1;
-  }
-  
-  // Defines options for the avro data format
-  message AvroFormat {
-    // Optional if used in a File DataSource as schema is embedded in avro file.
-    // Specifies the schema of the Avro message as JSON string.
-    string schema_json = 1;
-  }
-
-  // Specifies the data format and format specific options
-  oneof format {
-    AvroFormat avro_format = 1;
-    ProtoFormat proto_format = 2;
-  }
-}
+import "feast/core/DataFormat.proto";
 
 // Defines a Data Source that can be used source Feature data
 message DataSource {

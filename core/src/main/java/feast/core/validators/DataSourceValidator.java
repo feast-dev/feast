@@ -19,9 +19,9 @@ package feast.core.validators;
 import static feast.core.validators.Matchers.*;
 import static feast.proto.core.DataSourceProto.DataSource.SourceType.*;
 
+import feast.proto.core.DataFormatProto.FileFormat;
+import feast.proto.core.DataFormatProto.StreamFormat;
 import feast.proto.core.DataSourceProto.DataSource;
-import feast.proto.core.DataSourceProto.FileFormat;
-import feast.proto.core.DataSourceProto.StreamFormat;
 
 public class DataSourceValidator {
   /** Validate if the given DataSource protobuf spec is valid. */
