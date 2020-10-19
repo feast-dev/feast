@@ -146,7 +146,7 @@ jobs:
     needs:
     - build-push-docker-images
     - publish-ingestion-jar
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     env:
       GCP_SERVICE_ACCOUNT: /etc/gcloud/key.json
     steps:
