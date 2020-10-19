@@ -16,9 +16,13 @@
  */
 package feast.core.model;
 
-import static feast.proto.core.DataSourceProto.DataSource.SourceType.*;
-
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
+import com.google.protobuf.MessageOrBuilder;
+import com.google.protobuf.util.JsonFormat;
 import feast.core.util.TypeConversion;
+import feast.proto.core.DataFormatProto.FileFormat;
+import feast.proto.core.DataFormatProto.StreamFormat;
 import feast.proto.core.DataSourceProto;
 import feast.proto.core.DataSourceProto.DataSource.BigQueryOptions;
 import feast.proto.core.DataSourceProto.DataSource.FileOptions;
@@ -91,20 +95,23 @@ public class DataSource {
     switch (spec.getType()) {
       case BATCH_FILE:
         dataSourceConfigMap.put("file_url", spec.getFileOptions().getFileUrl());
-        dataSourceConfigMap.put("file_format", spec.getFileOptions().getFileFormat());
+        dataSourceConfigMap.put("file_format", printJSON(spec.getFileOptions().getFileFormat()));
         break;
       case BATCH_BIGQUERY:
         dataSourceConfigMap.put("table_ref", spec.getBigqueryOptions().getTableRef());
         break;
       case STREAM_KAFKA:
         dataSourceConfigMap.put("bootstrap_servers", spec.getKafkaOptions().getBootstrapServers());
-        dataSourceConfigMap.put("class_path", spec.getKafkaOptions().getClassPath());
+        dataSourceConfigMap.put(
+            "message_format", printJSON(spec.getKafkaOptions().getMessageFormat()));
         dataSourceConfigMap.put("topic", spec.getKafkaOptions().getTopic());
         break;
       case STREAM_KINESIS:
-        dataSourceConfigMap.put("class_path", spec.getKinesisOptions().getClassPath());
+        dataSourceConfigMap.put(
+            "record_format", printJSON(spec.getKinesisOptions().getRecordFormat()));
         dataSourceConfigMap.put("region", spec.getKinesisOptions().getRegion());
         dataSourceConfigMap.put("stream_name", spec.getKinesisOptions().getStreamName());
+
         break;
       default:
         throw new UnsupportedOperationException(
@@ -137,7 +144,11 @@ public class DataSource {
       case BATCH_FILE:
         FileOptions.Builder fileOptions = FileOptions.newBuilder();
         fileOptions.setFileUrl(dataSourceConfigMap.get("file_url"));
-        fileOptions.setFileFormat(dataSourceConfigMap.get("file_format"));
+
+        FileFormat.Builder fileFormat = FileFormat.newBuilder();
+        parseMessage(dataSourceConfigMap.get("file_format"), fileFormat);
+        fileOptions.setFileFormat(fileFormat.build());
+
         spec.setFileOptions(fileOptions.build());
         break;
       case BATCH_BIGQUERY:
@@ -148,15 +159,23 @@ public class DataSource {
       case STREAM_KAFKA:
         KafkaOptions.Builder kafkaOptions = KafkaOptions.newBuilder();
         kafkaOptions.setBootstrapServers(dataSourceConfigMap.get("bootstrap_servers"));
-        kafkaOptions.setClassPath(dataSourceConfigMap.get("class_path"));
         kafkaOptions.setTopic(dataSourceConfigMap.get("topic"));
+
+        StreamFormat.Builder messageFormat = StreamFormat.newBuilder();
+        parseMessage(dataSourceConfigMap.get("message_format"), messageFormat);
+        kafkaOptions.setMessageFormat(messageFormat.build());
+
         spec.setKafkaOptions(kafkaOptions.build());
         break;
       case STREAM_KINESIS:
         KinesisOptions.Builder kinesisOptions = KinesisOptions.newBuilder();
-        kinesisOptions.setClassPath(dataSourceConfigMap.get("class_path"));
         kinesisOptions.setRegion(dataSourceConfigMap.get("region"));
         kinesisOptions.setStreamName(dataSourceConfigMap.get("stream_name"));
+
+        StreamFormat.Builder recordFormat = StreamFormat.newBuilder();
+        parseMessage(dataSourceConfigMap.get("record_format"), recordFormat);
+        kinesisOptions.setRecordFormat(recordFormat.build());
+
         spec.setKinesisOptions(kinesisOptions.build());
         break;
       default:
@@ -193,5 +212,23 @@ public class DataSource {
     }
     DataSource other = (DataSource) o;
     return this.toProto().equals(other.toProto());
+  }
+
+  /** Print the given Message into its JSON string representation */
+  private static String printJSON(MessageOrBuilder message) {
+    try {
+      return JsonFormat.printer().print(message);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException("Unexpected exception convering Proto to JSON", e);
+    }
+  }
+
+  /** Parse the given Message in JSON representation into the given Message Builder */
+  private static void parseMessage(String json, Message.Builder message) {
+    try {
+      JsonFormat.parser().merge(json, message);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException("Unexpected exception convering JSON to Proto", e);
+    }
   }
 }

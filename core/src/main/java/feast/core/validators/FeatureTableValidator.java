@@ -18,6 +18,7 @@ package feast.core.validators;
 
 import static feast.core.validators.Matchers.*;
 
+import feast.proto.core.DataSourceProto.DataSource.SourceType;
 import feast.proto.core.FeatureProto.FeatureSpecV2;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import java.util.ArrayList;
@@ -49,12 +50,6 @@ public class FeatureTableValidator {
     checkValidCharacters(spec.getName(), "FeatureTable");
     spec.getFeaturesList().forEach(FeatureTableValidator::validateFeatureSpec);
 
-    // Check that BigQuery reference defined for BigQuery source is valid
-    if (!spec.getBatchSource().getBigqueryOptions().getTableRef().isEmpty()) {
-      checkValidBigQueryTableRef(
-          spec.getBatchSource().getBigqueryOptions().getTableRef(), "FeatureTable");
-    }
-
     // Check that features and entities defined in FeatureTable do not use reserved names
     ArrayList<String> fieldNames = new ArrayList<>(spec.getEntitiesList());
     fieldNames.addAll(
@@ -69,6 +64,14 @@ public class FeatureTableValidator {
     if (hasDuplicates(fieldNames)) {
       throw new IllegalArgumentException(
           String.format("Entity and Feature names within a Feature Table should be unique."));
+    }
+
+    // Check that the data sources defined in the feature table are valid
+    if (!spec.getBatchSource().getType().equals(SourceType.INVALID)) {
+      DataSourceValidator.validate(spec.getBatchSource());
+    }
+    if (!spec.getStreamSource().getType().equals(SourceType.INVALID)) {
+      DataSourceValidator.validate(spec.getStreamSource());
     }
   }
 

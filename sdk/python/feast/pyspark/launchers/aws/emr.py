@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 import boto3
 import pandas
 
+from feast.data_format import ParquetFormat
 from feast.data_source import FileSource
 from feast.pyspark.abc import (
     IngestionJob,
@@ -242,6 +243,6 @@ class EmrClusterLauncher(JobLauncher):
         return FileSource(
             event_timestamp_column=event_timestamp,
             created_timestamp_column=created_timestamp_column,
-            file_format="parquet",
+            file_format=ParquetFormat(),
             file_url=file_url,
         )

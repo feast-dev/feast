@@ -9,7 +9,7 @@ require (
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/mock v1.2.0
-	github.com/golang/protobuf v1.4.2
+	github.com/golang/protobuf v1.4.3
 	github.com/google/go-cmp v0.5.0
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/lyft/protoc-gen-validate v0.1.0 // indirect
@@ -25,7 +25,7 @@ require (
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
 	golang.org/x/net v0.0.0-20200822124328-c89045814202
 	golang.org/x/sys v0.0.0-20200515095857-1151b9dac4a9 // indirect
-	golang.org/x/tools v0.0.0-20201013201025-64a9e34f3752 // indirect
+	golang.org/x/tools v0.0.0-20201017001424-6003fad69a88 // indirect
 	google.golang.org/grpc v1.29.1
 	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/russross/blackfriday.v2 v2.0.0 // indirect

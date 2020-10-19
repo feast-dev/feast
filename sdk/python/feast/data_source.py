@@ -17,6 +17,7 @@ import enum
 from typing import Dict, Optional
 
 from feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.data_format import FileFormat, StreamFormat
 
 
 class SourceType(enum.Enum):
@@ -37,7 +38,7 @@ class FileOptions:
     """
 
     def __init__(
-        self, file_format: str, file_url: str,
+        self, file_format: FileFormat, file_url: str,
     ):
         self._file_format = file_format
         self._file_url = file_url
@@ -75,18 +76,16 @@ class FileOptions:
         """
         Creates a FileOptions from a protobuf representation of a file option
 
-        Args:
-            file_options_proto: A protobuf representation of a DataSource
+        args:
+            file_options_proto: a protobuf representation of a datasource
 
         Returns:
             Returns a FileOptions object based on the file_options protobuf
         """
-
         file_options = cls(
-            file_format=file_options_proto.file_format,
+            file_format=FileFormat.from_proto(file_options_proto.file_format),
             file_url=file_options_proto.file_url,
         )
-
         return file_options
 
     def to_proto(self) -> DataSourceProto.FileOptions:
@@ -98,7 +97,7 @@ class FileOptions:
         """
 
         file_options_proto = DataSourceProto.FileOptions(
-            file_format=self.file_format, file_url=self.file_url,
+            file_format=self.file_format.to_proto(), file_url=self.file_url,
         )
 
         return file_options_proto
@@ -165,10 +164,10 @@ class KafkaOptions:
     """
 
     def __init__(
-        self, bootstrap_servers: str, class_path: str, topic: str,
+        self, bootstrap_servers: str, message_format: StreamFormat, topic: str,
     ):
         self._bootstrap_servers = bootstrap_servers
-        self._class_path = class_path
+        self._message_format = message_format
         self._topic = topic
 
     @property
@@ -186,20 +185,18 @@ class KafkaOptions:
         self._bootstrap_servers = bootstrap_servers
 
     @property
-    def class_path(self):
+    def message_format(self):
         """
-        Returns the class path to the generated Java Protobuf class that can be
-        used to decode feature data from the obtained Kafka message
+        Returns the data format that is used to encode the feature data in Kafka messages
         """
-        return self._class_path
+        return self._message_format
 
-    @class_path.setter
-    def class_path(self, class_path):
+    @message_format.setter
+    def message_format(self, message_format):
         """
-        Sets the class path to the generated Java Protobuf class that can be
-        used to decode feature data from the obtained Kafka message
+        Sets the data format that is used to encode the feature data in Kafka messages
         """
-        self._class_path = class_path
+        self._message_format = message_format
 
     @property
     def topic(self):
@@ -229,7 +226,7 @@ class KafkaOptions:
 
         kafka_options = cls(
             bootstrap_servers=kafka_options_proto.bootstrap_servers,
-            class_path=kafka_options_proto.class_path,
+            message_format=StreamFormat.from_proto(kafka_options_proto.message_format),
             topic=kafka_options_proto.topic,
         )
 
@@ -245,7 +242,7 @@ class KafkaOptions:
 
         kafka_options_proto = DataSourceProto.KafkaOptions(
             bootstrap_servers=self.bootstrap_servers,
-            class_path=self.class_path,
+            message_format=self.message_format.to_proto(),
             topic=self.topic,
         )
 
@@ -258,27 +255,25 @@ class KinesisOptions:
     """
 
     def __init__(
-        self, class_path: str, region: str, stream_name: str,
+        self, record_format: StreamFormat, region: str, stream_name: str,
     ):
-        self._class_path = class_path
+        self._record_format = record_format
         self._region = region
         self._stream_name = stream_name
 
     @property
-    def class_path(self):
+    def record_format(self):
         """
-        Returns the class path to the generated Java Protobuf class that can be
-        used to decode feature data from the obtained Kinesis record
+        Returns the data format used to encode the feature data in the Kinesis records.
         """
-        return self._class_path
+        return self._record_format
 
-    @class_path.setter
-    def class_path(self, class_path):
+    @record_format.setter
+    def record_format(self, record_format):
         """
-        Sets the class path to the generated Java Protobuf class that can be
-        used to decode feature data from the obtained Kinesis record
+        Sets the data format used to encode the feature data in the Kinesis records.
         """
-        self._class_path = class_path
+        self._record_format = record_format
 
     @property
     def region(self):
@@ -321,7 +316,7 @@ class KinesisOptions:
         """
 
         kinesis_options = cls(
-            class_path=kinesis_options_proto.class_path,
+            record_format=StreamFormat.from_proto(kinesis_options_proto.record_format),
             region=kinesis_options_proto.region,
             stream_name=kinesis_options_proto.stream_name,
         )
@@ -337,7 +332,7 @@ class KinesisOptions:
         """
 
         kinesis_options_proto = DataSourceProto.KinesisOptions(
-            class_path=self.class_path,
+            record_format=self.record_format.to_proto(),
             region=self.region,
             stream_name=self.stream_name,
         )
@@ -441,7 +436,7 @@ class DataSource:
         if data_source.file_options.file_format and data_source.file_options.file_url:
             data_source_obj = FileSource(
                 field_mapping=data_source.field_mapping,
-                file_format=data_source.file_options.file_format,
+                file_format=FileFormat.from_proto(data_source.file_options.file_format),
                 file_url=data_source.file_options.file_url,
                 event_timestamp_column=data_source.event_timestamp_column,
                 created_timestamp_column=data_source.created_timestamp_column,
@@ -458,25 +453,29 @@ class DataSource:
         elif (
             data_source.kafka_options.bootstrap_servers
             and data_source.kafka_options.topic
-            and data_source.kafka_options.class_path
+            and data_source.kafka_options.message_format
         ):
             data_source_obj = KafkaSource(
                 field_mapping=data_source.field_mapping,
                 bootstrap_servers=data_source.kafka_options.bootstrap_servers,
-                class_path=data_source.kafka_options.class_path,
+                message_format=StreamFormat.from_proto(
+                    data_source.kafka_options.message_format
+                ),
                 topic=data_source.kafka_options.topic,
                 event_timestamp_column=data_source.event_timestamp_column,
                 created_timestamp_column=data_source.created_timestamp_column,
                 date_partition_column=data_source.date_partition_column,
             )
         elif (
-            data_source.kinesis_options.class_path
+            data_source.kinesis_options.record_format
             and data_source.kinesis_options.region
             and data_source.kinesis_options.stream_name
         ):
             data_source_obj = KinesisSource(
                 field_mapping=data_source.field_mapping,
-                class_path=data_source.kinesis_options.class_path,
+                record_format=StreamFormat.from_proto(
+                    data_source.kinesis_options.record_format
+                ),
                 region=data_source.kinesis_options.region,
                 stream_name=data_source.kinesis_options.stream_name,
                 event_timestamp_column=data_source.event_timestamp_column,
@@ -500,7 +499,7 @@ class FileSource(DataSource):
         self,
         event_timestamp_column: str,
         created_timestamp_column: str,
-        file_format: str,
+        file_format: FileFormat,
         file_url: str,
         field_mapping: Optional[Dict[str, str]] = dict(),
         date_partition_column: Optional[str] = "",
@@ -522,7 +521,6 @@ class FileSource(DataSource):
             or self.file_options.file_format != other.file_options.file_format
         ):
             return False
-
         return True
 
     @property
@@ -615,7 +613,7 @@ class KafkaSource(DataSource):
         event_timestamp_column: str,
         created_timestamp_column: str,
         bootstrap_servers: str,
-        class_path: str,
+        message_format: StreamFormat,
         topic: str,
         field_mapping: Optional[Dict[str, str]] = dict(),
         date_partition_column: Optional[str] = "",
@@ -627,7 +625,9 @@ class KafkaSource(DataSource):
             date_partition_column,
         )
         self._kafka_options = KafkaOptions(
-            bootstrap_servers=bootstrap_servers, class_path=class_path, topic=topic
+            bootstrap_servers=bootstrap_servers,
+            message_format=message_format,
+            topic=topic,
         )
 
     def __eq__(self, other):
@@ -639,7 +639,7 @@ class KafkaSource(DataSource):
         if (
             self.kafka_options.bootstrap_servers
             != other.kafka_options.bootstrap_servers
-            or self.kafka_options.class_path != other.kafka_options.class_path
+            or self.kafka_options.message_format != other.kafka_options.message_format
             or self.kafka_options.topic != other.kafka_options.topic
         ):
             return False
@@ -679,7 +679,7 @@ class KinesisSource(DataSource):
         self,
         event_timestamp_column: str,
         created_timestamp_column: str,
-        class_path: str,
+        record_format: StreamFormat,
         region: str,
         stream_name: str,
         field_mapping: Optional[Dict[str, str]] = dict(),
@@ -692,7 +692,7 @@ class KinesisSource(DataSource):
             date_partition_column,
         )
         self._kinesis_options = KinesisOptions(
-            class_path=class_path, region=region, stream_name=stream_name
+            record_format=record_format, region=region, stream_name=stream_name
         )
 
     def __eq__(self, other):
@@ -702,7 +702,7 @@ class KinesisSource(DataSource):
             )
 
         if (
-            self.kinesis_options.class_path != other.kinesis_options.class_path
+            self.kinesis_options.record_format != other.kinesis_options.record_format
             or self.kinesis_options.region != other.kinesis_options.region
             or self.kinesis_options.stream_name != other.kinesis_options.stream_name
         ):

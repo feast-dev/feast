@@ -100,8 +100,7 @@ public class SpecServiceIT extends BaseIT {
                 ImmutableMap.of("feat_key2", "feat_value2"))
             .toBuilder()
             .setBatchSource(
-                DataGenerator.createFileDataSourceSpec(
-                    "file:///path/to/file", "parquet", "ts_col", ""))
+                DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
             .build());
     apiClient.simpleApplyEntity(
         "project1",
@@ -953,8 +952,7 @@ public class SpecServiceIT extends BaseIT {
                   ImmutableMap.of("feat_key2", "feat_value2"))
               .toBuilder()
               .setBatchSource(
-                  DataGenerator.createFileDataSourceSpec(
-                      "file:///path/to/file", "parquet", "ts_col", ""))
+                  DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
               .build();
       FeatureTableProto.FeatureTable featureTable =
           apiClient.simpleGetFeatureTable("default", "featuretable1");
@@ -1066,8 +1064,7 @@ public class SpecServiceIT extends BaseIT {
               Map.of())
           .toBuilder()
           .setBatchSource(
-              DataGenerator.createFileDataSourceSpec(
-                  "file:///path/to/file", "parquet", "ts_col", ""))
+              DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
           .setStreamSource(
               DataGenerator.createKafkaDataSourceSpec(
                   "localhost:9092", "topic", "class.path", "ts_col"))
@@ -1098,8 +1095,7 @@ public class SpecServiceIT extends BaseIT {
                   Map.of("test", "labels"))
               .toBuilder()
               .setStreamSource(
-                  DataGenerator.createFileDataSourceSpec(
-                      "file:///path/to/file", "parquet", "ts_col", ""))
+                  DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
               .setBatchSource(
                   DataGenerator.createKafkaDataSourceSpec(
                       "localhost:9092", "topic", "class.path", "ts_col"))
@@ -1158,8 +1154,7 @@ public class SpecServiceIT extends BaseIT {
                   ImmutableMap.of("feat_key2", "feat_value2"))
               .toBuilder()
               .setBatchSource(
-                  DataGenerator.createFileDataSourceSpec(
-                      "file:///path/to/file", "parquet", "ts_col", ""))
+                  DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
               .build();
 
       StatusRuntimeException exc =
@@ -1190,8 +1185,7 @@ public class SpecServiceIT extends BaseIT {
                   ImmutableMap.of("feat_key2", "feat_value2"))
               .toBuilder()
               .setBatchSource(
-                  DataGenerator.createFileDataSourceSpec(
-                      "file:///path/to/file", "parquet", "ts_col", ""))
+                  DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
               .build();
 
       StatusRuntimeException exc =
@@ -1213,7 +1207,7 @@ public class SpecServiceIT extends BaseIT {
           DataGenerator.createFeatureTableSpec(
                   "ft",
                   List.of("entity1"),
-                  Map.of("event_timestamp", ValueProto.ValueType.Enum.INT64),
+                  Map.of("feature", ValueProto.ValueType.Enum.INT64),
                   3600,
                   Map.of())
               .toBuilder()
@@ -1250,7 +1244,7 @@ public class SpecServiceIT extends BaseIT {
                       .toBuilder()
                       .setBatchSource(
                           DataGenerator.createFileDataSourceSpec(
-                              "file:///path/to/file", "parquet", "ts_col", ""))
+                              "file:///path/to/file", "ts_col", ""))
                       .build()));
 
       // Reserved name used in as entity name
@@ -1268,7 +1262,7 @@ public class SpecServiceIT extends BaseIT {
                       .toBuilder()
                       .setBatchSource(
                           DataGenerator.createFileDataSourceSpec(
-                              "file:///path/to/file", "parquet", "ts_col", ""))
+                              "file:///path/to/file", "ts_col", ""))
                       .build()));
     }
 
@@ -1289,7 +1283,7 @@ public class SpecServiceIT extends BaseIT {
                       .toBuilder()
                       .setBatchSource(
                           DataGenerator.createFileDataSourceSpec(
-                              "file:///path/to/file", "parquet", "ts_col", ""))
+                              "file:///path/to/file", "ts_col", ""))
                       .build()));
 
       // Invalid feature name
@@ -1307,7 +1301,7 @@ public class SpecServiceIT extends BaseIT {
                       .toBuilder()
                       .setBatchSource(
                           DataGenerator.createFileDataSourceSpec(
-                              "file:///path/to/file", "parquet", "ts_col", ""))
+                              "file:///path/to/file", "ts_col", ""))
                       .build()));
     }
 
@@ -1327,7 +1321,7 @@ public class SpecServiceIT extends BaseIT {
                       .toBuilder()
                       .setBatchSource(
                           DataGenerator.createFileDataSourceSpec(
-                              "file:///path/to/file", "parquet", "ts_col", ""))
+                              "file:///path/to/file", "ts_col", ""))
                       .build()));
     }
 
@@ -1350,7 +1344,7 @@ public class SpecServiceIT extends BaseIT {
                       .toBuilder()
                       .setBatchSource(
                           DataGenerator.createFileDataSourceSpec(
-                              "file:///path/to/file", "parquet", "ts_col", ""))
+                              "file:///path/to/file", "ts_col", ""))
                       .build()));
     }
   }

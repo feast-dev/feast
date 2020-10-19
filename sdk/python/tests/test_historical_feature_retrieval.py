@@ -22,6 +22,7 @@ from pyspark.sql.types import (
 
 from feast import Client, Entity, Feature, FeatureTable, FileSource, ValueType
 from feast.core import CoreService_pb2_grpc as Core
+from feast.data_format import ParquetFormat
 from tests.feast_core_server import CoreServicer
 
 
@@ -153,7 +154,7 @@ def transactions_feature_table(spark, client):
         spark, "transactions", schema, df_data
     )
     file_source = FileSource(
-        "event_timestamp", "created_timestamp", "parquet", file_uri
+        "event_timestamp", "created_timestamp", ParquetFormat(), file_uri
     )
     features = [
         Feature("total_transactions", ValueType.DOUBLE),
@@ -199,7 +200,7 @@ def bookings_feature_table(spark, client):
     temp_dir, file_uri = create_temp_parquet_file(spark, "bookings", schema, df_data)
 
     file_source = FileSource(
-        "event_timestamp", "created_timestamp", "parquet", file_uri
+        "event_timestamp", "created_timestamp", ParquetFormat(), file_uri
     )
     features = [Feature("total_completed_bookings", ValueType.INT32)]
     max_age = Duration()
@@ -244,7 +245,7 @@ def bookings_feature_table_with_mapping(spark, client):
     temp_dir, file_uri = create_temp_parquet_file(spark, "bookings", schema, df_data)
 
     file_source = FileSource(
-        "datetime", "created_datetime", "parquet", file_uri, {"id": "driver_id"}
+        "datetime", "created_datetime", ParquetFormat(), file_uri, {"id": "driver_id"}
     )
     features = [Feature("total_completed_bookings", ValueType.INT32)]
     max_age = Duration()
@@ -283,7 +284,7 @@ def test_historical_feature_retrieval_from_local_spark_session(
         spark, "customer_driver_pair", schema, df_data
     )
     customer_driver_pairs_source = FileSource(
-        "event_timestamp", "created_timestamp", "parquet", file_uri
+        "event_timestamp", "created_timestamp", ParquetFormat(), file_uri
     )
     joined_df = client.get_historical_features_df(
         ["transactions:total_transactions", "bookings:total_completed_bookings"],
@@ -330,7 +331,7 @@ def test_historical_feature_retrieval_with_field_mappings_from_local_spark_sessi
     ]
     temp_dir, file_uri = create_temp_parquet_file(spark, "drivers", schema, df_data)
     entity_source = FileSource(
-        "event_timestamp", "created_timestamp", "parquet", file_uri
+        "event_timestamp", "created_timestamp", ParquetFormat(), file_uri
     )
     joined_df = client.get_historical_features_df(
         ["bookings:total_completed_bookings"], entity_source,

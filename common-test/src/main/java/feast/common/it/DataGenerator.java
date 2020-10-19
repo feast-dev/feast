@@ -20,10 +20,16 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
+import feast.proto.core.DataFormatProto.FileFormat;
+import feast.proto.core.DataFormatProto.FileFormat.ParquetFormat;
+import feast.proto.core.DataFormatProto.StreamFormat;
+import feast.proto.core.DataFormatProto.StreamFormat.AvroFormat;
+import feast.proto.core.DataFormatProto.StreamFormat.ProtoFormat;
 import feast.proto.core.DataSourceProto.DataSource;
 import feast.proto.core.DataSourceProto.DataSource.BigQueryOptions;
 import feast.proto.core.DataSourceProto.DataSource.FileOptions;
 import feast.proto.core.DataSourceProto.DataSource.KafkaOptions;
+import feast.proto.core.DataSourceProto.DataSource.KinesisOptions;
 import feast.proto.core.EntityProto;
 import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureProto.FeatureSpecV2;
@@ -266,11 +272,14 @@ public class DataGenerator {
   }
 
   public static DataSource createFileDataSourceSpec(
-      String fileURL, String fileFormat, String timestampColumn, String datePartitionColumn) {
+      String fileURL, String timestampColumn, String datePartitionColumn) {
     return DataSource.newBuilder()
         .setType(DataSource.SourceType.BATCH_FILE)
         .setFileOptions(
-            FileOptions.newBuilder().setFileFormat(fileFormat).setFileUrl(fileURL).build())
+            FileOptions.newBuilder()
+                .setFileFormat(createParquetFormat())
+                .setFileUrl(fileURL)
+                .build())
         .setEventTimestampColumn(timestampColumn)
         .setDatePartitionColumn(datePartitionColumn)
         .build();
@@ -294,7 +303,7 @@ public class DataGenerator {
             KafkaOptions.newBuilder()
                 .setTopic(topic)
                 .setBootstrapServers(servers)
-                .setClassPath(classPath)
+                .setMessageFormat(createProtoFormat("class.path"))
                 .build())
         .setEventTimestampColumn(timestampColumn)
         .build();
@@ -325,6 +334,36 @@ public class DataGenerator {
     return ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow.newBuilder()
         .setTimestamp(Timestamp.newBuilder().setSeconds(seconds))
         .putFields(entityName, entityValue)
+        .build();
+  }
+
+  public static DataSource createKinesisDataSourceSpec(
+      String region, String streamName, String classPath, String timestampColumn) {
+    return DataSource.newBuilder()
+        .setType(DataSource.SourceType.STREAM_KINESIS)
+        .setKinesisOptions(
+            KinesisOptions.newBuilder()
+                .setRegion("ap-nowhere1")
+                .setStreamName("stream")
+                .setRecordFormat(createProtoFormat(classPath))
+                .build())
+        .setEventTimestampColumn(timestampColumn)
+        .build();
+  }
+
+  public static FileFormat createParquetFormat() {
+    return FileFormat.newBuilder().setParquetFormat(ParquetFormat.getDefaultInstance()).build();
+  }
+
+  public static StreamFormat createAvroFormat(String schemaJSON) {
+    return StreamFormat.newBuilder()
+        .setAvroFormat(AvroFormat.newBuilder().setSchemaJson(schemaJSON).build())
+        .build();
+  }
+
+  public static StreamFormat createProtoFormat(String classPath) {
+    return StreamFormat.newBuilder()
+        .setProtoFormat(ProtoFormat.newBuilder().setClassPath(classPath).build())
         .build();
   }
 }

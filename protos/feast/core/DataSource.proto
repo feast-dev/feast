@@ -22,6 +22,8 @@ option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 option java_outer_classname = "DataSourceProto";
 option java_package = "feast.proto.core";
 
+import "feast/core/DataFormat.proto";
+
 // Defines a Data Source that can be used source Feature data
 message DataSource {
   // Type of Data Source.
@@ -50,8 +52,7 @@ message DataSource {
 
   // Defines options for DataSource that sources features from a file
   message FileOptions {
-    // File Format of the file containing the features
-    string file_format = 1;
+    FileFormat file_format = 1;
 
     // Target URL of file to retrieve and source features from.
     // s3://path/to/file for AWS S3 storage
@@ -76,9 +77,8 @@ message DataSource {
     // Kafka topic to collect feature data from.
     string topic = 2;
 
-    // Classpath to the generated Java Protobuf class that can be used to decode
-    // Feature data from the obtained Kafka message
-    string class_path = 3; 
+    // Defines the stream data format encoding feature/entity data in Kafka messages.
+    StreamFormat message_format = 3;
   }
 
   // Defines options for DataSource that sources features from Kinesis records.
@@ -91,9 +91,9 @@ message DataSource {
     // Name of the Kinesis stream to obtain feature data from.
     string stream_name = 2;
 
-    // Classpath to the generated Java Protobuf class that can be used to decode
-    // Feature data from the obtained Kinesis record
-    string class_path = 3; 
+    // Defines the data format encoding the feature/entity data in Kinesis records.
+    // Kinesis Data Sources support Avro and Proto as data formats.
+    StreamFormat record_format = 3;
   }
 
   // DataSource options.

@@ -41,6 +41,7 @@ from feast.core.Feature_pb2 import FeatureSpecV2 as FeatureSpecProto
 from feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
 from feast.core.FeatureTable_pb2 import FeatureTableMeta as FeatureTableMetaProto
 from feast.core.FeatureTable_pb2 import FeatureTableSpec as FeatureTableSpecProto
+from feast.data_format import ParquetFormat, ProtoFormat
 from feast.data_source import FileSource, KafkaSource
 from feast.entity import Entity
 from feast.feature import Feature
@@ -398,7 +399,7 @@ class TestClient:
 
         # Create Feature Tables
         batch_source = FileSource(
-            file_format="parquet",
+            file_format=ParquetFormat(),
             file_url="file://feast/*",
             event_timestamp_column="ts_col",
             created_timestamp_column="timestamp",
@@ -407,7 +408,7 @@ class TestClient:
 
         stream_source = KafkaSource(
             bootstrap_servers="localhost:9094",
-            class_path="random/path/to/class",
+            message_format=ProtoFormat("class.path"),
             topic="test_topic",
             event_timestamp_column="ts_col",
             created_timestamp_column="timestamp",
@@ -820,7 +821,7 @@ def _ingest_test_getfeaturetable_mocked_resp(
                 entities=["dev_entity"],
                 batch_source=DataSourceProto(
                     file_options=DataSourceProto.FileOptions(
-                        file_format="parquet", file_url=file_url
+                        file_format=ParquetFormat().to_proto(), file_url=file_url
                     ),
                     event_timestamp_column="datetime",
                     created_timestamp_column="timestamp",

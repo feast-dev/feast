@@ -1,7 +1,7 @@
 import shutil
 import tempfile
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Union
+from typing import TYPE_CHECKING, List, Union, cast
 from urllib.parse import urlparse
 
 from feast.config import Config
@@ -86,8 +86,8 @@ def resolve_launcher(config: Config) -> JobLauncher:
 
 
 _SOURCES = {
-    FileSource: ("file", "file_options", {"path": "file_url", "format": "file_format"}),
-    BigQuerySource: ("bq", "bigquery_options", {"table_ref": "table_ref"}),
+    FileSource: ("file", "file_options"),
+    BigQuerySource: ("bq", "bigquery_options"),
 }
 
 
@@ -99,17 +99,18 @@ def _source_to_argument(source: DataSource):
         "date_partition_column": source.date_partition_column,
     }
 
-    kind, option_field, extra_properties = _SOURCES[type(source)]
-
-    properties = {
-        **common_properties,
-        **{
-            k: getattr(getattr(source, option_field), ref)
-            for k, ref in extra_properties.items()
-        },
-    }
-
-    return {kind: properties}
+    kind, option_field = _SOURCES[type(source)]
+    properties = {**common_properties}
+    if type(source) == FileSource:
+        file_source = cast(FileSource, source)
+        properties["path"] = file_source.file_options.file_url
+        properties["format"] = str(file_source.file_options.file_format)
+        return {kind: properties}
+    if type(source) == BigQuerySource:
+        bq_source = cast(BigQuerySource, source)
+        properties["table_ref"] = bq_source.bigquery_options.table_ref
+        return {kind: properties}
+    raise NotImplementedError(f"Unsupported Datasource: {type(source)}")
 
 
 def _feature_table_to_argument(client: "Client", feature_table: FeatureTable):

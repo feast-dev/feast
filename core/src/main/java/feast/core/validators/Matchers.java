@@ -24,6 +24,8 @@ public class Matchers {
 
   private static Pattern BIGQUERY_TABLE_REF_REGEX =
       Pattern.compile("[a-zA-Z0-9-]+[:]+[a-zA-Z0-9_]+[.]+[a-zA-Z0-9_]*");
+  private static Pattern CLASS_PATH_REGEX =
+      Pattern.compile("[a-zA-Z_$][a-zA-Z0-9_$]*(\\.[a-zA-Z_$][a-zA-Z0-9_$]*)");
   private static Pattern UPPER_SNAKE_CASE_REGEX = Pattern.compile("^[A-Z0-9]+(_[A-Z0-9]+)*$");
   private static Pattern LOWER_SNAKE_CASE_REGEX = Pattern.compile("^[a-z0-9]+(_[a-z0-9]+)*$");
   private static Pattern VALID_CHARACTERS_REGEX = Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*$");
@@ -89,6 +91,14 @@ public class Matchers {
               resource,
               input,
               "argument must be in the form of <project:dataset.table> ."));
+    }
+  }
+
+  public static void checkValidClassPath(String input, String resource) {
+    if (!CLASS_PATH_REGEX.matcher(input).matches()) {
+      throw new IllegalArgumentException(
+          String.format(
+              ERROR_MESSAGE_TEMPLATE, resource, input, "argument must be a valid Java Classpath"));
     }
   }
 
