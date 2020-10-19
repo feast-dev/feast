@@ -149,3 +149,15 @@ jobs:
       - uses: actions/checkout@v2
       - name: Test docker compose
         run: ./infra/scripts/test-docker-compose.sh ${GITHUB_SHA}
+
+  publish-ingestion-jar:
+    runs-on: [ self-hosted ]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        with:
+          version: '290.0.1'
+          export_default_credentials: true
+      - make build-java-no-tests REVISION=${GITHUB_SHA}
+      - gsutil cp ./spark/ingestion/target/feast-ingestion-spark-${GITHUB_SHA}.jar gs://feast-jobs/
+
