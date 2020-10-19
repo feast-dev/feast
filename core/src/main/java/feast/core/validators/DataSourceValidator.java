@@ -51,6 +51,8 @@ public class DataSourceValidator {
                 spec.getKafkaOptions().getMessageFormat().getProtoFormat().getClassPath(),
                 "FeatureTable");
             break;
+          case AVRO_FORMAT:
+            break;
           default:
             throw new UnsupportedOperationException(
                 String.format(
@@ -67,6 +69,8 @@ public class DataSourceValidator {
             checkValidClassPath(
                 spec.getKinesisOptions().getRecordFormat().getProtoFormat().getClassPath(),
                 "FeatureTable");
+            break;
+          case AVRO_FORMAT:
             break;
           default:
             throw new UnsupportedOperationException(

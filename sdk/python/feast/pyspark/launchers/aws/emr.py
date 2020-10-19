@@ -62,6 +62,9 @@ class EmrJobMixin:
             # we should never get here
             raise Exception("Invalid EMR state")
 
+    def cancel(self):
+        raise NotImplementedError
+
 
 class EmrRetrievalJob(EmrJobMixin, RetrievalJob):
     """

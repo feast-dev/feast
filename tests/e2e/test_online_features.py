@@ -1,16 +1,29 @@
+import io
+import json
 import os
 import time
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import avro.schema
 import numpy as np
 import pandas as pd
 import pyspark
 import pytest
+from avro.io import BinaryEncoder, DatumWriter
+from confluent_kafka import Producer
 
-from feast import Client, Entity, Feature, FeatureTable, FileSource, ValueType
-from feast.data_format import ParquetFormat
+from feast import (
+    Client,
+    Entity,
+    Feature,
+    FeatureTable,
+    FileSource,
+    KafkaSource,
+    ValueType,
+)
+from feast.data_format import AvroFormat, ParquetFormat
 from feast.pyspark.abc import SparkJobStatus
 from feast.wait import wait_retry_backoff
 
@@ -110,11 +123,7 @@ def test_offline_ingestion(feast_client: Client, staging_path: str):
         feature_table, datetime.today(), datetime.today() + timedelta(days=1)
     )
 
-    status = wait_retry_backoff(
-        lambda: (job.get_status(), job.get_status() != SparkJobStatus.IN_PROGRESS), 300
-    )
-
-    assert status == SparkJobStatus.COMPLETED
+    wait_retry_backoff(lambda: (None, job.get_status() == SparkJobStatus.COMPLETED), 60)
 
     features = feast_client.get_online_features(
         ["drivers:unique_drivers"],
@@ -128,3 +137,111 @@ def test_offline_ingestion(feast_client: Client, staging_path: str):
             columns={"unique_drivers": "drivers:unique_drivers"}
         ),
     )
+
+
+def test_streaming_ingestion(feast_client: Client, staging_path: str, pytestconfig):
+    entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
+
+    feature_table = FeatureTable(
+        name="drivers_stream",
+        entities=["s2id"],
+        features=[Feature("unique_drivers", ValueType.INT64)],
+        batch_source=FileSource(
+            "event_timestamp",
+            "event_timestamp",
+            ParquetFormat(),
+            os.path.join(staging_path, "batch-storage"),
+        ),
+        stream_source=KafkaSource(
+            "event_timestamp",
+            "event_timestamp",
+            pytestconfig.getoption("kafka_brokers"),
+            AvroFormat(avro_schema()),
+            topic="avro",
+        ),
+    )
+
+    feast_client.apply_entity(entity)
+    feast_client.apply_feature_table(feature_table)
+
+    job = feast_client.start_stream_to_online_ingestion(feature_table)
+
+    wait_retry_backoff(
+        lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 60
+    )
+
+    time.sleep(5)
+
+    original = generate_data()[["s2id", "unique_drivers", "event_timestamp"]]
+    for record in original.to_dict("records"):
+        record["event_timestamp"] = int(record["event_timestamp"].timestamp() * 1e6)
+
+        send_avro_record_to_kafka(
+            "avro",
+            record,
+            bootstrap_servers=pytestconfig.getoption("kafka_brokers"),
+            avro_schema_json=avro_schema(),
+        )
+
+    def get_online_features():
+        features = feast_client.get_online_features(
+            ["drivers_stream:unique_drivers"],
+            entity_rows=[{"s2id": s2_id} for s2_id in original["s2id"].tolist()],
+        ).to_dict()
+        df = pd.DataFrame.from_dict(features)
+        return df, not df["drivers_stream:unique_drivers"].isna().any()
+
+    ingested = wait_retry_backoff(get_online_features, 60)
+    job.cancel()
+
+    pd.testing.assert_frame_equal(
+        ingested[["s2id", "drivers_stream:unique_drivers"]],
+        original[["s2id", "unique_drivers"]].rename(
+            columns={"unique_drivers": "drivers_stream:unique_drivers"}
+        ),
+    )
+
+
+def avro_schema():
+    return json.dumps(
+        {
+            "type": "record",
+            "name": "TestMessage",
+            "fields": [
+                {"name": "s2id", "type": "long"},
+                {"name": "unique_drivers", "type": "long"},
+                {
+                    "name": "event_timestamp",
+                    "type": {"type": "long", "logicalType": "timestamp-micros"},
+                },
+            ],
+        }
+    )
+
+
+def send_avro_record_to_kafka(topic, value, bootstrap_servers, avro_schema_json):
+    value_schema = avro.schema.parse(avro_schema_json)
+
+    producer_config = {
+        "bootstrap.servers": bootstrap_servers,
+        "request.timeout.ms": "1000",
+    }
+
+    producer = Producer(producer_config)
+
+    writer = DatumWriter(value_schema)
+    bytes_writer = io.BytesIO()
+    encoder = BinaryEncoder(bytes_writer)
+
+    writer.write(value, encoder)
+
+    try:
+        producer.produce(topic=topic, value=bytes_writer.getvalue())
+    except Exception as e:
+        print(
+            f"Exception while producing record value - {value} to topic - {topic}: {e}"
+        )
+    else:
+        print(f"Successfully producing record value - {value} to topic - {topic}")
+
+    producer.flush()

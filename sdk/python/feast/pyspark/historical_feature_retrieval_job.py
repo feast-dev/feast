@@ -75,6 +75,12 @@ class FileSource(Source):
         options (Optional[Dict[str, str]]): Options to be passed to spark while reading the file source.
     """
 
+    PROTO_FORMAT_TO_SPARK = {
+        "ParquetFormat": "parquet",
+        "AvroFormat": "avro",
+        "CSVFormat": "csv",
+    }
+
     def __init__(
         self,
         format: str,
@@ -147,7 +153,7 @@ class BigQuerySource(Source):
 def _source_from_dict(dct: Dict) -> Source:
     if "file" in dct.keys():
         return FileSource(
-            dct["file"]["format"],
+            FileSource.PROTO_FORMAT_TO_SPARK[dct["file"]["format"]["json_class"]],
             dct["file"]["path"],
             dct["file"]["event_timestamp_column"],
             dct["file"].get("created_timestamp_column"),
@@ -635,7 +641,7 @@ def retrieve_historical_features(
 
     Example:
         >>> entity_source_conf = {
-                "format": "csv",
+                "format": {"jsonClass": "ParquetFormat"},
                 "path": "file:///some_dir/customer_driver_pairs.csv"),
                 "options": {"inferSchema": "true", "header": "true"},
                 "field_mapping": {"id": "driver_id"}
@@ -643,12 +649,12 @@ def retrieve_historical_features(
 
         >>> feature_tables_sources_conf = [
                 {
-                    "format": "parquet",
+                    "format": {"json_class": "ParquetFormat"},
                     "path": "gs://some_bucket/bookings.parquet"),
                     "field_mapping": {"id": "driver_id"}
                 },
                 {
-                    "format": "avro",
+                    "format": {"json_class": "AvroFormat", schema_json: "..avro schema.."},
                     "path": "s3://some_bucket/transactions.avro"),
                 }
             ]

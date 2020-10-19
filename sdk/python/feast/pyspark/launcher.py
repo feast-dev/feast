@@ -87,9 +87,6 @@ def resolve_launcher(config: Config) -> JobLauncher:
     return _launchers[config.get(CONFIG_SPARK_LAUNCHER)](config)
 
 
-_SOURCES = {FileSource: "file", BigQuerySource: "bq", KafkaSource: "kafka"}
-
-
 def _source_to_argument(source: DataSource):
     common_properties = {
         "field_mapping": dict(source.field_mapping),
@@ -98,20 +95,28 @@ def _source_to_argument(source: DataSource):
         "date_partition_column": source.date_partition_column,
     }
 
-    kind = _SOURCES[type(source)]
     properties = {**common_properties}
+
     if isinstance(source, FileSource):
         properties["path"] = source.file_options.file_url
-        properties["format"] = str(source.file_options.file_format)
-        return {kind: properties}
+        properties["format"] = dict(
+            json_class=source.file_options.file_format.__class__.__name__
+        )
+        return {"file": properties}
+
     if isinstance(source, BigQuerySource):
         properties["table_ref"] = source.bigquery_options.table_ref
-        return {kind: properties}
+        return {"bq": properties}
+
     if isinstance(source, KafkaSource):
-        properties["topic"] = source.kafka_options.topic
-        properties["classpath"] = source.kafka_options.class_path
         properties["bootstrap_servers"] = source.kafka_options.bootstrap_servers
-        return {kind: properties}
+        properties["topic"] = source.kafka_options.topic
+        properties["format"] = {
+            **source.kafka_options.message_format.__dict__,
+            "json_class": source.kafka_options.message_format.__class__.__name__,
+        }
+        return {"kafka": properties}
+
     raise NotImplementedError(f"Unsupported Datasource: {type(source)}")
 
 
