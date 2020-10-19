@@ -151,8 +151,8 @@ jobs:
         run: ./infra/scripts/test-docker-compose.sh ${GITHUB_SHA}
 
   publish-ingestion-jar:
-    runs-on: [ self-hosted ]
-    container: maven:3.6.3-jdk-11
+    runs-on: ubuntu-latest
+    container: gcr.io/kf-feast/feast-ci:latest
     steps:
       - uses: actions/checkout@v2
       - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
