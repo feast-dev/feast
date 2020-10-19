@@ -152,6 +152,7 @@ jobs:
 
   publish-ingestion-jar:
     runs-on: [ self-hosted ]
+    container: maven:3.6.3-jdk-11
     steps:
       - uses: actions/checkout@v2
       - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
