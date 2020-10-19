@@ -67,6 +67,8 @@ CONFIG_MAX_WAIT_INTERVAL_KEY = "max_wait_interval"
 # Spark Job Config
 CONFIG_SPARK_LAUNCHER = "spark_launcher"  # standalone, dataproc, emr
 
+CONFIG_SPARK_STAGING_LOCATION = "spark_staging_location"
+
 CONFIG_SPARK_INGESTION_JOB_JAR = "spark_ingestion_jar"
 
 CONFIG_SPARK_STANDALONE_MASTER = "spark_standalone_master"
@@ -75,7 +77,6 @@ CONFIG_SPARK_HOME = "spark_home"
 CONFIG_SPARK_DATAPROC_CLUSTER_NAME = "dataproc_cluster_name"
 CONFIG_SPARK_DATAPROC_PROJECT = "dataproc_project"
 CONFIG_SPARK_DATAPROC_REGION = "dataproc_region"
-CONFIG_SPARK_DATAPROC_STAGING_LOCATION = "dataproc_staging_location"
 
 CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT = "historical_feature_output_format"
 CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION = "historical_feature_output_location"
@@ -87,7 +88,6 @@ CONFIG_REDIS_SSL = "redis_ssl"
 CONFIG_SPARK_EMR_REGION = "emr_region"
 CONFIG_SPARK_EMR_CLUSTER_ID = "emr_cluster_id"
 CONFIG_SPARK_EMR_CLUSTER_TEMPLATE_PATH = "emr_cluster_template_path"
-CONFIG_SPARK_EMR_STAGING_LOCATION = "emr_staging_location"
 CONFIG_SPARK_EMR_LOG_LOCATION = "emr_log_location"
 
 

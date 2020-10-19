@@ -13,10 +13,14 @@
 # limitations under the License.
 import logging
 import multiprocessing
+import os
 import shutil
+import tempfile
+import uuid
 from datetime import datetime
 from itertools import groupby
 from typing import Any, Dict, List, Optional, Union
+from urllib.parse import urlparse
 
 import grpc
 import pandas as pd
@@ -34,6 +38,7 @@ from feast.constants import (
     CONFIG_SERVING_URL_KEY,
     CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT,
     CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION,
+    CONFIG_SPARK_STAGING_LOCATION,
     FEAST_DEFAULT_OPTIONS,
 )
 from feast.core.CoreService_pb2 import (
@@ -88,6 +93,7 @@ from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequestV2,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
+from feast.staging.storage_client import get_staging_client
 
 _logger = logging.getLogger(__name__)
 
@@ -780,7 +786,7 @@ class Client:
     def get_historical_features(
         self,
         feature_refs: List[str],
-        entity_source: Union[FileSource, BigQuerySource],
+        entity_source: Union[pd.DataFrame, FileSource, BigQuerySource],
         project: str = None,
     ) -> RetrievalJob:
         """
@@ -791,9 +797,14 @@ class Client:
                 Each feature reference should have the following format:
                 "feature_table:feature" where "feature_table" & "feature" refer to
                 the feature and feature table names respectively.
-            entity_source (Union[FileSource, BigQuerySource]): Source for the entity rows.
-                The user needs to make sure that the source is accessible from the Spark cluster
-                that will be used for the retrieval job.
+            entity_source (Union[pd.DataFrame, FileSource, BigQuerySource]): Source for the entity rows.
+                If entity_source is a Panda DataFrame, the dataframe will be exported to the staging
+                location as parquet file. It is also assumed that the column event_timestamp is present
+                in the dataframe, and is of type datetime without timezone information.
+
+                The user needs to make sure that the source (or staging location, if entity_source is
+                a Panda DataFrame) is accessible from the Spark cluster that will be used for the
+                retrieval job.
             project: Specifies the project that contains the feature tables
                 which the requested features belong to.
 
@@ -820,6 +831,29 @@ class Client:
             CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION
         )
         output_format = self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT)
+
+        if isinstance(entity_source, pd.DataFrame):
+            staging_location = self._config.get(CONFIG_SPARK_STAGING_LOCATION)
+            entity_staging_uri = urlparse(
+                os.path.join(staging_location, str(uuid.uuid4()))
+            )
+            staging_client = get_staging_client(entity_staging_uri.scheme)
+            with tempfile.NamedTemporaryFile() as df_export_path:
+                entity_source.to_parquet(df_export_path.name)
+                bucket = (
+                    None
+                    if entity_staging_uri.scheme == "fs"
+                    else entity_staging_uri.netloc
+                )
+                staging_client.upload_file(
+                    df_export_path.name, bucket, entity_staging_uri.path
+                )
+                entity_source = FileSource(
+                    "event_timestamp",
+                    "created_timestamp",
+                    ParquetFormat(),
+                    entity_staging_uri.path,
+                )
 
         return start_historical_feature_retrieval_job(
             self, entity_source, feature_tables, output_format, output_location
