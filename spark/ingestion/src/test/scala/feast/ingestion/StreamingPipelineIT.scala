@@ -298,7 +298,7 @@ class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
   }
 
   "Streaming pipeline" should "store valid avro messages from kafka to redis" in new Scope {
-    val customConfig = IngestionJobConfig(
+    val avroConfig = IngestionJobConfig(
       featureTable = FeatureTable(
         name = "test-fs",
         project = "default",
@@ -325,7 +325,7 @@ class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
         eventTimestampColumn = "eventTimestamp"
       )
     )
-    val query = StreamingPipeline.createPipeline(sparkSession, customConfig).get
+    val query = StreamingPipeline.createPipeline(sparkSession, avroConfig).get
     query.processAllAvailable() // to init kafka consumer
 
     val row = TestRow("aaa", 1, 0.5f, new java.sql.Timestamp(DateTime.now.withMillis(0).getMillis))
@@ -357,7 +357,7 @@ class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
       .build()
 
     val storedValues                              = jedis.hgetAll(redisKey.toByteArray).asScala.toMap
-    val customFeatureKeyEncoder: String => String = encodeFeatureKey(customConfig.featureTable)
+    val customFeatureKeyEncoder: String => String = encodeFeatureKey(avroConfig.featureTable)
     storedValues should beStoredRow(
       Map(
         customFeatureKeyEncoder("feature1") -> row.feature1,
