@@ -886,9 +886,18 @@ class Client:
         return feature_tables
 
     def start_offline_to_online_ingestion(
-        self, feature_table: Union[FeatureTable, str], start: datetime, end: datetime,
+        self, feature_table: FeatureTable, start: datetime, end: datetime,
     ) -> SparkJob:
-        return start_offline_to_online_ingestion(feature_table, start, end, self)  # type: ignore
+        """
+
+        Launch Ingestion Job from Batch Source to Online Store for given featureTable
+
+        :param feature_table: FeatureTable which will be ingested
+        :param start: lower datetime boundary
+        :param end: upper datetime boundary
+        :return: Spark Job Proxy object
+        """
+        return start_offline_to_online_ingestion(feature_table, start, end, self)
 
     def stage_dataframe(
         self,
