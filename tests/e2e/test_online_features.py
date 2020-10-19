@@ -10,6 +10,7 @@ import pyspark
 import pytest
 
 from feast import Client, Entity, Feature, FeatureTable, FileSource, ValueType
+from feast.data_format import ParquetFormat
 from feast.pyspark.abc import SparkJobStatus
 from feast.wait import wait_retry_backoff
 
@@ -94,7 +95,7 @@ def test_offline_ingestion(feast_client: Client, staging_path: str):
         batch_source=FileSource(
             "event_timestamp",
             "event_timestamp",
-            "parquet",
+            ParquetFormat(),
             os.path.join(staging_path, "batch-storage"),
         ),
     )
