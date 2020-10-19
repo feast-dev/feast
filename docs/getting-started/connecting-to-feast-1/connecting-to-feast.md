@@ -16,7 +16,7 @@ feast config set core_url your.feast.deployment
 By default, all configuration is stored in `~/.feast/config`
 {% endhint %}
 
-The CLI is a wrapper around the [Feast Python SDK](python-sdk.md)
+The CLI is a wrapper around the [Feast Python SDK](python-sdk.md).
 
 ```aspnet
 $ feast
@@ -27,12 +27,11 @@ Options:
   --help  Show this message and exit.
 
 Commands:
-  config        View and edit Feast properties
-  feature-sets  Create and manage feature sets
-  ingest        Ingest feature data into a feature set
-  projects      Create and manage projects
-  version       Displays version and connectivity information
+  config          View and edit Feast properties
+  entities        Create and manage entities    
+  feature-tables  Create and manage feature tables
+  jobs            Create and manage jobs
+  projects        Create and manage projects
+  version         Displays version and connectivity information
 ```
-
-
 

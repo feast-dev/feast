@@ -4,21 +4,20 @@
 
 The Configuration Reference will walk through how to configure each Feast component:
 
-* [Feast Core, Serving and Job Controller](configuration-reference.md#2-feast-core-serving-and-job-controller)
+* [Feast Core and Serving](configuration-reference.md#2-feast-core-serving-and-job-controller)
 * [Feast CLI and Feast Python SDK](configuration-reference.md#3-feast-cli-and-feast-python-sdk)
 * [Feast Go and Java SDK](configuration-reference.md#4-feast-java-and-go-sdk)
 
-## 2. Feast Core, Serving and Job Controller
+## 2. Feast Core and Serving
 
-Available Configuration Properties for Feast Core, Serving and Job Controller can be referenced from the corresponding `application.yml` of each component:
+Available Configuration Properties for Feast Core and Serving can be referenced from the corresponding `application.yml` of each component:
 
 | Component | Configuration Reference |
 | :--- | :--- |
 | Core | [core/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/core/src/main/resources/application.yml) |
 | Serving \(Online/Historical\) | [serving/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/serving/src/main/resources/application.yml) |
-| Job Controller | [job-controller/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/job-controller/src/main/resources/application.yml) |
 
-Configuration Properties for Feast Core, Serving and Job Controller are defined depending on Feast is deployed:
+Configuration Properties for Feast Core and Serving are defined depending on Feast is deployed:
 
 * [Docker Compose deployment](configuration-reference.md#docker-compose-deployment) - Feast is deployed with Docker Compose.
 * [Kubernetes deployment](configuration-reference.md#kubernetes-deployment) - Feast is deployed with Kubernetes.
@@ -33,7 +32,6 @@ Configuration Properties from `application.yml` can be set for each Feast compon
 | Core | `infra/docker-compose/core/core.yml` |
 | Online Serving | `infra/docker-compose/serving/online-serving.yml` |
 | Historical Serving | `infra/docker-compose/serving/historical-serving.yml` |
-| Job Controller | `infra/docker-compose/jobcontroller/jobcontroller.yml` |
 
 ### Kubernetes Deployment
 
@@ -53,7 +51,6 @@ A reference of the sub chart specific configuration can found in its `values.yml
 
 * [feast-core](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/charts/feast-core)
 * [feast-serving](https://github.com/feast-dev/feast/tree/master/infra/charts/feast/charts/feast-serving)
-* [feast-jobcontroller](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/charts/feast-jobcontroller)
 
 Configuration Properties can be set via `application-override.yaml` for each component in `values.yaml`:
 
@@ -76,7 +73,6 @@ If Feast is built and running from source, configuration Properties can be set d
 | :--- | :--- |
 | Core | [core/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/core/src/main/resources/application.yml) |
 | Serving \(Online/Historical\) | [serving/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/serving/src/main/resources/application.yml) |
-| Job Controller | [job-controller/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/job-controller/src/main/resources/application.yml) |
 
 ## 3. Feast CLI and Feast Python SDK
 
