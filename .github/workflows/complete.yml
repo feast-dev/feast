@@ -151,13 +151,15 @@ jobs:
         run: ./infra/scripts/test-docker-compose.sh ${GITHUB_SHA}
 
   publish-ingestion-jar:
-    runs-on:  [self-hosted]
+    runs-on: ubuntu-latest
     container: gcr.io/kf-feast/feast-ci:latest
     steps:
       - uses: actions/checkout@v2
       - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
         with:
           version: '290.0.1'
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
           export_default_credentials: true
       - name: build-jar
         run: make build-java-no-tests REVISION=${GITHUB_SHA}
