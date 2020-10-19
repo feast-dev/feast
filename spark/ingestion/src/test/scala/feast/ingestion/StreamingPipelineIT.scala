@@ -38,12 +38,17 @@ import feast.ingestion.helpers.RedisStorageHelper._
 import feast.ingestion.helpers.DataHelper._
 import feast.proto.storage.RedisProto.RedisKeyV2
 import feast.proto.types.ValueProto
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.avro.to_avro
+import org.apache.spark.sql.functions.{col, struct}
+import org.apache.spark.sql.types.StructType
 
 class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
   val redisContainer = GenericContainer("redis:6.0.8", exposedPorts = Seq(6379))
   val kafkaContainer = KafkaContainer()
 
   override val container = MultipleContainers(redisContainer, kafkaContainer)
+
   override def withSparkConfOverrides(conf: SparkConf): SparkConf = conf
     .set("spark.redis.host", redisContainer.host)
     .set("spark.redis.port", redisContainer.mappedPort(6379).toString)
@@ -112,7 +117,7 @@ class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
     val kafkaSource = KafkaSource(
       bootstrapServers = kafkaContainer.bootstrapServers,
       topic = "topic",
-      classpath = "com.example.protos.TestMessage",
+      format = ProtoFormat("com.example.protos.TestMessage"),
       fieldMapping = Map.empty,
       eventTimestampColumn = "event_timestamp"
     )
@@ -167,7 +172,7 @@ class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
   "All protobuf types" should "be correctly converted" in new Scope {
     val configWithKafka = config.copy(
       source = kafkaSource.copy(
-        classpath = "com.example.protos.AllTypesMessage",
+        format = ProtoFormat("com.example.protos.AllTypesMessage"),
         fieldMapping = Map(
           "map_value"     -> "map.key",
           "inner_double"  -> "inner.double",
@@ -290,5 +295,76 @@ class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
     assertThrows[RuntimeException] {
       StreamingPipeline.createPipeline(sparkSession, configWithKafka).get
     }
+  }
+
+  "Streaming pipeline" should "store valid avro messages from kafka to redis" in new Scope {
+    val customConfig = IngestionJobConfig(
+      featureTable = FeatureTable(
+        name = "test-fs",
+        project = "default",
+        entities = Seq(Field("customer", ValueType.Enum.STRING)),
+        features = Seq(
+          Field("feature1", ValueType.Enum.INT32),
+          Field("feature2", ValueType.Enum.FLOAT)
+        )
+      ),
+      source = KafkaSource(
+        bootstrapServers = kafkaContainer.bootstrapServers,
+        topic = "avro",
+        format = AvroFormat(schemaJson = """{
+            |"type": "record",
+            |"name": "TestMessage",
+            |"fields": [
+            |{"name": "customer", "type": ["string","null"]},
+            |{"name": "feature1", "type": "int"},
+            |{"name": "feature2", "type": "float"},
+            |{"name": "eventTimestamp", "type": [{"type": "long", "logicalType": "timestamp-micros"}, "null"]}
+            |]
+            |}""".stripMargin),
+        fieldMapping = Map.empty,
+        eventTimestampColumn = "eventTimestamp"
+      )
+    )
+    val query = StreamingPipeline.createPipeline(sparkSession, customConfig).get
+    query.processAllAvailable() // to init kafka consumer
+
+    val row = TestRow("aaa", 1, 0.5f, new java.sql.Timestamp(DateTime.now.withMillis(0).getMillis))
+    val df  = sparkSession.createDataFrame(Seq(row))
+    df
+      .select(
+        to_avro(
+          struct(
+            col("customer"),
+            col("feature1"),
+            col("feature2"),
+            col("eventTimestamp")
+          )
+        ).alias("value")
+      )
+      .write
+      .format("kafka")
+      .option("kafka.bootstrap.servers", kafkaContainer.bootstrapServers)
+      .option("topic", "avro")
+      .save()
+
+    query.processAllAvailable()
+
+    val redisKey = RedisKeyV2
+      .newBuilder()
+      .setProject("default")
+      .addEntityNames("customer")
+      .addEntityValues(ValueProto.Value.newBuilder().setStringVal("aaa"))
+      .build()
+
+    val storedValues                              = jedis.hgetAll(redisKey.toByteArray).asScala.toMap
+    val customFeatureKeyEncoder: String => String = encodeFeatureKey(customConfig.featureTable)
+    storedValues should beStoredRow(
+      Map(
+        customFeatureKeyEncoder("feature1") -> row.feature1,
+        customFeatureKeyEncoder("feature2") -> row.feature2,
+        "_ts:test-fs"                       -> row.eventTimestamp
+      )
+    )
+
   }
 }

@@ -32,6 +32,11 @@ abstract class MetricConfig
 
 case class StatsDConfig(host: String, port: Int) extends MetricConfig
 
+abstract class DataFormat
+case class ParquetFormat()                extends DataFormat
+case class ProtoFormat(classPath: String) extends DataFormat
+case class AvroFormat(schemaJson: String) extends DataFormat
+
 abstract class Source {
   def fieldMapping: Map[String, String]
 
@@ -43,7 +48,7 @@ abstract class Source {
 abstract class BatchSource extends Source
 
 abstract class StreamingSource extends Source {
-  def classpath: String
+  def format: DataFormat
 }
 
 case class FileSource(
@@ -67,7 +72,7 @@ case class BQSource(
 case class KafkaSource(
     bootstrapServers: String,
     topic: String,
-    override val classpath: String,
+    override val format: DataFormat,
     override val fieldMapping: Map[String, String],
     override val eventTimestampColumn: String,
     override val createdTimestampColumn: Option[String] = None,

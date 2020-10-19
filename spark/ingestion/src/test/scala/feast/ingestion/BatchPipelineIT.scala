@@ -29,7 +29,12 @@ import feast.ingestion.helpers.DataHelper._
 import feast.proto.storage.RedisProto.RedisKeyV2
 import feast.proto.types.ValueProto
 
-case class Row(customer: String, feature1: Int, feature2: Float, eventTimestamp: java.sql.Timestamp)
+case class TestRow(
+    customer: String,
+    feature1: Int,
+    feature2: Float,
+    eventTimestamp: java.sql.Timestamp
+)
 
 class BatchPipelineIT extends SparkSpec with ForAllTestContainer {
 
@@ -51,9 +56,14 @@ class BatchPipelineIT extends SparkSpec with ForAllTestContainer {
         eventTimestamp <- Gen
           .choose(0, Seconds.secondsBetween(start, end).getSeconds)
           .map(start.withMillisOfSecond(0).plusSeconds)
-      } yield Row(customer, feature1, feature2, new java.sql.Timestamp(eventTimestamp.getMillis))
+      } yield TestRow(
+        customer,
+        feature1,
+        feature2,
+        new java.sql.Timestamp(eventTimestamp.getMillis)
+      )
 
-    def encodeEntityKey(row: Row, featureTable: FeatureTable): Array[Byte] = {
+    def encodeEntityKey(row: TestRow, featureTable: FeatureTable): Array[Byte] = {
       RedisKeyV2
         .newBuilder()
         .setProject(featureTable.project)
@@ -63,7 +73,7 @@ class BatchPipelineIT extends SparkSpec with ForAllTestContainer {
         .toByteArray
     }
 
-    def groupByEntity(row: Row) =
+    def groupByEntity(row: TestRow) =
       new String(encodeEntityKey(row, config.featureTable))
 
     val config = IngestionJobConfig(

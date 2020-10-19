@@ -26,7 +26,8 @@ object IngestionJob {
   import Modes._
   implicit val modesRead: scopt.Read[Modes.Value] = scopt.Read.reads(Modes withName _.capitalize)
   implicit val formats: Formats = DefaultFormats +
-    new JavaEnumNameSerializer[feast.proto.types.ValueProto.ValueType.Enum]()
+    new JavaEnumNameSerializer[feast.proto.types.ValueProto.ValueType.Enum]() +
+    ShortTypeHints(List(classOf[ProtoFormat], classOf[AvroFormat]))
 
   val parser = new scopt.OptionParser[IngestionJobConfig]("IngestionJon") {
     // ToDo: read version from Manifest
@@ -75,6 +76,7 @@ object IngestionJob {
   def main(args: Array[String]): Unit = {
     parser.parse(args, IngestionJobConfig()) match {
       case Some(config) =>
+        println(s"Starting with config $config")
         config.mode match {
           case Modes.Offline =>
             val sparkSession = BatchPipeline.createSparkSession(config)
