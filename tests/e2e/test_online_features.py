@@ -55,7 +55,7 @@ def feast_client(pytestconfig, ingestion_job_jar):
             serving_url=pytestconfig.getoption("serving_url"),
             spark_launcher="standalone",
             spark_standalone_master="local",
-            spark_home=os.path.dirname(pyspark.__file__),
+            spark_home=os.getenv("SPARK_HOME") or os.path.dirname(pyspark.__file__),
             spark_ingestion_jar=ingestion_job_jar,
             redis_host=redis_host,
             redis_port=redis_port,
