@@ -64,4 +64,4 @@ ${PROJECT_ROOT_DIR}/infra/scripts/wait-for-it.sh ${FEAST_ONLINE_SERVING_CONTAINE
 
 # Run e2e tests for Redis
 docker exec -e FEAST_VERSION=${FEAST_VERSION} feast_jupyter_1 bash \
--c 'cd /feast/tests/e2e && unset GOOGLE_APPLICATION_CREDENTIALS && pytest *.py -m "not bq" --ingestion-jar gs://feast-jobs/spark/ingestion/feast-ingestion-spark-${FEAST_VERSION}.jar --core_url core:6565 --serving_url=online_serving:6566 --kafka_brokers=kafka:9092'
+-c 'cd /feast/tests/e2e && unset GOOGLE_APPLICATION_CREDENTIALS && pytest *.py -m "not bq" --ingestion-jar gs://feast-jobs/spark/ingestion/feast-ingestion-spark-${FEAST_VERSION}.jar --redis-url redis:6379 --core_url core:6565 --serving_url=online_serving:6566 --kafka_brokers=kafka:9092'
