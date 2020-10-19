@@ -87,7 +87,7 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
                 .map(Timestamp.parseFrom)
                 .map(t => new java.sql.Timestamp(t.getSeconds * 1000))
             )
-            .zip(rowsWithKey.keys)
+            .zip(keys)
             .map(_.swap)
             .toMap
 
