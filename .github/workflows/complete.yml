@@ -161,6 +161,8 @@ jobs:
           export_default_credentials: true
       - name: build-jar
         run: make build-java-no-tests REVISION=${GITHUB_SHA}
+      - name: ls
+        run: ls -l ./spark/ingestion/target/
       - name: copy to gs
         run: gsutil cp ./spark/ingestion/target/feast-ingestion-spark-${GITHUB_SHA}.jar gs://feast-jobs/
 
