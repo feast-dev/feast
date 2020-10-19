@@ -1,3 +1,13 @@
-from .emr import EmrClusterLauncher, EmrIngestionJob, EmrRetrievalJob
+from .emr import (
+    EmrBatchIngestionJob,
+    EmrClusterLauncher,
+    EmrRetrievalJob,
+    EmrStreamIngestionJob,
+)
 
-__all__ = ["EmrRetrievalJob", "EmrIngestionJob", "EmrClusterLauncher"]
+__all__ = [
+    "EmrRetrievalJob",
+    "EmrBatchIngestionJob",
+    "EmrStreamIngestionJob",
+    "EmrClusterLauncher",
+]

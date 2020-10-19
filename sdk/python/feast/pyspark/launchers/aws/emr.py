@@ -1,7 +1,7 @@
 import os
 import tempfile
 from io import BytesIO
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import boto3
 import pandas
@@ -9,12 +9,14 @@ import pandas
 from feast.data_format import ParquetFormat
 from feast.data_source import FileSource
 from feast.pyspark.abc import (
-    IngestionJob,
-    IngestionJobParameters,
+    BatchIngestionJob,
+    BatchIngestionJobParameters,
     JobLauncher,
     RetrievalJob,
     RetrievalJobParameters,
     SparkJobStatus,
+    StreamIngestionJob,
+    StreamIngestionJobParameters,
 )
 
 from .emr_utils import (
@@ -28,6 +30,7 @@ from .emr_utils import (
     _load_new_cluster_template,
     _random_string,
     _s3_upload,
+    _stream_ingestion_step,
     _sync_offline_to_online_step,
     _upload_jar,
     _wait_for_job_state,
@@ -82,9 +85,18 @@ class EmrRetrievalJob(EmrJobMixin, RetrievalJob):
         return self._output_file_uri
 
 
-class EmrIngestionJob(EmrJobMixin, IngestionJob):
+class EmrBatchIngestionJob(EmrJobMixin, BatchIngestionJob):
     """
     Ingestion job result for a EMR cluster
+    """
+
+    def __init__(self, emr_client, job_ref: EmrJobRef):
+        super().__init__(emr_client, job_ref)
+
+
+class EmrStreamIngestionJob(EmrJobMixin, StreamIngestionJob):
+    """
+    Ingestion streaming job for a EMR cluster
     """
 
     def __init__(self, emr_client, job_ref: EmrJobRef):
@@ -203,8 +215,8 @@ class EmrClusterLauncher(JobLauncher):
         )
 
     def offline_to_online_ingestion(
-        self, ingestion_job_params: IngestionJobParameters
-    ) -> IngestionJob:
+        self, ingestion_job_params: BatchIngestionJobParameters
+    ) -> BatchIngestionJob:
         """
         Submits a batch ingestion job to a Spark cluster.
 
@@ -213,7 +225,7 @@ class EmrClusterLauncher(JobLauncher):
                 during execution, or timeout.
 
         Returns:
-            IngestionJob: wrapper around remote job that can be used to check when job completed.
+            BatchIngestionJob: wrapper around remote job that can be used to check when job completed.
         """
 
         jar_s3_path = _upload_jar(
@@ -227,7 +239,38 @@ class EmrClusterLauncher(JobLauncher):
 
         job_ref = self._submit_emr_job(step)
 
-        return EmrIngestionJob(self._emr_client(), job_ref)
+        return EmrBatchIngestionJob(self._emr_client(), job_ref)
+
+    def start_stream_to_online_ingestion(
+        self, ingestion_job_params: StreamIngestionJobParameters
+    ) -> StreamIngestionJob:
+        """
+        Starts a stream ingestion job on a Spark cluster.
+
+        Returns:
+            StreamIngestionJob: wrapper around remote job that can be used to check on the job.
+        """
+        jar_s3_path = _upload_jar(
+            self._staging_location, ingestion_job_params.get_main_file_path()
+        )
+
+        extra_jar_paths: List[str] = []
+        for extra_jar in ingestion_job_params.get_extra_jar_paths():
+            if extra_jar.startswith("s3://"):
+                extra_jar_paths.append(extra_jar)
+            else:
+                extra_jar_paths.append(_upload_jar(self._staging_location, extra_jar))
+
+        step = _stream_ingestion_step(
+            jar_s3_path,
+            extra_jar_paths,
+            ingestion_job_params.get_feature_table_name(),
+            args=ingestion_job_params.get_arguments(),
+        )
+
+        job_ref = self._submit_emr_job(step)
+
+        return EmrStreamIngestionJob(self._emr_client(), job_ref)
 
     def stage_dataframe(
         self, df: pandas.DataFrame, event_timestamp: str, created_timestamp_column: str

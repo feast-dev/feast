@@ -353,3 +353,38 @@ def _historical_retrieval_step(
             "Jar": "command-runner.jar",
         },
     }
+
+
+def _stream_ingestion_step(
+    jar_path: str, extra_jar_paths: List[str], feature_table_name: str, args: List[str],
+) -> Dict[str, Any]:
+
+    if extra_jar_paths:
+        jars_args = ["--jars", ",".join(extra_jar_paths)]
+    else:
+        jars_args = []
+
+    return {
+        "Name": "Feast Streaming Ingestion",
+        "HadoopJarStep": {
+            "Properties": [
+                {
+                    "Key": "feast.step_metadata.job_type",
+                    "Value": STREAM_TO_ONLINE_JOB_TYPE,
+                },
+                {
+                    "Key": "feast.step_metadata.stream_to_online.table_name",
+                    "Value": feature_table_name,
+                },
+            ],
+            "Args": ["spark-submit", "--class", "feast.ingestion.IngestionJob"]
+            + jars_args
+            + [
+                "--packages",
+                "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.17.2",
+                jar_path,
+            ]
+            + args,
+            "Jar": "command-runner.jar",
+        },
+    }
