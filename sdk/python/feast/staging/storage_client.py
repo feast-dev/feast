@@ -19,10 +19,10 @@ import shutil
 from abc import ABC, ABCMeta, abstractmethod
 from tempfile import TemporaryFile
 from typing import List
-
-from google.auth.exceptions import DefaultCredentialsError
 from typing.io import IO
 from urllib.parse import ParseResult
+
+from google.auth.exceptions import DefaultCredentialsError
 
 GS = "gs"
 S3 = "s3"
@@ -79,7 +79,7 @@ class GCSClient(AbstractStagingClient):
             self.gcs_client = storage.Client(project=None)
         except DefaultCredentialsError:
             self.gcs_client = storage.Client.create_anonymous_client()
-            
+
     def download_file(self, uri: ParseResult) -> IO[bytes]:
         """
         Downloads a file from google cloud storage and returns a TemporaryFile object
