@@ -22,6 +22,8 @@ from typing import List
 from typing.io import IO
 from urllib.parse import ParseResult
 
+from google.auth.exceptions import DefaultCredentialsError
+
 GS = "gs"
 S3 = "s3"
 LOCAL_FILE = "file"
@@ -73,7 +75,10 @@ class GCSClient(AbstractStagingClient):
                 "Install package google-cloud-storage==1.20.* for gcs staging support"
                 "run ```pip install google-cloud-storage==1.20.*```"
             )
-        self.gcs_client = storage.Client(project=None)
+        try:
+            self.gcs_client = storage.Client(project=None)
+        except DefaultCredentialsError:
+            self.gcs_client = storage.Client.create_anonymous_client()
 
     def download_file(self, uri: ParseResult) -> IO[bytes]:
         """

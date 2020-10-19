@@ -143,9 +143,31 @@ jobs:
           path: load-test-output/
 
   tests-docker-compose:
-    needs: build-push-docker-images
+    needs:
+    - build-push-docker-images
+    - publish-ingestion-jar
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Test docker compose
         run: ./infra/scripts/test-docker-compose.sh ${GITHUB_SHA}
+
+  publish-ingestion-jar:
+    runs-on: [self-hosted]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        with:
+          version: '290.0.1'
+          export_default_credentials: true
+      - uses: actions/setup-java@v1
+        with:
+          java-version: '11'
+      - uses: stCarolas/setup-maven@v3
+        with:
+          maven-version: 3.6.3
+      - name: build-jar
+        run: make build-java-no-tests REVISION=${GITHUB_SHA}
+      - name: copy to gs
+        run: gsutil cp ./spark/ingestion/target/feast-ingestion-spark-${GITHUB_SHA}.jar gs://feast-jobs/spark/ingestion/
+

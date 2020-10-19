@@ -28,14 +28,14 @@ trait Persistence {
 
   def save(
       pipeline: Pipeline,
-      key: String,
+      key: Array[Byte],
       value: Map[Array[Byte], Array[Byte]],
       ttl: Int
   ): Unit
 
   def getTimestamp(
       pipeline: Pipeline,
-      key: String,
+      key: Array[Byte],
       timestampField: String
   ): Response[Array[Byte]]
 }

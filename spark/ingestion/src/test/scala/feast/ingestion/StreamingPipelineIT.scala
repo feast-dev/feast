@@ -36,6 +36,8 @@ import redis.clients.jedis.Jedis
 import collection.JavaConverters._
 import feast.ingestion.helpers.RedisStorageHelper._
 import feast.ingestion.helpers.DataHelper._
+import feast.proto.storage.RedisProto.RedisKeyV2
+import feast.proto.types.ValueProto
 
 class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
   val redisContainer = GenericContainer("redis:6.0.8", exposedPorts = Seq(6379))
@@ -79,8 +81,14 @@ class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
     )
 
     def encodeEntityKey(row: TestMessage, featureTable: FeatureTable): Array[Byte] = {
-      val entityPrefix = featureTable.entities.map(_.name).sorted.mkString("_")
-      s"${featureTable.project}_${entityPrefix}:${row.getS2Id}:${row.getVehicleType}".getBytes
+      RedisKeyV2
+        .newBuilder()
+        .setProject(featureTable.project)
+        .addAllEntityNames(featureTable.entities.map(_.name).sorted.asJava)
+        .addEntityValues(ValueProto.Value.newBuilder().setInt64Val(row.getS2Id))
+        .addEntityValues(ValueProto.Value.newBuilder().setStringVal(row.getVehicleType.toString))
+        .build
+        .toByteArray
     }
 
     def groupByEntity(row: TestMessage) =
@@ -233,7 +241,13 @@ class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
     query.processAllAvailable()
 
     val allTypesKeyEncoder: String => String = encodeFeatureKey(configWithKafka.featureTable)
-    val storedValues                         = jedis.hgetAll(s"default_string:test".getBytes).asScala.toMap
+    val redisKey = RedisKeyV2
+      .newBuilder()
+      .setProject("default")
+      .addEntityNames("string")
+      .addEntityValues(ValueProto.Value.newBuilder().setStringVal("test"))
+      .build()
+    val storedValues = jedis.hgetAll(redisKey.toByteArray).asScala.toMap
     storedValues should beStoredRow(
       Map(
         allTypesKeyEncoder("double")        -> 1,

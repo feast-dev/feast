@@ -55,6 +55,9 @@ test-java-with-coverage:
 build-java:
 	mvn clean verify
 
+build-java-no-tests:
+	mvn --no-transfer-progress -Dmaven.javadoc.skip=true -Dgpg.skip -DskipUTs=true -Drevision=${REVISION} clean package
+
 # Python SDK
 
 install-python-ci-dependencies:

@@ -62,3 +62,28 @@ jobs:
               docker push gcr.io/kf-feast/feast-${{ matrix.component }}:latest
             fi
           fi
+
+  publish-ingestion-jar:
+    runs-on: [ self-hosted ]
+    env:
+      PUBLISH_BUCKET: feast-jobs
+    steps:
+      - uses: actions/checkout@v2
+      - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        with:
+          version: '290.0.1'
+          export_default_credentials: true
+      - uses: actions/setup-java@v1
+        with:
+          java-version: '11'
+      - uses: stCarolas/setup-maven@v3
+        with:
+          maven-version: 3.6.3
+      - name: build-jar
+        run: |
+          SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
+          if echo "${RELEASE_VERSION}" | grep -P "$SEMVER_REGEX" &>/dev/null ; then
+            VERSION=${RELEASE_VERSION:1}
+            make build-java-no-tests REVISION=${VERSION}
+            gsutil cp ./spark/ingestion/target/feast-ingestion-spark-${VERSION}.jar gs://${PUBLISH_BUCKET}/spark/ingestion/
+          fi

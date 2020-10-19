@@ -889,7 +889,16 @@ class Client:
     def start_offline_to_online_ingestion(
         self, feature_table: FeatureTable, start: datetime, end: datetime,
     ) -> SparkJob:
-        return start_offline_to_online_ingestion(feature_table, start, end, self)  # type: ignore
+        """
+
+        Launch Ingestion Job from Batch Source to Online Store for given featureTable
+
+        :param feature_table: FeatureTable which will be ingested
+        :param start: lower datetime boundary
+        :param end: upper datetime boundary
+        :return: Spark Job Proxy object
+        """
+        return start_offline_to_online_ingestion(feature_table, start, end, self)
 
     def start_stream_to_online_ingestion(
         self, feature_table: FeatureTable, extra_jars: Optional[List[str]] = None,

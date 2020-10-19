@@ -18,6 +18,8 @@ def pytest_addoption(parser):
     parser.addoption("--dataproc-cluster-name", action="store")
     parser.addoption("--dataproc-region", action="store")
     parser.addoption("--dataproc-project", action="store")
+    parser.addoption("--ingestion-jar", action="store")
+    parser.addoption("--redis-url", action="store", default="localhost:6379")
 
 
 def pytest_runtest_makereport(item, call):

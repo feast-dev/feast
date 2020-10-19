@@ -2,6 +2,7 @@ import os
 import time
 import uuid
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -9,13 +10,14 @@ import pyspark
 import pytest
 
 from feast import Client, Entity, Feature, FeatureTable, FileSource, ValueType
+from feast.data_format import ParquetFormat
 from feast.pyspark.abc import SparkJobStatus
 from feast.wait import wait_retry_backoff
 
 
 def generate_data():
-    df = pd.DataFrame(columns=["s2_id", "unique_drivers", "event_timestamp"])
-    df["s2id"] = np.random.randint(1000, 9999, 100)
+    df = pd.DataFrame(columns=["s2id", "unique_drivers", "event_timestamp"])
+    df["s2id"] = np.random.choice(999999, size=100, replace=False)
     df["unique_drivers"] = np.random.randint(0, 1000, 100)
     df["event_timestamp"] = pd.to_datetime(
         np.random.randint(int(time.time()), int(time.time()) + 3600, 100), unit="s"
@@ -26,14 +28,37 @@ def generate_data():
 
 
 @pytest.fixture(scope="session")
-def feast_client(pytestconfig):
+def feast_version():
+    return "0.8-SNAPSHOT"
+
+
+@pytest.fixture(scope="session")
+def ingestion_job_jar(pytestconfig, feast_version):
+    default_path = (
+        Path(__file__).parent.parent.parent
+        / "spark"
+        / "ingestion"
+        / "target"
+        / f"feast-ingestion-spark-{feast_version}.jar"
+    )
+
+    return pytestconfig.getoption("ingestion_jar") or f"file://{default_path}"
+
+
+@pytest.fixture(scope="session")
+def feast_client(pytestconfig, ingestion_job_jar):
+    redis_host, redis_port = pytestconfig.getoption("redis_url").split(":")
+
     if pytestconfig.getoption("env") == "local":
         return Client(
-            core_url="localhost:6565",
-            serving_url="localhost:6566",
+            core_url=pytestconfig.getoption("core_url"),
+            serving_url=pytestconfig.getoption("serving_url"),
             spark_launcher="standalone",
             spark_standalone_master="local",
-            spark_home=os.path.dirname(pyspark.__file__),
+            spark_home=os.getenv("SPARK_HOME") or os.path.dirname(pyspark.__file__),
+            spark_ingestion_jar=ingestion_job_jar,
+            redis_host=redis_host,
+            redis_port=redis_port,
         )
 
     if pytestconfig.getoption("env") == "gcloud":
@@ -47,6 +72,7 @@ def feast_client(pytestconfig):
             dataproc_staging_location=os.path.join(
                 pytestconfig.getoption("staging_path"), "dataproc"
             ),
+            spark_ingestion_jar=ingestion_job_jar,
         )
 
 
@@ -59,7 +85,6 @@ def staging_path(pytestconfig, tmp_path):
     return os.path.join(staging_path, str(uuid.uuid4()))
 
 
-@pytest.mark.skip
 def test_offline_ingestion(feast_client: Client, staging_path: str):
     entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
 
@@ -70,7 +95,7 @@ def test_offline_ingestion(feast_client: Client, staging_path: str):
         batch_source=FileSource(
             "event_timestamp",
             "event_timestamp",
-            "parquet",
+            ParquetFormat(),
             os.path.join(staging_path, "batch-storage"),
         ),
     )
@@ -78,8 +103,8 @@ def test_offline_ingestion(feast_client: Client, staging_path: str):
     feast_client.apply_entity(entity)
     feast_client.apply_feature_table(feature_table)
 
-    df = generate_data()
-    feast_client.ingest(feature_table, df)  # write to batch (offline) storage
+    original = generate_data()
+    feast_client.ingest(feature_table, original)  # write to batch (offline) storage
 
     job = feast_client.start_offline_to_online_ingestion(
         feature_table, datetime.today(), datetime.today() + timedelta(days=1)
@@ -91,7 +116,15 @@ def test_offline_ingestion(feast_client: Client, staging_path: str):
 
     assert status == SparkJobStatus.COMPLETED
 
-    feast_client.get_online_features(
+    features = feast_client.get_online_features(
         ["drivers:unique_drivers"],
-        entity_rows=[{"s2id": s2_id} for s2_id in df["s2id"].tolist()],
+        entity_rows=[{"s2id": s2_id} for s2_id in original["s2id"].tolist()],
+    ).to_dict()
+
+    ingested = pd.DataFrame.from_dict(features)
+    pd.testing.assert_frame_equal(
+        ingested[["s2id", "drivers:unique_drivers"]],
+        original[["s2id", "unique_drivers"]].rename(
+            columns={"unique_drivers": "drivers:unique_drivers"}
+        ),
     )
