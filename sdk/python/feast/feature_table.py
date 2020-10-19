@@ -206,6 +206,12 @@ class FeatureTable:
         """
         return self._last_updated_timestamp
 
+    def add_feature(self, feature: Feature):
+        """
+        Adds a new feature to the feature table.
+        """
+        self.features.append(feature)
+
     def is_valid(self):
         """
         Validates the state of a feature table locally. Raises an exception

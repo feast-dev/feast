@@ -53,9 +53,9 @@ class TestFeatureTable:
     def client(self, server):
         return Client(core_url=f"localhost:{free_port}")
 
-    def test_feature_table_import_export_yaml(self):
-
-        batch_source = FileSource(
+    @pytest.fixture
+    def batch_source(self):
+        return FileSource(
             field_mapping={
                 "ride_distance": "ride_distance",
                 "ride_duration": "ride_duration",
@@ -66,6 +66,8 @@ class TestFeatureTable:
             created_timestamp_column="timestamp",
             date_partition_column="date_partition_col",
         )
+
+    def test_feature_table_import_export_yaml(self, batch_source):
 
         stream_source = KafkaSource(
             field_mapping={
@@ -99,3 +101,28 @@ class TestFeatureTable:
 
         # Ensure equality is upheld to original feature table
         assert test_feature_table == actual_feature_table_from_string
+
+    def test_add_feature(self, batch_source):
+
+        test_feature_table = FeatureTable(
+            name="car_driver",
+            features=[
+                Feature(name="ride_distance", dtype=ValueType.FLOAT),
+                Feature(name="ride_duration", dtype=ValueType.STRING),
+            ],
+            entities=["car_driver_entity"],
+            labels={"team": "matchmaking"},
+            batch_source=batch_source,
+        )
+
+        test_feature_table.add_feature(
+            Feature(name="new_ride_distance", dtype=ValueType.FLOAT)
+        )
+
+        features = test_feature_table.features
+        assert (
+            len(features) == 3
+            and features[0].name == "ride_distance"
+            and features[1].name == "ride_duration"
+            and features[2].name == "new_ride_distance"
+        )
