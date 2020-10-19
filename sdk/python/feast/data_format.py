@@ -8,7 +8,7 @@
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY aIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
@@ -21,7 +21,7 @@ from feast.core.DataFormat_pb2 import StreamFormat as StreamFormatProto
 
 class FileFormat(ABC):
     """
-    Defines an abtract file forma used to encode feature data in filesf
+    Defines an abtract file forma used to encode feature data in files
     """
 
     @abstractmethod
@@ -45,6 +45,12 @@ class FileFormat(ABC):
             return ParquetFormat()
         raise NotImplementedError(f"FileFormat is unsupported: {fmt}")
 
+    def __str__(self):
+        """
+        String representation of the file format passed to spark
+        """
+        raise NotImplementedError()
+
 
 class ParquetFormat(FileFormat):
     """
@@ -53,6 +59,9 @@ class ParquetFormat(FileFormat):
 
     def to_proto(self):
         return FileFormatProto(parquet_format=FileFormatProto.ParquetFormat())
+
+    def __str__(self):
+        return "parquet"
 
 
 class StreamFormat(ABC):
