@@ -29,7 +29,6 @@
 ## Tutorials
 
 * [Basic Tutorial](https://github.com/feast-dev/feast/blob/master/examples/basic/basic.ipynb)
-* [Churn Prediction \(XGBoost\)](https://github.com/feast-dev/feast/blob/master/examples/feast-xgboost-churn-prediction-tutorial/Telecom%20Customer%20Churn%20Prediction%20%28with%20Feast%20and%20XGBoost%29.ipynb)
 
 ## Administration
 
