@@ -14,6 +14,24 @@
 
     <dependencies>
         <dependency>
+            <groupId>dev.feast</groupId>
+            <artifactId>datatypes-java</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>dev.feast</groupId>
+            <artifactId>feast-storage-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>dev.feast</groupId>
+            <artifactId>feast-storage-connector-redis-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>io.lettuce</groupId>
             <artifactId>lettuce-core</artifactId>
         </dependency>
@@ -21,20 +39,19 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.9</version>
+            <version>${commons.lang3.version}</version>
         </dependency>
 
         <dependency>
             <groupId>com.google.auto.value</groupId>
             <artifactId>auto-value-annotations</artifactId>
-            <version>1.6.6</version>
+            <version>${auto.value.version}</version>
         </dependency>
 
         <dependency>
             <groupId>com.google.auto.value</groupId>
             <artifactId>auto-value</artifactId>
-            <version>1.6.6</version>
-            <scope>provided</scope>
+            <version>${auto.value.version}</version>
         </dependency>
 
         <dependency>

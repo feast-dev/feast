@@ -2,6 +2,7 @@ from typing import List
 from urllib.parse import urlparse
 
 import fastavro
+import glob
 import grpc
 import pandas as pd
 
@@ -82,7 +83,7 @@ class RetrievalJob:
                 is exceeded, an exception will be raised.
 
         Returns:
-            str: Google Cloud Storage file uris of the returned Avro files.
+            List[urllib.parse.ParseResult]: Google Cloud Storage file uris of the returned Avro files.
         """
 
         def try_retrieve():
@@ -122,9 +123,23 @@ class RetrievalJob:
         """
         uris = self.get_avro_files(timeout_sec)
         for file_uri in uris:
-            file_obj = get_staging_client(file_uri.scheme).download_file(file_uri)
-            file_obj.seek(0)
-            avro_reader = fastavro.reader(file_obj)
+            # URI ends with "/": designates a directory
+            if file_uri.path.endswith("/"):
+                dir_obj = get_staging_client(file_uri.scheme).download_directory(
+                    file_uri
+                )
+                for file_name in glob.glob(f"{dir_obj.name}/*.avro"):
+                    with open(file_name, "rb") as file_obj:
+                        avro_reader = fastavro.reader(file_obj)
+
+                        for record in avro_reader:
+                            yield record
+
+            # otherwise, URI designates a file
+            else:
+                file_obj = get_staging_client(file_uri.scheme).download_file(file_uri)
+                file_obj.seek(0)
+                avro_reader = fastavro.reader(file_obj)
 
             for record in avro_reader:
                 yield record

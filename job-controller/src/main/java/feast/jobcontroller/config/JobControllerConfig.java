@@ -24,17 +24,20 @@ import feast.jobcontroller.runner.ConsolidatedJobStrategy;
 import feast.jobcontroller.runner.JobGroupingStrategy;
 import feast.jobcontroller.runner.JobManager;
 import feast.jobcontroller.runner.JobPerStoreStrategy;
+import feast.jobcontroller.runner.databricks.DatabricksJobManager;
 import feast.jobcontroller.runner.dataflow.DataflowJobManager;
 import feast.jobcontroller.runner.direct.DirectJobRegistry;
 import feast.jobcontroller.runner.direct.DirectRunnerJobManager;
 import feast.proto.core.CoreServiceGrpc;
 import feast.proto.core.IngestionJobProto;
+import feast.proto.core.RunnerProto.DatabricksRunnerConfigOptions;
 import feast.proto.core.RunnerProto.DataflowRunnerConfigOptions;
 import feast.proto.core.RunnerProto.DirectRunnerConfigOptions;
 import feast.proto.core.SourceProto;
 import io.grpc.CallCredentials;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import java.net.http.HttpClient;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -46,6 +49,7 @@ import org.springframework.context.annotation.Configuration;
 @Slf4j
 @Configuration
 public class JobControllerConfig {
+
   private final Gson gson = new Gson();
 
   /**
@@ -123,6 +127,15 @@ public class JobControllerConfig {
             metrics,
             specsStreamingUpdateConfig,
             jobProperties.getController().getJobSelector());
+      case DATABRICKS:
+        DatabricksRunnerConfigOptions.Builder databricksRunnerConfigOptions =
+            DatabricksRunnerConfigOptions.newBuilder();
+        JsonFormat.parser().merge(configJson, databricksRunnerConfigOptions);
+        return new DatabricksJobManager(
+            databricksRunnerConfigOptions.build(),
+            metrics,
+            specsStreamingUpdateConfig,
+            HttpClient.newHttpClient());
       case DIRECT:
         DirectRunnerConfigOptions.Builder directRunnerConfigOptions =
             DirectRunnerConfigOptions.newBuilder();

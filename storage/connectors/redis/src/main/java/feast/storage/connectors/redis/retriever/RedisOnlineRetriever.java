@@ -36,9 +36,11 @@ import io.lettuce.core.codec.ByteArrayCodec;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 
 public class RedisOnlineRetriever implements OnlineRetriever {
 
@@ -49,11 +51,15 @@ public class RedisOnlineRetriever implements OnlineRetriever {
   }
 
   public static OnlineRetriever create(Map<String, String> config) {
+    RedisURI redisuri = RedisURI.create(config.get("host"), Integer.parseInt(config.get("port")));
+    String password = config.get("pass");
+    if (StringUtils.trimToNull(password) != null) {
+      redisuri.setPassword(password);
+    }
+    redisuri.setSsl(Objects.equals("true", config.get("ssl_enabled")));
 
     StatefulRedisConnection<byte[], byte[]> connection =
-        RedisClient.create(
-                RedisURI.create(config.get("host"), Integer.parseInt(config.get("port"))))
-            .connect(new ByteArrayCodec());
+        RedisClient.create(redisuri).connect(new ByteArrayCodec());
 
     return new RedisOnlineRetriever(connection);
   }

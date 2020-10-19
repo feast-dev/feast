@@ -16,7 +16,9 @@
 
     <modules>
         <module>redis</module>
+        <module>redis-common</module>
         <module>bigquery</module>
+        <module>databricks</module>
     </modules>
 
     <build>
@@ -38,19 +40,5 @@
             </plugin>
         </plugins>
     </build>
-
-    <dependencies>
-        <dependency>
-            <groupId>dev.feast</groupId>
-            <artifactId>datatypes-java</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>dev.feast</groupId>
-            <artifactId>feast-storage-api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-    </dependencies>
 
 </project>

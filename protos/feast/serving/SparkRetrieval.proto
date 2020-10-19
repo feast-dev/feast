@@ -1,0 +1,45 @@
+/*
+ * Copyright 2018 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package feast.serving;
+
+import "google/protobuf/timestamp.proto";
+import "feast/serving/ServingService.proto";
+import "feast/core/FeatureSet.proto";
+
+option java_package = "feast.proto.serving.spark";
+option java_outer_classname = "HistoricalRetrievalProto";
+
+message FeatureSetRequest {
+    feast.core.FeatureSetSpec  spec = 1;
+    repeated feast.serving.FeatureReference  feature_references = 2;
+}
+
+message HistoricalRetrievalRequest {
+    string                      retrieval_id = 1;
+    feast.serving.DatasetSource               dataset_source = 2;
+    repeated FeatureSetRequest  feature_set_requests = 3;
+}
+
+message HistoricalRetrievalResult {
+    string                        id = 1;
+    feast.serving.JobStatus                     status = 2;
+    string                        error = 3;
+    repeated string               file_uris = 4;
+    feast.serving.DataFormat                    data_format = 5;
+}

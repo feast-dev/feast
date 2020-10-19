@@ -14,8 +14,9 @@
 # limitations under the License.
 #
 
+import io
 import tempfile
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from urllib.parse import urlparse
 
 import boto3
@@ -34,6 +35,10 @@ FILE_NAME = "test.avro"
 
 LOCAL_FILE = "file://tmp/tmp"
 S3_LOCATION = f"s3://{BUCKET}/{FOLDER_NAME}"
+
+ACCOUNT = "testabfssaccount.dfs.core.windows.net"
+FILESYSTEM = "testfilesystem"
+ABFSS_LOCATION = f"abfss://{FILESYSTEM}@{ACCOUNT}/{FOLDER_NAME}"
 
 TEST_DATA_FRAME = pd.DataFrame(
     {
@@ -91,3 +96,64 @@ def test_export_source_to_staging_location_s3_wildcard_as_source_should_pass(
         s3_client.upload_fileobj(data, BUCKET, f"{FOLDER_NAME}/file2.avro")
     sources = export_source_to_staging_location(f"{S3_LOCATION}/*", None)
     assert sources == [f"{S3_LOCATION}/file1.avro", f"{S3_LOCATION}/file2.avro"]
+
+
+@patch("azure.storage.filedatalake.DataLakeServiceClient")
+@patch("feast.loaders.file._get_file_name", return_value=FILE_NAME)
+def test_export_source_to_staging_location_dataframe_to_abfss_should_pass(
+    get_file_name, client
+):
+    # Arrange
+    fs_client = Mock()
+    file_client = Mock()
+    fs_client.get_file_client.return_value = file_client
+    client().get_file_system_client.return_value = fs_client
+
+    retrived_df = None
+
+    def capture_upload_data(data, **kwargs):
+        nonlocal retrived_df
+        avro_reader = fastavro.reader(io.BytesIO(data))
+        retrived_df = pd.DataFrame.from_records([r for r in avro_reader])
+
+    file_client.upload_data = capture_upload_data
+    # Act
+    source = export_source_to_staging_location(TEST_DATA_FRAME, ABFSS_LOCATION)
+
+    # Assert
+    client().get_file_system_client.assert_called_once_with(FILESYSTEM)
+    fs_client.get_file_client.assert_called_once_with(f"{FOLDER_NAME}/{FILE_NAME}")
+    get_file_name.assert_called_once()
+
+    assert source == [f"{ABFSS_LOCATION}/{FILE_NAME}"]
+    assert_frame_equal(retrived_df, TEST_DATA_FRAME, check_like=True)
+
+
+def test_export_source_to_staging_location_abfss_file_as_source_should_pass():
+    source = export_source_to_staging_location(ABFSS_LOCATION, None)
+    assert source == [ABFSS_LOCATION]
+
+
+@patch("azure.storage.filedatalake.DataLakeServiceClient")
+def test_export_source_to_staging_location_abfss_wildcard_as_source_should_pass(
+    client, avro_data_path
+):
+    # Arrange
+    file_system_client = Mock()
+    client().get_file_system_client.return_value = file_system_client
+
+    class blob1:
+        name = f"{FOLDER_NAME}/file1.avro"
+
+    class blob2:
+        name = f"{FOLDER_NAME}/file2.avro"
+
+    file_system_client.get_paths.return_value = [blob1, blob2]
+
+    # Act
+    sources = export_source_to_staging_location(f"{ABFSS_LOCATION}/*", None)
+
+    # Assert
+    client().get_file_system_client.assert_called_once_with(FILESYSTEM)
+    file_system_client.get_paths.assert_called_once_with(f"/{FOLDER_NAME}/")
+    assert sources == [f"{ABFSS_LOCATION}/file1.avro", f"{ABFSS_LOCATION}/file2.avro"]

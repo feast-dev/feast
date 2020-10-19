@@ -1,0 +1,32 @@
+version: "3.7"
+
+services:
+  core:
+    build:
+      context: ../..
+      dockerfile: infra/docker/core/Dockerfile
+    image: ${FEAST_CORE_IMAGE:-feast-core}:${FEAST_VERSION}
+
+  jobcontroller:
+    build:
+      context: ../..
+      dockerfile: infra/docker/jobcontroller/Dockerfile
+    image: ${FEAST_JOBCONTROLLER_IMAGE:-feast-jobcontroller}:${FEAST_VERSION}
+
+  jupyter:
+    build:
+      context: ../..
+      dockerfile: infra/docker/jupyter/Dockerfile
+    image: ${FEAST_JUPYTER_IMAGE:-feast-jupyter}:${FEAST_VERSION}
+
+  serving:
+    build:
+      context: ../..
+      dockerfile: infra/docker/serving/Dockerfile
+    image: ${FEAST_SERVING_IMAGE:-feast-serving}:${FEAST_VERSION}
+
+  databricks_emulator:
+    build:
+      context: ../..
+      dockerfile: infra/docker/databricks-emulator/Dockerfile
+    image: ${FEAST_DATABRICKS_EMULATOR_IMAGE:-feast-databricks-emulator-dev}:${FEAST_VERSION}

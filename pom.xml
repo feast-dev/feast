@@ -39,6 +39,10 @@
         <module>common</module>
         <module>job-controller</module>
         <module>common-test</module>
+        <module>databricks/databricks-emulator</module>
+        <module>databricks/databricks-types</module>
+        <module>spark/spark-historical-retriever-job</module>
+        <module>spark/spark-ingestion-job</module>
     </modules>
 
     <properties>
@@ -87,6 +91,9 @@
 
         <skipUTs>false</skipUTs>
         <feast.auth.providers.http.client.package.name>feast.common.auth.providers.http.client</feast.auth.providers.http.client.package.name>
+
+        <spark.version>3.0.1</spark.version>
+        <scala.compat.version>2.12</scala.compat.version>
     </properties>
 
     <organization>

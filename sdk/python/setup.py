@@ -79,7 +79,8 @@ setup(
     install_requires=REQUIRED,
     # https://stackoverflow.com/questions/28509965/setuptools-development-requirements
     # Install dev requirements with: pip install -e .[dev]
-    extras_require={"dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"]},
+    extras_require={"dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"],
+                    "azure": ["azure-storage-file-datalake==12.*", "azure-identity==1.*"]},
     include_package_data=True,
     license="Apache",
     classifiers=[
