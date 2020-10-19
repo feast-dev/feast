@@ -6,7 +6,7 @@ Reference of the metrics that each Feast component exports:
 * [Feast Serving](metrics-reference.md#feast-serving)
 * [Feast Ingestion Job](metrics-reference.md#feast-ingestion-job)
 
-For how to configure Feast to export Metrics, see the [Metrics user guide.](../user-guide/metrics.md)
+For how to configure Feast to export Metrics, see the [Metrics user guide.](../advanced/metrics.md)
 
 ## Feast Core
 

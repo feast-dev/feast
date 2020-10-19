@@ -124,7 +124,7 @@ Once deployed, you should be able to connect at `localhost:8888` to the bundled 
 
 ## 6. Further Reading
 
-* [Feast Concepts](../../user-guide/overview.md)
+* [Feast Concepts](../../concepts/overview.md)
 * [Feast Examples/Tutorials](https://github.com/feast-dev/feast/tree/master/examples)
 * [Configuring Feast Components](../../reference/configuration-reference.md)
 

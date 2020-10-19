@@ -13,29 +13,32 @@
 * [Changelog](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
 * [Community](getting-help.md)
 
+## Concepts
+
+* [Overview](concepts/overview.md)
+* [Architecture](concepts/architecture.md)
+* [Entities](concepts/entities.md)
+* [Sources](concepts/sources.md)
+* [Feature Tables](concepts/feature-tables.md)
+
 ## User Guide
 
-* [Concepts](user-guide/overview.md)
-* [Architecture](user-guide/architecture.md)
-* [Feature Sets](user-guide/feature-sets.md)
-* [Entities](user-guide/entities.md)
-* [Features](user-guide/features.md)
-* [Sources](user-guide/sources.md)
 * [Data ingestion](user-guide/data-ingestion.md)
 * [Stores](user-guide/stores.md)
 * [Feature retrieval](user-guide/feature-retrieval.md)
-* [Metrics](user-guide/metrics.md)
+* [Updating Feature Tables](user-guide/updating-feature-tables.md)
 
 ## Tutorials
 
 * [Basic Tutorial](https://github.com/feast-dev/feast/blob/master/examples/basic/basic.ipynb)
 
-## Administration
+## Advanced
 
-* [Security](administration/security.md)
-* [Audit Logging](administration/audit-logging.md)
-* [Troubleshooting](administration/troubleshooting.md)
-* [Upgrading Feast](administration/upgrading.md)
+* [Security](advanced/security.md)
+* [Audit Logging](advanced/audit-logging.md)
+* [Metrics](advanced/metrics.md)
+* [Troubleshooting](advanced/troubleshooting.md)
+* [Upgrading Feast](advanced/upgrading.md)
 
 ## Reference
 

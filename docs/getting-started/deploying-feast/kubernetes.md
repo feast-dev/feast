@@ -134,7 +134,7 @@ You should be able to connect at `localhost:8888` to the bundled Jupyter Noteboo
 
 ## 6. Further Reading
 
-* [Feast Concepts](../../user-guide/overview.md)
+* [Feast Concepts](../../concepts/overview.md)
 * [Feast Examples/Tutorials](https://github.com/feast-dev/feast/tree/master/examples)
 * [Feast Helm Chart Documentation](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/README.md)
 * [Configuring Feast components](../../reference/configuration-reference.md)
