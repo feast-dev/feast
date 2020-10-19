@@ -13,19 +13,17 @@
 # limitations under the License.
 
 
-import enum
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
 
-from feast.core.DataFormat_pb2 import (
-    StreamFormat as StreamFormatProto,
-    FileFormat as FileFormatProto,
-)
+from feast.core.DataFormat_pb2 import FileFormat as FileFormatProto
+from feast.core.DataFormat_pb2 import StreamFormat as StreamFormatProto
+
 
 class FileFormat(ABC):
     """
     Defines an abtract file forma used to encode feature data in filesf
     """
+
     @abstractmethod
     def to_proto(self):
         """
@@ -47,6 +45,7 @@ class FileFormat(ABC):
             return ParquetFormat()
         raise NotImplementedError(f"FileFormat is unsupported: {fmt}")
 
+
 class ParquetFormat(FileFormat):
     """
     Defines the Parquet data format
@@ -54,6 +53,7 @@ class ParquetFormat(FileFormat):
 
     def to_proto(self):
         return FileFormatProto(parquet_format=FileFormatProto.ParquetFormat())
+
 
 class StreamFormat(ABC):
     """
@@ -81,6 +81,7 @@ class StreamFormat(ABC):
         if fmt == "proto_format":
             return ProtoFormat(class_path=proto.proto_format.class_path)
         raise NotImplementedError(f"StreamFormat is unsupported: {fmt}")
+
 
 class AvroFormat(StreamFormat):
     """
