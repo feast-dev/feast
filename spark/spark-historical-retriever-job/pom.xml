@@ -79,6 +79,8 @@
               <shadedPattern>vendor.feast.com.google.protobuf</shadedPattern>
             </relocation>
           </relocations>
+          <shadedArtifactAttached>true</shadedArtifactAttached>
+          <shadedClassifierName>uber</shadedClassifierName>
         </configuration>
         <executions>
           <execution>
