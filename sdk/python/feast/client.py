@@ -13,6 +13,7 @@
 # limitations under the License.
 import logging
 import multiprocessing
+import os
 import shutil
 import tempfile
 import uuid
