@@ -151,6 +151,11 @@ jobs:
       GCP_SERVICE_ACCOUNT: /etc/gcloud/key.json
     steps:
       - uses: actions/checkout@v2
+      - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        with:
+          version: '290.0.1'
+          export_default_credentials: true
+      - run: gcloud auth configure-docker --quiet
       - name: Test docker compose
         run: ./infra/scripts/test-docker-compose.sh ${GITHUB_SHA}
 
