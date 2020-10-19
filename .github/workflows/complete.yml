@@ -160,7 +160,7 @@ jobs:
           export_default_credentials: true
       - uses: actions/setup-java@v1
         with:
-          - java-version: '1.8'
+          java-version: '1.8'
       - name: build-jar
         run: make build-java-no-tests REVISION=${GITHUB_SHA}
       - name: ls
