@@ -58,5 +58,4 @@
 * [Development Guide](contributing/development-guide.md)
 * [Style Guide](contributing/style-guide.md)
 * [Release Process](contributing/release-process.md)
-* [Adding a New Store](contributing/adding-a-new-store.md)
 
