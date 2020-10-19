@@ -147,6 +147,8 @@ jobs:
     - build-push-docker-images
     - publish-ingestion-jar
     runs-on: ubuntu-latest
+    env:
+      GCP_SERVICE_ACCOUNT: /etc/gcloud/key.json
     steps:
       - uses: actions/checkout@v2
       - name: Test docker compose
@@ -165,7 +167,7 @@ jobs:
           java-version: '11'
       - uses: stCarolas/setup-maven@v3
         with:
-            maven-version: 3.6.3
+          maven-version: 3.6.3
       - name: build-jar
         run: make build-java-no-tests REVISION=${GITHUB_SHA}
       - name: copy to gs
