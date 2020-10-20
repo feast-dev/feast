@@ -77,6 +77,22 @@ locals {
             redis_port = 6379
           }
         }
+
+        "feast-jupyter" = {
+          "envOverrides" = {
+            feast_redis_host                         = module.redis.endpoint
+            feast_redis_port                         = 6379
+            feast_redis_ssl                          = true
+            feast_emr_cluster_id                     = (length(aws_emr_cluster.persistent_cluster) > 0) ? aws_emr_cluster.persistent_cluster[0].id : null
+            feast_emr_region                         = var.region
+            spark_staging_location                   = "s3://${aws_s3_bucket.feast_bucket.id}/artifacts/"
+            feast_emr_log_location                   = "s3://${aws_s3_bucket.feast_bucket.id}/emr-logs/"
+            feast_spark_launcher                     = "emr"
+            feast_historical_feature_output_location = "s3://${aws_s3_bucket.feast_bucket.id}/out/"
+            feast_historical_feature_output_format   = "parquet"
+            kafka_brokers                            = aws_msk_cluster.msk.bootstrap_brokers
+          }
+        }
       }
     }
   }

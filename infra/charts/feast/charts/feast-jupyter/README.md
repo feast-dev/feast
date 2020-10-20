@@ -19,3 +19,4 @@ Current chart version is `0.8-SNAPSHOT`
 | image.repository | string | `"gcr.io/kf-feast/feast-jupyter"` | Docker image repository |
 | image.tag | string | `"develop"` | Image tag |
 | replicaCount | int | `1` | Number of pods that will be created |
+| envOverrides | object | `{}` | Extra environment variables to set |

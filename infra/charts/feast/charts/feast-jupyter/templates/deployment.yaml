@@ -44,6 +44,15 @@ spec:
             - name: GOOGLE_APPLICATION_CREDENTIALS
               value: /etc/secrets/google/{{ .Values.gcpServiceAccount.existingSecret.key }}
             {{- end }}
+            {{- range $key, $value := .Values.envOverrides }}
+            - name: {{ printf "%s" $key | replace "." "_" | upper | quote }}
+              {{- if eq (kindOf $value) "map" }}
+              valueFrom:
+                {{- toYaml $value | nindent 12}}
+              {{- else }}
+              value: {{ $value | quote }}
+              {{- end }}
+            {{- end }}
           ports:
             - name: http
               containerPort: 8888
