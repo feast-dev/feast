@@ -1117,6 +1117,33 @@ public class SpecServiceIT extends BaseIT {
     }
 
     @Test
+    public void shouldNotReturnArchivedFeatures() {
+      // Apply feature table
+      apiClient.applyFeatureTable("default", getTestSpec());
+      FeatureTableSpec removedFeatureFeatureTableSpec =
+          DataGenerator.createFeatureTableSpec(
+                  "ft",
+                  List.of("entity1", "entity2"),
+                  Map.of("feature1", ValueProto.ValueType.Enum.INT64),
+                  3600,
+                  Map.of())
+              .toBuilder()
+              .setBatchSource(
+                  DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
+              .setStreamSource(
+                  DataGenerator.createKafkaDataSourceSpec(
+                      "localhost:9092", "topic", "class.path", "ts_col"))
+              .build();
+      // Remove feature from feature table
+      apiClient.applyFeatureTable("default", removedFeatureFeatureTableSpec);
+
+      // Get feature table
+      FeatureTableProto.FeatureTable featureTable =
+          apiClient.simpleGetFeatureTable("default", "ft");
+      assertThat(featureTable.getSpec().getFeaturesCount(), equalTo(1));
+    }
+
+    @Test
     public void shouldErrorOnMissingBatchSource() {
       FeatureTableProto.FeatureTableSpec spec =
           DataGenerator.createFeatureTableSpec(
