@@ -22,6 +22,7 @@ import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureSetProto.FeatureSpec;
 import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto;
 import feast.proto.types.ValueProto.Value;
 import feast.proto.types.ValueProto.ValueType;
@@ -125,7 +126,7 @@ public class FeatureRowToSparkRow implements Serializable {
 
     Map<String, ValueProto.Value> fields =
         featureRow.getFieldsList().stream()
-            .collect(Collectors.toMap(f -> f.getName(), f -> f.getValue()));
+            .collect(Collectors.toMap(Field::getName, Field::getValue));
 
     Object[] values = new Object[4 + spec.getEntitiesCount() + spec.getFeaturesCount()];
     int p = 0;

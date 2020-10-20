@@ -43,6 +43,7 @@ import feast.proto.types.ValueProto.StringList;
 import feast.proto.types.ValueProto.Value;
 import feast.proto.types.ValueProto.ValueType.Enum;
 import java.sql.Timestamp;
+import java.time.Instant;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.types.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -150,15 +151,13 @@ public class FeatureRowToSparkRowTest {
     builder.addFields(
         Field.newBuilder()
             .setName("entity_id_secondary")
-            .setValue(Value.newBuilder().setStringVal("lorem".toString())));
+            .setValue(Value.newBuilder().setStringVal("lorem")));
     builder.addFields(
         Field.newBuilder()
             .setName("f_BYTES")
             .setValue(Value.newBuilder().setBytesVal(ByteString.copyFrom("abcd".getBytes()))));
     builder.addFields(
-        Field.newBuilder()
-            .setName("f_STRING")
-            .setValue(Value.newBuilder().setStringVal("ipsum".toString())));
+        Field.newBuilder().setName("f_STRING").setValue(Value.newBuilder().setStringVal("ipsum")));
     builder.addFields(
         Field.newBuilder().setName("f_INT32").setValue(Value.newBuilder().setInt32Val(32)));
     builder.addFields(
@@ -211,9 +210,9 @@ public class FeatureRowToSparkRowTest {
             .setValue(Value.newBuilder().setBoolListVal(BoolList.newBuilder())));
 
     // Apply
-    Timestamp before = new java.sql.Timestamp(System.currentTimeMillis());
+    Timestamp before = Timestamp.from(Instant.now());
     Row row = sut.apply(featureSetSpec, builder.build());
-    Timestamp after = new java.sql.Timestamp(System.currentTimeMillis());
+    Timestamp after = Timestamp.from(Instant.now());
 
     // Assert
     assertThat(row.length(), is(22));
@@ -222,9 +221,9 @@ public class FeatureRowToSparkRowTest {
     // EVENT_TIMESTAMP_DAY_COLUMN
     assertThat(((java.sql.Date) row.get(i++)).getTime(), is(100000000L));
     // EVENT_TIMESTAMP_COLUMN
-    assertThat(((java.sql.Timestamp) row.get(i++)).getTime(), is(100000000L));
+    assertThat(((Timestamp) row.get(i++)).getTime(), is(100000000L));
     // CREATED_TIMESTAMP_COLUMN
-    Timestamp value = (java.sql.Timestamp) row.get(i++);
+    Timestamp value = (Timestamp) row.get(i++);
     assertThat(value, greaterThanOrEqualTo(before));
     assertThat(value, lessThanOrEqualTo(after));
     // INGESTION_ID_COLUMN
