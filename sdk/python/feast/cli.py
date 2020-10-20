@@ -360,7 +360,7 @@ def job():
     pass
 
 
-@job.command(name="sync-offline-to-online")
+@job.command(name="start-offline-to-online")
 @click.option(
     "--feature-table",
     "-t",
@@ -374,21 +374,13 @@ def sync_offline_to_online(feature_table: str, start_time: str, end_time: str):
     """
     Sync offline store data to online store
     """
+    from datetime import datetime
 
-    spark_launcher = Config().get(CONFIG_SPARK_LAUNCHER)
-
-    if spark_launcher == "emr":
-        import feast.pyspark.aws.jobs
-
-        client = Client()
-        table = client.get_feature_table(feature_table)
-        feast.pyspark.aws.jobs.sync_offline_to_online(
-            client, table, start_time, end_time
-        )
-    else:
-        raise NotImplementedError(
-            f"Feast currently does not provide support for the specified spark launcher: {spark_launcher}"
-        )
+    client = Client()
+    table = client.get_feature_table(feature_table)
+    client.start_offline_to_online_ingestion(
+        table, datetime.fromisoformat(start_time), datetime.fromisoformat(end_time)
+    )
 
 
 @job.command(name="start-stream-to-online")
@@ -410,20 +402,9 @@ def start_stream_to_online(feature_table: str, jar: str):
     Start stream to online sync job
     """
 
-    spark_launcher = Config().get(CONFIG_SPARK_LAUNCHER)
-
-    if spark_launcher == "emr":
-        import feast.pyspark.aws.jobs
-
-        client = Client()
-        table = client.get_feature_table(feature_table)
-        feast.pyspark.aws.jobs.start_stream_to_online(
-            client, table, [jar] if jar else []
-        )
-    else:
-        raise NotImplementedError(
-            f"Feast currently does not provide support for the specified spark launcher: {spark_launcher}"
-        )
+    client = Client()
+    table = client.get_feature_table(feature_table)
+    client.start_stream_to_online_ingestion(table, [jar] if jar else [])
 
 
 @job.command(name="stop-stream-to-online")
