@@ -24,9 +24,11 @@ import java.util.Objects;
 import javax.persistence.*;
 import javax.persistence.Entity;
 import lombok.Getter;
+import lombok.Setter;
 
 /** Defines a single Feature defined in a {@link FeatureTable} */
 @Getter
+@Setter
 @Entity
 @Table(
     name = "features_v2",
@@ -52,6 +54,8 @@ public class FeatureV2 {
   private String labelsJSON;
 
   public FeatureV2() {};
+
+  private boolean archived = false;
 
   public FeatureV2(FeatureTable table, String name, ValueType.Enum type, String labelsJSON) {
     this.featureTable = table;
@@ -82,6 +86,11 @@ public class FeatureV2 {
         .build();
   }
 
+  /** Archive this feature. */
+  public void archive() {
+    this.archived = true;
+  }
+
   /**
    * Update the Feature from the given Protobuf representation.
    *
@@ -90,6 +99,12 @@ public class FeatureV2 {
    */
   public void updateFromProto(FeatureSpecV2 spec) {
     // Check for prohibited changes made in spec
+    if (isArchived()) {
+      throw new IllegalArgumentException(
+          String.format(
+              "You are attempting to create a feature, %s that was previously archived. This isn't allowed. Please create a new feature with a different name.",
+              spec.getName()));
+    }
     if (!getName().equals(spec.getName())) {
       throw new IllegalArgumentException(
           String.format(
@@ -124,6 +139,7 @@ public class FeatureV2 {
     FeatureV2 feature = (FeatureV2) o;
     return getName().equals(feature.getName())
         && getType().equals(feature.getType())
-        && getLabelsJSON().equals(feature.getLabelsJSON());
+        && getLabelsJSON().equals(feature.getLabelsJSON())
+        && isArchived() == (feature.isArchived());
   }
 }

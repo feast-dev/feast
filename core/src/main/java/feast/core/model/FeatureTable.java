@@ -178,26 +178,28 @@ public class FeatureTable extends AbstractTimestampEntity {
               entityNames, spec.getEntitiesList()));
     }
 
-    // Update FeatureTable based on spec
-    // Update existing features, create new feature, drop missing features
-    Map<String, FeatureV2> existingFeatures =
-        getFeatures().stream().collect(Collectors.toMap(FeatureV2::getName, feature -> feature));
-    this.features.clear();
-    this.features.addAll(
-        spec.getFeaturesList().stream()
-            .map(
-                featureSpec -> {
-                  if (!existingFeatures.containsKey(featureSpec.getName())) {
-                    // Create new Feature based on spec
-                    return FeatureV2.fromProto(this, featureSpec);
-                  }
-                  // Update existing feature based on spec
-                  FeatureV2 feature = existingFeatures.get(featureSpec.getName());
-                  feature.updateFromProto(featureSpec);
-                  return feature;
-                })
-            .collect(Collectors.toSet()));
+    Map<String, FeatureSpecV2> updatedFeatures =
+        spec.getFeaturesList().stream().collect(Collectors.toMap(FeatureSpecV2::getName, ft -> ft));
 
+    // Update FeatureTable based on spec
+    // Tombstone removed features, update existing features and create new features
+    for (FeatureV2 existingFeature : features) {
+      String existingFeatureName = existingFeature.getName();
+      FeatureSpecV2 updatedFeatureSpec = updatedFeatures.get(existingFeatureName);
+      if (updatedFeatureSpec == null) {
+        existingFeature.archive();
+      } else {
+        existingFeature.updateFromProto(updatedFeatureSpec);
+        updatedFeatures.remove(existingFeatureName);
+      }
+    }
+
+    for (FeatureSpecV2 featureSpec : updatedFeatures.values()) {
+      FeatureV2 newFeature = FeatureV2.fromProto(this, featureSpec);
+      addFeature(newFeature);
+    }
+
+    // Update max age, source and labels.
     this.maxAgeSecs = spec.getMaxAge().getSeconds();
     this.labelsJSON = TypeConversion.convertMapToJsonString(spec.getLabelsMap());
 
@@ -210,6 +212,11 @@ public class FeatureTable extends AbstractTimestampEntity {
 
     // Bump revision no.
     this.revision++;
+  }
+
+  public void addFeature(FeatureV2 feature) {
+    feature.setFeatureTable(this);
+    features.add(feature);
   }
 
   /** Convert this Feature Table to its Protobuf representation */

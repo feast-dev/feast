@@ -1,0 +1,1 @@
+ALTER TABLE features_v2 ADD COLUMN archived boolean NOT NULL;
