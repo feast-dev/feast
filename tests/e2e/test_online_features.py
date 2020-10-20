@@ -174,7 +174,9 @@ def test_streaming_ingestion(feast_client: Client, staging_path: str, pytestconf
     try:
         original = generate_data()[["s2id", "unique_drivers", "event_timestamp"]]
         for record in original.to_dict("records"):
-            record["event_timestamp"] = record["event_timestamp"].to_pydatetime().replace(tzinfo=pytz.utc)
+            record["event_timestamp"] = (
+                record["event_timestamp"].to_pydatetime().replace(tzinfo=pytz.utc)
+            )
 
             send_avro_record_to_kafka(
                 "avro",
