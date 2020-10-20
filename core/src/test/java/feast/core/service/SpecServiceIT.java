@@ -1201,6 +1201,60 @@ public class SpecServiceIT extends BaseIT {
     }
 
     @Test
+    public void shouldErrorIfFeatureTypeChangeUponDeletion() {
+      // Apply new feature table
+      apiClient.applyFeatureTable("default", getTestSpec());
+      String featureToRemoveName = "feature2";
+      FeatureTableSpec removedFeatureFeatureTableSpec =
+          DataGenerator.createFeatureTableSpec(
+                  "ft",
+                  List.of("entity1", "entity2"),
+                  Map.of("feature1", ValueProto.ValueType.Enum.INT64),
+                  3600,
+                  Map.of())
+              .toBuilder()
+              .setBatchSource(
+                  DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
+              .setStreamSource(
+                  DataGenerator.createKafkaDataSourceSpec(
+                      "localhost:9092", "topic", "class.path", "ts_col"))
+              .build();
+      // Remove feature from feature table
+      apiClient.applyFeatureTable("default", removedFeatureFeatureTableSpec);
+
+      FeatureTableSpec updatedTypeFeatureTableSpec =
+          DataGenerator.createFeatureTableSpec(
+                  "ft",
+                  List.of("entity1", "entity2"),
+                  Map.of(
+                      "feature1",
+                      ValueProto.ValueType.Enum.INT64,
+                      featureToRemoveName,
+                      ValueProto.ValueType.Enum.STRING),
+                  3600,
+                  Map.of())
+              .toBuilder()
+              .setBatchSource(
+                  DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
+              .setStreamSource(
+                  DataGenerator.createKafkaDataSourceSpec(
+                      "localhost:9092", "topic", "class.path", "ts_col"))
+              .build();
+      // Attempt to add previously removed feature with different value type to feature table
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class,
+              () -> apiClient.applyFeatureTable("default", updatedTypeFeatureTableSpec));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo(
+              String.format(
+                  "INVALID_ARGUMENT: You are attempting to create a feature, %s that was previously archived. This isn't allowed. Please create a new feature with a different name.",
+                  featureToRemoveName)));
+    }
+
+    @Test
     public void shouldErrorOnInvalidBigQueryTableRef() {
       String invalidTableRef = "invalid.bq:path";
       FeatureTableProto.FeatureTableSpec spec =
