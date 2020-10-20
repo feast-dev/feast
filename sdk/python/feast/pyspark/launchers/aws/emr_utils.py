@@ -240,6 +240,9 @@ def _get_stream_to_online_job(emr_client, table_name: str) -> List[JobInfo]:
 
 
 class EmrJobRef(NamedTuple):
+    """ EMR job reference. step_id can be None when using on-demand clusters, in that case each
+    cluster has only one step """
+
     cluster_id: str
     step_id: Optional[str]
 
@@ -304,28 +307,17 @@ def _wait_for_step_state(
         )
 
 
-def _cancel_job(emr_client, job_type: str, table_name: str):
-    """
-    Cancel a EMR job.
-    """
-    jobs = list_jobs(
-        emr_client, job_type=job_type, table_name=table_name, active_only=True
+def _cancel_job(emr_client, job: EmrJobRef):
+    if job.step_id is None:
+        step_id = _get_first_step_id(emr_client, job.cluster_id)
+    else:
+        step_id = job.step_id
+
+    emr_client.cancel_steps(ClusterId=job.cluster_id, StepIds=[step_id])
+
+    _wait_for_job_state(
+        emr_client, EmrJobRef(job.cluster_id, step_id), TERMINAL_STEP_STATES, 180
     )
-
-    for job in jobs:
-        emr_client.cancel_steps(ClusterId=job.cluster_id, StepIds=[job.step_id])
-
-    for job in jobs:
-        _wait_for_job_state(
-            emr_client, EmrJobRef(job.cluster_id, job.step_id), TERMINAL_STEP_STATES, 90
-        )
-
-
-def stop_stream_to_online(emr_client, table_name: str):
-    """
-    Stop offline-to-online ingestion job for the table.
-    """
-    _cancel_job(emr_client, STREAM_TO_ONLINE_JOB_TYPE, table_name)
 
 
 def _upload_dataframe(s3prefix: str, df: pandas.DataFrame) -> str:
