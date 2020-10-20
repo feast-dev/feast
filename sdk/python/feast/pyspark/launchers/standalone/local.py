@@ -40,25 +40,32 @@ class StandaloneClusterJobMixin:
     def get_id(self) -> str:
         return self._job_id
 
-    def get_internal_state(self):
+    def check_if_started(self):
         if not self._ui_port:
-            return
+            return True
 
         try:
             applications = requests.get(
                 f"http://localhost:{self._ui_port}/api/v1/applications"
             ).json()
         except RequestException:
-            return
+            return False
 
-        return next(
+        app = next(
             iter(app for app in applications if app["name"] == self._job_name), None
         )
+        if not app:
+            return False
+
+        stages = requests.get(
+            f"http://localhost:{self._ui_port}/api/v1/applications/{app['id']}/stages"
+        ).json()
+        return bool(stages)
 
     def get_status(self) -> SparkJobStatus:
         code = self._process.poll()
         if code is None:
-            if self.get_internal_state() is None:
+            if not self.check_if_started():
                 return SparkJobStatus.STARTING
 
             return SparkJobStatus.IN_PROGRESS

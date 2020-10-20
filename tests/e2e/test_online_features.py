@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import pyspark
 import pytest
+import pytz
 from avro.io import BinaryEncoder, DatumWriter
 from confluent_kafka import Producer
 
@@ -170,29 +171,29 @@ def test_streaming_ingestion(feast_client: Client, staging_path: str, pytestconf
         lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 60
     )
 
-    time.sleep(5)
+    try:
+        original = generate_data()[["s2id", "unique_drivers", "event_timestamp"]]
+        for record in original.to_dict("records"):
+            record["event_timestamp"] = record["event_timestamp"].to_pydatetime().replace(tzinfo=pytz.utc)
 
-    original = generate_data()[["s2id", "unique_drivers", "event_timestamp"]]
-    for record in original.to_dict("records"):
-        record["event_timestamp"] = int(record["event_timestamp"].timestamp() * 1e6)
+            send_avro_record_to_kafka(
+                "avro",
+                record,
+                bootstrap_servers=pytestconfig.getoption("kafka_brokers"),
+                avro_schema_json=avro_schema(),
+            )
 
-        send_avro_record_to_kafka(
-            "avro",
-            record,
-            bootstrap_servers=pytestconfig.getoption("kafka_brokers"),
-            avro_schema_json=avro_schema(),
-        )
+        def get_online_features():
+            features = feast_client.get_online_features(
+                ["drivers_stream:unique_drivers"],
+                entity_rows=[{"s2id": s2_id} for s2_id in original["s2id"].tolist()],
+            ).to_dict()
+            df = pd.DataFrame.from_dict(features)
+            return df, not df["drivers_stream:unique_drivers"].isna().any()
 
-    def get_online_features():
-        features = feast_client.get_online_features(
-            ["drivers_stream:unique_drivers"],
-            entity_rows=[{"s2id": s2_id} for s2_id in original["s2id"].tolist()],
-        ).to_dict()
-        df = pd.DataFrame.from_dict(features)
-        return df, not df["drivers_stream:unique_drivers"].isna().any()
-
-    ingested = wait_retry_backoff(get_online_features, 60)
-    job.cancel()
+        ingested = wait_retry_backoff(get_online_features, 60)
+    finally:
+        job.cancel()
 
     pd.testing.assert_frame_equal(
         ingested[["s2id", "drivers_stream:unique_drivers"]],

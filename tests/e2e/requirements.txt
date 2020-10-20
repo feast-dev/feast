@@ -13,4 +13,4 @@ deepdiff==4.3.2
 tensorflow==2.1.0
 tfx-bsl==0.21.* # lock to 0.21
 confluent_kafka
-avro
+avro==1.10.0
