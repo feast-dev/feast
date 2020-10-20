@@ -397,7 +397,7 @@ public class SparkIngestionTest {
     }
 
     // Wait until StatsD has finished processed all messages
-    Thread.sleep(10000);
+    Thread.sleep(20000);
 
     List<String> expectedStatsDMessages =
         Arrays.asList(
