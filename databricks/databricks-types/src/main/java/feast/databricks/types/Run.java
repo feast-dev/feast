@@ -21,6 +21,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.auto.value.AutoValue;
+import javax.annotation.Nullable;
 
 @AutoValue
 @JsonDeserialize(builder = AutoValue_Run.Builder.class)
@@ -29,15 +30,18 @@ public abstract class Run {
   @JsonProperty("run_id")
   public abstract Long getRunId();
 
+  @Nullable
   @JsonProperty("run_name")
   public abstract String getRunName();
 
   @JsonProperty("state")
   public abstract RunState getState();
 
+  @Nullable
   @JsonProperty("task")
   public abstract Task getTask();
 
+  @Nullable
   @JsonProperty("start_time")
   public abstract Long getStartTime();
 

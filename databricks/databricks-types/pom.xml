@@ -30,6 +30,11 @@
 
   <dependencies>
     <dependency>
+      <groupId>com.google.code.findbugs</groupId>
+      <artifactId>jsr305</artifactId>
+      <version>3.0.2</version>
+    </dependency>
+    <dependency>
       <groupId>com.google.auto.value</groupId>
       <artifactId>auto-value-annotations</artifactId>
       <version>1.6.6</version>

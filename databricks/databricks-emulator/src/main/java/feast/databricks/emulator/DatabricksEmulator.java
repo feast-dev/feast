@@ -290,7 +290,8 @@ public class DatabricksEmulator {
       }
       List<Run> runs =
           runTracker.items.entrySet().stream()
-              .filter(e -> (jobIdValue == null) || (e.getValue().jobId.orElse(null) == jobIdValue))
+              .filter(
+                  e -> (jobIdValue == null) || jobIdValue.equals(e.getValue().jobId.orElse(null)))
               .sorted(Comparator.comparingLong(e -> -e.getValue().numberInJob.orElse(0L)))
               .limit(limitValue)
               .map(
