@@ -299,11 +299,23 @@ public class TestUtil {
     public DummyStatsDServer(int port) {
       try {
         server = new DatagramSocket(port);
-        server.setSoTimeout(3000);
-        server.setReceiveBufferSize(500000);
+        server.setReceiveBufferSize(131072);
       } catch (SocketException e) {
         throw new IllegalStateException(e);
       }
+      new Thread(
+              () -> {
+                try {
+                  while (true) {
+                    final DatagramPacket packet = new DatagramPacket(new byte[65535], 65535);
+                    server.receive(packet);
+                    messagesReceived.add(
+                        new String(packet.getData(), StandardCharsets.UTF_8).trim() + "\n");
+                  }
+                } catch (Exception e) {
+                }
+              })
+          .start();
     }
 
     public void stop() {
@@ -311,25 +323,6 @@ public class TestUtil {
     }
 
     public List<String> messagesReceived() {
-
-      long startTime = System.currentTimeMillis();
-      long waitTime = 5000;
-      long endTime = startTime + waitTime;
-
-      while (System.currentTimeMillis() < endTime) {
-        final DatagramPacket packet = new DatagramPacket(new byte[65535], 65535);
-        try {
-          server.receive(packet);
-          String msg = new String(packet.getData(), StandardCharsets.UTF_8).trim();
-          messagesReceived.add(msg + "\n");
-
-        } catch (SocketTimeoutException e) {
-          System.out.println("No more messages");
-          break;
-        } catch (IOException e) {
-          throw new RuntimeException(e);
-        }
-      }
       List<String> out = new ArrayList<>();
       for (String msg : messagesReceived) {
         String[] lines = msg.split("\n");
