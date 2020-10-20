@@ -1,8 +1,8 @@
+import glob
 from typing import List
 from urllib.parse import urlparse
 
 import fastavro
-import glob
 import grpc
 import pandas as pd
 

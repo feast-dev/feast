@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 import tempfile
+from unittest.mock import Mock, patch
 
 import boto3
 import grpc
@@ -24,7 +25,6 @@ from azure.storage.filedatalake import PathProperties
 from moto import mock_s3
 from pandas.testing import assert_frame_equal
 from pytest import fixture, raises
-from unittest.mock import Mock, patch
 
 from feast.job import JobProto, RetrievalJob
 from feast.serving import ServingService_pb2_grpc as Serving
