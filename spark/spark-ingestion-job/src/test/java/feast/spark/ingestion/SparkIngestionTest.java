@@ -110,7 +110,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.containers.DockerComposeContainer;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import scala.collection.JavaConverters;
@@ -123,16 +124,10 @@ public class SparkIngestionTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SparkIngestionTest.class.getName());
 
-  private static final String KAFKA_HOST = "localhost";
-  private static final int KAFKA_PORT = 9092;
-  private static final String KAFKA_BOOTSTRAP_SERVERS = KAFKA_HOST + ":" + KAFKA_PORT;
   private static final String KAFKA_TOPIC = "topic_" + System.currentTimeMillis();
   private static final String KAFKA_SPECS_TOPIC = "fstopic_" + System.currentTimeMillis();
   private static final String KAFKA_ACK_TOPIC = "acktopic_" + System.currentTimeMillis();
   private static final long KAFKA_PUBLISH_TIMEOUT_SEC = 10;
-
-  private static final String REDIS_HOST = "localhost";
-  private static final int REDIS_PORT = 6379;
 
   // No of samples of feature row that will be generated and used for testing.
   // Note that larger no of samples will increase completion time for ingestion.
@@ -183,7 +178,11 @@ public class SparkIngestionTest {
 
   @BeforeEach
   public void setupRedis() {
-    this.redisConfig = RedisConfig.newBuilder().setHost(REDIS_HOST).setPort(REDIS_PORT).build();
+    this.redisConfig =
+        RedisConfig.newBuilder()
+            .setHost(redisContainer.getHost())
+            .setPort(redisContainer.getFirstMappedPort())
+            .build();
 
     RedisURI redisuri =
         new RedisURI(
@@ -216,16 +215,17 @@ public class SparkIngestionTest {
     }
   }
 
+  @Container public KafkaContainer kafkaContainer = new KafkaContainer("5.2.1");
+
   @Container
-  public static DockerComposeContainer environment =
-      new DockerComposeContainer(
-          new File("src/test/resources/docker-compose/docker-compose-it.yml"));
+  public GenericContainer<?> redisContainer =
+      new GenericContainer<>("redis:5-alpine").withExposedPorts(6379);
 
   @Test
   public void streamingQueryShouldWriteKafkaPayloadAsDeltaLakeAndRedis() throws Exception {
     KafkaSourceConfig kafka =
         KafkaSourceConfig.newBuilder()
-            .setBootstrapServers(KAFKA_HOST + ":" + KAFKA_PORT)
+            .setBootstrapServers(kafkaContainer.getBootstrapServers())
             .setTopic(KAFKA_TOPIC)
             .build();
 
@@ -270,12 +270,12 @@ public class SparkIngestionTest {
         IngestionJobProto.SpecsStreamingUpdateConfig.newBuilder()
             .setSource(
                 KafkaSourceConfig.newBuilder()
-                    .setBootstrapServers(KAFKA_HOST + ":" + KAFKA_PORT)
+                    .setBootstrapServers(kafkaContainer.getBootstrapServers())
                     .setTopic(KAFKA_SPECS_TOPIC)
                     .build())
             .setAck(
                 KafkaSourceConfig.newBuilder()
-                    .setBootstrapServers(KAFKA_HOST + ":" + KAFKA_PORT)
+                    .setBootstrapServers(kafkaContainer.getBootstrapServers())
                     .setTopic(KAFKA_ACK_TOPIC)
                     .build())
             .build();
@@ -329,7 +329,7 @@ public class SparkIngestionTest {
 
       LOGGER.info("Publishing Feature Sets to Kafka");
       TestUtil.publishToKafka(
-          KAFKA_BOOTSTRAP_SERVERS,
+          kafkaContainer.getBootstrapServers(),
           KAFKA_SPECS_TOPIC,
           featureSetSpecs.stream()
               .map(f -> Pair.of(getFeatureSetStringRef(f), f))
@@ -339,7 +339,7 @@ public class SparkIngestionTest {
 
       LOGGER.info("Publishing {} Feature Row messages to Kafka ...", allInputs.size());
       TestUtil.publishToKafka(
-          KAFKA_BOOTSTRAP_SERVERS,
+          kafkaContainer.getBootstrapServers(),
           KAFKA_TOPIC,
           allInputs,
           ByteArraySerializer.class,
