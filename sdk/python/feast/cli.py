@@ -23,6 +23,7 @@ import yaml
 
 from feast.client import Client
 from feast.config import Config
+from feast.constants import CONFIG_SPARK_LAUNCHER
 from feast.entity import Entity
 from feast.feature_table import FeatureTable
 from feast.loaders.yaml import yaml_loader
@@ -351,18 +352,27 @@ def project_list():
     print(tabulate(table, headers=["NAME"], tablefmt="plain"))
 
 
-@cli.command()
+@cli.group(name="jobs")
+def job():
+    """
+    Create and manage jobs
+    """
+    pass
+
+
+@job.command(name="start-offline-to-online")
 @click.option(
     "--feature-table",
     "-t",
-    help="Feature table name to ingest data into",
+    help="Feature table name of data to be synced",
+    type=click.STRING,
     required=True,
 )
 @click.option("--start-time", "-s", help="Interval start", required=True)
 @click.option("--end-time", "-e", help="Interval end", required=True)
 def sync_offline_to_online(feature_table: str, start_time: str, end_time: str):
     """
-    Sync offline store to online.
+    Sync offline store data to online store
     """
     from datetime import datetime
 
@@ -373,19 +383,23 @@ def sync_offline_to_online(feature_table: str, start_time: str, end_time: str):
     )
 
 
-@cli.command()
+@job.command(name="start-stream-to-online")
 @click.option(
     "--feature-table",
     "-t",
-    help="Feature table name to ingest data into",
+    help="Feature table name of job to be started",
+    type=click.STRING,
     required=True,
 )
 @click.option(
-    "--jar", "-j", help="Feature table name to ingest data into", default="",
+    "--jar",
+    "-j",
+    help="The file path to the uber jar for offline to online ingestion spark job",
+    default="",
 )
 def start_stream_to_online(feature_table: str, jar: str):
     """
-    Start stream to online sync job.
+    Start stream to online sync job
     """
 
     client = Client()
@@ -393,36 +407,53 @@ def start_stream_to_online(feature_table: str, jar: str):
     client.start_stream_to_online_ingestion(table, [jar] if jar else [])
 
 
-@cli.command()
+@job.command(name="stop-stream-to-online")
 @click.option(
     "--feature-table",
     "-t",
-    help="Feature table name to ingest data into",
+    help="Feature table name of job to be stopped",
+    type=click.STRING,
     required=True,
 )
 def stop_stream_to_online(feature_table: str):
     """
-    Start stream to online sync job.
+    Stop stream to online sync job
     """
-    import feast.pyspark.aws.jobs
 
-    feast.pyspark.aws.jobs.stop_stream_to_online(feature_table)
+    spark_launcher = Config().get(CONFIG_SPARK_LAUNCHER)
+
+    if spark_launcher == "emr":
+        import feast.pyspark.aws.jobs
+
+        feast.pyspark.aws.jobs.stop_stream_to_online(feature_table)
+    else:
+        raise NotImplementedError(
+            f"Feast currently does not provide support for the specified spark launcher: {spark_launcher}"
+        )
 
 
-@cli.command()
-def list_emr_jobs():
+@job.command()
+def list_jobs():
     """
-    List jobs.
+    List jobs
     """
     from tabulate import tabulate
 
-    import feast.pyspark.aws.jobs
+    spark_launcher = Config().get(CONFIG_SPARK_LAUNCHER)
 
-    jobs = feast.pyspark.aws.jobs.list_jobs(None, None)
+    if spark_launcher == "emr":
+        import feast.pyspark.aws.jobs
 
-    print(
-        tabulate(jobs, headers=feast.pyspark.aws.jobs.JobInfo._fields, tablefmt="plain")
-    )
+        jobs = feast.pyspark.aws.jobs.list_jobs(None, None)
+        print(
+            tabulate(
+                jobs, headers=feast.pyspark.aws.jobs.JobInfo._fields, tablefmt="plain"
+            )
+        )
+    else:
+        raise NotImplementedError(
+            f"Feast currently does not provide support for the specified spark launcher: {spark_launcher}"
+        )
 
 
 @cli.command()
