@@ -25,6 +25,7 @@ from .emr_utils import (
     SUCCEEDED_STEP_STATES,
     TERMINAL_STEP_STATES,
     EmrJobRef,
+    _cancel_job,
     _get_job_state,
     _historical_retrieval_step,
     _load_new_cluster_template,
@@ -63,7 +64,7 @@ class EmrJobMixin:
             raise Exception("Invalid EMR state")
 
     def cancel(self):
-        raise NotImplementedError
+        _cancel_job(self._emr_client, self._job_ref)
 
 
 class EmrRetrievalJob(EmrJobMixin, RetrievalJob):
