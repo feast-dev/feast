@@ -28,9 +28,6 @@ trait BasePipeline {
     System.setProperty("io.netty.tryReflectionSetAccessible", "true")
 
     val conf = new SparkConf()
-    conf
-      .setAppName(s"${jobConfig.mode} IngestionJob for ${jobConfig.featureTable.name}")
-      .setMaster("local")
 
     jobConfig.store match {
       case RedisConfig(host, port, ssl) =>

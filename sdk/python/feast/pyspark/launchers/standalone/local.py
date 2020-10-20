@@ -1,6 +1,11 @@
 import os
+import socket
 import subprocess
 import uuid
+from contextlib import closing
+
+import requests
+from requests.exceptions import RequestException
 
 from feast.pyspark.abc import (
     BatchIngestionJob,
@@ -16,17 +21,53 @@ from feast.pyspark.abc import (
 )
 
 
+def _find_free_port():
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind(("", 0))
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return s.getsockname()[1]
+
+
 class StandaloneClusterJobMixin:
-    def __init__(self, job_id: str, process: subprocess.Popen):
+    def __init__(
+        self, job_id: str, job_name: str, process: subprocess.Popen, ui_port: int = None
+    ):
         self._job_id = job_id
+        self._job_name = job_name
         self._process = process
+        self._ui_port = ui_port
 
     def get_id(self) -> str:
         return self._job_id
 
+    def check_if_started(self):
+        if not self._ui_port:
+            return True
+
+        try:
+            applications = requests.get(
+                f"http://localhost:{self._ui_port}/api/v1/applications"
+            ).json()
+        except RequestException:
+            return False
+
+        app = next(
+            iter(app for app in applications if app["name"] == self._job_name), None
+        )
+        if not app:
+            return False
+
+        stages = requests.get(
+            f"http://localhost:{self._ui_port}/api/v1/applications/{app['id']}/stages"
+        ).json()
+        return bool(stages)
+
     def get_status(self) -> SparkJobStatus:
         code = self._process.poll()
         if code is None:
+            if not self.check_if_started():
+                return SparkJobStatus.STARTING
+
             return SparkJobStatus.IN_PROGRESS
 
         if code != 0:
@@ -34,10 +75,23 @@ class StandaloneClusterJobMixin:
 
         return SparkJobStatus.COMPLETED
 
+    def cancel(self):
+        self._process.terminate()
+
 
 class StandaloneClusterBatchIngestionJob(StandaloneClusterJobMixin, BatchIngestionJob):
     """
-    Ingestion job result for a standalone spark cluster
+    Batch Ingestion job result for a standalone spark cluster
+    """
+
+    pass
+
+
+class StandaloneClusterStreamingIngestionJob(
+    StandaloneClusterJobMixin, StreamIngestionJob
+):
+    """
+    Streaming Ingestion job result for a standalone spark cluster
     """
 
     pass
@@ -48,7 +102,13 @@ class StandaloneClusterRetrievalJob(StandaloneClusterJobMixin, RetrievalJob):
     Historical feature retrieval job result for a standalone spark cluster
     """
 
-    def __init__(self, job_id: str, process: subprocess.Popen, output_file_uri: str):
+    def __init__(
+        self,
+        job_id: str,
+        job_name: str,
+        process: subprocess.Popen,
+        output_file_uri: str,
+    ):
         """
         This is the returned historical feature retrieval job result for StandaloneClusterLauncher.
 
@@ -57,7 +117,7 @@ class StandaloneClusterRetrievalJob(StandaloneClusterJobMixin, RetrievalJob):
             process (subprocess.Popen): Pyspark driver process, spawned by the launcher.
             output_file_uri (str): Uri to the historical feature retrieval job output file.
         """
-        super().__init__(job_id, process)
+        super().__init__(job_id, job_name, process)
         self._output_file_uri = output_file_uri
 
     def get_output_file_uri(self, timeout_sec: int = None):
@@ -100,7 +160,9 @@ class StandaloneClusterLauncher(JobLauncher):
     def spark_submit_script_path(self):
         return os.path.join(self.spark_home, "bin/spark-submit")
 
-    def spark_submit(self, job_params: SparkJobParameters) -> subprocess.Popen:
+    def spark_submit(
+        self, job_params: SparkJobParameters, ui_port: int = None
+    ) -> subprocess.Popen:
         submission_cmd = [
             self.spark_submit_script_path,
             "--master",
@@ -112,6 +174,9 @@ class StandaloneClusterLauncher(JobLauncher):
         if job_params.get_class_name():
             submission_cmd.extend(["--class", job_params.get_class_name()])
 
+        if ui_port:
+            submission_cmd.extend(["--conf", f"spark.ui.port={ui_port}"])
+
         submission_cmd.append(job_params.get_main_file_path())
         submission_cmd.extend(job_params.get_arguments())
 
@@ -122,19 +187,35 @@ class StandaloneClusterLauncher(JobLauncher):
     ) -> RetrievalJob:
         job_id = str(uuid.uuid4())
         return StandaloneClusterRetrievalJob(
-            job_id, self.spark_submit(job_params), job_params.get_destination_path()
+            job_id,
+            job_params.get_name(),
+            self.spark_submit(job_params),
+            job_params.get_destination_path(),
         )
 
     def offline_to_online_ingestion(
-        self, job_params: BatchIngestionJobParameters
+        self, ingestion_job_params: BatchIngestionJobParameters
     ) -> BatchIngestionJob:
         job_id = str(uuid.uuid4())
-        return StandaloneClusterBatchIngestionJob(job_id, self.spark_submit(job_params))
+        ui_port = _find_free_port()
+        return StandaloneClusterBatchIngestionJob(
+            job_id,
+            ingestion_job_params.get_name(),
+            self.spark_submit(ingestion_job_params, ui_port),
+            ui_port,
+        )
 
     def start_stream_to_online_ingestion(
         self, ingestion_job_params: StreamIngestionJobParameters
     ) -> StreamIngestionJob:
-        raise NotImplementedError
+        job_id = str(uuid.uuid4())
+        ui_port = _find_free_port()
+        return StandaloneClusterStreamingIngestionJob(
+            job_id,
+            ingestion_job_params.get_name(),
+            self.spark_submit(ingestion_job_params, ui_port),
+            ui_port,
+        )
 
     def stage_dataframe(
         self, df, event_timestamp_column: str, created_timestamp_column: str,

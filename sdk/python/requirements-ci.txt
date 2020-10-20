@@ -16,3 +16,5 @@ pandavro==1.5.*
 moto
 mypy
 mypy-protobuf
+avro==1.10.0
+confluent_kafka

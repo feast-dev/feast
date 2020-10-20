@@ -22,6 +22,7 @@ import org.apache.spark.sql.functions.udf
 import feast.ingestion.utils.ProtoReflection
 import feast.ingestion.validation.{RowValidator, TypeCheck}
 import org.apache.spark.sql.streaming.StreamingQuery
+import org.apache.spark.sql.avro._
 
 /**
   * Streaming pipeline (currently in micro-batches mode only, since we need to have multiple sinks: redis & deadletters).
@@ -44,9 +45,6 @@ object StreamingPipeline extends BasePipeline with Serializable {
       inputProjection(config.source, featureTable.features, featureTable.entities)
     val validator = new RowValidator(featureTable, config.source.eventTimestampColumn)
 
-    val messageParser =
-      protoParser(sparkSession, config.source.asInstanceOf[StreamingSource].classpath)
-
     val input = config.source match {
       case source: KafkaSource =>
         sparkSession.readStream
@@ -56,8 +54,15 @@ object StreamingPipeline extends BasePipeline with Serializable {
           .load()
     }
 
-    val projected = input
-      .withColumn("features", messageParser($"value"))
+    val parsed = config.source.asInstanceOf[StreamingSource].format match {
+      case ProtoFormat(classPath) =>
+        val parser = protoParser(sparkSession, classPath)
+        input.withColumn("features", parser($"value"))
+      case AvroFormat(schemaJson) =>
+        input.select(from_avro($"value", schemaJson).alias("features"))
+    }
+
+    val projected = parsed
       .select("features.*")
       .select(projection: _*)
 

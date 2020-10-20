@@ -582,7 +582,7 @@ def test_historical_feature_retrieval(spark: SparkSession):
     test_data_dir = path.join(pathlib.Path(__file__).parent.absolute(), "data")
     entity_source = {
         "file": {
-            "format": "csv",
+            "format": {"json_class": "CSVFormat"},
             "path": f"file://{path.join(test_data_dir,  'customer_driver_pairs.csv')}",
             "event_timestamp_column": "event_timestamp",
             "options": {"inferSchema": "true", "header": "true"},
@@ -590,7 +590,7 @@ def test_historical_feature_retrieval(spark: SparkSession):
     }
     booking_source = {
         "file": {
-            "format": "csv",
+            "format": {"json_class": "CSVFormat"},
             "path": f"file://{path.join(test_data_dir,  'bookings.csv')}",
             "event_timestamp_column": "event_timestamp",
             "created_timestamp_column": "created_timestamp",
@@ -599,7 +599,7 @@ def test_historical_feature_retrieval(spark: SparkSession):
     }
     transaction_source = {
         "file": {
-            "format": "csv",
+            "format": {"json_class": "CSVFormat"},
             "path": f"file://{path.join(test_data_dir,  'transactions.csv')}",
             "event_timestamp_column": "event_timestamp",
             "created_timestamp_column": "created_timestamp",
@@ -653,7 +653,7 @@ def test_historical_feature_retrieval_with_mapping(spark: SparkSession):
     test_data_dir = path.join(pathlib.Path(__file__).parent.absolute(), "data")
     entity_source = {
         "file": {
-            "format": "csv",
+            "format": {"json_class": "CSVFormat"},
             "path": f"file://{path.join(test_data_dir,  'column_mapping_test_entity.csv')}",
             "event_timestamp_column": "event_timestamp",
             "field_mapping": {"id": "customer_id"},
@@ -662,7 +662,7 @@ def test_historical_feature_retrieval_with_mapping(spark: SparkSession):
     }
     booking_source = {
         "file": {
-            "format": "csv",
+            "format": {"json_class": "CSVFormat"},
             "path": f"file://{path.join(test_data_dir,  'column_mapping_test_feature.csv')}",
             "event_timestamp_column": "datetime",
             "created_timestamp_column": "created_datetime",
@@ -723,7 +723,7 @@ def test_large_historical_feature_retrieval(
 
     entity_source = {
         "file": {
-            "format": "csv",
+            "format": {"json_class": "CSVFormat"},
             "path": f"file://{large_entity_csv_file}",
             "event_timestamp_column": "event_timestamp",
             "field_mapping": {"id": "customer_id"},
@@ -732,7 +732,7 @@ def test_large_historical_feature_retrieval(
     }
     feature_source = {
         "file": {
-            "format": "csv",
+            "format": {"json_class": "CSVFormat"},
             "path": f"file://{large_feature_csv_file}",
             "event_timestamp_column": "event_timestamp",
             "created_timestamp_column": "created_timestamp",
@@ -755,7 +755,7 @@ def test_historical_feature_retrieval_with_schema_errors(spark: SparkSession):
     test_data_dir = path.join(pathlib.Path(__file__).parent.absolute(), "data")
     entity_source = {
         "file": {
-            "format": "csv",
+            "format": {"json_class": "CSVFormat"},
             "path": f"file://{path.join(test_data_dir,  'customer_driver_pairs.csv')}",
             "event_timestamp_column": "event_timestamp",
             "options": {"inferSchema": "true", "header": "true"},
@@ -763,7 +763,7 @@ def test_historical_feature_retrieval_with_schema_errors(spark: SparkSession):
     }
     entity_source_missing_timestamp = {
         "file": {
-            "format": "csv",
+            "format": {"json_class": "CSVFormat"},
             "path": f"file://{path.join(test_data_dir,  'customer_driver_pairs.csv')}",
             "event_timestamp_column": "datetime",
             "options": {"inferSchema": "true", "header": "true"},
@@ -771,7 +771,7 @@ def test_historical_feature_retrieval_with_schema_errors(spark: SparkSession):
     }
     entity_source_missing_entity = {
         "file": {
-            "format": "csv",
+            "format": {"json_class": "CSVFormat"},
             "path": f"file://{path.join(test_data_dir,  'customers.csv')}",
             "event_timestamp_column": "event_timestamp",
             "options": {"inferSchema": "true", "header": "true"},
@@ -780,7 +780,7 @@ def test_historical_feature_retrieval_with_schema_errors(spark: SparkSession):
 
     booking_source = {
         "file": {
-            "format": "csv",
+            "format": {"json_class": "CSVFormat"},
             "path": f"file://{path.join(test_data_dir,  'bookings.csv')}",
             "event_timestamp_column": "event_timestamp",
             "created_timestamp_column": "created_timestamp",
@@ -789,7 +789,7 @@ def test_historical_feature_retrieval_with_schema_errors(spark: SparkSession):
     }
     booking_source_missing_timestamp = {
         "file": {
-            "format": "csv",
+            "format": {"json_class": "CSVFormat"},
             "path": f"file://{path.join(test_data_dir,  'bookings.csv')}",
             "event_timestamp_column": "datetime",
             "created_timestamp_column": "created_datetime",

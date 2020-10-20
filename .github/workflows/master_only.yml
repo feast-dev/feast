@@ -79,7 +79,15 @@ jobs:
       - uses: stCarolas/setup-maven@v3
         with:
           maven-version: 3.6.3
-      - name: build-jar
+      - name: Publish develop version of ingestion job
+        run: |
+          if [ ${GITHUB_REF#refs/*/} == "master" ]; then
+            make build-java-no-tests REVISION=develop
+            gsutil cp ./spark/ingestion/target/feast-ingestion-spark-develop.jar gs://${PUBLISH_BUCKET}/spark/ingestion/
+          fi
+      - name: Get version
+        run: echo ::set-env name=RELEASE_VERSION::${GITHUB_REF#refs/*/}
+      - name: Publish tagged version of ingestion job
         run: |
           SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
           if echo "${RELEASE_VERSION}" | grep -P "$SEMVER_REGEX" &>/dev/null ; then

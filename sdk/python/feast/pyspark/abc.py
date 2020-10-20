@@ -19,6 +19,7 @@ class SparkJobFailure(Exception):
 
 
 class SparkJobStatus(Enum):
+    STARTING = 0
     IN_PROGRESS = 1
     FAILED = 2
     COMPLETED = 3
@@ -45,6 +46,13 @@ class SparkJob(abc.ABC):
         Job Status retrieval
 
         :return: SparkJobStatus
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def cancel(self):
+        """
+        Manually terminate job
         """
         raise NotImplementedError
 

@@ -45,6 +45,9 @@ class DataprocJobMixin:
 
         return SparkJobStatus.FAILED
 
+    def cancel(self):
+        self._operation.cancel()
+
 
 class DataprocRetrievalJob(DataprocJobMixin, RetrievalJob):
     """
@@ -71,7 +74,13 @@ class DataprocRetrievalJob(DataprocJobMixin, RetrievalJob):
 
 class DataprocBatchIngestionJob(DataprocJobMixin, BatchIngestionJob):
     """
-    Ingestion job result for a Dataproc cluster
+    Batch Ingestion job result for a Dataproc cluster
+    """
+
+
+class DataprocStreamingIngestionJob(DataprocJobMixin, StreamIngestionJob):
+    """
+    Streaming Ingestion job result for a Dataproc cluster
     """
 
 
@@ -151,14 +160,14 @@ class DataprocClusterLauncher(JobLauncher):
         )
 
     def offline_to_online_ingestion(
-        self, job_params: BatchIngestionJobParameters
+        self, ingestion_job_params: BatchIngestionJobParameters
     ) -> BatchIngestionJob:
-        return DataprocBatchIngestionJob(self.dataproc_submit(job_params))
+        return DataprocBatchIngestionJob(self.dataproc_submit(ingestion_job_params))
 
     def start_stream_to_online_ingestion(
         self, ingestion_job_params: StreamIngestionJobParameters
     ) -> StreamIngestionJob:
-        raise NotImplementedError
+        return DataprocStreamingIngestionJob(self.dataproc_submit(ingestion_job_params))
 
     def stage_dataframe(
         self, df, event_timestamp_column: str, created_timestamp_column: str,

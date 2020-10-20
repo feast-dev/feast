@@ -26,7 +26,6 @@ Sphinx
 sphinx-rtd-theme
 toml==0.10.*
 tqdm==4.*
-confluent_kafka
 google
 pandavro==1.5.*
 kafka-python==1.*
