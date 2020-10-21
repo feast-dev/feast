@@ -5,7 +5,10 @@ import grpc
 import feast
 from feast.core import JobService_pb2_grpc
 from feast.third_party.grpc.health.v1 import HealthService_pb2_grpc
-from feast.third_party.grpc.health.v1.HealthService_pb2 import HealthCheckResponse, ServingStatus
+from feast.third_party.grpc.health.v1.HealthService_pb2 import (
+    HealthCheckResponse,
+    ServingStatus,
+)
 
 
 class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
