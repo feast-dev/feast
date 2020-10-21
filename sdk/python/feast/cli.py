@@ -26,6 +26,7 @@ from feast.config import Config
 from feast.constants import CONFIG_SPARK_LAUNCHER
 from feast.entity import Entity
 from feast.feature_table import FeatureTable
+from feast.job_service import start_job_service
 from feast.loaders.yaml import yaml_loader
 
 _logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ _logger = logging.getLogger(__name__)
 _common_options = [
     click.option("--core-url", help="Set Feast core URL to connect to"),
     click.option("--serving-url", help="Set Feast serving URL to connect to"),
+    click.option("--job-service-url", help="Set Feast job service URL to connect to"),
 ]
 
 
@@ -489,6 +491,14 @@ def get_historical_features(features: str, entity_df_path: str, destination: str
 
     job = client.get_historical_features(features.split(","), uploaded_df,)
     print(job.get_output_file_uri())
+
+
+@cli.command(name="server")
+def server():
+    """
+    Start Feast Job Service
+    """
+    start_job_service()
 
 
 if __name__ == "__main__":

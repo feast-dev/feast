@@ -32,6 +32,9 @@ from feast.constants import (
     CONFIG_CORE_URL_KEY,
     CONFIG_ENABLE_AUTH_KEY,
     CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY,
+    CONFIG_JOB_SERVICE_ENABLE_SSL_KEY,
+    CONFIG_JOB_SERVICE_SERVER_SSL_CERT_KEY,
+    CONFIG_JOB_SERVICE_URL_KEY,
     CONFIG_PROJECT_KEY,
     CONFIG_SERVING_ENABLE_SSL_KEY,
     CONFIG_SERVING_SERVER_SSL_CERT_KEY,
@@ -63,6 +66,7 @@ from feast.core.CoreService_pb2 import (
     ListProjectsResponse,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
+from feast.core.JobService_pb2_grpc import JobServiceStub
 from feast.data_format import ParquetFormat
 from feast.data_source import BigQuerySource, FileSource
 from feast.entity import Entity
@@ -132,6 +136,7 @@ class Client:
 
         self._core_service_stub: Optional[CoreServiceStub] = None
         self._serving_service_stub: Optional[ServingServiceStub] = None
+        self._job_service_stub: Optional[JobServiceStub] = None
         self._auth_metadata: Optional[grpc.AuthMetadataPlugin] = None
 
         # Configure Auth Metadata Plugin if auth is enabled
@@ -179,6 +184,27 @@ class Client:
         return self._serving_service_stub
 
     @property
+    def _job_service(self):
+        """
+        Creates or returns the gRPC Feast Job Service Stub
+
+        Returns: JobServiceStub
+        """
+        if not self._job_service_stub:
+            channel = create_grpc_channel(
+                url=self._config.get(CONFIG_JOB_SERVICE_URL_KEY),
+                enable_ssl=self._config.getboolean(CONFIG_JOB_SERVICE_ENABLE_SSL_KEY),
+                enable_auth=self._config.getboolean(CONFIG_ENABLE_AUTH_KEY),
+                ssl_server_cert_path=self._config.get(
+                    CONFIG_JOB_SERVICE_SERVER_SSL_CERT_KEY
+                ),
+                auth_metadata_plugin=self._auth_metadata,
+                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+            )
+            self._job_service_service_stub = JobServiceStub(channel)
+        return self._job_service_service_stub
+
+    @property
     def core_url(self) -> str:
         """
         Retrieve Feast Core URL
@@ -201,7 +227,7 @@ class Client:
     @property
     def serving_url(self) -> str:
         """
-        Retrieve Serving Core URL
+        Retrieve Feast Serving URL
 
         Returns:
             Feast Serving URL string
@@ -217,6 +243,26 @@ class Client:
             value: Feast Serving URL
         """
         self._config.set(CONFIG_SERVING_URL_KEY, value)
+
+    @property
+    def job_service_url(self) -> str:
+        """
+        Retrieve Feast Job Service URL
+
+        Returns:
+            Feast Job Service URL string
+        """
+        return self._config.get(CONFIG_JOB_SERVICE_URL_KEY)
+
+    @job_service_url.setter
+    def job_service_url(self, value: str):
+        """
+        Set the Feast Job Service URL
+
+        Args:
+            value: Feast Job Service URL
+        """
+        self._config.set(CONFIG_JOB_SERVICE_URL_KEY, value)
 
     @property
     def core_secure(self) -> bool:
@@ -257,6 +303,26 @@ class Client:
             value: True to enable client-side SSL/TLS
         """
         self._config.set(CONFIG_SERVING_ENABLE_SSL_KEY, value)
+
+    @property
+    def job_service_secure(self) -> bool:
+        """
+        Retrieve Feast Job Service client-side SSL/TLS setting
+
+        Returns:
+            Whether client-side SSL/TLS is enabled
+        """
+        return self._config.getboolean(CONFIG_JOB_SERVICE_ENABLE_SSL_KEY)
+
+    @job_service_secure.setter
+    def job_service_secure(self, value: bool):
+        """
+        Set the Feast Job Service client-side SSL/TLS setting
+
+        Args:
+            value: True to enable client-side SSL/TLS
+        """
+        self._config.set(CONFIG_JOB_SERVICE_ENABLE_SSL_KEY, value)
 
     def version(self):
         """
