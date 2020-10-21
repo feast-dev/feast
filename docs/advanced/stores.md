@@ -29,7 +29,7 @@ Data is persisted in historical stores like BigQuery in log format. Repeated ing
 
 Online stores maintain only the latest values for a specific feature. Feast currently supports Redis as an online store. Online stores are meant for very high throughput writes from ingestion jobs and very low latency access to features during online serving.
 
-Please continue to the [feature retrieval](feature-retrieval.md) section for more details on retrieving data from online storage.
+Please continue to the [feature retrieval](../user-guide/feature-retrieval.md) section for more details on retrieving data from online storage.
 
 ## Subscriptions
 

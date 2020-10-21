@@ -20,13 +20,13 @@
 * [Entities](concepts/entities.md)
 * [Sources](concepts/sources.md)
 * [Feature Tables](concepts/feature-tables.md)
+* [Feature References](concepts/feature-references.md)
 
 ## User Guide
 
-* [Data ingestion](user-guide/data-ingestion.md)
-* [Stores](user-guide/stores.md)
-* [Feature retrieval](user-guide/feature-retrieval.md)
-* [Updating Feature Tables](user-guide/updating-feature-tables.md)
+* [Getting data into Feast](user-guide/data-ingestion.md)
+* [Getting training features](user-guide/feature-retrieval.md)
+* [Getting online features](user-guide/getting-online-features.md)
 
 ## Tutorials
 
@@ -34,6 +34,7 @@
 
 ## Advanced
 
+* [Stores](advanced/stores.md)
 * [Security](advanced/security.md)
 * [Audit Logging](advanced/audit-logging.md)
 * [Metrics](advanced/metrics.md)

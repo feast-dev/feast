@@ -18,7 +18,7 @@ Feature creators model the data within their organization into Feast through the
 
 Feature tables are specifications that contain both schema and data source information. They allow Feast to know how to interpret your data, and optionally where to find it. Feature tables allow users to define domain [entities](entities.md) along with the features that are available on these entities. Feature tables also allow users to define schemas that describe the properties of the data, which in turn can be used for validation purposes.
 
-Once a feature table has been registered, Feast will create the relevant schemas to store feature data within its feature [stores](../user-guide/stores.md). These stores are then populated by [ingestion jobs](../user-guide/data-ingestion.md) that ingest data from data [sources](sources.md), making it possible for Feast to provide access to features for training and serving. It is also possible for users to [ingest](../user-guide/data-ingestion.md) data into Feast instead of using an external source.
+Once a feature table has been registered, Feast will create the relevant schemas to store feature data within its feature [stores](../advanced/stores.md). These stores are then populated by [ingestion jobs](../user-guide/data-ingestion.md) that ingest data from data [sources](sources.md), making it possible for Feast to provide access to features for training and serving. It is also possible for users to [ingest](../user-guide/data-ingestion.md) data into Feast instead of using an external source.
 
 Read more about [feature tables](feature-tables.md).
 
@@ -50,7 +50,7 @@ The logical grouping of these resources are important for namespacing as well as
 
 [Feature Tables](feature-tables.md) are schemas that define logical groupings of features, data sources, and other related metadata.
 
-[Stores](../user-guide/stores.md) are databases that maintain feature data that gets served to models during training or inference.
+[Stores](../advanced/stores.md) are databases that maintain feature data that gets served to models during training or inference.
 
 [Ingestion](../user-guide/data-ingestion.md) is the process of loading data into Feast.
 

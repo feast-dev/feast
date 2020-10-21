@@ -1,60 +1,86 @@
 # Sources
 
-A `source` is a data source that can be used to find feature data. Users define sources as part of [feature tables](feature-tables.md).
+## Overview
 
-Currently, Feast supports the following sources.
+A `source` is a data source that can be used to find feature data. Users define sources as part of [feature tables](feature-tables.md). Currently, Feast supports the following source types:
 
-<table>
-  <thead>
-    <tr>
-      <th style="text-align:left">Source type</th>
-      <th style="text-align:left">Sources</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="text-align:left">Batch Source</td>
-      <td style="text-align:left">
-        <ul>
-          <li>File</li>
-          <li><a href="https://cloud.google.com/bigquery">BigQuery</a>
-          </li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td style="text-align:left">Stream Source</td>
-      <td style="text-align:left">
-        <ul>
-          <li><a href="https://kafka.apache.org/">Kafka</a>
-          </li>
-          <li><a href="https://aws.amazon.com/kinesis/">Kinesis</a>
-          </li>
-        </ul>
-      </td>
-    </tr>
-  </tbody>
-</table>
+* Batch Source
+  * File
+  * [BigQuery](https://cloud.google.com/bigquery)
+* Stream Source
+  * [Kafka](https://kafka.apache.org/)
+  * [Kinesis](https://aws.amazon.com/kinesis/)
 
-More information about the options to be specified for the above supported sources can be found [here](https://api.docs.feast.dev/grpc/feast.core.pb.html#DataSource).
+## Structure of a Source
+
+For both batch and stream sources, the following configurations are **necessary**:
+
+* **created\_timestamp\_column**: Name of column containing timestamp when data is created.
+* **event\_timestamp\_column**: Name of column containing timestamp when event data occurred.
+
+When configuring data source options, see the [API documentation](https://api.docs.feast.dev/python/) for more details.
+
+Some valid source specifications are shown below:
+
+{% tabs %}
+{% tab title="batch\_sources.py" %}
+```python
+from feast import FileSource
+from feast.data_format import ParquetFormat
+
+batch_file_source = FileSource(
+    file_format=ParquetFormat(),
+    file_url="file://feast/*",
+    event_timestamp_column="event_timestamp",
+    created_timestamp_column="created_timestamp",
+)
+```
+{% endtab %}
+
+{% tab title="stream\_sources.py" %}
+```python
+from feast import KafkaSource
+from feast.data_format import ProtoFormat
+
+stream_kafka_source = KafkaSource(
+    bootstrap_servers="localhost:9094",
+    message_format=ProtoFormat(class_path="class.path"),
+    topic="driver_trips",
+    event_timestamp_column="event_timestamp",
+    created_timestamp_column="created_timestamp",
+)
+```
+{% endtab %}
+{% endtabs %}
+
+More information about the options to be specified for the above sources can be found in our [API documentation](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/data_source.py).
 
 {% hint style="info" %}
-A batch source with data already materialised in it must be specified during the creation of a Feature Table for creation of training datasets.
+A batch source with data already materialized in it must be specified during the creation of a Feature Table for creation of training datasets.
 {% endhint %}
 
-An example of a user provided source can be seen in the following code snippet.
+## Working with a Source
+
+#### Creating a Source
+
+Sources are required when specifying a [Feature Table](feature-tables.md).
 
 ```python
-from feast import BigQuerySource
-
-batch_source = BigQuerySource(
+batch_bigquery_source = BigQuerySource(
     table_ref="gcp_project:bq_dataset.bq_table",
-    event_timestamp_column="datetime",
-    created_timestamp_column="timestamp",
+    event_timestamp_column="event_timestamp",
+    created_timestamp_column="created_timestamp",
+)
+
+stream_kinesis_source = KinesisSource(
+    bootstrap_servers="localhost:9094",
+    record_format=ProtoFormat(class_path="class.path"),
+    region="us-east-1",
+    stream_name="driver_trips",
+    event_timestamp_column="event_timestamp",
+    created_timestamp_column="created_timestamp",
 )
 ```
 
-Feast will ensure that the source complies with the schema of the feature table. 
-
-This specified batch source will then be included inside a feature table specification and used for registration, which will be explained in the next section.
+Feast will ensure that the source complies with the schema of the feature table. These specified data sources can then be included inside a feature table specification and registered to Feast Core.
 
