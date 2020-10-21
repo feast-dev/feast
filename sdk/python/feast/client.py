@@ -770,6 +770,12 @@ class Client:
             project = self.project
         if isinstance(feature_table, FeatureTable):
             name = feature_table.name
+        elif isinstance(feature_table, str):
+            name = feature_table
+        else:
+            raise Exception(
+                "feature_table can be of type str or feast.feature_table.FeatureTable."
+            )
 
         fetched_feature_table: Optional[FeatureTable] = self.get_feature_table(
             name, project

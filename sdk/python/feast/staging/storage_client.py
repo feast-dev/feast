@@ -262,7 +262,10 @@ class LocalFSClient(AbstractStagingClient):
         Returns:
             TemporaryFile object
         """
-        url = uri.path
+        root = ""
+        if uri.netloc:
+            root = uri.netloc
+        url = "/" + os.path.join(root, uri.path.lstrip("/"))
         file_obj = open(url, "rb")
         return file_obj
 
@@ -270,6 +273,8 @@ class LocalFSClient(AbstractStagingClient):
         raise NotImplementedError("list files not implemented for Local file")
 
     def upload_file(self, local_path: str, bucket: str, remote_path: str):
+        if bucket:
+            remote_path = os.path.join(bucket, remote_path.lstrip("/"))
         dest_fpath = remote_path if remote_path.startswith("/") else "/" + remote_path
         os.makedirs(os.path.dirname(dest_fpath), exist_ok=True)
         shutil.copy(local_path, dest_fpath)

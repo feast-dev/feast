@@ -1,6 +1,6 @@
 FROM openjdk:11-jre
 ARG REVISION=dev
-ADD $PWD/core/target/feast-job-controller-$REVISION-exec.jar /opt/feast/feast-job-controller.jar
+ADD $PWD/job-controller/target/feast-job-controller-$REVISION-exec.jar /opt/feast/feast-job-controller.jar
 CMD ["java",\
      "-Xms2048m",\
      "-Xmx2048m",\

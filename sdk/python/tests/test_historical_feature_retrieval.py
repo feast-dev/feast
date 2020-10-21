@@ -28,7 +28,7 @@ from pytz import utc
 from feast import Client, Entity, Feature, FeatureTable, FileSource, ValueType
 from feast.core import CoreService_pb2_grpc as Core
 from feast.data_format import ParquetFormat
-from tests.feast_core_server import CoreServicer
+from feast_core_server import CoreServicer
 
 
 def find_free_port():
