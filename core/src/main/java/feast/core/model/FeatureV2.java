@@ -53,9 +53,11 @@ public class FeatureV2 {
   @Column(name = "labels", columnDefinition = "text")
   private String labelsJSON;
 
-  public FeatureV2() {};
+  // Boolean to track whether a feature is archived
+  @Column(name = "is_archived")
+  private boolean isArchived = false;
 
-  private boolean archived = false;
+  public FeatureV2() {};
 
   public FeatureV2(FeatureTable table, String name, ValueType.Enum type, String labelsJSON) {
     this.featureTable = table;
@@ -83,12 +85,13 @@ public class FeatureV2 {
         .setName(getName())
         .setValueType(getType())
         .putAllLabels(labels)
+        .setIsArchived(isArchived())
         .build();
   }
 
   /** Archive this feature. */
   public void archive() {
-    this.archived = true;
+    this.isArchived = true;
   }
 
   /**

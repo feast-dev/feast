@@ -21,6 +21,7 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.beans.HasPropertyWithValue.hasProperty;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
+import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.collection.IsMapContaining.hasEntry;
 import static org.hamcrest.collection.IsMapWithSize.aMapWithSize;
 import static org.hamcrest.core.IsEqual.equalTo;
@@ -42,6 +43,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
 import java.util.*;
+import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.junit.jupiter.api.BeforeAll;
@@ -1117,7 +1119,7 @@ public class SpecServiceIT extends BaseIT {
     }
 
     @Test
-    public void shouldNotReturnArchivedFeatures() {
+    public void shouldReturnArchivedFeatures() {
       // Apply feature table
       apiClient.applyFeatureTable("default", getTestSpec());
       FeatureTableSpec removedFeatureFeatureTableSpec =
@@ -1140,7 +1142,17 @@ public class SpecServiceIT extends BaseIT {
       // Get feature table
       FeatureTableProto.FeatureTable featureTable =
           apiClient.simpleGetFeatureTable("default", "ft");
-      assertThat(featureTable.getSpec().getFeaturesCount(), equalTo(1));
+      assertThat(featureTable.getSpec().getFeaturesCount(), equalTo(2));
+      assertThat(
+          featureTable.getSpec().getFeaturesList().stream()
+              .map(feature -> feature.getName())
+              .collect(Collectors.toList()),
+          containsInAnyOrder(ImmutableList.of("feature1", "feature2").toArray()));
+      assertThat(
+          featureTable.getSpec().getFeaturesList().stream()
+              .map(feature -> feature.getIsArchived())
+              .collect(Collectors.toList()),
+          containsInAnyOrder(ImmutableList.of(false, true).toArray()));
     }
 
     @Test

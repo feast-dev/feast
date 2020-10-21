@@ -28,6 +28,7 @@ class Feature:
         name: str,
         dtype: ValueType,
         labels: Optional[MutableMapping[str, str]] = None,
+        is_archived: Optional[bool] = False,
     ):
         self._name = name
         if not isinstance(dtype, ValueType):
@@ -37,6 +38,7 @@ class Feature:
             self._labels = dict()  # type: MutableMapping
         else:
             self._labels = labels
+        self._is_archived = is_archived
 
     def __eq__(self, other):
         if (
@@ -71,12 +73,22 @@ class Feature:
         """
         return self._labels
 
+    @property
+    def is_archived(self) -> Optional[bool]:
+        """
+        Getter for labels of this field
+        """
+        return self._is_archived
+
     def to_proto(self) -> FeatureSpecProto:
         """Converts Feature object to its Protocol Buffer representation"""
         value_type = ValueTypeProto.ValueType.Enum.Value(self.dtype.name)
 
         return FeatureSpecProto(
-            name=self.name, value_type=value_type, labels=self.labels,
+            name=self.name,
+            value_type=value_type,
+            labels=self.labels,
+            is_archived=self.is_archived,
         )
 
     @classmethod
@@ -93,6 +105,7 @@ class Feature:
             name=feature_proto.name,
             dtype=ValueType(feature_proto.value_type),
             labels=feature_proto.labels,
+            is_archived=feature_proto.is_archived,
         )
 
         return feature

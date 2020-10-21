@@ -226,10 +226,7 @@ public class FeatureTable extends AbstractTimestampEntity {
     Timestamp updatedTime = TypeConversion.convertTimestamp(getLastUpdated());
 
     List<FeatureSpecV2> featureSpecs =
-        getFeatures().stream()
-            .filter(feature -> !feature.isArchived())
-            .map(FeatureV2::toProto)
-            .collect(Collectors.toList());
+        getFeatures().stream().map(FeatureV2::toProto).collect(Collectors.toList());
     List<String> entityNames =
         getEntities().stream().map(EntityV2::getName).collect(Collectors.toList());
     Map<String, String> labels = TypeConversion.convertJsonStringToMap(getLabelsJSON());

@@ -33,4 +33,7 @@ message FeatureSpecV2 {
 
     // Labels for user defined metadata on a feature
     map<string,string> labels = 3;
+
+    // Boolean to track whether a feature is archived
+    bool is_archived = 4;
 }

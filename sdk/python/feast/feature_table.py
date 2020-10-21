@@ -276,6 +276,7 @@ class FeatureTable:
                     name=feature.name,
                     dtype=ValueType(feature.value_type),
                     labels=feature.labels,
+                    is_archived=feature.is_archived,
                 )
                 for feature in feature_table_proto.spec.features
             ],
