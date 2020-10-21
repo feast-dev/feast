@@ -9,12 +9,13 @@ message HealthCheckRequest {
   string service = 1;
 }
 
+enum ServingStatus {
+  UNKNOWN = 0;
+  SERVING = 1;
+  NOT_SERVING = 2;
+}
+
 message HealthCheckResponse {
-  enum ServingStatus {
-    UNKNOWN = 0;
-    SERVING = 1;
-    NOT_SERVING = 2;
-  }
   ServingStatus status = 1;
 }
 

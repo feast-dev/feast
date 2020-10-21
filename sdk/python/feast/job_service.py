@@ -4,6 +4,8 @@ import grpc
 
 import feast
 from feast.core import JobService_pb2_grpc
+from feast.third_party.grpc.health.v1 import HealthService_pb2_grpc
+from feast.third_party.grpc.health.v1.HealthService_pb2 import HealthCheckResponse, ServingStatus
 
 
 class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
@@ -47,12 +49,18 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
         raise NotImplementedError("Method not implemented!")
 
 
+class HealthServicer(HealthService_pb2_grpc.HealthServicer):
+    def Check(self, request, context):
+        return HealthCheckResponse(status=ServingStatus.SERVING)
+
+
 def start_job_service():
     """
     Start Feast Job Service
     """
     server = grpc.server(ThreadPoolExecutor())
     JobService_pb2_grpc.add_JobServiceServicer_to_server(JobServiceServicer(), server)
+    HealthService_pb2_grpc.add_HealthServicer_to_server(HealthServicer(), server)
     server.add_insecure_port("[::]:6568")
     server.start()
     print("Feast job server listening on port :6568")
