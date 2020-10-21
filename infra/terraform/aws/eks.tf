@@ -54,6 +54,8 @@ resource "random_string" "suffix" {
 resource "aws_security_group" "all_worker_mgmt" {
   name_prefix = "${var.name_prefix}-worker"
   vpc_id      = module.vpc.vpc_id
+
+  tags = var.tags
 }
 
 module "vpc" {
@@ -78,34 +80,32 @@ module "vpc" {
     "kubernetes.io/cluster/${local.cluster_name}" = "shared"
     "kubernetes.io/role/internal-elb"             = "1"
   }
+
+  tags = var.tags
 }
 
 module "eks" {
-  source          = "terraform-aws-modules/eks/aws"
+  source  = "terraform-aws-modules/eks/aws"
   version = "12.2.0"
 
   cluster_name    = local.cluster_name
   cluster_version = "1.17"
   subnets         = module.vpc.private_subnets
 
-  tags = {
-    Environment = "test"
-    GithubRepo  = "terraform-aws-eks"
-    GithubOrg   = "terraform-aws-modules"
-  }
+  tags = var.tags
 
   vpc_id = module.vpc.vpc_id
 
   worker_groups = [
     {
-      name                          = "worker-group-1"
-      instance_type                 = "r3.large"
-      asg_desired_capacity          = 2
+      name                 = "worker-group-1"
+      instance_type        = "r3.large"
+      asg_desired_capacity = 2
     },
     {
-      name                          = "worker-group-2"
-      instance_type                 = "r3.large"
-      asg_desired_capacity          = 1
+      name                 = "worker-group-2"
+      instance_type        = "r3.large"
+      asg_desired_capacity = 1
     },
   ]
 
@@ -113,5 +113,5 @@ module "eks" {
   map_roles                            = var.map_roles
   map_accounts                         = var.map_accounts
 
-  workers_additional_policies          = [aws_iam_policy.worker_policy.id]
+  workers_additional_policies = [aws_iam_policy.worker_policy.id]
 }

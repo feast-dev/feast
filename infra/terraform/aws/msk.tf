@@ -3,11 +3,11 @@ resource "aws_security_group" "broker" {
   vpc_id      = module.vpc.vpc_id
 
   ingress {
-    description = "Allow connections from the worker group"
+    description     = "Allow connections from the worker group"
     security_groups = [aws_security_group.all_worker_mgmt.id]
-    protocol     = "tcp"
-    from_port    = 0
-    to_port      = 65535
+    protocol        = "tcp"
+    from_port       = 0
+    to_port         = 65535
   }
 
   egress {
@@ -16,6 +16,8 @@ resource "aws_security_group" "broker" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  tags = var.tags
 }
 
 resource "aws_msk_cluster" "msk" {
@@ -26,7 +28,7 @@ resource "aws_msk_cluster" "msk" {
   broker_node_group_info {
     instance_type   = "kafka.t3.small"
     ebs_volume_size = 100
-    client_subnets = [module.vpc.private_subnets[0], module.vpc.private_subnets[1]]
+    client_subnets  = [module.vpc.private_subnets[0], module.vpc.private_subnets[1]]
     security_groups = [aws_security_group.broker.id]
   }
 
@@ -46,4 +48,5 @@ resource "aws_msk_cluster" "msk" {
     }
   }
 
+  tags = var.tags
 }

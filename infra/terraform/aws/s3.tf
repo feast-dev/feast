@@ -1,7 +1,7 @@
 resource "random_string" "s3_suffix" {
-  length = 8
-  lower = true
-  upper = false
+  length  = 8
+  lower   = true
+  upper   = false
   special = false
 }
 
@@ -17,4 +17,6 @@ resource "aws_s3_bucket" "feast_bucket" {
       }
     }
   }
+
+  tags = var.tags
 }
