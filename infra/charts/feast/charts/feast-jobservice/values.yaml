@@ -9,22 +9,6 @@ image:
   # image.pullPolicy -- Image pull policy
   pullPolicy: IfNotPresent
 
-application.yaml:
-  # "application.yaml".enabled -- Flag to include the default [configuration](https://github.com/feast-dev/feast/blob/master/job-controller/src/main/resources/application.yml). Please set `application-override.yaml` to override this configuration.
-  enabled: true
-
-application-generated.yaml:
-  # "application-generated.yaml".enabled -- Flag to include Helm generated configuration for http port, Feast database URL, Kafka bootstrap servers and jobs metrics host. This is useful for deployment that uses default configuration for Kafka, Postgres and StatsD exporter. Please set `application-override.yaml` to override this configuration.
-  enabled: true
-
-# "application-secret.yaml" -- Configuration to override the default [application.yaml](https://github.com/feast-dev/feast/blob/master/job-controller/src/main/resources/application.yml). Will be created as a Secret. `application-override.yaml` has a higher precedence than `application-secret.yaml`. It is recommended to either set `application-override.yaml` or `application-secret.yaml` only to simplify config management.
-application-secret.yaml:
-  enabled: true
-
-# "application-override.yaml" -- Configuration to override the default [application.yaml](https://github.com/feast-dev/feast/blob/master/job-controller/src/main/resources/application.yml). Will be created as a ConfigMap. `application-override.yaml` has a higher precedence than `application-secret.yaml`
-application-override.yaml:
-  enabled: true
-
 gcpServiceAccount:
   # gcpServiceAccount.enabled -- Flag to use [service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) JSON key
   enabled: false
@@ -34,15 +18,8 @@ gcpServiceAccount:
     # gcpServiceAccount.existingSecret.key -- Key in the secret data (file name of the service account)
     key: credentials.json
 
-postgresql:
-  # postgresql.existingSecret -- Existing secret to use for authenticating to Postgres
-  existingSecret: ""
-
 # gcpProjectId -- Project ID to use when using Google Cloud services such as BigQuery, Cloud Storage and Dataflow
 gcpProjectId: ""
-
-# javaOpts -- [JVM options](https://docs.oracle.com/cd/E22289_01/html/821-1274/configuring-the-default-jvm-and-java-arguments.html). For better performance, it is advised to set the min and max heap: <br> `-Xms2048m -Xmx2048m`
-javaOpts:
 
 # logType -- Log format, either `JSON` or `Console`
 logType: Console
