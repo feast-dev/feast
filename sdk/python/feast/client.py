@@ -842,7 +842,7 @@ class Client:
                 entity_source.to_parquet(df_export_path.name)
                 bucket = (
                     None
-                    if entity_staging_uri.scheme == "fs"
+                    if entity_staging_uri.scheme == "file"
                     else entity_staging_uri.netloc
                 )
                 staging_client.upload_file(
@@ -852,7 +852,7 @@ class Client:
                     "event_timestamp",
                     "created_timestamp",
                     ParquetFormat(),
-                    entity_staging_uri.path,
+                    entity_staging_uri.geturl(),
                 )
 
         return start_historical_feature_retrieval_job(

@@ -18,3 +18,4 @@ mypy
 mypy-protobuf
 avro==1.10.0
 confluent_kafka
+gcsfs

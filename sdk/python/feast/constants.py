@@ -90,6 +90,7 @@ CONFIG_SPARK_EMR_CLUSTER_ID = "emr_cluster_id"
 CONFIG_SPARK_EMR_CLUSTER_TEMPLATE_PATH = "emr_cluster_template_path"
 CONFIG_SPARK_EMR_LOG_LOCATION = "emr_log_location"
 
+CONFIG_SPARK_EXTRA_OPTIONS = "spark_extra_options"
 
 # Configuration option default values
 FEAST_DEFAULT_OPTIONS = {
@@ -123,8 +124,9 @@ FEAST_DEFAULT_OPTIONS = {
     # Authentication Provider - Google OpenID/OAuth
     CONFIG_AUTH_PROVIDER: "google",
     CONFIG_SPARK_LAUNCHER: "dataproc",
-    CONFIG_SPARK_INGESTION_JOB_JAR: "gs://feast-jobs/feast-ingestion-spark-develop.jar",
+    CONFIG_SPARK_INGESTION_JOB_JAR: "gs://feast-jobs/spark/ingestion/feast-ingestion-spark-develop.jar",
     CONFIG_REDIS_HOST: "localhost",
     CONFIG_REDIS_PORT: "6379",
     CONFIG_REDIS_SSL: "False",
+    CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT: "parquet",
 }
