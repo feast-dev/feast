@@ -11,15 +11,37 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
         self.client = feast.Client()
 
     def StartOfflineToOnlineIngestionJob(self, request, context):
-        """Start job to ingest data from offline store into online store
-        """
+        """Start job to ingest data from offline store into online store"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details("Method not implemented!")
         raise NotImplementedError("Method not implemented!")
 
     def GetHistoricalFeatures(self, request, context):
-        """Produce a training dataset, return a job id that will provide a file reference
-        """
+        """Produce a training dataset, return a job id that will provide a file reference"""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
+    def StartStreamToOnlineIngestionJob(self, request, context):
+        """Start job to ingest data from stream into online store"""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
+    def ListJobs(self, request, context):
+        """List all types of jobs"""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
+    def StopJob(self, request, context):
+        """Stop a single job"""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
+    def GetJob(self, request, context):
+        """Get details of a single job"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details("Method not implemented!")
         raise NotImplementedError("Method not implemented!")
