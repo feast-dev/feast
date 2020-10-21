@@ -25,4 +25,10 @@ WORKDIR $HOME
 
 COPY examples .
 
+ENV FEAST_SPARK_LAUNCHER standalone
+ENV FEAST_SPARK_STANDALONE_MASTER "local[*]"
+ENV FEAST_SPARK_HOME $SPARK_HOME
+ENV FEAST_SPARK_EXTRA_OPTIONS "--jars https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop2-latest.jar \
+--conf spark.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"
+
 CMD ["start-notebook.sh", "--NotebookApp.token=''"]
