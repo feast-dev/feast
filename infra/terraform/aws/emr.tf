@@ -67,4 +67,6 @@ resource "aws_emr_cluster" "persistent_cluster" {
   step_concurrency_level = 256
 
   log_uri = "s3://${aws_s3_bucket.feast_bucket.id}/logs/${var.name_prefix}-persistent-emr/"
+
+  tags = var.tags
 }

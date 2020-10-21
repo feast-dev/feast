@@ -5,11 +5,11 @@ variable "name_prefix" {
 }
 
 variable "postgres_db_name" {
-    default = "feast"
+  default = "feast"
 }
 
 variable "postgres_db_user" {
-    default = "feast"
+  default = "feast"
 }
 
 variable "map_accounts" {
@@ -34,5 +34,13 @@ variable "map_roles" {
 }
 
 variable "use_persistent_emr_cluster" {
-  default = false
+  description = "Create a persistent EMR cluster."
+  default     = true
+}
+
+variable "tags" {
+  description = "Tags"
+  type        = map(string)
+
+  default = {}
 }
