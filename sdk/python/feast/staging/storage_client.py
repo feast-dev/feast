@@ -135,7 +135,7 @@ class GCSClient(AbstractStagingClient):
             remote_path (str): relative path to the folder to which the files need to be uploaded
         """
         gs_bucket = self.gcs_client.get_bucket(bucket)
-        blob = gs_bucket.blob(remote_path)
+        blob = gs_bucket.blob(remote_path.lstrip("/"))
         blob.upload_from_filename(local_path)
 
 

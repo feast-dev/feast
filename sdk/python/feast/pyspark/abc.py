@@ -90,6 +90,14 @@ class SparkJobParameters(abc.ABC):
         """
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def get_extra_options(self) -> str:
+        """
+        Spark job dependencies (expected to resolved from maven)
+        :return:
+        """
+        raise NotImplementedError
+
 
 class RetrievalJobParameters(SparkJobParameters):
     def __init__(
@@ -98,6 +106,7 @@ class RetrievalJobParameters(SparkJobParameters):
         feature_tables_sources: List[Dict],
         entity_source: Dict,
         destination: Dict,
+        extra_options: str = "",
     ):
         """
         Args:
@@ -209,6 +218,7 @@ class RetrievalJobParameters(SparkJobParameters):
         self._feature_tables_sources = feature_tables_sources
         self._entity_source = entity_source
         self._destination = destination
+        self._extra_options = extra_options
 
     def get_name(self) -> str:
         all_feature_tables_names = [ft["name"] for ft in self._feature_tables]
@@ -233,6 +243,9 @@ class RetrievalJobParameters(SparkJobParameters):
 
     def get_destination_path(self) -> str:
         return self._destination["path"]
+
+    def get_extra_options(self) -> str:
+        return self._extra_options
 
 
 class RetrievalJob(SparkJob):
@@ -273,6 +286,7 @@ class BatchIngestionJobParameters(SparkJobParameters):
         redis_host: str,
         redis_port: int,
         redis_ssl: bool,
+        extra_options: str = "",
     ):
         self._feature_table = feature_table
         self._source = source
@@ -282,6 +296,7 @@ class BatchIngestionJobParameters(SparkJobParameters):
         self._redis_host = redis_host
         self._redis_port = redis_port
         self._redis_ssl = redis_ssl
+        self._extra_options = extra_options
 
     def get_name(self) -> str:
         return (
@@ -317,6 +332,9 @@ class BatchIngestionJobParameters(SparkJobParameters):
             json.dumps(self._get_redis_config()),
         ]
 
+    def get_extra_options(self) -> str:
+        return self._extra_options
+
 
 class StreamIngestionJobParameters(SparkJobParameters):
     def __init__(
@@ -328,6 +346,7 @@ class StreamIngestionJobParameters(SparkJobParameters):
         redis_host: str,
         redis_port: int,
         redis_ssl: bool,
+        extra_options="",
     ):
         self._feature_table = feature_table
         self._source = source
@@ -336,6 +355,7 @@ class StreamIngestionJobParameters(SparkJobParameters):
         self._redis_host = redis_host
         self._redis_port = redis_port
         self._redis_ssl = redis_ssl
+        self._extra_options = extra_options
 
     def get_name(self) -> str:
         return f"StreamIngestion-{self.get_feature_table_name()}"
@@ -366,6 +386,9 @@ class StreamIngestionJobParameters(SparkJobParameters):
             "--redis",
             json.dumps(self._get_redis_config()),
         ]
+
+    def get_extra_options(self) -> str:
+        return self._extra_options
 
 
 class BatchIngestionJob(SparkJob):

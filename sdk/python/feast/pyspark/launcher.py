@@ -16,6 +16,7 @@ from feast.constants import (
     CONFIG_SPARK_EMR_CLUSTER_TEMPLATE_PATH,
     CONFIG_SPARK_EMR_LOG_LOCATION,
     CONFIG_SPARK_EMR_REGION,
+    CONFIG_SPARK_EXTRA_OPTIONS,
     CONFIG_SPARK_HOME,
     CONFIG_SPARK_INGESTION_JOB_JAR,
     CONFIG_SPARK_LAUNCHER,
@@ -181,6 +182,7 @@ def start_historical_feature_retrieval_job(
                 for feature_table in feature_tables
             ],
             destination={"format": output_format, "path": output_path},
+            extra_options=client._config.get(CONFIG_SPARK_EXTRA_OPTIONS),
         )
     )
 
@@ -215,6 +217,7 @@ def start_offline_to_online_ingestion(
             redis_host=client._config.get(CONFIG_REDIS_HOST),
             redis_port=client._config.getint(CONFIG_REDIS_PORT),
             redis_ssl=client._config.getboolean(CONFIG_REDIS_SSL),
+            extra_options=client._config.get(CONFIG_SPARK_EXTRA_OPTIONS),
         )
     )
 
@@ -235,6 +238,7 @@ def start_stream_to_online_ingestion(
             redis_host=client._config.get(CONFIG_REDIS_HOST),
             redis_port=client._config.getint(CONFIG_REDIS_PORT),
             redis_ssl=client._config.getboolean(CONFIG_REDIS_SSL),
+            extra_options=client._config.get(CONFIG_SPARK_EXTRA_OPTIONS),
         )
     )
 

@@ -134,6 +134,7 @@ class StandaloneClusterRetrievalJob(StandaloneClusterJobMixin, RetrievalJob):
             raise SparkJobFailure(
                 f"Non zero return code: {self._process.returncode}. stderr: {stderr} stdout: {stdout}"
             )
+        return self._output_file_uri
 
 
 class StandaloneClusterLauncher(JobLauncher):
@@ -176,6 +177,9 @@ class StandaloneClusterLauncher(JobLauncher):
 
         if ui_port:
             submission_cmd.extend(["--conf", f"spark.ui.port={ui_port}"])
+
+        if job_params.get_extra_options():
+            submission_cmd.extend(job_params.get_extra_options().split(" "))
 
         submission_cmd.append(job_params.get_main_file_path())
         submission_cmd.extend(job_params.get_arguments())
