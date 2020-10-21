@@ -124,6 +124,7 @@ class StandaloneClusterRetrievalJob(StandaloneClusterJobMixin, RetrievalJob):
         with self._process as p:
             try:
                 p.wait(timeout_sec)
+                return self._output_file_uri
             except Exception:
                 p.kill()
                 raise SparkJobFailure("Timeout waiting for subprocess to return")

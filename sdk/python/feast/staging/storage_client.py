@@ -270,7 +270,7 @@ class LocalFSClient(AbstractStagingClient):
         raise NotImplementedError("list files not implemented for Local file")
 
     def upload_file(self, local_path: str, bucket: str, remote_path: str):
-        dest_fpath = "/" + remote_path
+        dest_fpath = remote_path if remote_path.startswith("/") else "/" + remote_path
         os.makedirs(os.path.dirname(dest_fpath), exist_ok=True)
         shutil.copy(local_path, dest_fpath)
 
