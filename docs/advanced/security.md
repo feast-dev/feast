@@ -4,6 +4,10 @@ description: 'Secure Feast with SSL/TLS, Authentication and Authorization.'
 
 # Security
 
+{% hint style="warning" %}
+Current Security functionality only applies to Feast Core and Feast Online Serving since offline storage for Historical Serving will not be available until v0.9.
+{% endhint %}
+
 ## 1. Overview
 
 ![Overview of Feast&apos;s Security Methods.](../.gitbook/assets/untitled-25-1-.jpg)
@@ -441,16 +445,16 @@ CallCredentials credentials = new OAuthCredentials(Map.of(
 Authorization requires authentication to be configured in order to obtain user identity to use for authorizing requests.
 {% endhint %}
 
-Authorization provides access control to FeatureSets/Features based on project membership. Users that are members of a project are authorized to:
+Authorization provides access control to FeatureTables/Features based on project membership. Users that are members of a project are authorized to:
 
-* Create/Update a Feature Set in the Project.
+* Create/Update a Feature Table in the Project.
 * Retrieve Feature Values for Features in that Project.
 
 ### **Authorization API/Server**
 
 ![Feast Authorization Flow](../.gitbook/assets/rsz_untitled23.jpg)
 
-Feast delegates Authorization grants to a external Authorization Server that implements the [Authorization Open API specification](https://github.com/feast-dev/feast/blob/master/common/src/main/resources/api.yaml).
+Feast delegates Authorization grants to an external Authorization Server that implements the [Authorization Open API specification](https://github.com/feast-dev/feast/blob/master/common/src/main/resources/api.yaml).
 
 * Feast checks whether a user is authorized to make a request by making a `checkAccessRequest` to the Authorization Server.
 * The Authorization Server should return a `AuthorizationResult` with whether user is allowed to make the request.

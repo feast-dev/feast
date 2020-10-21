@@ -35,20 +35,19 @@ Audit Logs produced by Feast are written to the console similar to normal logs b
     "request": {
       "filter": {
         "project": "dummy",
-        "featureSetName": "*"
       }
     },
     "application": "Feast",
     "response": {},
-    "method": "ListFeatureSets",
+    "method": "ListFeatureTables",
     "identity": "105960238928959148073",
     "service": "CoreService",
     "component": "feast-core",
     "id": "45329ea9-0d48-46c5-b659-4604f6193711",
-    "version": "0.7.0"
+    "version": "0.8.0"
   },
   "hostname": "feast.core"
-  "timestamp": "2020-08-16T04:45:24Z",
+  "timestamp": "2020-10-20T04:45:24Z",
   "severity": "INFO",
 }
 ```
@@ -70,7 +69,7 @@ Fields in Message Audit Log Type
 | :--- | :--- |
 | `id` | Generated UUID that uniquely identifies the service call. |
 | `service` | Name of the Service that handled the service call. |
-| `method` | Name of the Method that handled the service call. Useful for filtering Audit Logs by method \(ie `ApplyFeatureSet` calls\) |
+| `method` | Name of the Method that handled the service call. Useful for filtering Audit Logs by method \(ie `ApplyFeatureTable` calls\) |
 | `request` | Full request submitted by client in the service call as JSON. |
 | `response` | Full response returned to client by the service after handling the service call as JSON. |
 | `identity` | Identity of the client making the service call as an user Id. Only set when Authentication is enabled. |
@@ -81,7 +80,7 @@ Fields in Action Audit Log Type
 | Field | Description |
 | :--- | :--- |
 | `action` | Name of the action taken on the resource. |
-| `resource.type` | Type of resource of which the action was taken on \(ie `FEATURE_SET`\) |
+| `resource.type` | Type of resource of which the action was taken on \(i.e `FeatureTable`\) |
 | resource.id | Identifier specifying the specific resource of which the action was taken on. |
 
 Fields in Transition Audit Log Type
@@ -89,7 +88,7 @@ Fields in Transition Audit Log Type
 | Field | Description |
 | :--- | :--- |
 | `status` | The new status that the resource transitioned to |
-| `resource.type` | Type of resource of which the transition occurred \(ie `FeatureSet`\) |
+| `resource.type` | Type of resource of which the transition occurred \(i.e `FeatureTable`\) |
 | `resource.id` | Identifier specifying the specific resource of which the transition occurred. |
 
 ## Log Forwarder
