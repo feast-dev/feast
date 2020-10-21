@@ -14,6 +14,7 @@ from feast.pyspark.abc import (
     JobLauncher,
     RetrievalJob,
     RetrievalJobParameters,
+    SparkJobFailure,
     SparkJobStatus,
     StreamIngestionJob,
     StreamIngestionJobParameters,
@@ -83,10 +84,13 @@ class EmrRetrievalJob(EmrJobMixin, RetrievalJob):
         self._output_file_uri = output_file_uri
 
     def get_output_file_uri(self, timeout_sec=None):
-        _wait_for_job_state(
+        state = _wait_for_job_state(
             self._emr_client, self._job_ref, TERMINAL_STEP_STATES, timeout_sec
         )
-        return self._output_file_uri
+        if state in SUCCEEDED_STEP_STATES:
+            return self._output_file_uri
+        else:
+            raise SparkJobFailure("Spark job failed")
 
 
 class EmrBatchIngestionJob(EmrJobMixin, BatchIngestionJob):
@@ -215,7 +219,7 @@ class EmrClusterLauncher(JobLauncher):
         return EmrRetrievalJob(
             self._emr_client(),
             job_ref,
-            os.path.join(job_params.get_destination_path(), _random_string(8)),
+            os.path.join(job_params.get_destination_path()),
         )
 
     def offline_to_online_ingestion(

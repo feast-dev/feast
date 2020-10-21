@@ -258,13 +258,13 @@ def _wait_for_job_state(
     job: EmrJobRef,
     desired_states: List[str],
     timeout_seconds: Optional[int],
-):
+) -> str:
     if job.step_id is None:
         step_id = _get_first_step_id(emr_client, job.cluster_id)
     else:
         step_id = job.step_id
 
-    _wait_for_step_state(
+    return _wait_for_step_state(
         emr_client, job.cluster_id, step_id, desired_states, timeout_seconds
     )
 
@@ -290,7 +290,7 @@ def _wait_for_step_state(
     step_id: str,
     desired_states: List[str],
     timeout_seconds: Optional[int],
-):
+) -> str:
     """
     Wait up to timeout seconds for job to go into one of the desired states.
     """
@@ -298,7 +298,7 @@ def _wait_for_step_state(
     while (timeout_seconds is None) or (time.time() - start_time < timeout_seconds):
         state = _get_step_state(emr_client, cluster_id, step_id)
         if state in desired_states:
-            return
+            return state
         else:
             time.sleep(0.5)
     else:
