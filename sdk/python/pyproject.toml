@@ -21,6 +21,7 @@ exclude = '''
     | serving
     | storage
     | types
+    | third_party
   )/
 )
 '''

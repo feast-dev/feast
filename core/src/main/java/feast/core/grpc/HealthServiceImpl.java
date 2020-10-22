@@ -21,7 +21,7 @@ import io.grpc.Status;
 import io.grpc.health.v1.HealthGrpc.HealthImplBase;
 import io.grpc.health.v1.HealthProto.HealthCheckRequest;
 import io.grpc.health.v1.HealthProto.HealthCheckResponse;
-import io.grpc.health.v1.HealthProto.HealthCheckResponse.ServingStatus;
+import io.grpc.health.v1.HealthProto.ServingStatus;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.server.service.GrpcService;
