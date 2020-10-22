@@ -26,13 +26,14 @@ services:
       - core
     environment:
       FEAST_CORE_URL: core:6565
-      FEAST_ONLINE_SERVING_URL: online_serving:6566
+      FEAST_SERVING_URL: online_serving:6566
       FEAST_SPARK_LAUNCHER: standalone
       FEAST_SPARK_STANDALONE_MASTER: local
       FEAST_SPARK_HOME: /usr/local/spark
       FEAST_SPARK_STAGING_LOCATION: file:///tmp/staging
       FEAST_HISTORICAL_FEATURE_OUTPUT_LOCATION: file:///tmp/historical_feature_output
       FEAST_HISTORICAL_FEATURE_OUTPUT_FORMAT: parquet
+      FEAST_REDIS_HOST: redis
       GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
     ports:
       - 8888:8888
