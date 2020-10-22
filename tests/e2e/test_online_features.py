@@ -12,6 +12,7 @@ import pytest
 import pytz
 from avro.io import BinaryEncoder, DatumWriter
 from confluent_kafka import Producer
+from pytest_redis.executor import RedisExecutor
 
 from feast import (
     Client,
@@ -89,8 +90,9 @@ def test_offline_ingestion(feast_client: Client, staging_path: str):
     )
 
 
-def test_streaming_ingestion(feast_client: Client, staging_path: str, pytestconfig):
+def test_streaming_ingestion(feast_client: Client, staging_path: str, kafka_server):
     entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
+    kafka_broker = f"localhost:{kafka_server[1]}"
 
     feature_table = FeatureTable(
         name="drivers_stream",
@@ -105,7 +107,7 @@ def test_streaming_ingestion(feast_client: Client, staging_path: str, pytestconf
         stream_source=KafkaSource(
             "event_timestamp",
             "event_timestamp",
-            pytestconfig.getoption("kafka_brokers"),
+            kafka_broker,
             AvroFormat(avro_schema()),
             topic="avro",
         ),
@@ -130,7 +132,7 @@ def test_streaming_ingestion(feast_client: Client, staging_path: str, pytestconf
             send_avro_record_to_kafka(
                 "avro",
                 record,
-                bootstrap_servers=pytestconfig.getoption("kafka_brokers"),
+                bootstrap_servers=kafka_broker,
                 avro_schema_json=avro_schema(),
             )
 

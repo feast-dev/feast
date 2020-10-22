@@ -9,6 +9,9 @@ pytest-mock==1.10.4
 pytest-timeout==1.3.3
 pytest-ordering==0.6.*
 pytest-xdist==2.1.0
+pytest-postgresql==2.5.1
+pytest-redis==2.0.0
+pytest-kafka==0.4.0
 deepdiff==4.3.2
 confluent_kafka
 avro==1.10.0

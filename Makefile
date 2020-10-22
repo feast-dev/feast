@@ -90,10 +90,10 @@ lint-python:
 	cd ${ROOT_DIR}/sdk/python; flake8 feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; black --check feast tests
 
-	cd ${ROOT_DIR}/tests/e2e; mypy .
-	cd ${ROOT_DIR}/tests/e2e; isort . --check-only
-	cd ${ROOT_DIR}/tests/e2e; flake8 .
-	cd ${ROOT_DIR}/tests/e2e; black --check .
+	cd ${ROOT_DIR}/tests; mypy e2e
+	cd ${ROOT_DIR}/tests; isort e2e --check-only
+	cd ${ROOT_DIR}/tests; flake8 e2e
+	cd ${ROOT_DIR}/tests; black --check e2e
 
 # Go SDK
 
