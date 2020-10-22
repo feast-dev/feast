@@ -4,13 +4,11 @@ variable "region" {
 variable "name_prefix" {
 }
 
-variable "vpc_id" {
-}
-
 variable "subnet_filter_tag" {
   type = map(string)
   default = {
-          Tier = "private"
+        #   Tier = "private"
+        private=""
         }
 }
 
@@ -53,4 +51,16 @@ variable "tags" {
   type        = map(string)
 
   default = {}
+}
+
+variable "private_subnet_tags" {
+    default = {
+          Tier = "private"
+        }
+}
+
+variable "public_subnet_tags" {
+    default = {
+          Tier = "public"
+        }
 }

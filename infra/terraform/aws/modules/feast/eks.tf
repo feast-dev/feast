@@ -39,46 +39,23 @@ provider "kubernetes" {
   version                = "~> 1.11"
 }
 
-data "aws_vpc" "selected" {
-  id = var.vpc_id
-}
-
-data "aws_subnet_ids" "subnets" {
-  vpc_id = var.vpc_id
-  tags = var.subnet_filter_tag
-}
-
-data "aws_subnet" "subnets" {
-  for_each = data.aws_subnet_ids.subnets.ids
-  id       = each.value
-}
-
-locals {
-  cluster_name = "${var.name_prefix}-${random_string.suffix.result}"
-}
-
-resource "random_string" "suffix" {
-  length  = 8
-  special = false
-}
-
 resource "aws_security_group" "all_worker_mgmt" {
   name_prefix = "${var.name_prefix}-worker"
-  tags = var.tag
-  vpc_id      = data.aws_vpc.selected.id
+  tags = var.tags
+  vpc_id      = var.vpc_id
 }
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "12.2.0"
 
-  cluster_name    = local.cluster_name
+  cluster_name    = var.cluster_name
   cluster_version = "1.17"
-  subnets         = data.aws_subnet_ids.subnets.ids
+  subnets         = var.subnets
 
   tags = var.tags
 
-  vpc_id = data.aws_vpc.selected.id
+  vpc_id = var.vpc_id
 
   worker_groups = [
     {

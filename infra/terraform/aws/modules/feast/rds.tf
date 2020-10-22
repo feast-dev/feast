@@ -17,9 +17,9 @@ module "rds_cluster" {
   db_name              = var.postgres_db_name
   db_port              = 5432
   instance_type        = "db.t2.small"
-  vpc_id               = data.aws_vpc.selected.id
+  vpc_id               = var.vpc_id
   security_groups      = [aws_security_group.all_worker_mgmt.id]
-  subnets              = data.aws_subnet_ids.subnets.ids
+  subnets              = var.subnets
 
   scaling_configuration = [
     {
