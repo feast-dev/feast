@@ -26,6 +26,7 @@ def staging_path(pytestconfig, tmp_path):
     return os.path.join(staging_path, str(uuid.uuid4()))
 
 
+@pytest.mark.skip
 def test_historical_features(feast_client: Client, staging_path: str):
     customer_entity = Entity(
         name="customer_id", description="Customer", value_type=ValueType.INT64
