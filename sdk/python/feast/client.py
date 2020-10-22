@@ -893,8 +893,9 @@ class Client:
         feature_tables = self._get_feature_tables_from_feature_refs(
             feature_refs, project
         )
-        output_location = self._config.get(
-            CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION
+        output_location = os.path.join(
+            self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION),
+            str(uuid.uuid4()),
         )
         output_format = self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT)
 
