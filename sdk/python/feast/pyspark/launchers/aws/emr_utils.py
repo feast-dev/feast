@@ -300,7 +300,7 @@ def _wait_for_step_state(
         if state in desired_states:
             return state
         else:
-            time.sleep(0.5)
+            time.sleep(1)
     else:
         raise TimeoutError(
             f'Timeout waiting for job state to become {"|".join(desired_states)}'

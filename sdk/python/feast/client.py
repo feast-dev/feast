@@ -927,7 +927,7 @@ class Client:
             entity_source,
             feature_tables,
             output_format,
-            os.path.join(output_location, str(uuid.uuid4)),
+            os.path.join(output_location, str(uuid.uuid4())),
         )
 
     def get_historical_features_df(
