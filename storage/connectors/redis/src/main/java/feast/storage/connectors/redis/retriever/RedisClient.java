@@ -47,10 +47,14 @@ public class RedisClient implements RedisClientAdapter {
   }
 
   public static RedisClientAdapter create(Map<String, String> config) {
+
+    RedisURI uri = RedisURI.create(config.get("host"), Integer.parseInt(config.get("port")));
+
+    if (Boolean.parseBoolean(config.get("ssl"))) {
+      uri.setSsl(true);
+    }
     StatefulRedisConnection<byte[], byte[]> connection =
-        io.lettuce.core.RedisClient.create(
-                RedisURI.create(config.get("host"), Integer.parseInt(config.get("port"))))
-            .connect(new ByteArrayCodec());
+        io.lettuce.core.RedisClient.create(uri).connect(new ByteArrayCodec());
 
     return new RedisClient(connection);
   }
