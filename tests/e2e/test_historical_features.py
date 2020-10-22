@@ -14,6 +14,8 @@ from feast import Client, Entity, Feature, FeatureTable, FileSource, ValueType
 from feast.data_format import ParquetFormat
 from feast.staging.storage_client import get_staging_client
 
+np.random.seed(0)
+
 
 @pytest.fixture(scope="function")
 def staging_path(pytestconfig, tmp_path):
@@ -61,8 +63,8 @@ def test_historical_features(feast_client: Client, staging_path: str):
     creation_date = retrieval_date - timedelta(1)
 
     customers = [1001, 1002, 1003, 1004, 1005]
-    daily_transactions = [np.random.rand(seed=0) * 10 for _ in customers]
-    total_transactions = [np.random.rand(seed=0) * 100 for _ in customers]
+    daily_transactions = [np.random.rand() * 10 for _ in customers]
+    total_transactions = [np.random.rand() * 100 for _ in customers]
 
     transactions_df = pd.DataFrame(
         {
