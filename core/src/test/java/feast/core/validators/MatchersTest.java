@@ -18,6 +18,7 @@ package feast.core.validators;
 
 import static feast.core.validators.Matchers.checkLowerSnakeCase;
 import static feast.core.validators.Matchers.checkUpperSnakeCase;
+import static feast.core.validators.Matchers.checkValidClassPath;
 
 import com.google.common.base.Strings;
 import org.junit.Rule;
@@ -69,5 +70,23 @@ public class MatchersTest {
             "argument must be in lower snake case, and cannot include any special characters."));
     String in = "Invalid_feature name";
     checkLowerSnakeCase(in, "feature");
+  }
+
+  @Test
+  public void checkValidClassPathSuccess() {
+    checkValidClassPath("com.example.foo", "FeatureTable");
+    checkValidClassPath("com.example", "FeatureTable");
+  }
+
+  @Test
+  public void checkValidClassPathEmpty() {
+    exception.expect(IllegalArgumentException.class);
+    checkValidClassPath("", "FeatureTable");
+  }
+
+  @Test
+  public void checkValidClassPathDigits() {
+    exception.expect(IllegalArgumentException.class);
+    checkValidClassPath("123", "FeatureTable");
   }
 }
