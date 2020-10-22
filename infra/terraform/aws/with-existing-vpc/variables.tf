@@ -10,8 +10,7 @@ variable "vpc_id" {
 variable "subnet_filter_tag" {
   type = map(string)
   default = {
-        #   Tier = "private"
-        private=""
+        Tier = "private"
         }
 }
 

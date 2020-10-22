@@ -4,14 +4,6 @@ variable "region" {
 variable "name_prefix" {
 }
 
-variable "subnet_filter_tag" {
-  type = map(string)
-  default = {
-        #   Tier = "private"
-        private=""
-        }
-}
-
 variable "postgres_db_name" {
   default = "feast"
 }
