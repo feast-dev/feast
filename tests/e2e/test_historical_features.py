@@ -1,12 +1,10 @@
 import os
 import tempfile
-import uuid
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
 import numpy as np
 import pandas as pd
-import pytest
 from google.protobuf.duration_pb2 import Duration
 from pandas._testing import assert_frame_equal
 
@@ -17,19 +15,9 @@ from feast.staging.storage_client import get_staging_client
 np.random.seed(0)
 
 
-@pytest.fixture(scope="function")
-def staging_path(pytestconfig, tmp_path):
-    if pytestconfig.getoption("env") == "local":
-        return f"file://{tmp_path}"
-
-    staging_path = pytestconfig.getoption("staging_path")
-    return os.path.join(staging_path, str(uuid.uuid4()))
-
-
-@pytest.mark.skip
-def test_historical_features(feast_client: Client, staging_path: str):
+def test_historical_features(feast_client: Client, local_staging_path: str):
     customer_entity = Entity(
-        name="customer_id", description="Customer", value_type=ValueType.INT64
+        name="user_id", description="Customer", value_type=ValueType.INT64
     )
     feast_client.apply_entity(customer_entity)
 
@@ -38,7 +26,7 @@ def test_historical_features(feast_client: Client, staging_path: str):
 
     transactions_feature_table = FeatureTable(
         name="transactions",
-        entities=["customer_id"],
+        entities=["user_id"],
         features=[
             Feature("daily_transactions", ValueType.DOUBLE),
             Feature("total_transactions", ValueType.DOUBLE),
@@ -47,7 +35,7 @@ def test_historical_features(feast_client: Client, staging_path: str):
             "event_timestamp",
             "created_timestamp",
             ParquetFormat(),
-            os.path.join(staging_path, "transactions"),
+            os.path.join(local_staging_path, "transactions"),
         ),
         max_age=max_age,
     )
@@ -71,7 +59,7 @@ def test_historical_features(feast_client: Client, staging_path: str):
         {
             "event_timestamp": [event_date for _ in customers],
             "created_timestamp": [creation_date for _ in customers],
-            "customer_id": customers,
+            "user_id": customers,
             "daily_transactions": daily_transactions,
             "total_transactions": total_transactions,
         }
@@ -85,21 +73,21 @@ def test_historical_features(feast_client: Client, staging_path: str):
         {
             "event_timestamp": [retrieval_date for _ in customers]
             + [retrieval_outside_max_age_date for _ in customers],
-            "customer_id": customers + customers,
+            "user_id": customers + customers,
         }
     )
 
     with tempfile.TemporaryDirectory() as tempdir:
         df_export_path = os.path.join(tempdir, "customers.parquets")
         customer_df.to_parquet(df_export_path)
-        scheme, _, remote_path, _, _, _ = urlparse(staging_path)
+        scheme, _, remote_path, _, _, _ = urlparse(local_staging_path)
         staging_client = get_staging_client(scheme)
         staging_client.upload_file(df_export_path, None, remote_path)
         customer_source = FileSource(
             "event_timestamp",
             "event_timestamp",
             ParquetFormat(),
-            os.path.join(staging_path, os.path.basename(df_export_path)),
+            os.path.join(local_staging_path, os.path.basename(df_export_path)),
         )
 
         job = feast_client.get_historical_features(feature_refs, customer_source)
@@ -112,17 +100,17 @@ def test_historical_features(feast_client: Client, staging_path: str):
             {
                 "event_timestamp": [retrieval_date for _ in customers]
                 + [retrieval_outside_max_age_date for _ in customers],
-                "customer_id": customers + customers,
+                "user_id": customers + customers,
                 "transactions__daily_transactions": daily_transactions
                 + [None] * len(customers),
             }
         )
 
         assert_frame_equal(
-            joined_df.sort_values(by=["customer_id", "event_timestamp"]).reset_index(
+            joined_df.sort_values(by=["user_id", "event_timestamp"]).reset_index(
                 drop=True
             ),
             expected_joined_df.sort_values(
-                by=["customer_id", "event_timestamp"]
+                by=["user_id", "event_timestamp"]
             ).reset_index(drop=True),
         )

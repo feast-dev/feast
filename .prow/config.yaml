@@ -147,59 +147,14 @@ presubmits:
     spec:
       containers:
       - image: maven:3.6-jdk-11
-        command: ["infra/scripts/test-end-to-end.sh"]
-        resources:
-          requests:
-            cpu: "6"
-            memory: "6144Mi"
-        env:
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: /etc/gcloud/service-account.json
-        volumeMounts:
-        - mountPath: /etc/gcloud/service-account.json
-          name: service-account
-          readOnly: true
-          subPath: service-account.json
-      volumes:
-      - name: service-account
-        secret:
-          secretName: feast-service-account
-    skip_branches:
-    - ^v0\.(3|4)-branch$
-
-  - name: test-end-to-end-auth
-    decorate: true
-    always_run: true
-    spec:
-      containers:
-      - image: maven:3.6-jdk-11
-        command: ["infra/scripts/test-end-to-end.sh", "True"]
-        resources:
-          requests:
-            cpu: "6"
-            memory: "6144Mi"
-        env:
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: /etc/gcloud/service-account.json
-        volumeMounts:
-        - mountPath: /etc/gcloud/service-account.json
-          name: service-account
-          readOnly: true
-          subPath: service-account.json
-      volumes:
-      - name: service-account
-        secret:
-          secretName: feast-service-account
-    skip_branches:
-    - ^v0\.(3|4)-branch$
-
-  - name: test-end-to-end-redis-cluster
-    decorate: true
-    always_run: true
-    spec:
-      containers:
-      - image: maven:3.6-jdk-11
-        command: ["infra/scripts/test-end-to-end-redis-cluster.sh"]
+        command: |
+          apt-get update && apt-get install python3-pip postgresql libpq-dev redis-server
+          make build-java-no-tests
+          make compile-protos-python
+          pip3 install -U pip
+          pip3 install -qe sdk/python
+          pip3 install -qr tests/requirements.txt
+          pytest tests/e2e/
         resources:
           requests:
             cpu: "6"

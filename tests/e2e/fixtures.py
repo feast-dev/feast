@@ -2,7 +2,7 @@ import os
 import shutil
 import socket
 import time
-
+import uuid
 import pyspark
 import requests
 import pathlib
@@ -159,7 +159,12 @@ def ingestion_job_jar(pytestconfig, project_root, project_version):
 
 
 @pytest.fixture(scope="session")
-def feast_client(pytestconfig, ingestion_job_jar, redis_server: RedisExecutor, feast_core, feast_serving):
+def feast_client(pytestconfig,
+                 ingestion_job_jar,
+                 redis_server: RedisExecutor,
+                 feast_core,
+                 feast_serving,
+                 global_staging_path):
     if pytestconfig.getoption("env") == "local":
         return Client(
             core_url=pytestconfig.getoption("core_url"),
@@ -170,6 +175,7 @@ def feast_client(pytestconfig, ingestion_job_jar, redis_server: RedisExecutor, f
             spark_ingestion_jar=ingestion_job_jar,
             redis_host=redis_server.host,
             redis_port=redis_server.port,
+            historical_feature_output_location=os.path.join(global_staging_path, "historical_output")
         )
 
     if pytestconfig.getoption("env") == "gcloud":
@@ -185,6 +191,21 @@ def feast_client(pytestconfig, ingestion_job_jar, redis_server: RedisExecutor, f
             ),
             spark_ingestion_jar=ingestion_job_jar,
         )
+
+
+@pytest.fixture(scope="session")
+def global_staging_path(pytestconfig):
+    if pytestconfig.getoption("env") == "local":
+        tmp_path = tempfile.mkdtemp()
+        return f"file://{tmp_path}"
+
+    staging_path = pytestconfig.getoption("staging_path")
+    return os.path.join(staging_path, str(uuid.uuid4()))
+
+
+@pytest.fixture(scope="function")
+def local_staging_path(global_staging_path):
+    return os.path.join(global_staging_path, str(uuid.uuid4()))
 
 
 postgres_server = pg_factories.postgresql_proc(password="password")

@@ -2,17 +2,14 @@ import io
 import json
 import os
 import time
-import uuid
 from datetime import datetime, timedelta
 
 import avro.schema
 import numpy as np
 import pandas as pd
-import pytest
 import pytz
 from avro.io import BinaryEncoder, DatumWriter
 from confluent_kafka import Producer
-from pytest_redis.executor import RedisExecutor
 
 from feast import (
     Client,
@@ -40,16 +37,7 @@ def generate_data():
     return df
 
 
-@pytest.fixture(scope="function")
-def staging_path(pytestconfig, tmp_path):
-    if pytestconfig.getoption("env") == "local":
-        return f"file://{tmp_path}"
-
-    staging_path = pytestconfig.getoption("staging_path")
-    return os.path.join(staging_path, str(uuid.uuid4()))
-
-
-def test_offline_ingestion(feast_client: Client, staging_path: str):
+def test_offline_ingestion(feast_client: Client, local_staging_path: str):
     entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
 
     feature_table = FeatureTable(
@@ -60,7 +48,7 @@ def test_offline_ingestion(feast_client: Client, staging_path: str):
             "event_timestamp",
             "event_timestamp",
             ParquetFormat(),
-            os.path.join(staging_path, "batch-storage"),
+            os.path.join(local_staging_path, "batch-storage"),
         ),
     )
 
@@ -90,7 +78,7 @@ def test_offline_ingestion(feast_client: Client, staging_path: str):
     )
 
 
-def test_streaming_ingestion(feast_client: Client, staging_path: str, kafka_server):
+def test_streaming_ingestion(feast_client: Client, local_staging_path: str, kafka_server):
     entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
     kafka_broker = f"localhost:{kafka_server[1]}"
 
@@ -102,7 +90,7 @@ def test_streaming_ingestion(feast_client: Client, staging_path: str, kafka_serv
             "event_timestamp",
             "event_timestamp",
             ParquetFormat(),
-            os.path.join(staging_path, "batch-storage"),
+            os.path.join(local_staging_path, "batch-storage"),
         ),
         stream_source=KafkaSource(
             "event_timestamp",
