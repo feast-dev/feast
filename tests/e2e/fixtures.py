@@ -242,6 +242,9 @@ def local_staging_path(global_staging_path):
 
 
 if not os.environ.get('POSTGRES_HOST'):
+    if os.geteuid() == 0:
+        os.seteuid(1000)
+        
     postgres_server = pg_factories.postgresql_proc(password="password")
 else:
     postgres_server = pg_factories.postgresql_noproc(host=os.environ['POSTGRES_HOST'],
