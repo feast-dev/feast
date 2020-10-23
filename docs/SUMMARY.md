@@ -6,6 +6,7 @@
   * [Quickstart](getting-started/quickstart.md)
   * [Deploying Feast](getting-started/deploying-feast/README.md)
     * [Kubernetes \(GKE\)](getting-started/deploying-feast/kubernetes.md)
+    * [Kubernetes \(Amazon EKS\) with Terraform](getting-started/deploying-feast/kubernetes-amazon-eks-with-terraform.md)
   * [Connecting to Feast](getting-started/connecting-to-feast-1/README.md)
     * [Python SDK](getting-started/connecting-to-feast-1/python-sdk.md)
     * [Feast CLI](getting-started/connecting-to-feast-1/connecting-to-feast.md)
