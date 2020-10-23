@@ -172,11 +172,8 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        ports:
-          # Maps tcp port 5432 on service container to the host
-          - 5432:5432
     env:
-      POSTGRES_HOST: localhost
+      POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
     steps:
       - uses: actions/checkout@v2
@@ -189,16 +186,12 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: 3.6
-      - name: debug
+      - name: install
         run: |
-          printenv
-          docker ps --format "{{.Image}} {{.Ports}} {{.Networks}}"
-#      - name: install
-#        run: |
-#          apt-get update && apt-get install -y redis-server
-#          make build-java-no-tests REVISION=develop
-#          python -m pip install --upgrade pip setuptools wheel
-#          make install-python
-#          python -m pip install -qr tests/requirements.txt
-#      - name: run tests
-#        run: pytest tests/e2e/ --feast-version develop
+          apt-get update && apt-get install -y redis-server
+          make build-java-no-tests REVISION=develop
+          python -m pip install --upgrade pip setuptools wheel
+          make install-python
+          python -m pip install -qr tests/requirements.txt
+      - name: run tests
+        run: pytest tests/e2e/ --feast-version develop
