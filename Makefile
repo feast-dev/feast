@@ -70,7 +70,7 @@ compile-protos-python: install-python-ci-dependencies
 	cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --python_out=../sdk/python/ --grpc_python_out=../sdk/python/ --mypy_out=../sdk/python/ feast/third_party/grpc/health/v1/*.proto
 
 install-python: compile-protos-python
-	cd sdk/python; python setup.py develop
+	cd sdk/python; python -m pip install -e sdk/python
 
 test-python:
 	pytest --verbose --color=yes sdk/python/tests

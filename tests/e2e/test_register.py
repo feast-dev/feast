@@ -199,7 +199,9 @@ def test_get_list_basic(
 
     # ListFeatureTables Check
     actual_list_feature_table = [
-        ft for ft in feast_client.list_feature_tables() if ft.name == "basic_featuretable"
+        ft
+        for ft in feast_client.list_feature_tables()
+        if ft.name == "basic_featuretable"
     ][0]
     assert actual_list_feature_table == basic_featuretable
 
@@ -215,7 +217,9 @@ def test_get_list_alltypes(
 
     # ListEntities Check
     alltypes_filtering_labels = {"cat": "alltypes"}
-    actual_alltypes_entities = feast_client.list_entities(labels=alltypes_filtering_labels)
+    actual_alltypes_entities = feast_client.list_entities(
+        labels=alltypes_filtering_labels
+    )
     assert len(actual_alltypes_entities) == 1
 
     # ApplyFeatureTable

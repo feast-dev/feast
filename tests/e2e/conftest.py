@@ -1,4 +1,4 @@
-from .fixtures import *
+import pytest
 
 
 def pytest_addoption(parser):
@@ -36,3 +36,6 @@ def pytest_runtest_setup(item):
         previousfailed = getattr(item.parent, "_previousfailed", None)
         if previousfailed is not None:
             pytest.xfail("previous test failed (%s)" % previousfailed.name)
+
+
+from .fixtures import *  # noqa

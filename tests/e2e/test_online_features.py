@@ -78,7 +78,9 @@ def test_offline_ingestion(feast_client: Client, local_staging_path: str):
     )
 
 
-def test_streaming_ingestion(feast_client: Client, local_staging_path: str, kafka_server):
+def test_streaming_ingestion(
+    feast_client: Client, local_staging_path: str, kafka_server
+):
     entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
     kafka_broker = f"localhost:{kafka_server[1]}"
 
