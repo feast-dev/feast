@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "feast-jobservice.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "feast-jobservice.name" . }}
+    component: jobservice
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "feast-jobservice.name" . }}
+      component: jobservice
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      {{- if .Values.prometheus.enabled }}
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "{{ .Values.service.http.targetPort }}"
+        prometheus.io/scrape: "true"
+      {{- end }}
+      labels:
+        app: {{ template "feast-jobservice.name" . }}
+        component: jobservice
+        release: {{ .Release.Name }}
+      {{- if .Values.podLabels }}
+        {{ toYaml .Values.podLabels | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- if .Values.gcpServiceAccount.enabled }}
+      volumes:
+      - name: {{ template "feast-jobservice.fullname" . }}-gcp-service-account
+        secret:
+          secretName: {{ .Values.gcpServiceAccount.existingSecret.name }}
+      {{- end }}
+
+      containers:
+      - name: {{ .Chart.Name }}
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+        {{- if .Values.gcpServiceAccount.enabled }}
+        volumeMounts:
+        - name: {{ template "feast-jobservice.fullname" . }}-gcp-service-account
+          mountPath: /etc/secrets/google
+          readOnly: true
+        {{- end }}
+
+        env:
+        {{- if .Values.gcpServiceAccount.enabled }}
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /etc/secrets/google/{{ .Values.gcpServiceAccount.existingSecret.key }}
+        {{- end }}
+
+        {{- if .Values.gcpProjectId }}
+        - name: GOOGLE_CLOUD_PROJECT
+          value: {{ .Values.gcpProjectId | quote }}
+        {{- end }}
+
+        {{- range $key, $value := .Values.envOverrides }}
+        - name: {{ printf "%s" $key | replace "." "_" | upper | quote }}
+          {{- if eq (kindOf $value) "map" }}
+          valueFrom:
+            {{- toYaml $value | nindent 12 }}
+          {{- else }}
+          value: {{ $value | quote }}
+          {{- end }}
+        {{- end }}
+
+        command:
+        - feast
+        - server
+        ports:
+        - name: http
+          containerPort: {{ .Values.service.http.targetPort }}
+        - name: grpc
+          containerPort: {{ .Values.service.grpc.targetPort }}
+
+        {{- if .Values.livenessProbe.enabled }}
+        livenessProbe:
+          exec:
+            command: ["/usr/bin/grpc-health-probe", "-addr=:{{ .Values.service.grpc.targetPort }}"]
+          initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+          successThreshold: {{ .Values.livenessProbe.successThreshold }}
+          timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+        {{- end }}
+
+        {{- if .Values.readinessProbe.enabled }}
+        readinessProbe:
+          exec:
+            command: ["/usr/bin/grpc-health-probe", "-addr=:{{ .Values.service.grpc.targetPort }}"]
+          initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+          successThreshold: {{ .Values.readinessProbe.successThreshold }}
+          timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+        {{- end }}
+
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}

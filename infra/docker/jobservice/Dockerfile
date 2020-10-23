@@ -7,8 +7,8 @@ COPY sdk/python sdk/python
 COPY Makefile Makefile
 COPY protos protos
 
-# Install make
-RUN apt-get update && apt-get -y install make git
+# Install necessary tools for later steps
+RUN apt-get update && apt-get -y install make git wget
 
 # Install Python dependencies
 RUN make compile-protos-python
@@ -17,5 +17,13 @@ RUN make compile-protos-python
 COPY .git .git
 COPY README.md README.md
 RUN pip install -e sdk/python -U
+
+#
+# Download grpc_health_probe to run health checks
+# https://kubernetes.io/blog/2018/10/01/health-checking-grpc-servers-on-kubernetes/
+#
+RUN wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.3.1/grpc_health_probe-linux-amd64 \
+         -O /usr/bin/grpc-health-probe && \
+    chmod +x /usr/bin/grpc-health-probe
 
 CMD ["feast", "server"]
