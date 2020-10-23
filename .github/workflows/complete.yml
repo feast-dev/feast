@@ -173,7 +173,7 @@ jobs:
         run: |
           apt-get update && apt-get install -y postgresql libpq-dev redis-server
           make build-java-no-tests REVISION=develop
-          python -m pip install --upgrade pip
-          pip install -qe sdk/python
-          pip install -qr tests/requirements.txt
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -qe sdk/python
+          python -m pip install -qr tests/requirements.txt
           pytest tests/e2e/ --version develop
