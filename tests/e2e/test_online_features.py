@@ -4,12 +4,10 @@ import os
 import time
 import uuid
 from datetime import datetime, timedelta
-from pathlib import Path
 
 import avro.schema
 import numpy as np
 import pandas as pd
-import pyspark
 import pytest
 import pytz
 from avro.io import BinaryEncoder, DatumWriter
@@ -39,55 +37,6 @@ def generate_data():
     df["date"] = df["event_timestamp"].dt.date
 
     return df
-
-
-@pytest.fixture(scope="session")
-def feast_version():
-    return "0.8-SNAPSHOT"
-
-
-@pytest.fixture(scope="session")
-def ingestion_job_jar(pytestconfig, feast_version):
-    default_path = (
-        Path(__file__).parent.parent.parent
-        / "spark"
-        / "ingestion"
-        / "target"
-        / f"feast-ingestion-spark-{feast_version}.jar"
-    )
-
-    return pytestconfig.getoption("ingestion_jar") or f"file://{default_path}"
-
-
-@pytest.fixture(scope="session")
-def feast_client(pytestconfig, ingestion_job_jar):
-    redis_host, redis_port = pytestconfig.getoption("redis_url").split(":")
-
-    if pytestconfig.getoption("env") == "local":
-        return Client(
-            core_url=pytestconfig.getoption("core_url"),
-            serving_url=pytestconfig.getoption("serving_url"),
-            spark_launcher="standalone",
-            spark_standalone_master="local",
-            spark_home=os.getenv("SPARK_HOME") or os.path.dirname(pyspark.__file__),
-            spark_ingestion_jar=ingestion_job_jar,
-            redis_host=redis_host,
-            redis_port=redis_port,
-        )
-
-    if pytestconfig.getoption("env") == "gcloud":
-        return Client(
-            core_url=pytestconfig.getoption("core_url"),
-            serving_url=pytestconfig.getoption("serving_url"),
-            spark_launcher="dataproc",
-            dataproc_cluster_name=pytestconfig.getoption("dataproc_cluster_name"),
-            dataproc_project=pytestconfig.getoption("dataproc_project"),
-            dataproc_region=pytestconfig.getoption("dataproc_region"),
-            dataproc_staging_location=os.path.join(
-                pytestconfig.getoption("staging_path"), "dataproc"
-            ),
-            spark_ingestion_jar=ingestion_job_jar,
-        )
 
 
 @pytest.fixture(scope="function")

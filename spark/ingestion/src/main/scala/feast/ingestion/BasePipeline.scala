@@ -57,6 +57,7 @@ trait BasePipeline {
           .set("spark.metrics.conf.*.sink.statsd.period", "30")
           .set("spark.metrics.conf.*.sink.statsd.unit", "seconds")
           .set("spark.metrics.namespace", jobConfig.mode.toString)
+      case None => ()
     }
 
     SparkSession
