@@ -189,12 +189,16 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: 3.6
-      - name: install
+      - name: debug
         run: |
-          apt-get update && apt-get install -y redis-server
-          make build-java-no-tests REVISION=develop
-          python -m pip install --upgrade pip setuptools wheel
-          make install-python
-          python -m pip install -qr tests/requirements.txt
-      - name: run tests
-        run: pytest tests/e2e/ --feast-version develop
+          printenv
+          docker ps
+#      - name: install
+#        run: |
+#          apt-get update && apt-get install -y redis-server
+#          make build-java-no-tests REVISION=develop
+#          python -m pip install --upgrade pip setuptools wheel
+#          make install-python
+#          python -m pip install -qr tests/requirements.txt
+#      - name: run tests
+#        run: pytest tests/e2e/ --feast-version develop
