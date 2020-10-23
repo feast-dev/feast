@@ -176,4 +176,4 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           python -m pip install -qe sdk/python
           python -m pip install -qr tests/requirements.txt
-          pytest tests/e2e/ --version develop
+          pytest tests/e2e/ --feast-version develop

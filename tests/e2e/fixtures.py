@@ -30,8 +30,8 @@ def project_root():
 
 @pytest.fixture(scope="session")
 def project_version(pytestconfig):
-    if pytestconfig.getoption("version"):
-        return pytestconfig.getoption("version")
+    if pytestconfig.getoption("feast_version"):
+        return pytestconfig.getoption("feast_version")
 
     return "0.8-SNAPSHOT"
 
