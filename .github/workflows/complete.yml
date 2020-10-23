@@ -171,7 +171,7 @@ jobs:
           python-version: 3.6
       - name: install
         run: |
-          apt-get update && apt-get install -y redis-server
+          apt-get update && apt-get install -y redis-server postgresql libpq-dev
           make build-java-no-tests REVISION=develop
           python -m pip install --upgrade pip setuptools wheel
           make install-python
