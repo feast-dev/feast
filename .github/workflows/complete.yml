@@ -156,3 +156,21 @@ jobs:
       - name: copy to gs
         run: gsutil cp ./spark/ingestion/target/feast-ingestion-spark-${GITHUB_SHA}.jar gs://feast-jobs/spark/ingestion/
 
+  test-end-to-end:
+    runs-on: [self-hosted]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v1
+        with:
+          java-version: '11'
+      - uses: stCarolas/setup-maven@v3
+        with:
+          maven-version: 3.6.3
+      - name: test
+        run: |
+          apt-get update && apt-get install python3-pip postgresql libpq-dev redis-server
+          make build-java-no-tests
+          pip3 install -U pip
+          pip3 install -qe sdk/python
+          pip3 install -qr tests/requirements.txt
+          pytest tests/e2e/

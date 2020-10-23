@@ -50,7 +50,7 @@ def _start_jar(jar, options=None) -> subprocess.Popen:
         raise ValueError(f"{jar} doesn't exist")
 
     cmd = [
-        "java",
+        shutil.which("java"),
         "-jar",
         jar
     ]
