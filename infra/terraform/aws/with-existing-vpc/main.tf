@@ -45,7 +45,6 @@ module "feast" {
     cluster_name = local.cluster_name
     subnets = tolist(data.aws_subnet_ids.subnets.ids)
     region = var.region
-    subnet_filter_tag = var.subnet_filter_tag
     postgres_db_name = var.postgres_db_name
     postgres_db_user = var.postgres_db_user
     map_accounts = var.map_accounts

@@ -2,16 +2,11 @@ variable "region" {
 }
 
 variable "name_prefix" {
+    description = "Prefix to be used on all the resource names"
+    type = string
 }
 
 variable "vpc_id" {
-}
-
-variable "subnet_filter_tag" {
-  type = map(string)
-  default = {
-          Tier = "private"
-        }
 }
 
 variable "postgres_db_name" {
@@ -56,8 +51,16 @@ variable "tags" {
 }
 
 variable "subnets" {
+  description = "A list of subnets for the resources"
+  type = list(string)
 }
 
-variable "azs"{}
+variable "azs" {
+  description = "A list of availability zones for resources"
+  type = list(string)
+}
 
-variable "cluster_name" {}
+variable "cluster_name" {
+  description = "Eks cluster name"
+  type = string
+}

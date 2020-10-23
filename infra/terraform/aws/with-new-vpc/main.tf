@@ -10,6 +10,11 @@ provider "local" {
   version = "~> 1.2"
 }
 
+provider "aws" {
+  version = ">= 2.28.1"
+  region  = var.region
+}
+
 locals {
   cluster_name = "${var.name_prefix}-${random_string.suffix.result}"
 }
@@ -30,14 +35,26 @@ locals {
   }
 }
 
+data "aws_availability_zones" "available" {
+}
+
 module "vpc" {
-  source = "../modules/vpc"
-  region = var.region
-  name_prefix = var.name_prefix
-  private_subnet_tags = merge(var.private_subnet_tags, local.private_subnet_tags)
-  public_subnet_tags = merge(var.public_subnet_tags, local.public_subnet_tags)
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "2.47.0"
+
+  name                 = "${var.name_prefix}-vpc"
+  cidr                 = "10.0.0.0/16"
+  azs                  = data.aws_availability_zones.available.names
+  private_subnets      = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+  public_subnets       = ["10.0.4.0/24", "10.0.5.0/24", "10.0.6.0/24"]
+  enable_nat_gateway   = true
+  single_nat_gateway   = true
+  enable_dns_hostnames = true
+  private_subnet_tags  = merge(var.private_subnet_tags, local.private_subnet_tags)
+  public_subnet_tags   = merge(var.public_subnet_tags, local.public_subnet_tags)
   tags = var.tags
 }
+
 
 module "feast" {
     source = "../modules/feast"
@@ -47,7 +64,6 @@ module "feast" {
     cluster_name = local.cluster_name
     subnets = module.vpc.private_subnets
     region = var.region
-    subnet_filter_tag = var.subnet_filter_tag
     postgres_db_name = var.postgres_db_name
     postgres_db_user = var.postgres_db_user
     map_accounts = var.map_accounts
