@@ -32,7 +32,7 @@ services:
       - core
     environment:
       FEAST_CORE_URL: core:6565
-      FEAST_ONLINE_SERVING_URL: online_serving:6566
+      FEAST_SERVING_URL: online_serving:6566
       FEAST_HISTORICAL_SERVING_URL: historical_serving:6567
       GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
     ports:
