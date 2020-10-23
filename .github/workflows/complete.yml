@@ -177,4 +177,4 @@ jobs:
           make install-python
           python -m pip install -qr tests/requirements.txt
       - name: run tests
-        run: su -p postgres -c "PATH=$PATH pytest tests/e2e/ --feast-version develop"
+        run: su -p postgres -c "PATH=$PATH HOME=/tmp pytest tests/e2e/ --feast-version develop"
