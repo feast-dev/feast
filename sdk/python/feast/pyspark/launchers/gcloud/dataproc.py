@@ -1,6 +1,6 @@
 import os
 import uuid
-from typing import cast
+from typing import List, cast
 from urllib.parse import urlparse
 
 from google.api_core.operation import Operation
@@ -14,6 +14,7 @@ from feast.pyspark.abc import (
     JobLauncher,
     RetrievalJob,
     RetrievalJobParameters,
+    SparkJob,
     SparkJobFailure,
     SparkJobParameters,
     SparkJobStatus,
@@ -172,4 +173,10 @@ class DataprocClusterLauncher(JobLauncher):
     def stage_dataframe(
         self, df, event_timestamp_column: str, created_timestamp_column: str,
     ):
+        raise NotImplementedError
+
+    def get_job_by_id(self, job_id: str) -> SparkJob:
+        raise NotImplementedError
+
+    def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
         raise NotImplementedError

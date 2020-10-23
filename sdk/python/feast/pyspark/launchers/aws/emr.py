@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 
 import boto3
 import pandas
+from botocore.config import Config as BotoConfig
 
 from feast.data_format import ParquetFormat
 from feast.data_source import FileSource
@@ -14,6 +15,7 @@ from feast.pyspark.abc import (
     JobLauncher,
     RetrievalJob,
     RetrievalJobParameters,
+    SparkJob,
     SparkJobFailure,
     SparkJobStatus,
     StreamIngestionJob,
@@ -22,13 +24,19 @@ from feast.pyspark.abc import (
 
 from .emr_utils import (
     FAILED_STEP_STATES,
+    HISTORICAL_RETRIEVAL_JOB_TYPE,
     IN_PROGRESS_STEP_STATES,
+    OFFLINE_TO_ONLINE_JOB_TYPE,
+    STREAM_TO_ONLINE_JOB_TYPE,
     SUCCEEDED_STEP_STATES,
     TERMINAL_STEP_STATES,
     EmrJobRef,
+    JobInfo,
     _cancel_job,
     _get_job_state,
     _historical_retrieval_step,
+    _job_ref_to_str,
+    _list_jobs,
     _load_new_cluster_template,
     _random_string,
     _s3_upload,
@@ -50,7 +58,7 @@ class EmrJobMixin:
         self._emr_client = emr_client
 
     def get_id(self) -> str:
-        return f'{self._job_ref.cluster_id}:{self._job_ref.step_id or ""}'
+        return _job_ref_to_str(self._job_ref)
 
     def get_status(self) -> SparkJobStatus:
         emr_state = _get_job_state(self._emr_client, self._job_ref)
@@ -164,7 +172,10 @@ class EmrClusterLauncher(JobLauncher):
         self._region = region
 
     def _emr_client(self):
-        return boto3.client("emr", region_name=self._region)
+
+        # Use an increased number of retries since DescribeStep calls have a pretty low rate limit.
+        config = BotoConfig(retries={"max_attempts": 10, "mode": "standard"})
+        return boto3.client("emr", region_name=self._region, config=config)
 
     def _submit_emr_job(self, step: Dict[str, Any]) -> EmrJobRef:
         """
@@ -211,15 +222,15 @@ class EmrClusterLauncher(JobLauncher):
         )
 
         step = _historical_retrieval_step(
-            pyspark_script_path, args=job_params.get_arguments()
+            pyspark_script_path,
+            args=job_params.get_arguments(),
+            output_file_uri=job_params.get_destination_path(),
         )
 
         job_ref = self._submit_emr_job(step)
 
         return EmrRetrievalJob(
-            self._emr_client(),
-            job_ref,
-            os.path.join(job_params.get_destination_path()),
+            self._emr_client(), job_ref, job_params.get_destination_path(),
         )
 
     def offline_to_online_ingestion(
@@ -297,3 +308,67 @@ class EmrClusterLauncher(JobLauncher):
             file_format=ParquetFormat(),
             file_url=file_url,
         )
+
+    def _job_from_job_info(self, job_info: JobInfo) -> SparkJob:
+        if job_info.job_type == HISTORICAL_RETRIEVAL_JOB_TYPE:
+            assert job_info.output_file_uri is not None
+            return EmrRetrievalJob(
+                emr_client=self._emr_client(),
+                job_ref=job_info.job_ref,
+                output_file_uri=job_info.output_file_uri,
+            )
+        elif job_info.job_type == OFFLINE_TO_ONLINE_JOB_TYPE:
+            return EmrBatchIngestionJob(
+                emr_client=self._emr_client(), job_ref=job_info.job_ref,
+            )
+        elif job_info.job_type == STREAM_TO_ONLINE_JOB_TYPE:
+            return EmrStreamIngestionJob(
+                emr_client=self._emr_client(), job_ref=job_info.job_ref,
+            )
+        else:
+            # We should never get here
+            raise ValueError(f"Unknown job type {job_info.job_type}")
+
+    def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
+        """
+        Find EMR job by a string id.
+
+        Args:
+            include_terminated: whether to include terminated jobs.
+
+        Returns:
+            A list of SparkJob instances.
+        """
+
+        jobs = _list_jobs(
+            emr_client=self._emr_client(),
+            job_type=None,
+            table_name=None,
+            active_only=not include_terminated,
+        )
+
+        result = []
+        for job_info in jobs:
+            result.append(self._job_from_job_info(job_info))
+        return result
+
+    def get_job_by_id(self, job_id: str) -> SparkJob:
+        """
+        Find EMR job by a string id. Note that it will also return terminated jobs.
+
+        Raises:
+            KeyError if the job not found.
+        """
+        # FIXME: this doesn't have to be a linear search but that'll do for now
+        jobs = _list_jobs(
+            emr_client=self._emr_client(),
+            job_type=None,
+            table_name=None,
+            active_only=True,
+        )
+
+        for job_info in jobs:
+            if _job_ref_to_str(job_info.job_ref) == job_id:
+                return self._job_from_job_info(job_info)
+        else:
+            raise KeyError(f"Job not found {job_id}")
