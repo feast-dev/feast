@@ -242,24 +242,9 @@ def local_staging_path(global_staging_path):
     return os.path.join(global_staging_path, str(uuid.uuid4()))
 
 
-class PostgreSQLExecutorWithSU(PostgreSQLExecutor):
-    @property
-    def _popen_kwargs(self) -> Dict[str, Any]:
-        if os.geteuid() > 0:
-            return super()._popen_kwargs
-
-        def set_uid():
-            os.setuid(1000)
-            os.setgid(1000)
-
-        return {
-            **super()._popen_kwargs,
-            "preexec_fn": set_uid
-        }
-
-
 if not os.environ.get('POSTGRES_HOST'):
-    pg_factories.PostgreSQLExecutor = PostgreSQLExecutorWithSU
+    os.setuid(1000)
+    os.setgid(1000)
 
     postgres_server = pg_factories.postgresql_proc(password="password")
 else:
