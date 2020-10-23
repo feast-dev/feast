@@ -115,7 +115,7 @@ def feast_core(
         ),
         spring=dict(
             datasource=dict(
-                url=f"jdbc:postgresql://127.0.0.1:{postgres_server.port}/postgres"
+                url=f"jdbc:postgresql://{postgres_server.host}:{postgres_server.port}/postgres"
             )
         ),
     )
