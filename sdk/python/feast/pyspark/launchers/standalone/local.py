@@ -3,6 +3,7 @@ import socket
 import subprocess
 import uuid
 from contextlib import closing
+from typing import List
 
 import requests
 from requests.exceptions import RequestException
@@ -13,6 +14,7 @@ from feast.pyspark.abc import (
     JobLauncher,
     RetrievalJob,
     RetrievalJobParameters,
+    SparkJob,
     SparkJobFailure,
     SparkJobParameters,
     SparkJobStatus,
@@ -225,4 +227,10 @@ class StandaloneClusterLauncher(JobLauncher):
     def stage_dataframe(
         self, df, event_timestamp_column: str, created_timestamp_column: str,
     ):
+        raise NotImplementedError
+
+    def get_job_by_id(self, job_id: str) -> SparkJob:
+        raise NotImplementedError
+
+    def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
         raise NotImplementedError

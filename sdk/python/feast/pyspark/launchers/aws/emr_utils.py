@@ -165,15 +165,27 @@ def _sync_offline_to_online_step(
     }
 
 
-class JobInfo(NamedTuple):
-    job_type: str
+class EmrJobRef(NamedTuple):
+    """ EMR job reference. step_id can be None when using on-demand clusters, in that case each
+    cluster has only one step """
+
     cluster_id: str
-    step_id: str
-    table_name: str
+    step_id: Optional[str]
+
+
+def _job_ref_to_str(job_ref: EmrJobRef) -> str:
+    return ":".join(["emr", job_ref.cluster_id, job_ref.step_id or ""])
+
+
+class JobInfo(NamedTuple):
+    job_ref: EmrJobRef
+    job_type: str
     state: str
+    table_name: Optional[str]
+    output_file_uri: Optional[str]
 
 
-def list_jobs(
+def _list_jobs(
     emr_client, job_type: Optional[str], table_name: Optional[str], active_only=True
 ) -> List[JobInfo]:
     """
@@ -212,6 +224,10 @@ def list_jobs(
                     ) or props.get("feast.step_metadata.offline_to_online.table_name")
                     step_job_type = props["feast.step_metadata.job_type"]
 
+                    output_file_uri = props.get(
+                        "feast.step_metadata.historical_retrieval.output_file_uri"
+                    )
+
                     if table_name and step_table_name != table_name:
                         continue
 
@@ -221,30 +237,22 @@ def list_jobs(
                     res.append(
                         JobInfo(
                             job_type=step_job_type,
-                            cluster_id=cluster_id,
-                            step_id=step["Id"],
+                            job_ref=EmrJobRef(cluster_id, step["Id"]),
                             state=step["Status"]["State"],
                             table_name=step_table_name,
+                            output_file_uri=output_file_uri,
                         )
                     )
     return res
 
 
 def _get_stream_to_online_job(emr_client, table_name: str) -> List[JobInfo]:
-    return list_jobs(
+    return _list_jobs(
         emr_client,
         job_type=STREAM_TO_ONLINE_JOB_TYPE,
         table_name=table_name,
         active_only=True,
     )
-
-
-class EmrJobRef(NamedTuple):
-    """ EMR job reference. step_id can be None when using on-demand clusters, in that case each
-    cluster has only one step """
-
-    cluster_id: str
-    step_id: Optional[str]
 
 
 def _get_first_step_id(emr_client, cluster_id: str) -> str:
@@ -329,7 +337,7 @@ def _upload_dataframe(s3prefix: str, df: pandas.DataFrame) -> str:
 
 
 def _historical_retrieval_step(
-    pyspark_script_path: str, args: List[str],
+    pyspark_script_path: str, args: List[str], output_file_uri: str,
 ) -> Dict[str, Any]:
 
     return {
@@ -339,6 +347,10 @@ def _historical_retrieval_step(
                 {
                     "Key": "feast.step_metadata.job_type",
                     "Value": HISTORICAL_RETRIEVAL_JOB_TYPE,
+                },
+                {
+                    "Key": "feast.step_metadata.historical_retrieval.output_file_uri",
+                    "Value": output_file_uri,
                 },
             ],
             "Args": ["spark-submit", pyspark_script_path] + args,

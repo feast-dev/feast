@@ -470,3 +470,11 @@ class JobLauncher(abc.ABC):
             FileSource: representing the uploaded dataframe.
         """
         raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_job_by_id(self, job_id: str) -> SparkJob:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
+        raise NotImplementedError
