@@ -56,7 +56,7 @@ def download_kafka(version="2.12-2.6.0"):
     with open(local_path, "wb") as f:
         f.write(r.content)
 
-    shutil.unpack_archive(local_path, tempfile.gettempdir())
+    shutil.unpack_archive(str(local_path), str(temp_dir))
     return temp_dir / f"kafka_{version}" / "bin"
 
 
