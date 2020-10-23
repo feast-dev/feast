@@ -62,6 +62,7 @@ locals {
               config = {
                 host = module.redis.endpoint
                 port = 6379
+                ssl  = true
               }
               subscriptions = [
                 {
