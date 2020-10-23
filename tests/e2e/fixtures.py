@@ -52,7 +52,7 @@ def project_version(pytestconfig):
 
 def download_kafka(version="2.12-2.6.0"):
     r = requests.get(f"https://downloads.apache.org/kafka/2.6.0/kafka_{version}.tgz")
-    temp_dir = pathlib.Path(tempfile.gettempdir())
+    temp_dir = pathlib.Path(tempfile.mkdtemp())
     local_path = temp_dir / "kafka.tgz"
 
     with open(local_path, "wb") as f:
@@ -240,6 +240,8 @@ def global_staging_path(pytestconfig):
 def local_staging_path(global_staging_path):
     return os.path.join(global_staging_path, str(uuid.uuid4()))
 
+
+os.seteuid(1001)
 
 postgres_server = pg_factories.postgresql_proc(password="password")
 redis_server = redis_factories.redis_proc(executable=shutil.which("redis-server"))
