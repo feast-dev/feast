@@ -192,7 +192,7 @@ jobs:
       - name: debug
         run: |
           printenv
-          docker ps
+          docker ps --format "{{.Image}} {{.Ports}} {{.Networks}}"
 #      - name: install
 #        run: |
 #          apt-get update && apt-get install -y redis-server
