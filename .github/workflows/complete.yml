@@ -169,22 +169,12 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: 3.6
-      - name: debug
+      - name: install
         run: |
           apt-get update && apt-get install -y redis-server postgresql libpq-dev
-          python -m pip install pytest
-          printenv
-          echo "-m"
-          su -m postgres -c 'printenv'
-          echo "-p"
-          su -p postgres -c 'printenv'
-
-#      - name: install
-#        run: |
-#          apt-get update && apt-get install -y redis-server postgresql libpq-dev
-#          make build-java-no-tests REVISION=develop
-#          python -m pip install --upgrade pip setuptools wheel
-#          make install-python
-#          python -m pip install -qr tests/requirements.txt
-#      - name: run tests
-#        run: su -p postgres -c 'pytest tests/e2e/ --feast-version develop'
+          make build-java-no-tests REVISION=develop
+          python -m pip install --upgrade pip setuptools wheel
+          make install-python
+          python -m pip install -qr tests/requirements.txt
+      - name: run tests
+        run: su -p postgres -c "PATH=$PATH pytest tests/e2e/ --feast-version develop"
