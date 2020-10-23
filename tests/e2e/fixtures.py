@@ -7,6 +7,7 @@ import tempfile
 import time
 import uuid
 from pathlib import Path
+from typing import Dict, Any
 
 import pyspark
 import pytest
@@ -241,10 +242,24 @@ def local_staging_path(global_staging_path):
     return os.path.join(global_staging_path, str(uuid.uuid4()))
 
 
+class PostgreSQLExecutorWithSU(PostgreSQLExecutor):
+    @property
+    def _popen_kwargs(self) -> Dict[str, Any]:
+        if os.geteuid() > 0:
+            return super()._popen_kwargs
+
+        def set_uid():
+            os.seteuid(1000)
+
+        return {
+            **super()._popen_kwargs,
+            "preexec_fn": set_uid
+        }
+
+
 if not os.environ.get('POSTGRES_HOST'):
-    if os.geteuid() == 0:
-        os.seteuid(1000)
-        
+    pg_factories.PostgreSQLExecutor = PostgreSQLExecutorWithSU
+
     postgres_server = pg_factories.postgresql_proc(password="password")
 else:
     postgres_server = pg_factories.postgresql_noproc(host=os.environ['POSTGRES_HOST'],
