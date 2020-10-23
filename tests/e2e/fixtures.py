@@ -32,6 +32,8 @@ __all__ = (
     "redis_server",
     "postgres_server",
     "kafka_server",
+    "zookeeper_server",
+    "enable_auth",
 )
 
 
