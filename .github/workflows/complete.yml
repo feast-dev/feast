@@ -169,8 +169,8 @@ jobs:
       - name: test
         run: |
           apt-get update && apt-get install -y python3-pip postgresql libpq-dev redis-server
-          make build-java-no-tests
+          make build-java-no-tests REVISION=develop
           pip3 install -U pip
           pip3 install -qe sdk/python
           pip3 install -qr tests/requirements.txt
-          pytest tests/e2e/
+          pytest tests/e2e/ --version develop

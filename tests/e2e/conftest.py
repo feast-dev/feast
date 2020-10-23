@@ -21,6 +21,8 @@ def pytest_addoption(parser):
     parser.addoption("--ingestion-jar", action="store")
     parser.addoption("--redis-url", action="store", default="localhost:6379")
 
+    parser.addoption("--version", action="store")
+
 
 def pytest_runtest_makereport(item, call):
     if "incremental" in item.keywords:

@@ -29,7 +29,10 @@ def project_root():
 
 
 @pytest.fixture(scope="session")
-def project_version():
+def project_version(pytestconfig):
+    if pytestconfig.getoption("version"):
+        return pytestconfig.getoption("version")
+
     return "0.8-SNAPSHOT"
 
 
