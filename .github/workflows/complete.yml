@@ -174,7 +174,9 @@ jobs:
           apt-get update && apt-get install -y redis-server postgresql libpq-dev
           python -m pip install pytest
           printenv
+          which pytest
           su -p postgres -c 'printenv'
+          su -p postgres -c 'which pytest'
 #      - name: install
 #        run: |
 #          apt-get update && apt-get install -y redis-server postgresql libpq-dev
