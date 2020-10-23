@@ -61,6 +61,5 @@
 
 * [Contribution Process](contributing/contributing.md)
 * [Development Guide](contributing/development-guide.md)
-* [Style Guide](contributing/style-guide.md)
 * [Release Process](contributing/release-process.md)
 
