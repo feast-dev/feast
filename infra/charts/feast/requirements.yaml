@@ -6,10 +6,6 @@ dependencies:
   alias: feast-online-serving
   version: 0.8-SNAPSHOT
   condition: feast-online-serving.enabled
-- name: feast-serving
-  alias: feast-batch-serving
-  version: 0.8-SNAPSHOT
-  condition: feast-batch-serving.enabled
 - name: feast-jupyter
   version: 0.8-SNAPSHOT
   condition: feast-jupyter.enabled

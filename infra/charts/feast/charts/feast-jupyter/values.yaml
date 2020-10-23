@@ -17,3 +17,6 @@ gcpServiceAccount:
     name: feast-gcp-service-account
     # gcpServiceAccount.existingSecret.key -- Key in the secret data (file name of the service account)
     key: credentials.json
+
+# envOverrides -- Extra environment variables to set
+envOverrides: {}

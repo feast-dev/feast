@@ -46,11 +46,6 @@ spec:
       - name: {{ template "feast-core.fullname" . }}-secret
         secret:
           secretName: {{ template "feast-core.fullname" . }}
-      {{- if .Values.gcpServiceAccount.enabled }}
-      - name: {{ template "feast-core.fullname" . }}-gcp-service-account
-        secret:
-          secretName: {{ .Values.gcpServiceAccount.existingSecret.name }}
-      {{- end }}
 
       containers:
       - name: {{ .Chart.Name }}
@@ -63,11 +58,6 @@ spec:
         - name: {{ template "feast-core.fullname" . }}-secret
           mountPath: /etc/secrets/feast
           readOnly: true
-        {{- if .Values.gcpServiceAccount.enabled }}
-        - name: {{ template "feast-core.fullname" . }}-gcp-service-account
-          mountPath: /etc/secrets/google
-          readOnly: true
-        {{- end }}
 
         env:
         - name: LOG_TYPE
@@ -81,16 +71,6 @@ spec:
             secretKeyRef:
               name: {{ .Values.postgresql.existingSecret }}
               key: postgresql-password
-        {{- end }}
-
-        {{- if .Values.gcpServiceAccount.enabled }}
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: /etc/secrets/google/{{ .Values.gcpServiceAccount.existingSecret.key }}
-        {{- end }}
-
-        {{- if .Values.gcpProjectId }}
-        - name: GOOGLE_CLOUD_PROJECT
-          value: {{ .Values.gcpProjectId | quote }}
         {{- end }}
 
         {{- if .Values.javaOpts }}
