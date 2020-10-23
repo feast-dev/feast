@@ -241,9 +241,12 @@ def local_staging_path(global_staging_path):
     return os.path.join(global_staging_path, str(uuid.uuid4()))
 
 
-os.seteuid(1001)
+if not os.environ.get('POSTGRES_HOST'):
+    postgres_server = pg_factories.postgresql_proc(password="password")
+else:
+    postgres_server = pg_factories.postgresql_noproc(host=os.environ['POSTGRES_HOST'],
+                                                     port=os.environ['POSTGRES_PORT'])
 
-postgres_server = pg_factories.postgresql_proc(password="password")
 redis_server = redis_factories.redis_proc(executable=shutil.which("redis-server"))
 
 KAFKA_BIN = download_kafka()
