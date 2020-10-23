@@ -21,11 +21,6 @@ gcpServiceAccount:
 # gcpProjectId -- Project ID to use when using Google Cloud services such as BigQuery, Cloud Storage and Dataflow
 gcpProjectId: ""
 
-# logType -- Log format, either `JSON` or `Console`
-logType: Console
-# logLevel -- Default log level, use either one of `DEBUG`, `INFO`, `WARN` or `ERROR`
-logLevel: WARN
-
 prometheus:
   # prometheus.enabled -- Flag to enable scraping of metrics
   enabled: true

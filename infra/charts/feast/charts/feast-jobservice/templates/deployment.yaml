@@ -57,11 +57,6 @@ spec:
         {{- end }}
 
         env:
-        - name: LOG_TYPE
-          value: {{ .Values.logType | quote }}
-        - name: LOG_LEVEL
-          value: {{ .Values.logLevel | quote }}
-
         {{- if .Values.gcpServiceAccount.enabled }}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: /etc/secrets/google/{{ .Values.gcpServiceAccount.existingSecret.key }}

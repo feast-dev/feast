@@ -43,8 +43,6 @@ Current chart version is `0.8-SNAPSHOT`
 | livenessProbe.periodSeconds | int | `10` | How often to perform the probe |
 | livenessProbe.successThreshold | int | `1` | Min consecutive success for the probe to be considered successful |
 | livenessProbe.timeoutSeconds | int | `5` | When the probe times out |
-| logLevel | string | `"WARN"` | Default log level, use either one of `DEBUG`, `INFO`, `WARN` or `ERROR` |
-| logType | string | `"Console"` | Log format, either `JSON` or `Console` |
 | nodeSelector | object | `{}` | Node labels for pod assignment |
 | podLabels | object | `{}` | Labels to be added to Feast Job Service pods |
 | prometheus.enabled | bool | `true` | Flag to enable scraping of Feast Job Service metrics |
