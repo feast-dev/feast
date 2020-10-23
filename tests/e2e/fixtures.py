@@ -249,7 +249,8 @@ class PostgreSQLExecutorWithSU(PostgreSQLExecutor):
             return super()._popen_kwargs
 
         def set_uid():
-            os.seteuid(1000)
+            os.setuid(1000)
+            os.setgid(1000)
 
         return {
             **super()._popen_kwargs,
