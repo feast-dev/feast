@@ -362,7 +362,7 @@ def job():
     pass
 
 
-@job.command(name="start-offline-to-online")
+@job.command(name="sync-offline-to-online")
 @click.option(
     "--feature-table",
     "-t",

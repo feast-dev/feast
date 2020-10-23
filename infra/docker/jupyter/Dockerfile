@@ -18,6 +18,7 @@ RUN pip install -r sdk/python/requirements-ci.txt
 COPY .git .git
 COPY README.md README.md
 RUN pip install -e sdk/python -U
+RUN pip install "s3fs" "boto3" "urllib3>=1.25.4"
 
 # Switch back to original user and workdir
 USER $NB_UID

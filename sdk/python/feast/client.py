@@ -913,7 +913,7 @@ class Client:
                     else entity_staging_uri.netloc
                 )
                 staging_client.upload_file(
-                    df_export_path.name, bucket, entity_staging_uri.path
+                    df_export_path.name, bucket, entity_staging_uri.path.lstrip("/")
                 )
                 entity_source = FileSource(
                     "event_timestamp",
@@ -923,7 +923,11 @@ class Client:
                 )
 
         return start_historical_feature_retrieval_job(
-            self, entity_source, feature_tables, output_format, output_location
+            self,
+            entity_source,
+            feature_tables,
+            output_format,
+            os.path.join(output_location, str(uuid.uuid4())),
         )
 
     def get_historical_features_df(

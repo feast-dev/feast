@@ -17,6 +17,7 @@ RUN make compile-protos-python
 COPY .git .git
 COPY README.md README.md
 RUN pip install -e sdk/python -U
+RUN pip install "s3fs" "boto3" "urllib3>=1.25.4"
 
 #
 # Download grpc_health_probe to run health checks
