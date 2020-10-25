@@ -10,14 +10,14 @@ from pytest_redis.executor import RedisExecutor
 from feast import Client
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def feast_client(
     pytestconfig,
     ingestion_job_jar,
     redis_server: RedisExecutor,
     feast_core: Tuple[str, int],
     feast_serving: Tuple[str, int],
-    global_staging_path,
+    local_staging_path,
 ):
     if pytestconfig.getoption("env") == "local":
         return Client(
@@ -30,7 +30,7 @@ def feast_client(
             redis_host=redis_server.host,
             redis_port=redis_server.port,
             historical_feature_output_location=os.path.join(
-                global_staging_path, "historical_output"
+                local_staging_path, "historical_output"
             ),
         )
 
@@ -43,9 +43,14 @@ def feast_client(
             dataproc_project=pytestconfig.getoption("dataproc_project"),
             dataproc_region=pytestconfig.getoption("dataproc_region"),
             dataproc_staging_location=os.path.join(
-                pytestconfig.getoption("staging_path"), "dataproc"
+                local_staging_path, "dataproc"
             ),
             spark_ingestion_jar=ingestion_job_jar,
+            redis_host=pytestconfig.getoption("redis_url").split(":")[0],
+            redis_port=pytestconfig.getoption("redis_url").split(":")[1],
+            historical_feature_output_location=os.path.join(
+                local_staging_path, "historical_output"
+            )
         )
 
 
