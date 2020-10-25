@@ -130,21 +130,30 @@ class DataprocClusterLauncher(JobLauncher):
         blob_path = os.path.join(
             self.remote_path, job_id, os.path.basename(pyspark_script),
         )
-        staging_client.upload_file(blob_path, self.staging_bucket, pyspark_script)
+        staging_client.upload_file(pyspark_script, self.staging_bucket, blob_path)
 
         return f"gs://{self.staging_bucket}/{blob_path}"
 
     def dataproc_submit(self, job_params: SparkJobParameters) -> Operation:
         local_job_id = str(uuid.uuid4())
-        pyspark_gcs = self._stage_files(job_params.get_main_file_path(), local_job_id)
+        main_file_uri = self._stage_files(job_params.get_main_file_path(), local_job_id)
         job_config = {
             "reference": {"job_id": local_job_id},
             "placement": {"cluster_name": self.cluster_name},
-            "pyspark_job": {
-                "main_python_file_uri": pyspark_gcs,
-                "args": job_params.get_arguments(),
-            },
         }
+        if job_params.get_class_name():
+            job_config.update({
+                "main_jar_file_uri": main_file_uri,
+                "main_class": job_params.get_class_name(),
+                "args": job_params.get_arguments()
+            })
+        else:
+            job_config.update({
+                "pyspark_job": {
+                    "main_python_file_uri": main_file_uri,
+                    "args": job_params.get_arguments(),
+                }
+            })
         return self.job_client.submit_job_as_operation(
             request={
                 "project_id": self.project_id,

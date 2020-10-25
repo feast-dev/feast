@@ -1,7 +1,6 @@
 pytest==6.0.0
 pytest-lazy-fixture==0.6.3
-pytest-mock
-pytest-timeout
+pytest-timeout==1.4.2
 pytest-ordering==0.6.*
 pytest-benchmark==3.2.2
 pytest-mock==1.10.4
