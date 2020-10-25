@@ -61,4 +61,4 @@ docker exec \
   -e FEAST_VERSION=${FEAST_VERSION} \
   -e DISABLE_SERVICE_FIXTURES=true \
   feast_jupyter_1 bash \
-  -c 'cd /feast/tests && python -m pip install -r requirements.txt && pytest e2e/ -m "not bq" --ingestion-jar gs://feast-jobs/spark/ingestion/feast-ingestion-spark-${FEAST_VERSION}.jar --redis-url redis:6379 --core-url core:6565 --serving-url online_serving:6566 --kafka_brokers kafka:9092'
+  -c 'cd /feast/tests && python -m pip install -r requirements.txt && pytest e2e/ -m "not bq" --ingestion-jar gs://feast-jobs/spark/ingestion/feast-ingestion-spark-${FEAST_VERSION}.jar --redis-url redis:6379 --core-url core:6565 --serving-url online_serving:6566 --kafka-brokers kafka:9092'
