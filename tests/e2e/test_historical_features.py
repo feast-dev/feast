@@ -77,40 +77,27 @@ def test_historical_features(feast_client: Client, local_staging_path: str):
         }
     )
 
-    with tempfile.TemporaryDirectory() as tempdir:
-        df_export_path = os.path.join(tempdir, "customers.parquets")
-        customer_df.to_parquet(df_export_path)
-        scheme, _, remote_path, _, _, _ = urlparse(local_staging_path)
-        staging_client = get_staging_client(scheme)
-        staging_client.upload_file(df_export_path, None, remote_path)
-        customer_source = FileSource(
-            "event_timestamp",
-            "event_timestamp",
-            ParquetFormat(),
-            os.path.join(local_staging_path, os.path.basename(df_export_path)),
-        )
+    job = feast_client.get_historical_features(feature_refs, customer_df)
+    output_dir = job.get_output_file_uri()
 
-        job = feast_client.get_historical_features(feature_refs, customer_source)
-        output_dir = job.get_output_file_uri()
+    _, _, joined_df_destination_path, _, _, _ = urlparse(output_dir)
+    joined_df = pd.read_parquet(joined_df_destination_path)
 
-        _, _, joined_df_destination_path, _, _, _ = urlparse(output_dir)
-        joined_df = pd.read_parquet(joined_df_destination_path)
+    expected_joined_df = pd.DataFrame(
+        {
+            "event_timestamp": [retrieval_date for _ in customers]
+            + [retrieval_outside_max_age_date for _ in customers],
+            "user_id": customers + customers,
+            "transactions__daily_transactions": daily_transactions
+            + [None] * len(customers),
+        }
+    )
 
-        expected_joined_df = pd.DataFrame(
-            {
-                "event_timestamp": [retrieval_date for _ in customers]
-                + [retrieval_outside_max_age_date for _ in customers],
-                "user_id": customers + customers,
-                "transactions__daily_transactions": daily_transactions
-                + [None] * len(customers),
-            }
-        )
-
-        assert_frame_equal(
-            joined_df.sort_values(by=["user_id", "event_timestamp"]).reset_index(
-                drop=True
-            ),
-            expected_joined_df.sort_values(
-                by=["user_id", "event_timestamp"]
-            ).reset_index(drop=True),
-        )
+    assert_frame_equal(
+        joined_df.sort_values(by=["user_id", "event_timestamp"]).reset_index(
+            drop=True
+        ),
+        expected_joined_df.sort_values(
+            by=["user_id", "event_timestamp"]
+        ).reset_index(drop=True),
+    )

@@ -93,7 +93,7 @@ class DataprocClusterLauncher(JobLauncher):
     """
 
     def __init__(
-        self, cluster_name: str, staging_location: str, region: str, project_id: str,
+            self, cluster_name: str, staging_location: str, region: str, project_id: str,
     ):
         """
         Initialize a dataproc job controller client, used internally for job submission and result
@@ -143,9 +143,11 @@ class DataprocClusterLauncher(JobLauncher):
         }
         if job_params.get_class_name():
             job_config.update({
-                "main_jar_file_uri": main_file_uri,
-                "main_class": job_params.get_class_name(),
-                "args": job_params.get_arguments()
+                "spark_job": {
+                    "jar_file_uris": [main_file_uri],
+                    "main_class": job_params.get_class_name(),
+                    "args": job_params.get_arguments()
+                }
             })
         else:
             job_config.update({
@@ -163,24 +165,24 @@ class DataprocClusterLauncher(JobLauncher):
         )
 
     def historical_feature_retrieval(
-        self, job_params: RetrievalJobParameters
+            self, job_params: RetrievalJobParameters
     ) -> RetrievalJob:
         return DataprocRetrievalJob(
             self.dataproc_submit(job_params), job_params.get_destination_path()
         )
 
     def offline_to_online_ingestion(
-        self, ingestion_job_params: BatchIngestionJobParameters
+            self, ingestion_job_params: BatchIngestionJobParameters
     ) -> BatchIngestionJob:
         return DataprocBatchIngestionJob(self.dataproc_submit(ingestion_job_params))
 
     def start_stream_to_online_ingestion(
-        self, ingestion_job_params: StreamIngestionJobParameters
+            self, ingestion_job_params: StreamIngestionJobParameters
     ) -> StreamIngestionJob:
         return DataprocStreamingIngestionJob(self.dataproc_submit(ingestion_job_params))
 
     def stage_dataframe(
-        self, df, event_timestamp_column: str, created_timestamp_column: str,
+            self, df, event_timestamp_column: str, created_timestamp_column: str,
     ):
         raise NotImplementedError
 
