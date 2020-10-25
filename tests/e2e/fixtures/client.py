@@ -42,7 +42,7 @@ def feast_client(
             dataproc_cluster_name=pytestconfig.getoption("dataproc_cluster_name"),
             dataproc_project=pytestconfig.getoption("dataproc_project"),
             dataproc_region=pytestconfig.getoption("dataproc_region"),
-            dataproc_staging_location=os.path.join(
+            spark_staging_location=os.path.join(
                 local_staging_path, "dataproc"
             ),
             spark_ingestion_jar=ingestion_job_jar,

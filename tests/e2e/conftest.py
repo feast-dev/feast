@@ -47,5 +47,7 @@ from .fixtures.client import (  # noqa
 
 if not os.environ.get("DISABLE_SERVICE_FIXTURES"):
     from .fixtures.services import *  # noqa
+    from .fixtures.feast_services import *  # type: ignore # noqa
 else:
     from .fixtures.external_services import *  # type: ignore # noqa
+
