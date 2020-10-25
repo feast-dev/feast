@@ -1,14 +1,14 @@
+import os
+
 import pytest
 
 
 def pytest_addoption(parser):
     parser.addoption("--core_url", action="store", default="localhost:6565")
     parser.addoption("--serving_url", action="store", default="localhost:6566")
-    parser.addoption("--allow_dirty", action="store", default="False")
     parser.addoption(
         "--gcs_path", action="store", default="gs://feast-templocation-kf-feast/"
     )
-    parser.addoption("--enable_auth", action="store", default="False")
     parser.addoption("--kafka_brokers", action="store", default="localhost:9092")
 
     parser.addoption("--env", action="store", help="local|aws|gcloud", default="local")
@@ -20,7 +20,6 @@ def pytest_addoption(parser):
     parser.addoption("--dataproc-project", action="store")
     parser.addoption("--ingestion-jar", action="store")
     parser.addoption("--redis-url", action="store", default="localhost:6379")
-
     parser.addoption("--feast-version", action="store")
 
 
@@ -38,4 +37,15 @@ def pytest_runtest_setup(item):
             pytest.xfail("previous test failed (%s)" % previousfailed.name)
 
 
-from .fixtures import *  # noqa
+from .fixtures.base import project_root, project_version  # noqa
+from .fixtures.client import (  # noqa
+    feast_client,
+    global_staging_path,
+    ingestion_job_jar,
+    local_staging_path,
+)
+
+if not os.environ.get("DISABLE_SERVICE_FIXTURES"):
+    from .fixtures.services import *  # noqa
+else:
+    from .fixtures.external_services import *  # type: ignore # noqa

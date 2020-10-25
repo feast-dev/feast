@@ -5,11 +5,7 @@ import socket
 import subprocess
 import tempfile
 import time
-import uuid
-from pathlib import Path
-from typing import Dict, Any
 
-import pyspark
 import pytest
 import requests
 import yaml
@@ -19,36 +15,16 @@ from pytest_postgresql.executor import PostgreSQLExecutor
 from pytest_redis import factories as redis_factories
 from pytest_redis.executor import RedisExecutor
 
-from feast import Client
-
 __all__ = (
-    "project_root",
-    "project_version",
-    "feast_client",
+    "kafka_server",
+    "kafka_port",
+    "zookeeper_server",
+    "postgres_server",
+    "redis_server",
     "feast_core",
     "feast_serving",
-    "ingestion_job_jar",
-    "global_staging_path",
-    "local_staging_path",
-    "redis_server",
-    "postgres_server",
-    "kafka_server",
-    "zookeeper_server",
     "enable_auth",
 )
-
-
-@pytest.fixture(scope="session")
-def project_root():
-    return Path(__file__).parent.parent.parent
-
-
-@pytest.fixture(scope="session")
-def project_version(pytestconfig):
-    if pytestconfig.getoption("feast_version"):
-        return pytestconfig.getoption("feast_version")
-
-    return "0.8-SNAPSHOT"
 
 
 def download_kafka(version="2.12-2.6.0"):
@@ -132,7 +108,7 @@ def feast_core(
             ],
         )
         _wait_port_open(6565)
-        yield
+        yield "localhost", 6565
         process.terminate()
 
 
@@ -171,83 +147,17 @@ def feast_serving(
             ],
         )
         _wait_port_open(6566)
-        yield
+        yield "localhost", 6566
         process.terminate()
 
 
-@pytest.fixture(scope="session")
-def ingestion_job_jar(pytestconfig, project_root, project_version):
-    default_path = (
-        project_root
-        / "spark"
-        / "ingestion"
-        / "target"
-        / f"feast-ingestion-spark-{project_version}.jar"
-    )
-
-    return pytestconfig.getoption("ingestion_jar") or f"file://{default_path}"
+@pytest.fixture
+def kafka_server(kafka_port):
+    _, port = kafka_port
+    return "localhost", port
 
 
-@pytest.fixture(scope="session")
-def feast_client(
-    pytestconfig,
-    ingestion_job_jar,
-    redis_server: RedisExecutor,
-    feast_core,
-    feast_serving,
-    global_staging_path,
-):
-    if pytestconfig.getoption("env") == "local":
-        return Client(
-            core_url=pytestconfig.getoption("core_url"),
-            serving_url=pytestconfig.getoption("serving_url"),
-            spark_launcher="standalone",
-            spark_standalone_master="local",
-            spark_home=os.getenv("SPARK_HOME") or os.path.dirname(pyspark.__file__),
-            spark_ingestion_jar=ingestion_job_jar,
-            redis_host=redis_server.host,
-            redis_port=redis_server.port,
-            historical_feature_output_location=os.path.join(
-                global_staging_path, "historical_output"
-            ),
-        )
-
-    if pytestconfig.getoption("env") == "gcloud":
-        return Client(
-            core_url=pytestconfig.getoption("core_url"),
-            serving_url=pytestconfig.getoption("serving_url"),
-            spark_launcher="dataproc",
-            dataproc_cluster_name=pytestconfig.getoption("dataproc_cluster_name"),
-            dataproc_project=pytestconfig.getoption("dataproc_project"),
-            dataproc_region=pytestconfig.getoption("dataproc_region"),
-            dataproc_staging_location=os.path.join(
-                pytestconfig.getoption("staging_path"), "dataproc"
-            ),
-            spark_ingestion_jar=ingestion_job_jar,
-        )
-
-
-@pytest.fixture(scope="session")
-def global_staging_path(pytestconfig):
-    if pytestconfig.getoption("env") == "local":
-        tmp_path = tempfile.mkdtemp()
-        return f"file://{tmp_path}"
-
-    staging_path = pytestconfig.getoption("staging_path")
-    return os.path.join(staging_path, str(uuid.uuid4()))
-
-
-@pytest.fixture(scope="function")
-def local_staging_path(global_staging_path):
-    return os.path.join(global_staging_path, str(uuid.uuid4()))
-
-
-if not os.environ.get('POSTGRES_HOST'):
-    postgres_server = pg_factories.postgresql_proc(password="password")
-else:
-    postgres_server = pg_factories.postgresql_noproc(host=os.environ['POSTGRES_HOST'],
-                                                     port=os.environ['POSTGRES_PORT'])
-
+postgres_server = pg_factories.postgresql_proc(password="password")
 redis_server = redis_factories.redis_proc(executable=shutil.which("redis-server"))
 
 KAFKA_BIN = download_kafka()
@@ -259,7 +169,7 @@ clientPort={zk_port}
 maxClientCnxns=0
 admin.enableServer=false""",
 )
-kafka_server = make_kafka_server(
+kafka_port = make_kafka_server(
     kafka_bin=str(KAFKA_BIN / "kafka-server-start.sh"),
     zookeeper_fixture_name="zookeeper_server",
 )
