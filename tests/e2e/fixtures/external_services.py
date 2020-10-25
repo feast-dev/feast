@@ -7,7 +7,7 @@ __all__ = ("feast_core", "feast_serving", "redis_server", "kafka_server")
 @pytest.fixture
 def redis_server(pytestconfig):
     host, port = pytestconfig.getoption("redis_url").split(":")
-    return NoopRedis(host, port)
+    return NoopRedis(host, port, None)
 
 
 @pytest.fixture
