@@ -1,18 +1,31 @@
 import os
-import tempfile
+import gcsfs
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
 import numpy as np
 import pandas as pd
+from pyarrow import parquet
 from google.protobuf.duration_pb2 import Duration
 from pandas._testing import assert_frame_equal
 
 from feast import Client, Entity, Feature, FeatureTable, FileSource, ValueType
 from feast.data_format import ParquetFormat
-from feast.staging.storage_client import get_staging_client
 
 np.random.seed(0)
+
+
+def read_parquet(uri):
+    parsed_uri = urlparse(uri)
+    if parsed_uri.scheme == "file":
+        return pd.read_parquet(parsed_uri.path)
+    elif parsed_uri.scheme == "gs":
+        fs = gcsfs.GCSFileSystem()
+        files = ["gs://" + path for path in gcsfs.GCSFileSystem().glob(uri + '/part-*')]
+        ds = parquet.ParquetDataset(files, filesystem=fs)
+        return ds.read().to_pandas()
+    else:
+        raise ValueError("Unsupported scheme")
 
 
 def test_historical_features(feast_client: Client, local_staging_path: str):
@@ -79,9 +92,7 @@ def test_historical_features(feast_client: Client, local_staging_path: str):
 
     job = feast_client.get_historical_features(feature_refs, customer_df)
     output_dir = job.get_output_file_uri()
-
-    _, _, joined_df_destination_path, _, _, _ = urlparse(output_dir)
-    joined_df = pd.read_parquet(joined_df_destination_path)
+    joined_df = read_parquet(output_dir)
 
     expected_joined_df = pd.DataFrame(
         {

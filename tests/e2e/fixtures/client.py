@@ -29,6 +29,9 @@ def feast_client(
             spark_ingestion_jar=ingestion_job_jar,
             redis_host=redis_server.host,
             redis_port=redis_server.port,
+            spark_staging_location=os.path.join(
+                local_staging_path, "spark"
+            ),
             historical_feature_output_location=os.path.join(
                 local_staging_path, "historical_output"
             ),
