@@ -82,7 +82,7 @@ def test_streaming_ingestion(
     feast_client: Client, local_staging_path: str, kafka_server
 ):
     entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
-    kafka_broker = f"localhost:{kafka_server[1]}"
+    kafka_broker = f"{kafka_server[0]}:{kafka_server[1]}"
 
     feature_table = FeatureTable(
         name="drivers_stream",
