@@ -1,11 +1,11 @@
 import os
 import uuid
-from typing import Any, Dict, List
+from functools import partial
+from typing import Any, Callable, Dict, List
 from urllib.parse import urlparse
 
 from google.api_core.operation import Operation
 from google.cloud import dataproc_v1
-from google.cloud.dataproc_v1 import Job as DataprocJob
 from google.cloud.dataproc_v1 import JobStatus
 
 from feast.pyspark.abc import (
@@ -25,29 +25,36 @@ from feast.staging.storage_client import get_staging_client
 
 
 class DataprocJobMixin:
-    def __init__(self, operation: Operation):
+    def __init__(self, operation: Operation, cancel_fn: Callable[[], None]):
         """
         :param operation: (google.api.core.operation.Operation): A Future for the spark job result,
                 returned by the dataproc client.
         """
         self._operation = operation
+        self._cancel_fn = cancel_fn
 
     def get_id(self) -> str:
         return self._operation.metadata.job_id
 
     def get_status(self) -> SparkJobStatus:
-        if self._operation.running():
+        self._operation._refresh_and_update()
+
+        status = self._operation.metadata.status
+        if status.state == JobStatus.State.ERROR:
+            return SparkJobStatus.FAILED
+        elif status.state == JobStatus.State.RUNNING:
             return SparkJobStatus.IN_PROGRESS
+        elif status.state in (
+            JobStatus.State.PENDING,
+            JobStatus.State.SETUP_DONE,
+            JobStatus.State.STATE_UNSPECIFIED,
+        ):
+            return SparkJobStatus.STARTING
 
-        job = cast(DataprocJob, self._operation.result())
-        status = cast(JobStatus, job.status)
-        if status.state == JobStatus.State.DONE:
-            return SparkJobStatus.COMPLETED
-
-        return SparkJobStatus.FAILED
+        return SparkJobStatus.COMPLETED
 
     def cancel(self):
-        self._operation.cancel()
+        self._cancel_fn()
 
 
 class DataprocRetrievalJob(DataprocJobMixin, RetrievalJob):
@@ -55,14 +62,16 @@ class DataprocRetrievalJob(DataprocJobMixin, RetrievalJob):
     Historical feature retrieval job result for a Dataproc cluster
     """
 
-    def __init__(self, operation: Operation, output_file_uri: str):
+    def __init__(
+        self, operation: Operation, cancel_fn: Callable[[], None], output_file_uri: str
+    ):
         """
         This is the returned historical feature retrieval job result for DataprocClusterLauncher.
 
         Args:
             output_file_uri (str): Uri to the historical feature retrieval job output file.
         """
-        super().__init__(operation)
+        super().__init__(operation, cancel_fn)
         self._output_file_uri = output_file_uri
 
     def get_output_file_uri(self, timeout_sec=None):
@@ -168,22 +177,33 @@ class DataprocClusterLauncher(JobLauncher):
             }
         )
 
+    def dataproc_cancel(self, job_id):
+        self.job_client.cancel_job(
+            project_id=self.project_id, region=self.region, job_id=job_id
+        )
+
     def historical_feature_retrieval(
         self, job_params: RetrievalJobParameters
     ) -> RetrievalJob:
+        operation = self.dataproc_submit(job_params)
+        cancel_fn = partial(self.dataproc_cancel, operation.metadata.job_id)
         return DataprocRetrievalJob(
-            self.dataproc_submit(job_params), job_params.get_destination_path()
+            operation, cancel_fn, job_params.get_destination_path()
         )
 
     def offline_to_online_ingestion(
         self, ingestion_job_params: BatchIngestionJobParameters
     ) -> BatchIngestionJob:
-        return DataprocBatchIngestionJob(self.dataproc_submit(ingestion_job_params))
+        operation = self.dataproc_submit(ingestion_job_params)
+        cancel_fn = partial(self.dataproc_cancel, operation.metadata.job_id)
+        return DataprocBatchIngestionJob(operation, cancel_fn)
 
     def start_stream_to_online_ingestion(
         self, ingestion_job_params: StreamIngestionJobParameters
     ) -> StreamIngestionJob:
-        return DataprocStreamingIngestionJob(self.dataproc_submit(ingestion_job_params))
+        operation = self.dataproc_submit(ingestion_job_params)
+        cancel_fn = partial(self.dataproc_cancel, operation.metadata.job_id)
+        return DataprocStreamingIngestionJob(operation, cancel_fn)
 
     def stage_dataframe(
         self, df, event_timestamp_column: str, created_timestamp_column: str,
