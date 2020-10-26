@@ -9,7 +9,8 @@ import numpy as np
 import pandas as pd
 import pytz
 from avro.io import BinaryEncoder, DatumWriter
-from confluent_kafka import Producer
+from kafka.admin import KafkaAdminClient
+from kafka.producer import KafkaProducer
 
 from feast import (
     Client,
@@ -112,6 +113,8 @@ def test_streaming_ingestion(
         lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 60
     )
 
+    wait_retry_backoff(lambda: (None, check_consumer_exist(kafka_broker)), 60)
+
     try:
         original = generate_data()[["s2id", "unique_drivers", "event_timestamp"]]
         for record in original.to_dict("records"):
@@ -166,12 +169,7 @@ def avro_schema():
 def send_avro_record_to_kafka(topic, value, bootstrap_servers, avro_schema_json):
     value_schema = avro.schema.parse(avro_schema_json)
 
-    producer_config = {
-        "bootstrap.servers": bootstrap_servers,
-        "request.timeout.ms": "1000",
-    }
-
-    producer = Producer(producer_config)
+    producer = KafkaProducer(bootstrap_servers=bootstrap_servers)
 
     writer = DatumWriter(value_schema)
     bytes_writer = io.BytesIO()
@@ -180,7 +178,7 @@ def send_avro_record_to_kafka(topic, value, bootstrap_servers, avro_schema_json)
     writer.write(value, encoder)
 
     try:
-        producer.produce(topic=topic, value=bytes_writer.getvalue())
+        producer.send(topic=topic, value=bytes_writer.getvalue())
     except Exception as e:
         print(
             f"Exception while producing record value - {value} to topic - {topic}: {e}"
@@ -189,3 +187,8 @@ def send_avro_record_to_kafka(topic, value, bootstrap_servers, avro_schema_json)
         print(f"Successfully producing record value - {value} to topic - {topic}")
 
     producer.flush()
+
+
+def check_consumer_exist(bootstrap_servers):
+    admin = KafkaAdminClient(bootstrap_servers=bootstrap_servers)
+    return bool(admin.list_consumer_groups())
