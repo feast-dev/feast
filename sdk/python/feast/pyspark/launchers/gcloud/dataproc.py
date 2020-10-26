@@ -1,6 +1,6 @@
 import os
 import uuid
-from typing import List, cast
+from typing import Any, Dict, List
 from urllib.parse import urlparse
 
 from google.api_core.operation import Operation
@@ -93,7 +93,7 @@ class DataprocClusterLauncher(JobLauncher):
     """
 
     def __init__(
-            self, cluster_name: str, staging_location: str, region: str, project_id: str,
+        self, cluster_name: str, staging_location: str, region: str, project_id: str,
     ):
         """
         Initialize a dataproc job controller client, used internally for job submission and result
@@ -137,25 +137,29 @@ class DataprocClusterLauncher(JobLauncher):
     def dataproc_submit(self, job_params: SparkJobParameters) -> Operation:
         local_job_id = str(uuid.uuid4())
         main_file_uri = self._stage_files(job_params.get_main_file_path(), local_job_id)
-        job_config = {
+        job_config: Dict[str, Any] = {
             "reference": {"job_id": local_job_id},
             "placement": {"cluster_name": self.cluster_name},
         }
         if job_params.get_class_name():
-            job_config.update({
-                "spark_job": {
-                    "jar_file_uris": [main_file_uri],
-                    "main_class": job_params.get_class_name(),
-                    "args": job_params.get_arguments()
+            job_config.update(
+                {
+                    "spark_job": {
+                        "jar_file_uris": [main_file_uri],
+                        "main_class": job_params.get_class_name(),
+                        "args": job_params.get_arguments(),
+                    }
                 }
-            })
+            )
         else:
-            job_config.update({
-                "pyspark_job": {
-                    "main_python_file_uri": main_file_uri,
-                    "args": job_params.get_arguments(),
+            job_config.update(
+                {
+                    "pyspark_job": {
+                        "main_python_file_uri": main_file_uri,
+                        "args": job_params.get_arguments(),
+                    }
                 }
-            })
+            )
         return self.job_client.submit_job_as_operation(
             request={
                 "project_id": self.project_id,
@@ -165,24 +169,24 @@ class DataprocClusterLauncher(JobLauncher):
         )
 
     def historical_feature_retrieval(
-            self, job_params: RetrievalJobParameters
+        self, job_params: RetrievalJobParameters
     ) -> RetrievalJob:
         return DataprocRetrievalJob(
             self.dataproc_submit(job_params), job_params.get_destination_path()
         )
 
     def offline_to_online_ingestion(
-            self, ingestion_job_params: BatchIngestionJobParameters
+        self, ingestion_job_params: BatchIngestionJobParameters
     ) -> BatchIngestionJob:
         return DataprocBatchIngestionJob(self.dataproc_submit(ingestion_job_params))
 
     def start_stream_to_online_ingestion(
-            self, ingestion_job_params: StreamIngestionJobParameters
+        self, ingestion_job_params: StreamIngestionJobParameters
     ) -> StreamIngestionJob:
         return DataprocStreamingIngestionJob(self.dataproc_submit(ingestion_job_params))
 
     def stage_dataframe(
-            self, df, event_timestamp_column: str, created_timestamp_column: str,
+        self, df, event_timestamp_column: str, created_timestamp_column: str,
     ):
         raise NotImplementedError
 

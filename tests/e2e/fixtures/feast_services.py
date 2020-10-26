@@ -10,7 +10,6 @@ import yaml
 from pytest_postgresql.executor import PostgreSQLExecutor
 from pytest_redis.executor import RedisExecutor
 
-
 __all__ = (
     "feast_core",
     "feast_serving",

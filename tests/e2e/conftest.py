@@ -50,8 +50,11 @@ if not os.environ.get("DISABLE_SERVICE_FIXTURES"):
 else:
     from .fixtures.external_services import kafka_server, redis_server  # noqa
 
-if not os.environ.get('DISABLE_FEAST_SERVICE_FIXTURES'):
-    from .fixtures.services import postgres_server  # noqa
+if not os.environ.get("DISABLE_FEAST_SERVICE_FIXTURES"):
     from .fixtures.feast_services import *  # type: ignore # noqa
+    from .fixtures.services import postgres_server  # noqa
 else:
-    from .fixtures.external_services import feast_core, feast_serving  # noqa
+    from .fixtures.external_services import (  # type: ignore # noqa
+        feast_core,
+        feast_serving,
+    )

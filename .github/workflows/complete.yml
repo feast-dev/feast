@@ -202,4 +202,4 @@ jobs:
           make install-python
           python -m pip install -qr tests/requirements.txt
       - name: run tests
-        run: su -p postgres -c "PATH=$PATH HOME=/tmp pytest tests/e2e/ --feast-version develop --env=gcloud --dataproc-cluster-name feast-e2e --dataproc-project kf-feast --dataproc-region us-central1 --redis-url 10.155.181.43:6379 --kafka-broker 10.128.0.23:9094"
+        run: su -p postgres -c "PATH=$PATH HOME=/tmp pytest tests/e2e/ --feast-version develop --env=gcloud --dataproc-cluster-name feast-e2e --dataproc-project kf-feast --dataproc-region us-central1 --redis-url 10.155.181.43:6379 --kafka-brokers 10.128.0.23:9094"

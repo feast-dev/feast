@@ -1,19 +1,12 @@
-import os
 import pathlib
 import shutil
-import socket
-import subprocess
 import tempfile
-import time
 
 import pytest
 import requests
-import yaml
 from pytest_kafka import make_kafka_server, make_zookeeper_process
 from pytest_postgresql import factories as pg_factories
-from pytest_postgresql.executor import PostgreSQLExecutor
 from pytest_redis import factories as redis_factories
-from pytest_redis.executor import RedisExecutor
 
 __all__ = (
     "kafka_server",

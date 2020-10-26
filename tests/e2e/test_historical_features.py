@@ -1,13 +1,13 @@
 import os
-import gcsfs
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
+import gcsfs
 import numpy as np
 import pandas as pd
-from pyarrow import parquet
 from google.protobuf.duration_pb2 import Duration
 from pandas._testing import assert_frame_equal
+from pyarrow import parquet
 
 from feast import Client, Entity, Feature, FeatureTable, FileSource, ValueType
 from feast.data_format import ParquetFormat
