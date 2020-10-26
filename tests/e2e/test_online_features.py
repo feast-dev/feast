@@ -140,6 +140,9 @@ def test_streaming_ingestion(
         ingested = wait_retry_backoff(get_online_features, 60)
     finally:
         job.cancel()
+        wait_retry_backoff(
+            lambda: (None, job.get_status() == SparkJobStatus.COMPLETED), 60
+        )
 
     pd.testing.assert_frame_equal(
         ingested[["s2id", "drivers_stream:unique_drivers"]],

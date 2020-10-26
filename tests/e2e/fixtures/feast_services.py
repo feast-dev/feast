@@ -92,7 +92,7 @@ def feast_core(
 
 @pytest.fixture(scope="session")
 def feast_serving(
-    project_root, project_version, enable_auth, redis_server: RedisExecutor
+    project_root, project_version, enable_auth, redis_server: RedisExecutor, feast_core
 ):
     jar = str(
         project_root
