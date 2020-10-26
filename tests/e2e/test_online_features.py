@@ -198,5 +198,9 @@ def check_consumer_exist(bootstrap_servers, topic_name):
     admin = KafkaAdminClient(bootstrap_servers=bootstrap_servers)
     consumer_groups = admin.describe_consumer_groups(group_ids=[group_id
                                                                 for group_id, _ in admin.list_consumer_groups()])
-    subscriptions = [partitions[3] for details in consumer_groups for partitions in details[5]]
-    return any(topic_name.encode() in subscription for subscription in subscriptions)
+    subscriptions = {
+        subscription
+        for group in consumer_groups
+        for member in group.members
+        for subscription in member.member_metadata.subscription}
+    return topic_name in subscriptions

@@ -10,4 +10,4 @@ pytest-postgresql==2.5.1
 pytest-redis==2.0.0
 pytest-kafka==0.4.0
 deepdiff==4.3.2
-kafka-python
+kafka-python==2.0.2
