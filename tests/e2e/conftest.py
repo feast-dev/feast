@@ -46,7 +46,12 @@ from .fixtures.client import (  # noqa
 )
 
 if not os.environ.get("DISABLE_SERVICE_FIXTURES"):
-    from .fixtures.services import kafka_port, kafka_server, redis_server  # noqa
+    from .fixtures.services import (  # noqa
+        kafka_port,
+        kafka_server,
+        redis_server,
+        zookeeper_server,
+    )
 else:
     from .fixtures.external_services import kafka_server, redis_server  # noqa
 
