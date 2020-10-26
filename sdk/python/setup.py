@@ -26,12 +26,12 @@ REQUIRES_PYTHON = ">=3.6.0"
 
 REQUIRED = [
     "Click==7.*",
-    "google-api-core==1.20.*",
+    "google-api-core==1.22.4",
     "google-auth<2.0dev,>=1.14.0",
     "google-cloud-bigquery==1.18.*",
     "google-cloud-storage==1.20.*",
     "google-cloud-core==1.0.*",
-    "googleapis-common-protos==1.*",
+    "googleapis-common-protos==1.52.*",
     "google-cloud-bigquery-storage==0.7.*",
     "grpcio==1.31.0",
     "pandas~=1.0.0",

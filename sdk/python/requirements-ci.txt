@@ -2,7 +2,7 @@ cryptography==3.1
 flake8
 black==19.10b0
 isort>=5
-grpcio-tools
+grpcio-tools==1.31.0
 mypy-protobuf
 pyspark==2.4.2
 pandas~=1.0.0
