@@ -2,6 +2,7 @@ import io
 import json
 import os
 import time
+import uuid
 from datetime import datetime, timedelta
 
 import avro.schema
@@ -84,6 +85,7 @@ def test_streaming_ingestion(
 ):
     entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
     kafka_broker = f"{kafka_server[0]}:{kafka_server[1]}"
+    topic_name = f"avro-{uuid.uuid4()}"
 
     feature_table = FeatureTable(
         name="drivers_stream",
@@ -100,7 +102,7 @@ def test_streaming_ingestion(
             "event_timestamp",
             kafka_broker,
             AvroFormat(avro_schema()),
-            topic="avro",
+            topic=topic_name,
         ),
     )
 
@@ -113,7 +115,7 @@ def test_streaming_ingestion(
         lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 60
     )
 
-    wait_retry_backoff(lambda: (None, check_consumer_exist(kafka_broker)), 60)
+    wait_retry_backoff(lambda: (None, check_consumer_exist(kafka_broker, topic_name)), 60)
 
     try:
         original = generate_data()[["s2id", "unique_drivers", "event_timestamp"]]
@@ -123,7 +125,7 @@ def test_streaming_ingestion(
             )
 
             send_avro_record_to_kafka(
-                "avro",
+                topic_name,
                 record,
                 bootstrap_servers=kafka_broker,
                 avro_schema_json=avro_schema(),
@@ -192,6 +194,9 @@ def send_avro_record_to_kafka(topic, value, bootstrap_servers, avro_schema_json)
     producer.flush()
 
 
-def check_consumer_exist(bootstrap_servers):
+def check_consumer_exist(bootstrap_servers, topic_name):
     admin = KafkaAdminClient(bootstrap_servers=bootstrap_servers)
-    return bool(admin.list_consumer_groups())
+    consumer_groups = admin.describe_consumer_groups(group_ids=[group_id
+                                                                for group_id, _ in admin.list_consumer_groups()])
+    subscriptions = [partitions[3] for details in consumer_groups for partitions in details[5]]
+    return any(topic_name.encode() in subscription for subscription in subscriptions)
