@@ -54,7 +54,7 @@ def enable_auth(request):
 
 @pytest.fixture(scope="session")
 def feast_core(
-        project_root, project_version, enable_auth, postgres_server: PostgreSQLExecutor
+    project_root, project_version, enable_auth, postgres_server: PostgreSQLExecutor
 ):
     jar = str(
         project_root / "core" / "target" / f"feast-core-{project_version}-exec.jar"
@@ -93,7 +93,7 @@ def feast_core(
 
 @pytest.fixture(scope="session")
 def feast_serving(
-        project_root, project_version, enable_auth, redis_server: RedisExecutor
+    project_root, project_version, enable_auth, redis_server: RedisExecutor
 ):
     jar = str(
         project_root

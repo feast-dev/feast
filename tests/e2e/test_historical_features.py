@@ -21,7 +21,7 @@ def read_parquet(uri):
         return pd.read_parquet(parsed_uri.path)
     elif parsed_uri.scheme == "gs":
         fs = gcsfs.GCSFileSystem()
-        files = ["gs://" + path for path in gcsfs.GCSFileSystem().glob(uri + '/part-*')]
+        files = ["gs://" + path for path in gcsfs.GCSFileSystem().glob(uri + "/part-*")]
         ds = parquet.ParquetDataset(files, filesystem=fs)
         return ds.read().to_pandas()
     else:
@@ -105,10 +105,8 @@ def test_historical_features(feast_client: Client, local_staging_path: str):
     )
 
     assert_frame_equal(
-        joined_df.sort_values(by=["user_id", "event_timestamp"]).reset_index(
+        joined_df.sort_values(by=["user_id", "event_timestamp"]).reset_index(drop=True),
+        expected_joined_df.sort_values(by=["user_id", "event_timestamp"]).reset_index(
             drop=True
         ),
-        expected_joined_df.sort_values(
-            by=["user_id", "event_timestamp"]
-        ).reset_index(drop=True),
     )

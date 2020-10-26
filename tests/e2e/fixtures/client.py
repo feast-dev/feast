@@ -29,9 +29,7 @@ def feast_client(
             spark_ingestion_jar=ingestion_job_jar,
             redis_host=redis_server.host,
             redis_port=redis_server.port,
-            spark_staging_location=os.path.join(
-                local_staging_path, "spark"
-            ),
+            spark_staging_location=os.path.join(local_staging_path, "spark"),
             historical_feature_output_location=os.path.join(
                 local_staging_path, "historical_output"
             ),
@@ -45,15 +43,13 @@ def feast_client(
             dataproc_cluster_name=pytestconfig.getoption("dataproc_cluster_name"),
             dataproc_project=pytestconfig.getoption("dataproc_project"),
             dataproc_region=pytestconfig.getoption("dataproc_region"),
-            spark_staging_location=os.path.join(
-                local_staging_path, "dataproc"
-            ),
+            spark_staging_location=os.path.join(local_staging_path, "dataproc"),
             spark_ingestion_jar=ingestion_job_jar,
             redis_host=pytestconfig.getoption("redis_url").split(":")[0],
             redis_port=pytestconfig.getoption("redis_url").split(":")[1],
             historical_feature_output_location=os.path.join(
                 local_staging_path, "historical_output"
-            )
+            ),
         )
 
 

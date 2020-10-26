@@ -20,7 +20,7 @@ __all__ = (
     "kafka_port",
     "zookeeper_server",
     "postgres_server",
-    "redis_server"
+    "redis_server",
 )
 
 
