@@ -15,3 +15,4 @@ avro==1.10.0
 confluent_kafka
 gcsfs
 urllib3>=1.25.4
+google-cloud-dataproc==2.0.2
