@@ -115,7 +115,9 @@ def test_streaming_ingestion(
         lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 60
     )
 
-    wait_retry_backoff(lambda: (None, check_consumer_exist(kafka_broker, topic_name)), 60)
+    wait_retry_backoff(
+        lambda: (None, check_consumer_exist(kafka_broker, topic_name)), 60
+    )
 
     try:
         original = generate_data()[["s2id", "unique_drivers", "event_timestamp"]]
@@ -142,9 +144,6 @@ def test_streaming_ingestion(
         ingested = wait_retry_backoff(get_online_features, 60)
     finally:
         job.cancel()
-        wait_retry_backoff(
-            lambda: (None, job.get_status() == SparkJobStatus.COMPLETED), 60
-        )
 
     pd.testing.assert_frame_equal(
         ingested[["s2id", "drivers_stream:unique_drivers"]],
@@ -196,11 +195,13 @@ def send_avro_record_to_kafka(topic, value, bootstrap_servers, avro_schema_json)
 
 def check_consumer_exist(bootstrap_servers, topic_name):
     admin = KafkaAdminClient(bootstrap_servers=bootstrap_servers)
-    consumer_groups = admin.describe_consumer_groups(group_ids=[group_id
-                                                                for group_id, _ in admin.list_consumer_groups()])
+    consumer_groups = admin.describe_consumer_groups(
+        group_ids=[group_id for group_id, _ in admin.list_consumer_groups()]
+    )
     subscriptions = {
         subscription
         for group in consumer_groups
         for member in group.members
-        for subscription in member.member_metadata.subscription}
+        for subscription in member.member_metadata.subscription
+    }
     return topic_name in subscriptions
