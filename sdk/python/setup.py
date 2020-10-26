@@ -33,7 +33,7 @@ REQUIRED = [
     "google-cloud-core==1.0.*",
     "googleapis-common-protos==1.*",
     "google-cloud-bigquery-storage==0.7.*",
-    "grpcio==1.*",
+    "grpcio==1.31.0",
     "pandas~=1.0.0",
     "pandavro==1.5.*",
     "protobuf>=3.10",

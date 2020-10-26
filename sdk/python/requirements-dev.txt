@@ -7,9 +7,9 @@ google-cloud-dataproc==2.*
 google-cloud-storage==1.*
 google-resumable-media>=0.5
 googleapis-common-protos==1.*
-grpcio==1.*
-grpcio-testing==1.*
-grpcio-tools
+grpcio==1.31.0
+grpcio-testing==1.31.0
+grpcio-tools==1.31.0
 numpy
 mock==2.0.0
 pandas~=1.0.0
