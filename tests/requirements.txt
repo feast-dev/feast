@@ -1,0 +1,13 @@
+pytest==6.0.0
+pytest-lazy-fixture==0.6.3
+pytest-timeout==1.4.2
+pytest-ordering==0.6.*
+pytest-benchmark==3.2.2
+pytest-mock==1.10.4
+pytest-ordering==0.6.*
+pytest-xdist==2.1.0
+pytest-postgresql==2.5.1
+pytest-redis==2.0.0
+pytest-kafka==0.4.0
+deepdiff==4.3.2
+kafka-python==2.0.2

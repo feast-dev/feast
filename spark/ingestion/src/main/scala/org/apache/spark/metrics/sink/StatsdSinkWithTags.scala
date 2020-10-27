@@ -25,7 +25,7 @@ import org.apache.spark.SecurityManager
 import org.apache.spark.internal.Logging
 import org.apache.spark.metrics.MetricsSystem
 
-private[spark] class StatsdSinkWithTags(
+class StatsdSinkWithTags(
     val property: Properties,
     val registry: MetricRegistry,
     securityMgr: SecurityManager

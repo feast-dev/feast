@@ -23,18 +23,6 @@ PROJECT_NAME = "basic_" + uuid.uuid4().hex.upper()[0:6]
 SUFFIX = str(int(datetime.now().timestamp()))
 
 
-@pytest.fixture(scope="module")
-def client(pytestconfig):
-    core_url = pytestconfig.getoption("core_url")
-    serving_url = pytestconfig.getoption("serving_url")
-
-    client = Client(core_url=core_url, serving_url=serving_url,)
-
-    client.set_project(PROJECT_NAME)
-
-    return client
-
-
 @pytest.fixture
 def bq_table_id():
     return f"kf-feast:feaste2e.table{SUFFIX}"
@@ -177,76 +165,80 @@ def alltypes_featuretable():
 
 
 def test_get_list_basic(
-    client: Client,
+    feast_client: Client,
     customer_entity: Entity,
     driver_entity: Entity,
     basic_featuretable: FeatureTable,
 ):
 
     # ApplyEntity
-    client.apply_entity(customer_entity)
-    client.apply_entity(driver_entity)
+    feast_client.apply_entity(customer_entity)
+    feast_client.apply_entity(driver_entity)
 
     # GetEntity Check
-    assert client.get_entity(name="customer_id") == customer_entity
-    assert client.get_entity(name="driver_id") == driver_entity
+    assert feast_client.get_entity(name="customer_id") == customer_entity
+    assert feast_client.get_entity(name="driver_id") == driver_entity
 
     # ListEntities Check
     common_filtering_labels = {"common_key": "common_val"}
     matchmaking_filtering_labels = {"team": "matchmaking"}
 
-    actual_common_entities = client.list_entities(labels=common_filtering_labels)
-    actual_matchmaking_entities = client.list_entities(
+    actual_common_entities = feast_client.list_entities(labels=common_filtering_labels)
+    actual_matchmaking_entities = feast_client.list_entities(
         labels=matchmaking_filtering_labels
     )
     assert len(actual_common_entities) == 2
     assert len(actual_matchmaking_entities) == 1
 
     # ApplyFeatureTable
-    client.apply_feature_table(basic_featuretable)
+    feast_client.apply_feature_table(basic_featuretable)
 
     # GetFeatureTable Check
-    actual_get_feature_table = client.get_feature_table(name="basic_featuretable")
+    actual_get_feature_table = feast_client.get_feature_table(name="basic_featuretable")
     assert actual_get_feature_table == basic_featuretable
 
     # ListFeatureTables Check
     actual_list_feature_table = [
-        ft for ft in client.list_feature_tables() if ft.name == "basic_featuretable"
+        ft
+        for ft in feast_client.list_feature_tables()
+        if ft.name == "basic_featuretable"
     ][0]
     assert actual_list_feature_table == basic_featuretable
 
 
 def test_get_list_alltypes(
-    client: Client, alltypes_entity: Entity, alltypes_featuretable: FeatureTable
+    feast_client: Client, alltypes_entity: Entity, alltypes_featuretable: FeatureTable
 ):
     # ApplyEntity
-    client.apply_entity(alltypes_entity)
+    feast_client.apply_entity(alltypes_entity)
 
     # GetEntity Check
-    assert client.get_entity(name="alltypes_id") == alltypes_entity
+    assert feast_client.get_entity(name="alltypes_id") == alltypes_entity
 
     # ListEntities Check
     alltypes_filtering_labels = {"cat": "alltypes"}
-    actual_alltypes_entities = client.list_entities(labels=alltypes_filtering_labels)
+    actual_alltypes_entities = feast_client.list_entities(
+        labels=alltypes_filtering_labels
+    )
     assert len(actual_alltypes_entities) == 1
 
     # ApplyFeatureTable
-    client.apply_feature_table(alltypes_featuretable)
+    feast_client.apply_feature_table(alltypes_featuretable)
 
     # GetFeatureTable Check
-    actual_get_feature_table = client.get_feature_table(name="alltypes")
+    actual_get_feature_table = feast_client.get_feature_table(name="alltypes")
     assert actual_get_feature_table == alltypes_featuretable
 
     # ListFeatureTables Check
     actual_list_feature_table = [
-        ft for ft in client.list_feature_tables() if ft.name == "alltypes"
+        ft for ft in feast_client.list_feature_tables() if ft.name == "alltypes"
     ][0]
     assert actual_list_feature_table == alltypes_featuretable
 
 
 @pytest.mark.bq
 def test_ingest(
-    client: Client,
+    feast_client: Client,
     customer_entity: Entity,
     driver_entity: Entity,
     bq_featuretable: FeatureTable,
@@ -257,12 +249,12 @@ def test_ingest(
     bq_table_id = bq_table_id.replace(":", ".")
 
     # ApplyEntity
-    client.apply_entity(customer_entity)
-    client.apply_entity(driver_entity)
+    feast_client.apply_entity(customer_entity)
+    feast_client.apply_entity(driver_entity)
 
     # ApplyFeatureTable
-    client.apply_feature_table(bq_featuretable)
-    client.ingest(bq_featuretable, bq_dataset, timeout=120)
+    feast_client.apply_feature_table(bq_featuretable)
+    feast_client.ingest(bq_featuretable, bq_dataset, timeout=120)
 
     from google.api_core.exceptions import NotFound
     from google.cloud import bigquery

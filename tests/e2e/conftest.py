@@ -1,21 +1,15 @@
 import os
-from pathlib import Path
 
-import pyspark
 import pytest
-
-from feast import Client
 
 
 def pytest_addoption(parser):
-    parser.addoption("--core_url", action="store", default="localhost:6565")
-    parser.addoption("--serving_url", action="store", default="localhost:6566")
-    parser.addoption("--allow_dirty", action="store", default="False")
+    parser.addoption("--core-url", action="store", default="localhost:6565")
+    parser.addoption("--serving-url", action="store", default="localhost:6566")
     parser.addoption(
         "--gcs_path", action="store", default="gs://feast-templocation-kf-feast/"
     )
-    parser.addoption("--enable_auth", action="store", default="False")
-    parser.addoption("--kafka_brokers", action="store", default="localhost:9092")
+    parser.addoption("--kafka-brokers", action="store", default="localhost:9092")
 
     parser.addoption("--env", action="store", help="local|aws|gcloud", default="local")
     parser.addoption(
@@ -26,6 +20,8 @@ def pytest_addoption(parser):
     parser.addoption("--dataproc-project", action="store")
     parser.addoption("--ingestion-jar", action="store")
     parser.addoption("--redis-url", action="store", default="localhost:6379")
+    parser.addoption("--redis-cluster", action="store_true")
+    parser.addoption("--feast-version", action="store")
 
 
 def pytest_runtest_makereport(item, call):
@@ -42,50 +38,29 @@ def pytest_runtest_setup(item):
             pytest.xfail("previous test failed (%s)" % previousfailed.name)
 
 
-@pytest.fixture(scope="session")
-def feast_version():
-    return "0.8-SNAPSHOT"
+from .fixtures.base import project_root, project_version  # noqa
+from .fixtures.client import (  # noqa
+    feast_client,
+    global_staging_path,
+    ingestion_job_jar,
+    local_staging_path,
+)
 
-
-@pytest.fixture(scope="session")
-def ingestion_job_jar(pytestconfig, feast_version):
-    default_path = (
-        Path(__file__).parent.parent.parent
-        / "spark"
-        / "ingestion"
-        / "target"
-        / f"feast-ingestion-spark-{feast_version}.jar"
+if not os.environ.get("DISABLE_SERVICE_FIXTURES"):
+    from .fixtures.services import (  # noqa
+        kafka_port,
+        kafka_server,
+        redis_server,
+        zookeeper_server,
     )
+else:
+    from .fixtures.external_services import kafka_server, redis_server  # noqa
 
-    return pytestconfig.getoption("ingestion_jar") or f"file://{default_path}"
-
-
-@pytest.fixture(scope="session")
-def feast_client(pytestconfig, ingestion_job_jar):
-    redis_host, redis_port = pytestconfig.getoption("redis_url").split(":")
-
-    if pytestconfig.getoption("env") == "local":
-        return Client(
-            core_url=pytestconfig.getoption("core_url"),
-            serving_url=pytestconfig.getoption("serving_url"),
-            spark_launcher="standalone",
-            spark_standalone_master="local",
-            spark_home=os.getenv("SPARK_HOME") or os.path.dirname(pyspark.__file__),
-            spark_ingestion_jar=ingestion_job_jar,
-            redis_host=redis_host,
-            redis_port=redis_port,
-        )
-
-    if pytestconfig.getoption("env") == "gcloud":
-        return Client(
-            core_url=pytestconfig.getoption("core_url"),
-            serving_url=pytestconfig.getoption("serving_url"),
-            spark_launcher="dataproc",
-            dataproc_cluster_name=pytestconfig.getoption("dataproc_cluster_name"),
-            dataproc_project=pytestconfig.getoption("dataproc_project"),
-            dataproc_region=pytestconfig.getoption("dataproc_region"),
-            dataproc_staging_location=os.path.join(
-                pytestconfig.getoption("staging_path"), "dataproc"
-            ),
-            spark_ingestion_jar=ingestion_job_jar,
-        )
+if not os.environ.get("DISABLE_FEAST_SERVICE_FIXTURES"):
+    from .fixtures.feast_services import *  # type: ignore # noqa
+    from .fixtures.services import postgres_server  # noqa
+else:
+    from .fixtures.external_services import (  # type: ignore # noqa
+        feast_core,
+        feast_serving,
+    )

@@ -2,13 +2,8 @@ cryptography==3.1
 flake8
 black==19.10b0
 isort>=5
-grpcio-tools
+grpcio-tools==1.31.0
 mypy-protobuf
-pytest
-pytest-lazy-fixture==0.6.3
-pytest-mock
-pytest-timeout
-pytest-ordering==0.6.*
 pyspark==2.4.2
 pandas~=1.0.0
 mock==2.0.0
@@ -17,6 +12,11 @@ moto
 mypy
 mypy-protobuf
 avro==1.10.0
-confluent_kafka
 gcsfs
 urllib3>=1.25.4
+google-cloud-dataproc==2.0.2
+pytest==6.0.0
+pytest-lazy-fixture==0.6.3
+pytest-timeout==1.4.2
+pytest-ordering==0.6.*
+pytest-mock==1.10.4

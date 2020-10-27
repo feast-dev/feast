@@ -8,10 +8,10 @@ from datetime import datetime, timedelta
 import avro.schema
 import numpy as np
 import pandas as pd
-import pytest
 import pytz
 from avro.io import BinaryEncoder, DatumWriter
-from confluent_kafka import Producer
+from kafka.admin import KafkaAdminClient
+from kafka.producer import KafkaProducer
 
 from feast import (
     Client,
@@ -39,16 +39,7 @@ def generate_data():
     return df
 
 
-@pytest.fixture(scope="function")
-def staging_path(pytestconfig, tmp_path):
-    if pytestconfig.getoption("env") == "local":
-        return f"file://{tmp_path}"
-
-    staging_path = pytestconfig.getoption("staging_path")
-    return os.path.join(staging_path, str(uuid.uuid4()))
-
-
-def test_offline_ingestion(feast_client: Client, staging_path: str):
+def test_offline_ingestion(feast_client: Client, local_staging_path: str):
     entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
 
     feature_table = FeatureTable(
@@ -59,7 +50,7 @@ def test_offline_ingestion(feast_client: Client, staging_path: str):
             "event_timestamp",
             "event_timestamp",
             ParquetFormat(),
-            os.path.join(staging_path, "batch-storage"),
+            os.path.join(local_staging_path, "batch-storage"),
         ),
     )
 
@@ -89,8 +80,12 @@ def test_offline_ingestion(feast_client: Client, staging_path: str):
     )
 
 
-def test_streaming_ingestion(feast_client: Client, staging_path: str, pytestconfig):
+def test_streaming_ingestion(
+    feast_client: Client, local_staging_path: str, kafka_server
+):
     entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
+    kafka_broker = f"{kafka_server[0]}:{kafka_server[1]}"
+    topic_name = f"avro-{uuid.uuid4()}"
 
     feature_table = FeatureTable(
         name="drivers_stream",
@@ -100,14 +95,14 @@ def test_streaming_ingestion(feast_client: Client, staging_path: str, pytestconf
             "event_timestamp",
             "event_timestamp",
             ParquetFormat(),
-            os.path.join(staging_path, "batch-storage"),
+            os.path.join(local_staging_path, "batch-storage"),
         ),
         stream_source=KafkaSource(
             "event_timestamp",
             "event_timestamp",
-            pytestconfig.getoption("kafka_brokers"),
+            kafka_broker,
             AvroFormat(avro_schema()),
-            topic="avro",
+            topic=topic_name,
         ),
     )
 
@@ -120,6 +115,10 @@ def test_streaming_ingestion(feast_client: Client, staging_path: str, pytestconf
         lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 60
     )
 
+    wait_retry_backoff(
+        lambda: (None, check_consumer_exist(kafka_broker, topic_name)), 60
+    )
+
     try:
         original = generate_data()[["s2id", "unique_drivers", "event_timestamp"]]
         for record in original.to_dict("records"):
@@ -128,9 +127,9 @@ def test_streaming_ingestion(feast_client: Client, staging_path: str, pytestconf
             )
 
             send_avro_record_to_kafka(
-                "avro",
+                topic_name,
                 record,
-                bootstrap_servers=pytestconfig.getoption("kafka_brokers"),
+                bootstrap_servers=kafka_broker,
                 avro_schema_json=avro_schema(),
             )
 
@@ -174,12 +173,7 @@ def avro_schema():
 def send_avro_record_to_kafka(topic, value, bootstrap_servers, avro_schema_json):
     value_schema = avro.schema.parse(avro_schema_json)
 
-    producer_config = {
-        "bootstrap.servers": bootstrap_servers,
-        "request.timeout.ms": "1000",
-    }
-
-    producer = Producer(producer_config)
+    producer = KafkaProducer(bootstrap_servers=bootstrap_servers)
 
     writer = DatumWriter(value_schema)
     bytes_writer = io.BytesIO()
@@ -188,7 +182,7 @@ def send_avro_record_to_kafka(topic, value, bootstrap_servers, avro_schema_json)
     writer.write(value, encoder)
 
     try:
-        producer.produce(topic=topic, value=bytes_writer.getvalue())
+        producer.send(topic=topic, value=bytes_writer.getvalue())
     except Exception as e:
         print(
             f"Exception while producing record value - {value} to topic - {topic}: {e}"
@@ -197,3 +191,18 @@ def send_avro_record_to_kafka(topic, value, bootstrap_servers, avro_schema_json)
         print(f"Successfully producing record value - {value} to topic - {topic}")
 
     producer.flush()
+
+
+def check_consumer_exist(bootstrap_servers, topic_name):
+    admin = KafkaAdminClient(bootstrap_servers=bootstrap_servers)
+    consumer_groups = admin.describe_consumer_groups(
+        group_ids=[group_id for group_id, _ in admin.list_consumer_groups()]
+    )
+    subscriptions = {
+        subscription
+        for group in consumer_groups
+        for member in group.members
+        if not isinstance(member.member_metadata, bytes)
+        for subscription in member.member_metadata.subscription
+    }
+    return topic_name in subscriptions

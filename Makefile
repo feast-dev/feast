@@ -70,7 +70,7 @@ compile-protos-python: install-python-ci-dependencies
 	cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --python_out=../sdk/python/ --grpc_python_out=../sdk/python/ --mypy_out=../sdk/python/ feast/third_party/grpc/health/v1/*.proto
 
 install-python: compile-protos-python
-	cd sdk/python; python setup.py develop
+	python -m pip install -e sdk/python
 
 test-python:
 	pytest --verbose --color=yes sdk/python/tests
@@ -90,10 +90,10 @@ lint-python:
 	cd ${ROOT_DIR}/sdk/python; flake8 feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; black --check feast tests
 
-	cd ${ROOT_DIR}/tests/e2e; mypy .
-	cd ${ROOT_DIR}/tests/e2e; isort . --check-only
-	cd ${ROOT_DIR}/tests/e2e; flake8 .
-	cd ${ROOT_DIR}/tests/e2e; black --check .
+	cd ${ROOT_DIR}/tests; mypy e2e
+	cd ${ROOT_DIR}/tests; isort e2e --check-only
+	cd ${ROOT_DIR}/tests; flake8 e2e
+	cd ${ROOT_DIR}/tests; black --check e2e
 
 # Go SDK
 
