@@ -143,6 +143,7 @@ presubmits:
 
   - name: test-end-to-end
     decorate: true
+    always: true
     spec:
       containers:
       - image: gcr.io/kf-feast/feast-ci:latest
@@ -166,6 +167,7 @@ presubmits:
 
   - name: test-end-to-end-gcp
     decorate: true
+    always: true
     spec:
       containers:
       - image: gcr.io/kf-feast/feast-ci:latest
