@@ -10,23 +10,37 @@ jobs:
     runs-on:  ubuntu-latest
     outputs:
       release_version: ${{ steps.get_release_version.outputs.release_version }}
+      version_without_prefix: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
+      highest_semver_tag: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
     steps:
     - name: Get release version
       id: get_release_version
+      run: echo ::set-output name=release_version::${GITHUB_REF#refs/*/}
+    - name: Get release version without prefix
+      id: get_release_version_without_prefix
+      env:
+        RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
       run: |
-        echo ::set-output name=release_version::${GITHUB_REF#refs/*/}
+        echo ::set-output name=version_without_prefix::${RELEASE_VERSION:1}
+    - name: Get highest semver
+      id: get_highest_semver
+      env:
+        RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
+      run: |
         source infra/scripts/setup-common-functions.sh
         SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
         if echo "${RELEASE_VERSION}" | grep -P "$SEMVER_REGEX" &>/dev/null ; then
-          echo "VERSION_WITHOUT_PREFIX=${RELEASE_VERSION:1}" >> $GITHUB_ENV
-          echo "HIGHEST_SEMVER_TAG=$(get_tag_release -m)" >> $GITHUB_ENV
+          echo ::set-output name=highest_semver_tag::$(get_tag_release -m)
         fi
     - name: Check output
       env:
-        RELEASE_VERSION: ${{ steps.vars.outputs.release_version }}
+        RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
+        VERSION_WITHOUT_PREFIX: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
+        HIGHEST_SEMVER_TAG: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
       run: |
         echo $RELEASE_VERSION
-        echo ${{ steps.vars.outputs.release_version }}
+        echo $VERSION_WITHOUT_PREFIX
+        echo $HIGHEST_SEMVER_TAG
 
   build-publish-docker-images:
     runs-on: [ubuntu-latest]
@@ -59,14 +73,20 @@ jobs:
           --output-dir .
       - name: Build and push
         uses: docker/build-push-action@v2
+        env:
+          RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
         with:
           push: true
           file: infra/docker/${{ matrix.component }}/Dockerfile
-          tags: feastdev/feast-${{ matrix.component }}:${RELEASE_VERSION}
+          tags: feastdev/feast-${{ matrix.component }}:${{ needs.get-version.outputs.release_version }}
           build-args: |
             REVISION=${RELEASE_VERSION}
       - name: Build and push latest
         uses: docker/build-push-action@v2
+        env:
+          RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
+          VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
+          HIGHEST_SEMVER_TAG: ${{ needs.get-version.outputs.highest_semver_tag }}
         with:
           if: ${VERSION_WITHOUT_PREFIX} == ${HIGHEST_SEMVER_TAG:1}
           push: true
