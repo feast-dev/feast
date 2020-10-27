@@ -6,7 +6,7 @@ The Feast SDK can be installed directly using pip:
 pip install feast
 ```
 
-Users should then be able to connect to a Feast deployment as follows
+Users can then connect to an existing Feast deployment:
 
 ```python
 from feast import Client
