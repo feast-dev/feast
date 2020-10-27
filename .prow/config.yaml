@@ -143,7 +143,7 @@ presubmits:
 
   - name: test-end-to-end
     decorate: true
-    always: true
+    always_run: true
     spec:
       containers:
       - image: gcr.io/kf-feast/feast-ci:latest
@@ -167,15 +167,15 @@ presubmits:
 
   - name: test-end-to-end-gcp
     decorate: true
-    always: true
+    always_run: true
     spec:
       containers:
       - image: gcr.io/kf-feast/feast-ci:latest
         command: [ "infra/scripts/test-end-to-end-gcp.sh" ]
-      resources:
-        requests:
-          cpu: "6"
-          memory: "6144Mi"
+        resources:
+          requests:
+            cpu: "6"
+            memory: "6144Mi"
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
             value: /etc/gcloud/service-account.json
