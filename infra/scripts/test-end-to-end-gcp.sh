@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 export DISABLE_SERVICE_FIXTURES=1
 
 apt-get update && apt-get install -y redis-server postgresql libpq-dev
