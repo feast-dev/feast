@@ -201,7 +201,8 @@ def check_consumer_exist(bootstrap_servers, topic_name):
     subscriptions = {
         subscription
         for group in consumer_groups
-        for member in group.members if not isinstance(member.member_metadata, bytes)
+        for member in group.members
+        if not isinstance(member.member_metadata, bytes)
         for subscription in member.member_metadata.subscription
     }
     return topic_name in subscriptions
