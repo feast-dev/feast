@@ -141,6 +141,52 @@ presubmits:
       - image: golang:1.13
         command: ["infra/scripts/test-golang-sdk.sh"]
 
+  - name: test-end-to-end
+    decorate: true
+    spec:
+      containers:
+      - image: gcr.io/kf-feast/feast-ci:latest
+        command: ["infra/scripts/test-end-to-end.sh"]
+        resources:
+          requests:
+            cpu: "6"
+            memory: "6144Mi"
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /etc/gcloud/service-account.json
+        volumeMounts:
+          - mountPath: /etc/gcloud/service-account.json
+            name: service-account
+            readOnly: true
+            subPath: service-account.json
+      volumes:
+        - name: service-account
+          secret:
+            secretName: feast-service-account
+
+  - name: test-end-to-end-gcp
+    decorate: true
+    spec:
+      containers:
+      - image: gcr.io/kf-feast/feast-ci:latest
+        command: [ "infra/scripts/test-end-to-end-gcp.sh" ]
+      resources:
+        requests:
+          cpu: "6"
+          memory: "6144Mi"
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /etc/gcloud/service-account.json
+        volumeMounts:
+          - mountPath: /etc/gcloud/service-account.json
+            name: service-account
+            readOnly: true
+            subPath: service-account.json
+      volumes:
+        - name: service-account
+          secret:
+            secretName: feast-service-account
+
 
 postsubmits:
   feast-dev/feast:
