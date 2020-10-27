@@ -108,7 +108,7 @@ def feast_serving(
         store: Dict[str, Any] = dict(
             name="online",
             type="REDIS_CLUSTER",
-            connection_string=f"{redis_server.host}:{redis_server.port}",
+            config=dict(connection_string=f"{redis_server.host}:{redis_server.port}"),
         )
     else:
         store = dict(
