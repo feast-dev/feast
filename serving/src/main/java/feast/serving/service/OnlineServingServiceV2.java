@@ -18,6 +18,7 @@ package feast.serving.service;
 
 import com.google.protobuf.Duration;
 import feast.common.models.FeatureV2;
+import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
@@ -102,14 +103,31 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
             FeatureTableSpec featureTableSpec =
                 specService.getFeatureTableSpec(projectName, feature.get().getFeatureReference());
+            FeatureProto.FeatureSpecV2 tempFeatureSpecV2 =
+                featureTableSpec.getFeaturesList().stream()
+                    .filter(
+                        featureSpecV2 ->
+                            featureSpecV2
+                                .getName()
+                                .equals(feature.get().getFeatureReference().getName()))
+                    .collect(Collectors.toList())
+                    .get(0);
+            String valueTypeString = tempFeatureSpecV2.getValueType().toString();
+            String valueCaseString = feature.get().getFeatureValue().getValCase().toString();
+            boolean isSameType = checkSameType(valueTypeString, valueCaseString);
 
             boolean isOutsideMaxAge = checkOutsideMaxAge(featureTableSpec, entityRow, feature);
-            Map<String, ValueProto.Value> valueMap = unpackValueMap(feature, isOutsideMaxAge);
+            Map<String, ValueProto.Value> valueMap =
+                unpackValueMap(feature, isOutsideMaxAge, isSameType);
             allValueMaps.putAll(valueMap);
 
+            boolean isNotFound = false;
+            if (!isSameType) {
+              isNotFound = true;
+            }
             // Generate metadata for feature values and merge into entityFieldsMap
             Map<String, GetOnlineFeaturesResponse.FieldStatus> statusMap =
-                getMetadataMap(valueMap, false, isOutsideMaxAge);
+                getMetadataMap(valueMap, isNotFound, isOutsideMaxAge);
             allStatusMaps.putAll(statusMap);
 
             // Populate metrics/log request
@@ -151,6 +169,33 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
               .collect(Collectors.toList());
       return GetOnlineFeaturesResponse.newBuilder().addAllFieldValues(fieldValuesList).build();
     }
+  }
+
+  private boolean checkSameType(String valueTypeString, String valueCaseString) {
+    HashMap<String, String> typingMap =
+        new HashMap<>() {
+          {
+            put("BYTES", "BYTES_VAL");
+            put("STRING", "STRING_VAL");
+            put("INT32", "INT32_VAL");
+            put("INT64", "INT64_VAL");
+            put("DOUBLE", "DOUBLE_VAL");
+            put("FLOAT", "FLOAT_VAL");
+            put("BOOL", "BOOL_VAL");
+            put("BYTES_LIST", "BYTES_LIST_VAL");
+            put("STRING_LIST", "STRING_LIST_VAL");
+            put("INT32_LIST", "INT32_LIST_VAL");
+            put("INT64_LIST", "INT64_LIST_VAL");
+            put("DOUBLE_LIST", "DOUBLE_LIST_VAL");
+            put("FLOAT_LIST", "FLOAT_LIST_VAL");
+            put("BOOL_LIST", "BOOL_LIST_VAL");
+          }
+        };
+    if (valueCaseString.equals("VAL_NOT_SET")) {
+      return true;
+    }
+
+    return typingMap.get(valueTypeString).equals(valueCaseString);
   }
 
   private static Map<FeatureReferenceV2, Optional<Feature>> getFeatureRefFeatureMap(
@@ -196,11 +241,11 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
   }
 
   private static Map<String, ValueProto.Value> unpackValueMap(
-      Optional<Feature> feature, boolean isOutsideMaxAge) {
+      Optional<Feature> feature, boolean isOutsideMaxAge, boolean isSameType) {
     Map<String, ValueProto.Value> valueMap = new HashMap<>();
 
     if (feature.isPresent()) {
-      if (!isOutsideMaxAge) {
+      if (!isOutsideMaxAge && isSameType) {
         valueMap.put(
             FeatureV2.getFeatureStringRef(feature.get().getFeatureReference()),
             feature.get().getFeatureValue());
