@@ -1,0 +1,14 @@
+cluster:
+  nodes: 3
+  externalAccess:
+    enabled: true
+    service:
+      loadBalancerIP:
+        - $feast_redis_1_ip
+        - $feast_redis_2_ip
+        - $feast_redis_3_ip
+
+persistence:
+  enabled: false
+
+usePassword: false

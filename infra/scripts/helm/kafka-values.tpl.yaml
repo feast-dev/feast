@@ -2,7 +2,7 @@ externalAccess:
   enabled: true
   service:
     loadBalancerIPs:
-      - 10.128.0.23
+      - $feast_kafka_ip
     annotations:
       cloud.google.com/load-balancer-type: Internal
     loadBalancerSourceRanges:
