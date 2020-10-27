@@ -4,6 +4,7 @@ import socket
 import subprocess
 import tempfile
 import time
+from typing import Any, Dict
 
 import pytest
 import yaml
@@ -90,7 +91,12 @@ def feast_core(
 
 @pytest.fixture(scope="session")
 def feast_serving(
-    project_root, project_version, enable_auth, redis_server: RedisExecutor, feast_core
+    project_root,
+    project_version,
+    enable_auth,
+    redis_server: RedisExecutor,
+    feast_core,
+    pytestconfig,
 ):
     jar = str(
         project_root
@@ -98,15 +104,22 @@ def feast_serving(
         / "target"
         / f"feast-serving-{project_version}-exec.jar"
     )
+    if pytestconfig.getoption("redis_cluster"):
+        store: Dict[str, Any] = dict(
+            name="online",
+            type="REDIS_CLUSTER",
+            connection_string=f"{redis_server.host}:{redis_server.port}",
+        )
+    else:
+        store = dict(
+            name="online",
+            type="REDIS",
+            config=dict(host=redis_server.host, port=redis_server.port),
+        )
+
     config = dict(
         feast=dict(
-            stores=[
-                dict(
-                    name="online",
-                    type="REDIS",
-                    config=dict(host=redis_server.host, port=redis_server.port),
-                )
-            ],
+            stores=[store],
             coreAuthentication=dict(enabled=enable_auth, provider="google"),
             security=dict(authentication=dict(enabled=enable_auth, provider="jwt")),
         )

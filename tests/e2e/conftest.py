@@ -20,6 +20,7 @@ def pytest_addoption(parser):
     parser.addoption("--dataproc-project", action="store")
     parser.addoption("--ingestion-jar", action="store")
     parser.addoption("--redis-url", action="store", default="localhost:6379")
+    parser.addoption("--redis-cluster", action="store_true")
     parser.addoption("--feast-version", action="store")
 
 
