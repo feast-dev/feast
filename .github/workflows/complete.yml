@@ -181,6 +181,7 @@ jobs:
 
   test-end-to-end-gcp:
     runs-on: [self-hosted]
+    if: contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved')
     env:
       DISABLE_SERVICE_FIXTURES: true
     steps:
