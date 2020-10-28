@@ -104,30 +104,19 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
             FeatureTableSpec featureTableSpec =
                 specService.getFeatureTableSpec(projectName, feature.get().getFeatureReference());
             FeatureProto.FeatureSpecV2 tempFeatureSpecV2 =
-                featureTableSpec.getFeaturesList().stream()
-                    .filter(
-                        featureSpecV2 ->
-                            featureSpecV2
-                                .getName()
-                                .equals(feature.get().getFeatureReference().getName()))
-                    .collect(Collectors.toList())
-                    .get(0);
-            String valueTypeString = tempFeatureSpecV2.getValueType().toString();
-            String valueCaseString = feature.get().getFeatureValue().getValCase().toString();
-            boolean isSameType = checkSameType(valueTypeString, valueCaseString);
+                specService.getFeatureSpec(feature.get().getFeatureReference());
+            ValueProto.ValueType.Enum valueTypeEnum = tempFeatureSpecV2.getValueType();
+            ValueProto.Value.ValCase valueCase = feature.get().getFeatureValue().getValCase();
+            boolean isSameFeatureType = checkSameType(valueTypeEnum, valueCase);
 
             boolean isOutsideMaxAge = checkOutsideMaxAge(featureTableSpec, entityRow, feature);
             Map<String, ValueProto.Value> valueMap =
-                unpackValueMap(feature, isOutsideMaxAge, isSameType);
+                unpackValueMap(feature, isOutsideMaxAge, isSameFeatureType);
             allValueMaps.putAll(valueMap);
 
-            boolean isNotFound = false;
-            if (!isSameType) {
-              isNotFound = true;
-            }
             // Generate metadata for feature values and merge into entityFieldsMap
             Map<String, GetOnlineFeaturesResponse.FieldStatus> statusMap =
-                getMetadataMap(valueMap, isNotFound, isOutsideMaxAge);
+                getMetadataMap(valueMap, !isSameFeatureType, isOutsideMaxAge);
             allStatusMaps.putAll(statusMap);
 
             // Populate metrics/log request
@@ -171,31 +160,32 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     }
   }
 
-  private boolean checkSameType(String valueTypeString, String valueCaseString) {
-    HashMap<String, String> typingMap =
+  private boolean checkSameType(
+      ValueProto.ValueType.Enum valueTypeEnum, ValueProto.Value.ValCase valueCase) {
+    HashMap<ValueProto.ValueType.Enum, ValueProto.Value.ValCase> typingMap =
         new HashMap<>() {
           {
-            put("BYTES", "BYTES_VAL");
-            put("STRING", "STRING_VAL");
-            put("INT32", "INT32_VAL");
-            put("INT64", "INT64_VAL");
-            put("DOUBLE", "DOUBLE_VAL");
-            put("FLOAT", "FLOAT_VAL");
-            put("BOOL", "BOOL_VAL");
-            put("BYTES_LIST", "BYTES_LIST_VAL");
-            put("STRING_LIST", "STRING_LIST_VAL");
-            put("INT32_LIST", "INT32_LIST_VAL");
-            put("INT64_LIST", "INT64_LIST_VAL");
-            put("DOUBLE_LIST", "DOUBLE_LIST_VAL");
-            put("FLOAT_LIST", "FLOAT_LIST_VAL");
-            put("BOOL_LIST", "BOOL_LIST_VAL");
+            put(ValueProto.ValueType.Enum.BYTES, ValueProto.Value.ValCase.BYTES_VAL);
+            put(ValueProto.ValueType.Enum.STRING, ValueProto.Value.ValCase.STRING_VAL);
+            put(ValueProto.ValueType.Enum.INT32, ValueProto.Value.ValCase.INT32_VAL);
+            put(ValueProto.ValueType.Enum.INT64, ValueProto.Value.ValCase.INT64_VAL);
+            put(ValueProto.ValueType.Enum.DOUBLE, ValueProto.Value.ValCase.DOUBLE_VAL);
+            put(ValueProto.ValueType.Enum.FLOAT, ValueProto.Value.ValCase.FLOAT_VAL);
+            put(ValueProto.ValueType.Enum.BOOL, ValueProto.Value.ValCase.BOOL_VAL);
+            put(ValueProto.ValueType.Enum.BYTES_LIST, ValueProto.Value.ValCase.BYTES_LIST_VAL);
+            put(ValueProto.ValueType.Enum.STRING_LIST, ValueProto.Value.ValCase.STRING_LIST_VAL);
+            put(ValueProto.ValueType.Enum.INT32_LIST, ValueProto.Value.ValCase.INT32_LIST_VAL);
+            put(ValueProto.ValueType.Enum.INT64_LIST, ValueProto.Value.ValCase.INT64_LIST_VAL);
+            put(ValueProto.ValueType.Enum.DOUBLE_LIST, ValueProto.Value.ValCase.DOUBLE_LIST_VAL);
+            put(ValueProto.ValueType.Enum.FLOAT_LIST, ValueProto.Value.ValCase.FLOAT_LIST_VAL);
+            put(ValueProto.ValueType.Enum.BOOL_LIST, ValueProto.Value.ValCase.BOOL_LIST_VAL);
           }
         };
-    if (valueCaseString.equals("VAL_NOT_SET")) {
+    if (valueCase.equals(ValueProto.Value.ValCase.VAL_NOT_SET)) {
       return true;
     }
 
-    return typingMap.get(valueTypeString).equals(valueCaseString);
+    return typingMap.get(valueTypeEnum).equals(valueCase);
   }
 
   private static Map<FeatureReferenceV2, Optional<Feature>> getFeatureRefFeatureMap(
@@ -241,11 +231,11 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
   }
 
   private static Map<String, ValueProto.Value> unpackValueMap(
-      Optional<Feature> feature, boolean isOutsideMaxAge, boolean isSameType) {
+      Optional<Feature> feature, boolean isOutsideMaxAge, boolean isSameFeatureType) {
     Map<String, ValueProto.Value> valueMap = new HashMap<>();
 
     if (feature.isPresent()) {
-      if (!isOutsideMaxAge && isSameType) {
+      if (!isOutsideMaxAge && isSameFeatureType) {
         valueMap.put(
             FeatureV2.getFeatureStringRef(feature.get().getFeatureReference()),
             feature.get().getFeatureValue());
