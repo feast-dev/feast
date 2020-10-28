@@ -150,7 +150,7 @@ class DataprocRetrievalJob(DataprocJobMixin, RetrievalJob):
         status = self.block_polling(timeout_sec=timeout_sec)
         if status == SparkJobStatus.COMPLETED:
             return self._output_file_uri
-        raise SparkJobFailure(self.get_error_message)
+        raise SparkJobFailure(self.get_error_message())
 
 
 class DataprocBatchIngestionJob(DataprocJobMixin, BatchIngestionJob):
