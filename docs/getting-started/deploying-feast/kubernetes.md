@@ -1,77 +1,24 @@
-# Kubernetes \(GKE\)
+# Kubernetes
 
 ### Overview <a id="m_5245424069798496115gmail-overview-1"></a>
 
-This guide will install Feast into a Kubernetes cluster on Google Cloud Platform. It assumes that all of your services will run within a single Kubernetes cluster. 
+This guide will install Feast on an existing Kubernetes cluster. At the end of the guide you will have the following services running:
 
-Kubernetes deployment is recommended when deploying Feast as a shared service for production workloads.
+* Feast Core
+* Feast Serving
+* Postgres
+* Redis
+* Feast Jupyter
+* Prometheus
 
-{% hint style="info" %}
-This guide requires [Google Cloud Platform](https://cloud.google.com/) for installation.
-
-* [BigQuery](https://cloud.google.com/bigquery/) is used for storing historical features.
-* [Redis](https://redis.io/) is used for storing online features.
-* [Google Cloud Storage](https://cloud.google.com/storage/) is used for intermediate data storage.
-* [Apache Beam](https://beam.apache.org/) \([DirectRunner](https://beam.apache.org/documentation/runners/direct/)\) is used for ingesting data into stores.
-{% endhint %}
+This guide will also contain instructions on how to customize the installation for different production use cases.
 
 ## 0. Requirements
 
-1. [Google Cloud SDK ](https://cloud.google.com/sdk/install)installed, authenticated, and configured to the project you will use.
-2. [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) installed and configured.
-3. [Helm ](https://helm.sh/)3 installed.
+1. [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) installed and configured.
+2. [Helm ](https://helm.sh/)3 installed.
 
-## 1. Set up Google Cloud Platform
-
-{% hint style="info" %}
-Historical Serving currently requires Google Cloud Platform \(GCP\) to function, specifically a Service Account with access to Google Cloud Storage \(GCS\) and BigQuery. 
-{% endhint %}
-
-Create a service account for Feast to use:
-
-```bash
-gcloud iam service-accounts create feast-service-account
-
-gcloud projects add-iam-policy-binding my-gcp-project \
-  --member serviceAccount:feast-service-account@my-gcp-project.iam.gserviceaccount.com \
-  --role roles/editor
-  
-# Please use "credentials.json" as the file name
-gcloud iam service-accounts keys create credentials.json --iam-account \
-feast-service-account@my-gcp-project.iam.gserviceaccount.com
-```
-
-Create a Google Cloud Storage bucket for Feast to stage batch data exports:
-
-```bash
-gsutil mb gs://my-feast-staging-bucket
-```
-
-Create a BigQuery dataset for Feast to store historical data:
-
-```bash
-bq --location=US mk --dataset my_project:feast
-```
-
-## 2. Set up a Kubernetes \(GKE\) cluster
-
-Create a Kubernetes cluster:
-
-```bash
-gcloud container clusters create feast-cluster \
-    --machine-type n1-standard-4 \
-    --zone us-central1-a \
-    --scopes=bigquery,storage-rw,compute-ro 
-```
-
-Create a secret in the GKE cluster from the service account `credentials.json`:
-
-```bash
-kubectl create secret generic feast-gcp-service-account \
-  --from-file=credentials.json
-```
-
-## 3. Install Feast with Helm
+## 1. Preparation
 
 Add the Feast Helm repository and download the latest charts:
 
@@ -80,41 +27,23 @@ helm repo add feast-charts https://feast-charts.storage.googleapis.com
 helm repo update
 ```
 
-Create secret to store the password for PostgreSQL:
+The charts bundle all the necessary dependencies to run both `Feast Core` and `Feast Serving`, as well as going through the example Jupyter notebook.
 
-```text
-kubectl create secret generic feast-postgresql \
-    --from-literal=postgresql-password=password
-```
-
-Create a `values.yml` file to configure your Feast deployment
+As `Feast Core` requires Postgres to run, we will first create a Kubernetes secret for the credential. 
 
 ```bash
-curl https://raw.githubusercontent.com/feast-dev/feast/master/infra/charts/feast/values-batch-serving.yaml \
-> values.yaml
+kubectl create secret generic feast-postgresql --from-literal=postgresql-password=password
 ```
 
-Update `application-values.yml`in `values.yaml` to configure Feast based on your GCP and GKE environment. Minimally the following properties must be set under `feast.stores[].config`:
+## 2. Installation
 
-| Property | Description |
-| :--- | :--- |
-| `project_id` | This is your GCP Project Id. |
-| `dataset_id` | This is the **dataset name** of the BigQuery dataset to use. |
-| `staging_location` | This is the GCS bucket used for staging data being loaded into BigQuery. |
-
-Install the Feast Helm chart to deploy Feast:
+Install Feast using helm. It will take some time before all the pods are ready. Feast online serving will keep restart until Feast core is ready.
 
 ```bash
-helm install feast-release -f values.yaml feast-charts/feast
+helm install feast-release feast-charts/feast
 ```
 
-Wait for the Feast pods to start running and become become ready:
-
-```bash
-watch kubectl get pods
-```
-
-## 5. Connect to Feast using Jupyter
+## 3. Connect to Feast using Jupyter
 
 Once the pods are all running we can connect to the Jupyter notebook server running in the cluster
 
@@ -132,7 +61,7 @@ You should be able to connect at `localhost:8888` to the bundled Jupyter Noteboo
 
 {% embed url="http://localhost:8888/tree?" caption="" %}
 
-## 6. Further Reading
+## 4. Further Reading
 
 * [Feast Concepts](../../concepts/overview.md)
 * [Feast Examples/Tutorials](https://github.com/feast-dev/feast/tree/master/examples)
