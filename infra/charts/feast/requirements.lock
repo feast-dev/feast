@@ -12,8 +12,8 @@ dependencies:
   repository: https://kubernetes-charts.storage.googleapis.com/
   version: 8.6.1
 - name: kafka
-  repository: https://kubernetes-charts-incubator.storage.googleapis.com/
-  version: 0.20.8
+  repository: https://charts.bitnami.com/bitnami/
+  version: 11.8.8
 - name: redis
   repository: https://kubernetes-charts.storage.googleapis.com/
   version: 10.5.6
@@ -26,5 +26,5 @@ dependencies:
 - name: grafana
   repository: https://kubernetes-charts.storage.googleapis.com/
   version: 5.0.5
-digest: sha256:b6724c6ea58e68c2609703ce4dbd0d439535e5d0ddbc7225de02adf904c4db42
-generated: "2020-10-23T17:03:07.846937+08:00"
+digest: sha256:d5dae2a1b01a5a2f8838ac90b258082bba1a06a8cc15a4cca50f1ca2d7deeb9d
+generated: "2020-10-28T10:16:07.640684+08:00"
