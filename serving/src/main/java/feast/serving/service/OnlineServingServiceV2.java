@@ -18,6 +18,7 @@ package feast.serving.service;
 
 import com.google.protobuf.Duration;
 import feast.common.models.FeatureV2;
+import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
@@ -102,14 +103,20 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
             FeatureTableSpec featureTableSpec =
                 specService.getFeatureTableSpec(projectName, feature.get().getFeatureReference());
+            FeatureProto.FeatureSpecV2 featureSpec =
+                specService.getFeatureSpec(projectName, feature.get().getFeatureReference());
+            ValueProto.ValueType.Enum valueTypeEnum = featureSpec.getValueType();
+            ValueProto.Value.ValCase valueCase = feature.get().getFeatureValue().getValCase();
+            boolean isMatchingFeatureSpec = checkSameFeatureSpec(valueTypeEnum, valueCase);
 
             boolean isOutsideMaxAge = checkOutsideMaxAge(featureTableSpec, entityRow, feature);
-            Map<String, ValueProto.Value> valueMap = unpackValueMap(feature, isOutsideMaxAge);
+            Map<String, ValueProto.Value> valueMap =
+                unpackValueMap(feature, isOutsideMaxAge, isMatchingFeatureSpec);
             allValueMaps.putAll(valueMap);
 
             // Generate metadata for feature values and merge into entityFieldsMap
             Map<String, GetOnlineFeaturesResponse.FieldStatus> statusMap =
-                getMetadataMap(valueMap, false, isOutsideMaxAge);
+                getMetadataMap(valueMap, !isMatchingFeatureSpec, isOutsideMaxAge);
             allStatusMaps.putAll(statusMap);
 
             // Populate metrics/log request
@@ -151,6 +158,34 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
               .collect(Collectors.toList());
       return GetOnlineFeaturesResponse.newBuilder().addAllFieldValues(fieldValuesList).build();
     }
+  }
+
+  private boolean checkSameFeatureSpec(
+      ValueProto.ValueType.Enum valueTypeEnum, ValueProto.Value.ValCase valueCase) {
+    HashMap<ValueProto.ValueType.Enum, ValueProto.Value.ValCase> typingMap =
+        new HashMap<>() {
+          {
+            put(ValueProto.ValueType.Enum.BYTES, ValueProto.Value.ValCase.BYTES_VAL);
+            put(ValueProto.ValueType.Enum.STRING, ValueProto.Value.ValCase.STRING_VAL);
+            put(ValueProto.ValueType.Enum.INT32, ValueProto.Value.ValCase.INT32_VAL);
+            put(ValueProto.ValueType.Enum.INT64, ValueProto.Value.ValCase.INT64_VAL);
+            put(ValueProto.ValueType.Enum.DOUBLE, ValueProto.Value.ValCase.DOUBLE_VAL);
+            put(ValueProto.ValueType.Enum.FLOAT, ValueProto.Value.ValCase.FLOAT_VAL);
+            put(ValueProto.ValueType.Enum.BOOL, ValueProto.Value.ValCase.BOOL_VAL);
+            put(ValueProto.ValueType.Enum.BYTES_LIST, ValueProto.Value.ValCase.BYTES_LIST_VAL);
+            put(ValueProto.ValueType.Enum.STRING_LIST, ValueProto.Value.ValCase.STRING_LIST_VAL);
+            put(ValueProto.ValueType.Enum.INT32_LIST, ValueProto.Value.ValCase.INT32_LIST_VAL);
+            put(ValueProto.ValueType.Enum.INT64_LIST, ValueProto.Value.ValCase.INT64_LIST_VAL);
+            put(ValueProto.ValueType.Enum.DOUBLE_LIST, ValueProto.Value.ValCase.DOUBLE_LIST_VAL);
+            put(ValueProto.ValueType.Enum.FLOAT_LIST, ValueProto.Value.ValCase.FLOAT_LIST_VAL);
+            put(ValueProto.ValueType.Enum.BOOL_LIST, ValueProto.Value.ValCase.BOOL_LIST_VAL);
+          }
+        };
+    if (valueCase.equals(ValueProto.Value.ValCase.VAL_NOT_SET)) {
+      return true;
+    }
+
+    return typingMap.get(valueTypeEnum).equals(valueCase);
   }
 
   private static Map<FeatureReferenceV2, Optional<Feature>> getFeatureRefFeatureMap(
@@ -196,11 +231,11 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
   }
 
   private static Map<String, ValueProto.Value> unpackValueMap(
-      Optional<Feature> feature, boolean isOutsideMaxAge) {
+      Optional<Feature> feature, boolean isOutsideMaxAge, boolean isMatchingFeatureSpec) {
     Map<String, ValueProto.Value> valueMap = new HashMap<>();
 
     if (feature.isPresent()) {
-      if (!isOutsideMaxAge) {
+      if (!isOutsideMaxAge && isMatchingFeatureSpec) {
         valueMap.put(
             FeatureV2.getFeatureStringRef(feature.get().getFeatureReference()),
             feature.get().getFeatureValue());

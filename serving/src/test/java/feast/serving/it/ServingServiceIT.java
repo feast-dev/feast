@@ -127,6 +127,8 @@ public class ServingServiceIT extends BaseAuthIT {
         DataGenerator.createFeatureReference("rides", "trip_distance");
     ServingAPIProto.FeatureReferenceV2 feature3Reference =
         DataGenerator.createFeatureReference("rides", "trip_empty");
+    ServingAPIProto.FeatureReferenceV2 feature4Reference =
+        DataGenerator.createFeatureReference("rides", "trip_wrong_type");
 
     // Event Timestamp
     String eventTimestampKey = timestampPrefix + ":" + featureTableName;
@@ -134,9 +136,14 @@ public class ServingServiceIT extends BaseAuthIT {
 
     ImmutableMap<String, ValueProto.ValueType.Enum> features =
         ImmutableMap.of(
-            "trip_cost", ValueProto.ValueType.Enum.INT64,
-            "trip_distance", ValueProto.ValueType.Enum.DOUBLE,
-            "trip_empty", ValueProto.ValueType.Enum.DOUBLE);
+            "trip_cost",
+            ValueProto.ValueType.Enum.INT64,
+            "trip_distance",
+            ValueProto.ValueType.Enum.DOUBLE,
+            "trip_empty",
+            ValueProto.ValueType.Enum.DOUBLE,
+            "trip_wrong_type",
+            ValueProto.ValueType.Enum.STRING);
 
     TestUtils.applyFeatureTable(
         coreClient, projectName, featureTableName, entities, features, 7200);
@@ -151,9 +158,14 @@ public class ServingServiceIT extends BaseAuthIT {
 
     ImmutableMap<ServingAPIProto.FeatureReferenceV2, ValueProto.Value> featureReferenceValueMap =
         ImmutableMap.of(
-            feature1Reference, DataGenerator.createDoubleValue(42.2),
-            feature2Reference, DataGenerator.createInt64Value(42),
-            feature3Reference, DataGenerator.createEmptyValue());
+            feature1Reference,
+            DataGenerator.createInt64Value(42),
+            feature2Reference,
+            DataGenerator.createDoubleValue(42.2),
+            feature3Reference,
+            DataGenerator.createEmptyValue(),
+            feature4Reference,
+            DataGenerator.createDoubleValue(42.2));
 
     // Insert timestamp into Redis and isTimestampMap only once
     syncCommands.hset(
@@ -228,7 +240,7 @@ public class ServingServiceIT extends BaseAuthIT {
             entityName,
             entityValue,
             FeatureV2.getFeatureStringRef(feature1Reference),
-            DataGenerator.createDoubleValue(42.2));
+            DataGenerator.createInt64Value(42));
 
     ImmutableMap<String, GetOnlineFeaturesResponse.FieldStatus> expectedStatusMap =
         ImmutableMap.of(
@@ -282,7 +294,7 @@ public class ServingServiceIT extends BaseAuthIT {
             entityName,
             entityValue,
             FeatureV2.getFeatureStringRef(featureReference),
-            DataGenerator.createDoubleValue(42.2),
+            DataGenerator.createInt64Value(42),
             FeatureV2.getFeatureStringRef(notFoundFeatureReference),
             DataGenerator.createEmptyValue(),
             FeatureV2.getFeatureStringRef(emptyFeatureReference),
@@ -347,6 +359,55 @@ public class ServingServiceIT extends BaseAuthIT {
             GetOnlineFeaturesResponse.FieldStatus.PRESENT,
             FeatureV2.getFeatureStringRef(featureReference),
             GetOnlineFeaturesResponse.FieldStatus.OUTSIDE_MAX_AGE);
+
+    GetOnlineFeaturesResponse.FieldValues expectedFieldValues =
+        GetOnlineFeaturesResponse.FieldValues.newBuilder()
+            .putAllFields(expectedValueMap)
+            .putAllStatuses(expectedStatusMap)
+            .build();
+    ImmutableList<GetOnlineFeaturesResponse.FieldValues> expectedFieldValuesList =
+        ImmutableList.of(expectedFieldValues);
+
+    assertEquals(expectedFieldValuesList, featureResponse.getFieldValuesList());
+  }
+
+  @Test
+  public void shouldReturnNotFoundForDiffType() {
+    String projectName = "default";
+    String entityName = "driver_id";
+    ValueProto.Value entityValue = ValueProto.Value.newBuilder().setInt64Val(1).build();
+
+    // Instantiate EntityRows
+    GetOnlineFeaturesRequestV2.EntityRow entityRow1 =
+        DataGenerator.createEntityRow(entityName, DataGenerator.createInt64Value(1), 100);
+    ImmutableList<GetOnlineFeaturesRequestV2.EntityRow> entityRows = ImmutableList.of(entityRow1);
+
+    // Instantiate FeatureReferences
+    ServingAPIProto.FeatureReferenceV2 featureReference =
+        DataGenerator.createFeatureReference("rides", "trip_wrong_type");
+
+    ImmutableList<ServingAPIProto.FeatureReferenceV2> featureReferences =
+        ImmutableList.of(featureReference);
+
+    // Build GetOnlineFeaturesRequestV2
+    GetOnlineFeaturesRequestV2 onlineFeatureRequest =
+        TestUtils.createOnlineFeatureRequest(projectName, featureReferences, entityRows);
+    GetOnlineFeaturesResponse featureResponse =
+        servingStub.getOnlineFeaturesV2(onlineFeatureRequest);
+
+    ImmutableMap<String, ValueProto.Value> expectedValueMap =
+        ImmutableMap.of(
+            entityName,
+            entityValue,
+            FeatureV2.getFeatureStringRef(featureReference),
+            DataGenerator.createEmptyValue());
+
+    ImmutableMap<String, GetOnlineFeaturesResponse.FieldStatus> expectedStatusMap =
+        ImmutableMap.of(
+            entityName,
+            GetOnlineFeaturesResponse.FieldStatus.PRESENT,
+            FeatureV2.getFeatureStringRef(featureReference),
+            GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND);
 
     GetOnlineFeaturesResponse.FieldValues expectedFieldValues =
         GetOnlineFeaturesResponse.FieldValues.newBuilder()
