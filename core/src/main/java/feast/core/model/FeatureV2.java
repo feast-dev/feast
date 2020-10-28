@@ -23,11 +23,14 @@ import java.util.Map;
 import java.util.Objects;
 import javax.persistence.*;
 import javax.persistence.Entity;
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.Setter;
 
 /** Defines a single Feature defined in a {@link FeatureTable} */
 @Getter
 @Entity
+@Setter(AccessLevel.PRIVATE)
 @Table(
     name = "features_v2",
     uniqueConstraints = @UniqueConstraint(columnNames = {"name", "feature_table_id"}))
@@ -96,12 +99,8 @@ public class FeatureV2 {
               "Updating the name of a registered Feature is not allowed: %s to %s",
               getName(), spec.getName()));
     }
-    if (!getType().equals(spec.getValueType())) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Updating the value type of a registered Feature is not allowed: %s to %s",
-              getType(), spec.getValueType()));
-    }
+    // Update feature type
+    this.setType(spec.getValueType());
 
     // Update Feature based on spec
     this.labelsJSON = TypeConversion.convertMapToJsonString(spec.getLabelsMap());

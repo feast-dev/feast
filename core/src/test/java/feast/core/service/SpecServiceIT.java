@@ -1108,6 +1108,57 @@ public class SpecServiceIT extends BaseIT {
     }
 
     @Test
+    public void shouldUpdateFeatureTableOnEntityChange() {
+      List<String> entities = Arrays.asList("entity1", "entity2");
+      FeatureTableProto.FeatureTableSpec updatedSpec =
+          DataGenerator.createFeatureTableSpec(
+                  "featuretable1",
+                  Arrays.asList("entity1"),
+                  new HashMap<>() {
+                    {
+                      put("feature1", ValueProto.ValueType.Enum.STRING);
+                      put("feature2", ValueProto.ValueType.Enum.FLOAT);
+                    }
+                  },
+                  7200,
+                  ImmutableMap.of("feat_key2", "feat_value2"))
+              .toBuilder()
+              .setBatchSource(
+                  DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
+              .build();
+
+      FeatureTableProto.FeatureTable updatedTable =
+          apiClient.applyFeatureTable("default", updatedSpec);
+
+      assertTrue(TestUtil.compareFeatureTableSpec(updatedTable.getSpec(), updatedSpec));
+    }
+
+    @Test
+    public void shouldUpdateFeatureTableOnFeatureTypeChange() {
+      FeatureTableProto.FeatureTableSpec updatedSpec =
+          DataGenerator.createFeatureTableSpec(
+                  "featuretable1",
+                  Arrays.asList("entity1", "entity2"),
+                  new HashMap<>() {
+                    {
+                      put("feature1", ValueProto.ValueType.Enum.STRING);
+                      put("feature2", ValueProto.ValueType.Enum.STRING_LIST);
+                    }
+                  },
+                  7200,
+                  ImmutableMap.of("feat_key2", "feat_value2"))
+              .toBuilder()
+              .setBatchSource(
+                  DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
+              .build();
+
+      FeatureTableProto.FeatureTable updatedTable =
+          apiClient.applyFeatureTable("default", updatedSpec);
+
+      assertTrue(TestUtil.compareFeatureTableSpec(updatedTable.getSpec(), updatedSpec));
+    }
+
+    @Test
     public void shouldNotUpdateIfNoChanges() {
       FeatureTableProto.FeatureTable table = apiClient.applyFeatureTable("default", getTestSpec());
       FeatureTableProto.FeatureTable updatedTable =
@@ -1135,69 +1186,6 @@ public class SpecServiceIT extends BaseIT {
       assertThat(
           exc.getMessage(),
           equalTo("INVALID_ARGUMENT: FeatureTable batch source cannot be empty."));
-    }
-
-    @Test
-    public void shouldErrorIfEntityChangeOnUpdate() {
-      List<String> entities = Arrays.asList("entity1", "entity2");
-      FeatureTableProto.FeatureTableSpec spec =
-          DataGenerator.createFeatureTableSpec(
-                  "featuretable1",
-                  Arrays.asList("entity1"),
-                  new HashMap<>() {
-                    {
-                      put("feature1", ValueProto.ValueType.Enum.STRING);
-                      put("feature2", ValueProto.ValueType.Enum.FLOAT);
-                    }
-                  },
-                  7200,
-                  ImmutableMap.of("feat_key2", "feat_value2"))
-              .toBuilder()
-              .setBatchSource(
-                  DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
-              .build();
-
-      StatusRuntimeException exc =
-          assertThrows(
-              StatusRuntimeException.class, () -> apiClient.applyFeatureTable("default", spec));
-
-      assertThat(
-          exc.getMessage(),
-          equalTo(
-              String.format(
-                  "INVALID_ARGUMENT: Updating the entities of a registered FeatureTable is not allowed: %s to %s",
-                  entities, spec.getEntitiesList())));
-    }
-
-    @Test
-    public void shouldErrorIfFeatureValueTypeChangeOnUpdate() {
-      FeatureTableProto.FeatureTableSpec spec =
-          DataGenerator.createFeatureTableSpec(
-                  "featuretable1",
-                  Arrays.asList("entity1", "entity2"),
-                  new HashMap<>() {
-                    {
-                      put("feature1", ValueProto.ValueType.Enum.STRING);
-                      put("feature2", ValueProto.ValueType.Enum.STRING_LIST);
-                    }
-                  },
-                  7200,
-                  ImmutableMap.of("feat_key2", "feat_value2"))
-              .toBuilder()
-              .setBatchSource(
-                  DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
-              .build();
-
-      StatusRuntimeException exc =
-          assertThrows(
-              StatusRuntimeException.class, () -> apiClient.applyFeatureTable("default", spec));
-
-      assertThat(
-          exc.getMessage(),
-          equalTo(
-              String.format(
-                  "INVALID_ARGUMENT: Updating the value type of a registered Feature is not allowed: %s to %s",
-                  ValueProto.ValueType.Enum.FLOAT, ValueProto.ValueType.Enum.STRING_LIST)));
     }
 
     @Test

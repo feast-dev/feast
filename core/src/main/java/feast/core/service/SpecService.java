@@ -671,7 +671,7 @@ public class SpecService {
       return ApplyFeatureTableResponse.newBuilder().setTable(existingTable.get().toProto()).build();
     }
     if (existingTable.isPresent()) {
-      existingTable.get().updateFromProto(applySpec);
+      existingTable.get().updateFromProto(projectName, applySpec, entityRepository);
       table = existingTable.get();
     }
 
