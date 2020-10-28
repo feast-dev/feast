@@ -6,10 +6,6 @@ dependencies:
   alias: feast-online-serving
   version: 0.8-SNAPSHOT
   condition: feast-online-serving.enabled
-- name: feast-serving
-  alias: feast-batch-serving
-  version: 0.8-SNAPSHOT
-  condition: feast-batch-serving.enabled
 - name: feast-jupyter
   version: 0.8-SNAPSHOT
   condition: feast-jupyter.enabled
@@ -18,8 +14,8 @@ dependencies:
   repository: https://kubernetes-charts.storage.googleapis.com/
   condition: postgresql.enabled
 - name: kafka 
-  version: 0.20.8
-  repository: https://kubernetes-charts-incubator.storage.googleapis.com/
+  version: 11.8.8
+  repository: https://charts.bitnami.com/bitnami/
   condition: kafka.enabled
 - name: redis
   version: 10.5.6

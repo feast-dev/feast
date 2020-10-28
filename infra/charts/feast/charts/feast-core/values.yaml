@@ -25,21 +25,9 @@ application-secret.yaml:
 application-override.yaml:
   enabled: true
 
-gcpServiceAccount:
-  # gcpServiceAccount.enabled -- Flag to use [service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) JSON key
-  enabled: false
-  existingSecret:
-    # gcpServiceAccount.existingSecret.name -- Name of the existing secret containing the service account
-    name: feast-gcp-service-account
-    # gcpServiceAccount.existingSecret.key -- Key in the secret data (file name of the service account)
-    key: credentials.json
-
 postgresql:
   # postgresql.existingSecret -- Existing secret to use for authenticating to Postgres
   existingSecret: ""
-
-# gcpProjectId -- Project ID to use when using Google Cloud services such as BigQuery, Cloud Storage and Dataflow
-gcpProjectId: ""
 
 # javaOpts -- [JVM options](https://docs.oracle.com/cd/E22289_01/html/821-1274/configuring-the-default-jvm-and-java-arguments.html). For better performance, it is advised to set the min and max heap: <br> `-Xms2048m -Xmx2048m`
 javaOpts: 

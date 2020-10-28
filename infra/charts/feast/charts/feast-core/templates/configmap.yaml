@@ -15,12 +15,6 @@ data:
     spring:
       datasource:
         url: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/postgres
-    feast:
-      stream:
-        type: kafka
-        options: 
-          bootstrapServers: {{ .Release.Name }}-kafka:9092
-          topic: feast
 
     server:
       port: {{ .Values.service.http.targetPort }}

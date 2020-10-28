@@ -5,9 +5,6 @@ dependencies:
 - name: feast-serving
   repository: ""
   version: 0.8-SNAPSHOT
-- name: feast-serving
-  repository: ""
-  version: 0.8-SNAPSHOT
 - name: feast-jupyter
   repository: ""
   version: 0.8-SNAPSHOT
@@ -15,8 +12,8 @@ dependencies:
   repository: https://kubernetes-charts.storage.googleapis.com/
   version: 8.6.1
 - name: kafka
-  repository: https://kubernetes-charts-incubator.storage.googleapis.com/
-  version: 0.20.8
+  repository: https://charts.bitnami.com/bitnami/
+  version: 11.8.8
 - name: redis
   repository: https://kubernetes-charts.storage.googleapis.com/
   version: 10.5.6
@@ -29,5 +26,5 @@ dependencies:
 - name: grafana
   repository: https://kubernetes-charts.storage.googleapis.com/
   version: 5.0.5
-digest: sha256:e325439384ef9b45428fbeafe8f1e230b331d4b5482c3f26f07b71cecae06c22
-generated: "2020-05-02T15:00:45.4365217+08:00"
+digest: sha256:d5dae2a1b01a5a2f8838ac90b258082bba1a06a8cc15a4cca50f1ca2d7deeb9d
+generated: "2020-10-28T10:16:07.640684+08:00"
