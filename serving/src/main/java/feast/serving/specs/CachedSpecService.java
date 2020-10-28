@@ -94,7 +94,8 @@ public class CachedSpecService {
           .help("number of feature sets served by this instance")
           .register();
 
-  private final LoadingCache<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2>
+  private final LoadingCache<
+          String, Map<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2>>
       featureCache;
 
   public CachedSpecService(CoreSpecService coreService, StoreProto.Store store) {
@@ -116,10 +117,10 @@ public class CachedSpecService {
         CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(featureTableCacheLoader);
     featureTableCache.putAll(featureTables);
 
-    Map<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2> features =
+    Map<String, Map<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2>> features =
         getFeatureTableMap().getRight();
-    CacheLoader<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2> featureCacheLoader =
-        CacheLoader.from(features::get);
+    CacheLoader<String, Map<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2>>
+        featureCacheLoader = CacheLoader.from(features::get);
     featureCache = CacheBuilder.newBuilder().build(featureCacheLoader);
     featureCache.putAll(features);
   }
@@ -260,7 +261,7 @@ public class CachedSpecService {
 
     featureTablesCount.set(featureTableCache.size());
 
-    Map<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2> featureMap =
+    Map<String, Map<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2>> featureMap =
         getFeatureTableMap().getRight();
     featureCache.invalidateAll();
     featureCache.putAll(featureMap);
@@ -389,10 +390,10 @@ public class CachedSpecService {
    */
   private ImmutablePair<
           Map<String, FeatureTableSpec>,
-          Map<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2>>
+          Map<String, Map<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2>>>
       getFeatureTableMap() {
     HashMap<String, FeatureTableSpec> featureTables = new HashMap<>();
-    HashMap<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2> features =
+    HashMap<String, Map<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2>> features =
         new HashMap<>();
 
     List<String> projects =
@@ -405,6 +406,8 @@ public class CachedSpecService {
                 ListFeatureTablesRequest.newBuilder()
                     .setFilter(ListFeatureTablesRequest.Filter.newBuilder().setProject(project))
                     .build());
+        Map<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2> featureRefSpecMap =
+            new HashMap<>();
         for (FeatureTable featureTable : featureTablesResponse.getTablesList()) {
           FeatureTableSpec spec = featureTable.getSpec();
           // Key of Map is in the form of <project/featuretable_name>
@@ -418,9 +421,10 @@ public class CachedSpecService {
                     .setFeatureTable(featureTableName)
                     .setName(featureSpec.getName())
                     .build();
-            features.put(featureReference, featureSpec);
+            featureRefSpecMap.put(featureReference, featureSpec);
           }
         }
+        features.put(project, featureRefSpecMap);
       } catch (StatusRuntimeException e) {
         throw new RuntimeException(
             String.format("Unable to retrieve specs matching project %s", project), e);
@@ -444,10 +448,12 @@ public class CachedSpecService {
   }
 
   public FeatureProto.FeatureSpecV2 getFeatureSpec(
-      ServingAPIProto.FeatureReferenceV2 featureReference) {
+      String project, ServingAPIProto.FeatureReferenceV2 featureReference) {
     FeatureProto.FeatureSpecV2 featureSpec;
     try {
-      featureSpec = featureCache.get(featureReference);
+      Map<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2> featureRefSpecMap =
+          featureCache.get(project);
+      featureSpec = featureRefSpecMap.get(featureReference);
     } catch (ExecutionException e) {
       throw new SpecRetrievalException(
           String.format("Unable to find Feature with name: %s", featureReference.getName()), e);

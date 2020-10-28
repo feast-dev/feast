@@ -103,9 +103,9 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
             FeatureTableSpec featureTableSpec =
                 specService.getFeatureTableSpec(projectName, feature.get().getFeatureReference());
-            FeatureProto.FeatureSpecV2 tempFeatureSpecV2 =
-                specService.getFeatureSpec(feature.get().getFeatureReference());
-            ValueProto.ValueType.Enum valueTypeEnum = tempFeatureSpecV2.getValueType();
+            FeatureProto.FeatureSpecV2 featureSpec =
+                specService.getFeatureSpec(projectName, feature.get().getFeatureReference());
+            ValueProto.ValueType.Enum valueTypeEnum = featureSpec.getValueType();
             ValueProto.Value.ValCase valueCase = feature.get().getFeatureValue().getValCase();
             boolean isMatchingFeatureSpec = checkSameFeatureSpec(valueTypeEnum, valueCase);
 
