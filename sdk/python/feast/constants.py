@@ -116,7 +116,7 @@ FEAST_DEFAULT_OPTIONS = {
     # Path to certificate(s) to secure connection to Feast Serving
     CONFIG_SERVING_SERVER_SSL_CERT_KEY: "",
     # Default connection timeout to Feast Serving and Feast Core (in seconds)
-    CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY: "3",
+    CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY: "10",
     # Default gRPC connection timeout when sending an ApplyFeatureSet command to
     # Feast Core (in seconds)
     CONFIG_GRPC_CONNECTION_TIMEOUT_APPLY_KEY: "600",
@@ -133,4 +133,8 @@ FEAST_DEFAULT_OPTIONS = {
     CONFIG_REDIS_SSL: "False",
     CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT: "parquet",
     CONFIG_SPARK_EXTRA_OPTIONS: "",
+    # Enable or disable TLS/SSL to Feast Service
+    CONFIG_JOB_SERVICE_ENABLE_SSL_KEY: "False",
+    # Path to certificate(s) to secure connection to Feast Job Service
+    CONFIG_JOB_SERVICE_SERVER_SSL_CERT_KEY: "",
 }

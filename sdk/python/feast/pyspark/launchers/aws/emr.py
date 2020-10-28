@@ -91,7 +91,10 @@ class EmrRetrievalJob(EmrJobMixin, RetrievalJob):
         super().__init__(emr_client, job_ref)
         self._output_file_uri = output_file_uri
 
-    def get_output_file_uri(self, timeout_sec=None):
+    def get_output_file_uri(self, timeout_sec=None, block=True):
+        if not block:
+            return self._output_file_uri
+
         state = _wait_for_job_state(
             self._emr_client, self._job_ref, TERMINAL_STEP_STATES, timeout_sec
         )
@@ -361,7 +364,7 @@ class EmrClusterLauncher(JobLauncher):
             emr_client=self._emr_client(),
             job_type=None,
             table_name=None,
-            active_only=True,
+            active_only=False,
         )
 
         for job_info in jobs:
