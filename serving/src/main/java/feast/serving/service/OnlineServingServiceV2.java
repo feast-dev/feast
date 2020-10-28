@@ -107,16 +107,16 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
                 specService.getFeatureSpec(feature.get().getFeatureReference());
             ValueProto.ValueType.Enum valueTypeEnum = tempFeatureSpecV2.getValueType();
             ValueProto.Value.ValCase valueCase = feature.get().getFeatureValue().getValCase();
-            boolean isSameFeatureType = checkSameType(valueTypeEnum, valueCase);
+            boolean isMatchingFeatureSpec = checkSameFeatureSpec(valueTypeEnum, valueCase);
 
             boolean isOutsideMaxAge = checkOutsideMaxAge(featureTableSpec, entityRow, feature);
             Map<String, ValueProto.Value> valueMap =
-                unpackValueMap(feature, isOutsideMaxAge, isSameFeatureType);
+                unpackValueMap(feature, isOutsideMaxAge, isMatchingFeatureSpec);
             allValueMaps.putAll(valueMap);
 
             // Generate metadata for feature values and merge into entityFieldsMap
             Map<String, GetOnlineFeaturesResponse.FieldStatus> statusMap =
-                getMetadataMap(valueMap, !isSameFeatureType, isOutsideMaxAge);
+                getMetadataMap(valueMap, !isMatchingFeatureSpec, isOutsideMaxAge);
             allStatusMaps.putAll(statusMap);
 
             // Populate metrics/log request
@@ -160,7 +160,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     }
   }
 
-  private boolean checkSameType(
+  private boolean checkSameFeatureSpec(
       ValueProto.ValueType.Enum valueTypeEnum, ValueProto.Value.ValCase valueCase) {
     HashMap<ValueProto.ValueType.Enum, ValueProto.Value.ValCase> typingMap =
         new HashMap<>() {
@@ -231,11 +231,11 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
   }
 
   private static Map<String, ValueProto.Value> unpackValueMap(
-      Optional<Feature> feature, boolean isOutsideMaxAge, boolean isSameFeatureType) {
+      Optional<Feature> feature, boolean isOutsideMaxAge, boolean isMatchingFeatureSpec) {
     Map<String, ValueProto.Value> valueMap = new HashMap<>();
 
     if (feature.isPresent()) {
-      if (!isOutsideMaxAge && isSameFeatureType) {
+      if (!isOutsideMaxAge && isMatchingFeatureSpec) {
         valueMap.put(
             FeatureV2.getFeatureStringRef(feature.get().getFeatureReference()),
             feature.get().getFeatureValue());
