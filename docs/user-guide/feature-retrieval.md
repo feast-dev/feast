@@ -36,8 +36,7 @@ feature_refs = [
 # Define entity source
 entity_source = FileSource(
    "event_timestamp",
-   "created_timestamp",
-   "parquet",
+   ParquetFormat(),
    "gs://some-bucket/customer"
 )
 

@@ -254,7 +254,7 @@ class RetrievalJob(SparkJob):
     """
 
     @abc.abstractmethod
-    def get_output_file_uri(self, timeout_sec=None):
+    def get_output_file_uri(self, timeout_sec=None, block=True):
         """
         Get output file uri to the result file. This method will block until the
         job succeeded, or if the job didn't execute successfully within timeout.
@@ -263,7 +263,9 @@ class RetrievalJob(SparkJob):
             timeout_sec (int):
                 Max no of seconds to wait until job is done. If "timeout_sec"
                 is exceeded or if the job fails, an exception will be raised.
-
+            block (bool):
+                If false, don't block until the job is done. If block=True, timeout parameter is
+                ignored.
         Raises:
             SparkJobFailure:
                 The spark job submission failed, encountered error during execution,
@@ -458,10 +460,7 @@ class JobLauncher(abc.ABC):
 
     @abc.abstractmethod
     def stage_dataframe(
-        self,
-        df: pandas.DataFrame,
-        event_timestamp_column: str,
-        created_timestamp_column: str,
+        self, df: pandas.DataFrame, event_timestamp_column: str,
     ) -> FileSource:
         """
         Upload a pandas dataframe so it is available to the Spark cluster.

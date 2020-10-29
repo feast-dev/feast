@@ -86,7 +86,7 @@ class FileSource(Source):
         format: str,
         path: str,
         event_timestamp_column: str,
-        created_timestamp_column: Optional[str] = None,
+        created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         options: Optional[Dict[str, str]] = None,
     ):

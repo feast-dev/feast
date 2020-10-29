@@ -123,9 +123,10 @@ FEAST_DEFAULT_OPTIONS = {
     # Path to certificate(s) to secure connection to Feast Job Service
     CONFIG_JOB_SERVICE_SERVER_SSL_CERT_KEY: "",
     # Enable or disable Feast Job Service
+    # TODO: is this necessary?
     CONFIG_JOB_SERVICE_ENABLED: "False",
     # Default connection timeout to Feast Serving, Feast Core, and Feast Job Service (in seconds)
-    CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY: "3",
+    CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY: "10",
     # Default gRPC connection timeout when sending an ApplyFeatureSet command to
     # Feast Core (in seconds)
     CONFIG_GRPC_CONNECTION_TIMEOUT_APPLY_KEY: "600",

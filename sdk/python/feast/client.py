@@ -92,12 +92,15 @@ from feast.loaders.ingest import (
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
 from feast.pyspark.abc import RetrievalJob, SparkJob
 from feast.pyspark.launcher import (
+    get_job_by_id,
+    list_jobs,
     stage_dataframe,
     start_historical_feature_retrieval_job,
     start_historical_feature_retrieval_spark_session,
     start_offline_to_online_ingestion,
     start_stream_to_online_ingestion,
 )
+from feast.remote_job import RemoteRetrievalJob
 from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoRequest,
     GetOnlineFeaturesRequestV2,
@@ -190,6 +193,10 @@ class Client:
         return self._serving_service_stub
 
     @property
+    def _use_job_service(self) -> bool:
+        return self._config.exists(CONFIG_JOB_SERVICE_URL_KEY)
+
+    @property
     def _job_service(self):
         """
         Creates or returns the gRPC Feast Job Service Stub
@@ -213,6 +220,12 @@ class Client:
             )
             self._job_service_service_stub = JobServiceStub(channel)
         return self._job_service_service_stub
+
+    def _extra_grpc_params(self) -> Dict[str, Any]:
+        return dict(
+            timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+            metadata=self._get_grpc_metadata(),
+        )
 
     @property
     def core_url(self) -> str:
@@ -864,7 +877,7 @@ class Client:
         feature_refs: List[str],
         entity_source: Union[pd.DataFrame, FileSource, BigQuerySource],
         project: Optional[str] = None,
-        destination_path: Optional[str] = None,
+        output_location: Optional[str] = None,
     ) -> RetrievalJob:
         """
         Launch a historical feature retrieval job.
@@ -893,15 +906,27 @@ class Client:
 
         Examples:
             >>> from feast import Client
+            >>> from feast.data_format import ParquetFormat
             >>> from datetime import datetime
             >>> feast_client = Client(core_url="localhost:6565")
             >>> feature_refs = ["bookings:bookings_7d", "bookings:booking_14d"]
-            >>> entity_source = FileSource("event_timestamp", "parquet", "gs://some-bucket/customer")
+            >>> entity_source = FileSource("event_timestamp", ParquetFormat(), "gs://some-bucket/customer")
             >>> feature_retrieval_job = feast_client.get_historical_features(
             >>>     feature_refs, entity_source, project="my_project")
             >>> output_file_uri = feature_retrieval_job.get_output_file_uri()
                 "gs://some-bucket/output/
         """
+        feature_tables = self._get_feature_tables_from_feature_refs(
+            feature_refs, project
+        )
+
+        if output_location is None:
+            output_location = os.path.join(
+                self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION),
+                str(uuid.uuid4()),
+            )
+        output_format = self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT)
+
         if isinstance(entity_source, pd.DataFrame):
             staging_location = self._config.get(CONFIG_SPARK_STAGING_LOCATION)
             entity_staging_uri = urlparse(
@@ -919,38 +944,33 @@ class Client:
                     df_export_path.name, bucket, entity_staging_uri.path.lstrip("/")
                 )
                 entity_source = FileSource(
-                    "event_timestamp",
-                    "created_timestamp",
-                    ParquetFormat(),
-                    entity_staging_uri.geturl(),
+                    "event_timestamp", ParquetFormat(), entity_staging_uri.geturl(),
                 )
 
-        if destination_path is None:
-            destination_path = self._config.get(
-                CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION
+        if self._use_job_service:
+            response = self._job_service.GetHistoricalFeatures(
+                GetHistoricalFeaturesRequest(
+                    feature_refs=feature_refs,
+                    entity_source=entity_source.to_proto(),
+                    project=project,
+                    output_location=output_location,
+                ),
+                **self._extra_grpc_params(),
             )
-        destination_path = os.path.join(destination_path, str(uuid.uuid4()))
-
-        if not self._job_service:
-            feature_tables = self._get_feature_tables_from_feature_refs(
-                feature_refs, project
-            )
-            output_format = self._config.get(
-                CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT
-            )
-
-            return start_historical_feature_retrieval_job(
-                self, entity_source, feature_tables, output_format, destination_path
+            return RemoteRetrievalJob(
+                self._job_service,
+                self._extra_grpc_params,
+                response.id,
+                output_file_uri=response.output_file_uri,
             )
         else:
-            request = GetHistoricalFeaturesRequest(
-                feature_refs=feature_refs,
-                entities_source=entity_source.to_proto(),
-                project=project,
-                destination_path=destination_path,
+            return start_historical_feature_retrieval_job(
+                self,
+                entity_source,
+                feature_tables,
+                output_format,
+                os.path.join(output_location, str(uuid.uuid4())),
             )
-            response = self._job_service.GetHistoricalFeatures(request)
-            return response.id
 
     def get_historical_features_df(
         self,
@@ -977,12 +997,13 @@ class Client:
 
         Examples:
             >>> from feast import Client
+            >>> from feast.data_format import ParquetFormat
             >>> from datetime import datetime
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
             >>> feast_client = Client(core_url="localhost:6565")
             >>> feature_refs = ["bookings:bookings_7d", "bookings:booking_14d"]
-            >>> entity_source = FileSource("event_timestamp", "parquet", "gs://some-bucket/customer")
+            >>> entity_source = FileSource("event_timestamp", ParquetFormat, "gs://some-bucket/customer")
             >>> df = feast_client.get_historical_features(
             >>>     feature_refs, entity_source, project="my_project")
         """
@@ -1025,7 +1046,7 @@ class Client:
         :param end: upper datetime boundary
         :return: Spark Job Proxy object
         """
-        if not self._job_service:
+        if not self._use_job_service:
             return start_offline_to_online_ingestion(feature_table, start, end, self)
         else:
             request = StartOfflineToOnlineIngestionJobRequest(
@@ -1039,7 +1060,7 @@ class Client:
     def start_stream_to_online_ingestion(
         self, feature_table: FeatureTable, extra_jars: Optional[List[str]] = None,
     ) -> SparkJob:
-        if not self._job_service:
+        if not self._use_job_service:
             return start_stream_to_online_ingestion(
                 feature_table, extra_jars or [], self
             )
@@ -1050,12 +1071,13 @@ class Client:
             response = self._job_service.StartStreamToOnlineIngestionJob(request)
             return response.id
 
+    def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
+        return list_jobs(include_terminated, self)
+
+    def get_job_by_id(self, job_id: str) -> SparkJob:
+        return get_job_by_id(job_id, self)
+
     def stage_dataframe(
-        self,
-        df: pd.DataFrame,
-        event_timestamp_column: str,
-        created_timestamp_column: str,
+        self, df: pd.DataFrame, event_timestamp_column: str,
     ) -> FileSource:
-        return stage_dataframe(
-            df, event_timestamp_column, created_timestamp_column, self
-        )
+        return stage_dataframe(df, event_timestamp_column, self)

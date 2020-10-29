@@ -122,7 +122,10 @@ class StandaloneClusterRetrievalJob(StandaloneClusterJobMixin, RetrievalJob):
         super().__init__(job_id, job_name, process)
         self._output_file_uri = output_file_uri
 
-    def get_output_file_uri(self, timeout_sec: int = None):
+    def get_output_file_uri(self, timeout_sec: int = None, block=True):
+        if not block:
+            return self._output_file_uri
+
         with self._process as p:
             try:
                 p.wait(timeout_sec)
@@ -224,9 +227,7 @@ class StandaloneClusterLauncher(JobLauncher):
             ui_port,
         )
 
-    def stage_dataframe(
-        self, df, event_timestamp_column: str, created_timestamp_column: str,
-    ):
+    def stage_dataframe(self, df, event_timestamp_column: str):
         raise NotImplementedError
 
     def get_job_by_id(self, job_id: str) -> SparkJob:

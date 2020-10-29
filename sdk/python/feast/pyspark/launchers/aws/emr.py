@@ -91,7 +91,10 @@ class EmrRetrievalJob(EmrJobMixin, RetrievalJob):
         super().__init__(emr_client, job_ref)
         self._output_file_uri = output_file_uri
 
-    def get_output_file_uri(self, timeout_sec=None):
+    def get_output_file_uri(self, timeout_sec=None, block=True):
+        if not block:
+            return self._output_file_uri
+
         state = _wait_for_job_state(
             self._emr_client, self._job_ref, TERMINAL_STEP_STATES, timeout_sec
         )
@@ -291,9 +294,7 @@ class EmrClusterLauncher(JobLauncher):
 
         return EmrStreamIngestionJob(self._emr_client(), job_ref)
 
-    def stage_dataframe(
-        self, df: pandas.DataFrame, event_timestamp: str, created_timestamp_column: str
-    ) -> FileSource:
+    def stage_dataframe(self, df: pandas.DataFrame, event_timestamp: str) -> FileSource:
         with tempfile.NamedTemporaryFile() as f:
             df.to_parquet(f)
             file_url = _s3_upload(
@@ -304,7 +305,6 @@ class EmrClusterLauncher(JobLauncher):
             )
         return FileSource(
             event_timestamp_column=event_timestamp,
-            created_timestamp_column=created_timestamp_column,
             file_format=ParquetFormat(),
             file_url=file_url,
         )
@@ -364,7 +364,7 @@ class EmrClusterLauncher(JobLauncher):
             emr_client=self._emr_client(),
             job_type=None,
             table_name=None,
-            active_only=True,
+            active_only=False,
         )
 
         for job_info in jobs:
