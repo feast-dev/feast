@@ -245,7 +245,13 @@ class RetrievalJobParameters(SparkJobParameters):
         return self._destination["path"]
 
     def get_extra_options(self) -> str:
-        return self._extra_options
+        return " ".join(
+            [
+                "--packages",
+                "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.17.3",
+                *self._extra_options.split(),
+            ]
+        )
 
 
 class RetrievalJob(SparkJob):
@@ -257,7 +263,7 @@ class RetrievalJob(SparkJob):
     def get_output_file_uri(self, timeout_sec=None, block=True):
         """
         Get output file uri to the result file. This method will block until the
-        job succeeded, or if the job didn't execute successfully within timeout.
+        job succeeded, or if the job didn't execute successfully within timout.
 
         Args:
             timeout_sec (int):

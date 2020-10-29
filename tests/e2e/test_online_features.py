@@ -4,6 +4,7 @@ import os
 import time
 import uuid
 from datetime import datetime, timedelta
+from typing import Union
 
 import avro.schema
 import numpy as np
@@ -14,6 +15,7 @@ from kafka.admin import KafkaAdminClient
 from kafka.producer import KafkaProducer
 
 from feast import (
+    BigQuerySource,
     Client,
     Entity,
     Feature,
@@ -39,19 +41,16 @@ def generate_data():
     return df
 
 
-def test_offline_ingestion(feast_client: Client, local_staging_path: str):
+def test_offline_ingestion(
+    feast_client: Client, batch_source: Union[BigQuerySource, FileSource]
+):
     entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
 
     feature_table = FeatureTable(
         name="drivers",
         entities=["s2id"],
         features=[Feature("unique_drivers", ValueType.INT64)],
-        batch_source=FileSource(
-            event_timestamp_column="event_timestamp",
-            created_timestamp_column="event_timestamp",
-            file_format=ParquetFormat(),
-            file_url=os.path.join(local_staging_path, "batch-storage"),
-        ),
+        batch_source=batch_source,
     )
 
     feast_client.apply_entity(entity)
