@@ -67,7 +67,7 @@ def test_offline_ingestion(
 @pytest.mark.env("gcloud")
 def test_offline_ingestion_from_bq_view(pytestconfig, bq_dataset, feast_client: Client):
     original = generate_data()
-    bq_project = pytestconfig.getoption('bq_project')
+    bq_project = pytestconfig.getoption("bq_project")
 
     bq_client = bigquery.Client(project=bq_project)
     source_ref = bigquery.TableReference(

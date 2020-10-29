@@ -217,7 +217,7 @@ def test_ingest_into_bq(
     bq_dataset: str,
     pytestconfig,
 ):
-    bq_project = pytestconfig.getoption('bq_project')
+    bq_project = pytestconfig.getoption("bq_project")
     bq_table_id = f"bq_staging_{datetime.now():%Y%m%d%H%M%s}"
     ft = FeatureTable(
         name="basic_featuretable",
