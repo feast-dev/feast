@@ -25,8 +25,6 @@ import feast.proto.core.FeatureProto.FeatureSpecV2;
 import feast.proto.core.FeatureTableProto;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -158,7 +156,8 @@ public class FeatureTable extends AbstractTimestampEntity {
    * @param spec the Protobuf spec to update the FeatureTable from.
    * @throws IllegalArgumentException if the update will make prohibited changes.
    */
-  public void updateFromProto(FeatureTableSpec spec) {
+  public void updateFromProto(
+      String projectName, FeatureTableSpec spec, EntityRepository entityRepo) {
     // Check for prohibited changes made in spec:
     // - Name cannot be changed
     if (!getName().equals(spec.getName())) {
@@ -167,16 +166,11 @@ public class FeatureTable extends AbstractTimestampEntity {
               "Updating the name of a registered FeatureTable is not allowed: %s to %s",
               getName(), spec.getName()));
     }
-    // - Entities cannot be changed
-    List<String> entityNames =
-        getEntities().stream().map(EntityV2::getName).collect(Collectors.toList());
-    if (!new HashSet<>(entityNames).equals(new HashSet<>(spec.getEntitiesList()))) {
-      Collections.sort(entityNames);
-      throw new IllegalArgumentException(
-          String.format(
-              "Updating the entities of a registered FeatureTable is not allowed: %s to %s",
-              entityNames, spec.getEntitiesList()));
-    }
+    // Update Entities if changed
+    Set<EntityV2> entities =
+        FeatureTable.resolveEntities(
+            projectName, spec.getName(), entityRepo, spec.getEntitiesList());
+    this.setEntities(entities);
 
     // Update FeatureTable based on spec
     // Update existing features, create new feature, drop missing features
