@@ -47,10 +47,10 @@ def test_offline_ingestion(feast_client: Client, local_staging_path: str):
         entities=["s2id"],
         features=[Feature("unique_drivers", ValueType.INT64)],
         batch_source=FileSource(
-            "event_timestamp",
-            "event_timestamp",
-            ParquetFormat(),
-            os.path.join(local_staging_path, "batch-storage"),
+            event_timestamp_column="event_timestamp",
+            created_timestamp_column="event_timestamp",
+            file_format=ParquetFormat(),
+            file_url=os.path.join(local_staging_path, "batch-storage"),
         ),
     )
 
@@ -92,10 +92,10 @@ def test_streaming_ingestion(
         entities=["s2id"],
         features=[Feature("unique_drivers", ValueType.INT64)],
         batch_source=FileSource(
-            "event_timestamp",
-            "event_timestamp",
-            ParquetFormat(),
-            os.path.join(local_staging_path, "batch-storage"),
+            event_timestamp_column="event_timestamp",
+            created_timestamp_column="event_timestamp",
+            file_format=ParquetFormat(),
+            file_url=os.path.join(local_staging_path, "batch-storage"),
         ),
         stream_source=KafkaSource(
             "event_timestamp",

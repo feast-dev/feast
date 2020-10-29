@@ -45,10 +45,10 @@ def test_historical_features(feast_client: Client, local_staging_path: str):
             Feature("total_transactions", ValueType.DOUBLE),
         ],
         batch_source=FileSource(
-            "event_timestamp",
-            "created_timestamp",
-            ParquetFormat(),
-            os.path.join(local_staging_path, "transactions"),
+            event_timestamp_column="event_timestamp",
+            created_timestamp_column="created_timestamp",
+            file_format=ParquetFormat(),
+            file_url=os.path.join(local_staging_path, "transactions"),
         ),
         max_age=max_age,
     )
