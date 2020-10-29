@@ -1,4 +1,4 @@
-FROM python:3.7-slim-buster
+FROM jupyter/pyspark-notebook:ae5f7e104dd5
 
 USER root
 WORKDIR /feast
@@ -26,5 +26,11 @@ RUN pip install "s3fs" "boto3" "urllib3>=1.25.4"
 RUN wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.3.1/grpc_health_probe-linux-amd64 \
          -O /usr/bin/grpc-health-probe && \
     chmod +x /usr/bin/grpc-health-probe
+
+ENV FEAST_SPARK_LAUNCHER standalone
+ENV FEAST_SPARK_STANDALONE_MASTER "local[*]"
+ENV FEAST_SPARK_HOME $SPARK_HOME
+ENV FEAST_SPARK_EXTRA_OPTIONS "--jars https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop2-latest.jar \
+--conf spark.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"
 
 CMD ["feast", "server"]

@@ -33,6 +33,7 @@ from feast.constants import (
     CONFIG_ENABLE_AUTH_KEY,
     CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY,
     CONFIG_JOB_SERVICE_ENABLE_SSL_KEY,
+    CONFIG_JOB_SERVICE_ENABLED,
     CONFIG_JOB_SERVICE_SERVER_SSL_CERT_KEY,
     CONFIG_JOB_SERVICE_URL_KEY,
     CONFIG_PROJECT_KEY,
@@ -67,6 +68,11 @@ from feast.core.CoreService_pb2 import (
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.JobService_pb2_grpc import JobServiceStub
+from feast.core.JobService_pb2 import (
+    GetHistoricalFeaturesRequest,
+    StartOfflineToOnlineIngestionJobRequest,
+    StartStreamToOnlineIngestionJobRequest,
+)
 from feast.data_format import ParquetFormat
 from feast.data_source import BigQuerySource, FileSource
 from feast.entity import Entity
@@ -190,6 +196,10 @@ class Client:
 
         Returns: JobServiceStub
         """
+        # Don't initialize job service stub if the job service is disabled
+        if self._config.get(CONFIG_JOB_SERVICE_ENABLED) == "False":
+            return None
+
         if not self._job_service_stub:
             channel = create_grpc_channel(
                 url=self._config.get(CONFIG_JOB_SERVICE_URL_KEY),
@@ -853,8 +863,9 @@ class Client:
         self,
         feature_refs: List[str],
         entity_source: Union[pd.DataFrame, FileSource, BigQuerySource],
-        project: str = None,
-    ) -> RetrievalJob:
+        project: Optional[str] = None,
+        destination_path: Optional[str] = None,
+    ) -> Union[RetrievalJob, str]:
         """
         Launch a historical feature retrieval job.
 
@@ -873,11 +884,12 @@ class Client:
                 retrieval job.
             project: Specifies the project that contains the feature tables
                 which the requested features belong to.
+            destination_path: Specifies the path in a bucket to write the exported feature data files
 
         Returns:
-                Returns a retrieval job object that can be used to monitor retrieval
-                progress asynchronously, and can be used to materialize the
-                results.
+                If jobs are launched locally, returns a retrieval job object that can be used to monitor retrieval
+                progress asynchronously, and can be used to materialize the results.
+                Otherwise, if jobs are launched through Feast Job Service, returns a job id.
 
         Examples:
             >>> from feast import Client
@@ -890,15 +902,6 @@ class Client:
             >>> output_file_uri = feature_retrieval_job.get_output_file_uri()
                 "gs://some-bucket/output/
         """
-        feature_tables = self._get_feature_tables_from_feature_refs(
-            feature_refs, project
-        )
-        output_location = os.path.join(
-            self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION),
-            str(uuid.uuid4()),
-        )
-        output_format = self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT)
-
         if isinstance(entity_source, pd.DataFrame):
             staging_location = self._config.get(CONFIG_SPARK_STAGING_LOCATION)
             entity_staging_uri = urlparse(
@@ -922,13 +925,29 @@ class Client:
                     entity_staging_uri.geturl(),
                 )
 
-        return start_historical_feature_retrieval_job(
-            self,
-            entity_source,
-            feature_tables,
-            output_format,
-            os.path.join(output_location, str(uuid.uuid4())),
-        )
+        if destination_path is None:
+            destination_path = self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION)
+        destination_path = os.path.join(destination_path, str(uuid.uuid4()))
+
+        if not self._job_service:
+            feature_tables = self._get_feature_tables_from_feature_refs(
+                feature_refs, project
+            )
+            output_format = self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT)
+
+
+            return start_historical_feature_retrieval_job(
+                self, entity_source, feature_tables, output_format, destination_path
+            )
+        else:
+            request = GetHistoricalFeaturesRequest(
+                feature_refs=feature_refs,
+                entities_source=entity_source.to_proto(),
+                project=project,
+                destination_path=destination_path,
+            )
+            response = self._job_service.GetHistoricalFeatures(request)
+            return response.id
 
     def get_historical_features_df(
         self,
@@ -993,7 +1012,7 @@ class Client:
 
     def start_offline_to_online_ingestion(
         self, feature_table: FeatureTable, start: datetime, end: datetime,
-    ) -> SparkJob:
+    ) -> Union[SparkJob, str]:
         """
 
         Launch Ingestion Job from Batch Source to Online Store for given featureTable
@@ -1001,14 +1020,35 @@ class Client:
         :param feature_table: FeatureTable which will be ingested
         :param start: lower datetime boundary
         :param end: upper datetime boundary
-        :return: Spark Job Proxy object
+        :return: Spark Job Proxy object if jobs are launched locally,
+                 or Spark Job ID if jobs are launched through Feast Job Service
         """
-        return start_offline_to_online_ingestion(feature_table, start, end, self)
+        if not self._job_service:
+            return start_offline_to_online_ingestion(feature_table, start, end, self)
+        else:
+            request = StartOfflineToOnlineIngestionJobRequest(
+                project=self.project,
+                table_name=feature_table.name,
+            )
+            request.start_date.FromDatetime(start)
+            request.end_date.FromDatetime(end)
+            response = self._job_service.StartOfflineToOnlineIngestionJob(request)
+            return response.id
 
     def start_stream_to_online_ingestion(
         self, feature_table: FeatureTable, extra_jars: Optional[List[str]] = None,
-    ) -> SparkJob:
-        return start_stream_to_online_ingestion(feature_table, extra_jars or [], self)
+    ) -> Union[SparkJob, str]:
+        if not self._job_service:
+            return start_stream_to_online_ingestion(
+                feature_table, extra_jars or [], self
+            )
+        else:
+            request = StartStreamToOnlineIngestionJobRequest(
+                project=self.project,
+                table_name=feature_table.name,
+            )
+            response = self._job_service.StartStreamToOnlineIngestionJob(request)
+            return response.id
 
     def stage_dataframe(
         self,
