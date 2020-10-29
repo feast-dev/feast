@@ -74,7 +74,7 @@ def test_offline_ingestion_from_bq_view(pytestconfig, bq_dataset, feast_client: 
         bigquery.DatasetReference(bq_project, bq_dataset),
         f"ingestion_source_{datetime.now():%Y%m%d%H%M%s}",
     )
-    bq_client.load_table_from_dataframe(generate_data(), source_ref).result()
+    bq_client.load_table_from_dataframe(original, source_ref).result()
 
     view_ref = bigquery.TableReference(
         bigquery.DatasetReference(bq_project, bq_dataset),
@@ -83,8 +83,6 @@ def test_offline_ingestion_from_bq_view(pytestconfig, bq_dataset, feast_client: 
     view = bigquery.Table(view_ref)
     view.view_query = f"select * from `{source_ref.project}.{source_ref.dataset_id}.{source_ref.table_id}`"
     bq_client.create_table(view)
-
-    time.sleep(30)
 
     entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64)
     feature_table = FeatureTable(
