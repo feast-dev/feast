@@ -471,8 +471,16 @@ def list_jobs():
     help="Path to entity df in CSV format. It is assumed to have event_timestamp column and a header.",
     required=True,
 )
+@click.option(
+    "--entity-df-dtype",
+    "-d",
+    help="Dtypes for entity df, in JSON format",
+    required=False,
+)
 @click.option("--destination", "-d", help="Destination", default="")
-def get_historical_features(features: str, entity_df_path: str, destination: str):
+def get_historical_features(
+    features: str, entity_df_path: str, entity_df_dtype: str, destination: str
+):
     """
     Get historical features
     """
@@ -481,7 +489,14 @@ def get_historical_features(features: str, entity_df_path: str, destination: str
     client = Client()
 
     # TODO: clean this up
-    entity_df = pandas.read_csv(entity_df_path, sep=None, engine="python",)
+
+    if entity_df_dtype:
+        dtype = json.loads(entity_df_dtype)
+        entity_df = pandas.read_csv(
+            entity_df_path, sep=None, engine="python", dtype=dtype
+        )
+    else:
+        entity_df = pandas.read_csv(entity_df_path, sep=None, engine="python")
 
     entity_df["event_timestamp"] = pandas.to_datetime(entity_df["event_timestamp"])
 

@@ -66,6 +66,7 @@ from feast.core.CoreService_pb2 import (
     ListProjectsResponse,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
+from feast.core.JobService_pb2 import GetHistoricalFeaturesRequest
 from feast.core.JobService_pb2_grpc import JobServiceStub
 from feast.data_format import ParquetFormat
 from feast.data_source import BigQuerySource, FileSource
@@ -86,12 +87,15 @@ from feast.loaders.ingest import (
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
 from feast.pyspark.abc import RetrievalJob, SparkJob
 from feast.pyspark.launcher import (
+    get_job_by_id,
+    list_jobs,
     stage_dataframe,
     start_historical_feature_retrieval_job,
     start_historical_feature_retrieval_spark_session,
     start_offline_to_online_ingestion,
     start_stream_to_online_ingestion,
 )
+from feast.remote_job import RemoteRetrievalJob
 from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoRequest,
     GetOnlineFeaturesRequestV2,
@@ -184,6 +188,10 @@ class Client:
         return self._serving_service_stub
 
     @property
+    def _use_job_service(self) -> bool:
+        return self._config.exists(CONFIG_JOB_SERVICE_URL_KEY)
+
+    @property
     def _job_service(self):
         """
         Creates or returns the gRPC Feast Job Service Stub
@@ -203,6 +211,12 @@ class Client:
             )
             self._job_service_service_stub = JobServiceStub(channel)
         return self._job_service_service_stub
+
+    def _extra_grpc_params(self) -> Dict[str, Any]:
+        return dict(
+            timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+            metadata=self._get_grpc_metadata(),
+        )
 
     @property
     def core_url(self) -> str:
@@ -854,6 +868,7 @@ class Client:
         feature_refs: List[str],
         entity_source: Union[pd.DataFrame, FileSource, BigQuerySource],
         project: str = None,
+        output_location: str = None,
     ) -> RetrievalJob:
         """
         Launch a historical feature retrieval job.
@@ -894,10 +909,12 @@ class Client:
         feature_tables = self._get_feature_tables_from_feature_refs(
             feature_refs, project
         )
-        output_location = os.path.join(
-            self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION),
-            str(uuid.uuid4()),
-        )
+
+        if output_location is None:
+            output_location = os.path.join(
+                self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION),
+                str(uuid.uuid4()),
+            )
         output_format = self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT)
 
         if isinstance(entity_source, pd.DataFrame):
@@ -920,13 +937,30 @@ class Client:
                     "event_timestamp", ParquetFormat(), entity_staging_uri.geturl(),
                 )
 
-        return start_historical_feature_retrieval_job(
-            self,
-            entity_source,
-            feature_tables,
-            output_format,
-            os.path.join(output_location, str(uuid.uuid4())),
-        )
+        if self._use_job_service:
+            response = self._job_service.GetHistoricalFeatures(
+                GetHistoricalFeaturesRequest(
+                    feature_refs=feature_refs,
+                    entity_source=entity_source.to_proto(),
+                    project=project,
+                    output_location=output_location,
+                ),
+                **self._extra_grpc_params(),
+            )
+            return RemoteRetrievalJob(
+                self._job_service,
+                self._extra_grpc_params,
+                response.id,
+                output_file_uri=response.output_file_uri,
+            )
+        else:
+            return start_historical_feature_retrieval_job(
+                self,
+                entity_source,
+                feature_tables,
+                output_format,
+                os.path.join(output_location, str(uuid.uuid4())),
+            )
 
     def get_historical_features_df(
         self,
@@ -1008,6 +1042,12 @@ class Client:
         self, feature_table: FeatureTable, extra_jars: Optional[List[str]] = None,
     ) -> SparkJob:
         return start_stream_to_online_ingestion(feature_table, extra_jars or [], self)
+
+    def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
+        return list_jobs(include_terminated, self)
+
+    def get_job_by_id(self, job_id: str) -> SparkJob:
+        return get_job_by_id(job_id, self)
 
     def stage_dataframe(
         self, df: pd.DataFrame, event_timestamp_column: str,

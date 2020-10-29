@@ -23,7 +23,7 @@ option java_package = "feast.proto.core";
 
 import "google/protobuf/timestamp.proto";
 import "feast/core/DataSource.proto";
-import "feast/serving/ServingService.proto";
+
 
 service JobService {
     // Start job to ingest data from offline store into online store
@@ -38,8 +38,8 @@ service JobService {
     // List all types of jobs
     rpc ListJobs (ListJobsRequest) returns (ListJobsResponse);
 
-    // Stop a single job
-    rpc StopJob (StopJobRequest) returns (StopJobResponse);
+    // Cancel a single job
+    rpc CancelJob (CancelJobRequest) returns (CancelJobResponse);
 
     // Get details of a single job
     rpc GetJob (GetJobRequest) returns (GetJobResponse);
@@ -48,9 +48,9 @@ service JobService {
 
 enum JobType {
 	INVALID_JOB = 0;
-	OFFLINE_TO_ONLINE_JOB = 1;
-	STREAM_TO_ONLINE_JOB = 2;
-	EXPORT_JOB = 4;
+	BATCH_INGESTION_JOB = 1;
+	STREAM_INGESTION_JOB = 2;
+	RETRIEVAL_JOB = 4;
 }
 
 enum JobStatus {
@@ -68,42 +68,26 @@ enum JobStatus {
 message Job {
   // Identifier of the Job
   string id = 1;
-  // External Identifier of the Job assigned by the Spark executor
-  string external_id = 2;
   // Type of the Job
-  JobType type = 3;
+  JobType type = 2;
   // Current job status
-  JobStatus status = 4;
-  // Timestamp on when the job was is created
-  google.protobuf.Timestamp created_timestamp = 5;
-  // Timestamp on when the job has stopped.
-  google.protobuf.Timestamp stop_timestamp = 6;
+  JobStatus status = 3;
 
-  message ExportJobMeta {
-    // Glob of the exported files that should be retrieved to reconstruct
-    // the dataframe with retrieved features.
-    repeated string file_glob = 1;
-    // The Historical Features request that triggered this export job
-    GetHistoricalFeaturesRequest request = 2;
+  message RetrievalJobMeta {
+    string output_location = 4;
   }
 
   message OfflineToOnlineMeta {
-    // Reference to the Feature Table being populated by this job
-    string project = 1;
-    string table_name = 2;
   }
 
   message StreamToOnlineMeta {
-    // Reference to the Feature Table being populated by this job
-    string project = 1;
-    string table_name = 2;
   }
 
   // JobType specific metadata on the job
   oneof meta {
-    ExportJobMeta export = 7;
-    OfflineToOnlineMeta offline_to_online = 8;
-    StreamToOnlineMeta stream_to_online = 9;
+    RetrievalJobMeta retrieval = 5;
+    OfflineToOnlineMeta batch_ingestion = 6;
+    StreamToOnlineMeta stream_ingestion = 7;
   }
 }
 
@@ -127,13 +111,13 @@ message StartOfflineToOnlineIngestionJobResponse {
 
 message GetHistoricalFeaturesRequest {
   // List of features that are being retrieved
-  repeated feast.serving.FeatureReferenceV2 features = 1;
+  repeated string feature_refs = 1;
 
   // Batch DataSource that can be used to obtain entity values for historical retrieval.
   // For each entity value, a feature value will be retrieved for that value/timestamp
   // Only 'BATCH_*' source types are supported.
   // Currently only BATCH_FILE source type is supported.
-  DataSource entities_source = 2;
+  DataSource entity_source = 2;
 
   // Optional field to specify project name override. If specified, uses the
   // given project for retrieval. Overrides the projects specified in
@@ -143,12 +127,13 @@ message GetHistoricalFeaturesRequest {
   // Specifies the path in a bucket to write the exported feature data files
   // Export to AWS S3 - s3://path/to/features
   // Export to GCP GCS -  gs://path/to/features
-  string destination_path = 4;
+  string output_location = 4;
 }
 
 message GetHistoricalFeaturesResponse {
     // Export Job with ID assigned by Feast
     string id = 1;
+    string output_file_uri = 2;
 }
 
 message StartStreamToOnlineIngestionJobRequest {
@@ -163,13 +148,7 @@ message StartStreamToOnlineIngestionJobResponse {
 }
 
 message ListJobsRequest {
-  Filter filter = 1;
-  message Filter {
-    // Filter jobs by job type
-    JobType type = 1;
-    // Filter jobs by current job status
-    JobStatus status = 2;
-  }
+  bool include_terminated = 1;
 }
 
 message ListJobsResponse {
@@ -184,14 +163,8 @@ message GetJobResponse {
   Job job = 1;
 }
 
-message RestartJobRequest {
+message CancelJobRequest{
   string job_id = 1;
 }
 
-message RestartJobResponse {}
-
-message StopJobRequest{
-  string job_id = 1;
-}
-
-message StopJobResponse {}
+message CancelJobResponse {}

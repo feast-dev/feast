@@ -31,6 +31,7 @@ from feast.pyspark.abc import (
     JobLauncher,
     RetrievalJob,
     RetrievalJobParameters,
+    SparkJob,
     StreamIngestionJob,
     StreamIngestionJobParameters,
 )
@@ -241,6 +242,16 @@ def start_stream_to_online_ingestion(
             extra_options=client._config.get(CONFIG_SPARK_EXTRA_OPTIONS),
         )
     )
+
+
+def list_jobs(include_terminated: bool, client: "Client") -> List[SparkJob]:
+    launcher = resolve_launcher(client._config)
+    return launcher.list_jobs(include_terminated=include_terminated)
+
+
+def get_job_by_id(job_id: str, client: "Client") -> SparkJob:
+    launcher = resolve_launcher(client._config)
+    return launcher.get_job_by_id(job_id)
 
 
 def stage_dataframe(df, event_timestamp_column: str, client: "Client") -> FileSource:
