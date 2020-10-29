@@ -244,6 +244,9 @@ class RetrievalJobParameters(SparkJobParameters):
     def get_destination_path(self) -> str:
         return self._destination["path"]
 
+    def get_extra_options(self) -> str:
+        return self._extra_options
+
 
 class RetrievalJob(SparkJob):
     """
