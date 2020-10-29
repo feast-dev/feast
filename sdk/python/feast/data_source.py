@@ -348,13 +348,13 @@ class DataSource:
     def __init__(
         self,
         event_timestamp_column: str,
-        created_timestamp_column: str,
-        field_mapping: Optional[Dict[str, str]] = dict(),
+        created_timestamp_column: Optional[str] = "",
+        field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
     ):
         self._event_timestamp_column = event_timestamp_column
         self._created_timestamp_column = created_timestamp_column
-        self._field_mapping = field_mapping
+        self._field_mapping = field_mapping if field_mapping else {}
         self._date_partition_column = date_partition_column
 
     def __eq__(self, other):
@@ -409,7 +409,7 @@ class DataSource:
     @created_timestamp_column.setter
     def created_timestamp_column(self, created_timestamp_column):
         """
-        Sets the event timestamp column of this data source
+        Sets the created timestamp column of this data source
         """
         self._created_timestamp_column = created_timestamp_column
 
@@ -498,10 +498,10 @@ class FileSource(DataSource):
     def __init__(
         self,
         event_timestamp_column: str,
-        created_timestamp_column: str,
         file_format: FileFormat,
         file_url: str,
-        field_mapping: Optional[Dict[str, str]] = dict(),
+        created_timestamp_column: Optional[str] = "",
+        field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
     ):
         super().__init__(
@@ -555,9 +555,9 @@ class BigQuerySource(DataSource):
     def __init__(
         self,
         event_timestamp_column: str,
-        created_timestamp_column: str,
         table_ref: str,
-        field_mapping: Optional[Dict[str, str]] = dict(),
+        created_timestamp_column: Optional[str] = "",
+        field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
     ):
         super().__init__(

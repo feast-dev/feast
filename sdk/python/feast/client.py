@@ -881,10 +881,11 @@ class Client:
 
         Examples:
             >>> from feast import Client
+            >>> from feast.data_format import ParquetFormat
             >>> from datetime import datetime
             >>> feast_client = Client(core_url="localhost:6565")
             >>> feature_refs = ["bookings:bookings_7d", "bookings:booking_14d"]
-            >>> entity_source = FileSource("event_timestamp", "parquet", "gs://some-bucket/customer")
+            >>> entity_source = FileSource("event_timestamp", ParquetFormat(), "gs://some-bucket/customer")
             >>> feature_retrieval_job = feast_client.get_historical_features(
             >>>     feature_refs, entity_source, project="my_project")
             >>> output_file_uri = feature_retrieval_job.get_output_file_uri()
@@ -916,10 +917,7 @@ class Client:
                     df_export_path.name, bucket, entity_staging_uri.path.lstrip("/")
                 )
                 entity_source = FileSource(
-                    "event_timestamp",
-                    "created_timestamp",
-                    ParquetFormat(),
-                    entity_staging_uri.geturl(),
+                    "event_timestamp", ParquetFormat(), entity_staging_uri.geturl(),
                 )
 
         return start_historical_feature_retrieval_job(
@@ -955,12 +953,13 @@ class Client:
 
         Examples:
             >>> from feast import Client
+            >>> from feast.data_format import ParquetFormat
             >>> from datetime import datetime
             >>> from pyspark.sql import SparkSession
             >>> spark = SparkSession.builder.getOrCreate()
             >>> feast_client = Client(core_url="localhost:6565")
             >>> feature_refs = ["bookings:bookings_7d", "bookings:booking_14d"]
-            >>> entity_source = FileSource("event_timestamp", "parquet", "gs://some-bucket/customer")
+            >>> entity_source = FileSource("event_timestamp", ParquetFormat, "gs://some-bucket/customer")
             >>> df = feast_client.get_historical_features(
             >>>     feature_refs, entity_source, project="my_project")
         """
@@ -1011,11 +1010,6 @@ class Client:
         return start_stream_to_online_ingestion(feature_table, extra_jars or [], self)
 
     def stage_dataframe(
-        self,
-        df: pd.DataFrame,
-        event_timestamp_column: str,
-        created_timestamp_column: str,
+        self, df: pd.DataFrame, event_timestamp_column: str,
     ) -> FileSource:
-        return stage_dataframe(
-            df, event_timestamp_column, created_timestamp_column, self
-        )
+        return stage_dataframe(df, event_timestamp_column, self)

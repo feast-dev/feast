@@ -243,10 +243,6 @@ def start_stream_to_online_ingestion(
     )
 
 
-def stage_dataframe(
-    df, event_timestamp_column: str, created_timestamp_column: str, client: "Client"
-) -> FileSource:
+def stage_dataframe(df, event_timestamp_column: str, client: "Client") -> FileSource:
     launcher = resolve_launcher(client._config)
-    return launcher.stage_dataframe(
-        df, event_timestamp_column, created_timestamp_column,
-    )
+    return launcher.stage_dataframe(df, event_timestamp_column)

@@ -458,10 +458,7 @@ class JobLauncher(abc.ABC):
 
     @abc.abstractmethod
     def stage_dataframe(
-        self,
-        df: pandas.DataFrame,
-        event_timestamp_column: str,
-        created_timestamp_column: str,
+        self, df: pandas.DataFrame, event_timestamp_column: str,
     ) -> FileSource:
         """
         Upload a pandas dataframe so it is available to the Spark cluster.
