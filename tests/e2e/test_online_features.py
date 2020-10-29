@@ -61,7 +61,7 @@ def test_offline_ingestion(
     original = generate_data()
     feast_client.ingest(feature_table, original)  # write to batch (offline) storage
 
-    verify_data_ingested(feast_client, feature_table, original)
+    ingest_and_verify(feast_client, feature_table, original)
 
 
 @pytest.mark.env("gcloud")
@@ -84,6 +84,8 @@ def test_offline_ingestion_from_bq_view(pytestconfig, bq_dataset, feast_client: 
     view.view_query = f"select * from `{source_ref.project}.{source_ref.dataset_id}.{source_ref.table_id}`"
     bq_client.create_table(view)
 
+    time.sleep(30)
+
     entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64)
     feature_table = FeatureTable(
         name="bq_ingestion",
@@ -97,7 +99,8 @@ def test_offline_ingestion_from_bq_view(pytestconfig, bq_dataset, feast_client: 
 
     feast_client.apply_entity(entity)
     feast_client.apply_feature_table(feature_table)
-    verify_data_ingested(feast_client, feature_table, original)
+
+    ingest_and_verify(feast_client, feature_table, original)
 
 
 def test_streaming_ingestion(
@@ -173,7 +176,7 @@ def test_streaming_ingestion(
     )
 
 
-def verify_data_ingested(
+def ingest_and_verify(
     feast_client: Client, feature_table: FeatureTable, original: pd.DataFrame
 ):
     job = feast_client.start_offline_to_online_ingestion(
