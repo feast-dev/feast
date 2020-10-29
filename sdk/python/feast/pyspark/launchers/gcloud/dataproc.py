@@ -103,6 +103,9 @@ class DataprocClusterLauncher(JobLauncher):
     google-cloud-storage, which are optional dependencies that the user has to installed in
     addition to the Feast SDK.
     """
+    EXTERNAL_JARS = [
+        'gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar'
+    ]
 
     def __init__(
         self, cluster_name: str, staging_location: str, region: str, project_id: str,
@@ -157,7 +160,7 @@ class DataprocClusterLauncher(JobLauncher):
             job_config.update(
                 {
                     "spark_job": {
-                        "jar_file_uris": [main_file_uri],
+                        "jar_file_uris": [main_file_uri] + self.EXTERNAL_JARS,
                         "main_class": job_params.get_class_name(),
                         "args": job_params.get_arguments(),
                     }
@@ -168,6 +171,7 @@ class DataprocClusterLauncher(JobLauncher):
                 {
                     "pyspark_job": {
                         "main_python_file_uri": main_file_uri,
+                        "jar_file_uris": self.EXTERNAL_JARS,
                         "args": job_params.get_arguments(),
                     }
                 }
