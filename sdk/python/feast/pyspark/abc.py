@@ -100,8 +100,6 @@ class SparkJobParameters(abc.ABC):
 
 
 class RetrievalJobParameters(SparkJobParameters):
-    BQ_CONNECTOR_VERSION = "2.12:0.17.3"
-
     def __init__(
         self,
         feature_tables: List[Dict],
@@ -245,15 +243,6 @@ class RetrievalJobParameters(SparkJobParameters):
 
     def get_destination_path(self) -> str:
         return self._destination["path"]
-
-    def get_extra_options(self) -> str:
-        return " ".join(
-            [
-                "--packages",
-                f"com.google.cloud.spark:spark-bigquery-with-dependencies_{self.BQ_CONNECTOR_VERSION}",
-                *self._extra_options.split(),
-            ]
-        )
 
 
 class RetrievalJob(SparkJob):

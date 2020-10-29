@@ -148,6 +148,8 @@ class StandaloneClusterLauncher(JobLauncher):
     Submits jobs to a standalone Spark cluster in client mode.
     """
 
+    BQ_CONNECTOR_VERSION = "2.12:0.17.3"
+
     def __init__(self, master_url: str, spark_home: str = None):
         """
         This launcher executes the spark-submit script in a subprocess. The subprocess
@@ -196,6 +198,8 @@ class StandaloneClusterLauncher(JobLauncher):
                 "-Dcom.google.cloud.spark.bigquery.repackaged.io.netty.tryReflectionSetAccessible=true -Duser.timezone=GMT",
                 "--conf",
                 "spark.sql.session.timeZone=UTC",  # ignore local timezone
+                "--packages",
+                f"com.google.cloud.spark:spark-bigquery-with-dependencies_{self.BQ_CONNECTOR_VERSION}",
             ]
         )
 

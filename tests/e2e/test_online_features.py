@@ -9,6 +9,7 @@ from typing import Union
 import avro.schema
 import numpy as np
 import pandas as pd
+import pytest
 import pytz
 from avro.io import BinaryEncoder, DatumWriter
 from kafka.admin import KafkaAdminClient
@@ -150,6 +151,11 @@ def test_streaming_ingestion(
             columns={"unique_drivers": "drivers_stream:unique_drivers"}
         ),
     )
+
+
+@pytest.mark.env("gcloud")
+def test_offline_ingestion_from_bq_view():
+    pass
 
 
 def avro_schema():
