@@ -12,6 +12,7 @@ import pandas as pd
 import pytest
 import pytz
 from avro.io import BinaryEncoder, DatumWriter
+from google.cloud import bigquery
 from kafka.admin import KafkaAdminClient
 from kafka.producer import KafkaProducer
 
@@ -60,24 +61,42 @@ def test_offline_ingestion(
     original = generate_data()
     feast_client.ingest(feature_table, original)  # write to batch (offline) storage
 
-    job = feast_client.start_offline_to_online_ingestion(
-        feature_table, datetime.today(), datetime.today() + timedelta(days=1)
+    verify_data_ingested(feast_client, feature_table, original)
+
+
+@pytest.mark.env("gcloud")
+def test_offline_ingestion_from_bq_view(bq_project, bq_dataset, feast_client: Client):
+    original = generate_data()
+
+    bq_client = bigquery.Client(project=bq_project)
+    source_ref = bigquery.TableReference(
+        bigquery.DatasetReference(bq_project, bq_dataset),
+        f"ingestion_source_{datetime.now():%Y%m%d%H%M%s}",
     )
+    bq_client.load_table_from_dataframe(generate_data(), source_ref)
 
-    wait_retry_backoff(lambda: (None, job.get_status() == SparkJobStatus.COMPLETED), 60)
+    view_ref = bigquery.TableReference(
+        bigquery.DatasetReference(bq_project, bq_dataset),
+        f"ingestion_view_{datetime.now():%Y%m%d%H%M%s}",
+    )
+    view = bigquery.Table(view_ref)
+    view.view_query = f"select * from `{source_ref.project}.{source_ref.dataset_id}.{source_ref.table_id}`"
+    bq_client.create_table(view)
 
-    features = feast_client.get_online_features(
-        ["drivers:unique_drivers"],
-        entity_rows=[{"s2id": s2_id} for s2_id in original["s2id"].tolist()],
-    ).to_dict()
-
-    ingested = pd.DataFrame.from_dict(features)
-    pd.testing.assert_frame_equal(
-        ingested[["s2id", "drivers:unique_drivers"]],
-        original[["s2id", "unique_drivers"]].rename(
-            columns={"unique_drivers": "drivers:unique_drivers"}
+    entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64)
+    feature_table = FeatureTable(
+        name="bq_ingestion",
+        entities=["s2id"],
+        features=[Feature("unique_drivers", ValueType.INT64)],
+        batch_source=BigQuerySource(
+            event_timestamp_column="event_timestamp",
+            table_ref=f"{view_ref.project}:{view_ref.dataset_id}.{view_ref.table_id}",
         ),
     )
+
+    feast_client.apply_entity(entity)
+    feast_client.apply_feature_table(feature_table)
+    verify_data_ingested(feast_client, feature_table, original)
 
 
 def test_streaming_ingestion(
@@ -153,9 +172,27 @@ def test_streaming_ingestion(
     )
 
 
-@pytest.mark.env("gcloud")
-def test_offline_ingestion_from_bq_view():
-    pass
+def verify_data_ingested(
+    feast_client: Client, feature_table: FeatureTable, original: pd.DataFrame
+):
+    job = feast_client.start_offline_to_online_ingestion(
+        feature_table, datetime.today(), datetime.today() + timedelta(days=1)
+    )
+
+    wait_retry_backoff(lambda: (None, job.get_status() == SparkJobStatus.COMPLETED), 60)
+
+    features = feast_client.get_online_features(
+        ["drivers:unique_drivers"],
+        entity_rows=[{"s2id": s2_id} for s2_id in original["s2id"].tolist()],
+    ).to_dict()
+
+    ingested = pd.DataFrame.from_dict(features)
+    pd.testing.assert_frame_equal(
+        ingested[["s2id", "drivers:unique_drivers"]],
+        original[["s2id", "unique_drivers"]].rename(
+            columns={"unique_drivers": "drivers:unique_drivers"}
+        ),
+    )
 
 
 def avro_schema():
