@@ -3,6 +3,7 @@ import time
 from datetime import datetime
 
 import pytest
+from _pytest.fixtures import FixtureRequest
 from google.cloud import bigquery
 
 from feast import BigQuerySource, FileSource
@@ -13,9 +14,6 @@ __all__ = ("bq_dataset", "batch_source")
 
 @pytest.fixture(scope="session")
 def bq_dataset(pytestconfig):
-    if pytestconfig.getoption("env") != "gcloud":
-        return
-
     client = bigquery.Client(project=pytestconfig.getoption("bq_project"))
     timestamp = int(time.time())
     name = f"feast-e2e-{timestamp}"
@@ -25,10 +23,10 @@ def bq_dataset(pytestconfig):
 
 
 @pytest.fixture
-def batch_source(local_staging_path: str, pytestconfig, bq_dataset):
+def batch_source(local_staging_path: str, pytestconfig, request: FixtureRequest):
     if pytestconfig.getoption("env") == "gcloud":
         bq_project = pytestconfig.getoption("bq_project")
-        bq_dataset = bq_dataset
+        bq_dataset = request.getfixturevalue("bq_dataset")
         return BigQuerySource(
             "event_timestamp",
             "created_timestamp",
