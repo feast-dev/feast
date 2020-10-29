@@ -67,4 +67,4 @@ else:
         feast_serving,
     )
 
-from .fixtures.data import batch_source  # noqa
+from .fixtures.data import *  # noqa

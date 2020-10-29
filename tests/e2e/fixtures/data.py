@@ -1,17 +1,30 @@
 import os
+import time
 from datetime import datetime
 
 import pytest
+from google.cloud import bigquery
 
 from feast import BigQuerySource, FileSource
 from feast.data_format import ParquetFormat
 
+__all__ = ("bq_dataset", "batch_source")
+
+
+@pytest.fixture(scope="session")
+def bq_dataset(pytestconfig):
+    client = bigquery.Client(project=pytestconfig.getoption("bq_project"))
+    name = f"feast-e2e-{time.time():d}"
+    client.create_dataset(name)
+    yield name
+    client.delete_dataset(name)
+
 
 @pytest.fixture
-def batch_source(local_staging_path: str, pytestconfig):
+def batch_source(local_staging_path: str, pytestconfig, bq_dataset):
     if pytestconfig.getoption("env") == "gcloud":
         bq_project = pytestconfig.getoption("bq_project")
-        bq_dataset = pytestconfig.getoption("bq_dataset")
+        bq_dataset = bq_dataset
         return BigQuerySource(
             "event_timestamp",
             "created_timestamp",

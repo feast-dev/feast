@@ -882,8 +882,11 @@ class Client:
                 "feature_table:feature" where "feature_table" & "feature" refer to
                 the feature and feature table names respectively.
             entity_source (Union[pd.DataFrame, FileSource, BigQuerySource]): Source for the entity rows.
-                If entity_source is a Panda DataFrame, the dataframe will be exported to the staging
-                location as parquet file. It is also assumed that the column event_timestamp is present
+                If entity_source is a Panda DataFrame, the dataframe will be staged
+                to become accessible by spark workers.
+                If one of feature tables' source is in BigQuery - entities will be upload to BQ.
+                Otherwise to remote file storage (derived from configured staging location).
+                It is also assumed that the column event_timestamp is present
                 in the dataframe, and is of type datetime without timezone information.
 
                 The user needs to make sure that the source (or staging location, if entity_source is
