@@ -183,15 +183,15 @@ def verify_data_ingested(
     wait_retry_backoff(lambda: (None, job.get_status() == SparkJobStatus.COMPLETED), 60)
 
     features = feast_client.get_online_features(
-        ["drivers:unique_drivers"],
+        [f"{feature_table.name}:unique_drivers"],
         entity_rows=[{"s2id": s2_id} for s2_id in original["s2id"].tolist()],
     ).to_dict()
 
     ingested = pd.DataFrame.from_dict(features)
     pd.testing.assert_frame_equal(
-        ingested[["s2id", "drivers:unique_drivers"]],
+        ingested[["s2id", f"{feature_table.name}:unique_drivers"]],
         original[["s2id", "unique_drivers"]].rename(
-            columns={"unique_drivers": "drivers:unique_drivers"}
+            columns={"unique_drivers": f"{feature_table.name}:unique_drivers"}
         ),
     )
 
