@@ -13,8 +13,12 @@ __all__ = ("bq_dataset", "batch_source")
 
 @pytest.fixture(scope="session")
 def bq_dataset(pytestconfig):
+    if pytestconfig.getoption("env") != "gcloud":
+        return
+
     client = bigquery.Client(project=pytestconfig.getoption("bq_project"))
-    name = f"feast-e2e-{time.time():d}"
+    timestamp = int(time.time())
+    name = f"feast-e2e-{timestamp}"
     client.create_dataset(name)
     yield name
     client.delete_dataset(name)
