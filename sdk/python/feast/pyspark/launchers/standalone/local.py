@@ -181,6 +181,21 @@ class StandaloneClusterLauncher(JobLauncher):
         if ui_port:
             submission_cmd.extend(["--conf", f"spark.ui.port={ui_port}"])
 
+        # Workaround for https://github.com/apache/spark/pull/26552
+        # Fix running spark job with bigquery connector (w/ shadowing) on JDK 9+
+        submission_cmd.extend(
+            [
+                "--conf",
+                "spark.executor.extraJavaOptions="
+                "-Dcom.google.cloud.spark.bigquery.repackaged.io.netty.tryReflectionSetAccessible=true -Duser.timezone=GMT",
+                "--conf",
+                "spark.driver.extraJavaOptions="
+                "-Dcom.google.cloud.spark.bigquery.repackaged.io.netty.tryReflectionSetAccessible=true -Duser.timezone=GMT",
+                "--conf",
+                "spark.sql.session.timeZone=UTC",  # ignore local timezone
+            ]
+        )
+
         if job_params.get_extra_options():
             submission_cmd.extend(job_params.get_extra_options().split(" "))
 

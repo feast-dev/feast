@@ -105,7 +105,11 @@ def _source_to_argument(source: DataSource):
         return {"file": properties}
 
     if isinstance(source, BigQuerySource):
-        properties["table_ref"] = source.bigquery_options.table_ref
+        project, dataset_and_table = source.bigquery_options.table_ref.split(":")
+        dataset, table = dataset_and_table.split(".")
+        properties["project"] = project
+        properties["dataset"] = dataset
+        properties["table"] = table
         return {"bq": properties}
 
     if isinstance(source, KafkaSource):
@@ -166,6 +170,7 @@ def start_historical_feature_retrieval_job(
     client: "Client",
     entity_source: Union[FileSource, BigQuerySource],
     feature_tables: List[FeatureTable],
+    feature_tables_sources: List[DataSource],
     output_format: str,
     output_path: str,
 ) -> RetrievalJob:
@@ -174,8 +179,7 @@ def start_historical_feature_retrieval_job(
         RetrievalJobParameters(
             entity_source=_source_to_argument(entity_source),
             feature_tables_sources=[
-                _source_to_argument(feature_table.batch_source)
-                for feature_table in feature_tables
+                _source_to_argument(source) for source in feature_tables_sources
             ],
             feature_tables=[
                 _feature_table_to_argument(client, feature_table)
