@@ -141,7 +141,7 @@ presubmits:
       - image: golang:1.13
         command: ["infra/scripts/test-golang-sdk.sh"]
 
-  - name: test-integration
+  - name: python-sdk-integration-test
     decorate: true
     always_run: true
     spec:
