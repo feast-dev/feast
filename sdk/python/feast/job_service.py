@@ -3,24 +3,16 @@ from concurrent.futures import ThreadPoolExecutor
 import grpc
 
 import feast
-from feast.constants import (
-    CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT,
-    CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION,
-)
+from feast.constants import CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT
 from feast.core import JobService_pb2_grpc
 from feast.core.JobService_pb2 import (
     GetHistoricalFeaturesResponse,
-    GetJobResponse,
-    ListJobsResponse,
     StartOfflineToOnlineIngestionJobResponse,
     StartStreamToOnlineIngestionJobResponse,
-    StopJobResponse,
 )
 from feast.data_source import DataSource
 from feast.pyspark.launcher import (
-    stage_dataframe,
     start_historical_feature_retrieval_job,
-    start_historical_feature_retrieval_spark_session,
     start_offline_to_online_ingestion,
     start_stream_to_online_ingestion,
 )
