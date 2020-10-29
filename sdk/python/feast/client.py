@@ -100,7 +100,7 @@ from feast.serving.ServingService_pb2 import (
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.staging.entities import (
-    replace_table_with_joined_view,
+    create_view_to_source_with_joined_entities,
     stage_entities_to_bq,
     stage_entities_to_fs,
     table_reference_from_string,
@@ -935,7 +935,7 @@ class Client:
                     entity_source, source_ref.project, source_ref.dataset_id
                 )
                 data_sources = [
-                    replace_table_with_joined_view(
+                    create_view_to_source_with_joined_entities(
                         feature_table.batch_source,
                         entity_source,
                         feature_table.entities,

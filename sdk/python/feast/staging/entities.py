@@ -20,6 +20,11 @@ except ImportError:
 def stage_entities_to_fs(
     entity_source: pd.DataFrame, staging_location: str
 ) -> FileSource:
+    """
+    Dumps given (entities) dataframe as parquet file and stage it to remote file storage (subdirectory of staging_location)
+
+    :return: FileSource with remote destination path
+    """
     entity_staging_uri = urlparse(os.path.join(staging_location, str(uuid.uuid4())))
     staging_client = get_staging_client(entity_staging_uri.scheme)
     with tempfile.NamedTemporaryFile() as df_export_path:
@@ -31,6 +36,7 @@ def stage_entities_to_fs(
             df_export_path.name, bucket, entity_staging_uri.path.lstrip("/")
         )
 
+    # ToDo: support custom event_timestamp_column
     return FileSource(
         event_timestamp_column="event_timestamp",
         file_format=ParquetFormat(),
@@ -39,6 +45,9 @@ def stage_entities_to_fs(
 
 
 def table_reference_from_string(table_ref: str):
+    """
+    Parses reference string with format "{project}:{dataset}.{table}" into bigquery.TableReference
+    """
     project, dataset_and_table = table_ref.split(":")
     dataset, table_id = dataset_and_table.split(".")
     return bigquery.TableReference(
@@ -49,6 +58,11 @@ def table_reference_from_string(table_ref: str):
 def stage_entities_to_bq(
     entity_source: pd.DataFrame, project: str, dataset: str
 ) -> BigQuerySource:
+    """
+    Stores given (entity) dataframe as new table in BQ. Name of the table generated based on current time.
+    Table will expire in 1 day.
+    Returns BigQuerySource with reference to created table.
+    """
     bq_client = bigquery.Client()
     destination = bigquery.TableReference(
         bigquery.DatasetReference(project, dataset),
@@ -81,9 +95,13 @@ ON
   ({entity_key})"""
 
 
-def replace_table_with_joined_view(
+def create_view_to_source_with_joined_entities(
     source: BigQuerySource, entity_source: BigQuerySource, entity_names: List[str]
 ) -> BigQuerySource:
+    """
+    Creates BQ view that joins tables from `source` and `entity_source` with join key derived from `entity_names`.
+    Returns BigQuerySource with reference to created view.
+    """
     bq_client = bigquery.Client()
 
     source_ref = table_reference_from_string(source.bigquery_options.table_ref)

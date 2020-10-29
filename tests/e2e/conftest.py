@@ -66,3 +66,5 @@ else:
         feast_core,
         feast_serving,
     )
+
+from .fixtures.data import batch_source  # noqa

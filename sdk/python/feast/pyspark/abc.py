@@ -100,6 +100,8 @@ class SparkJobParameters(abc.ABC):
 
 
 class RetrievalJobParameters(SparkJobParameters):
+    BQ_CONNECTOR_VERSION = "2.12:0.17.3"
+
     def __init__(
         self,
         feature_tables: List[Dict],
@@ -248,7 +250,7 @@ class RetrievalJobParameters(SparkJobParameters):
         return " ".join(
             [
                 "--packages",
-                "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.17.3",
+                f"com.google.cloud.spark:spark-bigquery-with-dependencies_{self.BQ_CONNECTOR_VERSION}",
                 *self._extra_options.split(),
             ]
         )
@@ -263,7 +265,7 @@ class RetrievalJob(SparkJob):
     def get_output_file_uri(self, timeout_sec=None, block=True):
         """
         Get output file uri to the result file. This method will block until the
-        job succeeded, or if the job didn't execute successfully within timout.
+        job succeeded, or if the job didn't execute successfully within timeout.
 
         Args:
             timeout_sec (int):
