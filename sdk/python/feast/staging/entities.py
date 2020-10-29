@@ -79,9 +79,8 @@ def stage_entities_to_bq(
     bq_client.update_table(dest_table, fields=["expires"])
 
     return BigQuerySource(
-        "event_timestamp",
-        "created_timestamp",
-        f"{destination.project}:{destination.dataset_id}.{destination.table_id}",
+        event_timestamp_column="event_timestamp",
+        table_ref=f"{destination.project}:{destination.dataset_id}.{destination.table_id}",
     )
 
 
@@ -122,9 +121,9 @@ def create_view_to_source_with_joined_entities(
     bq_client.create_table(view)
 
     return BigQuerySource(
-        source.event_timestamp_column,
-        source.created_timestamp_column,
-        f"{view.project}:{view.dataset_id}.{view.table_id}",
-        source.field_mapping,
-        source.date_partition_column,
+        event_timestamp_column=source.event_timestamp_column,
+        created_timestamp_column=source.created_timestamp_column,
+        table_ref=f"{view.project}:{view.dataset_id}.{view.table_id}",
+        field_mapping=source.field_mapping,
+        date_partition_column=source.date_partition_column,
     )
