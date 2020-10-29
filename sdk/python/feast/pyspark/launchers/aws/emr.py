@@ -291,9 +291,7 @@ class EmrClusterLauncher(JobLauncher):
 
         return EmrStreamIngestionJob(self._emr_client(), job_ref)
 
-    def stage_dataframe(
-        self, df: pandas.DataFrame, event_timestamp: str, created_timestamp_column: str
-    ) -> FileSource:
+    def stage_dataframe(self, df: pandas.DataFrame, event_timestamp: str) -> FileSource:
         with tempfile.NamedTemporaryFile() as f:
             df.to_parquet(f)
             file_url = _s3_upload(
@@ -304,7 +302,6 @@ class EmrClusterLauncher(JobLauncher):
             )
         return FileSource(
             event_timestamp_column=event_timestamp,
-            created_timestamp_column=created_timestamp_column,
             file_format=ParquetFormat(),
             file_url=file_url,
         )

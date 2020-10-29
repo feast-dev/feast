@@ -224,9 +224,7 @@ class StandaloneClusterLauncher(JobLauncher):
             ui_port,
         )
 
-    def stage_dataframe(
-        self, df, event_timestamp_column: str, created_timestamp_column: str,
-    ):
+    def stage_dataframe(self, df, event_timestamp_column: str):
         raise NotImplementedError
 
     def get_job_by_id(self, job_id: str) -> SparkJob:

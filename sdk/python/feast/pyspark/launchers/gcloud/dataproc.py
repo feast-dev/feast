@@ -205,9 +205,7 @@ class DataprocClusterLauncher(JobLauncher):
         cancel_fn = partial(self.dataproc_cancel, operation.metadata.job_id)
         return DataprocStreamingIngestionJob(operation, cancel_fn)
 
-    def stage_dataframe(
-        self, df, event_timestamp_column: str, created_timestamp_column: str,
-    ):
+    def stage_dataframe(self, df, event_timestamp_column: str):
         raise NotImplementedError
 
     def get_job_by_id(self, job_id: str) -> SparkJob:
