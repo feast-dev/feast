@@ -52,4 +52,5 @@ Once the service account is created, download the associated JSON key file and c
 * [Feast Concepts](../concepts/overview.md)
 * [Feast Examples/Tutorials](https://github.com/feast-dev/feast/tree/master/examples)
 * [Configuring Feast Components](../reference/configuration-reference.md)
+* [Configuration Reference](https://app.gitbook.com/@feast/s/docs/v/master/reference/configuration-reference)
 
