@@ -128,6 +128,12 @@ message GetHistoricalFeaturesRequest {
   // Export to AWS S3 - s3://path/to/features
   // Export to GCP GCS -  gs://path/to/features
   string output_location = 4;
+
+  // Specify format name for output, eg. parquet
+  string output_format = 5;
+
+  // Data sources to read features from
+  repeated DataSource data_sources = 6;
 }
 
 message GetHistoricalFeaturesResponse {

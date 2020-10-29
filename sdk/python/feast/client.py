@@ -957,8 +957,10 @@ class Client:
             response = self._job_service.GetHistoricalFeatures(
                 GetHistoricalFeaturesRequest(
                     feature_refs=feature_refs,
+                    data_sources=[s.to_proto() for s in data_sources],
                     entity_source=entity_source.to_proto(),
                     project=project,
+                    output_format=output_format,
                     output_location=output_location,
                 ),
                 **self._extra_grpc_params(),
@@ -976,7 +978,7 @@ class Client:
                 feature_tables,
                 data_sources,
                 output_format,
-                os.path.join(output_location, str(uuid.uuid4())),
+                output_location,
             )
 
     def get_historical_features_df(
