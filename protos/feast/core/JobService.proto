@@ -48,8 +48,8 @@ service JobService {
 
 enum JobType {
 	INVALID_JOB = 0;
-	BATCH_INGESTION = 1;
-	STREAM_INGESTION = 2;
+	BATCH_INGESTION_JOB = 1;
+	STREAM_INGESTION_JOB = 2;
 	RETRIEVAL_JOB = 4;
 }
 

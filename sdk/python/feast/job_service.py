@@ -9,11 +9,9 @@ from feast.core.JobService_pb2 import (
     CancelJobResponse,
     GetHistoricalFeaturesResponse,
     GetJobResponse,
-    Job,
-    JobStatus,
-    JobType,
-    ListJobsResponse,
 )
+from feast.core.JobService_pb2 import Job as JobProto
+from feast.core.JobService_pb2 import JobStatus, JobType, ListJobsResponse
 from feast.data_source import DataSource
 from feast.pyspark.abc import (
     BatchIngestionJob,
@@ -33,8 +31,8 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
     def __init__(self):
         self.client = feast.Client()
 
-    def _job_to_proto(self, spark_job: SparkJob) -> Job:
-        job = Job()
+    def _job_to_proto(self, spark_job: SparkJob) -> JobProto:
+        job = JobProto()
         job.id = spark_job.get_id()
         status = spark_job.get_status()
         if status == SparkJobStatus.COMPLETED:
@@ -52,9 +50,9 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
             job.type = JobType.RETRIEVAL_JOB
             job.retrieval.output_location = spark_job.get_output_file_uri(block=False)
         elif isinstance(spark_job, BatchIngestionJob):
-            job.type = JobType.BATCH_INGESTION
+            job.type = JobType.BATCH_INGESTION_JOB
         elif isinstance(spark_job, StreamIngestionJob):
-            job.type = JobType.STREAM_INGESTION
+            job.type = JobType.STREAM_INGESTION_JOB
         else:
             raise ValueError(f"Invalid job type {job}")
 
