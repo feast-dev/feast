@@ -28,9 +28,8 @@ def batch_source(local_staging_path: str, pytestconfig, request: FixtureRequest)
         bq_project = pytestconfig.getoption("bq_project")
         bq_dataset = request.getfixturevalue("bq_dataset")
         return BigQuerySource(
-            "event_timestamp",
-            "created_timestamp",
-            f"{bq_project}:{bq_dataset}.source_{datetime.now():%Y%m%d%H%M%s}",
+            event_timestamp_column="event_timestamp",
+            table_ref=f"{bq_project}:{bq_dataset}.source_{datetime.now():%Y%m%d%H%M%s}",
         )
     else:
         return FileSource(
