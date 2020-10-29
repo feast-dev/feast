@@ -187,6 +187,7 @@ def ingest_and_verify(
         [f"{feature_table.name}:unique_drivers"],
         entity_rows=[{"s2id": s2_id} for s2_id in original["s2id"].tolist()],
     ).to_dict()
+    print(features)
 
     ingested = pd.DataFrame.from_dict(features)
     pd.testing.assert_frame_equal(
