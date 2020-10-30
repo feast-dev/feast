@@ -51,6 +51,7 @@ from feast.core.CoreService_pb2 import (
     ArchiveProjectResponse,
     CreateProjectRequest,
     CreateProjectResponse,
+    DeleteFeatureTableRequest,
     GetEntityRequest,
     GetEntityResponse,
     GetFeastCoreVersionRequest,
@@ -678,6 +679,26 @@ class Client:
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
         return FeatureTable.from_proto(get_feature_table_response.table)
+
+    def delete_feature_table(self, name: str, project: str = None) -> None:
+        """
+        Deletes a feature table.
+
+        Args:
+            project: Feast project that this feature table belongs to
+            name: Name of feature table
+        """
+
+        if project is None:
+            project = self.project
+
+        try:
+            self._core_service.DeleteFeatureTable(
+                DeleteFeatureTableRequest(project=project, name=name.strip()),
+                metadata=self._get_grpc_metadata(),
+            )
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
 
     def ingest(
         self,

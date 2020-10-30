@@ -76,4 +76,8 @@ message FeatureTableMeta {
 
     // Auto incrementing revision no. of this Feature Table
     int64 revision = 3;
+
+    // Hash entities, features, batch_source and stream_source to inform JobService if
+    // jobs should be restarted should hash change
+    bytes hash = 4;
 }

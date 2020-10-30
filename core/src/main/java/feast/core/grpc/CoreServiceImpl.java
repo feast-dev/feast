@@ -491,4 +491,30 @@ public class CoreServiceImpl extends CoreServiceImplBase {
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
   }
+
+  @Override
+  public void deleteFeatureTable(
+      DeleteFeatureTableRequest request,
+      StreamObserver<DeleteFeatureTableResponse> responseObserver) {
+    String projectName = request.getProject();
+    try {
+      // Check if user has authorization to delete feature table
+      authorizationService.authorizeRequest(SecurityContextHolder.getContext(), projectName);
+      specService.deleteFeatureTable(request);
+
+      responseObserver.onNext(DeleteFeatureTableResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (NoSuchElementException e) {
+      log.error(
+          String.format(
+              "DeleteFeatureTable: No such Feature Table: (project: %s, name: %s)",
+              request.getProject(), request.getName()));
+      responseObserver.onError(
+          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    } catch (Exception e) {
+      log.error("DeleteFeatureTable: Exception has occurred: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
 }
