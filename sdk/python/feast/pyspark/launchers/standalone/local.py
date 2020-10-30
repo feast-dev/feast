@@ -244,4 +244,12 @@ class StandaloneClusterLauncher(JobLauncher):
         return JOB_CACHE[job_id]
 
     def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
-        return list(JOB_CACHE.values())
+        if include_terminated is True:
+            return list(JOB_CACHE.values())
+        else:
+            return [
+                job
+                for job in JOB_CACHE.values()
+                if job.get_status()
+                in (SparkJobStatus.STARTING, SparkJobStatus.IN_PROGRESS)
+            ]
