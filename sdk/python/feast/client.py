@@ -858,6 +858,7 @@ class Client:
                     entity_rows=_infer_online_entity_rows(entity_rows),
                     project=project if project is not None else self.project,
                 ),
+                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
                 metadata=self._get_grpc_metadata(),
             )
         except grpc.RpcError as e:

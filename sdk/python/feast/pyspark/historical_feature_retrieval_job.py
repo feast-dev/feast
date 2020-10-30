@@ -130,9 +130,9 @@ class BigQuerySource(Source):
         project: str,
         dataset: str,
         table: str,
-        field_mapping: Optional[Dict[str, str]],
         event_timestamp_column: str,
         created_timestamp_column: Optional[str],
+        field_mapping: Optional[Dict[str, str]],
     ):
         super().__init__(
             event_timestamp_column, created_timestamp_column, field_mapping
