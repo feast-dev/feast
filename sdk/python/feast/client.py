@@ -33,7 +33,6 @@ from feast.constants import (
     CONFIG_ENABLE_AUTH_KEY,
     CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY,
     CONFIG_JOB_SERVICE_ENABLE_SSL_KEY,
-    CONFIG_JOB_SERVICE_ENABLED,
     CONFIG_JOB_SERVICE_SERVER_SSL_CERT_KEY,
     CONFIG_JOB_SERVICE_URL_KEY,
     CONFIG_PROJECT_KEY,
@@ -69,6 +68,8 @@ from feast.core.CoreService_pb2 import (
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.JobService_pb2 import (
     GetHistoricalFeaturesRequest,
+    GetJobRequest,
+    ListJobsRequest,
     StartOfflineToOnlineIngestionJobRequest,
     StartStreamToOnlineIngestionJobRequest,
 )
@@ -100,7 +101,12 @@ from feast.pyspark.launcher import (
     start_offline_to_online_ingestion,
     start_stream_to_online_ingestion,
 )
-from feast.remote_job import RemoteRetrievalJob
+from feast.remote_job import (
+    RemoteBatchIngestionJob,
+    RemoteRetrievalJob,
+    RemoteStreamIngestionJob,
+    get_remote_job_from_proto,
+)
 from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoRequest,
     GetOnlineFeaturesRequestV2,
@@ -203,8 +209,8 @@ class Client:
 
         Returns: JobServiceStub
         """
-        # Don't initialize job service stub if the job service is disabled
-        if self._config.get(CONFIG_JOB_SERVICE_ENABLED) == "False":
+        # Don't try to initialize job service stub if the job service is disabled
+        if not self._use_job_service:
             return None
 
         if not self._job_service_stub:
@@ -1055,7 +1061,9 @@ class Client:
             request.start_date.FromDatetime(start)
             request.end_date.FromDatetime(end)
             response = self._job_service.StartOfflineToOnlineIngestionJob(request)
-            return response.id
+            return RemoteBatchIngestionJob(
+                self._job_service, self._extra_grpc_params, response.id,
+            )
 
     def start_stream_to_online_ingestion(
         self, feature_table: FeatureTable, extra_jars: Optional[List[str]] = None,
@@ -1069,13 +1077,32 @@ class Client:
                 project=self.project, table_name=feature_table.name,
             )
             response = self._job_service.StartStreamToOnlineIngestionJob(request)
-            return response.id
+            return RemoteStreamIngestionJob(
+                self._job_service, self._extra_grpc_params, response.id,
+            )
 
     def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
-        return list_jobs(include_terminated, self)
+        if not self._use_job_service:
+            return list_jobs(include_terminated, self)
+        else:
+            request = ListJobsRequest(include_terminated=include_terminated)
+            response = self._job_service.ListJobs(request)
+            return [
+                get_remote_job_from_proto(
+                    self._job_service, self._extra_grpc_params, job
+                )
+                for job in response.jobs
+            ]
 
     def get_job_by_id(self, job_id: str) -> SparkJob:
-        return get_job_by_id(job_id, self)
+        if not self._use_job_service:
+            return get_job_by_id(job_id, self)
+        else:
+            request = GetJobRequest(job_id=job_id)
+            response = self._job_service.GetJob(request)
+            return get_remote_job_from_proto(
+                self._job_service, self._extra_grpc_params, response.job
+            )
 
     def stage_dataframe(
         self, df: pd.DataFrame, event_timestamp_column: str,

@@ -22,6 +22,10 @@ from feast.pyspark.abc import (
     StreamIngestionJobParameters,
 )
 
+# In-memory cache of Spark jobs
+# This is necessary since we can't query Spark jobs in local mode
+JOB_CACHE = {}
+
 
 def _find_free_port():
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
@@ -196,42 +200,48 @@ class StandaloneClusterLauncher(JobLauncher):
         self, job_params: RetrievalJobParameters
     ) -> RetrievalJob:
         job_id = str(uuid.uuid4())
-        return StandaloneClusterRetrievalJob(
+        job = StandaloneClusterRetrievalJob(
             job_id,
             job_params.get_name(),
             self.spark_submit(job_params),
             job_params.get_destination_path(),
         )
+        JOB_CACHE[job_id] = job  # type: ignore
+        return job
 
     def offline_to_online_ingestion(
         self, ingestion_job_params: BatchIngestionJobParameters
     ) -> BatchIngestionJob:
         job_id = str(uuid.uuid4())
         ui_port = _find_free_port()
-        return StandaloneClusterBatchIngestionJob(
+        job = StandaloneClusterBatchIngestionJob(
             job_id,
             ingestion_job_params.get_name(),
             self.spark_submit(ingestion_job_params, ui_port),
             ui_port,
         )
+        JOB_CACHE[job_id] = job  # type: ignore
+        return job
 
     def start_stream_to_online_ingestion(
         self, ingestion_job_params: StreamIngestionJobParameters
     ) -> StreamIngestionJob:
         job_id = str(uuid.uuid4())
         ui_port = _find_free_port()
-        return StandaloneClusterStreamingIngestionJob(
+        job = StandaloneClusterStreamingIngestionJob(
             job_id,
             ingestion_job_params.get_name(),
             self.spark_submit(ingestion_job_params, ui_port),
             ui_port,
         )
+        JOB_CACHE[job_id] = job  # type: ignore
+        return job
 
     def stage_dataframe(self, df, event_timestamp_column: str):
         raise NotImplementedError
 
     def get_job_by_id(self, job_id: str) -> SparkJob:
-        raise NotImplementedError
+        return JOB_CACHE[job_id]
 
     def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
-        raise NotImplementedError
+        return list(JOB_CACHE.values())

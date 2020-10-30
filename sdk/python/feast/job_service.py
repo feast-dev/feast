@@ -4,19 +4,19 @@ from concurrent.futures import ThreadPoolExecutor
 import grpc
 
 import feast
-from feast.constants import CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT
 from feast.core import JobService_pb2_grpc
 from feast.core.JobService_pb2 import (
-    GetHistoricalFeaturesResponse,
-    StartOfflineToOnlineIngestionJobResponse,
-    StartStreamToOnlineIngestionJobResponse,
     CancelJobResponse,
     GetHistoricalFeaturesResponse,
     GetJobResponse,
+)
+from feast.core.JobService_pb2 import Job as JobProto
+from feast.core.JobService_pb2 import (
     JobStatus,
     JobType,
     ListJobsResponse,
-    Job as JobProto,
+    StartOfflineToOnlineIngestionJobResponse,
+    StartStreamToOnlineIngestionJobResponse,
 )
 from feast.data_source import DataSource
 from feast.pyspark.abc import (

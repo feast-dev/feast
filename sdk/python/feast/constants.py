@@ -52,7 +52,6 @@ CONFIG_SERVING_SERVER_SSL_CERT_KEY = "serving_server_ssl_cert"
 CONFIG_JOB_SERVICE_URL_KEY = "job_service_url"
 CONFIG_JOB_SERVICE_ENABLE_SSL_KEY = "job_service_enable_ssl"
 CONFIG_JOB_SERVICE_SERVER_SSL_CERT_KEY = "job_service_server_ssl_cert"
-CONFIG_JOB_SERVICE_ENABLED = "job_service_enabled"
 CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY = "grpc_connection_timeout_default"
 CONFIG_GRPC_CONNECTION_TIMEOUT_APPLY_KEY = "grpc_connection_timeout_apply"
 CONFIG_BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS_KEY = (
@@ -116,15 +115,10 @@ FEAST_DEFAULT_OPTIONS = {
     CONFIG_SERVING_ENABLE_SSL_KEY: "False",
     # Path to certificate(s) to secure connection to Feast Serving
     CONFIG_SERVING_SERVER_SSL_CERT_KEY: "",
-    # Default Feast Job Service URL
-    CONFIG_JOB_SERVICE_URL_KEY: "localhost:6568",
     # Enable or disable TLS/SSL to Feast Job Service
     CONFIG_JOB_SERVICE_ENABLE_SSL_KEY: "False",
     # Path to certificate(s) to secure connection to Feast Job Service
     CONFIG_JOB_SERVICE_SERVER_SSL_CERT_KEY: "",
-    # Enable or disable Feast Job Service
-    # TODO: is this necessary?
-    CONFIG_JOB_SERVICE_ENABLED: "False",
     # Default connection timeout to Feast Serving, Feast Core, and Feast Job Service (in seconds)
     CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY: "10",
     # Default gRPC connection timeout when sending an ApplyFeatureSet command to
