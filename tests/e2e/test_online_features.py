@@ -178,7 +178,9 @@ def ingest_and_verify(
     feast_client: Client, feature_table: FeatureTable, original: pd.DataFrame
 ):
     job = feast_client.start_offline_to_online_ingestion(
-        feature_table, datetime.today(), datetime.today() + timedelta(days=1)
+        feature_table,
+        original.event_timestamp.min().to_pydatetime(),
+        original.event_timestamp.max().to_pydatetime() + timedelta(seconds=1)
     )
 
     wait_retry_backoff(lambda: (None, job.get_status() == SparkJobStatus.COMPLETED), 60)

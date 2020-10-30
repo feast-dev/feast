@@ -19,7 +19,7 @@ def bq_dataset(pytestconfig):
     name = f"feast_e2e_{timestamp}"
     client.create_dataset(name)
     yield name
-    client.delete_dataset(name, delete_contents=True)
+    # client.delete_dataset(name, delete_contents=True)
 
 
 @pytest.fixture
