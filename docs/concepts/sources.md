@@ -1,6 +1,6 @@
 # Sources
 
-## Overview
+### Overview
 
 A `source` is a data source that can be used to find feature data. Users define sources as part of [feature tables](feature-tables.md). Currently, Feast supports the following source types:
 
@@ -11,14 +11,14 @@ A `source` is a data source that can be used to find feature data. Users define 
   * [Kafka](https://kafka.apache.org/)
   * [Kinesis](https://aws.amazon.com/kinesis/)
 
-## Structure of a Source
+### Structure of a Source
 
 For both batch and stream sources, the following configurations are **necessary**:
 
 * **created\_timestamp\_column**: Name of column containing timestamp when data is created.
 * **event\_timestamp\_column**: Name of column containing timestamp when event data occurred.
 
-When configuring data source options, see the [API documentation](https://api.docs.feast.dev/python/) for more details.
+When configuring data source options, see the [Feast Python API documentation](https://api.docs.feast.dev/python/) for more details.
 
 Some valid source specifications are shown below:
 
@@ -53,17 +53,17 @@ stream_kafka_source = KafkaSource(
 {% endtab %}
 {% endtabs %}
 
-More information about the options to be specified for the above sources can be found in our [API documentation](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/data_source.py).
+The [Feast Python API documentation](https://api.docs.feast.dev/python/) provides more information about options to specify for the above sources.
 
 {% hint style="info" %}
-A batch source with data already materialized in it must be specified during the creation of a Feature Table for creation of training datasets.
+When creating a Feature Table for use in training datasets, specify a batch source already containing materialized data.
 {% endhint %}
 
-## Working with a Source
+### Working with a Source
 
 #### Creating a Source
 
-Sources are required when specifying a [Feature Table](feature-tables.md).
+Sources are required when specifying a [feature table](feature-tables.md):
 
 ```python
 batch_bigquery_source = BigQuerySource(
@@ -82,5 +82,5 @@ stream_kinesis_source = KinesisSource(
 )
 ```
 
-Feast will ensure that the source complies with the schema of the feature table. These specified data sources can then be included inside a feature table specification and registered to Feast Core.
+Feast ensures that the source complies with the schema of the feature table. These specified data sources can then be included inside a feature table specification and registered to Feast Core.
 
