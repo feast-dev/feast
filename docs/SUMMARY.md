@@ -31,7 +31,7 @@
 
 ## Tutorials
 
-* [Basic Tutorial](https://github.com/feast-dev/feast/blob/master/examples/basic/basic.ipynb)
+* [Minimal Ride Hailing Example](https://github.com/feast-dev/feast/blob/master/examples/minimal/minimal_ride_hailing.ipynb)
 
 ## Advanced
 
