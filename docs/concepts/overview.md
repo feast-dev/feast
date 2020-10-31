@@ -2,9 +2,9 @@
 
 ## Using Feast
 
-Feast acts as the interface between ML models and data. Feast enables your team to
+Feast is the bridge between your ML models and data. Feast enables your team to:
 
-1. Create feature specifications to manage features and load in data that should be managed
+1. Create feature specifications to manage features, and load data that you want managed
 2. Retrieve historical features for training models
 3. Retrieve online features for serving models
 
@@ -12,25 +12,33 @@ Feast acts as the interface between ML models and data. Feast enables your team 
 Feast currently does not apply feature transformations to data.
 {% endhint %}
 
-### 1. Creating and managing features
+### Creating and managing features
 
 Feature creators model the data within their organization into Feast through the creation of [feature tables](feature-tables.md).
 
-Feature tables are specifications that contain both schema and data source information. They allow Feast to know how to interpret your data, and optionally where to find it. Feature tables allow users to define domain [entities](entities.md) along with the features that are available on these entities. Feature tables also allow users to define schemas that describe the properties of the data, which in turn can be used for validation purposes.
+Feature tables are both a schema and a means of identifying data sources for features. They allow Feast to know how to interpret your data, and optionally where to find it. Feature tables allow you to define domain [entities](entities.md) along with the features that are available on these entities. Feature tables also allow you to define schemas that describe properties of the respective data, which in turn can be used for validation purposes.
 
-Once a feature table has been registered, Feast will create the relevant schemas to store feature data within its feature [stores](../advanced/stores.md). These stores are then populated by [ingestion jobs](../user-guide/data-ingestion.md) that ingest data from data [sources](sources.md), making it possible for Feast to provide access to features for training and serving. It is also possible for users to [ingest](../user-guide/data-ingestion.md) data into Feast instead of using an external source.
+After you register a feature table, Feast creates the relevant schemas to store feature data within its feature [stores](../advanced/stores.md). These stores are then populated by [ingestion jobs](../user-guide/data-ingestion.md) that ingest data from data [sources](sources.md). The now data-rich stores enable Feast to provide access to features for training and serving. Alternatively, you can [ingest](../user-guide/data-ingestion.md) data into Feast instead of using an external source.
 
-Read more about [feature tables](feature-tables.md).
+Visit [feature tables](feature-tables.md) to learn more about them.
 
-### 2. Retrieving historical features during training
+### Retrieving historical features during training
 
-Both online and historical retrieval are executed through an API call to `Feast Serving` using [feature references](../user-guide/feature-retrieval.md). In the case of historical serving it is necessary to provide Feast with the entities and timestamps that feature data will be joined to. Feast eagerly produces a point-in-time correct dataset based on the features that have been requested. These features can come from any number of feature sets.
+Historical retrieval uses [feature references](../user-guide/feature-retrieval.md) through the[ Feast SDK](https://api.docs.feast.dev/python/) to retrieve historical features. For historical serving, Feast requires that you provide the entities and timestamps for the corresponding feature data. Feast produces a point-in-time correct dataset using the requested features. These features can be requested from an unlimited number of feature sets.
+
+{% hint style="info" %}
+For historical serving, Feast stores all historical values.
+{% endhint %}
 
 Stores supported: [BigQuery](https://cloud.google.com/bigquery)
 
-### 3. Retrieving online features during serving
+### Retrieving online features during serving
 
-Feast also allows users to call `Feast Serving` for online feature data. Feast only stores the latest values during online serving for each feature, as opposed to historical serving where all historical values are stored. Online serving allows for very low latency requests to feature data at very high throughput.
+Online retrieval uses feature references through the [Feast Online Serving API](https://api.docs.feast.dev/grpc/feast.serving.pb.html) to retrieve online features. Online serving allows for very low latency requests to feature data at very high throughput.
+
+{% hint style="info" %}
+During online serving, Feast stores **only** the latest values for each feature.
+{% endhint %}
 
 Stores supported: [Redis](https://redis.io/), [Redis Cluster](https://redis.io/topics/cluster-tutorial)
 
@@ -38,11 +46,11 @@ Stores supported: [Redis](https://redis.io/), [Redis Cluster](https://redis.io/t
 
 ![](../.gitbook/assets/concept_hierarchy.png)
 
-Feast resources are arranged in the above hierarchy, with projects grouping one or more [entities](entities.md), which in turn groups [feature tables](feature-tables.md), which consists of [data sources](sources.md) and multiple features.
+Feast resources are arranged in the above hierarchy, with projects grouping one or more [entities](entities.md), which in turn groups [feature tables](feature-tables.md). These feature tables consist of [data sources](sources.md) and multiple features.
 
-The logical grouping of these resources are important for namespacing as well as retrieval. During retrieval time, it is necessary to reference individual features through feature references. These references uniquely identify a feature within a Feast deployment.
+The logical grouping of these resources is important for namespacing and retrieval. Retrieval requires referencing individual features through feature references. These references uniquely identify a feature within a Feast deployment.
 
-## Concepts
+### Concepts
 
 [Entities](entities.md) are objects in an organization that model a specific construct. Examples of these include customers, transactions, and drivers.
 
