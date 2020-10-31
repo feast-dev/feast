@@ -1,23 +1,23 @@
 # Configuration Reference
 
-## 1. Overview
+### Overview
 
-The Configuration Reference will walk through how to configure each Feast component:
+This reference describes how to configure Feast components:
 
-* [Feast Core and Serving](configuration-reference.md#2-feast-core-serving-and-job-controller)
+* [Feast Core and Feast Online Serving](configuration-reference.md#2-feast-core-serving-and-job-controller)
 * [Feast CLI and Feast Python SDK](configuration-reference.md#3-feast-cli-and-feast-python-sdk)
-* [Feast Go and Java SDK](configuration-reference.md#4-feast-java-and-go-sdk)
+* [Feast Go and Feast Java SDK](configuration-reference.md#4-feast-java-and-go-sdk)
 
-## 2. Feast Core and Serving
+### 1. Feast Core and Feast Online Serving
 
-Available Configuration Properties for Feast Core and Serving can be referenced from the corresponding `application.yml` of each component:
+Available configuration properties for Feast Core and Feast Online Serving can be referenced from the corresponding `application.yml` of each component:
 
 | Component | Configuration Reference |
 | :--- | :--- |
 | Core | [core/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/core/src/main/resources/application.yml) |
-| Serving \(Online/Historical\) | [serving/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/serving/src/main/resources/application.yml) |
+| Serving \(Online\) | [serving/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/serving/src/main/resources/application.yml) |
 
-Configuration Properties for Feast Core and Serving are defined depending on Feast is deployed:
+Configuration properties for Feast Core and Feast Online Serving are defined depending on Feast is deployed:
 
 * [Docker Compose deployment](configuration-reference.md#docker-compose-deployment) - Feast is deployed with Docker Compose.
 * [Kubernetes deployment](configuration-reference.md#kubernetes-deployment) - Feast is deployed with Kubernetes.
@@ -25,17 +25,16 @@ Configuration Properties for Feast Core and Serving are defined depending on Fea
 
 ### Docker Compose Deployment
 
-Configuration Properties from `application.yml` can be set for each Feast component deployed using docker compose at:
+For each Feast component deployed using Docker Compose, configuration properties from `application.yml` can be set at:
 
 | Component | Configuration Path |
 | :--- | :--- |
 | Core | `infra/docker-compose/core/core.yml` |
 | Online Serving | `infra/docker-compose/serving/online-serving.yml` |
-| Historical Serving | `infra/docker-compose/serving/historical-serving.yml` |
 
 ### Kubernetes Deployment
 
-The Kubernetes Feast Deployment is configured via the Feast Helm Chart's `values.yaml`
+The Kubernetes Feast Deployment is configured using `values.yaml` in the [Helm chart ](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/README.md)included with Feast:
 
 ```yaml
 # values.yaml
@@ -47,12 +46,12 @@ feast-core:
   # ....
 ```
 
-A reference of the sub chart specific configuration can found in its `values.yml`:
+A reference of the sub-chart-specific configuration can found in its `values.yml`:
 
 * [feast-core](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/charts/feast-core)
 * [feast-serving](https://github.com/feast-dev/feast/tree/master/infra/charts/feast/charts/feast-serving)
 
-Configuration Properties can be set via `application-override.yaml` for each component in `values.yaml`:
+Configuration properties can be set via `application-override.yaml` for each component in `values.yaml`:
 
 ```yaml
 # values.yaml
@@ -63,22 +62,22 @@ feast-core:
      # ...
 ```
 
-[Learn more ](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/README.md)about configuring the Feast Helm Chart[.](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/README.md)
+Visit the [Helm chart](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/README.md) included with Feast to learn more about configuration.
 
 ### Direct Configuration
 
-If Feast is built and running from source, configuration Properties can be set directly in the Feast component's `application.yml`:
+If Feast is built and running from source, configuration properties can be set directly in the Feast component's `application.yml`:
 
 | Component | Configuration Path |
 | :--- | :--- |
 | Core | [core/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/core/src/main/resources/application.yml) |
-| Serving \(Online/Historical\) | [serving/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/serving/src/main/resources/application.yml) |
+| Serving \(Online\) | [serving/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/serving/src/main/resources/application.yml) |
 
-## 3. Feast CLI and Feast Python SDK
+### 2. Feast CLI and Feast Python SDK
 
-Configuration options for both the Feast CLI and Feast Python SDK can be defined in the following locations, in order of precedence:
+Configuration options for both the [Feast CLI](../getting-started/connecting-to-feast-1/connecting-to-feast.md) and [Feast Python SDK](https://api.docs.feast.dev/python/) can be defined in the following locations, in order of precedence:
 
-**1.Command line arguments or initialized arguments:** Passing parameters to the CLI or instantiating the Feast Client object with specific parameters will take precedence above other parameters.
+**1. Command line arguments or initialized arguments:** Passing parameters to the Feast CLI or instantiating the Feast Client object with specific parameters will take precedence above other parameters.
 
 ```bash
 # Set option as command line arguments.
@@ -93,13 +92,13 @@ client = Client(
 )
 ```
 
-**2. Environmental variables:** Environmental variables can be set to provide configuration options. They must be prefixed with `FEAST_` . For example `FEAST_CORE_URL` .
+**2. Environmental variables:** Environmental variables can be set to provide configuration options. They must be prefixed with `FEAST_`. For example `FEAST_CORE_URL`.
 
 ```bash
 FEAST_CORE_URL=my_feast:6565 FEAST_PROJECT=default feast projects list
 ```
 
-**3. Configuration file:** Options with the lowest precedence are configured in the Feast configuration file. Feast will look for or create this configuration file in `~/.feast/config` if it does not already exist. All options must be defined in the `[general]` section of this file.
+**3. Configuration file:** Options with the lowest precedence are configured in the Feast configuration file. Feast looks for or creates this configuration file in `~/.feast/config` if it does not already exist. All options must be defined in the `[general]` section of this file.
 
 ```text
 [general]
@@ -107,27 +106,27 @@ project = default
 core_url = localhost:6565
 ```
 
-Available configuration options for Python SDK/CLI be found [here](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/constants.py).
+Visit the [available configuration parameters](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/constants.py) for Feast Python SDK and Feast CLI to learn more. 
 
-## 4. Feast Java and Go SDK
+### 3. Feast Java and Go SDK
 
-The Feast Java and Go SDK is configured via arguments passed when instantiating the Feast Client:
+The [Feast Java SDK](https://javadoc.io/doc/dev.feast/feast-sdk/latest/com/gojek/feast/package-summary.html) and [Feast Go SDK](https://godoc.org/github.com/feast-dev/feast/sdk/go) are configured via arguments passed when instantiating the respective Clients:
 
-* Go SDK
+#### Go SDK
 
 ```go
 // configure serving host and port.
 cli := feast.NewGrpcClient("localhost", 6566)
 ```
 
-Available configuration parameters can be found in the[ Go SDK API reference.](https://godoc.org/github.com/feast-dev/feast/sdk/go)
+Visit the[ Feast Go SDK API reference](https://godoc.org/github.com/feast-dev/feast/sdk/go) to learn more about available configuration parameters.
 
-* Java SDK
+#### Java SDK
 
 ```java
 // configure serving host and port.
 client = FeastClient.create(servingHost, servingPort);
 ```
 
-Available configuration parameters can be found in the [Java SDK API reference.](https://javadoc.io/doc/dev.feast/feast-sdk/latest/com/gojek/feast/package-summary.html)
+Visit the [Feast Java SDK API reference](https://javadoc.io/doc/dev.feast/feast-sdk/latest/com/gojek/feast/package-summary.html) to learn more about available configuration parameters.
 
