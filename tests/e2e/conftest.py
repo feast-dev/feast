@@ -14,6 +14,8 @@ def pytest_addoption(parser):
     parser.addoption("--staging-path", action="store")
     parser.addoption("--dataproc-cluster-name", action="store")
     parser.addoption("--dataproc-region", action="store")
+    parser.addoption("--emr-cluster-id", action="store")
+    parser.addoption("--emr-region", action="store")
     parser.addoption("--dataproc-project", action="store")
     parser.addoption("--ingestion-jar", action="store")
     parser.addoption("--redis-url", action="store", default="localhost:6379")

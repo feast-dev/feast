@@ -21,11 +21,18 @@ def read_parquet(uri):
         return pd.read_parquet(parsed_uri.path)
     elif parsed_uri.scheme == "gs":
         fs = gcsfs.GCSFileSystem()
-        files = ["gs://" + path for path in gcsfs.GCSFileSystem().glob(uri + "/part-*")]
+        files = ["gs://" + path for path in fs.glob(uri + "/part-*")]
+        ds = parquet.ParquetDataset(files, filesystem=fs)
+        return ds.read().to_pandas()
+    elif parsed_uri.scheme == "s3":
+        import s3fs
+
+        fs = s3fs.S3FileSystem()
+        files = ["s3://" + path for path in fs.glob(uri + "/part-*")]
         ds = parquet.ParquetDataset(files, filesystem=fs)
         return ds.read().to_pandas()
     else:
-        raise ValueError("Unsupported scheme")
+        raise ValueError(f"Unsupported URL scheme {uri}")
 
 
 def generate_data():

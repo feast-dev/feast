@@ -71,11 +71,6 @@ spec:
           {{- end }}
         {{- end }}
 
-        command:
-        - python
-        - "-m"
-        - "feast.cli"
-        - server
         ports:
         - name: http
           containerPort: {{ .Values.service.http.targetPort }}
