@@ -18,6 +18,7 @@ def feast_client(
     feast_core: Tuple[str, int],
     feast_serving: Tuple[str, int],
     local_staging_path,
+    enable_auth,
 ):
     if pytestconfig.getoption("env") == "local":
         return Client(
