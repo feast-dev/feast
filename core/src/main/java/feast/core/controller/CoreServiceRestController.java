@@ -27,8 +27,12 @@ import feast.proto.core.CoreServiceProto.GetFeastCoreVersionResponse;
 import feast.proto.core.CoreServiceProto.GetFeatureStatisticsRequest;
 import feast.proto.core.CoreServiceProto.GetFeatureStatisticsRequest.Builder;
 import feast.proto.core.CoreServiceProto.GetFeatureStatisticsResponse;
+import feast.proto.core.CoreServiceProto.ListEntitiesRequest;
+import feast.proto.core.CoreServiceProto.ListEntitiesResponse;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.proto.core.CoreServiceProto.ListFeatureTablesRequest;
+import feast.proto.core.CoreServiceProto.ListFeatureTablesResponse;
 import feast.proto.core.CoreServiceProto.ListFeaturesRequest;
 import feast.proto.core.CoreServiceProto.ListFeaturesResponse;
 import feast.proto.core.CoreServiceProto.ListProjectsResponse;
@@ -55,7 +59,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @CrossOrigin
 @Slf4j
-@RequestMapping(value = "/api/v1", produces = "application/json")
+@RequestMapping(value = "/api", produces = "application/json")
 public class CoreServiceRestController {
 
   private final FeastProperties feastProperties;
@@ -80,7 +84,7 @@ public class CoreServiceRestController {
    *
    * @return (200 OK) Returns {@link GetFeastCoreVersionResponse} in JSON.
    */
-  @RequestMapping(value = "/version", method = RequestMethod.GET)
+  @RequestMapping(value = "/v1/version", method = RequestMethod.GET)
   public GetFeastCoreVersionResponse getVersion() {
     GetFeastCoreVersionResponse response =
         GetFeastCoreVersionResponse.newBuilder().setVersion(feastProperties.getVersion()).build();
@@ -99,7 +103,7 @@ public class CoreServiceRestController {
    *     default. Asterisk can be used as wildcard to filter * feature sets.
    * @return (200 OK) Return {@link ListFeatureSetsResponse} in JSON.
    */
-  @RequestMapping(value = "/feature-sets", method = RequestMethod.GET)
+  @RequestMapping(value = "/v1/feature-sets", method = RequestMethod.GET)
   public ListFeatureSetsResponse listFeatureSets(
       @RequestParam(defaultValue = Project.DEFAULT_NAME) String project, @RequestParam String name)
       throws InvalidProtocolBufferException {
@@ -120,7 +124,7 @@ public class CoreServiceRestController {
    *     <code>default</code>.
    * @return (200 OK) Return {@link ListFeaturesResponse} in JSON.
    */
-  @RequestMapping(value = "/features", method = RequestMethod.GET)
+  @RequestMapping(value = "/v1/features", method = RequestMethod.GET)
   public ListFeaturesResponse listFeatures(
       @RequestParam String[] entities, @RequestParam(required = false) Optional<String> project) {
     ListFeaturesRequest.Filter.Builder filterBuilder =
@@ -152,7 +156,7 @@ public class CoreServiceRestController {
    *     in the feature set will be used for statistics.
    * @return (200 OK) Returns {@link GetFeatureStatisticsResponse} in JSON.
    */
-  @RequestMapping(value = "/feature-statistics", method = RequestMethod.GET)
+  @RequestMapping(value = "/v1/feature-statistics", method = RequestMethod.GET)
   public GetFeatureStatisticsResponse getFeatureStatistics(
       @RequestParam(name = "feature_set_id") String featureSetId,
       @RequestParam(required = false) Optional<String[]> features,
@@ -186,12 +190,42 @@ public class CoreServiceRestController {
    *
    * @return (200 OK) Returns {@link ListProjectsResponse} in JSON.
    */
-  @RequestMapping(value = "/projects", method = RequestMethod.GET)
+  @RequestMapping(value = "/v1/projects", method = RequestMethod.GET)
   public ListProjectsResponse listProjects() {
     List<Project> projects = projectService.listProjects();
     return ListProjectsResponse.newBuilder()
         .addAllProjects(projects.stream().map(Project::getName).collect(Collectors.toList()))
         .build();
+  }
+
+  /**
+   * GET /entities : Retrieve a list of Entities according to filtering parameters of Feast project
+   * name. If none matches, an empty JSON response is returned.
+   *
+   * @param project Request Parameter: Name of feast project to search in.
+   * @return (200 OK) Return {@link ListEntitiesResponse} in JSON.
+   */
+  @RequestMapping(value = "/v2/entities", method = RequestMethod.GET)
+  public ListEntitiesResponse listEntities(
+      @RequestParam(defaultValue = Project.DEFAULT_NAME) String project) {
+    ListEntitiesRequest.Filter.Builder filterBuilder =
+        ListEntitiesRequest.Filter.newBuilder().setProject(project);
+    return specService.listEntities(filterBuilder.build());
+  }
+
+  /**
+   * GET /feature-tables : Retrieve a list of Feature Tables according to filtering parameters of
+   * Feast project name. If none matches, an empty JSON response is returned.
+   *
+   * @param project Request Parameter: Name of feast project to search in.
+   * @return (200 OK) Return {@link ListFeatureTablesResponse} in JSON.
+   */
+  @RequestMapping(value = "/v2/feature-tables", method = RequestMethod.GET)
+  public ListFeatureTablesResponse listFeatureTables(
+      @RequestParam(defaultValue = Project.DEFAULT_NAME) String project) {
+    ListFeatureTablesRequest.Filter.Builder filterBuilder =
+        ListFeatureTablesRequest.Filter.newBuilder().setProject(project);
+    return specService.listFeatureTables(filterBuilder.build());
   }
 
   private Timestamp utcTimeStringToTimestamp(String utcTimeString) {

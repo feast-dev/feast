@@ -51,6 +51,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
     if (feastProperties.securityProperties().isDisableRestControllerAuth()) {
       matchersToBypass.add("/api/v1/**");
+      matchersToBypass.add("/api/v2/**");
     }
 
     // Bypasses security/authentication for the following paths
