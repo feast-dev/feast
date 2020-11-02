@@ -131,9 +131,6 @@ message GetHistoricalFeaturesRequest {
 
   // Specify format name for output, eg. parquet
   string output_format = 5;
-
-  // Data sources to read features from
-  repeated DataSource data_sources = 6;
 }
 
 message GetHistoricalFeaturesResponse {

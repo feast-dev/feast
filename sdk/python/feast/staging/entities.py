@@ -94,7 +94,7 @@ ON
   ({entity_key})"""
 
 
-def create_view_to_source_with_joined_entities(
+def create_bq_view_of_joined_features_and_entities(
     source: BigQuerySource, entity_source: BigQuerySource, entity_names: List[str]
 ) -> BigQuerySource:
     """

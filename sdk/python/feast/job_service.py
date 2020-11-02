@@ -74,10 +74,6 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
             feature_tables=self.client._get_feature_tables_from_feature_refs(
                 list(request.feature_refs), request.project
             ),
-            feature_tables_sources=[
-                DataSource.from_proto(source_proto)
-                for source_proto in request.data_sources
-            ],
             output_format=request.output_format,
             output_path=request.output_location,
         )

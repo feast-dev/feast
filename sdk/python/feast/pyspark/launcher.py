@@ -35,6 +35,7 @@ from feast.pyspark.abc import (
     StreamIngestionJob,
     StreamIngestionJobParameters,
 )
+from feast.staging.entities import create_bq_view_of_joined_features_and_entities
 from feast.staging.storage_client import get_staging_client
 from feast.value_type import ValueType
 
@@ -171,17 +172,23 @@ def start_historical_feature_retrieval_job(
     client: "Client",
     entity_source: Union[FileSource, BigQuerySource],
     feature_tables: List[FeatureTable],
-    feature_tables_sources: List[DataSource],
     output_format: str,
     output_path: str,
 ) -> RetrievalJob:
     launcher = resolve_launcher(client._config)
+    feature_sources = [
+        _source_to_argument(
+            replace_bq_table_with_joined_view(
+                feature_table.batch_source, entity_source, feature_table.entities
+            )
+        )
+        for feature_table in feature_tables
+    ]
+
     return launcher.historical_feature_retrieval(
         RetrievalJobParameters(
             entity_source=_source_to_argument(entity_source),
-            feature_tables_sources=[
-                _source_to_argument(source) for source in feature_tables_sources
-            ],
+            feature_tables_sources=feature_sources,
             feature_tables=[
                 _feature_table_to_argument(client, feature_table)
                 for feature_table in feature_tables
@@ -189,6 +196,22 @@ def start_historical_feature_retrieval_job(
             destination={"format": output_format, "path": output_path},
             extra_options=client._config.get(CONFIG_SPARK_EXTRA_OPTIONS),
         )
+    )
+
+
+def replace_bq_table_with_joined_view(
+    feature_source: Union[FileSource, BigQuerySource],
+    entity_source: Union[FileSource, BigQuerySource],
+    entities: List[str],
+) -> Union[FileSource, BigQuerySource]:
+    if not isinstance(feature_source, BigQuerySource):
+        return feature_source
+
+    if not isinstance(entity_source, BigQuerySource):
+        return feature_source
+
+    return create_bq_view_of_joined_features_and_entities(
+        feature_source, entity_source, entities,
     )
 
 

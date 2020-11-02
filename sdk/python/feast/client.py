@@ -100,7 +100,6 @@ from feast.serving.ServingService_pb2 import (
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.staging.entities import (
-    create_view_to_source_with_joined_entities,
     stage_entities_to_bq,
     stage_entities_to_fs,
     table_reference_from_string,
@@ -923,13 +922,15 @@ class Client:
                 str(uuid.uuid4()),
             )
         output_format = self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT)
-        data_sources = [feature_table.batch_source for feature_table in feature_tables]
+        feature_sources = [
+            feature_table.batch_source for feature_table in feature_tables
+        ]
 
         if isinstance(entity_source, pd.DataFrame):
-            if any(isinstance(source, BigQuerySource) for source in data_sources):
+            if any(isinstance(source, BigQuerySource) for source in feature_sources):
                 first_bq_source = [
                     source
-                    for source in data_sources
+                    for source in feature_sources
                     if isinstance(source, BigQuerySource)
                 ][0]
                 source_ref = table_reference_from_string(
@@ -938,16 +939,6 @@ class Client:
                 entity_source = stage_entities_to_bq(
                     entity_source, source_ref.project, source_ref.dataset_id
                 )
-                data_sources = [
-                    create_view_to_source_with_joined_entities(
-                        feature_table.batch_source,
-                        entity_source,
-                        feature_table.entities,
-                    )
-                    if isinstance(feature_table.batch_source, BigQuerySource)
-                    else feature_table.batch_source
-                    for feature_table in feature_tables
-                ]
             else:
                 entity_source = stage_entities_to_fs(
                     entity_source,
@@ -958,7 +949,6 @@ class Client:
             response = self._job_service.GetHistoricalFeatures(
                 GetHistoricalFeaturesRequest(
                     feature_refs=feature_refs,
-                    data_sources=[s.to_proto() for s in data_sources],
                     entity_source=entity_source.to_proto(),
                     project=project,
                     output_format=output_format,
@@ -974,12 +964,7 @@ class Client:
             )
         else:
             return start_historical_feature_retrieval_job(
-                self,
-                entity_source,
-                feature_tables,
-                data_sources,
-                output_format,
-                output_location,
+                self, entity_source, feature_tables, output_format, output_location,
             )
 
     def get_historical_features_df(
