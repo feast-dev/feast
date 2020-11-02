@@ -57,6 +57,7 @@ else:
     from .fixtures.external_services import (  # type: ignore # noqa
         feast_core,
         feast_serving,
+        enable_auth,
     )
 
 from .fixtures.data import *  # noqa
