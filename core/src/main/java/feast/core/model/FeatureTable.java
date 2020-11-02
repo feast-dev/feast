@@ -16,8 +16,7 @@
  */
 package feast.core.model;
 
-import com.google.common.primitives.Longs;
-import com.google.protobuf.ByteString;
+import com.google.common.hash.Hashing;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
 import feast.core.dao.EntityRepository;
@@ -26,12 +25,7 @@ import feast.proto.core.DataSourceProto;
 import feast.proto.core.FeatureProto.FeatureSpecV2;
 import feast.proto.core.FeatureTableProto;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -112,9 +106,6 @@ public class FeatureTable extends AbstractTimestampEntity {
   @Column(name = "is_deleted", nullable = false)
   private boolean isDeleted;
 
-  @Column(name = "metadata_hash", nullable = false)
-  private long metadataHash;
-
   public FeatureTable() {};
 
   /**
@@ -154,13 +145,6 @@ public class FeatureTable extends AbstractTimestampEntity {
     if (!spec.getStreamSource().equals(DataSourceProto.DataSource.getDefaultInstance())) {
       table.setStreamSource(DataSource.fromProto(spec.getStreamSource()));
     }
-
-    table.setMetadataHash(
-        Objects.hash(
-            table.getEntities(),
-            table.getFeatures(),
-            table.getBatchSource(),
-            table.getStreamSource()));
 
     return table;
   }
@@ -217,11 +201,6 @@ public class FeatureTable extends AbstractTimestampEntity {
       this.streamSource = null;
     }
 
-    // Update hash
-    this.setMetadataHash(
-        Objects.hash(
-            this.getEntities(), this.getFeatures(), this.getBatchSource(), this.getStreamSource()));
-
     // Set isDeleted to false
     this.setDeleted(false);
 
@@ -234,14 +213,7 @@ public class FeatureTable extends AbstractTimestampEntity {
     // Convert field types to Protobuf compatible types
     Timestamp creationTime = TypeConversion.convertTimestamp(getCreated());
     Timestamp updatedTime = TypeConversion.convertTimestamp(getLastUpdated());
-    ByteString metadataHashBytes =
-        ByteString.copyFrom(
-            Longs.toByteArray(
-                Objects.hash(
-                    this.getEntities(),
-                    this.getFeatures(),
-                    this.getBatchSource(),
-                    this.getStreamSource())));
+    String metadataHashBytes = this.protoHash();
 
     List<FeatureSpecV2> featureSpecs =
         getFeatures().stream().map(FeatureV2::toProto).collect(Collectors.toList());
@@ -314,6 +286,32 @@ public class FeatureTable extends AbstractTimestampEntity {
   public void delete() {
     this.setDeleted(true);
     this.setRevision(0);
+  }
+
+  public String protoHash() {
+    List<String> sortedEntities =
+        this.getEntities().stream().map(entity -> entity.getName()).collect(Collectors.toList());
+    Collections.sort(sortedEntities);
+
+    List<FeatureV2> sortedFeatures = new ArrayList(this.getFeatures());
+    List<FeatureSpecV2> sortedFeatureSpecs =
+        sortedFeatures.stream().map(featureV2 -> featureV2.toProto()).collect(Collectors.toList());
+    sortedFeatures.sort(Comparator.comparing(FeatureV2::getName));
+
+    DataSourceProto.DataSource streamSource = DataSourceProto.DataSource.getDefaultInstance();
+    if (getStreamSource() != null) {
+      streamSource = getStreamSource().toProto();
+    }
+
+    FeatureTableSpec featureTableSpec =
+        FeatureTableSpec.newBuilder()
+            .addAllEntities(sortedEntities)
+            .addAllFeatures(sortedFeatureSpecs)
+            .setBatchSource(getBatchSource().toProto())
+            .setStreamSource(streamSource)
+            .setMaxAge(Duration.newBuilder().setSeconds(getMaxAgeSecs()).build())
+            .build();
+    return Hashing.murmur3_32().hashBytes(featureTableSpec.toByteArray()).toString();
   }
 
   @Override
