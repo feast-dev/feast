@@ -27,13 +27,18 @@ import feast.common.it.DataGenerator;
 import feast.common.it.SimpleCoreClient;
 import feast.core.model.Project;
 import feast.proto.core.CoreServiceGrpc;
+import feast.proto.core.EntityProto;
 import feast.proto.core.FeatureSetProto.FeatureSet;
+import feast.proto.core.FeatureTableProto;
+import feast.proto.types.ValueProto;
 import feast.proto.types.ValueProto.ValueType.Enum;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.path.json.JsonPath;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -205,19 +210,53 @@ public class CoreServiceRestIT extends BaseIT {
         .body("features", aMapWithSize(2));
   }
 
+  @Test
+  public void listEntities() {
+    String uri1 =
+        UriComponentsBuilder.fromPath("/api/v2/entities")
+            .queryParam("project", "default")
+            .buildAndExpand()
+            .toString();
+    String responseBody =
+        get(uri1)
+            .then()
+            .log()
+            .everything()
+            .assertThat()
+            .contentType(ContentType.JSON)
+            .extract()
+            .response()
+            .getBody()
+            .asString();
+    List<String> entityList = JsonPath.from(responseBody).getList("entities");
+    assertEquals(entityList.size(), 2);
+  }
+
+  @Test
+  public void listFeatureTables() {
+    String uri1 =
+        UriComponentsBuilder.fromPath("/api/v2/feature-tables")
+            .queryParam("project", "default")
+            .buildAndExpand()
+            .toString();
+    String responseBody =
+        get(uri1)
+            .then()
+            .log()
+            .everything()
+            .assertThat()
+            .contentType(ContentType.JSON)
+            .extract()
+            .response()
+            .getBody()
+            .asString();
+    List<String> featureTableList = JsonPath.from(responseBody).getList("tables");
+    assertEquals(featureTableList.size(), 1);
+  }
+
   @BeforeEach
-  private void createFakeFeatureSets() {
-    // spec:
-    //  name: merchant_ratings
-    //  entities:
-    //    - name: merchant_id
-    //      valueType: STRING
-    //  features:
-    //    - name: average_rating
-    //      valueType: DOUBLE
-    //    - name: total_ratings
-    //      valueType: INT64
-    //  project: default
+  private void createSpecs() {
+    // Apply feature sets
     FeatureSet merchantFeatureSet =
         DataGenerator.createFeatureSet(
             DataGenerator.getDefaultSource(),
@@ -227,17 +266,6 @@ public class CoreServiceRestIT extends BaseIT {
             ImmutableMap.of("average_rating", Enum.DOUBLE, "total_ratings", Enum.INT64));
     apiClient.simpleApplyFeatureSet(merchantFeatureSet);
 
-    // spec:
-    //  name: another_merchant_ratings
-    //  entities:
-    //    - name: merchant_id
-    //      valueType: STRING
-    //  features:
-    //    - name: another_average_rating
-    //      valueType: DOUBLE
-    //    - name: another_total_ratings
-    //      valueType: INT64
-    //  project: default
     FeatureSet anotherMerchantFeatureSet =
         DataGenerator.createFeatureSet(
             DataGenerator.getDefaultSource(),
@@ -249,17 +277,6 @@ public class CoreServiceRestIT extends BaseIT {
                 "another_total_ratings", Enum.INT64));
     apiClient.simpleApplyFeatureSet(anotherMerchantFeatureSet);
 
-    // spec:
-    //  name: yet_another_merchant_feature_set
-    //  entities:
-    //    - name: merchant_id
-    //      valueType: STRING
-    //  features:
-    //    - name: merchant_prop1
-    //      valueType: BOOL
-    //    - name: merchant_prop2
-    //      valueType: FLOAT
-    //  project: merchant
     FeatureSet yetAnotherMerchantFeatureSet =
         DataGenerator.createFeatureSet(
             DataGenerator.getDefaultSource(),
@@ -268,6 +285,42 @@ public class CoreServiceRestIT extends BaseIT {
             ImmutableMap.of("merchant_id", Enum.STRING),
             ImmutableMap.of("merchant_prop1", Enum.BOOL, "merchant_prop2", Enum.FLOAT));
     apiClient.simpleApplyFeatureSet(yetAnotherMerchantFeatureSet);
+
+    // Apply entities
+    EntityProto.EntitySpecV2 entitySpec1 =
+        DataGenerator.createEntitySpecV2(
+            "entity1",
+            "Entity 1 description",
+            ValueProto.ValueType.Enum.STRING,
+            avro.shaded.com.google.common.collect.ImmutableMap.of("label_key", "label_value"));
+    EntityProto.EntitySpecV2 entitySpec2 =
+        DataGenerator.createEntitySpecV2(
+            "entity2",
+            "Entity 2 description",
+            ValueProto.ValueType.Enum.STRING,
+            avro.shaded.com.google.common.collect.ImmutableMap.of("label_key2", "label_value2"));
+    apiClient.simpleApplyEntity("default", entitySpec1);
+    apiClient.simpleApplyEntity("default", entitySpec2);
+
+    // Apply feature table
+    FeatureTableProto.FeatureTableSpec featureTableSpec =
+        DataGenerator.createFeatureTableSpec(
+                "featuretable1",
+                Arrays.asList("entity1", "entity2"),
+                new HashMap<>() {
+                  {
+                    put("feature1", ValueProto.ValueType.Enum.STRING);
+                    put("feature2", ValueProto.ValueType.Enum.FLOAT);
+                  }
+                },
+                7200,
+                ImmutableMap.of("feat_key2", "feat_value2"))
+            .toBuilder()
+            .setBatchSource(
+                DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
+            .build();
+    apiClient.applyFeatureTable("default", featureTableSpec);
+
     RestAssured.port = port;
   }
 }
