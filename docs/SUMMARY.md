@@ -35,7 +35,6 @@
 
 ## Advanced
 
-* [Stores](advanced/stores.md)
 * [Security](advanced/security.md)
 * [Audit Logging](advanced/audit-logging.md)
 * [Metrics](advanced/metrics.md)
@@ -52,10 +51,8 @@
   * [Go SDK](https://godoc.org/github.com/feast-dev/feast/sdk/go)
 * [Metrics Reference](reference/metrics-reference/README.md)
   * [Java SDK](https://javadoc.io/doc/dev.feast/feast-sdk)
-* [API, Supported Versions & Deprecation](reference/api-supported-versions-and-deprecation/README.md)
   * [Python SDK](https://api.docs.feast.dev/python/)
 * [Limitations](reference/limitations.md)
-* [Design Decisions](reference/design-decisions.md)
 
 ## Contributing
 

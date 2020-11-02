@@ -48,7 +48,7 @@ docker run --name redis --rm -it -d -p 6379:6379 redis:5-alpine
 * Redis is running locally and accessible from `localhost:6379`
 * \(optional\) The local environment has been authentication with Google Cloud Platform and has full access to BigQuery. This is only necessary for BigQuery testing/development.
 
-Next, clone Feast repository.
+Clone Feast repository.
 
 ```bash
 git clone https://github.com/feast-dev/feast.git && cd feast

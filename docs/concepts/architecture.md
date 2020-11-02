@@ -22,11 +22,9 @@ Streaming systems can also ingest data into Feast. This is done by publishing to
 
 Stores are nothing more than databases used to store feature data. Feast loads data into stores through an ingestion process, after which the data can be served through the [Feast Online Serving API](https://api.docs.feast.dev/grpc/feast.serving.pb.html). Stores are documented in the following section.
 
-{% page-ref page="../advanced/stores.md" %}
-
 ### **Feast Online Serving**
 
-`Feast Online Serving` is the data-access layer through which end users and production systems retrieve feature data. Each `Serving` instance is backed by a [store](../advanced/stores.md).
+`Feast Online Serving` is the data-access layer through which end users and production systems retrieve feature data. Each `Serving` instance is backed by a [store]().
 
 Because Feast supports multiple store types \(online, historical\), multiple instances of a deployed `Feast Online Serving` is common: those for online serving and those for historical. This means Feast allows for any number of `Feast Online Serving` deployments,  presenting the possibility to use a `Feast Online Serving` deployment  per production system, with its own stores and population jobs.
 
