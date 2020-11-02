@@ -178,9 +178,7 @@ def start_historical_feature_retrieval_job(
     launcher = resolve_launcher(client._config)
     feature_sources = [
         _source_to_argument(
-            replace_bq_table_with_joined_view(
-                feature_table.batch_source, entity_source, feature_table.entities
-            )
+            replace_bq_table_with_joined_view(feature_table, entity_source)
         )
         for feature_table in feature_tables
     ]
@@ -200,18 +198,31 @@ def start_historical_feature_retrieval_job(
 
 
 def replace_bq_table_with_joined_view(
-    feature_source: Union[FileSource, BigQuerySource],
-    entity_source: Union[FileSource, BigQuerySource],
-    entities: List[str],
+    feature_table: FeatureTable, entity_source: Union[FileSource, BigQuerySource],
 ) -> Union[FileSource, BigQuerySource]:
-    if not isinstance(feature_source, BigQuerySource):
-        return feature_source
+    """
+    Applies optimization to historical retrieval. Instead of pulling all data from Batch Source,
+    with this optimization we join feature values & entities on Data Warehouse side (improving data locality).
+    Several conditions should be met to enable this optimization:
+    * entities are staged to BigQuery
+    * feature values are in in BigQuery
+    * Entity columns are not mapped (ToDo: fix this limitation)
+    :return: replacement for feature source
+    """
+    if not isinstance(feature_table.batch_source, BigQuerySource):
+        return feature_table.batch_source
 
     if not isinstance(entity_source, BigQuerySource):
-        return feature_source
+        return feature_table.batch_source
+
+    if any(
+        entity in feature_table.batch_source.field_mapping
+        for entity in feature_table.entities
+    ):
+        return feature_table.batch_source
 
     return create_bq_view_of_joined_features_and_entities(
-        feature_source, entity_source, entities,
+        feature_table.batch_source, entity_source, feature_table.entities,
     )
 
 
