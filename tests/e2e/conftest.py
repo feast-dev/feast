@@ -22,20 +22,14 @@ def pytest_addoption(parser):
     parser.addoption("--redis-url", action="store", default="localhost:6379")
     parser.addoption("--redis-cluster", action="store_true")
     parser.addoption("--feast-version", action="store")
-
-
-def pytest_runtest_makereport(item, call):
-    if "incremental" in item.keywords:
-        if call.excinfo is not None:
-            parent = item.parent
-            parent._previousfailed = item
+    parser.addoption("--bq-project", action="store")
 
 
 def pytest_runtest_setup(item):
-    if "incremental" in item.keywords:
-        previousfailed = getattr(item.parent, "_previousfailed", None)
-        if previousfailed is not None:
-            pytest.xfail("previous test failed (%s)" % previousfailed.name)
+    env_names = [mark.args[0] for mark in item.iter_markers(name="env")]
+    if env_names:
+        if item.config.getoption("env") not in env_names:
+            pytest.skip(f"test requires env in {env_names}")
 
 
 from .fixtures.base import project_root, project_version  # noqa
@@ -63,4 +57,7 @@ else:
     from .fixtures.external_services import (  # type: ignore # noqa
         feast_core,
         feast_serving,
+        enable_auth,
     )
+
+from .fixtures.data import *  # noqa

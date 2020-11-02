@@ -15,12 +15,10 @@ import logging
 import multiprocessing
 import os
 import shutil
-import tempfile
 import uuid
 from datetime import datetime
 from itertools import groupby
 from typing import Any, Dict, List, Optional, Union
-from urllib.parse import urlparse
 
 import grpc
 import pandas as pd
@@ -101,7 +99,11 @@ from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequestV2,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
-from feast.staging.storage_client import get_staging_client
+from feast.staging.entities import (
+    stage_entities_to_bq,
+    stage_entities_to_fs,
+    table_reference_from_string,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -855,6 +857,7 @@ class Client:
                     entity_rows=_infer_online_entity_rows(entity_rows),
                     project=project if project is not None else self.project,
                 ),
+                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
                 metadata=self._get_grpc_metadata(),
             )
         except grpc.RpcError as e:
@@ -879,8 +882,11 @@ class Client:
                 "feature_table:feature" where "feature_table" & "feature" refer to
                 the feature and feature table names respectively.
             entity_source (Union[pd.DataFrame, FileSource, BigQuerySource]): Source for the entity rows.
-                If entity_source is a Panda DataFrame, the dataframe will be exported to the staging
-                location as parquet file. It is also assumed that the column event_timestamp is present
+                If entity_source is a Panda DataFrame, the dataframe will be staged
+                to become accessible by spark workers.
+                If one of feature tables' source is in BigQuery - entities will be upload to BQ.
+                Otherwise to remote file storage (derived from configured staging location).
+                It is also assumed that the column event_timestamp is present
                 in the dataframe, and is of type datetime without timezone information.
 
                 The user needs to make sure that the source (or staging location, if entity_source is
@@ -916,25 +922,27 @@ class Client:
                 str(uuid.uuid4()),
             )
         output_format = self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT)
+        feature_sources = [
+            feature_table.batch_source for feature_table in feature_tables
+        ]
 
         if isinstance(entity_source, pd.DataFrame):
-            staging_location = self._config.get(CONFIG_SPARK_STAGING_LOCATION)
-            entity_staging_uri = urlparse(
-                os.path.join(staging_location, str(uuid.uuid4()))
-            )
-            staging_client = get_staging_client(entity_staging_uri.scheme)
-            with tempfile.NamedTemporaryFile() as df_export_path:
-                entity_source.to_parquet(df_export_path.name)
-                bucket = (
-                    None
-                    if entity_staging_uri.scheme == "file"
-                    else entity_staging_uri.netloc
+            if any(isinstance(source, BigQuerySource) for source in feature_sources):
+                first_bq_source = [
+                    source
+                    for source in feature_sources
+                    if isinstance(source, BigQuerySource)
+                ][0]
+                source_ref = table_reference_from_string(
+                    first_bq_source.bigquery_options.table_ref
                 )
-                staging_client.upload_file(
-                    df_export_path.name, bucket, entity_staging_uri.path.lstrip("/")
+                entity_source = stage_entities_to_bq(
+                    entity_source, source_ref.project, source_ref.dataset_id
                 )
-                entity_source = FileSource(
-                    "event_timestamp", ParquetFormat(), entity_staging_uri.geturl(),
+            else:
+                entity_source = stage_entities_to_fs(
+                    entity_source,
+                    staging_location=self._config.get(CONFIG_SPARK_STAGING_LOCATION),
                 )
 
         if self._use_job_service:
@@ -943,6 +951,7 @@ class Client:
                     feature_refs=feature_refs,
                     entity_source=entity_source.to_proto(),
                     project=project,
+                    output_format=output_format,
                     output_location=output_location,
                 ),
                 **self._extra_grpc_params(),
@@ -955,11 +964,7 @@ class Client:
             )
         else:
             return start_historical_feature_retrieval_job(
-                self,
-                entity_source,
-                feature_tables,
-                output_format,
-                os.path.join(output_location, str(uuid.uuid4())),
+                self, entity_source, feature_tables, output_format, output_location,
             )
 
     def get_historical_features_df(

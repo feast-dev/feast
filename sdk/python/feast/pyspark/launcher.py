@@ -35,6 +35,7 @@ from feast.pyspark.abc import (
     StreamIngestionJob,
     StreamIngestionJobParameters,
 )
+from feast.staging.entities import create_bq_view_of_joined_features_and_entities
 from feast.staging.storage_client import get_staging_client
 from feast.value_type import ValueType
 
@@ -106,7 +107,11 @@ def _source_to_argument(source: DataSource):
         return {"file": properties}
 
     if isinstance(source, BigQuerySource):
-        properties["table_ref"] = source.bigquery_options.table_ref
+        project, dataset_and_table = source.bigquery_options.table_ref.split(":")
+        dataset, table = dataset_and_table.split(".")
+        properties["project"] = project
+        properties["dataset"] = dataset
+        properties["table"] = table
         return {"bq": properties}
 
     if isinstance(source, KafkaSource):
@@ -171,13 +176,17 @@ def start_historical_feature_retrieval_job(
     output_path: str,
 ) -> RetrievalJob:
     launcher = resolve_launcher(client._config)
+    feature_sources = [
+        _source_to_argument(
+            replace_bq_table_with_joined_view(feature_table, entity_source)
+        )
+        for feature_table in feature_tables
+    ]
+
     return launcher.historical_feature_retrieval(
         RetrievalJobParameters(
             entity_source=_source_to_argument(entity_source),
-            feature_tables_sources=[
-                _source_to_argument(feature_table.batch_source)
-                for feature_table in feature_tables
-            ],
+            feature_tables_sources=feature_sources,
             feature_tables=[
                 _feature_table_to_argument(client, feature_table)
                 for feature_table in feature_tables
@@ -185,6 +194,35 @@ def start_historical_feature_retrieval_job(
             destination={"format": output_format, "path": output_path},
             extra_options=client._config.get(CONFIG_SPARK_EXTRA_OPTIONS),
         )
+    )
+
+
+def replace_bq_table_with_joined_view(
+    feature_table: FeatureTable, entity_source: Union[FileSource, BigQuerySource],
+) -> Union[FileSource, BigQuerySource]:
+    """
+    Applies optimization to historical retrieval. Instead of pulling all data from Batch Source,
+    with this optimization we join feature values & entities on Data Warehouse side (improving data locality).
+    Several conditions should be met to enable this optimization:
+    * entities are staged to BigQuery
+    * feature values are in in BigQuery
+    * Entity columns are not mapped (ToDo: fix this limitation)
+    :return: replacement for feature source
+    """
+    if not isinstance(feature_table.batch_source, BigQuerySource):
+        return feature_table.batch_source
+
+    if not isinstance(entity_source, BigQuerySource):
+        return feature_table.batch_source
+
+    if any(
+        entity in feature_table.batch_source.field_mapping
+        for entity in feature_table.entities
+    ):
+        return feature_table.batch_source
+
+    return create_bq_view_of_joined_features_and_entities(
+        feature_table.batch_source, entity_source, feature_table.entities,
     )
 
 

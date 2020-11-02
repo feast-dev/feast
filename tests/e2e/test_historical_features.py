@@ -1,5 +1,5 @@
-import os
 from datetime import datetime, timedelta
+from typing import Union
 from urllib.parse import urlparse
 
 import gcsfs
@@ -9,8 +9,8 @@ from google.protobuf.duration_pb2 import Duration
 from pandas._testing import assert_frame_equal
 from pyarrow import parquet
 
-from feast import Client, Entity, Feature, FeatureTable, FileSource, ValueType
-from feast.data_format import ParquetFormat
+from feast import Client, Entity, Feature, FeatureTable, ValueType
+from feast.data_source import BigQuerySource, FileSource
 
 np.random.seed(0)
 
@@ -28,33 +28,7 @@ def read_parquet(uri):
         raise ValueError("Unsupported scheme")
 
 
-def test_historical_features(feast_client: Client, local_staging_path: str):
-    customer_entity = Entity(
-        name="user_id", description="Customer", value_type=ValueType.INT64
-    )
-    feast_client.apply_entity(customer_entity)
-
-    max_age = Duration()
-    max_age.FromSeconds(2 * 86400)
-
-    transactions_feature_table = FeatureTable(
-        name="transactions",
-        entities=["user_id"],
-        features=[
-            Feature("daily_transactions", ValueType.DOUBLE),
-            Feature("total_transactions", ValueType.DOUBLE),
-        ],
-        batch_source=FileSource(
-            event_timestamp_column="event_timestamp",
-            created_timestamp_column="created_timestamp",
-            file_format=ParquetFormat(),
-            file_url=os.path.join(local_staging_path, "transactions"),
-        ),
-        max_age=max_age,
-    )
-
-    feast_client.apply_feature_table(transactions_feature_table)
-
+def generate_data():
     retrieval_date = (
         datetime.utcnow()
         .replace(hour=0, minute=0, second=0, microsecond=0)
@@ -77,11 +51,6 @@ def test_historical_features(feast_client: Client, local_staging_path: str):
             "total_transactions": total_transactions,
         }
     )
-
-    feast_client.ingest(transactions_feature_table, transactions_df)
-
-    feature_refs = ["transactions:daily_transactions"]
-
     customer_df = pd.DataFrame(
         {
             "event_timestamp": [retrieval_date for _ in customers]
@@ -89,18 +58,48 @@ def test_historical_features(feast_client: Client, local_staging_path: str):
             "user_id": customers + customers,
         }
     )
+    return transactions_df, customer_df
 
-    job = feast_client.get_historical_features(feature_refs, customer_df)
+
+def test_historical_features(
+    feast_client: Client, batch_source: Union[BigQuerySource, FileSource]
+):
+    customer_entity = Entity(
+        name="user_id", description="Customer", value_type=ValueType.INT64
+    )
+    feast_client.apply_entity(customer_entity)
+
+    max_age = Duration()
+    max_age.FromSeconds(2 * 86400)
+
+    transactions_feature_table = FeatureTable(
+        name="transactions",
+        entities=["user_id"],
+        features=[
+            Feature("daily_transactions", ValueType.DOUBLE),
+            Feature("total_transactions", ValueType.DOUBLE),
+        ],
+        batch_source=batch_source,
+        max_age=max_age,
+    )
+
+    feast_client.apply_feature_table(transactions_feature_table)
+
+    transactions_df, customers_df = generate_data()
+    feast_client.ingest(transactions_feature_table, transactions_df)
+
+    feature_refs = ["transactions:daily_transactions"]
+
+    job = feast_client.get_historical_features(feature_refs, customers_df)
     output_dir = job.get_output_file_uri()
     joined_df = read_parquet(output_dir)
 
     expected_joined_df = pd.DataFrame(
         {
-            "event_timestamp": [retrieval_date for _ in customers]
-            + [retrieval_outside_max_age_date for _ in customers],
-            "user_id": customers + customers,
-            "transactions__daily_transactions": daily_transactions
-            + [None] * len(customers),
+            "event_timestamp": customers_df.event_timestamp.tolist(),
+            "user_id": customers_df.user_id.tolist(),
+            "transactions__daily_transactions": transactions_df.daily_transactions.tolist()
+            + [None] * transactions_df.shape[0],
         }
     )
 

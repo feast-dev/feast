@@ -149,25 +149,31 @@ class BigQuerySource(Source):
     def spark_path(self) -> str:
         return f"{self.project}:{self.dataset}.{self.table}"
 
+    @property
+    def spark_read_options(self) -> Dict[str, str]:
+        return {**super().spark_read_options, "viewsEnabled": "true"}
+
 
 def _source_from_dict(dct: Dict) -> Source:
     if "file" in dct.keys():
         return FileSource(
-            FileSource.PROTO_FORMAT_TO_SPARK[dct["file"]["format"]["json_class"]],
-            dct["file"]["path"],
-            dct["file"]["event_timestamp_column"],
-            dct["file"].get("created_timestamp_column"),
-            dct["file"].get("field_mapping"),
-            dct["file"].get("options"),
+            format=FileSource.PROTO_FORMAT_TO_SPARK[
+                dct["file"]["format"]["json_class"]
+            ],
+            path=dct["file"]["path"],
+            event_timestamp_column=dct["file"]["event_timestamp_column"],
+            created_timestamp_column=dct["file"].get("created_timestamp_column"),
+            field_mapping=dct["file"].get("field_mapping"),
+            options=dct["file"].get("options"),
         )
     else:
         return BigQuerySource(
-            dct["bq"]["project"],
-            dct["bq"]["dataset"],
-            dct["bq"]["table"],
-            dct["bq"].get("field_mapping", {}),
-            dct["bq"]["event_timestamp_column"],
-            dct["bq"].get("created_timestamp_column"),
+            project=dct["bq"]["project"],
+            dataset=dct["bq"]["dataset"],
+            table=dct["bq"]["table"],
+            field_mapping=dct["bq"].get("field_mapping", {}),
+            event_timestamp_column=dct["bq"]["event_timestamp_column"],
+            created_timestamp_column=dct["bq"].get("created_timestamp_column"),
         )
 
 
