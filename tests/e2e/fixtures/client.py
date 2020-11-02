@@ -1,7 +1,7 @@
 import os
 import tempfile
 import uuid
-from typing import Tuple
+from typing import Tuple, Optional
 
 import pyspark
 import pytest
@@ -18,7 +18,13 @@ def feast_client(
     feast_core: Tuple[str, int],
     feast_serving: Tuple[str, int],
     local_staging_path,
+    feast_jobservice: Optional[Tuple[str, int]]
 ):
+    if feast_jobservice is None:
+        job_service_env = dict()
+    else:
+        job_service_env = dict(job_service_url=f"{feast_jobservice[0]}:{feast_jobservice[1]}")
+
     if pytestconfig.getoption("env") == "local":
         return Client(
             core_url=f"{feast_core[0]}:{feast_core[1]}",
@@ -33,6 +39,7 @@ def feast_client(
             historical_feature_output_location=os.path.join(
                 local_staging_path, "historical_output"
             ),
+            **job_service_env
         )
 
     if pytestconfig.getoption("env") == "gcloud":
@@ -50,6 +57,7 @@ def feast_client(
             historical_feature_output_location=os.path.join(
                 local_staging_path, "historical_output"
             ),
+            **job_service_env
         )
 
 
