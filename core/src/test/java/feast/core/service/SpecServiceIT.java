@@ -1369,6 +1369,37 @@ public class SpecServiceIT extends BaseIT {
     }
 
     @Test
+    public void shouldUpdateDeletedTable() {
+      String projectName = "default";
+      String featureTableName = "featuretable1";
+
+      apiClient.deleteFeatureTable(projectName, featureTableName);
+
+      FeatureTableSpec featureTableSpec =
+          DataGenerator.createFeatureTableSpec(
+                  featureTableName,
+                  Arrays.asList("entity1", "entity2"),
+                  new HashMap<>() {
+                    {
+                      put("feature3", ValueProto.ValueType.Enum.INT64);
+                    }
+                  },
+                  7200,
+                  ImmutableMap.of("feat_key3", "feat_value3"))
+              .toBuilder()
+              .setBatchSource(
+                  DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
+              .build();
+
+      apiClient.applyFeatureTable(projectName, featureTableSpec);
+
+      FeatureTableProto.FeatureTable featureTable =
+          apiClient.simpleGetFeatureTable(projectName, featureTableName);
+
+      assertTrue(TestUtil.compareFeatureTableSpec(featureTable.getSpec(), featureTableSpec));
+    }
+
+    @Test
     public void shouldErrorIfTableNotExist() {
       String projectName = "default";
       String featureTableName = "nonexistent_table";
