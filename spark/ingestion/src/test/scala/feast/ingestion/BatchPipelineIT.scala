@@ -254,4 +254,38 @@ class BatchPipelineIT extends SparkSpec with ForAllTestContainer {
       )
     })
   }
+
+  "Spark expressions" should "be allowed in mapping" in new Scope {
+    val gen  = rowGenerator(DateTime.parse("2020-08-01"), DateTime.parse("2020-09-01"))
+    val rows = generateDistinctRows(gen, 100, groupByEntity)
+
+    val tempPath = storeAsParquet(sparkSession, rows)
+
+    val configWithMapping = config.copy(
+      source = FileSource(
+        tempPath,
+        Map(
+          "feature1" -> "feature1 + 1",
+          "feature2" -> "feature1 + feature2 * 2"
+        ),
+        "eventTimestamp"
+      )
+    )
+
+    BatchPipeline.createPipeline(sparkSession, configWithMapping)
+
+    val featureKeyEncoder: String => String = encodeFeatureKey(config.featureTable)
+
+    rows.foreach(r => {
+      val storedValues =
+        jedis.hgetAll(encodeEntityKey(r, configWithMapping.featureTable)).asScala.toMap
+      storedValues should beStoredRow(
+        Map(
+          featureKeyEncoder("feature1") -> (r.feature1 + 1),
+          featureKeyEncoder("feature2") -> (r.feature1 + r.feature2 * 2),
+          "_ts:test-fs"                 -> r.eventTimestamp
+        )
+      )
+    })
+  }
 }

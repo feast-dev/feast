@@ -18,7 +18,7 @@ package feast.ingestion
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{Column, SparkSession}
-import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.expr
 import org.apache.spark.sql.streaming.StreamingQuery
 
 trait BasePipeline {
@@ -87,7 +87,7 @@ trait BasePipeline {
         .map(e => (e.name, e.name))
 
     (featureColumns ++ entitiesColumns ++ timestampColumn).map { case (alias, source) =>
-      col(source).alias(alias)
+      expr(source).alias(alias)
     }.toArray
   }
 }
