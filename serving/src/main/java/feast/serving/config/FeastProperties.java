@@ -86,6 +86,9 @@ public class FeastProperties {
     this.coreAuthentication = coreAuthentication;
   }
 
+  /* Feast Core port to connect to. */
+  @Positive private int coreCacheRefreshInterval;
+
   private SecurityProperties security;
 
   @Bean
@@ -218,6 +221,24 @@ public class FeastProperties {
    */
   public void setCoreGrpcPort(int coreGrpcPort) {
     this.coreGrpcPort = coreGrpcPort;
+  }
+
+  /**
+   * Gets CachedSpecService refresh interval.
+   *
+   * @return CachedSpecService refresh interval
+   */
+  public int getCoreCacheRefreshInterval() {
+    return coreCacheRefreshInterval;
+  }
+
+  /**
+   * Sets CachedSpecService refresh interval.
+   *
+   * @param coreCacheRefreshInterval CachedSpecService refresh interval
+   */
+  public void setCoreCacheRefreshInterval(int coreCacheRefreshInterval) {
+    this.coreCacheRefreshInterval = coreCacheRefreshInterval;
   }
 
   /**
