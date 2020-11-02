@@ -37,12 +37,13 @@ public class SpecServiceConfig {
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(SpecServiceConfig.class);
   private String feastCoreHost;
   private int feastCorePort;
-  private static final int CACHE_REFRESH_RATE_SECONDS = 10;
+  private int CACHE_REFRESH_RATE_SECONDS;
 
   @Autowired
   public SpecServiceConfig(FeastProperties feastProperties) {
     feastCoreHost = feastProperties.getCoreHost();
     feastCorePort = feastProperties.getCoreGrpcPort();
+    CACHE_REFRESH_RATE_SECONDS = feastProperties.getCoreCacheRefreshInterval();
   }
 
   @Bean

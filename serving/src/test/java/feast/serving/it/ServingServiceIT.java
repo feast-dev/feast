@@ -60,7 +60,11 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @ActiveProfiles("it")
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    properties = {
+      "feast.core-cache-refresh-interval=1",
+    })
 @Testcontainers
 public class ServingServiceIT extends BaseAuthIT {
 
@@ -441,9 +445,9 @@ public class ServingServiceIT extends BaseAuthIT {
     TestUtils.applyFeatureTable(
         coreClient, projectName, featureTableName, entities, features, 7200);
 
-    // Sleep is necessary to ensure caching (every 10s) of updated FeatureTable is done
+    // Sleep is necessary to ensure caching (every 1s) of updated FeatureTable is done
     try {
-      Thread.sleep(15000);
+      Thread.sleep(2000);
     } catch (InterruptedException e) {
     }
 
