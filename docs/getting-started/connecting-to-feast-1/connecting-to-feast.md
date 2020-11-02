@@ -1,12 +1,12 @@
 # Feast CLI
 
-The Feast CLI is installed through pip:
+Install the Feast CLI using pip:
 
 ```bash
 pip install feast
 ```
 
-Configure the CLI to connect to your Feast Core deployment
+Configure the CLI to connect to your Feast Core deployment:
 
 ```text
 feast config set core_url your.feast.deployment
@@ -16,7 +16,7 @@ feast config set core_url your.feast.deployment
 By default, all configuration is stored in `~/.feast/config`
 {% endhint %}
 
-The CLI is a wrapper around the [Feast Python SDK](python-sdk.md).
+The CLI is a wrapper around the [Feast Python SDK](python-sdk.md):
 
 ```aspnet
 $ feast

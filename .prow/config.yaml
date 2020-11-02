@@ -214,6 +214,29 @@ presubmits:
             secretName: feast-service-account
 
 
+  - name: test-end-to-end-aws
+    decorate: true
+    always_run: true
+    spec:
+      containers:
+        - image: amazon/aws-cli
+          command: [ "infra/scripts/test-end-to-end-aws.sh" ]
+          resources:
+            requests:
+              cpu: "2"
+              memory: "2048Mi"
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: feast-aws-creds
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: feast-aws-creds
+                  key: AWS_SECRET_ACCESS_KEY
+
 postsubmits:
   feast-dev/feast:
   - name: publish-python-sdk

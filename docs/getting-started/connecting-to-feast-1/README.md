@@ -1,6 +1,6 @@
 # Connecting to Feast
 
-## Python SDK
+### Feast Python SDK
 
 * Define, register, and manage entities and features
 * Ingest data into Feast
@@ -9,7 +9,7 @@
 
 {% page-ref page="python-sdk.md" %}
 
-## Feast CLI
+### Feast CLI
 
 * Define, register, and manage entities and features from the terminal
 * Ingest data into Feast
@@ -17,11 +17,11 @@
 
 {% page-ref page="connecting-to-feast.md" %}
 
-## Online Serving Clients
+### Online Serving Clients
 
-Feast provides three ways to retrieve data in production for online serving
+Feast provides three ways to retrieve data in production for online serving:
 
-* [Python SDK](https://api.docs.feast.dev/python/) \(as above\)
+* [Python SDK](https://api.docs.feast.dev/python/) 
 * [Go Client library](https://godoc.org/github.com/feast-dev/feast/sdk/go)
 * [Java Client library](https://javadoc.io/doc/dev.feast/feast-sdk)
 

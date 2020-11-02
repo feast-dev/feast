@@ -1,12 +1,12 @@
 # Python SDK
 
-The Feast SDK can be installed directly using pip:
+Install the [Feast Python SDK](https://api.docs.feast.dev/python/) using pip:
 
 ```bash
 pip install feast
 ```
 
-Users can then connect to an existing Feast deployment:
+You can then connect to an existing Feast deployment:
 
 ```python
 from feast import Client

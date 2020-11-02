@@ -2,8 +2,8 @@
 
 * [Introduction](README.md)
 * [Why Feast?](why-feast.md)
+* [Quickstart](quickstart.md)
 * [Getting Started](getting-started/README.md)
-  * [Quickstart](getting-started/quickstart.md)
   * [Deploying Feast](getting-started/deploying-feast/README.md)
     * [Kubernetes](getting-started/deploying-feast/kubernetes.md)
     * [Kubernetes \(Amazon EKS\) with Terraform](getting-started/deploying-feast/kubernetes-amazon-eks-with-terraform.md)
@@ -31,7 +31,7 @@
 
 ## Tutorials
 
-* [Basic Tutorial](https://github.com/feast-dev/feast/blob/master/examples/basic/basic.ipynb)
+* [Minimal Ride Hailing Example](https://github.com/feast-dev/feast/blob/master/examples/minimal/minimal_ride_hailing.ipynb)
 
 ## Advanced
 

@@ -99,6 +99,8 @@ def feast_serving(
     feast_core,
     pytestconfig,
 ):
+    _wait_port_open(6565)  # in case core is restarting with new config
+
     jar = str(
         project_root
         / "serving"

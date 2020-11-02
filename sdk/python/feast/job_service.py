@@ -7,6 +7,7 @@ import feast
 from feast.core import JobService_pb2_grpc
 from feast.core.JobService_pb2 import (
     CancelJobResponse,
+    GetHistoricalFeaturesRequest,
     GetHistoricalFeaturesResponse,
     GetJobResponse,
 )
@@ -26,6 +27,7 @@ from feast.pyspark.abc import (
     SparkJobStatus,
     StreamIngestionJob,
 )
+from feast.pyspark.launcher import start_historical_feature_retrieval_job
 from feast.third_party.grpc.health.v1 import HealthService_pb2_grpc
 from feast.third_party.grpc.health.v1.HealthService_pb2 import (
     HealthCheckResponse,
@@ -76,13 +78,16 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
         )
         return StartOfflineToOnlineIngestionJobResponse(id=job.get_id())
 
-    def GetHistoricalFeatures(self, request, context):
+    def GetHistoricalFeatures(self, request: GetHistoricalFeaturesRequest, context):
         """Produce a training dataset, return a job id that will provide a file reference"""
-        job = self.client.get_historical_features(
-            request.feature_refs,
+        job = start_historical_feature_retrieval_job(
+            client=self.client,
             entity_source=DataSource.from_proto(request.entity_source),
-            project=request.project,
-            output_location=request.output_location,
+            feature_tables=self.client._get_feature_tables_from_feature_refs(
+                list(request.feature_refs), request.project
+            ),
+            output_format=request.output_format,
+            output_path=request.output_location,
         )
 
         output_file_uri = job.get_output_file_uri(block=False)

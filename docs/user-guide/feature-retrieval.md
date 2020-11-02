@@ -12,7 +12,7 @@ Historical Retrieval currently pulls from batch sources for Feast v0.8, and offl
 By default, Feast infers that the features specified belong to the `default` project. To retrieve from another project, specify the `project` parameter when retrieving features.
 {% endhint %}
 
-### **Point-in-time-correct Join**
+## **Point-in-time-correct Join**
 
 Feast does a point in time correct query from a single feature table. For each entity key and event timestamp combination that is provided by `entity_source`, Feast determines the values of all the features in the `feature_refs` list at that respective point in time and then joins features values to that specific entity value and event timestamp, and repeats this process for all timestamps.
 
@@ -20,7 +20,7 @@ This is called a point in time correct join.
 
 Below is an example of how a point-in-time-correct join works. We have two DataFrames. The first is the `entity dataframe` that contains timestamps, entities, and labels. The user would like to have driver features joined onto this `entity dataframe` from the `driver dataframe` to produce a `joined dataframe` upon materializing the view that contains both labels and features. They would then like to train their model on this output
 
-![](../.gitbook/assets/point_in_time_join.png)
+![](../.gitbook/assets/point_in_time_join%20%281%29.png)
 
 Typically the `input 1` DataFrame would be provided by the user through `entity_source`, and the `input 2` DataFrame would already be ingested into Feast. To join these two, the user would call Feast as follows:
 

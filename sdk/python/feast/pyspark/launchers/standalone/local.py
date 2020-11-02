@@ -152,6 +152,8 @@ class StandaloneClusterLauncher(JobLauncher):
     Submits jobs to a standalone Spark cluster in client mode.
     """
 
+    BQ_CONNECTOR_VERSION = "2.12:0.17.3"
+
     def __init__(self, master_url: str, spark_home: str = None):
         """
         This launcher executes the spark-submit script in a subprocess. The subprocess
@@ -187,6 +189,23 @@ class StandaloneClusterLauncher(JobLauncher):
 
         if ui_port:
             submission_cmd.extend(["--conf", f"spark.ui.port={ui_port}"])
+
+        # Workaround for https://github.com/apache/spark/pull/26552
+        # Fix running spark job with bigquery connector (w/ shadowing) on JDK 9+
+        submission_cmd.extend(
+            [
+                "--conf",
+                "spark.executor.extraJavaOptions="
+                "-Dcom.google.cloud.spark.bigquery.repackaged.io.netty.tryReflectionSetAccessible=true -Duser.timezone=GMT",
+                "--conf",
+                "spark.driver.extraJavaOptions="
+                "-Dcom.google.cloud.spark.bigquery.repackaged.io.netty.tryReflectionSetAccessible=true -Duser.timezone=GMT",
+                "--conf",
+                "spark.sql.session.timeZone=UTC",  # ignore local timezone
+                "--packages",
+                f"com.google.cloud.spark:spark-bigquery-with-dependencies_{self.BQ_CONNECTOR_VERSION}",
+            ]
+        )
 
         if job_params.get_extra_options():
             submission_cmd.extend(job_params.get_extra_options().split(" "))

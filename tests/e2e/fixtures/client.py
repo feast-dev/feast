@@ -18,7 +18,8 @@ def feast_client(
     feast_core: Tuple[str, int],
     feast_serving: Tuple[str, int],
     local_staging_path,
-    feast_jobservice: Optional[Tuple[str, int]]
+    feast_jobservice: Optional[Tuple[str, int]],
+    enable_auth,
 ):
     if feast_jobservice is None:
         job_service_env = dict()
