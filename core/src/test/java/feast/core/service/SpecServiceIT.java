@@ -1336,4 +1336,84 @@ public class SpecServiceIT extends BaseIT {
                       .build()));
     }
   }
+
+  @Nested
+  public class DeleteFeatureTable {
+
+    @Test
+    public void shouldReturnNoTables() {
+      String projectName = "default";
+      String featureTableName = "featuretable1";
+
+      apiClient.deleteFeatureTable(projectName, featureTableName);
+
+      CoreServiceProto.ListFeatureTablesRequest.Filter filter =
+          CoreServiceProto.ListFeatureTablesRequest.Filter.newBuilder()
+              .setProject("default")
+              .build();
+      List<FeatureTableProto.FeatureTable> featureTables =
+          apiClient.simpleListFeatureTables(filter);
+
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class,
+              () -> apiClient.simpleGetFeatureTable(projectName, featureTableName));
+
+      assertThat(featureTables.size(), equalTo(0));
+      assertThat(
+          exc.getMessage(),
+          equalTo(
+              String.format(
+                  "NOT_FOUND: Feature Table has been deleted: (project: %s, name: %s)",
+                  projectName, featureTableName)));
+    }
+
+    @Test
+    public void shouldUpdateDeletedTable() {
+      String projectName = "default";
+      String featureTableName = "featuretable1";
+
+      apiClient.deleteFeatureTable(projectName, featureTableName);
+
+      FeatureTableSpec featureTableSpec =
+          DataGenerator.createFeatureTableSpec(
+                  featureTableName,
+                  Arrays.asList("entity1", "entity2"),
+                  new HashMap<>() {
+                    {
+                      put("feature3", ValueProto.ValueType.Enum.INT64);
+                    }
+                  },
+                  7200,
+                  ImmutableMap.of("feat_key3", "feat_value3"))
+              .toBuilder()
+              .setBatchSource(
+                  DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
+              .build();
+
+      apiClient.applyFeatureTable(projectName, featureTableSpec);
+
+      FeatureTableProto.FeatureTable featureTable =
+          apiClient.simpleGetFeatureTable(projectName, featureTableName);
+
+      assertTrue(TestUtil.compareFeatureTableSpec(featureTable.getSpec(), featureTableSpec));
+    }
+
+    @Test
+    public void shouldErrorIfTableNotExist() {
+      String projectName = "default";
+      String featureTableName = "nonexistent_table";
+      StatusRuntimeException exc =
+          assertThrows(
+              StatusRuntimeException.class,
+              () -> apiClient.deleteFeatureTable(projectName, featureTableName));
+
+      assertThat(
+          exc.getMessage(),
+          equalTo(
+              String.format(
+                  "NOT_FOUND: No such Feature Table: (project: %s, name: %s)",
+                  projectName, featureTableName)));
+    }
+  }
 }
