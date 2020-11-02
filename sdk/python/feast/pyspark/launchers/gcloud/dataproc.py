@@ -142,7 +142,6 @@ class DataprocRetrievalJob(DataprocJobMixin, RetrievalJob):
         super().__init__(job, refresh_fn, cancel_fn)
         self._output_file_uri = output_file_uri
 
-
     def get_output_file_uri(self, timeout_sec=None, block=True):
         if not block:
             return self._output_file_uri
