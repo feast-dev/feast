@@ -37,13 +37,13 @@ public class SpecServiceConfig {
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(SpecServiceConfig.class);
   private String feastCoreHost;
   private int feastCorePort;
-  private int CACHE_REFRESH_RATE_SECONDS;
+  private int feastCachedSpecServiceRefreshInterval;
 
   @Autowired
   public SpecServiceConfig(FeastProperties feastProperties) {
-    feastCoreHost = feastProperties.getCoreHost();
-    feastCorePort = feastProperties.getCoreGrpcPort();
-    CACHE_REFRESH_RATE_SECONDS = feastProperties.getCoreCacheRefreshInterval();
+    this.feastCoreHost = feastProperties.getCoreHost();
+    this.feastCorePort = feastProperties.getCoreGrpcPort();
+    this.feastCachedSpecServiceRefreshInterval = feastProperties.getCoreCacheRefreshInterval();
   }
 
   @Bean
@@ -54,8 +54,8 @@ public class SpecServiceConfig {
     // reload all specs including new ones periodically
     scheduledExecutorService.scheduleAtFixedRate(
         cachedSpecStorage::scheduledPopulateCache,
-        CACHE_REFRESH_RATE_SECONDS,
-        CACHE_REFRESH_RATE_SECONDS,
+        feastCachedSpecServiceRefreshInterval,
+        feastCachedSpecServiceRefreshInterval,
         TimeUnit.SECONDS);
     return scheduledExecutorService;
   }
