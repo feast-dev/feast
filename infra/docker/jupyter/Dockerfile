@@ -1,4 +1,4 @@
-FROM jupyter/minimal-notebook:95ccda3619d0
+FROM jupyter/minimal-notebook:619e9cc2fc07
 
 USER root
 WORKDIR /feast
