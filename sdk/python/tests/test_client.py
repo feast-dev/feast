@@ -617,7 +617,7 @@ class TestClient:
             project="driver_project",
         )  # type: GetOnlineFeaturesResponse
         mocked_client._serving_service_stub.GetOnlineFeaturesV2.assert_called_with(
-            request, metadata=auth_metadata
+            request, metadata=auth_metadata, timeout=3
         )
 
         got_fields = got_response.field_values[1].fields
@@ -707,7 +707,7 @@ class TestClient:
             project="driver_project",
         )  # type: GetOnlineFeaturesResponse
         mocked_client._serving_service_stub.GetOnlineFeaturesV2.assert_called_with(
-            request, metadata=auth_metadata
+            request, metadata=auth_metadata, timeout=3
         )
 
         got_fields = got_response.field_values[1].fields
