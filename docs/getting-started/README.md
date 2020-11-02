@@ -1,14 +1,20 @@
 # Getting Started
 
-If you would like to learn more about Feast concepts and its architecture, see the `User Guide`
+### Install Feast
 
-If you would like to connect to an existing Feast deployment, click on `Connecting to Feast`
+If you would like to deploy a new installation of Feast, click on [Install Feast](install-feast/)
 
-{% page-ref page="connecting-to-feast-1/" %}
+{% page-ref page="install-feast/" %}
 
-If you would like to deploy a new installation of Feast, click on `Deploying Feast`
+### Connect to Feast
 
-{% page-ref page="deploying-feast/" %}
+If you would like to connect to an existing Feast deployment, click on [Connect to Feast](connect-to-feast/)
 
-If you are connected to a running Feast deployment, have a look at our [example tutorials](https://github.com/gojek/feast/tree/master/examples).
+{% page-ref page="connect-to-feast/" %}
+
+### Learn Feast
+
+If you would like to learn more about Feast, click on [Learn Feast](learn-feast.md)
+
+{% page-ref page="learn-feast.md" %}
 

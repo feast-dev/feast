@@ -7,7 +7,7 @@ Feast Components export metrics that can provide insight into Feast behavior:
 * [Feast Ingestion Jobs  can be configured to push metrics into StatsD](metrics.md#2-exporting-feast-metrics-to-prometheus)
 * [Prometheus can be configured to scrap metrics from Feast Core and Serving.](metrics.md#2-exporting-feast-metrics-to-prometheus)
 
-See the [Metrics Reference ](../reference/metrics-reference.md)for documentation on metrics are exported by Feast.
+See the [Metrics Reference ](../reference/metrics-reference/)for documentation on metrics are exported by Feast.
 
 {% hint style="info" %}
 Feast Job Controller currently does not export any metrics on its own. However its `application.yml` is used to configure metrics export for ingestion jobs.
@@ -51,7 +51,7 @@ server:
 
 ## 3. Futher Reading.
 
-See the [Metrics Reference ](../reference/metrics-reference.md)for documentation on metrics are exported by Feast.
+See the [Metrics Reference ](../reference/metrics-reference/)for documentation on metrics are exported by Feast.
 
 ## 
 

@@ -14,7 +14,7 @@ Feast Core is the central management service of a Feast deployment. It's role is
 
 Before you ingest data into Feast, first register one or more entity, then register feature tables. These [feature tables](feature-tables.md) tell Feast where to find their data and how to ingest it. The feature tables also describe the characteristics of the data for validation purposes. After a feature table is registered, you can start a Spark job to populate a store with data from the defined source in the feature table specification.
 
-To ensure stores are populated with data, you must publish the data to a [source](sources.md). Currently, Feast supports a few batch and stream sources. Feast users \(or pipelines\) ingest batch data through the [Feast Python SDK](../getting-started/connecting-to-feast-1/python-sdk.md) using its `ingest()` method. The SDK publishes the data into the batch source specified for the feature table's batch source.
+To ensure stores are populated with data, you must publish the data to a [source](sources.md). Currently, Feast supports a few batch and stream sources. Feast users \(or pipelines\) ingest batch data through the [Feast Python SDK](../getting-started/connect-to-feast/python-sdk.md) using its `ingest()` method. The SDK publishes the data into the batch source specified for the feature table's batch source.
 
 Streaming systems can also ingest data into Feast. This is done by publishing to the correct stream source from the feature table specification in the expected format. The topic and brokers can be found on the feature table's stream source if specified during registration.
 

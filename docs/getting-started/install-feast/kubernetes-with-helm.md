@@ -1,4 +1,4 @@
-# Kubernetes
+# Kubernetes \(with Helm\)
 
 ### Overview <a id="m_5245424069798496115gmail-overview-1"></a>
 
@@ -8,28 +8,26 @@ This guide installs Feast on an existing Kubernetes cluster, and ensures the fol
 * Feast Online Serving
 * Postgres
 * Redis
-* Feast Jupyter
-* Prometheus
-
-This guide also contains instructions for customizing your installation for different production use cases.
+* Feast Jupyter \(Optional\)
+* Prometheus \(Optional\)
 
 ### 1. Requirements
 
 1. Install and configure [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-2. Install [Helm ](https://helm.sh/)3 
+2. Install [Helm 3](https://helm.sh/)
 
 ### 2. Preparation
 
-Add Feast Helm repository and download the latest charts:
+Add the Feast Helm repository and download the latest charts:
 
 ```text
 helm repo add feast-charts https://feast-charts.storage.googleapis.com
 helm repo update
 ```
 
-Feast includes a Helm chart that installs all necessary components to run `Feast Core`, `Feast Online Serving`, and the example Jupyter notebook.
+Feast includes a Helm chart that installs all necessary components to run Feast Core, Feast Online Serving, and an example Jupyter notebook.
 
-Because `Feast Core` requires Postgres to run, create a Kubernetes secret for the credential: 
+Feast Core requires Postgres to run, which requires a secret to be set on Kubernetes: 
 
 ```bash
 kubectl create secret generic feast-postgresql --from-literal=postgresql-password=password
@@ -37,7 +35,7 @@ kubectl create secret generic feast-postgresql --from-literal=postgresql-passwor
 
 ### 3. Installation
 
-Install Feast using Helm. The pods take a minute to initiate, while at the same time Feast Online Serving restarts until Feast Core has launched.
+Install Feast using Helm. The pods may take a few minutes to initialize.
 
 ```bash
 helm install feast-release feast-charts/feast
@@ -45,7 +43,7 @@ helm install feast-release feast-charts/feast
 
 ### 4. Use Jupyter to connect to Feast
 
-After all the pods are ready, connect to the Jupyter Notebook Server running in the cluster:
+After all the pods are in a `RUNNING` state, port-forward to the Jupyter Notebook Server in the cluster:
 
 ```bash
 kubectl port-forward \
@@ -57,7 +55,7 @@ Forwarding from 127.0.0.1:8888 -> 8888
 Forwarding from [::1]:8888 -> 8888
 ```
 
-You can now connect to the bundled Jupyter Notebook Server at `localhost:8888` and follow the example notebooks.
+You can now connect to the bundled Jupyter Notebook Server at `localhost:8888` and follow the example Jupyter notebook.
 
 {% embed url="http://localhost:8888/tree?" caption="" %}
 
@@ -66,7 +64,5 @@ You can now connect to the bundled Jupyter Notebook Server at `localhost:8888` a
 * [Feast Concepts](../../concepts/overview.md)
 * [Feast Examples/Tutorials](https://github.com/feast-dev/feast/tree/master/examples)
 * [Feast Helm Chart Documentation](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/README.md)
-* [Configuring Feast components](../../reference/configuration-reference.md)
-
-
+* [Configuring Feast components](../../reference/configuration-reference/)
 

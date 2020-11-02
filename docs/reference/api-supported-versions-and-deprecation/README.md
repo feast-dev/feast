@@ -8,10 +8,10 @@ description: 'Tracking Feast''s API Compatibility, support Feast versions, Depre
 
 This document tracks Feast's API compatibility. Users are dependent on Feast providing a stable, compatible API such that Feast upgrades do not significantly impact the systems that they have built on Feast, while developers have to make changes to correct API design decisions that no longer make sense. By tracking Feast's API Compatibility, support Feast versions, this document attempts to find common ground between the two needs.
 
-1. [Release Versioning](api-supported-versions-and-deprecation.md#1-release-versioning)
-2. [API Compatibility Policy](api-supported-versions-and-deprecation.md#2-api-compatibility)
-3. [Supported Feast Versions.](api-supported-versions-and-deprecation.md#3-supported-versions)
-4. [Deprecations.](api-supported-versions-and-deprecation.md#4-deprecations)
+1. [Release Versioning](./#1-release-versioning)
+2. [API Compatibility Policy](./#2-api-compatibility)
+3. [Supported Feast Versions.](./#3-supported-versions)
+4. [Deprecations.](./#4-deprecations)
 
 ## 1. Release Versioning
 

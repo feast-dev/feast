@@ -2,59 +2,79 @@
 
 ### Overview
 
-This brief introduction shows you how to deploy Feast using [Docker Compose](https://docs.docker.com/get-started/). Docker Compose enables you to explore the functionality provided by Feast while requiring only minimal infrastructure. It includes a built in Jupyter Notebook Server that is preloaded with PySpark and the Feast Python SDK, as well as Feast example notebooks to get you started.
+This guide shows you how to deploy Feast using [Docker Compose](https://docs.docker.com/get-started/). Docker Compose enables you to explore the functionality provided by Feast while requiring only minimal infrastructure.
+
+This guide includes the following containerized components:
+
+* A complete Feast deployment \(Feast Core with Postgres, Feast Online Serving with Redis\).
+* A Jupyter Notebook Server with built in Feast example\(s\).
+* A Kafka cluster for testing streaming ingestion.
 
 ### 1. Requirements
 
-* Install [Docker Compose](https://docs.docker.com/compose/install/)
-* Optional dependencies:
-  * a [GCP service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) that has access to [Google Cloud Storage](https://cloud.google.com/storage)
+1. Install [Docker Compose](https://docs.docker.com/compose/install/)
 
 ### 2. Configure Environment
 
-Before starting, clone the latest stable version of Feast from the [Feast repository](https://github.com/gojek/feast/), and configure.
+Clone the latest stable version of Feast from the [Feast repository](https://github.com/gojek/feast/):
 
 ```text
 git clone https://github.com/feast-dev/feast.git
 cd feast/infra/docker-compose
+```
+
+Create a new configuration file:
+
+```text
 cp .env.sample .env
 ```
 
 ### 3. Start Feast Services
 
-Start the Feast services. Ensure that the following ports are free on the host machines: `6565`, `6566`, `8888`, `9094`, `5432`. Alternatively, change port mapping to use a different port on the host.
+Start Feast with Docker Compose:
 
-```javascript
+```text
 docker-compose up -d
 ```
 
-{% hint style="info" %}
-Docker Compose takes a minute to launch:
+Wait until all all containers are in a running state:
 
-* While the deployment is initiating, Feast Online Serving container may restart. Once Feast Core has launched, any container restarts should be auto-corrected.
-* If container restarts continue for more than 10 minutes, check the Docker Compose log for any errors that prevent Feast Core from starting successfully.
-{% endhint %}
+```text
+docker-compose ps
+```
 
-You can now connect to the bundled Jupyter Notebook Server at `localhost:8888` and follow the example notebooks.
+You can now connect to the bundled Jupyter Notebook Server running at `localhost:8888` and follow the example Jupyter notebook.
 
 {% embed url="http://localhost:8888/tree?" caption="" %}
 
-### 4. Optional Dependencies
+### 4. Troubleshooting
 
-#### 4.1 Configure Google Cloud Platform \(GCP\)
+#### 4.1 Open ports
 
-By default, the example Jupyter notebook does not require any GCP dependencies. If you modify the example to require GCP services \(for example Google Cloud Storage\), you need to establish a [service account](https://cloud.google.com/iam/docs/creating-managing-service-accounts) that is associated with the Jupyter notebook. 
+Please ensure that the following ports are available on your host machine:  `6565`, `6566`, `8888`, `9094`, `5432`.
 
-{% hint style="warning" %}
-Confirm that the GCP service account has sufficient privileges to access the required GCP services.
-{% endhint %}
+If a port conflict cannot be resolved, you can modify all port mappings in the provided [docker-compose.yml](https://github.com/feast-dev/feast/tree/master/infra/docker-compose) file to use a different port on the host.
 
-After you create the service account, download the associated JSON key file and copy the file to the path configured in `.env` under `GCP_SERVICE_ACCOUNT` . 
+#### 4.2 Containers are restarting or unavailable
 
-### 5. Further Reading
+If some of the containers continue to restart, or you are unable to access a service, inspect the logs using the following command:
 
-* [Feast Concepts](concepts/overview.md)
-* [Feast Examples/Tutorials](https://github.com/feast-dev/feast/tree/master/examples)
-* [Configuring Feast Components](reference/configuration-reference.md)
-* [Configuration Reference](https://app.gitbook.com/@feast/s/docs/v/master/reference/configuration-reference)
+```javascript
+docker-compose logs -f -t
+```
+
+If you are unable to resolve the problem, visit [GitHub](https://github.com/feast-dev/feast/issues) to create an issue.
+
+### 5. Configuration
+
+The Feast Docker Compose setup can be configured by modifying properties in your `.env` file.
+
+#### 5.1 Accessing Google Cloud Storage \(GCP\)
+
+To access Google Cloud Storage as a data source, the Docker Compose installation requires access to a GCP service account.
+
+* Create a new [service account](https://cloud.google.com/iam/docs/creating-managing-service-accounts) and save a JSON key.
+* Grant the service account access to your bucket\(s\).
+* Copy the service account to the path you have configured in `.env` under `GCP_SERVICE_ACCOUNT`.
+* Restart your Docker Compose setup of Feast.
 

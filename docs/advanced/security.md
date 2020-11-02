@@ -40,7 +40,7 @@ The following properties configure SSL/TLS. These properties are located in thei
 
 ### Configuring SSL/TLS on Python SDK/CLI
 
-To enable SSL/TLS in the [Feast Python SDK](https://api.docs.feast.dev/python/#feast.client.Client) or [Feast CLI](../getting-started/connecting-to-feast-1/connecting-to-feast.md), set the config options via `feast config`:
+To enable SSL/TLS in the [Feast Python SDK](https://api.docs.feast.dev/python/#feast.client.Client) or [Feast CLI](../getting-started/connect-to-feast/connecting-to-feast.md), set the config options via `feast config`:
 
 | Configuration Option | Description |
 | :--- | :--- |
@@ -188,7 +188,7 @@ OAuth Provider makes an OAuth [client credentials](https://auth0.com/docs/flows/
 
 ### **Enabling Authentication in Python SDK/CLI**
 
-Configure the [Feast Python SDK](https://api.docs.feast.dev/python/) and [Feast CLI](../getting-started/connecting-to-feast-1/connecting-to-feast.md) to use authentication via `feast config`:
+Configure the [Feast Python SDK](https://api.docs.feast.dev/python/) and [Feast CLI](../getting-started/connect-to-feast/connecting-to-feast.md) to use authentication via `feast config`:
 
 ```python
 $ feast config set enable_auth true
