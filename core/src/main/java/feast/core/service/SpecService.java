@@ -37,6 +37,7 @@ import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse.Status;
 import feast.proto.core.CoreServiceProto.ApplyFeatureTableRequest;
 import feast.proto.core.CoreServiceProto.ApplyFeatureTableResponse;
+import feast.proto.core.CoreServiceProto.DeleteFeatureTableRequest;
 import feast.proto.core.CoreServiceProto.GetEntityRequest;
 import feast.proto.core.CoreServiceProto.GetEntityResponse;
 import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
@@ -702,6 +703,7 @@ public class SpecService {
       matchingTables =
           matchingTables.stream()
               .filter(table -> table.hasAllLabels(labelsFilter))
+              .filter(table -> !table.isDeleted())
               .collect(Collectors.toList());
     }
     for (FeatureTable table : matchingTables) {
@@ -735,10 +737,36 @@ public class SpecService {
               "No such Feature Table: (project: %s, name: %s)", projectName, featureTableName));
     }
 
+    if (retrieveTable.get().isDeleted()) {
+      throw new NoSuchElementException(
+          String.format(
+              "Feature Table has been deleted: (project: %s, name: %s)",
+              projectName, featureTableName));
+    }
+
     // Build GetFeatureTableResponse
     GetFeatureTableResponse response =
         GetFeatureTableResponse.newBuilder().setTable(retrieveTable.get().toProto()).build();
 
     return response;
+  }
+
+  @Transactional
+  public void deleteFeatureTable(DeleteFeatureTableRequest request) {
+    String projectName = resolveProjectName(request.getProject());
+    String featureTableName = request.getName();
+
+    checkValidCharacters(projectName, "project");
+    checkValidCharacters(featureTableName, "featureTable");
+
+    Optional<FeatureTable> existingTable =
+        tableRepository.findFeatureTableByNameAndProject_Name(featureTableName, projectName);
+    if (existingTable.isEmpty()) {
+      throw new NoSuchElementException(
+          String.format(
+              "No such Feature Table: (project: %s, name: %s)", projectName, featureTableName));
+    }
+
+    existingTable.get().delete();
   }
 }

@@ -13,7 +13,7 @@ Contributors are encouraged to understand our branch workflow described below, f
 
 A release branch should be substantially _feature complete_ with respect to the intended release. Code that is committed to `master` may be merged or cherry-picked on to a release branch, but code that is directly committed to a release branch should be solely applicable to that release \(and should not be committed back to master\).
 
-In general, unless you're committing code that only applies to a particular release stream \(for example, temporary hotfixes, backported security fixes, or image hashes\), you should base changes from `master` and then merge or cherry-pick to the release branch.
+In general, unless you're committing code that only applies to a particular release stream \(for example, temporary hot-fixes, back-ported security fixes, or image hashes\), you should base changes from `master` and then merge or cherry-pick to the release branch.
 
 ## Release process
 
@@ -38,7 +38,7 @@ For Feast maintainers, these are the concrete steps for making a new release.
    3. Check that versions are updated with `env TARGET_MERGE_BRANCH=master make lint-versions`
 7. Create a [GitHub release](https://github.com/feast-dev/feast/releases) which includes a summary of im~~p~~ortant changes as well as any artifacts associated with the release. Make sure to include the same change log as added in [CHANGELOG.md](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md). Use `Feast vX.Y.Z` as the title.
 8. Update the[ Upgrade Guide](../advanced/upgrading.md)  to include the action required instructions for users to upgrade to this new release. Instructions should include a migration for each breaking change made to this release.
-9. Update[ Feast Supported Versions](../reference/api-supported-versions-and-deprecation.md#3-supported-versions) to include the supported versions of each component.
+9. Update[ Feast Supported Versions]() to include the supported versions of each component.
 
 When a tag that matches a Semantic Version string is pushed, CI will automatically build and push the relevant artifacts to their repositories or package managers \(docker images, Python wheels, etc\). JVM artifacts are promoted from Sonatype OSSRH to Maven Central, but it sometimes takes some time for them to be available. The `sdk/go/v tag` is required to version the Go SDK go module so that users can go get a specific tagged release of the Go SDK.
 
@@ -75,8 +75,7 @@ docker run -it --rm ferrarimarco/github-changelog-generator \
 
 ### Flag Breaking Changes & Deprecations
 
-It's important to flag breaking changes and deprecation to the API for each release so that we can maintain [API compatibility](../reference/api-supported-versions-and-deprecation.md#2-api-compatibility).
+It's important to flag breaking changes and deprecation to the API for each release so that we can maintain API compatibility.
 
-* Developers should have flagged PRs with breaking changes with the `compat/breaking` label. However, it's important to double check each PR's release notes and contents for changes that will break [API compatibility](https://app.gitbook.com/@feast/s/docs/~/drafts/-MGstXoieRglzkPw_d1Q/v/master/reference/api-supported-versions-and-deprecation#2-api-compatibility) and manually label `compat/breaking` to PRs with undeclared breaking changes. The change log will have to be regenerated if any new labels have to be  added.
-* Record any deprecation in [Deprecations Page](../reference/api-supported-versions-and-deprecation.md#4-deprecations).
+Developers should have flagged PRs with breaking changes with the `compat/breaking` label. However, it's important to double check each PR's release notes and contents for changes that will break API compatibility and manually label `compat/breaking` to PRs with undeclared breaking changes. The change log will have to be regenerated if any new labels have to be  added.
 

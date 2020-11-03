@@ -218,4 +218,12 @@ public class SimpleCoreClient {
                 .build())
         .getTable();
   }
+
+  public void deleteFeatureTable(String projectName, String featureTableName) {
+    stub.deleteFeatureTable(
+        CoreServiceProto.DeleteFeatureTableRequest.newBuilder()
+            .setProject(projectName)
+            .setName(featureTableName)
+            .build());
+  }
 }

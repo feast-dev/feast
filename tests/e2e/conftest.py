@@ -23,6 +23,7 @@ def pytest_addoption(parser):
     parser.addoption("--redis-cluster", action="store_true")
     parser.addoption("--feast-version", action="store")
     parser.addoption("--bq-project", action="store")
+    parser.addoption("--feast-project", action="store", default="default")
 
 
 def pytest_runtest_setup(item):

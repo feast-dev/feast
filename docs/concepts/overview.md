@@ -18,7 +18,7 @@ Feature creators model the data within their organization into Feast through the
 
 Feature tables are both a schema and a means of identifying data sources for features. They allow Feast to know how to interpret your data, and optionally where to find it. Feature tables allow you to define domain [entities](entities.md) along with the features that are available on these entities. Feature tables also allow you to define schemas that describe properties of the respective data, which in turn can be used for validation purposes.
 
-After you register a feature table, Feast creates the relevant schemas to store feature data within its feature [stores](../advanced/stores.md). These stores are then populated by [ingestion jobs](../user-guide/data-ingestion.md) that ingest data from data [sources](sources.md). The now data-rich stores enable Feast to provide access to features for training and serving. Alternatively, you can [ingest](../user-guide/data-ingestion.md) data into Feast instead of using an external source.
+After you register a feature table, Feast creates the relevant schemas to store feature data within its feature [stores](). These stores are then populated by [ingestion jobs](../user-guide/data-ingestion.md) that ingest data from data [sources](sources.md). The now data-rich stores enable Feast to provide access to features for training and serving. Alternatively, you can [ingest](../user-guide/data-ingestion.md) data into Feast instead of using an external source.
 
 Visit [feature tables](feature-tables.md) to learn more about them.
 
@@ -58,7 +58,7 @@ The logical grouping of these resources is important for namespacing and retriev
 
 [Feature Tables](feature-tables.md) are schemas that define logical groupings of features, data sources, and other related metadata.
 
-[Stores](../advanced/stores.md) are databases that maintain feature data that gets served to models during training or inference.
+[Stores]() are databases that maintain feature data that gets served to models during training or inference.
 
 [Ingestion](../user-guide/data-ingestion.md) is the process of loading data into Feast.
 

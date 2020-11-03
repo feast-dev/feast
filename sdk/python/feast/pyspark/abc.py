@@ -25,6 +25,15 @@ class SparkJobStatus(Enum):
     COMPLETED = 3
 
 
+class SparkJobType(Enum):
+    HISTORICAL_RETRIEVAL = 0
+    BATCH_INGESTION = 1
+    STREAM_INGESTION = 2
+
+    def to_pascal_case(self):
+        return self.name.title().replace("_", "")
+
+
 class SparkJob(abc.ABC):
     """
     Base class for all spark jobs
@@ -45,7 +54,8 @@ class SparkJob(abc.ABC):
         """
         Job Status retrieval
 
-        :return: SparkJobStatus
+        Returns:
+            SparkJobStatus: Job status
         """
         raise NotImplementedError
 
@@ -62,7 +72,17 @@ class SparkJobParameters(abc.ABC):
     def get_name(self) -> str:
         """
         Getter for job name
-        :return: Job name
+        Returns:
+            str: Job name.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_job_type(self) -> SparkJobType:
+        """
+        Getter for job type.
+        Returns:
+            SparkJobType: Job type enum.
         """
         raise NotImplementedError
 
@@ -70,14 +90,16 @@ class SparkJobParameters(abc.ABC):
     def get_main_file_path(self) -> str:
         """
         Getter for jar | python path
-        :return: Full path to file
+        Returns:
+            str: Full path to file.
         """
         raise NotImplementedError
 
     def get_class_name(self) -> Optional[str]:
         """
         Getter for main class name if it's applicable
-        :return: java class path, e.g. feast.ingestion.IngestionJob
+        Returns:
+            Optional[str]: java class path, e.g. feast.ingestion.IngestionJob.
         """
         return None
 
@@ -86,7 +108,8 @@ class SparkJobParameters(abc.ABC):
         """
         Getter for job arguments
         E.g., ["--source", '{"kafka":...}', ...]
-        :return: List of arguments
+        Returns:
+            List[str]: List of arguments.
         """
         raise NotImplementedError
 
@@ -94,7 +117,8 @@ class SparkJobParameters(abc.ABC):
     def get_extra_options(self) -> str:
         """
         Spark job dependencies (expected to resolved from maven)
-        :return:
+        Returns:
+            str: Spark job dependencies.
         """
         raise NotImplementedError
 
@@ -222,7 +246,10 @@ class RetrievalJobParameters(SparkJobParameters):
 
     def get_name(self) -> str:
         all_feature_tables_names = [ft["name"] for ft in self._feature_tables]
-        return f"HistoryRetrieval-{'-'.join(all_feature_tables_names)}"
+        return f"{self.get_job_type().to_pascal_case()}-{'-'.join(all_feature_tables_names)}"
+
+    def get_job_type(self) -> SparkJobType:
+        return SparkJobType.HISTORICAL_RETRIEVAL
 
     def get_main_file_path(self) -> str:
         return os.path.join(
@@ -302,9 +329,12 @@ class BatchIngestionJobParameters(SparkJobParameters):
 
     def get_name(self) -> str:
         return (
-            f"BatchIngestion-{self.get_feature_table_name()}-"
+            f"{self.get_job_type().to_pascal_case()}-{self.get_feature_table_name()}-"
             f"{self._start.strftime('%Y-%m-%d')}-{self._end.strftime('%Y-%m-%d')}"
         )
+
+    def get_job_type(self) -> SparkJobType:
+        return SparkJobType.BATCH_INGESTION
 
     def _get_redis_config(self):
         return dict(host=self._redis_host, port=self._redis_port, ssl=self._redis_ssl)
@@ -360,7 +390,10 @@ class StreamIngestionJobParameters(SparkJobParameters):
         self._extra_options = extra_options
 
     def get_name(self) -> str:
-        return f"StreamIngestion-{self.get_feature_table_name()}"
+        return f"{self.get_job_type().to_pascal_case()}-{self.get_feature_table_name()}"
+
+    def get_job_type(self) -> SparkJobType:
+        return SparkJobType.STREAM_INGESTION
 
     def _get_redis_config(self):
         return dict(host=self._redis_host, port=self._redis_port, ssl=self._redis_ssl)

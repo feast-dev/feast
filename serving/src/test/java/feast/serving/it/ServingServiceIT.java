@@ -60,7 +60,11 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @ActiveProfiles("it")
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    properties = {
+      "feast.core-cache-refresh-interval=1",
+    })
 @Testcontainers
 public class ServingServiceIT extends BaseAuthIT {
 
@@ -385,6 +389,77 @@ public class ServingServiceIT extends BaseAuthIT {
     // Instantiate FeatureReferences
     ServingAPIProto.FeatureReferenceV2 featureReference =
         DataGenerator.createFeatureReference("rides", "trip_wrong_type");
+
+    ImmutableList<ServingAPIProto.FeatureReferenceV2> featureReferences =
+        ImmutableList.of(featureReference);
+
+    // Build GetOnlineFeaturesRequestV2
+    GetOnlineFeaturesRequestV2 onlineFeatureRequest =
+        TestUtils.createOnlineFeatureRequest(projectName, featureReferences, entityRows);
+    GetOnlineFeaturesResponse featureResponse =
+        servingStub.getOnlineFeaturesV2(onlineFeatureRequest);
+
+    ImmutableMap<String, ValueProto.Value> expectedValueMap =
+        ImmutableMap.of(
+            entityName,
+            entityValue,
+            FeatureV2.getFeatureStringRef(featureReference),
+            DataGenerator.createEmptyValue());
+
+    ImmutableMap<String, GetOnlineFeaturesResponse.FieldStatus> expectedStatusMap =
+        ImmutableMap.of(
+            entityName,
+            GetOnlineFeaturesResponse.FieldStatus.PRESENT,
+            FeatureV2.getFeatureStringRef(featureReference),
+            GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND);
+
+    GetOnlineFeaturesResponse.FieldValues expectedFieldValues =
+        GetOnlineFeaturesResponse.FieldValues.newBuilder()
+            .putAllFields(expectedValueMap)
+            .putAllStatuses(expectedStatusMap)
+            .build();
+    ImmutableList<GetOnlineFeaturesResponse.FieldValues> expectedFieldValuesList =
+        ImmutableList.of(expectedFieldValues);
+
+    assertEquals(expectedFieldValuesList, featureResponse.getFieldValuesList());
+  }
+
+  @Test
+  public void shouldReturnNotFoundForUpdatedType() {
+    String projectName = "default";
+    String entityName = "driver_id";
+    String featureTableName = "rides";
+
+    ImmutableList<String> entities = ImmutableList.of(entityName);
+    ImmutableMap<String, ValueProto.ValueType.Enum> features =
+        ImmutableMap.of(
+            "trip_cost",
+            ValueProto.ValueType.Enum.INT64,
+            "trip_distance",
+            ValueProto.ValueType.Enum.STRING,
+            "trip_empty",
+            ValueProto.ValueType.Enum.DOUBLE,
+            "trip_wrong_type",
+            ValueProto.ValueType.Enum.STRING);
+
+    TestUtils.applyFeatureTable(
+        coreClient, projectName, featureTableName, entities, features, 7200);
+
+    // Sleep is necessary to ensure caching (every 1s) of updated FeatureTable is done
+    try {
+      Thread.sleep(2000);
+    } catch (InterruptedException e) {
+    }
+
+    ValueProto.Value entityValue = ValueProto.Value.newBuilder().setInt64Val(1).build();
+    // Instantiate EntityRows
+    GetOnlineFeaturesRequestV2.EntityRow entityRow1 =
+        DataGenerator.createEntityRow(entityName, DataGenerator.createInt64Value(1), 100);
+    ImmutableList<GetOnlineFeaturesRequestV2.EntityRow> entityRows = ImmutableList.of(entityRow1);
+
+    // Instantiate FeatureReferences
+    ServingAPIProto.FeatureReferenceV2 featureReference =
+        DataGenerator.createFeatureReference("rides", "trip_distance");
 
     ImmutableList<ServingAPIProto.FeatureReferenceV2> featureReferences =
         ImmutableList.of(featureReference);

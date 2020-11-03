@@ -134,6 +134,9 @@ service CoreService {
     // Returns a specific feature table
     rpc GetFeatureTable (GetFeatureTableRequest) returns (GetFeatureTableResponse);
 
+    // Delete a specific feature table
+    rpc DeleteFeatureTable (DeleteFeatureTableRequest) returns (DeleteFeatureTableResponse);
+
 }
 
 service JobControllerService {
@@ -500,3 +503,14 @@ message ListFeatureTablesResponse {
     // List of matching Feature Tables
     repeated FeatureTable tables = 1;
 }
+
+message DeleteFeatureTableRequest {
+    // Optional. Name of the Project to delete the Feature Table from.
+    // If unspecified, will delete FeatureTable from the default project.
+    string project = 1;
+
+    // Name of the FeatureTable to delete.
+    string name = 2;
+}
+
+message DeleteFeatureTableResponse {}

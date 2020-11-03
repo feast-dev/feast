@@ -29,7 +29,7 @@ def feast_client(
         )
 
     if pytestconfig.getoption("env") == "local":
-        return Client(
+        c = Client(
             core_url=f"{feast_core[0]}:{feast_core[1]}",
             serving_url=f"{feast_serving[0]}:{feast_serving[1]}",
             spark_launcher="standalone",
@@ -45,8 +45,8 @@ def feast_client(
             **job_service_env,
         )
 
-    if pytestconfig.getoption("env") == "gcloud":
-        return Client(
+    elif pytestconfig.getoption("env") == "gcloud":
+        c = Client(
             core_url=f"{feast_core[0]}:{feast_core[1]}",
             serving_url=f"{feast_serving[0]}:{feast_serving[1]}",
             spark_launcher="dataproc",
@@ -62,6 +62,11 @@ def feast_client(
             ),
             **job_service_env,
         )
+    else:
+        raise KeyError(f"Unknown environment {pytestconfig.getoption('env')}")
+
+    c.set_project(pytestconfig.getoption("feast_project"))
+    return c
 
 
 @pytest.fixture(scope="session")

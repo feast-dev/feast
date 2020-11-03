@@ -230,4 +230,6 @@ def _upload_to_bq_source(
     )
     job_config.time_partitioning = time_partitioning_obj
     with open(dest_path, "rb") as source_file:
-        bq_client.load_table_from_file(source_file, table, job_config=job_config)
+        bq_client.load_table_from_file(
+            source_file, table, job_config=job_config
+        ).result()

@@ -1,4 +1,4 @@
-# Kubernetes \(Amazon EKS\) with Terraform
+# Amazon EKS \(with Terraform\)
 
 ### Overview
 
@@ -38,7 +38,7 @@ region      = "us-east-1"
 
 ### 3. Apply
 
-After completing the configuration, initiate Terraform and apply:
+After completing the configuration, initialize Terraform and apply:
 
 ```bash
 $ cd feast/infra/terraform/aws
@@ -64,5 +64,5 @@ Forwarding from 127.0.0.1:8888 -> 8888
 Forwarding from [::1]:8888 -> 8888
 ```
 
-You can now connect to the bundled Jupyter Notebook Server at `localhost:8888` and follow the example notebooks.
+You can now connect to the bundled Jupyter Notebook Server at `localhost:8888` and follow the example Jupyter notebook.
 
