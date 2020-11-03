@@ -59,7 +59,12 @@ class DataprocJobMixin:
         """
         self._job = self._refresh_fn()
         status = self._job.status
-        if status.state == JobStatus.State.ERROR:
+        if status.state in (
+            JobStatus.State.ERROR,
+            JobStatus.State.CANCEL_PENDING,
+            JobStatus.State.CANCEL_STARTED,
+            JobStatus.State.CANCELLED,
+        ):
             return SparkJobStatus.FAILED
         elif status.state == JobStatus.State.RUNNING:
             return SparkJobStatus.IN_PROGRESS
@@ -89,6 +94,12 @@ class DataprocJobMixin:
         status = self._job.status
         if status.state == JobStatus.State.ERROR:
             return status.details
+        elif status.state in (
+            JobStatus.State.CANCEL_PENDING,
+            JobStatus.State.CANCEL_STARTED,
+            JobStatus.State.CANCELLED,
+        ):
+            return "Job was cancelled."
         return None
 
     def block_polling(self, interval_sec=30, timeout_sec=3600) -> SparkJobStatus:

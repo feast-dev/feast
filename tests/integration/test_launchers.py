@@ -28,12 +28,4 @@ def test_dataproc_job_api(
     ]
     assert job_id in active_job_ids
     retrieved_job.cancel()
-    sleep(10)
-    active_job_ids = [
-        job.get_id() for job in dataproc_launcher.list_jobs(include_terminated=False)
-    ]
-    assert job_id not in active_job_ids
-    all_job_ids = [
-        job.get_id() for job in dataproc_launcher.list_jobs(include_terminated=True)
-    ]
-    assert job_id in all_job_ids
+    assert retrieved_job.get_status() == SparkJobStatus.FAILED
