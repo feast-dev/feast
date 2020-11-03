@@ -3,7 +3,7 @@ import socket
 import subprocess
 import uuid
 from contextlib import closing
-from typing import List
+from typing import Dict, List
 
 import requests
 from requests.exceptions import RequestException
@@ -24,7 +24,7 @@ from feast.pyspark.abc import (
 
 # In-memory cache of Spark jobs
 # This is necessary since we can't query Spark jobs in local mode
-JOB_CACHE = {}
+JOB_CACHE: Dict[str, SparkJob] = {}
 
 
 def _find_free_port():
@@ -204,11 +204,16 @@ class StandaloneClusterLauncher(JobLauncher):
                 "spark.sql.session.timeZone=UTC",  # ignore local timezone
                 "--packages",
                 f"com.google.cloud.spark:spark-bigquery-with-dependencies_{self.BQ_CONNECTOR_VERSION}",
+                "--jars",
+                "https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop2-latest.jar,"
+                "https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/2.7.3/hadoop-aws-2.7.3.jar,"
+                "https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk/1.7.4/aws-java-sdk-1.7.4.jar",
+                "--conf",
+                "spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem",
+                "--conf",
+                "spark.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
             ]
         )
-
-        if job_params.get_extra_options():
-            submission_cmd.extend(job_params.get_extra_options().split(" "))
 
         submission_cmd.append(job_params.get_main_file_path())
         submission_cmd.extend(job_params.get_arguments())
@@ -225,7 +230,7 @@ class StandaloneClusterLauncher(JobLauncher):
             self.spark_submit(job_params),
             job_params.get_destination_path(),
         )
-        JOB_CACHE[job_id] = job  # type: ignore
+        JOB_CACHE[job_id] = job
         return job
 
     def offline_to_online_ingestion(
@@ -239,7 +244,7 @@ class StandaloneClusterLauncher(JobLauncher):
             self.spark_submit(ingestion_job_params, ui_port),
             ui_port,
         )
-        JOB_CACHE[job_id] = job  # type: ignore
+        JOB_CACHE[job_id] = job
         return job
 
     def start_stream_to_online_ingestion(
@@ -253,7 +258,7 @@ class StandaloneClusterLauncher(JobLauncher):
             self.spark_submit(ingestion_job_params, ui_port),
             ui_port,
         )
-        JOB_CACHE[job_id] = job  # type: ignore
+        JOB_CACHE[job_id] = job
         return job
 
     def stage_dataframe(self, df, event_timestamp_column: str):

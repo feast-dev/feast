@@ -93,8 +93,6 @@ CONFIG_SPARK_EMR_CLUSTER_ID = "emr_cluster_id"
 CONFIG_SPARK_EMR_CLUSTER_TEMPLATE_PATH = "emr_cluster_template_path"
 CONFIG_SPARK_EMR_LOG_LOCATION = "emr_log_location"
 
-CONFIG_SPARK_EXTRA_OPTIONS = "spark_extra_options"
-
 # Configuration option default values
 FEAST_DEFAULT_OPTIONS = {
     # Default Feast project to use
@@ -136,5 +134,4 @@ FEAST_DEFAULT_OPTIONS = {
     CONFIG_REDIS_PORT: "6379",
     CONFIG_REDIS_SSL: "False",
     CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT: "parquet",
-    CONFIG_SPARK_EXTRA_OPTIONS: "",
 }

@@ -8,10 +8,10 @@ from feast.core.JobService_pb2_grpc import JobServiceStub
 from feast.pyspark.abc import (
     BatchIngestionJob,
     RetrievalJob,
+    SparkJob,
     SparkJobFailure,
     SparkJobStatus,
     StreamIngestionJob,
-    SparkJob,
 )
 
 GrpcExtraParamProvider = Callable[[], Dict[str, Any]]
@@ -156,3 +156,8 @@ def get_remote_job_from_proto(
         return RemoteBatchIngestionJob(service, grpc_extra_param_provider, job.id)
     elif job.type == JobType.STREAM_INGESTION_JOB:
         return RemoteStreamIngestionJob(service, grpc_extra_param_provider, job.id)
+    else:
+        raise ValueError(
+            f"Invalid Job Type {job.type}, has to be one of "
+            f"{(JobType.RETRIEVAL_JOB, JobType.BATCH_INGESTION_JOB, JobType.STREAM_INGESTION_JOB)}"
+        )
