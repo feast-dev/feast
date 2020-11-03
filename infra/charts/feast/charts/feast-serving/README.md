@@ -61,6 +61,7 @@ Current chart version is `0.8-SNAPSHOT`
 | readinessProbe.timeoutSeconds | int | `10` | When the probe times out |
 | replicaCount | int | `1` | Number of pods that will be created |
 | resources | object | `{}` | CPU/memory [resource requests/limit](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#resource-requests-and-limits-of-pod-and-container) |
+| secrets | list | `[]` | List of Kubernetes secrets to be mounted on Feast Core pods. These secrets will be mounted on /etc/secrets/<secret name>. |
 | service.grpc.nodePort | string | `nil` | Port number that each cluster node will listen to |
 | service.grpc.port | int | `6566` | Service port for GRPC requests |
 | service.grpc.targetPort | int | `6566` | Container port serving GRPC requests |

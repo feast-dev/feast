@@ -46,6 +46,11 @@ spec:
       - name: {{ template "feast-core.fullname" . }}-secret
         secret:
           secretName: {{ template "feast-core.fullname" . }}
+      {{- range $secret := .Values.secrets }}
+      - name: {{ $secret }}
+        secret:
+          secretName: {{ $secret }}
+      {{- end }}
 
       containers:
       - name: {{ .Chart.Name }}
@@ -58,6 +63,11 @@ spec:
         - name: {{ template "feast-core.fullname" . }}-secret
           mountPath: /etc/secrets/feast
           readOnly: true
+        {{- range $secret := .Values.secrets }}
+        - name: {{ $secret }}
+          mountPath: "/etc/secrets/{{ $secret }}"
+          readOnly: true
+        {{- end }}
 
         env:
         - name: LOG_TYPE

@@ -1,5 +1,5 @@
 feast-jobservice
-==========
+================
 Feast Job Service manage ingestion jobs.
 
 Current chart version is `0.8-SNAPSHOT`
@@ -37,7 +37,7 @@ Current chart version is `0.8-SNAPSHOT`
 | ingress.http.https.enabled | bool | `true` | Flag to enable HTTPS |
 | ingress.http.https.secretNames | object | `{}` | Map of hostname to TLS secret name |
 | ingress.http.whitelist | string | `""` | Allowed client IP source ranges |
-| livenessProbe.enabled | bool | `false` | Flag to enabled the probe |
+| livenessProbe.enabled | bool | `true` | Flag to enabled the probe |
 | livenessProbe.failureThreshold | int | `5` | Min consecutive failures for the probe to be considered failed |
 | livenessProbe.initialDelaySeconds | int | `60` | Delay before the probe is initiated |
 | livenessProbe.periodSeconds | int | `10` | How often to perform the probe |
@@ -45,7 +45,7 @@ Current chart version is `0.8-SNAPSHOT`
 | livenessProbe.timeoutSeconds | int | `5` | When the probe times out |
 | nodeSelector | object | `{}` | Node labels for pod assignment |
 | podLabels | object | `{}` | Labels to be added to Feast Job Service pods |
-| prometheus.enabled | bool | `true` | Flag to enable scraping of Feast Job Service metrics |
+| prometheus.enabled | bool | `true` | Flag to enable scraping of metrics |
 | readinessProbe.enabled | bool | `true` | Flag to enabled the probe |
 | readinessProbe.failureThreshold | int | `5` | Min consecutive failures for the probe to be considered failed |
 | readinessProbe.initialDelaySeconds | int | `20` | Delay before the probe is initiated |
