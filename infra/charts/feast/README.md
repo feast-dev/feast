@@ -15,7 +15,7 @@ https://docs.feast.dev/v/master/getting-started/deploying-feast/kubernetes
 |  | feast-jupyter | 0.8-SNAPSHOT |
 |  | feast-serving | 0.8-SNAPSHOT |
 |  | prometheus-statsd-exporter | 0.1.2 |
-| https://kubernetes-charts-incubator.storage.googleapis.com/ | kafka | 0.20.8 |
+| https://charts.bitnami.com/bitnami/ | kafka | 11.8.8 |
 | https://kubernetes-charts.storage.googleapis.com/ | grafana | 5.0.5 |
 | https://kubernetes-charts.storage.googleapis.com/ | postgresql | 8.6.1 |
 | https://kubernetes-charts.storage.googleapis.com/ | prometheus | 11.0.2 |

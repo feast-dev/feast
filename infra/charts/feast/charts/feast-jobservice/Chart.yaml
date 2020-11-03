@@ -1,4 +1,4 @@
 apiVersion: v1
-description: Feast Job Coontroller manage ingestion jobs.
+description: Feast Job Service manage ingestion jobs.
 name: feast-jobservice
 version: 0.8-SNAPSHOT
