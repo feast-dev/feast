@@ -27,8 +27,4 @@ RUN wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/downloa
          -O /usr/bin/grpc-health-probe && \
     chmod +x /usr/bin/grpc-health-probe
 
-ENV FEAST_SPARK_LAUNCHER standalone
-ENV FEAST_SPARK_STANDALONE_MASTER "local[*]"
-ENV FEAST_SPARK_HOME $SPARK_HOME
-
 CMD ["feast", "server"]

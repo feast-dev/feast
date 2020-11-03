@@ -130,6 +130,7 @@ FEAST_DEFAULT_OPTIONS = {
     CONFIG_AUTH_PROVIDER: "google",
     CONFIG_SPARK_LAUNCHER: "dataproc",
     CONFIG_SPARK_INGESTION_JOB_JAR: "gs://feast-jobs/spark/ingestion/feast-ingestion-spark-develop.jar",
+    CONFIG_SPARK_STANDALONE_MASTER: "local[*]",
     CONFIG_REDIS_HOST: "localhost",
     CONFIG_REDIS_PORT: "6379",
     CONFIG_REDIS_SSL: "False",
