@@ -11,6 +11,7 @@ from feast.pyspark.abc import (
     SparkJobFailure,
     SparkJobStatus,
     StreamIngestionJob,
+    SparkJob,
 )
 
 GrpcExtraParamProvider = Callable[[], Dict[str, Any]]
@@ -136,9 +137,16 @@ def get_remote_job_from_proto(
     service: JobServiceStub,
     grpc_extra_param_provider: GrpcExtraParamProvider,
     job: JobProto,
-):
-    """
-    Get the remote job python object from Job proto.
+) -> SparkJob:
+    """Get the remote job python object from Job proto.
+
+    Args:
+        service (JobServiceStub): Reference to Job Service
+        grpc_extra_param_provider (GrpcExtraParamProvider): Callable for providing extra parameters to grpc requests
+        job (JobProto): Proto object describing the Job
+
+    Returns:
+        (SparkJob): A remote job object for the given job
     """
     if job.type == JobType.RETRIEVAL_JOB:
         return RemoteRetrievalJob(
