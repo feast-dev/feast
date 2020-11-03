@@ -1,12 +1,12 @@
+import json
 import os
+import time
 import uuid
 from functools import partial
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
-from google.api_core.operation import Operation
-from google.cloud import dataproc_v1
-from google.cloud.dataproc_v1 import JobStatus
+from google.cloud.dataproc_v1 import Job, JobControllerClient, JobStatus
 
 from feast.pyspark.abc import (
     BatchIngestionJob,
@@ -18,6 +18,7 @@ from feast.pyspark.abc import (
     SparkJobFailure,
     SparkJobParameters,
     SparkJobStatus,
+    SparkJobType,
     StreamIngestionJob,
     StreamIngestionJobParameters,
 )
@@ -25,22 +26,45 @@ from feast.staging.storage_client import get_staging_client
 
 
 class DataprocJobMixin:
-    def __init__(self, operation: Operation, cancel_fn: Callable[[], None]):
+    def __init__(
+        self, job: Job, refresh_fn: Callable[[], Job], cancel_fn: Callable[[], None]
+    ):
         """
-        :param operation: (google.api.core.operation.Operation): A Future for the spark job result,
-                returned by the dataproc client.
+        Implementation of common methods for different types of SparkJob running on Dataproc cluster.
+
+        Args:
+            job (Job): Dataproc job resource.
+            refresh_fn (Callable[[], Job]): A function that returns the latest job resource.
+            cancel_fn (Callable[[], None]): A function that cancel the current job.
         """
-        self._operation = operation
+        self._job = job
+        self._refresh_fn = refresh_fn
         self._cancel_fn = cancel_fn
 
     def get_id(self) -> str:
-        return self._operation.metadata.job_id
+        """
+        Getter for the job id.
+
+        Returns:
+            str: Dataproc job id.
+        """
+        return self._job.reference.job_id
 
     def get_status(self) -> SparkJobStatus:
-        self._operation._refresh_and_update()
+        """
+        Job Status retrieval
 
-        status = self._operation.metadata.status
-        if status.state == JobStatus.State.ERROR:
+        Returns:
+            SparkJobStatus: Job status
+        """
+        self._job = self._refresh_fn()
+        status = self._job.status
+        if status.state in (
+            JobStatus.State.ERROR,
+            JobStatus.State.CANCEL_PENDING,
+            JobStatus.State.CANCEL_STARTED,
+            JobStatus.State.CANCELLED,
+        ):
             return SparkJobStatus.FAILED
         elif status.state == JobStatus.State.RUNNING:
             return SparkJobStatus.IN_PROGRESS
@@ -54,7 +78,58 @@ class DataprocJobMixin:
         return SparkJobStatus.COMPLETED
 
     def cancel(self):
+        """
+        Manually terminate job
+        """
         self._cancel_fn()
+
+    def get_error_message(self) -> Optional[str]:
+        """
+        Getter for the job's error message if applicable.
+
+        Returns:
+            str: Status detail of the job. Return None if the job is successful.
+        """
+        self._job = self._refresh_fn()
+        status = self._job.status
+        if status.state == JobStatus.State.ERROR:
+            return status.details
+        elif status.state in (
+            JobStatus.State.CANCEL_PENDING,
+            JobStatus.State.CANCEL_STARTED,
+            JobStatus.State.CANCELLED,
+        ):
+            return "Job was cancelled."
+        return None
+
+    def block_polling(self, interval_sec=30, timeout_sec=3600) -> SparkJobStatus:
+        """
+        Blocks until the Dataproc job is completed or failed.
+
+        Args:
+            interval_sec (int): Polling interval.
+            timeout_sec (int): Timeout limit.
+
+        Returns:
+            SparkJobStatus: Latest job status
+
+        Raise:
+            SparkJobFailure: Raise error if the job neither failed nor completed within the timeout limit.
+        """
+
+        start = time.time()
+        while True:
+            elapsed_time = time.time() - start
+            if timeout_sec and elapsed_time >= timeout_sec:
+                raise SparkJobFailure(
+                    f"Job is still not completed after {timeout_sec}."
+                )
+
+            status = self.get_status()
+            if status in [SparkJobStatus.FAILED, SparkJobStatus.COMPLETED]:
+                break
+            time.sleep(interval_sec)
+        return status
 
 
 class DataprocRetrievalJob(DataprocJobMixin, RetrievalJob):
@@ -63,7 +138,11 @@ class DataprocRetrievalJob(DataprocJobMixin, RetrievalJob):
     """
 
     def __init__(
-        self, operation: Operation, cancel_fn: Callable[[], None], output_file_uri: str
+        self,
+        job: Job,
+        refresh_fn: Callable[[], Job],
+        cancel_fn: Callable[[], None],
+        output_file_uri: str,
     ):
         """
         This is the returned historical feature retrieval job result for DataprocClusterLauncher.
@@ -71,18 +150,17 @@ class DataprocRetrievalJob(DataprocJobMixin, RetrievalJob):
         Args:
             output_file_uri (str): Uri to the historical feature retrieval job output file.
         """
-        super().__init__(operation, cancel_fn)
+        super().__init__(job, refresh_fn, cancel_fn)
         self._output_file_uri = output_file_uri
 
     def get_output_file_uri(self, timeout_sec=None, block=True):
         if not block:
             return self._output_file_uri
 
-        try:
-            self._operation.result(timeout_sec)
-        except Exception as err:
-            raise SparkJobFailure(err)
-        return self._output_file_uri
+        status = self.block_polling(timeout_sec=timeout_sec)
+        if status == SparkJobStatus.COMPLETED:
+            return self._output_file_uri
+        raise SparkJobFailure(self.get_error_message())
 
 
 class DataprocBatchIngestionJob(DataprocJobMixin, BatchIngestionJob):
@@ -105,6 +183,7 @@ class DataprocClusterLauncher(JobLauncher):
     """
 
     EXTERNAL_JARS = ["gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar"]
+    JOB_TYPE_LABEL_KEY = "feast_job_type"
 
     def __init__(
         self, cluster_name: str, staging_location: str, region: str, project_id: str,
@@ -135,7 +214,7 @@ class DataprocClusterLauncher(JobLauncher):
             )
         self.project_id = project_id
         self.region = region
-        self.job_client = dataproc_v1.JobControllerClient(
+        self.job_client = JobControllerClient(
             client_options={"api_endpoint": f"{region}-dataproc.googleapis.com:443"}
         )
 
@@ -148,12 +227,15 @@ class DataprocClusterLauncher(JobLauncher):
 
         return f"gs://{self.staging_bucket}/{blob_path}"
 
-    def dataproc_submit(self, job_params: SparkJobParameters) -> Operation:
+    def dataproc_submit(
+        self, job_params: SparkJobParameters
+    ) -> Tuple[Job, Callable[[], Job], Callable[[], None]]:
         local_job_id = str(uuid.uuid4())
         main_file_uri = self._stage_files(job_params.get_main_file_path(), local_job_id)
         job_config: Dict[str, Any] = {
             "reference": {"job_id": local_job_id},
             "placement": {"cluster_name": self.cluster_name},
+            "labels": {self.JOB_TYPE_LABEL_KEY: job_params.get_job_type().name.lower()},
         }
         if job_params.get_class_name():
             job_config.update(
@@ -175,13 +257,24 @@ class DataprocClusterLauncher(JobLauncher):
                     }
                 }
             )
-        return self.job_client.submit_job_as_operation(
+
+        job = self.job_client.submit_job(
             request={
                 "project_id": self.project_id,
                 "region": self.region,
                 "job": job_config,
             }
         )
+
+        refresh_fn = partial(
+            self.job_client.get_job,
+            project_id=self.project_id,
+            region=self.region,
+            job_id=job.reference.job_id,
+        )
+        cancel_fn = partial(self.dataproc_cancel, job.reference.job_id)
+
+        return job, refresh_fn, cancel_fn
 
     def dataproc_cancel(self, job_id):
         self.job_client.cancel_job(
@@ -191,31 +284,62 @@ class DataprocClusterLauncher(JobLauncher):
     def historical_feature_retrieval(
         self, job_params: RetrievalJobParameters
     ) -> RetrievalJob:
-        operation = self.dataproc_submit(job_params)
-        cancel_fn = partial(self.dataproc_cancel, operation.metadata.job_id)
+        job, refresh_fn, cancel_fn = self.dataproc_submit(job_params)
         return DataprocRetrievalJob(
-            operation, cancel_fn, job_params.get_destination_path()
+            job, refresh_fn, cancel_fn, job_params.get_destination_path()
         )
 
     def offline_to_online_ingestion(
         self, ingestion_job_params: BatchIngestionJobParameters
     ) -> BatchIngestionJob:
-        operation = self.dataproc_submit(ingestion_job_params)
-        cancel_fn = partial(self.dataproc_cancel, operation.metadata.job_id)
-        return DataprocBatchIngestionJob(operation, cancel_fn)
+        job, refresh_fn, cancel_fn = self.dataproc_submit(ingestion_job_params)
+        return DataprocBatchIngestionJob(job, refresh_fn, cancel_fn)
 
     def start_stream_to_online_ingestion(
         self, ingestion_job_params: StreamIngestionJobParameters
     ) -> StreamIngestionJob:
-        operation = self.dataproc_submit(ingestion_job_params)
-        cancel_fn = partial(self.dataproc_cancel, operation.metadata.job_id)
-        return DataprocStreamingIngestionJob(operation, cancel_fn)
+        job, refresh_fn, cancel_fn = self.dataproc_submit(ingestion_job_params)
+        return DataprocStreamingIngestionJob(job, refresh_fn, cancel_fn)
 
     def stage_dataframe(self, df, event_timestamp_column: str):
         raise NotImplementedError
 
     def get_job_by_id(self, job_id: str) -> SparkJob:
-        raise NotImplementedError
+        job = self.job_client.get_job(
+            project_id=self.project_id, region=self.region, job_id=job_id
+        )
+        return self._dataproc_job_to_spark_job(job)
+
+    def _dataproc_job_to_spark_job(self, job: Job) -> SparkJob:
+        job_type = job.labels[self.JOB_TYPE_LABEL_KEY]
+        job_id = job.reference.job_id
+        refresh_fn = partial(
+            self.job_client.get_job,
+            project_id=self.project_id,
+            region=self.region,
+            job_id=job_id,
+        )
+        cancel_fn = partial(self.dataproc_cancel, job_id)
+
+        if job_type == SparkJobType.HISTORICAL_RETRIEVAL.name.lower():
+            output_path = json.loads(job.pyspark_job.args[-1])["path"]
+            return DataprocRetrievalJob(job, refresh_fn, cancel_fn, output_path)
+
+        if job_type == SparkJobType.BATCH_INGESTION.name.lower():
+            return DataprocBatchIngestionJob(job, refresh_fn, cancel_fn)
+
+        if job_type == SparkJobType.STREAM_INGESTION.name.lower():
+            return DataprocStreamingIngestionJob(job, refresh_fn, cancel_fn)
+
+        raise ValueError(f"Unrecognized job type: {job_type}")
 
     def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
-        raise NotImplementedError
+        job_filter = f"labels.{self.JOB_TYPE_LABEL_KEY} = * AND clusterName = {self.cluster_name}"
+        if not include_terminated:
+            job_filter = job_filter + "AND status.state = ACTIVE"
+        return [
+            self._dataproc_job_to_spark_job(job)
+            for job in self.job_client.list_jobs(
+                project_id=self.project_id, region=self.region, filter=job_filter
+            )
+        ]
