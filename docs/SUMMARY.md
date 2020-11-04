@@ -35,11 +35,11 @@
 
 ## Advanced
 
+* [Upgrading Feast](advanced/upgrading.md)
 * [Security](advanced/security.md)
 * [Audit Logging](advanced/audit-logging.md)
 * [Metrics](advanced/metrics.md)
 * [Troubleshooting](advanced/troubleshooting.md)
-* [Upgrading Feast](advanced/upgrading.md)
 
 ## Reference
 
