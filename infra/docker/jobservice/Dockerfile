@@ -27,4 +27,4 @@ RUN wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/downloa
          -O /usr/bin/grpc-health-probe && \
     chmod +x /usr/bin/grpc-health-probe
 
-CMD ["feast", "server"]
+CMD ["python", "-m", "feast.cli", "server"]
