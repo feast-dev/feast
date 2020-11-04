@@ -144,7 +144,7 @@ FEAST_DEFAULT_OPTIONS = {
     CONFIG_JOB_SERVICE_SERVER_SSL_CERT_KEY: "",
     # IngestionJob StatD Config
     CONFIG_STATSD_HOST: "",
-    CONFIG_STATSD_PORT: "",
+    CONFIG_STATSD_PORT: "0",
     # IngestionJob DeadLetter Destination
     CONFIG_DEADLETTER_PATH: "",
     # ProtoRegistry Address
