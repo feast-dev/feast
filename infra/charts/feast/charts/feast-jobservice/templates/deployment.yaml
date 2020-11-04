@@ -37,7 +37,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
 
-      {{- if Values.secrets }}
+      {{- if .Values.secrets }}
       volumes:
       {{ - range $secret := .Values.secrets }}
       - name: {{ $secret }}
