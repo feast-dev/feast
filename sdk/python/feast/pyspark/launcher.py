@@ -1,11 +1,9 @@
-import shutil
-import tempfile
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Union
-from urllib.parse import urlparse
 
 from feast.config import Config
 from feast.constants import (
+    CONFIG_DEADLETTER_PATH,
     CONFIG_REDIS_HOST,
     CONFIG_REDIS_PORT,
     CONFIG_REDIS_SSL,
@@ -21,6 +19,9 @@ from feast.constants import (
     CONFIG_SPARK_LAUNCHER,
     CONFIG_SPARK_STAGING_LOCATION,
     CONFIG_SPARK_STANDALONE_MASTER,
+    CONFIG_STATSD_HOST,
+    CONFIG_STATSD_PORT,
+    CONFIG_STENCIL_URL,
 )
 from feast.data_source import BigQuerySource, DataSource, FileSource, KafkaSource
 from feast.feature_table import FeatureTable
@@ -35,7 +36,6 @@ from feast.pyspark.abc import (
     StreamIngestionJobParameters,
 )
 from feast.staging.entities import create_bq_view_of_joined_features_and_entities
-from feast.staging.storage_client import get_staging_client
 from feast.value_type import ValueType
 
 if TYPE_CHECKING:
@@ -224,29 +224,15 @@ def replace_bq_table_with_joined_view(
     )
 
 
-def _download_jar(remote_jar: str) -> str:
-    remote_jar_parts = urlparse(remote_jar)
-
-    local_temp_jar = tempfile.NamedTemporaryFile(suffix=".jar", delete=False)
-    with local_temp_jar:
-        shutil.copyfileobj(
-            get_staging_client(remote_jar_parts.scheme).download_file(remote_jar_parts),
-            local_temp_jar,
-        )
-
-    return local_temp_jar.name
-
-
 def start_offline_to_online_ingestion(
     feature_table: FeatureTable, start: datetime, end: datetime, client: "Client"
 ) -> BatchIngestionJob:
 
     launcher = resolve_launcher(client._config)
-    local_jar_path = _download_jar(client._config.get(CONFIG_SPARK_INGESTION_JOB_JAR))
 
     return launcher.offline_to_online_ingestion(
         BatchIngestionJobParameters(
-            jar=local_jar_path,
+            jar=client._config.get(CONFIG_SPARK_INGESTION_JOB_JAR),
             source=_source_to_argument(feature_table.batch_source),
             feature_table=_feature_table_to_argument(client, feature_table),
             start=start,
@@ -254,6 +240,10 @@ def start_offline_to_online_ingestion(
             redis_host=client._config.get(CONFIG_REDIS_HOST),
             redis_port=client._config.getint(CONFIG_REDIS_PORT),
             redis_ssl=client._config.getboolean(CONFIG_REDIS_SSL),
+            statsd_host=client._config.get(CONFIG_STATSD_HOST),
+            statsd_port=client._config.getint(CONFIG_STATSD_PORT),
+            deadletter_path=client._config.get(CONFIG_DEADLETTER_PATH),
+            stencil_url=client._config.get(CONFIG_STENCIL_URL),
         )
     )
 
@@ -263,17 +253,20 @@ def start_stream_to_online_ingestion(
 ) -> StreamIngestionJob:
 
     launcher = resolve_launcher(client._config)
-    local_jar_path = _download_jar(client._config.get(CONFIG_SPARK_INGESTION_JOB_JAR))
 
     return launcher.start_stream_to_online_ingestion(
         StreamIngestionJobParameters(
-            jar=local_jar_path,
+            jar=client._config.get(CONFIG_SPARK_INGESTION_JOB_JAR),
             extra_jars=extra_jars,
             source=_source_to_argument(feature_table.stream_source),
             feature_table=_feature_table_to_argument(client, feature_table),
             redis_host=client._config.get(CONFIG_REDIS_HOST),
             redis_port=client._config.getint(CONFIG_REDIS_PORT),
             redis_ssl=client._config.getboolean(CONFIG_REDIS_SSL),
+            statsd_host=client._config.get(CONFIG_STATSD_HOST),
+            statsd_port=client._config.getint(CONFIG_STATSD_PORT),
+            deadletter_path=client._config.get(CONFIG_DEADLETTER_PATH),
+            stencil_url=client._config.get(CONFIG_STENCIL_URL),
         )
     )
 

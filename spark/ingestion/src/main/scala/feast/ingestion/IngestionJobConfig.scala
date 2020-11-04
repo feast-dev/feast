@@ -102,5 +102,6 @@ case class IngestionJobConfig(
     endTime: DateTime = DateTime.now(),
     store: StoreConfig = RedisConfig("localhost", 6379, false),
     metrics: Option[MetricConfig] = None,
-    deadLetterPath: Option[String] = None
+    deadLetterPath: Option[String] = None,
+    stencilURL: Option[String] = None
 )

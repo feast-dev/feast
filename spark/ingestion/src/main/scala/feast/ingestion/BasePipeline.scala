@@ -60,6 +60,14 @@ trait BasePipeline {
       case None => ()
     }
 
+    jobConfig.stencilURL match {
+      case Some(url: String) =>
+        conf
+          .set("feast.ingestion.registry.proto.kind", "local")
+          .set("feast.ingestion.registry.proto.url", url)
+      case None => ()
+    }
+
     SparkSession
       .builder()
       .config(conf)

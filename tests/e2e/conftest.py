@@ -6,9 +6,6 @@ import pytest
 def pytest_addoption(parser):
     parser.addoption("--core-url", action="store", default="localhost:6565")
     parser.addoption("--serving-url", action="store", default="localhost:6566")
-    parser.addoption(
-        "--gcs_path", action="store", default="gs://feast-templocation-kf-feast/"
-    )
     parser.addoption("--kafka-brokers", action="store", default="localhost:9092")
 
     parser.addoption("--env", action="store", help="local|aws|gcloud", default="local")

@@ -88,6 +88,12 @@ CONFIG_REDIS_HOST = "redis_host"
 CONFIG_REDIS_PORT = "redis_port"
 CONFIG_REDIS_SSL = "redis_ssl"
 
+CONFIG_STATSD_HOST = "statsd_host"
+CONFIG_STATSD_PORT = "statsd_port"
+
+CONFIG_DEADLETTER_PATH = "deadletter_path"
+CONFIG_STENCIL_URL = "stencil_url"
+
 CONFIG_SPARK_EMR_REGION = "emr_region"
 CONFIG_SPARK_EMR_CLUSTER_ID = "emr_cluster_id"
 CONFIG_SPARK_EMR_CLUSTER_TEMPLATE_PATH = "emr_cluster_template_path"
@@ -129,7 +135,8 @@ FEAST_DEFAULT_OPTIONS = {
     # Authentication Provider - Google OpenID/OAuth
     CONFIG_AUTH_PROVIDER: "google",
     CONFIG_SPARK_LAUNCHER: "dataproc",
-    CONFIG_SPARK_INGESTION_JOB_JAR: "gs://feast-jobs/spark/ingestion/feast-ingestion-spark-develop.jar",
+    CONFIG_SPARK_INGESTION_JOB_JAR: "https://storage.googleapis.com/feast-jobs/spark/"
+    "ingestion/feast-ingestion-spark-develop.jar",
     CONFIG_SPARK_STANDALONE_MASTER: "local[*]",
     CONFIG_REDIS_HOST: "localhost",
     CONFIG_REDIS_PORT: "6379",

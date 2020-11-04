@@ -290,7 +290,73 @@ class RetrievalJob(SparkJob):
         raise NotImplementedError
 
 
-class BatchIngestionJobParameters(SparkJobParameters):
+class IngestionJobParameters(SparkJobParameters):
+    def __init__(
+        self,
+        feature_table: Dict,
+        source: Dict,
+        jar: str,
+        redis_host: str,
+        redis_port: int,
+        redis_ssl: bool,
+        statsd_host: Optional[str] = None,
+        statsd_port: Optional[int] = None,
+        deadletter_path: Optional[str] = None,
+        stencil_url: Optional[str] = None,
+    ):
+        self._feature_table = feature_table
+        self._source = source
+        self._jar = jar
+        self._redis_host = redis_host
+        self._redis_port = redis_port
+        self._redis_ssl = redis_ssl
+        self._statsd_host = statsd_host
+        self._statsd_port = statsd_port
+        self._deadletter_path = deadletter_path
+        self._stencil_url = stencil_url
+
+    def _get_redis_config(self):
+        return dict(host=self._redis_host, port=self._redis_port, ssl=self._redis_ssl)
+
+    def _get_statsd_config(self):
+        return (
+            dict(host=self._statsd_host, port=self._statsd_port)
+            if self._statsd_host
+            else None
+        )
+
+    def get_feature_table_name(self) -> str:
+        return self._feature_table["name"]
+
+    def get_main_file_path(self) -> str:
+        return self._jar
+
+    def get_class_name(self) -> Optional[str]:
+        return "feast.ingestion.IngestionJob"
+
+    def get_arguments(self) -> List[str]:
+        args = [
+            "--feature-table",
+            json.dumps(self._feature_table),
+            "--source",
+            json.dumps(self._source),
+            "--redis",
+            json.dumps(self._get_redis_config()),
+        ]
+
+        if self._get_statsd_config():
+            args.extend(["--statsd", json.dumps(self._get_statsd_config())])
+
+        if self._deadletter_path:
+            args.extend(["--deadletter-path", self._deadletter_path])
+
+        if self._stencil_url:
+            args.extend(["--stencil-url", self._stencil_url])
+
+        return args
+
+
+class BatchIngestionJobParameters(IngestionJobParameters):
     def __init__(
         self,
         feature_table: Dict,
@@ -301,15 +367,25 @@ class BatchIngestionJobParameters(SparkJobParameters):
         redis_host: str,
         redis_port: int,
         redis_ssl: bool,
+        statsd_host: Optional[str] = None,
+        statsd_port: Optional[int] = None,
+        deadletter_path: Optional[str] = None,
+        stencil_url: Optional[str] = None,
     ):
-        self._feature_table = feature_table
-        self._source = source
+        super().__init__(
+            feature_table,
+            source,
+            jar,
+            redis_host,
+            redis_port,
+            redis_ssl,
+            statsd_host,
+            statsd_port,
+            deadletter_path,
+            stencil_url,
+        )
         self._start = start
         self._end = end
-        self._jar = jar
-        self._redis_host = redis_host
-        self._redis_port = redis_port
-        self._redis_ssl = redis_ssl
 
     def get_name(self) -> str:
         return (
@@ -320,36 +396,18 @@ class BatchIngestionJobParameters(SparkJobParameters):
     def get_job_type(self) -> SparkJobType:
         return SparkJobType.BATCH_INGESTION
 
-    def _get_redis_config(self):
-        return dict(host=self._redis_host, port=self._redis_port, ssl=self._redis_ssl)
-
-    def get_feature_table_name(self) -> str:
-        return self._feature_table["name"]
-
-    def get_main_file_path(self) -> str:
-        return self._jar
-
-    def get_class_name(self) -> Optional[str]:
-        return "feast.ingestion.IngestionJob"
-
     def get_arguments(self) -> List[str]:
-        return [
+        return super().get_arguments() + [
             "--mode",
             "offline",
-            "--feature-table",
-            json.dumps(self._feature_table),
-            "--source",
-            json.dumps(self._source),
             "--start",
             self._start.strftime("%Y-%m-%dT%H:%M:%S"),
             "--end",
             self._end.strftime("%Y-%m-%dT%H:%M:%S"),
-            "--redis",
-            json.dumps(self._get_redis_config()),
         ]
 
 
-class StreamIngestionJobParameters(SparkJobParameters):
+class StreamIngestionJobParameters(IngestionJobParameters):
     def __init__(
         self,
         feature_table: Dict,
@@ -359,14 +417,24 @@ class StreamIngestionJobParameters(SparkJobParameters):
         redis_host: str,
         redis_port: int,
         redis_ssl: bool,
+        statsd_host: Optional[str] = None,
+        statsd_port: Optional[int] = None,
+        deadletter_path: Optional[str] = None,
+        stencil_url: Optional[str] = None,
     ):
-        self._feature_table = feature_table
-        self._source = source
-        self._jar = jar
+        super().__init__(
+            feature_table,
+            source,
+            jar,
+            redis_host,
+            redis_port,
+            redis_ssl,
+            statsd_host,
+            statsd_port,
+            deadletter_path,
+            stencil_url,
+        )
         self._extra_jars = extra_jars
-        self._redis_host = redis_host
-        self._redis_port = redis_port
-        self._redis_ssl = redis_ssl
 
     def get_name(self) -> str:
         return f"{self.get_job_type().to_pascal_case()}-{self.get_feature_table_name()}"
@@ -374,31 +442,13 @@ class StreamIngestionJobParameters(SparkJobParameters):
     def get_job_type(self) -> SparkJobType:
         return SparkJobType.STREAM_INGESTION
 
-    def _get_redis_config(self):
-        return dict(host=self._redis_host, port=self._redis_port, ssl=self._redis_ssl)
-
-    def get_feature_table_name(self) -> str:
-        return self._feature_table["name"]
-
-    def get_main_file_path(self) -> str:
-        return self._jar
-
     def get_extra_jar_paths(self) -> List[str]:
         return self._extra_jars
 
-    def get_class_name(self) -> Optional[str]:
-        return "feast.ingestion.IngestionJob"
-
     def get_arguments(self) -> List[str]:
-        return [
+        return super().get_arguments() + [
             "--mode",
             "online",
-            "--feature-table",
-            json.dumps(self._feature_table),
-            "--source",
-            json.dumps(self._source),
-            "--redis",
-            json.dumps(self._get_redis_config()),
         ]
 
 
