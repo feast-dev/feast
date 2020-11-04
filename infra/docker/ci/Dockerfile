@@ -18,6 +18,8 @@ RUN apt-get install -y build-essential curl python${PYTHON_VERSION} \
     python get-pip.py --force-reinstall && \
     rm get-pip.py
 
+# Instal boto3
+RUN pip install boto3==1.16.10
 
 # Install Go
 ENV GOLANG_VERSION 1.14.1
