@@ -18,7 +18,7 @@ services:
       - /opt/feast/feast-core.jar
       - --spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml
 
-  job-service:
+  jobservice:
     image: gcr.io/kf-feast/feast-jobservice:${FEAST_VERSION}
     depends_on:
       - core

@@ -949,6 +949,7 @@ class Client:
             >>> output_file_uri = feature_retrieval_job.get_output_file_uri()
                 "gs://some-bucket/output/
         """
+        project = project or FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY]
         feature_tables = self._get_feature_tables_from_feature_refs(
             feature_refs, project
         )
@@ -1001,7 +1002,12 @@ class Client:
             )
         else:
             return start_historical_feature_retrieval_job(
-                self, entity_source, feature_tables, output_format, output_location,
+                client=self,
+                project=self.project or FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY],
+                entity_source=entity_source,
+                feature_tables=feature_tables,
+                output_format=output_format,
+                output_path=output_location,
             )
 
     def get_historical_features_df(
@@ -1043,7 +1049,10 @@ class Client:
             feature_refs, project
         )
         return start_historical_feature_retrieval_spark_session(
-            self, entity_source, feature_tables
+            client=self,
+            project=self.project or FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY],
+            entity_source=entity_source,
+            feature_tables=feature_tables,
         )
 
     def _get_feature_tables_from_feature_refs(
@@ -1079,10 +1088,17 @@ class Client:
         :return: Spark Job Proxy object
         """
         if not self._use_job_service:
-            return start_offline_to_online_ingestion(feature_table, start, end, self)
+            return start_offline_to_online_ingestion(
+                client=self,
+                project=self.project or FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY],
+                feature_table=feature_table,
+                start=start,
+                end=end,
+            )
         else:
             request = StartOfflineToOnlineIngestionJobRequest(
-                project=self.project, table_name=feature_table.name,
+                project=self.project or FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY],
+                table_name=feature_table.name,
             )
             request.start_date.FromDatetime(start)
             request.end_date.FromDatetime(end)
@@ -1096,11 +1112,15 @@ class Client:
     ) -> SparkJob:
         if not self._use_job_service:
             return start_stream_to_online_ingestion(
-                feature_table, extra_jars or [], self
+                client=self,
+                project=self.project or FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY],
+                feature_table=feature_table,
+                extra_jars=extra_jars or [],
             )
         else:
             request = StartStreamToOnlineIngestionJobRequest(
-                project=self.project, table_name=feature_table.name,
+                project=self.project or FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY],
+                table_name=feature_table.name,
             )
             response = self._job_service.StartStreamToOnlineIngestionJob(request)
             return RemoteStreamIngestionJob(

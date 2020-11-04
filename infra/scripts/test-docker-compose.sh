@@ -58,7 +58,7 @@ ${PROJECT_ROOT_DIR}/infra/scripts/wait-for-it.sh ${FEAST_ONLINE_SERVING_CONTAINE
 
 
 # Get Feast Job Service container IP address
-export FEAST_JOB_SERVICE_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_job-service_1)
+export FEAST_JOB_SERVICE_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_jobservice_1)
 
 # Wait for Feast Job Service to be ready
 ${PROJECT_ROOT_DIR}/infra/scripts/wait-for-it.sh ${FEAST_JOB_SERVICE_CONTAINER_IP_ADDRESS}:6568 --timeout=120
