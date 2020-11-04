@@ -12,18 +12,10 @@
 
 ## Overview
 
-Feast (Feature Store) is a tool for managing and serving machine learning features. Feast is the bridge between models and data.
+Feast (Feature Store) is an operational data system for managing and serving machine learning features to models in production. Please see our [documentation](https://docs.feast.dev/) for the motivation behind the project.
 
-Feast aims to:
-* Provide a unified means of managing feature data from a single person to large enterprises.
-* Provide scalable and performant access to feature data when training and serving models.
-* Provide consistent and point-in-time correct access to feature data.
-* Enable discovery, documentation, and insights into your features.
+![](docs/.gitbook/assets/feast-architecture-diagrams.svg)
 
-![](docs/.gitbook/assets/feast-docs-overview-diagram-2.svg)
-
-Feast decouples feature engineering from feature usage, allowing independent development of features and consumption of features. Features that are added to Feast become available immediately for training and serving. Models can retrieve the same features used in training from a low latency online store in production.
-This means that new ML projects start with a process of feature selection from a catalog instead of having to do feature engineering from scratch.
 
 ```
 # Setting things up
@@ -40,7 +32,7 @@ prediction = my_model.predict(fs.get_online_features(customer_features, customer
 
 ## Getting Started with Docker Compose
 
-Clone the latest stable version of the [Feast repository](https://github.com/gojek/feast/) and navigate to the `infra/docker-compose` sub-directory:
+Clone the latest stable version of the [Feast repository](https://github.com/feast-dev/feast/) and navigate to the `infra/docker-compose` sub-directory:
 
 ```
 git clone --depth 1 --branch v0.7.0 https://github.com/feast-dev/feast.git
@@ -48,7 +40,7 @@ cd feast/infra/docker-compose
 cp .env.sample .env
 ```
 
-The `.env` should be configured based on your environment. A GCP service account can be added if BigQuery will be used for historical serving (storing and retrieving training data).
+The `.env` file can optionally be configured based on your environment.
 
 Bring up Feast:
 ```
@@ -61,7 +53,6 @@ The command above will bring up a complete Feast deployment with a [Jupyter Note
 
 Please refer to the official documentation at <https://docs.feast.dev>
 
- * [Why Feast?](https://docs.feast.dev/why-feast)
  * [Concepts](https://docs.feast.dev/user-guide/overview)
  * [Installation](https://docs.feast.dev/getting-started)
  * [Examples](https://github.com/feast-dev/feast/blob/master/examples/)
