@@ -16,20 +16,6 @@ Feast (Feature Store) is an operational data system for managing and serving mac
 
 ![](docs/.gitbook/assets/feast-architecture-diagrams.svg)
 
-
-```
-# Setting things up
-fs = feast.Client('feast.example.com')
-customer_features = ['CreditScore', 'Balance', 'Age', 'NumOfProducts', 'IsActive']
-
-# Training your model (typically from a notebook or pipeline)
-data = fs.get_historical_features(customer_features, customer_entities)
-my_model = ml.fit(data)
-
-# Serving predictions (when serving the model in production)
-prediction = my_model.predict(fs.get_online_features(customer_features, customer_entities))
-```
-
 ## Getting Started with Docker Compose
 
 Clone the latest stable version of the [Feast repository](https://github.com/feast-dev/feast/) and navigate to the `infra/docker-compose` sub-directory:
