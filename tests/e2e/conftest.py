@@ -6,6 +6,7 @@ import pytest
 def pytest_addoption(parser):
     parser.addoption("--core-url", action="store", default="localhost:6565")
     parser.addoption("--serving-url", action="store", default="localhost:6566")
+    parser.addoption("--job-service-url", action="store", default="localhost:6568")
     parser.addoption("--kafka-brokers", action="store", default="localhost:9092")
 
     parser.addoption("--env", action="store", help="local|aws|gcloud", default="local")
@@ -55,6 +56,7 @@ else:
     from .fixtures.external_services import (  # type: ignore # noqa
         feast_core,
         feast_serving,
+        feast_jobservice,
         enable_auth,
     )
 

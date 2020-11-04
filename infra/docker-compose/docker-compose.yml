@@ -18,6 +18,23 @@ services:
       - /opt/feast/feast-core.jar
       - --spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml
 
+  job-service:
+    image: gcr.io/kf-feast/feast-jobservice:${FEAST_VERSION}
+    depends_on:
+      - core
+    ports:
+      - 6568:6568
+    environment:
+      FEAST_CORE_URL: core:6565
+      FEAST_SERVING_URL: online_serving:6566
+      FEAST_SPARK_LAUNCHER: standalone
+      FEAST_SPARK_STANDALONE_MASTER: local
+      FEAST_SPARK_HOME: /usr/local/spark
+      FEAST_SPARK_STAGING_LOCATION: file:///tmp/staging
+      FEAST_HISTORICAL_FEATURE_OUTPUT_LOCATION: file:///tmp/historical_feature_output
+      FEAST_HISTORICAL_FEATURE_OUTPUT_FORMAT: parquet
+      FEAST_REDIS_HOST: redis
+
   jupyter:
     image: gcr.io/kf-feast/feast-jupyter:${FEAST_VERSION}
     volumes:

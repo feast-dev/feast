@@ -56,10 +56,17 @@ export FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .N
 # Wait for Feast Online Serving to be ready
 ${PROJECT_ROOT_DIR}/infra/scripts/wait-for-it.sh ${FEAST_ONLINE_SERVING_CONTAINER_IP_ADDRESS}:6566 --timeout=120
 
+
+# Get Feast Job Service container IP address
+export FEAST_JOB_SERVICE_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_job-service_1)
+
+# Wait for Feast Job Service to be ready
+${PROJECT_ROOT_DIR}/infra/scripts/wait-for-it.sh ${FEAST_JOB_SERVICE_CONTAINER_IP_ADDRESS}:6568 --timeout=120
+
 # Run e2e tests for Redis
 docker exec \
   -e FEAST_VERSION=${FEAST_VERSION} \
   -e DISABLE_SERVICE_FIXTURES=true \
   -e DISABLE_FEAST_SERVICE_FIXTURES=true \
   feast_jupyter_1 bash \
-  -c 'cd /feast/tests && python -m pip install -r requirements.txt && pytest e2e/ -m "not bq" --ingestion-jar https://storage.googleapis.com/feast-jobs/spark/ingestion/feast-ingestion-spark-${FEAST_VERSION}.jar --redis-url redis:6379 --core-url core:6565 --serving-url online_serving:6566 --kafka-brokers kafka:9092'
+  -c 'cd /feast/tests && python -m pip install -r requirements.txt && pytest e2e/ -m "not bq" --ingestion-jar https://storage.googleapis.com/feast-jobs/spark/ingestion/feast-ingestion-spark-${FEAST_VERSION}.jar --redis-url redis:6379 --core-url core:6565 --serving-url online_serving:6566 --job-service-url job-service:6568 --kafka-brokers kafka:9092'
