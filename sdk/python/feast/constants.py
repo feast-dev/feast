@@ -119,10 +119,6 @@ FEAST_DEFAULT_OPTIONS = {
     CONFIG_SERVING_ENABLE_SSL_KEY: "False",
     # Path to certificate(s) to secure connection to Feast Serving
     CONFIG_SERVING_SERVER_SSL_CERT_KEY: "",
-    # Enable or disable TLS/SSL to Feast Job Service
-    CONFIG_JOB_SERVICE_ENABLE_SSL_KEY: "False",
-    # Path to certificate(s) to secure connection to Feast Job Service
-    CONFIG_JOB_SERVICE_SERVER_SSL_CERT_KEY: "",
     # Default connection timeout to Feast Serving, Feast Core, and Feast Job Service (in seconds)
     CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY: "10",
     # Default gRPC connection timeout when sending an ApplyFeatureSet command to
@@ -142,4 +138,15 @@ FEAST_DEFAULT_OPTIONS = {
     CONFIG_REDIS_PORT: "6379",
     CONFIG_REDIS_SSL: "False",
     CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT: "parquet",
+    # Enable or disable TLS/SSL to Feast Service
+    CONFIG_JOB_SERVICE_ENABLE_SSL_KEY: "False",
+    # Path to certificate(s) to secure connection to Feast Job Service
+    CONFIG_JOB_SERVICE_SERVER_SSL_CERT_KEY: "",
+    # IngestionJob StatD Config
+    CONFIG_STATSD_HOST: "",
+    CONFIG_STATSD_PORT: "",
+    # IngestionJob DeadLetter Destination
+    CONFIG_DEADLETTER_PATH: "",
+    # ProtoRegistry Address
+    CONFIG_STENCIL_URL: "",
 }
