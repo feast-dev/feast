@@ -147,6 +147,7 @@ FEAST_DEFAULT_OPTIONS = {
     CONFIG_STATSD_PORT: "0",
     # IngestionJob DeadLetter Destination
     CONFIG_DEADLETTER_PATH: "",
-    # ProtoRegistry Address
+    # ProtoRegistry Address (currently only Stencil Server is supported as registry)
+    # https://github.com/gojekfarm/stencil
     CONFIG_STENCIL_URL: "",
 }

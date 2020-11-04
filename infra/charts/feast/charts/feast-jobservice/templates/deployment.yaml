@@ -37,11 +37,13 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
 
-      {{- if .Values.gcpServiceAccount.enabled }}
+      {{- if Values.secrets }}
       volumes:
-      - name: {{ template "feast-jobservice.fullname" . }}-gcp-service-account
+      {{ - range $secret := .Values.secrets }}
+      - name: {{ $secret }}
         secret:
-          secretName: {{ .Values.gcpServiceAccount.existingSecret.name }}
+          secretName: {{ $secret }}
+      {{ - end }}
       {{- end }}
 
       containers:
@@ -49,28 +51,18 @@ spec:
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
 
-        {{- if .Values.gcpServiceAccount.enabled }}
+        {{- if .Values.secrets }}
         volumeMounts:
-        - name: {{ template "feast-jobservice.fullname" . }}-gcp-service-account
-          mountPath: /etc/secrets/google
+        {{ - range $secret := .Values.secrets }}
+        - name: {{ $secret }}
+          mountPath: "/etc/secrets/{{ $secret }}"
           readOnly: true
+        {{ - end }}
         {{- end }}
 
         env:
         - name: FEAST_CORE_URL
           value: "{{ .Release.Name }}-feast-core:6565"
-        - name: FEAST_HISTORICAL_SERVING_URL
-          value: "{{ .Release.Name }}-feast-batch-serving:6566"
-
-        {{- if .Values.gcpServiceAccount.enabled }}
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: /etc/secrets/google/{{ .Values.gcpServiceAccount.existingSecret.key }}
-        {{- end }}
-
-        {{- if .Values.gcpProjectId }}
-        - name: GOOGLE_CLOUD_PROJECT
-          value: {{ .Values.gcpProjectId | quote }}
-        {{- end }}
 
         {{- range $key, $value := .Values.envOverrides }}
         - name: {{ printf "%s" $key | replace "." "_" | upper | quote }}
