@@ -387,7 +387,7 @@ class Client:
         return result
 
     @property
-    def project(self) -> Union[str, None]:
+    def project(self) -> str:
         """
         Retrieve currently active project
 
@@ -1003,7 +1003,7 @@ class Client:
         else:
             return start_historical_feature_retrieval_job(
                 client=self,
-                project=self.project or FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY],
+                project=self.project,
                 entity_source=entity_source,
                 feature_tables=feature_tables,
                 output_format=output_format,
@@ -1050,7 +1050,7 @@ class Client:
         )
         return start_historical_feature_retrieval_spark_session(
             client=self,
-            project=self.project or FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY],
+            project=self.project,
             entity_source=entity_source,
             feature_tables=feature_tables,
         )
@@ -1090,15 +1090,14 @@ class Client:
         if not self._use_job_service:
             return start_offline_to_online_ingestion(
                 client=self,
-                project=self.project or FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY],
+                project=self.project,
                 feature_table=feature_table,
                 start=start,
                 end=end,
             )
         else:
             request = StartOfflineToOnlineIngestionJobRequest(
-                project=self.project or FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY],
-                table_name=feature_table.name,
+                project=self.project, table_name=feature_table.name,
             )
             request.start_date.FromDatetime(start)
             request.end_date.FromDatetime(end)
@@ -1113,14 +1112,13 @@ class Client:
         if not self._use_job_service:
             return start_stream_to_online_ingestion(
                 client=self,
-                project=self.project or FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY],
+                project=self.project,
                 feature_table=feature_table,
                 extra_jars=extra_jars or [],
             )
         else:
             request = StartStreamToOnlineIngestionJobRequest(
-                project=self.project or FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY],
-                table_name=feature_table.name,
+                project=self.project, table_name=feature_table.name,
             )
             response = self._job_service.StartStreamToOnlineIngestionJob(request)
             return RemoteStreamIngestionJob(

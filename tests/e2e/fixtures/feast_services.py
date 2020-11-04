@@ -144,9 +144,8 @@ def feast_serving(
         process.terminate()
 
 
-@pytest.fixture(params=["jobservice_disabled", "jobservice_enabled"])
+@pytest.fixture(scope="session")
 def feast_jobservice(
-    request,
     pytestconfig,
     ingestion_job_jar,
     redis_server: RedisExecutor,
@@ -154,7 +153,7 @@ def feast_jobservice(
     feast_serving: Tuple[str, int],
     local_staging_path,
 ):
-    if request.param == "jobservice_disabled":
+    if not pytestconfig.getoption("with_job_service"):
         yield None
     else:
         env = os.environ.copy()
