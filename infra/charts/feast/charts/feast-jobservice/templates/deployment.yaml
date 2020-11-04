@@ -37,13 +37,13 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
 
-      {{- if Values.secrets }}
+      {{- if .Values.secrets }}
       volumes:
-      {{ - range $secret := .Values.secrets }}
+      {{- range $secret := .Values.secrets }}
       - name: {{ $secret }}
         secret:
           secretName: {{ $secret }}
-      {{ - end }}
+      {{- end }}
       {{- end }}
 
       containers:
@@ -53,11 +53,11 @@ spec:
 
         {{- if .Values.secrets }}
         volumeMounts:
-        {{ - range $secret := .Values.secrets }}
+        {{- range $secret := .Values.secrets }}
         - name: {{ $secret }}
           mountPath: "/etc/secrets/{{ $secret }}"
           readOnly: true
-        {{ - end }}
+        {{- end }}
         {{- end }}
 
         env:
