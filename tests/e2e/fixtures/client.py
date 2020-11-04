@@ -96,4 +96,4 @@ def ingestion_job_jar(pytestconfig, project_root, project_version):
         / f"feast-ingestion-spark-{project_version}.jar"
     )
 
-    return pytestconfig.getoption("ingestion_jar") or f"file://{default_path}"
+    return pytestconfig.getoption("ingestion_jar") or default_path
