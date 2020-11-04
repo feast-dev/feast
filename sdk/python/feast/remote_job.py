@@ -1,11 +1,14 @@
 import time
 from typing import Any, Callable, Dict, List
 
-from feast.core.JobService_pb2 import CancelJobRequest, GetJobRequest, JobStatus
+from feast.core.JobService_pb2 import CancelJobRequest, GetJobRequest
+from feast.core.JobService_pb2 import Job as JobProto
+from feast.core.JobService_pb2 import JobStatus, JobType
 from feast.core.JobService_pb2_grpc import JobServiceStub
 from feast.pyspark.abc import (
     BatchIngestionJob,
     RetrievalJob,
+    SparkJob,
     SparkJobFailure,
     SparkJobStatus,
     StreamIngestionJob,
@@ -128,3 +131,33 @@ class RemoteStreamIngestionJob(RemoteJobMixin, StreamIngestionJob):
         job_id: str,
     ):
         super().__init__(service, grpc_extra_param_provider, job_id)
+
+
+def get_remote_job_from_proto(
+    service: JobServiceStub,
+    grpc_extra_param_provider: GrpcExtraParamProvider,
+    job: JobProto,
+) -> SparkJob:
+    """Get the remote job python object from Job proto.
+
+    Args:
+        service (JobServiceStub): Reference to Job Service
+        grpc_extra_param_provider (GrpcExtraParamProvider): Callable for providing extra parameters to grpc requests
+        job (JobProto): Proto object describing the Job
+
+    Returns:
+        (SparkJob): A remote job object for the given job
+    """
+    if job.type == JobType.RETRIEVAL_JOB:
+        return RemoteRetrievalJob(
+            service, grpc_extra_param_provider, job.id, job.retrieval.output_location
+        )
+    elif job.type == JobType.BATCH_INGESTION_JOB:
+        return RemoteBatchIngestionJob(service, grpc_extra_param_provider, job.id)
+    elif job.type == JobType.STREAM_INGESTION_JOB:
+        return RemoteStreamIngestionJob(service, grpc_extra_param_provider, job.id)
+    else:
+        raise ValueError(
+            f"Invalid Job Type {job.type}, has to be one of "
+            f"{(JobType.RETRIEVAL_JOB, JobType.BATCH_INGESTION_JOB, JobType.STREAM_INGESTION_JOB)}"
+        )

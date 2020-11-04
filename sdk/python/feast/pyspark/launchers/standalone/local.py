@@ -3,7 +3,7 @@ import socket
 import subprocess
 import uuid
 from contextlib import closing
-from typing import List
+from typing import Dict, List
 
 import requests
 from requests.exceptions import RequestException
@@ -21,6 +21,10 @@ from feast.pyspark.abc import (
     StreamIngestionJob,
     StreamIngestionJobParameters,
 )
+
+# In-memory cache of Spark jobs
+# This is necessary since we can't query Spark jobs in local mode
+JOB_CACHE: Dict[str, SparkJob] = {}
 
 
 def _find_free_port():
@@ -200,11 +204,16 @@ class StandaloneClusterLauncher(JobLauncher):
                 "spark.sql.session.timeZone=UTC",  # ignore local timezone
                 "--packages",
                 f"com.google.cloud.spark:spark-bigquery-with-dependencies_{self.BQ_CONNECTOR_VERSION}",
+                "--jars",
+                "https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop2-latest.jar,"
+                "https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/2.7.3/hadoop-aws-2.7.3.jar,"
+                "https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk/1.7.4/aws-java-sdk-1.7.4.jar",
+                "--conf",
+                "spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem",
+                "--conf",
+                "spark.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
             ]
         )
-
-        if job_params.get_extra_options():
-            submission_cmd.extend(job_params.get_extra_options().split(" "))
 
         submission_cmd.append(job_params.get_main_file_path())
         submission_cmd.extend(job_params.get_arguments())
@@ -215,42 +224,56 @@ class StandaloneClusterLauncher(JobLauncher):
         self, job_params: RetrievalJobParameters
     ) -> RetrievalJob:
         job_id = str(uuid.uuid4())
-        return StandaloneClusterRetrievalJob(
+        job = StandaloneClusterRetrievalJob(
             job_id,
             job_params.get_name(),
             self.spark_submit(job_params),
             job_params.get_destination_path(),
         )
+        JOB_CACHE[job_id] = job
+        return job
 
     def offline_to_online_ingestion(
         self, ingestion_job_params: BatchIngestionJobParameters
     ) -> BatchIngestionJob:
         job_id = str(uuid.uuid4())
         ui_port = _find_free_port()
-        return StandaloneClusterBatchIngestionJob(
+        job = StandaloneClusterBatchIngestionJob(
             job_id,
             ingestion_job_params.get_name(),
             self.spark_submit(ingestion_job_params, ui_port),
             ui_port,
         )
+        JOB_CACHE[job_id] = job
+        return job
 
     def start_stream_to_online_ingestion(
         self, ingestion_job_params: StreamIngestionJobParameters
     ) -> StreamIngestionJob:
         job_id = str(uuid.uuid4())
         ui_port = _find_free_port()
-        return StandaloneClusterStreamingIngestionJob(
+        job = StandaloneClusterStreamingIngestionJob(
             job_id,
             ingestion_job_params.get_name(),
             self.spark_submit(ingestion_job_params, ui_port),
             ui_port,
         )
+        JOB_CACHE[job_id] = job
+        return job
 
     def stage_dataframe(self, df, event_timestamp_column: str):
         raise NotImplementedError
 
     def get_job_by_id(self, job_id: str) -> SparkJob:
-        raise NotImplementedError
+        return JOB_CACHE[job_id]
 
     def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
-        raise NotImplementedError
+        if include_terminated is True:
+            return list(JOB_CACHE.values())
+        else:
+            return [
+                job
+                for job in JOB_CACHE.values()
+                if job.get_status()
+                in (SparkJobStatus.STARTING, SparkJobStatus.IN_PROGRESS)
+            ]

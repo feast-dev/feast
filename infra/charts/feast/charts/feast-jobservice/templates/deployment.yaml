@@ -57,6 +57,11 @@ spec:
         {{- end }}
 
         env:
+        - name: FEAST_CORE_URL
+          value: "{{ .Release.Name }}-feast-core:6565"
+        - name: FEAST_HISTORICAL_SERVING_URL
+          value: "{{ .Release.Name }}-feast-batch-serving:6566"
+
         {{- if .Values.gcpServiceAccount.enabled }}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: /etc/secrets/google/{{ .Values.gcpServiceAccount.existingSecret.key }}

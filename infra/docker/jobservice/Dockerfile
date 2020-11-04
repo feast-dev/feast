@@ -1,4 +1,4 @@
-FROM python:3.7-slim-buster
+FROM jupyter/pyspark-notebook:ae5f7e104dd5
 
 USER root
 WORKDIR /feast

@@ -4,8 +4,9 @@ import socket
 import subprocess
 import tempfile
 import time
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
+import pyspark
 import pytest
 import yaml
 from pytest_postgresql.executor import PostgreSQLExecutor
@@ -15,6 +16,7 @@ __all__ = (
     "feast_core",
     "feast_serving",
     "enable_auth",
+    "feast_jobservice",
 )
 
 
@@ -139,4 +141,62 @@ def feast_serving(
         )
         _wait_port_open(6566)
         yield "localhost", 6566
+        process.terminate()
+
+
+@pytest.fixture(params=["jobservice_disabled", "jobservice_enabled"])
+def feast_jobservice(
+    request,
+    pytestconfig,
+    ingestion_job_jar,
+    redis_server: RedisExecutor,
+    feast_core: Tuple[str, int],
+    feast_serving: Tuple[str, int],
+    local_staging_path,
+):
+    if request.param == "jobservice_disabled":
+        yield None
+    else:
+        env = os.environ.copy()
+
+        if pytestconfig.getoption("env") == "local":
+            env["FEAST_CORE_URL"] = f"{feast_core[0]}:{feast_core[1]}"
+            env["FEAST_SERVING_URL"] = f"{feast_serving[0]}:{feast_serving[1]}"
+            env["FEAST_SPARK_LAUNCHER"] = "standalone"
+            env["FEAST_SPARK_STANDALONE_MASTER"] = "local"
+            env["FEAST_SPARK_HOME"] = os.getenv("SPARK_HOME") or os.path.dirname(
+                pyspark.__file__
+            )
+            env["FEAST_SPARK_INGESTION_JAR"] = ingestion_job_jar
+            env["FEAST_REDIS_HOST"] = redis_server.host
+            env["FEAST_REDIS_PORT"] = str(redis_server.port)
+            env["FEAST_SPARK_STAGING_LOCATION"] = os.path.join(
+                local_staging_path, "spark"
+            )
+            env["FEAST_HISTORICAL_FEATURE_OUTPUT_LOCATION"] = os.path.join(
+                local_staging_path, "historical_output"
+            )
+
+        if pytestconfig.getoption("env") == "gcloud":
+            env["FEAST_CORE_URL"] = f"{feast_core[0]}:{feast_core[1]}"
+            env["FEAST_SERVING_URL"] = f"{feast_serving[0]}:{feast_serving[1]}"
+            env["FEAST_SPARK_LAUNCHER"] = "dataproc"
+            env["FEAST_DATAPROC_CLUSTER_NAME"] = pytestconfig.getoption(
+                "dataproc_cluster_name"
+            )
+            env["FEAST_DATAPROC_PROJECT"] = pytestconfig.getoption("dataproc_project")
+            env["FEAST_DATAPROC_REGION"] = pytestconfig.getoption("dataproc_region")
+            env["FEAST_SPARK_STAGING_LOCATION"] = os.path.join(
+                local_staging_path, "dataproc"
+            )
+            env["FEAST_SPARK_INGESTION_JAR"] = ingestion_job_jar
+            env["FEAST_REDIS_HOST"] = pytestconfig.getoption("redis_url").split(":")[0]
+            env["FEAST_REDIS_PORT"] = pytestconfig.getoption("redis_url").split(":")[1]
+            env["FEAST_HISTORICAL_FEATURE_OUTPUT_LOCATION"] = os.path.join(
+                local_staging_path, "historical_output"
+            )
+
+        process = subprocess.Popen(["feast", "server"], env=env)
+        _wait_port_open(6568)
+        yield "localhost", 6568
         process.terminate()

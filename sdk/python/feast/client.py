@@ -65,7 +65,13 @@ from feast.core.CoreService_pb2 import (
     ListProjectsResponse,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
-from feast.core.JobService_pb2 import GetHistoricalFeaturesRequest
+from feast.core.JobService_pb2 import (
+    GetHistoricalFeaturesRequest,
+    GetJobRequest,
+    ListJobsRequest,
+    StartOfflineToOnlineIngestionJobRequest,
+    StartStreamToOnlineIngestionJobRequest,
+)
 from feast.core.JobService_pb2_grpc import JobServiceStub
 from feast.data_format import ParquetFormat
 from feast.data_source import BigQuerySource, FileSource
@@ -94,7 +100,12 @@ from feast.pyspark.launcher import (
     start_offline_to_online_ingestion,
     start_stream_to_online_ingestion,
 )
-from feast.remote_job import RemoteRetrievalJob
+from feast.remote_job import (
+    RemoteBatchIngestionJob,
+    RemoteRetrievalJob,
+    RemoteStreamIngestionJob,
+    get_remote_job_from_proto,
+)
 from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoRequest,
     GetOnlineFeaturesRequestV2,
@@ -201,6 +212,10 @@ class Client:
 
         Returns: JobServiceStub
         """
+        # Don't try to initialize job service stub if the job service is disabled
+        if not self._use_job_service:
+            return None
+
         if not self._job_service_stub:
             channel = create_grpc_channel(
                 url=self._config.get(CONFIG_JOB_SERVICE_URL_KEY),
@@ -891,8 +906,8 @@ class Client:
         self,
         feature_refs: List[str],
         entity_source: Union[pd.DataFrame, FileSource, BigQuerySource],
-        project: str = None,
-        output_location: str = None,
+        project: Optional[str] = None,
+        output_location: Optional[str] = None,
     ) -> RetrievalJob:
         """
         Launch a historical feature retrieval job.
@@ -915,6 +930,7 @@ class Client:
                 retrieval job.
             project: Specifies the project that contains the feature tables
                 which the requested features belong to.
+            destination_path: Specifies the path in a bucket to write the exported feature data files
 
         Returns:
                 Returns a retrieval job object that can be used to monitor retrieval
@@ -1062,18 +1078,57 @@ class Client:
         :param end: upper datetime boundary
         :return: Spark Job Proxy object
         """
-        return start_offline_to_online_ingestion(feature_table, start, end, self)
+        if not self._use_job_service:
+            return start_offline_to_online_ingestion(feature_table, start, end, self)
+        else:
+            request = StartOfflineToOnlineIngestionJobRequest(
+                project=self.project, table_name=feature_table.name,
+            )
+            request.start_date.FromDatetime(start)
+            request.end_date.FromDatetime(end)
+            response = self._job_service.StartOfflineToOnlineIngestionJob(request)
+            return RemoteBatchIngestionJob(
+                self._job_service, self._extra_grpc_params, response.id,
+            )
 
     def start_stream_to_online_ingestion(
         self, feature_table: FeatureTable, extra_jars: Optional[List[str]] = None,
     ) -> SparkJob:
-        return start_stream_to_online_ingestion(feature_table, extra_jars or [], self)
+        if not self._use_job_service:
+            return start_stream_to_online_ingestion(
+                feature_table, extra_jars or [], self
+            )
+        else:
+            request = StartStreamToOnlineIngestionJobRequest(
+                project=self.project, table_name=feature_table.name,
+            )
+            response = self._job_service.StartStreamToOnlineIngestionJob(request)
+            return RemoteStreamIngestionJob(
+                self._job_service, self._extra_grpc_params, response.id,
+            )
 
     def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
-        return list_jobs(include_terminated, self)
+        if not self._use_job_service:
+            return list_jobs(include_terminated, self)
+        else:
+            request = ListJobsRequest(include_terminated=include_terminated)
+            response = self._job_service.ListJobs(request)
+            return [
+                get_remote_job_from_proto(
+                    self._job_service, self._extra_grpc_params, job
+                )
+                for job in response.jobs
+            ]
 
     def get_job_by_id(self, job_id: str) -> SparkJob:
-        return get_job_by_id(job_id, self)
+        if not self._use_job_service:
+            return get_job_by_id(job_id, self)
+        else:
+            request = GetJobRequest(job_id=job_id)
+            response = self._job_service.GetJob(request)
+            return get_remote_job_from_proto(
+                self._job_service, self._extra_grpc_params, response.job
+            )
 
     def stage_dataframe(
         self, df: pd.DataFrame, event_timestamp_column: str,

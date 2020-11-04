@@ -110,7 +110,7 @@ message StartOfflineToOnlineIngestionJobResponse {
 }
 
 message GetHistoricalFeaturesRequest {
-  // List of features that are being retrieved
+  // List of feature references that are being retrieved
   repeated string feature_refs = 1;
 
   // Batch DataSource that can be used to obtain entity values for historical retrieval.

@@ -12,7 +12,13 @@ from feast.core.JobService_pb2 import (
     GetJobResponse,
 )
 from feast.core.JobService_pb2 import Job as JobProto
-from feast.core.JobService_pb2 import JobStatus, JobType, ListJobsResponse
+from feast.core.JobService_pb2 import (
+    JobStatus,
+    JobType,
+    ListJobsResponse,
+    StartOfflineToOnlineIngestionJobResponse,
+    StartStreamToOnlineIngestionJobResponse,
+)
 from feast.data_source import DataSource
 from feast.pyspark.abc import (
     BatchIngestionJob,
@@ -21,7 +27,10 @@ from feast.pyspark.abc import (
     SparkJobStatus,
     StreamIngestionJob,
 )
-from feast.pyspark.launcher import start_historical_feature_retrieval_job
+from feast.pyspark.launcher import (
+    start_historical_feature_retrieval_job,
+    start_stream_to_online_ingestion,
+)
 from feast.third_party.grpc.health.v1 import HealthService_pb2_grpc
 from feast.third_party.grpc.health.v1.HealthService_pb2 import (
     HealthCheckResponse,
@@ -62,9 +71,15 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
 
     def StartOfflineToOnlineIngestionJob(self, request, context):
         """Start job to ingest data from offline store into online store"""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        feature_table = self.client.get_feature_table(
+            request.table_name, request.project
+        )
+        job = self.client.start_offline_to_online_ingestion(
+            feature_table,
+            request.start_date.ToDatetime(),
+            request.end_date.ToDatetime(),
+        )
+        return StartOfflineToOnlineIngestionJobResponse(id=job.get_id())
 
     def GetHistoricalFeatures(self, request: GetHistoricalFeaturesRequest, context):
         """Produce a training dataset, return a job id that will provide a file reference"""
@@ -86,9 +101,13 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
 
     def StartStreamToOnlineIngestionJob(self, request, context):
         """Start job to ingest data from stream into online store"""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+
+        feature_table = self.client.get_feature_table(
+            request.table_name, request.project
+        )
+        # TODO: add extra_jars to request
+        job = start_stream_to_online_ingestion(feature_table, [], self.client)
+        return StartStreamToOnlineIngestionJobResponse(id=job.get_id())
 
     def ListJobs(self, request, context):
         """List all types of jobs"""
