@@ -10,9 +10,7 @@ def pytest_addoption(parser):
     parser.addoption("--kafka-brokers", action="store", default="localhost:9092")
 
     parser.addoption("--env", action="store", help="local|aws|gcloud", default="local")
-    parser.addoption(
-        "--staging-path", action="store"
-    )
+    parser.addoption("--staging-path", action="store")
     parser.addoption("--dataproc-cluster-name", action="store")
     parser.addoption("--dataproc-region", action="store")
     parser.addoption("--dataproc-project", action="store")

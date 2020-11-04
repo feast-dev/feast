@@ -12,8 +12,6 @@ LATEST_GH_COMMIT_SHA=$1
 clean_up () {
     ARG=$?
 
-    docker logs feast_jobservice_1
-
     # Shut down docker-compose images
     docker-compose down
 
