@@ -11,7 +11,7 @@ def pytest_addoption(parser):
 
     parser.addoption("--env", action="store", help="local|aws|gcloud", default="local")
     parser.addoption(
-        "--staging-path", action="store", default="gs://feast-templocation-kf-feast/"
+        "--staging-path", action="store"
     )
     parser.addoption("--dataproc-cluster-name", action="store")
     parser.addoption("--dataproc-region", action="store")
