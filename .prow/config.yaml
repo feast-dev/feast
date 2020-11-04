@@ -219,8 +219,8 @@ presubmits:
     always_run: true
     spec:
       containers:
-        - image: amazon/aws-cli
-          command: [ "infra/scripts/test-end-to-end-aws.sh" ]
+        - image: gcr.io/kf-feast/feast-ci:latest
+          command: [ "infra/scripts/codebuild_runner.py", "--source-location", "https://github.com/${REPO_OWNER}/${REPO_NAME}.git", "--source-version", "$PULL_PULL_SHA" ]
           resources:
             requests:
               cpu: "2"
