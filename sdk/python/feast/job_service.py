@@ -27,7 +27,10 @@ from feast.pyspark.abc import (
     SparkJobStatus,
     StreamIngestionJob,
 )
-from feast.pyspark.launcher import start_historical_feature_retrieval_job
+from feast.pyspark.launcher import (
+    start_historical_feature_retrieval_job,
+    start_stream_to_online_ingestion,
+)
 from feast.third_party.grpc.health.v1 import HealthService_pb2_grpc
 from feast.third_party.grpc.health.v1.HealthService_pb2 import (
     HealthCheckResponse,
@@ -103,7 +106,7 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
             request.table_name, request.project
         )
         # TODO: add extra_jars to request
-        job = self.client.start_stream_to_online_ingestion(feature_table, [])
+        job = start_stream_to_online_ingestion(feature_table, [], self.client)
         return StartStreamToOnlineIngestionJobResponse(id=job.get_id())
 
     def ListJobs(self, request, context):
