@@ -4,6 +4,8 @@
 
 Feast \(**Fea**ture **St**ore\) is an operational data system for managing and serving machine learning features to models in production.
 
+![](.gitbook/assets/feast-architecture-diagrams.svg)
+
 ### What problems does Feast solve?
 
 **Models need consistent access to data:** ML systems built on traditional data infrastructure are often coupled to databases, object stores, streams, and files. This coupling makes changes in data infrastructure difficult without breaking dependent ML system. To make matters worse, dual implementations of data retrieval for training and serving can lead to inconsistencies in data which in turn causes training-serving skew.
