@@ -71,6 +71,8 @@ object IngestionJob {
     opt[String](name = "deadletter-path")
       .action((x, c) => c.copy(deadLetterPath = Some(x)))
 
+    opt[String](name = "stencil-url")
+      .action((x, c) => c.copy(stencilURL = Some(x)))
   }
 
   def main(args: Array[String]): Unit = {

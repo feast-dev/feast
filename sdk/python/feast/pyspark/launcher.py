@@ -1,11 +1,9 @@
-import shutil
-import tempfile
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Union
-from urllib.parse import urlparse
 
 from feast.config import Config
 from feast.constants import (
+    CONFIG_DEADLETTER_PATH,
     CONFIG_REDIS_HOST,
     CONFIG_REDIS_PORT,
     CONFIG_REDIS_SSL,
@@ -21,6 +19,10 @@ from feast.constants import (
     CONFIG_SPARK_LAUNCHER,
     CONFIG_SPARK_STAGING_LOCATION,
     CONFIG_SPARK_STANDALONE_MASTER,
+    CONFIG_STATSD_ENABLED,
+    CONFIG_STATSD_HOST,
+    CONFIG_STATSD_PORT,
+    CONFIG_STENCIL_URL,
 )
 from feast.data_source import BigQuerySource, DataSource, FileSource, KafkaSource
 from feast.feature_table import FeatureTable
@@ -35,7 +37,6 @@ from feast.pyspark.abc import (
     StreamIngestionJobParameters,
 )
 from feast.staging.entities import create_bq_view_of_joined_features_and_entities
-from feast.staging.storage_client import get_staging_client
 from feast.value_type import ValueType
 
 if TYPE_CHECKING:
@@ -125,13 +126,15 @@ def _source_to_argument(source: DataSource):
     raise NotImplementedError(f"Unsupported Datasource: {type(source)}")
 
 
-def _feature_table_to_argument(client: "Client", feature_table: FeatureTable):
+def _feature_table_to_argument(
+    client: "Client", project: str, feature_table: FeatureTable
+):
     return {
         "features": [
             {"name": f.name, "type": ValueType(f.dtype).name}
             for f in feature_table.features
         ],
-        "project": "default",
+        "project": project,
         "name": feature_table.name,
         "entities": [
             {"name": n, "type": client.get_entity(n).value_type}
@@ -143,6 +146,7 @@ def _feature_table_to_argument(client: "Client", feature_table: FeatureTable):
 
 def start_historical_feature_retrieval_spark_session(
     client: "Client",
+    project: str,
     entity_source: Union[FileSource, BigQuerySource],
     feature_tables: List[FeatureTable],
 ):
@@ -161,7 +165,7 @@ def start_historical_feature_retrieval_spark_session(
             for feature_table in feature_tables
         ],
         feature_tables_conf=[
-            _feature_table_to_argument(client, feature_table)
+            _feature_table_to_argument(client, project, feature_table)
             for feature_table in feature_tables
         ],
     )
@@ -169,6 +173,7 @@ def start_historical_feature_retrieval_spark_session(
 
 def start_historical_feature_retrieval_job(
     client: "Client",
+    project: str,
     entity_source: Union[FileSource, BigQuerySource],
     feature_tables: List[FeatureTable],
     output_format: str,
@@ -187,7 +192,7 @@ def start_historical_feature_retrieval_job(
             entity_source=_source_to_argument(entity_source),
             feature_tables_sources=feature_sources,
             feature_tables=[
-                _feature_table_to_argument(client, feature_table)
+                _feature_table_to_argument(client, project, feature_table)
                 for feature_table in feature_tables
             ],
             destination={"format": output_format, "path": output_path},
@@ -224,56 +229,61 @@ def replace_bq_table_with_joined_view(
     )
 
 
-def _download_jar(remote_jar: str) -> str:
-    remote_jar_parts = urlparse(remote_jar)
-
-    local_temp_jar = tempfile.NamedTemporaryFile(suffix=".jar", delete=False)
-    with local_temp_jar:
-        shutil.copyfileobj(
-            get_staging_client(remote_jar_parts.scheme).download_file(remote_jar_parts),
-            local_temp_jar,
-        )
-
-    return local_temp_jar.name
-
-
 def start_offline_to_online_ingestion(
-    feature_table: FeatureTable, start: datetime, end: datetime, client: "Client"
+    client: "Client",
+    project: str,
+    feature_table: FeatureTable,
+    start: datetime,
+    end: datetime,
 ) -> BatchIngestionJob:
 
     launcher = resolve_launcher(client._config)
-    local_jar_path = _download_jar(client._config.get(CONFIG_SPARK_INGESTION_JOB_JAR))
 
     return launcher.offline_to_online_ingestion(
         BatchIngestionJobParameters(
-            jar=local_jar_path,
+            jar=client._config.get(CONFIG_SPARK_INGESTION_JOB_JAR),
             source=_source_to_argument(feature_table.batch_source),
-            feature_table=_feature_table_to_argument(client, feature_table),
+            feature_table=_feature_table_to_argument(client, project, feature_table),
             start=start,
             end=end,
             redis_host=client._config.get(CONFIG_REDIS_HOST),
             redis_port=client._config.getint(CONFIG_REDIS_PORT),
             redis_ssl=client._config.getboolean(CONFIG_REDIS_SSL),
+            statsd_host=(
+                client._config.getboolean(CONFIG_STATSD_ENABLED)
+                and client._config.get(CONFIG_STATSD_HOST)
+            ),
+            statsd_port=(
+                client._config.getboolean(CONFIG_STATSD_ENABLED)
+                and client._config.getint(CONFIG_STATSD_PORT)
+            ),
+            deadletter_path=client._config.get(CONFIG_DEADLETTER_PATH),
+            stencil_url=client._config.get(CONFIG_STENCIL_URL),
         )
     )
 
 
 def start_stream_to_online_ingestion(
-    feature_table: FeatureTable, extra_jars: List[str], client: "Client"
+    client: "Client", project: str, feature_table: FeatureTable, extra_jars: List[str]
 ) -> StreamIngestionJob:
 
     launcher = resolve_launcher(client._config)
-    local_jar_path = _download_jar(client._config.get(CONFIG_SPARK_INGESTION_JOB_JAR))
 
     return launcher.start_stream_to_online_ingestion(
         StreamIngestionJobParameters(
-            jar=local_jar_path,
+            jar=client._config.get(CONFIG_SPARK_INGESTION_JOB_JAR),
             extra_jars=extra_jars,
             source=_source_to_argument(feature_table.stream_source),
-            feature_table=_feature_table_to_argument(client, feature_table),
+            feature_table=_feature_table_to_argument(client, project, feature_table),
             redis_host=client._config.get(CONFIG_REDIS_HOST),
             redis_port=client._config.getint(CONFIG_REDIS_PORT),
             redis_ssl=client._config.getboolean(CONFIG_REDIS_SSL),
+            statsd_host=client._config.getboolean(CONFIG_STATSD_ENABLED)
+            and client._config.get(CONFIG_STATSD_HOST),
+            statsd_port=client._config.getboolean(CONFIG_STATSD_ENABLED)
+            and client._config.getint(CONFIG_STATSD_PORT),
+            deadletter_path=client._config.get(CONFIG_DEADLETTER_PATH),
+            stencil_url=client._config.get(CONFIG_STENCIL_URL),
         )
     )
 

@@ -144,17 +144,16 @@ def feast_serving(
         process.terminate()
 
 
-@pytest.fixture(params=["jobservice_disabled", "jobservice_enabled"])
+@pytest.fixture(scope="session")
 def feast_jobservice(
-    request,
     pytestconfig,
     ingestion_job_jar,
     redis_server: RedisExecutor,
     feast_core: Tuple[str, int],
     feast_serving: Tuple[str, int],
-    local_staging_path,
+    global_staging_path,
 ):
-    if request.param == "jobservice_disabled":
+    if not pytestconfig.getoption("with_job_service"):
         yield None
     else:
         env = os.environ.copy()
@@ -171,10 +170,10 @@ def feast_jobservice(
             env["FEAST_REDIS_HOST"] = redis_server.host
             env["FEAST_REDIS_PORT"] = str(redis_server.port)
             env["FEAST_SPARK_STAGING_LOCATION"] = os.path.join(
-                local_staging_path, "spark"
+                global_staging_path, "spark"
             )
             env["FEAST_HISTORICAL_FEATURE_OUTPUT_LOCATION"] = os.path.join(
-                local_staging_path, "historical_output"
+                global_staging_path, "historical_output"
             )
 
         if pytestconfig.getoption("env") == "gcloud":
@@ -187,13 +186,13 @@ def feast_jobservice(
             env["FEAST_DATAPROC_PROJECT"] = pytestconfig.getoption("dataproc_project")
             env["FEAST_DATAPROC_REGION"] = pytestconfig.getoption("dataproc_region")
             env["FEAST_SPARK_STAGING_LOCATION"] = os.path.join(
-                local_staging_path, "dataproc"
+                global_staging_path, "dataproc"
             )
             env["FEAST_SPARK_INGESTION_JAR"] = ingestion_job_jar
             env["FEAST_REDIS_HOST"] = pytestconfig.getoption("redis_url").split(":")[0]
             env["FEAST_REDIS_PORT"] = pytestconfig.getoption("redis_url").split(":")[1]
             env["FEAST_HISTORICAL_FEATURE_OUTPUT_LOCATION"] = os.path.join(
-                local_staging_path, "historical_output"
+                global_staging_path, "historical_output"
             )
 
         process = subprocess.Popen(["feast", "server"], env=env)

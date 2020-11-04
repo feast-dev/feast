@@ -1,7 +1,14 @@
 import pytest
 from pytest_redis.executor import NoopRedis
 
-__all__ = ("feast_core", "feast_serving", "redis_server", "kafka_server", "enable_auth")
+__all__ = (
+    "feast_core",
+    "feast_serving",
+    "redis_server",
+    "kafka_server",
+    "enable_auth",
+    "feast_jobservice",
+)
 
 
 @pytest.fixture(scope="session")
@@ -31,3 +38,9 @@ def kafka_server(pytestconfig):
 @pytest.fixture(scope="session")
 def enable_auth():
     return False
+
+
+@pytest.fixture(scope="session")
+def feast_jobservice(pytestconfig):
+    host, port = pytestconfig.getoption("job_service_url").split(":")
+    return host, port

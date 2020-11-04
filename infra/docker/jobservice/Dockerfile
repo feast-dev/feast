@@ -16,7 +16,7 @@ RUN make compile-protos-python
 # Install Feast SDK
 COPY .git .git
 COPY README.md README.md
-RUN pip install -e sdk/python -U
+RUN pip install -U -e sdk/python
 RUN pip install "s3fs" "boto3" "urllib3>=1.25.4"
 
 #
@@ -27,4 +27,4 @@ RUN wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/downloa
          -O /usr/bin/grpc-health-probe && \
     chmod +x /usr/bin/grpc-health-probe
 
-CMD ["feast", "server"]
+CMD ["python", "-m", "feast.cli", "server"]

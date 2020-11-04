@@ -71,7 +71,9 @@ def feast_client(
 
 @pytest.fixture(scope="session")
 def global_staging_path(pytestconfig):
-    if pytestconfig.getoption("env") == "local":
+    if pytestconfig.getoption("env") == "local" and not pytestconfig.getoption(
+        "staging_path", ""
+    ):
         tmp_path = tempfile.mkdtemp()
         return f"file://{tmp_path}"
 
@@ -94,4 +96,4 @@ def ingestion_job_jar(pytestconfig, project_root, project_version):
         / f"feast-ingestion-spark-{project_version}.jar"
     )
 
-    return pytestconfig.getoption("ingestion_jar") or f"file://{default_path}"
+    return pytestconfig.getoption("ingestion_jar") or default_path

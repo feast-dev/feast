@@ -88,6 +88,13 @@ CONFIG_REDIS_HOST = "redis_host"
 CONFIG_REDIS_PORT = "redis_port"
 CONFIG_REDIS_SSL = "redis_ssl"
 
+CONFIG_STATSD_ENABLED = "statsd_enabled"
+CONFIG_STATSD_HOST = "statsd_host"
+CONFIG_STATSD_PORT = "statsd_port"
+
+CONFIG_DEADLETTER_PATH = "deadletter_path"
+CONFIG_STENCIL_URL = "stencil_url"
+
 CONFIG_SPARK_EMR_REGION = "emr_region"
 CONFIG_SPARK_EMR_CLUSTER_ID = "emr_cluster_id"
 CONFIG_SPARK_EMR_CLUSTER_TEMPLATE_PATH = "emr_cluster_template_path"
@@ -113,10 +120,6 @@ FEAST_DEFAULT_OPTIONS = {
     CONFIG_SERVING_ENABLE_SSL_KEY: "False",
     # Path to certificate(s) to secure connection to Feast Serving
     CONFIG_SERVING_SERVER_SSL_CERT_KEY: "",
-    # Enable or disable TLS/SSL to Feast Job Service
-    CONFIG_JOB_SERVICE_ENABLE_SSL_KEY: "False",
-    # Path to certificate(s) to secure connection to Feast Job Service
-    CONFIG_JOB_SERVICE_SERVER_SSL_CERT_KEY: "",
     # Default connection timeout to Feast Serving, Feast Core, and Feast Job Service (in seconds)
     CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY: "10",
     # Default gRPC connection timeout when sending an ApplyFeatureSet command to
@@ -129,10 +132,21 @@ FEAST_DEFAULT_OPTIONS = {
     # Authentication Provider - Google OpenID/OAuth
     CONFIG_AUTH_PROVIDER: "google",
     CONFIG_SPARK_LAUNCHER: "dataproc",
-    CONFIG_SPARK_INGESTION_JOB_JAR: "gs://feast-jobs/spark/ingestion/feast-ingestion-spark-develop.jar",
+    CONFIG_SPARK_INGESTION_JOB_JAR: "https://storage.googleapis.com/feast-jobs/spark/"
+    "ingestion/feast-ingestion-spark-develop.jar",
     CONFIG_SPARK_STANDALONE_MASTER: "local[*]",
     CONFIG_REDIS_HOST: "localhost",
     CONFIG_REDIS_PORT: "6379",
     CONFIG_REDIS_SSL: "False",
     CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT: "parquet",
+    # Enable or disable TLS/SSL to Feast Service
+    CONFIG_JOB_SERVICE_ENABLE_SSL_KEY: "False",
+    # Path to certificate(s) to secure connection to Feast Job Service
+    CONFIG_JOB_SERVICE_SERVER_SSL_CERT_KEY: "",
+    CONFIG_STATSD_ENABLED: "False",
+    # IngestionJob DeadLetter Destination
+    CONFIG_DEADLETTER_PATH: "",
+    # ProtoRegistry Address (currently only Stencil Server is supported as registry)
+    # https://github.com/gojekfarm/stencil
+    CONFIG_STENCIL_URL: "",
 }
