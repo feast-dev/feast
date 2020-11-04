@@ -12,6 +12,8 @@ LATEST_GH_COMMIT_SHA=$1
 clean_up () {
     ARG=$?
 
+    docker logs feast_jobservice_1
+
     # Shut down docker-compose images
     docker-compose down
 
@@ -39,7 +41,6 @@ export JUPYTER_DOCKER_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .Network
 
 # Print Jupyter container information
 docker inspect feast_jupyter_1
-docker logs feast_jupyter_1
 
 # Wait for Jupyter Notebook Container to come online
 ${PROJECT_ROOT_DIR}/infra/scripts/wait-for-it.sh ${JUPYTER_DOCKER_CONTAINER_IP_ADDRESS}:8888 --timeout=60

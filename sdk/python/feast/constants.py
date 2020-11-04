@@ -88,6 +88,7 @@ CONFIG_REDIS_HOST = "redis_host"
 CONFIG_REDIS_PORT = "redis_port"
 CONFIG_REDIS_SSL = "redis_ssl"
 
+CONFIG_STATSD_ENABLED = "statsd_enabled"
 CONFIG_STATSD_HOST = "statsd_host"
 CONFIG_STATSD_PORT = "statsd_port"
 
@@ -142,9 +143,7 @@ FEAST_DEFAULT_OPTIONS = {
     CONFIG_JOB_SERVICE_ENABLE_SSL_KEY: "False",
     # Path to certificate(s) to secure connection to Feast Job Service
     CONFIG_JOB_SERVICE_SERVER_SSL_CERT_KEY: "",
-    # IngestionJob StatD Config
-    CONFIG_STATSD_HOST: "",
-    CONFIG_STATSD_PORT: "0",
+    CONFIG_STATSD_ENABLED: "False",
     # IngestionJob DeadLetter Destination
     CONFIG_DEADLETTER_PATH: "",
     # ProtoRegistry Address (currently only Stencil Server is supported as registry)
