@@ -236,7 +236,7 @@ def start_job_service():
 
     client = feast.Client()
 
-    if client._config.get(CONFIG_JOB_SERVICE_ENABLE_CONTROL_LOOP) != "False":
+    if client._config.getboolean(CONFIG_JOB_SERVICE_ENABLE_CONTROL_LOOP):
         # Start the control loop thread only if it's enabled from configs
         thread = threading.Thread(target=run_control_loop, daemon=True)
         thread.start()
