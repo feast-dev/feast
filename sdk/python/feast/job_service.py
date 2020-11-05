@@ -124,7 +124,7 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
             request.table_name, request.project
         )
 
-        if self.client._config.get(CONFIG_JOB_SERVICE_ENABLE_CONTROL_LOOP) != "False":
+        if self.client._config.getboolean(CONFIG_JOB_SERVICE_ENABLE_CONTROL_LOOP):
             # If the control loop is enabled, return existing stream ingestion job id instead of starting a new one
             params = get_stream_to_online_ingestion_params(
                 self.client, request.project, feature_table, []
