@@ -345,3 +345,6 @@ class DataprocClusterLauncher(JobLauncher):
                 project_id=self.project_id, region=self.region, filter=job_filter
             )
         ]
+
+    def list_jobs_by_hash(self, include_terminated: bool) -> Dict[str, SparkJob]:
+        raise NotImplementedError
