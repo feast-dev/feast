@@ -7,8 +7,6 @@ provider "aws" {
   region  = var.region
 }
 
-# variable "region" {
-# }
 provider "local" {
   version = "~> 1.2"
 }
