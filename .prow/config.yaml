@@ -192,6 +192,7 @@ presubmits:
   - name: test-end-to-end-gcp
     decorate: true
     always_run: true
+    max_concurrency: 1
     spec:
       containers:
       - image: gcr.io/kf-feast/feast-ci:latest
@@ -217,6 +218,7 @@ presubmits:
   - name: test-end-to-end-aws
     decorate: true
     always_run: true
+    max_concurrency: 1
     spec:
       containers:
         - image: gcr.io/kf-feast/feast-ci:latest
