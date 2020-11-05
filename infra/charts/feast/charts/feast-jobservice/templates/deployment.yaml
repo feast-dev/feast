@@ -61,9 +61,6 @@ spec:
         {{- end }}
 
         env:
-        - name: FEAST_CORE_URL
-          value: "{{ .Release.Name }}-feast-core:6565"
-
         {{- range $key, $value := .Values.envOverrides }}
         - name: {{ printf "%s" $key | replace "." "_" | upper | quote }}
           {{- if eq (kindOf $value) "map" }}
