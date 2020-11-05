@@ -1,8 +1,11 @@
 import logging
+import os
+import signal
 import threading
 import time
+import traceback
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, Set, Tuple
+from typing import Dict, Tuple
 
 import grpc
 
@@ -167,52 +170,76 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
         return GetJobResponse(job=self._job_to_proto(job))
 
 
-def run_control_loop():
-    """Runs control loop that continuously ensures that correct jobs are being run."""
+def get_expected_job_hash_to_table_refs(client) -> Dict[str, Tuple[str, str]]:
+    """Get the map of job hash -> (project, table_name) for expected stream ingestion jobs."""
+    job_hash_to_table_refs = {}
+
+    for project in client.list_projects():
+        feature_tables = client.list_feature_tables(project)
+        for feature_table in feature_tables:
+            if feature_table.stream_source is not None:
+                params = get_stream_to_online_ingestion_params(
+                    client, project, feature_table, []
+                )
+                job_hash = params.get_job_hash()
+                job_hash_to_table_refs[job_hash] = (project, feature_table.name)
+
+    return job_hash_to_table_refs
+
+
+def ensure_stream_ingestion_jobs(client: feast.Client):
+    """Runs a single iteration of the control loop to ensure correct set of stream ingestion jobs are running."""
+    expected_job_hash_to_table_refs = get_expected_job_hash_to_table_refs(client)
+    expected_job_hashes = set(expected_job_hash_to_table_refs.keys())
+
+    jobs_by_hash = list_jobs_by_hash(client, include_terminated=False)
+    # Job hashes that currently exist
+    existing_job_hashes = set(jobs_by_hash.keys())
+
+    job_hashes_to_cancel = existing_job_hashes - expected_job_hashes
+    job_hashes_to_start = expected_job_hashes - existing_job_hashes
+
+    for job_hash in job_hashes_to_cancel:
+        job = jobs_by_hash[job_hash]
+        logging.info(
+            f"Cancelling a stream ingestion job with job_hash={job_hash} job_id={job.get_id()} status={job.get_status()}"
+        )
+        job.cancel()
+
+    for job_hash in job_hashes_to_start:
+        # Any job that we wish to start should be among expected table refs map
+        project, table_name = expected_job_hash_to_table_refs[job_hash]
+        logging.info(
+            f"Starting a stream ingestion job for project={project}, table_name={table_name} with job_hash={job_hash}"
+        )
+        feature_table = client.get_feature_table(name=table_name, project=project)
+        start_stream_to_online_ingestion(client, project, feature_table, [])
+
+
+def start_control_loop():
+    """Starts control loop that continuously ensures that correct jobs are being run.
+
+    Currently this includes stream ingestion jobs. Every second the control loop will determine
+    - which stream ingestion jobs are running (from launcher layer)
+    - which stream ingestion jobs should be running (from feast core)
+    And it'll do 2 kinds of operations
+    - Cancel all running jobs that should not be running
+    - Start all non-existent jobs that should be running
+    """
     logging.info(
-        "Feast Job Service is starting a control loop in a background thread..."
+        "Feast Job Service is starting a control loop in a background thread, "
+        "which will ensure that stream ingestion jobs are successfully running."
     )
-    client = feast.Client()
-    while True:
-        # Map of job hash -> (project, table_name)
-        table_metadata: Dict[str, Tuple[str, str]] = dict()
-        # Job hashes that should exist
-        final_job_hashes: Set[str] = set()
-
-        for project in client.list_projects():
-            feature_tables = client.list_feature_tables(project)
-            for feature_table in feature_tables:
-                if feature_table.stream_source is not None:
-                    params = get_stream_to_online_ingestion_params(
-                        client, project, feature_table, []
-                    )
-                    job_hash = params.get_job_hash()
-                    final_job_hashes.add(job_hash)
-                    table_metadata[job_hash] = (project, feature_table.name)
-
-        jobs_by_hash = list_jobs_by_hash(client, include_terminated=False)
-        # Job hashes that currently exist
-        existing_job_hashes = set(jobs_by_hash.keys())
-
-        job_hashes_to_cancel = existing_job_hashes - final_job_hashes
-        job_hashes_to_start = final_job_hashes - existing_job_hashes
-
-        for job_hash in job_hashes_to_cancel:
-            job = jobs_by_hash[job_hash]
-            logging.info(
-                f"Cancelling a stream ingestion job with job_hash={job_hash} job_id={job.get_id()} status={job.get_status()}"
-            )
-            job.cancel()
-
-        for job_hash in job_hashes_to_start:
-            project, table_name = table_metadata[job_hash]
-            logging.info(
-                f"Starting a stream ingestion job for project={project}, table_name={table_name} with job_hash={job_hash}"
-            )
-            feature_table = client.get_feature_table(name=table_name, project=project)
-            start_stream_to_online_ingestion(client, project, feature_table, [])
-
-        time.sleep(1)
+    try:
+        client = feast.Client()
+        while True:
+            ensure_stream_ingestion_jobs(client)
+            time.sleep(1)
+    except Exception:
+        traceback.print_exc()
+    finally:
+        # Send interrupt signal to the main thread to kill the server if control loop fails
+        os.kill(os.getpid(), signal.SIGINT)
 
 
 class HealthServicer(HealthService_pb2_grpc.HealthServicer):
@@ -238,7 +265,7 @@ def start_job_service():
 
     if client._config.getboolean(CONFIG_JOB_SERVICE_ENABLE_CONTROL_LOOP):
         # Start the control loop thread only if it's enabled from configs
-        thread = threading.Thread(target=run_control_loop, daemon=True)
+        thread = threading.Thread(target=start_control_loop, daemon=True)
         thread.start()
 
     server = grpc.server(ThreadPoolExecutor(), interceptors=(LoggingInterceptor(),))
