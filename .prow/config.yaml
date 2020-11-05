@@ -220,7 +220,7 @@ presubmits:
     spec:
       containers:
         - image: gcr.io/kf-feast/feast-ci:latest
-          command: [ "infra/scripts/codebuild_runner.py", "--source-location", "https://github.com/${REPO_OWNER}/${REPO_NAME}.git", "--source-version", "$PULL_PULL_SHA" ]
+          command: [ "infra/scripts/codebuild_runner.py", "--location-from-prow" ]
           resources:
             requests:
               cpu: "2"
@@ -236,6 +236,8 @@ presubmits:
                 secretKeyRef:
                   name: feast-aws-creds
                   key: AWS_SECRET_ACCESS_KEY
+            - name: AWS_DEFAULT_REGION
+              value: us-west-2
 
 postsubmits:
   feast-dev/feast:
