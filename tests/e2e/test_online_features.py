@@ -133,11 +133,11 @@ def test_streaming_ingestion(
     job = feast_client.start_stream_to_online_ingestion(feature_table)
 
     wait_retry_backoff(
-        lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 60
+        lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 120
     )
 
     wait_retry_backoff(
-        lambda: (None, check_consumer_exist(kafka_broker, topic_name)), 60
+        lambda: (None, check_consumer_exist(kafka_broker, topic_name)), 120
     )
 
     try:
@@ -183,7 +183,9 @@ def ingest_and_verify(
         original.event_timestamp.max().to_pydatetime() + timedelta(seconds=1),
     )
 
-    wait_retry_backoff(lambda: (None, job.get_status() == SparkJobStatus.COMPLETED), 60)
+    wait_retry_backoff(
+        lambda: (None, job.get_status() == SparkJobStatus.COMPLETED), 180
+    )
 
     features = feast_client.get_online_features(
         [f"{feature_table.name}:unique_drivers"],

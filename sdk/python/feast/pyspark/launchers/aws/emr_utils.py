@@ -321,7 +321,11 @@ def _cancel_job(emr_client, job: EmrJobRef):
     else:
         step_id = job.step_id
 
-    emr_client.cancel_steps(ClusterId=job.cluster_id, StepIds=[step_id])
+    emr_client.cancel_steps(
+        ClusterId=job.cluster_id,
+        StepIds=[step_id],
+        StepCancellationOption="TERMINATE_PROCESS",
+    )
 
     _wait_for_job_state(
         emr_client, EmrJobRef(job.cluster_id, step_id), TERMINAL_STEP_STATES, 180
