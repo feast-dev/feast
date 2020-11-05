@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Union
+from typing import TYPE_CHECKING, Dict, List, Union
 
 from feast.config import Config
 from feast.constants import (
@@ -263,6 +263,26 @@ def start_offline_to_online_ingestion(
     )
 
 
+def get_stream_to_online_ingestion_params(
+    client: "Client", project: str, feature_table: FeatureTable, extra_jars: List[str]
+) -> StreamIngestionJobParameters:
+    return StreamIngestionJobParameters(
+        jar=client._config.get(CONFIG_SPARK_INGESTION_JOB_JAR),
+        extra_jars=extra_jars,
+        source=_source_to_argument(feature_table.stream_source),
+        feature_table=_feature_table_to_argument(client, project, feature_table),
+        redis_host=client._config.get(CONFIG_REDIS_HOST),
+        redis_port=client._config.getint(CONFIG_REDIS_PORT),
+        redis_ssl=client._config.getboolean(CONFIG_REDIS_SSL),
+        statsd_host=client._config.getboolean(CONFIG_STATSD_ENABLED)
+        and client._config.get(CONFIG_STATSD_HOST),
+        statsd_port=client._config.getboolean(CONFIG_STATSD_ENABLED)
+        and client._config.getint(CONFIG_STATSD_PORT),
+        deadletter_path=client._config.get(CONFIG_DEADLETTER_PATH),
+        stencil_url=client._config.get(CONFIG_STENCIL_URL),
+    )
+
+
 def start_stream_to_online_ingestion(
     client: "Client", project: str, feature_table: FeatureTable, extra_jars: List[str]
 ) -> StreamIngestionJob:
@@ -270,20 +290,8 @@ def start_stream_to_online_ingestion(
     launcher = resolve_launcher(client._config)
 
     return launcher.start_stream_to_online_ingestion(
-        StreamIngestionJobParameters(
-            jar=client._config.get(CONFIG_SPARK_INGESTION_JOB_JAR),
-            extra_jars=extra_jars,
-            source=_source_to_argument(feature_table.stream_source),
-            feature_table=_feature_table_to_argument(client, project, feature_table),
-            redis_host=client._config.get(CONFIG_REDIS_HOST),
-            redis_port=client._config.getint(CONFIG_REDIS_PORT),
-            redis_ssl=client._config.getboolean(CONFIG_REDIS_SSL),
-            statsd_host=client._config.getboolean(CONFIG_STATSD_ENABLED)
-            and client._config.get(CONFIG_STATSD_HOST),
-            statsd_port=client._config.getboolean(CONFIG_STATSD_ENABLED)
-            and client._config.getint(CONFIG_STATSD_PORT),
-            deadletter_path=client._config.get(CONFIG_DEADLETTER_PATH),
-            stencil_url=client._config.get(CONFIG_STENCIL_URL),
+        get_stream_to_online_ingestion_params(
+            client, project, feature_table, extra_jars
         )
     )
 
@@ -301,3 +309,10 @@ def get_job_by_id(job_id: str, client: "Client") -> SparkJob:
 def stage_dataframe(df, event_timestamp_column: str, client: "Client") -> FileSource:
     launcher = resolve_launcher(client._config)
     return launcher.stage_dataframe(df, event_timestamp_column)
+
+
+def list_jobs_by_hash(
+    client: "Client", include_terminated: bool
+) -> Dict[str, SparkJob]:
+    launcher = resolve_launcher(client._config)
+    return launcher.list_jobs_by_hash(include_terminated=include_terminated)

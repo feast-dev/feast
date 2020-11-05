@@ -288,6 +288,7 @@ class EmrClusterLauncher(JobLauncher):
             extra_jar_paths,
             ingestion_job_params.get_feature_table_name(),
             args=ingestion_job_params.get_arguments(),
+            job_hash=ingestion_job_params.get_job_hash(),
         )
 
         job_ref = self._submit_emr_job(step)
@@ -372,3 +373,17 @@ class EmrClusterLauncher(JobLauncher):
                 return self._job_from_job_info(job_info)
         else:
             raise KeyError(f"Job not found {job_id}")
+
+    def list_jobs_by_hash(self, include_terminated: bool) -> Dict[str, SparkJob]:
+        jobs = _list_jobs(
+            emr_client=self._emr_client(),
+            job_type=None,
+            table_name=None,
+            active_only=not include_terminated,
+        )
+
+        result = {}
+        for job_info in jobs:
+            if job_info.job_hash is not None:
+                result[job_info.job_hash] = self._job_from_job_info(job_info)
+        return result

@@ -1,4 +1,5 @@
 import abc
+import hashlib
 import json
 import os
 from datetime import datetime
@@ -355,6 +356,9 @@ class IngestionJobParameters(SparkJobParameters):
 
         return args
 
+    def get_job_hash(self) -> str:
+        raise NotImplementedError
+
 
 class BatchIngestionJobParameters(IngestionJobParameters):
     def __init__(
@@ -451,6 +455,13 @@ class StreamIngestionJobParameters(IngestionJobParameters):
             "online",
         ]
 
+    def get_job_hash(self) -> str:
+        job_json = json.dumps(
+            {"source": self._source, "feature_table": self._feature_table},
+            sort_keys=True,
+        )
+        return hashlib.md5(job_json.encode()).hexdigest()
+
 
 class BatchIngestionJob(SparkJob):
     """
@@ -535,4 +546,8 @@ class JobLauncher(abc.ABC):
 
     @abc.abstractmethod
     def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def list_jobs_by_hash(self, include_terminated: bool) -> Dict[str, SparkJob]:
         raise NotImplementedError

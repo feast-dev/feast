@@ -1,9 +1,10 @@
 import os
 import socket
 import subprocess
+import threading
 import uuid
 from contextlib import closing
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import requests
 from requests.exceptions import RequestException
@@ -22,9 +23,71 @@ from feast.pyspark.abc import (
     StreamIngestionJobParameters,
 )
 
-# In-memory cache of Spark jobs
-# This is necessary since we can't query Spark jobs in local mode
-JOB_CACHE: Dict[str, SparkJob] = {}
+
+class JobCache:
+    """In-memory cache of Spark jobs.
+
+    This is necessary since we can't query Spark jobs in local mode
+
+    """
+
+    # Map of job_id -> spark job
+    job_by_id: Dict[str, SparkJob]
+
+    # Map of job_id -> job_hash. The value can be None, indicating this job was
+    # manually created and Job Service isn't maintaining the state of this job
+    hash_by_id: Dict[str, Optional[str]]
+
+    # This reentrant lock is necessary for multi-threading access
+    lock: threading.RLock
+
+    def __init__(self):
+        self.job_by_id = {}
+        self.hash_by_id = {}
+        self.lock = threading.RLock()
+
+    def add_job(self, job_id: str, job_hash: Optional[str], job: SparkJob) -> None:
+        """Add a Spark job to the cache with given job_id and job_cache.
+
+        Args:
+            job_id (str): External ID of the Spark Job.
+            job_hash (Optional[str]): Computed hash of the Spark job. If None, Job Service
+                                      will ignore maintaining the state of this Spark job.
+            job (SparkJob): The new Spark job to add.
+        """
+        with self.lock:
+            self.job_by_id[job_id] = job
+            self.hash_by_id[job_id] = job_hash
+
+    def list_jobs(self) -> List[SparkJob]:
+        """List all Spark jobs in the cache."""
+        with self.lock:
+            return list(self.job_by_id.values())
+
+    def get_job_by_id(self, job_id: str) -> SparkJob:
+        """Get a Spark job with the given ID. Throws an exception if such job doesn't exist.
+
+        Args:
+            job_id (str): External ID of the Spark job to get.
+
+        Returns:
+            SparkJob: The Spark job with the given ID.
+        """
+        with self.lock:
+            return self.job_by_id[job_id]
+
+    def list_jobs_by_hash(self) -> Dict[str, SparkJob]:
+        """Get a map of job_hash -> Spark job. Returns only jobs with non-None job hashes."""
+        with self.lock:
+            jobs_by_hash = {}
+            for job_id, job in self.job_by_id.items():
+                job_hash = self.hash_by_id[job_id]
+                if job_hash is not None:
+                    jobs_by_hash[job_hash] = job
+            return jobs_by_hash
+
+
+JOB_CACHE = JobCache()
 
 
 def _find_free_port():
@@ -230,7 +293,7 @@ class StandaloneClusterLauncher(JobLauncher):
             self.spark_submit(job_params),
             job_params.get_destination_path(),
         )
-        JOB_CACHE[job_id] = job
+        JOB_CACHE.add_job(job_id, None, job)
         return job
 
     def offline_to_online_ingestion(
@@ -244,7 +307,7 @@ class StandaloneClusterLauncher(JobLauncher):
             self.spark_submit(ingestion_job_params, ui_port),
             ui_port,
         )
-        JOB_CACHE[job_id] = job
+        JOB_CACHE.add_job(job_id, None, job)
         return job
 
     def start_stream_to_online_ingestion(
@@ -258,22 +321,33 @@ class StandaloneClusterLauncher(JobLauncher):
             self.spark_submit(ingestion_job_params, ui_port),
             ui_port,
         )
-        JOB_CACHE[job_id] = job
+        JOB_CACHE.add_job(job_id, ingestion_job_params.get_job_hash(), job)
         return job
 
     def stage_dataframe(self, df, event_timestamp_column: str):
         raise NotImplementedError
 
     def get_job_by_id(self, job_id: str) -> SparkJob:
-        return JOB_CACHE[job_id]
+        return JOB_CACHE.get_job_by_id(job_id)
 
     def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
         if include_terminated is True:
-            return list(JOB_CACHE.values())
+            return JOB_CACHE.list_jobs()
         else:
             return [
                 job
-                for job in JOB_CACHE.values()
+                for job in JOB_CACHE.list_jobs()
                 if job.get_status()
                 in (SparkJobStatus.STARTING, SparkJobStatus.IN_PROGRESS)
             ]
+
+    def list_jobs_by_hash(self, include_terminated: bool) -> Dict[str, SparkJob]:
+        if include_terminated is True:
+            return JOB_CACHE.list_jobs_by_hash()
+        else:
+            return {
+                job_hash: job
+                for job_hash, job in JOB_CACHE.list_jobs_by_hash().items()
+                if job.get_status()
+                in (SparkJobStatus.STARTING, SparkJobStatus.IN_PROGRESS)
+            }
