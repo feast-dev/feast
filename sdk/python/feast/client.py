@@ -1007,9 +1007,7 @@ class Client:
             )
 
     def get_historical_features_df(
-        self,
-        feature_refs: List[str],
-        entity_source: Union[FileSource, BigQuerySource],
+        self, feature_refs: List[str], entity_source: Union[FileSource, BigQuerySource],
     ):
         """
         Launch a historical feature retrieval job.
