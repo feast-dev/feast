@@ -3,7 +3,6 @@ import tempfile
 import uuid
 from typing import Optional, Tuple
 
-import pyspark
 import pytest
 from pytest_redis.executor import RedisExecutor
 
@@ -29,7 +28,9 @@ def feast_client(
         )
 
     if pytestconfig.getoption("env") == "local":
-        c = Client(
+        import pyspark
+
+        return Client(
             core_url=f"{feast_core[0]}:{feast_core[1]}",
             serving_url=f"{feast_serving[0]}:{feast_serving[1]}",
             spark_launcher="standalone",
@@ -61,6 +62,22 @@ def feast_client(
                 local_staging_path, "historical_output"
             ),
             **job_service_env,
+        )
+    elif pytestconfig.getoption("env") == "aws":
+        return Client(
+            core_url=f"{feast_core[0]}:{feast_core[1]}",
+            serving_url=f"{feast_serving[0]}:{feast_serving[1]}",
+            spark_launcher="emr",
+            emr_cluster_id=pytestconfig.getoption("emr_cluster_id"),
+            emr_region=pytestconfig.getoption("emr_region"),
+            spark_staging_location=os.path.join(local_staging_path, "emr"),
+            emr_log_location=os.path.join(local_staging_path, "emr_logs"),
+            spark_ingestion_jar=ingestion_job_jar,
+            redis_host=pytestconfig.getoption("redis_url").split(":")[0],
+            redis_port=pytestconfig.getoption("redis_url").split(":")[1],
+            historical_feature_output_location=os.path.join(
+                local_staging_path, "historical_output"
+            ),
         )
     else:
         raise KeyError(f"Unknown environment {pytestconfig.getoption('env')}")

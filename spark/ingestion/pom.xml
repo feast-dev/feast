@@ -299,6 +299,10 @@
                                     <pattern>com.google.protobuf</pattern>
                                     <shadedPattern>com.google.protobuf.vendor</shadedPattern>
                                 </relocation>
+                                <relocation>
+                                    <pattern>org.apache.kafka</pattern>
+                                    <shadedPattern>org.apache.kafka.vendor</shadedPattern>
+                                </relocation>
                             </relocations>
                             <filters>
                                 <filter>
