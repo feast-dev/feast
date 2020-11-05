@@ -75,7 +75,9 @@ spec:
         {{- end }}
 
         command:
-        - feast
+        - python
+        - "-m"
+        - "feast.cli"
         - server
         ports:
         - name: http
