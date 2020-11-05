@@ -906,7 +906,6 @@ class Client:
         self,
         feature_refs: List[str],
         entity_source: Union[pd.DataFrame, FileSource, BigQuerySource],
-        project: Optional[str] = None,
         output_location: Optional[str] = None,
     ) -> RetrievalJob:
         """
@@ -928,8 +927,6 @@ class Client:
                 The user needs to make sure that the source (or staging location, if entity_source is
                 a Panda DataFrame) is accessible from the Spark cluster that will be used for the
                 retrieval job.
-            project: Specifies the project that contains the feature tables
-                which the requested features belong to.
             destination_path: Specifies the path in a bucket to write the exported feature data files
 
         Returns:
@@ -945,13 +942,12 @@ class Client:
             >>> feature_refs = ["bookings:bookings_7d", "bookings:booking_14d"]
             >>> entity_source = FileSource("event_timestamp", ParquetFormat(), "gs://some-bucket/customer")
             >>> feature_retrieval_job = feast_client.get_historical_features(
-            >>>     feature_refs, entity_source, project="my_project")
+            >>>     feature_refs, entity_source)
             >>> output_file_uri = feature_retrieval_job.get_output_file_uri()
                 "gs://some-bucket/output/
         """
-        project = project or FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY]
         feature_tables = self._get_feature_tables_from_feature_refs(
-            feature_refs, project
+            feature_refs, self.project
         )
 
         if output_location is None:
@@ -988,7 +984,7 @@ class Client:
                 GetHistoricalFeaturesRequest(
                     feature_refs=feature_refs,
                     entity_source=entity_source.to_proto(),
-                    project=project,
+                    project=self.project,
                     output_format=output_format,
                     output_location=output_location,
                 ),
@@ -1011,10 +1007,7 @@ class Client:
             )
 
     def get_historical_features_df(
-        self,
-        feature_refs: List[str],
-        entity_source: Union[FileSource, BigQuerySource],
-        project: str = None,
+        self, feature_refs: List[str], entity_source: Union[FileSource, BigQuerySource],
     ):
         """
         Launch a historical feature retrieval job.
@@ -1027,8 +1020,6 @@ class Client:
             entity_source (Union[FileSource, BigQuerySource]): Source for the entity rows.
                 The user needs to make sure that the source is accessible from the Spark cluster
                 that will be used for the retrieval job.
-            project: Specifies the project that contains the feature tables
-                which the requested features belong to.
 
         Returns:
                 Returns the historical feature retrieval result in the form of Spark dataframe.
@@ -1043,10 +1034,10 @@ class Client:
             >>> feature_refs = ["bookings:bookings_7d", "bookings:booking_14d"]
             >>> entity_source = FileSource("event_timestamp", ParquetFormat, "gs://some-bucket/customer")
             >>> df = feast_client.get_historical_features(
-            >>>     feature_refs, entity_source, project="my_project")
+            >>>     feature_refs, entity_source)
         """
         feature_tables = self._get_feature_tables_from_feature_refs(
-            feature_refs, project
+            feature_refs, self.project
         )
         return start_historical_feature_retrieval_spark_session(
             client=self,
