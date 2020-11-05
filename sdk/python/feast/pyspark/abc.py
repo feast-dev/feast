@@ -474,6 +474,9 @@ class StreamIngestionJob(SparkJob):
     Container for the streaming ingestion job result
     """
 
+    def get_job_hash(self):
+        raise NotImplementedError
+
 
 class JobLauncher(abc.ABC):
     """

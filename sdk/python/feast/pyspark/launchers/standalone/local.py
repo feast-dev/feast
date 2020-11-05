@@ -87,7 +87,7 @@ class JobCache:
             return jobs_by_hash
 
 
-JOB_CACHE = JobCache()
+job_cache = JobCache()
 
 
 def _find_free_port():
@@ -293,7 +293,7 @@ class StandaloneClusterLauncher(JobLauncher):
             self.spark_submit(job_params),
             job_params.get_destination_path(),
         )
-        JOB_CACHE.add_job(job_id, None, job)
+        job_cache.add_job(job_id, None, job)
         return job
 
     def offline_to_online_ingestion(
@@ -307,7 +307,7 @@ class StandaloneClusterLauncher(JobLauncher):
             self.spark_submit(ingestion_job_params, ui_port),
             ui_port,
         )
-        JOB_CACHE.add_job(job_id, None, job)
+        job_cache.add_job(job_id, None, job)
         return job
 
     def start_stream_to_online_ingestion(
@@ -321,33 +321,33 @@ class StandaloneClusterLauncher(JobLauncher):
             self.spark_submit(ingestion_job_params, ui_port),
             ui_port,
         )
-        JOB_CACHE.add_job(job_id, ingestion_job_params.get_job_hash(), job)
+        job_cache.add_job(job_id, ingestion_job_params.get_job_hash(), job)
         return job
 
     def stage_dataframe(self, df, event_timestamp_column: str):
         raise NotImplementedError
 
     def get_job_by_id(self, job_id: str) -> SparkJob:
-        return JOB_CACHE.get_job_by_id(job_id)
+        return job_cache.get_job_by_id(job_id)
 
     def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
         if include_terminated is True:
-            return JOB_CACHE.list_jobs()
+            return job_cache.list_jobs()
         else:
             return [
                 job
-                for job in JOB_CACHE.list_jobs()
+                for job in job_cache.list_jobs()
                 if job.get_status()
                 in (SparkJobStatus.STARTING, SparkJobStatus.IN_PROGRESS)
             ]
 
     def list_jobs_by_hash(self, include_terminated: bool) -> Dict[str, SparkJob]:
         if include_terminated is True:
-            return JOB_CACHE.list_jobs_by_hash()
+            return job_cache.list_jobs_by_hash()
         else:
             return {
                 job_hash: job
-                for job_hash, job in JOB_CACHE.list_jobs_by_hash().items()
+                for job_hash, job in job_cache.list_jobs_by_hash().items()
                 if job.get_status()
                 in (SparkJobStatus.STARTING, SparkJobStatus.IN_PROGRESS)
             }
