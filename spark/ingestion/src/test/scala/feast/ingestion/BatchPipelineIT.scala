@@ -16,6 +16,8 @@
  */
 package feast.ingestion
 
+import java.nio.file.Paths
+
 import collection.JavaConverters._
 import com.dimafeng.testcontainers.{ForAllTestContainer, GenericContainer}
 import feast.proto.types.ValueProto.ValueType
@@ -210,7 +212,11 @@ class BatchPipelineIT extends SparkSpec with ForAllTestContainer {
     jedis.keys("*").toArray should be(empty)
 
     sparkSession.read
-      .parquet(deadletterConfig.deadLetterPath.get)
+      .parquet(
+        Paths
+          .get(deadletterConfig.deadLetterPath.get, sparkSession.conf.get("spark.app.id"))
+          .toString
+      )
       .count() should be(rows.length)
   }
 

@@ -348,7 +348,12 @@ class IngestionJobParameters(SparkJobParameters):
             args.extend(["--statsd", json.dumps(self._get_statsd_config())])
 
         if self._deadletter_path:
-            args.extend(["--deadletter-path", self._deadletter_path])
+            args.extend(
+                [
+                    "--deadletter-path",
+                    os.path.join(self._deadletter_path, self.get_feature_table_name()),
+                ]
+            )
 
         if self._stencil_url:
             args.extend(["--stencil-url", self._stencil_url])
