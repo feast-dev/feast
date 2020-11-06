@@ -16,14 +16,12 @@
  */
 package feast.ingestion
 
-import java.nio.file.Paths
-
 import feast.ingestion.sources.bq.BigQueryReader
 import feast.ingestion.sources.file.FileReader
 import feast.ingestion.validation.{RowValidator, TypeCheck}
+import org.apache.commons.lang.StringUtils
 import org.apache.spark.SparkEnv
-import org.apache.spark.sql.{Column, SaveMode, SparkSession}
-import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.{SaveMode, SparkSession}
 
 /**
   * Batch Ingestion Flow:
@@ -83,7 +81,7 @@ object BatchPipeline extends BasePipeline {
           .write
           .format("parquet")
           .mode(SaveMode.Append)
-          .save(Paths.get(path, SparkEnv.get.conf.getAppId).toString)
+          .save(StringUtils.stripEnd(path, "/") + "/" + SparkEnv.get.conf.getAppId)
       case _ => None
     }
 

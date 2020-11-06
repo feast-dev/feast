@@ -16,13 +16,12 @@
  */
 package feast.ingestion
 
-import java.nio.file.Paths
-
 import feast.ingestion.registry.proto.ProtoRegistryFactory
 import org.apache.spark.sql.{DataFrame, Row, SaveMode, SparkSession}
 import org.apache.spark.sql.functions.udf
 import feast.ingestion.utils.ProtoReflection
 import feast.ingestion.validation.{RowValidator, TypeCheck}
+import org.apache.commons.lang.StringUtils
 import org.apache.spark.SparkEnv
 import org.apache.spark.sql.streaming.StreamingQuery
 import org.apache.spark.sql.avro._
@@ -97,7 +96,7 @@ object StreamingPipeline extends BasePipeline with Serializable {
               .write
               .format("parquet")
               .mode(SaveMode.Append)
-              .save(Paths.get(path, SparkEnv.get.conf.getAppId).toString)
+              .save(StringUtils.stripEnd(path, "/") + "/" + SparkEnv.get.conf.getAppId)
           case _ =>
             batchDF
               .filter(!validator.checkAll)
