@@ -68,6 +68,7 @@
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
             <version>${scala.fullVersion}</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
