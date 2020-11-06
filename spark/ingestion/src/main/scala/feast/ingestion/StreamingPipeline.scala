@@ -16,8 +16,6 @@
  */
 package feast.ingestion
 
-import java.nio.file.Paths
-
 import feast.ingestion.registry.proto.ProtoRegistryFactory
 import org.apache.spark.sql.{DataFrame, Row, SaveMode, SparkSession}
 import org.apache.spark.sql.functions.udf
