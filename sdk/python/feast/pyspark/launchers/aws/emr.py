@@ -118,8 +118,12 @@ class EmrStreamIngestionJob(EmrJobMixin, StreamIngestionJob):
     Ingestion streaming job for a EMR cluster
     """
 
-    def __init__(self, emr_client, job_ref: EmrJobRef):
+    def __init__(self, emr_client, job_ref: EmrJobRef, job_hash: str):
         super().__init__(emr_client, job_ref)
+        self._job_hash = job_hash
+
+    def get_hash(self) -> str:
+        return self._job_hash
 
 
 class EmrClusterLauncher(JobLauncher):
@@ -283,17 +287,19 @@ class EmrClusterLauncher(JobLauncher):
             else:
                 extra_jar_paths.append(_upload_jar(self._staging_location, extra_jar))
 
+        job_hash = ingestion_job_params.get_job_hash()
+
         step = _stream_ingestion_step(
             jar_s3_path,
             extra_jar_paths,
             ingestion_job_params.get_feature_table_name(),
             args=ingestion_job_params.get_arguments(),
-            job_hash=ingestion_job_params.get_job_hash(),
+            job_hash=job_hash,
         )
 
         job_ref = self._submit_emr_job(step)
 
-        return EmrStreamIngestionJob(self._emr_client(), job_ref)
+        return EmrStreamIngestionJob(self._emr_client(), job_ref, job_hash)
 
     def stage_dataframe(self, df: pandas.DataFrame, event_timestamp: str) -> FileSource:
         with tempfile.NamedTemporaryFile() as f:
@@ -323,8 +329,12 @@ class EmrClusterLauncher(JobLauncher):
                 emr_client=self._emr_client(), job_ref=job_info.job_ref,
             )
         elif job_info.job_type == STREAM_TO_ONLINE_JOB_TYPE:
+            # job_hash must not be None for stream ingestion jobs
+            assert job_info.job_hash is not None
             return EmrStreamIngestionJob(
-                emr_client=self._emr_client(), job_ref=job_info.job_ref,
+                emr_client=self._emr_client(),
+                job_ref=job_info.job_ref,
+                job_hash=job_info.job_hash,
             )
         else:
             # We should never get here
@@ -373,17 +383,3 @@ class EmrClusterLauncher(JobLauncher):
                 return self._job_from_job_info(job_info)
         else:
             raise KeyError(f"Job not found {job_id}")
-
-    def list_jobs_by_hash(self, include_terminated: bool) -> Dict[str, SparkJob]:
-        jobs = _list_jobs(
-            emr_client=self._emr_client(),
-            job_type=None,
-            table_name=None,
-            active_only=not include_terminated,
-        )
-
-        result = {}
-        for job_info in jobs:
-            if job_info.job_hash is not None:
-                result[job_info.job_hash] = self._job_from_job_info(job_info)
-        return result

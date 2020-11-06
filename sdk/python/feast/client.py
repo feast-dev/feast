@@ -18,7 +18,7 @@ import shutil
 import uuid
 from datetime import datetime
 from itertools import groupby
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import grpc
 import pandas as pd
@@ -90,9 +90,10 @@ from feast.loaders.ingest import (
     _write_partitioned_table_from_source,
 )
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
-from feast.pyspark.abc import RetrievalJob, SparkJob
+from feast.pyspark.abc import RetrievalJob, SparkJob, StreamIngestionJob
 from feast.pyspark.launcher import (
     get_job_by_id,
+    get_stream_to_online_ingestion_params,
     list_jobs,
     stage_dataframe,
     start_historical_feature_retrieval_job,
@@ -1098,12 +1099,15 @@ class Client:
             )
 
     def start_stream_to_online_ingestion(
-        self, feature_table: FeatureTable, extra_jars: Optional[List[str]] = None,
+        self,
+        feature_table: FeatureTable,
+        extra_jars: Optional[List[str]] = None,
+        project: str = None,
     ) -> SparkJob:
         if not self._use_job_service:
             return start_stream_to_online_ingestion(
                 client=self,
-                project=self.project,
+                project=project or self.project,
                 feature_table=feature_table,
                 extra_jars=extra_jars or [],
             )
@@ -1113,8 +1117,86 @@ class Client:
             )
             response = self._job_service.StartStreamToOnlineIngestionJob(request)
             return RemoteStreamIngestionJob(
-                self._job_service, self._extra_grpc_params, response.id,
+                self._job_service, self._extra_grpc_params, response.id
             )
+
+    def _get_expected_job_hash_to_table_refs(
+        self, all_projects: bool
+    ) -> Dict[str, Tuple[str, str]]:
+        """
+        Checks all feature tables for the requires project(s) and determines all required stream
+        ingestion jobs from them. Outputs a map of the expected job_hash to a tuple of (project, table_name).
+
+        Args:
+            all_projects (bool): If true, runs the check for all project.
+                Otherwise only checks the current project.
+
+        Returns:
+            Dict[str, Tuple[str, str]]: Map of job_hash -> (project, table_name) for expected stream ingestion jobs
+        """
+        job_hash_to_table_refs = {}
+
+        projects = self.list_projects() if all_projects else [self.project]
+        for project in projects:
+            feature_tables = self.list_feature_tables(project)
+            for feature_table in feature_tables:
+                if feature_table.stream_source is not None:
+                    params = get_stream_to_online_ingestion_params(
+                        self, project, feature_table, []
+                    )
+                    job_hash = params.get_job_hash()
+                    job_hash_to_table_refs[job_hash] = (project, feature_table.name)
+
+        return job_hash_to_table_refs
+
+    def ensure_stream_ingestion_jobs(self, all_projects: bool = False):
+        """Ensures all required stream ingestion jobs are running and cleans up the unnecessary jobs.
+
+        More concretely, it will determine
+        - which stream ingestion jobs are running
+        - which stream ingestion jobs should be running
+        And it'll do 2 kinds of operations
+        - Cancel all running jobs that should not be running
+        - Start all non-existent jobs that should be running
+
+        Args:
+            all_projects (bool, optional): If true, runs the check for all project.
+                Otherwise only checks the current project. Defaults to False.
+        """
+        expected_job_hash_to_table_refs = self._get_expected_job_hash_to_table_refs(
+            all_projects
+        )
+        expected_job_hashes = set(expected_job_hash_to_table_refs.keys())
+
+        jobs_by_hash: Dict[str, StreamIngestionJob] = {}
+        for job in self.list_jobs(include_terminated=False):
+            if isinstance(job, StreamIngestionJob):
+                jobs_by_hash[job.get_hash()] = job
+
+        existing_job_hashes = set(jobs_by_hash.keys())
+
+        job_hashes_to_cancel = existing_job_hashes - expected_job_hashes
+        job_hashes_to_start = expected_job_hashes - existing_job_hashes
+
+        logging.info(
+            f"existing_job_hashes = {sorted(list(existing_job_hashes))} expected_job_hashes = {sorted(list(expected_job_hashes))}"
+        )
+
+        for job_hash in job_hashes_to_cancel:
+            job = jobs_by_hash[job_hash]
+            logging.info(
+                f"Cancelling a stream ingestion job with job_hash={job_hash} job_id={job.get_id()} status={job.get_status()}"
+            )
+            job.cancel()
+
+        for job_hash in job_hashes_to_start:
+            # Any job that we wish to start should be among expected table refs map
+            project, table_name = expected_job_hash_to_table_refs[job_hash]
+            logging.info(
+                f"Starting a stream ingestion job for project={project}, table_name={table_name} with job_hash={job_hash}"
+            )
+            feature_table = self.get_feature_table(name=table_name, project=project)
+            self.start_stream_to_online_ingestion(feature_table, [], project=project)
 
     def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
         if not self._use_job_service:

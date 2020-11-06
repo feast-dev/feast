@@ -46,18 +46,16 @@ class JobCache:
         self.hash_by_id = {}
         self.lock = threading.RLock()
 
-    def add_job(self, job_id: str, job_hash: Optional[str], job: SparkJob) -> None:
-        """Add a Spark job to the cache with given job_id and job_cache.
+    def add_job(self, job: SparkJob) -> None:
+        """Add a Spark job to the cache.
 
         Args:
-            job_id (str): External ID of the Spark Job.
-            job_hash (Optional[str]): Computed hash of the Spark job. If None, Job Service
-                                      will ignore maintaining the state of this Spark job.
             job (SparkJob): The new Spark job to add.
         """
         with self.lock:
-            self.job_by_id[job_id] = job
-            self.hash_by_id[job_id] = job_hash
+            self.job_by_id[job.get_id()] = job
+            if isinstance(job, StreamIngestionJob):
+                self.hash_by_id[job.get_id()] = job.get_hash()
 
     def list_jobs(self) -> List[SparkJob]:
         """List all Spark jobs in the cache."""
@@ -75,16 +73,6 @@ class JobCache:
         """
         with self.lock:
             return self.job_by_id[job_id]
-
-    def list_jobs_by_hash(self) -> Dict[str, SparkJob]:
-        """Get a map of job_hash -> Spark job. Returns only jobs with non-None job hashes."""
-        with self.lock:
-            jobs_by_hash = {}
-            for job_id, job in self.job_by_id.items():
-                job_hash = self.hash_by_id[job_id]
-                if job_hash is not None:
-                    jobs_by_hash[job_hash] = job
-            return jobs_by_hash
 
 
 job_cache = JobCache()
@@ -163,7 +151,19 @@ class StandaloneClusterStreamingIngestionJob(
     Streaming Ingestion job result for a standalone spark cluster
     """
 
-    pass
+    def __init__(
+        self,
+        job_id: str,
+        job_name: str,
+        process: subprocess.Popen,
+        ui_port: int,
+        job_hash: str,
+    ) -> None:
+        super().__init__(job_id, job_name, process, ui_port)
+        self._job_hash = job_hash
+
+    def get_hash(self) -> str:
+        return self._job_hash
 
 
 class StandaloneClusterRetrievalJob(StandaloneClusterJobMixin, RetrievalJob):
@@ -293,7 +293,7 @@ class StandaloneClusterLauncher(JobLauncher):
             self.spark_submit(job_params),
             job_params.get_destination_path(),
         )
-        job_cache.add_job(job_id, None, job)
+        job_cache.add_job(job)
         return job
 
     def offline_to_online_ingestion(
@@ -307,7 +307,7 @@ class StandaloneClusterLauncher(JobLauncher):
             self.spark_submit(ingestion_job_params, ui_port),
             ui_port,
         )
-        job_cache.add_job(job_id, None, job)
+        job_cache.add_job(job)
         return job
 
     def start_stream_to_online_ingestion(
@@ -320,8 +320,9 @@ class StandaloneClusterLauncher(JobLauncher):
             ingestion_job_params.get_name(),
             self.spark_submit(ingestion_job_params, ui_port),
             ui_port,
+            ingestion_job_params.get_job_hash(),
         )
-        job_cache.add_job(job_id, ingestion_job_params.get_job_hash(), job)
+        job_cache.add_job(job)
         return job
 
     def stage_dataframe(self, df, event_timestamp_column: str):
@@ -340,14 +341,3 @@ class StandaloneClusterLauncher(JobLauncher):
                 if job.get_status()
                 in (SparkJobStatus.STARTING, SparkJobStatus.IN_PROGRESS)
             ]
-
-    def list_jobs_by_hash(self, include_terminated: bool) -> Dict[str, SparkJob]:
-        if include_terminated is True:
-            return job_cache.list_jobs_by_hash()
-        else:
-            return {
-                job_hash: job
-                for job_hash, job in job_cache.list_jobs_by_hash().items()
-                if job.get_status()
-                in (SparkJobStatus.STARTING, SparkJobStatus.IN_PROGRESS)
-            }

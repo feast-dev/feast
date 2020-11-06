@@ -8,6 +8,9 @@ from typing import Dict, List, Optional
 
 import pandas
 
+from feast.core.JobService_pb2 import Job as JobProto
+from feast.core.JobService_pb2 import JobStatus as JobStatusProto
+from feast.core.JobService_pb2 import JobType as JobTypeProto
 from feast.data_source import FileSource
 
 
@@ -66,6 +69,27 @@ class SparkJob(abc.ABC):
         Manually terminate job
         """
         raise NotImplementedError
+
+    def to_proto(self) -> JobProto:
+        """Converts SparkJob to the protobuf object.
+
+        Returns:
+            JobProto: Converted protobuf object.
+        """
+        job = JobProto()
+        job.id = self.get_id()
+        status = self.get_status()
+        if status == SparkJobStatus.COMPLETED:
+            job.status = JobStatusProto.JOB_STATUS_DONE
+        elif status == SparkJobStatus.IN_PROGRESS:
+            job.status = JobStatusProto.JOB_STATUS_RUNNING
+        elif status == SparkJobStatus.FAILED:
+            job.status = JobStatusProto.JOB_STATUS_ERROR
+        elif status == SparkJobStatus.STARTING:
+            job.status = JobStatusProto.JOB_STATUS_PENDING
+        else:
+            raise ValueError(f"Invalid job status {status}")
+        return job
 
 
 class SparkJobParameters(abc.ABC):
@@ -290,6 +314,12 @@ class RetrievalJob(SparkJob):
         """
         raise NotImplementedError
 
+    def to_proto(self) -> JobProto:
+        job = super().to_proto()
+        job.type = JobTypeProto.RETRIEVAL_JOB
+        job.retrieval.output_location = self.get_output_file_uri(block=False)
+        return job
+
 
 class IngestionJobParameters(SparkJobParameters):
     def __init__(
@@ -355,9 +385,6 @@ class IngestionJobParameters(SparkJobParameters):
             args.extend(["--stencil-url", self._stencil_url])
 
         return args
-
-    def get_job_hash(self) -> str:
-        raise NotImplementedError
 
 
 class BatchIngestionJobParameters(IngestionJobParameters):
@@ -468,14 +495,33 @@ class BatchIngestionJob(SparkJob):
     Container for the ingestion job result
     """
 
+    def to_proto(self) -> JobProto:
+        job = super().to_proto()
+        job.type = JobTypeProto.BATCH_INGESTION_JOB
+        return job
+
 
 class StreamIngestionJob(SparkJob):
     """
     Container for the streaming ingestion job result
     """
 
-    def get_job_hash(self):
+    def get_hash(self) -> str:
+        """Gets the consistent hash of this stream ingestion job.
+
+        The hash needs to be persisted at the data processing layer, s.t.
+        we can get the same hash when retrieving the job from Spark.
+
+        Returns:
+            str: The hash for this streaming ingestion job
+        """
         raise NotImplementedError
+
+    def to_proto(self) -> JobProto:
+        job = super().to_proto()
+        job.type = JobTypeProto.STREAM_INGESTION_JOB
+        job.hash = self.get_hash()
+        return job
 
 
 class JobLauncher(abc.ABC):
@@ -549,8 +595,4 @@ class JobLauncher(abc.ABC):
 
     @abc.abstractmethod
     def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def list_jobs_by_hash(self, include_terminated: bool) -> Dict[str, SparkJob]:
         raise NotImplementedError
