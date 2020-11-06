@@ -181,7 +181,7 @@ class DataprocStreamingIngestionJob(DataprocJobMixin, StreamIngestionJob):
         cancel_fn: Callable[[], None],
         job_hash: str,
     ) -> None:
-        super.__init__(job, refresh_fn, cancel_fn)
+        super().__init__(job, refresh_fn, cancel_fn)
         self._job_hash = job_hash
 
     def get_hash(self) -> str:
