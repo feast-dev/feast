@@ -245,6 +245,7 @@ class DataprocClusterLauncher(JobLauncher):
                         "jar_file_uris": [main_file_uri] + self.EXTERNAL_JARS,
                         "main_class": job_params.get_class_name(),
                         "args": job_params.get_arguments(),
+                        "properties": {"spark.yarn.user.classpath.first": "true"},
                     }
                 }
             )

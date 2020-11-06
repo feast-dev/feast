@@ -16,6 +16,7 @@
  */
 package feast.ingestion
 
+import java.nio.file.Paths
 import java.util.Properties
 
 import com.dimafeng.testcontainers.{
@@ -165,7 +166,11 @@ class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
     query.processAllAvailable()
 
     sparkSession.read
-      .parquet(configWithDeadletter.deadLetterPath.get)
+      .parquet(
+        Paths
+          .get(configWithDeadletter.deadLetterPath.get, sparkSession.conf.get("spark.app.id"))
+          .toString
+      )
       .count() should be(2 * rows.length)
   }
 

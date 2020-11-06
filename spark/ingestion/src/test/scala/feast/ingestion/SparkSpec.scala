@@ -29,6 +29,16 @@ class SparkSpec extends UnitSpec with BeforeAndAfter {
       .setMaster("local[4]")
       .setAppName("Testing")
       .set("spark.default.parallelism", "8")
+      .set(
+        "spark.metrics.conf.*.source.redis.class",
+        "org.apache.spark.metrics.source.RedisSinkMetricSource"
+      )
+      .set(
+        "spark.metrics.conf.*.sink.statsd.class",
+        "org.apache.spark.metrics.sink.StatsdSinkWithTags"
+      )
+      .set("spark.metrics.conf.*.sink.statsd.host", "localhost")
+      .set("spark.metrics.conf.*.sink.statsd.port", "8125")
 
     sparkSession = SparkSession
       .builder()
