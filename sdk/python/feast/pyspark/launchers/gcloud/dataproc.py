@@ -174,6 +174,19 @@ class DataprocStreamingIngestionJob(DataprocJobMixin, StreamIngestionJob):
     Streaming Ingestion job result for a Dataproc cluster
     """
 
+    def __init__(
+        self,
+        job: Job,
+        refresh_fn: Callable[[], Job],
+        cancel_fn: Callable[[], None],
+        job_hash: str,
+    ) -> None:
+        super.__init__(job, refresh_fn, cancel_fn)
+        self._job_hash = job_hash
+
+    def get_hash(self) -> str:
+        return self._job_hash
+
 
 class DataprocClusterLauncher(JobLauncher):
     """
@@ -184,6 +197,7 @@ class DataprocClusterLauncher(JobLauncher):
 
     EXTERNAL_JARS = ["gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar"]
     JOB_TYPE_LABEL_KEY = "feast_job_type"
+    JOB_HASH_LABEL_KEY = "feast_job_hash"
 
     def __init__(
         self, cluster_name: str, staging_location: str, region: str, project_id: str,
@@ -238,6 +252,11 @@ class DataprocClusterLauncher(JobLauncher):
             "placement": {"cluster_name": self.cluster_name},
             "labels": {self.JOB_TYPE_LABEL_KEY: job_params.get_job_type().name.lower()},
         }
+
+        # Add job hash to labels only for the stream ingestion job
+        if isinstance(job_params, StreamIngestionJobParameters):
+            job_config["labels"][self.JOB_HASH_LABEL_KEY] = job_params.get_job_hash()
+
         if job_params.get_class_name():
             job_config.update(
                 {
@@ -301,7 +320,8 @@ class DataprocClusterLauncher(JobLauncher):
         self, ingestion_job_params: StreamIngestionJobParameters
     ) -> StreamIngestionJob:
         job, refresh_fn, cancel_fn = self.dataproc_submit(ingestion_job_params)
-        return DataprocStreamingIngestionJob(job, refresh_fn, cancel_fn)
+        job_hash = ingestion_job_params.get_job_hash()
+        return DataprocStreamingIngestionJob(job, refresh_fn, cancel_fn, job_hash)
 
     def stage_dataframe(self, df, event_timestamp_column: str):
         raise NotImplementedError
@@ -331,7 +351,8 @@ class DataprocClusterLauncher(JobLauncher):
             return DataprocBatchIngestionJob(job, refresh_fn, cancel_fn)
 
         if job_type == SparkJobType.STREAM_INGESTION.name.lower():
-            return DataprocStreamingIngestionJob(job, refresh_fn, cancel_fn)
+            job_hash = job.labels[self.JOB_HASH_LABEL_KEY]
+            return DataprocStreamingIngestionJob(job, refresh_fn, cancel_fn, job_hash)
 
         raise ValueError(f"Unrecognized job type: {job_type}")
 
@@ -345,6 +366,3 @@ class DataprocClusterLauncher(JobLauncher):
                 project_id=self.project_id, region=self.region, filter=job_filter
             )
         ]
-
-    def list_jobs_by_hash(self, include_terminated: bool) -> Dict[str, SparkJob]:
-        raise NotImplementedError

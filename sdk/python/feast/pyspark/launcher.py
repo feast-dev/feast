@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, List, Union
+from typing import TYPE_CHECKING, List, Union
 
 from feast.config import Config
 from feast.constants import (
@@ -309,10 +309,3 @@ def get_job_by_id(job_id: str, client: "Client") -> SparkJob:
 def stage_dataframe(df, event_timestamp_column: str, client: "Client") -> FileSource:
     launcher = resolve_launcher(client._config)
     return launcher.stage_dataframe(df, event_timestamp_column)
-
-
-def list_jobs_by_hash(
-    client: "Client", include_terminated: bool
-) -> Dict[str, SparkJob]:
-    launcher = resolve_launcher(client._config)
-    return launcher.list_jobs_by_hash(include_terminated=include_terminated)
