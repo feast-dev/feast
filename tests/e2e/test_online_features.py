@@ -247,7 +247,7 @@ def check_consumer_exist(bootstrap_servers, topic_name):
         group_ids=[
             group_id
             for group_id, _ in admin.list_consumer_groups()
-            if group_id.startswith("feast-kafka-reader")
+            if group_id.startswith("spark-kafka-source")
         ]
     )
     subscriptions = {

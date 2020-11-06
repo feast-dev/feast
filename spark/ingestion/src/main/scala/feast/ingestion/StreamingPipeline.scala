@@ -53,7 +53,6 @@ object StreamingPipeline extends BasePipeline with Serializable {
           .format("kafka")
           .option("kafka.bootstrap.servers", source.bootstrapServers)
           .option("subscribe", source.topic)
-          .option("groupIdPrefix", "feast-kafka-reader")
           .load()
     }
 
