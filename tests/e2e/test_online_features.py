@@ -244,7 +244,11 @@ def send_avro_record_to_kafka(topic, value, bootstrap_servers, avro_schema_json)
 def check_consumer_exist(bootstrap_servers, topic_name):
     admin = KafkaAdminClient(bootstrap_servers=bootstrap_servers)
     consumer_groups = admin.describe_consumer_groups(
-        group_ids=[group_id for group_id, _ in admin.list_consumer_groups()]
+        group_ids=[
+            group_id
+            for group_id, _ in admin.list_consumer_groups()
+            if group_id.startswith("feast-kafka-reader")
+        ]
     )
     subscriptions = {
         subscription
