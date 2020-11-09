@@ -63,7 +63,7 @@ trait BasePipeline {
     jobConfig.stencilURL match {
       case Some(url: String) =>
         conf
-          .set("feast.ingestion.registry.proto.kind", "local")
+          .set("feast.ingestion.registry.proto.kind", "stencil")
           .set("feast.ingestion.registry.proto.url", url)
       case None => ()
     }

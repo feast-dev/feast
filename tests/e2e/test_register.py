@@ -63,7 +63,6 @@ def basic_featuretable():
         message_format=ProtoFormat(class_path="class.path"),
         topic="test_topic",
         event_timestamp_column="datetime_col",
-        created_timestamp_column="timestamp",
     )
     return FeatureTable(
         name="basic_featuretable",

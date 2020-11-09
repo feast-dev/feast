@@ -611,10 +611,10 @@ class KafkaSource(DataSource):
     def __init__(
         self,
         event_timestamp_column: str,
-        created_timestamp_column: str,
         bootstrap_servers: str,
         message_format: StreamFormat,
         topic: str,
+        created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = dict(),
         date_partition_column: Optional[str] = "",
     ):
