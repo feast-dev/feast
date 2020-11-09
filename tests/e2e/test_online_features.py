@@ -119,10 +119,9 @@ def test_streaming_ingestion(
             file_url=os.path.join(local_staging_path, "batch-storage"),
         ),
         stream_source=KafkaSource(
-            "event_timestamp",
-            "event_timestamp",
-            kafka_broker,
-            AvroFormat(avro_schema()),
+            event_timestamp_column="event_timestamp",
+            bootstrap_servers=kafka_broker,
+            message_format=AvroFormat(avro_schema()),
             topic=topic_name,
         ),
     )

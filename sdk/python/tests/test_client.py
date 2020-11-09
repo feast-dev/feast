@@ -411,7 +411,6 @@ class TestClient:
             message_format=ProtoFormat("class.path"),
             topic="test_topic",
             event_timestamp_column="ts_col",
-            created_timestamp_column="timestamp",
         )
 
         ft1 = FeatureTable(
