@@ -22,9 +22,15 @@ import com.gojek.de.stencil.StencilClientFactory
 import com.gojek.de.stencil.client.StencilClient
 
 class StencilProtoRegistry(val url: String) extends ProtoRegistry {
+  @transient
+  private var _stencilClient: StencilClient = _
 
-  val stencilClient: StencilClient =
-    StencilClientFactory.getClient(url, Collections.emptyMap[String, String])
+  def stencilClient: StencilClient = {
+    if (_stencilClient == null) {
+      _stencilClient = StencilClientFactory.getClient(url, Collections.emptyMap[String, String])
+    }
+    _stencilClient
+  }
 
   override def getProtoDescriptor(className: String): Descriptors.Descriptor = {
     stencilClient.get(className)
