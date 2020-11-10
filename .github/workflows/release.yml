@@ -13,6 +13,7 @@ jobs:
       version_without_prefix: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
       highest_semver_tag: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
     steps:
+    - uses: actions/checkout@v2
     - name: Get release version
       id: get_release_version
       run: echo ::set-output name=release_version::${GITHUB_REF#refs/*/}
