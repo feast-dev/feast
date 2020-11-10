@@ -16,6 +16,11 @@ from feast.core.JobService_pb2 import (
     GetHistoricalFeaturesRequest,
     GetHistoricalFeaturesResponse,
     GetJobResponse,
+)
+from feast.core.JobService_pb2 import Job as JobProto
+from feast.core.JobService_pb2 import (
+    JobStatus,
+    JobType,
     ListJobsResponse,
     StartOfflineToOnlineIngestionJobRequest,
     StartOfflineToOnlineIngestionJobResponse,
@@ -23,7 +28,13 @@ from feast.core.JobService_pb2 import (
     StartStreamToOnlineIngestionJobResponse,
 )
 from feast.data_source import DataSource
-from feast.pyspark.abc import StreamIngestionJob
+from feast.pyspark.abc import (
+    BatchIngestionJob,
+    RetrievalJob,
+    SparkJob,
+    SparkJobStatus,
+    StreamIngestionJob,
+)
 from feast.pyspark.launcher import (
     get_job_by_id,
     get_stream_to_online_ingestion_params,
@@ -37,6 +48,34 @@ from feast.third_party.grpc.health.v1.HealthService_pb2 import (
     HealthCheckResponse,
     ServingStatus,
 )
+
+
+def _job_to_proto(self, spark_job: SparkJob) -> JobProto:
+    job = JobProto()
+    job.id = spark_job.get_id()
+    status = spark_job.get_status()
+    if status == SparkJobStatus.COMPLETED:
+        job.status = JobStatus.JOB_STATUS_DONE
+    elif status == SparkJobStatus.IN_PROGRESS:
+        job.status = JobStatus.JOB_STATUS_RUNNING
+    elif status == SparkJobStatus.FAILED:
+        job.status = JobStatus.JOB_STATUS_ERROR
+    elif status == SparkJobStatus.STARTING:
+        job.status = JobStatus.JOB_STATUS_PENDING
+    else:
+        raise ValueError(f"Invalid job status {status}")
+
+    if isinstance(spark_job, RetrievalJob):
+        job.type = JobType.RETRIEVAL_JOB
+        job.retrieval.output_location = spark_job.get_output_file_uri(block=False)
+    elif isinstance(spark_job, BatchIngestionJob):
+        job.type = JobType.BATCH_INGESTION_JOB
+    elif isinstance(spark_job, StreamIngestionJob):
+        job.type = JobType.STREAM_INGESTION_JOB
+    else:
+        raise ValueError(f"Invalid job type {job}")
+
+    return job
 
 
 class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
@@ -114,7 +153,7 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
         jobs = list_jobs(
             include_terminated=request.include_terminated, client=self.client
         )
-        return ListJobsResponse(jobs=[job.to_proto() for job in jobs])
+        return ListJobsResponse(jobs=[_job_to_proto(job) for job in jobs])
 
     def CancelJob(self, request, context):
         """Stop a single job"""
