@@ -1,10 +1,12 @@
 # Changelog
-## [v0.8.0](https://github.com/feast-dev/feast/tree/v0.8.0) (2020-11-03)
+## [v0.8.0](https://github.com/feast-dev/feast/tree/v0.8.0) (2020-11-10)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.7.1...v0.8.0)
 
 **Implemented enhancements:**
 
+- Implement JobService API calls & connect it to SDK [\#1129](https://github.com/feast-dev/feast/pull/1129) ([tsotnet](https://github.com/tsotnet))
+- Allow user to specify custom secrets to be mounted on Feast Serving and Feast Core pods [\#1127](https://github.com/feast-dev/feast/pull/1127) ([khorshuheng](https://github.com/khorshuheng))
 - Allow spark expressions in field mapping during Ingestion [\#1122](https://github.com/feast-dev/feast/pull/1122) ([pyalex](https://github.com/pyalex))
 - Update rest endpoints [\#1121](https://github.com/feast-dev/feast/pull/1121) ([terryyylim](https://github.com/terryyylim))
 - Add feature table deletion [\#1114](https://github.com/feast-dev/feast/pull/1114) ([terryyylim](https://github.com/terryyylim))
@@ -41,12 +43,28 @@
 
 **Fixed bugs:**
 
+- Fix stencil client serialization issue [\#1147](https://github.com/feast-dev/feast/pull/1147) ([pyalex](https://github.com/pyalex))
+- Deadletter path is being incorrectly joined [\#1144](https://github.com/feast-dev/feast/pull/1144) ([pyalex](https://github.com/pyalex))
+- In Historical Retrieval \(SDK\) use project from client context [\#1138](https://github.com/feast-dev/feast/pull/1138) ([pyalex](https://github.com/pyalex))
+- Pass project from context to get entities [\#1137](https://github.com/feast-dev/feast/pull/1137) ([pyalex](https://github.com/pyalex))
+- JobService is in crashloop after installing helm chart [\#1135](https://github.com/feast-dev/feast/pull/1135) ([pyalex](https://github.com/pyalex))
 - Fix env var names for jupyter terraform config [\#1085](https://github.com/feast-dev/feast/pull/1085) ([oavdeev](https://github.com/oavdeev))
 - Fix java class name validation [\#1084](https://github.com/feast-dev/feast/pull/1084) ([oavdeev](https://github.com/oavdeev))
 - Multiple tiny AWS related fixes [\#1083](https://github.com/feast-dev/feast/pull/1083) ([oavdeev](https://github.com/oavdeev))
 
 **Merged pull requests:**
 
+- Make created\_timestamp property optional in KafkaSource [\#1146](https://github.com/feast-dev/feast/pull/1146) ([pyalex](https://github.com/pyalex))
+- In Streaming E2E Test filter kafka consumers by group id prefix [\#1145](https://github.com/feast-dev/feast/pull/1145) ([pyalex](https://github.com/pyalex))
+- Limit concurrency on e2e test runs to 1 [\#1142](https://github.com/feast-dev/feast/pull/1142) ([oavdeev](https://github.com/oavdeev))
+- Update prow trigger for AWS [\#1139](https://github.com/feast-dev/feast/pull/1139) ([oavdeev](https://github.com/oavdeev))
+- e2e test fixes to make them work on AWS [\#1132](https://github.com/feast-dev/feast/pull/1132) ([oavdeev](https://github.com/oavdeev))
+- Add feature table name & job id to deadletter destination [\#1143](https://github.com/feast-dev/feast/pull/1143) ([pyalex](https://github.com/pyalex))
+- Drop hardcoded FEAST\_CORE\_URL env from JobService helm chart [\#1136](https://github.com/feast-dev/feast/pull/1136) ([pyalex](https://github.com/pyalex))
+- Add Prow to AWS codebuild trigger [\#1133](https://github.com/feast-dev/feast/pull/1133) ([oavdeev](https://github.com/oavdeev))
+- Optional IngestionJob parameters passed by Spark Launcher [\#1130](https://github.com/feast-dev/feast/pull/1130) ([pyalex](https://github.com/pyalex))
+- Wait for job to be ready before cancelling [\#1126](https://github.com/feast-dev/feast/pull/1126) ([khorshuheng](https://github.com/khorshuheng))
+- Ability to run e2e tests in non-default project [\#1125](https://github.com/feast-dev/feast/pull/1125) ([pyalex](https://github.com/pyalex))
 - Ensure job is completed when ingesting to BQ [\#1123](https://github.com/feast-dev/feast/pull/1123) ([terryyylim](https://github.com/terryyylim))
 - Add end-to-end Prow Job launcher for AWS tests [\#1118](https://github.com/feast-dev/feast/pull/1118) ([woop](https://github.com/woop))
 - Add confluent kafka installation to minimal notebook [\#1116](https://github.com/feast-dev/feast/pull/1116) ([woop](https://github.com/woop))
