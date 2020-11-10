@@ -5,6 +5,7 @@ import threading
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
+from typing import Dict, List, Tuple
 
 import grpc
 
@@ -167,11 +168,11 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
         return GetJobResponse(job=job.to_proto())
 
 
-def start_control_loop():
+def start_control_loop() -> None:
     """Starts control loop that continuously ensures that correct jobs are being run.
 
     Currently this affects only the stream ingestion jobs. Please refer to
-    Client:ensure_stream_ingestion_jobs for full documentation on how the check works.
+    ensure_stream_ingestion_jobs for full documentation on how the check works.
 
     """
     logging.info(
@@ -181,7 +182,7 @@ def start_control_loop():
     try:
         client = feast.Client()
         while True:
-            client.ensure_stream_ingestion_jobs(all_projects=True)
+            ensure_stream_ingestion_jobs(client, all_projects=True)
             time.sleep(1)
     except Exception:
         traceback.print_exc()
@@ -201,7 +202,7 @@ class LoggingInterceptor(grpc.ServerInterceptor):
         return continuation(handler_call_details)
 
 
-def start_job_service():
+def start_job_service() -> None:
     """
     Start Feast Job Service
     """
@@ -225,3 +226,86 @@ def start_job_service():
     server.start()
     logging.info("Feast Job Service is listening on port :6568")
     server.wait_for_termination()
+
+
+def _get_expected_job_hash_to_table_refs(
+    client: feast.Client, projects: List[str]
+) -> Dict[str, Tuple[str, str]]:
+    """
+    Checks all feature tables for the requires project(s) and determines all required stream
+    ingestion jobs from them. Outputs a map of the expected job_hash to a tuple of (project, table_name).
+
+    Args:
+        all_projects (bool): If true, runs the check for all project.
+            Otherwise only checks the current project.
+
+    Returns:
+        Dict[str, Tuple[str, str]]: Map of job_hash -> (project, table_name) for expected stream ingestion jobs
+    """
+    job_hash_to_table_refs = {}
+
+    for project in projects:
+        feature_tables = client.list_feature_tables(project)
+        for feature_table in feature_tables:
+            if feature_table.stream_source is not None:
+                params = get_stream_to_online_ingestion_params(
+                    client, project, feature_table, []
+                )
+                job_hash = params.get_job_hash()
+                job_hash_to_table_refs[job_hash] = (project, feature_table.name)
+
+    return job_hash_to_table_refs
+
+
+def ensure_stream_ingestion_jobs(client: feast.Client, all_projects: bool):
+    """Ensures all required stream ingestion jobs are running and cleans up the unnecessary jobs.
+
+    More concretely, it will determine
+    - which stream ingestion jobs are running
+    - which stream ingestion jobs should be running
+    And it'll do 2 kinds of operations
+    - Cancel all running jobs that should not be running
+    - Start all non-existent jobs that should be running
+
+    Args:
+        all_projects (bool): If true, runs the check for all project.
+                             Otherwise only checks the client's current project.
+    """
+
+    projects = client.list_projects() if all_projects else [client.project]
+
+    expected_job_hash_to_table_refs = _get_expected_job_hash_to_table_refs(
+        client, projects
+    )
+
+    expected_job_hashes = set(expected_job_hash_to_table_refs.keys())
+
+    jobs_by_hash: Dict[str, StreamIngestionJob] = {}
+    for job in client.list_jobs(include_terminated=False):
+        if isinstance(job, StreamIngestionJob):
+            jobs_by_hash[job.get_hash()] = job
+
+    existing_job_hashes = set(jobs_by_hash.keys())
+
+    job_hashes_to_cancel = existing_job_hashes - expected_job_hashes
+    job_hashes_to_start = expected_job_hashes - existing_job_hashes
+
+    logging.debug(
+        f"existing_job_hashes = {sorted(list(existing_job_hashes))} expected_job_hashes = {sorted(list(expected_job_hashes))}"
+    )
+
+    for job_hash in job_hashes_to_cancel:
+        job = jobs_by_hash[job_hash]
+        logging.info(
+            f"Cancelling a stream ingestion job with job_hash={job_hash} job_id={job.get_id()} status={job.get_status()}"
+        )
+        job.cancel()
+
+    for job_hash in job_hashes_to_start:
+        # Any job that we wish to start should be among expected table refs map
+        project, table_name = expected_job_hash_to_table_refs[job_hash]
+        logging.info(
+            f"Starting a stream ingestion job for project={project}, table_name={table_name} with job_hash={job_hash}"
+        )
+        feature_table = client.get_feature_table(name=table_name, project=project)
+        client.start_stream_to_online_ingestion(feature_table, [], project=project)

@@ -479,8 +479,8 @@ class StreamIngestionJob(SparkJob):
     def get_hash(self) -> str:
         """Gets the consistent hash of this stream ingestion job.
 
-        The hash needs to be persisted at the data processing layer, s.t.
-        we can get the same hash when retrieving the job from Spark.
+        The hash needs to be persisted at the data processing layer, so that we can get the same
+        hash when retrieving the job from Spark.
 
         Returns:
             str: The hash for this streaming ingestion job
