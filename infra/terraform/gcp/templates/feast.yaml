@@ -1,0 +1,64 @@
+redis:
+  enabled: false
+
+kafka:
+  enabled: true
+  externalAccess:
+    enabled: true
+    service:
+      type: LoadBalancer
+      port: 9094
+      loadBalancerIPs:
+        - ${kafka_broker_ip}
+      loadBalancerSourceRanges:
+        - 10.0.0.0/8
+      annotations:
+        cloud.google.com/load-balancer-type: Internal
+
+grafana:
+  enabled: false
+
+postgresql:
+  existingSecret: ${postgres_secret_name}
+
+feast-core:
+  postgresql:
+    existingSecret: ${postgres_secret_name}
+
+feast-online-serving:
+  enabled: true
+  application-override.yaml:
+    feast:
+      core-host: ${feast_core_host}
+      core-grpc-port: ${feast_core_port}
+      active_store: online_store
+      stores:
+        - name: online_store
+          type: REDIS
+          config:
+            host: ${redis_host}
+            port: 6379
+          subscriptions:
+            - name: "*"
+              project: default
+
+
+feast-jupyter:
+  enabled: true
+  envOverrides:
+    feast_redis_host: ${redis_host}
+    feast_redis_port: 6379
+    feast_spark_launcher: dataproc
+    feast_dataproc_cluster_name: ${dataproc_cluster_name}
+    feast_dataproc_project: ${dataproc_project}
+    feast_dataproc_region: ${dataproc_region}
+    feast_spark_staging_location: gs://${dataproc_staging_bucket}/artifacts/
+    feast_historical_feature_output_location: gs://${dataproc_staging_bucket}/out/
+    feast_historical_feature_output_format: parquet
+    demo_kafka_brokers: ${kafka_broker_ip}:9094
+    demo_data_location: gs://${dataproc_staging_bucket}/test-data/"
+
+  gcpServiceAccount:
+    enabled: true
+    name: ${gcp_service_account_secret_name}
+    key: ${gcp_service_account_secret_key}
