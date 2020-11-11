@@ -48,7 +48,7 @@ jobs:
     needs: get-version
     strategy:
       matrix:
-        component: [core, serving, jupyter]
+        component: [core, serving, jobservice, jupyter]
     env:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
       DOCKER_BUILDKIT: '1'
