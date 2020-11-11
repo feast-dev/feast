@@ -27,18 +27,18 @@ jobs:
           infra/scripts/download-maven-cache.sh \
           --archive-uri ${MAVEN_CACHE} \
           --output-dir .
+      - name: Get version
+        run: echo ::set-env name=RELEASE_VERSION::${GITHUB_REF#refs/*/}
       - name: Build image
-        run: make build-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA}
+        run: make build-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA} REVISION=${RELEASE_VERSION}
       - name: Push image
-        run: make push-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA}
+        run: make push-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA} REVISION=${RELEASE_VERSION}
       - name: Push development Docker image
         run: |
           if [ ${GITHUB_REF#refs/*/} == "master" ]; then
             docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:develop
             docker push gcr.io/kf-feast/feast-${{ matrix.component }}:develop
           fi
-      - name: Get version
-        run: echo ::set-env name=RELEASE_VERSION::${GITHUB_REF#refs/*/}
       - name: Push versioned Docker image
         run: |
           source infra/scripts/setup-common-functions.sh
