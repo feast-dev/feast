@@ -51,7 +51,7 @@ from feast.third_party.grpc.health.v1.HealthService_pb2 import (
 )
 
 
-def _job_to_proto(self, spark_job: SparkJob) -> JobProto:
+def _job_to_proto(spark_job: SparkJob) -> JobProto:
     job = JobProto()
     job.id = spark_job.get_id()
     status = spark_job.get_status()
@@ -165,7 +165,7 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
     def GetJob(self, request, context):
         """Get details of a single job"""
         job = get_job_by_id(request.job_id, client=self.client)
-        return GetJobResponse(job=job.to_proto())
+        return GetJobResponse(job=_job_to_proto(job))
 
 
 def start_control_loop() -> None:
