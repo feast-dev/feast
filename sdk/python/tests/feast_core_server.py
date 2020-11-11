@@ -11,6 +11,8 @@ from feast.core.CoreService_pb2 import (
     ApplyEntityResponse,
     ApplyFeatureTableRequest,
     ApplyFeatureTableResponse,
+    DeleteFeatureTableRequest,
+    DeleteFeatureTableResponse,
     GetEntityRequest,
     GetEntityResponse,
     GetFeastCoreVersionResponse,
@@ -20,6 +22,7 @@ from feast.core.CoreService_pb2 import (
     ListEntitiesResponse,
     ListFeatureTablesRequest,
     ListFeatureTablesResponse,
+    ListProjectsResponse,
 )
 from feast.core.Entity_pb2 import Entity as EntityProto
 from feast.core.Entity_pb2 import EntityMeta
@@ -66,6 +69,7 @@ class CoreServicer(Core.CoreServiceServicer):
     def __init__(self):
         self._feature_tables = dict()
         self._entities = dict()
+        self._projects = ["default"]
 
     def GetFeastCoreVersion(self, request, context):
         return GetFeastCoreVersionResponse(version="0.10.0")
@@ -105,6 +109,10 @@ class CoreServicer(Core.CoreServiceServicer):
 
         return ApplyFeatureTableResponse(table=applied_feature_table,)
 
+    def DeleteFeatureTable(self, request: DeleteFeatureTableRequest, context):
+        del self._feature_tables[request.name]
+        return DeleteFeatureTableResponse()
+
     def GetEntity(self, request: GetEntityRequest, context):
         filtered_entities = [
             entity
@@ -118,6 +126,9 @@ class CoreServicer(Core.CoreServiceServicer):
         filtered_entities_response = list(self._entities.values())
 
         return ListEntitiesResponse(entities=filtered_entities_response)
+
+    def ListProjects(self, request, context):
+        return ListProjectsResponse(projects=self._projects)
 
     def ApplyEntity(self, request: ApplyEntityRequest, context):
         entity_spec = request.spec
