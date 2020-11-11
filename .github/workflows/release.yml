@@ -80,6 +80,7 @@ jobs:
           RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
         with:
           push: true
+          context: infra/docker/${{ matrix.component }}
           file: infra/docker/${{ matrix.component }}/Dockerfile
           tags: feastdev/feast-${{ matrix.component }}:${{ needs.get-version.outputs.release_version }}
           build-args: |
@@ -93,6 +94,7 @@ jobs:
         with:
           if: ${VERSION_WITHOUT_PREFIX} == ${HIGHEST_SEMVER_TAG:1}
           push: true
+          context: infra/docker/${{ matrix.component }}
           file: infra/docker/${{ matrix.component }}/Dockerfile
           tags: feastdev/feast-${{ matrix.component }}:latest
           build-args: |
