@@ -91,7 +91,8 @@ case class FeatureTable(
     name: String,
     project: String,
     entities: Seq[Field],
-    features: Seq[Field]
+    features: Seq[Field],
+    maxAge: Option[Int] = None
 )
 
 case class IngestionJobConfig(

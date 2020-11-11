@@ -16,21 +16,22 @@
  */
 package feast.ingestion.stores.redis
 
-import com.google.protobuf.Timestamp
-import com.redislabs.provider.redis.{ReadWriteConfig, RedisConfig, RedisEndpoint, RedisNode}
-import redis.clients.jedis.util.JedisClusterCRC16
-import com.redislabs.provider.redis.util.PipelineUtils.{foreachWithPipeline, mapWithPipeline}
-import feast.ingestion.utils.TypeConversion
-import org.apache.spark.SparkEnv
-import org.apache.spark.metrics.source.RedisSinkMetricSource
-import org.apache.spark.sql.sources.{BaseRelation, InsertableRelation}
-import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.{DataFrame, Row, SQLContext}
+import java.util
 
-import collection.JavaConverters._
+import com.redislabs.provider.redis.util.PipelineUtils.{foreachWithPipeline, mapWithPipeline}
+import com.redislabs.provider.redis.{ReadWriteConfig, RedisConfig, RedisEndpoint, RedisNode}
+import feast.ingestion.utils.TypeConversion
 import feast.proto.storage.RedisProto.RedisKeyV2
 import feast.proto.types.ValueProto
+import org.apache.spark.SparkEnv
+import org.apache.spark.metrics.source.RedisSinkMetricSource
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.sources.{BaseRelation, InsertableRelation}
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.{DataFrame, Row, SQLContext}
+import redis.clients.jedis.util.JedisClusterCRC16
+
+import scala.collection.JavaConverters._
 
 /**
   * High-level writer to Redis. Relies on `Persistence` implementation for actual storage layout.
@@ -57,7 +58,7 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
 
   override def schema: StructType = ???
 
-  val persistence: Persistence = new HashTypePersistence(config)
+  val persistence: Persistence[util.Map[Array[Byte], Array[Byte]]] = new HashTypePersistence(config)
 
   override def insert(data: DataFrame, overwrite: Boolean): Unit = {
     // repartition for deduplication
@@ -75,27 +76,26 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
 
         groupKeysByNode(redisConfig.hosts, rowsWithKey.keysIterator).foreach { case (node, keys) =>
           val conn = node.connect()
-          // retrieve latest stored timestamp per key
-          val timestamps = mapWithPipeline(conn, keys) { (pipeline, key) =>
-            persistence.getTimestamp(pipeline, key.toByteArray, timestampField)
-          }
+          // retrieve latest stored values
+          val storedValues = mapWithPipeline(conn, keys) { (pipeline, key) =>
+            persistence.get(pipeline, key.toByteArray)
+          }.map(_.asInstanceOf[util.Map[Array[Byte], Array[Byte]]])
 
-          val timestampByKey = timestamps
-            .map(_.asInstanceOf[Array[Byte]])
-            .map(
-              Option(_)
-                .map(Timestamp.parseFrom)
-                .map(t => new java.sql.Timestamp(t.getSeconds * 1000))
-            )
-            .zip(keys)
-            .map(_.swap)
+          val timestamps     = storedValues.map(persistence.storedTimestamp)
+          val timestampByKey = keys.zip(timestamps).toMap
+
+          val expiryTimestampByKey = keys
+            .zip(storedValues)
+            .map { case (key, storedValue) =>
+              (key, persistence.newExpiryTimestamp(rowsWithKey(key), storedValue))
+            }
             .toMap
 
           foreachWithPipeline(conn, keys) { (pipeline, key) =>
-            val row = rowsWithKey(key)
+            val row               = rowsWithKey(key)
 
             timestampByKey(key) match {
-              case Some(t) if !t.before(row.getAs[java.sql.Timestamp](config.timestampColumn)) => ()
+              case Some(t) if (!t.before(row.getAs[java.sql.Timestamp](config.timestampColumn))) => ()
               case _ =>
                 if (metricSource.nonEmpty) {
                   val lag = System.currentTimeMillis() - row
@@ -105,9 +105,7 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
                   metricSource.get.METRIC_TOTAL_ROWS_INSERTED.inc()
                   metricSource.get.METRIC_ROWS_LAG.update(lag)
                 }
-
-                val encodedRow = persistence.encodeRow(config.entityColumns, timestampField, row)
-                persistence.save(pipeline, key.toByteArray, encodedRow, ttl = 0)
+                persistence.save(pipeline, key.toByteArray, row, expiryTimestampByKey(key))
             }
           }
           conn.close()
@@ -140,10 +138,6 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
       .addAllEntityNames(sortedEntities.asJava)
       .addAllEntityValues(entityValues.asJava)
       .build
-  }
-
-  private def timestampField: String = {
-    s"${config.timestampPrefix}:${config.namespace}"
   }
 
   private lazy val metricSource: Option[RedisSinkMetricSource] =

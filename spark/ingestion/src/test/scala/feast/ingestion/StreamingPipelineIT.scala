@@ -17,6 +17,7 @@
 package feast.ingestion
 
 import java.nio.file.Paths
+import java.sql
 import java.util.Properties
 
 import com.dimafeng.testcontainers.{
@@ -30,6 +31,7 @@ import org.apache.spark.SparkConf
 import org.joda.time.DateTime
 import org.apache.kafka.clients.producer._
 import com.example.protos.{AllTypesMessage, InnerMessage, TestMessage, VehicleType}
+import com.google.protobuf.util.Timestamps
 import com.google.protobuf.{AbstractMessage, ByteString, Timestamp}
 import org.scalacheck.Gen
 import redis.clients.jedis.Jedis
@@ -39,10 +41,8 @@ import feast.ingestion.helpers.RedisStorageHelper._
 import feast.ingestion.helpers.DataHelper._
 import feast.proto.storage.RedisProto.RedisKeyV2
 import feast.proto.types.ValueProto
-import org.apache.spark.sql.Row
 import org.apache.spark.sql.avro.to_avro
 import org.apache.spark.sql.functions.{col, struct}
-import org.apache.spark.sql.types.StructType
 
 class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
   val redisContainer = GenericContainer("redis:6.0.8", exposedPorts = Seq(6379))
@@ -136,15 +136,90 @@ class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
     query.processAllAvailable()
 
     rows.foreach { r =>
-      val storedValues = jedis.hgetAll(encodeEntityKey(r, config.featureTable)).asScala.toMap
+      val encodedEntityKey = encodeEntityKey(r, config.featureTable)
+      val storedValues     = jedis.hgetAll(encodedEntityKey).asScala.toMap
       storedValues should beStoredRow(
         Map(
           featureKeyEncoder("unique_drivers") -> r.getUniqueDrivers,
-          "_ts:driver-fs"                     -> new java.sql.Timestamp(r.getEventTimestamp.getSeconds * 1000)
+          "_ts:driver-fs"                     -> new java.sql.Timestamp(r.getEventTimestamp.getSeconds * 1000),
+          "_ex:driver-fs"                     -> new java.sql.Timestamp(Timestamps.MAX_VALUE.getSeconds * 1000)
         )
       )
+      val keyTTL = jedis.ttl(encodedEntityKey).toInt
+      keyTTL shouldEqual -1
     }
   }
+
+  "Streaming pipeline" should "store messages from kafka to redis with expiry time equal to the largest of (event_timestamp + max_age) for all feature " +
+    "tables associated with the entity" in new Scope {
+      val maxAge = 86400
+      val configWithMaxAge = config.copy(
+        source = kafkaSource,
+        featureTable = config.featureTable.copy(maxAge = Some(maxAge))
+      )
+      val query = StreamingPipeline.createPipeline(sparkSession, configWithMaxAge).get
+      query.processAllAvailable() // to init kafka consumer
+
+      val rows = generateDistinctRows(rowGenerator, 100, groupByEntity)
+
+      val ingestionTimeUnix = System.currentTimeMillis()
+      rows.foreach(sendToKafka(kafkaSource.topic, _))
+
+      query.processAllAvailable()
+
+      rows.foreach { r =>
+        val encodedEntityKey = encodeEntityKey(r, config.featureTable)
+        val storedValues     = jedis.hgetAll(encodedEntityKey).asScala.toMap
+        storedValues should beStoredRow(
+          Map(
+            featureKeyEncoder("unique_drivers") -> r.getUniqueDrivers,
+            "_ts:driver-fs"                     -> new java.sql.Timestamp(r.getEventTimestamp.getSeconds * 1000),
+            "_ex:driver-fs" -> new java.sql.Timestamp(
+              (r.getEventTimestamp.getSeconds + maxAge) * 1000
+            )
+          )
+        )
+        val keyTTL = jedis.ttl(encodedEntityKey).toLong
+        keyTTL should (be <= (r.getEventTimestamp.getSeconds + maxAge - ingestionTimeUnix / 1000) and be > 0L)
+      }
+
+      val increasedMaxAge               = 86400 * 2
+      val kafkaSourceSecondFeatureTable = kafkaSource.copy(topic = "topic-2")
+      val configWithSecondFeatureTable = config.copy(
+        source = kafkaSourceSecondFeatureTable,
+        featureTable =
+          config.featureTable.copy(name = "driver-fs-2", maxAge = Some(increasedMaxAge))
+      )
+      val querySecondFeatureTable =
+        StreamingPipeline.createPipeline(sparkSession, configWithSecondFeatureTable).get
+      querySecondFeatureTable.processAllAvailable() // to init kafka consumer
+      val secondIngestionTimeUnix = System.currentTimeMillis()
+      rows.foreach(sendToKafka(kafkaSourceSecondFeatureTable.topic, _))
+      querySecondFeatureTable.processAllAvailable()
+
+      val featureKeyEncoderSecondFeatureTable: String => String =
+        encodeFeatureKey(configWithSecondFeatureTable.featureTable)
+      rows.foreach { r =>
+        val encodedEntityKey = encodeEntityKey(r, config.featureTable)
+        val storedValues     = jedis.hgetAll(encodedEntityKey).asScala.toMap
+        storedValues should beStoredRow(
+          Map(
+            featureKeyEncoder("unique_drivers")                   -> r.getUniqueDrivers,
+            featureKeyEncoderSecondFeatureTable("unique_drivers") -> r.getUniqueDrivers,
+            "_ts:driver-fs"                                       -> new java.sql.Timestamp(r.getEventTimestamp.getSeconds * 1000),
+            "_ex:driver-fs" -> new java.sql.Timestamp(
+              (r.getEventTimestamp.getSeconds + maxAge) * 1000
+            ),
+            "_ex:driver-fs-2" -> new java.sql.Timestamp(
+              (r.getEventTimestamp.getSeconds + increasedMaxAge) * 1000
+            )
+          )
+        )
+        val keyTTL = jedis.ttl(encodedEntityKey).toLong
+        keyTTL should (be <= r.getEventTimestamp.getSeconds + increasedMaxAge - secondIngestionTimeUnix / 1000 and be > r.getEventTimestamp.getSeconds + maxAge - secondIngestionTimeUnix / 1000)
+      }
+
+    }
 
   "Streaming pipeline" should "store invalid proto messages to deadletter path" in new Scope {
     val configWithDeadletter = config.copy(
