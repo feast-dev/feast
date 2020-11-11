@@ -16,7 +16,7 @@ RUN make compile-protos-python
 RUN pip install -r sdk/python/requirements-ci.txt
 
 # Install Feast SDK
-COPY .git .git
+RUN git init .
 COPY README.md README.md
 RUN pip install -e sdk/python -U
 RUN pip install "s3fs" "boto3" "urllib3>=1.25.4"
