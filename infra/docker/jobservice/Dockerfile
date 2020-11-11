@@ -1,6 +1,7 @@
 FROM jupyter/pyspark-notebook:ae5f7e104dd5
 
 USER root
+ARG REVISION
 WORKDIR /feast
 
 COPY sdk/python sdk/python
