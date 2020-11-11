@@ -80,10 +80,11 @@ jobs:
           RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
         with:
           push: true
-          file: infra/docker/${{ matrix.component }}/Dockerfile
+          context: .
+          file: ./infra/docker/${{ matrix.component }}/Dockerfile
           tags: feastdev/feast-${{ matrix.component }}:${{ needs.get-version.outputs.release_version }}
           build-args: |
-            REVISION=${RELEASE_VERSION}
+            REVISION=$RELEASE_VERSION
       - name: Build and push latest
         uses: docker/build-push-action@v2
         env:
@@ -93,10 +94,11 @@ jobs:
         with:
           if: ${VERSION_WITHOUT_PREFIX} == ${HIGHEST_SEMVER_TAG:1}
           push: true
-          file: infra/docker/${{ matrix.component }}/Dockerfile
+          context: .
+          file: ./infra/docker/${{ matrix.component }}/Dockerfile
           tags: feastdev/feast-${{ matrix.component }}:latest
           build-args: |
-            REVISION=${RELEASE_VERSION}
+            REVISION=$RELEASE_VERSION
 
   publish-helm-charts:
     runs-on:  ubuntu-latest
