@@ -30,6 +30,8 @@ fi
 
 exit_code=0
 
+helm repo add bitnami bitnami https://charts.bitnami.com/bitnami
+
 for dir in "$repo_dir"/*; do
     if  helm dep update "$dir" && helm dep build "$dir"; then
         helm package --destination "$sync_dir" "$dir"
