@@ -25,10 +25,12 @@ from feast.pyspark.abc import (
 
 
 class JobCache:
-    """In-memory cache of Spark jobs.
+    """
+    A *global* in-memory cache of Spark jobs.
 
-    This is necessary since we can't query Spark jobs in local mode
-
+    This is necessary since we can't easily keep track of running Spark jobs in local mode, since
+    there is no external state (unlike EMR and Dataproc which keep track of the running jobs for
+    us).
     """
 
     # Map of job_id -> spark job
@@ -75,7 +77,12 @@ class JobCache:
             return self.job_by_id[job_id]
 
 
-job_cache = JobCache()
+global_job_cache = JobCache()
+
+
+def reset_job_cache():
+    global global_job_cache
+    global_job_cache = JobCache()
 
 
 def _find_free_port():
@@ -293,7 +300,7 @@ class StandaloneClusterLauncher(JobLauncher):
             self.spark_submit(job_params),
             job_params.get_destination_path(),
         )
-        job_cache.add_job(job)
+        global_job_cache.add_job(job)
         return job
 
     def offline_to_online_ingestion(
@@ -307,7 +314,7 @@ class StandaloneClusterLauncher(JobLauncher):
             self.spark_submit(ingestion_job_params, ui_port),
             ui_port,
         )
-        job_cache.add_job(job)
+        global_job_cache.add_job(job)
         return job
 
     def start_stream_to_online_ingestion(
@@ -322,22 +329,22 @@ class StandaloneClusterLauncher(JobLauncher):
             ui_port,
             ingestion_job_params.get_job_hash(),
         )
-        job_cache.add_job(job)
+        global_job_cache.add_job(job)
         return job
 
     def stage_dataframe(self, df, event_timestamp_column: str):
         raise NotImplementedError
 
     def get_job_by_id(self, job_id: str) -> SparkJob:
-        return job_cache.get_job_by_id(job_id)
+        return global_job_cache.get_job_by_id(job_id)
 
     def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
         if include_terminated is True:
-            return job_cache.list_jobs()
+            return global_job_cache.list_jobs()
         else:
             return [
                 job
-                for job in job_cache.list_jobs()
+                for job in global_job_cache.list_jobs()
                 if job.get_status()
                 in (SparkJobStatus.STARTING, SparkJobStatus.IN_PROGRESS)
             ]

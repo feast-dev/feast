@@ -16,7 +16,10 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_table import FeatureTable
 from feast.job_service import ensure_stream_ingestion_jobs
-from feast.pyspark.launchers.standalone import StandaloneClusterLauncher
+from feast.pyspark.launchers.standalone import (
+    StandaloneClusterLauncher,
+    reset_job_cache,
+)
 from feast.value_type import ValueType
 from tests.feast_core_server import CoreServicer as MockCoreServicer
 
@@ -37,7 +40,6 @@ def mock_server(servicer, add_fn):
         server.stop(None)
 
 
-CORE_URL = "core.feast.example.com"
 SERVING_URL = "serving.example.com"
 
 
@@ -100,6 +102,8 @@ class TestStreamingControlLoop:
 
     def test_streaming_job_control_loop(self) -> None:
         """ Test streaming job control loop logic. """
+
+        reset_job_cache()
 
         core_servicer = MockCoreServicer()
 
