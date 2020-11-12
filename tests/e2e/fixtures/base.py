@@ -12,5 +12,5 @@ def project_root():
 def project_version(pytestconfig):
     if pytestconfig.getoption("feast_version"):
         return pytestconfig.getoption("feast_version")
-
-    return "0.8-SNAPSHOT"
+    else:
+        raise Exception("feast_version not set")

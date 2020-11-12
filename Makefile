@@ -17,6 +17,7 @@
 ROOT_DIR 	:= $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 PROTO_TYPE_SUBDIRS = core serving types storage
 PROTO_SERVICE_SUBDIRS = core serving
+MVN := mvn ${MAVEN_EXTRA_OPTS}
 
 # General
 
@@ -35,28 +36,28 @@ install-ci-dependencies: install-python-ci-dependencies install-go-ci-dependenci
 # Java
 
 install-java-ci-dependencies:
-	mvn verify clean --fail-never
+	${MVN} verify clean --fail-never
 
 format-java:
-	mvn spotless:apply
+	${MVN} spotless:apply
 
 lint-java:
-	mvn --no-transfer-progress spotless:check
+	${MVN} --no-transfer-progress spotless:check
 
 test-java:
-	mvn --no-transfer-progress test
+	${MVN} --no-transfer-progress test
 
 test-java-integration:
-	mvn --no-transfer-progress -Dmaven.javadoc.skip=true -Dgpg.skip -DskipUTs=true clean verify
+	${MVN} --no-transfer-progress -Dmaven.javadoc.skip=true -Dgpg.skip -DskipUTs=true clean verify
 
 test-java-with-coverage:
-	mvn --no-transfer-progress test jacoco:report-aggregate
+	${MVN} --no-transfer-progress test jacoco:report-aggregate
 
 build-java:
-	mvn clean verify
+	${MVN} clean verify
 
 build-java-no-tests:
-	mvn --no-transfer-progress -Dmaven.javadoc.skip=true -Dgpg.skip -DskipUTs=true -Drevision=${REVISION} clean package
+	${MVN} --no-transfer-progress -Dmaven.javadoc.skip=true -Dgpg.skip -DskipUTs=true -Drevision=${REVISION} clean package
 
 # Python SDK
 
@@ -141,13 +142,13 @@ push-jupyter-docker:
 	docker push $(REGISTRY)/feast-jupyter:$(VERSION)
 
 build-core-docker:
-	docker build --build-arg REVISION=$(REVISION) -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
+	docker build $(if, $(REVISION),--build-arg REVISION=$(REVISION),) -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
 
 build-jobservice-docker:
 	docker build -t $(REGISTRY)/feast-jobservice:$(VERSION) -f infra/docker/jobservice/Dockerfile .
 
 build-serving-docker:
-	docker build --build-arg REVISION=$(REVISION) -t $(REGISTRY)/feast-serving:$(VERSION) -f infra/docker/serving/Dockerfile .
+	docker build $(if, $(REVISION),--build-arg REVISION=$(REVISION),) -t $(REGISTRY)/feast-serving:$(VERSION) -f infra/docker/serving/Dockerfile .
 
 build-ci-docker:
 	docker build -t $(REGISTRY)/feast-ci:$(VERSION) -f infra/docker/ci/Dockerfile .

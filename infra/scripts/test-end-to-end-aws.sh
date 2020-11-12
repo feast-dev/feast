@@ -8,6 +8,7 @@ export DISABLE_FEAST_SERVICE_FIXTURES=1
 export DISABLE_SERVICE_FIXTURES=1
 
 PYTHONPATH=sdk/python pytest tests/e2e/ \
+      --feast-version develop \
       --core-url cicd-feast-core:6565 \
       --serving-url cicd-feast-online-serving:6566 \
       --env aws \
