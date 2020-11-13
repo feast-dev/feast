@@ -28,7 +28,7 @@ jobs:
           --archive-uri ${MAVEN_CACHE} \
           --output-dir .
       - name: Get version
-        run: echo ::set-env name=RELEASE_VERSION::${GITHUB_REF#refs/*/}
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
       - name: Build image
         run: make build-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA} REVISION=${RELEASE_VERSION}
       - name: Push image
@@ -86,7 +86,7 @@ jobs:
             gsutil cp ./spark/ingestion/target/feast-ingestion-spark-develop.jar gs://${PUBLISH_BUCKET}/spark/ingestion/
           fi
       - name: Get version
-        run: echo ::set-env name=RELEASE_VERSION::${GITHUB_REF#refs/*/}
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
       - name: Publish tagged version of ingestion job
         run: |
           SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
