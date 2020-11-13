@@ -142,13 +142,13 @@ push-jupyter-docker:
 	docker push $(REGISTRY)/feast-jupyter:$(VERSION)
 
 build-core-docker:
-	docker build $(if, $(REVISION),--build-arg REVISION=$(REVISION),) -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
+	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
 
 build-jobservice-docker:
 	docker build -t $(REGISTRY)/feast-jobservice:$(VERSION) -f infra/docker/jobservice/Dockerfile .
 
 build-serving-docker:
-	docker build $(if, $(REVISION),--build-arg REVISION=$(REVISION),) -t $(REGISTRY)/feast-serving:$(VERSION) -f infra/docker/serving/Dockerfile .
+	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feast-serving:$(VERSION) -f infra/docker/serving/Dockerfile .
 
 build-ci-docker:
 	docker build -t $(REGISTRY)/feast-ci:$(VERSION) -f infra/docker/ci/Dockerfile .

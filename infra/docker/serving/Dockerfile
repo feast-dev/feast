@@ -29,8 +29,8 @@ RUN mvn dependency:go-offline -DexcludeGroupIds:dev.feast 2>/dev/null || true
 
 COPY . .
 
-ARG REVISION=dev
-RUN mvn --also-make --projects serving -Drevision=$REVISION \
+ARG VERSION=dev
+RUN mvn --also-make --projects serving -Drevision=$VERSION \
   -DskipUTs=true --batch-mode clean package
 #
 # Download grpc_health_probe to run health check for Feast Serving
