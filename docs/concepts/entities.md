@@ -2,7 +2,7 @@
 
 ### Overview
 
-An entity is any domain object that can be modelled and about which information can be stored. Entities are usually recognisable concepts, either concrete or abstract, such as persons, places, things, or events which have relevance to the modelled system.
+An entity is any domain object that can be modeled and about which information can be stored. Entities are usually recognizable concepts, either concrete or abstract, such as persons, places, things, or events which have relevance to the modeled system.
 
 * Examples of entity types in the context of ride-hailing and food delivery: `customer`, `order`, `driver`, `restaurant`, `dish`, `area`.
 * A specific driver, for example a driver with ID `D011234` would be an entity of the entity type `driver`

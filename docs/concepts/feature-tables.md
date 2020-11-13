@@ -9,7 +9,7 @@ Feature tables serve the following purposes:
 * They are a means for defining the location and properties of data [sources](sources.md).
 * They are used to create within Feast a database-level structure for the storage of feature values.
 * The data sources described within feature tables enable Feast to ingest and store features within Feast.
-* They ensure data is efficiently stored during [ingestion](../user-guide/data-ingestion.md).
+* They ensure data is efficiently stored during [ingestion](../user-guide/loading-data-into-feast.md).
 
 {% hint style="info" %}
 Feast does not yet apply feature transformations. Transformations are currently expected to happen before data is ingested into Feast. The data sources described within feature tables should reference feature values in their already computed form.

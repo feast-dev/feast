@@ -21,12 +21,12 @@
 * [Entities](concepts/entities.md)
 * [Sources](concepts/sources.md)
 * [Feature Tables](concepts/feature-tables.md)
-* [Feature References](concepts/feature-references.md)
 
 ## User Guide
 
-* [Getting data into Feast](user-guide/data-ingestion.md)
-* [Getting training features](user-guide/feature-retrieval.md)
+* [Overview](user-guide/overview.md)
+* [Loading data into Feast](user-guide/loading-data-into-feast.md)
+* [Getting training features](user-guide/getting-training-features.md)
 * [Getting online features](user-guide/getting-online-features.md)
 
 ## Tutorials

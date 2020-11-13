@@ -44,8 +44,8 @@ Feast Serving exports the following metrics:
 | :--- | :--- | :--- |
 | `feast_serving_request_latency_seconds` | Feast Serving's latency in serving Requests in  Seconds. | `method` |
 | `feast_serving_request_feature_count` | No. of requests retrieving a Feature from Feast Serving. | `project`, `feature_name` |
-| `feast_serving_not_found_feature_count` | No. of requests retrieving a Feature has resulted in a [`NOT_FOUND` field status.](../../user-guide/feature-retrieval.md#online-field-statuses)  | `project`, `feature_name` |
-| `feast_serving_stale_feature_count` | No. of requests retrieving a Feature resulted in a [`OUTSIDE_MAX_AGE` field status.](../../user-guide/feature-retrieval.md#online-field-statuses) | `project`, `feature_name` |
+| `feast_serving_not_found_feature_count` | No. of requests retrieving a Feature has resulted in a [`NOT_FOUND` field status.](../../user-guide/getting-training-features.md#online-field-statuses)  | `project`, `feature_name` |
+| `feast_serving_stale_feature_count` | No. of requests retrieving a Feature resulted in a [`OUTSIDE_MAX_AGE` field status.](../../user-guide/getting-training-features.md#online-field-statuses) | `project`, `feature_name` |
 | `feast_serving_grpc_request_count` | Total gRPC requests served. | `method` |
 
 **Metric Tags**
@@ -61,7 +61,7 @@ Exported Feast Serving metrics may be filtered by the following tags/keys
 
 ## Feast Ingestion Job
 
-Feast Ingestion computes both metrics an statistics on [data ingestion.](../../user-guide/data-ingestion.md) Make sure you familar with data ingestion concepts before proceeding.
+Feast Ingestion computes both metrics an statistics on [data ingestion.](../../user-guide/loading-data-into-feast.md) Make sure you familar with data ingestion concepts before proceeding.
 
 {% hint style="info" %}
 For documentation on Feature value statistics computed by the Ingestion Job see [Statistics]()
