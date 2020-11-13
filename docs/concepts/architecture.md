@@ -1,8 +1,6 @@
 # Architecture
 
-
-
-![Feast high-level flow](../.gitbook/assets/blank-diagram-4%20%284%29.svg)
+![Feast high-level flow](https://lucid.app/publicSegments/view/04341727-9efb-4433-8e7d-ed7588a3d594/image.png)
 
 ## **Feast Core**
 
