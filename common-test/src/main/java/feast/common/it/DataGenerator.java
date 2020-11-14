@@ -26,7 +26,6 @@ import feast.proto.core.DataFormatProto.StreamFormat;
 import feast.proto.core.DataFormatProto.StreamFormat.AvroFormat;
 import feast.proto.core.DataFormatProto.StreamFormat.ProtoFormat;
 import feast.proto.core.DataSourceProto.DataSource;
-import feast.proto.core.DataSourceProto.DataSource.BigQueryOptions;
 import feast.proto.core.DataSourceProto.DataSource.FileOptions;
 import feast.proto.core.DataSourceProto.DataSource.KafkaOptions;
 import feast.proto.core.DataSourceProto.DataSource.KinesisOptions;
@@ -107,10 +106,6 @@ public class DataGenerator {
         StoreProto.Store.RedisConfig redisConfig =
             StoreProto.Store.RedisConfig.newBuilder().build();
         return builder.setRedisConfig(redisConfig).build();
-      case BIGQUERY:
-        StoreProto.Store.BigQueryConfig bqConfig =
-            StoreProto.Store.BigQueryConfig.newBuilder().build();
-        return builder.setBigqueryConfig(bqConfig).build();
       case REDIS_CLUSTER:
         StoreProto.Store.RedisClusterConfig redisClusterConfig =
             StoreProto.Store.RedisClusterConfig.newBuilder().build();
@@ -280,16 +275,6 @@ public class DataGenerator {
                 .setFileFormat(createParquetFormat())
                 .setFileUrl(fileURL)
                 .build())
-        .setEventTimestampColumn(timestampColumn)
-        .setDatePartitionColumn(datePartitionColumn)
-        .build();
-  }
-
-  public static DataSource createBigQueryDataSourceSpec(
-      String bigQueryTableRef, String timestampColumn, String datePartitionColumn) {
-    return DataSource.newBuilder()
-        .setType(DataSource.SourceType.BATCH_BIGQUERY)
-        .setBigqueryOptions(BigQueryOptions.newBuilder().setTableRef(bigQueryTableRef).build())
         .setEventTimestampColumn(timestampColumn)
         .setDatePartitionColumn(datePartitionColumn)
         .build();

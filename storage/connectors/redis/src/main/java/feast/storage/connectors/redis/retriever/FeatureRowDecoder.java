@@ -22,7 +22,6 @@ import feast.proto.core.FeatureSetProto.FeatureSpec;
 import feast.proto.types.FeatureRowProto.FeatureRow;
 import feast.proto.types.FieldProto.Field;
 import feast.proto.types.ValueProto.Value;
-import feast.storage.connectors.redis.writer.RedisCustomIO;
 import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 import java.util.List;
@@ -68,8 +67,7 @@ public class FeatureRowDecoder {
   }
 
   /**
-   * Decode feature row encoded by {@link RedisCustomIO}. NOTE: The v1 Decoder will be removed in
-   * Feast 0.7
+   * Decode feature row encoded.
    *
    * @throws IllegalArgumentException if unable to the decode the given feature row
    * @param encodedFeatureRow Feature row

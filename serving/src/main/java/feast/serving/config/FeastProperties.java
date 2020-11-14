@@ -331,11 +331,6 @@ public class FeastProperties {
               StoreProto.Store.RedisConfig.newBuilder();
           JsonFormat.parser().merge(jsonWriter.writeValueAsString(config), redisConfig);
           return storeProtoBuilder.setRedisConfig(redisConfig.build()).build();
-        case CASSANDRA:
-          StoreProto.Store.CassandraConfig.Builder cassandraConfig =
-              StoreProto.Store.CassandraConfig.newBuilder();
-          JsonFormat.parser().merge(jsonWriter.writeValueAsString(config), cassandraConfig);
-          return storeProtoBuilder.setCassandraConfig(cassandraConfig.build()).build();
         default:
           throw new InvalidProtocolBufferException("Invalid store set");
       }

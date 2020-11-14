@@ -38,9 +38,7 @@ public class ServingServiceConfig {
 
   @Bean
   public ServingService servingService(
-      FeastProperties feastProperties,
-      CachedSpecService specService,
-      Tracer tracer)
+      FeastProperties feastProperties, CachedSpecService specService, Tracer tracer)
       throws InvalidProtocolBufferException, JsonProcessingException {
     ServingService servingService = null;
     FeastProperties.Store store = feastProperties.getActiveStore();
@@ -56,7 +54,6 @@ public class ServingServiceConfig {
         OnlineRetriever redisRetriever = RedisOnlineRetriever.create(config);
         servingService = new OnlineServingService(redisRetriever, specService, tracer);
         break;
-      case CASSANDRA:
       case UNRECOGNIZED:
       case INVALID:
         throw new IllegalArgumentException(
