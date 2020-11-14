@@ -30,14 +30,6 @@
   <name>Feast Serving</name>
   <description>Feature serving API service</description>
 
-  <repositories>
-    <repository>
-      <id>spring-plugins</id>
-      <name>Spring Plugins</name>
-      <url> https://repo.spring.io/plugins-release</url>
-    </repository>
-  </repositories>
-
   <build>
     <plugins>
       <plugin>
