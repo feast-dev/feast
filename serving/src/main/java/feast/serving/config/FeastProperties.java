@@ -331,11 +331,6 @@ public class FeastProperties {
               StoreProto.Store.RedisConfig.newBuilder();
           JsonFormat.parser().merge(jsonWriter.writeValueAsString(config), redisConfig);
           return storeProtoBuilder.setRedisConfig(redisConfig.build()).build();
-        case BIGQUERY:
-          StoreProto.Store.BigQueryConfig.Builder bqConfig =
-              StoreProto.Store.BigQueryConfig.newBuilder();
-          JsonFormat.parser().merge(jsonWriter.writeValueAsString(config), bqConfig);
-          return storeProtoBuilder.setBigqueryConfig(bqConfig.build()).build();
         case CASSANDRA:
           StoreProto.Store.CassandraConfig.Builder cassandraConfig =
               StoreProto.Store.CassandraConfig.newBuilder();

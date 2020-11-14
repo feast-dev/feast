@@ -20,12 +20,8 @@ import feast.common.auth.service.AuthorizationService;
 import feast.common.logging.interceptors.GrpcMessageInterceptor;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FeatureReference;
-import feast.proto.serving.ServingAPIProto.GetBatchFeaturesRequest;
-import feast.proto.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
-import feast.proto.serving.ServingAPIProto.GetJobRequest;
-import feast.proto.serving.ServingAPIProto.GetJobResponse;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceImplBase;
@@ -120,44 +116,6 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       responseObserver.onError(e);
     }
     span.finish();
-  }
-
-  @Override
-  public void getBatchFeatures(
-      GetBatchFeaturesRequest request, StreamObserver<GetBatchFeaturesResponse> responseObserver) {
-    try {
-      RequestHelper.validateBatchRequest(request);
-      this.checkProjectAccess(request.getFeaturesList());
-      GetBatchFeaturesResponse batchFeatures = servingService.getBatchFeatures(request);
-      responseObserver.onNext(batchFeatures);
-      responseObserver.onCompleted();
-    } catch (SpecRetrievalException e) {
-      log.error("Failed to retrieve specs in SpecService", e);
-      responseObserver.onError(
-          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asException());
-    } catch (AccessDeniedException e) {
-      log.info(String.format("User prevented from accessing one of the projects in request"));
-      responseObserver.onError(
-          Status.PERMISSION_DENIED
-              .withDescription(e.getMessage())
-              .withCause(e)
-              .asRuntimeException());
-    } catch (Exception e) {
-      log.warn("Failed to get Batch Features", e);
-      responseObserver.onError(e);
-    }
-  }
-
-  @Override
-  public void getJob(GetJobRequest request, StreamObserver<GetJobResponse> responseObserver) {
-    try {
-      GetJobResponse response = servingService.getJob(request);
-      responseObserver.onNext(response);
-      responseObserver.onCompleted();
-    } catch (Exception e) {
-      log.warn("Failed to get Job", e);
-      responseObserver.onError(e);
-    }
   }
 
   private void checkProjectAccess(List<FeatureReference> featureList) {
