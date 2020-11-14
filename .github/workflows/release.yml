@@ -51,7 +51,6 @@ jobs:
         component: [core, serving, jobservice, jupyter]
     env:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
-      DOCKER_BUILDKIT: '1'
     steps:
       - uses: actions/checkout@v2
       - name: Set up QEMU
