@@ -47,4 +47,5 @@ RUN PROTOC_ZIP=protoc-${PROTOC_VERSION}-linux-x86_64.zip && \
 	  cd tools/cmd/protoc-gen-docs && \
 	  go build && mkdir -p $HOME/bin && cp protoc-gen-docs $HOME/bin
 
+RUN mkdir -p /root/.m2
 COPY settings.xml /root/.m2

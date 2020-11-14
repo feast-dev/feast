@@ -1,15 +1,15 @@
 <settings>
     <mirrors>
         <mirror>
-            <id>uk.maven.org</id>
-            <name>Maven mirror</name>
-            <url>https://repo1.maven.org/maven2</url>
-            <mirrorOf>central</mirrorOf>
-        </mirror>
-        <mirror>
             <id>google-maven-central</id>
             <name>Google Maven Central</name>
             <url>https://maven-central.storage.googleapis.com/maven2/</url>
+            <mirrorOf>central</mirrorOf>
+        </mirror>
+        <mirror>
+            <id>uk.maven.org</id>
+            <name>Maven mirror</name>
+            <url>https://repo1.maven.org/maven2</url>
             <mirrorOf>central</mirrorOf>
         </mirror>
     </mirrors>
