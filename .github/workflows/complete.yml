@@ -152,10 +152,6 @@ jobs:
         with:
           maven-version: 3.6.3
       - name: build-jar
-        env:
-          # Try to add retries to prevent download failure
-          # https://github.community/t/getting-maven-could-not-transfer-artifact-with-500-error-when-using-github-actions/17570
-          MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3
         run: make build-java-no-tests REVISION=${GITHUB_SHA}
       - name: copy to gs
         run: gsutil cp ./spark/ingestion/target/feast-ingestion-spark-${GITHUB_SHA}.jar gs://feast-jobs/spark/ingestion/
