@@ -1098,12 +1098,15 @@ class Client:
             )
 
     def start_stream_to_online_ingestion(
-        self, feature_table: FeatureTable, extra_jars: Optional[List[str]] = None,
+        self,
+        feature_table: FeatureTable,
+        extra_jars: Optional[List[str]] = None,
+        project: str = None,
     ) -> SparkJob:
         if not self._use_job_service:
             return start_stream_to_online_ingestion(
                 client=self,
-                project=self.project,
+                project=project or self.project,
                 feature_table=feature_table,
                 extra_jars=extra_jars or [],
             )
@@ -1113,7 +1116,7 @@ class Client:
             )
             response = self._job_service.StartStreamToOnlineIngestionJob(request)
             return RemoteStreamIngestionJob(
-                self._job_service, self._extra_grpc_params, response.id,
+                self._job_service, self._extra_grpc_params, response.id
             )
 
     def list_jobs(self, include_terminated: bool) -> List[SparkJob]:

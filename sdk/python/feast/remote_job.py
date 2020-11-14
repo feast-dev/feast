@@ -124,13 +124,12 @@ class RemoteStreamIngestionJob(RemoteJobMixin, StreamIngestionJob):
     Stream ingestion job result.
     """
 
-    def __init__(
-        self,
-        service: JobServiceStub,
-        grpc_extra_param_provider: GrpcExtraParamProvider,
-        job_id: str,
-    ):
-        super().__init__(service, grpc_extra_param_provider, job_id)
+    def get_hash(self) -> str:
+        response = self._service.GetJob(
+            GetJobRequest(job_id=self._job_id), **self._grpc_extra_param_provider()
+        )
+
+        return response.job.hash
 
 
 def get_remote_job_from_proto(
