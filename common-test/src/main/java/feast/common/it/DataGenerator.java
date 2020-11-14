@@ -280,6 +280,17 @@ public class DataGenerator {
         .build();
   }
 
+  public static DataSource createBigQueryDataSourceSpec(
+      String bigQueryTableRef, String timestampColumn, String datePartitionColumn) {
+    return DataSource.newBuilder()
+        .setType(DataSource.SourceType.BATCH_BIGQUERY)
+        .setBigqueryOptions(
+            DataSource.BigQueryOptions.newBuilder().setTableRef(bigQueryTableRef).build())
+        .setEventTimestampColumn(timestampColumn)
+        .setDatePartitionColumn(datePartitionColumn)
+        .build();
+  }
+
   public static DataSource createKafkaDataSourceSpec(
       String servers, String topic, String classPath, String timestampColumn) {
     return DataSource.newBuilder()
