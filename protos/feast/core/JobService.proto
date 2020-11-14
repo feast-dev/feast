@@ -72,6 +72,8 @@ message Job {
   JobType type = 2;
   // Current job status
   JobStatus status = 3;
+  // Deterministic hash of the Job
+  string hash = 8;
 
   message RetrievalJobMeta {
     string output_location = 4;

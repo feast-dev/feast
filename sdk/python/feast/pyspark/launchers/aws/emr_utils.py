@@ -183,6 +183,7 @@ class JobInfo(NamedTuple):
     state: str
     table_name: Optional[str]
     output_file_uri: Optional[str]
+    job_hash: Optional[str]
 
 
 def _list_jobs(
@@ -228,6 +229,8 @@ def _list_jobs(
                         "feast.step_metadata.historical_retrieval.output_file_uri"
                     )
 
+                    job_hash = props.get("feast.step_metadata.job_hash")
+
                     if table_name and step_table_name != table_name:
                         continue
 
@@ -241,6 +244,7 @@ def _list_jobs(
                             state=step["Status"]["State"],
                             table_name=step_table_name,
                             output_file_uri=output_file_uri,
+                            job_hash=job_hash,
                         )
                     )
     return res
@@ -364,7 +368,11 @@ def _historical_retrieval_step(
 
 
 def _stream_ingestion_step(
-    jar_path: str, extra_jar_paths: List[str], feature_table_name: str, args: List[str],
+    jar_path: str,
+    extra_jar_paths: List[str],
+    feature_table_name: str,
+    args: List[str],
+    job_hash: str,
 ) -> Dict[str, Any]:
 
     if extra_jar_paths:
@@ -384,6 +392,7 @@ def _stream_ingestion_step(
                     "Key": "feast.step_metadata.stream_to_online.table_name",
                     "Value": feature_table_name,
                 },
+                {"Key": "feast.step_metadata.job_hash", "Value": job_hash},
             ],
             "Args": ["spark-submit", "--class", "feast.ingestion.IngestionJob"]
             + jars_args

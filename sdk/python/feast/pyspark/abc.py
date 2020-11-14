@@ -1,4 +1,5 @@
 import abc
+import hashlib
 import json
 import os
 from datetime import datetime
@@ -456,6 +457,13 @@ class StreamIngestionJobParameters(IngestionJobParameters):
             "online",
         ]
 
+    def get_job_hash(self) -> str:
+        job_json = json.dumps(
+            {"source": self._source, "feature_table": self._feature_table},
+            sort_keys=True,
+        )
+        return hashlib.md5(job_json.encode()).hexdigest()
+
 
 class BatchIngestionJob(SparkJob):
     """
@@ -467,6 +475,17 @@ class StreamIngestionJob(SparkJob):
     """
     Container for the streaming ingestion job result
     """
+
+    def get_hash(self) -> str:
+        """Gets the consistent hash of this stream ingestion job.
+
+        The hash needs to be persisted at the data processing layer, so that we can get the same
+        hash when retrieving the job from Spark.
+
+        Returns:
+            str: The hash for this streaming ingestion job
+        """
+        raise NotImplementedError
 
 
 class JobLauncher(abc.ABC):
