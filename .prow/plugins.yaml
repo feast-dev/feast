@@ -13,6 +13,7 @@ plugins:
   - trigger
   - config-updater
   - require-matching-label
+  - release-note
 
 config_updater:
   maps:
