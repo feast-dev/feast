@@ -37,7 +37,6 @@ import feast.core.model.FeatureSet;
 import feast.core.model.Source;
 import feast.core.service.ProjectService;
 import feast.core.service.SpecService;
-import feast.core.service.StatsService;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetRequest;
 import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.proto.core.FeatureSetProto;
@@ -66,7 +65,6 @@ public class CoreServiceAuthTest {
   @Mock private SpecService specService;
   @Mock private ProjectRepository projectRepository;
   @Mock private AuthorizationProvider authProvider;
-  @Mock private StatsService statsService;
 
   public CoreServiceAuthTest() {
     MockitoAnnotations.initMocks(this);
@@ -80,9 +78,7 @@ public class CoreServiceAuthTest {
     projectService = new ProjectService(projectRepository);
     AuthorizationService authService =
         new AuthorizationService(feastProperties.getSecurity(), authProvider);
-    coreService =
-        new CoreServiceImpl(
-            specService, projectService, statsService, feastProperties, authService);
+    coreService = new CoreServiceImpl(specService, projectService, feastProperties, authService);
   }
 
   @Test
