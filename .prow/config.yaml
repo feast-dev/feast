@@ -7,7 +7,6 @@ in_repo_config:
     
 plank:
   job_url_prefix_config:
-    # TODO: Remove the gcs suffix once https://github.com/kubernetes/test-infra/pull/17779 is in
     "*": https://prow.feast.dev/view/gcs
   pod_pending_timeout: 60m
   report_templates:
