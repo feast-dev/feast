@@ -73,17 +73,6 @@ jobs:
           infra/scripts/download-maven-cache.sh \
           --archive-uri ${MAVEN_CACHE} \
           --output-dir .
-      - name: Build and push versioned image to Dockerhub
-        uses: docker/build-push-action@v2
-        env:
-          RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
-        with:
-          push: true
-          context: .
-          file: ./infra/docker/${{ matrix.component }}/Dockerfile
-          tags: feastdev/feast-${{ matrix.component }}:${{ needs.get-version.outputs.release_version }}
-          build-args: |
-            REVISION=$RELEASE_VERSION
       - name: Build and push latest image to Dockerhub
         uses: docker/build-push-action@v2
         env:
@@ -95,9 +84,11 @@ jobs:
           push: true
           context: .
           file: ./infra/docker/${{ matrix.component }}/Dockerfile
-          tags: feastdev/feast-${{ matrix.component }}:latest
+          tags: |
+            feastdev/feast-${{ matrix.component }}:${{ needs.get-version.outputs.release_version }}
+            feastdev/feast-${{ matrix.component }}:latest
           build-args: |
-            REVISION=$RELEASE_VERSION
+            VERSION=$RELEASE_VERSION
       - name: Build and push versioned image to GCR
         env:
           RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
