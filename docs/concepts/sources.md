@@ -2,25 +2,33 @@
 
 ### Overview
 
-A `source` is a data source that can be used to find feature data. Users define sources as part of [feature tables](feature-tables.md). Currently, Feast supports the following source types:
+Sources are descriptions of external feature data and are registered to Feast as part of [feature tables](feature-tables.md). Once registered, Feast can ingest feature data from these sources into stores.
 
-* Batch Source
-  * File
-  * [BigQuery](https://cloud.google.com/bigquery)
-* Stream Source
-  * [Kafka](https://kafka.apache.org/)
-  * [Kinesis](https://aws.amazon.com/kinesis/)
+Currently, Feast supports the following source types:
+
+#### Batch Source
+
+* File \(as in Spark\): Parquet and CSV files supported.
+* BigQuery
+
+#### Stream Source
+
+* Kafka
+* Kinesis
+
+The following encodings are supported on streams
+
+* Avro
+* Protobuf
 
 ### Structure of a Source
 
-For both batch and stream sources, the following configurations are **necessary**:
+For both batch and stream sources, the following configurations are necessary:
 
-* **created\_timestamp\_column**: Name of column containing timestamp when data is created.
-* **event\_timestamp\_column**: Name of column containing timestamp when event data occurred.
+* **Event timestamp column**: Name of column containing timestamp when event data occurred. Used during point-in-time join of feature values to [entity timestamps](glossary.md#entity-timestamp).
+* **Created timestamp column**: Name of column containing timestamp when data is created. Used to deduplicate data when multiple copies of the same [entity key](glossary.md#entity-key) is ingested.
 
-When configuring data source options, see the [Feast Python API documentation](https://api.docs.feast.dev/python/) for more details.
-
-Some valid source specifications are shown below:
+Example data source specifications:
 
 {% tabs %}
 {% tab title="batch\_sources.py" %}
@@ -30,7 +38,7 @@ from feast.data_format import ParquetFormat
 
 batch_file_source = FileSource(
     file_format=ParquetFormat(),
-    file_url="file://feast/*",
+    file_url="file:///feast/customer.parquet",
     event_timestamp_column="event_timestamp",
     created_timestamp_column="created_timestamp",
 )
@@ -55,15 +63,11 @@ stream_kafka_source = KafkaSource(
 
 The [Feast Python API documentation](https://api.docs.feast.dev/python/) provides more information about options to specify for the above sources.
 
-{% hint style="info" %}
-When creating a Feature Table for use in training datasets, specify a batch source already containing materialized data.
-{% endhint %}
-
 ### Working with a Source
 
 #### Creating a Source
 
-Sources are required when specifying a [feature table](feature-tables.md):
+Sources are defined as part of [feature tables](feature-tables.md):
 
 ```python
 batch_bigquery_source = BigQuerySource(

@@ -2,34 +2,34 @@
 
 ### Overview
 
-An entity is any domain object that can be modeled and about which information can be stored. Entities are usually recognizable concepts, either concrete or abstract, such as persons, places, things, or events which have relevance to the modeled system.
+An entity is any domain object that can be modeled and about which information can be stored. Entities are usually recognizable concepts, either concrete or abstract, such as persons, places, things, or events.
 
-* Examples of entity types in the context of ride-hailing and food delivery: `customer`, `order`, `driver`, `restaurant`, `dish`, `area`.
-* A specific driver, for example a driver with ID `D011234` would be an entity of the entity type `driver`
+Examples of entities in the context of ride-hailing and food delivery: `customer`, `order`, `driver`, `restaurant`, `dish`, `area`.
 
-An entity is the domain object on which features are observed. For example, we could have a feature `total_trips_24h` for driver `D011234` with a feature value of `11`.
+Entities are important in the context of feature stores since features are always properties of a specific entity. For example, we could have a feature `total_trips_24h` for driver `D011234` with a feature value of `11`.
 
-Entities are important for Feast because they are used as keys when searching for feature values. Entities are also used when joining feature values from different feature tables to build a large data set that is used to train or serve models.
+Feast uses entities in the following way:
+
+* Entities serve as the keys used to look up features for producing training datasets and online feature values.
+* Entities serve as a natural grouping of features in a feature table. A feature table must belong to an entity \(which could be a composite entity\)
 
 ### Structure of an Entity
 
 When creating an entity specification, consider the following fields:
 
-* **name**: Name of the entity
-* **description**: Description of the entity
-* **value\_type**: Value type of the entity
-* **labels**: User-defined metadata
+* **Name**: Name of the entity
+* **Description**: Description of the entity
+* **Value Type**: Value type of the entity. Feast will attempt to coerce entity columns in your data sources into this type.
+* **Labels**: Labels are maps that allow users to attach their own metadata to entities
 
 A valid entity specification is shown below:
 
 ```python
-from feast import Entity, ValueType
-
-# Create a customer entity
 customer = Entity(
-    "customer_id",
-    "Customer id for ride customer",
-    ValueType.INT64
+    name="customer_id",
+    description="Customer id for ride customer",
+    value_type=ValueType.INT64,
+    labels={}
 )
 ```
 
@@ -60,7 +60,7 @@ Permitted changes include:
 You **cannot** change the following:
 
 * Project or name of an entity
-* Types of entity
+* Type
 {% endhint %}
 
 Visit [EntitySpec](https://api.docs.feast.dev/grpc/feast.core.pb.html#EntitySpecV2) for the entity-specification API.

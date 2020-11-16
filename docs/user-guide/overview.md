@@ -10,19 +10,15 @@ Feast development happens through three key workflows:
 
 ### Defining and loading features into Feast
 
-Feature creators model the data within their organization into Feast through the definition of [feature tables](../concepts/feature-tables.md). Feature tables are both a schema and a means of identifying data sources for features. They allow Feast to know how to interpret your data, and where to find it.
+Feature creators model the data within their organization into Feast through the definition of [feature tables](../concepts/feature-tables.md) that contain [data sources](../concepts/sources.md). Feature tables are both a schema and a means of identifying data sources for features, and allow Feast to know how to interpret your data, and where to find it.
 
-After registering a feature table, users would trigger an ingestion from their data source into Feast. This loads feature values from an upstream data source into Feast stores through ingestion jobs.
+After registering a feature table with Feast, users can trigger an ingestion from their data source into Feast. This loads feature values from an upstream data source into Feast stores through ingestion jobs. 
 
-{% hint style="info" %}
-Feast does not support feature engineering yet.
-{% endhint %}
-
-Visit [feature tables](../concepts/feature-tables.md) to learn more about them.
+Visit [feature tables](../concepts/feature-tables.md#overview) to learn more about them.
 
 ### Retrieving historical features for training
 
-Historical retrieval uses [feature references](getting-training-features.md) through the[ Feast SDK](https://api.docs.feast.dev/python/) to retrieve historical features. For historical serving, Feast requires that you provide the entities and timestamps for the corresponding feature data. Feast produces a point-in-time correct dataset using the requested features. These features can be requested from an unlimited number of feature sets.
+In order to generate a training dataset it is necessary to provide both an [entity dataframe ](../concepts/glossary.md#entity-dataframe)and feature references through the[ Feast SDK](https://api.docs.feast.dev/python/) to retrieve historical features. For historical serving, Feast requires that you provide the entities and timestamps for the corresponding feature data. Feast produces a point-in-time correct dataset using the requested features. These features can be requested from an unlimited number of feature sets.
 
 ### Retrieving online features for online serving
 

@@ -2,9 +2,9 @@
 
 ### Concepts
 
-[Entities](entities.md) are objects in an organization that model a specific construct. Examples of these include customers, transactions, and drivers.
+[Entities](entities.md) are objects in an organization like customers, transactions, and drivers, products, etc.
 
-[Sources](sources.md) are external data sources where feature data can be found.
+[Sources](sources.md) are external sources of data where feature data can be found.
 
 [Feature Tables](feature-tables.md) are objects that define logical groupings of features, data sources, and other related metadata.
 

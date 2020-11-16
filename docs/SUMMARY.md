@@ -21,11 +21,13 @@
 * [Entities](concepts/entities.md)
 * [Sources](concepts/sources.md)
 * [Feature Tables](concepts/feature-tables.md)
+* [Stores](concepts/stores.md)
+* [Glossary](concepts/glossary.md)
 
 ## User Guide
 
 * [Overview](user-guide/overview.md)
-* [Loading data into Feast](user-guide/loading-data-into-feast.md)
+* [Ingest data into Feast](user-guide/loading-data-into-feast.md)
 * [Getting training features](user-guide/getting-training-features.md)
 * [Getting online features](user-guide/getting-online-features.md)
 
