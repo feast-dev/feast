@@ -75,7 +75,7 @@ If Feast is built and running from source, configuration properties can be set d
 
 ### 2. Feast CLI and Feast Python SDK
 
-Configuration options for both the [Feast CLI](../getting-started/connect-to-feast/connecting-to-feast.md) and [Feast Python SDK](https://api.docs.feast.dev/python/) can be defined in the following locations, in order of precedence:
+Configuration options for both the [Feast CLI](../getting-started/connect-to-feast/feast-cli.md) and [Feast Python SDK](https://api.docs.feast.dev/python/) can be defined in the following locations, in order of precedence:
 
 **1. Command line arguments or initialized arguments:** Passing parameters to the Feast CLI or instantiating the Feast Client object with specific parameters will take precedence above other parameters.
 

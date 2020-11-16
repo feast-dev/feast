@@ -8,11 +8,11 @@
     * [Amazon EKS \(with Terraform\)](getting-started/install-feast/kubernetes-amazon-eks-with-terraform.md)
   * [Connect to Feast](getting-started/connect-to-feast/README.md)
     * [Python SDK](getting-started/connect-to-feast/python-sdk.md)
-    * [Feast CLI](getting-started/connect-to-feast/connecting-to-feast.md)
+    * [Feast CLI](getting-started/connect-to-feast/feast-cli.md)
   * [Learn Feast](getting-started/learn-feast.md)
 * [Roadmap](roadmap.md)
 * [Changelog](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
-* [Community](getting-help.md)
+* [Community](community.md)
 
 ## Concepts
 

@@ -19,7 +19,7 @@ The Feast CLI is a command line implementation of the Feast Python SDK.
 * Ingest data into Feast
 * Manage ingestion jobs
 
-{% page-ref page="connecting-to-feast.md" %}
+{% page-ref page="feast-cli.md" %}
 
 ### Online Serving Clients
 

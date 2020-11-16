@@ -4,7 +4,7 @@
 This page applies to Feast 0.7. The content may be out of date for Feast 0.8+
 {% endhint %}
 
-If at any point in time you cannot resolve a problem, please see the [Community](../getting-help.md) section for reaching out to the Feast community.
+If at any point in time you cannot resolve a problem, please see the [Community](../community.md) section for reaching out to the Feast community.
 
 ### How can I verify that all services are operational?
 
