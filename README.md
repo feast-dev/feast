@@ -31,7 +31,6 @@ The `.env` file can optionally be configured based on your environment.
 Bring up Feast:
 ```
 docker-compose pull && docker-compose up -d
-
 ```
 Please wait for the containers to start up. This could take a few minutes since the quickstart contains demo infastructure like Kafka and Jupyter.
 
