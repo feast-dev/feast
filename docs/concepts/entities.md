@@ -1,6 +1,6 @@
 # Entities
 
-### Overview
+## Overview
 
 An entity is any domain object that can be modeled and about which information can be stored. Entities are usually recognizable concepts, either concrete or abstract, such as persons, places, things, or events.
 
@@ -13,7 +13,7 @@ Feast uses entities in the following way:
 * Entities serve as the keys used to look up features for producing training datasets and online feature values.
 * Entities serve as a natural grouping of features in a feature table. A feature table must belong to an entity \(which could be a composite entity\)
 
-### Structure of an Entity
+## Structure of an Entity
 
 When creating an entity specification, consider the following fields:
 
@@ -33,9 +33,9 @@ customer = Entity(
 )
 ```
 
-### Working with an Entity
+## Working with an Entity
 
-#### Creating an Entity:
+### Creating an Entity:
 
 ```python
 # Create a customer entity
@@ -43,7 +43,7 @@ customer_entity = Entity(name="customer_id", description="ID of car customer")
 client.apply_entity(customer_entity)
 ```
 
-#### Updating an Entity:
+### Updating an Entity:
 
 ```python
 # Update a customer entity

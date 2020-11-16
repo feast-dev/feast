@@ -2,7 +2,7 @@
 
 Feast provides a historical retrieval interface for exporting feature data in order to train machine learning models. Essentially, users are able to enrich their data with features from any feature tables.
 
-### Retrieving historical features
+## Retrieving historical features
 
 Below is an example of the process required to produce a training dataset:
 
@@ -31,7 +31,7 @@ historical_feature_retrieval_job = client.get_historical_features(
 output_file_uri = historical_feature_retrieval_job.get_output_file_uri()
 ```
 
-#### 1. Define feature references
+### 1. Define feature references
 
 [Feature references](../concepts/glossary.md#feature-references) define the specific features that will be retrieved from Feast. These features can come from multiple feature tables. The only requirement is that the feature tables that make up the feature references have the same entity \(or composite entity\).
 
@@ -41,11 +41,11 @@ Feast needs to join feature values onto specific entities at specific points in 
 
 **3. Launch historical retrieval job**
 
-Once the feature references and an entity source are defined, it is possible to call `get_historical_features()`.  This method launches a job that extracts features from the sources defined in the provided feature tables, joins them onto the provided entity source, and returns a reference to the training dataset that is produced.
+Once the feature references and an entity source are defined, it is possible to call `get_historical_features()`. This method launches a job that extracts features from the sources defined in the provided feature tables, joins them onto the provided entity source, and returns a reference to the training dataset that is produced.
 
 Please see the [Feast SDK](https://api.docs.feast.dev/python) for more details.
 
-### Point-in-time Joins
+## Point-in-time Joins
 
 Feast always joins features onto entity data in a point-in-time correct way. The process can be described through an example.
 
@@ -56,7 +56,7 @@ In the example below there are two tables \(or dataframes\):
 
 The user would like to have the driver features joined onto the entity dataframe to produce a training dataset that contains both the target \(trip\_completed\) and features \(average\_daily\_rides, maximum\_daily\_rides, rating\). This dataset will then be used to train their model.
 
-![](../.gitbook/assets/point_in_time_join%20%281%29.png)
+![](../.gitbook/assets/point_in_time_join%20%281%29%20%281%29.png)
 
 Feast is able to intelligently join feature data with different timestamps to a single entity dataframe. It does this through a point-in-time join as follows:
 

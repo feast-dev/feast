@@ -2,7 +2,7 @@
 
 ![Feast high-level flow](https://lucid.app/publicSegments/view/04341727-9efb-4433-8e7d-ed7588a3d594/image.png)
 
-### Sequence description
+## Sequence description
 
 1. **Log Raw Events:** Production backend applications are configured to emit internal state changes as events to a stream.
 2. **Create Stream Features:** Stream processing systems like Flink, Spark, and Beam are used to transform and refine events and to produce features that are logged back to the stream.
@@ -28,7 +28,7 @@ Limitations
 * Batch ingestion jobs must be triggered from your own scheduler like Airflow. Streaming ingestion jobs are automatically launched by the Feast Job Service.
 {% endhint %}
 
-### Components:
+## Components:
 
 A complete Feast deployment contains the following components:
 
@@ -46,6 +46,6 @@ A complete Feast deployment contains the following components:
 Please see the [configuration reference](../reference/configuration-reference.md#overview) for more details on configuring these components.
 
 {% hint style="info" %}
-Java and Go SDKs are also available for online feature retrieval. See [API Reference](../reference/api/).
+Java and Go SDKs are also available for online feature retrieval. See [API Reference](https://github.com/feast-dev/feast/tree/dc71813b7abbdb01139c0ba80da539350c9eef83/docs/reference/api/README.md).
 {% endhint %}
 
