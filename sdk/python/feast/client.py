@@ -768,6 +768,8 @@ class Client:
 
         if project is None:
             project = self.project
+        if isinstance(feature_table, str):
+            name = feature_table
         if isinstance(feature_table, FeatureTable):
             name = feature_table.name
 
