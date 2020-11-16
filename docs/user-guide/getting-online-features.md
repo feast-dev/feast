@@ -1,10 +1,10 @@
 # Getting online features
 
-Feast provides an online retrieval interface for serving. Data ingested into the online store comes from both batch and stream sources. 
+Feast provides an API through which online feature values can be retrieved. This allows teams to look up feature values at low latency in production during model serving, in order to make online predictions.
 
-When data is ingested from a batch source, users can retrieve the same features used in training models from the low latency online store to be used in production. When data is ingested from a stream source, features that are retrieved by users are of the latest values, which are not yet used in training models.
-
-Online feature retrieval works in much the same way as batch retrieval, with one important distinction: Online stores only maintain the current state of features, i.e latest feature values. No historical data is served.
+{% hint style="info" %}
+Online stores only maintain the current state of features, i.e latest feature values. No historical data is stored or served.
+{% endhint %}
 
 ```python
 from feast import Client
@@ -36,35 +36,19 @@ response_dict = response.to_dict()
 print(response_dict)
 ```
 
-{% hint style="info" %}
-When no project is specified when retrieving features with get\_online\_feature\(\), Feast infers that the features specified belong to the default project. To retrieve from another project, specify the project parameter when retrieving features.
-{% endhint %}
+The online store must be populated through [ingestion jobs](define-and-ingest-features.md#batch-source-to-online-store) prior to being used for online serving.
 
-Feast Serving provides a [gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html) that is backed by [Redis](https://redis.io/). We also provide support for [Python](https://api.docs.feast.dev/python/), [Go](https://godoc.org/github.com/gojek/feast/sdk/go), and [Java](https://javadoc.io/doc/dev.feast) clients.
+Feast Serving provides a [gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html) that is backed by [Redis](https://redis.io/). We have native clients in [Python](https://api.docs.feast.dev/python/), [Go](https://godoc.org/github.com/gojek/feast/sdk/go), and [Java](https://javadoc.io/doc/dev.feast).
 
 ### Online Field Statuses
 
-Online Serving also returns Online Field Statuses when retrieving features. These status values gives useful insight into situations where Online Serving returns unset values. It also allows better of handling of the different possible cases represented by each status:for feature in features:
-
-```python
-response_dict = response.to_dict()
-
-for feature_ref in feature_refs:
-    # field status can be obtained from the response's field values
-    status = response_dict["field_values"]["statuses"][feature_ref]
-
-    if status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND:
-       # handle case where feature value has not been ingested
-    elif status == GetOnlineFeaturesResponse.FieldStatus.PRESENT:
-       # feature value is present and can be used
-       value = response_dict["field_values"]["statuses"][feature_ref]
-```
+Feast also returns status codes when retrieving features from the Feast Serving API. These status code give useful insight into the quality of data being served. 
 
 | Status | Meaning |
 | :--- | :--- |
-| NOT\_FOUND | Unset values returned as the feature value was not found in the online store. This might mean that no feature value was ingested for this feature. |
-| NULL\_VALUE | Unset values returned as the ingested feature value was also unset. |
-| OUTSIDE\_MAX\_AGE | Unset values returned as the age of the feature value \(time since the value was ingested\) has exceeded the Feature Set's max age, which the feature was defined in. |
-| PRESENT | Set values are returned for the requested feature. |
-| UNKNOWN | Status signifies the field status is unset for the requested feature. Might mean that the Feast version does not support Field Statuses. |
+| NOT\_FOUND | The feature value was not found in the online store. This might mean that no feature value was ingested for this feature. |
+| NULL\_VALUE | A entity key was successfully found but no feature values had been set. This status code should not occur during normal operation. |
+| OUTSIDE\_MAX\_AGE | The age of the feature row in the online store \(in terms of its event timestamp\) has exceeded the maximum age defined within the feature table. |
+| PRESENT | The feature values have been found and are within the maximum age. |
+| UNKNOWN | Indicates a system failure. |
 

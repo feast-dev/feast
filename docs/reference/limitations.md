@@ -43,5 +43,10 @@
 | Limitation | Motivation |
 | :--- | :--- |
 | Once data has been ingested into Feast, there is currently no way to delete the data without manually going to the database and deleting it. However, during retrieval only the latest rows will be returned for a specific key \(`event_timestamp`, `entity`\) based on its `created_timestamp`. | This functionality simply doesn't exist yet as a Feast API |
-| During the ingestion of data into BigQuery, `event_timestamp` is rounded down to seconds. E.g., `2020-08-21T08:40:19.906 -> 2020-08-21T08:40:19.000` | This ensures that floating point rounding errors do not occur during the retrieval of feature data, since this step requires time based joins |
+
+### Storage
+
+| Limitation | Motivation |
+| :--- | :--- |
+| Feast does not support offline storage in Feast 0.8 | As part of our re-architecture of Feast, we moved from GCP to cloud-agnostic deployments. Developing offline storage support that is available in all cloud environments is a pending action. |
 

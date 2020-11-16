@@ -50,7 +50,7 @@ The best way to learn Feast is to use it. Head over to our [Quickstart](quicksta
 
 * [Getting Started](getting-started/) provides guides on [Installing Feast](getting-started/install-feast/) and [Connecting to Feast](getting-started/connect-to-feast/).
 * [Concepts](./) describes all important Feast API concepts.
-* [User guide](user-guide/data-ingestion.md) provides guidance on completing Feast workflows.
+* [User guide](user-guide/define-and-ingest-features.md) provides guidance on completing Feast workflows.
 * [Examples](https://github.com/feast-dev/feast/tree/master/examples) contains a Jupyter notebook that you can run on your Feast deployment.
 * [Advanced](advanced/troubleshooting.md) contains information about both advanced and operational aspects of Feast.
 * [Reference](reference/api/) contains detailed API and design documents for advanced users.

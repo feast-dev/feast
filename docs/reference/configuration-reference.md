@@ -4,9 +4,9 @@
 
 This reference describes how to configure Feast components:
 
-* [Feast Core and Feast Online Serving](./#2-feast-core-serving-and-job-controller)
-* [Feast CLI and Feast Python SDK](./#3-feast-cli-and-feast-python-sdk)
-* [Feast Go and Feast Java SDK](./#4-feast-java-and-go-sdk)
+* [Feast Core and Feast Online Serving](configuration-reference.md#2-feast-core-serving-and-job-controller)
+* [Feast CLI and Feast Python SDK](configuration-reference.md#3-feast-cli-and-feast-python-sdk)
+* [Feast Go and Feast Java SDK](configuration-reference.md#4-feast-java-and-go-sdk)
 
 ### 1. Feast Core and Feast Online Serving
 
@@ -19,9 +19,9 @@ Available configuration properties for Feast Core and Feast Online Serving can b
 
 Configuration properties for Feast Core and Feast Online Serving are defined depending on Feast is deployed:
 
-* [Docker Compose deployment](./#docker-compose-deployment) - Feast is deployed with Docker Compose.
-* [Kubernetes deployment](./#kubernetes-deployment) - Feast is deployed with Kubernetes.
-* [Direct Configuration](./#direct-configuration) - Feast is built and run from source code.
+* [Docker Compose deployment](configuration-reference.md#docker-compose-deployment) - Feast is deployed with Docker Compose.
+* [Kubernetes deployment](configuration-reference.md#kubernetes-deployment) - Feast is deployed with Kubernetes.
+* [Direct Configuration](configuration-reference.md#direct-configuration) - Feast is built and run from source code.
 
 ### Docker Compose Deployment
 
@@ -75,7 +75,7 @@ If Feast is built and running from source, configuration properties can be set d
 
 ### 2. Feast CLI and Feast Python SDK
 
-Configuration options for both the [Feast CLI](../../getting-started/connect-to-feast/connecting-to-feast.md) and [Feast Python SDK](https://api.docs.feast.dev/python/) can be defined in the following locations, in order of precedence:
+Configuration options for both the [Feast CLI](../getting-started/connect-to-feast/feast-cli.md) and [Feast Python SDK](https://api.docs.feast.dev/python/) can be defined in the following locations, in order of precedence:
 
 **1. Command line arguments or initialized arguments:** Passing parameters to the Feast CLI or instantiating the Feast Client object with specific parameters will take precedence above other parameters.
 

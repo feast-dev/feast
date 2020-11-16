@@ -2,13 +2,16 @@
 
 ### Overview
 
-This guide shows you how to deploy Feast using [Docker Compose](https://docs.docker.com/get-started/). Docker Compose enables you to explore the functionality provided by Feast while requiring only minimal infrastructure.
+This guide shows you how to deploy Feast using [Docker Compose](https://docs.docker.com/get-started/). Docker Compose allows you to explore the functionality provided by Feast while requiring only minimal infrastructure.
 
 This guide includes the following containerized components:
 
-* A complete Feast deployment \(Feast Core with Postgres, Feast Online Serving with Redis\).
-* A Jupyter Notebook Server with built in Feast example\(s\).
-* A Kafka cluster for testing streaming ingestion.
+* [A complete Feast deployment](concepts/architecture.md)
+  * Feast Core with Postgres
+  * Feast Online Serving with Redis.
+  * Feast Job Service
+* A Jupyter Notebook Server with built in Feast example\(s\). For demo purposes only.
+* A Kafka cluster for testing streaming ingestion. For demo purposes only.
 
 ### Requirements
 
@@ -16,7 +19,7 @@ This guide includes the following containerized components:
 
 ### Get Feast
 
-Clone the latest stable version of Feast from the [Feast repository](https://github.com/gojek/feast/):
+Clone the latest stable version of Feast from the [Feast repository](https://github.com/feast-dev/feast/):
 
 ```text
 git clone https://github.com/feast-dev/feast.git
@@ -34,7 +37,7 @@ cp .env.sample .env
 Start Feast with Docker Compose:
 
 ```text
-docker-compose up -d
+docker-compose pull && docker-compose up -d
 ```
 
 Wait until all all containers are in a running state:
@@ -53,9 +56,15 @@ You can now connect to the bundled Jupyter Notebook Server running at `localhost
 
 #### Open ports
 
-Please ensure that the following ports are available on your host machine:  `6565`, `6566`, `8888`, `9094`, `5432`.
+Please ensure that the following ports are available on your host machine:
 
-If a port conflict cannot be resolved, you can modify all port mappings in the provided [docker-compose.yml](https://github.com/feast-dev/feast/tree/master/infra/docker-compose) file to use a different port on the host.
+* `6565` 
+* `6566`
+* `8888`
+* `9094`
+* `5432`
+
+If a port conflict cannot be resolved, you can modify the port mappings in the provided [docker-compose.yml](https://github.com/feast-dev/feast/tree/master/infra/docker-compose) file to use different ports on the host.
 
 #### Containers are restarting or unavailable
 

@@ -11,19 +11,26 @@
   * User surveys and meeting minutes.
   * Slide decks of conferences our contributors have spoken at.
 * [Feast GitHub Repository](https://github.com/feast-dev/feast/): Find the complete Feast codebase on GitHub.
+* [Feast Linux Foundation Wiki](https://wiki.lfaidata.foundation/display/FEAST/Feast+Home): Our LFAI wiki page contains links to resources for contributors and maintainers.
 
 ### How can I get help?
 
-* **Slack:** Need to speak to a human? Come ask a question in our Slack channel \(link above\)
+* **Slack:** Need to speak to a human? Come ask a question in our Slack channel \(link above\).
 * **GitHub Issues:** Found a bug or need a feature? [Create an issue on GitHub](https://github.com/feast-dev/feast/issues/new).
 * **StackOverflow:** Need to ask a question on how to use Feast? We also monitor and respond to [StackOverflow](https://stackoverflow.com/questions/tagged/feast).
 
 ### Community Call
 
-We have a community call every 2 weeks. Alternating between two times:
+We have a user and contributor community call every two weeks \(Asia & US friendly\).
 
-* 11 am \(UTC + 8\)
-* 5 pm \(UTC + 8\)
+#### Frequency \(every 2 weeks\)
 
-Join the [feast-dev](getting-help.md#feast-development) mailing list to receive a Google calendar invitation.
+* **Asia \(UTC+08:00\):** Wednesday 10:00 am to 10:30 am.
+* **US West Coast \(PT\):** Tuesday 18:00 pm to 18:30 pm.
+
+#### Links
+
+* Calendar: [Feast Community Calendar \(Linux Foundation\)](https://wiki.lfaidata.foundation/pages/viewpage.action?pageId=30408973)
+* Zoom: [https://zoom.us/j/6325193230](https://zoom.us/j/6325193230)
+* Meeting notes: [https://bit.ly/feast-notes](https://bit.ly/feast-notes%20)
 

@@ -5,9 +5,7 @@ description: 'Secure Feast with SSL/TLS, Authentication and Authorization.'
 # Security
 
 {% hint style="warning" %}
-Currently, Security functionality applies only to Feast Core and Feast Online Serving.
-
-Security for Historical Serving will become available once offline storage is introduced in Feast 0.9.
+This page applies to Feast 0.7. The content may be out of date for Feast 0.8+
 {% endhint %}
 
 ### Overview
@@ -22,11 +20,11 @@ Feast supports the following security methods:
 
 [Important considerations when integrating Authentication/Authorization](security.md#5-authentication-and-authorization).
 
-## **1. SSL/TLS**
+### **SSL/TLS**
 
 Feast supports SSL/TLS encrypted inter-service communication among Feast Core, Feast Online Serving, and Feast SDKs.
 
-### Configuring SSL/TLS on Feast Core and Feast Serving
+#### Configuring SSL/TLS on Feast Core and Feast Serving
 
 The following properties configure SSL/TLS. These properties are located in their corresponding `application.yml`files:
 
@@ -38,9 +36,9 @@ The following properties configure SSL/TLS. These properties are located in thei
 
 > Read more on enabling SSL/TLS in the[ gRPC starter docs.](https://yidongnan.github.io/grpc-spring-boot-starter/en/server/security.html#enable-transport-layer-security)
 
-### Configuring SSL/TLS on Python SDK/CLI
+#### Configuring SSL/TLS on Python SDK/CLI
 
-To enable SSL/TLS in the [Feast Python SDK](https://api.docs.feast.dev/python/#feast.client.Client) or [Feast CLI](../getting-started/connect-to-feast/connecting-to-feast.md), set the config options via `feast config`:
+To enable SSL/TLS in the [Feast Python SDK](https://api.docs.feast.dev/python/#feast.client.Client) or [Feast CLI](../getting-started/connect-to-feast/feast-cli.md), set the config options via `feast config`:
 
 | Configuration Option | Description |
 | :--- | :--- |
@@ -53,7 +51,7 @@ To enable SSL/TLS in the [Feast Python SDK](https://api.docs.feast.dev/python/#f
 The Python SDK automatically uses SSL/TLS when connecting to Feast Core and Feast Online Serving via port 443.
 {% endhint %}
 
-### Configuring SSL/TLS on Go SDK
+#### Configuring SSL/TLS on Go SDK
 
 Configure SSL/TLS on the [Go SDK](https://godoc.org/github.com/feast-dev/feast/sdk/go) by passing configuration via `SecurityConfig`:
 
@@ -69,7 +67,7 @@ cli, err := feast.NewSecureGrpcClient("localhost", 6566, feast.SecurityConfig{
 | `EnableTLS` | Enables SSL/TLS functionality when connecting to Feast if `true` |
 | `TLSCertPath` | Optional. Provides the path of the root certificate used to verify Feast Service's identity. If omitted, uses system certificates. |
 
-### Configuring SSL/TLS on **Java** SDK
+#### Configuring SSL/TLS on **Java** SDK
 
 Configure SSL/TLS on the [Feast Java SDK](https://javadoc.io/doc/dev.feast/feast-sdk) by passing configuration via `SecurityConfig`:
 
@@ -86,7 +84,7 @@ FeastClient client = FeastClient.createSecure("localhost", 6566,
 | `setTLSEnabled()` | Enables SSL/TLS functionality when connecting to Feast if `true` |
 | `setCertificatesPath()` | Optional. Set the path of the root certificate used to verify Feast Service's identity. If omitted, uses system certificates. |
 
-## **2. Authentication**
+### **Authentication**
 
 {% hint style="warning" %}
 To prevent man in the middle attacks, we recommend that SSL/TLS be implemented prior to authentication.
@@ -118,7 +116,7 @@ Behind the scenes, Feast Core and Feast Online Serving authenticate by:
 
 * Validates token's authenticity using the JWK retrieved from the `jwkEndpointURI`
 
-### **Authenticating Serving with Feast Core**
+#### **Authenticating Serving with Feast Core**
 
 Feast Online Serving communicates with Feast Core during normal operation. When both authentication and authorization are enabled on Feast Core, Feast Online Serving is forced to authenticate its requests to Feast Core. Otherwise, Feast Online Serving produces an Authentication failure error when connecting to Feast Core. 
 
@@ -186,9 +184,9 @@ OAuth Provider makes an OAuth [client credentials](https://auth0.com/docs/flows/
 {% endtab %}
 {% endtabs %}
 
-### **Enabling Authentication in Python SDK/CLI**
+#### **Enabling Authentication in Python SDK/CLI**
 
-Configure the [Feast Python SDK](https://api.docs.feast.dev/python/) and [Feast CLI](../getting-started/connect-to-feast/connecting-to-feast.md) to use authentication via `feast config`:
+Configure the [Feast Python SDK](https://api.docs.feast.dev/python/) and [Feast CLI](../getting-started/connect-to-feast/feast-cli.md) to use authentication via `feast config`:
 
 ```python
 $ feast config set enable_auth true
@@ -262,7 +260,7 @@ OAuth Provider makes an OAuth [client credentials](https://auth0.com/docs/flows/
 {% endtab %}
 {% endtabs %}
 
-### **Enabling Authentication in Go SDK**
+#### **Enabling Authentication in Go SDK**
 
 Configure the [Feast Java SDK](https://javadoc.io/doc/dev.feast/feast-sdk/latest/com/gojek/feast/package-summary.html) to use authentication by specifying the credential via `SecurityConfig`:
 
@@ -340,7 +338,7 @@ cred := feast.NewOAuthCredential("localhost:6566", "client_id", "secret", "https
 {% endtab %}
 {% endtabs %}
 
-### **Enabling Authentication in Java SDK**
+#### **Enabling Authentication in Java SDK**
 
 Configure the [Feast Java SDK](https://javadoc.io/doc/dev.feast/feast-sdk/latest/com/gojek/feast/package-summary.html) to use authentication by setting credentials via `SecurityConfig`:
 
@@ -438,7 +436,7 @@ CallCredentials credentials = new OAuthCredentials(Map.of(
 {% endtab %}
 {% endtabs %}
 
-## 3. Authorization
+### Authorization
 
 {% hint style="info" %}
 Authorization requires that authentication be configured to obtain a user identity for use in authorizing requests.
@@ -449,7 +447,7 @@ Authorization provides access control to FeatureTables and/or Features based on 
 * Create and/or Update a Feature Table in the Project.
 * Retrieve Feature Values for Features in that Project.
 
-### **Authorization API/Server**
+#### **Authorization API/Server**
 
 ![Feast Authorization Flow](../.gitbook/assets/rsz_untitled23.jpg)
 
@@ -471,7 +469,7 @@ Authorization can be configured for Feast Core and Feast Online Serving via prop
 This example of the [Authorization Server with Keto](https://github.com/feast-dev/feast-keto-auth-server) can be used as a reference implementation for implementing an Authorization Server that Feast supports.
 {% endhint %}
 
-## **4. Authentication & Authorization**
+### **Authentication & Authorization**
 
 When using Authentication & Authorization, consider:
 

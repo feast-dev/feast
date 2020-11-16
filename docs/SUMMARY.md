@@ -8,11 +8,11 @@
     * [Amazon EKS \(with Terraform\)](getting-started/install-feast/kubernetes-amazon-eks-with-terraform.md)
   * [Connect to Feast](getting-started/connect-to-feast/README.md)
     * [Python SDK](getting-started/connect-to-feast/python-sdk.md)
-    * [Feast CLI](getting-started/connect-to-feast/connecting-to-feast.md)
+    * [Feast CLI](getting-started/connect-to-feast/feast-cli.md)
   * [Learn Feast](getting-started/learn-feast.md)
 * [Roadmap](roadmap.md)
 * [Changelog](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
-* [Community](getting-help.md)
+* [Community](community.md)
 
 ## Concepts
 
@@ -21,12 +21,14 @@
 * [Entities](concepts/entities.md)
 * [Sources](concepts/sources.md)
 * [Feature Tables](concepts/feature-tables.md)
-* [Feature References](concepts/feature-references.md)
+* [Stores](concepts/stores.md)
+* [Glossary](concepts/glossary.md)
 
 ## User Guide
 
-* [Getting data into Feast](user-guide/data-ingestion.md)
-* [Getting training features](user-guide/feature-retrieval.md)
+* [Overview](user-guide/overview.md)
+* [Define and ingest features](user-guide/define-and-ingest-features.md)
+* [Getting training features](user-guide/getting-training-features.md)
 * [Getting online features](user-guide/getting-online-features.md)
 
 ## Tutorials
@@ -43,15 +45,15 @@
 
 ## Reference
 
-* [API Reference](reference/api/README.md)
+* [API Reference](reference/api.md)
+  * [Go SDK](https://godoc.org/github.com/feast-dev/feast/sdk/go)
+  * [Java SDK](https://javadoc.io/doc/dev.feast/feast-sdk)
   * [Core gRPC API](https://api.docs.feast.dev/grpc/feast.core.pb.html)
+  * [Python SDK](https://api.docs.feast.dev/python/)
   * [Serving gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html)
   * [gRPC Types](https://api.docs.feast.dev/grpc/feast.types.pb.html)
-* [Configuration Reference](reference/configuration-reference/README.md)
-  * [Go SDK](https://godoc.org/github.com/feast-dev/feast/sdk/go)
-* [Metrics Reference](reference/metrics-reference/README.md)
-  * [Java SDK](https://javadoc.io/doc/dev.feast/feast-sdk)
-  * [Python SDK](https://api.docs.feast.dev/python/)
+* [Configuration Reference](reference/configuration-reference.md)
+* [Metrics Reference](reference/metrics-reference.md)
 * [Limitations](reference/limitations.md)
 
 ## Contributing
