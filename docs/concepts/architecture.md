@@ -1,6 +1,6 @@
 # Architecture
 
-![Feast high-level flow](https://lucid.app/publicSegments/view/04341727-9efb-4433-8e7d-ed7588a3d594/image.png)
+![](../.gitbook/assets/image%20%285%29.png)
 
 ## Sequence description
 
