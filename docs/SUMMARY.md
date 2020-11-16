@@ -45,7 +45,7 @@
 
 ## Reference
 
-* [API Reference](reference/api/README.md)
+* [API Reference](reference/api.md)
   * [Go SDK](https://godoc.org/github.com/feast-dev/feast/sdk/go)
   * [Java SDK](https://javadoc.io/doc/dev.feast/feast-sdk)
   * [Core gRPC API](https://api.docs.feast.dev/grpc/feast.core.pb.html)

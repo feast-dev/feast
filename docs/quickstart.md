@@ -19,7 +19,7 @@ This guide includes the following containerized components:
 
 ### Get Feast
 
-Clone the latest stable version of Feast from the [Feast repository](https://github.com/gojek/feast/):
+Clone the latest stable version of Feast from the [Feast repository](https://github.com/feast-dev/feast/):
 
 ```text
 git clone https://github.com/feast-dev/feast.git
