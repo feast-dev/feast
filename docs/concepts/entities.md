@@ -35,7 +35,7 @@ customer = Entity(
 
 ### Working with an Entity
 
-Creating an Entity:
+#### Creating an Entity:
 
 ```python
 # Create a customer entity
@@ -43,7 +43,7 @@ customer_entity = Entity(name="customer_id", description="ID of car customer")
 client.apply_entity(customer_entity)
 ```
 
-Updating an Entity:
+#### Updating an Entity:
 
 ```python
 # Update a customer entity
@@ -56,12 +56,9 @@ Permitted changes include:
 
 * The entity's description and labels
 
-{% hint style="warning" %}
-You **cannot** change the following:
+The following changes are note permitted:
 
-* Project or name of an entity
+* Project
+* Name of an entity
 * Type
-{% endhint %}
-
-Visit [EntitySpec](https://api.docs.feast.dev/grpc/feast.core.pb.html#EntitySpecV2) for the entity-specification API.
 

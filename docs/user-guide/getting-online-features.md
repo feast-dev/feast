@@ -36,7 +36,7 @@ response_dict = response.to_dict()
 print(response_dict)
 ```
 
-The online store must be populated through [ingestion jobs](loading-data-into-feast.md#batch-source-to-online-store) prior to being used for online serving.
+The online store must be populated through [ingestion jobs](define-and-ingest-features.md#batch-source-to-online-store) prior to being used for online serving.
 
 Feast Serving provides a [gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html) that is backed by [Redis](https://redis.io/). We have native clients in [Python](https://api.docs.feast.dev/python/), [Go](https://godoc.org/github.com/gojek/feast/sdk/go), and [Java](https://javadoc.io/doc/dev.feast).
 

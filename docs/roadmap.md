@@ -1,5 +1,17 @@
 # Roadmap
 
+### Feast 0.9
+
+[Discussion](https://github.com/feast-dev/feast/issues/1131)
+
+#### New Functionality
+
+* Feast Job Service
+* Delta offline store support. Optional for users
+* Push based ingestion into offline store
+* On-prem support \(Open source storage and launcher\)
+* Azure support
+
 ### Feast 0.8
 
 [Discussion](https://github.com/feast-dev/feast/issues/1018)

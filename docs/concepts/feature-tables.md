@@ -9,7 +9,7 @@ Feature tables serve the following purposes:
 * Feature tables are a means for defining the location and properties of data [sources](sources.md).
 * Feature tables are used to create within Feast a database-level structure for the storage of feature values.
 * The data sources described within feature tables allow Feast to find and ingest feature data into stores within Feast.
-* Feature tables ensure data is efficiently stored during [ingestion](../user-guide/loading-data-into-feast.md) by providing a grouping mechanism of features values that occur on the same event timestamp.
+* Feature tables ensure data is efficiently stored during [ingestion](../user-guide/define-and-ingest-features.md) by providing a grouping mechanism of features values that occur on the same event timestamp.
 
 {% hint style="info" %}
 Feast does not yet apply feature transformations. Transformations are currently expected to happen before data is ingested into Feast. The data sources described within feature tables should reference feature values in their already transformed form.
@@ -39,7 +39,7 @@ Feature tables contain the following fields:
 * **Batch Source:** The batch data source from which Feast will ingest feature values into stores. This can either be used to back-fill stores before switching over to a streaming source, or it can be used as the primary source of data for a feature table. Visit [Sources](sources.md) to learn more about batch sources.
 * **Stream Source:** The streaming data source from which you can ingest streaming feature values into Feast. Streaming sources must be paired with a batch source containing the same feature values. A streaming source is only used to populate online stores. The batch equivalent source that is paired with a streaming source is used during the generation of historical feature datasets. Visit [Sources](sources.md) to learn more about stream sources.
 
-Here is a ride-hailing example of a valid feature-table specification:
+Here is a ride-hailing example of a valid feature table specification:
 
 {% tabs %}
 {% tab title="driver\_trips\_feature\_table.py" %}
@@ -98,7 +98,7 @@ driver_ft.labels = {"team": "marketplace"}
 client.apply_feature_table(driver_ft)
 ```
 
-Feast currently supports the following changes to feature tables:
+#### Feast currently supports the following changes to feature tables:
 
 * Adding new features.
 * Removing features.
@@ -108,7 +108,7 @@ Feast currently supports the following changes to feature tables:
 Deleted features are archived, rather than removed completely. Importantly, new features cannot use the names of these deleted features.
 {% endhint %}
 
-Feast currently does not support the following changes to feature tables:
+#### Feast currently does not support the following changes to feature tables:
 
 * Changes to the project or name of a feature table.
 * Changes to entities related to a feature table.

@@ -27,7 +27,7 @@
 ## User Guide
 
 * [Overview](user-guide/overview.md)
-* [Ingest data into Feast](user-guide/loading-data-into-feast.md)
+* [Define and ingest features](user-guide/define-and-ingest-features.md)
 * [Getting training features](user-guide/getting-training-features.md)
 * [Getting online features](user-guide/getting-online-features.md)
 
@@ -46,14 +46,14 @@
 ## Reference
 
 * [API Reference](reference/api/README.md)
+  * [Go SDK](https://godoc.org/github.com/feast-dev/feast/sdk/go)
+  * [Java SDK](https://javadoc.io/doc/dev.feast/feast-sdk)
   * [Core gRPC API](https://api.docs.feast.dev/grpc/feast.core.pb.html)
+  * [Python SDK](https://api.docs.feast.dev/python/)
   * [Serving gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html)
   * [gRPC Types](https://api.docs.feast.dev/grpc/feast.types.pb.html)
-* [Configuration Reference](reference/configuration-reference/README.md)
-  * [Go SDK](https://godoc.org/github.com/feast-dev/feast/sdk/go)
-* [Metrics Reference](reference/metrics-reference/README.md)
-  * [Java SDK](https://javadoc.io/doc/dev.feast/feast-sdk)
-  * [Python SDK](https://api.docs.feast.dev/python/)
+* [Configuration Reference](reference/configuration-reference.md)
+* [Metrics Reference](reference/metrics-reference.md)
 * [Limitations](reference/limitations.md)
 
 ## Contributing
