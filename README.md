@@ -12,7 +12,7 @@
 
 ## Overview
 
-Feast (Feature Store) is an operational data system for managing and serving machine learning features to models in production. Please see our [documentation](https://docs.feast.dev/) for the motivation behind the project.
+Feast (Feature Store) is an operational data system for managing and serving machine learning features to models in production. Please see our [documentation](https://docs.feast.dev/) for more information about the project.
 
 ![](docs/.gitbook/assets/feast-architecture-diagrams.svg)
 
@@ -21,7 +21,7 @@ Feast (Feature Store) is an operational data system for managing and serving mac
 Clone the latest stable version of the [Feast repository](https://github.com/feast-dev/feast/) and navigate to the `infra/docker-compose` sub-directory:
 
 ```
-git clone --depth 1 --branch v0.7.0 https://github.com/feast-dev/feast.git
+git clone https://github.com/feast-dev/feast.git
 cd feast/infra/docker-compose
 cp .env.sample .env
 ```
@@ -30,16 +30,18 @@ The `.env` file can optionally be configured based on your environment.
 
 Bring up Feast:
 ```
-docker-compose up -d
-```
+docker-compose pull && docker-compose up -d
 
-The command above will bring up a complete Feast deployment with a [Jupyter Notebook](http://localhost:8888/tree/feast/examples) containing example notebooks.
+```
+Please wait for the containers to start up. This could take a few minutes since the quickstart contains demo infastructure like Kafka and Jupyter.
+
+Once the containers are all running, please connect to the provided [Jupyter Notebook](http://localhost:8888/tree/feast/examples) containing example notebooks to try out.
 
 ## Important resources
 
 Please refer to the official documentation at <https://docs.feast.dev>
 
- * [Concepts](https://docs.feast.dev/user-guide/overview)
+ * [Concepts](https://docs.feast.dev/concepts/overview)
  * [Installation](https://docs.feast.dev/getting-started)
  * [Examples](https://github.com/feast-dev/feast/blob/master/examples/)
  * [Roadmap](https://docs.feast.dev/roadmap)
@@ -48,4 +50,4 @@ Please refer to the official documentation at <https://docs.feast.dev>
 
 ## Notice
 
-Feast is a community project and is still under active development. Your feedback and contributions are important to us. Please have a look at our [contributing guide](docs/contributing/contributing.md) for details.
+Feast is a community project and is still under active development. Your feedback and contributions are important to us. Please have a look at our [contributing guide](https://docs.feast.dev/contributing/contributing) for details.
