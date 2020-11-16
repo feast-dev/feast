@@ -824,7 +824,9 @@ class Client:
         try:
             if issubclass(type(feature_table.batch_source), FileSource):
                 file_url = feature_table.batch_source.file_options.file_url.rstrip("*")
-                _upload_to_file_source(file_url, with_partitions, dest_path)
+                _upload_to_file_source(
+                    file_url, with_partitions, dest_path, self._config
+                )
             if issubclass(type(feature_table.batch_source), BigQuerySource):
                 bq_table_ref = feature_table.batch_source.bigquery_options.table_ref
                 feature_table_timestamp_column = (
@@ -979,6 +981,7 @@ class Client:
                 entity_source = stage_entities_to_fs(
                     entity_source,
                     staging_location=self._config.get(CONFIG_SPARK_STAGING_LOCATION),
+                    config=self._config,
                 )
 
         if self._use_job_service:

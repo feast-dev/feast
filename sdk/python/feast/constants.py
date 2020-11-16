@@ -68,6 +68,8 @@ CONFIG_AUTH_PROVIDER = "auth_provider"
 CONFIG_TIMEOUT_KEY = "timeout"
 CONFIG_MAX_WAIT_INTERVAL_KEY = "max_wait_interval"
 
+CONFIG_S3_ENDPOINT_URL = "s3_endpoint_url"
+
 # Spark Job Config
 CONFIG_SPARK_LAUNCHER = "spark_launcher"  # standalone, dataproc, emr
 
@@ -130,6 +132,8 @@ FEAST_DEFAULT_OPTIONS = {
     CONFIG_BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS_KEY: "600",
     CONFIG_TIMEOUT_KEY: "21600",
     CONFIG_MAX_WAIT_INTERVAL_KEY: "60",
+    # Endpoint URL for S3 storage_client
+    CONFIG_S3_ENDPOINT_URL: None,
     # Authentication Provider - Google OpenID/OAuth
     CONFIG_AUTH_PROVIDER: "google",
     CONFIG_SPARK_LAUNCHER: "dataproc",
