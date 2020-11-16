@@ -7,19 +7,10 @@ Client
 .. automodule:: feast.client
     :members:
 
-
-Feature Set
+Data Source
 ==================
 
-.. automodule:: feast.feature_set
-    :members:
-
-
-Feature
-==================
-
-.. automodule:: feast.feature
-    :inherited-members:
+.. automodule:: feast.data_source
     :members:
 
 
@@ -31,24 +22,15 @@ Entity
     :members:
 
 
-Value
+Feature Table
 ==================
 
-.. automodule:: feast.value_type
+.. automodule:: feast.feature_table
     :members:
 
-
-Source
+Feature
 ==================
 
-.. automodule:: feast.source
+.. automodule:: feast.feature
+    :inherited-members:
     :members:
-
-
-Job
-==================
-
-.. automodule:: feast.job
-    :members:
-
-
