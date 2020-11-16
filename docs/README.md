@@ -53,6 +53,6 @@ Explore the following resources to get started with Feast:
 * [User guide](user-guide/define-and-ingest-features.md) provides guidance on completing Feast workflows.
 * [Examples](https://github.com/feast-dev/feast/tree/master/examples) contains a Jupyter notebook that you can run on your Feast deployment.
 * [Advanced](advanced/troubleshooting.md) contains information about both advanced and operational aspects of Feast.
-* [Reference](https://github.com/feast-dev/feast/tree/dc71813b7abbdb01139c0ba80da539350c9eef83/docs/reference/api/README.md) contains detailed API and design documents for advanced users.
+* [Reference](reference/api/) contains detailed API and design documents for advanced users.
 * [Contributing](contributing/contributing.md) contains resources for anyone who wants to contribute to Feast.
 
