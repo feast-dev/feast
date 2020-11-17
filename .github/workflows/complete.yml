@@ -133,7 +133,7 @@ jobs:
     - publish-ingestion-jar
     runs-on: ubuntu-latest
     env:
-      INGESTION_JAR_PATH: /shared/feast-ingestion-spark-develop.jar
+      INGESTION_JAR_PATH: /shared/feast-ingestion-spark-not-develop.jar
     steps:
       - uses: actions/checkout@v2
       - name: Download ingestion jar
