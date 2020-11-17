@@ -205,9 +205,9 @@ class DataprocClusterLauncher(JobLauncher):
         staging_location: str,
         region: str,
         project_id: str,
-        executor_instances: str = "2",
-        executor_cores: str = "2",
-        executor_memory: str = "2g",
+        executor_instances: str,
+        executor_cores: str,
+        executor_memory: str,
     ):
         """
         Initialize a dataproc job controller client, used internally for job submission and result
