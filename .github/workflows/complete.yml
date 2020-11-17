@@ -132,25 +132,32 @@ jobs:
     - build-push-docker-images
     - publish-ingestion-jar
     runs-on: ubuntu-latest
+    env:
+      INGESTION_JAR_PATH: /shared/feast-ingestion-spark-develop.jar
     steps:
       - uses: actions/checkout@v2
+      - name: Download ingestion jar
+        uses: actions/download-artifact@v2
+        with:
+          name: ingestion-jar
+          path: ./infra/docker-compose/
       - name: Test docker compose
         run: ./infra/scripts/test-docker-compose.sh ${GITHUB_SHA}
 
   publish-ingestion-jar:
-    runs-on: [self-hosted]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
-        with:
-          version: '290.0.1'
-          export_default_credentials: true
       - uses: actions/setup-java@v1
         with:
           java-version: '11'
-      - uses: stCarolas/setup-maven@v3
+      - name: Cache local Maven repository
+        uses: actions/cache@v2
         with:
-          maven-version: 3.6.3
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
       - name: build-jar
         env:
           # Try to add retries to prevent connection resets
@@ -158,6 +165,10 @@ jobs:
           # https://github.com/actions/virtual-environments/issues/1499#issuecomment-718396233
           MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3 -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false
           MAVEN_EXTRA_OPTS: -X
-        run: make build-java-no-tests REVISION=${GITHUB_SHA}
-      - name: copy to gs
-        run: gsutil cp ./spark/ingestion/target/feast-ingestion-spark-${GITHUB_SHA}.jar gs://feast-jobs/spark/ingestion/
+        run: make build-java-no-tests REVISION=develop
+      - name: Upload ingestion jar
+        uses: actions/upload-artifact@v2
+        with:
+          name: ingestion-jar
+          path: spark/ingestion/target/feast-ingestion-spark-develop.jar
+          retention-days: 1
