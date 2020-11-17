@@ -47,12 +47,8 @@ def _wait_port_open(port, max_wait=60):
             return
 
 
-@pytest.fixture(  # type: ignore
-    scope="session",
-    params=[
-        pytest.mark.skip(True),  # type: ignore
-        False,
-    ],
+@pytest.fixture(
+    scope="session", params=[pytest.param(True, marks=pytest.mark.skip), False],
 )
 def enable_auth(request):
     return request.param
