@@ -50,7 +50,7 @@ def _init_config(path: str):
     os.makedirs(os.path.dirname(config_dir), exist_ok=True)
 
     # Create the configuration file itself
-    config = ConfigParser(defaults=DEFAULTS)
+    config = ConfigParser(defaults=DEFAULTS, allow_no_value=True)
     if os.path.exists(path):
         config.read(path)
 
