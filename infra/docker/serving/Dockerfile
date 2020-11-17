@@ -9,13 +9,11 @@ WORKDIR /build
 COPY pom.xml .
 COPY datatypes/java/pom.xml datatypes/java/pom.xml
 COPY common/pom.xml common/pom.xml
-COPY ingestion/pom.xml ingestion/pom.xml
 COPY core/pom.xml core/pom.xml
 COPY serving/pom.xml serving/pom.xml
 COPY storage/api/pom.xml storage/api/pom.xml
 COPY storage/connectors/pom.xml storage/connectors/pom.xml
 COPY storage/connectors/redis/pom.xml storage/connectors/redis/pom.xml
-COPY storage/connectors/bigquery/pom.xml storage/connectors/bigquery/pom.xml
 COPY sdk/java/pom.xml sdk/java/pom.xml
 COPY docs/coverage/java/pom.xml docs/coverage/java/pom.xml
 COPY protos/ protos/

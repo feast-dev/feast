@@ -86,12 +86,6 @@
 
     <dependency>
       <groupId>dev.feast</groupId>
-      <artifactId>feast-storage-connector-bigquery</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>dev.feast</groupId>
       <artifactId>feast-common</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -324,6 +318,12 @@
       <groupId>dev.feast</groupId>
       <artifactId>feast-common-test</artifactId>
       <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.squareup.okhttp</groupId>
+      <artifactId>okhttp</artifactId>
+      <version>2.7.4</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

@@ -54,7 +54,6 @@ public class ServingServiceConfigV2 {
         OnlineRetrieverV2 redisRetriever = new OnlineRetriever(redisClient);
         servingService = new OnlineServingServiceV2(redisRetriever, specService, tracer);
         break;
-      case CASSANDRA:
       case UNRECOGNIZED:
       case INVALID:
         throw new IllegalArgumentException(
