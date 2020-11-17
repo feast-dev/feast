@@ -63,7 +63,7 @@ jobs:
           fi
 
   publish-ingestion-jar:
-    runs-on: [ self-hosted ]
+    runs-on: ubuntu-latest
     env:
       PUBLISH_BUCKET: feast-jobs
     steps:
@@ -72,12 +72,11 @@ jobs:
         with:
           version: '290.0.1'
           export_default_credentials: true
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
       - uses: actions/setup-java@v1
         with:
           java-version: '11'
-      - uses: stCarolas/setup-maven@v3
-        with:
-          maven-version: 3.6.3
       - name: Publish develop version of ingestion job
         run: |
           if [ ${GITHUB_REF#refs/*/} == "master" ]; then

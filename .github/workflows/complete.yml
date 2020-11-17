@@ -150,6 +150,15 @@ jobs:
       - uses: actions/setup-java@v1
         with:
           java-version: '11'
+      - name: MVN cache
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-mvn-repo
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
       - name: build-jar
         env:
           # Try to add retries to prevent connection resets
@@ -162,4 +171,5 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ingestion-jar
-          path: ./spark/ingestion/target/feast-ingestion-spark-${GITHUB_SHA}.jar
+          path: spark/ingestion/target/feast-ingestion-spark-${{ GITHUB_SHA }}.jar
+          retention-days: 1
