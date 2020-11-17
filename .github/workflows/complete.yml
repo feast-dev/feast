@@ -140,6 +140,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: ingestion-jar
+          path: ./infra/docker-compose/
       - name: Test docker compose
         run: ./infra/scripts/test-docker-compose.sh ${GITHUB_SHA}
 
