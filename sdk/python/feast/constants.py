@@ -50,26 +50,27 @@ class ConfigMeta(type):
         return super().__new__(cls, name, bases, attrs)
 
 
+#: Default datetime column name for point-in-time join
+DATETIME_COLUMN: str = "datetime"
+
+#: Environmental variable to specify Feast configuration file location
+FEAST_CONFIG_FILE_ENV: str = "FEAST_CONFIG"
+
+#: Default prefix to Feast environmental variables
+CONFIG_FEAST_ENV_VAR_PREFIX: str = "FEAST_"
+
+#: Default directory to Feast configuration file
+CONFIG_FILE_DEFAULT_DIRECTORY: str = ".feast"
+
+#: Default Feast configuration file name
+CONFIG_FILE_NAME: str = "config"
+
+#: Default section in Feast configuration file to specify options
+CONFIG_FILE_SECTION: str = "general"
+
+
 class ConfigOptions(metaclass=ConfigMeta):
     """ Feast Configuration Options """
-
-    #: Default datetime column name for point-in-time join
-    DATETIME_COLUMN: str = "datetime"
-
-    #: Environmental variable to specify Feast configuration file location
-    FEAST_CONFIG_FILE_ENV: str = "FEAST_CONFIG"
-
-    #: Default prefix to Feast environmental variables
-    CONFIG_FEAST_ENV_VAR_PREFIX: str = "FEAST_"
-
-    #: Default directory to Feast configuration file
-    CONFIG_FILE_DEFAULT_DIRECTORY: str = ".feast"
-
-    #: Default Feast configuration file name
-    CONFIG_FILE_NAME: str = "config"
-
-    #: Default section in Feast configuration file to specify options
-    CONFIG_FILE_SECTION: str = "general"
 
     #: Feast project namespace to use
     PROJECT: str = "default"
