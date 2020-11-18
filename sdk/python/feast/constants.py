@@ -21,135 +21,188 @@ class AuthProvider(Enum):
     OAUTH = "oauth"
 
 
-DATETIME_COLUMN = "datetime"
+class Option:
+    def __init__(self, name, default):
+        self._name = name
+        self._default = default
 
-# Environmental variable to specify Feast configuration file location
-FEAST_CONFIG_FILE_ENV_KEY = "FEAST_CONFIG"
+    def __get__(self, instance, owner):
+        if instance is None:
+            return self._name.lower()
 
-# Default prefix to Feast environmental variables
-CONFIG_FEAST_ENV_VAR_PREFIX = "FEAST_"
+        return self._default
 
-# Default directory to Feast configuration file
-CONFIG_FILE_DEFAULT_DIRECTORY = ".feast"
 
-# Default Feast configuration file name
-CONFIG_FILE_NAME = "config"
+class ConfigMeta(type):
+    def __new__(cls, name, bases, attrs):
+        keys = [
+            k
+            for k, v in attrs.items()
+            if not k.startswith("_") and isinstance(v, (str, int, float))
+        ]
+        attrs["__config_keys__"] = keys
+        attrs.update({k: Option(k, attrs[k]) for k in keys})
+        return super().__new__(cls, name, bases, attrs)
 
-# Default section in Feast configuration file to specify options
-CONFIG_FILE_SECTION = "general"
 
-# Feast Configuration Options
-CONFIG_PROJECT_KEY = "project"
-CONFIG_CORE_URL_KEY = "core_url"
-CONFIG_CORE_ENABLE_SSL_KEY = "core_enable_ssl"
-CONFIG_ENABLE_AUTH_KEY = "enable_auth"
-CONFIG_ENABLE_AUTH_TOKEN_KEY = "auth_token"
-CONFIG_CORE_SERVER_SSL_CERT_KEY = "core_server_ssl_cert"
-CONFIG_JOB_CONTROLLER_SERVER_KEY = "jobcontroller_url"
-CONFIG_SERVING_URL_KEY = "serving_url"
-CONFIG_SERVING_ENABLE_SSL_KEY = "serving_enable_ssl"
-CONFIG_SERVING_SERVER_SSL_CERT_KEY = "serving_server_ssl_cert"
-CONFIG_JOB_SERVICE_URL_KEY = "job_service_url"
-CONFIG_JOB_SERVICE_ENABLE_SSL_KEY = "job_service_enable_ssl"
-CONFIG_JOB_SERVICE_SERVER_SSL_CERT_KEY = "job_service_server_ssl_cert"
-CONFIG_JOB_SERVICE_ENABLE_CONTROL_LOOP = "job_service_enable_control_loop"
-CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY = "grpc_connection_timeout_default"
-CONFIG_GRPC_CONNECTION_TIMEOUT_APPLY_KEY = "grpc_connection_timeout_apply"
-CONFIG_BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS_KEY = (
-    "batch_feature_request_wait_time_seconds"
-)
-CONFIG_OAUTH_GRANT_TYPE_KEY = "oauth_grant_type"
-CONFIG_OAUTH_CLIENT_ID_KEY = "oauth_client_id"
-CONFIG_OAUTH_CLIENT_SECRET_KEY = "oauth_client_secret"
-CONFIG_OAUTH_AUDIENCE_KEY = "oauth_audience"
-CONFIG_OAUTH_TOKEN_REQUEST_URL_KEY = "oauth_token_request_url"
-CONFIG_AUTH_PROVIDER = "auth_provider"
+class ConfigOptions(metaclass=ConfigMeta):
+    """ Feast Configuration Options """
 
-CONFIG_TIMEOUT_KEY = "timeout"
-CONFIG_MAX_WAIT_INTERVAL_KEY = "max_wait_interval"
+    #: Default datetime column name for point-in-time join
+    DATETIME_COLUMN: str = "datetime"
 
-# Spark Job Config
-CONFIG_SPARK_LAUNCHER = "spark_launcher"  # standalone, dataproc, emr
+    #: Environmental variable to specify Feast configuration file location
+    FEAST_CONFIG_FILE_ENV: str = "FEAST_CONFIG"
 
-CONFIG_SPARK_STAGING_LOCATION = "spark_staging_location"
+    #: Default prefix to Feast environmental variables
+    CONFIG_FEAST_ENV_VAR_PREFIX: str = "FEAST_"
 
-CONFIG_SPARK_INGESTION_JOB_JAR = "spark_ingestion_jar"
+    #: Default directory to Feast configuration file
+    CONFIG_FILE_DEFAULT_DIRECTORY: str = ".feast"
 
-CONFIG_SPARK_STANDALONE_MASTER = "spark_standalone_master"
-CONFIG_SPARK_HOME = "spark_home"
+    #: Default Feast configuration file name
+    CONFIG_FILE_NAME: str = "config"
 
-CONFIG_SPARK_DATAPROC_CLUSTER_NAME = "dataproc_cluster_name"
-CONFIG_SPARK_DATAPROC_PROJECT = "dataproc_project"
-CONFIG_SPARK_DATAPROC_REGION = "dataproc_region"
+    #: Default section in Feast configuration file to specify options
+    CONFIG_FILE_SECTION: str = "general"
 
-CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT = "historical_feature_output_format"
-CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION = "historical_feature_output_location"
+    #: Feast project namespace to use
+    PROJECT: str = "default"
 
-CONFIG_REDIS_HOST = "redis_host"
-CONFIG_REDIS_PORT = "redis_port"
-CONFIG_REDIS_SSL = "redis_ssl"
+    #: Default Feast Core URL
+    CORE_URL: str = "localhost:6565"
 
-CONFIG_STATSD_ENABLED = "statsd_enabled"
-CONFIG_STATSD_HOST = "statsd_host"
-CONFIG_STATSD_PORT = "statsd_port"
+    #: Enable or disable TLS/SSL to Feast Core
+    CORE_ENABLE_SSL: str = "False"
 
-CONFIG_DEADLETTER_PATH = "deadletter_path"
-CONFIG_STENCIL_URL = "stencil_url"
+    #: Enable user authentication to Feast Core
+    ENABLE_AUTH: str = "False"
 
-CONFIG_SPARK_EMR_REGION = "emr_region"
-CONFIG_SPARK_EMR_CLUSTER_ID = "emr_cluster_id"
-CONFIG_SPARK_EMR_CLUSTER_TEMPLATE_PATH = "emr_cluster_template_path"
-CONFIG_SPARK_EMR_LOG_LOCATION = "emr_log_location"
+    #: Auth token for user authentication to Feast Core
+    ENABLE_AUTH_TOKEN: str = ""
 
-# Configuration option default values
-FEAST_DEFAULT_OPTIONS = {
-    # Default Feast project to use
-    CONFIG_PROJECT_KEY: "default",
-    # Default Feast Core URL
-    CONFIG_CORE_URL_KEY: "localhost:6565",
-    # Enable or disable TLS/SSL to Feast Core
-    CONFIG_CORE_ENABLE_SSL_KEY: "False",
-    # Enable user authentication to Feast Core
-    CONFIG_ENABLE_AUTH_KEY: "False",
-    # Path to certificate(s) to secure connection to Feast Core
-    CONFIG_CORE_SERVER_SSL_CERT_KEY: "",
-    # Default Feast Job Controller URL
-    CONFIG_JOB_CONTROLLER_SERVER_KEY: "localhost:6570",
-    # Default Feast Serving URL
-    CONFIG_SERVING_URL_KEY: "localhost:6565",
-    # Enable or disable TLS/SSL to Feast Serving
-    CONFIG_SERVING_ENABLE_SSL_KEY: "False",
-    # Path to certificate(s) to secure connection to Feast Serving
-    CONFIG_SERVING_SERVER_SSL_CERT_KEY: "",
-    # Default connection timeout to Feast Serving, Feast Core, and Feast Job Service (in seconds)
-    CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY: "10",
-    # Default gRPC connection timeout when sending an ApplyFeatureSet command to
-    # Feast Core (in seconds)
-    CONFIG_GRPC_CONNECTION_TIMEOUT_APPLY_KEY: "600",
-    # Time to wait for batch feature requests before timing out.
-    CONFIG_BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS_KEY: "600",
-    CONFIG_TIMEOUT_KEY: "21600",
-    CONFIG_MAX_WAIT_INTERVAL_KEY: "60",
-    # Authentication Provider - Google OpenID/OAuth
-    CONFIG_AUTH_PROVIDER: "google",
-    CONFIG_SPARK_LAUNCHER: "dataproc",
-    CONFIG_SPARK_INGESTION_JOB_JAR: "https://storage.googleapis.com/feast-jobs/spark/"
-    "ingestion/feast-ingestion-spark-develop.jar",
-    CONFIG_SPARK_STANDALONE_MASTER: "local[*]",
-    CONFIG_REDIS_HOST: "localhost",
-    CONFIG_REDIS_PORT: "6379",
-    CONFIG_REDIS_SSL: "False",
-    CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT: "parquet",
-    # Enable or disable TLS/SSL to Feast Service
-    CONFIG_JOB_SERVICE_ENABLE_SSL_KEY: "False",
-    # Path to certificate(s) to secure connection to Feast Job Service
-    CONFIG_JOB_SERVICE_SERVER_SSL_CERT_KEY: "",
-    # Disable control loop by default for now
-    CONFIG_JOB_SERVICE_ENABLE_CONTROL_LOOP: "False",
-    CONFIG_STATSD_ENABLED: "False",
-    # IngestionJob DeadLetter Destination
-    CONFIG_DEADLETTER_PATH: "",
-    # ProtoRegistry Address (currently only Stencil Server is supported as registry)
-    # https://github.com/gojekfarm/stencil
-    CONFIG_STENCIL_URL: "",
-}
+    #: Path to certificate(s) to secure connection to Feast Core
+    CORE_SERVER_SSL_CERT: str = ""
+
+    #: Default Feast Serving URL
+    SERVING_URL: str = "localhost:6566"
+
+    #: Enable or disable TLS/SSL to Feast Serving
+    SERVING_ENABLE_SSL: str = "False"
+
+    #: Path to certificate(s) to secure connection to Feast Serving
+    SERVING_SERVER_SSL_CERT: str = ""
+
+    #: Default Feast Job Service URL
+    JOB_SERVICE_URL: str = ""
+
+    #: Enable or disable TLS/SSL to Feast Job Service
+    JOB_SERVICE_ENABLE_SSL: str = "False"
+
+    #: Path to certificate(s) to secure connection to Feast Job Service
+    JOB_SERVICE_SERVER_SSL_CERT: str = ""
+
+    #: Enable or disable control loop for Feast Job Service
+    JOB_SERVICE_ENABLE_CONTROL_LOOP: str = "False"
+
+    #: Default connection timeout to Feast Serving, Feast Core, and Feast Job Service (in seconds)
+    GRPC_CONNECTION_TIMEOUT: str = "10"
+
+    #: Default gRPC connection timeout when sending an ApplyFeatureSet command to Feast Core (in seconds)
+    GRPC_CONNECTION_TIMEOUT_APPLY: str = "600"
+
+    #: Default timeout when running batch ingestion
+    BATCH_INGESTION_PRODUCTION_TIMEOUT: str = "120"
+
+    #: Time to wait for historical feature requests before timing out.
+    BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS: str = "600"
+
+    #: Authentication Provider - Google OpenID/OAuth
+    AUTH_PROVIDER: str = "google"
+
+    #: Spark Job launcher
+    SPARK_LAUNCHER: str = "dataproc"  # standalone, dataproc, emr
+
+    #: Feast Spark Job ingestion jobs staging location
+    SPARK_STAGING_LOCATION: str = ""
+
+    #: Feast Spark Job ingestion jar file
+    SPARK_INGESTION_JAR: str = "https://storage.googleapis.com/feast-jobs/spark/ingestion/feast-ingestion-spark-develop.jar"
+
+    #: Spark resource manager master url
+    SPARK_STANDALONE_MASTER: str = "local[*]"
+
+    #: Directory where Spark is installed
+    SPARK_HOME: str = ""
+
+    #: Dataproc cluster to run Feast Spark Jobs in
+    DATAPROC_CLUSTER_NAME: str = ""
+
+    #: Project of Dataproc cluster
+    DATAPROC_PROJECT: str = ""
+
+    #: Region of Dataproc cluster
+    DATAPROC_REGION: str = ""
+
+    #: File format of historical retrieval features
+    HISTORICAL_FEATURE_OUTPUT_FORMAT: str = "parquet"
+
+    #: File location of historical retrieval features
+    HISTORICAL_FEATURE_OUTPUT_LOCATION: str = ""
+
+    #: Default Redis host
+    REDIS_HOST: str = "localhost"
+
+    #: Default Redis port
+    REDIS_PORT: str = "6379"
+
+    #: Enable or disable TLS/SSL to Redis
+    REDIS_SSL: str = "False"
+
+    #: Enable or disable StatsD
+    STATSD_ENABLED: str = "False"
+
+    #: Default StatsD port
+    STATSD_HOST: str = ""
+
+    #: Default StatsD port
+    STATSD_PORT: str = ""
+
+    #: IngestionJob DeadLetter Destination
+    DEADLETTER_PATH: str = ""
+
+    #: ProtoRegistry Address (currently only Stencil Server is supported as registry)
+    #: https://github.com/gojekfarm/stencil
+    STENCIL_URL: str = ""
+
+    #: EMR cluster to run Feast Spark Jobs in
+    EMR_CLUSTER_ID: str = ""
+
+    #: Region of EMR cluster
+    EMR_REGION: str = ""
+
+    #: Template path of EMR cluster
+    EMR_CLUSTER_TEMPLATE_PATH: str = ""
+
+    #: Log path of EMR cluster
+    EMR_LOG_LOCATION: str = ""
+
+    #: Oauth grant type
+    OAUTH_GRANT_TYPE: str = ""
+
+    #: Oauth client ID
+    OAUTH_CLIENT_ID: str = ""
+
+    #: Oauth client secret
+    OAUTH_CLIENT_SECRET: str = ""
+
+    #: Oauth intended recipients
+    OAUTH_AUDIENCE: str = ""
+
+    #: Oauth token request url
+    OAUTH_TOKEN_REQUEST_URL: str = ""
+
+    MAX_WAIT_INTERVAL: str = "60"
+
+    def defaults(self):
+        return {k: getattr(self, k) for k in self.__config_keys__}
