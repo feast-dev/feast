@@ -40,4 +40,4 @@ Constants
 
 .. automodule:: feast.constants
     :members:
-    :exclude-members: AuthProvider
+    :exclude-members: AuthProvider, ConfigMeta

@@ -35,6 +35,11 @@ class Option:
 
 
 class ConfigMeta(type):
+    """
+    Class factory which customizes ConfigOptions class instantiation.
+    Specifically, setting its name to lowercase of capitalized variable.
+    """
+
     def __new__(cls, name, bases, attrs):
         keys = [
             k

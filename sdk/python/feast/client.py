@@ -187,7 +187,7 @@ class Client:
 
     @property
     def _use_job_service(self) -> bool:
-        return ConfigOptions.JOB_SERVICE_URL is not None
+        return self._config.get(ConfigOptions.JOB_SERVICE_URL) is not None
 
     @property
     def _job_service(self):
