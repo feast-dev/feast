@@ -14,7 +14,6 @@
 #  limitations under the License.
 #
 from enum import Enum
-from typing import Optional
 
 
 class AuthProvider(Enum):
@@ -100,7 +99,7 @@ class ConfigOptions(metaclass=ConfigMeta):
     SERVING_SERVER_SSL_CERT: str = ""
 
     #: Default Feast Job Service URL
-    JOB_SERVICE_URL: Optional[str] = None
+    JOB_SERVICE_URL: str = ""
 
     #: Enable or disable TLS/SSL to Feast Job Service
     JOB_SERVICE_ENABLE_SSL: str = "False"

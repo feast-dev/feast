@@ -19,7 +19,7 @@ from configparser import ConfigParser, NoOptionError
 from os.path import expanduser, join
 from typing import Dict, Optional
 
-from feast.constants import ConfigOptions
+from feast.constants import ConfigOptions as opt
 
 _logger = logging.getLogger(__name__)
 
@@ -43,13 +43,13 @@ def _init_config(path: str):
     os.makedirs(os.path.dirname(config_dir), exist_ok=True)
 
     # Create the configuration file itself
-    config = ConfigParser(defaults=ConfigOptions().defaults())
+    config = ConfigParser(defaults=opt().defaults())
     if os.path.exists(path):
         config.read(path)
 
     # Store all configuration in a single section
-    if not config.has_section(ConfigOptions().CONFIG_FILE_SECTION):
-        config.add_section(ConfigOptions().CONFIG_FILE_SECTION)
+    if not config.has_section(opt().CONFIG_FILE_SECTION):
+        config.add_section(opt().CONFIG_FILE_SECTION)
 
     # Save the current configuration
     config.write(open(path, "w"))
@@ -65,10 +65,10 @@ def _get_feast_env_vars():
     """
     feast_env_vars = {}
     for key in os.environ.keys():
-        if key.upper().startswith(ConfigOptions().CONFIG_FEAST_ENV_VAR_PREFIX):
-            feast_env_vars[
-                key[len(ConfigOptions().CONFIG_FEAST_ENV_VAR_PREFIX) :]
-            ] = os.environ[key]
+        if key.upper().startswith(opt().CONFIG_FEAST_ENV_VAR_PREFIX):
+            feast_env_vars[key[len(opt().CONFIG_FEAST_ENV_VAR_PREFIX) :]] = os.environ[
+                key
+            ]
     return feast_env_vars
 
 
@@ -100,10 +100,9 @@ class Config:
             path = join(
                 expanduser("~"),
                 os.environ.get(
-                    ConfigOptions().FEAST_CONFIG_FILE_ENV,
-                    ConfigOptions().CONFIG_FILE_DEFAULT_DIRECTORY,
+                    opt().FEAST_CONFIG_FILE_ENV, opt().CONFIG_FILE_DEFAULT_DIRECTORY,
                 ),
-                ConfigOptions().CONFIG_FILE_NAME,
+                opt().CONFIG_FILE_NAME,
             )
 
         config = _init_config(path)
@@ -126,7 +125,7 @@ class Config:
 
         """
         return self._config.get(
-            ConfigOptions().CONFIG_FILE_SECTION,
+            opt().CONFIG_FILE_SECTION,
             option,
             vars={**_get_feast_env_vars(), **self._options},
         )
@@ -142,7 +141,7 @@ class Config:
 
          """
         return self._config.getboolean(
-            ConfigOptions().CONFIG_FILE_SECTION,
+            opt().CONFIG_FILE_SECTION,
             option,
             vars={**_get_feast_env_vars(), **self._options},
         )
@@ -158,7 +157,7 @@ class Config:
 
          """
         return self._config.getint(
-            ConfigOptions().CONFIG_FILE_SECTION,
+            opt().CONFIG_FILE_SECTION,
             option,
             vars={**_get_feast_env_vars(), **self._options},
         )
@@ -174,7 +173,7 @@ class Config:
 
          """
         return self._config.getfloat(
-            ConfigOptions().CONFIG_FILE_SECTION,
+            opt().CONFIG_FILE_SECTION,
             option,
             vars={**_get_feast_env_vars(), **self._options},
         )
@@ -186,7 +185,7 @@ class Config:
             option: Option name to use as key
             value: Value to store under option
         """
-        self._config.set(ConfigOptions().CONFIG_FILE_SECTION, option, value=str(value))
+        self._config.set(opt().CONFIG_FILE_SECTION, option, value=str(value))
 
     def exists(self, option):
         """

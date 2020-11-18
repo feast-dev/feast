@@ -15,14 +15,14 @@
 import time
 from typing import Any, Callable, Optional, Tuple
 
-from feast.constants import ConfigOptions
+from feast.constants import ConfigOptions as opt
 
 
 def wait_retry_backoff(
     retry_fn: Callable[[], Tuple[Any, bool]],
     timeout_secs: int = 0,
     timeout_msg: Optional[str] = "Timeout while waiting for retry_fn() to return True",
-    max_interval_secs: int = int(ConfigOptions().MAX_WAIT_INTERVAL),
+    max_interval_secs: int = int(opt().MAX_WAIT_INTERVAL),
 ) -> Any:
     """
     Repeatedly try calling given retry_fn until it returns a True boolean success flag.

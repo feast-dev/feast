@@ -23,7 +23,7 @@ import yaml
 
 from feast.client import Client
 from feast.config import Config
-from feast.constants import ConfigOptions
+from feast.constants import ConfigOptions as opt
 from feast.entity import Entity
 from feast.feature_table import FeatureTable
 from feast.job_service import start_job_service
@@ -422,7 +422,7 @@ def stop_stream_to_online(feature_table: str):
     Stop stream to online sync job
     """
 
-    spark_launcher = Config().get(ConfigOptions.SPARK_LAUNCHER)
+    spark_launcher = Config().get(opt.SPARK_LAUNCHER)
 
     if spark_launcher == "emr":
         import feast.pyspark.aws.jobs
@@ -441,7 +441,7 @@ def list_jobs():
     """
     from tabulate import tabulate
 
-    spark_launcher = Config().get(ConfigOptions.SPARK_LAUNCHER)
+    spark_launcher = Config().get(opt.SPARK_LAUNCHER)
 
     if spark_launcher == "emr":
         import feast.pyspark.aws.jobs
