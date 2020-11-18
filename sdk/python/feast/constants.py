@@ -14,6 +14,7 @@
 #  limitations under the License.
 #
 from enum import Enum
+from typing import Optional
 
 
 class AuthProvider(Enum):
@@ -40,10 +41,11 @@ class ConfigMeta(type):
     """
 
     def __new__(cls, name, bases, attrs):
+        NoneType = type(None)
         keys = [
             k
             for k, v in attrs.items()
-            if not k.startswith("_") and isinstance(v, (str, int, float))
+            if not k.startswith("_") and isinstance(v, (str, int, float, NoneType))
         ]
         attrs["__config_keys__"] = keys
         attrs.update({k: Option(k, attrs[k]) for k in keys})
@@ -194,21 +196,25 @@ class ConfigOptions(metaclass=ConfigMeta):
     EMR_LOG_LOCATION: str = ""
 
     #: Oauth grant type
-    OAUTH_GRANT_TYPE: str = ""
+    OAUTH_GRANT_TYPE: Optional[str] = None
 
     #: Oauth client ID
-    OAUTH_CLIENT_ID: str = ""
+    OAUTH_CLIENT_ID: Optional[str] = None
 
     #: Oauth client secret
-    OAUTH_CLIENT_SECRET: str = ""
+    OAUTH_CLIENT_SECRET: Optional[str] = None
 
     #: Oauth intended recipients
-    OAUTH_AUDIENCE: str = ""
+    OAUTH_AUDIENCE: Optional[str] = None
 
     #: Oauth token request url
-    OAUTH_TOKEN_REQUEST_URL: str = ""
+    OAUTH_TOKEN_REQUEST_URL: Optional[str] = None
 
     MAX_WAIT_INTERVAL: str = "60"
 
     def defaults(self):
-        return {k: getattr(self, k) for k in self.__config_keys__}
+        return {
+            k: getattr(self, k)
+            for k in self.__config_keys__
+            if getattr(self, k) is not None
+        }

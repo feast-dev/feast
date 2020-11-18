@@ -67,7 +67,7 @@ class OAuthMetadataPlugin(grpc.AuthMetadataPlugin):
         self._token = None
 
         # If provided, set a static token
-        if config.exists(opt.AUTH_TOKEN) and config.get(opt.AUTH_TOKEN) != "":
+        if config.exists(opt.AUTH_TOKEN):
             self._static_token = config.get(opt.AUTH_TOKEN)
             self._refresh_token(config)
         elif (
@@ -76,11 +76,6 @@ class OAuthMetadataPlugin(grpc.AuthMetadataPlugin):
             and config.exists(opt.OAUTH_CLIENT_SECRET)
             and config.exists(opt.OAUTH_AUDIENCE)
             and config.exists(opt.OAUTH_TOKEN_REQUEST_URL)
-            and config.get(opt.OAUTH_GRANT_TYPE) != ""
-            and config.get(opt.OAUTH_CLIENT_ID) != ""
-            and config.get(opt.OAUTH_CLIENT_SECRET) != ""
-            and config.get(opt.OAUTH_AUDIENCE) != ""
-            and config.get(opt.OAUTH_TOKEN_REQUEST_URL) != ""
         ):
             self._refresh_token(config)
         else:
@@ -168,7 +163,7 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
         self._token = None
 
         # If provided, set a static token
-        if config.exists(opt.AUTH_TOKEN) and config.get(opt.AUTH_TOKEN) != "":
+        if config.exists(opt.AUTH_TOKEN):
             self._static_token = config.get(opt.AUTH_TOKEN)
 
         self._request = requests.Request()

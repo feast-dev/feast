@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import json
+from configparser import NoOptionError
 from http import HTTPStatus
 from unittest.mock import call, patch
 
@@ -141,7 +142,7 @@ def test_get_auth_metadata_plugin_oauth_should_raise_when_response_is_not_200(
 def test_get_auth_metadata_plugin_oauth_should_raise_when_config_is_incorrect(
     config_with_missing_variable,
 ):
-    with raises(RuntimeError):
+    with raises(NoOptionError):
         get_auth_metadata_plugin(config_with_missing_variable)
 
 
