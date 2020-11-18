@@ -87,7 +87,7 @@ class ConfigOptions(metaclass=ConfigMeta):
     ENABLE_AUTH: str = "False"
 
     #: Auth token for user authentication to Feast
-    AUTH_TOKEN: str = ""
+    AUTH_TOKEN: Optional[str] = None
 
     #: Path to certificate(s) to secure connection to Feast Core
     CORE_SERVER_SSL_CERT: str = ""
@@ -102,7 +102,7 @@ class ConfigOptions(metaclass=ConfigMeta):
     SERVING_SERVER_SSL_CERT: str = ""
 
     #: Default Feast Job Service URL
-    JOB_SERVICE_URL: str = ""
+    JOB_SERVICE_URL: Optional[str] = None
 
     #: Enable or disable TLS/SSL to Feast Job Service
     JOB_SERVICE_ENABLE_SSL: str = "False"
@@ -132,7 +132,7 @@ class ConfigOptions(metaclass=ConfigMeta):
     SPARK_LAUNCHER: str = "dataproc"  # standalone, dataproc, emr
 
     #: Feast Spark Job ingestion jobs staging location
-    SPARK_STAGING_LOCATION: str = ""
+    SPARK_STAGING_LOCATION: Optional[str] = None
 
     #: Feast Spark Job ingestion jar file
     SPARK_INGESTION_JAR: str = "https://storage.googleapis.com/feast-jobs/spark/ingestion/feast-ingestion-spark-develop.jar"
@@ -141,22 +141,22 @@ class ConfigOptions(metaclass=ConfigMeta):
     SPARK_STANDALONE_MASTER: str = "local[*]"
 
     #: Directory where Spark is installed
-    SPARK_HOME: str = ""
+    SPARK_HOME: Optional[str] = None
 
     #: Dataproc cluster to run Feast Spark Jobs in
-    DATAPROC_CLUSTER_NAME: str = ""
+    DATAPROC_CLUSTER_NAME: Optional[str] = None
 
     #: Project of Dataproc cluster
-    DATAPROC_PROJECT: str = ""
+    DATAPROC_PROJECT: Optional[str] = None
 
     #: Region of Dataproc cluster
-    DATAPROC_REGION: str = ""
+    DATAPROC_REGION: Optional[str] = None
 
     #: File format of historical retrieval features
     HISTORICAL_FEATURE_OUTPUT_FORMAT: str = "parquet"
 
     #: File location of historical retrieval features
-    HISTORICAL_FEATURE_OUTPUT_LOCATION: str = ""
+    HISTORICAL_FEATURE_OUTPUT_LOCATION: Optional[str] = None
 
     #: Default Redis host
     REDIS_HOST: str = "localhost"
@@ -171,10 +171,10 @@ class ConfigOptions(metaclass=ConfigMeta):
     STATSD_ENABLED: str = "False"
 
     #: Default StatsD port
-    STATSD_HOST: str = ""
+    STATSD_HOST: Optional[str] = None
 
     #: Default StatsD port
-    STATSD_PORT: str = ""
+    STATSD_PORT: Optional[str] = None
 
     #: IngestionJob DeadLetter Destination
     DEADLETTER_PATH: str = ""
@@ -184,16 +184,16 @@ class ConfigOptions(metaclass=ConfigMeta):
     STENCIL_URL: str = ""
 
     #: EMR cluster to run Feast Spark Jobs in
-    EMR_CLUSTER_ID: str = ""
+    EMR_CLUSTER_ID: Optional[str] = None
 
     #: Region of EMR cluster
-    EMR_REGION: str = ""
+    EMR_REGION: Optional[str] = None
 
     #: Template path of EMR cluster
-    EMR_CLUSTER_TEMPLATE_PATH: str = ""
+    EMR_CLUSTER_TEMPLATE_PATH: Optional[str] = None
 
     #: Log path of EMR cluster
-    EMR_LOG_LOCATION: str = ""
+    EMR_LOG_LOCATION: Optional[str] = None
 
     #: Oauth grant type
     OAUTH_GRANT_TYPE: Optional[str] = None

@@ -142,7 +142,7 @@ def test_get_auth_metadata_plugin_oauth_should_raise_when_response_is_not_200(
 def test_get_auth_metadata_plugin_oauth_should_raise_when_config_is_incorrect(
     config_with_missing_variable,
 ):
-    with raises(NoOptionError):
+    with raises((RuntimeError, NoOptionError)):
         get_auth_metadata_plugin(config_with_missing_variable)
 
 

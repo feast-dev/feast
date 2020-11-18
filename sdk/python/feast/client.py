@@ -183,10 +183,7 @@ class Client:
 
     @property
     def _use_job_service(self) -> bool:
-        return (
-            self._config.exists(opt.JOB_SERVICE_URL)
-            and self._config.get(opt.JOB_SERVICE_URL) != ""
-        )
+        return self._config.exists(opt.JOB_SERVICE_URL)
 
     @property
     def _job_service(self):
