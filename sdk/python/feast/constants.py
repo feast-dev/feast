@@ -79,8 +79,8 @@ class ConfigOptions(metaclass=ConfigMeta):
     #: Enable user authentication to Feast Core
     ENABLE_AUTH: str = "False"
 
-    #: Auth token for user authentication to Feast Core
-    ENABLE_AUTH_TOKEN: str = ""
+    #: Auth token for user authentication to Feast
+    AUTH_TOKEN: str = ""
 
     #: Path to certificate(s) to secure connection to Feast Core
     CORE_SERVER_SSL_CERT: str = ""
