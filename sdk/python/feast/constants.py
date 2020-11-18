@@ -86,7 +86,7 @@ class ConfigOptions(metaclass=ConfigMeta):
     #: Enable user authentication to Feast Core
     ENABLE_AUTH: str = "False"
 
-    #: Auth token for user authentication to Feast
+    #: JWT Auth token for user authentication to Feast
     AUTH_TOKEN: Optional[str] = None
 
     #: Path to certificate(s) to secure connection to Feast Core
@@ -116,7 +116,7 @@ class ConfigOptions(metaclass=ConfigMeta):
     #: Default connection timeout to Feast Serving, Feast Core, and Feast Job Service (in seconds)
     GRPC_CONNECTION_TIMEOUT: str = "10"
 
-    #: Default gRPC connection timeout when sending an ApplyFeatureSet command to Feast Core (in seconds)
+    #: Default gRPC connection timeout when sending an ApplyFeatureTable command to Feast Core (in seconds)
     GRPC_CONNECTION_TIMEOUT_APPLY: str = "600"
 
     #: Default timeout when running batch ingestion
@@ -126,12 +126,16 @@ class ConfigOptions(metaclass=ConfigMeta):
     BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS: str = "600"
 
     #: Authentication Provider - Google OpenID/OAuth
+    #:
+    #: Options: "google" / "oauth"
     AUTH_PROVIDER: str = "google"
 
     #: Spark Job launcher
     SPARK_LAUNCHER: str = "dataproc"  # standalone, dataproc, emr
 
     #: Feast Spark Job ingestion jobs staging location
+    #:
+    #: Eg. gs://some-bucket/output/, s3://some-bucket/output/, file://data/subfolder/
     SPARK_STAGING_LOCATION: Optional[str] = None
 
     #: Feast Spark Job ingestion jar file
@@ -177,6 +181,8 @@ class ConfigOptions(metaclass=ConfigMeta):
     STATSD_PORT: Optional[str] = None
 
     #: IngestionJob DeadLetter Destination
+    #:
+    #: Eg. gs://some-bucket/output/, s3://some-bucket/output/, file://data/subfolder/
     DEADLETTER_PATH: str = ""
 
     #: ProtoRegistry Address (currently only Stencil Server is supported as registry)
