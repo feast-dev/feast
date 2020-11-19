@@ -148,6 +148,15 @@ class FeatureRef:
 
         return self.proto
 
+    def __repr__(self):
+        # return string representation of the reference
+        ref_str = self.proto.feature_table + ":" + self.proto.name
+        return ref_str
+
+    def __str__(self):
+        # readable string of the reference
+        return f"FeatureRef<{self.__repr__()}>"
+
 
 def _build_feature_references(feature_ref_strs: List[str]) -> List[FeatureRefProto]:
     """
