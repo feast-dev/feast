@@ -37,7 +37,7 @@ class Option:
 class ConfigMeta(type):
     """
     Class factory which customizes ConfigOptions class instantiation.
-    Specifically, setting its name to lowercase of capitalized variable.
+    Specifically, setting configuration option's name to lowercase of capitalized variable.
     """
 
     def __new__(cls, name, bases, attrs):
@@ -66,6 +66,9 @@ CONFIG_FILE_NAME: str = "config"
 
 #: Default section in Feast configuration file to specify options
 CONFIG_FILE_SECTION: str = "general"
+
+# Maximum interval(secs) to wait between retries for retry function
+MAX_WAIT_INTERVAL: str = "60"
 
 
 class ConfigOptions(metaclass=ConfigMeta):
@@ -138,6 +141,8 @@ class ConfigOptions(metaclass=ConfigMeta):
     SPARK_STAGING_LOCATION: Optional[str] = None
 
     #: Feast Spark Job ingestion jar file
+    #:
+    #: Eg. gs://some-bucket/some-jarfile, s3://some-bucket/some-jarfile, file://data/some-jarfile
     SPARK_INGESTION_JAR: str = "https://storage.googleapis.com/feast-jobs/spark/ingestion/feast-ingestion-spark-develop.jar"
 
     #: Spark resource manager master url
@@ -214,8 +219,6 @@ class ConfigOptions(metaclass=ConfigMeta):
 
     #: Oauth token request url
     OAUTH_TOKEN_REQUEST_URL: Optional[str] = None
-
-    MAX_WAIT_INTERVAL: str = "60"
 
     def defaults(self):
         return {
