@@ -11,13 +11,6 @@ from pyarrow import parquet as pq
 
 from feast.staging.storage_client import get_staging_client
 
-GRPC_CONNECTION_TIMEOUT_DEFAULT = 3  # type: int
-GRPC_CONNECTION_TIMEOUT_APPLY = 300  # type: int
-FEAST_SERVING_URL_ENV_KEY = "FEAST_SERVING_URL"  # type: str
-FEAST_CORE_URL_ENV_KEY = "FEAST_CORE_URL"  # type: str
-BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS = 300
-BATCH_INGESTION_PRODUCTION_TIMEOUT = 120  # type: int
-
 
 def _check_field_mappings(
     column_names: List[str],

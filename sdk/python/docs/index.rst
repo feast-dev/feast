@@ -34,3 +34,10 @@ Feature
 .. automodule:: feast.feature
     :inherited-members:
     :members:
+
+Constants
+==================
+
+.. automodule:: feast.constants
+    :members:
+    :exclude-members: AuthProvider, ConfigMeta

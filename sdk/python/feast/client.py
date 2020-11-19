@@ -24,24 +24,7 @@ import grpc
 import pandas as pd
 
 from feast.config import Config
-from feast.constants import (
-    CONFIG_CORE_ENABLE_SSL_KEY,
-    CONFIG_CORE_SERVER_SSL_CERT_KEY,
-    CONFIG_CORE_URL_KEY,
-    CONFIG_ENABLE_AUTH_KEY,
-    CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY,
-    CONFIG_JOB_SERVICE_ENABLE_SSL_KEY,
-    CONFIG_JOB_SERVICE_SERVER_SSL_CERT_KEY,
-    CONFIG_JOB_SERVICE_URL_KEY,
-    CONFIG_PROJECT_KEY,
-    CONFIG_SERVING_ENABLE_SSL_KEY,
-    CONFIG_SERVING_SERVER_SSL_CERT_KEY,
-    CONFIG_SERVING_URL_KEY,
-    CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT,
-    CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION,
-    CONFIG_SPARK_STAGING_LOCATION,
-    FEAST_DEFAULT_OPTIONS,
-)
+from feast.constants import ConfigOptions as opt
 from feast.core.CoreService_pb2 import (
     ApplyEntityRequest,
     ApplyEntityResponse,
@@ -81,7 +64,6 @@ from feast.feature_table import FeatureTable
 from feast.grpc import auth as feast_auth
 from feast.grpc.grpc import create_grpc_channel
 from feast.loaders.ingest import (
-    BATCH_INGESTION_PRODUCTION_TIMEOUT,
     _check_field_mappings,
     _read_table_from_source,
     _upload_to_bq_source,
@@ -158,7 +140,7 @@ class Client:
         self._auth_metadata: Optional[grpc.AuthMetadataPlugin] = None
 
         # Configure Auth Metadata Plugin if auth is enabled
-        if self._config.getboolean(CONFIG_ENABLE_AUTH_KEY):
+        if self._config.getboolean(opt.ENABLE_AUTH):
             self._auth_metadata = feast_auth.get_auth_metadata_plugin(self._config)
 
     @property
@@ -170,12 +152,12 @@ class Client:
         """
         if not self._core_service_stub:
             channel = create_grpc_channel(
-                url=self._config.get(CONFIG_CORE_URL_KEY),
-                enable_ssl=self._config.getboolean(CONFIG_CORE_ENABLE_SSL_KEY),
-                enable_auth=self._config.getboolean(CONFIG_ENABLE_AUTH_KEY),
-                ssl_server_cert_path=self._config.get(CONFIG_CORE_SERVER_SSL_CERT_KEY),
+                url=self._config.get(opt.CORE_URL),
+                enable_ssl=self._config.getboolean(opt.CORE_ENABLE_SSL),
+                enable_auth=self._config.getboolean(opt.ENABLE_AUTH),
+                ssl_server_cert_path=self._config.get(opt.CORE_SERVER_SSL_CERT),
                 auth_metadata_plugin=self._auth_metadata,
-                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
             )
             self._core_service_stub = CoreServiceStub(channel)
         return self._core_service_stub
@@ -189,21 +171,19 @@ class Client:
         """
         if not self._serving_service_stub:
             channel = create_grpc_channel(
-                url=self._config.get(CONFIG_SERVING_URL_KEY),
-                enable_ssl=self._config.getboolean(CONFIG_SERVING_ENABLE_SSL_KEY),
-                enable_auth=self._config.getboolean(CONFIG_ENABLE_AUTH_KEY),
-                ssl_server_cert_path=self._config.get(
-                    CONFIG_SERVING_SERVER_SSL_CERT_KEY
-                ),
+                url=self._config.get(opt.SERVING_URL),
+                enable_ssl=self._config.getboolean(opt.SERVING_ENABLE_SSL),
+                enable_auth=self._config.getboolean(opt.ENABLE_AUTH),
+                ssl_server_cert_path=self._config.get(opt.SERVING_SERVER_SSL_CERT),
                 auth_metadata_plugin=self._auth_metadata,
-                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
             )
             self._serving_service_stub = ServingServiceStub(channel)
         return self._serving_service_stub
 
     @property
     def _use_job_service(self) -> bool:
-        return self._config.exists(CONFIG_JOB_SERVICE_URL_KEY)
+        return self._config.exists(opt.JOB_SERVICE_URL)
 
     @property
     def _job_service(self):
@@ -218,21 +198,19 @@ class Client:
 
         if not self._job_service_stub:
             channel = create_grpc_channel(
-                url=self._config.get(CONFIG_JOB_SERVICE_URL_KEY),
-                enable_ssl=self._config.getboolean(CONFIG_JOB_SERVICE_ENABLE_SSL_KEY),
-                enable_auth=self._config.getboolean(CONFIG_ENABLE_AUTH_KEY),
-                ssl_server_cert_path=self._config.get(
-                    CONFIG_JOB_SERVICE_SERVER_SSL_CERT_KEY
-                ),
+                url=self._config.get(opt.JOB_SERVICE_URL),
+                enable_ssl=self._config.getboolean(opt.JOB_SERVICE_ENABLE_SSL),
+                enable_auth=self._config.getboolean(opt.ENABLE_AUTH),
+                ssl_server_cert_path=self._config.get(opt.JOB_SERVICE_SERVER_SSL_CERT),
                 auth_metadata_plugin=self._auth_metadata,
-                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
             )
             self._job_service_service_stub = JobServiceStub(channel)
         return self._job_service_service_stub
 
     def _extra_grpc_params(self) -> Dict[str, Any]:
         return dict(
-            timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+            timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
             metadata=self._get_grpc_metadata(),
         )
 
@@ -244,7 +222,7 @@ class Client:
         Returns:
             Feast Core URL string
         """
-        return self._config.get(CONFIG_CORE_URL_KEY)
+        return self._config.get(opt.CORE_URL)
 
     @core_url.setter
     def core_url(self, value: str):
@@ -254,7 +232,7 @@ class Client:
         Args:
             value: Feast Core URL
         """
-        self._config.set(CONFIG_CORE_URL_KEY, value)
+        self._config.set(opt.CORE_URL, value)
 
     @property
     def serving_url(self) -> str:
@@ -264,7 +242,7 @@ class Client:
         Returns:
             Feast Serving URL string
         """
-        return self._config.get(CONFIG_SERVING_URL_KEY)
+        return self._config.get(opt.SERVING_URL)
 
     @serving_url.setter
     def serving_url(self, value: str):
@@ -274,7 +252,7 @@ class Client:
         Args:
             value: Feast Serving URL
         """
-        self._config.set(CONFIG_SERVING_URL_KEY, value)
+        self._config.set(opt.SERVING_URL, value)
 
     @property
     def job_service_url(self) -> str:
@@ -284,7 +262,7 @@ class Client:
         Returns:
             Feast Job Service URL string
         """
-        return self._config.get(CONFIG_JOB_SERVICE_URL_KEY)
+        return self._config.get(opt.JOB_SERVICE_URL)
 
     @job_service_url.setter
     def job_service_url(self, value: str):
@@ -294,7 +272,7 @@ class Client:
         Args:
             value: Feast Job Service URL
         """
-        self._config.set(CONFIG_JOB_SERVICE_URL_KEY, value)
+        self._config.set(opt.JOB_SERVICE_URL, value)
 
     @property
     def core_secure(self) -> bool:
@@ -304,7 +282,7 @@ class Client:
         Returns:
             Whether client-side SSL/TLS is enabled
         """
-        return self._config.getboolean(CONFIG_CORE_ENABLE_SSL_KEY)
+        return self._config.getboolean(opt.CORE_ENABLE_SSL)
 
     @core_secure.setter
     def core_secure(self, value: bool):
@@ -314,7 +292,7 @@ class Client:
         Args:
             value: True to enable client-side SSL/TLS
         """
-        self._config.set(CONFIG_CORE_ENABLE_SSL_KEY, value)
+        self._config.set(opt.CORE_ENABLE_SSL, value)
 
     @property
     def serving_secure(self) -> bool:
@@ -324,7 +302,7 @@ class Client:
         Returns:
             Whether client-side SSL/TLS is enabled
         """
-        return self._config.getboolean(CONFIG_SERVING_ENABLE_SSL_KEY)
+        return self._config.getboolean(opt.SERVING_ENABLE_SSL)
 
     @serving_secure.setter
     def serving_secure(self, value: bool):
@@ -334,7 +312,7 @@ class Client:
         Args:
             value: True to enable client-side SSL/TLS
         """
-        self._config.set(CONFIG_SERVING_ENABLE_SSL_KEY, value)
+        self._config.set(opt.SERVING_ENABLE_SSL, value)
 
     @property
     def job_service_secure(self) -> bool:
@@ -344,7 +322,7 @@ class Client:
         Returns:
             Whether client-side SSL/TLS is enabled
         """
-        return self._config.getboolean(CONFIG_JOB_SERVICE_ENABLE_SSL_KEY)
+        return self._config.getboolean(opt.JOB_SERVICE_ENABLE_SSL)
 
     @job_service_secure.setter
     def job_service_secure(self, value: bool):
@@ -354,7 +332,7 @@ class Client:
         Args:
             value: True to enable client-side SSL/TLS
         """
-        self._config.set(CONFIG_JOB_SERVICE_ENABLE_SSL_KEY, value)
+        self._config.set(opt.JOB_SERVICE_ENABLE_SSL, value)
 
     def version(self):
         """
@@ -371,7 +349,7 @@ class Client:
         if self.serving_url:
             serving_version = self._serving_service.GetFeastServingInfo(
                 GetFeastServingInfoRequest(),
-                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                 metadata=self._get_grpc_metadata(),
             ).version
             result["serving"] = {"url": self.serving_url, "version": serving_version}
@@ -379,7 +357,7 @@ class Client:
         if self.core_url:
             core_version = self._core_service.GetFeastCoreVersion(
                 GetFeastCoreVersionRequest(),
-                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                 metadata=self._get_grpc_metadata(),
             ).version
             result["core"] = {"url": self.core_url, "version": core_version}
@@ -394,9 +372,9 @@ class Client:
         Returns:
             Project name
         """
-        if not self._config.get(CONFIG_PROJECT_KEY):
+        if not self._config.get(opt.PROJECT):
             raise ValueError("No project has been configured.")
-        return self._config.get(CONFIG_PROJECT_KEY)
+        return self._config.get(opt.PROJECT)
 
     def set_project(self, project: Optional[str] = None):
         """
@@ -406,8 +384,8 @@ class Client:
             project: Project to set as active. If unset, will reset to the default project.
         """
         if project is None:
-            project = FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY]
-        self._config.set(CONFIG_PROJECT_KEY, project)
+            project = opt().PROJECT
+        self._config.set(opt.PROJECT, project)
 
     def list_projects(self) -> List[str]:
         """
@@ -420,7 +398,7 @@ class Client:
 
         response = self._core_service.ListProjects(
             ListProjectsRequest(),
-            timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+            timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
             metadata=self._get_grpc_metadata(),
         )  # type: ListProjectsResponse
         return list(response.projects)
@@ -435,7 +413,7 @@ class Client:
 
         self._core_service.CreateProject(
             CreateProjectRequest(name=project),
-            timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+            timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
             metadata=self._get_grpc_metadata(),
         )  # type: CreateProjectResponse
 
@@ -452,7 +430,7 @@ class Client:
         try:
             self._core_service_stub.ArchiveProject(
                 ArchiveProjectRequest(name=project),
-                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                 metadata=self._get_grpc_metadata(),
             )  # type: ArchiveProjectResponse
         except grpc.RpcError as e:
@@ -460,7 +438,7 @@ class Client:
 
         # revert to the default project
         if self._project == project:
-            self._project = FEAST_DEFAULT_OPTIONS[CONFIG_PROJECT_KEY]
+            self._project = opt().PROJECT
 
     def apply_entity(self, entities: Union[List[Entity], Entity], project: str = None):
         """
@@ -513,7 +491,7 @@ class Client:
         try:
             apply_entity_response = self._core_service.ApplyEntity(
                 ApplyEntityRequest(project=project, spec=entity_proto),  # type: ignore
-                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                 metadata=self._get_grpc_metadata(),
             )  # type: ApplyEntityResponse
         except grpc.RpcError as e:
@@ -625,7 +603,7 @@ class Client:
         try:
             apply_feature_table_response = self._core_service.ApplyFeatureTable(
                 ApplyFeatureTableRequest(project=project, table_spec=feature_table_proto),  # type: ignore
-                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                 metadata=self._get_grpc_metadata(),
             )  # type: ApplyFeatureTableResponse
         except grpc.RpcError as e:
@@ -722,7 +700,7 @@ class Client:
         project: str = None,
         chunk_size: int = 10000,
         max_workers: int = max(CPU_COUNT - 1, 1),
-        timeout: int = BATCH_INGESTION_PRODUCTION_TIMEOUT,
+        timeout: int = int(opt().BATCH_INGESTION_PRODUCTION_TIMEOUT),
     ) -> None:
         """
         Batch load feature data into a FeatureTable.
@@ -849,7 +827,7 @@ class Client:
 
         Returns: Tuple of metadata to attach to each gRPC call
         """
-        if self._config.getboolean(CONFIG_ENABLE_AUTH_KEY) and self._auth_metadata:
+        if self._config.getboolean(opt.ENABLE_AUTH) and self._auth_metadata:
             return self._auth_metadata.get_signed_meta()
         return ()
 
@@ -895,7 +873,7 @@ class Client:
                     entity_rows=_infer_online_entity_rows(entity_rows),
                     project=project if project is not None else self.project,
                 ),
-                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                 metadata=self._get_grpc_metadata(),
             )
         except grpc.RpcError as e:
@@ -954,10 +932,10 @@ class Client:
 
         if output_location is None:
             output_location = os.path.join(
-                self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_LOCATION),
+                self._config.get(opt.HISTORICAL_FEATURE_OUTPUT_LOCATION),
                 str(uuid.uuid4()),
             )
-        output_format = self._config.get(CONFIG_SPARK_HISTORICAL_FEATURE_OUTPUT_FORMAT)
+        output_format = self._config.get(opt.HISTORICAL_FEATURE_OUTPUT_FORMAT)
         feature_sources = [
             feature_table.batch_source for feature_table in feature_tables
         ]
@@ -978,7 +956,7 @@ class Client:
             else:
                 entity_source = stage_entities_to_fs(
                     entity_source,
-                    staging_location=self._config.get(CONFIG_SPARK_STAGING_LOCATION),
+                    staging_location=self._config.get(opt.SPARK_STAGING_LOCATION),
                 )
 
         if self._use_job_service:

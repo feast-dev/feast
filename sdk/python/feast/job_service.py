@@ -10,7 +10,7 @@ from typing import Dict, List, Tuple
 import grpc
 
 import feast
-from feast.constants import CONFIG_JOB_SERVICE_ENABLE_CONTROL_LOOP
+from feast.constants import ConfigOptions as opt
 from feast.core import JobService_pb2_grpc
 from feast.core.JobService_pb2 import (
     CancelJobResponse,
@@ -127,7 +127,7 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
             request.table_name, request.project
         )
 
-        if self.client._config.getboolean(CONFIG_JOB_SERVICE_ENABLE_CONTROL_LOOP):
+        if self.client._config.getboolean(opt.JOB_SERVICE_ENABLE_CONTROL_LOOP):
             # If the control loop is enabled, return existing stream ingestion job id instead of starting a new one
             params = get_stream_to_online_ingestion_params(
                 self.client, request.project, feature_table, []
@@ -212,7 +212,7 @@ def start_job_service() -> None:
 
     client = feast.Client()
 
-    if client._config.getboolean(CONFIG_JOB_SERVICE_ENABLE_CONTROL_LOOP):
+    if client._config.getboolean(opt.JOB_SERVICE_ENABLE_CONTROL_LOOP):
         # Start the control loop thread only if it's enabled from configs
         thread = threading.Thread(target=start_control_loop, daemon=True)
         thread.start()

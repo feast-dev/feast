@@ -18,16 +18,8 @@ import grpc
 from google.auth.exceptions import DefaultCredentialsError
 
 from feast.config import Config
-from feast.constants import (
-    CONFIG_AUTH_PROVIDER,
-    CONFIG_ENABLE_AUTH_TOKEN_KEY,
-    CONFIG_OAUTH_AUDIENCE_KEY,
-    CONFIG_OAUTH_CLIENT_ID_KEY,
-    CONFIG_OAUTH_CLIENT_SECRET_KEY,
-    CONFIG_OAUTH_GRANT_TYPE_KEY,
-    CONFIG_OAUTH_TOKEN_REQUEST_URL_KEY,
-    AuthProvider,
-)
+from feast.constants import AuthProvider
+from feast.constants import ConfigOptions as opt
 
 
 def get_auth_metadata_plugin(config: Config) -> grpc.AuthMetadataPlugin:
@@ -44,9 +36,9 @@ def get_auth_metadata_plugin(config: Config) -> grpc.AuthMetadataPlugin:
     Args:
         config: Feast Configuration object
     """
-    if AuthProvider(config.get(CONFIG_AUTH_PROVIDER)) == AuthProvider.GOOGLE:
+    if AuthProvider(config.get(opt.AUTH_PROVIDER)) == AuthProvider.GOOGLE:
         return GoogleOpenIDAuthMetadataPlugin(config)
-    elif AuthProvider(config.get(CONFIG_AUTH_PROVIDER)) == AuthProvider.OAUTH:
+    elif AuthProvider(config.get(opt.AUTH_PROVIDER)) == AuthProvider.OAUTH:
         return OAuthMetadataPlugin(config)
     else:
         raise RuntimeError(
@@ -75,15 +67,15 @@ class OAuthMetadataPlugin(grpc.AuthMetadataPlugin):
         self._token = None
 
         # If provided, set a static token
-        if config.exists(CONFIG_ENABLE_AUTH_TOKEN_KEY):
-            self._static_token = config.get(CONFIG_ENABLE_AUTH_TOKEN_KEY)
+        if config.exists(opt.AUTH_TOKEN):
+            self._static_token = config.get(opt.AUTH_TOKEN)
             self._refresh_token(config)
         elif (
-            config.exists(CONFIG_OAUTH_GRANT_TYPE_KEY)
-            and config.exists(CONFIG_OAUTH_CLIENT_ID_KEY)
-            and config.exists(CONFIG_OAUTH_CLIENT_SECRET_KEY)
-            and config.exists(CONFIG_OAUTH_AUDIENCE_KEY)
-            and config.exists(CONFIG_OAUTH_TOKEN_REQUEST_URL_KEY)
+            config.exists(opt.OAUTH_GRANT_TYPE)
+            and config.exists(opt.OAUTH_CLIENT_ID)
+            and config.exists(opt.OAUTH_CLIENT_SECRET)
+            and config.exists(opt.OAUTH_AUDIENCE)
+            and config.exists(opt.OAUTH_TOKEN_REQUEST_URL)
         ):
             self._refresh_token(config)
         else:
@@ -112,14 +104,14 @@ class OAuthMetadataPlugin(grpc.AuthMetadataPlugin):
 
         headers_token = {"content-type": "application/json"}
         data_token = {
-            "grant_type": config.get(CONFIG_OAUTH_GRANT_TYPE_KEY),
-            "client_id": config.get(CONFIG_OAUTH_CLIENT_ID_KEY),
-            "client_secret": config.get(CONFIG_OAUTH_CLIENT_SECRET_KEY),
-            "audience": config.get(CONFIG_OAUTH_AUDIENCE_KEY),
+            "grant_type": config.get(opt.OAUTH_GRANT_TYPE),
+            "client_id": config.get(opt.OAUTH_CLIENT_ID),
+            "client_secret": config.get(opt.OAUTH_CLIENT_SECRET),
+            "audience": config.get(opt.OAUTH_AUDIENCE),
         }
         data_token = json.dumps(data_token)
         response_token = requests.post(
-            config.get(CONFIG_OAUTH_TOKEN_REQUEST_URL_KEY),
+            config.get(opt.OAUTH_TOKEN_REQUEST_URL),
             headers=headers_token,
             data=data_token,
         )
@@ -171,8 +163,8 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
         self._token = None
 
         # If provided, set a static token
-        if config.exists(CONFIG_ENABLE_AUTH_TOKEN_KEY):
-            self._static_token = config.get(CONFIG_ENABLE_AUTH_TOKEN_KEY)
+        if config.exists(opt.AUTH_TOKEN):
+            self._static_token = config.get(opt.AUTH_TOKEN)
 
         self._request = requests.Request()
         self._refresh_token()
