@@ -41,11 +41,8 @@ class ConfigMeta(type):
     """
 
     def __new__(cls, name, bases, attrs):
-        NoneType = type(None)
         keys = [
-            k
-            for k, v in attrs.items()
-            if not k.startswith("_") and isinstance(v, (str, int, float, NoneType))
+            k for k, v in attrs.items() if not k.startswith("_") and not callable(v)
         ]
         attrs["__config_keys__"] = keys
         attrs.update({k: Option(k, attrs[k]) for k in keys})
@@ -131,7 +128,9 @@ class ConfigOptions(metaclass=ConfigMeta):
     AUTH_PROVIDER: str = "google"
 
     #: Spark Job launcher
-    SPARK_LAUNCHER: str = "dataproc"  # standalone, dataproc, emr
+    #:
+    #: Options: "standalone", "dataproc", "emr"
+    SPARK_LAUNCHER: Optional[str] = None
 
     #: Feast Spark Job ingestion jobs staging location
     #:
