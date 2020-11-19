@@ -321,7 +321,7 @@ public class SpecService {
 
     Map<String, FeatureV2> featuresMap;
     for (FeatureTable featureTable : featureTables) {
-      featuresMap = featureTable.getFeaturesByRef(labels);
+      featuresMap = featureTable.getFeaturesByLabels(labels);
       for (Map.Entry<String, FeatureV2> entry : featuresMap.entrySet()) {
         response.putFeatures(entry.getKey(), entry.getValue().toProto());
       }

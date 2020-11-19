@@ -273,9 +273,9 @@ public class FeatureTable extends AbstractTimestampEntity {
    * @return boolean True if FeatureTable contains all entities in the entitiesFilter
    */
   public boolean hasAllEntities(List<String> entitiesFilter) {
-    List<String> allEntitiesName =
-        this.getEntities().stream().map(entity -> entity.getName()).collect(Collectors.toList());
-    return allEntitiesName.equals(entitiesFilter);
+    Set<String> allEntitiesName =
+        this.getEntities().stream().map(entity -> entity.getName()).collect(Collectors.toSet());
+    return allEntitiesName.equals(new HashSet<>(entitiesFilter));
   }
 
   /**
@@ -285,7 +285,7 @@ public class FeatureTable extends AbstractTimestampEntity {
    * @param labelsFilter contain labels that should be attached to FeatureTable's features
    * @return Map of Feature references and Features
    */
-  public Map<String, FeatureV2> getFeaturesByRef(Map<String, String> labelsFilter) {
+  public Map<String, FeatureV2> getFeaturesByLabels(Map<String, String> labelsFilter) {
     Map<String, FeatureV2> validFeaturesMap;
     List<FeatureV2> validFeatures;
     if (labelsFilter.size() > 0) {
@@ -303,7 +303,7 @@ public class FeatureTable extends AbstractTimestampEntity {
    * @param features List of features to insert to map.
    * @return Map of featureRef:feature.
    */
-  public Map<String, FeatureV2> getFeaturesRefToFeaturesMap(List<FeatureV2> features) {
+  private Map<String, FeatureV2> getFeaturesRefToFeaturesMap(List<FeatureV2> features) {
     Map<String, FeatureV2> validFeaturesMap = new HashMap<>();
     for (FeatureV2 feature : features) {
       ServingAPIProto.FeatureReferenceV2 featureRef =
@@ -311,7 +311,7 @@ public class FeatureTable extends AbstractTimestampEntity {
               .setFeatureTable(this.getName())
               .setName(feature.getName())
               .build();
-      validFeaturesMap.put(renderFeatureRef(featureRef), feature);
+      validFeaturesMap.put(getFeatureStringRef(featureRef), feature);
     }
     return validFeaturesMap;
   }
@@ -330,18 +330,6 @@ public class FeatureTable extends AbstractTimestampEntity {
             .collect(Collectors.toList());
 
     return validFeatures;
-  }
-
-  /**
-   * Render a feature reference as string.
-   *
-   * @param featureReference to render as string
-   * @return string representation of feature reference.
-   */
-  public static String renderFeatureRef(ServingAPIProto.FeatureReferenceV2 featureReference) {
-    String refStr = getFeatureStringRef(featureReference);
-
-    return refStr;
   }
 
   /**

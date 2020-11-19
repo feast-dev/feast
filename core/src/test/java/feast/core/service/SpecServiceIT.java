@@ -328,7 +328,6 @@ public class SpecServiceIT extends BaseIT {
               .build();
       List<FeatureTableProto.FeatureTable> featureTables =
           apiClient.simpleListFeatureTables(filter);
-      System.out.println(featureTables);
 
       assertThat(featureTables, hasSize(2));
       assertThat(
@@ -1368,7 +1367,7 @@ public class SpecServiceIT extends BaseIT {
   public class DeleteFeatureTable {
 
     @Test
-    public void shouldReturnNoTables() {
+    public void shouldReturnUndeletedTables() {
       String projectName = "default";
       String featureTableName = "featuretable1";
 
