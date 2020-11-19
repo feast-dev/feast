@@ -185,6 +185,15 @@ def feast_jobservice(
             )
             env["FEAST_DATAPROC_PROJECT"] = pytestconfig.getoption("dataproc_project")
             env["FEAST_DATAPROC_REGION"] = pytestconfig.getoption("dataproc_region")
+            env["FEAST_DATAPROC_EXECUTOR_INSTANCES"] = pytestconfig.getoption(
+                "dataproc_executor_instances"
+            )
+            env["FEAST_DATAPROC_EXECUTOR_CORES"] = pytestconfig.getoption(
+                "dataproc_executor_cores"
+            )
+            env["FEAST_DATAPROC_EXECUTOR_MEMORY"] = pytestconfig.getoption(
+                "dataproc_executor_memory"
+            )
             env["FEAST_SPARK_STAGING_LOCATION"] = os.path.join(
                 global_staging_path, "dataproc"
             )

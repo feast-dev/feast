@@ -160,6 +160,15 @@ class ConfigOptions(metaclass=ConfigMeta):
     #: Region of Dataproc cluster
     DATAPROC_REGION: Optional[str] = None
 
+    #: No. of executor instances for Dataproc cluster
+    DATAPROC_EXECUTOR_INSTANCES = "2"
+
+    #: No. of executor cores for Dataproc cluster
+    DATAPROC_EXECUTOR_CORES = "2"
+
+    #: No. of executor memory for Dataproc cluster
+    DATAPROC_EXECUTOR_MEMORY = "2g"
+
     #: File format of historical retrieval features
     HISTORICAL_FEATURE_OUTPUT_FORMAT: str = "parquet"
 
