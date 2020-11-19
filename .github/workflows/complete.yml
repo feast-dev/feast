@@ -25,7 +25,7 @@ jobs:
           --archive-uri ${MAVEN_CACHE} \
           --output-dir .
       - name: Build image
-        run: make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA} REVISION=dev
+        run: make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
       - name: Push image
         run: |
           docker push ${REGISTRY}/feast-${{ matrix.component }}:${GITHUB_SHA}

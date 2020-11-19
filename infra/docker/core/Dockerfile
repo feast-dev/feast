@@ -29,8 +29,8 @@ RUN mvn dependency:go-offline -DexcludeGroupIds:dev.feast 2>/dev/null || true
 
 COPY . .
 
-ARG REVISION=dev
-RUN mvn --also-make --projects core -Drevision=$REVISION \
+ARG VERSION=dev
+RUN mvn --also-make --projects core -Drevision=$VERSION \
   -DskipUTs=true --batch-mode clean package
 
 #
@@ -46,9 +46,9 @@ RUN wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/downloa
 # ============================================================
 
 FROM openjdk:11-jre as production
-ARG REVISION=dev
+ARG VERSION=dev
 
-COPY --from=builder /build/core/target/feast-core-$REVISION-exec.jar /opt/feast/feast-core.jar
+COPY --from=builder /build/core/target/feast-core-$VERSION-exec.jar /opt/feast/feast-core.jar
 COPY --from=builder /usr/bin/grpc-health-probe /usr/bin/grpc-health-probe
 
 CMD ["java",\

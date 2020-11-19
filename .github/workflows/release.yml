@@ -69,36 +69,32 @@ jobs:
           export_default_credentials: true
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
+      - run: gcloud auth configure-docker --quiet
       - name: Get m2 cache
         run: |
           infra/scripts/download-maven-cache.sh \
           --archive-uri ${MAVEN_CACHE} \
           --output-dir .
-      - name: Build and push
-        uses: docker/build-push-action@v2
-        env:
-          RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
-        with:
-          push: true
-          context: .
-          file: ./infra/docker/${{ matrix.component }}/Dockerfile
-          tags: feastdev/feast-${{ matrix.component }}:${{ needs.get-version.outputs.release_version }}
-          build-args: |
-            REVISION=$RELEASE_VERSION
-      - name: Build and push latest
-        uses: docker/build-push-action@v2
+      - name: Build and push versioned images
         env:
           RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
           VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
           HIGHEST_SEMVER_TAG: ${{ needs.get-version.outputs.highest_semver_tag }}
-        with:
-          if: ${VERSION_WITHOUT_PREFIX} == ${HIGHEST_SEMVER_TAG:1}
-          push: true
-          context: .
-          file: ./infra/docker/${{ matrix.component }}/Dockerfile
-          tags: feastdev/feast-${{ matrix.component }}:latest
-          build-args: |
-            REVISION=$RELEASE_VERSION
+        run: |
+          docker build --build-arg VERSION=$RELEASE_VERSION \
+            -t gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} \
+            -t gcr.io/kf-feast/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} \
+            -f infra/docker/${{ matrix.component }}/Dockerfile .
+          docker push gcr.io/kf-feast/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX}
+          
+          echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"
+          if [ "${VERSION_WITHOUT_PREFIX}" = "${HIGHEST_SEMVER_TAG:1}" ]
+          then
+            docker tag feastdev/feast-${{ matrix.component }}:latest gcr.io/kf-feast/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX}
+            docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:latest gcr.io/kf-feast/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX}
+            docker push feastdev/feast-${{ matrix.component }}:latest
+            docker push gcr.io/kf-feast/feast-${{ matrix.component }}:latest
+          fi
 
   publish-helm-charts:
     runs-on:  ubuntu-latest
