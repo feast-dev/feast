@@ -24,6 +24,7 @@ option java_package = "feast.proto.core";
 import "google/protobuf/timestamp.proto";
 import "tensorflow_metadata/proto/v0/statistics.proto";
 import "feast/core/Entity.proto";
+import "feast/core/Feature.proto";
 import "feast/core/FeatureSet.proto";
 import "feast/core/FeatureTable.proto";
 import "feast/core/Store.proto";
@@ -238,7 +239,9 @@ message ListFeaturesRequest {
 }
 
 message ListFeaturesResponse {
-    map<string, feast.core.FeatureSpec> features = 1;
+    reserved 1;
+
+    map<string, feast.core.FeatureSpecV2> features = 2;
 }
 
 message ListStoresRequest {
