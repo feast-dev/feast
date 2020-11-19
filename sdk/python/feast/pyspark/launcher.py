@@ -34,10 +34,13 @@ def _dataproc_launcher(config: Config) -> JobLauncher:
     from feast.pyspark.launchers import gcloud
 
     return gcloud.DataprocClusterLauncher(
-        config.get(opt.DATAPROC_CLUSTER_NAME),
-        config.get(opt.SPARK_STAGING_LOCATION),
-        config.get(opt.DATAPROC_REGION),
-        config.get(opt.DATAPROC_PROJECT),
+        cluster_name=config.get(opt.DATAPROC_CLUSTER_NAME),
+        staging_location=config.get(opt.SPARK_STAGING_LOCATION),
+        region=config.get(opt.DATAPROC_REGION),
+        project_id=config.get(opt.DATAPROC_PROJECT),
+        executor_instances=config.get(opt.DATAPROC_EXECUTOR_INSTANCES),
+        executor_cores=config.get(opt.DATAPROC_EXECUTOR_CORES),
+        executor_memory=config.get(opt.DATAPROC_EXECUTOR_MEMORY),
     )
 
 
