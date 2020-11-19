@@ -130,19 +130,19 @@ class ConfigOptions(metaclass=ConfigMeta):
     #: Options: "google" / "oauth"
     AUTH_PROVIDER: str = "google"
 
-    #: Spark Job launcher
+    #: Spark Job launcher. The choice of storage is connected to the choice of SPARK_LAUNCHER.
     #:
     #: Options: "standalone", "dataproc", "emr"
     SPARK_LAUNCHER: Optional[str] = None
 
-    #: Feast Spark Job ingestion jobs staging location
+    #: Feast Spark Job ingestion jobs staging location. The choice of storage is connected to the choice of SPARK_LAUNCHER.
     #:
     #: Eg. gs://some-bucket/output/, s3://some-bucket/output/, file://data/subfolder/
     SPARK_STAGING_LOCATION: Optional[str] = None
 
-    #: Feast Spark Job ingestion jar file
+    #: Feast Spark Job ingestion jar file. The choice of storage is connected to the choice of SPARK_LAUNCHER.
     #:
-    #: Eg. gs://some-bucket/some-jarfile, s3://some-bucket/some-jarfile, file://data/some-jarfile
+    #: Eg. "dataproc" (http and gs), "emr" (http and s3), "standalone" (http and file)
     SPARK_INGESTION_JAR: str = "https://storage.googleapis.com/feast-jobs/spark/ingestion/feast-ingestion-spark-develop.jar"
 
     #: Spark resource manager master url
@@ -184,7 +184,7 @@ class ConfigOptions(metaclass=ConfigMeta):
     #: Default StatsD port
     STATSD_PORT: Optional[str] = None
 
-    #: IngestionJob DeadLetter Destination
+    #: Ingestion Job DeadLetter Destination. The choice of storage is connected to the choice of SPARK_LAUNCHER.
     #:
     #: Eg. gs://some-bucket/output/, s3://some-bucket/output/, file://data/subfolder/
     DEADLETTER_PATH: str = ""
