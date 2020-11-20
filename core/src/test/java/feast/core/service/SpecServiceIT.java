@@ -1367,7 +1367,7 @@ public class SpecServiceIT extends BaseIT {
   public class DeleteFeatureTable {
 
     @Test
-    public void shouldReturnUndeletedTables() {
+    public void shouldReturnNoTables() {
       String projectName = "default";
       String featureTableName = "featuretable1";
 
@@ -1376,6 +1376,7 @@ public class SpecServiceIT extends BaseIT {
       CoreServiceProto.ListFeatureTablesRequest.Filter filter =
           CoreServiceProto.ListFeatureTablesRequest.Filter.newBuilder()
               .setProject("default")
+              .putLabels("feat_key2", "feat_value2")
               .build();
       List<FeatureTableProto.FeatureTable> featureTables =
           apiClient.simpleListFeatureTables(filter);
@@ -1385,7 +1386,7 @@ public class SpecServiceIT extends BaseIT {
               StatusRuntimeException.class,
               () -> apiClient.simpleGetFeatureTable(projectName, featureTableName));
 
-      assertThat(featureTables.size(), equalTo(1));
+      assertThat(featureTables.size(), equalTo(0));
       assertThat(
           exc.getMessage(),
           equalTo(
