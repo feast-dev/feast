@@ -29,6 +29,7 @@ from feast.constants import (
 from feast.constants import ConfigOptions as opt
 
 _logger = logging.getLogger(__name__)
+_UNSET = object()
 
 
 def _init_config(path: str):
@@ -50,7 +51,7 @@ def _init_config(path: str):
     os.makedirs(os.path.dirname(config_dir), exist_ok=True)
 
     # Create the configuration file itself
-    config = ConfigParser(defaults=opt().defaults(), allow_no_value=True)
+    config = ConfigParser(allow_no_value=True)
     if os.path.exists(path):
         config.read(path)
 
@@ -113,24 +114,32 @@ class Config:
         self._options = {}
         if options and isinstance(options, dict):
             self._options = options
+        self._defaults = opt().defaults()
 
         self._config = config  # type: ConfigParser
         self._path = path  # type: str
 
-    def get(self, option):
+    def get(self, option, default=_UNSET):
         """
         Returns a single configuration option as a string
 
         Args:
             option: Name of the option
+            default: Default value to return if option is not found
 
         Returns: String option that is returned
 
         """
+        default = {option: default} if default is not _UNSET else {}
         return self._config.get(
             CONFIG_FILE_SECTION,
             option,
-            vars={**_get_feast_env_vars(), **self._options},
+            vars={
+                **default,
+                **self._defaults,
+                **_get_feast_env_vars(),
+                **self._options,
+            },
         )
 
     def getboolean(self, option):

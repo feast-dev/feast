@@ -1006,7 +1006,7 @@ class Client:
                 entity_source = stage_entities_to_fs(
                     entity_source,
                     staging_location=self._config.get(opt.SPARK_STAGING_LOCATION),
-                    config=self._config
+                    config=self._config,
                 )
 
         if self._use_job_service:
