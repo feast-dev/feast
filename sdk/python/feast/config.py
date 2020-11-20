@@ -142,52 +142,73 @@ class Config:
             },
         )
 
-    def getboolean(self, option):
+    def getboolean(self, option, default=_UNSET):
         """
          Returns a single configuration option as a boolean
 
          Args:
              option: Name of the option
+             default: Default value to return if option is not found
 
          Returns: Boolean option value that is returned
 
          """
+        default = {option: default} if default is not _UNSET else {}
         return self._config.getboolean(
             CONFIG_FILE_SECTION,
             option,
-            vars={**_get_feast_env_vars(), **self._options},
+            vars={
+                **default,
+                **self._defaults,
+                **_get_feast_env_vars(),
+                **self._options,
+            },
         )
 
-    def getint(self, option):
+    def getint(self, option, default=_UNSET):
         """
          Returns a single configuration option as an integer
 
          Args:
              option: Name of the option
+             default: Default value to return if option is not found
 
          Returns: Integer option value that is returned
 
          """
+        default = {option: default} if default is not _UNSET else {}
         return self._config.getint(
             CONFIG_FILE_SECTION,
             option,
-            vars={**_get_feast_env_vars(), **self._options},
+            vars={
+                **default,
+                **self._defaults,
+                **_get_feast_env_vars(),
+                **self._options,
+            },
         )
 
-    def getfloat(self, option):
+    def getfloat(self, option, default=_UNSET):
         """
          Returns a single configuration option as an integer
 
          Args:
              option: Name of the option
+             default: Default value to return if option is not found
 
          Returns: Float option value that is returned
 
          """
+        default = {option: default} if default is not _UNSET else {}
         return self._config.getfloat(
             CONFIG_FILE_SECTION,
             option,
-            vars={**_get_feast_env_vars(), **self._options},
+            vars={
+                **default,
+                **self._defaults,
+                **_get_feast_env_vars(),
+                **self._options,
+            },
         )
 
     def set(self, option, value):
