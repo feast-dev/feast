@@ -35,6 +35,7 @@ from feast.core import CoreService_pb2_grpc as Core
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionResponse,
     GetFeatureTableResponse,
+    ListFeaturesResponse,
 )
 from feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.core.Feature_pb2 import FeatureSpecV2 as FeatureSpecProto
@@ -445,6 +446,45 @@ class TestClient:
             and feature_tables[0].features[3].name == "fs1-my-feature-4"
             and feature_tables[0].features[3].dtype == ValueType.BYTES_LIST
             and feature_tables[0].entities[0] == "fs1-my-entity-1"
+        )
+
+    @pytest.mark.parametrize(
+        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client")]
+    )
+    def test_list_features(self, test_client, mocker):
+        mocker.patch.object(
+            test_client,
+            "_core_service_stub",
+            return_value=Core.CoreServiceStub(grpc.insecure_channel("")),
+        )
+
+        feature1_proto = FeatureSpecProto(
+            name="feature_1", value_type=ValueProto.ValueType.FLOAT
+        )
+        feature2_proto = FeatureSpecProto(
+            name="feature_2", value_type=ValueProto.ValueType.STRING
+        )
+
+        mocker.patch.object(
+            test_client._core_service_stub,
+            "ListFeatures",
+            return_value=ListFeaturesResponse(
+                features={
+                    "driver_car:feature_1": feature1_proto,
+                    "driver_car:feature_2": feature2_proto,
+                }
+            ),
+        )
+
+        features = test_client.list_features_by_ref(project="test")
+        assert len(features) == 2
+
+        native_feature_list = []
+        for _, feature_proto in features.items():
+            native_feature_list.append(feature_proto)
+
+        assert sorted(native_feature_list) == sorted(
+            [Feature.from_proto(feature1_proto), Feature.from_proto(feature2_proto)]
         )
 
     @pytest.mark.parametrize(

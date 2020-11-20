@@ -29,41 +29,18 @@ jobs:
       - name: Get version
         run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
       - name: Build image
-        run: make build-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA} REVISION=${RELEASE_VERSION}
+        run: make build-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA}
       - name: Push image
-        run: make push-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA} REVISION=${RELEASE_VERSION}
+        run: make push-${{ matrix.component }}-docker REGISTRY=gcr.io/kf-feast VERSION=${GITHUB_SHA}
       - name: Push development Docker image
         run: |
           if [ ${GITHUB_REF#refs/*/} == "master" ]; then
             docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:develop
             docker push gcr.io/kf-feast/feast-${{ matrix.component }}:develop
           fi
-      - name: Push versioned Docker image
-        run: |
-          source infra/scripts/setup-common-functions.sh
-          # Build and push semver tagged commits
-          # Regular expression should match MAJOR.MINOR.PATCH[-PRERELEASE[.IDENTIFIER]]
-          # eg. v0.7.1 v0.7.2-alpha v0.7.2-rc.1
-          SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
-          if echo "${RELEASE_VERSION}" | grep -P "$SEMVER_REGEX" &>/dev/null ; then
-            VERSION_WITHOUT_PREFIX=${RELEASE_VERSION:1}
-
-            docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX}
-            docker push gcr.io/kf-feast/feast-${{ matrix.component }}:${VERSION_WITHOUT_PREFIX}
-
-            # Also update "latest" image if tagged commit is pushed to stable branch
-            HIGHEST_SEMVER_TAG=$(get_tag_release -m)
-            echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"
-
-            if [ "${VERSION_WITHOUT_PREFIX}" = "${HIGHEST_SEMVER_TAG:1}" ]
-            then
-              docker tag gcr.io/kf-feast/feast-${{ matrix.component }}:${GITHUB_SHA} gcr.io/kf-feast/feast-${{ matrix.component }}:latest
-              docker push gcr.io/kf-feast/feast-${{ matrix.component }}:latest
-            fi
-          fi
 
   publish-ingestion-jar:
-    runs-on: [ self-hosted ]
+    runs-on: ubuntu-latest
     env:
       PUBLISH_BUCKET: feast-jobs
     steps:
@@ -72,12 +49,18 @@ jobs:
         with:
           version: '290.0.1'
           export_default_credentials: true
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
       - uses: actions/setup-java@v1
         with:
           java-version: '11'
-      - uses: stCarolas/setup-maven@v3
+      - name: Cache local Maven repository
+        uses: actions/cache@v2
         with:
-          maven-version: 3.6.3
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
       - name: Publish develop version of ingestion job
         run: |
           if [ ${GITHUB_REF#refs/*/} == "master" ]; then

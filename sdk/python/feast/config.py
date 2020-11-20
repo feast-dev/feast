@@ -24,9 +24,9 @@ from feast.constants import (
     CONFIG_FILE_DEFAULT_DIRECTORY,
     CONFIG_FILE_NAME,
     CONFIG_FILE_SECTION,
-    FEAST_CONFIG_FILE_ENV_KEY,
+    FEAST_CONFIG_FILE_ENV,
 )
-from feast.constants import FEAST_DEFAULT_OPTIONS as DEFAULTS
+from feast.constants import ConfigOptions as opt
 
 _logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def _init_config(path: str):
     os.makedirs(os.path.dirname(config_dir), exist_ok=True)
 
     # Create the configuration file itself
-    config = ConfigParser(defaults=DEFAULTS, allow_no_value=True)
+    config = ConfigParser(defaults=opt().defaults(), allow_no_value=True)
     if os.path.exists(path):
         config.read(path)
 
@@ -104,9 +104,7 @@ class Config:
         if not path:
             path = join(
                 expanduser("~"),
-                os.environ.get(
-                    FEAST_CONFIG_FILE_ENV_KEY, CONFIG_FILE_DEFAULT_DIRECTORY,
-                ),
+                os.environ.get(FEAST_CONFIG_FILE_ENV, CONFIG_FILE_DEFAULT_DIRECTORY,),
                 CONFIG_FILE_NAME,
             )
 

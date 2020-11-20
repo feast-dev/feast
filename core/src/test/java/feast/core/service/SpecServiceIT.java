@@ -102,6 +102,23 @@ public class SpecServiceIT extends BaseIT {
             .setBatchSource(
                 DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
             .build());
+    apiClient.applyFeatureTable(
+        "default",
+        DataGenerator.createFeatureTableSpec(
+                "featuretable2",
+                Arrays.asList("entity1", "entity2"),
+                new HashMap<>() {
+                  {
+                    put("feature3", ValueProto.ValueType.Enum.STRING);
+                    put("feature4", ValueProto.ValueType.Enum.FLOAT);
+                  }
+                },
+                7200,
+                ImmutableMap.of("feat_key4", "feat_value4"))
+            .toBuilder()
+            .setBatchSource(
+                DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
+            .build());
     apiClient.simpleApplyEntity(
         "project1",
         DataGenerator.createEntitySpecV2(
@@ -312,10 +329,13 @@ public class SpecServiceIT extends BaseIT {
       List<FeatureTableProto.FeatureTable> featureTables =
           apiClient.simpleListFeatureTables(filter);
 
-      assertThat(featureTables, hasSize(1));
+      assertThat(featureTables, hasSize(2));
       assertThat(
           featureTables,
           hasItem(hasProperty("spec", hasProperty("name", equalTo("featuretable1")))));
+      assertThat(
+          featureTables,
+          hasItem(hasProperty("spec", hasProperty("name", equalTo("featuretable2")))));
     }
 
     @Test
@@ -1005,49 +1025,55 @@ public class SpecServiceIT extends BaseIT {
     @Test
     public void shouldFilterFeaturesByEntitiesAndLabels() {
       // Case 1: Only filter by entities
-      Map<String, FeatureSetProto.FeatureSpec> result1 =
-          apiClient.simpleListFeatures("project1", "user_id");
+      Map<String, FeatureProto.FeatureSpecV2> result1 =
+          apiClient.simpleListFeatures("default", "entity1", "entity2");
 
-      assertThat(result1, aMapWithSize(2));
-      assertThat(result1, hasKey(equalTo("project1/fs3:feature1")));
-      assertThat(result1, hasKey(equalTo("project1/fs3:feature2")));
+      assertThat(result1, aMapWithSize(4));
+      assertThat(result1, hasKey(equalTo("featuretable1:feature1")));
+      assertThat(result1, hasKey(equalTo("featuretable1:feature2")));
+      assertThat(result1, hasKey(equalTo("featuretable2:feature3")));
+      assertThat(result1, hasKey(equalTo("featuretable2:feature4")));
 
       // Case 2: Filter by entities and labels
-      Map<String, FeatureSetProto.FeatureSpec> result2 =
+      Map<String, FeatureProto.FeatureSpecV2> result2 =
           apiClient.simpleListFeatures(
-              "project1",
-              ImmutableMap.of("app", "feast", "version", "one"),
-              ImmutableList.of("customer_id"));
+              "default",
+              ImmutableMap.of("feat_key2", "feat_value2"),
+              ImmutableList.of("entity1", "entity2"));
 
-      assertThat(result2, aMapWithSize(1));
-      assertThat(result2, hasKey(equalTo("project1/fs4:feature2")));
+      assertThat(result2, aMapWithSize(2));
+      assertThat(result2, hasKey(equalTo("featuretable1:feature1")));
+      assertThat(result2, hasKey(equalTo("featuretable1:feature2")));
 
       // Case 3: Filter by labels
-      Map<String, FeatureSetProto.FeatureSpec> result3 =
+      Map<String, FeatureProto.FeatureSpecV2> result3 =
           apiClient.simpleListFeatures(
-              "project1", ImmutableMap.of("app", "feast"), Collections.emptyList());
+              "default", ImmutableMap.of("feat_key4", "feat_value4"), Collections.emptyList());
 
       assertThat(result3, aMapWithSize(2));
-      assertThat(result3, hasKey(equalTo("project1/fs4:feature2")));
-      assertThat(result3, hasKey(equalTo("project1/fs5:feature3")));
+      assertThat(result3, hasKey(equalTo("featuretable2:feature3")));
+      assertThat(result3, hasKey(equalTo("featuretable2:feature4")));
 
       // Case 4: Filter by nothing, except project
-      Map<String, FeatureSetProto.FeatureSpec> result4 =
+      Map<String, FeatureProto.FeatureSpecV2> result4 =
           apiClient.simpleListFeatures("project1", ImmutableMap.of(), Collections.emptyList());
 
-      assertThat(result4, aMapWithSize(4));
-      assertThat(result4, hasKey(equalTo("project1/fs3:feature1")));
-      assertThat(result4, hasKey(equalTo("project1/fs3:feature1")));
-      assertThat(result4, hasKey(equalTo("project1/fs4:feature2")));
-      assertThat(result4, hasKey(equalTo("project1/fs5:feature3")));
+      assertThat(result4, aMapWithSize(0));
 
       // Case 5: Filter by nothing; will use default project
-      Map<String, FeatureSetProto.FeatureSpec> result5 =
+      Map<String, FeatureProto.FeatureSpecV2> result5 =
           apiClient.simpleListFeatures("", ImmutableMap.of(), Collections.emptyList());
 
-      assertThat(result5, aMapWithSize(2));
-      assertThat(result5, hasKey(equalTo("default/fs1:total")));
-      assertThat(result5, hasKey(equalTo("default/fs2:sum")));
+      assertThat(result5, aMapWithSize(4));
+      assertThat(result5, hasKey(equalTo("featuretable1:feature1")));
+      assertThat(result5, hasKey(equalTo("featuretable1:feature2")));
+      assertThat(result5, hasKey(equalTo("featuretable2:feature3")));
+      assertThat(result5, hasKey(equalTo("featuretable2:feature4")));
+
+      // Case 6: Filter by mismatched entity
+      Map<String, FeatureProto.FeatureSpecV2> result6 =
+          apiClient.simpleListFeatures("default", ImmutableMap.of(), ImmutableList.of("entity1"));
+      assertThat(result6, aMapWithSize(0));
     }
   }
 
@@ -1350,6 +1376,7 @@ public class SpecServiceIT extends BaseIT {
       CoreServiceProto.ListFeatureTablesRequest.Filter filter =
           CoreServiceProto.ListFeatureTablesRequest.Filter.newBuilder()
               .setProject("default")
+              .putLabels("feat_key2", "feat_value2")
               .build();
       List<FeatureTableProto.FeatureTable> featureTables =
           apiClient.simpleListFeatureTables(filter);

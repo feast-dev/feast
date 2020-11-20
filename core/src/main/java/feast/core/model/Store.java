@@ -21,9 +21,7 @@ import static feast.common.models.Store.parseSubscriptionFrom;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.proto.core.StoreProto;
-import feast.proto.core.StoreProto.Store.BigQueryConfig;
 import feast.proto.core.StoreProto.Store.Builder;
-import feast.proto.core.StoreProto.Store.CassandraConfig;
 import feast.proto.core.StoreProto.Store.RedisClusterConfig;
 import feast.proto.core.StoreProto.Store.RedisConfig;
 import feast.proto.core.StoreProto.Store.StoreType;
@@ -81,12 +79,6 @@ public class Store {
       case REDIS:
         config = storeProto.getRedisConfig().toByteArray();
         break;
-      case BIGQUERY:
-        config = storeProto.getBigqueryConfig().toByteArray();
-        break;
-      case CASSANDRA:
-        config = storeProto.getCassandraConfig().toByteArray();
-        break;
       case REDIS_CLUSTER:
         config = storeProto.getRedisClusterConfig().toByteArray();
         break;
@@ -108,12 +100,6 @@ public class Store {
       case REDIS:
         RedisConfig redisConfig = RedisConfig.parseFrom(config);
         return storeProtoBuilder.setRedisConfig(redisConfig).build();
-      case BIGQUERY:
-        BigQueryConfig bqConfig = BigQueryConfig.parseFrom(config);
-        return storeProtoBuilder.setBigqueryConfig(bqConfig).build();
-      case CASSANDRA:
-        CassandraConfig cassConfig = CassandraConfig.parseFrom(config);
-        return storeProtoBuilder.setCassandraConfig(cassConfig).build();
       case REDIS_CLUSTER:
         RedisClusterConfig redisClusterConfig = RedisClusterConfig.parseFrom(config);
         return storeProtoBuilder.setRedisClusterConfig(redisClusterConfig).build();

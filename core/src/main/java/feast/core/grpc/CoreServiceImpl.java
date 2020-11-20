@@ -25,7 +25,6 @@ import feast.core.grpc.interceptors.MonitoringInterceptor;
 import feast.core.model.Project;
 import feast.core.service.ProjectService;
 import feast.core.service.SpecService;
-import feast.core.service.StatsService;
 import feast.proto.core.CoreServiceGrpc.CoreServiceImplBase;
 import feast.proto.core.CoreServiceProto.*;
 import feast.proto.core.EntityProto.EntitySpecV2;
@@ -49,7 +48,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
 
   private final FeastProperties feastProperties;
   private SpecService specService;
-  private StatsService statsService;
   private ProjectService projectService;
   private final AuthorizationService authorizationService;
 
@@ -57,13 +55,11 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public CoreServiceImpl(
       SpecService specService,
       ProjectService projectService,
-      StatsService statsService,
       FeastProperties feastProperties,
       AuthorizationService authorizationService) {
     this.specService = specService;
     this.projectService = projectService;
     this.feastProperties = feastProperties;
-    this.statsService = statsService;
     this.authorizationService = authorizationService;
   }
 
@@ -183,32 +179,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
           Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     } catch (Exception e) {
       log.error("Exception has occurred in ListEntities method: ", e);
-      responseObserver.onError(
-          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
-    }
-  }
-
-  @Override
-  public void getFeatureStatistics(
-      GetFeatureStatisticsRequest request,
-      StreamObserver<GetFeatureStatisticsResponse> responseObserver) {
-    try {
-      GetFeatureStatisticsResponse response = statsService.getFeatureStatistics(request);
-      responseObserver.onNext(response);
-      responseObserver.onCompleted();
-    } catch (IllegalArgumentException e) {
-      log.error("Illegal arguments provided to GetFeatureStatistics method: ", e);
-      responseObserver.onError(
-          Status.INVALID_ARGUMENT
-              .withDescription(e.getMessage())
-              .withCause(e)
-              .asRuntimeException());
-    } catch (RetrievalException e) {
-      log.error("Unable to fetch feature set requested in GetFeatureStatistics method: ", e);
-      responseObserver.onError(
-          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asRuntimeException());
-    } catch (Exception e) {
-      log.error("Exception has occurred in GetFeatureStatistics method: ", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }

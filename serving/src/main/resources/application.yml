@@ -59,28 +59,6 @@ feast:
         - name: "*"
           project: "*"
           version: "*"
-    - name: historical
-      type: BIGQUERY
-      config:  # Store specific configuration.
-        # GCP Project
-        project_id: my_project
-        # BigQuery Dataset Id
-        dataset_id: my_dataset
-        # staging-location specifies the URI to store intermediate files for batch serving.
-        # Feast Serving client is expected to have read access to this staging location
-        # to download the batch features.
-        # For example: gs://mybucket/myprefix
-        # Please omit the trailing slash in the URI.
-        staging_location: gs://mybucket/myprefix
-        # Retry options for BigQuery retrieval jobs
-        initial_retry_delay_seconds: 1
-        # BigQuery timeout for retrieval jobs
-        total_timeout_seconds: 21600
-        # BigQuery sink write frequency
-        write_triggering_frequency_seconds: 600
-      subscriptions:
-        - name: "*"
-          project: "*"
 
   tracing:
     # If true, Feast will provide tracing data (using OpenTracing API) for various RPC method calls
@@ -91,14 +69,6 @@ feast:
     tracer-name: jaeger
     # The service name identifier for the tracing data
     service-name: feast_serving
-
-  # The job store is used to maintain job management state for Feast Serving. This is required when using certain
-  # historical stores like BigQuery. Only Redis is supported as a job store.
-  job_store:
-    # Redis host to connect to
-    redis_host: localhost
-    # Redis port to connect to
-    redis_port: 6379
 
   logging:
     # Audit logging provides a machine readable structured JSON log that can give better 

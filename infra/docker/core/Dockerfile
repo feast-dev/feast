@@ -9,13 +9,11 @@ WORKDIR /build
 COPY pom.xml .
 COPY datatypes/java/pom.xml datatypes/java/pom.xml
 COPY common/pom.xml common/pom.xml
-COPY ingestion/pom.xml ingestion/pom.xml
 COPY core/pom.xml core/pom.xml
 COPY serving/pom.xml serving/pom.xml
 COPY storage/api/pom.xml storage/api/pom.xml
 COPY storage/connectors/pom.xml storage/connectors/pom.xml
 COPY storage/connectors/redis/pom.xml storage/connectors/redis/pom.xml
-COPY storage/connectors/bigquery/pom.xml storage/connectors/bigquery/pom.xml
 COPY sdk/java/pom.xml sdk/java/pom.xml
 COPY docs/coverage/java/pom.xml docs/coverage/java/pom.xml
 COPY protos/ protos/
@@ -29,8 +27,8 @@ RUN mvn dependency:go-offline -DexcludeGroupIds:dev.feast 2>/dev/null || true
 
 COPY . .
 
-ARG REVISION=dev
-RUN mvn --also-make --projects core -Drevision=$REVISION \
+ARG VERSION=dev
+RUN mvn --also-make --projects core -Drevision=$VERSION \
   -DskipUTs=true --batch-mode clean package
 
 #
@@ -46,9 +44,9 @@ RUN wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/downloa
 # ============================================================
 
 FROM openjdk:11-jre as production
-ARG REVISION=dev
+ARG VERSION=dev
 
-COPY --from=builder /build/core/target/feast-core-$REVISION-exec.jar /opt/feast/feast-core.jar
+COPY --from=builder /build/core/target/feast-core-$VERSION-exec.jar /opt/feast/feast-core.jar
 COPY --from=builder /usr/bin/grpc-health-probe /usr/bin/grpc-health-probe
 
 CMD ["java",\

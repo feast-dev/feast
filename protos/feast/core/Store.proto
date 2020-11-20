@@ -26,12 +26,12 @@ option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 // The way FeatureRow is encoded and decoded when it is written to and read from
 // the Store depends on the type of the Store.
 //
-// For example, a FeatureRow will materialize as a row in a table in 
-// BigQuery but it will materialize as a key, value pair element in Redis.
-//
 message Store {
 
   enum StoreType {
+    // These positions should not be reused.
+    reserved 2, 3, 12, 13;
+
     INVALID = 0;
 
     // Redis stores a FeatureRow element as a key, value pair.
@@ -45,57 +45,6 @@ message Store {
     // - value: byte array of FeatureRow (refer to feast.types.FeatureRow)
     // 
     REDIS = 1;
-
-    // BigQuery stores a FeatureRow element as a row in a BigQuery table.
-    // 
-    // Table name is derived is the same as the feature set name.
-    // 
-    // The entities and features in a FeatureSetSpec corresponds to the 
-    // fields in the BigQuery table (these make up the BigQuery schema). 
-    // The name of the entity spec and feature spec corresponds to the column 
-    // names, and the value_type of entity spec and feature spec corresponds 
-    // to BigQuery standard SQL data type of the column. 
-    // 
-    // The following BigQuery fields are reserved for Feast internal use. 
-    // Ingestion of entity or feature spec with names identical 
-    // to the following field names will raise an exception during ingestion.
-    //
-    //   column_name       | column_data_type | description
-    // ====================|==================|================================
-    // - event_timestamp   | TIMESTAMP        | event time of the FeatureRow
-    // - created_timestamp | TIMESTAMP        | processing time of the ingestion of the FeatureRow
-    // - ingestion_id      | STRING           | unique id identifying groups of rows that have been ingested together
-    // - job_id            | STRING           | identifier for the job that writes the FeatureRow to the corresponding BigQuery table
-    //
-    // BigQuery table created will be partitioned by the field "event_timestamp"
-    // of the FeatureRow (https://cloud.google.com/bigquery/docs/partitioned-tables).
-    // 
-    // The following table shows how ValueType in Feast is mapped to 
-    // BigQuery Standard SQL data types 
-    // (https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types):
-    //
-    // BYTES       : BYTES 
-    // STRING      : STRING 
-    // INT32       : INT64
-    // INT64       : IN64 
-    // DOUBLE      : FLOAT64
-    // FLOAT       : FLOAT64 
-    // BOOL        : BOOL 
-    // BYTES_LIST  : ARRAY
-    // STRING_LIST : ARRAY
-    // INT32_LIST  : ARRAY
-    // INT64_LIST  : ARRAY
-    // DOUBLE_LIST : ARRAY
-    // FLOAT_LIST  : ARRAY
-    // BOOL_LIST   : ARRAY
-    //
-    // The column mode in BigQuery is set to "Nullable" such that unset Value
-    // in a FeatureRow corresponds to NULL value in BigQuery.
-    //
-    BIGQUERY = 2;
-
-    // Unsupported in Feast 0.3
-    CASSANDRA = 3;
 
     REDIS_CLUSTER = 4;
   }
@@ -112,21 +61,6 @@ message Store {
     int32 flush_frequency_seconds = 5;
     // Optional. Connect over SSL.
     bool ssl = 6;
-  }
-
-  message BigQueryConfig {
-    string project_id = 1;
-    string dataset_id = 2;
-    string staging_location = 3;
-    int32 initial_retry_delay_seconds = 4;
-    int32 total_timeout_seconds = 5;
-    // Required. Frequency of running BQ load job and flushing all collected rows to BQ table
-    int32 write_triggering_frequency_seconds = 6;
-  }
-
-  message CassandraConfig {
-    string host = 1;
-    int32 port = 2;
   }
 
   message RedisClusterConfig {
@@ -183,8 +117,6 @@ message Store {
   // Configuration to connect to the store. Required.
   oneof config {
     RedisConfig redis_config = 11;
-    BigQueryConfig bigquery_config = 12;
-    CassandraConfig cassandra_config = 13;
     RedisClusterConfig redis_cluster_config = 14;
   }
 }
