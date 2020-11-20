@@ -297,46 +297,37 @@ public class SpecService {
    *     filter
    */
   public ListFeaturesResponse listFeatures(ListFeaturesRequest.Filter filter) {
-    try {
-      String project = filter.getProject();
-      List<String> entities = filter.getEntitiesList();
-      Map<String, String> labels = filter.getLabelsMap();
+    String project = filter.getProject();
+    List<String> entities = filter.getEntitiesList();
+    Map<String, String> labels = filter.getLabelsMap();
 
-      checkValidCharactersAllowAsterisk(project, "project");
+    checkValidCharactersAllowAsterisk(project, "project");
 
-      // Autofill default project if project not specified
-      if (project.isEmpty()) {
-        project = Project.DEFAULT_NAME;
-      }
-
-      // Currently defaults to all FeatureSets
-      List<FeatureSet> featureSets =
-          featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc("%", project);
-      // TODO: List features in Feature Tables.
-
-      ListFeaturesResponse.Builder response = ListFeaturesResponse.newBuilder();
-      if (entities.size() > 0) {
-        featureSets =
-            featureSets.stream()
-                .filter(featureSet -> featureSet.hasAllEntities(entities))
-                .collect(Collectors.toList());
-      }
-
-      Map<String, Feature> featuresMap;
-      for (FeatureSet featureSet : featureSets) {
-        featuresMap = featureSet.getFeaturesByRef(labels);
-        for (Map.Entry<String, Feature> entry : featuresMap.entrySet()) {
-          response.putFeatures(entry.getKey(), entry.getValue().toProto());
-        }
-      }
-
-      return response.build();
-    } catch (InvalidProtocolBufferException e) {
-      throw io.grpc.Status.NOT_FOUND
-          .withDescription("Unable to retrieve features")
-          .withCause(e)
-          .asRuntimeException();
+    // Autofill default project if project not specified
+    if (project.isEmpty()) {
+      project = Project.DEFAULT_NAME;
     }
+
+    // Currently defaults to all FeatureTables
+    List<FeatureTable> featureTables = tableRepository.findAllByProject_Name(project);
+
+    ListFeaturesResponse.Builder response = ListFeaturesResponse.newBuilder();
+    if (entities.size() > 0) {
+      featureTables =
+          featureTables.stream()
+              .filter(featureTable -> featureTable.hasAllEntities(entities))
+              .collect(Collectors.toList());
+    }
+
+    Map<String, FeatureV2> featuresMap;
+    for (FeatureTable featureTable : featureTables) {
+      featuresMap = featureTable.getFeaturesByLabels(labels);
+      for (Map.Entry<String, FeatureV2> entry : featuresMap.entrySet()) {
+        response.putFeatures(entry.getKey(), entry.getValue().toProto());
+      }
+    }
+
+    return response.build();
   }
 
   /**

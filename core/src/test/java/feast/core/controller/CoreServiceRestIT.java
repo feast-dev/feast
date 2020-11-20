@@ -176,12 +176,9 @@ public class CoreServiceRestIT extends BaseIT {
 
   @Test
   public void listFeatures() {
-    // entities = [merchant_id]
-    // project = default
-    // should return 4 features
     String uri1 =
-        UriComponentsBuilder.fromPath("/api/v1/features")
-            .queryParam("entities", "merchant_id")
+        UriComponentsBuilder.fromPath("/api/v2/features")
+            .queryParam("entities", "entity1", "entity2")
             .buildAndExpand()
             .toString();
     get(uri1)
@@ -190,15 +187,12 @@ public class CoreServiceRestIT extends BaseIT {
         .everything()
         .assertThat()
         .contentType(ContentType.JSON)
-        .body("features", aMapWithSize(4));
+        .body("features", aMapWithSize(2));
 
-    // entities = [merchant_id]
-    // project = merchant
-    // should return 2 features
     String uri2 =
-        UriComponentsBuilder.fromPath("/api/v1/features")
-            .queryParam("entities", "merchant_id")
-            .queryParam("project", "merchant")
+        UriComponentsBuilder.fromPath("/api/v2/features")
+            .queryParam("entities", "entity1", "entity2")
+            .queryParam("project", "default")
             .buildAndExpand()
             .toString();
     get(uri2)

@@ -16,6 +16,8 @@
  */
 package feast.core.model;
 
+import static feast.common.models.FeatureV2.getFeatureStringRef;
+
 import com.google.common.hash.Hashing;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
@@ -25,6 +27,7 @@ import feast.proto.core.DataSourceProto;
 import feast.proto.core.FeatureProto.FeatureSpecV2;
 import feast.proto.core.FeatureTableProto;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
+import feast.proto.serving.ServingAPIProto;
 import java.util.*;
 import java.util.stream.Collectors;
 import javax.persistence.CascadeType;
@@ -73,7 +76,7 @@ public class FeatureTable extends AbstractTimestampEntity {
   private Set<FeatureV2> features;
 
   // Entites to associate the features defined in this FeatureTable with
-  @ManyToMany
+  @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "feature_tables_entities_v2",
       joinColumns = @JoinColumn(name = "feature_table_id"),
@@ -261,6 +264,72 @@ public class FeatureTable extends AbstractTimestampEntity {
               return entity;
             })
         .collect(Collectors.toSet());
+  }
+
+  /**
+   * Return a boolean to indicate if FeatureTable contains all specified entities.
+   *
+   * @param entitiesFilter contain entities that should be attached to the FeatureTable
+   * @return boolean True if FeatureTable contains all entities in the entitiesFilter
+   */
+  public boolean hasAllEntities(List<String> entitiesFilter) {
+    Set<String> allEntitiesName =
+        this.getEntities().stream().map(entity -> entity.getName()).collect(Collectors.toSet());
+    return allEntitiesName.equals(new HashSet<>(entitiesFilter));
+  }
+
+  /**
+   * Returns a map of Feature references and Features if FeatureTable's Feature contains all labels
+   * in the labelsFilter
+   *
+   * @param labelsFilter contain labels that should be attached to FeatureTable's features
+   * @return Map of Feature references and Features
+   */
+  public Map<String, FeatureV2> getFeaturesByLabels(Map<String, String> labelsFilter) {
+    Map<String, FeatureV2> validFeaturesMap;
+    List<FeatureV2> validFeatures;
+    if (labelsFilter.size() > 0) {
+      validFeatures = filterFeaturesByAllLabels(this.getFeatures(), labelsFilter);
+      validFeaturesMap = getFeaturesRefToFeaturesMap(validFeatures);
+      return validFeaturesMap;
+    }
+    validFeaturesMap = getFeaturesRefToFeaturesMap(List.copyOf(this.getFeatures()));
+    return validFeaturesMap;
+  }
+
+  /**
+   * Returns map for accessing features using their respective feature reference.
+   *
+   * @param features List of features to insert to map.
+   * @return Map of featureRef:feature.
+   */
+  private Map<String, FeatureV2> getFeaturesRefToFeaturesMap(List<FeatureV2> features) {
+    Map<String, FeatureV2> validFeaturesMap = new HashMap<>();
+    for (FeatureV2 feature : features) {
+      ServingAPIProto.FeatureReferenceV2 featureRef =
+          ServingAPIProto.FeatureReferenceV2.newBuilder()
+              .setFeatureTable(this.getName())
+              .setName(feature.getName())
+              .build();
+      validFeaturesMap.put(getFeatureStringRef(featureRef), feature);
+    }
+    return validFeaturesMap;
+  }
+
+  /**
+   * Returns a list of Features if FeatureTable's Feature contains all labels in labelsFilter
+   *
+   * @param labelsFilter contain labels that should be attached to FeatureTable's features
+   * @return List of Features
+   */
+  public static List<FeatureV2> filterFeaturesByAllLabels(
+      Set<FeatureV2> features, Map<String, String> labelsFilter) {
+    List<FeatureV2> validFeatures =
+        features.stream()
+            .filter(feature -> feature.hasAllLabels(labelsFilter))
+            .collect(Collectors.toList());
+
+    return validFeatures;
   }
 
   /**

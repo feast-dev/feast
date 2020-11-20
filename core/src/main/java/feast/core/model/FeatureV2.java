@@ -106,6 +106,23 @@ public class FeatureV2 {
     this.labelsJSON = TypeConversion.convertMapToJsonString(spec.getLabelsMap());
   }
 
+  /**
+   * Return a boolean to indicate if Feature contains all specified labels.
+   *
+   * @param labelsFilter contain labels that should be attached to Feature
+   * @return boolean True if Feature contains all labels in the labelsFilter
+   */
+  public boolean hasAllLabels(Map<String, String> labelsFilter) {
+    Map<String, String> featureLabelsMap = TypeConversion.convertJsonStringToMap(getLabelsJSON());
+    for (String key : labelsFilter.keySet()) {
+      if (!featureLabelsMap.containsKey(key)
+          || !featureLabelsMap.get(key).equals(labelsFilter.get(key))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   @Override
   public int hashCode() {
     return Objects.hash(getName(), getType(), getLabelsJSON());

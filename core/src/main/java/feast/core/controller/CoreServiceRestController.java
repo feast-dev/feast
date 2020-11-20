@@ -114,7 +114,7 @@ public class CoreServiceRestController {
    *     <code>default</code>.
    * @return (200 OK) Return {@link ListFeaturesResponse} in JSON.
    */
-  @RequestMapping(value = "/v1/features", method = RequestMethod.GET)
+  @RequestMapping(value = "/v2/features", method = RequestMethod.GET)
   public ListFeaturesResponse listFeatures(
       @RequestParam String[] entities, @RequestParam(required = false) Optional<String> project) {
     ListFeaturesRequest.Filter.Builder filterBuilder =

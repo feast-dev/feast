@@ -162,7 +162,7 @@ public class SimpleCoreClient {
             .build());
   }
 
-  public Map<String, FeatureSetProto.FeatureSpec> simpleListFeatures(
+  public Map<String, FeatureProto.FeatureSpecV2> simpleListFeatures(
       String projectName, Map<String, String> labels, List<String> entities) {
     return stub.listFeatures(
             CoreServiceProto.ListFeaturesRequest.newBuilder()
@@ -176,7 +176,7 @@ public class SimpleCoreClient {
         .getFeaturesMap();
   }
 
-  public Map<String, FeatureSetProto.FeatureSpec> simpleListFeatures(
+  public Map<String, FeatureProto.FeatureSpecV2> simpleListFeatures(
       String projectName, String... entities) {
     return simpleListFeatures(projectName, Collections.emptyMap(), Arrays.asList(entities));
   }

@@ -42,6 +42,8 @@ from feast.core.CoreService_pb2 import (
     GetFeatureTableResponse,
     ListEntitiesRequest,
     ListEntitiesResponse,
+    ListFeaturesRequest,
+    ListFeaturesResponse,
     ListFeatureTablesRequest,
     ListFeatureTablesResponse,
     ListProjectsRequest,
@@ -59,7 +61,7 @@ from feast.core.JobService_pb2_grpc import JobServiceStub
 from feast.data_format import ParquetFormat
 from feast.data_source import BigQuerySource, FileSource
 from feast.entity import Entity
-from feast.feature import _build_feature_references
+from feast.feature import Feature, FeatureRef, _build_feature_references
 from feast.feature_table import FeatureTable
 from feast.grpc import auth as feast_auth
 from feast.grpc.grpc import create_grpc_channel
@@ -692,6 +694,51 @@ class Client:
             )
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
+
+    def list_features_by_ref(
+        self,
+        project: str = None,
+        entities: List[str] = list(),
+        labels: Dict[str, str] = dict(),
+    ) -> Dict[FeatureRef, Feature]:
+        """
+        Retrieve a dictionary of feature reference to feature from Feast Core based on filters provided.
+
+        Args:
+            project: Feast project that these features belongs to
+            entities: Feast entity that these features are associated with
+            labels: Feast labels that these features are associated with
+
+        Returns:
+            Dictionary of <feature references: features>
+
+        Examples:
+            >>> from feast import Client
+            >>>
+            >>> feast_client = Client(core_url="localhost:6565")
+            >>> features = feast_client.list_features(project="test_project", entities=["driver_id"], labels={"key1":"val1","key2":"val2"})
+            >>> print(features)
+        """
+
+        if project is None:
+            project = self.project
+
+        filter = ListFeaturesRequest.Filter(
+            project=project, entities=entities, labels=labels
+        )
+
+        feature_protos = self._core_service.ListFeatures(
+            ListFeaturesRequest(filter=filter), metadata=self._get_grpc_metadata(),
+        )  # type: ListFeaturesResponse
+
+        # Extract features and return
+        features_dict = {}
+        for ref_str, feature_proto in feature_protos.features.items():
+            feature_ref = FeatureRef.from_str(ref_str)
+            feature = Feature.from_proto(feature_proto)
+            features_dict[feature_ref] = feature
+
+        return features_dict
 
     def ingest(
         self,
