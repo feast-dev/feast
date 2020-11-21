@@ -120,7 +120,7 @@ class Config:
         return get_method(
             CONFIG_FILE_SECTION,
             option,
-            vars={**_get_feast_env_vars(), **self._options,},
+            vars={**_get_feast_env_vars(), **self._options},
             **fallback,
         )
 
@@ -220,10 +220,3 @@ class Config:
             for name, value in self._config.items(section_name):
                 result += name + " = " + value + "\n"
         return result
-
-
-if __name__ == "__main__":
-    from feast import Client
-
-    c = Client()
-    c._config.getboolean(opt.ENABLE_AUTH)
