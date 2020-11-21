@@ -22,8 +22,8 @@ import static org.hamcrest.Matchers.equalTo;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import feast.common.logging.entry.LogResource.ResourceType;
-import feast.proto.serving.ServingAPIProto.FeatureReference;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
+import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.proto.types.ValueProto.Value;
@@ -34,13 +34,18 @@ import org.junit.Test;
 
 public class AuditLogEntryTest {
   public List<AuditLogEntry> getTestAuditLogs() {
-    GetOnlineFeaturesRequest requestSpec =
-        GetOnlineFeaturesRequest.newBuilder()
-            .setOmitEntitiesInResponse(false)
+    GetOnlineFeaturesRequestV2 requestSpec =
+        GetOnlineFeaturesRequestV2.newBuilder()
             .addAllFeatures(
                 Arrays.asList(
-                    FeatureReference.newBuilder().setName("feature1").build(),
-                    FeatureReference.newBuilder().setName("feature2").build()))
+                    FeatureReferenceV2.newBuilder()
+                        .setFeatureTable("featuretable_1")
+                        .setName("feature1")
+                        .build(),
+                    FeatureReferenceV2.newBuilder()
+                        .setFeatureTable("featuretable_1")
+                        .setName("feature2")
+                        .build()))
             .build();
 
     GetOnlineFeaturesResponse responseSpec =
@@ -48,17 +53,19 @@ public class AuditLogEntryTest {
             .addAllFieldValues(
                 Arrays.asList(
                     FieldValues.newBuilder()
-                        .putFields("feature", Value.newBuilder().setInt32Val(32).build())
+                        .putFields(
+                            "featuretable_1:feature_1", Value.newBuilder().setInt32Val(32).build())
                         .build(),
                     FieldValues.newBuilder()
-                        .putFields("feature2", Value.newBuilder().setInt32Val(64).build())
+                        .putFields(
+                            "featuretable_1:feature2", Value.newBuilder().setInt32Val(64).build())
                         .build()))
             .build();
 
     return Arrays.asList(
         MessageAuditLogEntry.newBuilder()
             .setComponent("feast-serving")
-            .setVersion("0.6")
+            .setVersion("0.9")
             .setService("ServingService")
             .setMethod("getOnlineFeatures")
             .setRequest(requestSpec)
@@ -67,12 +74,9 @@ public class AuditLogEntryTest {
             .setIdentity("adam@no.such.email")
             .build(),
         ActionAuditLogEntry.of(
-            "core", "0.6", LogResource.of(ResourceType.JOB, "kafka-to-redis"), "CREATE"),
+            "core", "0.9", LogResource.of(ResourceType.JOB, "kafka-to-redis"), "CREATE"),
         TransitionAuditLogEntry.of(
-            "core",
-            "0.6",
-            LogResource.of(ResourceType.FEATURE_SET, "project/feature_set"),
-            "READY"));
+            "core", "0.9", LogResource.of(ResourceType.FEATURE_TABLE, "featuretable_1"), "READY"));
   }
 
   @Test

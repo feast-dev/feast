@@ -26,7 +26,7 @@ import com.google.auto.value.AutoValue;
 public abstract class LogResource {
   public enum ResourceType {
     JOB,
-    FEATURE_SET,
+    FEATURE_TABLE
   }
 
   public abstract ResourceType getType();

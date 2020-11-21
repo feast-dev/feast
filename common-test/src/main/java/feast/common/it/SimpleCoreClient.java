@@ -31,12 +31,6 @@ public class SimpleCoreClient {
     this.stub = stub;
   }
 
-  public CoreServiceProto.ApplyFeatureSetResponse simpleApplyFeatureSet(
-      FeatureSetProto.FeatureSet featureSet) {
-    return stub.applyFeatureSet(
-        CoreServiceProto.ApplyFeatureSetRequest.newBuilder().setFeatureSet(featureSet).build());
-  }
-
   public CoreServiceProto.ApplyEntityResponse simpleApplyEntity(
       String projectName, EntityProto.EntitySpecV2 spec) {
     return stub.applyEntity(
@@ -84,53 +78,6 @@ public class SimpleCoreClient {
         .getTablesList();
   }
 
-  public List<FeatureSetProto.FeatureSet> simpleListFeatureSets(
-      String projectName, String featureSetName, Map<String, String> labels) {
-    return stub.listFeatureSets(
-            CoreServiceProto.ListFeatureSetsRequest.newBuilder()
-                .setFilter(
-                    CoreServiceProto.ListFeatureSetsRequest.Filter.newBuilder()
-                        .setProject(projectName)
-                        .setFeatureSetName(featureSetName)
-                        .putAllLabels(labels)
-                        .build())
-                .build())
-        .getFeatureSetsList();
-  }
-
-  public List<FeatureSetProto.FeatureSet> simpleListFeatureSets(
-      String projectName, String featureSetName, FeatureSetProto.FeatureSetStatus status) {
-    return stub.listFeatureSets(
-            CoreServiceProto.ListFeatureSetsRequest.newBuilder()
-                .setFilter(
-                    CoreServiceProto.ListFeatureSetsRequest.Filter.newBuilder()
-                        .setProject(projectName)
-                        .setFeatureSetName(featureSetName)
-                        .setStatus(status)
-                        .build())
-                .build())
-        .getFeatureSetsList();
-  }
-
-  public List<FeatureSetProto.FeatureSet> simpleListFeatureSets(
-      String projectName, String featureSetName) {
-    return simpleListFeatureSets(
-        projectName, featureSetName, FeatureSetProto.FeatureSetStatus.STATUS_INVALID);
-  }
-
-  public List<FeatureSetProto.FeatureSet> simpleListFeatureSets(String featureSetName) {
-    return simpleListFeatureSets("default", featureSetName);
-  }
-
-  public FeatureSetProto.FeatureSet simpleGetFeatureSet(String projectName, String name) {
-    return stub.getFeatureSet(
-            CoreServiceProto.GetFeatureSetRequest.newBuilder()
-                .setName(name)
-                .setProject(projectName)
-                .build())
-        .getFeatureSet();
-  }
-
   public EntityProto.Entity simpleGetEntity(String projectName, String name) {
     return stub.getEntity(
             CoreServiceProto.GetEntityRequest.newBuilder()
@@ -147,19 +94,6 @@ public class SimpleCoreClient {
                 .setProject(projectName)
                 .build())
         .getTable();
-  }
-
-  public void updateFeatureSetStatus(
-      String projectName, String name, FeatureSetProto.FeatureSetStatus status) {
-    stub.updateFeatureSetStatus(
-        CoreServiceProto.UpdateFeatureSetStatusRequest.newBuilder()
-            .setReference(
-                FeatureSetReferenceProto.FeatureSetReference.newBuilder()
-                    .setProject(projectName)
-                    .setName(name)
-                    .build())
-            .setStatus(status)
-            .build());
   }
 
   public Map<String, FeatureProto.FeatureSpecV2> simpleListFeatures(
@@ -198,15 +132,6 @@ public class SimpleCoreClient {
     return stub.getFeastCoreVersion(
             CoreServiceProto.GetFeastCoreVersionRequest.getDefaultInstance())
         .getVersion();
-  }
-
-  public FeatureSetProto.FeatureSet getFeatureSet(String projectName, String featureSetName) {
-    return stub.getFeatureSet(
-            CoreServiceProto.GetFeatureSetRequest.newBuilder()
-                .setProject(projectName)
-                .setName(featureSetName)
-                .build())
-        .getFeatureSet();
   }
 
   public FeatureTableProto.FeatureTable applyFeatureTable(
