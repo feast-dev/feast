@@ -51,16 +51,13 @@ def _init_config(path: str):
     os.makedirs(os.path.dirname(config_dir), exist_ok=True)
 
     # Create the configuration file itself
-    config = ConfigParser(allow_no_value=True)
+    config = ConfigParser(defaults=opt().defaults(), allow_no_value=True)
     if os.path.exists(path):
         config.read(path)
 
     # Store all configuration in a single section
     if not config.has_section(CONFIG_FILE_SECTION):
         config.add_section(CONFIG_FILE_SECTION)
-
-    # Save the current configuration
-    config.write(open(path, "w"))
 
     return config
 
@@ -114,10 +111,18 @@ class Config:
         self._options = {}
         if options and isinstance(options, dict):
             self._options = options
-        self._defaults = opt().defaults()
 
         self._config = config  # type: ConfigParser
         self._path = path  # type: str
+
+    def _get(self, option, default, get_method):
+        fallback = {} if default is _UNSET else {"fallback": default}
+        return get_method(
+            CONFIG_FILE_SECTION,
+            option,
+            vars={**_get_feast_env_vars(), **self._options,},
+            **fallback,
+        )
 
     def get(self, option, default=_UNSET):
         """
@@ -130,17 +135,7 @@ class Config:
         Returns: String option that is returned
 
         """
-        default = {option: default} if default is not _UNSET else {}
-        return self._config.get(
-            CONFIG_FILE_SECTION,
-            option,
-            vars={
-                **default,
-                **self._defaults,
-                **_get_feast_env_vars(),
-                **self._options,
-            },
-        )
+        return self._get(option, default, self._config.get)
 
     def getboolean(self, option, default=_UNSET):
         """
@@ -153,17 +148,7 @@ class Config:
          Returns: Boolean option value that is returned
 
          """
-        default = {option: default} if default is not _UNSET else {}
-        return self._config.getboolean(
-            CONFIG_FILE_SECTION,
-            option,
-            vars={
-                **default,
-                **self._defaults,
-                **_get_feast_env_vars(),
-                **self._options,
-            },
-        )
+        return self._get(option, default, self._config.getboolean)
 
     def getint(self, option, default=_UNSET):
         """
@@ -176,17 +161,7 @@ class Config:
          Returns: Integer option value that is returned
 
          """
-        default = {option: default} if default is not _UNSET else {}
-        return self._config.getint(
-            CONFIG_FILE_SECTION,
-            option,
-            vars={
-                **default,
-                **self._defaults,
-                **_get_feast_env_vars(),
-                **self._options,
-            },
-        )
+        return self._get(option, default, self._config.getint)
 
     def getfloat(self, option, default=_UNSET):
         """
@@ -199,17 +174,7 @@ class Config:
          Returns: Float option value that is returned
 
          """
-        default = {option: default} if default is not _UNSET else {}
-        return self._config.getfloat(
-            CONFIG_FILE_SECTION,
-            option,
-            vars={
-                **default,
-                **self._defaults,
-                **_get_feast_env_vars(),
-                **self._options,
-            },
-        )
+        return self._get(option, default, self._config.getfloat)
 
     def set(self, option, value):
         """
@@ -241,7 +206,12 @@ class Config:
         Save the current configuration to disk. This does not include
         environmental variables or initialized options
         """
-        self._config.write(open(self._path, "w"))
+        defaults = self._config.defaults()
+        try:
+            self._config._defaults = {}
+            self._config.write(open(self._path, "w"))
+        finally:
+            self._config._defaults = defaults
 
     def __str__(self):
         result = ""
@@ -250,3 +220,10 @@ class Config:
             for name, value in self._config.items(section_name):
                 result += name + " = " + value + "\n"
         return result
+
+
+if __name__ == "__main__":
+    from feast import Client
+
+    c = Client()
+    c._config.getboolean(opt.ENABLE_AUTH)
