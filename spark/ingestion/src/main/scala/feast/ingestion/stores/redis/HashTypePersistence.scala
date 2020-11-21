@@ -21,7 +21,6 @@ import java.util
 
 import com.google.common.hash.Hashing
 import com.google.protobuf.Timestamp
-import com.google.protobuf.util.Timestamps
 import feast.ingestion.utils.TypeConversion
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
@@ -36,11 +35,7 @@ import scala.jdk.CollectionConverters._
   * Keys are hashed as murmur3(`featureTableName` : `featureName`).
   * Values are serialized with protobuf (`ValueProto`).
   */
-class HashTypePersistence(config: SparkRedisConfig)
-    extends Persistence[util.Map[Array[Byte], Array[Byte]]]
-    with Serializable {
-
-  val MAX_EXPIRED_TIMESTAMP = new java.sql.Timestamp(Timestamps.MAX_VALUE.getSeconds * 1000)
+class HashTypePersistence(config: SparkRedisConfig) extends Persistence with Serializable {
 
   private def encodeRow(
       value: Row,
@@ -105,11 +100,12 @@ class HashTypePersistence(config: SparkRedisConfig)
       pipeline: Pipeline,
       key: Array[Byte],
       row: Row,
-      expiryTimestamp: java.sql.Timestamp
+      expiryTimestamp: java.sql.Timestamp,
+      maxExpiryTimestamp: java.sql.Timestamp
   ): Unit = {
     val value = encodeRow(row, expiryTimestamp).asJava
     pipeline.hset(key, value)
-    if (!expiryTimestamp.equals(MAX_EXPIRED_TIMESTAMP)) {
+    if (!expiryTimestamp.equals(maxExpiryTimestamp)) {
       pipeline.expireAt(key, expiryTimestamp.getTime / 1000)
     }
   }
@@ -130,31 +126,5 @@ class HashTypePersistence(config: SparkRedisConfig)
       }
       .get(timestampHashKey(config.namespace))
       .map(value => decodeTimestamp(value))
-  }
-
-  override def newExpiryTimestamp(
-      row: Row,
-      value: util.Map[Array[Byte], Array[Byte]]
-  ): java.sql.Timestamp = {
-    val maxExpiryOtherFeatureTables: Long = value.asScala.toMap
-      .map { case (key, value) =>
-        (key.map(_.toChar).mkString, value)
-      }
-      .filterKeys(_.startsWith(config.expiryPrefix))
-      .filterKeys(_.split(":").last != config.namespace)
-      .values
-      .map(value => Timestamp.parseFrom(value).getSeconds)
-      .reduceOption(_ max _)
-      .getOrElse(0)
-
-    val rowExpiry: Long =
-      if (config.maxAge > 0)
-        row.getAs[java.sql.Timestamp](config.timestampColumn).getTime + config.maxAge * 1000
-      else MAX_EXPIRED_TIMESTAMP.getTime
-
-    val maxExpiry = maxExpiryOtherFeatureTables max rowExpiry
-
-    new java.sql.Timestamp(maxExpiry)
-
   }
 }

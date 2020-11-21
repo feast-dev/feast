@@ -17,6 +17,7 @@
 package feast.ingestion.stores.redis
 
 import java.sql.Timestamp
+import java.util
 
 import org.apache.spark.sql.Row
 import redis.clients.jedis.{Pipeline, Response}
@@ -24,7 +25,7 @@ import redis.clients.jedis.{Pipeline, Response}
 /**
   * Determine how a Spark row should be serialized and stored on Redis.
   */
-trait Persistence[T] {
+trait Persistence {
 
   /**
     * Persist a Spark row to Redis
@@ -33,12 +34,15 @@ trait Persistence[T] {
     * @param key                   Redis key in serialized bytes format
     * @param row                   Row representing the value to be persist
     * @param expiryTimestamp       Expiry timestamp for the row
+    * @param maxExpiryTimestamp    No ttl should be set if the expiry timestamp
+    *                              is equal to the maxExpiryTimestamp
     */
   def save(
       pipeline: Pipeline,
       key: Array[Byte],
       row: Row,
-      expiryTimestamp: Timestamp
+      expiryTimestamp: Timestamp,
+      maxExpiryTimestamp: Timestamp
   ): Unit
 
   /**
@@ -54,7 +58,7 @@ trait Persistence[T] {
   def get(
       pipeline: Pipeline,
       key: Array[Byte]
-  ): Response[T]
+  ): Response[util.Map[Array[Byte], Array[Byte]]]
 
   /**
     * Returns the currently stored event timestamp for the key and the feature table associated with the ingestion job.
@@ -64,15 +68,6 @@ trait Persistence[T] {
     *                           the key is not present in Redis, or if timestamp information is
     *                           unavailable on the stored value.
     */
-  def storedTimestamp(value: T): Option[Timestamp]
+  def storedTimestamp(value: util.Map[Array[Byte], Array[Byte]]): Option[Timestamp]
 
-  /**
-    * Compute the new expiry timestamp, based on the currently stored value and the new row
-    *
-    * @param row                Row representing the value to be persist
-    * @param value              Response returned from `get`
-    * @return                   Expiry timestamp for the new row to be persisted. Will be used
-    *                           to compute ttl for the Redis key
-    */
-  def newExpiryTimestamp(row: Row, value: T): Timestamp
 }

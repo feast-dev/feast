@@ -18,6 +18,8 @@ package feast.ingestion.stores.redis
 
 import java.util
 
+import com.google.protobuf.Timestamp
+import com.google.protobuf.util.Timestamps
 import com.redislabs.provider.redis.util.PipelineUtils.{foreachWithPipeline, mapWithPipeline}
 import com.redislabs.provider.redis.{ReadWriteConfig, RedisConfig, RedisEndpoint, RedisNode}
 import feast.ingestion.utils.TypeConversion
@@ -58,7 +60,9 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
 
   override def schema: StructType = ???
 
-  val persistence: Persistence[util.Map[Array[Byte], Array[Byte]]] = new HashTypePersistence(config)
+  val MAX_EXPIRED_TIMESTAMP = new java.sql.Timestamp(Timestamps.MAX_VALUE.getSeconds * 1000)
+
+  val persistence: Persistence = new HashTypePersistence(config)
 
   override def insert(data: DataFrame, overwrite: Boolean): Unit = {
     // repartition for deduplication
@@ -87,15 +91,16 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
           val expiryTimestampByKey = keys
             .zip(storedValues)
             .map { case (key, storedValue) =>
-              (key, persistence.newExpiryTimestamp(rowsWithKey(key), storedValue))
+              (key, newExpiryTimestamp(rowsWithKey(key), storedValue))
             }
             .toMap
 
           foreachWithPipeline(conn, keys) { (pipeline, key) =>
-            val row               = rowsWithKey(key)
+            val row = rowsWithKey(key)
 
             timestampByKey(key) match {
-              case Some(t) if (!t.before(row.getAs[java.sql.Timestamp](config.timestampColumn))) => ()
+              case Some(t) if (!t.before(row.getAs[java.sql.Timestamp](config.timestampColumn))) =>
+                ()
               case _ =>
                 if (metricSource.nonEmpty) {
                   val lag = System.currentTimeMillis() - row
@@ -105,7 +110,13 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
                   metricSource.get.METRIC_TOTAL_ROWS_INSERTED.inc()
                   metricSource.get.METRIC_ROWS_LAG.update(lag)
                 }
-                persistence.save(pipeline, key.toByteArray, row, expiryTimestampByKey(key))
+                persistence.save(
+                  pipeline,
+                  key.toByteArray,
+                  row,
+                  expiryTimestampByKey(key),
+                  MAX_EXPIRED_TIMESTAMP
+                )
             }
           }
           conn.close()
@@ -162,5 +173,31 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
     val slot = JedisClusterCRC16.getSlot(key.toByteArray)
 
     nodes.filter { node => node.startSlot <= slot && node.endSlot >= slot }.filter(_.idx == 0)(0)
+  }
+
+  private def newExpiryTimestamp(
+      row: Row,
+      value: util.Map[Array[Byte], Array[Byte]]
+  ): java.sql.Timestamp = {
+    val maxExpiryOtherFeatureTables: Long = value.asScala.toMap
+      .map { case (key, value) =>
+        (key.map(_.toChar).mkString, value)
+      }
+      .filterKeys(_.startsWith(config.expiryPrefix))
+      .filterKeys(_.split(":").last != config.namespace)
+      .values
+      .map(value => Timestamp.parseFrom(value).getSeconds)
+      .reduceOption(_ max _)
+      .getOrElse(0)
+
+    val rowExpiry: Long =
+      if (config.maxAge > 0)
+        row.getAs[java.sql.Timestamp](config.timestampColumn).getTime + config.maxAge * 1000
+      else MAX_EXPIRED_TIMESTAMP.getTime
+
+    val maxExpiry = maxExpiryOtherFeatureTables max rowExpiry
+
+    new java.sql.Timestamp(maxExpiry)
+
   }
 }
