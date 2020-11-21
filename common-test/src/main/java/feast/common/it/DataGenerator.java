@@ -224,6 +224,10 @@ public class DataGenerator {
     return ValueProto.Value.newBuilder().build();
   }
 
+  public static ValueProto.Value createStrValue(String val) {
+    return ValueProto.Value.newBuilder().setStringVal(val).build();
+  }
+
   public static ValueProto.Value createDoubleValue(double value) {
     return ValueProto.Value.newBuilder().setDoubleVal(value).build();
   }

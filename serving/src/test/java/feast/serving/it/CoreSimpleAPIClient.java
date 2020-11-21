@@ -43,8 +43,12 @@ public class CoreSimpleAPIClient {
         .getFeatureSet();
   }
 
-  public void simpleApplyEntity(EntityProto.EntitySpecV2 entitySpec) {
-    stub.applyEntity(CoreServiceProto.ApplyEntityRequest.newBuilder().setSpec(entitySpec).build());
+  public void simpleApplyEntity(String projectName, EntityProto.EntitySpecV2 entitySpec) {
+    stub.applyEntity(
+        CoreServiceProto.ApplyEntityRequest.newBuilder()
+            .setProject(projectName)
+            .setSpec(entitySpec)
+            .build());
   }
 
   public EntityProto.Entity getEntity(String projectName, String name) {
@@ -56,9 +60,13 @@ public class CoreSimpleAPIClient {
         .getEntity();
   }
 
-  public void simpleApplyFeatureTable(FeatureTableProto.FeatureTableSpec featureTable) {
+  public void simpleApplyFeatureTable(
+      String projectName, FeatureTableProto.FeatureTableSpec featureTable) {
     stub.applyFeatureTable(
-        CoreServiceProto.ApplyFeatureTableRequest.newBuilder().setTableSpec(featureTable).build());
+        CoreServiceProto.ApplyFeatureTableRequest.newBuilder()
+            .setProject(projectName)
+            .setTableSpec(featureTable)
+            .build());
   }
 
   public FeatureTableProto.FeatureTable simpleGetFeatureTable(String projectName, String name) {

@@ -16,42 +16,28 @@
  */
 package feast.serving.it;
 
-import static org.awaitility.Awaitility.waitAtMost;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.beans.HasPropertyWithValue.hasProperty;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.protobuf.Timestamp;
 import feast.common.auth.credentials.OAuthCredentials;
 import feast.proto.core.CoreServiceGrpc;
-import feast.proto.core.FeatureSetProto;
-import feast.proto.core.FeatureSetProto.FeatureSetStatus;
 import feast.proto.core.SourceProto;
-import feast.proto.serving.ServingAPIProto.FeatureReference;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
+import feast.proto.serving.ServingAPIProto;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import feast.proto.serving.ServingServiceGrpc;
-import feast.proto.types.ValueProto;
 import feast.proto.types.ValueProto.Value;
 import io.grpc.CallCredentials;
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
-import org.apache.commons.lang3.tuple.Pair;
 import org.junit.runners.model.InitializationError;
 import sh.ory.keto.ApiClient;
 import sh.ory.keto.ApiException;
@@ -82,79 +68,24 @@ public class AuthTestUtils {
         .build();
   }
 
-  public static FeatureSetProto.FeatureSet createFeatureSet(
-      SourceProto.Source source,
+  public static GetOnlineFeaturesRequestV2 createOnlineFeatureRequest(
       String projectName,
-      String name,
-      List<Pair<String, ValueProto.ValueType.Enum>> entities,
-      List<Pair<String, ValueProto.ValueType.Enum>> features) {
-    return FeatureSetProto.FeatureSet.newBuilder()
-        .setSpec(
-            FeatureSetProto.FeatureSetSpec.newBuilder()
-                .setSource(source)
-                .setName(name)
-                .setProject(projectName)
-                .addAllEntities(
-                    entities.stream()
-                        .map(
-                            pair ->
-                                FeatureSetProto.EntitySpec.newBuilder()
-                                    .setName(pair.getLeft())
-                                    .setValueType(pair.getRight())
-                                    .build())
-                        .collect(Collectors.toList()))
-                .addAllFeatures(
-                    features.stream()
-                        .map(
-                            pair ->
-                                FeatureSetProto.FeatureSpec.newBuilder()
-                                    .setName(pair.getLeft())
-                                    .setValueType(pair.getRight())
-                                    .build())
-                        .collect(Collectors.toList()))
-                .build())
-        .build();
-  }
-
-  public static GetOnlineFeaturesRequest createOnlineFeatureRequest(
-      String projectName, String featureName, String entityId, int entityValue) {
-    return GetOnlineFeaturesRequest.newBuilder()
+      String featureTableName,
+      String featureName,
+      String entityId,
+      int entityValue) {
+    return GetOnlineFeaturesRequestV2.newBuilder()
         .setProject(projectName)
-        .addFeatures(FeatureReference.newBuilder().setName(featureName).build())
+        .addFeatures(
+            ServingAPIProto.FeatureReferenceV2.newBuilder()
+                .setFeatureTable(featureTableName)
+                .setName(featureName)
+                .build())
         .addEntityRows(
-            EntityRow.newBuilder()
-                .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+            GetOnlineFeaturesRequestV2.EntityRow.newBuilder()
+                .setTimestamp(Timestamp.newBuilder().setSeconds(100))
                 .putFields(entityId, Value.newBuilder().setInt64Val(entityValue).build()))
         .build();
-  }
-
-  public static void applyFeatureSet(
-      CoreSimpleAPIClient secureApiClient,
-      String projectName,
-      String entityId,
-      String featureName) {
-    List<Pair<String, ValueProto.ValueType.Enum>> entities = new ArrayList<>();
-    entities.add(Pair.of(entityId, ValueProto.ValueType.Enum.INT64));
-    List<Pair<String, ValueProto.ValueType.Enum>> features = new ArrayList<>();
-    features.add(Pair.of(featureName, ValueProto.ValueType.Enum.INT64));
-    String featureSetName = "test_1";
-    FeatureSetProto.FeatureSet expectedFeatureSet =
-        AuthTestUtils.createFeatureSet(
-            AuthTestUtils.getDefaultSource(), projectName, featureSetName, entities, features);
-    secureApiClient.simpleApplyFeatureSet(expectedFeatureSet);
-    waitAtMost(2, TimeUnit.MINUTES)
-        .until(
-            () -> {
-              return secureApiClient.simpleGetFeatureSet(projectName, featureSetName).getMeta();
-            },
-            hasProperty("status", equalTo(FeatureSetStatus.STATUS_READY)));
-    FeatureSetProto.FeatureSet actualFeatureSet =
-        secureApiClient.simpleGetFeatureSet(projectName, featureSetName);
-    assertEquals(
-        expectedFeatureSet.getSpec().getProject(), actualFeatureSet.getSpec().getProject());
-    assertEquals(expectedFeatureSet.getSpec().getName(), actualFeatureSet.getSpec().getName());
-    assertEquals(expectedFeatureSet.getSpec().getSource(), actualFeatureSet.getSpec().getSource());
-    assertEquals(FeatureSetStatus.STATUS_READY, actualFeatureSet.getMeta().getStatus());
   }
 
   public static CoreSimpleAPIClient getSecureApiClientForCore(

@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.testcontainers.containers.wait.strategy.Wait.forHttp;
 
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
 import feast.proto.types.ValueProto.Value;
@@ -34,7 +34,6 @@ import java.util.HashMap;
 import java.util.Map;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.runners.model.InitializationError;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -78,11 +77,6 @@ public class ServingServiceOauthAuthorizationIT extends BaseAuthIT {
           .withExposedService(
               CORE,
               FEAST_CORE_PORT,
-              Wait.forLogMessage(".*gRPC Server started.*\\n", 1)
-                  .withStartupTimeout(Duration.ofMinutes(SERVICE_START_MAX_WAIT_TIME_IN_MINUTES)))
-          .withExposedService(
-              JOB_CONTROLLER,
-              FEAST_JOB_CONTROLLER_PORT,
               Wait.forLogMessage(".*gRPC Server started.*\\n", 1)
                   .withStartupTimeout(Duration.ofMinutes(SERVICE_START_MAX_WAIT_TIME_IN_MINUTES)))
           .withExposedService("adaptor_1", KETO_ADAPTOR_PORT)
@@ -134,24 +128,19 @@ public class ServingServiceOauthAuthorizationIT extends BaseAuthIT {
     coreClient = AuthTestUtils.getSecureApiClientForCore(FEAST_CORE_PORT, adminCredentials);
   }
 
-  @BeforeEach
-  public void setUp() {
-    // seed core
-    AuthTestUtils.applyFeatureSet(coreClient, PROJECT_NAME, ENTITY_ID, FEATURE_NAME);
-  }
-
   @Test
   public void shouldNotAllowUnauthenticatedGetOnlineFeatures() {
     ServingServiceBlockingStub servingStub =
         AuthTestUtils.getServingServiceStub(false, FEAST_SERVING_PORT, null);
 
-    GetOnlineFeaturesRequest onlineFeatureRequest =
-        AuthTestUtils.createOnlineFeatureRequest(PROJECT_NAME, FEATURE_NAME, ENTITY_ID, 1);
+    GetOnlineFeaturesRequestV2 onlineFeatureRequest =
+        AuthTestUtils.createOnlineFeatureRequest(
+            PROJECT_NAME, FEATURE_TABLE_NAME, FEATURE_NAME, ENTITY_ID, 1);
     Exception exception =
         assertThrows(
             StatusRuntimeException.class,
             () -> {
-              servingStub.getOnlineFeatures(onlineFeatureRequest);
+              servingStub.getOnlineFeaturesV2(onlineFeatureRequest);
             });
 
     String expectedMessage = "UNAUTHENTICATED: Authentication failed";
@@ -165,13 +154,15 @@ public class ServingServiceOauthAuthorizationIT extends BaseAuthIT {
     // apply feature set
     ServingServiceBlockingStub servingStub =
         AuthTestUtils.getServingServiceStub(true, FEAST_SERVING_PORT, adminCredentials);
-    GetOnlineFeaturesRequest onlineFeatureRequest =
-        AuthTestUtils.createOnlineFeatureRequest(PROJECT_NAME, FEATURE_NAME, ENTITY_ID, 1);
-    GetOnlineFeaturesResponse featureResponse = servingStub.getOnlineFeatures(onlineFeatureRequest);
+    GetOnlineFeaturesRequestV2 onlineFeatureRequest =
+        AuthTestUtils.createOnlineFeatureRequest(
+            PROJECT_NAME, FEATURE_TABLE_NAME, FEATURE_NAME, ENTITY_ID, 1);
+    GetOnlineFeaturesResponse featureResponse =
+        servingStub.getOnlineFeaturesV2(onlineFeatureRequest);
     assertEquals(1, featureResponse.getFieldValuesCount());
     Map<String, Value> fieldsMap = featureResponse.getFieldValues(0).getFieldsMap();
     assertTrue(fieldsMap.containsKey(ENTITY_ID));
-    assertTrue(fieldsMap.containsKey(FEATURE_NAME));
+    assertTrue(fieldsMap.containsKey(FEATURE_TABLE_NAME + ":" + FEATURE_NAME));
     ((ManagedChannel) servingStub.getChannel()).shutdown();
   }
 
@@ -182,13 +173,15 @@ public class ServingServiceOauthAuthorizationIT extends BaseAuthIT {
     memberCredsOptions.put(CLIENT_ID, PROJECT_MEMBER_CLIENT_ID);
     ServingServiceBlockingStub servingStub =
         AuthTestUtils.getServingServiceStub(true, FEAST_SERVING_PORT, memberCredsOptions);
-    GetOnlineFeaturesRequest onlineFeatureRequest =
-        AuthTestUtils.createOnlineFeatureRequest(PROJECT_NAME, FEATURE_NAME, ENTITY_ID, 1);
-    GetOnlineFeaturesResponse featureResponse = servingStub.getOnlineFeatures(onlineFeatureRequest);
+    GetOnlineFeaturesRequestV2 onlineFeatureRequest =
+        AuthTestUtils.createOnlineFeatureRequest(
+            PROJECT_NAME, FEATURE_TABLE_NAME, FEATURE_NAME, ENTITY_ID, 1);
+    GetOnlineFeaturesResponse featureResponse =
+        servingStub.getOnlineFeaturesV2(onlineFeatureRequest);
     assertEquals(1, featureResponse.getFieldValuesCount());
     Map<String, Value> fieldsMap = featureResponse.getFieldValues(0).getFieldsMap();
     assertTrue(fieldsMap.containsKey(ENTITY_ID));
-    assertTrue(fieldsMap.containsKey(FEATURE_NAME));
+    assertTrue(fieldsMap.containsKey(FEATURE_TABLE_NAME + ":" + FEATURE_NAME));
     ((ManagedChannel) servingStub.getChannel()).shutdown();
   }
 
@@ -199,12 +192,13 @@ public class ServingServiceOauthAuthorizationIT extends BaseAuthIT {
     notMemberCredsOptions.put(CLIENT_ID, NOT_PROJECT_MEMBER_CLIENT_ID);
     ServingServiceBlockingStub servingStub =
         AuthTestUtils.getServingServiceStub(true, FEAST_SERVING_PORT, notMemberCredsOptions);
-    GetOnlineFeaturesRequest onlineFeatureRequest =
-        AuthTestUtils.createOnlineFeatureRequest(PROJECT_NAME, FEATURE_NAME, ENTITY_ID, 1);
+    GetOnlineFeaturesRequestV2 onlineFeatureRequest =
+        AuthTestUtils.createOnlineFeatureRequest(
+            PROJECT_NAME, FEATURE_TABLE_NAME, FEATURE_NAME, ENTITY_ID, 1);
     StatusRuntimeException exception =
         assertThrows(
             StatusRuntimeException.class,
-            () -> servingStub.getOnlineFeatures(onlineFeatureRequest));
+            () -> servingStub.getOnlineFeaturesV2(onlineFeatureRequest));
 
     String expectedMessage =
         String.format(
