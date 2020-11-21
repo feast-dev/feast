@@ -23,33 +23,23 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import avro.shaded.com.google.common.collect.ImmutableMap;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.common.auth.authorization.AuthorizationProvider;
 import feast.common.auth.authorization.AuthorizationResult;
 import feast.common.auth.config.SecurityProperties;
 import feast.common.auth.service.AuthorizationService;
+import feast.common.it.DataGenerator;
 import feast.core.config.FeastProperties;
 import feast.core.dao.ProjectRepository;
 import feast.core.grpc.CoreServiceImpl;
-import feast.core.model.Entity;
-import feast.core.model.Feature;
-import feast.core.model.FeatureSet;
-import feast.core.model.Source;
 import feast.core.service.ProjectService;
 import feast.core.service.SpecService;
-import feast.proto.core.CoreServiceProto.ApplyFeatureSetRequest;
-import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse;
-import feast.proto.core.FeatureSetProto;
-import feast.proto.core.FeatureSetProto.FeatureSetStatus;
-import feast.proto.core.SourceProto;
-import feast.proto.core.SourceProto.KafkaSourceConfig;
-import feast.proto.core.SourceProto.SourceType;
-import feast.proto.types.ValueProto.ValueType.Enum;
+import feast.proto.core.CoreServiceProto.ApplyEntityRequest;
+import feast.proto.core.CoreServiceProto.ApplyEntityResponse;
+import feast.proto.core.EntityProto;
+import feast.proto.types.ValueProto;
 import io.grpc.internal.testing.StreamRecorder;
-import java.sql.Date;
-import java.time.Instant;
-import java.util.Arrays;
-import java.util.HashMap;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -82,7 +72,7 @@ public class CoreServiceAuthTest {
   }
 
   @Test
-  public void shouldNotApplyFeatureSetIfNotProjectMember() throws InvalidProtocolBufferException {
+  public void shouldNotApplyEntityIfNotProjectMember() throws InvalidProtocolBufferException {
 
     String project = "project1";
     Authentication auth = mock(Authentication.class);
@@ -94,22 +84,23 @@ public class CoreServiceAuthTest {
         .when(authProvider)
         .checkAccessToProject(anyString(), any(Authentication.class));
 
-    StreamRecorder<ApplyFeatureSetResponse> responseObserver = StreamRecorder.create();
-    FeatureSetProto.FeatureSet incomingFeatureSet = newDummyFeatureSet("f2", 1, project).toProto();
+    StreamRecorder<ApplyEntityResponse> responseObserver = StreamRecorder.create();
+    EntityProto.EntitySpecV2 incomingEntitySpec =
+        DataGenerator.createEntitySpecV2(
+            "entity1",
+            "Entity 1 description",
+            ValueProto.ValueType.Enum.STRING,
+            ImmutableMap.of("label_key", "label_value"));
 
-    FeatureSetProto.FeatureSetSpec incomingFeatureSetSpec =
-        incomingFeatureSet.getSpec().toBuilder().build();
-    FeatureSetProto.FeatureSet spec =
-        FeatureSetProto.FeatureSet.newBuilder().setSpec(incomingFeatureSetSpec).build();
-    ApplyFeatureSetRequest request =
-        ApplyFeatureSetRequest.newBuilder().setFeatureSet(spec).build();
+    ApplyEntityRequest request =
+        ApplyEntityRequest.newBuilder().setProject(project).setSpec(incomingEntitySpec).build();
 
-    coreService.applyFeatureSet(request, responseObserver);
+    coreService.applyEntity(request, responseObserver);
     assertEquals("PERMISSION_DENIED: Access Denied", responseObserver.getError().getMessage());
   }
 
   @Test
-  public void shouldApplyFeatureSetIfProjectMember() throws InvalidProtocolBufferException {
+  public void shouldApplyEntityIfProjectMember() throws InvalidProtocolBufferException {
 
     String project = "project1";
     Authentication auth = mock(Authentication.class);
@@ -120,42 +111,16 @@ public class CoreServiceAuthTest {
         .when(authProvider)
         .checkAccessToProject(anyString(), any(Authentication.class));
 
-    StreamRecorder<ApplyFeatureSetResponse> responseObserver = StreamRecorder.create();
-    FeatureSetProto.FeatureSet incomingFeatureSet = newDummyFeatureSet("f2", 1, project).toProto();
-    FeatureSetProto.FeatureSetSpec incomingFeatureSetSpec =
-        incomingFeatureSet.getSpec().toBuilder().build();
-    FeatureSetProto.FeatureSet spec =
-        FeatureSetProto.FeatureSet.newBuilder().setSpec(incomingFeatureSetSpec).build();
-    ApplyFeatureSetRequest request =
-        ApplyFeatureSetRequest.newBuilder().setFeatureSet(spec).build();
+    StreamRecorder<ApplyEntityResponse> responseObserver = StreamRecorder.create();
+    EntityProto.EntitySpecV2 incomingEntitySpec =
+        DataGenerator.createEntitySpecV2(
+            "entity1",
+            "Entity 1 description",
+            ValueProto.ValueType.Enum.STRING,
+            ImmutableMap.of("label_key", "label_value"));
+    ApplyEntityRequest request =
+        ApplyEntityRequest.newBuilder().setProject(project).setSpec(incomingEntitySpec).build();
 
-    coreService.applyFeatureSet(request, responseObserver);
-  }
-
-  private FeatureSet newDummyFeatureSet(String name, int version, String project) {
-    Feature feature = new Feature("feature", Enum.INT64);
-    Entity entity = new Entity("entity", Enum.STRING);
-    SourceProto.Source sourceSpec =
-        SourceProto.Source.newBuilder()
-            .setType(SourceType.KAFKA)
-            .setKafkaSourceConfig(
-                KafkaSourceConfig.newBuilder()
-                    .setBootstrapServers("kafka:9092")
-                    .setTopic("my-topic")
-                    .build())
-            .build();
-    Source defaultSource = Source.fromProto(sourceSpec);
-    FeatureSet fs =
-        new FeatureSet(
-            name,
-            project,
-            100L,
-            Arrays.asList(entity),
-            Arrays.asList(feature),
-            defaultSource,
-            new HashMap<String, String>(),
-            FeatureSetStatus.STATUS_READY);
-    fs.setCreated(Date.from(Instant.ofEpochSecond(10L)));
-    return fs;
+    coreService.applyEntity(request, responseObserver);
   }
 }
