@@ -7,7 +7,6 @@ from urllib.parse import urlparse
 
 import pandas as pd
 
-from feast.config import Config
 from feast.data_format import ParquetFormat
 from feast.data_source import BigQuerySource, FileSource
 from feast.staging.storage_client import get_staging_client
@@ -19,7 +18,7 @@ except ImportError:
 
 
 def stage_entities_to_fs(
-    entity_source: pd.DataFrame, staging_location: str, config: Config
+    entity_source: pd.DataFrame, staging_location: str
 ) -> FileSource:
     """
     Dumps given (entities) dataframe as parquet file and stage it to remote file storage (subdirectory of staging_location)
@@ -27,7 +26,7 @@ def stage_entities_to_fs(
     :return: FileSource with remote destination path
     """
     entity_staging_uri = urlparse(os.path.join(staging_location, str(uuid.uuid4())))
-    staging_client = get_staging_client(entity_staging_uri.scheme, config)
+    staging_client = get_staging_client(entity_staging_uri.scheme)
     with tempfile.NamedTemporaryFile() as df_export_path:
         entity_source.to_parquet(df_export_path.name)
         bucket = (

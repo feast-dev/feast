@@ -9,7 +9,6 @@ import pandas as pd
 import pyarrow as pa
 from pyarrow import parquet as pq
 
-from feast.config import Config
 from feast.staging.storage_client import get_staging_client
 
 
@@ -167,7 +166,7 @@ def _read_table_from_source(
 
 
 def _upload_to_file_source(
-    file_url: str, with_partitions: bool, dest_path: str, config: Config
+    file_url: str, with_partitions: bool, dest_path: str
 ) -> None:
     """
     Uploads data into a FileSource. Currently supports GCS, S3 and Local FS.
@@ -178,7 +177,7 @@ def _upload_to_file_source(
     from urllib.parse import urlparse
 
     uri = urlparse(file_url)
-    staging_client = get_staging_client(uri.scheme, config)
+    staging_client = get_staging_client(uri.scheme)
 
     if with_partitions:
         for path in glob.glob(os.path.join(dest_path, "**/*")):

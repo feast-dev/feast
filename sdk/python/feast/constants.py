@@ -125,9 +125,6 @@ class ConfigOptions(metaclass=ConfigMeta):
     #: Time to wait for historical feature requests before timing out.
     BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS: str = "600"
 
-    #: Endpoint URL for S3 storage_client
-    S3_ENDPOINT_URL: Optional[str] = None
-
     #: Authentication Provider - Google OpenID/OAuth
     #:
     #: Options: "google" / "oauth"

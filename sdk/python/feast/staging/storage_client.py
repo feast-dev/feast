@@ -24,9 +24,6 @@ from urllib.parse import ParseResult
 
 from google.auth.exceptions import DefaultCredentialsError
 
-from feast.config import Config
-from feast.constants import ConfigOptions as opt
-
 GS = "gs"
 S3 = "s3"
 LOCAL_FILE = "file"
@@ -147,7 +144,7 @@ class S3Client(AbstractStagingClient):
        Implementation of AbstractStagingClient for Aws S3 storage
     """
 
-    def __init__(self, endpoint_url: str = None):
+    def __init__(self):
         try:
             import boto3
         except ImportError:
@@ -155,7 +152,7 @@ class S3Client(AbstractStagingClient):
                 "Install package boto3 for s3 staging support"
                 "run ```pip install boto3```"
             )
-        self.s3_client = boto3.client("s3", endpoint_url=endpoint_url)
+        self.s3_client = boto3.client("s3")
 
     def download_file(self, uri: ParseResult) -> IO[bytes]:
         """
@@ -278,38 +275,21 @@ class LocalFSClient(AbstractStagingClient):
         shutil.copy(local_path, dest_fpath)
 
 
-def _s3_client(config: Config = None):
-    if config is None:
-        endpoint_url = None
-    else:
-        endpoint_url = config.get(opt.S3_ENDPOINT_URL, None)
-    return S3Client(endpoint_url=endpoint_url)
+storage_clients = {GS: GCSClient, S3: S3Client, LOCAL_FILE: LocalFSClient}
 
 
-def _gcs_client(config: Config = None):
-    return GCSClient()
-
-
-def _local_fs_client(config: Config = None):
-    return LocalFSClient()
-
-
-storage_clients = {GS: _gcs_client, S3: _s3_client, LOCAL_FILE: _local_fs_client}
-
-
-def get_staging_client(scheme, config: Config = None):
+def get_staging_client(scheme):
     """
     Initialization of a specific client object(GCSClient, S3Client etc.)
 
     Args:
         scheme (str): uri scheme: s3, gs or file
-        config (Config): additional configuration
 
     Returns:
         An object of concrete implementation of AbstractStagingClient
     """
     try:
-        return storage_clients[scheme](config)
+        return storage_clients[scheme]()
     except ValueError:
         raise Exception(
             f"Could not identify file scheme {scheme}. Only gs://, file:// and s3:// are supported"
