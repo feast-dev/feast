@@ -174,6 +174,9 @@ def _upload_to_file_source(
 
     Args:
         file_url: file url of FileSource defined for FeatureTable
+        with_partitions: whether to treat dest_path as dir with partitioned table
+        dest_path: path to file or dir to be uploaded
+        config: Config instance to configure FileSource
     """
     from urllib.parse import urlparse
 
