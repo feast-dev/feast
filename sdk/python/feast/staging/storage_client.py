@@ -279,9 +279,11 @@ class LocalFSClient(AbstractStagingClient):
 
 
 def _s3_client(config: Config = None):
-    return S3Client(
-        endpoint_url=config.get(opt.S3_ENDPOINT_URL) if config is not None else None
-    )
+    if config is None:
+        endpoint_url = None
+    else:
+        endpoint_url = config.get(opt.S3_ENDPOINT_URL, None)
+    return S3Client(endpoint_url=endpoint_url)
 
 
 def _gcs_client(config: Config = None):
