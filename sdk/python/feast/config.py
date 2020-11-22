@@ -29,6 +29,7 @@ from feast.constants import (
 from feast.constants import ConfigOptions as opt
 
 _logger = logging.getLogger(__name__)
+_UNSET = object()
 
 
 def _init_config(path: str):
@@ -50,16 +51,13 @@ def _init_config(path: str):
     os.makedirs(os.path.dirname(config_dir), exist_ok=True)
 
     # Create the configuration file itself
-    config = ConfigParser(defaults=opt().defaults())
+    config = ConfigParser(defaults=opt().defaults(), allow_no_value=True)
     if os.path.exists(path):
         config.read(path)
 
     # Store all configuration in a single section
     if not config.has_section(CONFIG_FILE_SECTION):
         config.add_section(CONFIG_FILE_SECTION)
-
-    # Save the current configuration
-    config.write(open(path, "w"))
 
     return config
 
@@ -117,69 +115,66 @@ class Config:
         self._config = config  # type: ConfigParser
         self._path = path  # type: str
 
-    def get(self, option):
+    def _get(self, option, default, get_method):
+        fallback = {} if default is _UNSET else {"fallback": default}
+        return get_method(
+            CONFIG_FILE_SECTION,
+            option,
+            vars={**_get_feast_env_vars(), **self._options},
+            **fallback,
+        )
+
+    def get(self, option, default=_UNSET):
         """
         Returns a single configuration option as a string
 
         Args:
             option: Name of the option
+            default: Default value to return if option is not found
 
         Returns: String option that is returned
 
         """
-        return self._config.get(
-            CONFIG_FILE_SECTION,
-            option,
-            vars={**_get_feast_env_vars(), **self._options},
-        )
+        return self._get(option, default, self._config.get)
 
-    def getboolean(self, option):
+    def getboolean(self, option, default=_UNSET):
         """
          Returns a single configuration option as a boolean
 
          Args:
              option: Name of the option
+             default: Default value to return if option is not found
 
          Returns: Boolean option value that is returned
 
          """
-        return self._config.getboolean(
-            CONFIG_FILE_SECTION,
-            option,
-            vars={**_get_feast_env_vars(), **self._options},
-        )
+        return self._get(option, default, self._config.getboolean)
 
-    def getint(self, option):
+    def getint(self, option, default=_UNSET):
         """
          Returns a single configuration option as an integer
 
          Args:
              option: Name of the option
+             default: Default value to return if option is not found
 
          Returns: Integer option value that is returned
 
          """
-        return self._config.getint(
-            CONFIG_FILE_SECTION,
-            option,
-            vars={**_get_feast_env_vars(), **self._options},
-        )
+        return self._get(option, default, self._config.getint)
 
-    def getfloat(self, option):
+    def getfloat(self, option, default=_UNSET):
         """
          Returns a single configuration option as an integer
 
          Args:
              option: Name of the option
+             default: Default value to return if option is not found
 
          Returns: Float option value that is returned
 
          """
-        return self._config.getfloat(
-            CONFIG_FILE_SECTION,
-            option,
-            vars={**_get_feast_env_vars(), **self._options},
-        )
+        return self._get(option, default, self._config.getfloat)
 
     def set(self, option, value):
         """
@@ -211,7 +206,12 @@ class Config:
         Save the current configuration to disk. This does not include
         environmental variables or initialized options
         """
-        self._config.write(open(self._path, "w"))
+        defaults = self._config.defaults()
+        try:
+            self._config._defaults = {}
+            self._config.write(open(self._path, "w"))
+        finally:
+            self._config._defaults = defaults
 
     def __str__(self):
         result = ""
