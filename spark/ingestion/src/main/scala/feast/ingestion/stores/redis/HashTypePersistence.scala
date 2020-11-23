@@ -105,7 +105,9 @@ class HashTypePersistence(config: SparkRedisConfig) extends Persistence with Ser
   ): Unit = {
     val value = encodeRow(row, expiryTimestamp).asJava
     pipeline.hset(key, value)
-    if (!expiryTimestamp.equals(maxExpiryTimestamp)) {
+    if (expiryTimestamp.equals(maxExpiryTimestamp)) {
+      pipeline.persist(key)
+    } else {
       pipeline.expireAt(key, expiryTimestamp.getTime / 1000)
     }
   }

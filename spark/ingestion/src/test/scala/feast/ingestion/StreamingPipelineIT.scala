@@ -183,17 +183,14 @@ class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
         keyTTL should (be <= (r.getEventTimestamp.getSeconds + maxAge - ingestionTimeUnix / 1000) and be > 0L)
       }
 
-      val increasedMaxAge               = 86400 * 2
       val kafkaSourceSecondFeatureTable = kafkaSource.copy(topic = "topic-2")
       val configWithSecondFeatureTable = config.copy(
         source = kafkaSourceSecondFeatureTable,
-        featureTable =
-          config.featureTable.copy(name = "driver-fs-2", maxAge = Some(increasedMaxAge))
+        featureTable = config.featureTable.copy(name = "driver-fs-2")
       )
       val querySecondFeatureTable =
         StreamingPipeline.createPipeline(sparkSession, configWithSecondFeatureTable).get
       querySecondFeatureTable.processAllAvailable() // to init kafka consumer
-      val secondIngestionTimeUnix = System.currentTimeMillis()
       rows.foreach(sendToKafka(kafkaSourceSecondFeatureTable.topic, _))
       querySecondFeatureTable.processAllAvailable()
 
@@ -210,13 +207,11 @@ class StreamingPipelineIT extends SparkSpec with ForAllTestContainer {
             "_ex:driver-fs" -> new java.sql.Timestamp(
               (r.getEventTimestamp.getSeconds + maxAge) * 1000
             ),
-            "_ex:driver-fs-2" -> new java.sql.Timestamp(
-              (r.getEventTimestamp.getSeconds + increasedMaxAge) * 1000
-            )
+            "_ex:driver-fs-2" -> new java.sql.Timestamp(Timestamps.MAX_VALUE.getSeconds * 1000)
           )
         )
-        val keyTTL = jedis.ttl(encodedEntityKey).toLong
-        keyTTL should (be <= r.getEventTimestamp.getSeconds + increasedMaxAge - secondIngestionTimeUnix / 1000 and be > r.getEventTimestamp.getSeconds + maxAge - secondIngestionTimeUnix / 1000)
+        val keyTTL = jedis.ttl(encodedEntityKey).toInt
+        keyTTL shouldEqual -1
       }
 
     }
