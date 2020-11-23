@@ -106,7 +106,7 @@ project = default
 core_url = localhost:6565
 ```
 
-Visit the [available configuration parameters](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/constants.py) for Feast Python SDK and Feast CLI to learn more.
+Visit the [available configuration parameters](https://api.docs.feast.dev/python/#module-feast.constants) for Feast Python SDK and Feast CLI to learn more.
 
 ## 3. Feast Java and Go SDK
 
