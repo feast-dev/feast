@@ -18,6 +18,7 @@ The following software is required for Feast development
 * Java SE Development Kit 11
 * Python version 3.6 \(or above\) and pip
 * [Maven](https://maven.apache.org/install.html) version 3.6.x
+* PySpark 2.4.2
 
 ### **Services**
 
