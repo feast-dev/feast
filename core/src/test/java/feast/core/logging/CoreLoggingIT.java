@@ -35,7 +35,7 @@ import feast.proto.core.CoreServiceGrpc;
 import feast.proto.core.CoreServiceGrpc.CoreServiceBlockingStub;
 import feast.proto.core.CoreServiceGrpc.CoreServiceFutureStub;
 import feast.proto.core.CoreServiceProto.GetFeastCoreVersionRequest;
-import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
+import feast.proto.core.CoreServiceProto.ListFeatureTablesRequest;
 import feast.proto.core.CoreServiceProto.ListStoresRequest;
 import feast.proto.core.CoreServiceProto.ListStoresResponse;
 import feast.proto.core.CoreServiceProto.UpdateStoreRequest;
@@ -123,19 +123,15 @@ public class CoreLoggingIT extends BaseIT {
   @Test
   public void shouldProduceMessageAuditLogsOnError() throws InterruptedException {
     // Send a bad request which should cause Core to error
-    ListFeatureSetsRequest request =
-        ListFeatureSetsRequest.newBuilder()
-            .setFilter(
-                ListFeatureSetsRequest.Filter.newBuilder()
-                    .setProject("*")
-                    .setFeatureSetName("nop")
-                    .build())
+    ListFeatureTablesRequest request =
+        ListFeatureTablesRequest.newBuilder()
+            .setFilter(ListFeatureTablesRequest.Filter.newBuilder().setProject("*").build())
             .build();
 
     boolean hasExpectedException = false;
     Code statusCode = null;
     try {
-      coreService.listFeatureSets(request);
+      coreService.listFeatureTables(request);
     } catch (StatusRuntimeException e) {
       hasExpectedException = true;
       statusCode = e.getStatus().getCode();
@@ -146,7 +142,7 @@ public class CoreLoggingIT extends BaseIT {
     Thread.sleep(1000);
     // Pull message audit logs logs from test log appender
     List<JsonObject> logJsonObjects =
-        parseMessageJsonLogObjects(testAuditLogAppender.getLogs(), "ListFeatureSets");
+        parseMessageJsonLogObjects(testAuditLogAppender.getLogs(), "ListFeatureTables");
 
     assertEquals(1, logJsonObjects.size());
     JsonObject logJsonObject = logJsonObjects.get(0);

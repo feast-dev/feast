@@ -31,13 +31,13 @@ public class MatchersTest {
   @Test
   public void checkUpperSnakeCaseShouldPassForLegitUpperSnakeCase() {
     String in = "REDIS_DB";
-    checkUpperSnakeCase(in, "featureset");
+    checkUpperSnakeCase(in, "featuretable");
   }
 
   @Test
   public void checkUpperSnakeCaseShouldPassForLegitUpperSnakeCaseWithNumbers() {
     String in = "REDIS1";
-    checkUpperSnakeCase(in, "featureset");
+    checkUpperSnakeCase(in, "featuretable");
   }
 
   @Test
@@ -46,11 +46,11 @@ public class MatchersTest {
     exception.expectMessage(
         Strings.lenientFormat(
             "invalid value for %s resource, %s: %s",
-            "featureset",
+            "featuretable",
             "redis",
             "argument must be in upper snake case, and cannot include any special characters."));
     String in = "redis";
-    checkUpperSnakeCase(in, "featureset");
+    checkUpperSnakeCase(in, "featuretable");
   }
 
   @Test

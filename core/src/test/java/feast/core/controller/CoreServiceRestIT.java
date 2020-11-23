@@ -25,13 +25,10 @@ import com.google.common.collect.ImmutableMap;
 import feast.common.it.BaseIT;
 import feast.common.it.DataGenerator;
 import feast.common.it.SimpleCoreClient;
-import feast.core.model.Project;
 import feast.proto.core.CoreServiceGrpc;
 import feast.proto.core.EntityProto;
-import feast.proto.core.FeatureSetProto.FeatureSet;
 import feast.proto.core.FeatureTableProto;
 import feast.proto.types.ValueProto;
-import feast.proto.types.ValueProto.ValueType.Enum;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.restassured.RestAssured;
@@ -98,80 +95,7 @@ public class CoreServiceRestIT extends BaseIT {
             .getBody()
             .asString();
     List<String> projectList = JsonPath.from(responseBody).getList("projects");
-    assertEquals(projectList, List.of("default", "merchant"));
-  }
-
-  // list feature sets
-  @Test
-  public void listFeatureSets() {
-    // project = default
-    // name = merchant_ratings
-    // getting a specific feature set
-    String uri1 =
-        UriComponentsBuilder.fromPath("/api/v1/feature-sets")
-            .queryParam("project", "default")
-            .queryParam("name", "merchant_ratings")
-            .buildAndExpand()
-            .toString();
-    String responseBody =
-        get(uri1)
-            .then()
-            .log()
-            .everything()
-            .assertThat()
-            .contentType(ContentType.JSON)
-            .extract()
-            .response()
-            .getBody()
-            .asString();
-    List<String> featureSetList = JsonPath.from(responseBody).getList("featureSets");
-    assertEquals(featureSetList.size(), 1);
-
-    // project = *
-    // name = *merchant_ratings
-    // should have two feature sets named *merchant_ratings
-    String uri2 =
-        UriComponentsBuilder.fromPath("/api/v1/feature-sets")
-            .queryParam("project", "*")
-            .queryParam("name", "*merchant_ratings")
-            .buildAndExpand()
-            .toString();
-    responseBody =
-        get(uri2)
-            .then()
-            .log()
-            .everything()
-            .assertThat()
-            .contentType(ContentType.JSON)
-            .extract()
-            .response()
-            .getBody()
-            .asString();
-    featureSetList = JsonPath.from(responseBody).getList("featureSets");
-    assertEquals(featureSetList.size(), 2);
-
-    // project = *
-    // name = *
-    // should have three feature sets
-    String uri3 =
-        UriComponentsBuilder.fromPath("/api/v1/feature-sets")
-            .queryParam("project", "*")
-            .queryParam("name", "*")
-            .buildAndExpand()
-            .toString();
-    responseBody =
-        get(uri3)
-            .then()
-            .log()
-            .everything()
-            .assertThat()
-            .contentType(ContentType.JSON)
-            .extract()
-            .response()
-            .getBody()
-            .asString();
-    featureSetList = JsonPath.from(responseBody).getList("featureSets");
-    assertEquals(featureSetList.size(), 3);
+    assertEquals(projectList, List.of("default"));
   }
 
   @Test
@@ -250,36 +174,6 @@ public class CoreServiceRestIT extends BaseIT {
 
   @BeforeEach
   private void createSpecs() {
-    // Apply feature sets
-    FeatureSet merchantFeatureSet =
-        DataGenerator.createFeatureSet(
-            DataGenerator.getDefaultSource(),
-            Project.DEFAULT_NAME,
-            "merchant_ratings",
-            ImmutableMap.of("merchant_id", Enum.STRING),
-            ImmutableMap.of("average_rating", Enum.DOUBLE, "total_ratings", Enum.INT64));
-    apiClient.simpleApplyFeatureSet(merchantFeatureSet);
-
-    FeatureSet anotherMerchantFeatureSet =
-        DataGenerator.createFeatureSet(
-            DataGenerator.getDefaultSource(),
-            Project.DEFAULT_NAME,
-            "another_merchant_ratings",
-            ImmutableMap.of("merchant_id", Enum.STRING),
-            ImmutableMap.of(
-                "another_average_rating", Enum.DOUBLE,
-                "another_total_ratings", Enum.INT64));
-    apiClient.simpleApplyFeatureSet(anotherMerchantFeatureSet);
-
-    FeatureSet yetAnotherMerchantFeatureSet =
-        DataGenerator.createFeatureSet(
-            DataGenerator.getDefaultSource(),
-            "merchant",
-            "yet_another_merchant_feature_set",
-            ImmutableMap.of("merchant_id", Enum.STRING),
-            ImmutableMap.of("merchant_prop1", Enum.BOOL, "merchant_prop2", Enum.FLOAT));
-    apiClient.simpleApplyFeatureSet(yetAnotherMerchantFeatureSet);
-
     // Apply entities
     EntityProto.EntitySpecV2 entitySpec1 =
         DataGenerator.createEntitySpecV2(

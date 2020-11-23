@@ -30,15 +30,14 @@ import feast.common.auth.config.SecurityProperties;
 import feast.common.auth.config.SecurityProperties.AuthenticationProperties;
 import feast.common.auth.config.SecurityProperties.AuthorizationProperties;
 import feast.common.auth.service.AuthorizationService;
-import feast.proto.serving.ServingAPIProto.FeatureReference;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
+import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.types.ValueProto.Value;
 import feast.serving.config.FeastProperties;
 import feast.serving.service.ServingService;
 import feast.serving.service.ServingServiceV2;
-import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.jaegertracing.Configuration;
 import io.opentracing.Tracer;
@@ -58,7 +57,7 @@ public class ServingServiceGRpcControllerTest {
 
   @Mock private StreamObserver<GetOnlineFeaturesResponse> mockStreamObserver;
 
-  private GetOnlineFeaturesRequest validRequest;
+  private GetOnlineFeaturesRequestV2 validRequest;
 
   private ServingServiceGRpcController service;
 
@@ -71,12 +70,20 @@ public class ServingServiceGRpcControllerTest {
     initMocks(this);
 
     validRequest =
-        GetOnlineFeaturesRequest.newBuilder()
-            .addFeatures(FeatureReference.newBuilder().setName("feature1").build())
-            .addFeatures(FeatureReference.newBuilder().setName("feature2").build())
+        GetOnlineFeaturesRequestV2.newBuilder()
+            .addFeatures(
+                FeatureReferenceV2.newBuilder()
+                    .setFeatureTable("featuretable_1")
+                    .setName("feature1")
+                    .build())
+            .addFeatures(
+                FeatureReferenceV2.newBuilder()
+                    .setFeatureTable("featuretable_1")
+                    .setName("feature2")
+                    .build())
             .addEntityRows(
                 EntityRow.newBuilder()
-                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .setTimestamp(Timestamp.newBuilder().setSeconds(100))
                     .putFields("entity1", Value.newBuilder().setInt64Val(1).build())
                     .putFields("entity2", Value.newBuilder().setInt64Val(1).build()))
             .build();
@@ -103,17 +110,17 @@ public class ServingServiceGRpcControllerTest {
   @Test
   public void shouldPassValidRequestAsIs() {
     service = getServingServiceGRpcController(false);
-    service.getOnlineFeatures(validRequest, mockStreamObserver);
-    Mockito.verify(mockServingService).getOnlineFeatures(validRequest);
+    service.getOnlineFeaturesV2(validRequest, mockStreamObserver);
+    Mockito.verify(mockServingServiceV2).getOnlineFeatures(validRequest);
   }
 
   @Test
   public void shouldCallOnErrorIfEntityDatasetIsNotSet() {
     service = getServingServiceGRpcController(false);
-    GetOnlineFeaturesRequest missingEntityName =
-        GetOnlineFeaturesRequest.newBuilder(validRequest).clearEntityRows().build();
-    service.getOnlineFeatures(missingEntityName, mockStreamObserver);
-    Mockito.verify(mockStreamObserver).onError(Mockito.any(StatusRuntimeException.class));
+    GetOnlineFeaturesRequestV2 missingEntityName =
+        GetOnlineFeaturesRequestV2.newBuilder(validRequest).clearEntityRows().build();
+    service.getOnlineFeaturesV2(missingEntityName, mockStreamObserver);
+    Mockito.verify(mockStreamObserver).onError(Mockito.any(IllegalArgumentException.class));
   }
 
   @Test
@@ -125,20 +132,7 @@ public class ServingServiceGRpcControllerTest {
     doReturn(AuthorizationResult.success())
         .when(authProvider)
         .checkAccessToProject(anyString(), any(Authentication.class));
-    service.getOnlineFeatures(validRequest, mockStreamObserver);
-    Mockito.verify(mockServingService).getOnlineFeatures(validRequest);
-  }
-
-  @Test
-  public void shouldThrowErrorOnValidRequestIfRequestIsUnauthorized() {
-    service = getServingServiceGRpcController(true);
-    SecurityContext context = mock(SecurityContext.class);
-    SecurityContextHolder.setContext(context);
-    when(context.getAuthentication()).thenReturn(authentication);
-    doReturn(AuthorizationResult.failed(null))
-        .when(authProvider)
-        .checkAccessToProject(anyString(), any(Authentication.class));
-    service.getOnlineFeatures(validRequest, mockStreamObserver);
-    Mockito.verify(mockStreamObserver).onError(Mockito.any(StatusRuntimeException.class));
+    service.getOnlineFeaturesV2(validRequest, mockStreamObserver);
+    Mockito.verify(mockServingServiceV2).getOnlineFeatures(validRequest);
   }
 }

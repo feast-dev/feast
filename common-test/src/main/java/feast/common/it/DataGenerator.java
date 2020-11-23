@@ -32,14 +32,11 @@ import feast.proto.core.DataSourceProto.DataSource.KinesisOptions;
 import feast.proto.core.EntityProto;
 import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureProto.FeatureSpecV2;
-import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.types.ValueProto;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -65,10 +62,6 @@ public class DataGenerator {
 
   public static SourceProto.Source getDefaultSource() {
     return defaultSource;
-  }
-
-  public static FeatureSetProto.FeatureSet getDefaultFeatureSet() {
-    return createFeatureSet(DataGenerator.getDefaultSource(), "default", "test");
   }
 
   public static SourceProto.Source createSource(String server, String topic) {
@@ -115,20 +108,6 @@ public class DataGenerator {
     }
   }
 
-  public static FeatureSetProto.FeatureSpec createFeature(
-      String name, ValueProto.ValueType.Enum valueType, Map<String, String> labels) {
-    return FeatureSetProto.FeatureSpec.newBuilder()
-        .setName(name)
-        .setValueType(valueType)
-        .putAllLabels(labels)
-        .build();
-  }
-
-  public static FeatureSetProto.EntitySpec createEntitySpec(
-      String name, ValueProto.ValueType.Enum valueType) {
-    return FeatureSetProto.EntitySpec.newBuilder().setName(name).setValueType(valueType).build();
-  }
-
   public static EntityProto.EntitySpecV2 createEntitySpecV2(
       String name,
       String description,
@@ -149,70 +128,6 @@ public class DataGenerator {
         .setValueType(valueType)
         .putAllLabels(labels)
         .build();
-  }
-
-  public static FeatureSetProto.FeatureSet createFeatureSet(
-      SourceProto.Source source,
-      String projectName,
-      String name,
-      List<FeatureSetProto.EntitySpec> entities,
-      List<FeatureSetProto.FeatureSpec> features,
-      Map<String, String> labels) {
-    return FeatureSetProto.FeatureSet.newBuilder()
-        .setSpec(
-            FeatureSetProto.FeatureSetSpec.newBuilder()
-                .setSource(source)
-                .setName(name)
-                .setProject(projectName)
-                .putAllLabels(labels)
-                .addAllEntities(entities)
-                .addAllFeatures(features)
-                .build())
-        .build();
-  }
-
-  public static FeatureSetProto.FeatureSet createFeatureSet(
-      SourceProto.Source source,
-      String projectName,
-      String name,
-      Map<String, ValueProto.ValueType.Enum> entities,
-      Map<String, ValueProto.ValueType.Enum> features,
-      Map<String, String> labels) {
-    return FeatureSetProto.FeatureSet.newBuilder()
-        .setSpec(
-            FeatureSetProto.FeatureSetSpec.newBuilder()
-                .setSource(source)
-                .setName(name)
-                .setProject(projectName)
-                .putAllLabels(labels)
-                .addAllEntities(
-                    entities.entrySet().stream()
-                        .map(entry -> createEntitySpec(entry.getKey(), entry.getValue()))
-                        .collect(Collectors.toList()))
-                .addAllFeatures(
-                    features.entrySet().stream()
-                        .map(
-                            entry ->
-                                createFeature(
-                                    entry.getKey(), entry.getValue(), Collections.emptyMap()))
-                        .collect(Collectors.toList()))
-                .build())
-        .build();
-  }
-
-  public static FeatureSetProto.FeatureSet createFeatureSet(
-      SourceProto.Source source,
-      String projectName,
-      String name,
-      Map<String, ValueProto.ValueType.Enum> entities,
-      Map<String, ValueProto.ValueType.Enum> features) {
-    return createFeatureSet(source, projectName, name, entities, features, new HashMap<>());
-  }
-
-  public static FeatureSetProto.FeatureSet createFeatureSet(
-      SourceProto.Source source, String projectName, String name) {
-    return createFeatureSet(
-        source, projectName, name, Collections.emptyMap(), Collections.emptyMap());
   }
 
   // Create a Feature Table spec without DataSources configured.
@@ -307,6 +222,10 @@ public class DataGenerator {
 
   public static ValueProto.Value createEmptyValue() {
     return ValueProto.Value.newBuilder().build();
+  }
+
+  public static ValueProto.Value createStrValue(String val) {
+    return ValueProto.Value.newBuilder().setStringVal(val).build();
   }
 
   public static ValueProto.Value createDoubleValue(double value) {

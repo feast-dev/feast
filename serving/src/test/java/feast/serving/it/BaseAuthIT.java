@@ -27,6 +27,7 @@ import org.springframework.test.context.DynamicPropertySource;
 @SpringBootTest
 public class BaseAuthIT {
 
+  static final String FEATURE_TABLE_NAME = "featuretable_1";
   static final String FEATURE_NAME = "feature_1";
   static final String ENTITY_ID = "entity_id";
   static final String PROJECT_NAME = "project_1";
@@ -41,8 +42,6 @@ public class BaseAuthIT {
   static final String AUDIENCE = "https://localhost";
 
   static final String CORE = "core_1";
-
-  static final String JOB_CONTROLLER = "jobcontroller_1";
 
   static final String HYDRA = "hydra_1";
   static final int HYDRA_PORT = 4445;

@@ -18,20 +18,6 @@ services:
       - -jar
       - /opt/feast/feast-core.jar
       - --spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml
-
-  jobcontroller:
-    image: gcr.io/kf-feast/feast-jobcontroller:latest
-    volumes:
-      - ./job-controller/application-it.yml:/etc/feast/application.yml
-    depends_on:
-      - kafka
-    ports:
-      - 6570:6570
-    command:
-      - java
-      - -jar
-      - /opt/feast/feast-job-controller.jar
-      - --spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml
   
   kafka:
     image: confluentinc/cp-kafka:5.2.1

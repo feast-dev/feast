@@ -18,35 +18,28 @@ package feast.storage.connectors.redis.serializer;
 
 import static org.junit.Assert.*;
 
-import com.google.common.collect.Lists;
-import feast.proto.storage.RedisProto.RedisKey;
-import feast.proto.types.FieldProto;
+import feast.proto.storage.RedisProto.RedisKeyV2;
 import feast.proto.types.ValueProto;
 import org.junit.Test;
 
 public class RedisKeyPrefixSerializerTest {
 
-  private RedisKey key =
-      RedisKey.newBuilder()
-          .setFeatureSet("project/featureSet")
-          .addAllEntities(
-              Lists.newArrayList(
-                  FieldProto.Field.newBuilder()
-                      .setName("entity1")
-                      .setValue(ValueProto.Value.newBuilder().setInt64Val(1))
-                      .build()))
+  private RedisKeyV2 key =
+      RedisKeyV2.newBuilder()
+          .addEntityNames("entity1")
+          .addEntityValues(ValueProto.Value.newBuilder().setInt64Val(1))
           .build();
 
   @Test
   public void shouldPrependKey() {
-    RedisKeyPrefixSerializer serializer = new RedisKeyPrefixSerializer("namespace:");
+    RedisKeyPrefixSerializerV2 serializer = new RedisKeyPrefixSerializerV2("namespace:");
     String keyWithPrefix = new String(serializer.serialize(key));
     assertEquals(String.format("namespace:%s", new String(key.toByteArray())), keyWithPrefix);
   }
 
   @Test
   public void shouldNotPrependKeyIfEmptyString() {
-    RedisKeyPrefixSerializer serializer = new RedisKeyPrefixSerializer("");
+    RedisKeyPrefixSerializerV2 serializer = new RedisKeyPrefixSerializerV2("");
     assertArrayEquals(key.toByteArray(), serializer.serialize(key));
   }
 }

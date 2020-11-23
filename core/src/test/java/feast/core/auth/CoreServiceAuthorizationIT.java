@@ -19,6 +19,7 @@ package feast.core.auth;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.testcontainers.containers.wait.strategy.Wait.forHttp;
 
+import avro.shaded.com.google.common.collect.ImmutableMap;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.junit.WireMockClassRule;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -30,7 +31,8 @@ import feast.common.it.SimpleCoreClient;
 import feast.core.auth.infra.JwtHelper;
 import feast.core.config.FeastProperties;
 import feast.proto.core.CoreServiceGrpc;
-import feast.proto.core.FeatureSetProto;
+import feast.proto.core.EntityProto;
+import feast.proto.types.ValueProto;
 import io.grpc.CallCredentials;
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
@@ -153,8 +155,13 @@ public class CoreServiceAuthorizationIT extends BaseIT {
   @BeforeEach
   public void setUp() {
     SimpleCoreClient secureApiClient = getSecureApiClient(subjectIsAdmin);
-    FeatureSetProto.FeatureSet expectedFeatureSet = DataGenerator.getDefaultFeatureSet();
-    secureApiClient.simpleApplyFeatureSet(expectedFeatureSet);
+    EntityProto.EntitySpecV2 expectedEntitySpec =
+        DataGenerator.createEntitySpecV2(
+            "entity1",
+            "Entity 1 description",
+            ValueProto.ValueType.Enum.STRING,
+            ImmutableMap.of("label_key", "label_value"));
+    secureApiClient.simpleApplyEntity(project, expectedEntitySpec);
   }
 
   @AfterAll
@@ -176,12 +183,12 @@ public class CoreServiceAuthorizationIT extends BaseIT {
   }
 
   @Test
-  public void shouldNotAllowUnauthenticatedFeatureSetListing() {
+  public void shouldNotAllowUnauthenticatedEntityListing() {
     Exception exception =
         assertThrows(
             StatusRuntimeException.class,
             () -> {
-              insecureApiClient.simpleListFeatureSets("8");
+              insecureApiClient.simpleListEntities("8");
             });
 
     String expectedMessage = "UNAUTHENTICATED: Authentication failed";
@@ -190,32 +197,37 @@ public class CoreServiceAuthorizationIT extends BaseIT {
   }
 
   @Test
-  public void shouldAllowAuthenticatedFeatureSetListing() {
+  public void shouldAllowAuthenticatedEntityListing() {
     SimpleCoreClient secureApiClient =
         getSecureApiClient("AuthenticatedUserWithoutAuthorization@example.com");
-    FeatureSetProto.FeatureSet expectedFeatureSet = DataGenerator.getDefaultFeatureSet();
-    List<FeatureSetProto.FeatureSet> listFeatureSetsResponse =
-        secureApiClient.simpleListFeatureSets("*");
-    FeatureSetProto.FeatureSet actualFeatureSet = listFeatureSetsResponse.get(0);
+    EntityProto.EntitySpecV2 expectedEntitySpec =
+        DataGenerator.createEntitySpecV2(
+            "entity1",
+            "Entity 1 description",
+            ValueProto.ValueType.Enum.STRING,
+            ImmutableMap.of("label_key", "label_value"));
+    List<EntityProto.Entity> listEntitiesResponse = secureApiClient.simpleListEntities("myproject");
+    EntityProto.Entity actualEntity = listEntitiesResponse.get(0);
 
-    assert listFeatureSetsResponse.size() == 1;
-    assertEquals(
-        actualFeatureSet.getSpec().getProject(), expectedFeatureSet.getSpec().getProject());
-    assertEquals(
-        actualFeatureSet.getSpec().getProject(), expectedFeatureSet.getSpec().getProject());
+    assert listEntitiesResponse.size() == 1;
+    assertEquals(actualEntity.getSpec().getName(), expectedEntitySpec.getName());
   }
 
   @Test
-  void cantApplyFeatureSetIfNotProjectMember() throws InvalidProtocolBufferException {
+  void cantApplyEntityIfNotProjectMember() throws InvalidProtocolBufferException {
     String userName = "random_user@example.com";
     SimpleCoreClient secureApiClient = getSecureApiClient(userName);
-    FeatureSetProto.FeatureSet expectedFeatureSet =
-        DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), project, "test_5");
+    EntityProto.EntitySpecV2 expectedEntitySpec =
+        DataGenerator.createEntitySpecV2(
+            "entity1",
+            "Entity 1 description",
+            ValueProto.ValueType.Enum.STRING,
+            ImmutableMap.of("label_key", "label_value"));
 
     StatusRuntimeException exception =
         assertThrows(
             StatusRuntimeException.class,
-            () -> secureApiClient.simpleApplyFeatureSet(expectedFeatureSet));
+            () -> secureApiClient.simpleApplyEntity(project, expectedEntitySpec));
 
     String expectedMessage =
         String.format(
@@ -225,37 +237,39 @@ public class CoreServiceAuthorizationIT extends BaseIT {
   }
 
   @Test
-  void canApplyFeatureSetIfProjectMember() {
+  void canApplyEntityIfProjectMember() {
     SimpleCoreClient secureApiClient = getSecureApiClient(subjectInProject);
-    FeatureSetProto.FeatureSet expectedFeatureSet =
-        DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), project, "test_6");
+    EntityProto.EntitySpecV2 expectedEntitySpec =
+        DataGenerator.createEntitySpecV2(
+            "entity_6",
+            "Entity 1 description",
+            ValueProto.ValueType.Enum.STRING,
+            ImmutableMap.of("label_key", "label_value"));
 
-    secureApiClient.simpleApplyFeatureSet(expectedFeatureSet);
+    secureApiClient.simpleApplyEntity(project, expectedEntitySpec);
 
-    FeatureSetProto.FeatureSet actualFeatureSet =
-        secureApiClient.simpleGetFeatureSet(project, "test_6");
+    EntityProto.Entity actualEntity = secureApiClient.simpleGetEntity(project, "entity_6");
 
-    assertEquals(
-        expectedFeatureSet.getSpec().getProject(), actualFeatureSet.getSpec().getProject());
-    assertEquals(expectedFeatureSet.getSpec().getName(), actualFeatureSet.getSpec().getName());
-    assertEquals(expectedFeatureSet.getSpec().getSource(), actualFeatureSet.getSpec().getSource());
+    assertEquals(expectedEntitySpec.getName(), actualEntity.getSpec().getName());
+    assertEquals(expectedEntitySpec.getValueType(), actualEntity.getSpec().getValueType());
   }
 
   @Test
-  void canApplyFeatureSetIfAdmin() {
+  void canApplyEntityIfAdmin() {
     SimpleCoreClient secureApiClient = getSecureApiClient(subjectIsAdmin);
-    FeatureSetProto.FeatureSet expectedFeatureSet =
-        DataGenerator.createFeatureSet(DataGenerator.getDefaultSource(), "any_project", "test_2");
+    EntityProto.EntitySpecV2 expectedEntitySpec =
+        DataGenerator.createEntitySpecV2(
+            "entity_7",
+            "Entity 1 description",
+            ValueProto.ValueType.Enum.STRING,
+            ImmutableMap.of("label_key", "label_value"));
 
-    secureApiClient.simpleApplyFeatureSet(expectedFeatureSet);
+    secureApiClient.simpleApplyEntity(project, expectedEntitySpec);
 
-    FeatureSetProto.FeatureSet actualFeatureSet =
-        secureApiClient.simpleGetFeatureSet("any_project", "test_2");
+    EntityProto.Entity actualEntity = secureApiClient.simpleGetEntity(project, "entity_7");
 
-    assertEquals(
-        expectedFeatureSet.getSpec().getProject(), actualFeatureSet.getSpec().getProject());
-    assertEquals(expectedFeatureSet.getSpec().getName(), actualFeatureSet.getSpec().getName());
-    assertEquals(expectedFeatureSet.getSpec().getSource(), actualFeatureSet.getSpec().getSource());
+    assertEquals(expectedEntitySpec.getName(), actualEntity.getSpec().getName());
+    assertEquals(expectedEntitySpec.getValueType(), actualEntity.getSpec().getValueType());
   }
 
   @TestConfiguration

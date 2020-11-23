@@ -90,7 +90,7 @@ public class TestUtils {
             .setBatchSource(
                 DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", "dt_col"))
             .build();
-    secureApiClient.simpleApplyFeatureTable(expectedFeatureTableSpec);
+    secureApiClient.simpleApplyFeatureTable(projectName, expectedFeatureTableSpec);
     FeatureTable actualFeatureTable =
         secureApiClient.simpleGetFeatureTable(projectName, featureTableName);
     assertEquals(expectedFeatureTableSpec.getName(), actualFeatureTable.getSpec().getName());
@@ -98,7 +98,7 @@ public class TestUtils {
 
   public static void applyEntity(
       CoreSimpleAPIClient coreApiClient, String projectName, EntitySpecV2 entitySpec) {
-    coreApiClient.simpleApplyEntity(entitySpec);
+    coreApiClient.simpleApplyEntity(projectName, entitySpec);
     String entityName = entitySpec.getName();
     Entity actualEntity = coreApiClient.getEntity(projectName, entityName);
     assertEquals(entitySpec.getName(), actualEntity.getSpec().getName());
