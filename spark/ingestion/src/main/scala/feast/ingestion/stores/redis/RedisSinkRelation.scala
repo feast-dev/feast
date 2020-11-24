@@ -48,6 +48,9 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
     extends BaseRelation
     with InsertableRelation
     with Serializable {
+
+  import RedisSinkRelation._
+
   private implicit val redisConfig: RedisConfig = {
     new RedisConfig(
       new RedisEndpoint(sqlContext.sparkContext.getConf)
@@ -151,11 +154,21 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
       .build
   }
 
-  private lazy val metricSource: Option[RedisSinkMetricSource] =
+  private lazy val metricSource: Option[RedisSinkMetricSource] = {
+    MetricInitializationLock.synchronized {
+      // RedisSinkMetricSource needs to be registered on executor and SparkEnv must already exist.
+      // Which is problematic, since metrics system is initialized before SparkEnv set.
+      // That's why I moved source registering here
+      if (SparkEnv.get.metricsSystem.getSourcesByName(RedisSinkMetricSource.sourceName).isEmpty) {
+        SparkEnv.get.metricsSystem.registerSource(new RedisSinkMetricSource)
+      }
+    }
+
     SparkEnv.get.metricsSystem.getSourcesByName(RedisSinkMetricSource.sourceName) match {
       case Seq(head) => Some(head.asInstanceOf[RedisSinkMetricSource])
       case _         => None
     }
+  }
 
   private def groupKeysByNode(
       nodes: Array[RedisNode],
@@ -201,4 +214,8 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
     new java.sql.Timestamp(maxExpiry)
 
   }
+}
+
+object RedisSinkRelation {
+  object MetricInitializationLock
 }
