@@ -16,7 +16,7 @@
  */
 package feast.core.metrics.collector;
 
-import feast.core.dao.FeatureSetRepository;
+import feast.core.dao.FeatureTableRepository;
 import feast.core.dao.StoreRepository;
 import io.prometheus.client.Collector;
 import io.prometheus.client.GaugeMetricFamily;
@@ -30,12 +30,12 @@ import java.util.List;
  */
 public class FeastResourceCollector extends Collector {
 
-  private final FeatureSetRepository featureSetRepository;
+  private final FeatureTableRepository featureTableRepository;
   private final StoreRepository storeRepository;
 
   public FeastResourceCollector(
-      FeatureSetRepository featureSetRepository, StoreRepository storeRepository) {
-    this.featureSetRepository = featureSetRepository;
+      FeatureTableRepository featureTableRepository, StoreRepository storeRepository) {
+    this.featureTableRepository = featureTableRepository;
     this.storeRepository = storeRepository;
   }
 
@@ -45,8 +45,8 @@ public class FeastResourceCollector extends Collector {
     samples.add(
         new GaugeMetricFamily(
             "feast_core_feature_set_total",
-            "Total number of registered feature sets",
-            featureSetRepository.count()));
+            "Total number of registered feature tables",
+            featureTableRepository.count()));
     samples.add(
         new GaugeMetricFamily(
             "feast_core_store_total",

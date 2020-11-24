@@ -16,8 +16,6 @@
  */
 package feast.core.controller;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.Timestamp;
 import feast.core.config.FeastProperties;
 import feast.core.model.Project;
 import feast.core.service.ProjectService;
@@ -25,17 +23,11 @@ import feast.core.service.SpecService;
 import feast.proto.core.CoreServiceProto.GetFeastCoreVersionResponse;
 import feast.proto.core.CoreServiceProto.ListEntitiesRequest;
 import feast.proto.core.CoreServiceProto.ListEntitiesResponse;
-import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
-import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.proto.core.CoreServiceProto.ListFeatureTablesRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureTablesResponse;
 import feast.proto.core.CoreServiceProto.ListFeaturesRequest;
 import feast.proto.core.CoreServiceProto.ListFeaturesResponse;
 import feast.proto.core.CoreServiceProto.ListProjectsResponse;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -74,32 +66,11 @@ public class CoreServiceRestController {
    *
    * @return (200 OK) Returns {@link GetFeastCoreVersionResponse} in JSON.
    */
-  @RequestMapping(value = "/v1/version", method = RequestMethod.GET)
+  @RequestMapping(value = "/v2/version", method = RequestMethod.GET)
   public GetFeastCoreVersionResponse getVersion() {
     GetFeastCoreVersionResponse response =
         GetFeastCoreVersionResponse.newBuilder().setVersion(feastProperties.getVersion()).build();
     return response;
-  }
-
-  /**
-   * GET /feature-sets : Retrieve a list of Feature Sets according to filtering parameters of Feast
-   * project name and feature set name. If none matches, an empty JSON response is returned.
-   *
-   * @param project Request Parameter: Name of feast project to search in. If set to <code>"*"
-   *                </code>, all existing projects will be filtered. However, asterisk can NOT be
-   *     combined with other strings (for example <code>"merchant_*"</code>) to use as wildcard to
-   *     filter feature sets.
-   * @param name Request Parameter: Feature set name. If set to "*", filter * all feature sets by
-   *     default. Asterisk can be used as wildcard to filter * feature sets.
-   * @return (200 OK) Return {@link ListFeatureSetsResponse} in JSON.
-   */
-  @RequestMapping(value = "/v1/feature-sets", method = RequestMethod.GET)
-  public ListFeatureSetsResponse listFeatureSets(
-      @RequestParam(defaultValue = Project.DEFAULT_NAME) String project, @RequestParam String name)
-      throws InvalidProtocolBufferException {
-    ListFeatureSetsRequest.Filter.Builder filterBuilder =
-        ListFeatureSetsRequest.Filter.newBuilder().setProject(project).setFeatureSetName(name);
-    return specService.listFeatureSets(filterBuilder.build());
   }
 
   /**
@@ -128,7 +99,7 @@ public class CoreServiceRestController {
    *
    * @return (200 OK) Returns {@link ListProjectsResponse} in JSON.
    */
-  @RequestMapping(value = "/v1/projects", method = RequestMethod.GET)
+  @RequestMapping(value = "/v2/projects", method = RequestMethod.GET)
   public ListProjectsResponse listProjects() {
     List<Project> projects = projectService.listProjects();
     return ListProjectsResponse.newBuilder()
@@ -164,12 +135,5 @@ public class CoreServiceRestController {
     ListFeatureTablesRequest.Filter.Builder filterBuilder =
         ListFeatureTablesRequest.Filter.newBuilder().setProject(project);
     return specService.listFeatureTables(filterBuilder.build());
-  }
-
-  private Timestamp utcTimeStringToTimestamp(String utcTimeString) {
-    long epochSecond =
-        LocalDate.parse(utcTimeString, DateTimeFormatter.ISO_DATE)
-            .toEpochSecond(LocalTime.MIN, ZoneOffset.UTC);
-    return Timestamp.newBuilder().setSeconds(epochSecond).setNanos(0).build();
   }
 }

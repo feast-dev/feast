@@ -68,7 +68,7 @@ public class CoreServiceRestIT extends BaseIT {
 
   @Test
   public void getVersion() {
-    String uriString = UriComponentsBuilder.fromPath("/api/v1/version").toUriString();
+    String uriString = UriComponentsBuilder.fromPath("/api/v2/version").toUriString();
     get(uriString)
         .then()
         .log()
@@ -82,7 +82,7 @@ public class CoreServiceRestIT extends BaseIT {
   @Test
   public void listProjects() {
     // should get 2 projects
-    String uriString = UriComponentsBuilder.fromPath("/api/v1/projects").toUriString();
+    String uriString = UriComponentsBuilder.fromPath("/api/v2/projects").toUriString();
     String responseBody =
         get(uriString)
             .then()

@@ -16,7 +16,7 @@
  */
 package feast.core.config;
 
-import feast.core.dao.FeatureSetRepository;
+import feast.core.dao.FeatureTableRepository;
 import feast.core.dao.StoreRepository;
 import feast.core.metrics.collector.FeastResourceCollector;
 import feast.core.metrics.collector.JVMResourceCollector;
@@ -47,18 +47,18 @@ public class MonitoringConfig {
   /**
    * Register custom Prometheus collector that exports metrics about Feast Resources.
    *
-   * <p>For example: total number of registered feature sets and stores.
+   * <p>For example: total number of registered feature tables and stores.
    *
-   * @param featureSetRepository {@link FeatureSetRepository}
+   * @param featureTableRepository {@link FeatureTableRepository}
    * @param storeRepository {@link StoreRepository}
    * @return {@link FeastResourceCollector}
    */
   @Bean
   @Autowired
   public FeastResourceCollector feastResourceCollector(
-      FeatureSetRepository featureSetRepository, StoreRepository storeRepository) {
+      FeatureTableRepository featureTableRepository, StoreRepository storeRepository) {
     FeastResourceCollector collector =
-        new FeastResourceCollector(featureSetRepository, storeRepository);
+        new FeastResourceCollector(featureTableRepository, storeRepository);
     collector.register();
     return collector;
   }

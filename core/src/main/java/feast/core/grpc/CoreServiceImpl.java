@@ -16,7 +16,6 @@
  */
 package feast.core.grpc;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import feast.common.auth.service.AuthorizationService;
 import feast.common.logging.interceptors.GrpcMessageInterceptor;
 import feast.core.config.FeastProperties;
@@ -28,7 +27,6 @@ import feast.core.service.SpecService;
 import feast.proto.core.CoreServiceGrpc.CoreServiceImplBase;
 import feast.proto.core.CoreServiceProto.*;
 import feast.proto.core.EntityProto.EntitySpecV2;
-import feast.proto.core.FeatureSetProto.FeatureSet;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -80,20 +78,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   @Override
-  public void getFeatureSet(
-      GetFeatureSetRequest request, StreamObserver<GetFeatureSetResponse> responseObserver) {
-    try {
-      GetFeatureSetResponse response = specService.getFeatureSet(request);
-      responseObserver.onNext(response);
-      responseObserver.onCompleted();
-    } catch (RetrievalException | StatusRuntimeException | InvalidProtocolBufferException e) {
-      log.error("Exception has occurred in GetFeatureSet method: ", e);
-      responseObserver.onError(
-          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
-    }
-  }
-
-  @Override
   public void getEntity(
       GetEntityRequest request, StreamObserver<GetEntityResponse> responseObserver) {
     try {
@@ -113,20 +97,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
               .asRuntimeException());
     } catch (Exception e) {
       log.error("Exception has occurred in GetEntity method: ", e);
-      responseObserver.onError(
-          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
-    }
-  }
-
-  @Override
-  public void listFeatureSets(
-      ListFeatureSetsRequest request, StreamObserver<ListFeatureSetsResponse> responseObserver) {
-    try {
-      ListFeatureSetsResponse response = specService.listFeatureSets(request.getFilter());
-      responseObserver.onNext(response);
-      responseObserver.onCompleted();
-    } catch (RetrievalException | IllegalArgumentException | InvalidProtocolBufferException e) {
-      log.error("Exception has occurred in ListFeatureSet method: ", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
@@ -185,22 +155,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   @Override
-  public void updateFeatureSetStatus(
-      UpdateFeatureSetStatusRequest request,
-      StreamObserver<UpdateFeatureSetStatusResponse> responseObserver) {
-    try {
-      UpdateFeatureSetStatusResponse response = specService.updateFeatureSetStatus(request);
-
-      responseObserver.onNext(response);
-      responseObserver.onCompleted();
-    } catch (Exception e) {
-      log.error("Exception has occurred in UpdateFeatureSetStatus method: ", e);
-      responseObserver.onError(
-          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
-    }
-  }
-
-  @Override
   public void listStores(
       ListStoresRequest request, StreamObserver<ListStoresResponse> responseObserver) {
     try {
@@ -244,40 +198,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
               .asRuntimeException());
     } catch (Exception e) {
       log.error("Exception has occurred in ApplyEntity method: ", e);
-      responseObserver.onError(
-          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
-    }
-  }
-
-  @Override
-  public void applyFeatureSet(
-      ApplyFeatureSetRequest request, StreamObserver<ApplyFeatureSetResponse> responseObserver) {
-
-    String projectId = null;
-
-    try {
-      FeatureSet featureSet = request.getFeatureSet();
-      projectId = SpecService.resolveProjectName(featureSet.getSpec().getProject());
-      authorizationService.authorizeRequest(SecurityContextHolder.getContext(), projectId);
-      ApplyFeatureSetResponse response = specService.applyFeatureSet(featureSet);
-      responseObserver.onNext(response);
-      responseObserver.onCompleted();
-    } catch (org.hibernate.exception.ConstraintViolationException e) {
-      log.error(
-          "Unable to persist this feature set due to a constraint violation. Please ensure that"
-              + " field names are unique within the project namespace: ",
-          e);
-      responseObserver.onError(
-          Status.ALREADY_EXISTS.withDescription(e.getMessage()).withCause(e).asRuntimeException());
-    } catch (AccessDeniedException e) {
-      log.info(String.format("User prevented from accessing project: %s", projectId));
-      responseObserver.onError(
-          Status.PERMISSION_DENIED
-              .withDescription(e.getMessage())
-              .withCause(e)
-              .asRuntimeException());
-    } catch (Exception e) {
-      log.error("Exception has occurred in ApplyFeatureSet method: ", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
