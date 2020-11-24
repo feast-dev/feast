@@ -99,7 +99,7 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
             val row = rowsWithKey(key)
 
             timestampByKey(key) match {
-              case Some(t) if (!t.before(row.getAs[java.sql.Timestamp](config.timestampColumn))) =>
+              case Some(t) if (t.after(row.getAs[java.sql.Timestamp](config.timestampColumn))) =>
                 ()
               case _ =>
                 if (metricSource.nonEmpty) {
@@ -186,17 +186,18 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
       .filterKeys(_.startsWith(config.expiryPrefix))
       .filterKeys(_.split(":").last != config.namespace)
       .values
-      .map(value => Timestamp.parseFrom(value).getSeconds)
+      .map(value => Timestamp.parseFrom(value).getSeconds * 1000)
       .reduceOption(_ max _)
       .getOrElse(0)
 
     val rowExpiry: Long =
       if (config.maxAge > 0)
-        row.getAs[java.sql.Timestamp](config.timestampColumn).getTime + config.maxAge * 1000
+        (row
+          .getAs[java.sql.Timestamp](config.timestampColumn)
+          .getTime + config.maxAge * 1000)
       else MAX_EXPIRED_TIMESTAMP.getTime
 
     val maxExpiry = maxExpiryOtherFeatureTables max rowExpiry
-
     new java.sql.Timestamp(maxExpiry)
 
   }

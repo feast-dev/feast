@@ -39,7 +39,7 @@ class HashTypePersistence(config: SparkRedisConfig) extends Persistence with Ser
 
   private def encodeRow(
       value: Row,
-      expiryTimestamp: java.sql.Timestamp
+      maxExpiryTimestamp: java.sql.Timestamp
   ): Map[Array[Byte], Array[Byte]] = {
     val fields = value.schema.fields.map(_.name)
     val types  = value.schema.fields.map(f => (f.name, f.dataType)).toMap
@@ -65,6 +65,12 @@ class HashTypePersistence(config: SparkRedisConfig) extends Persistence with Ser
       )
     )
 
+    val expiryUnixTimestamp = {
+      if (config.maxAge > 0)
+        value.getAs[java.sql.Timestamp](config.timestampColumn).getTime + config.maxAge * 1000
+      else maxExpiryTimestamp.getTime
+    }
+    val expiryTimestamp = new java.sql.Timestamp(expiryUnixTimestamp)
     val expiryTimestampHash = Seq(
       (
         expiryTimestampHashKey(config.namespace).getBytes,
@@ -103,7 +109,7 @@ class HashTypePersistence(config: SparkRedisConfig) extends Persistence with Ser
       expiryTimestamp: java.sql.Timestamp,
       maxExpiryTimestamp: java.sql.Timestamp
   ): Unit = {
-    val value = encodeRow(row, expiryTimestamp).asJava
+    val value = encodeRow(row, maxExpiryTimestamp).asJava
     pipeline.hset(key, value)
     if (expiryTimestamp.equals(maxExpiryTimestamp)) {
       pipeline.persist(key)
