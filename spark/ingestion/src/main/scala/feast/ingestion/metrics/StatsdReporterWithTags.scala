@@ -169,19 +169,28 @@ class StatsdReporterWithTags(
     reportMetered(name, timer)
   }
 
+  private val nameWithTag = """(\S+)#(\S+)""".r
+
   private def send(name: String, value: String, metricType: String)(implicit
       socket: DatagramSocket
   ): Unit = {
-    val bytes  = sanitize(s"$name:$value|$metricType").getBytes(UTF_8)
+    val bytes = name match {
+      case nameWithTag(name, tags) =>
+        val tagsWithSemicolon = tags.replace('=', ':')
+        sanitize(s"$name:$value|$metricType|#$tagsWithSemicolon").getBytes(UTF_8)
+      case _ =>
+        sanitize(s"$name:$value|$metricType").getBytes(UTF_8)
+    }
     val packet = new DatagramPacket(bytes, bytes.length, address)
     socket.send(packet)
   }
 
-  private val nameWithTag = """(\S+)#(\S+)""".r
-
   private def fullName(name: String, suffixes: String*): String = name match {
     case nameWithTag(name, tags) =>
-      MetricRegistry.name(prefix, name +: suffixes: _*) ++ "#" ++ tags
+      // filter out parts that consists only from numbers
+      // that could be executor-id for example
+      val stableName = name.split('.').filterNot(_ forall Character.isDigit).mkString(".")
+      MetricRegistry.name(prefix, stableName +: suffixes: _*) ++ "#" ++ tags
     case _ =>
       MetricRegistry.name(prefix, name +: suffixes: _*)
   }

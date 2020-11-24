@@ -41,11 +41,7 @@ trait BasePipeline {
       case Some(c: StatsDConfig) =>
         conf
           .set(
-            "spark.metrics.conf.*.source.redis.class",
-            "org.apache.spark.metrics.source.RedisSinkMetricSource"
-          )
-          .set(
-            "spark.metrics.conf.*.source.redis.labels",
+            "spark.metrics.labels",
             s"feature_table=${jobConfig.featureTable.name}"
           )
           .set(
@@ -56,7 +52,7 @@ trait BasePipeline {
           .set("spark.metrics.conf.*.sink.statsd.port", c.port.toString)
           .set("spark.metrics.conf.*.sink.statsd.period", "30")
           .set("spark.metrics.conf.*.sink.statsd.unit", "seconds")
-          .set("spark.metrics.namespace", jobConfig.mode.toString)
+          .set("spark.metrics.namespace", jobConfig.mode.toString.toLowerCase)
       case None => ()
     }
 
