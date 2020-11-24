@@ -89,19 +89,19 @@ class StatsReporterSpec extends UnitSpec {
     server.receive should contain("test:0|g")
   }
 
-  "Statsd reporter" should "keep tags part in the name's end" in new Scope {
+  "Statsd reporter" should "keep tags part in the message's end" in new Scope {
     reporter.report(
       gauges = Collections.emptySortedMap(),
       counters = Collections.emptySortedMap(),
       histograms = new util.TreeMap(
         Map(
-          "test#fs=name" -> histogram((1 to 100))
+          "prefix.1111.test#fs=name,job=aaa" -> histogram((1 to 100))
         ).asJava
       ),
       meters = Collections.emptySortedMap(),
       timers = Collections.emptySortedMap()
     )
 
-    server.receive should contain("test.p95#fs=name:95.95|ms")
+    server.receive should contain("prefix.test.p95:95.95|ms|#fs:name,job:aaa")
   }
 }
