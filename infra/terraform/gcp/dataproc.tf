@@ -1,7 +1,7 @@
 resource "google_storage_bucket" "dataproc_staging_bucket" {
-  name     = var.dataproc_staging_bucket
-  project  = var.gcp_project_name
-  location = var.region
+  name          = var.dataproc_staging_bucket
+  project       = var.gcp_project_name
+  location      = var.region
   force_destroy = true
 }
 

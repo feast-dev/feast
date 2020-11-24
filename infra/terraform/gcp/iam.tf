@@ -4,12 +4,8 @@ resource "google_service_account" "feast_sa" {
   project      = var.gcp_project_name
 }
 
-data "google_service_account" "feast_sa" {
-  account_id = var.name_prefix
-}
-
 resource "google_service_account_key" "feast_sa" {
-  service_account_id = data.google_service_account.feast_sa.name
+  service_account_id = google_service_account.feast_sa.name
 }
 
 resource "google_project_iam_member" "feast_dataproc_worker" {
