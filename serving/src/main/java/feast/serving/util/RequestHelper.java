@@ -16,25 +16,10 @@
  */
 package feast.serving.util;
 
-import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
-import feast.proto.serving.ServingAPIProto.GetBatchFeaturesRequest;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
-import io.grpc.Status;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 public class RequestHelper {
-
-  public static void validateOnlineRequest(GetOnlineFeaturesRequest request) {
-    // EntityDataSetRow shall not be empty
-    if (request.getEntityRowsCount() <= 0) {
-      throw Status.INVALID_ARGUMENT
-          .withDescription("Entity value must be provided")
-          .asRuntimeException();
-    }
-  }
 
   public static void validateOnlineRequest(GetOnlineFeaturesRequestV2 request) {
     // All EntityRows should not be empty
@@ -44,30 +29,6 @@ public class RequestHelper {
     // All FeatureReferences should have FeatureTable name and Feature name
     for (FeatureReferenceV2 featureReference : request.getFeaturesList()) {
       validateOnlineRequestFeatureReference(featureReference);
-    }
-  }
-
-  public static void validateBatchRequest(GetBatchFeaturesRequest getFeaturesRequest) {
-    if (!getFeaturesRequest.hasDatasetSource()) {
-      throw Status.INVALID_ARGUMENT
-          .withDescription("Dataset source must be provided")
-          .asRuntimeException();
-    }
-
-    if (!getFeaturesRequest.getDatasetSource().hasFileSource()) {
-      throw Status.INVALID_ARGUMENT
-          .withDescription("Dataset source must be provided: only file source supported")
-          .asRuntimeException();
-    }
-
-    Set<String> uniqueFeatureNames =
-        getFeaturesRequest.getFeaturesList().stream()
-            .map(FeatureReference::getName)
-            .collect(Collectors.toSet());
-    if (uniqueFeatureNames.size() != getFeaturesRequest.getFeaturesList().size()) {
-      throw Status.INVALID_ARGUMENT
-          .withDescription("Feature names must be unique within the request")
-          .asRuntimeException();
     }
   }
 

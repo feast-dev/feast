@@ -39,7 +39,6 @@ import feast.proto.types.ValueProto;
 import feast.serving.specs.CachedSpecService;
 import feast.storage.api.retriever.Feature;
 import feast.storage.connectors.redis.retriever.OnlineRetriever;
-import feast.storage.connectors.redis.retriever.RedisOnlineRetriever;
 import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
 import java.util.ArrayList;
@@ -54,13 +53,9 @@ import org.mockito.Mockito;
 public class OnlineServingServiceTest {
 
   @Mock CachedSpecService specService;
-
   @Mock Tracer tracer;
-
-  @Mock RedisOnlineRetriever retriever;
   @Mock OnlineRetriever retrieverV2;
 
-  private OnlineServingService onlineServingService;
   private OnlineServingServiceV2 onlineServingServiceV2;
 
   List<FeatureRow> testFeatureRows;
@@ -70,7 +65,6 @@ public class OnlineServingServiceTest {
   @Before
   public void setUp() {
     initMocks(this);
-    onlineServingService = new OnlineServingService(retriever, specService, tracer);
     onlineServingServiceV2 = new OnlineServingServiceV2(retrieverV2, specService, tracer);
 
     // create fake feature rows for testing.

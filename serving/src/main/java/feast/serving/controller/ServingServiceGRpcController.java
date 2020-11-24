@@ -19,16 +19,13 @@ package feast.serving.controller;
 import feast.common.auth.service.AuthorizationService;
 import feast.common.logging.interceptors.GrpcMessageInterceptor;
 import feast.proto.serving.ServingAPIProto;
-import feast.proto.serving.ServingAPIProto.FeatureReference;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceImplBase;
 import feast.serving.config.FeastProperties;
 import feast.serving.exception.SpecRetrievalException;
 import feast.serving.interceptors.GrpcMonitoringInterceptor;
-import feast.serving.service.ServingService;
 import feast.serving.service.ServingServiceV2;
 import feast.serving.util.RequestHelper;
 import io.grpc.Status;
@@ -36,9 +33,6 @@ import io.grpc.stub.StreamObserver;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 import net.devh.boot.grpc.server.service.GrpcService;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,7 +44,6 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
 
   private static final Logger log =
       org.slf4j.LoggerFactory.getLogger(ServingServiceGRpcController.class);
-  private final ServingService servingService;
   private final ServingServiceV2 servingServiceV2;
   private final String version;
   private final Tracer tracer;
@@ -59,12 +52,10 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
   @Autowired
   public ServingServiceGRpcController(
       AuthorizationService authorizationService,
-      ServingService servingService,
       ServingServiceV2 servingServiceV2,
       FeastProperties feastProperties,
       Tracer tracer) {
     this.authorizationService = authorizationService;
-    this.servingService = servingService;
     this.servingServiceV2 = servingServiceV2;
     this.version = feastProperties.getVersion();
     this.tracer = tracer;
@@ -74,63 +65,10 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
   public void getFeastServingInfo(
       GetFeastServingInfoRequest request,
       StreamObserver<GetFeastServingInfoResponse> responseObserver) {
-    GetFeastServingInfoResponse feastServingInfo = servingService.getFeastServingInfo(request);
+    GetFeastServingInfoResponse feastServingInfo = servingServiceV2.getFeastServingInfo(request);
     feastServingInfo = feastServingInfo.toBuilder().setVersion(version).build();
     responseObserver.onNext(feastServingInfo);
     responseObserver.onCompleted();
-  }
-
-  @Override
-  public void getOnlineFeatures(
-      GetOnlineFeaturesRequest request,
-      StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
-    Span span = tracer.buildSpan("getOnlineFeatures").start();
-    try (Scope scope = tracer.scopeManager().activate(span, false)) {
-      // authorize for the project in request object.
-      if (request.getProject() != null && !request.getProject().isEmpty()) {
-        // project set at root level overrides the project set at feature set level
-        this.authorizationService.authorizeRequest(
-            SecurityContextHolder.getContext(), request.getProject());
-      } else {
-        // authorize for projects set in feature list, backward compatibility for
-        // <=v0.5.X
-        this.checkProjectAccess(request.getFeaturesList());
-      }
-      RequestHelper.validateOnlineRequest(request);
-      GetOnlineFeaturesResponse onlineFeatures = servingService.getOnlineFeatures(request);
-      responseObserver.onNext(onlineFeatures);
-      responseObserver.onCompleted();
-    } catch (SpecRetrievalException e) {
-      log.error("Failed to retrieve specs in SpecService", e);
-      responseObserver.onError(
-          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asException());
-    } catch (AccessDeniedException e) {
-      log.info(String.format("User prevented from accessing one of the projects in request"));
-      responseObserver.onError(
-          Status.PERMISSION_DENIED
-              .withDescription(e.getMessage())
-              .withCause(e)
-              .asRuntimeException());
-    } catch (Exception e) {
-      log.warn("Failed to get Online Features", e);
-      responseObserver.onError(e);
-    }
-    span.finish();
-  }
-
-  private void checkProjectAccess(List<FeatureReference> featureList) {
-    Set<String> projectList =
-        featureList.stream().map(FeatureReference::getProject).collect(Collectors.toSet());
-    if (projectList.isEmpty()) {
-      authorizationService.authorizeRequest(SecurityContextHolder.getContext(), "default");
-    } else {
-      projectList.stream()
-          .forEach(
-              project -> {
-                this.authorizationService.authorizeRequest(
-                    SecurityContextHolder.getContext(), project);
-              });
-    }
   }
 
   @Override

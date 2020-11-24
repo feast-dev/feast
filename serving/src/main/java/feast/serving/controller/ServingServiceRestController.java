@@ -20,12 +20,11 @@ import static feast.serving.util.mappers.ResponseJSONMapper.mapGetOnlineFeatures
 
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.config.FeastProperties;
-import feast.serving.service.ServingService;
+import feast.serving.service.ServingServiceV2;
 import feast.serving.util.RequestHelper;
-import io.opentracing.Tracer;
 import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,16 +35,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class ServingServiceRestController {
 
-  private final ServingService servingService;
+  private final ServingServiceV2 servingService;
   private final String version;
-  private final Tracer tracer;
 
   @Autowired
   public ServingServiceRestController(
-      ServingService servingService, FeastProperties feastProperties, Tracer tracer) {
+      ServingServiceV2 servingService, FeastProperties feastProperties) {
     this.servingService = servingService;
     this.version = feastProperties.getVersion();
-    this.tracer = tracer;
   }
 
   @RequestMapping(value = "/api/v1/info", produces = "application/json")
@@ -60,7 +57,7 @@ public class ServingServiceRestController {
       produces = "application/json",
       consumes = "application/json")
   public List<Map<String, Object>> getOnlineFeatures(
-      @RequestBody GetOnlineFeaturesRequest request) {
+      @RequestBody GetOnlineFeaturesRequestV2 request) {
     RequestHelper.validateOnlineRequest(request);
     GetOnlineFeaturesResponse onlineFeatures = servingService.getOnlineFeatures(request);
     return mapGetOnlineFeaturesResponse(onlineFeatures);

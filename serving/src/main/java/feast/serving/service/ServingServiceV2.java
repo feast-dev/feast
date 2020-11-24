@@ -16,10 +16,24 @@
  */
 package feast.serving.service;
 
+import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 
 public interface ServingServiceV2 {
+  /**
+   * Get information about the Feast serving deployment.
+   *
+   * <p>For Bigquery deployments, this includes the default job staging location to load
+   * intermediate files to. Otherwise, this method only returns the current Feast Serving backing
+   * store type.
+   *
+   * @param getFeastServingInfoRequest {@link ServingAPIProto.GetFeastServingInfoRequest}
+   * @return {@link ServingAPIProto.GetFeastServingInfoResponse}
+   */
+  ServingAPIProto.GetFeastServingInfoResponse getFeastServingInfo(
+      ServingAPIProto.GetFeastServingInfoRequest getFeastServingInfoRequest);
+
   /**
    * Get features from an online serving store, given a list of {@link
    * feast.proto.serving.ServingAPIProto.FeatureReferenceV2}s to retrieve, and list of {@link
