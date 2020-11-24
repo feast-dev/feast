@@ -80,7 +80,7 @@ public class CoreServiceRestController {
    *     to. At least one entity is required. For example, if <code>entity1</code> and <code>entity2
    *                 </code> are given, then all features returned (if any) will belong to BOTH
    *     entities.
-   * @param project (Optional) Request Parameter: A single project where the feature set of all
+   * @param project (Optional) Request Parameter: A single project where the feature table of all
    *     features returned is under. If not provided, the default project will be used, usually
    *     <code>default</code>.
    * @return (200 OK) Return {@link ListFeaturesResponse} in JSON.

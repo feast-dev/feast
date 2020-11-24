@@ -41,8 +41,8 @@ message Store {
     // - value: STRING
     // 
     // Encodings:
-    // - key: byte array of RedisKey (refer to feast.storage.RedisKey)
-    // - value: byte array of FeatureRow (refer to feast.types.FeatureRow)
+    // - key: byte array of RedisKey (refer to feast.storage.RedisKeyV2)
+    // - value: Redis hashmap
     // 
     REDIS = 1;
 

@@ -151,7 +151,6 @@ public class ServingServiceOauthAuthorizationIT extends BaseAuthIT {
 
   @Test
   void canGetOnlineFeaturesIfAdmin() {
-    // apply feature set
     ServingServiceBlockingStub servingStub =
         AuthTestUtils.getServingServiceStub(true, FEAST_SERVING_PORT, adminCredentials);
     GetOnlineFeaturesRequestV2 onlineFeatureRequest =

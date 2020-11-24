@@ -26,7 +26,7 @@ import java.util.List;
 /**
  * FeastResourceCollector exports metrics about Feast Resources.
  *
- * <p>For example: total number of registered feature sets and stores.
+ * <p>For example: total number of registered feature tables and stores.
  */
 public class FeastResourceCollector extends Collector {
 

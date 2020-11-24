@@ -46,8 +46,9 @@ public class HealthServiceController extends HealthImplBase {
   public void check(
       HealthCheckRequest request, StreamObserver<HealthCheckResponse> responseObserver) {
     // TODO: Implement proper logic to determine if ServingServiceV2 is healthy e.g.
-    //       if it's online service check that it the service can retrieve dummy/random feature set.
-    //       Implement similary for batch service.
+    // if it's online service check that it the service can retrieve dummy/random
+    // feature table.
+    // Implement similary for batch service.
 
     try {
       Store store = specService.getStore();

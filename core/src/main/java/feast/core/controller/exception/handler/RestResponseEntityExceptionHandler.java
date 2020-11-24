@@ -35,8 +35,8 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
 
   /**
    * Handles the case when a request object (such as {@link
-   * feast.proto.core.CoreServiceProto.GetFeatureSetRequest}) or a response object (such as {@link
-   * feast.proto.core.CoreServiceProto.GetFeatureSetResponse} is malformed.
+   * feast.proto.core.CoreServiceProto.GetFeatureTableRequest}) or a response object (such as {@link
+   * feast.proto.core.CoreServiceProto.GetFeatureTableResponse} is malformed.
    *
    * @param ex the {@link InvalidProtocolBufferException} that occurred.
    * @param request the {@link WebRequest} that caused this exception.

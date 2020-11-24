@@ -62,7 +62,7 @@ public class CachedSpecService {
       Gauge.build()
           .name("feature_table_count")
           .subsystem("feast_serving")
-          .help("number of feature sets served by this instance")
+          .help("number of feature tables served by this instance")
           .register();
 
   private final LoadingCache<

@@ -40,9 +40,9 @@ public interface ServingServiceV2 {
    * feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow}s to join the
    * retrieved values to.
    *
-   * <p>Features can be queried across feature sets, but each {@link
+   * <p>Features can be queried across feature tables, but each {@link
    * feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow} must contain all
-   * entities for all feature sets included in the request.
+   * entities for all feature tables included in the request.
    *
    * <p>This request is fulfilled synchronously.
    *
