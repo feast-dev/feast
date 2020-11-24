@@ -182,14 +182,14 @@
         <dependency>
             <groupId>com.dimafeng</groupId>
             <artifactId>testcontainers-scala-scalatest_${scala.version}</artifactId>
-            <version>0.38.3</version>
+            <version>0.38.6</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>com.dimafeng</groupId>
             <artifactId>testcontainers-scala-kafka_${scala.version}</artifactId>
-            <version>0.38.3</version>
+            <version>0.38.6</version>
             <scope>test</scope>
         </dependency>
 

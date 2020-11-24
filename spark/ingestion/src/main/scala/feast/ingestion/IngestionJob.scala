@@ -17,7 +17,6 @@
 package feast.ingestion
 
 import org.joda.time.DateTime
-
 import org.json4s._
 import org.json4s.jackson.JsonMethods.{parse => parseJSON}
 import org.json4s.ext.JavaEnumNameSerializer
@@ -29,7 +28,7 @@ object IngestionJob {
     new JavaEnumNameSerializer[feast.proto.types.ValueProto.ValueType.Enum]() +
     ShortTypeHints(List(classOf[ProtoFormat], classOf[AvroFormat]))
 
-  val parser = new scopt.OptionParser[IngestionJobConfig]("IngestionJon") {
+  val parser = new scopt.OptionParser[IngestionJobConfig]("IngestionJob") {
     // ToDo: read version from Manifest
     head("feast.ingestion.IngestionJob", "0.9.0-SNAPSHOT")
 
