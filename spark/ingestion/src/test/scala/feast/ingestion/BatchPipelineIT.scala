@@ -17,9 +17,11 @@
 package feast.ingestion
 
 import java.nio.file.Paths
+import java.sql.Timestamp
 
 import collection.JavaConverters._
 import com.dimafeng.testcontainers.{ForAllTestContainer, GenericContainer}
+import com.google.protobuf.util.Timestamps
 import feast.proto.types.ValueProto.ValueType
 import org.apache.spark.SparkConf
 import org.joda.time.{DateTime, Seconds}
@@ -106,14 +108,253 @@ class BatchPipelineIT extends SparkSpec with ForAllTestContainer {
     val featureKeyEncoder: String => String = encodeFeatureKey(config.featureTable)
 
     rows.foreach(r => {
-      val storedValues = jedis.hgetAll(encodeEntityKey(r, config.featureTable)).asScala.toMap
+      val encodedEntityKey = encodeEntityKey(r, config.featureTable)
+      val storedValues     = jedis.hgetAll(encodedEntityKey).asScala.toMap
       storedValues should beStoredRow(
         Map(
           featureKeyEncoder("feature1") -> r.feature1,
           featureKeyEncoder("feature2") -> r.feature2,
-          "_ts:test-fs"                 -> r.eventTimestamp
+          "_ts:test-fs"                 -> r.eventTimestamp,
+          "_ex:test-fs"                 -> new Timestamp(Timestamps.MAX_VALUE.getSeconds * 1000)
         )
       )
+      val keyTTL = jedis.ttl(encodedEntityKey).toInt
+      keyTTL shouldEqual -1
+
+    })
+  }
+
+  "Parquet source file" should "be ingested in redis with expiry time equal to the largest of (event_timestamp + max_age) for" +
+    "all feature tables associated with the entity" in new Scope {
+      val startDate = new DateTime().minusDays(1).withTimeAtStartOfDay()
+      val endDate   = new DateTime().withTimeAtStartOfDay()
+      val gen       = rowGenerator(startDate, endDate)
+      val rows      = generateDistinctRows(gen, 1000, groupByEntity)
+      val tempPath  = storeAsParquet(sparkSession, rows)
+      val maxAge    = 86400 * 2
+      val configWithMaxAge = config.copy(
+        source = FileSource(tempPath, Map.empty, "eventTimestamp"),
+        featureTable = config.featureTable.copy(maxAge = Some(maxAge)),
+        startTime = startDate,
+        endTime = endDate
+      )
+
+      val ingestionTimeUnix = System.currentTimeMillis()
+      BatchPipeline.createPipeline(sparkSession, configWithMaxAge)
+
+      val featureKeyEncoder: String => String = encodeFeatureKey(config.featureTable)
+
+      rows.foreach(r => {
+        val encodedEntityKey = encodeEntityKey(r, config.featureTable)
+        val storedValues     = jedis.hgetAll(encodedEntityKey).asScala.toMap
+        val expectedExpiryTimestamp =
+          new java.sql.Timestamp(r.eventTimestamp.getTime + 1000 * maxAge)
+        storedValues should beStoredRow(
+          Map(
+            featureKeyEncoder("feature1") -> r.feature1,
+            featureKeyEncoder("feature2") -> r.feature2,
+            "_ts:test-fs"                 -> r.eventTimestamp,
+            "_ex:test-fs"                 -> expectedExpiryTimestamp
+          )
+        )
+        val keyTTL = jedis.ttl(encodedEntityKey).toLong
+        keyTTL should (be <= (expectedExpiryTimestamp.getTime - ingestionTimeUnix) / 1000 and be > 0L)
+
+      })
+
+      val increasedMaxAge = 86400 * 3
+      val configWithSecondFeatureTable = config.copy(
+        source = FileSource(tempPath, Map.empty, "eventTimestamp"),
+        featureTable = config.featureTable.copy(
+          name = "test-fs-2",
+          maxAge = Some(increasedMaxAge)
+        ),
+        startTime = startDate,
+        endTime = endDate
+      )
+
+      val secondIngestionTimeUnix = System.currentTimeMillis()
+      BatchPipeline.createPipeline(sparkSession, configWithSecondFeatureTable)
+
+      val featureKeyEncoderSecondTable: String => String =
+        encodeFeatureKey(configWithSecondFeatureTable.featureTable)
+
+      rows.foreach(r => {
+        val encodedEntityKey = encodeEntityKey(r, config.featureTable)
+        val storedValues     = jedis.hgetAll(encodedEntityKey).asScala.toMap
+        val expectedExpiryTimestamp1 =
+          new java.sql.Timestamp(r.eventTimestamp.getTime + 1000 * maxAge)
+        val expectedExpiryTimestamp2 =
+          new java.sql.Timestamp(r.eventTimestamp.getTime + 1000 * increasedMaxAge)
+        storedValues should beStoredRow(
+          Map(
+            featureKeyEncoder("feature1")            -> r.feature1,
+            featureKeyEncoder("feature2")            -> r.feature2,
+            featureKeyEncoderSecondTable("feature1") -> r.feature1,
+            featureKeyEncoderSecondTable("feature2") -> r.feature2,
+            "_ts:test-fs"                            -> r.eventTimestamp,
+            "_ts:test-fs-2"                          -> r.eventTimestamp,
+            "_ex:test-fs"                            -> expectedExpiryTimestamp1,
+            "_ex:test-fs-2"                          -> expectedExpiryTimestamp2
+          )
+        )
+        val keyTTL = jedis.ttl(encodedEntityKey).toLong
+        keyTTL should (be <= (expectedExpiryTimestamp2.getTime - secondIngestionTimeUnix) / 1000 and be > (expectedExpiryTimestamp1.getTime - secondIngestionTimeUnix) / 1000)
+
+      })
+    }
+
+  "Redis key TTL" should "not be updated, when a second feature table associated with the same entity is registered and ingested, if (event_timestamp + max_age) of the second " +
+    "Feature Table is not later than the expiry timestamp of the first feature table" in new Scope {
+      val startDate = new DateTime().minusDays(1).withTimeAtStartOfDay()
+      val endDate   = new DateTime().withTimeAtStartOfDay()
+      val gen       = rowGenerator(startDate, endDate)
+      val rows      = generateDistinctRows(gen, 1000, groupByEntity)
+      val tempPath  = storeAsParquet(sparkSession, rows)
+      val maxAge    = 86400 * 3
+      val configWithMaxAge = config.copy(
+        source = FileSource(tempPath, Map.empty, "eventTimestamp"),
+        featureTable = config.featureTable.copy(maxAge = Some(maxAge)),
+        startTime = startDate,
+        endTime = endDate
+      )
+
+      val ingestionTimeUnix = System.currentTimeMillis()
+      BatchPipeline.createPipeline(sparkSession, configWithMaxAge)
+
+      val reducedMaxAge = 86400 * 2
+      val configWithSecondFeatureTable = config.copy(
+        source = FileSource(tempPath, Map.empty, "eventTimestamp"),
+        featureTable = config.featureTable.copy(
+          name = "test-fs-2",
+          maxAge = Some(reducedMaxAge)
+        ),
+        startTime = startDate,
+        endTime = endDate
+      )
+
+      BatchPipeline.createPipeline(sparkSession, configWithSecondFeatureTable)
+
+      val featureKeyEncoder: String => String = encodeFeatureKey(config.featureTable)
+      val featureKeyEncoderSecondTable: String => String =
+        encodeFeatureKey(configWithSecondFeatureTable.featureTable)
+
+      rows.foreach(r => {
+        val encodedEntityKey = encodeEntityKey(r, config.featureTable)
+        val storedValues     = jedis.hgetAll(encodedEntityKey).asScala.toMap
+        val expectedExpiryTimestamp1 =
+          new java.sql.Timestamp(r.eventTimestamp.getTime + 1000 * maxAge)
+        val expectedExpiryTimestamp2 =
+          new java.sql.Timestamp(r.eventTimestamp.getTime + 1000 * reducedMaxAge)
+        storedValues should beStoredRow(
+          Map(
+            featureKeyEncoder("feature1")            -> r.feature1,
+            featureKeyEncoder("feature2")            -> r.feature2,
+            featureKeyEncoderSecondTable("feature1") -> r.feature1,
+            featureKeyEncoderSecondTable("feature2") -> r.feature2,
+            "_ts:test-fs"                            -> r.eventTimestamp,
+            "_ts:test-fs-2"                          -> r.eventTimestamp,
+            "_ex:test-fs"                            -> expectedExpiryTimestamp1,
+            "_ex:test-fs-2"                          -> expectedExpiryTimestamp2
+          )
+        )
+        val keyTTL = jedis.ttl(encodedEntityKey).toLong
+        keyTTL should (be <= (expectedExpiryTimestamp1.getTime - ingestionTimeUnix) / 1000 and
+          be > (expectedExpiryTimestamp2.getTime - ingestionTimeUnix) / 1000)
+
+      })
+    }
+
+  "Redis key TTL" should "be updated, when the same feature table is re-ingested, with a smaller max age" in new Scope {
+    val startDate = new DateTime().minusDays(1).withTimeAtStartOfDay()
+    val endDate   = new DateTime().withTimeAtStartOfDay()
+    val gen       = rowGenerator(startDate, endDate)
+    val rows      = generateDistinctRows(gen, 1000, groupByEntity)
+    val tempPath  = storeAsParquet(sparkSession, rows)
+    val maxAge    = 86400 * 3
+    val configWithMaxAge = config.copy(
+      source = FileSource(tempPath, Map.empty, "eventTimestamp"),
+      featureTable = config.featureTable.copy(maxAge = Some(maxAge)),
+      startTime = startDate,
+      endTime = endDate
+    )
+
+    val ingestionTimeUnix = System.currentTimeMillis()
+    BatchPipeline.createPipeline(sparkSession, configWithMaxAge)
+
+    val reducedMaxAge = 86400 * 2
+    val configWithUpdatedFeatureTable = config.copy(
+      source = FileSource(tempPath, Map.empty, "eventTimestamp"),
+      featureTable = config.featureTable.copy(
+        maxAge = Some(reducedMaxAge)
+      ),
+      startTime = startDate,
+      endTime = endDate
+    )
+
+    BatchPipeline.createPipeline(sparkSession, configWithUpdatedFeatureTable)
+
+    val featureKeyEncoder: String => String = encodeFeatureKey(config.featureTable)
+
+    rows.foreach(r => {
+      val encodedEntityKey = encodeEntityKey(r, config.featureTable)
+      val storedValues     = jedis.hgetAll(encodedEntityKey).asScala.toMap
+      val expiryTimestampAfterUpdate =
+        new java.sql.Timestamp(r.eventTimestamp.getTime + 1000 * reducedMaxAge)
+      storedValues should beStoredRow(
+        Map(
+          featureKeyEncoder("feature1") -> r.feature1,
+          featureKeyEncoder("feature2") -> r.feature2,
+          "_ts:test-fs"                 -> r.eventTimestamp,
+          "_ex:test-fs"                 -> expiryTimestampAfterUpdate
+        )
+      )
+      val keyTTL = jedis.ttl(encodedEntityKey).toLong
+      keyTTL should (be <= (expiryTimestampAfterUpdate.getTime - ingestionTimeUnix) / 1000 and be > 0L)
+
+    })
+  }
+
+  "Redis key TTL" should "be removed, when the same feature table is re-ingested without max age" in new Scope {
+    val startDate = new DateTime().minusDays(1).withTimeAtStartOfDay()
+    val endDate   = new DateTime().withTimeAtStartOfDay()
+    val gen       = rowGenerator(startDate, endDate)
+    val rows      = generateDistinctRows(gen, 1000, groupByEntity)
+    val tempPath  = storeAsParquet(sparkSession, rows)
+    val maxAge    = 86400 * 3
+    val configWithMaxAge = config.copy(
+      source = FileSource(tempPath, Map.empty, "eventTimestamp"),
+      featureTable = config.featureTable.copy(maxAge = Some(maxAge)),
+      startTime = startDate,
+      endTime = endDate
+    )
+
+    BatchPipeline.createPipeline(sparkSession, configWithMaxAge)
+
+    val configWithoutMaxAge = config.copy(
+      source = FileSource(tempPath, Map.empty, "eventTimestamp"),
+      startTime = startDate,
+      endTime = endDate
+    )
+
+    BatchPipeline.createPipeline(sparkSession, configWithoutMaxAge)
+
+    val featureKeyEncoder: String => String = encodeFeatureKey(config.featureTable)
+
+    rows.foreach(r => {
+      val encodedEntityKey = encodeEntityKey(r, config.featureTable)
+      val storedValues     = jedis.hgetAll(encodedEntityKey).asScala.toMap
+      storedValues should beStoredRow(
+        Map(
+          featureKeyEncoder("feature1") -> r.feature1,
+          featureKeyEncoder("feature2") -> r.feature2,
+          "_ts:test-fs"                 -> r.eventTimestamp,
+          "_ex:test-fs"                 -> new Timestamp(Timestamps.MAX_VALUE.getSeconds * 1000)
+        )
+      )
+      val keyTTL = jedis.ttl(encodedEntityKey).toInt
+      keyTTL shouldEqual -1
+
     })
   }
 

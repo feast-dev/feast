@@ -38,14 +38,15 @@ object RedisStorageHelper {
 
     m compose {
       (_: Map[Array[Byte], Array[Byte]])
-        .map { case (k, v) =>
-          if (k.length == 4)
+        .map {
+          case (k, v) if k.length == 4 =>
             (
               ByteBuffer.wrap(k).order(ByteOrder.LITTLE_ENDIAN).getInt.toHexString,
               ValueProto.Value.parseFrom(v).asScala
             )
-          else
+          case (k, v) if k.startsWith("_ts".getBytes) || k.startsWith("_ex".getBytes) =>
             (new String(k), Timestamp.parseFrom(v).asScala)
+          case (k, v) => (new String(k), ValueProto.Value.parseFrom(v).asScala)
         }
     }
   }

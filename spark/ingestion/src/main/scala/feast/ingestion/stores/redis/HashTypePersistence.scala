@@ -16,16 +16,17 @@
  */
 package feast.ingestion.stores.redis
 
+import java.nio.charset.StandardCharsets
+import java.util
+
+import com.google.common.hash.Hashing
+import com.google.protobuf.Timestamp
+import feast.ingestion.utils.TypeConversion
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
 import redis.clients.jedis.{Pipeline, Response}
-import java.nio.charset.StandardCharsets
-
-import com.google.common.hash.Hashing
 
 import scala.jdk.CollectionConverters._
-import com.google.protobuf.Timestamp
-import feast.ingestion.utils.TypeConversion
 
 /**
   * Use Redis hash type as storage layout. Every feature is stored as separate entry in Hash.
@@ -35,10 +36,10 @@ import feast.ingestion.utils.TypeConversion
   * Values are serialized with protobuf (`ValueProto`).
   */
 class HashTypePersistence(config: SparkRedisConfig) extends Persistence with Serializable {
-  def encodeRow(
-      keyColumns: Array[String],
-      timestampField: String,
-      value: Row
+
+  private def encodeRow(
+      value: Row,
+      maxExpiryTimestamp: java.sql.Timestamp
   ): Map[Array[Byte], Array[Byte]] = {
     val fields = value.schema.fields.map(_.name)
     val types  = value.schema.fields.map(f => (f.name, f.dataType)).toMap
@@ -51,49 +52,87 @@ class HashTypePersistence(config: SparkRedisConfig) extends Persistence with Ser
       }
       .filter { case (k, _) =>
         // don't store entities & timestamp
-        !keyColumns.contains(k) && k != config.timestampColumn
+        !config.entityColumns.contains(k) && k != config.timestampColumn
       }
       .map { case (k, v) =>
         encodeKey(k) -> encodeValue(v, types(k))
       }
 
-    val timestamp = Seq(
+    val timestampHash = Seq(
       (
-        timestampField.getBytes,
+        timestampHashKey(config.namespace).getBytes,
         encodeValue(value.getAs[Timestamp](config.timestampColumn), TimestampType)
       )
     )
 
-    values ++ timestamp
+    val expiryUnixTimestamp = {
+      if (config.maxAge > 0)
+        value.getAs[java.sql.Timestamp](config.timestampColumn).getTime + config.maxAge * 1000
+      else maxExpiryTimestamp.getTime
+    }
+    val expiryTimestamp = new java.sql.Timestamp(expiryUnixTimestamp)
+    val expiryTimestampHash = Seq(
+      (
+        expiryTimestampHashKey(config.namespace).getBytes,
+        encodeValue(expiryTimestamp, TimestampType)
+      )
+    )
+
+    values ++ timestampHash ++ expiryTimestampHash
   }
 
-  def encodeValue(value: Any, `type`: DataType): Array[Byte] = {
+  private def encodeValue(value: Any, `type`: DataType): Array[Byte] = {
     TypeConversion.sqlTypeToProtoValue(value, `type`).toByteArray
   }
 
-  def encodeKey(key: String): Array[Byte] = {
+  private def encodeKey(key: String): Array[Byte] = {
     val fullFeatureReference = s"${config.namespace}:$key"
     Hashing.murmur3_32.hashString(fullFeatureReference, StandardCharsets.UTF_8).asBytes()
   }
 
-  def save(
+  private def timestampHashKey(namespace: String): String = {
+    s"${config.timestampPrefix}:${namespace}"
+  }
+
+  private def expiryTimestampHashKey(namespace: String): String = {
+    s"${config.expiryPrefix}:${namespace}"
+  }
+
+  private def decodeTimestamp(encodedTimestamp: Array[Byte]): java.sql.Timestamp = {
+    new java.sql.Timestamp(Timestamp.parseFrom(encodedTimestamp).getSeconds * 1000)
+  }
+
+  override def save(
       pipeline: Pipeline,
       key: Array[Byte],
-      value: Map[Array[Byte], Array[Byte]],
-      ttl: Int
+      row: Row,
+      expiryTimestamp: java.sql.Timestamp,
+      maxExpiryTimestamp: java.sql.Timestamp
   ): Unit = {
-    pipeline.hset(key, value.asJava)
-    if (ttl > 0) {
-      pipeline.expire(key, ttl)
+    val value = encodeRow(row, maxExpiryTimestamp).asJava
+    pipeline.hset(key, value)
+    if (expiryTimestamp.equals(maxExpiryTimestamp)) {
+      pipeline.persist(key)
+    } else {
+      pipeline.expireAt(key, expiryTimestamp.getTime / 1000)
     }
   }
 
-  def getTimestamp(
+  override def get(
       pipeline: Pipeline,
-      key: Array[Byte],
-      timestampField: String
-  ): Response[Array[Byte]] = {
-    pipeline.hget(key, timestampField.getBytes)
+      key: Array[Byte]
+  ): Response[util.Map[Array[Byte], Array[Byte]]] = {
+    pipeline.hgetAll(key)
   }
 
+  override def storedTimestamp(
+      value: util.Map[Array[Byte], Array[Byte]]
+  ): Option[java.sql.Timestamp] = {
+    value.asScala.toMap
+      .map { case (key, value) =>
+        (key.map(_.toChar).mkString, value)
+      }
+      .get(timestampHashKey(config.namespace))
+      .map(value => decodeTimestamp(value))
+  }
 }
