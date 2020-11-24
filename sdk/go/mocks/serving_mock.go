@@ -36,26 +36,6 @@ func (m *MockServingServiceClient) EXPECT() *MockServingServiceClientMockRecorde
 	return m.recorder
 }
 
-// GetBatchFeatures mocks base method
-func (m *MockServingServiceClient) GetBatchFeatures(arg0 context.Context, arg1 *serving.GetBatchFeaturesRequest, arg2 ...grpc.CallOption) (*serving.GetBatchFeaturesResponse, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	for _, a := range arg2 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "GetBatchFeatures", varargs...)
-	ret0, _ := ret[0].(*serving.GetBatchFeaturesResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetBatchFeatures indicates an expected call of GetBatchFeatures
-func (mr *MockServingServiceClientMockRecorder) GetBatchFeatures(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBatchFeatures", reflect.TypeOf((*MockServingServiceClient)(nil).GetBatchFeatures), varargs...)
-}
-
 // GetFeastServingInfo mocks base method
 func (m *MockServingServiceClient) GetFeastServingInfo(arg0 context.Context, arg1 *serving.GetFeastServingInfoRequest, arg2 ...grpc.CallOption) (*serving.GetFeastServingInfoResponse, error) {
 	m.ctrl.T.Helper()
@@ -74,46 +54,6 @@ func (mr *MockServingServiceClientMockRecorder) GetFeastServingInfo(arg0, arg1 i
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFeastServingInfo", reflect.TypeOf((*MockServingServiceClient)(nil).GetFeastServingInfo), varargs...)
-}
-
-// GetJob mocks base method
-func (m *MockServingServiceClient) GetJob(arg0 context.Context, arg1 *serving.GetJobRequest, arg2 ...grpc.CallOption) (*serving.GetJobResponse, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	for _, a := range arg2 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "GetJob", varargs...)
-	ret0, _ := ret[0].(*serving.GetJobResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetJob indicates an expected call of GetJob
-func (mr *MockServingServiceClientMockRecorder) GetJob(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetJob", reflect.TypeOf((*MockServingServiceClient)(nil).GetJob), varargs...)
-}
-
-// GetOnlineFeatures mocks base method
-func (m *MockServingServiceClient) GetOnlineFeatures(arg0 context.Context, arg1 *serving.GetOnlineFeaturesRequest, arg2 ...grpc.CallOption) (*serving.GetOnlineFeaturesResponse, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	for _, a := range arg2 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "GetOnlineFeatures", varargs...)
-	ret0, _ := ret[0].(*serving.GetOnlineFeaturesResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetOnlineFeatures indicates an expected call of GetOnlineFeatures
-func (mr *MockServingServiceClientMockRecorder) GetOnlineFeatures(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOnlineFeatures", reflect.TypeOf((*MockServingServiceClient)(nil).GetOnlineFeatures), varargs...)
 }
 
 // GetOnlineFeaturesV2 mocks base method
