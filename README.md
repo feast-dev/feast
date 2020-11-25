@@ -21,7 +21,7 @@ Feast (Feature Store) is an operational data system for managing and serving mac
 Clone the latest stable version of the [Feast repository](https://github.com/feast-dev/feast/) and navigate to the `infra/docker-compose` sub-directory:
 
 ```
-git clone --depth 1 --branch v0.7.0 https://github.com/feast-dev/feast.git
+git clone --depth 1 --branch v0.8.1 https://github.com/feast-dev/feast.git
 cd feast/infra/docker-compose
 cp .env.sample .env
 ```

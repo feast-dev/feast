@@ -2,7 +2,7 @@ feast-jobservice
 ================
 Feast Job Service manage ingestion jobs.
 
-Current chart version is `0.8.1`
+Current chart version is `0.8.2-SNAPSHOT`
 
 
 
