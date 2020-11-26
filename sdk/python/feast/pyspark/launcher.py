@@ -1,5 +1,6 @@
+import re
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Union
+from typing import TYPE_CHECKING, Dict, List, Union
 
 from feast.config import Config
 from feast.constants import ConfigOptions as opt
@@ -126,6 +127,26 @@ def _feature_table_to_argument(
     }
 
 
+def _quoted_split(string, delimiter):
+    for token in re.findall(f'(?:".*?"|[^{delimiter}])+', string):
+        if token.startswith('"') and token.endswith('"'):
+            token = token[1:-1]
+        yield token
+
+
+def _parse_additional_spark_options(config: Config) -> Dict[str, str]:
+    options_string = config.get(opt.SPARK_ADDITIONAL_OPTS)
+    if options_string is None:
+        return {}
+    try:
+        return dict(
+            _quoted_split(opt_val, "=")
+            for opt_val in _quoted_split(options_string, ";")
+        )
+    except ValueError:
+        raise ValueError(f"Cannot parse {opt.SPARK_ADDITIONAL_OPTS}: {options_string}")
+
+
 def start_historical_feature_retrieval_spark_session(
     client: "Client",
     project: str,
@@ -218,7 +239,6 @@ def start_offline_to_online_ingestion(
     start: datetime,
     end: datetime,
 ) -> BatchIngestionJob:
-
     launcher = resolve_launcher(client._config)
 
     return launcher.offline_to_online_ingestion(
@@ -268,7 +288,6 @@ def get_stream_to_online_ingestion_params(
 def start_stream_to_online_ingestion(
     client: "Client", project: str, feature_table: FeatureTable, extra_jars: List[str]
 ) -> StreamIngestionJob:
-
     launcher = resolve_launcher(client._config)
 
     return launcher.start_stream_to_online_ingestion(

@@ -154,6 +154,9 @@ class ConfigOptions(metaclass=ConfigMeta):
     #: Directory where Spark is installed
     SPARK_HOME: Optional[str] = None
 
+    #: Addtional config options for Spark
+    SPARK_ADDITIONAL_OPTS: Optional[str] = None
+
     #: Dataproc cluster to run Feast Spark Jobs in
     DATAPROC_CLUSTER_NAME: Optional[str] = None
 

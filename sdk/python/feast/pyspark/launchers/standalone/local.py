@@ -224,7 +224,12 @@ class StandaloneClusterLauncher(JobLauncher):
 
     BQ_CONNECTOR_VERSION = "2.12:0.17.3"
 
-    def __init__(self, master_url: str, spark_home: str = None):
+    def __init__(
+        self,
+        master_url: str,
+        spark_home: str = None,
+        additional_options: Dict[str, str] = None,
+    ):
         """
         This launcher executes the spark-submit script in a subprocess. The subprocess
         will run until the Pyspark driver exits.
@@ -235,9 +240,12 @@ class StandaloneClusterLauncher(JobLauncher):
             spark_home (str):
                 Local file path to Spark installation directory. If not provided,
                 the environmental variable `SPARK_HOME` will be used instead.
+            additional_options (Dict[str, str]):
+                Additional configuration options for Spark job
         """
         self.master_url = master_url
         self.spark_home = spark_home if spark_home else os.getenv("SPARK_HOME")
+        self.additional_options = additional_options
 
     @property
     def spark_submit_script_path(self):
@@ -284,6 +292,10 @@ class StandaloneClusterLauncher(JobLauncher):
                 "spark.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
             ]
         )
+
+        if self.additional_options is not None:
+            for option, value in self.additional_options.items():
+                submission_cmd.extend(["--conf", f'"{option}"="{value}"'])
 
         submission_cmd.append(job_params.get_main_file_path())
         submission_cmd.extend(job_params.get_arguments())
