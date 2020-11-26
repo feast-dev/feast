@@ -19,7 +19,6 @@ package feast.serving.it;
 import feast.proto.core.CoreServiceGrpc;
 import feast.proto.core.CoreServiceProto;
 import feast.proto.core.EntityProto;
-import feast.proto.core.FeatureSetProto;
 import feast.proto.core.FeatureTableProto;
 
 public class CoreSimpleAPIClient {
@@ -27,20 +26,6 @@ public class CoreSimpleAPIClient {
 
   public CoreSimpleAPIClient(CoreServiceGrpc.CoreServiceBlockingStub stub) {
     this.stub = stub;
-  }
-
-  public void simpleApplyFeatureSet(FeatureSetProto.FeatureSet featureSet) {
-    stub.applyFeatureSet(
-        CoreServiceProto.ApplyFeatureSetRequest.newBuilder().setFeatureSet(featureSet).build());
-  }
-
-  public FeatureSetProto.FeatureSet simpleGetFeatureSet(String projectName, String name) {
-    return stub.getFeatureSet(
-            CoreServiceProto.GetFeatureSetRequest.newBuilder()
-                .setName(name)
-                .setProject(projectName)
-                .build())
-        .getFeatureSet();
   }
 
   public void simpleApplyEntity(String projectName, EntityProto.EntitySpecV2 entitySpec) {

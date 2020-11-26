@@ -53,8 +53,6 @@ public class BaseAuthIT {
 
   static final int FEAST_CORE_PORT = 6565;
 
-  static final int FEAST_JOB_CONTROLLER_PORT = 6570;
-
   @DynamicPropertySource
   static void properties(DynamicPropertyRegistry registry) {
     registry.add("feast.stores[0].name", () -> "online");

@@ -37,7 +37,7 @@ message FeatureTable {
 }
 
 message FeatureTableSpec {
-    // Name of the feature set. Must be unique. Not updated.
+    // Name of the feature table. Must be unique. Not updated.
     string name = 1;
     
     // List names of entities to associate with the Features defined in this 

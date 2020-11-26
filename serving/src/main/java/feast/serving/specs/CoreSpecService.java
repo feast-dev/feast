@@ -17,10 +17,6 @@
 package feast.serving.specs;
 
 import feast.proto.core.CoreServiceGrpc;
-import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
-import feast.proto.core.CoreServiceProto.GetFeatureSetResponse;
-import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
-import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.proto.core.CoreServiceProto.ListFeatureTablesRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureTablesResponse;
 import feast.proto.core.CoreServiceProto.ListProjectsRequest;
@@ -50,14 +46,6 @@ public class CoreSpecService {
     } else {
       blockingStub = CoreServiceGrpc.newBlockingStub(channel);
     }
-  }
-
-  public GetFeatureSetResponse getFeatureSet(GetFeatureSetRequest getFeatureSetRequest) {
-    return blockingStub.getFeatureSet(getFeatureSetRequest);
-  }
-
-  public ListFeatureSetsResponse listFeatureSets(ListFeatureSetsRequest ListFeatureSetsRequest) {
-    return blockingStub.listFeatureSets(ListFeatureSetsRequest);
   }
 
   public UpdateStoreResponse updateStore(UpdateStoreRequest updateStoreRequest) {

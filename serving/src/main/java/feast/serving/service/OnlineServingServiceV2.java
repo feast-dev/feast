@@ -20,7 +20,10 @@ import com.google.protobuf.Duration;
 import feast.common.models.FeatureV2;
 import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
+import feast.proto.serving.ServingAPIProto.FeastServingType;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
+import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
+import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.types.ValueProto;
@@ -37,7 +40,7 @@ import org.slf4j.Logger;
 
 public class OnlineServingServiceV2 implements ServingServiceV2 {
 
-  private static final Logger log = org.slf4j.LoggerFactory.getLogger(OnlineServingService.class);
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(OnlineServingServiceV2.class);
   private final CachedSpecService specService;
   private final Tracer tracer;
   private final OnlineRetrieverV2 retriever;
@@ -47,6 +50,15 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     this.retriever = retriever;
     this.specService = specService;
     this.tracer = tracer;
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public GetFeastServingInfoResponse getFeastServingInfo(
+      GetFeastServingInfoRequest getFeastServingInfoRequest) {
+    return GetFeastServingInfoResponse.newBuilder()
+        .setType(FeastServingType.FEAST_SERVING_TYPE_ONLINE)
+        .build();
   }
 
   @Override

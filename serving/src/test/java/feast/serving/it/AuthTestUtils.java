@@ -21,7 +21,6 @@ import com.google.gson.JsonObject;
 import com.google.protobuf.Timestamp;
 import feast.common.auth.credentials.OAuthCredentials;
 import feast.proto.core.CoreServiceGrpc;
-import feast.proto.core.SourceProto;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import feast.proto.serving.ServingServiceGrpc;
@@ -49,24 +48,6 @@ import sh.ory.keto.model.OryAccessControlPolicyRole;
 public class AuthTestUtils {
 
   private static final String DEFAULT_FLAVOR = "glob";
-
-  static SourceProto.Source defaultSource =
-      createSource("kafka:9092,localhost:9094", "feast-features");
-
-  public static SourceProto.Source getDefaultSource() {
-    return defaultSource;
-  }
-
-  public static SourceProto.Source createSource(String server, String topic) {
-    return SourceProto.Source.newBuilder()
-        .setType(SourceProto.SourceType.KAFKA)
-        .setKafkaSourceConfig(
-            SourceProto.KafkaSourceConfig.newBuilder()
-                .setBootstrapServers(server)
-                .setTopic(topic)
-                .build())
-        .build();
-  }
 
   public static GetOnlineFeaturesRequestV2 createOnlineFeatureRequest(
       String projectName,

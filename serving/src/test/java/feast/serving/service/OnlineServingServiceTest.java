@@ -23,7 +23,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import com.google.common.collect.Lists;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
 import feast.proto.core.FeatureProto;
@@ -33,13 +32,10 @@ import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
-import feast.proto.types.FeatureRowProto.FeatureRow;
-import feast.proto.types.FieldProto;
 import feast.proto.types.ValueProto;
 import feast.serving.specs.CachedSpecService;
 import feast.storage.api.retriever.Feature;
 import feast.storage.connectors.redis.retriever.OnlineRetriever;
-import feast.storage.connectors.redis.retriever.RedisOnlineRetriever;
 import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
 import java.util.ArrayList;
@@ -54,81 +50,18 @@ import org.mockito.Mockito;
 public class OnlineServingServiceTest {
 
   @Mock CachedSpecService specService;
-
   @Mock Tracer tracer;
-
-  @Mock RedisOnlineRetriever retriever;
   @Mock OnlineRetriever retrieverV2;
 
-  private OnlineServingService onlineServingService;
   private OnlineServingServiceV2 onlineServingServiceV2;
 
-  List<FeatureRow> testFeatureRows;
   List<Feature> mockedFeatureRows;
   List<FeatureProto.FeatureSpecV2> featureSpecs;
 
   @Before
   public void setUp() {
     initMocks(this);
-    onlineServingService = new OnlineServingService(retriever, specService, tracer);
     onlineServingServiceV2 = new OnlineServingServiceV2(retrieverV2, specService, tracer);
-
-    // create fake feature rows for testing.
-    testFeatureRows = new ArrayList<>();
-    testFeatureRows.add(
-        FeatureRow.newBuilder()
-            .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .addAllFields(
-                Lists.newArrayList(
-                    FieldProto.Field.newBuilder()
-                        .setName("entity1")
-                        .setValue(createInt64Value(1))
-                        .build(),
-                    FieldProto.Field.newBuilder()
-                        .setName("entity2")
-                        .setValue(createStrValue("a"))
-                        .build(),
-                    FieldProto.Field.newBuilder()
-                        .setName("feature1")
-                        .setValue(createInt64Value(1))
-                        .build(),
-                    FieldProto.Field.newBuilder()
-                        .setName("feature2")
-                        .setValue(createInt64Value(1))
-                        .build()))
-            .setFeatureSet("featureSet")
-            .build());
-
-    testFeatureRows.add(
-        FeatureRow.newBuilder()
-            .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .addAllFields(
-                Lists.newArrayList(
-                    FieldProto.Field.newBuilder()
-                        .setName("entity1")
-                        .setValue(createInt64Value(2))
-                        .build(),
-                    FieldProto.Field.newBuilder()
-                        .setName("entity2")
-                        .setValue(createStrValue("b"))
-                        .build(),
-                    FieldProto.Field.newBuilder()
-                        .setName("feature1")
-                        .setValue(createInt64Value(2))
-                        .build(),
-                    FieldProto.Field.newBuilder()
-                        .setName("feature2")
-                        .setValue(createInt64Value(2))
-                        .build()))
-            .setFeatureSet("featureSet")
-            .build());
-
-    testFeatureRows.add(
-        testFeatureRows
-            .get(1)
-            .toBuilder()
-            .setEventTimestamp(Timestamp.newBuilder().setSeconds(50))
-            .build());
 
     mockedFeatureRows = new ArrayList<>();
     mockedFeatureRows.add(

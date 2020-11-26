@@ -25,28 +25,15 @@ import "google/protobuf/timestamp.proto";
 import "tensorflow_metadata/proto/v0/statistics.proto";
 import "feast/core/Entity.proto";
 import "feast/core/Feature.proto";
-import "feast/core/FeatureSet.proto";
 import "feast/core/FeatureTable.proto";
 import "feast/core/Store.proto";
-import "feast/core/FeatureSetReference.proto";
 
 service CoreService {
     // Retrieve version information about this Feast deployment
     rpc GetFeastCoreVersion (GetFeastCoreVersionRequest) returns (GetFeastCoreVersionResponse);
 
-    // Returns a specific feature set
-    rpc GetFeatureSet (GetFeatureSetRequest) returns (GetFeatureSetResponse);
-
     // Returns a specific entity
     rpc GetEntity (GetEntityRequest) returns (GetEntityResponse);
-
-    // Retrieve feature set details given a filter.
-    //
-    // Returns all feature sets matching that filter. If none are found,
-    // an empty list will be returned.
-    // If no filter is provided in the request, the response will contain all the feature
-    // sets currently stored in the registry.
-    rpc ListFeatureSets (ListFeatureSetsRequest) returns (ListFeatureSetsResponse);
 
     // Returns all feature references and respective features matching that filter. If none are found
     // an empty map will be returned
@@ -60,16 +47,6 @@ service CoreService {
     // If no filter is provided in the request, the response will contain all the stores currently
     // stored in the registry.
     rpc ListStores (ListStoresRequest) returns (ListStoresResponse);
-
-    // Create or update and existing feature set.
-    //
-    // This function is idempotent - it will not create a new feature set if schema does not change.
-    // Schema changes will update the feature set if the changes are valid.
-    // All changes except the following are valid:
-    // - Changes to feature set id (name, project)
-    // - Changes to entities
-    // - Changes to feature name and type
-    rpc ApplyFeatureSet (ApplyFeatureSetRequest) returns (ApplyFeatureSetResponse);
 
     // Create or update and existing entity.
     //
@@ -93,8 +70,8 @@ service CoreService {
     rpc UpdateStore (UpdateStoreRequest) returns (UpdateStoreResponse);
 
     // Creates a project. Projects serve as namespaces within which resources like features will be
-    // created. Feature set names as must be unique within a project while field (Feature/Entity) names
-    // must be unique within a Feature Set. Project names themselves must be globally unique.
+    // created. Feature table names as must be unique within a project while field (Feature/Entity) names
+    // must be unique within a Feature Table. Project names themselves must be globally unique.
     rpc CreateProject (CreateProjectRequest) returns (CreateProjectResponse);
 
     // Archives a project. Archived projects will continue to exist and function, but won't be visible
@@ -105,9 +82,6 @@ service CoreService {
 
     // Lists all projects active projects.
     rpc ListProjects (ListProjectsRequest) returns (ListProjectsResponse);
-
-    // Internal API for Job Controller to update featureSet's status once responsible ingestion job is running
-    rpc UpdateFeatureSetStatus (UpdateFeatureSetStatusRequest) returns (UpdateFeatureSetStatusResponse);
 
     /* Feature Tables */
     // Create or update an existing feature table.
@@ -132,57 +106,6 @@ service CoreService {
     // Delete a specific feature table
     rpc DeleteFeatureTable (DeleteFeatureTableRequest) returns (DeleteFeatureTableResponse);
 
-}
-
-// Request for a single feature set
-message GetFeatureSetRequest {
-    // Name of project the feature set belongs to. If omitted will default to 'default' project.
-    string project = 3;
-
-    // Name of feature set (required).
-    string name = 1;
-}
-
-// Response containing a single feature set
-message GetFeatureSetResponse {
-    feast.core.FeatureSet feature_set = 1;
-}
-
-// Retrieves details for all versions of a specific feature set
-message ListFeatureSetsRequest {
-    Filter filter = 1;
-
-    message Filter {
-        // Name of project that the feature sets belongs to. This can be one of
-        // - [project_name]
-        // - *
-        // If an asterisk is provided, filtering on projects will be disabled. All projects will
-        // be matched. It is NOT possible to provide an asterisk with a string in order to do
-        // pattern matching.
-        // If unspecified this field will default to the default project 'default'.
-        string project = 3;
-
-        // Name of the desired feature set. Asterisks can be used as wildcards in the name.
-        // Matching on names is only permitted if a specific project is defined. It is disallowed
-        // If the project name is set to "*"
-        // e.g.
-        // - * can be used to match all feature sets
-        // - my-feature-set* can be used to match all features prefixed by "my-feature-set"
-        // - my-feature-set-6 can be used to select a single feature set
-        string feature_set_name = 1;
-
-        // User defined metadata for feature set.
-        // Feature sets with all matching labels will be returned.
-        map<string,string> labels = 4;
-
-        // Filter by FeatureSet's current status
-        // Project and Feature Set name still must be specified (could be "*")
-        FeatureSetStatus status = 5;
-    }
-}
-
-message ListFeatureSetsResponse {
-    repeated feast.core.FeatureSet feature_sets = 1;
 }
 
 // Request for a single entity
@@ -226,10 +149,10 @@ message ListFeaturesRequest {
         map<string,string> labels = 1;
 
         // List of entities contained within the featureSet that the feature belongs to.
-        // Only feature sets with these entities will be searched for features.
+        // Only feature tables with these entities will be searched for features.
         repeated string entities = 2;
 
-        // Name of project that the feature sets belongs to. Filtering on projects is disabled. 
+        // Name of project that the feature tables belongs to. Filtering on projects is disabled. 
         // It is NOT possible to provide an asterisk with a string in order to do pattern matching.
         // If unspecified this field will default to the default project 'default'.
         string project = 3;
@@ -268,33 +191,6 @@ message ApplyEntityRequest {
 
 message ApplyEntityResponse {
     feast.core.Entity entity = 1;
-}
-
-message ApplyFeatureSetRequest {
-    // Feature set version
-    // If project is unspecified, will default to 'default' project.
-    // If project specified does not exist, the project would be automatically created.
-    feast.core.FeatureSet feature_set = 1;
-}
-
-message ApplyFeatureSetResponse {
-    // TODO: 0 should correspond to invalid rather than NO_CHANGE
-    enum Status {
-        // Latest feature set is consistent with provided feature set
-        NO_CHANGE = 0;
-
-        // New feature set created
-        CREATED = 1;
-
-        // Error occurred while trying to apply changes
-        ERROR = 2;
-
-        // Changes detected and updated successfully
-        UPDATED = 3;
-    }
-
-    feast.core.FeatureSet feature_set = 1;
-    Status status = 2;
 }
 
 message GetFeastCoreVersionRequest {
@@ -348,13 +244,6 @@ message ListProjectsRequest {
 message ListProjectsResponse {
     // List of project names (archived projects are filtered out)
     repeated string projects = 1;
-}
-
-message UpdateFeatureSetStatusRequest {
-    // FeatureSetReference of FeatureSet to update
-    FeatureSetReference reference = 1;
-    // Target status
-    FeatureSetStatus status = 2;
 }
 
 message UpdateFeatureSetStatusResponse {}

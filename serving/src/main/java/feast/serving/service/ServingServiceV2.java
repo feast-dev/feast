@@ -16,19 +16,33 @@
  */
 package feast.serving.service;
 
+import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 
 public interface ServingServiceV2 {
+  /**
+   * Get information about the Feast serving deployment.
+   *
+   * <p>For Bigquery deployments, this includes the default job staging location to load
+   * intermediate files to. Otherwise, this method only returns the current Feast Serving backing
+   * store type.
+   *
+   * @param getFeastServingInfoRequest {@link ServingAPIProto.GetFeastServingInfoRequest}
+   * @return {@link ServingAPIProto.GetFeastServingInfoResponse}
+   */
+  ServingAPIProto.GetFeastServingInfoResponse getFeastServingInfo(
+      ServingAPIProto.GetFeastServingInfoRequest getFeastServingInfoRequest);
+
   /**
    * Get features from an online serving store, given a list of {@link
    * feast.proto.serving.ServingAPIProto.FeatureReferenceV2}s to retrieve, and list of {@link
    * feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow}s to join the
    * retrieved values to.
    *
-   * <p>Features can be queried across feature sets, but each {@link
+   * <p>Features can be queried across feature tables, but each {@link
    * feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow} must contain all
-   * entities for all feature sets included in the request.
+   * entities for all feature tables included in the request.
    *
    * <p>This request is fulfilled synchronously.
    *

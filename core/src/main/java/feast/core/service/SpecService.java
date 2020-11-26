@@ -16,38 +16,28 @@
  */
 package feast.core.service;
 
-import static feast.common.models.Store.isSubscribedToFeatureSet;
 import static feast.core.validators.Matchers.checkValidCharacters;
 import static feast.core.validators.Matchers.checkValidCharactersAllowAsterisk;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.dao.EntityRepository;
-import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.FeatureTableRepository;
 import feast.core.dao.ProjectRepository;
 import feast.core.dao.StoreRepository;
-import feast.core.exception.RegistrationException;
 import feast.core.exception.RetrievalException;
 import feast.core.model.*;
 import feast.core.validators.EntityValidator;
-import feast.core.validators.FeatureSetValidator;
 import feast.core.validators.FeatureTableValidator;
 import feast.proto.core.CoreServiceProto.ApplyEntityResponse;
-import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse;
-import feast.proto.core.CoreServiceProto.ApplyFeatureSetResponse.Status;
 import feast.proto.core.CoreServiceProto.ApplyFeatureTableRequest;
 import feast.proto.core.CoreServiceProto.ApplyFeatureTableResponse;
 import feast.proto.core.CoreServiceProto.DeleteFeatureTableRequest;
 import feast.proto.core.CoreServiceProto.GetEntityRequest;
 import feast.proto.core.CoreServiceProto.GetEntityResponse;
-import feast.proto.core.CoreServiceProto.GetFeatureSetRequest;
-import feast.proto.core.CoreServiceProto.GetFeatureSetResponse;
 import feast.proto.core.CoreServiceProto.GetFeatureTableRequest;
 import feast.proto.core.CoreServiceProto.GetFeatureTableResponse;
 import feast.proto.core.CoreServiceProto.ListEntitiesRequest;
 import feast.proto.core.CoreServiceProto.ListEntitiesResponse;
-import feast.proto.core.CoreServiceProto.ListFeatureSetsRequest;
-import feast.proto.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.proto.core.CoreServiceProto.ListFeatureTablesRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureTablesResponse;
 import feast.proto.core.CoreServiceProto.ListFeaturesRequest;
@@ -55,18 +45,12 @@ import feast.proto.core.CoreServiceProto.ListFeaturesResponse;
 import feast.proto.core.CoreServiceProto.ListStoresRequest;
 import feast.proto.core.CoreServiceProto.ListStoresResponse;
 import feast.proto.core.CoreServiceProto.ListStoresResponse.Builder;
-import feast.proto.core.CoreServiceProto.UpdateFeatureSetStatusRequest;
-import feast.proto.core.CoreServiceProto.UpdateFeatureSetStatusResponse;
 import feast.proto.core.CoreServiceProto.UpdateStoreRequest;
 import feast.proto.core.CoreServiceProto.UpdateStoreResponse;
 import feast.proto.core.EntityProto;
-import feast.proto.core.FeatureSetProto;
-import feast.proto.core.FeatureSetProto.FeatureSetStatus;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
-import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.Subscription;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -86,26 +70,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class SpecService {
 
   private final EntityRepository entityRepository;
-  private final FeatureSetRepository featureSetRepository;
   private final FeatureTableRepository tableRepository;
   private final ProjectRepository projectRepository;
   private final StoreRepository storeRepository;
-  private final Source defaultSource;
 
   @Autowired
   public SpecService(
       EntityRepository entityRepository,
-      FeatureSetRepository featureSetRepository,
       FeatureTableRepository tableRepository,
       StoreRepository storeRepository,
-      ProjectRepository projectRepository,
-      Source defaultSource) {
+      ProjectRepository projectRepository) {
     this.entityRepository = entityRepository;
-    this.featureSetRepository = featureSetRepository;
     this.tableRepository = tableRepository;
     this.storeRepository = storeRepository;
     this.projectRepository = projectRepository;
-    this.defaultSource = defaultSource;
   }
 
   /**
@@ -141,142 +119,6 @@ public class SpecService {
     GetEntityResponse response = GetEntityResponse.newBuilder().setEntity(entity.toProto()).build();
 
     return response;
-  }
-
-  /**
-   * Get a feature set matching the feature name and version and project. The feature set name and
-   * project are required, but version can be omitted by providing 0 for its value. If the version
-   * is omitted, the latest feature set will be provided. If the project is omitted, the default
-   * would be used.
-   *
-   * @param request: GetFeatureSetRequest Request containing filter parameters.
-   * @return Returns a GetFeatureSetResponse containing a feature set..
-   */
-  public GetFeatureSetResponse getFeatureSet(GetFeatureSetRequest request)
-      throws InvalidProtocolBufferException {
-    FeatureSet featureSet = getFeatureSet(request.getProject(), request.getName());
-
-    return GetFeatureSetResponse.newBuilder().setFeatureSet(featureSet.toProto()).build();
-  }
-
-  private FeatureSet getFeatureSet(String projectName, String featureSetName) {
-    // Validate input arguments
-    checkValidCharacters(featureSetName, "featureset");
-
-    if (featureSetName.isEmpty()) {
-      throw new IllegalArgumentException("No feature set name provided");
-    }
-    // Autofill default project if project is not specified
-    if (projectName.isEmpty()) {
-      projectName = Project.DEFAULT_NAME;
-    }
-
-    FeatureSet featureSet;
-
-    featureSet =
-        featureSetRepository.findFeatureSetByNameAndProject_Name(featureSetName, projectName);
-
-    if (featureSet == null) {
-      throw new RetrievalException(
-          String.format("Feature set with name \"%s\" could not be found.", featureSetName));
-    }
-    return featureSet;
-  }
-
-  /**
-   * Return a list of feature sets matching the feature set name, project and labels provided in the
-   * filter. All fields are required. Use '*' in feature set name and project, and empty map in
-   * labels in order to return all feature sets in all projects.
-   *
-   * <p>Project name can be explicitly provided, or an asterisk can be provided to match all
-   * projects. It is not possible to provide a combination of asterisks/wildcards and text. If the
-   * project name is omitted, the default project would be used.
-   *
-   * <p>The feature set name in the filter accepts an asterisk as a wildcard. All matching feature
-   * sets will be returned. Regex is not supported. Explicitly defining a feature set name is not
-   * possible if a project name is not set explicitly
-   *
-   * <p>The labels in the filter accepts a map. All feature sets which contain every provided label
-   * will be returned.
-   *
-   * @param filter filter containing the desired featureSet name
-   * @return ListFeatureSetsResponse with list of featureSets found matching the filter
-   */
-  public ListFeatureSetsResponse listFeatureSets(ListFeatureSetsRequest.Filter filter)
-      throws InvalidProtocolBufferException {
-    String name = filter.getFeatureSetName();
-    String project = filter.getProject();
-    Map<String, String> labelsFilter = filter.getLabelsMap();
-    FeatureSetStatus statusFilter = filter.getStatus();
-
-    if (name.isEmpty()) {
-      throw new IllegalArgumentException(
-          "Invalid listFeatureSetRequest, missing arguments. Must provide feature set name:");
-    }
-
-    checkValidCharactersAllowAsterisk(name, "featureset");
-    checkValidCharactersAllowAsterisk(project, "project");
-
-    // Autofill default project if project not specified
-    if (project.isEmpty()) {
-      project = Project.DEFAULT_NAME;
-    }
-
-    List<FeatureSet> featureSets = new ArrayList<FeatureSet>() {};
-
-    if (project.contains("*")) {
-      // Matching a wildcard project
-      if (name.contains("*")) {
-        featureSets =
-            featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAsc(
-                name.replace('*', '%'), project.replace('*', '%'));
-      } else {
-        throw new IllegalArgumentException(
-            String.format(
-                "Invalid listFeatureSetRequest. Feature set name must be set to "
-                    + "\"*\" if the project name and feature set name aren't set explicitly: \n%s",
-                filter.toString()));
-      }
-    } else if (!project.contains("*")) {
-      // Matching a specific project
-      if (name.contains("*")) {
-        // Find all feature sets matching a pattern in a specific project
-        featureSets =
-            featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAsc(
-                name.replace('*', '%'), project);
-
-      } else if (!name.contains("*")) {
-        // Find a specific feature set in a specific project
-        FeatureSet featureSet =
-            featureSetRepository.findFeatureSetByNameAndProject_Name(name, project);
-        if (featureSet != null) {
-          featureSets.add(featureSet);
-        }
-      }
-    } else {
-      throw new IllegalArgumentException(
-          String.format(
-              "Invalid listFeatureSetRequest. Project name cannot be a pattern. It may only be"
-                  + "a specific project name or an asterisk: \n%s",
-              filter.toString()));
-    }
-
-    ListFeatureSetsResponse.Builder response = ListFeatureSetsResponse.newBuilder();
-    if (featureSets.size() > 0) {
-      featureSets =
-          featureSets.stream()
-              .filter(
-                  featureSet ->
-                      statusFilter.equals(FeatureSetStatus.STATUS_INVALID)
-                          || featureSet.getStatus().equals(statusFilter))
-              .filter(featureSet -> featureSet.hasAllLabels(labelsFilter))
-              .collect(Collectors.toList());
-      for (FeatureSet featureSet : featureSets) {
-        response.addFeatureSets(featureSet.toProto());
-      }
-    }
-
-    return response.build();
   }
 
   /**
@@ -376,18 +218,6 @@ public class SpecService {
     return response.build();
   }
 
-  /** Update FeatureSet's status by given FeatureSetReference and new status */
-  public UpdateFeatureSetStatusResponse updateFeatureSetStatus(
-      UpdateFeatureSetStatusRequest request) {
-    FeatureSet featureSet =
-        getFeatureSet(request.getReference().getProject(), request.getReference().getName());
-
-    featureSet.setStatus(request.getStatus());
-    featureSetRepository.saveAndFlush(featureSet);
-
-    return UpdateFeatureSetStatusResponse.newBuilder().build();
-  }
-
   /**
    * Get stores matching the store name provided in the filter. If the store name is not provided,
    * the method will return all stores currently registered to Feast.
@@ -476,109 +306,6 @@ public class SpecService {
     ApplyEntityResponse response =
         ApplyEntityResponse.newBuilder().setEntity(entity.toProto()).build();
     return response;
-  }
-
-  /**
-   * Creates or updates a feature set in the repository.
-   *
-   * <p>This function is idempotent. If no changes are detected in the incoming featureSet's schema,
-   * this method will update the incoming featureSet spec with the latest version stored in the
-   * repository, and return that. If project is not specified in the given featureSet, will assign
-   * the featureSet to the'default' project.
-   *
-   * @param newFeatureSet Feature set that will be created or updated.
-   */
-  @Transactional
-  public ApplyFeatureSetResponse applyFeatureSet(FeatureSetProto.FeatureSet newFeatureSet)
-      throws InvalidProtocolBufferException {
-    // Autofill default project if not specified
-    if (newFeatureSet.getSpec().getProject().isEmpty()) {
-      newFeatureSet =
-          newFeatureSet
-              .toBuilder()
-              .setSpec(newFeatureSet.getSpec().toBuilder().setProject(Project.DEFAULT_NAME).build())
-              .build();
-    }
-
-    String projectName = newFeatureSet.getSpec().getProject();
-    String featureSetName = newFeatureSet.getSpec().getName();
-    List<Boolean> isSubscribedToStores = new ArrayList<>() {};
-    for (Store store : storeRepository.findAll()) {
-      List<Subscription> subscriptionList = store.getSubscriptions();
-      boolean isSubscribed =
-          isSubscribedToFeatureSet(subscriptionList, projectName, featureSetName);
-      isSubscribedToStores.add(isSubscribed);
-    }
-    // Only throw error if FeatureSet is not subscribed by ALL stores
-    if (!isSubscribedToStores.isEmpty()
-        && isSubscribedToStores.stream().allMatch(x -> x == false)) {
-      throw new RegistrationException(
-          String.format(
-              "The supplied Project and FeatureSet, %s/%s is either not subscribed or blacklisted and is not available for registration. "
-                  + "Please ask your administrator to update subscription in store configuration on serving layer.",
-              projectName, featureSetName));
-    }
-
-    // Validate incoming feature set
-    FeatureSetValidator.validateSpec(newFeatureSet);
-
-    // Find project or create new one if it does not exist
-    String project_name = newFeatureSet.getSpec().getProject();
-    Project project =
-        projectRepository
-            .findById(newFeatureSet.getSpec().getProject())
-            .orElse(new Project(project_name));
-
-    // Ensure that the project retrieved from repository is not archived
-    if (project.isArchived()) {
-      throw new IllegalArgumentException(String.format("Project is archived: %s", project_name));
-    }
-
-    // Set source to default if not set in proto
-    if (newFeatureSet.getSpec().getSource() == SourceProto.Source.getDefaultInstance()) {
-      newFeatureSet =
-          newFeatureSet
-              .toBuilder()
-              .setSpec(
-                  newFeatureSet.getSpec().toBuilder().setSource(defaultSource.toProto()).build())
-              .build();
-    }
-
-    // Retrieve existing FeatureSet
-    FeatureSet featureSet =
-        featureSetRepository.findFeatureSetByNameAndProject_Name(
-            newFeatureSet.getSpec().getName(), project_name);
-
-    Status status;
-    if (featureSet == null) {
-      // Create new feature set since it doesn't exist
-      newFeatureSet = newFeatureSet.toBuilder().setSpec(newFeatureSet.getSpec()).build();
-      featureSet = FeatureSet.fromProto(newFeatureSet);
-      status = Status.CREATED;
-    } else {
-      // If the featureSet remains unchanged, we do nothing.
-      if (featureSet.toProto().getSpec().equals(newFeatureSet.getSpec())) {
-        return ApplyFeatureSetResponse.newBuilder()
-            .setFeatureSet(featureSet.toProto())
-            .setStatus(Status.NO_CHANGE)
-            .build();
-      }
-      featureSet.updateFromProto(newFeatureSet);
-      status = Status.UPDATED;
-    }
-
-    featureSet.incVersion();
-
-    // Persist the FeatureSet object
-    featureSet.setStatus(FeatureSetStatus.STATUS_PENDING);
-    project.addFeatureSet(featureSet);
-    projectRepository.saveAndFlush(project);
-
-    // Build ApplyFeatureSetResponse
-    return ApplyFeatureSetResponse.newBuilder()
-        .setFeatureSet(featureSet.toProto())
-        .setStatus(status)
-        .build();
   }
 
   /**

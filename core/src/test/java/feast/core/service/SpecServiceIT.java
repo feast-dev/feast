@@ -63,7 +63,6 @@ public class SpecServiceIT extends BaseIT {
 
   @BeforeEach
   public void initState() {
-    SourceProto.Source source = DataGenerator.getDefaultSource();
 
     EntityProto.EntitySpecV2 entitySpec1 =
         DataGenerator.createEntitySpecV2(

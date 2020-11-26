@@ -33,7 +33,6 @@ import feast.proto.core.EntityProto;
 import feast.proto.core.FeatureProto;
 import feast.proto.core.FeatureProto.FeatureSpecV2;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
-import feast.proto.core.SourceProto;
 import feast.proto.core.StoreProto;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.types.ValueProto;
@@ -50,29 +49,12 @@ public class DataGenerator {
       createStore(
           "test-store", StoreProto.Store.StoreType.REDIS, ImmutableList.of(defaultSubscription));
 
-  static SourceProto.Source defaultSource = createSource("localhost", "topic");
-
   public static Triple<String, String, Boolean> getDefaultSubscription() {
     return defaultSubscription;
   }
 
   public static StoreProto.Store getDefaultStore() {
     return defaultStore;
-  }
-
-  public static SourceProto.Source getDefaultSource() {
-    return defaultSource;
-  }
-
-  public static SourceProto.Source createSource(String server, String topic) {
-    return SourceProto.Source.newBuilder()
-        .setType(SourceProto.SourceType.KAFKA)
-        .setKafkaSourceConfig(
-            SourceProto.KafkaSourceConfig.newBuilder()
-                .setBootstrapServers(server)
-                .setTopic(topic)
-                .build())
-        .build();
   }
 
   public static StoreProto.Store createStore(

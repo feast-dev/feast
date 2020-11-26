@@ -30,7 +30,6 @@ import feast.proto.core.CoreServiceProto.ListFeatureTablesRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureTablesResponse;
 import feast.proto.core.CoreServiceProto.ListProjectsRequest;
 import feast.proto.core.CoreServiceProto.ListProjectsResponse;
-import feast.proto.core.FeatureSetProto.FeatureSetSpec;
 import feast.proto.core.FeatureTableProto;
 import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import feast.proto.core.StoreProto.Store;
@@ -38,7 +37,6 @@ import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import feast.proto.types.ValueProto;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.specs.CoreSpecService;
-import java.util.Map;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -53,7 +51,6 @@ public class CachedSpecServiceTest {
 
   @Mock CoreSpecService coreService;
 
-  private Map<String, FeatureSetSpec> featureSetSpecs;
   private CachedSpecService cachedSpecService;
 
   private ImmutableList<String> featureTableEntities;
