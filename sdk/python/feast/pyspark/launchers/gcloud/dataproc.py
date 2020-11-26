@@ -208,7 +208,7 @@ class DataprocClusterLauncher(JobLauncher):
             executor_instances: str,
             executor_cores: str,
             executor_memory: str,
-            additional_options: Dict[str, str]
+            additional_options: Dict[str, str]=None
     ):
         """
         Initialize a dataproc job controller client, used internally for job submission and result
@@ -250,7 +250,7 @@ class DataprocClusterLauncher(JobLauncher):
         self.executor_instances = executor_instances
         self.executor_cores = executor_cores
         self.executor_memory = executor_memory
-        self.additional_options = additional_options
+        self.additional_options = additional_options or {}
 
     def _stage_file(self, file_path: str, job_id: str) -> str:
         if not os.path.isfile(file_path):

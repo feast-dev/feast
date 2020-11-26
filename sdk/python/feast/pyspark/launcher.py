@@ -43,6 +43,7 @@ def _dataproc_launcher(config: Config) -> JobLauncher:
         executor_instances=config.get(opt.DATAPROC_EXECUTOR_INSTANCES),
         executor_cores=config.get(opt.DATAPROC_EXECUTOR_CORES),
         executor_memory=config.get(opt.DATAPROC_EXECUTOR_MEMORY),
+        additional_options=_parse_additional_spark_options(config)
     )
 
 
