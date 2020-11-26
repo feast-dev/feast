@@ -28,6 +28,7 @@ def _standalone_launcher(config: Config) -> JobLauncher:
 
     return standalone.StandaloneClusterLauncher(
         config.get(opt.SPARK_STANDALONE_MASTER), config.get(opt.SPARK_HOME),
+        _parse_additional_spark_options(config)
     )
 
 
