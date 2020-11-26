@@ -27,7 +27,7 @@ from feast.staging.storage_client import get_staging_client
 
 class DataprocJobMixin:
     def __init__(
-            self, job: Job, refresh_fn: Callable[[], Job], cancel_fn: Callable[[], None]
+        self, job: Job, refresh_fn: Callable[[], Job], cancel_fn: Callable[[], None]
     ):
         """
         Implementation of common methods for different types of SparkJob running on Dataproc cluster.
@@ -60,18 +60,18 @@ class DataprocJobMixin:
         self._job = self._refresh_fn()
         status = self._job.status
         if status.state in (
-                JobStatus.State.ERROR,
-                JobStatus.State.CANCEL_PENDING,
-                JobStatus.State.CANCEL_STARTED,
-                JobStatus.State.CANCELLED,
+            JobStatus.State.ERROR,
+            JobStatus.State.CANCEL_PENDING,
+            JobStatus.State.CANCEL_STARTED,
+            JobStatus.State.CANCELLED,
         ):
             return SparkJobStatus.FAILED
         elif status.state == JobStatus.State.RUNNING:
             return SparkJobStatus.IN_PROGRESS
         elif status.state in (
-                JobStatus.State.PENDING,
-                JobStatus.State.SETUP_DONE,
-                JobStatus.State.STATE_UNSPECIFIED,
+            JobStatus.State.PENDING,
+            JobStatus.State.SETUP_DONE,
+            JobStatus.State.STATE_UNSPECIFIED,
         ):
             return SparkJobStatus.STARTING
 
@@ -95,9 +95,9 @@ class DataprocJobMixin:
         if status.state == JobStatus.State.ERROR:
             return status.details
         elif status.state in (
-                JobStatus.State.CANCEL_PENDING,
-                JobStatus.State.CANCEL_STARTED,
-                JobStatus.State.CANCELLED,
+            JobStatus.State.CANCEL_PENDING,
+            JobStatus.State.CANCEL_STARTED,
+            JobStatus.State.CANCELLED,
         ):
             return "Job was cancelled."
         return None
@@ -138,11 +138,11 @@ class DataprocRetrievalJob(DataprocJobMixin, RetrievalJob):
     """
 
     def __init__(
-            self,
-            job: Job,
-            refresh_fn: Callable[[], Job],
-            cancel_fn: Callable[[], None],
-            output_file_uri: str,
+        self,
+        job: Job,
+        refresh_fn: Callable[[], Job],
+        cancel_fn: Callable[[], None],
+        output_file_uri: str,
     ):
         """
         This is the returned historical feature retrieval job result for DataprocClusterLauncher.
@@ -175,11 +175,11 @@ class DataprocStreamingIngestionJob(DataprocJobMixin, StreamIngestionJob):
     """
 
     def __init__(
-            self,
-            job: Job,
-            refresh_fn: Callable[[], Job],
-            cancel_fn: Callable[[], None],
-            job_hash: str,
+        self,
+        job: Job,
+        refresh_fn: Callable[[], Job],
+        cancel_fn: Callable[[], None],
+        job_hash: str,
     ) -> None:
         super().__init__(job, refresh_fn, cancel_fn)
         self._job_hash = job_hash
@@ -200,15 +200,15 @@ class DataprocClusterLauncher(JobLauncher):
     JOB_HASH_LABEL_KEY = "feast_job_hash"
 
     def __init__(
-            self,
-            cluster_name: str,
-            staging_location: str,
-            region: str,
-            project_id: str,
-            executor_instances: str,
-            executor_cores: str,
-            executor_memory: str,
-            additional_options: Dict[str, str]=None
+        self,
+        cluster_name: str,
+        staging_location: str,
+        region: str,
+        project_id: str,
+        executor_instances: str,
+        executor_cores: str,
+        executor_memory: str,
+        additional_options: Dict[str, str] = None,
     ):
         """
         Initialize a dataproc job controller client, used internally for job submission and result
@@ -257,13 +257,13 @@ class DataprocClusterLauncher(JobLauncher):
             return file_path
 
         staging_client = get_staging_client("gs")
-        blob_path = os.path.join(self.remote_path, job_id, os.path.basename(file_path), )
+        blob_path = os.path.join(self.remote_path, job_id, os.path.basename(file_path),)
         staging_client.upload_file(file_path, self.staging_bucket, blob_path)
 
         return f"gs://{self.staging_bucket}/{blob_path}"
 
     def dataproc_submit(
-            self, job_params: SparkJobParameters
+        self, job_params: SparkJobParameters
     ) -> Tuple[Job, Callable[[], Job], Callable[[], None]]:
         local_job_id = str(uuid.uuid4())
         main_file_uri = self._stage_file(job_params.get_main_file_path(), local_job_id)
@@ -289,7 +289,7 @@ class DataprocClusterLauncher(JobLauncher):
                             "spark.executor.instances": self.executor_instances,
                             "spark.executor.cores": self.executor_cores,
                             "spark.executor.memory": self.executor_memory,
-                            **self.additional_options
+                            **self.additional_options,
                         },
                     }
                 }
@@ -329,7 +329,7 @@ class DataprocClusterLauncher(JobLauncher):
         )
 
     def historical_feature_retrieval(
-            self, job_params: RetrievalJobParameters
+        self, job_params: RetrievalJobParameters
     ) -> RetrievalJob:
         job, refresh_fn, cancel_fn = self.dataproc_submit(job_params)
         return DataprocRetrievalJob(
@@ -337,13 +337,13 @@ class DataprocClusterLauncher(JobLauncher):
         )
 
     def offline_to_online_ingestion(
-            self, ingestion_job_params: BatchIngestionJobParameters
+        self, ingestion_job_params: BatchIngestionJobParameters
     ) -> BatchIngestionJob:
         job, refresh_fn, cancel_fn = self.dataproc_submit(ingestion_job_params)
         return DataprocBatchIngestionJob(job, refresh_fn, cancel_fn)
 
     def start_stream_to_online_ingestion(
-            self, ingestion_job_params: StreamIngestionJobParameters
+        self, ingestion_job_params: StreamIngestionJobParameters
     ) -> StreamIngestionJob:
         job, refresh_fn, cancel_fn = self.dataproc_submit(ingestion_job_params)
         job_hash = ingestion_job_params.get_job_hash()
