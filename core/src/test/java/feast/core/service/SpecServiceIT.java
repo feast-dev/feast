@@ -649,6 +649,32 @@ public class SpecServiceIT extends BaseIT {
     }
 
     @Test
+    public void shouldUpdateFeatureTableOnFeatureAddition() {
+      FeatureTableProto.FeatureTableSpec updatedSpec =
+          DataGenerator.createFeatureTableSpec(
+                  "featuretable1",
+                  Arrays.asList("entity1", "entity2"),
+                  new HashMap<>() {
+                    {
+                      put("feature1", ValueProto.ValueType.Enum.STRING);
+                      put("feature2", ValueProto.ValueType.Enum.FLOAT);
+                      put("feature3", ValueProto.ValueType.Enum.FLOAT);
+                    }
+                  },
+                  7200,
+                  ImmutableMap.of("feat_key2", "feat_value2"))
+              .toBuilder()
+              .setBatchSource(
+                  DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
+              .build();
+
+      FeatureTableProto.FeatureTable updatedTable =
+          apiClient.applyFeatureTable("default", updatedSpec);
+
+      assertTrue(TestUtil.compareFeatureTableSpec(updatedTable.getSpec(), updatedSpec));
+    }
+
+    @Test
     public void shouldNotUpdateIfNoChanges() {
       FeatureTableProto.FeatureTable table = apiClient.applyFeatureTable("default", getTestSpec());
       FeatureTableProto.FeatureTable updatedTable =
