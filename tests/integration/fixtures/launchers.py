@@ -20,4 +20,5 @@ def dataproc_launcher(pytestconfig) -> DataprocClusterLauncher:
         executor_instances=executor_instances,
         executor_cores=executor_cores,
         executor_memory=executor_memory,
+        additional_options={}
     )

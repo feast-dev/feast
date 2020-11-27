@@ -135,7 +135,7 @@ def _upload_jar(jar_s3_prefix: str, local_path: str) -> str:
 
 
 def _sync_offline_to_online_step(
-    jar_path: str, feature_table_name: str, args: List[str],
+    jar_path: str, feature_table_name: str, conf: Dict[str, str], args: List[str],
 ) -> Dict[str, Any]:
 
     return {
@@ -155,6 +155,7 @@ def _sync_offline_to_online_step(
                 "spark-submit",
                 "--class",
                 "feast.ingestion.IngestionJob",
+                *_prepare_conf_args(conf),
                 "--packages",
                 "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.17.2",
                 jar_path,
@@ -344,8 +345,17 @@ def _upload_dataframe(s3prefix: str, df: pandas.DataFrame) -> str:
         )
 
 
+def _prepare_conf_args(conf: Dict[str, str]):
+    return [
+        _ for name, value in conf.items() for _ in ["--conf", f'"{name}"="{value}"']
+    ]
+
+
 def _historical_retrieval_step(
-    pyspark_script_path: str, args: List[str], output_file_uri: str,
+    pyspark_script_path: str,
+    conf: Dict[str, str],
+    args: List[str],
+    output_file_uri: str,
 ) -> Dict[str, Any]:
 
     return {
@@ -361,7 +371,8 @@ def _historical_retrieval_step(
                     "Value": output_file_uri,
                 },
             ],
-            "Args": ["spark-submit", pyspark_script_path] + args,
+            "Args": ["spark-submit", *_prepare_conf_args(conf), pyspark_script_path]
+            + args,
             "Jar": "command-runner.jar",
         },
     }
@@ -371,6 +382,7 @@ def _stream_ingestion_step(
     jar_path: str,
     extra_jar_paths: List[str],
     feature_table_name: str,
+    conf: Dict[str, str],
     args: List[str],
     job_hash: str,
 ) -> Dict[str, Any]:
@@ -395,6 +407,7 @@ def _stream_ingestion_step(
                 {"Key": "feast.step_metadata.job_hash", "Value": job_hash},
             ],
             "Args": ["spark-submit", "--class", "feast.ingestion.IngestionJob"]
+            + _prepare_conf_args(conf)
             + jars_args
             + [
                 "--packages",

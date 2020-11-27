@@ -61,6 +61,7 @@ def _emr_launcher(config: Config) -> JobLauncher:
         new_cluster_template_path=_get_optional(opt.EMR_CLUSTER_TEMPLATE_PATH),
         staging_location=config.get(opt.SPARK_STAGING_LOCATION),
         emr_log_location=config.get(opt.EMR_LOG_LOCATION),
+        additional_options=_parse_additional_spark_options(config),
     )
 
 

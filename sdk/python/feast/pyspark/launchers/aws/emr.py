@@ -145,6 +145,7 @@ class EmrClusterLauncher(JobLauncher):
         new_cluster_template_path: Optional[str],
         staging_location: str,
         emr_log_location: str,
+        additional_options: Dict[str, str],
     ):
         """
         Initialize a dataproc job controller client, used internally for job submission and result
@@ -162,6 +163,8 @@ class EmrClusterLauncher(JobLauncher):
                 An S3 staging location for artifacts.
             emr_log_location:
                 S3 location for EMR logs.
+            additional_options:
+                Additional configuration options for Spark job
         """
 
         assert existing_cluster_id or new_cluster_template_path
@@ -177,6 +180,7 @@ class EmrClusterLauncher(JobLauncher):
         self._staging_location = staging_location
         self._emr_log_location = emr_log_location
         self._region = region
+        self._additional_options = additional_options
 
     def _emr_client(self):
 
@@ -230,6 +234,7 @@ class EmrClusterLauncher(JobLauncher):
 
         step = _historical_retrieval_step(
             pyspark_script_path,
+            conf=self._additional_options,
             args=job_params.get_arguments(),
             output_file_uri=job_params.get_destination_path(),
         )
@@ -260,6 +265,7 @@ class EmrClusterLauncher(JobLauncher):
         step = _sync_offline_to_online_step(
             jar_s3_path,
             ingestion_job_params.get_feature_table_name(),
+            self._additional_options,
             args=ingestion_job_params.get_arguments(),
         )
 
@@ -293,6 +299,7 @@ class EmrClusterLauncher(JobLauncher):
             jar_s3_path,
             extra_jar_paths,
             ingestion_job_params.get_feature_table_name(),
+            self._additional_options,
             args=ingestion_job_params.get_arguments(),
             job_hash=job_hash,
         )
