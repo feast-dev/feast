@@ -138,7 +138,7 @@ def _quoted_split(string, delimiter):
 
 
 def _parse_additional_spark_options(config: Config) -> Dict[str, str]:
-    options_string = config.get(opt.SPARK_ADDITIONAL_OPTS)
+    options_string = config.get(opt.SPARK_ADDITIONAL_OPTS, None)
     if options_string is None:
         return {}
     try:
