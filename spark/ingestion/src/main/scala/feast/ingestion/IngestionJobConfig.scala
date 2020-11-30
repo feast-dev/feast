@@ -59,6 +59,8 @@ case class FileSource(
     override val datePartitionColumn: Option[String] = None
 ) extends BatchSource
 
+case class BQMaterializationConfig(project: String, dataset: String)
+
 case class BQSource(
     project: String,
     dataset: String,
@@ -66,7 +68,8 @@ case class BQSource(
     override val fieldMapping: Map[String, String],
     override val eventTimestampColumn: String,
     override val createdTimestampColumn: Option[String] = None,
-    override val datePartitionColumn: Option[String] = None
+    override val datePartitionColumn: Option[String] = None,
+    materialization: Option[BQMaterializationConfig] = None
 ) extends BatchSource
 
 case class KafkaSource(

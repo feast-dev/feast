@@ -71,7 +71,7 @@ def resolve_launcher(config: Config) -> JobLauncher:
     return _launchers[config.get(opt.SPARK_LAUNCHER)](config)
 
 
-def _source_to_argument(source: DataSource):
+def _source_to_argument(source: DataSource, config: Config):
     common_properties = {
         "field_mapping": dict(source.field_mapping),
         "event_timestamp_column": source.event_timestamp_column,
@@ -94,6 +94,14 @@ def _source_to_argument(source: DataSource):
         properties["project"] = project
         properties["dataset"] = dataset
         properties["table"] = table
+        if config.exists(opt.SPARK_BQ_MATERIALIZATION_PROJECT) and config.exists(
+            opt.SPARK_BQ_MATERIALIZATION_DATASET
+        ):
+            properties["materialization"] = dict(
+                project=config.get(opt.SPARK_BQ_MATERIALIZATION_PROJECT),
+                dataset=config.get(opt.SPARK_BQ_MATERIALIZATION_DATASET),
+            )
+
         return {"bq": properties}
 
     if isinstance(source, KafkaSource):
@@ -141,9 +149,9 @@ def start_historical_feature_retrieval_spark_session(
     spark_session = SparkSession.builder.getOrCreate()
     return retrieve_historical_features(
         spark=spark_session,
-        entity_source_conf=_source_to_argument(entity_source),
+        entity_source_conf=_source_to_argument(entity_source, client._config),
         feature_tables_sources_conf=[
-            _source_to_argument(feature_table.batch_source)
+            _source_to_argument(feature_table.batch_source, client._config)
             for feature_table in feature_tables
         ],
         feature_tables_conf=[
@@ -164,14 +172,15 @@ def start_historical_feature_retrieval_job(
     launcher = resolve_launcher(client._config)
     feature_sources = [
         _source_to_argument(
-            replace_bq_table_with_joined_view(feature_table, entity_source)
+            replace_bq_table_with_joined_view(feature_table, entity_source),
+            client._config,
         )
         for feature_table in feature_tables
     ]
 
     return launcher.historical_feature_retrieval(
         RetrievalJobParameters(
-            entity_source=_source_to_argument(entity_source),
+            entity_source=_source_to_argument(entity_source, client._config),
             feature_tables_sources=feature_sources,
             feature_tables=[
                 _feature_table_to_argument(client, project, feature_table)
@@ -224,7 +233,7 @@ def start_offline_to_online_ingestion(
     return launcher.offline_to_online_ingestion(
         BatchIngestionJobParameters(
             jar=client._config.get(opt.SPARK_INGESTION_JAR),
-            source=_source_to_argument(feature_table.batch_source),
+            source=_source_to_argument(feature_table.batch_source, client._config),
             feature_table=_feature_table_to_argument(client, project, feature_table),
             start=start,
             end=end,
@@ -251,7 +260,7 @@ def get_stream_to_online_ingestion_params(
     return StreamIngestionJobParameters(
         jar=client._config.get(opt.SPARK_INGESTION_JAR),
         extra_jars=extra_jars,
-        source=_source_to_argument(feature_table.stream_source),
+        source=_source_to_argument(feature_table.stream_source, client._config),
         feature_table=_feature_table_to_argument(client, project, feature_table),
         redis_host=client._config.get(opt.REDIS_HOST),
         redis_port=client._config.getint(opt.REDIS_PORT),
