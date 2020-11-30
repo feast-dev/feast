@@ -94,7 +94,7 @@ def _source_to_argument(source: DataSource, config: Config):
         properties["project"] = project
         properties["dataset"] = dataset
         properties["table"] = table
-        if config.get(opt.SPARK_BQ_MATERIALIZATION_PROJECT) and config.get(
+        if config.exists(opt.SPARK_BQ_MATERIALIZATION_PROJECT) and config.exists(
             opt.SPARK_BQ_MATERIALIZATION_DATASET
         ):
             properties["materialization"] = dict(
