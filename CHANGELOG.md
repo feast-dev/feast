@@ -1,4 +1,30 @@
 # Changelog
+## [v0.8.1](https://github.com/feast-dev/feast/tree/v0.8.1) (2020-11-24)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.8.0...v0.8.1)
+
+**Implemented enhancements:**
+
+- Expires Redis Keys based on Feature Table Max Age [\#1161](https://github.com/feast-dev/feast/pull/1161) ([khorshuheng](https://github.com/khorshuheng))
+- Jobservice control loop \(based on \#1140\) [\#1156](https://github.com/feast-dev/feast/pull/1156) ([oavdeev](https://github.com/oavdeev))
+
+**Fixed bugs:**
+
+- Lazy metrics initialization \(to correct pick up in executor\) [\#1195](https://github.com/feast-dev/feast/pull/1195) ([pyalex](https://github.com/pyalex))
+- Add missing third\_party folder [\#1185](https://github.com/feast-dev/feast/pull/1185) ([terryyylim](https://github.com/terryyylim))
+- Fix missing name variable instantiation [\#1166](https://github.com/feast-dev/feast/pull/1166) ([terryyylim](https://github.com/terryyylim))
+
+**Merged pull requests:**
+
+- Bump ssh-agent version [\#1175](https://github.com/feast-dev/feast/pull/1175) ([terryyylim](https://github.com/terryyylim))
+- Refactor configurable options and add sphinx docs [\#1174](https://github.com/feast-dev/feast/pull/1174) ([terryyylim](https://github.com/terryyylim))
+- Stabilize flaky e2e tests [\#1173](https://github.com/feast-dev/feast/pull/1173) ([pyalex](https://github.com/pyalex))
+- Fix connection resets in CI for Maven [\#1164](https://github.com/feast-dev/feast/pull/1164) ([woop](https://github.com/woop))
+- Add dataproc executor resource config [\#1160](https://github.com/feast-dev/feast/pull/1160) ([terryyylim](https://github.com/terryyylim))
+- Fix github workflow deprecating env variable [\#1158](https://github.com/feast-dev/feast/pull/1158) ([terryyylim](https://github.com/terryyylim))
+- Ensure consistency of github workflow [\#1157](https://github.com/feast-dev/feast/pull/1157) ([terryyylim](https://github.com/terryyylim))
+
+
 ## [v0.8.0](https://github.com/feast-dev/feast/tree/v0.8.0) (2020-11-10)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.7.1...v0.8.0)
