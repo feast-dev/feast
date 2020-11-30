@@ -154,6 +154,14 @@ class ConfigOptions(metaclass=ConfigMeta):
     #: Directory where Spark is installed
     SPARK_HOME: Optional[str] = None
 
+    #: The project id where the materialized view of BigQuerySource is going to be created
+    #: by default, use the same project where view is located
+    SPARK_BQ_MATERIALIZATION_PROJECT: Optional[str] = None
+
+    #: The dataset id where the materialized view of BigQuerySource is going to be created
+    #: by default, use the same dataset where view is located
+    SPARK_BQ_MATERIALIZATION_DATASET: Optional[str] = None
+
     #: Dataproc cluster to run Feast Spark Jobs in
     DATAPROC_CLUSTER_NAME: Optional[str] = None
 
