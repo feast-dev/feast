@@ -62,11 +62,12 @@ public class TestUtil {
             .toBuilder()
             .clearFeatures()
             .addAllFeatures(
-                spec.getFeaturesList().stream()
+                otherSpec.getFeaturesList().stream()
                     .sorted(Comparator.comparing(FeatureSpecV2::getName))
                     .collect(Collectors.toSet()))
             .clearEntities()
-            .addAllEntities(spec.getEntitiesList().stream().sorted().collect(Collectors.toSet()))
+            .addAllEntities(
+                otherSpec.getEntitiesList().stream().sorted().collect(Collectors.toSet()))
             .build();
 
     return spec.equals(otherSpec);
