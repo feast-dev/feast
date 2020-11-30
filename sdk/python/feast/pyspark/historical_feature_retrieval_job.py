@@ -123,6 +123,8 @@ class BigQuerySource(Source):
         event_timestamp_column (str): Column representing the event timestamp.
         created_timestamp_column (str): Column representing the creation timestamp. Required
             only if the source corresponds to a feature table.
+        materialization (Dict[str, str]): Optional. Destination for materialized view,
+            e.g. dict(project="...", dataset="...).
     """
 
     def __init__(
@@ -133,6 +135,7 @@ class BigQuerySource(Source):
         event_timestamp_column: str,
         created_timestamp_column: Optional[str],
         field_mapping: Optional[Dict[str, str]],
+        materialization: Optional[Dict[str, str]] = None,
     ):
         super().__init__(
             event_timestamp_column, created_timestamp_column, field_mapping
@@ -140,6 +143,7 @@ class BigQuerySource(Source):
         self.project = project
         self.dataset = dataset
         self.table = table
+        self.materialization = materialization
 
     @property
     def spark_format(self) -> str:
@@ -151,7 +155,15 @@ class BigQuerySource(Source):
 
     @property
     def spark_read_options(self) -> Dict[str, str]:
-        return {**super().spark_read_options, "viewsEnabled": "true"}
+        opts = {**super().spark_read_options, "viewsEnabled": "true"}
+        if self.materialization:
+            opts.update(
+                {
+                    "materializationProject": self.materialization["project"],
+                    "materializationDataset": self.materialization["dataset"],
+                }
+            )
+        return opts
 
 
 def _source_from_dict(dct: Dict) -> Source:
@@ -174,6 +186,7 @@ def _source_from_dict(dct: Dict) -> Source:
             field_mapping=dct["bq"].get("field_mapping", {}),
             event_timestamp_column=dct["bq"]["event_timestamp_column"],
             created_timestamp_column=dct["bq"].get("created_timestamp_column"),
+            materialization=dct["bq"].get("materialization"),
         )
 
 
