@@ -30,9 +30,20 @@ object BigQueryReader {
       start: DateTime,
       end: DateTime
   ): DataFrame = {
-    sqlContext.read
+    val reader = sqlContext.read
       .format("bigquery")
       .option("viewsEnabled", "true")
+
+    source.materialization match {
+      case Some(materializationConfig) =>
+        reader
+          .option("materializationProject", materializationConfig.project)
+          .option("materializationDataset", materializationConfig.dataset)
+
+      case _ => ()
+    }
+
+    reader
       .load(s"${source.project}.${source.dataset}.${source.table}")
       .filter(col(source.eventTimestampColumn) >= new Timestamp(start.getMillis))
       .filter(col(source.eventTimestampColumn) < new Timestamp(end.getMillis))
