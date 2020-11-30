@@ -41,13 +41,15 @@ import io.opentracing.Tracer;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import io.opentracing.contrib.grpc.TracingServerInterceptor;
 import net.devh.boot.grpc.server.service.GrpcService;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-@GrpcService(interceptors = {GrpcMessageInterceptor.class, GrpcMonitoringInterceptor.class})
+@GrpcService(interceptors = {TracingServerInterceptor.class, GrpcMessageInterceptor.class, GrpcMonitoringInterceptor.class})
 public class ServingServiceGRpcController extends ServingServiceImplBase {
 
   private static final Logger log =

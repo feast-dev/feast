@@ -17,6 +17,7 @@
 package feast.serving.config;
 
 import io.opentracing.Tracer;
+import io.opentracing.contrib.grpc.TracingServerInterceptor;
 import io.opentracing.noop.NoopTracerFactory;
 import io.prometheus.client.exporter.MetricsServlet;
 import io.prometheus.client.hotspot.DefaultExports;
@@ -53,5 +54,10 @@ public class InstrumentationConfig {
 
     return io.jaegertracing.Configuration.fromEnv(feastProperties.getTracing().getServiceName())
         .getTracer();
+  }
+
+  @Bean
+  public TracingServerInterceptor tracingInterceptor(Tracer tracer) {
+    return TracingServerInterceptor.newBuilder().withTracer(tracer).build();
   }
 }
