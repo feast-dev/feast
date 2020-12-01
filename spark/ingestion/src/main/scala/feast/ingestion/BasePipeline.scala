@@ -42,7 +42,7 @@ trait BasePipeline {
         conf
           .set(
             "spark.metrics.labels",
-            s"feature_table=${jobConfig.featureTable.name}"
+            s"feature_table=${jobConfig.featureTable.name},project=${jobConfig.featureTable.project}"
           )
           .set(
             "spark.metrics.conf.*.sink.statsd.class",
