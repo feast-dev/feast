@@ -1,7 +1,7 @@
 feast
 ===== 
 
-Feature store for machine learning. Current chart version is `0.8.2-SNAPSHOT`
+Feature store for machine learning. Current chart version is `0.8.2`
 
 ## Installation
 
@@ -11,9 +11,9 @@ https://docs.feast.dev/v/master/getting-started/deploying-feast/kubernetes
 
 | Repository | Name | Version |
 |------------|------|---------|
-|  | feast-core | 0.8.2-SNAPSHOT |
-|  | feast-jupyter | 0.8.2-SNAPSHOT |
-|  | feast-serving | 0.8.2-SNAPSHOT |
+|  | feast-core | 0.8.2 |
+|  | feast-jupyter | 0.8.2 |
+|  | feast-serving | 0.8.2 |
 |  | prometheus-statsd-exporter | 0.1.2 |
 | https://charts.bitnami.com/bitnami/ | kafka | 11.8.8 |
 | https://kubernetes-charts.storage.googleapis.com/ | grafana | 5.0.5 |
