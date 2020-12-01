@@ -411,7 +411,7 @@ public class FeatureTable extends AbstractTimestampEntity {
         && getLabelsJSON().equals(other.getLabelsJSON())
         && getFeatures().equals(other.getFeatures())
         && getEntities().equals(other.getEntities())
-        && getMaxAgeSecs() == getMaxAgeSecs()
+        && getMaxAgeSecs() == other.getMaxAgeSecs()
         && Optional.ofNullable(getBatchSource()).equals(Optional.ofNullable(other.getBatchSource()))
         && Optional.ofNullable(getStreamSource())
             .equals(Optional.ofNullable(other.getStreamSource()));

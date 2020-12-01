@@ -27,6 +27,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import avro.shaded.com.google.common.collect.ImmutableMap;
+import com.google.protobuf.Duration;
 import feast.common.it.BaseIT;
 import feast.common.it.DataGenerator;
 import feast.common.it.SimpleCoreClient;
@@ -38,6 +39,9 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
 import java.util.*;
+import java.util.stream.IntStream;
+
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,6 +65,9 @@ public class SpecServiceIT extends BaseIT {
     apiClient = new SimpleCoreClient(stub);
   }
 
+  private FeatureTableProto.FeatureTableSpec example1;
+  private FeatureTableProto.FeatureTableSpec example2;
+
   @BeforeEach
   public void initState() {
 
@@ -78,40 +85,41 @@ public class SpecServiceIT extends BaseIT {
             ImmutableMap.of("label_key2", "label_value2"));
     apiClient.simpleApplyEntity("default", entitySpec1);
     apiClient.simpleApplyEntity("default", entitySpec2);
-    apiClient.applyFeatureTable(
-        "default",
-        DataGenerator.createFeatureTableSpec(
-                "featuretable1",
-                Arrays.asList("entity1", "entity2"),
-                new HashMap<>() {
-                  {
-                    put("feature1", ValueProto.ValueType.Enum.STRING);
-                    put("feature2", ValueProto.ValueType.Enum.FLOAT);
-                  }
-                },
-                7200,
-                ImmutableMap.of("feat_key2", "feat_value2"))
-            .toBuilder()
-            .setBatchSource(
-                DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
-            .build());
-    apiClient.applyFeatureTable(
-        "default",
-        DataGenerator.createFeatureTableSpec(
-                "featuretable2",
-                Arrays.asList("entity1", "entity2"),
-                new HashMap<>() {
-                  {
-                    put("feature3", ValueProto.ValueType.Enum.STRING);
-                    put("feature4", ValueProto.ValueType.Enum.FLOAT);
-                  }
-                },
-                7200,
-                ImmutableMap.of("feat_key4", "feat_value4"))
-            .toBuilder()
-            .setBatchSource(
-                DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
-            .build());
+
+    example1 = DataGenerator.createFeatureTableSpec(
+        "featuretable1",
+        Arrays.asList("entity1", "entity2"),
+        new HashMap<>() {
+          {
+            put("feature1", ValueProto.ValueType.Enum.STRING);
+            put("feature2", ValueProto.ValueType.Enum.FLOAT);
+          }
+        },
+        7200,
+        ImmutableMap.of("feat_key2", "feat_value2"))
+        .toBuilder()
+        .setBatchSource(
+            DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
+        .build();
+
+    example2 = DataGenerator.createFeatureTableSpec(
+        "featuretable2",
+        Arrays.asList("entity1", "entity2"),
+        new HashMap<>() {
+          {
+            put("feature3", ValueProto.ValueType.Enum.STRING);
+            put("feature4", ValueProto.ValueType.Enum.FLOAT);
+          }
+        },
+        7200,
+        ImmutableMap.of("feat_key4", "feat_value4"))
+        .toBuilder()
+        .setBatchSource(
+            DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
+        .build();
+
+    apiClient.applyFeatureTable("default", example1);
+    apiClient.applyFeatureTable("default", example2);
     apiClient.simpleApplyEntity(
         "project1",
         DataGenerator.createEntitySpecV2(
@@ -422,26 +430,10 @@ public class SpecServiceIT extends BaseIT {
 
     @Test
     public void shouldReturnFeatureTableIfExists() {
-      FeatureTableSpec featureTableSpec =
-          DataGenerator.createFeatureTableSpec(
-                  "featuretable1",
-                  Arrays.asList("entity1", "entity2"),
-                  new HashMap<>() {
-                    {
-                      put("feature1", ValueProto.ValueType.Enum.STRING);
-                      put("feature2", ValueProto.ValueType.Enum.FLOAT);
-                    }
-                  },
-                  7200,
-                  ImmutableMap.of("feat_key2", "feat_value2"))
-              .toBuilder()
-              .setBatchSource(
-                  DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
-              .build();
       FeatureTableProto.FeatureTable featureTable =
           apiClient.simpleGetFeatureTable("default", "featuretable1");
 
-      assertTrue(TestUtil.compareFeatureTableSpec(featureTable.getSpec(), featureTableSpec));
+      assertTrue(TestUtil.compareFeatureTableSpec(featureTable.getSpec(), example1));
     }
   }
 
@@ -544,17 +536,8 @@ public class SpecServiceIT extends BaseIT {
   @Nested
   public class ApplyFeatureTable {
     private FeatureTableSpec getTestSpec() {
-      return DataGenerator.createFeatureTableSpec(
-              "ft",
-              List.of("entity1", "entity2"),
-              Map.of(
-                  "feature1", ValueProto.ValueType.Enum.INT64,
-                  "feature2", ValueProto.ValueType.Enum.FLOAT),
-              3600,
-              Map.of())
-          .toBuilder()
-          .setBatchSource(
-              DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
+      return example1.toBuilder()
+          .setName("apply_test")
           .setStreamSource(
               DataGenerator.createKafkaDataSourceSpec(
                   "localhost:9092", "topic", "class.path", "ts_col"))
@@ -573,23 +556,17 @@ public class SpecServiceIT extends BaseIT {
     public void shouldUpdateExistingTableWithValidSpec() {
       FeatureTableProto.FeatureTable table = apiClient.applyFeatureTable("default", getTestSpec());
 
-      FeatureTableSpec updatedSpec =
-          DataGenerator.createFeatureTableSpec(
-                  "ft",
-                  List.of("entity1", "entity2"),
-                  Map.of(
-                      "feature2", ValueProto.ValueType.Enum.FLOAT,
-                      "feature3", ValueProto.ValueType.Enum.INT64,
-                      "feature4", ValueProto.ValueType.Enum.INT64),
-                  2100,
-                  Map.of("test", "labels"))
-              .toBuilder()
-              .setStreamSource(
-                  DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
-              .setBatchSource(
-                  DataGenerator.createKafkaDataSourceSpec(
-                      "localhost:9092", "topic", "class.path", "ts_col"))
-              .build();
+      FeatureTableSpec updatedSpec = getTestSpec().toBuilder()
+          .clearFeatures()
+          .addFeatures(
+              DataGenerator.createFeatureSpecV2("feature5", ValueProto.ValueType.Enum.FLOAT, ImmutableMap.of())
+          )
+          .setStreamSource(
+              DataGenerator.createKafkaDataSourceSpec(
+                  "localhost:9092", "new_topic", "new.class", "ts_col")
+          )
+          .build();
+
       FeatureTableProto.FeatureTable updatedTable =
           apiClient.applyFeatureTable("default", updatedSpec);
 
@@ -599,23 +576,22 @@ public class SpecServiceIT extends BaseIT {
 
     @Test
     public void shouldUpdateFeatureTableOnEntityChange() {
-      List<String> entities = Arrays.asList("entity1", "entity2");
-      FeatureTableProto.FeatureTableSpec updatedSpec =
-          DataGenerator.createFeatureTableSpec(
-                  "featuretable1",
-                  Arrays.asList("entity1"),
-                  new HashMap<>() {
-                    {
-                      put("feature1", ValueProto.ValueType.Enum.STRING);
-                      put("feature2", ValueProto.ValueType.Enum.FLOAT);
-                    }
-                  },
-                  7200,
-                  ImmutableMap.of("feat_key2", "feat_value2"))
-              .toBuilder()
-              .setBatchSource(
-                  DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
+      FeatureTableProto.FeatureTableSpec updatedSpec = getTestSpec().toBuilder()
+              .clearEntities()
+              .addEntities("entity1")
               .build();
+
+      FeatureTableProto.FeatureTable updatedTable =
+          apiClient.applyFeatureTable("default", updatedSpec);
+
+      assertTrue(TestUtil.compareFeatureTableSpec(updatedTable.getSpec(), updatedSpec));
+    }
+
+    @Test
+    public void shouldUpdateFeatureTableOnMaxAgeChange() {
+      FeatureTableProto.FeatureTableSpec updatedSpec = getTestSpec().toBuilder()
+          .setMaxAge(Duration.newBuilder().setSeconds(600).build())
+          .build();
 
       FeatureTableProto.FeatureTable updatedTable =
           apiClient.applyFeatureTable("default", updatedSpec);
@@ -625,22 +601,14 @@ public class SpecServiceIT extends BaseIT {
 
     @Test
     public void shouldUpdateFeatureTableOnFeatureTypeChange() {
-      FeatureTableProto.FeatureTableSpec updatedSpec =
-          DataGenerator.createFeatureTableSpec(
-                  "featuretable1",
-                  Arrays.asList("entity1", "entity2"),
-                  new HashMap<>() {
-                    {
-                      put("feature1", ValueProto.ValueType.Enum.STRING);
-                      put("feature2", ValueProto.ValueType.Enum.STRING_LIST);
-                    }
-                  },
-                  7200,
-                  ImmutableMap.of("feat_key2", "feat_value2"))
-              .toBuilder()
-              .setBatchSource(
-                  DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
-              .build();
+      int featureIdx = IntStream.range(0, getTestSpec().getFeaturesCount())
+          .filter(i -> getTestSpec().getFeatures(i).getName().equals("feature2"))
+          .findFirst().orElse(-1);
+
+      FeatureTableProto.FeatureTableSpec updatedSpec = getTestSpec().toBuilder()
+            .setFeatures(featureIdx,
+                DataGenerator.createFeatureSpecV2("feature2", ValueProto.ValueType.Enum.STRING_LIST, ImmutableMap.of()))
+            .build();
 
       FeatureTableProto.FeatureTable updatedTable =
           apiClient.applyFeatureTable("default", updatedSpec);
@@ -650,23 +618,11 @@ public class SpecServiceIT extends BaseIT {
 
     @Test
     public void shouldUpdateFeatureTableOnFeatureAddition() {
-      FeatureTableProto.FeatureTableSpec updatedSpec =
-          DataGenerator.createFeatureTableSpec(
-                  "featuretable1",
-                  Arrays.asList("entity1", "entity2"),
-                  new HashMap<>() {
-                    {
-                      put("feature1", ValueProto.ValueType.Enum.STRING);
-                      put("feature2", ValueProto.ValueType.Enum.FLOAT);
-                      put("feature3", ValueProto.ValueType.Enum.FLOAT);
-                    }
-                  },
-                  7200,
-                  ImmutableMap.of("feat_key2", "feat_value2"))
-              .toBuilder()
-              .setBatchSource(
-                  DataGenerator.createFileDataSourceSpec("file:///path/to/file", "ts_col", ""))
-              .build();
+      FeatureTableProto.FeatureTableSpec updatedSpec = getTestSpec().toBuilder()
+          .addFeatures(
+              DataGenerator.createFeatureSpecV2("feature6", ValueProto.ValueType.Enum.FLOAT, ImmutableMap.of())
+          )
+          .build();
 
       FeatureTableProto.FeatureTable updatedTable =
           apiClient.applyFeatureTable("default", updatedSpec);
