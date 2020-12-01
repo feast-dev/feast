@@ -29,6 +29,11 @@ def stage_entities_to_fs(
     entity_staging_uri = urlparse(os.path.join(staging_location, str(uuid.uuid4())))
     staging_client = get_staging_client(entity_staging_uri.scheme, config)
     with tempfile.NamedTemporaryFile() as df_export_path:
+        # prevent casting ns -> ms exception inside pyarrow
+        entity_source["event_timestamp"] = entity_source["event_timestamp"].dt.floor(
+            "ms"
+        )
+
         entity_source.to_parquet(df_export_path.name)
         bucket = (
             None if entity_staging_uri.scheme == "file" else entity_staging_uri.netloc

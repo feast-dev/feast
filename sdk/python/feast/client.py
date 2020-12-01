@@ -979,6 +979,12 @@ class Client:
             feature_refs, self.project
         )
 
+        assert all(ft.batch_source.created_timestamp_column for ft in feature_tables), (
+            "All BatchSources attached to retrieved FeatureTables "
+            "must have specified `created_timestamp_column` to be used in "
+            "historical dataset generation."
+        )
+
         if output_location is None:
             output_location = os.path.join(
                 self._config.get(opt.HISTORICAL_FEATURE_OUTPUT_LOCATION),
