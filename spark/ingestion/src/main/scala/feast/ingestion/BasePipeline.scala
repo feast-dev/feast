@@ -16,6 +16,7 @@
  */
 package feast.ingestion
 
+import org.apache.log4j.{Level, Logger}
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{Column, SparkSession}
 import org.apache.spark.sql.functions.expr
@@ -26,6 +27,8 @@ trait BasePipeline {
     // workaround for issue with arrow & netty
     // see https://github.com/apache/arrow/tree/master/java#java-properties
     System.setProperty("io.netty.tryReflectionSetAccessible", "true")
+    // suppress SubscriptionState logs
+    Logger.getLogger("org.apache.kafka").setLevel(Level.WARN)
 
     val conf = new SparkConf()
 
