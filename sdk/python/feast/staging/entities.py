@@ -75,6 +75,9 @@ def stage_entities_to_bq(
         f"_entities_{datetime.now():%Y%m%d%H%M%s}",
     )
 
+    # prevent casting ns -> ms exception inside pyarrow
+    entity_source["event_timestamp"] = entity_source["event_timestamp"].dt.floor("ms")
+
     load_job: bigquery.LoadJob = bq_client.load_table_from_dataframe(
         entity_source, destination
     )
