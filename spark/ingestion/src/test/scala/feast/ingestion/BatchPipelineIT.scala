@@ -131,7 +131,7 @@ class BatchPipelineIT extends SparkSpec with ForAllTestContainer {
       val gen       = rowGenerator(startDate, endDate)
       val rows      = generateDistinctRows(gen, 1000, groupByEntity)
       val tempPath  = storeAsParquet(sparkSession, rows)
-      val maxAge    = 86400 * 2
+      val maxAge    = 86400L * 30
       val configWithMaxAge = config.copy(
         source = FileSource(tempPath, Map.empty, "eventTimestamp"),
         featureTable = config.featureTable.copy(maxAge = Some(maxAge)),
@@ -162,7 +162,7 @@ class BatchPipelineIT extends SparkSpec with ForAllTestContainer {
 
       })
 
-      val increasedMaxAge = 86400 * 3
+      val increasedMaxAge = 86400L * 60
       val configWithSecondFeatureTable = config.copy(
         source = FileSource(tempPath, Map.empty, "eventTimestamp"),
         featureTable = config.featureTable.copy(

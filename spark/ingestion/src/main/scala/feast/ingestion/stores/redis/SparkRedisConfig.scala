@@ -24,7 +24,7 @@ case class SparkRedisConfig(
     iteratorGroupingSize: Int = 1000,
     timestampPrefix: String = "_ts",
     repartitionByEntity: Boolean = true,
-    maxAge: Int = 0,
+    maxAge: Long = 0,
     expiryPrefix: String = "_ex"
 )
 
@@ -43,6 +43,6 @@ object SparkRedisConfig {
       entityColumns = parameters.getOrElse(ENTITY_COLUMNS, "").split(","),
       timestampColumn = parameters.getOrElse(TS_COLUMN, "event_timestamp"),
       repartitionByEntity = parameters.getOrElse(ENTITY_REPARTITION, "true") == "true",
-      maxAge = parameters.get(MAX_AGE).map(_.toInt).getOrElse(0)
+      maxAge = parameters.get(MAX_AGE).map(_.toLong).getOrElse(0)
     )
 }
