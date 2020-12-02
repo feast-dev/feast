@@ -12,4 +12,4 @@ python -m pip install -qr tests/requirements.txt
 echo "########## Building ingestion jar"
 TIMEFORMAT='########## took %R seconds'
 
-time make build-java-no-tests REVISION=develop MAVEN_EXTRA_OPTS="-q --no-transfer-progress"
+time make build-java-no-tests REVISION=develop MAVEN_EXTRA_OPTS="--no-transfer-progress"
