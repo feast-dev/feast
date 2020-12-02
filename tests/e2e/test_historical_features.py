@@ -36,11 +36,7 @@ def read_parquet(uri):
 
 
 def generate_data():
-    retrieval_date = (
-        datetime.utcnow()
-        .replace(hour=0, minute=0, second=0, microsecond=0)
-        .replace(tzinfo=None)
-    )
+    retrieval_date = datetime.utcnow().replace(tzinfo=None)
     retrieval_outside_max_age_date = retrieval_date + timedelta(1)
     event_date = retrieval_date - timedelta(2)
     creation_date = retrieval_date - timedelta(1)
