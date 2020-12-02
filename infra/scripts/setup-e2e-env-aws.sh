@@ -2,7 +2,7 @@
 
 make compile-protos-python
 
-python -m pip install --upgrade pip setuptools wheel
+python -m pip install --upgrade pip==20.2 setuptools wheel
 
 python -m pip install -qr sdk/python/requirements-dev.txt
 python -m pip install -qr tests/requirements.txt
