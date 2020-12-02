@@ -72,7 +72,7 @@ object BatchPipeline extends BasePipeline {
       .option("namespace", featureTable.name)
       .option("project_name", featureTable.project)
       .option("timestamp_column", config.source.eventTimestampColumn)
-      .option("max_age", config.featureTable.maxAge.getOrElse(0))
+      .option("max_age", config.featureTable.maxAge.getOrElse(0L))
       .save()
 
     config.deadLetterPath match {
