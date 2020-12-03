@@ -9,7 +9,6 @@ import (
 	"github.com/feast-dev/feast/sdk/go/protos/feast/types"
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
-	"github.com/opentracing/opentracing-go"
 )
 
 func TestGetOnlineFeatures(t *testing.T) {
@@ -62,10 +61,9 @@ func TestGetOnlineFeatures(t *testing.T) {
 			defer ctrl.Finish()
 			cli := mock_serving.NewMockServingServiceClient(ctrl)
 			ctx := context.Background()
-			_, traceCtx := opentracing.StartSpanFromContext(ctx, "get_online_features")
 			rawRequest, _ := tc.req.buildRequest()
 			resp := tc.want.RawResponse
-			cli.EXPECT().GetOnlineFeatures(traceCtx, rawRequest).Return(resp, nil).Times(1)
+			cli.EXPECT().GetOnlineFeatures(ctx, rawRequest).Return(resp, nil).Times(1)
 
 			client := &GrpcClient{
 				cli: cli,
