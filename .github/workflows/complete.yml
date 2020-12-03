@@ -12,7 +12,6 @@ jobs:
       GITHUB_PR_SHA: ${{ github.event.pull_request.head.sha }}
       REGISTRY: gcr.io/kf-feast
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
-      DOCKER_BUILDKIT: '1'
     steps:
       - uses: actions/checkout@v2
       - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
