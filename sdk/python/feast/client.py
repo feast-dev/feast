@@ -480,7 +480,7 @@ class Client:
             elif isinstance(obj, FeatureTable):
                 self._apply_feature_table(project, obj)  # type: ignore
                 continue
-            raise ValueError(f"Could not determine entity type to apply {entity}")
+            raise ValueError(f"Could not determine entity type to apply {obj}")
 
     @deprecated(version='0.9.0', reason='Please use the apply method instead.')
     def apply_entity(self, entities: Union[List[Entity], Entity], project: str = None):
