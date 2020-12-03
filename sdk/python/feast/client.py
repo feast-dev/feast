@@ -17,6 +17,7 @@ import os
 import shutil
 import uuid
 from datetime import datetime
+from deprecated import deprecated
 from itertools import groupby
 from typing import Any, Dict, List, Optional, Union
 
@@ -442,6 +443,46 @@ class Client:
         if self._project == project:
             self._project = opt().PROJECT
 
+    def apply(self, objects: Union[List[Union[Entity, FeatureTable]], Entity, FeatureTable], project: str = None):
+        """
+        Idempotently registers entities and feature tables with Feast Core. Either a single
+        entity or feature table or a list can be provided.
+
+        Args:
+            objects: List of entities and/or feature tables that will be registered
+
+        Examples:
+            >>> from feast import Client
+            >>> from feast.entity import Entity
+            >>> from feast.value_type import ValueType
+            >>>
+            >>> feast_client = Client(core_url="localhost:6565")
+            >>> entity = Entity(
+            >>>     name="driver_entity",
+            >>>     description="Driver entity for car rides",
+            >>>     value_type=ValueType.STRING,
+            >>>     labels={
+            >>>         "key": "val"
+            >>>     }
+            >>> )
+            >>> feast_client.apply(entity)
+        """
+
+        if project is None:
+            project = self.project
+
+        if not isinstance(objects, list):
+            objects = [objects]
+        for obj in objects:
+            if isinstance(obj, Entity):
+                self._apply_entity(project, obj)  # type: ignore
+                continue
+            elif isinstance(obj, FeatureTable):
+                self._apply_feature_table(project, obj)  # type: ignore
+                continue
+            raise ValueError(f"Could not determine entity type to apply {entity}")
+
+    @deprecated(version='0.9.0', reason='Please use the apply method instead.')
     def apply_entity(self, entities: Union[List[Entity], Entity], project: str = None):
         """
         Idempotently registers entities with Feast Core. Either a single
@@ -564,6 +605,7 @@ class Client:
 
         return entity
 
+    @deprecated(version='0.9.0', reason='Please use the apply method instead.')
     def apply_feature_table(
         self,
         feature_tables: Union[List[FeatureTable], FeatureTable],

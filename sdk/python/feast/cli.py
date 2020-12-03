@@ -145,7 +145,7 @@ def entity_create(filename, project):
 
     entities = [Entity.from_dict(entity_dict) for entity_dict in yaml_loader(filename)]
     feast_client = Client()  # type: Client
-    feast_client.apply_entity(entities, project)
+    feast_client.apply(entities, project)
 
 
 @entity.command("describe")
@@ -252,7 +252,7 @@ def feature_table_create(filename):
         FeatureTable.from_dict(ft_dict) for ft_dict in yaml_loader(filename)
     ]
     feast_client = Client()  # type: Client
-    feast_client.apply_feature_table(feature_tables)
+    feast_client.apply(feature_tables)
 
 
 @feature_table.command("describe")

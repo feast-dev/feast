@@ -40,3 +40,4 @@ boto3
 moto
 pyspark==2.4.2
 pyspark-stubs==2.4.0.post9
+deprecated==1.2.10

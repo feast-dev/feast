@@ -109,12 +109,12 @@ def client_with_local_spark(tmpdir):
 
 @pytest.fixture()
 def driver_entity(client):
-    return client.apply_entity(Entity("driver_id", "description", ValueType.INT32))
+    return client.apply(Entity("driver_id", "description", ValueType.INT32))
 
 
 @pytest.fixture()
 def customer_entity(client):
-    return client.apply_entity(Entity("customer_id", "description", ValueType.INT32))
+    return client.apply(Entity("customer_id", "description", ValueType.INT32))
 
 
 def create_temp_parquet_file(
@@ -191,7 +191,7 @@ def transactions_feature_table(spark, client):
     feature_table = FeatureTable(
         "transactions", ["customer_id"], features, batch_source=file_source
     )
-    yield client.apply_feature_table(feature_table)
+    yield client.apply(feature_table)
     shutil.rmtree(temp_dir)
 
 
@@ -239,7 +239,7 @@ def bookings_feature_table(spark, client):
     feature_table = FeatureTable(
         "bookings", ["driver_id"], features, batch_source=file_source, max_age=max_age
     )
-    yield client.apply_feature_table(feature_table)
+    yield client.apply(feature_table)
     shutil.rmtree(temp_dir)
 
 
@@ -288,7 +288,7 @@ def bookings_feature_table_with_mapping(spark, client):
     feature_table = FeatureTable(
         "bookings", ["driver_id"], features, batch_source=file_source, max_age=max_age
     )
-    yield client.apply_feature_table(feature_table)
+    yield client.apply(feature_table)
     shutil.rmtree(temp_dir)
 
 

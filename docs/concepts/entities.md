@@ -40,7 +40,7 @@ customer = Entity(
 ```python
 # Create a customer entity
 customer_entity = Entity(name="customer_id", description="ID of car customer")
-client.apply_entity(customer_entity)
+client.apply(customer_entity)
 ```
 
 #### Updating an Entity:
@@ -49,7 +49,7 @@ client.apply_entity(customer_entity)
 # Update a customer entity
 customer_entity = client.get_entity("customer_id")
 customer_entity.description = "ID of bike customer"
-client.apply_entity(customer_entity)
+client.apply(customer_entity)
 ```
 
 Permitted changes include:

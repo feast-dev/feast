@@ -377,7 +377,7 @@ class TestClient:
         )
 
         # Register Entity with Core
-        test_client.apply_entity(entity)
+        test_client.apply(entity)
 
         entities = test_client.list_entities()
 
@@ -429,7 +429,7 @@ class TestClient:
         )
 
         # Register Feature Table with Core
-        test_client.apply_feature_table(ft1)
+        test_client.apply(ft1)
 
         feature_tables = test_client.list_feature_tables()
 

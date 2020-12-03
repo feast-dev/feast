@@ -143,8 +143,8 @@ def test_get_list_basic(
 ):
 
     # ApplyEntity
-    feast_client.apply_entity(customer_entity)
-    feast_client.apply_entity(driver_entity)
+    feast_client.apply(customer_entity)
+    feast_client.apply(driver_entity)
 
     # GetEntity Check
     assert feast_client.get_entity(name="customer_id") == customer_entity
@@ -162,7 +162,7 @@ def test_get_list_basic(
     assert len(actual_matchmaking_entities) == 1
 
     # ApplyFeatureTable
-    feast_client.apply_feature_table(basic_featuretable)
+    feast_client.apply(basic_featuretable)
 
     # GetFeatureTable Check
     actual_get_feature_table = feast_client.get_feature_table(name="basic_featuretable")
@@ -181,7 +181,7 @@ def test_get_list_alltypes(
     feast_client: Client, alltypes_entity: Entity, alltypes_featuretable: FeatureTable
 ):
     # ApplyEntity
-    feast_client.apply_entity(alltypes_entity)
+    feast_client.apply(alltypes_entity)
 
     # GetEntity Check
     assert feast_client.get_entity(name="alltypes_id") == alltypes_entity
@@ -194,7 +194,7 @@ def test_get_list_alltypes(
     assert len(actual_alltypes_entities) == 1
 
     # ApplyFeatureTable
-    feast_client.apply_feature_table(alltypes_featuretable)
+    feast_client.apply(alltypes_featuretable)
 
     # GetFeatureTable Check
     actual_get_feature_table = feast_client.get_feature_table(name="alltypes")
@@ -234,11 +234,11 @@ def test_ingest_into_bq(
     )
 
     # ApplyEntity
-    feast_client.apply_entity(customer_entity)
-    feast_client.apply_entity(driver_entity)
+    feast_client.apply(customer_entity)
+    feast_client.apply(driver_entity)
 
     # ApplyFeatureTable
-    feast_client.apply_feature_table(ft)
+    feast_client.apply(ft)
     feast_client.ingest(ft, bq_dataframe, timeout=120)
 
     bq_client = bigquery.Client(project=bq_project)
