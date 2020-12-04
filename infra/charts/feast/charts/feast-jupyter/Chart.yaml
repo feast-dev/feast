@@ -1,4 +1,4 @@
 apiVersion: v1
 description: Feast Jupyter provides a Jupyter server with pre-installed Feast SDK
 name: feast-jupyter
-version: 0.8.2
+version: 0.8.3-SNAPSHOT

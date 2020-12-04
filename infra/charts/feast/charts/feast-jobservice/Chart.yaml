@@ -1,4 +1,4 @@
 apiVersion: v1
 description: Feast Job Service manage ingestion jobs.
 name: feast-jobservice
-version: 0.8.2
+version: 0.8.3-SNAPSHOT
