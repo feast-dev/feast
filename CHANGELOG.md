@@ -1,4 +1,23 @@
 # Changelog
+## [v0.8.2](https://github.com/feast-dev/feast/tree/v0.8.2) (2020-12-01)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.8.1...v0.8.2)
+
+**Implemented enhancements:**
+
+- Configurable materialization destination for view in BigQuerySource [\#1201](https://github.com/feast-dev/feast/pull/1201) ([pyalex](https://github.com/pyalex))
+
+**Fixed bugs:**
+
+- Fix tag order for release workflow [\#1205](https://github.com/feast-dev/feast/pull/1205) ([terryyylim](https://github.com/terryyylim))
+- Fix Feature Table not updated on new feature addition [\#1197](https://github.com/feast-dev/feast/pull/1197) ([khorshuheng](https://github.com/khorshuheng))
+
+**Merged pull requests:**
+
+- Suppress kafka logs in Ingestion Job [\#1206](https://github.com/feast-dev/feast/pull/1206) ([pyalex](https://github.com/pyalex))
+- Add project name to metrics labels in Ingestion Job [\#1202](https://github.com/feast-dev/feast/pull/1202) ([pyalex](https://github.com/pyalex))
+
+
 ## [v0.8.1](https://github.com/feast-dev/feast/tree/v0.8.1) (2020-11-24)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.8.0...v0.8.1)
