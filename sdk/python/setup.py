@@ -44,7 +44,6 @@ REQUIRED = [
     "pyarrow<0.16.0,>=0.15.1",
     "numpy",
     "google",
-    "deprecated==1.2.10",
 ]
 
 # README file from Feast repo root directory
