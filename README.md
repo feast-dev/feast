@@ -34,7 +34,7 @@ docker-compose pull && docker-compose up -d
 ```
 Please wait for the containers to start up. This could take a few minutes since the quickstart contains demo infastructure like Kafka and Jupyter.
 
-Once the containers are all running, please connect to the provided [Jupyter Notebook](http://localhost:8888/tree/feast/examples) containing example notebooks to try out.
+Once the containers are all running, please connect to the provided [Jupyter Notebook](http://localhost:8888/tree/minimal) containing example notebooks to try out.
 
 ## Important resources
 
