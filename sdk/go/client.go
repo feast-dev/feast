@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"github.com/feast-dev/feast/sdk/go/protos/feast/serving"
+	"github.com/opentracing-contrib/go-grpc"
 	"github.com/opentracing/opentracing-go"
 	"go.opencensus.io/plugin/ocgrpc"
 	"google.golang.org/grpc"
@@ -43,16 +44,30 @@ func NewGrpcClient(host string, port int) (*GrpcClient, error) {
 	})
 }
 
+func NewTraceableGrpcClient(host string, port int, tracer opentracing.Tracer) (*GrpcClient, error) {
+	return NewSecureGrpcClient(
+		host,
+		port,
+		SecurityConfig{
+			EnableTLS:  false,
+			Credential: nil,
+		},
+		grpc.WithUnaryInterceptor(
+			otgrpc.OpenTracingClientInterceptor(tracer)),
+		grpc.WithStreamInterceptor(
+			otgrpc.OpenTracingStreamClientInterceptor(tracer)))
+}
+
 // NewAuthGrpcClient constructs a secure client that uses security features (ie authentication).
 // host - hostname of the serving host/instance to connect to.
 // port - post of the host to service host/instancf to connect to.
 // securityConfig - security config configures client security.
-func NewSecureGrpcClient(host string, port int, security SecurityConfig) (*GrpcClient, error) {
+func NewSecureGrpcClient(host string, port int, security SecurityConfig, options ...grpc.DialOption) (*GrpcClient, error) {
 	feastCli := &GrpcClient{}
 	adr := fmt.Sprintf("%s:%d", host, port)
 
 	// Compile grpc dial options from security config.
-	options := []grpc.DialOption{grpc.WithStatsHandler(&ocgrpc.ClientHandler{})}
+	options = append(options, grpc.WithStatsHandler(&ocgrpc.ClientHandler{}))
 	// Configure client TLS.
 	if !security.EnableTLS {
 		options = append(options, grpc.WithInsecure())
@@ -90,8 +105,6 @@ func NewSecureGrpcClient(host string, port int, security SecurityConfig) (*GrpcC
 // GetOnlineFeatures gets the latest values of the request features from the Feast serving instance provided.
 func (fc *GrpcClient) GetOnlineFeatures(ctx context.Context, req *OnlineFeaturesRequest) (
 	*OnlineFeaturesResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "get_online_features")
-	defer span.Finish()
 
 	featuresRequest, err := req.buildRequest()
 	if err != nil {
@@ -112,8 +125,6 @@ func (fc *GrpcClient) GetOnlineFeatures(ctx context.Context, req *OnlineFeatures
 // GetFeastServingInfo gets information about the feast serving instance this client is connected to.
 func (fc *GrpcClient) GetFeastServingInfo(ctx context.Context, in *serving.GetFeastServingInfoRequest) (
 	*serving.GetFeastServingInfoResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "get_info")
-	defer span.Finish()
 
 	return fc.cli.GetFeastServingInfo(ctx, in)
 }
