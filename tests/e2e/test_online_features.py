@@ -55,8 +55,8 @@ def test_offline_ingestion(
         batch_source=batch_source,
     )
 
-    feast_client.apply_entity(entity)
-    feast_client.apply_feature_table(feature_table)
+    feast_client.apply(entity)
+    feast_client.apply(feature_table)
 
     original = generate_data()
     feast_client.ingest(feature_table, original)  # write to batch (offline) storage
@@ -95,8 +95,8 @@ def test_offline_ingestion_from_bq_view(pytestconfig, bq_dataset, feast_client: 
         ),
     )
 
-    feast_client.apply_entity(entity)
-    feast_client.apply_feature_table(feature_table)
+    feast_client.apply(entity)
+    feast_client.apply(feature_table)
 
     ingest_and_verify(feast_client, feature_table, original)
 
@@ -126,8 +126,8 @@ def test_streaming_ingestion(
         ),
     )
 
-    feast_client.apply_entity(entity)
-    feast_client.apply_feature_table(feature_table)
+    feast_client.apply(entity)
+    feast_client.apply(feature_table)
 
     job = feast_client.start_stream_to_online_ingestion(feature_table)
 

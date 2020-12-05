@@ -66,7 +66,7 @@ class TestStreamingControlLoop:
         )
 
         # Register Entity with Core
-        client.apply_entity(entity)
+        client.apply(entity)
 
         # Create Feature Tables
         batch_source = FileSource(
@@ -95,7 +95,7 @@ class TestStreamingControlLoop:
         )
 
         # Register Feature Table with Core
-        client.apply_feature_table(ft1)
+        client.apply(ft1)
 
     def _delete_ft(self, client: Client):
         client.delete_feature_table(self.table_name)

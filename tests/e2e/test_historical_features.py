@@ -70,7 +70,7 @@ def test_historical_features(
     customer_entity = Entity(
         name="user_id", description="Customer", value_type=ValueType.INT64
     )
-    feast_client.apply_entity(customer_entity)
+    feast_client.apply(customer_entity)
 
     max_age = Duration()
     max_age.FromSeconds(2 * 86400)
@@ -86,7 +86,7 @@ def test_historical_features(
         max_age=max_age,
     )
 
-    feast_client.apply_feature_table(transactions_feature_table)
+    feast_client.apply(transactions_feature_table)
 
     transactions_df, customers_df = generate_data()
     feast_client.ingest(transactions_feature_table, transactions_df)

@@ -83,7 +83,7 @@ In the example feature-specification table above, we use field mappings to ensur
 
 ```python
 driver_ft = FeatureTable(...)
-client.apply_feature_table(driver_ft)
+client.apply(driver_ft)
 ```
 
 #### Updating a Feature Table
@@ -91,11 +91,11 @@ client.apply_feature_table(driver_ft)
 ```python
 driver_ft = FeatureTable()
 
-client.apply_feature_table(driver_ft)
+client.apply(driver_ft)
 
 driver_ft.labels = {"team": "marketplace"}
 
-client.apply_feature_table(driver_ft)
+client.apply(driver_ft)
 ```
 
 #### Feast currently supports the following changes to feature tables:
