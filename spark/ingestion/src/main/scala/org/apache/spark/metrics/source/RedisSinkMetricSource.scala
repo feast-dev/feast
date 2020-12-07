@@ -32,7 +32,7 @@ class RedisSinkMetricSource extends Source {
 
   private val executorId = sparkConfig.get("spark.executor.id", "")
 
-  private def nameWithLabels(name: String) = {
+  private def metricWithLabels(name: String) = {
     if (metricLabels.isEmpty) {
       name
     } else {
@@ -40,11 +40,19 @@ class RedisSinkMetricSource extends Source {
     }
   }
 
+  private def counterWithLabels(name: String) = {
+    if (metricLabels.isEmpty) {
+      name
+    } else {
+      s"$name#$metricLabels"
+    }
+  }
+
   val METRIC_TOTAL_ROWS_INSERTED =
-    metricRegistry.counter(nameWithLabels("feast_ingestion_feature_row_ingested_count"))
+    metricRegistry.counter(counterWithLabels("feast_ingestion_feature_row_ingested_count"))
 
   val METRIC_ROWS_LAG =
-    metricRegistry.histogram(nameWithLabels("feast_ingestion_feature_row_lag_ms"))
+    metricRegistry.histogram(metricWithLabels("feast_ingestion_feature_row_lag_ms"))
 }
 
 object RedisSinkMetricSource {
