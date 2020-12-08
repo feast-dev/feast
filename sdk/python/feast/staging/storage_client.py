@@ -18,9 +18,9 @@ import re
 import shutil
 from abc import ABC, ABCMeta, abstractmethod
 from tempfile import TemporaryFile
-from typing import List
+from typing import List, Optional, Tuple
 from typing.io import IO
-from urllib.parse import ParseResult
+from urllib.parse import ParseResult, urlparse
 
 from google.auth.exceptions import DefaultCredentialsError
 
@@ -30,6 +30,36 @@ from feast.constants import ConfigOptions as opt
 GS = "gs"
 S3 = "s3"
 LOCAL_FILE = "file"
+
+
+def _hash_fileobj(fileobj: IO[bytes]) -> str:
+    """ Compute sha256 hash of a file. File pointer will be reset to 0 on return. """
+    fileobj.seek(0)
+    h = hashlib.sha256()
+    for block in iter(lambda: fileobj.read(2 ** 20), b""):
+        h.update(block)
+    fileobj.seek(0)
+    return h.hexdigest()
+
+
+def _gen_remote_uri(
+    fileobj: IO[bytes],
+    remote_uri: Optional[ParseResult],
+    remote_path_prefix: Optional[str],
+    remote_path_suffix: Optional[str],
+    sha256sum: Optional[str],
+) -> ParseResult:
+    if remote_uri is None:
+        assert remote_path_prefix is not None and remote_path_suffix is not None
+
+        if sha256sum is None:
+            sha256sum = _hash_fileobj(fileobj)
+
+        return urlparse(
+            os.path.join(remote_path_prefix, f"{sha256sum}{remote_path_suffix}")
+        )
+    else:
+        return remote_uri
 
 
 class AbstractStagingClient(ABC):
@@ -58,9 +88,36 @@ class AbstractStagingClient(ABC):
         pass
 
     @abstractmethod
-    def upload_file(self, local_path: str, bucket: str, remote_path: str):
+    def upload_fileobj(
+        self,
+        fileobj: IO[bytes],
+        local_path: str,
+        *,
+        remote_uri: Optional[ParseResult] = None,
+        remote_path_prefix: Optional[str] = None,
+        remote_path_suffix: Optional[str] = None,
+    ) -> ParseResult:
         """
-        Uploads a file to an object store.
+        Uploads a file to an object store. You can either specify the destination object URI,
+        or destination suffix+prefix. In the latter case, this interface will work as a
+        content-addressable storage and the remote path will be computed using sha256 of the
+        uploaded content as `$remote_path_prefix/$sha256$remote_path_suffix`
+
+        Args:
+            fileobj (IO[bytes]): file-like object containing the data to be uploaded. It needs to
+                supports seek() operation in addition to read/write.
+            local_path (str): a file name associated with fileobj. This param is only used for
+                diagnostic messages. If `fileobj` is a local file, pass its filename here.
+            remote_uri (ParseResult or None): destination object URI to upload to
+            remote_path_prefix (str or None): destination path prefix to upload to when using
+                content-addressable storage mode
+            remote_path_suffix (str or None): destination path suffix to upload to when using
+                content-addressable storage mode
+
+        Returns:
+            ParseResult: the URI to the uploaded file. It would be the same as `remote_uri` if
+            `remote_uri` was passed in. Otherwise it will be the path computed from
+            `remote_path_prefix` and `remote_path_suffix`.
         """
         pass
 
@@ -128,18 +185,27 @@ class GCSClient(AbstractStagingClient):
         else:
             return [f"{GS}://{bucket}/{path.lstrip('/')}"]
 
-    def upload_file(self, local_path: str, bucket: str, remote_path: str):
-        """
-        Uploads file to google cloud storage.
+    def _uri_to_bucket_key(self, remote_path: ParseResult) -> Tuple[str, str]:
+        assert remote_path.hostname is not None
+        return remote_path.hostname, remote_path.path.lstrip("/")
 
-        Args:
-            local_path (str): Path to the local file that needs to be uploaded/staged
-            bucket (str): gs Bucket name
-            remote_path (str): relative path to the folder to which the files need to be uploaded
-        """
+    def upload_fileobj(
+        self,
+        fileobj: IO[bytes],
+        local_path: str,
+        *,
+        remote_uri: Optional[ParseResult] = None,
+        remote_path_prefix: Optional[str] = None,
+        remote_path_suffix: Optional[str] = None,
+    ) -> ParseResult:
+        remote_uri = _gen_remote_uri(
+            fileobj, remote_uri, remote_path_prefix, remote_path_suffix, None
+        )
+        bucket, key = self._uri_to_bucket_key(remote_uri)
         gs_bucket = self.gcs_client.get_bucket(bucket)
-        blob = gs_bucket.blob(remote_path.lstrip("/"))
-        blob.upload_from_filename(local_path)
+        blob = gs_bucket.blob(key)
+        blob.upload_from_file(fileobj)
+        return remote_uri
 
 
 class S3Client(AbstractStagingClient):
@@ -199,52 +265,50 @@ class S3Client(AbstractStagingClient):
         else:
             return [f"{S3}://{bucket}/{path.lstrip('/')}"]
 
-    def _hash_file(self, local_path: str):
-        h = hashlib.sha256()
-        with open(local_path, "rb") as f:
-            for block in iter(lambda: f.read(2 ** 20), b""):
-                h.update(block)
-        return h.hexdigest()
+    def _uri_to_bucket_key(self, remote_path: ParseResult) -> Tuple[str, str]:
+        assert remote_path.hostname is not None
+        return remote_path.hostname, remote_path.path.lstrip("/")
 
-    def upload_file(self, local_path: str, bucket: str, remote_path: str):
-        """
-        Uploads file to s3.
-
-        Args:
-            local_path (str): Path to the local file that needs to be uploaded/staged
-            bucket (str): s3 Bucket name
-            remote_path (str): relative path to the folder to which the files need to be uploaded
-        """
-
-        sha256sum = self._hash_file(local_path)
+    def upload_fileobj(
+        self,
+        fileobj: IO[bytes],
+        local_path: str,
+        *,
+        remote_uri: Optional[ParseResult] = None,
+        remote_path_prefix: Optional[str] = None,
+        remote_path_suffix: Optional[str] = None,
+    ) -> ParseResult:
+        sha256sum = _hash_fileobj(fileobj)
+        remote_uri = _gen_remote_uri(
+            fileobj, remote_uri, remote_path_prefix, remote_path_suffix, sha256sum
+        )
 
         import botocore
 
+        bucket, key = self._uri_to_bucket_key(remote_uri)
+
         try:
-            head_response = self.s3_client.head_object(Bucket=bucket, Key=remote_path)
+            head_response = self.s3_client.head_object(Bucket=bucket, Key=key)
             if head_response["Metadata"]["sha256sum"] == sha256sum:
                 # File already exists
-                return remote_path
+                return remote_uri
             else:
-                print(f"Uploading {local_path} to {remote_path}")
-                self.s3_client.upload_file(
-                    local_path,
+                print(f"Uploading {local_path} to {remote_uri}")
+                self.s3_client.upload_fileobj(
+                    fileobj,
                     bucket,
-                    remote_path,
+                    key,
                     ExtraArgs={"Metadata": {"sha256sum": sha256sum}},
                 )
-                return remote_path
+                return remote_uri
         except botocore.exceptions.ClientError as e:
             if e.response["Error"]["Code"] != "404":
                 raise
 
-        self.s3_client.upload_file(
-            local_path,
-            bucket,
-            remote_path,
-            ExtraArgs={"Metadata": {"sha256sum": sha256sum}},
-        )
-        return remote_path
+            self.s3_client.upload_fileobj(
+                fileobj, bucket, key, ExtraArgs={"Metadata": {"sha256sum": sha256sum}},
+            )
+            return remote_uri
 
 
 class LocalFSClient(AbstractStagingClient):
@@ -272,10 +336,27 @@ class LocalFSClient(AbstractStagingClient):
     def list_files(self, bucket: str, path: str) -> List[str]:
         raise NotImplementedError("list files not implemented for Local file")
 
-    def upload_file(self, local_path: str, bucket: str, remote_path: str):
-        dest_fpath = remote_path if remote_path.startswith("/") else "/" + remote_path
-        os.makedirs(os.path.dirname(dest_fpath), exist_ok=True)
-        shutil.copy(local_path, dest_fpath)
+    def _uri_to_path(self, uri: ParseResult) -> str:
+        return uri.path
+
+    def upload_fileobj(
+        self,
+        fileobj: IO[bytes],
+        local_path: str,
+        *,
+        remote_uri: Optional[ParseResult] = None,
+        remote_path_prefix: Optional[str] = None,
+        remote_path_suffix: Optional[str] = None,
+    ) -> ParseResult:
+
+        remote_uri = _gen_remote_uri(
+            fileobj, remote_uri, remote_path_prefix, remote_path_suffix, None
+        )
+        remote_file_path = self._uri_to_path(remote_uri)
+        os.makedirs(os.path.dirname(remote_file_path), exist_ok=True)
+        with open(remote_file_path, "wb") as fdest:
+            shutil.copyfileobj(fileobj, fdest)
+        return remote_uri
 
 
 def _s3_client(config: Config = None):
@@ -297,7 +378,7 @@ def _local_fs_client(config: Config = None):
 storage_clients = {GS: _gcs_client, S3: _s3_client, LOCAL_FILE: _local_fs_client}
 
 
-def get_staging_client(scheme, config: Config = None):
+def get_staging_client(scheme, config: Config = None) -> AbstractStagingClient:
     """
     Initialization of a specific client object(GCSClient, S3Client etc.)
 

@@ -2,6 +2,7 @@ import os
 import tempfile
 from io import BytesIO
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlunparse
 
 import boto3
 import pandas
@@ -21,6 +22,7 @@ from feast.pyspark.abc import (
     StreamIngestionJob,
     StreamIngestionJobParameters,
 )
+from feast.staging.storage_client import get_staging_client
 
 from .emr_utils import (
     FAILED_STEP_STATES,
@@ -39,7 +41,6 @@ from .emr_utils import (
     _list_jobs,
     _load_new_cluster_template,
     _random_string,
-    _s3_upload,
     _stream_ingestion_step,
     _sync_offline_to_online_step,
     _upload_jar,
@@ -221,11 +222,13 @@ class EmrClusterLauncher(JobLauncher):
         with open(job_params.get_main_file_path()) as f:
             pyspark_script = f.read()
 
-        pyspark_script_path = _s3_upload(
-            BytesIO(pyspark_script.encode("utf8")),
-            local_path="historical_retrieval.py",
-            remote_path_prefix=self._staging_location,
-            remote_path_suffix=".py",
+        pyspark_script_path = urlunparse(
+            get_staging_client("s3").upload_fileobj(
+                BytesIO(pyspark_script.encode("utf8")),
+                local_path="historical_retrieval.py",
+                remote_path_prefix=self._staging_location,
+                remote_path_suffix=".py",
+            )
         )
 
         step = _historical_retrieval_step(
@@ -304,12 +307,18 @@ class EmrClusterLauncher(JobLauncher):
     def stage_dataframe(self, df: pandas.DataFrame, event_timestamp: str) -> FileSource:
         with tempfile.NamedTemporaryFile() as f:
             df.to_parquet(f)
-            file_url = _s3_upload(
-                f,
-                f.name,
-                remote_path_prefix=os.path.join(self._staging_location, "dataframes"),
-                remote_path_suffix=".parquet",
+
+            file_url = urlunparse(
+                get_staging_client("s3").upload_fileobj(
+                    f,
+                    f.name,
+                    remote_path_prefix=os.path.join(
+                        self._staging_location, "dataframes"
+                    ),
+                    remote_path_suffix=".parquet",
+                )
             )
+
         return FileSource(
             event_timestamp_column=event_timestamp,
             file_format=ParquetFormat(),

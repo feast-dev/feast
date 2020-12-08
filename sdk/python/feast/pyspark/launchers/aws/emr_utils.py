@@ -1,13 +1,11 @@
-import hashlib
 import logging
 import os
 import random
 import string
 import time
-from typing import IO, Any, Dict, List, NamedTuple, Optional, Tuple
+from typing import Any, Dict, List, NamedTuple, Optional
+from urllib.parse import urlparse, urlunparse
 
-import boto3
-import botocore
 import yaml
 
 __all__ = [
@@ -27,12 +25,12 @@ __all__ = [
     "_list_jobs",
     "_load_new_cluster_template",
     "_random_string",
-    "_s3_upload",
     "_stream_ingestion_step",
     "_sync_offline_to_online_step",
     "_upload_jar",
     "_wait_for_job_state",
 ]
+from feast.staging.storage_client import get_staging_client
 
 log = logging.getLogger("aws")
 
@@ -77,82 +75,13 @@ def _random_string(length) -> str:
     return "".join(random.choice(string.ascii_lowercase) for _ in range(length))
 
 
-def _s3_split_path(path: str) -> Tuple[str, str]:
-    """ Convert s3:// url to (bucket, key) """
-    assert path.startswith("s3://")
-    _, _, bucket, key = path.split("/", 3)
-    return bucket, key
-
-
-def _hash_fileobj(fileobj: IO[bytes]) -> str:
-    """ Compute sha256 hash of a file. File pointer will be reset to 0 on return. """
-    fileobj.seek(0)
-    h = hashlib.sha256()
-    for block in iter(lambda: fileobj.read(2 ** 20), b""):
-        h.update(block)
-    fileobj.seek(0)
-    return h.hexdigest()
-
-
-def _s3_upload(
-    fileobj: IO[bytes],
-    local_path: str,
-    *,
-    remote_path: Optional[str] = None,
-    remote_path_prefix: Optional[str] = None,
-    remote_path_suffix: Optional[str] = None,
-) -> str:
-    """
-    Upload a local file to S3. We store the file sha256 sum in S3 metadata and skip the upload
-    if the file hasn't changed.
-
-    You can either specify remote_path or remote_path_prefix+remote_path_suffix. In the latter case,
-    the remote path will be computed as $remote_path_prefix/$sha256$remote_path_suffix
-    """
-
-    assert (remote_path is not None) or (
-        remote_path_prefix is not None and remote_path_suffix is not None
-    )
-
-    sha256sum = _hash_fileobj(fileobj)
-
-    if remote_path is None:
-        assert remote_path_prefix is not None
-        remote_path = os.path.join(
-            remote_path_prefix, f"{sha256sum}{remote_path_suffix}"
-        )
-
-    bucket, key = _s3_split_path(remote_path)
-    client = boto3.client("s3")
-
-    try:
-        head_response = client.head_object(Bucket=bucket, Key=key)
-        if head_response["Metadata"]["sha256sum"] == sha256sum:
-            # File already exists
-            return remote_path
-        else:
-            log.info("Uploading {local_path} to {remote_path}")
-            client.upload_fileobj(
-                fileobj, bucket, key, ExtraArgs={"Metadata": {"sha256sum": sha256sum}},
-            )
-            return remote_path
-    except botocore.exceptions.ClientError as e:
-        if e.response["Error"]["Code"] == "404":
-            log.info("Uploading {local_path} to {remote_path}")
-            client.upload_fileobj(
-                fileobj, bucket, key, ExtraArgs={"Metadata": {"sha256sum": sha256sum}},
-            )
-            return remote_path
-        else:
-            raise
-
-
 def _upload_jar(jar_s3_prefix: str, local_path: str) -> str:
     with open(local_path, "rb") as f:
-        return _s3_upload(
-            f,
-            local_path,
-            remote_path=os.path.join(jar_s3_prefix, os.path.basename(local_path)),
+        uri = urlparse(os.path.join(jar_s3_prefix, os.path.basename(local_path)))
+        return urlunparse(
+            get_staging_client(uri.scheme).upload_fileobj(
+                f, local_path, remote_uri=uri,
+            )
         )
 
 
