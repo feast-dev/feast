@@ -40,11 +40,12 @@ def export_source_to_staging_location(
             Source of data to be staged. Can be a pandas DataFrame or a file
             path.
 
-            Only three types of source are allowed:
+            Only four types of source are allowed:
                 * Pandas DataFrame
                 * Local Avro file
                 * GCS Avro file
                 * S3 Avro file
+                * Azure Blob storage Avro file
 
 
         staging_location_uri (str):
@@ -52,6 +53,7 @@ def export_source_to_staging_location(
             Examples:
                 * gs://bucket/path/
                 * s3://bucket/path/
+                * https://account_name.blob.core.windows.net/bucket/path/
                 * file:///data/subfolder/
 
     Returns:
@@ -76,10 +78,10 @@ def export_source_to_staging_location(
                 os.path.join(source_uri.netloc, source_uri.path)
             )
         else:
-            # gs, s3 file provided as a source.
+            # gs, s3, azure blob file provided as a source.
             assert source_uri.hostname is not None
             return get_staging_client(source_uri.scheme).list_files(
-                bucket=source_uri.hostname, path=source_uri.path
+                uri=source_uri
             )
     else:
         raise Exception(

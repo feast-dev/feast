@@ -83,7 +83,7 @@ class AbstractStagingClient(ABC):
         pass
 
     @abstractmethod
-    def list_files(self, bucket: str, path: str) -> List[str]:
+    def list_files(self, uri: ParseResult) -> List[str]:
         """
         Lists all the files under a directory in an object store.
         """
@@ -158,19 +158,19 @@ class GCSClient(AbstractStagingClient):
         file_obj.seek(0)
         return file_obj
 
-    def list_files(self, bucket: str, path: str) -> List[str]:
+    def list_files(self, uri: ParseResult) -> List[str]:
         """
         Lists all the files under a directory in google cloud storage if path has wildcard(*) character.
 
         Args:
-            bucket (str): google cloud storage bucket name
-            path (str): object location in google cloud storage.
+            uri (urllib.parse.ParseResult): Parsed uri of this location
 
         Returns:
             List[str]: A list containing the full path to the file(s) in the
                     remote staging location.
         """
 
+        bucket, path = self._uri_to_bucket_key(uri)
         gs_bucket = self.gcs_client.get_bucket(bucket)
 
         if "*" in path:
@@ -185,7 +185,7 @@ class GCSClient(AbstractStagingClient):
                 if re.match(regex, file) and file not in path
             ]
         else:
-            return [f"{GS}://{bucket}/{path.lstrip('/')}"]
+            return [f"{GS}://{bucket}/{path}"]
 
     def _uri_to_bucket_key(self, remote_path: ParseResult) -> Tuple[str, str]:
         assert remote_path.hostname is not None
@@ -235,25 +235,24 @@ class S3Client(AbstractStagingClient):
         Returns:
             TemporaryFile object
         """
-        url = uri.path.lstrip("/")
-        bucket = uri.hostname
+        bucket, url = self._uri_to_bucket_key(uri)
         file_obj = TemporaryFile()
         self.s3_client.download_fileobj(bucket, url, file_obj)
         return file_obj
 
-    def list_files(self, bucket: str, path: str) -> List[str]:
+    def list_files(self, uri: ParseResult) -> List[str]:
         """
         Lists all the files under a directory in s3 if path has wildcard(*) character.
 
         Args:
-            bucket (str): s3 bucket name.
-            path (str): Object location in s3.
+            uri (urllib.parse.ParseResult): Parsed uri of this location
 
         Returns:
             List[str]: A list containing the full path to the file(s) in the
                     remote staging location.
         """
 
+        bucket, path = self._uri_to_bucket_key(uri)
         if "*" in path:
             regex = re.compile(path.replace("*", ".*?").strip("/"))
             blob_list = self.s3_client.list_objects(
@@ -266,7 +265,7 @@ class S3Client(AbstractStagingClient):
                 if re.match(regex, file) and file not in path
             ]
         else:
-            return [f"{self.url_scheme}://{bucket}/{path.lstrip('/')}"]
+            return [f"{self.url_scheme}://{bucket}/{path}"]
 
     def _uri_to_bucket_key(self, remote_path: ParseResult) -> Tuple[str, str]:
         assert remote_path.hostname is not None
@@ -333,24 +332,32 @@ class AzureBlobClient(AbstractStagingClient):
         )
 
     def download_file(self, uri: ParseResult) -> IO[bytes]:
-        path = uri.path.lstrip("/")
-        container = path.split("/")[0]
-        container_client = self.blob_service_client.get_container_client(container)
-        return container_client.download_blob(path.split("/", 1)[1]).readall()
+        """
+        Downloads a file from Azure blob storage and returns a TemporaryFile object
 
-    def list_files(self, bucket: str, path: str) -> List[str]:
+        Args:
+            uri (urllib.parse.ParseResult): Parsed uri of the file ex: urlparse("https://account_name.blob.core.windows.net/bucket/file.avro")
+
+        Returns:
+             TemporaryFile object
+        """
+        bucket, path = _uri_to_bucket_key(uri)
+        container_client = self.blob_service_client.get_container_client(bucket)
+        return container_client.download_blob(path).readall()
+
+    def list_files(self, uri: ParseResult) -> List[str]:
         """
         Lists all the files under a directory in azure blob storage if path has wildcard(*) character.
 
         Args:
-            bucket (str): azure container name.
-            path (str): Object location in azure blob storage.
+            uri (urllib.parse.ParseResult): Parsed uri of this location
 
         Returns:
             List[str]: A list containing the full path to the file(s) in the
                     remote staging location.
         """
 
+        bucket, path = _uri_to_bucket_key(uri)
         if "*" in path:
             regex = re.compile(path.replace("*", ".*?").strip("/"))
             container_client = self.blob_service_client.get_container_client(bucket)
@@ -364,20 +371,30 @@ class AzureBlobClient(AbstractStagingClient):
                 if re.match(regex, file) and file not in path
             ]
         else:
-            return [f"{self.account_url}/{bucket}/{path.lstrip('/')}"]
+            return [f"{self.account_url}/{bucket}/{path}"]
 
-    def upload_file(self, local_path: str, bucket: str, remote_path: str):
-        """
-        Uploads file to azure blob storage.
+    def _uri_to_bucket_key(self, remote_path: ParseResult) -> Tuple[str, str]:
+        assert remote_path.hostname is not None
+        bucket = uri.path.lstrip("/").split("/")[0]
+        key = uri.path.lstrip("/").split("/", 1)[1]
+        return bucket, key
 
-        Args:
-            local_path (str): Path to the local file that needs to be uploaded/staged
-            bucket (str): azure container name
-            remote_path (str): relative path to the folder to which the files need to be uploaded
-        """
+    def upload_fileobj(
+        self,
+        fileobj: IO[bytes],
+        local_path: str,
+        *,
+        remote_uri: Optional[ParseResult] = None,
+        remote_path_prefix: Optional[str] = None,
+        remote_path_suffix: Optional[str] = None,
+    ) -> ParseResult:
+        remote_uri = _gen_remote_uri(
+            fileobj, remote_uri, remote_path_prefix, remote_path_suffix, None
+        )
+        bucket, key = self._uri_to_bucket_key(remote_uri)
         container_client = self.blob_service_client.get_container_client(bucket)
-        with open(local_path, "rb") as data:
-            container_client.upload_blob(name=remote_path.lstrip("/"), data=data)
+        container_client.upload_blob(name=key, data=fileobj)
+        return remote_uri
 
 
 class LocalFSClient(AbstractStagingClient):
@@ -394,7 +411,7 @@ class LocalFSClient(AbstractStagingClient):
         Reads a local file from the disk
 
         Args:
-            uri (urllib.parse.ParseResult): Parsed uri of the file ex: urlparse("file://folder/file.avro")
+            uri (urllib.parse.ParseResult): Parsed uri of the file ex: urlparse("file:///folder/file.avro")
         Returns:
             TemporaryFile object
         """
@@ -402,7 +419,7 @@ class LocalFSClient(AbstractStagingClient):
         file_obj = open(url, "rb")
         return file_obj
 
-    def list_files(self, bucket: str, path: str) -> List[str]:
+    def list_files(self, uri: ParseResult) -> List[str]:
         raise NotImplementedError("list files not implemented for Local file")
 
     def _uri_to_path(self, uri: ParseResult) -> str:
@@ -468,7 +485,7 @@ storage_clients = {
     GS: _gcs_client,
     S3: _s3_client,
     S3A: _s3a_client,
-    AZURE_SCHEME: _azure_blob_client,
+    AZURE_SCHEME: _azure_blob_client, # note we currently interpret all uris beginning https:// as Azure blob uris
     LOCAL_FILE: _local_fs_client,
 }
 
