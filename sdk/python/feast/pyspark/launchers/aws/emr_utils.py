@@ -3,14 +3,36 @@ import logging
 import os
 import random
 import string
-import tempfile
 import time
 from typing import IO, Any, Dict, List, NamedTuple, Optional, Tuple
 
 import boto3
 import botocore
-import pandas
 import yaml
+
+__all__ = [
+    "FAILED_STEP_STATES",
+    "HISTORICAL_RETRIEVAL_JOB_TYPE",
+    "IN_PROGRESS_STEP_STATES",
+    "OFFLINE_TO_ONLINE_JOB_TYPE",
+    "STREAM_TO_ONLINE_JOB_TYPE",
+    "SUCCEEDED_STEP_STATES",
+    "TERMINAL_STEP_STATES",
+    "EmrJobRef",
+    "JobInfo",
+    "_cancel_job",
+    "_get_job_state",
+    "_historical_retrieval_step",
+    "_job_ref_to_str",
+    "_list_jobs",
+    "_load_new_cluster_template",
+    "_random_string",
+    "_s3_upload",
+    "_stream_ingestion_step",
+    "_sync_offline_to_online_step",
+    "_upload_jar",
+    "_wait_for_job_state",
+]
 
 log = logging.getLogger("aws")
 
@@ -250,15 +272,6 @@ def _list_jobs(
     return res
 
 
-def _get_stream_to_online_job(emr_client, table_name: str) -> List[JobInfo]:
-    return _list_jobs(
-        emr_client,
-        job_type=STREAM_TO_ONLINE_JOB_TYPE,
-        table_name=table_name,
-        active_only=True,
-    )
-
-
 def _get_first_step_id(emr_client, cluster_id: str) -> str:
     response = emr_client.list_steps(ClusterId=cluster_id,)
     assert len(response["Steps"]) == 1
@@ -334,14 +347,6 @@ def _cancel_job(emr_client, job: EmrJobRef):
     _wait_for_job_state(
         emr_client, EmrJobRef(job.cluster_id, step_id), TERMINAL_STEP_STATES, 180
     )
-
-
-def _upload_dataframe(s3prefix: str, df: pandas.DataFrame) -> str:
-    with tempfile.NamedTemporaryFile() as f:
-        df.to_parquet(f)
-        return _s3_upload(
-            f, f.name, remote_path_prefix=s3prefix, remote_path_suffix=".parquet"
-        )
 
 
 def _historical_retrieval_step(
