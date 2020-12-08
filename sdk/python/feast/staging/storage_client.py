@@ -341,7 +341,7 @@ class AzureBlobClient(AbstractStagingClient):
         Returns:
              TemporaryFile object
         """
-        bucket, path = _uri_to_bucket_key(uri)
+        bucket, path = self._uri_to_bucket_key(uri)
         container_client = self.blob_service_client.get_container_client(bucket)
         return container_client.download_blob(path).readall()
 
@@ -357,7 +357,7 @@ class AzureBlobClient(AbstractStagingClient):
                     remote staging location.
         """
 
-        bucket, path = _uri_to_bucket_key(uri)
+        bucket, path = self._uri_to_bucket_key(uri)
         if "*" in path:
             regex = re.compile(path.replace("*", ".*?").strip("/"))
             container_client = self.blob_service_client.get_container_client(bucket)
@@ -373,8 +373,8 @@ class AzureBlobClient(AbstractStagingClient):
         else:
             return [f"{self.account_url}/{bucket}/{path}"]
 
-    def _uri_to_bucket_key(self, remote_path: ParseResult) -> Tuple[str, str]:
-        assert remote_path.hostname is not None
+    def _uri_to_bucket_key(self, uri: ParseResult) -> Tuple[str, str]:
+        assert uri.hostname is not None
         bucket = uri.path.lstrip("/").split("/")[0]
         key = uri.path.lstrip("/").split("/", 1)[1]
         return bucket, key
