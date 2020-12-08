@@ -374,7 +374,7 @@ class AzureBlobClient(AbstractStagingClient):
             return [f"{self.account_url}/{bucket}/{path}"]
 
     def _uri_to_bucket_key(self, uri: ParseResult) -> Tuple[str, str]:
-        assert uri.hostname is not None
+        assert uri.hostname == urlparse(self.account_url).hostname
         bucket = uri.path.lstrip("/").split("/")[0]
         key = uri.path.lstrip("/").split("/", 1)[1]
         return bucket, key
