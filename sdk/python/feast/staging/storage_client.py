@@ -485,7 +485,7 @@ storage_clients = {
     GS: _gcs_client,
     S3: _s3_client,
     S3A: _s3a_client,
-    AZURE_SCHEME: _azure_blob_client, # note we currently interpret all uris beginning https:// as Azure blob uris
+    AZURE_SCHEME: _azure_blob_client,  # note we currently interpret all uris beginning https:// as Azure blob uris
     LOCAL_FILE: _local_fs_client,
 }
 

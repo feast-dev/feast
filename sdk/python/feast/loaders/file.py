@@ -80,9 +80,7 @@ def export_source_to_staging_location(
         else:
             # gs, s3, azure blob file provided as a source.
             assert source_uri.hostname is not None
-            return get_staging_client(source_uri.scheme).list_files(
-                uri=source_uri
-            )
+            return get_staging_client(source_uri.scheme).list_files(uri=source_uri)
     else:
         raise Exception(
             f"Only string and DataFrame types are allowed as a "
