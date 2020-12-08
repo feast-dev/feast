@@ -12,6 +12,30 @@ import botocore
 import pandas
 import yaml
 
+__all__ = [
+    "FAILED_STEP_STATES",
+    "HISTORICAL_RETRIEVAL_JOB_TYPE",
+    "IN_PROGRESS_STEP_STATES",
+    "OFFLINE_TO_ONLINE_JOB_TYPE",
+    "STREAM_TO_ONLINE_JOB_TYPE",
+    "SUCCEEDED_STEP_STATES",
+    "TERMINAL_STEP_STATES",
+    "EmrJobRef",
+    "JobInfo",
+    "_cancel_job",
+    "_get_job_state",
+    "_historical_retrieval_step",
+    "_job_ref_to_str",
+    "_list_jobs",
+    "_load_new_cluster_template",
+    "_random_string",
+    "_s3_upload",
+    "_stream_ingestion_step",
+    "_sync_offline_to_online_step",
+    "_upload_jar",
+    "_wait_for_job_state",
+]
+
 log = logging.getLogger("aws")
 
 SUPPORTED_EMR_VERSION = "emr-6.0.0"
@@ -248,15 +272,6 @@ def _list_jobs(
                         )
                     )
     return res
-
-
-def _get_stream_to_online_job(emr_client, table_name: str) -> List[JobInfo]:
-    return _list_jobs(
-        emr_client,
-        job_type=STREAM_TO_ONLINE_JOB_TYPE,
-        table_name=table_name,
-        active_only=True,
-    )
 
 
 def _get_first_step_id(emr_client, cluster_id: str) -> str:
