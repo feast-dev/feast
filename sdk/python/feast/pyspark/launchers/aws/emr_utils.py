@@ -351,14 +351,6 @@ def _cancel_job(emr_client, job: EmrJobRef):
     )
 
 
-def _upload_dataframe(s3prefix: str, df: pandas.DataFrame) -> str:
-    with tempfile.NamedTemporaryFile() as f:
-        df.to_parquet(f)
-        return _s3_upload(
-            f, f.name, remote_path_prefix=s3prefix, remote_path_suffix=".parquet"
-        )
-
-
 def _historical_retrieval_step(
     pyspark_script_path: str, args: List[str], output_file_uri: str,
 ) -> Dict[str, Any]:
