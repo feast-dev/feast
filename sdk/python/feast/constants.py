@@ -140,7 +140,7 @@ class ConfigOptions(metaclass=ConfigMeta):
 
     #: Feast Spark Job ingestion jobs staging location. The choice of storage is connected to the choice of SPARK_LAUNCHER.
     #:
-    #: Eg. gs://some-bucket/output/, s3://some-bucket/output/, file://data/subfolder/
+    #: Eg. gs://some-bucket/output/, s3://some-bucket/output/, file:///data/subfolder/
     SPARK_STAGING_LOCATION: Optional[str] = None
 
     #: Feast Spark Job ingestion jar file. The choice of storage is connected to the choice of SPARK_LAUNCHER.
@@ -206,7 +206,7 @@ class ConfigOptions(metaclass=ConfigMeta):
 
     #: Ingestion Job DeadLetter Destination. The choice of storage is connected to the choice of SPARK_LAUNCHER.
     #:
-    #: Eg. gs://some-bucket/output/, s3://some-bucket/output/, file://data/subfolder/
+    #: Eg. gs://some-bucket/output/, s3://some-bucket/output/, file:///data/subfolder/
     DEADLETTER_PATH: str = ""
 
     #: ProtoRegistry Address (currently only Stencil Server is supported as registry)

@@ -32,7 +32,7 @@ BUCKET = "test_bucket"
 FOLDER_NAME = "test_folder"
 FILE_NAME = "test.avro"
 
-LOCAL_FILE = "file://tmp/tmp"
+LOCAL_FILE = "file:///tmp/tmp"
 S3_LOCATION = f"s3://{BUCKET}/{FOLDER_NAME}"
 
 TEST_DATA_FRAME = pd.DataFrame(

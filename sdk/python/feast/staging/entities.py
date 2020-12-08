@@ -35,12 +35,11 @@ def stage_entities_to_fs(
         )
 
         entity_source.to_parquet(df_export_path.name)
-        bucket = (
-            None if entity_staging_uri.scheme == "file" else entity_staging_uri.netloc
-        )
-        staging_client.upload_file(
-            df_export_path.name, bucket, entity_staging_uri.path.lstrip("/")
-        )
+
+        with open(df_export_path.name, "rb") as f:
+            staging_client.upload_fileobj(
+                f, df_export_path.name, remote_uri=entity_staging_uri
+            )
 
     # ToDo: support custom event_timestamp_column
     return FileSource(

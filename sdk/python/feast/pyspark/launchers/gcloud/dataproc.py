@@ -253,10 +253,16 @@ class DataprocClusterLauncher(JobLauncher):
             return file_path
 
         staging_client = get_staging_client("gs")
-        blob_path = os.path.join(self.remote_path, job_id, os.path.basename(file_path),)
-        staging_client.upload_file(file_path, self.staging_bucket, blob_path)
+        blob_path = os.path.join(
+            self.remote_path, job_id, os.path.basename(file_path),
+        ).lstrip("/")
+        blob_uri_str = f"gs://{self.staging_bucket}/{blob_path}"
+        with open(file_path, "rb") as f:
+            staging_client.upload_fileobj(
+                f, file_path, remote_uri=urlparse(blob_uri_str)
+            )
 
-        return f"gs://{self.staging_bucket}/{blob_path}"
+        return blob_uri_str
 
     def dataproc_submit(
         self, job_params: SparkJobParameters

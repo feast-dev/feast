@@ -77,6 +77,7 @@ def export_source_to_staging_location(
             )
         else:
             # gs, s3 file provided as a source.
+            assert source_uri.hostname is not None
             return get_staging_client(source_uri.scheme).list_files(
                 bucket=source_uri.hostname, path=source_uri.path
             )
@@ -87,9 +88,12 @@ def export_source_to_staging_location(
         )
 
     # Push data to required staging location
-    get_staging_client(uri.scheme).upload_file(
-        source_path, uri.hostname, str(uri.path).strip("/") + "/" + file_name,
-    )
+    with open(source_path, "rb") as f:
+        get_staging_client(uri.scheme).upload_fileobj(
+            f,
+            source_path,
+            remote_uri=uri._replace(path=str(uri.path).strip("/") + "/" + file_name),
+        )
 
     # Clean up, remove local staging file
     if dir_path and isinstance(source, pd.DataFrame) and len(dir_path) > 4:

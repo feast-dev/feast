@@ -187,16 +187,28 @@ def _upload_to_file_source(
         for path in glob.glob(os.path.join(dest_path, "**/*")):
             file_name = path.split("/")[-1]
             partition_col = path.split("/")[-2]
-            staging_client.upload_file(
-                path,
-                uri.hostname,
-                str(uri.path).strip("/") + "/" + partition_col + "/" + file_name,
-            )
+            with open(path, "rb") as f:
+                staging_client.upload_fileobj(
+                    f,
+                    path,
+                    remote_uri=uri._replace(
+                        path=str(uri.path).rstrip("/")
+                        + "/"
+                        + partition_col
+                        + "/"
+                        + file_name
+                    ),
+                )
     else:
         file_name = dest_path.split("/")[-1]
-        staging_client.upload_file(
-            dest_path, uri.hostname, str(uri.path).strip("/") + "/" + file_name,
-        )
+        with open(dest_path, "rb") as f:
+            staging_client.upload_fileobj(
+                f,
+                dest_path,
+                remote_uri=uri._replace(
+                    path=str(uri.path).rstrip("/") + "/" + file_name
+                ),
+            )
 
 
 def _upload_to_bq_source(
