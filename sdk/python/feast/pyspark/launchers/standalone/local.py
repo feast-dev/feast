@@ -332,9 +332,6 @@ class StandaloneClusterLauncher(JobLauncher):
         global_job_cache.add_job(job)
         return job
 
-    def stage_dataframe(self, df, event_timestamp_column: str):
-        raise NotImplementedError
-
     def get_job_by_id(self, job_id: str) -> SparkJob:
         return global_job_cache.get_job_by_id(job_id)
 

@@ -482,13 +482,17 @@ def get_historical_features(
     features: str, entity_df_path: str, entity_df_dtype: str, destination: str
 ):
     """
-    Get historical features
+    Get historical features. This CLI command is mostly for testing/easy demos; use the
+    corresponding API method in production.
+
+    The main reason why this command is unlikely to be more broadly useful is that we make quite a
+    few assumptions about the entity dataframe, namely:
+        * it has to have `event_timestamp` column
+        * it has to parse cleanly by `pandas.read_csv()` with no extra tuning of data types
     """
     import pandas
 
     client = Client()
-
-    # TODO: clean this up
 
     if entity_df_dtype:
         dtype = json.loads(entity_df_dtype)

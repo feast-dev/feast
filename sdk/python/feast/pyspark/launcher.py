@@ -1,8 +1,12 @@
+import os
+import tempfile
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Union
+from urllib.parse import urlparse, urlunparse
 
 from feast.config import Config
 from feast.constants import ConfigOptions as opt
+from feast.data_format import ParquetFormat
 from feast.data_source import BigQuerySource, DataSource, FileSource, KafkaSource
 from feast.feature_table import FeatureTable
 from feast.pyspark.abc import (
@@ -16,6 +20,7 @@ from feast.pyspark.abc import (
     StreamIngestionJobParameters,
 )
 from feast.staging.entities import create_bq_view_of_joined_features_and_entities
+from feast.staging.storage_client import get_staging_client
 from feast.value_type import ValueType
 
 if TYPE_CHECKING:
@@ -297,6 +302,24 @@ def get_job_by_id(job_id: str, client: "Client") -> SparkJob:
     return launcher.get_job_by_id(job_id)
 
 
-def stage_dataframe(df, event_timestamp_column: str, client: "Client") -> FileSource:
-    launcher = resolve_launcher(client._config)
-    return launcher.stage_dataframe(df, event_timestamp_column)
+def stage_dataframe(df, event_timestamp_column: str, config: Config) -> FileSource:
+    staging_location = config.get(opt.SPARK_STAGING_LOCATION)
+    staging_uri = urlparse(staging_location)
+
+    with tempfile.NamedTemporaryFile() as f:
+        df.to_parquet(f)
+
+        file_url = urlunparse(
+            get_staging_client(staging_uri.scheme, config).upload_fileobj(
+                f,
+                f.name,
+                remote_path_prefix=os.path.join(staging_location, "dataframes"),
+                remote_path_suffix=".parquet",
+            )
+        )
+
+    return FileSource(
+        event_timestamp_column=event_timestamp_column,
+        file_format=ParquetFormat(),
+        file_url=file_url,
+    )

@@ -6,10 +6,6 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional
 
-import pandas
-
-from feast.data_source import FileSource
-
 
 class SparkJobFailure(Exception):
     """
@@ -538,18 +534,6 @@ class JobLauncher(abc.ABC):
 
         Returns:
             StreamIngestionJob: wrapper around remote job.
-        """
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def stage_dataframe(
-        self, df: pandas.DataFrame, event_timestamp_column: str,
-    ) -> FileSource:
-        """
-        Upload a pandas dataframe so it is available to the Spark cluster.
-
-        Returns:
-            FileSource: representing the uploaded dataframe.
         """
         raise NotImplementedError
 
