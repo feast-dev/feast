@@ -30,6 +30,7 @@ from feast.constants import ConfigOptions as opt
 GS = "gs"
 S3 = "s3"
 S3A = "s3a"
+AZURE_SCHEME = "https"
 LOCAL_FILE = "file"
 
 
@@ -313,6 +314,72 @@ class S3Client(AbstractStagingClient):
             return remote_uri
 
 
+class AzureBlobClient(AbstractStagingClient):
+    """
+       Implementation of AbstractStagingClient for Azure Blob storage
+    """
+
+    def __init__(self, account_name: str, account_access_key: str):
+        try:
+            from azure.storage.blob import BlobServiceClient
+        except ImportError:
+            raise ImportError(
+                "Install package azure-storage-blob for azure blob staging support"
+                "run ```pip install azure-storage-blob```"
+            )
+        self.account_url = f"https://{account_name}.blob.core.windows.net"
+        self.blob_service_client = BlobServiceClient(
+            account_url=self.account_url, credential=account_access_key
+        )
+
+    def download_file(self, uri: ParseResult) -> IO[bytes]:
+        path = uri.path.lstrip("/")
+        container = path.split("/")[0]
+        container_client = self.blob_service_client.get_container_client(container)
+        return container_client.download_blob(path.split("/", 1)[1]).readall()
+
+    def list_files(self, bucket: str, path: str) -> List[str]:
+        """
+        Lists all the files under a directory in azure blob storage if path has wildcard(*) character.
+
+        Args:
+            bucket (str): azure container name.
+            path (str): Object location in azure blob storage.
+
+        Returns:
+            List[str]: A list containing the full path to the file(s) in the
+                    remote staging location.
+        """
+
+        if "*" in path:
+            regex = re.compile(path.replace("*", ".*?").strip("/"))
+            container_client = self.blob_service_client.get_container_client(bucket)
+            blob_list = container_client.list_blobs(
+                name_starts_with=path.strip("/").split("*")[0]
+            )
+            # File path should not be in path (file path must be longer than path)
+            return [
+                f"{self.account_url}/{bucket}/{file}"
+                for file in [x.name for x in blob_list]
+                if re.match(regex, file) and file not in path
+            ]
+        else:
+            return [f"{self.account_url}/{bucket}/{path.lstrip('/')}"]
+
+    def upload_file(self, local_path: str, bucket: str, remote_path: str):
+        """
+        Uploads file to azure blob storage.
+
+        Args:
+            local_path (str): Path to the local file that needs to be uploaded/staged
+            bucket (str): azure container name
+            remote_path (str): relative path to the folder to which the files need to be uploaded
+        """
+        container_client = self.blob_service_client.get_container_client(bucket)
+        with open(local_path, "rb") as data:
+            container_client.upload_blob(name=remote_path.lstrip("/"), data=data)
+
+
 class LocalFSClient(AbstractStagingClient):
     """
        Implementation of AbstractStagingClient for local file
@@ -381,6 +448,18 @@ def _gcs_client(config: Config = None):
     return GCSClient()
 
 
+def _azure_blob_client(config: Config = None):
+    if config is None:
+        raise Exception("Azure blob client requires config")
+    account_name = config.get(opt.AZURE_BLOB_ACCOUNT_NAME, None)
+    account_access_key = config.get(opt.AZURE_BLOB_ACCOUNT_ACCESS_KEY, None)
+    if account_name is None or account_access_key is None:
+        raise Exception(
+            f"Azure blob client requires {opt.AZURE_BLOB_ACCOUNT_NAME} and {opt.AZURE_BLOB_ACCOUNT_ACCESS_KEY} set in config"
+        )
+    return AzureBlobClient(account_name, account_access_key)
+
+
 def _local_fs_client(config: Config = None):
     return LocalFSClient()
 
@@ -389,6 +468,7 @@ storage_clients = {
     GS: _gcs_client,
     S3: _s3_client,
     S3A: _s3a_client,
+    AZURE_SCHEME: _azure_blob_client,
     LOCAL_FILE: _local_fs_client,
 }
 
@@ -408,5 +488,5 @@ def get_staging_client(scheme, config: Config = None) -> AbstractStagingClient:
         return storage_clients[scheme](config)
     except ValueError:
         raise Exception(
-            f"Could not identify file scheme {scheme}. Only gs://, file:// and s3:// are supported"
+            f"Could not identify file scheme {scheme}. Only gs://, file://, s3:// and https:// (for Azure) are supported"
         )
