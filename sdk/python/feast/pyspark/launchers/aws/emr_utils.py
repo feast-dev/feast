@@ -3,13 +3,11 @@ import logging
 import os
 import random
 import string
-import tempfile
 import time
 from typing import IO, Any, Dict, List, NamedTuple, Optional, Tuple
 
 import boto3
 import botocore
-import pandas
 import yaml
 
 __all__ = [
