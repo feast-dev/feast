@@ -191,6 +191,10 @@ def start_historical_feature_retrieval_job(
         for feature_table in feature_tables
     ]
 
+    extra_packages = []
+    if output_format == "tfrecord":
+        extra_packages.append("com.linkedin.sparktfrecord:spark-tfrecord_2.12:0.2.4")
+
     return launcher.historical_feature_retrieval(
         RetrievalJobParameters(
             entity_source=_source_to_argument(entity_source, client._config),
@@ -200,6 +204,7 @@ def start_historical_feature_retrieval_job(
                 for feature_table in feature_tables
             ],
             destination={"format": output_format, "path": output_path},
+            extra_packages=extra_packages,
         )
     )
 

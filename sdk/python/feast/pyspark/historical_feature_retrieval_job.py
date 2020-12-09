@@ -7,6 +7,7 @@ from typing import Any, Dict, List, NamedTuple, Optional
 
 from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql.functions import col, expr, monotonically_increasing_id, row_number
+from pyspark.sql.types import LongType
 
 EVENT_TIMESTAMP_ALIAS = "event_timestamp"
 CREATED_TIMESTAMP_ALIAS = "created_timestamp"
@@ -728,7 +729,15 @@ def start_job(
     result = retrieve_historical_features(
         spark, entity_source_conf, feature_tables_sources_conf, feature_tables_conf
     )
+
     destination = FileDestination(**destination_conf)
+    if destination.format == "tfrecord":
+        entity_source = _source_from_dict(entity_source_conf)
+        result = result.withColumn(
+            entity_source.event_timestamp_column,
+            col(entity_source.event_timestamp_column).cast(LongType()),
+        )
+
     result.write.format(destination.format).mode("overwrite").save(destination.path)
 
 
