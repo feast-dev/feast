@@ -303,6 +303,14 @@ def get_job_by_id(job_id: str, client: "Client") -> SparkJob:
 
 
 def stage_dataframe(df, event_timestamp_column: str, config: Config) -> FileSource:
+    """
+    Helper function to upload a pandas dataframe in parquet format to a temporary location (under
+    SPARK_STAGING_LOCATION) and return it wrapped in a FileSource.
+
+    Args:
+        event_timestamp_column(str): the name of the timestamp column in the dataframe.
+        config(Config): feast config.
+    """
     staging_location = config.get(opt.SPARK_STAGING_LOCATION)
     staging_uri = urlparse(staging_location)
 
