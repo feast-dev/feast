@@ -6,9 +6,9 @@ from feast.pyspark.launchers.gcloud import DataprocClusterLauncher
 from .fixtures.job_parameters import customer_entity  # noqa: F401
 from .fixtures.job_parameters import customer_feature  # noqa: F401
 from .fixtures.job_parameters import dataproc_retrieval_job_params  # noqa: F401
-from .fixtures.job_parameters import (
-    dataproc_retrieval_job_params_with_tfrecord_output,
-)  # noqa: F401
+from .fixtures.job_parameters import (  # noqa: F401
+    dataproc_retrieval_job_params_with_tfrecord_output
+)
 from .fixtures.launchers import dataproc_launcher  # noqa: F401
 
 
