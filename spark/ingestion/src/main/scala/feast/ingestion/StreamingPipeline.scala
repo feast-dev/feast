@@ -20,8 +20,9 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 import feast.ingestion.registry.proto.ProtoRegistryFactory
-import org.apache.spark.sql.{DataFrame, Row, SaveMode, SparkSession}
+import org.apache.spark.sql.{DataFrame, Encoder, Row, SaveMode, SparkSession}
 import org.apache.spark.sql.functions.{expr, struct, udf}
+import feast.ingestion.stores.deadletters.DeadLetterMetrics
 import feast.ingestion.utils.ProtoReflection
 import feast.ingestion.utils.testing.MemoryStreamingSource
 import feast.ingestion.validation.{RowValidator, TypeCheck}
@@ -33,8 +34,8 @@ import org.apache.spark.sql.streaming.StreamingQuery
 import org.apache.spark.sql.avro._
 import org.apache.spark.sql.execution.python.UserDefinedPythonFunction
 import org.apache.spark.sql.execution.streaming.ProcessingTimeTrigger
-import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.types.BooleanType
+import org.apache.spark.sql.catalyst.encoders.RowEncoder
 
 /**
   * Streaming pipeline (currently in micro-batches mode only, since we need to have multiple sinks: redis & deadletters).
@@ -117,8 +118,18 @@ object StreamingPipeline extends BasePipeline with Serializable {
 
         config.deadLetterPath match {
           case Some(path) =>
+            implicit def rowEncoder: Encoder[Row] = RowEncoder(projected.schema)
+
             rowsAfterValidation
               .filter("!_isValid")
+              .mapPartitions(iter => {
+                val res = iter
+                  .map(row => {
+                    DeadLetterMetrics.writeMetrics
+                    row
+                  })
+                res
+              })
               .write
               .format("parquet")
               .mode(SaveMode.Append)

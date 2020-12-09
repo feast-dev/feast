@@ -18,10 +18,12 @@ package feast.ingestion
 
 import feast.ingestion.sources.bq.BigQueryReader
 import feast.ingestion.sources.file.FileReader
+import feast.ingestion.stores.deadletters.DeadLetterMetrics
 import feast.ingestion.validation.{RowValidator, TypeCheck}
 import org.apache.commons.lang.StringUtils
 import org.apache.spark.SparkEnv
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.catalyst.encoders.RowEncoder
+import org.apache.spark.sql.{Encoder, Row, SaveMode, SparkSession}
 
 /**
   * Batch Ingestion Flow:
@@ -77,8 +79,18 @@ object BatchPipeline extends BasePipeline {
 
     config.deadLetterPath match {
       case Some(path) =>
+        implicit def rowEncoder: Encoder[Row] = RowEncoder(projected.schema)
+
         projected
           .filter(!rowValidator.allChecks)
+          .mapPartitions(iter => {
+            val res = iter
+              .map(row => {
+                DeadLetterMetrics.writeMetrics
+                row
+              })
+            res
+          })
           .write
           .format("parquet")
           .mode(SaveMode.Append)
