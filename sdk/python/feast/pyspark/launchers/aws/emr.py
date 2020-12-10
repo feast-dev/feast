@@ -1,15 +1,11 @@
 import os
-import tempfile
 from io import BytesIO
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlunparse
 
 import boto3
-import pandas
 from botocore.config import Config as BotoConfig
 
-from feast.data_format import ParquetFormat
-from feast.data_source import FileSource
 from feast.pyspark.abc import (
     BatchIngestionJob,
     BatchIngestionJobParameters,
@@ -303,27 +299,6 @@ class EmrClusterLauncher(JobLauncher):
         job_ref = self._submit_emr_job(step)
 
         return EmrStreamIngestionJob(self._emr_client(), job_ref, job_hash)
-
-    def stage_dataframe(self, df: pandas.DataFrame, event_timestamp: str) -> FileSource:
-        with tempfile.NamedTemporaryFile() as f:
-            df.to_parquet(f)
-
-            file_url = urlunparse(
-                get_staging_client("s3").upload_fileobj(
-                    f,
-                    f.name,
-                    remote_path_prefix=os.path.join(
-                        self._staging_location, "dataframes"
-                    ),
-                    remote_path_suffix=".parquet",
-                )
-            )
-
-        return FileSource(
-            event_timestamp_column=event_timestamp,
-            file_format=ParquetFormat(),
-            file_url=file_url,
-        )
 
     def _job_from_job_info(self, job_info: JobInfo) -> SparkJob:
         if job_info.job_type == HISTORICAL_RETRIEVAL_JOB_TYPE:

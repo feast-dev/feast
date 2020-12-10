@@ -350,9 +350,6 @@ class DataprocClusterLauncher(JobLauncher):
         job_hash = ingestion_job_params.get_job_hash()
         return DataprocStreamingIngestionJob(job, refresh_fn, cancel_fn, job_hash)
 
-    def stage_dataframe(self, df, event_timestamp_column: str):
-        raise NotImplementedError
-
     def get_job_by_id(self, job_id: str) -> SparkJob:
         job = self.job_client.get_job(
             project_id=self.project_id, region=self.region, job_id=job_id

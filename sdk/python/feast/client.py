@@ -1212,4 +1212,4 @@ class Client:
     def stage_dataframe(
         self, df: pd.DataFrame, event_timestamp_column: str,
     ) -> FileSource:
-        return stage_dataframe(df, event_timestamp_column, self)
+        return stage_dataframe(df, event_timestamp_column, self._config)
