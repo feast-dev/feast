@@ -77,20 +77,12 @@ object BatchPipeline extends BasePipeline {
       .option("max_age", config.featureTable.maxAge.getOrElse(0L))
       .save()
 
+    implicit def rowEncoder: Encoder[Row] = RowEncoder(projected.schema)
     config.deadLetterPath match {
       case Some(path) =>
-        implicit def rowEncoder: Encoder[Row] = RowEncoder(projected.schema)
-
         projected
           .filter(!rowValidator.allChecks)
-          .mapPartitions(iter => {
-            val res = iter
-              .map(row => {
-                DeadLetterMetrics.writeMetrics
-                row
-              })
-            res
-          })
+          .mapPartitions(iter => DeadLetterMetrics.incrementCount(iter))
           .write
           .format("parquet")
           .mode(SaveMode.Append)

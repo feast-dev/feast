@@ -16,25 +16,8 @@
  */
 package org.apache.spark.metrics.source
 
-import com.codahale.metrics.MetricRegistry
-import org.apache.spark.SparkEnv
-
-class DeadLetterSinkMetricSource extends Source {
+class DeadLetterSinkMetricSource extends BaseMetricSource {
   override val sourceName: String = DeadLetterSinkMetricSource.sourceName
-
-  override val metricRegistry: MetricRegistry = new MetricRegistry
-
-  private val sparkConfig = SparkEnv.get.conf
-
-  private val metricLabels = sparkConfig.get("spark.metrics.labels", "")
-
-  private def counterWithLabels(name: String) = {
-    if (metricLabels.isEmpty) {
-      name
-    } else {
-      s"$name#$metricLabels"
-    }
-  }
 
   val METRIC_DEADLETTER_ROWS_INSERTED =
     metricRegistry.counter(counterWithLabels("feast_ingestion_deadletter_count"))

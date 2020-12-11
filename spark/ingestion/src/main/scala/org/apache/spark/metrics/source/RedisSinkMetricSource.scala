@@ -16,37 +16,8 @@
  */
 package org.apache.spark.metrics.source
 
-import com.codahale.metrics.MetricRegistry
-import org.apache.spark.SparkEnv
-
-class RedisSinkMetricSource extends Source {
+class RedisSinkMetricSource extends BaseMetricSource {
   override val sourceName: String = RedisSinkMetricSource.sourceName
-
-  override val metricRegistry: MetricRegistry = new MetricRegistry
-
-  private val sparkConfig = SparkEnv.get.conf
-
-  private val metricLabels = sparkConfig.get("spark.metrics.labels", "")
-
-  private val appId = sparkConfig.get("spark.app.id", "")
-
-  private val executorId = sparkConfig.get("spark.executor.id", "")
-
-  private def metricWithLabels(name: String) = {
-    if (metricLabels.isEmpty) {
-      name
-    } else {
-      s"$name#$metricLabels,job_id=$appId-$executorId"
-    }
-  }
-
-  private def counterWithLabels(name: String) = {
-    if (metricLabels.isEmpty) {
-      name
-    } else {
-      s"$name#$metricLabels"
-    }
-  }
 
   val METRIC_TOTAL_ROWS_INSERTED =
     metricRegistry.counter(counterWithLabels("feast_ingestion_feature_row_ingested_count"))

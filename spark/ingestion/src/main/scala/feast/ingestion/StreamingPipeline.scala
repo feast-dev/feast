@@ -116,20 +116,13 @@ object StreamingPipeline extends BasePipeline with Serializable {
           .option("max_age", config.featureTable.maxAge.getOrElse(0L))
           .save()
 
+        implicit def rowEncoder: Encoder[Row] = RowEncoder(projected.schema)
         config.deadLetterPath match {
           case Some(path) =>
-            implicit def rowEncoder: Encoder[Row] = RowEncoder(projected.schema)
 
             rowsAfterValidation
               .filter("!_isValid")
-              .mapPartitions(iter => {
-                val res = iter
-                  .map(row => {
-                    DeadLetterMetrics.writeMetrics
-                    row
-                  })
-                res
-              })
+              .mapPartitions(iter => DeadLetterMetrics.incrementCount(iter))
               .write
               .format("parquet")
               .mode(SaveMode.Append)

@@ -18,10 +18,16 @@ package feast.ingestion.stores.deadletters
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.metrics.source.DeadLetterSinkMetricSource
+import org.apache.spark.sql.Row
 
 object DeadLetterMetrics {
-  def writeMetrics() = {
-    metricSource.get.METRIC_DEADLETTER_ROWS_INSERTED.inc()
+  def incrementCount(rowIterator: Iterator[Row]) = {
+    val res = rowIterator
+      .map(row => {
+        metricSource.get.METRIC_DEADLETTER_ROWS_INSERTED.inc()
+        row
+      })
+    res
   }
 
   private lazy val metricSource: Option[DeadLetterSinkMetricSource] = {
