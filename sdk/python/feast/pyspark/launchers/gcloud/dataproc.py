@@ -1,4 +1,3 @@
-import json
 import os
 import time
 import uuid
@@ -265,7 +264,7 @@ class DataprocClusterLauncher(JobLauncher):
         return blob_uri_str
 
     def dataproc_submit(
-        self, job_params: SparkJobParameters
+        self, job_params: SparkJobParameters, extra_properties: Dict[str, str]
     ) -> Tuple[Job, Callable[[], Job], Callable[[], None]]:
         local_job_id = str(uuid.uuid4())
         main_file_uri = self._stage_file(job_params.get_main_file_path(), local_job_id)
@@ -280,18 +279,22 @@ class DataprocClusterLauncher(JobLauncher):
             job_config["labels"][self.JOB_HASH_LABEL_KEY] = job_params.get_job_hash()
 
         if job_params.get_class_name():
+            properties = {
+                "spark.yarn.user.classpath.first": "true",
+                "spark.executor.instances": self.executor_instances,
+                "spark.executor.cores": self.executor_cores,
+                "spark.executor.memory": self.executor_memory,
+            }
+
+            properties.update(extra_properties)
+
             job_config.update(
                 {
                     "spark_job": {
                         "jar_file_uris": [main_file_uri] + self.EXTERNAL_JARS,
                         "main_class": job_params.get_class_name(),
                         "args": job_params.get_arguments(),
-                        "properties": {
-                            "spark.yarn.user.classpath.first": "true",
-                            "spark.executor.instances": self.executor_instances,
-                            "spark.executor.cores": self.executor_cores,
-                            "spark.executor.memory": self.executor_memory,
-                        },
+                        "properties": properties,
                     }
                 }
             )
@@ -302,6 +305,7 @@ class DataprocClusterLauncher(JobLauncher):
                         "main_python_file_uri": main_file_uri,
                         "jar_file_uris": self.EXTERNAL_JARS,
                         "args": job_params.get_arguments(),
+                        "properties": extra_properties if extra_properties else {},
                     }
                 }
             )
@@ -332,7 +336,9 @@ class DataprocClusterLauncher(JobLauncher):
     def historical_feature_retrieval(
         self, job_params: RetrievalJobParameters
     ) -> RetrievalJob:
-        job, refresh_fn, cancel_fn = self.dataproc_submit(job_params)
+        job, refresh_fn, cancel_fn = self.dataproc_submit(
+            job_params, {"dev.feast.outputuri": job_params.get_destination_path()}
+        )
         return DataprocRetrievalJob(
             job, refresh_fn, cancel_fn, job_params.get_destination_path()
         )
@@ -340,13 +346,13 @@ class DataprocClusterLauncher(JobLauncher):
     def offline_to_online_ingestion(
         self, ingestion_job_params: BatchIngestionJobParameters
     ) -> BatchIngestionJob:
-        job, refresh_fn, cancel_fn = self.dataproc_submit(ingestion_job_params)
+        job, refresh_fn, cancel_fn = self.dataproc_submit(ingestion_job_params, {})
         return DataprocBatchIngestionJob(job, refresh_fn, cancel_fn)
 
     def start_stream_to_online_ingestion(
         self, ingestion_job_params: StreamIngestionJobParameters
     ) -> StreamIngestionJob:
-        job, refresh_fn, cancel_fn = self.dataproc_submit(ingestion_job_params)
+        job, refresh_fn, cancel_fn = self.dataproc_submit(ingestion_job_params, {})
         job_hash = ingestion_job_params.get_job_hash()
         return DataprocStreamingIngestionJob(job, refresh_fn, cancel_fn, job_hash)
 
@@ -368,7 +374,7 @@ class DataprocClusterLauncher(JobLauncher):
         cancel_fn = partial(self.dataproc_cancel, job_id)
 
         if job_type == SparkJobType.HISTORICAL_RETRIEVAL.name.lower():
-            output_path = json.loads(job.pyspark_job.args[-1])["path"]
+            output_path = job.pyspark_job.properties.get("dev.feast.outputuri")
             return DataprocRetrievalJob(job, refresh_fn, cancel_fn, output_path)
 
         if job_type == SparkJobType.BATCH_INGESTION.name.lower():

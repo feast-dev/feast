@@ -44,6 +44,7 @@ REQUIRED = [
     "pyarrow==2.0.0",
     "numpy",
     "google",
+    "kubernetes==12.0.*",
 ]
 
 # README file from Feast repo root directory

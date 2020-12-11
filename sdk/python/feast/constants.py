@@ -180,6 +180,15 @@ class ConfigOptions(metaclass=ConfigMeta):
     #: No. of executor memory for Dataproc cluster
     DATAPROC_EXECUTOR_MEMORY = "2g"
 
+    # namespace to use for Spark jobs launched using k8s spark operator
+    SPARK_K8S_NAMESPACE = "default"
+
+    # expect k8s spark operator to be running in the same cluster as Feast
+    SPARK_K8S_USE_INCLUSTER_CONFIG = True
+
+    # SparkApplication resource template
+    SPARK_K8S_JOB_TEMPLATE_PATH = None
+
     #: File format of historical retrieval features
     HISTORICAL_FEATURE_OUTPUT_FORMAT: str = "parquet"
 

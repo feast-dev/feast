@@ -1,6 +1,7 @@
 import abc
 import argparse
 import json
+from base64 import b64decode
 from datetime import timedelta
 from typing import Any, Dict, List, NamedTuple, Optional
 
@@ -794,13 +795,17 @@ def _feature_table_from_dict(dct: Dict[str, Any]) -> FeatureTable:
     )
 
 
+def json_b64_decode(s: str) -> Any:
+    return json.loads(b64decode(s.encode("ascii")))
+
+
 if __name__ == "__main__":
     spark = SparkSession.builder.getOrCreate()
     args = _get_args()
-    feature_tables_conf = json.loads(args.feature_tables)
-    feature_tables_sources_conf = json.loads(args.feature_tables_sources)
-    entity_source_conf = json.loads(args.entity_source)
-    destination_conf = json.loads(args.destination)
+    feature_tables_conf = json_b64_decode(args.feature_tables)
+    feature_tables_sources_conf = json_b64_decode(args.feature_tables_sources)
+    entity_source_conf = json_b64_decode(args.entity_source)
+    destination_conf = json_b64_decode(args.destination)
     start_job(
         spark,
         entity_source_conf,

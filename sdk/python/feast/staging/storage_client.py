@@ -29,6 +29,7 @@ from feast.constants import ConfigOptions as opt
 
 GS = "gs"
 S3 = "s3"
+S3A = "s3a"
 LOCAL_FILE = "file"
 
 
@@ -213,7 +214,7 @@ class S3Client(AbstractStagingClient):
        Implementation of AbstractStagingClient for Aws S3 storage
     """
 
-    def __init__(self, endpoint_url: str = None):
+    def __init__(self, endpoint_url: str = None, url_scheme="s3"):
         try:
             import boto3
         except ImportError:
@@ -222,6 +223,7 @@ class S3Client(AbstractStagingClient):
                 "run ```pip install boto3```"
             )
         self.s3_client = boto3.client("s3", endpoint_url=endpoint_url)
+        self.url_scheme = url_scheme
 
     def download_file(self, uri: ParseResult) -> IO[bytes]:
         """
@@ -258,12 +260,12 @@ class S3Client(AbstractStagingClient):
             )
             # File path should not be in path (file path must be longer than path)
             return [
-                f"{S3}://{bucket}/{file}"
+                f"{self.url_scheme}://{bucket}/{file}"
                 for file in [x["Key"] for x in blob_list["Contents"]]
                 if re.match(regex, file) and file not in path
             ]
         else:
-            return [f"{S3}://{bucket}/{path.lstrip('/')}"]
+            return [f"{self.url_scheme}://{bucket}/{path.lstrip('/')}"]
 
     def _uri_to_bucket_key(self, remote_path: ParseResult) -> Tuple[str, str]:
         assert remote_path.hostname is not None
@@ -367,6 +369,14 @@ def _s3_client(config: Config = None):
     return S3Client(endpoint_url=endpoint_url)
 
 
+def _s3a_client(config: Config = None):
+    if config is None:
+        endpoint_url = None
+    else:
+        endpoint_url = config.get(opt.S3_ENDPOINT_URL, None)
+    return S3Client(endpoint_url=endpoint_url, url_scheme="s3a")
+
+
 def _gcs_client(config: Config = None):
     return GCSClient()
 
@@ -375,7 +385,12 @@ def _local_fs_client(config: Config = None):
     return LocalFSClient()
 
 
-storage_clients = {GS: _gcs_client, S3: _s3_client, LOCAL_FILE: _local_fs_client}
+storage_clients = {
+    GS: _gcs_client,
+    S3: _s3_client,
+    S3A: _s3a_client,
+    LOCAL_FILE: _local_fs_client,
+}
 
 
 def get_staging_client(scheme, config: Config = None) -> AbstractStagingClient:

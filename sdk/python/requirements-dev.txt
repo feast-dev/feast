@@ -40,3 +40,4 @@ boto3
 moto
 pyspark==3.0.1
 pyspark-stubs==3.0.0.post1
+kubernetes==12.0.*
