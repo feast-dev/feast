@@ -30,16 +30,13 @@ class SparkSpec extends UnitSpec with BeforeAndAfter {
       .setAppName("Testing")
       .set("spark.default.parallelism", "8")
       .set(
-        "spark.metrics.conf.*.source.redis.class",
-        "org.apache.spark.metrics.source.RedisSinkMetricSource"
-      )
-      .set(
         "spark.metrics.conf.*.sink.statsd.class",
         "org.apache.spark.metrics.sink.StatsdSinkWithTags"
       )
       .set("spark.metrics.conf.*.sink.statsd.host", "localhost")
       .set("spark.metrics.conf.*.sink.statsd.port", "8125")
       .set("spark.sql.legacy.allowUntypedScalaUDF", "true")
+      .set("spark.sql.execution.arrow.maxRecordsPerBatch", "50000")
 
     sparkSession = SparkSession
       .builder()
