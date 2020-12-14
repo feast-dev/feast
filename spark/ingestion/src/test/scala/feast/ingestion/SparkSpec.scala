@@ -39,6 +39,7 @@ class SparkSpec extends UnitSpec with BeforeAndAfter {
       )
       .set("spark.metrics.conf.*.sink.statsd.host", "localhost")
       .set("spark.metrics.conf.*.sink.statsd.port", "8125")
+      .set("spark.sql.legacy.allowUntypedScalaUDF", "true")
 
     sparkSession = SparkSession
       .builder()

@@ -119,6 +119,8 @@ object StreamingPipeline extends BasePipeline with Serializable {
 
     val parser: Array[Byte] => Row = ProtoReflection.createMessageParser(protoRegistry, className)
 
+    // ToDo: create correctly typed parser
+    // spark deprecated returnType argument, instead it will infer it from udf function signature
     udf(parser, ProtoReflection.inferSchema(protoRegistry.getProtoDescriptor(className)))
   }
 }
