@@ -1,4 +1,4 @@
-FROM jupyter/pyspark-notebook:ae5f7e104dd5
+FROM jupyter/pyspark-notebook:399cbb986c6b
 
 USER root
 WORKDIR /feast
