@@ -16,36 +16,47 @@
  */
 package feast.ingestion
 
+import java.io.File
+import java.util.concurrent.TimeUnit
+
 import feast.ingestion.registry.proto.ProtoRegistryFactory
 import org.apache.spark.sql.{DataFrame, Row, SaveMode, SparkSession}
-import org.apache.spark.sql.functions.udf
+import org.apache.spark.sql.functions.{struct, udf}
 import feast.ingestion.utils.ProtoReflection
 import feast.ingestion.validation.{RowValidator, TypeCheck}
+import org.apache.commons.io.FileUtils
 import org.apache.commons.lang.StringUtils
-import org.apache.spark.SparkEnv
+import org.apache.spark.{SparkEnv, SparkFiles}
+import org.apache.spark.api.python.DynamicPythonFunction
 import org.apache.spark.sql.streaming.StreamingQuery
 import org.apache.spark.sql.avro._
+import org.apache.spark.sql.execution.python.UserDefinedPythonFunction
+import org.apache.spark.sql.execution.streaming.ProcessingTimeTrigger
+import org.apache.spark.sql.expressions.UserDefinedFunction
+import org.apache.spark.sql.types.BooleanType
 
 /**
-  * Streaming pipeline (currently in micro-batches mode only, since we need to have multiple sinks: redis & deadletters).
-  * Flow:
-  * 1. Read from streaming source (currently only Kafka)
-  * 2. Parse bytes from streaming source into Row with schema inferenced from provided class (Protobuf)
-  * 3. Map columns according to provided mapping rules
-  * 4. Validate
-  * 5. (In batches) store to redis valid rows / write to deadletter (parquet) invalid
-  */
+ * Streaming pipeline (currently in micro-batches mode only, since we need to have multiple sinks: redis & deadletters).
+ * Flow:
+ * 1. Read from streaming source (currently only Kafka)
+ * 2. Parse bytes from streaming source into Row with schema inferenced from provided class (Protobuf)
+ * 3. Map columns according to provided mapping rules
+ * 4. Validate
+ * 5. (In batches) store to redis valid rows / write to deadletter (parquet) invalid
+ */
 object StreamingPipeline extends BasePipeline with Serializable {
   override def createPipeline(
-      sparkSession: SparkSession,
-      config: IngestionJobConfig
-  ): Option[StreamingQuery] = {
+                               sparkSession: SparkSession,
+                               config: IngestionJobConfig
+                             ): Option[StreamingQuery] = {
     import sparkSession.implicits._
 
     val featureTable = config.featureTable
     val projection =
       inputProjection(config.source, featureTable.features, featureTable.entities)
     val validator = new RowValidator(featureTable, config.source.eventTimestampColumn)
+
+    val validationUDF = createValidationUDF(sparkSession, config)
 
     val input = config.source match {
       case source: KafkaSource =>
@@ -76,12 +87,17 @@ object StreamingPipeline extends BasePipeline with Serializable {
 
     val query = projected.writeStream
       .foreachBatch { (batchDF: DataFrame, batchID: Long) =>
-        batchDF.persist()
+        val rowsAfterValidation = if (validationUDF.nonEmpty) {
+          val columns = batchDF.columns.map(batchDF(_))
+          batchDF.withColumn("_isValid", validator.checkAll && validationUDF.get(struct(columns:_*)))
+        } else {
+          batchDF.withColumn("_isValid", validator.checkAll)
+        }
+        rowsAfterValidation.persist()
 
-        val validRows = batchDF
-          .filter(validator.checkAll)
-
-        validRows.write
+        rowsAfterValidation
+          .filter("_isValid")
+          .write
           .format("feast.ingestion.stores.redis")
           .option("entity_columns", featureTable.entities.map(_.name).mkString(","))
           .option("namespace", featureTable.name)
@@ -93,22 +109,23 @@ object StreamingPipeline extends BasePipeline with Serializable {
         config.deadLetterPath match {
           case Some(path) =>
             batchDF
-              .filter(!validator.checkAll)
+              .filter("!_isValid")
               .write
               .format("parquet")
               .mode(SaveMode.Append)
               .save(StringUtils.stripEnd(path, "/") + "/" + SparkEnv.get.conf.getAppId)
           case _ =>
             batchDF
-              .filter(!validator.checkAll)
+              .filter("!_isValid")
               .foreach(r => {
                 println(s"Row failed validation $r")
               })
         }
 
-        batchDF.unpersist()
+        rowsAfterValidation.unpersist()
         () // return Unit to avoid compile error with overloaded foreachBatch
       }
+      .trigger(ProcessingTimeTrigger.create(config.streamingTriggeringSecs, TimeUnit.SECONDS))
       .start()
 
     Some(query)
@@ -123,4 +140,25 @@ object StreamingPipeline extends BasePipeline with Serializable {
     // spark deprecated returnType argument, instead it will infer it from udf function signature
     udf(parser, ProtoReflection.inferSchema(protoRegistry.getProtoDescriptor(className)))
   }
+
+  private def createValidationUDF(sparkSession: SparkSession, config: IngestionJobConfig): Option[UserDefinedPythonFunction] =
+    config.validationConfig.map {
+      validationConfig =>
+        if (validationConfig.includeArchivePath.nonEmpty)
+          sparkSession.sparkContext.addFile(validationConfig.includeArchivePath)
+
+        // this is the trick to download remote file on the driver
+        // after file added to sparkContext it will be immediately fetched to local dir (accessible via SparkFiles)
+        sparkSession.sparkContext.addFile(validationConfig.pickledCodePath)
+        val fileName = validationConfig.pickledCodePath.split("/").last
+        val pickledCode = FileUtils.readFileToByteArray(new File(SparkFiles.get(fileName)))
+
+        UserDefinedPythonFunction(
+          validationConfig.name,
+          DynamicPythonFunction.create(pickledCode),
+          BooleanType,
+          pythonEvalType = 200, // SQL_SCALAR_PANDAS_UDF (original constant is in private object)
+          udfDeterministic = true
+        )
+    }
 }

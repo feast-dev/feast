@@ -30,7 +30,7 @@ object DynamicPythonFunction {
       "import os; import pyspark; print(os.path.dirname(pyspark.__file__))"))
   }
 
-  def create(pickledCode: Array[Byte], dependenciesPath: String = "libs/"): PythonFunction = {
+  def create(pickledCode: Array[Byte], includePath: String = "libs/"): PythonFunction = {
     val envVars = new JHashMap[String, String]()
     val broadcasts = new JArrayList[Broadcast[PythonBroadcast]]()
 
@@ -46,7 +46,7 @@ object DynamicPythonFunction {
     PythonFunction(
       pickledCode,
       envVars,
-      List(dependenciesPath).asJava,
+      List(includePath).asJava,
       pythonExec,
       pythonVersion,
       broadcasts,

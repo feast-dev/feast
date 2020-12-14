@@ -95,17 +95,26 @@ case class FeatureTable(
     project: String,
     entities: Seq[Field],
     features: Seq[Field],
-    maxAge: Option[Long] = None
+    maxAge: Option[Long] = None,
+    labels: Map[String, String] = Map.empty
+)
+
+case class ValidationConfig(
+    name: String,
+    pickledCodePath: String,
+    includeArchivePath: String
 )
 
 case class IngestionJobConfig(
-    mode: Modes = Modes.Offline,
-    featureTable: FeatureTable = null,
-    source: Source = null,
-    startTime: DateTime = DateTime.now(),
-    endTime: DateTime = DateTime.now(),
-    store: StoreConfig = RedisConfig("localhost", 6379, false),
-    metrics: Option[MetricConfig] = None,
-    deadLetterPath: Option[String] = None,
-    stencilURL: Option[String] = None
+     mode: Modes = Modes.Offline,
+     featureTable: FeatureTable = null,
+     source: Source = null,
+     startTime: DateTime = DateTime.now(),
+     endTime: DateTime = DateTime.now(),
+     store: StoreConfig = RedisConfig("localhost", 6379, false),
+     metrics: Option[MetricConfig] = None,
+     deadLetterPath: Option[String] = None,
+     stencilURL: Option[String] = None,
+     streamingTriggeringSecs: Int = 0,
+     validationConfig: Option[ValidationConfig] = None
 )

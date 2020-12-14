@@ -148,6 +148,7 @@ def _feature_table_to_argument(
             for n in feature_table.entities
         ],
         "max_age": feature_table.max_age.ToSeconds() if feature_table.max_age else None,
+        "labels": feature_table.labels
     }
 
 
