@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.7.2](https://github.com/feast-dev/feast/tree/v0.7.2) (2020-12-14)
+[Full Changelog](https://github.com/feast-dev/feast/compare/sdk/go/v0.7.1...v0.7.2)
+
+**Implemented enhancements:**
+
+- Tracing GRPC interceptor in serving & go sdk [\#1212](https://github.com/feast-dev/feast/pull/1212) ([pyalex](https://github.com/pyalex))
+
+
 ## [v0.7.1](https://github.com/feast-dev/feast/tree/v0.7.1) (2020-10-07)
 [Full Changelog](https://github.com/feast-dev/feast/compare/sdk/go/v0.7.0...v0.7.1)
 
