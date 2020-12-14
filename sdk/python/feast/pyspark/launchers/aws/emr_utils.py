@@ -107,7 +107,7 @@ def _sync_offline_to_online_step(
                 "--class",
                 "feast.ingestion.IngestionJob",
                 "--packages",
-                "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.17.2",
+                "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.18.0",
                 jar_path,
             ]
             + args,
@@ -332,7 +332,7 @@ def _stream_ingestion_step(
             + jars_args
             + [
                 "--packages",
-                "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.17.2",
+                "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.18.0",
                 jar_path,
             ]
             + args,

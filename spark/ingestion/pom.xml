@@ -33,7 +33,7 @@
     <properties>
         <scala.version>2.12</scala.version>
         <scala.fullVersion>${scala.version}.12</scala.fullVersion>
-        <spark.version>2.4.7</spark.version>
+        <spark.version>3.0.1</spark.version>
         <scala-maven-plugin.version>4.4.0</scala-maven-plugin.version>
         <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
         <protobuf.version>3.12.2</protobuf.version>
@@ -131,7 +131,7 @@
         <dependency>
             <groupId>com.google.cloud.spark</groupId>
             <artifactId>spark-bigquery_${scala.version}</artifactId>
-            <version>0.17.2</version>
+            <version>0.18.0</version>
             <scope>provided</scope>
         </dependency>
 

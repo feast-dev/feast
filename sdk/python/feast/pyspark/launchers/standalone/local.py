@@ -222,7 +222,7 @@ class StandaloneClusterLauncher(JobLauncher):
     Submits jobs to a standalone Spark cluster in client mode.
     """
 
-    BQ_CONNECTOR_VERSION = "2.12:0.17.3"
+    BQ_CONNECTOR_VERSION = "2.12:0.18.0"
 
     def __init__(self, master_url: str, spark_home: str = None):
         """
