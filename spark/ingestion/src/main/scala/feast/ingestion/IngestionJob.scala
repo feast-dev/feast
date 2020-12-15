@@ -55,7 +55,8 @@ object IngestionJob {
         c.copy(
           featureTable = ft,
           streamingTriggeringSecs = ft.labels.getOrElse("_streaming_trigger_secs", "0").toInt,
-          validationConfig = ft.labels.get("_validation").map(parseJSON(_).camelizeKeys.extract[ValidationConfig])
+          validationConfig =
+            ft.labels.get("_validation").map(parseJSON(_).camelizeKeys.extract[ValidationConfig])
         )
       })
       .required()

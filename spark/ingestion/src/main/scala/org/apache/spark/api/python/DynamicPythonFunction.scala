@@ -1,3 +1,19 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2020 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.spark.api.python
 
 import java.io.File
@@ -11,34 +27,32 @@ object DynamicPythonFunction {
 
   private def runCommand(cmd: List[String]): String = {
     val pb = new ProcessBuilder(cmd.asJava)
-    val p = pb.start()
+    val p  = pb.start()
     p.waitFor()
     p.getInputStream.readAllBytes().map(_.toChar).mkString.trim
   }
 
   def pythonVersion: String = {
-    runCommand(List(
-      pythonExec,
-      "-c",
-      "import sys; print(\"{0.major}.{0.minor}\".format(sys.version_info))"))
+    runCommand(
+      List(pythonExec, "-c", "import sys; print(\"{0.major}.{0.minor}\".format(sys.version_info))")
+    )
   }
 
   def sparkHome: String = {
-    runCommand(List(
-      pythonExec,
-      "-c",
-      "import os; import pyspark; print(os.path.dirname(pyspark.__file__))"))
+    runCommand(
+      List(pythonExec, "-c", "import os; import pyspark; print(os.path.dirname(pyspark.__file__))")
+    )
   }
 
   def create(pickledCode: Array[Byte], includePath: String = "libs/"): PythonFunction = {
-    val envVars = new JHashMap[String, String]()
+    val envVars    = new JHashMap[String, String]()
     val broadcasts = new JArrayList[Broadcast[PythonBroadcast]]()
 
     if (!sys.env.contains("SPARK_HOME")) {
       // in tests there's no SPARK_HOME
       val libraries = List(
         Seq(sparkHome, "python", "lib", "pyspark.zip").mkString(File.separator),
-        Seq(sparkHome, "python", "lib", "py4j-0.10.9-src.zip").mkString(File.separator),
+        Seq(sparkHome, "python", "lib", "py4j-0.10.9-src.zip").mkString(File.separator)
       )
       envVars.put("PYTHONPATH", libraries.mkString(File.pathSeparator))
     }

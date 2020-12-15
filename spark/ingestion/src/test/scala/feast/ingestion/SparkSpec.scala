@@ -21,6 +21,8 @@ import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfter
 
 class SparkSpec extends UnitSpec with BeforeAndAfter {
+  System.setProperty("io.netty.tryReflectionSetAccessible", "true")
+
   var sparkSession: SparkSession                         = null
   def withSparkConfOverrides(conf: SparkConf): SparkConf = conf
 

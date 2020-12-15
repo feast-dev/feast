@@ -106,15 +106,16 @@ case class ValidationConfig(
 )
 
 case class IngestionJobConfig(
-     mode: Modes = Modes.Offline,
-     featureTable: FeatureTable = null,
-     source: Source = null,
-     startTime: DateTime = DateTime.now(),
-     endTime: DateTime = DateTime.now(),
-     store: StoreConfig = RedisConfig("localhost", 6379, false),
-     metrics: Option[MetricConfig] = None,
-     deadLetterPath: Option[String] = None,
-     stencilURL: Option[String] = None,
-     streamingTriggeringSecs: Int = 0,
-     validationConfig: Option[ValidationConfig] = None
+    mode: Modes = Modes.Offline,
+    featureTable: FeatureTable = null,
+    source: Source = null,
+    startTime: DateTime = DateTime.now(),
+    endTime: DateTime = DateTime.now(),
+    store: StoreConfig = RedisConfig("localhost", 6379, false),
+    metrics: Option[MetricConfig] = None,
+    deadLetterPath: Option[String] = None,
+    stencilURL: Option[String] = None,
+    streamingTriggeringSecs: Int = 0,
+    validationConfig: Option[ValidationConfig] = None,
+    doNotIngestInvalidRows: Boolean = false
 )
