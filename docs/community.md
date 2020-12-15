@@ -1,5 +1,9 @@
 # Community
 
+{% hint style="success" %}
+**Office Hours:** Have a question, feature request, idea, or just looking to speak to a real person? Come and join the [Feast Office Hours](https://tinyurl.com/feast-office-hours) on Friday and chat to a Feast contributor!
+{% endhint %}
+
 ### Links & Resources
 
 * [Slack](https://kubeflow.slack.com/messages/CE0L8T267): We use the channel [\#Feast](https://kubeflow.slack.com/messages/CE0L8T267) in [kubeflow.slack.com](https://join.slack.com/t/kubeflow/shared_invite/zt-cpr020z4-PfcAue_2nw67~iIDy7maAQ). Feel free to ask questions or say hello!
@@ -19,7 +23,7 @@
 * **GitHub Issues:** Found a bug or need a feature? [Create an issue on GitHub](https://github.com/feast-dev/feast/issues/new).
 * **StackOverflow:** Need to ask a question on how to use Feast? We also monitor and respond to [StackOverflow](https://stackoverflow.com/questions/tagged/feast).
 
-### Community Call
+### Community Calls
 
 We have a user and contributor community call every two weeks \(Asia & US friendly\).
 

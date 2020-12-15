@@ -4,7 +4,7 @@
 
 Feast \(**Fea**ture **St**ore\) is an operational data system for managing and serving machine learning features to models in production.
 
-![](.gitbook/assets/feast-architecture-diagrams.svg)
+![](.gitbook/assets/feast-architecture-diagrams%20%281%29.svg)
 
 ### Problems Feast Solves
 
