@@ -377,6 +377,7 @@
                             <goal>exec</goal>
                         </goals>
                         <configuration>
+                            <skip>${skipUTs}</skip>
                             <executable>./setup.sh</executable>
                             <workingDirectory>${basedir}/src/test/resources/python/</workingDirectory>
                         </configuration>
