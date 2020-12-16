@@ -10,6 +10,7 @@ import yaml
 from kubernetes.client.api import CustomObjectsApi
 
 from feast.pyspark.abc import (
+    BQ_SPARK_PACKAGE,
     BatchIngestionJob,
     BatchIngestionJobParameters,
     JobLauncher,
@@ -270,10 +271,8 @@ class KubernetesJobLauncher(JobLauncher):
             job_id=job_id,
             job_type=OFFLINE_TO_ONLINE_JOB_TYPE,
             main_application_file=jar_s3_path,
-            main_class="feast.ingestion.IngestionJob",
-            packages=[
-                "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.17.2"
-            ],
+            main_class=ingestion_job_params.get_class_name(),
+            packages=[BQ_SPARK_PACKAGE],
             jars=[],
             extra_metadata={},
             arguments=ingestion_job_params.get_arguments(),
@@ -313,10 +312,8 @@ class KubernetesJobLauncher(JobLauncher):
             job_id=job_id,
             job_type=STREAM_TO_ONLINE_JOB_TYPE,
             main_application_file=jar_s3_path,
-            main_class="feast.ingestion.IngestionJob",
-            packages=[
-                "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.17.2"
-            ],
+            main_class=ingestion_job_params.get_class_name(),
+            packages=[BQ_SPARK_PACKAGE],
             jars=extra_jar_paths,
             extra_metadata={METADATA_JOBHASH: job_hash},
             arguments=ingestion_job_params.get_arguments(),

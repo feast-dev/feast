@@ -16,6 +16,9 @@ class SparkJobFailure(Exception):
     pass
 
 
+BQ_SPARK_PACKAGE = "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.18.0"
+
+
 class SparkJobStatus(Enum):
     STARTING = 0
     IN_PROGRESS = 1

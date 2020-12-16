@@ -10,6 +10,7 @@ import requests
 from requests.exceptions import RequestException
 
 from feast.pyspark.abc import (
+    BQ_SPARK_PACKAGE,
     BatchIngestionJob,
     BatchIngestionJobParameters,
     JobLauncher,
@@ -222,8 +223,6 @@ class StandaloneClusterLauncher(JobLauncher):
     Submits jobs to a standalone Spark cluster in client mode.
     """
 
-    BQ_CONNECTOR_VERSION = "2.12:0.18.0"
-
     def __init__(self, master_url: str, spark_home: str = None):
         """
         This launcher executes the spark-submit script in a subprocess. The subprocess
@@ -273,7 +272,7 @@ class StandaloneClusterLauncher(JobLauncher):
                 "--conf",
                 "spark.sql.session.timeZone=UTC",  # ignore local timezone
                 "--packages",
-                f"com.google.cloud.spark:spark-bigquery-with-dependencies_{self.BQ_CONNECTOR_VERSION}",
+                BQ_SPARK_PACKAGE,
                 "--jars",
                 "https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop2-latest.jar,"
                 "https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/2.7.3/hadoop-aws-2.7.3.jar,"
