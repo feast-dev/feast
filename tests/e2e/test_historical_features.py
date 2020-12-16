@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Union
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 import gcsfs
 import numpy as np
@@ -24,11 +24,14 @@ def read_parquet(uri):
         files = ["gs://" + path for path in fs.glob(uri + "/part-*")]
         ds = parquet.ParquetDataset(files, filesystem=fs)
         return ds.read().to_pandas()
-    elif parsed_uri.scheme == "s3":
+    elif parsed_uri.scheme == "s3" or parsed_uri.scheme == "s3a":
+
+        s3uri = urlunparse(parsed_uri._replace(scheme="s3"))
+
         import s3fs
 
         fs = s3fs.S3FileSystem()
-        files = ["s3://" + path for path in fs.glob(uri + "/part-*")]
+        files = ["s3://" + path for path in fs.glob(s3uri + "/part-*")]
         ds = parquet.ParquetDataset(files, filesystem=fs)
         return ds.read().to_pandas()
     else:
