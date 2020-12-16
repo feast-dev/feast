@@ -2,6 +2,7 @@ import abc
 import hashlib
 import json
 import os
+from base64 import b64encode
 from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional
@@ -13,6 +14,9 @@ class SparkJobFailure(Exception):
     """
 
     pass
+
+
+BQ_SPARK_PACKAGE = "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.18.0"
 
 
 class SparkJobStatus(Enum):
@@ -243,15 +247,18 @@ class RetrievalJobParameters(SparkJobParameters):
         )
 
     def get_arguments(self) -> List[str]:
+        def json_b64_encode(obj) -> str:
+            return b64encode(json.dumps(obj).encode("utf8")).decode("ascii")
+
         return [
             "--feature-tables",
-            json.dumps(self._feature_tables),
+            json_b64_encode(self._feature_tables),
             "--feature-tables-sources",
-            json.dumps(self._feature_tables_sources),
+            json_b64_encode(self._feature_tables_sources),
             "--entity-source",
-            json.dumps(self._entity_source),
+            json_b64_encode(self._entity_source),
             "--destination",
-            json.dumps(self._destination),
+            json_b64_encode(self._destination),
         ]
 
     def get_destination_path(self) -> str:

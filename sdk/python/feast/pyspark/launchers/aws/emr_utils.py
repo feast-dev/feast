@@ -8,6 +8,8 @@ from urllib.parse import urlparse, urlunparse
 
 import yaml
 
+from feast.pyspark.abc import BQ_SPARK_PACKAGE
+
 __all__ = [
     "FAILED_STEP_STATES",
     "HISTORICAL_RETRIEVAL_JOB_TYPE",
@@ -107,7 +109,7 @@ def _sync_offline_to_online_step(
                 "--class",
                 "feast.ingestion.IngestionJob",
                 "--packages",
-                "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.18.0",
+                BQ_SPARK_PACKAGE,
                 jar_path,
             ]
             + args,
@@ -330,11 +332,7 @@ def _stream_ingestion_step(
             ],
             "Args": ["spark-submit", "--class", "feast.ingestion.IngestionJob"]
             + jars_args
-            + [
-                "--packages",
-                "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.18.0",
-                jar_path,
-            ]
+            + ["--packages", BQ_SPARK_PACKAGE, jar_path]
             + args,
             "Jar": "command-runner.jar",
         },
