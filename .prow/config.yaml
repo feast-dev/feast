@@ -230,7 +230,32 @@ presubmits:
     spec:
       containers:
         - image: gcr.io/kf-feast/feast-ci:latest
-          command: [ "infra/scripts/codebuild_runner.py", "--location-from-prow" ]
+          command: [ "infra/scripts/codebuild_runner.py", "--location-from-prow", "--project-name", "feast-ci-project"  ]
+          resources:
+            requests:
+              cpu: "2"
+              memory: "2048Mi"
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: feast-aws-creds
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: feast-aws-creds
+                  key: AWS_SECRET_ACCESS_KEY
+            - name: AWS_DEFAULT_REGION
+              value: us-west-2
+  - name: test-end-to-end-sparkop
+    decorate: true
+    always_run: true
+    max_concurrency: 1
+    spec:
+      containers:
+        - image: gcr.io/kf-feast/feast-ci:latest
+          command: [ "infra/scripts/codebuild_runner.py", "--location-from-prow", "--project-name", "feast-ci-sparkop-project" ]
           resources:
             requests:
               cpu: "2"
