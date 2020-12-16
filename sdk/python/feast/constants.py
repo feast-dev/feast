@@ -222,6 +222,10 @@ class ConfigOptions(metaclass=ConfigMeta):
     #: https://github.com/gojekfarm/stencil
     STENCIL_URL: str = ""
 
+    #: If set to true rows that do not pass custom validation (see feast.contrib.validation)
+    #: won't be saved to Online Storage
+    INGESTION_DROP_INVALID_ROWS = "False"
+
     #: EMR cluster to run Feast Spark Jobs in
     EMR_CLUSTER_ID: Optional[str] = None
 

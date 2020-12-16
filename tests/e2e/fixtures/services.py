@@ -36,7 +36,9 @@ def kafka_server(kafka_port):
 
 
 postgres_server = pg_factories.postgresql_proc(password="password")
-redis_server = redis_factories.redis_proc(executable=shutil.which("redis-server"))
+redis_server = redis_factories.redis_proc(
+    executable=shutil.which("redis-server"), timeout=3600
+)
 
 KAFKA_BIN = download_kafka()
 zookeeper_server = make_zookeeper_process(

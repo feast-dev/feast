@@ -307,6 +307,7 @@ class IngestionJobParameters(SparkJobParameters):
         statsd_port: Optional[int] = None,
         deadletter_path: Optional[str] = None,
         stencil_url: Optional[str] = None,
+        drop_invalid_rows: bool = False,
     ):
         self._feature_table = feature_table
         self._source = source
@@ -318,6 +319,7 @@ class IngestionJobParameters(SparkJobParameters):
         self._statsd_port = statsd_port
         self._deadletter_path = deadletter_path
         self._stencil_url = stencil_url
+        self._drop_invalid_rows = drop_invalid_rows
 
     def _get_redis_config(self):
         return dict(host=self._redis_host, port=self._redis_port, ssl=self._redis_ssl)
@@ -361,6 +363,9 @@ class IngestionJobParameters(SparkJobParameters):
 
         if self._stencil_url:
             args.extend(["--stencil-url", self._stencil_url])
+
+        if self._drop_invalid_rows:
+            args.extend(["--drop-invalid"])
 
         return args
 
@@ -430,6 +435,7 @@ class StreamIngestionJobParameters(IngestionJobParameters):
         statsd_port: Optional[int] = None,
         deadletter_path: Optional[str] = None,
         stencil_url: Optional[str] = None,
+        drop_invalid_rows: bool = False,
     ):
         super().__init__(
             feature_table,
@@ -442,6 +448,7 @@ class StreamIngestionJobParameters(IngestionJobParameters):
             statsd_port,
             deadletter_path,
             stencil_url,
+            drop_invalid_rows,
         )
         self._extra_jars = extra_jars
 

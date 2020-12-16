@@ -81,6 +81,9 @@ object IngestionJob {
 
     opt[String](name = "stencil-url")
       .action((x, c) => c.copy(stencilURL = Some(x)))
+
+    opt[Unit](name = "drop-invalid")
+      .action((_, c) => c.copy(doNotIngestInvalidRows = true))
   }
 
   def main(args: Array[String]): Unit = {

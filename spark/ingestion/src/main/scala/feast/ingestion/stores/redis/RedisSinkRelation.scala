@@ -83,6 +83,8 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
 
         groupKeysByNode(redisConfig.hosts, rowsWithKey.keysIterator).foreach { case (node, keys) =>
           val conn = node.connect()
+          println(conn.info())
+          println(keys.mkString(","))
           // retrieve latest stored values
           val storedValues = mapWithPipeline(conn, keys) { (pipeline, key) =>
             persistence.get(pipeline, key.toByteArray)

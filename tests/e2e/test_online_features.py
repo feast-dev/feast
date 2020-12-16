@@ -1,4 +1,3 @@
-import io
 import json
 import os
 import time
@@ -6,15 +5,10 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Union
 
-import avro.schema
 import numpy as np
 import pandas as pd
 import pytest
-import pytz
-from avro.io import BinaryEncoder, DatumWriter
 from google.cloud import bigquery
-from kafka.admin import KafkaAdminClient
-from kafka.producer import KafkaProducer
 
 from feast import (
     BigQuerySource,
@@ -29,6 +23,7 @@ from feast import (
 from feast.data_format import AvroFormat, ParquetFormat
 from feast.pyspark.abc import SparkJobStatus
 from feast.wait import wait_retry_backoff
+from tests.e2e.utils.kafka import check_consumer_exist, ingest_and_retrieve
 
 
 def generate_data():
@@ -139,35 +134,24 @@ def test_streaming_ingestion(
         lambda: (None, check_consumer_exist(kafka_broker, topic_name)), 120
     )
 
+    test_data = generate_data()[["s2id", "unique_drivers", "event_timestamp"]]
+
     try:
-        original = generate_data()[["s2id", "unique_drivers", "event_timestamp"]]
-        for record in original.to_dict("records"):
-            record["event_timestamp"] = (
-                record["event_timestamp"].to_pydatetime().replace(tzinfo=pytz.utc)
-            )
-
-            send_avro_record_to_kafka(
-                topic_name,
-                record,
-                bootstrap_servers=kafka_broker,
-                avro_schema_json=avro_schema(),
-            )
-
-        def get_online_features():
-            features = feast_client.get_online_features(
-                ["drivers_stream:unique_drivers"],
-                entity_rows=[{"s2id": s2_id} for s2_id in original["s2id"].tolist()],
-            ).to_dict()
-            df = pd.DataFrame.from_dict(features)
-            return df, not df["drivers_stream:unique_drivers"].isna().any()
-
-        ingested = wait_retry_backoff(get_online_features, 60)
+        ingested = ingest_and_retrieve(
+            feast_client,
+            test_data,
+            avro_schema_json=avro_schema(),
+            topic_name=topic_name,
+            kafka_broker=kafka_broker,
+            entity_rows=[{"s2id": s2_id} for s2_id in test_data["s2id"].tolist()],
+            feature_names=["drivers_stream:unique_drivers"],
+        )
     finally:
         job.cancel()
 
     pd.testing.assert_frame_equal(
         ingested[["s2id", "drivers_stream:unique_drivers"]],
-        original[["s2id", "unique_drivers"]].rename(
+        test_data[["s2id", "unique_drivers"]].rename(
             columns={"unique_drivers": "drivers_stream:unique_drivers"}
         ),
     )
@@ -215,45 +199,3 @@ def avro_schema():
             ],
         }
     )
-
-
-def send_avro_record_to_kafka(topic, value, bootstrap_servers, avro_schema_json):
-    value_schema = avro.schema.parse(avro_schema_json)
-
-    producer = KafkaProducer(bootstrap_servers=bootstrap_servers)
-
-    writer = DatumWriter(value_schema)
-    bytes_writer = io.BytesIO()
-    encoder = BinaryEncoder(bytes_writer)
-
-    writer.write(value, encoder)
-
-    try:
-        producer.send(topic=topic, value=bytes_writer.getvalue())
-    except Exception as e:
-        print(
-            f"Exception while producing record value - {value} to topic - {topic}: {e}"
-        )
-    else:
-        print(f"Successfully producing record value - {value} to topic - {topic}")
-
-    producer.flush()
-
-
-def check_consumer_exist(bootstrap_servers, topic_name):
-    admin = KafkaAdminClient(bootstrap_servers=bootstrap_servers)
-    consumer_groups = admin.describe_consumer_groups(
-        group_ids=[
-            group_id
-            for group_id, _ in admin.list_consumer_groups()
-            if group_id.startswith("spark-kafka-source")
-        ]
-    )
-    subscriptions = {
-        subscription
-        for group in consumer_groups
-        for member in group.members
-        if not isinstance(member.member_metadata, bytes)
-        for subscription in member.member_metadata.subscription
-    }
-    return topic_name in subscriptions

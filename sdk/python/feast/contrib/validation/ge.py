@@ -1,8 +1,11 @@
 import io
 import json
+import platform
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
+
+import pandas as pd
 
 from feast.constants import ConfigOptions
 from feast.contrib.validation.base import serialize_udf
@@ -27,12 +30,15 @@ except ImportError:
 
 
 if TYPE_CHECKING:
-    import pandas as pd
-
     from feast import Client, FeatureTable
 
 
-GE_PACKED_ARCHIVE = ""
+GE_PACKED_ARCHIVE_LINUX = (
+    "https://storage.googleapis.com/feast-jobs/spark/validation/pylibs-ge-linux.tar.gz"
+)
+GE_PACKED_ARCHIVE_DARWIN = (
+    "https://storage.googleapis.com/feast-jobs/spark/validation/pylibs-ge-darwin.tar.gz"
+)
 
 
 @dataclass
@@ -72,7 +78,7 @@ def create_validation_udf(name: str, expectations: ExpectationSuite) -> Validati
             if check.success:
                 continue
 
-            if check.raised_exception:
+            if check.exception_info["raised_exception"]:
                 # ToDo: probably we should mark all rows as invalid
                 continue
 
@@ -112,10 +118,17 @@ def apply_validation(
                 dict(
                     name=udf.name,
                     pickled_code_path=remote_path,
-                    include_archive_path=GE_PACKED_ARCHIVE,
+                    include_archive_path=_get_libs_path(),
                 )
             ),
-            "_streaming_trigger_secs": validation_window_secs,
+            "_streaming_trigger_secs": str(validation_window_secs),
         }
     )
     client.apply_feature_table(feature_table)
+
+
+def _get_libs_path():
+    if platform.system() == "Darwin":
+        return GE_PACKED_ARCHIVE_DARWIN
+
+    return GE_PACKED_ARCHIVE_LINUX
