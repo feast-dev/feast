@@ -170,7 +170,7 @@ class KubernetesJobLauncher(JobLauncher):
             )
         elif job_info.job_type == STREAM_TO_ONLINE_JOB_TYPE:
             # job_hash must not be None for stream ingestion jobs
-            assert METADATA_JOBHASH in job_info.extra_metadata is not None
+            assert METADATA_JOBHASH in job_info.extra_metadata
             return KubernetesStreamIngestionJob(
                 api=self._api,
                 namespace=job_info.namespace,

@@ -68,13 +68,9 @@ def _emr_launcher(config: Config) -> JobLauncher:
 def _k8s_launcher(config: Config) -> JobLauncher:
     from feast.pyspark.launchers import k8s
 
-    def _get_optional(option):
-        if config.exists(option):
-            return config.get(option)
-
     return k8s.KubernetesJobLauncher(
         namespace=config.get(opt.SPARK_K8S_NAMESPACE),
-        resource_template_path=_get_optional(opt.SPARK_K8S_JOB_TEMPLATE_PATH),
+        resource_template_path=config.get(opt.SPARK_K8S_JOB_TEMPLATE_PATH, None),
         staging_location=config.get(opt.SPARK_STAGING_LOCATION),
         incluster=config.getboolean(opt.SPARK_K8S_USE_INCLUSTER_CONFIG),
     )
