@@ -3,8 +3,12 @@ FROM ubuntu:18.04
 ARG REVISION
 ENV DEBIAN_FRONTEND=noninteractive
 
+RUN apt-get update && apt-get install -y curl unzip locales software-properties-common && \
+    apt-add-repository ppa:git-core/ppa && \
+    apt update && apt install -y git
+
 # Install Java (by default openjdk-11)
-RUN apt-get update && apt-get install -y default-jdk curl unzip git locales
+RUN apt-get install -y default-jdk
 
 RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.utf8
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
