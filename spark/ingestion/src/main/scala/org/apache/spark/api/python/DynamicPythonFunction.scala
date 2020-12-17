@@ -38,6 +38,12 @@ object DynamicPythonFunction {
     )
   }
 
+  def pythonPlatform: String = {
+    runCommand(
+      List(pythonExec, "-c", "import platform; print(platform.system().lower())")
+    )
+  }
+
   def sparkHome: String = {
     runCommand(
       List(pythonExec, "-c", "import os; import pyspark; print(os.path.dirname(pyspark.__file__))")
@@ -67,4 +73,7 @@ object DynamicPythonFunction {
       null
     )
   }
+
+  def libsPathWithPlatform(libsPath: String): String =
+    libsPath.replace("%(platform)s", s"py$pythonVersion-$pythonPlatform")
 }

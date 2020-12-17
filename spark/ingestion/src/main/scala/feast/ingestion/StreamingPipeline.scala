@@ -155,8 +155,11 @@ object StreamingPipeline extends BasePipeline with Serializable {
       config: IngestionJobConfig
   ): Option[UserDefinedPythonFunction] =
     config.validationConfig.map { validationConfig =>
-      if (validationConfig.includeArchivePath.nonEmpty)
-        sparkSession.sparkContext.addFile(validationConfig.includeArchivePath)
+      if (validationConfig.includeArchivePath.nonEmpty) {
+        val archivePath =
+          DynamicPythonFunction.libsPathWithPlatform(validationConfig.includeArchivePath)
+        sparkSession.sparkContext.addFile(archivePath)
+      }
 
       // this is the trick to download remote file on the driver
       // after file added to sparkContext it will be immediately fetched to local dir (accessible via SparkFiles)

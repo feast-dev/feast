@@ -1,6 +1,5 @@
 import io
 import json
-import platform
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
@@ -33,12 +32,8 @@ if TYPE_CHECKING:
     from feast import Client, FeatureTable
 
 
-GE_PACKED_ARCHIVE_LINUX = (
-    "https://storage.googleapis.com/feast-jobs/spark/validation/pylibs-ge-linux.tar.gz"
-)
-GE_PACKED_ARCHIVE_DARWIN = (
-    "https://storage.googleapis.com/feast-jobs/spark/validation/pylibs-ge-darwin.tar.gz"
-)
+GE_PACKED_ARCHIVE = "https://storage.googleapis.com/feast-jobs/spark/validation/pylibs-ge-%(platform)s.tar.gz"
+_UNSET = object()
 
 
 @dataclass
@@ -95,11 +90,16 @@ def apply_validation(
     feature_table: "FeatureTable",
     udf: ValidationUDF,
     validation_window_secs: int,
+    include_py_libs=_UNSET,
 ):
     """
     Uploads validation udf code to staging location &
     stores path to udf code and required python libraries as FeatureTable labels.
     """
+    include_py_libs = (
+        include_py_libs if include_py_libs is not _UNSET else GE_PACKED_ARCHIVE
+    )
+
     staging_location = client._config.get(ConfigOptions.SPARK_STAGING_LOCATION).rstrip(
         "/"
     )
@@ -118,17 +118,10 @@ def apply_validation(
                 dict(
                     name=udf.name,
                     pickled_code_path=remote_path,
-                    include_archive_path=_get_libs_path(),
+                    include_archive_path=include_py_libs,
                 )
             ),
             "_streaming_trigger_secs": str(validation_window_secs),
         }
     )
     client.apply_feature_table(feature_table)
-
-
-def _get_libs_path():
-    if platform.system() == "Darwin":
-        return GE_PACKED_ARCHIVE_DARWIN
-
-    return GE_PACKED_ARCHIVE_LINUX
