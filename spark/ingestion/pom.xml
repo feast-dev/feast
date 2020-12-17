@@ -258,6 +258,11 @@
                         <goals>
                             <goal>test</goal>
                         </goals>
+                        <configuration>
+                            <reportsDirectory>${project.build.directory}/test-reports</reportsDirectory>
+                            <junitxml>.</junitxml>
+                            <filereports>WDF TestSuite.txt</filereports>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
