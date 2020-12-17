@@ -196,7 +196,7 @@ jobs:
   publish-ingestion-pylibs:
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        os: [ ubuntu-latest, macos-latest ]
         python-version: [ 3.6, 3.7, 3.8 ]
     runs-on: ${{ matrix.os }}
     steps:
@@ -209,7 +209,7 @@ jobs:
         env:
           PY_VERSION: ${{ matrix.python-version }}
         run: |
-          export PLATFORM=$(python -c 'import platform; platform.system().lower()')
+          export PLATFORM=$(python -c 'import platform; print(platform.system().lower())')
           mkdir pylibs/
           ./infra/scripts/build-ingestion-py-dependencies.sh "py${PY_VERSION}-$PLATFORM" $PWD/pylibs/
       - name: Upload ingestion jar
