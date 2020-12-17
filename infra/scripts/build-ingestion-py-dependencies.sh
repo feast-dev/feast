@@ -11,7 +11,7 @@ pip3 install -t ${tmp_dir}/libs $PACKAGES
 cd $tmp_dir
 tar -czf pylibs-ge-$PLATFORM.tar.gz libs/
 if [[ $DESTINATION == gs* ]]; then
-  gsutil cp pylibs-ge-$PLATFORM.tar.gz $GS_DESTINATION/
+  gsutil cp pylibs-ge-$PLATFORM.tar.gz $GS_DESTINATION
 else
   mv pylibs-ge-$PLATFORM.tar.gz $DESTINATION
 fi
