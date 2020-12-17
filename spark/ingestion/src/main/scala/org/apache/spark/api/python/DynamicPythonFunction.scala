@@ -19,7 +19,9 @@ package org.apache.spark.api.python
 import java.io.File
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap}
 
+import org.apache.commons.io.IOUtils
 import org.apache.spark.broadcast.Broadcast
+
 import collection.JavaConverters._
 
 object DynamicPythonFunction {
@@ -29,7 +31,7 @@ object DynamicPythonFunction {
     val pb = new ProcessBuilder(cmd.asJava)
     val p  = pb.start()
     p.waitFor()
-    p.getInputStream.readAllBytes().map(_.toChar).mkString.trim
+    IOUtils.toByteArray(p.getInputStream).map(_.toChar).mkString.trim
   }
 
   def pythonVersion: String = {

@@ -193,3 +193,28 @@ jobs:
           name: ingestion-jar
           path: spark/ingestion/target/feast-ingestion-spark-develop.jar
           retention-days: 1
+  publish-ingestion-pylibs:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        python-version: [ 3.6, 3.7, 3.8 ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Create libs archive
+        env:
+          PY_VERSION: ${{ matrix.python-version }}
+        run: |
+          export PLATFORM=$(python -c 'import platform; platform.system().lower()')
+          mkdir pylibs/
+          ./infra/scripts/build-ingestion-py-dependencies.sh "py${PY_VERSION}-$PLATFORM" $PWD/pylibs/
+      - name: Upload ingestion jar
+        uses: actions/upload-artifact@v2
+        with:
+          name: pylibs
+          path: pylibs/
+          retention-days: 1
