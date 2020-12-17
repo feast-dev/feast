@@ -162,7 +162,7 @@ async def run_build(project_name: str, source_version: str, source_location: str
             log_group=build["logs"]["groupName"],
         )
 
-        waiter_task = asyncio.create_task(
+        waiter_task = asyncio.get_event_loop().create_task(
             _wait_build_state(
                 codebuild_client,
                 build_id,
@@ -188,4 +188,5 @@ async def run_build(project_name: str, source_version: str, source_location: str
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())

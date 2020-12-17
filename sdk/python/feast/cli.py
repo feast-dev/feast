@@ -36,6 +36,7 @@ _common_options = [
     click.option("--serving-url", help="Set Feast serving URL to connect to"),
     click.option("--job-service-url", help="Set Feast job service URL to connect to"),
 ]
+DATETIME_ISO = "%Y-%m-%dT%H:%M:%s"
 
 
 def common_options(func):
@@ -381,7 +382,9 @@ def sync_offline_to_online(feature_table: str, start_time: str, end_time: str):
     client = Client()
     table = client.get_feature_table(feature_table)
     client.start_offline_to_online_ingestion(
-        table, datetime.fromisoformat(start_time), datetime.fromisoformat(end_time)
+        table,
+        datetime.strptime(start_time, DATETIME_ISO),
+        datetime.strptime(end_time, DATETIME_ISO),
     )
 
 
