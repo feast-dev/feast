@@ -140,6 +140,7 @@ jobs:
             ${{ runner.os }}-it-maven-
       - name: Run integration tests
         run:  make test-java-integration
+        continue-on-error: true
       - name: Save report
         uses: actions/upload-artifact@v2
         with:
