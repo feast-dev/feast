@@ -1,6 +1,6 @@
 import io
 import json
-from dataclasses import dataclass
+
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
@@ -36,10 +36,10 @@ GE_PACKED_ARCHIVE = "https://storage.googleapis.com/feast-jobs/spark/validation/
 _UNSET = object()
 
 
-@dataclass
 class ValidationUDF:
-    name: str
-    pickled_code: bytes
+    def __init__(self, name: str, pickled_code: bytes):
+        self.name = name
+        self.pickled_code = pickled_code
 
 
 def create_validation_udf(name: str, expectations: ExpectationSuite) -> ValidationUDF:

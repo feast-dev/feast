@@ -46,6 +46,6 @@ object BigQueryReader {
     reader
       .load(s"${source.project}.${source.dataset}.${source.table}")
       .filter(col(source.eventTimestampColumn) >= new Timestamp(start.getMillis))
-      .filter(col(source.eventTimestampColumn) < new Timestamp(end.getMillis))
+      .filter(col(source.eventTimestampColumn) <= new Timestamp(end.getMillis))
   }
 }
