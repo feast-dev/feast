@@ -25,7 +25,7 @@ import org.apache.spark.broadcast.Broadcast
 import collection.JavaConverters._
 
 object DynamicPythonFunction {
-  val pythonExec = "python3"
+  val pythonExec = sys.env.getOrElse("PYSPARK_PYTHON", "python3")
 
   private def runCommand(cmd: List[String]): String = {
     val pb = new ProcessBuilder(cmd.asJava)

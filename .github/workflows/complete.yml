@@ -140,9 +140,9 @@ jobs:
             ${{ runner.os }}-it-maven-
       - name: Run integration tests
         run:  make test-java-integration
-        continue-on-error: true
       - name: Save report
         uses: actions/upload-artifact@v2
+        if: failure()
         with:
           name: ingestion-it-report
           path: spark/ingestion/target/test-reports/TestSuite.txt
@@ -193,6 +193,7 @@ jobs:
           name: ingestion-jar
           path: spark/ingestion/target/feast-ingestion-spark-develop.jar
           retention-days: 1
+
   publish-ingestion-pylibs:
     strategy:
       matrix:
@@ -212,8 +213,7 @@ jobs:
           export PLATFORM=$(python -c 'import platform; print(platform.system().lower())')
           mkdir pylibs/
           ./infra/scripts/build-ingestion-py-dependencies.sh "py${PY_VERSION}-$PLATFORM" $PWD/pylibs/
-      - name: Upload ingestion jar
-        uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v2
         with:
           name: pylibs
           path: pylibs/
