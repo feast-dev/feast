@@ -9,7 +9,9 @@ def pytest_addoption(parser):
     parser.addoption("--job-service-url", action="store", default="localhost:6568")
     parser.addoption("--kafka-brokers", action="store", default="localhost:9092")
 
-    parser.addoption("--env", action="store", help="local|aws|gcloud", default="local")
+    parser.addoption(
+        "--env", action="store", help="local|aws|gcloud|k8s", default="local"
+    )
     parser.addoption("--with-job-service", action="store_true")
     parser.addoption("--staging-path", action="store")
     parser.addoption("--dataproc-cluster-name", action="store")

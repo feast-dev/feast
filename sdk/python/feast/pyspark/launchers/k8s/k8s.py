@@ -223,6 +223,7 @@ class KubernetesJobLauncher(JobLauncher):
             jars=[],
             extra_metadata={METADATA_OUTPUT_URI: job_params.get_destination_path()},
             arguments=job_params.get_arguments(),
+            namespace=self._namespace,
         )
 
         job_info = _submit_job(
@@ -276,6 +277,7 @@ class KubernetesJobLauncher(JobLauncher):
             jars=[],
             extra_metadata={},
             arguments=ingestion_job_params.get_arguments(),
+            namespace=self._namespace,
         )
 
         job_info = _submit_job(
@@ -317,6 +319,7 @@ class KubernetesJobLauncher(JobLauncher):
             jars=extra_jar_paths,
             extra_metadata={METADATA_JOBHASH: job_hash},
             arguments=ingestion_job_params.get_arguments(),
+            namespace=self._namespace,
         )
 
         job_info = _submit_job(

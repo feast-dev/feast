@@ -11,6 +11,7 @@ import asyncio
 import sys
 import argparse
 import boto3
+from botocore.config import Config
 
 
 class LogTailer:
@@ -125,7 +126,14 @@ def source_version_from_prow_job_spec(job_spec: Dict[str, Any]) -> str:
 
 async def run_build(project_name: str, source_version: str, source_location: str):
     print(f"Building {project_name} at {source_version}", file=sys.stderr)
-    logs_client = boto3.client("logs", region_name="us-west-2")
+
+    config = Config(
+        retries = {
+            'max_attempts': 10,
+        }
+    )
+
+    logs_client = boto3.client("logs", region_name="us-west-2", config=config)
     codebuild_client = boto3.client("codebuild", region_name="us-west-2")
 
     print("Submitting the build..", file=sys.stderr)

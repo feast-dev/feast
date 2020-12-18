@@ -184,7 +184,7 @@ class ConfigOptions(metaclass=ConfigMeta):
     SPARK_K8S_NAMESPACE = "default"
 
     # expect k8s spark operator to be running in the same cluster as Feast
-    SPARK_K8S_USE_INCLUSTER_CONFIG = True
+    SPARK_K8S_USE_INCLUSTER_CONFIG = "True"
 
     # SparkApplication resource template
     SPARK_K8S_JOB_TEMPLATE_PATH = None

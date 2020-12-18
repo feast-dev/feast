@@ -112,6 +112,7 @@ def _prepare_job_resource(
     jars: List[str],
     extra_metadata: Dict[str, str],
     arguments: List[str],
+    namespace: str,
 ) -> Dict[str, Any]:
     """ Prepare SparkApplication custom resource configs """
     job = deepcopy(job_template)
@@ -119,7 +120,11 @@ def _prepare_job_resource(
     labels = {LABEL_JOBID: job_id, LABEL_JOBTYPE: job_type}
 
     _add_keys(job, ("metadata", "labels"), labels)
-    _add_keys(job, ("metadata",), dict(name=_job_id_to_resource_name(job_id)))
+    _add_keys(
+        job,
+        ("metadata",),
+        dict(name=_job_id_to_resource_name(job_id), namespace=namespace),
+    )
     _add_keys(job, ("spec",), dict(mainClass=main_class))
     _add_keys(job, ("spec",), dict(mainApplicationFile=main_application_file))
     _add_keys(job, ("spec",), dict(arguments=arguments))
@@ -179,7 +184,7 @@ def _k8s_state_to_feast(k8s_state: str) -> SparkJobStatus:
 
 def _resource_to_job_info(resource: Dict[str, Any]) -> JobInfo:
     labels = resource["metadata"]["labels"]
-    sparkConf = resource["spec"].get("sparkConf")
+    sparkConf = resource["spec"].get("sparkConf", {})
 
     if "status" in resource:
         state = _k8s_state_to_feast(resource["status"]["applicationState"]["state"])
