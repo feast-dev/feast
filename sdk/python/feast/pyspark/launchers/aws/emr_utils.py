@@ -329,6 +329,7 @@ def _stream_ingestion_step(
                     "Value": feature_table_name,
                 },
                 {"Key": "feast.step_metadata.job_hash", "Value": job_hash},
+                {"Key": "spark.yarn.isPython", "Value": "true"}
             ],
             "Args": ["spark-submit", "--class", "feast.ingestion.IngestionJob"]
             + jars_args
