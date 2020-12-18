@@ -29,7 +29,8 @@ import collection.JavaConverters._
 object DynamicPythonFunction {
   private val conf = SparkEnv.get.conf
 
-  val pythonExec = conf.get(PYSPARK_DRIVER_PYTHON)
+  val pythonExec = conf
+    .get(PYSPARK_DRIVER_PYTHON)
     .orElse(conf.get(PYSPARK_PYTHON))
     .orElse(sys.env.get("PYSPARK_DRIVER_PYTHON"))
     .orElse(sys.env.get("PYSPARK_PYTHON"))
