@@ -22,14 +22,18 @@ import java.util.{ArrayList => JArrayList, HashMap => JHashMap}
 import org.apache.commons.io.IOUtils
 import org.apache.spark.SparkEnv
 import org.apache.spark.broadcast.Broadcast
-import org.apache.spark.internal.config.PYSPARK_DRIVER_PYTHON
+import org.apache.spark.internal.config.{PYSPARK_DRIVER_PYTHON, PYSPARK_PYTHON}
 
 import collection.JavaConverters._
 
 object DynamicPythonFunction {
   private val conf = SparkEnv.get.conf
 
-  val pythonExec = conf.get(PYSPARK_DRIVER_PYTHON).getOrElse("python3")
+  val pythonExec = conf.get(PYSPARK_DRIVER_PYTHON)
+    .orElse(conf.get(PYSPARK_PYTHON))
+    .orElse(sys.env.get("PYSPARK_DRIVER_PYTHON"))
+    .orElse(sys.env.get("PYSPARK_PYTHON"))
+    .getOrElse("python3")
 
   private def runCommand(cmd: List[String]): String = {
     val pb = new ProcessBuilder(cmd.asJava)
