@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+set -euo pipefail
 PLATFORM=$1
 DESTINATION=$2
 PACKAGES=${PACKAGES:-"great-expectations==0.13.2 pyarrow==2.0.0"}
