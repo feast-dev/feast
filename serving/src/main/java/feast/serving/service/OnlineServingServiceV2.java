@@ -16,6 +16,8 @@
  */
 package feast.serving.service;
 
+import static feast.common.models.FeatureTable.getFeatureTableStringRef;
+
 import com.google.protobuf.Duration;
 import feast.common.models.FeatureV2;
 import feast.proto.core.FeatureProto;
@@ -159,8 +161,21 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
           populateCountMetrics(statusMap, projectName);
         }
       }
-      entityValuesMap.get(entityRow).putAll(allValueMaps);
-      entityStatusesMap.get(entityRow).putAll(allStatusMaps);
+      populateHistogramMetrics(entityRows, featureReferences, projectName);
+
+      // Build response field values from entityValuesMap and entityStatusesMap
+      // Response field values should be in the same order as the entityRows provided by the user.
+      List<GetOnlineFeaturesResponse.FieldValues> fieldValuesList =
+          entityRows.stream()
+              .map(
+                  entityRow -> {
+                    return GetOnlineFeaturesResponse.FieldValues.newBuilder()
+                        .putAllFields(entityValuesMap.get(entityRow))
+                        .putAllStatuses(entityStatusesMap.get(entityRow))
+                        .build();
+                  })
+              .collect(Collectors.toList());
+      return GetOnlineFeaturesResponse.newBuilder().addAllFieldValues(fieldValuesList).build();
     }
 
     // Build response field values from entityValuesMap and entityStatusesMap
@@ -293,6 +308,29 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     }
     long timeDifference = givenTimestamp - feature.get().getEventTimestamp().getSeconds();
     return timeDifference > maxAge.getSeconds();
+  }
+
+  /**
+   * Populate histogram metrics that can be used for analysing online retrieval calls
+   *
+   * @param entityRows entity rows provided in request
+   * @param featureReferences feature references provided in request
+   * @param project project name provided in request
+   */
+  private void populateHistogramMetrics(
+      List<GetOnlineFeaturesRequestV2.EntityRow> entityRows,
+      List<FeatureReferenceV2> featureReferences,
+      String project) {
+    Metrics.requestEntityCount.labels(project).observe(Double.valueOf(entityRows.size()));
+    Metrics.requestFeatureCount.labels(project).observe(Double.valueOf(featureReferences.size()));
+
+    Set<String> featureTableRefs =
+        featureReferences.stream()
+            .map(featureReference -> getFeatureTableStringRef(project, featureReference))
+            .collect(Collectors.toSet());
+    Metrics.requestFeatureTableCount
+        .labels(project)
+        .observe(Double.valueOf(featureTableRefs.size()));
   }
 
   /**

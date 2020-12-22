@@ -37,6 +37,33 @@ public class Metrics {
           .labelNames("project", "feature_name")
           .register();
 
+  public static final Histogram requestEntityCount =
+      Histogram.build()
+          .buckets(1, 2, 5, 10)
+          .name("request_entity_count")
+          .subsystem("feast_serving")
+          .help("Number of entity rows per request")
+          .labelNames("project")
+          .register();
+
+  public static final Histogram requestFeatureCount =
+      Histogram.build()
+          .buckets(1, 2, 5, 10, 15, 20)
+          .name("request_feature_count")
+          .subsystem("feast_serving")
+          .help("Number of feature rows per request")
+          .labelNames("project")
+          .register();
+
+  public static final Histogram requestFeatureTableCount =
+      Histogram.build()
+          .buckets(1, 2, 5, 10)
+          .name("request_feature_table_count")
+          .subsystem("feast_serving")
+          .help("Number of feature tables per request")
+          .labelNames("project")
+          .register();
+
   public static final Counter notFoundKeyCount =
       Counter.build()
           .name("not_found_feature_count")
