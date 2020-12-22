@@ -31,10 +31,10 @@ public class Metrics {
 
   public static final Counter requestCount =
       Counter.build()
-          .name("request_feature_count")
+          .name("request_count")
           .subsystem("feast_serving")
-          .help("number of feature rows requested")
-          .labelNames("project", "feature_name")
+          .help("number of requests to feast serving")
+          .labelNames("method")
           .register();
 
   public static final Counter notFoundKeyCount =

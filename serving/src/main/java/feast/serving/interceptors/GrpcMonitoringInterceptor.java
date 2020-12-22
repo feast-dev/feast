@@ -46,6 +46,7 @@ public class GrpcMonitoringInterceptor implements ServerInterceptor {
             Metrics.requestLatency
                 .labels(methodName)
                 .observe((System.currentTimeMillis() - startCallMillis) / 1000f);
+            Metrics.requestCount.labels(methodName).inc();
             Metrics.grpcRequestCount.labels(methodName, status.getCode().name()).inc();
             super.close(status, trailers);
           }
