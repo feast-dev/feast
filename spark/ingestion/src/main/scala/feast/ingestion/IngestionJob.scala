@@ -49,7 +49,16 @@ object IngestionJob {
       .text("JSON-encoded source object (e.g. {\"kafka\":{\"bootstrapServers\":...}}")
 
     opt[String](name = "feature-table")
-      .action((x, c) => c.copy(featureTable = parseJSON(x).camelizeKeys.extract[FeatureTable]))
+      .action((x, c) => {
+        val ft = parseJSON(x).camelizeKeys.extract[FeatureTable]
+
+        c.copy(
+          featureTable = ft,
+          streamingTriggeringSecs = ft.labels.getOrElse("_streaming_trigger_secs", "0").toInt,
+          validationConfig =
+            ft.labels.get("_validation").map(parseJSON(_).camelizeKeys.extract[ValidationConfig])
+        )
+      })
       .required()
       .text("JSON-encoded FeatureTableSpec object")
 
@@ -72,6 +81,9 @@ object IngestionJob {
 
     opt[String](name = "stencil-url")
       .action((x, c) => c.copy(stencilURL = Some(x)))
+
+    opt[Unit](name = "drop-invalid")
+      .action((_, c) => c.copy(doNotIngestInvalidRows = true))
   }
 
   def main(args: Array[String]): Unit = {

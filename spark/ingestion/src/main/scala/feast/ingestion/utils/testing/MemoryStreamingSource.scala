@@ -14,22 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.ingestion.validation
+package feast.ingestion.utils.testing
 
-import feast.ingestion.FeatureTable
-import org.apache.spark.sql.Column
-import org.apache.spark.sql.functions.col
+import feast.ingestion.{DataFormat, StreamingSource}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.execution.streaming.MemoryStream
 
-class RowValidator(featureTable: FeatureTable, timestampColumn: String) extends Serializable {
-  def allEntitiesPresent: Column =
-    featureTable.entities.map(e => col(e.name).isNotNull).reduce(_.&&(_))
+// For test purposes
+case class MemoryStreamingSource(
+    stream: MemoryStream[_],
+    override val fieldMapping: Map[String, String] = Map.empty,
+    override val eventTimestampColumn: String = "timestamp",
+    override val createdTimestampColumn: Option[String] = None,
+    override val datePartitionColumn: Option[String] = None
+) extends StreamingSource {
+  def read: DataFrame = stream.toDF()
 
-  def atLeastOneFeatureNotNull: Column =
-    featureTable.features.map(f => col(f.name).isNotNull).reduce(_.||(_))
-
-  def timestampPresent: Column =
-    col(timestampColumn).isNotNull
-
-  def allChecks: Column =
-    allEntitiesPresent && atLeastOneFeatureNotNull && timestampPresent
+  override def format: DataFormat = null
 }

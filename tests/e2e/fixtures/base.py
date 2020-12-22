@@ -1,3 +1,4 @@
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
@@ -9,8 +10,10 @@ def project_root():
 
 
 @pytest.fixture(scope="session")
-def project_version(pytestconfig):
+def project_version(pytestconfig, project_root):
     if pytestconfig.getoption("feast_version"):
         return pytestconfig.getoption("feast_version")
-    else:
-        raise Exception("feast_version not set")
+
+    pom_xml = ET.parse(project_root / "pom.xml")
+    root = pom_xml.getroot()
+    return root.find(".properties/revision").text

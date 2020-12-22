@@ -128,6 +128,10 @@ jobs:
           java-version: '11'
           java-package: jdk
           architecture: x64
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.6'
+          architecture: 'x64'
       - uses: actions/cache@v2
         with:
           path: ~/.m2/repository
@@ -136,6 +140,13 @@ jobs:
             ${{ runner.os }}-it-maven-
       - name: Run integration tests
         run:  make test-java-integration
+      - name: Save report
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: it-report
+          path: spark/ingestion/target/test-reports/TestSuite.txt
+          retention-days: 5
 
   tests-docker-compose:
     needs:

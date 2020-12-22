@@ -284,6 +284,8 @@ class DataprocClusterLauncher(JobLauncher):
                 "spark.executor.instances": self.executor_instances,
                 "spark.executor.cores": self.executor_cores,
                 "spark.executor.memory": self.executor_memory,
+                "spark.pyspark.driver.python": "python3.6",
+                "spark.pyspark.python": "python3.6",
             }
 
             properties.update(extra_properties)

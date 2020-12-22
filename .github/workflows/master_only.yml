@@ -77,3 +77,30 @@ jobs:
             make build-java-no-tests REVISION=${VERSION}
             gsutil cp ./spark/ingestion/target/feast-ingestion-spark-${VERSION}.jar gs://${PUBLISH_BUCKET}/spark/ingestion/
           fi
+
+  publish-ingestion-pylibs:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+        python-version: [ 3.6, 3.7, 3.8 ]
+    env:
+      PUBLISH_BUCKET: feast-jobs
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        with:
+          version: '290.0.1'
+          export_default_credentials: true
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Create libs archive
+        env:
+          PY_VERSION: ${{ matrix.python-version }}
+        run: |
+          export PLATFORM=$(python -c 'import platform; print(platform.system().lower())')
+          ./infra/scripts/build-ingestion-py-dependencies.sh "py${PY_VERSION}-$PLATFORM" gs://${PUBLISH_BUCKET}/spark/validation/

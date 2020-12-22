@@ -45,19 +45,19 @@ lint-java:
 	${MVN} --no-transfer-progress spotless:check
 
 test-java:
-	${MVN} --no-transfer-progress test
+	${MVN} --no-transfer-progress -DskipITs=true test
 
 test-java-integration:
 	${MVN} --no-transfer-progress -Dmaven.javadoc.skip=true -Dgpg.skip -DskipUTs=true clean verify
 
 test-java-with-coverage:
-	${MVN} --no-transfer-progress test jacoco:report-aggregate
+	${MVN} --no-transfer-progress -DskipITs=true test jacoco:report-aggregate
 
 build-java:
 	${MVN} clean verify
 
 build-java-no-tests:
-	${MVN} --no-transfer-progress -Dmaven.javadoc.skip=true -Dgpg.skip -DskipUTs=true -Drevision=${REVISION} clean package
+	${MVN} --no-transfer-progress -Dmaven.javadoc.skip=true -Dgpg.skip -DskipUTs=true -DskipITs=true -Drevision=${REVISION} clean package
 
 # Python SDK
 

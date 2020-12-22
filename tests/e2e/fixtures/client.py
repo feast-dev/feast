@@ -43,6 +43,7 @@ def feast_client(
             historical_feature_output_location=os.path.join(
                 local_staging_path, "historical_output"
             ),
+            ingestion_drop_invalid_rows=True,
             **job_service_env,
         )
 
@@ -61,6 +62,7 @@ def feast_client(
             historical_feature_output_location=os.path.join(
                 local_staging_path, "historical_output"
             ),
+            ingestion_drop_invalid_rows=True,
             **job_service_env,
         )
     elif pytestconfig.getoption("env") == "aws":
@@ -78,6 +80,7 @@ def feast_client(
             historical_feature_output_location=os.path.join(
                 local_staging_path, "historical_output"
             ),
+            ingestion_drop_invalid_rows=True,
         )
     elif pytestconfig.getoption("env") == "k8s":
         return Client(

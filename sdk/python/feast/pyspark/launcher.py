@@ -148,6 +148,7 @@ def _feature_table_to_argument(
             for n in feature_table.entities
         ],
         "max_age": feature_table.max_age.ToSeconds() if feature_table.max_age else None,
+        "labels": dict(feature_table.labels),
     }
 
 
@@ -288,6 +289,7 @@ def get_stream_to_online_ingestion_params(
         and client._config.getint(opt.STATSD_PORT),
         deadletter_path=client._config.get(opt.DEADLETTER_PATH),
         stencil_url=client._config.get(opt.STENCIL_URL),
+        drop_invalid_rows=client._config.get(opt.INGESTION_DROP_INVALID_ROWS),
     )
 
 

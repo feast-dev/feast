@@ -77,7 +77,10 @@ setup(
     install_requires=REQUIRED,
     # https://stackoverflow.com/questions/28509965/setuptools-development-requirements
     # Install dev requirements with: pip install -e .[dev]
-    extras_require={"dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"]},
+    extras_require={
+        "dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"],
+        "validation": ["great_expectations==0.13.2", "pyspark==3.0.1"]
+    },
     include_package_data=True,
     license="Apache",
     classifiers=[

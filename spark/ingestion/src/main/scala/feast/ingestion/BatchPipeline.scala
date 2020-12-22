@@ -36,7 +36,7 @@ object BatchPipeline extends BasePipeline {
     val featureTable = config.featureTable
     val projection =
       inputProjection(config.source, featureTable.features, featureTable.entities)
-    val validator = new RowValidator(featureTable, config.source.eventTimestampColumn)
+    val rowValidator = new RowValidator(featureTable, config.source.eventTimestampColumn)
 
     val input = config.source match {
       case source: BQSource =>
@@ -64,7 +64,7 @@ object BatchPipeline extends BasePipeline {
     }
 
     val validRows = projected
-      .filter(validator.checkAll)
+      .filter(rowValidator.allChecks)
 
     validRows.write
       .format("feast.ingestion.stores.redis")
@@ -78,7 +78,7 @@ object BatchPipeline extends BasePipeline {
     config.deadLetterPath match {
       case Some(path) =>
         projected
-          .filter(!validator.checkAll)
+          .filter(!rowValidator.allChecks)
           .write
           .format("parquet")
           .mode(SaveMode.Append)

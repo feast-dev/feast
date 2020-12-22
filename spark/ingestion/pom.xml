@@ -258,6 +258,11 @@
                         <goals>
                             <goal>test</goal>
                         </goals>
+                        <configuration>
+                            <reportsDirectory>${project.build.directory}/test-reports</reportsDirectory>
+                            <junitxml>.</junitxml>
+                            <filereports>WDF TestSuite.txt</filereports>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -365,6 +370,24 @@
                 <configuration>
                     <skipTests>true</skipTests>
                 </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>exec-maven-plugin</artifactId>
+                <groupId>org.codehaus.mojo</groupId>
+                <executions>
+                    <execution>
+                        <id>Python UDF setup</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${skipITs}</skip>
+                            <executable>./setup.sh</executable>
+                            <workingDirectory>${basedir}/src/test/resources/python/</workingDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
         <pluginManagement>

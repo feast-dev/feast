@@ -332,6 +332,7 @@ def _stream_ingestion_step(
             ],
             "Args": ["spark-submit", "--class", "feast.ingestion.IngestionJob"]
             + jars_args
+            + ["--conf", "spark.yarn.isPython=true"]
             + ["--packages", BQ_SPARK_PACKAGE, jar_path]
             + args,
             "Jar": "command-runner.jar",

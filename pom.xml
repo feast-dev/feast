@@ -105,6 +105,7 @@
         <parent.basedir>${maven.multiModuleProjectDirectory}</parent.basedir>
 
         <skipUTs>false</skipUTs>
+        <skipITs>false</skipITs>
         <feast.auth.providers.http.client.package.name>feast.common.auth.providers.http.client</feast.auth.providers.http.client.package.name>
     </properties>
 

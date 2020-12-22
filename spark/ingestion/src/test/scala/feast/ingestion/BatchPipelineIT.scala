@@ -32,6 +32,8 @@ import feast.ingestion.helpers.RedisStorageHelper._
 import feast.ingestion.helpers.DataHelper._
 import feast.proto.storage.RedisProto.RedisKeyV2
 import feast.proto.types.ValueProto
+import org.apache.spark.sql.Encoder
+import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder
 
 case class TestRow(
     customer: String,
@@ -51,6 +53,8 @@ class BatchPipelineIT extends SparkSpec with ForAllTestContainer {
   trait Scope {
     val jedis = new Jedis("localhost", container.mappedPort(6379))
     jedis.flushAll()
+
+    implicit def testRowEncoder: Encoder[TestRow] = ExpressionEncoder()
 
     def rowGenerator(start: DateTime, end: DateTime, customerGen: Option[Gen[String]] = None) =
       for {
