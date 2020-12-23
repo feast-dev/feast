@@ -29,14 +29,6 @@ public class Metrics {
           .labelNames("method")
           .register();
 
-  public static final Counter requestCount =
-      Counter.build()
-          .name("request_feature_count")
-          .subsystem("feast_serving")
-          .help("number of feature rows requested")
-          .labelNames("project", "feature_name")
-          .register();
-
   public static final Histogram requestEntityCount =
       Histogram.build()
           .buckets(1, 2, 5, 10)

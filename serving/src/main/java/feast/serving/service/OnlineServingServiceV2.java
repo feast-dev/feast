@@ -324,13 +324,14 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     Metrics.requestEntityCount.labels(project).observe(Double.valueOf(entityRows.size()));
     Metrics.requestFeatureCount.labels(project).observe(Double.valueOf(featureReferences.size()));
 
-    Set<String> featureTableRefs =
+    long countDistinctFeatureTables =
         featureReferences.stream()
             .map(featureReference -> getFeatureTableStringRef(project, featureReference))
-            .collect(Collectors.toSet());
+            .distinct()
+            .count();
     Metrics.requestFeatureTableCount
         .labels(project)
-        .observe(Double.valueOf(featureTableRefs.size()));
+        .observe(Double.valueOf(countDistinctFeatureTables));
   }
 
   /**
