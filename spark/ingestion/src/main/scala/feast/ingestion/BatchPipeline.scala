@@ -16,9 +16,9 @@
  */
 package feast.ingestion
 
+import feast.ingestion.metrics.IngestionPipelineMetrics
 import feast.ingestion.sources.bq.BigQueryReader
 import feast.ingestion.sources.file.FileReader
-import feast.ingestion.stores.deadletters.DeadLetterMetrics
 import feast.ingestion.validation.{RowValidator, TypeCheck}
 import org.apache.commons.lang.StringUtils
 import org.apache.spark.SparkEnv
@@ -59,6 +59,8 @@ object BatchPipeline extends BasePipeline {
 
     val projected = input.select(projection: _*).cache()
 
+    implicit def rowEncoder: Encoder[Row] = RowEncoder(projected.schema)
+
     TypeCheck.allTypesMatch(projected.schema, featureTable) match {
       case Some(error) =>
         throw new RuntimeException(s"Dataframe columns don't match expected feature types: $error")
@@ -66,6 +68,7 @@ object BatchPipeline extends BasePipeline {
     }
 
     val validRows = projected
+      .mapPartitions(IngestionPipelineMetrics.incrementRead)
       .filter(rowValidator.allChecks)
 
     validRows.write
@@ -77,12 +80,11 @@ object BatchPipeline extends BasePipeline {
       .option("max_age", config.featureTable.maxAge.getOrElse(0L))
       .save()
 
-    implicit def rowEncoder: Encoder[Row] = RowEncoder(projected.schema)
     config.deadLetterPath match {
       case Some(path) =>
         projected
           .filter(!rowValidator.allChecks)
-          .mapPartitions(iter => DeadLetterMetrics.incrementCount(iter))
+          .mapPartitions(IngestionPipelineMetrics.incrementDeadletters)
           .write
           .format("parquet")
           .mode(SaveMode.Append)

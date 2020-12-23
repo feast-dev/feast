@@ -16,13 +16,16 @@
  */
 package org.apache.spark.metrics.source
 
-class DeadLetterSinkMetricSource extends BaseMetricSource {
-  override val sourceName: String = DeadLetterSinkMetricSource.sourceName
+class IngestionPipelineMetricSource extends BaseMetricSource {
+  override val sourceName: String = IngestionPipelineMetricSource.sourceName
 
   val METRIC_DEADLETTER_ROWS_INSERTED =
-    metricRegistry.counter(counterWithLabels("feast_ingestion_deadletter_count"))
+    metricRegistry.counter(counterWithLabels("deadletter_count"))
+
+  val METRIC_ROWS_READ_FROM_SOURCE =
+    metricRegistry.counter(counterWithLabels("read_from_source_count"))
 }
 
-object DeadLetterSinkMetricSource {
-  val sourceName = "deadletter_sink"
+object IngestionPipelineMetricSource {
+  val sourceName = "ingestion_pipeline"
 }

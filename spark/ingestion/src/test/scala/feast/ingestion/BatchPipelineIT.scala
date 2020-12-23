@@ -30,6 +30,7 @@ import org.scalatest._
 import redis.clients.jedis.Jedis
 import feast.ingestion.helpers.RedisStorageHelper._
 import feast.ingestion.helpers.DataHelper._
+import feast.ingestion.metrics.StatsDStub
 import feast.proto.storage.RedisProto.RedisKeyV2
 import feast.proto.types.ValueProto
 import org.apache.spark.sql.Encoder
@@ -55,6 +56,7 @@ class BatchPipelineIT extends SparkSpec with ForAllTestContainer {
     jedis.flushAll()
 
     implicit def testRowEncoder: Encoder[TestRow] = ExpressionEncoder()
+    val statsDStub = new StatsDStub
 
     def rowGenerator(start: DateTime, end: DateTime, customerGen: Option[Gen[String]] = None) =
       for {
@@ -95,7 +97,8 @@ class BatchPipelineIT extends SparkSpec with ForAllTestContainer {
         )
       ),
       startTime = DateTime.parse("2020-08-01"),
-      endTime = DateTime.parse("2020-09-01")
+      endTime = DateTime.parse("2020-09-01"),
+      metrics = Some(StatsDConfig(host="localhost", port=statsDStub.port))
     )
   }
 

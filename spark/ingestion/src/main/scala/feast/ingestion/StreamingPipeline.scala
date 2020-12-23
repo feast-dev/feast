@@ -19,10 +19,10 @@ package feast.ingestion
 import java.io.File
 import java.util.concurrent.TimeUnit
 
+import feast.ingestion.metrics.IngestionPipelineMetrics
 import feast.ingestion.registry.proto.ProtoRegistryFactory
 import org.apache.spark.sql.{DataFrame, Encoder, Row, SaveMode, SparkSession}
 import org.apache.spark.sql.functions.{expr, struct, udf}
-import feast.ingestion.stores.deadletters.DeadLetterMetrics
 import feast.ingestion.utils.ProtoReflection
 import feast.ingestion.utils.testing.MemoryStreamingSource
 import feast.ingestion.validation.{RowValidator, TypeCheck}
@@ -104,8 +104,10 @@ object StreamingPipeline extends BasePipeline with Serializable {
           batchDF.withColumn("_isValid", rowValidator.allChecks)
         }
         rowsAfterValidation.persist()
+        implicit def rowEncoder: Encoder[Row] = RowEncoder(rowsAfterValidation.schema)
 
         rowsAfterValidation
+          .mapPartitions(IngestionPipelineMetrics.incrementRead)
           .filter(if (config.doNotIngestInvalidRows) expr("_isValid") else rowValidator.allChecks)
           .write
           .format("feast.ingestion.stores.redis")
@@ -116,13 +118,12 @@ object StreamingPipeline extends BasePipeline with Serializable {
           .option("max_age", config.featureTable.maxAge.getOrElse(0L))
           .save()
 
-        implicit def rowEncoder: Encoder[Row] = RowEncoder(projected.schema)
         config.deadLetterPath match {
           case Some(path) =>
 
             rowsAfterValidation
               .filter("!_isValid")
-              .mapPartitions(iter => DeadLetterMetrics.incrementCount(iter))
+              .mapPartitions(IngestionPipelineMetrics.incrementDeadletters)
               .write
               .format("parquet")
               .mode(SaveMode.Append)
