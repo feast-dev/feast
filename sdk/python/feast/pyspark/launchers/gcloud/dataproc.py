@@ -302,7 +302,12 @@ class DataprocClusterLauncher(JobLauncher):
                         "jar_file_uris": [main_file_uri] + self.EXTERNAL_JARS,
                         "main_class": job_params.get_class_name(),
                         "args": job_params.get_arguments(),
-                        "properties": {**scala_job_properties, **common_properties, **maven_package_properties, **extra_properties},
+                        "properties": {
+                            **scala_job_properties,
+                            **common_properties,
+                            **maven_package_properties,
+                            **extra_properties,
+                        },
                     }
                 }
             )
@@ -313,7 +318,11 @@ class DataprocClusterLauncher(JobLauncher):
                         "main_python_file_uri": main_file_uri,
                         "jar_file_uris": self.EXTERNAL_JARS,
                         "args": job_params.get_arguments(),
-                        "properties": {**common_properties, **maven_package_properties, **extra_properties},
+                        "properties": {
+                            **common_properties,
+                            **maven_package_properties,
+                            **extra_properties,
+                        },
                     }
                 }
             )
