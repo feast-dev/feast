@@ -31,7 +31,7 @@ public class Metrics {
 
   public static final Histogram requestEntityCount =
       Histogram.build()
-          .buckets(1, 2, 5, 10)
+          .buckets(1, 2, 5, 10, 20, 50, 100, 200)
           .name("request_entity_count")
           .subsystem("feast_serving")
           .help("Number of entity rows per request")
@@ -40,7 +40,7 @@ public class Metrics {
 
   public static final Histogram requestFeatureCount =
       Histogram.build()
-          .buckets(1, 2, 5, 10, 15, 20)
+          .buckets(1, 2, 5, 10, 15, 20, 30, 50)
           .name("request_feature_count")
           .subsystem("feast_serving")
           .help("Number of feature rows per request")
@@ -49,7 +49,7 @@ public class Metrics {
 
   public static final Histogram requestFeatureTableCount =
       Histogram.build()
-          .buckets(1, 2, 5, 10)
+          .buckets(1, 2, 5, 10, 20)
           .name("request_feature_table_count")
           .subsystem("feast_serving")
           .help("Number of feature tables per request")
