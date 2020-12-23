@@ -161,22 +161,10 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
           populateCountMetrics(statusMap, projectName);
         }
       }
-      populateHistogramMetrics(entityRows, featureReferences, projectName);
-
-      // Build response field values from entityValuesMap and entityStatusesMap
-      // Response field values should be in the same order as the entityRows provided by the user.
-      List<GetOnlineFeaturesResponse.FieldValues> fieldValuesList =
-          entityRows.stream()
-              .map(
-                  entityRow -> {
-                    return GetOnlineFeaturesResponse.FieldValues.newBuilder()
-                        .putAllFields(entityValuesMap.get(entityRow))
-                        .putAllStatuses(entityStatusesMap.get(entityRow))
-                        .build();
-                  })
-              .collect(Collectors.toList());
-      return GetOnlineFeaturesResponse.newBuilder().addAllFieldValues(fieldValuesList).build();
+      entityValuesMap.get(entityRow).putAll(allValueMaps);
+      entityStatusesMap.get(entityRow).putAll(allStatusMaps);
     }
+    populateHistogramMetrics(entityRows, featureReferences, projectName);
 
     // Build response field values from entityValuesMap and entityStatusesMap
     // Response field values should be in the same order as the entityRows provided by the user.
