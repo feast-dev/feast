@@ -193,7 +193,7 @@ def start_historical_feature_retrieval_job(
 
     extra_packages = []
     if output_format == "tfrecord":
-        extra_packages.append("com.linkedin.sparktfrecord:spark-tfrecord_2.12:0.2.4")
+        extra_packages.append("com.linkedin.sparktfrecord:spark-tfrecord_2.12:0.3.0")
 
     return launcher.historical_feature_retrieval(
         RetrievalJobParameters(

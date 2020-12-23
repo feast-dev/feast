@@ -98,7 +98,7 @@ def new_retrieval_job_params(
         feature_tables_sources=feature_tables_sources,
         entity_source=entity_source,
         destination=destination,
-        extra_packages=["com.linkedin.sparktfrecord:spark-tfrecord_2.12:0.2.4"],
+        extra_packages=["com.linkedin.sparktfrecord:spark-tfrecord_2.12:0.3.0"],
     )
 
 
