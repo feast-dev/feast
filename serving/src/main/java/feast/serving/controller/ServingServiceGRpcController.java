@@ -30,16 +30,21 @@ import feast.serving.service.ServingServiceV2;
 import feast.serving.util.RequestHelper;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
+import io.opentracing.contrib.grpc.TracingServerInterceptor;
 import net.devh.boot.grpc.server.service.GrpcService;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-@GrpcService(interceptors = {GrpcMessageInterceptor.class, GrpcMonitoringInterceptor.class})
+@GrpcService(
+    interceptors = {
+      TracingServerInterceptor.class,
+      GrpcMessageInterceptor.class,
+      GrpcMonitoringInterceptor.class
+    })
 public class ServingServiceGRpcController extends ServingServiceImplBase {
 
   private static final Logger log =
@@ -75,8 +80,7 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
   public void getOnlineFeaturesV2(
       ServingAPIProto.GetOnlineFeaturesRequestV2 request,
       StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
-    Span span = tracer.buildSpan("getOnlineFeaturesV2").start();
-    try (Scope scope = tracer.scopeManager().activate(span, false)) {
+    try {
       // authorize for the project in request object.
       if (request.getProject() != null && !request.getProject().isEmpty()) {
         // project set at root level overrides the project set at feature table level
@@ -84,7 +88,11 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
             SecurityContextHolder.getContext(), request.getProject());
       }
       RequestHelper.validateOnlineRequest(request);
+      Span span = tracer.buildSpan("getOnlineFeaturesV2").start();
       GetOnlineFeaturesResponse onlineFeatures = servingServiceV2.getOnlineFeatures(request);
+      if (span != null) {
+        span.finish();
+      }
       responseObserver.onNext(onlineFeatures);
       responseObserver.onCompleted();
     } catch (SpecRetrievalException e) {
@@ -102,6 +110,5 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       log.warn("Failed to get Online Features", e);
       responseObserver.onError(e);
     }
-    span.finish();
   }
 }

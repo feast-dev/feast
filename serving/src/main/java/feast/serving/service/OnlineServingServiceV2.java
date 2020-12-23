@@ -32,7 +32,7 @@ import feast.serving.util.Metrics;
 import feast.storage.api.retriever.Feature;
 import feast.storage.api.retriever.OnlineRetrieverV2;
 import io.grpc.Status;
-import io.opentracing.Scope;
+import io.opentracing.Span;
 import io.opentracing.Tracer;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -71,105 +71,111 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       projectName = "default";
     }
 
-    try (Scope scope = tracer.buildSpan("getOnlineFeaturesV2").startActive(true)) {
-      List<GetOnlineFeaturesRequestV2.EntityRow> entityRows = request.getEntityRowsList();
-      // Collect the feature/entity value for each entity row in entityValueMap
-      Map<GetOnlineFeaturesRequestV2.EntityRow, Map<String, ValueProto.Value>> entityValuesMap =
-          entityRows.stream().collect(Collectors.toMap(row -> row, row -> new HashMap<>()));
-      // Collect the feature/entity status metadata for each entity row in entityValueMap
-      Map<GetOnlineFeaturesRequestV2.EntityRow, Map<String, GetOnlineFeaturesResponse.FieldStatus>>
-          entityStatusesMap =
-              entityRows.stream().collect(Collectors.toMap(row -> row, row -> new HashMap<>()));
+    List<GetOnlineFeaturesRequestV2.EntityRow> entityRows = request.getEntityRowsList();
+    // Collect the feature/entity value for each entity row in entityValueMap
+    Map<GetOnlineFeaturesRequestV2.EntityRow, Map<String, ValueProto.Value>> entityValuesMap =
+        entityRows.stream().collect(Collectors.toMap(row -> row, row -> new HashMap<>()));
+    // Collect the feature/entity status metadata for each entity row in entityValueMap
+    Map<GetOnlineFeaturesRequestV2.EntityRow, Map<String, GetOnlineFeaturesResponse.FieldStatus>>
+        entityStatusesMap =
+            entityRows.stream().collect(Collectors.toMap(row -> row, row -> new HashMap<>()));
 
-      entityRows.forEach(
-          entityRow -> {
-            Map<String, ValueProto.Value> valueMap = entityRow.getFieldsMap();
-            entityValuesMap.get(entityRow).putAll(valueMap);
-            entityStatusesMap.get(entityRow).putAll(getMetadataMap(valueMap, false, false));
-          });
+    entityRows.forEach(
+        entityRow -> {
+          Map<String, ValueProto.Value> valueMap = entityRow.getFieldsMap();
+          entityValuesMap.get(entityRow).putAll(valueMap);
+          entityStatusesMap.get(entityRow).putAll(getMetadataMap(valueMap, false, false));
+        });
 
-      List<List<Optional<Feature>>> entityRowsFeatures =
-          retriever.getOnlineFeatures(projectName, entityRows, featureReferences);
-
-      if (entityRowsFeatures.size() != entityRows.size()) {
-        throw Status.INTERNAL
-            .withDescription(
-                "The no. of FeatureRow obtained from OnlineRetriever"
-                    + "does not match no. of entityRow passed.")
-            .asRuntimeException();
-      }
-
-      for (int i = 0; i < entityRows.size(); i++) {
-        GetOnlineFeaturesRequestV2.EntityRow entityRow = entityRows.get(i);
-        List<Optional<Feature>> curEntityRowFeatures = entityRowsFeatures.get(i);
-
-        Map<FeatureReferenceV2, Optional<Feature>> featureReferenceFeatureMap =
-            getFeatureRefFeatureMap(curEntityRowFeatures);
-
-        Map<String, ValueProto.Value> allValueMaps = new HashMap<>();
-        Map<String, GetOnlineFeaturesResponse.FieldStatus> allStatusMaps = new HashMap<>();
-
-        for (FeatureReferenceV2 featureReference : featureReferences) {
-          if (featureReferenceFeatureMap.containsKey(featureReference)) {
-            Optional<Feature> feature = featureReferenceFeatureMap.get(featureReference);
-
-            FeatureTableSpec featureTableSpec =
-                specService.getFeatureTableSpec(projectName, feature.get().getFeatureReference());
-            FeatureProto.FeatureSpecV2 featureSpec =
-                specService.getFeatureSpec(projectName, feature.get().getFeatureReference());
-            ValueProto.ValueType.Enum valueTypeEnum = featureSpec.getValueType();
-            ValueProto.Value.ValCase valueCase = feature.get().getFeatureValue().getValCase();
-            boolean isMatchingFeatureSpec = checkSameFeatureSpec(valueTypeEnum, valueCase);
-
-            boolean isOutsideMaxAge = checkOutsideMaxAge(featureTableSpec, entityRow, feature);
-            Map<String, ValueProto.Value> valueMap =
-                unpackValueMap(feature, isOutsideMaxAge, isMatchingFeatureSpec);
-            allValueMaps.putAll(valueMap);
-
-            // Generate metadata for feature values and merge into entityFieldsMap
-            Map<String, GetOnlineFeaturesResponse.FieldStatus> statusMap =
-                getMetadataMap(valueMap, !isMatchingFeatureSpec, isOutsideMaxAge);
-            allStatusMaps.putAll(statusMap);
-
-            // Populate metrics/log request
-            populateCountMetrics(statusMap, projectName);
-          } else {
-            Map<String, ValueProto.Value> valueMap =
-                new HashMap<>() {
-                  {
-                    put(
-                        FeatureV2.getFeatureStringRef(featureReference),
-                        ValueProto.Value.newBuilder().build());
-                  }
-                };
-            allValueMaps.putAll(valueMap);
-
-            Map<String, GetOnlineFeaturesResponse.FieldStatus> statusMap =
-                getMetadataMap(valueMap, true, false);
-            allStatusMaps.putAll(statusMap);
-
-            // Populate metrics/log request
-            populateCountMetrics(statusMap, projectName);
-          }
-        }
-        entityValuesMap.get(entityRow).putAll(allValueMaps);
-        entityStatusesMap.get(entityRow).putAll(allStatusMaps);
-      }
-
-      // Build response field values from entityValuesMap and entityStatusesMap
-      // Response field values should be in the same order as the entityRows provided by the user.
-      List<GetOnlineFeaturesResponse.FieldValues> fieldValuesList =
-          entityRows.stream()
-              .map(
-                  entityRow -> {
-                    return GetOnlineFeaturesResponse.FieldValues.newBuilder()
-                        .putAllFields(entityValuesMap.get(entityRow))
-                        .putAllStatuses(entityStatusesMap.get(entityRow))
-                        .build();
-                  })
-              .collect(Collectors.toList());
-      return GetOnlineFeaturesResponse.newBuilder().addAllFieldValues(fieldValuesList).build();
+    Span onlineRetrievalSpan = tracer.buildSpan("onlineRetrieval").start();
+    if (onlineRetrievalSpan != null) {
+      onlineRetrievalSpan.setTag("entities", entityRows.size());
+      onlineRetrievalSpan.setTag("features", featureReferences.size());
     }
+    List<List<Optional<Feature>>> entityRowsFeatures =
+        retriever.getOnlineFeatures(projectName, entityRows, featureReferences);
+    if (onlineRetrievalSpan != null) {
+      onlineRetrievalSpan.finish();
+    }
+
+    if (entityRowsFeatures.size() != entityRows.size()) {
+      throw Status.INTERNAL
+          .withDescription(
+              "The no. of FeatureRow obtained from OnlineRetriever"
+                  + "does not match no. of entityRow passed.")
+          .asRuntimeException();
+    }
+
+    for (int i = 0; i < entityRows.size(); i++) {
+      GetOnlineFeaturesRequestV2.EntityRow entityRow = entityRows.get(i);
+      List<Optional<Feature>> curEntityRowFeatures = entityRowsFeatures.get(i);
+
+      Map<FeatureReferenceV2, Optional<Feature>> featureReferenceFeatureMap =
+          getFeatureRefFeatureMap(curEntityRowFeatures);
+
+      Map<String, ValueProto.Value> allValueMaps = new HashMap<>();
+      Map<String, GetOnlineFeaturesResponse.FieldStatus> allStatusMaps = new HashMap<>();
+
+      for (FeatureReferenceV2 featureReference : featureReferences) {
+        if (featureReferenceFeatureMap.containsKey(featureReference)) {
+          Optional<Feature> feature = featureReferenceFeatureMap.get(featureReference);
+
+          FeatureTableSpec featureTableSpec =
+              specService.getFeatureTableSpec(projectName, feature.get().getFeatureReference());
+          FeatureProto.FeatureSpecV2 featureSpec =
+              specService.getFeatureSpec(projectName, feature.get().getFeatureReference());
+          ValueProto.ValueType.Enum valueTypeEnum = featureSpec.getValueType();
+          ValueProto.Value.ValCase valueCase = feature.get().getFeatureValue().getValCase();
+          boolean isMatchingFeatureSpec = checkSameFeatureSpec(valueTypeEnum, valueCase);
+
+          boolean isOutsideMaxAge = checkOutsideMaxAge(featureTableSpec, entityRow, feature);
+          Map<String, ValueProto.Value> valueMap =
+              unpackValueMap(feature, isOutsideMaxAge, isMatchingFeatureSpec);
+          allValueMaps.putAll(valueMap);
+
+          // Generate metadata for feature values and merge into entityFieldsMap
+          Map<String, GetOnlineFeaturesResponse.FieldStatus> statusMap =
+              getMetadataMap(valueMap, !isMatchingFeatureSpec, isOutsideMaxAge);
+          allStatusMaps.putAll(statusMap);
+
+          // Populate metrics/log request
+          populateCountMetrics(statusMap, projectName);
+        } else {
+          Map<String, ValueProto.Value> valueMap =
+              new HashMap<>() {
+                {
+                  put(
+                      FeatureV2.getFeatureStringRef(featureReference),
+                      ValueProto.Value.newBuilder().build());
+                }
+              };
+          allValueMaps.putAll(valueMap);
+
+          Map<String, GetOnlineFeaturesResponse.FieldStatus> statusMap =
+              getMetadataMap(valueMap, true, false);
+          allStatusMaps.putAll(statusMap);
+
+          // Populate metrics/log request
+          populateCountMetrics(statusMap, projectName);
+        }
+      }
+      entityValuesMap.get(entityRow).putAll(allValueMaps);
+      entityStatusesMap.get(entityRow).putAll(allStatusMaps);
+    }
+
+    // Build response field values from entityValuesMap and entityStatusesMap
+    // Response field values should be in the same order as the entityRows provided by the user.
+    List<GetOnlineFeaturesResponse.FieldValues> fieldValuesList =
+        entityRows.stream()
+            .map(
+                entityRow -> {
+                  return GetOnlineFeaturesResponse.FieldValues.newBuilder()
+                      .putAllFields(entityValuesMap.get(entityRow))
+                      .putAllStatuses(entityStatusesMap.get(entityRow))
+                      .build();
+                })
+            .collect(Collectors.toList());
+    return GetOnlineFeaturesResponse.newBuilder().addAllFieldValues(fieldValuesList).build();
   }
 
   private boolean checkSameFeatureSpec(
