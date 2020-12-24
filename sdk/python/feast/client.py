@@ -170,7 +170,9 @@ class Client:
     @property
     def _serving_service(self):
         """
-        Creates or returns the gRPC Feast Serving Service Stub
+        Creates or returns the gRPC Feast Serving Service Stub. If both `opentracing`
+        and `grpcio-opentracing` are installed, an opentracing interceptor will be
+        instantiated based on the global tracer.
 
         Returns: ServingServiceStub
         """
@@ -183,6 +185,17 @@ class Client:
                 auth_metadata_plugin=self._auth_metadata,
                 timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
             )
+            try:
+                import opentracing
+                from grpc_opentracing import open_tracing_client_interceptor
+                from grpc_opentracing.grpcext import intercept_channel
+
+                interceptor = open_tracing_client_interceptor(
+                    opentracing.global_tracer()
+                )
+                channel = intercept_channel(channel, interceptor)
+            except ImportError:
+                pass
             self._serving_service_stub = ServingServiceStub(channel)
         return self._serving_service_stub
 
