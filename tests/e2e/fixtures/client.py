@@ -63,6 +63,7 @@ def feast_client(
                 local_staging_path, "historical_output"
             ),
             ingestion_drop_invalid_rows=True,
+            grpc_connection_timeout=30,
             **job_service_env,
         )
     elif pytestconfig.getoption("env") == "aws":
