@@ -56,8 +56,8 @@ object StreamingPipeline extends BasePipeline with Serializable {
     val featureTable = config.featureTable
     val projection =
       inputProjection(config.source, featureTable.features, featureTable.entities)
-    val rowValidator = new RowValidator(featureTable, config.source.eventTimestampColumn)
-
+    val rowValidator  = new RowValidator(featureTable, config.source.eventTimestampColumn)
+    val metrics       = new IngestionPipelineMetrics
     val validationUDF = createValidationUDF(sparkSession, config)
 
     val input = config.source match {
@@ -107,7 +107,7 @@ object StreamingPipeline extends BasePipeline with Serializable {
         implicit def rowEncoder: Encoder[Row] = RowEncoder(rowsAfterValidation.schema)
 
         rowsAfterValidation
-          .mapPartitions(IngestionPipelineMetrics.incrementRead)
+          .mapPartitions(metrics.incrementRead)
           .filter(if (config.doNotIngestInvalidRows) expr("_isValid") else rowValidator.allChecks)
           .write
           .format("feast.ingestion.stores.redis")
@@ -120,10 +120,9 @@ object StreamingPipeline extends BasePipeline with Serializable {
 
         config.deadLetterPath match {
           case Some(path) =>
-
             rowsAfterValidation
               .filter("!_isValid")
-              .mapPartitions(IngestionPipelineMetrics.incrementDeadletters)
+              .mapPartitions(metrics.incrementDeadLetters)
               .write
               .format("parquet")
               .mode(SaveMode.Append)

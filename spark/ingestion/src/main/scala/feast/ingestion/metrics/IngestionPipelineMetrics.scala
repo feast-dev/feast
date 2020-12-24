@@ -18,36 +18,39 @@ package feast.ingestion.metrics
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.metrics.source.IngestionPipelineMetricSource
+import org.apache.spark.sql.Row
 
-object IngestionPipelineMetrics {
-  def incrementDeadletters[A](rowIterator: Iterator[A]): Iterator[A] = {
+class IngestionPipelineMetrics extends Serializable {
+
+  def incrementDeadLetters(rowIterator: Iterator[Row]): Iterator[Row] = {
+    val materialized = rowIterator.toArray
     if (metricSource.nonEmpty)
-      metricSource.get.METRIC_DEADLETTER_ROWS_INSERTED.inc(rowIterator.length)
+      metricSource.get.METRIC_DEADLETTER_ROWS_INSERTED.inc(materialized.length)
 
-    rowIterator
+    materialized.toIterator
   }
 
-  def incrementRead[A](rowIterator: Iterator[A]): Iterator[A] = {
+  def incrementRead(rowIterator: Iterator[Row]): Iterator[Row] = {
+    val materialized = rowIterator.toArray
     if (metricSource.nonEmpty)
-      metricSource.get.METRIC_ROWS_READ_FROM_SOURCE.inc(rowIterator.length)
+      metricSource.get.METRIC_ROWS_READ_FROM_SOURCE.inc(materialized.length)
 
-    rowIterator
+    materialized.toIterator
   }
 
   private lazy val metricSource: Option[IngestionPipelineMetricSource] = {
-    this.synchronized {
-      if (
-        SparkEnv.get.metricsSystem
-          .getSourcesByName(IngestionPipelineMetricSource.sourceName)
-          .isEmpty
-      ) {
-        SparkEnv.get.metricsSystem.registerSource(new IngestionPipelineMetricSource)
+    val metricsSystem = SparkEnv.get.metricsSystem
+    IngestionPipelineMetricsLock.synchronized {
+      if (metricsSystem.getSourcesByName(IngestionPipelineMetricSource.sourceName).isEmpty) {
+        metricsSystem.registerSource(new IngestionPipelineMetricSource)
       }
     }
 
-    SparkEnv.get.metricsSystem.getSourcesByName(IngestionPipelineMetricSource.sourceName) match {
+    metricsSystem.getSourcesByName(IngestionPipelineMetricSource.sourceName) match {
       case Seq(head) => Some(head.asInstanceOf[IngestionPipelineMetricSource])
       case _         => None
     }
   }
 }
+
+private object IngestionPipelineMetricsLock

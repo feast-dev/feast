@@ -39,6 +39,7 @@ object BatchPipeline extends BasePipeline {
     val projection =
       inputProjection(config.source, featureTable.features, featureTable.entities)
     val rowValidator = new RowValidator(featureTable, config.source.eventTimestampColumn)
+    val metrics      = new IngestionPipelineMetrics
 
     val input = config.source match {
       case source: BQSource =>
@@ -68,7 +69,7 @@ object BatchPipeline extends BasePipeline {
     }
 
     val validRows = projected
-      .mapPartitions(IngestionPipelineMetrics.incrementRead)
+      .mapPartitions(metrics.incrementRead)
       .filter(rowValidator.allChecks)
 
     validRows.write
@@ -84,7 +85,7 @@ object BatchPipeline extends BasePipeline {
       case Some(path) =>
         projected
           .filter(!rowValidator.allChecks)
-          .mapPartitions(IngestionPipelineMetrics.incrementDeadletters)
+          .mapPartitions(metrics.incrementDeadLetters)
           .write
           .format("parquet")
           .mode(SaveMode.Append)
