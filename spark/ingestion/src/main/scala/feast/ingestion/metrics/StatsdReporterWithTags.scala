@@ -125,8 +125,13 @@ class StatsdReporterWithTags(
   private def reportGauge(name: String, gauge: Gauge[_])(implicit socket: DatagramSocket): Unit =
     formatAny(gauge.getValue).foreach(v => send(fullName(name), v, GAUGE))
 
-  private def reportCounter(name: String, counter: Counter)(implicit socket: DatagramSocket): Unit =
-    send(fullName(name), format(counter.getCount), COUNTER)
+  private def reportCounter(name: String, counter: Counter)(implicit
+      socket: DatagramSocket
+  ): Unit = {
+    val snapshot = counter.getCount
+    send(fullName(name), format(snapshot), COUNTER)
+    counter.dec(snapshot) // reset counter
+  }
 
   private def reportHistogram(name: String, histogram: Histogram)(implicit
       socket: DatagramSocket

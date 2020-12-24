@@ -23,13 +23,14 @@ import collection.JavaConverters._
 import com.dimafeng.testcontainers.{ForAllTestContainer, GenericContainer}
 import com.google.protobuf.util.Timestamps
 import feast.proto.types.ValueProto.ValueType
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkEnv}
 import org.joda.time.{DateTime, Seconds}
 import org.scalacheck._
 import org.scalatest._
 import redis.clients.jedis.Jedis
 import feast.ingestion.helpers.RedisStorageHelper._
 import feast.ingestion.helpers.DataHelper._
+import feast.ingestion.metrics.StatsDStub
 import feast.proto.storage.RedisProto.RedisKeyV2
 import feast.proto.types.ValueProto
 import org.apache.spark.sql.Encoder
@@ -45,14 +46,18 @@ case class TestRow(
 class BatchPipelineIT extends SparkSpec with ForAllTestContainer {
 
   override val container = GenericContainer("redis:6.0.8", exposedPorts = Seq(6379))
+  val statsDStub         = new StatsDStub
 
   override def withSparkConfOverrides(conf: SparkConf): SparkConf = conf
     .set("spark.redis.host", container.host)
     .set("spark.redis.port", container.mappedPort(6379).toString)
+    .set("spark.metrics.conf.*.sink.statsd.port", statsDStub.port.toString)
 
   trait Scope {
     val jedis = new Jedis("localhost", container.mappedPort(6379))
     jedis.flushAll()
+
+    statsDStub.receivedMetrics // clean the buffer
 
     implicit def testRowEncoder: Encoder[TestRow] = ExpressionEncoder()
 
@@ -62,7 +67,7 @@ class BatchPipelineIT extends SparkSpec with ForAllTestContainer {
         feature1 <- Gen.choose(0, 100)
         feature2 <- Gen.choose[Float](0, 1)
         eventTimestamp <- Gen
-          .choose(0, Seconds.secondsBetween(start, end).getSeconds)
+          .choose(0, Seconds.secondsBetween(start, end).getSeconds - 1)
           .map(start.withMillisOfSecond(0).plusSeconds)
       } yield TestRow(
         customer,
@@ -95,7 +100,8 @@ class BatchPipelineIT extends SparkSpec with ForAllTestContainer {
         )
       ),
       startTime = DateTime.parse("2020-08-01"),
-      endTime = DateTime.parse("2020-09-01")
+      endTime = DateTime.parse("2020-09-01"),
+      metrics = Some(StatsDConfig(host = "localhost", port = statsDStub.port))
     )
   }
 
@@ -126,6 +132,14 @@ class BatchPipelineIT extends SparkSpec with ForAllTestContainer {
       keyTTL shouldEqual -1
 
     })
+
+    SparkEnv.get.metricsSystem.report()
+    statsDStub.receivedMetrics should contain.allElementsOf(
+      Map(
+        "driver.ingestion_pipeline.read_from_source_count" -> rows.length,
+        "driver.redis_sink.feature_row_ingested_count"     -> rows.length
+      )
+    )
   }
 
   "Parquet source file" should "be ingested in redis with expiry time equal to the largest of (event_timestamp + max_age) for" +
@@ -463,6 +477,13 @@ class BatchPipelineIT extends SparkSpec with ForAllTestContainer {
           .toString
       )
       .count() should be(rows.length)
+
+    SparkEnv.get.metricsSystem.report()
+    statsDStub.receivedMetrics should contain.allElementsOf(
+      Map(
+        "driver.ingestion_pipeline.deadletter_count" -> rows.length
+      )
+    )
   }
 
   "Columns from source" should "be mapped according to configuration" in new Scope {

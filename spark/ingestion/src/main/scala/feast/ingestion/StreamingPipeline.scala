@@ -19,8 +19,9 @@ package feast.ingestion
 import java.io.File
 import java.util.concurrent.TimeUnit
 
+import feast.ingestion.metrics.IngestionPipelineMetrics
 import feast.ingestion.registry.proto.ProtoRegistryFactory
-import org.apache.spark.sql.{DataFrame, Row, SaveMode, SparkSession}
+import org.apache.spark.sql.{DataFrame, Encoder, Row, SaveMode, SparkSession}
 import org.apache.spark.sql.functions.{expr, struct, udf}
 import feast.ingestion.utils.ProtoReflection
 import feast.ingestion.utils.testing.MemoryStreamingSource
@@ -33,8 +34,8 @@ import org.apache.spark.sql.streaming.StreamingQuery
 import org.apache.spark.sql.avro._
 import org.apache.spark.sql.execution.python.UserDefinedPythonFunction
 import org.apache.spark.sql.execution.streaming.ProcessingTimeTrigger
-import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.types.BooleanType
+import org.apache.spark.sql.catalyst.encoders.RowEncoder
 
 /**
   * Streaming pipeline (currently in micro-batches mode only, since we need to have multiple sinks: redis & deadletters).
@@ -55,8 +56,8 @@ object StreamingPipeline extends BasePipeline with Serializable {
     val featureTable = config.featureTable
     val projection =
       inputProjection(config.source, featureTable.features, featureTable.entities)
-    val rowValidator = new RowValidator(featureTable, config.source.eventTimestampColumn)
-
+    val rowValidator  = new RowValidator(featureTable, config.source.eventTimestampColumn)
+    val metrics       = new IngestionPipelineMetrics
     val validationUDF = createValidationUDF(sparkSession, config)
 
     val input = config.source match {
@@ -103,8 +104,10 @@ object StreamingPipeline extends BasePipeline with Serializable {
           batchDF.withColumn("_isValid", rowValidator.allChecks)
         }
         rowsAfterValidation.persist()
+        implicit def rowEncoder: Encoder[Row] = RowEncoder(rowsAfterValidation.schema)
 
         rowsAfterValidation
+          .mapPartitions(metrics.incrementRead)
           .filter(if (config.doNotIngestInvalidRows) expr("_isValid") else rowValidator.allChecks)
           .write
           .format("feast.ingestion.stores.redis")
@@ -119,6 +122,7 @@ object StreamingPipeline extends BasePipeline with Serializable {
           case Some(path) =>
             rowsAfterValidation
               .filter("!_isValid")
+              .mapPartitions(metrics.incrementDeadLetters)
               .write
               .format("parquet")
               .mode(SaveMode.Append)

@@ -16,16 +16,16 @@
  */
 package org.apache.spark.metrics.source
 
-class RedisSinkMetricSource extends BaseMetricSource {
-  override val sourceName: String = RedisSinkMetricSource.sourceName
+class IngestionPipelineMetricSource extends BaseMetricSource {
+  override val sourceName: String = IngestionPipelineMetricSource.sourceName
 
-  val METRIC_TOTAL_ROWS_INSERTED =
-    metricRegistry.counter(counterWithLabels("feature_row_ingested_count"))
+  val METRIC_DEADLETTER_ROWS_INSERTED =
+    metricRegistry.counter(counterWithLabels("deadletter_count"))
 
-  val METRIC_ROWS_LAG =
-    metricRegistry.histogram(metricWithLabels("feature_row_lag_ms"))
+  val METRIC_ROWS_READ_FROM_SOURCE =
+    metricRegistry.counter(counterWithLabels("read_from_source_count"))
 }
 
-object RedisSinkMetricSource {
-  val sourceName = "redis_sink"
+object IngestionPipelineMetricSource {
+  val sourceName = "ingestion_pipeline"
 }

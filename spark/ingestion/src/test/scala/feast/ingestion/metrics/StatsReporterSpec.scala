@@ -16,46 +16,17 @@
  */
 package feast.ingestion.metrics
 
-import java.net.{DatagramPacket, DatagramSocket, SocketTimeoutException}
 import java.util
 import java.util.Collections
 
 import com.codahale.metrics.{Gauge, Histogram, MetricRegistry, UniformReservoir}
 import feast.ingestion.UnitSpec
 
-import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters._
 
 class StatsReporterSpec extends UnitSpec {
-  class SimpleServer {
-    val socket = new DatagramSocket()
-    socket.setSoTimeout(100)
-
-    def port: Int = socket.getLocalPort
-
-    def receive: Array[String] = {
-      val messages: ArrayBuffer[String] = ArrayBuffer()
-      var finished                      = false
-
-      do {
-        val buf = new Array[Byte](65535)
-        val p   = new DatagramPacket(buf, buf.length)
-        try {
-          socket.receive(p)
-        } catch {
-          case _: SocketTimeoutException => {
-            finished = true
-          }
-        }
-        messages += new String(p.getData, 0, p.getLength)
-      } while (!finished)
-
-      messages.toArray
-    }
-  }
-
   trait Scope {
-    val server = new SimpleServer
+    val server = new StatsDStub
     val reporter = new StatsdReporterWithTags(
       new MetricRegistry,
       "127.0.0.1",

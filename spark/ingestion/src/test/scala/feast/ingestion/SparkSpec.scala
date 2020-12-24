@@ -36,7 +36,10 @@ class SparkSpec extends UnitSpec with BeforeAndAfter {
         "org.apache.spark.metrics.sink.StatsdSinkWithTags"
       )
       .set("spark.metrics.conf.*.sink.statsd.host", "localhost")
-      .set("spark.metrics.conf.*.sink.statsd.port", "8125")
+      .set("spark.metrics.conf.*.sink.statsd.period", "999") // disable scheduled reporting
+      .set("spark.metrics.conf.*.sink.statsd.unit", "minutes")
+      .set("spark.metrics.labels", "job_id=test")
+      .set("spark.metrics.namespace", "")
       .set("spark.sql.legacy.allowUntypedScalaUDF", "true")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "50000")
 

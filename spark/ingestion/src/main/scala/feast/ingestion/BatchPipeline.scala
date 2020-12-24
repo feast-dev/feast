@@ -16,12 +16,14 @@
  */
 package feast.ingestion
 
+import feast.ingestion.metrics.IngestionPipelineMetrics
 import feast.ingestion.sources.bq.BigQueryReader
 import feast.ingestion.sources.file.FileReader
 import feast.ingestion.validation.{RowValidator, TypeCheck}
 import org.apache.commons.lang.StringUtils
 import org.apache.spark.SparkEnv
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.catalyst.encoders.RowEncoder
+import org.apache.spark.sql.{Encoder, Row, SaveMode, SparkSession}
 
 /**
   * Batch Ingestion Flow:
@@ -37,6 +39,7 @@ object BatchPipeline extends BasePipeline {
     val projection =
       inputProjection(config.source, featureTable.features, featureTable.entities)
     val rowValidator = new RowValidator(featureTable, config.source.eventTimestampColumn)
+    val metrics      = new IngestionPipelineMetrics
 
     val input = config.source match {
       case source: BQSource =>
@@ -57,6 +60,8 @@ object BatchPipeline extends BasePipeline {
 
     val projected = input.select(projection: _*).cache()
 
+    implicit def rowEncoder: Encoder[Row] = RowEncoder(projected.schema)
+
     TypeCheck.allTypesMatch(projected.schema, featureTable) match {
       case Some(error) =>
         throw new RuntimeException(s"Dataframe columns don't match expected feature types: $error")
@@ -64,6 +69,7 @@ object BatchPipeline extends BasePipeline {
     }
 
     val validRows = projected
+      .mapPartitions(metrics.incrementRead)
       .filter(rowValidator.allChecks)
 
     validRows.write
@@ -79,6 +85,7 @@ object BatchPipeline extends BasePipeline {
       case Some(path) =>
         projected
           .filter(!rowValidator.allChecks)
+          .mapPartitions(metrics.incrementDeadLetters)
           .write
           .format("parquet")
           .mode(SaveMode.Append)

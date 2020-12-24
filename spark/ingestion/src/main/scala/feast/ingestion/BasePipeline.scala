@@ -55,7 +55,7 @@ trait BasePipeline {
           .set("spark.metrics.conf.*.sink.statsd.port", c.port.toString)
           .set("spark.metrics.conf.*.sink.statsd.period", "30")
           .set("spark.metrics.conf.*.sink.statsd.unit", "seconds")
-          .set("spark.metrics.namespace", jobConfig.mode.toString.toLowerCase)
+          .set("spark.metrics.namespace", s"feast_${jobConfig.mode.toString.toLowerCase}")
           // until proto parser udf will be fixed, we have to use this
           .set("spark.sql.legacy.allowUntypedScalaUDF", "true")
       case None => ()
