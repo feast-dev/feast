@@ -71,7 +71,7 @@ def generate_data():
 def test_historical_features(
     feast_client: Client,
     tfrecord_feast_client: Client,
-    batch_source: Union[BigQuerySource, FileSource]
+    batch_source: Union[BigQuerySource, FileSource],
 ):
     customer_entity = Entity(
         name="user_id", description="Customer", value_type=ValueType.INT64
