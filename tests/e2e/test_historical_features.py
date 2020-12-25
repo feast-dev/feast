@@ -1,5 +1,6 @@
 import copy
 from datetime import datetime, timedelta
+import re
 from typing import Union
 from urllib.parse import urlparse, urlunparse
 
@@ -119,6 +120,7 @@ def test_historical_features(
         ),
     )
 
+    copy._deepcopy_dispatch[type(re.compile(''))] = lambda r, _: r
     tf_record_feast_client = copy.deepcopy(feast_client)
     tf_record_feast_client._config.set(ConfigOptions.HISTORICAL_FEATURE_OUTPUT_FORMAT)
     job = feast_client.get_historical_features(feature_refs, customers_df)
