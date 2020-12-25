@@ -1,3 +1,4 @@
+import copy
 from datetime import datetime, timedelta
 from typing import Union
 from urllib.parse import urlparse, urlunparse
@@ -10,7 +11,9 @@ from pandas._testing import assert_frame_equal
 from pyarrow import parquet
 
 from feast import Client, Entity, Feature, FeatureTable, ValueType
+from feast.constants import ConfigOptions
 from feast.data_source import BigQuerySource, FileSource
+from feast.pyspark.abc import SparkJobStatus
 
 np.random.seed(0)
 
@@ -115,3 +118,9 @@ def test_historical_features(
             drop=True
         ),
     )
+
+    tf_record_feast_client = copy.deepcopy(feast_client)
+    tf_record_feast_client._config.set(ConfigOptions.HISTORICAL_FEATURE_OUTPUT_FORMAT)
+    job = feast_client.get_historical_features(feature_refs, customers_df)
+    job.get_output_file_uri()
+    assert job.get_status() == SparkJobStatus.COMPLETED
