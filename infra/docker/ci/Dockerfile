@@ -72,3 +72,17 @@ RUN PROTOC_ZIP=protoc-${PROTOC_VERSION}-linux-x86_64.zip && \
 	  git clone https://github.com/istio/tools/ && \
 	  cd tools/cmd/protoc-gen-docs && \
 	  go build && mkdir -p $HOME/bin && cp protoc-gen-docs $HOME/bin
+
+# Install AZ CLI
+RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+
+# Install kubectl
+RUN apt-get install -y kubectl=1.20.0-00
+
+# Install helm
+RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 && \
+    chmod 700 get_helm.sh && \
+    ./get_helm.sh --version v3.4.2
+
+# Install jq
+RUN apt-get install -y jq
