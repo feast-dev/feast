@@ -280,7 +280,7 @@ presubmits:
     max_concurrency: 1
     spec:
       containers:
-      - image: gcr.io/kf-feast/feast-ci:latest
+      - image: gcr.io/kf-feast/feast-ci:develop
         command: [ "infra/scripts/azure-runner.sh" ]
         resources:
           requests:
