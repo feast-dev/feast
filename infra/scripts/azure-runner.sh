@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 
@@ -6,13 +6,13 @@ STEP_BREADCRUMB='~~~~~~~~'
 SECONDS=0
 TIMEFORMAT="${STEP_BREADCRUMB} took %R seconds"
 
-# Note requires running in root feast directory
-source infra/scripts/runner-helper.sh
-
 GIT_TAG=$(git rev-parse HEAD)
 GIT_REMOTE_URL=$(git config --get remote.origin.url)
 
 echo "########## Starting e2e tests for ${GIT_REMOTE_URL} ${GIT_TAG} ###########"
+
+# Note requires running in root feast directory
+source infra/scripts/runner-helper.sh
 
 # Workaround for COPY command in core docker image that pulls local maven repo into the image
 # itself.
@@ -20,7 +20,7 @@ mkdir .m2 2>/dev/null || true
 
 # Log into k8s.
 echo "${STEP_BREADCRUMB} Updating kubeconfig"
-az login --service-principal -u "$AZ_SERVICE_PRINCIPAL_ID" -p "$AZ_SERVICE_PRINCIPAL_PASS" --tenant "$AZ_SERVICE_PRINCIPAL_TENANT_ID"
+az login --service-principal -u "$AZ_SERVICE_PRINCIPAL_ID" -p "$AZ_SERVICE_PRINCIPAL_PASS" --tenant "$AZ_SERVICE_PRINCIPAL_TENANT_ID" 2>/dev/null
 az aks get-credentials --resource-group "$RESOURCE_GROUP" --name "$AKS_CLUSTER_NAME"
 
 # Sanity check that kubectl is working.

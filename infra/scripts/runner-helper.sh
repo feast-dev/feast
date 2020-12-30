@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 function k8s_cleanup {
     local RELEASE=$1
