@@ -30,6 +30,7 @@ from feast.constants import ConfigOptions as opt
 GS = "gs"
 S3 = "s3"
 S3A = "s3a"
+AZURE_SCHEME = "https"
 LOCAL_FILE = "file"
 
 
@@ -82,7 +83,7 @@ class AbstractStagingClient(ABC):
         pass
 
     @abstractmethod
-    def list_files(self, bucket: str, path: str) -> List[str]:
+    def list_files(self, uri: ParseResult) -> List[str]:
         """
         Lists all the files under a directory in an object store.
         """
@@ -157,19 +158,19 @@ class GCSClient(AbstractStagingClient):
         file_obj.seek(0)
         return file_obj
 
-    def list_files(self, bucket: str, path: str) -> List[str]:
+    def list_files(self, uri: ParseResult) -> List[str]:
         """
         Lists all the files under a directory in google cloud storage if path has wildcard(*) character.
 
         Args:
-            bucket (str): google cloud storage bucket name
-            path (str): object location in google cloud storage.
+            uri (urllib.parse.ParseResult): Parsed uri of this location
 
         Returns:
             List[str]: A list containing the full path to the file(s) in the
                     remote staging location.
         """
 
+        bucket, path = self._uri_to_bucket_key(uri)
         gs_bucket = self.gcs_client.get_bucket(bucket)
 
         if "*" in path:
@@ -184,7 +185,7 @@ class GCSClient(AbstractStagingClient):
                 if re.match(regex, file) and file not in path
             ]
         else:
-            return [f"{GS}://{bucket}/{path.lstrip('/')}"]
+            return [f"{GS}://{bucket}/{path}"]
 
     def _uri_to_bucket_key(self, remote_path: ParseResult) -> Tuple[str, str]:
         assert remote_path.hostname is not None
@@ -234,25 +235,24 @@ class S3Client(AbstractStagingClient):
         Returns:
             TemporaryFile object
         """
-        url = uri.path.lstrip("/")
-        bucket = uri.hostname
+        bucket, url = self._uri_to_bucket_key(uri)
         file_obj = TemporaryFile()
         self.s3_client.download_fileobj(bucket, url, file_obj)
         return file_obj
 
-    def list_files(self, bucket: str, path: str) -> List[str]:
+    def list_files(self, uri: ParseResult) -> List[str]:
         """
         Lists all the files under a directory in s3 if path has wildcard(*) character.
 
         Args:
-            bucket (str): s3 bucket name.
-            path (str): Object location in s3.
+            uri (urllib.parse.ParseResult): Parsed uri of this location
 
         Returns:
             List[str]: A list containing the full path to the file(s) in the
                     remote staging location.
         """
 
+        bucket, path = self._uri_to_bucket_key(uri)
         if "*" in path:
             regex = re.compile(path.replace("*", ".*?").strip("/"))
             blob_list = self.s3_client.list_objects(
@@ -265,7 +265,7 @@ class S3Client(AbstractStagingClient):
                 if re.match(regex, file) and file not in path
             ]
         else:
-            return [f"{self.url_scheme}://{bucket}/{path.lstrip('/')}"]
+            return [f"{self.url_scheme}://{bucket}/{path}"]
 
     def _uri_to_bucket_key(self, remote_path: ParseResult) -> Tuple[str, str]:
         assert remote_path.hostname is not None
@@ -313,6 +313,90 @@ class S3Client(AbstractStagingClient):
             return remote_uri
 
 
+class AzureBlobClient(AbstractStagingClient):
+    """
+       Implementation of AbstractStagingClient for Azure Blob storage
+    """
+
+    def __init__(self, account_name: str, account_access_key: str):
+        try:
+            from azure.storage.blob import BlobServiceClient
+        except ImportError:
+            raise ImportError(
+                "Install package azure-storage-blob for azure blob staging support"
+                "run ```pip install azure-storage-blob```"
+            )
+        self.account_url = f"https://{account_name}.blob.core.windows.net"
+        self.blob_service_client = BlobServiceClient(
+            account_url=self.account_url, credential=account_access_key
+        )
+
+    def download_file(self, uri: ParseResult) -> IO[bytes]:
+        """
+        Downloads a file from Azure blob storage and returns a TemporaryFile object
+
+        Args:
+            uri (urllib.parse.ParseResult): Parsed uri of the file ex: urlparse("https://account_name.blob.core.windows.net/bucket/file.avro")
+
+        Returns:
+             TemporaryFile object
+        """
+        bucket, path = self._uri_to_bucket_key(uri)
+        container_client = self.blob_service_client.get_container_client(bucket)
+        return container_client.download_blob(path).readall()
+
+    def list_files(self, uri: ParseResult) -> List[str]:
+        """
+        Lists all the files under a directory in azure blob storage if path has wildcard(*) character.
+
+        Args:
+            uri (urllib.parse.ParseResult): Parsed uri of this location
+
+        Returns:
+            List[str]: A list containing the full path to the file(s) in the
+                    remote staging location.
+        """
+
+        bucket, path = self._uri_to_bucket_key(uri)
+        if "*" in path:
+            regex = re.compile(path.replace("*", ".*?").strip("/"))
+            container_client = self.blob_service_client.get_container_client(bucket)
+            blob_list = container_client.list_blobs(
+                name_starts_with=path.strip("/").split("*")[0]
+            )
+            # File path should not be in path (file path must be longer than path)
+            return [
+                f"{self.account_url}/{bucket}/{file}"
+                for file in [x.name for x in blob_list]
+                if re.match(regex, file) and file not in path
+            ]
+        else:
+            return [f"{self.account_url}/{bucket}/{path}"]
+
+    def _uri_to_bucket_key(self, uri: ParseResult) -> Tuple[str, str]:
+        assert uri.hostname == urlparse(self.account_url).hostname
+        bucket = uri.path.lstrip("/").split("/")[0]
+        key = uri.path.lstrip("/").split("/", 1)[1]
+        return bucket, key
+
+    def upload_fileobj(
+        self,
+        fileobj: IO[bytes],
+        local_path: str,
+        *,
+        remote_uri: Optional[ParseResult] = None,
+        remote_path_prefix: Optional[str] = None,
+        remote_path_suffix: Optional[str] = None,
+    ) -> ParseResult:
+        remote_uri = _gen_remote_uri(
+            fileobj, remote_uri, remote_path_prefix, remote_path_suffix, None
+        )
+        bucket, key = self._uri_to_bucket_key(remote_uri)
+        container_client = self.blob_service_client.get_container_client(bucket)
+        container_client.upload_blob(name=key, data=fileobj)
+        return remote_uri
+
+
 class LocalFSClient(AbstractStagingClient):
     """
        Implementation of AbstractStagingClient for local file
@@ -327,7 +411,7 @@ class LocalFSClient(AbstractStagingClient):
         Reads a local file from the disk
 
         Args:
-            uri (urllib.parse.ParseResult): Parsed uri of the file ex: urlparse("file://folder/file.avro")
+            uri (urllib.parse.ParseResult): Parsed uri of the file ex: urlparse("file:///folder/file.avro")
         Returns:
             TemporaryFile object
         """
@@ -335,7 +419,7 @@ class LocalFSClient(AbstractStagingClient):
         file_obj = open(url, "rb")
         return file_obj
 
-    def list_files(self, bucket: str, path: str) -> List[str]:
+    def list_files(self, uri: ParseResult) -> List[str]:
         raise NotImplementedError("list files not implemented for Local file")
 
     def _uri_to_path(self, uri: ParseResult) -> str:
@@ -381,6 +465,18 @@ def _gcs_client(config: Config = None):
     return GCSClient()
 
 
+def _azure_blob_client(config: Config = None):
+    if config is None:
+        raise Exception("Azure blob client requires config")
+    account_name = config.get(opt.AZURE_BLOB_ACCOUNT_NAME, None)
+    account_access_key = config.get(opt.AZURE_BLOB_ACCOUNT_ACCESS_KEY, None)
+    if account_name is None or account_access_key is None:
+        raise Exception(
+            f"Azure blob client requires {opt.AZURE_BLOB_ACCOUNT_NAME} and {opt.AZURE_BLOB_ACCOUNT_ACCESS_KEY} set in config"
+        )
+    return AzureBlobClient(account_name, account_access_key)
+
+
 def _local_fs_client(config: Config = None):
     return LocalFSClient()
 
@@ -389,6 +485,7 @@ storage_clients = {
     GS: _gcs_client,
     S3: _s3_client,
     S3A: _s3a_client,
+    AZURE_SCHEME: _azure_blob_client,  # note we currently interpret all uris beginning https:// as Azure blob uris
     LOCAL_FILE: _local_fs_client,
 }
 
@@ -408,5 +505,5 @@ def get_staging_client(scheme, config: Config = None) -> AbstractStagingClient:
         return storage_clients[scheme](config)
     except ValueError:
         raise Exception(
-            f"Could not identify file scheme {scheme}. Only gs://, file:// and s3:// are supported"
+            f"Could not identify file scheme {scheme}. Only gs://, file://, s3:// and https:// (for Azure) are supported"
         )

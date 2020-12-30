@@ -128,6 +128,12 @@ class ConfigOptions(metaclass=ConfigMeta):
     #: Endpoint URL for S3 storage_client
     S3_ENDPOINT_URL: Optional[str] = None
 
+    #: Account name for Azure blob storage_client
+    AZURE_BLOB_ACCOUNT_NAME: Optional[str] = None
+
+    #: Account access key for Azure blob storage_client
+    AZURE_BLOB_ACCOUNT_ACCESS_KEY: Optional[str] = None
+
     #: Authentication Provider - Google OpenID/OAuth
     #:
     #: Options: "google" / "oauth"
