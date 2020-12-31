@@ -300,9 +300,10 @@ def _historical_retrieval_step(
                     "Value": output_file_uri,
                 },
             ],
-            "Args": ["spark-submit", pyspark_script_path]
-            + args
-            + (["--packages", ",".join(packages)] if packages else []),
+            "Args": ["spark-submit"]
+            + (["--packages", ",".join(packages)] if packages else [])
+            + [pyspark_script_path]
+            + args,
             "Jar": "command-runner.jar",
         },
     }
