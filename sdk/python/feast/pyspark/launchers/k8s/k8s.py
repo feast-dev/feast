@@ -218,7 +218,7 @@ class KubernetesJobLauncher(JobLauncher):
             job_type=HISTORICAL_RETRIEVAL_JOB_TYPE,
             main_application_file=pyspark_script_path,
             main_class=None,
-            packages=job_params.get_extra_packages(),
+            packages=[],
             jars=[],
             extra_metadata={METADATA_OUTPUT_URI: job_params.get_destination_path()},
             arguments=job_params.get_arguments(),

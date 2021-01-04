@@ -256,7 +256,7 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: "gcr.io/kf-feast/spark-py:v3.0.1"
+  image: "gcr.io/kf-feast/spark-py-extra:v3.0.1"
   imagePullPolicy: Always
   sparkVersion: "3.0.1"
   timeToLiveSeconds: 3600
