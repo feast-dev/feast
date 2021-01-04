@@ -29,6 +29,8 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
+import io.opentracing.contrib.grpc.TracingClientInterceptor;
+import io.opentracing.util.GlobalTracer;
 import java.io.File;
 import java.util.HashSet;
 import java.util.List;
@@ -96,6 +98,7 @@ public class FeastClient implements AutoCloseable {
       // Disable TLS
       channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
     }
+
     return new FeastClient(channel, securityConfig.getCredentials());
   }
 
@@ -187,10 +190,16 @@ public class FeastClient implements AutoCloseable {
 
   protected FeastClient(ManagedChannel channel, Optional<CallCredentials> credentials) {
     this.channel = channel;
-    ServingServiceBlockingStub servingStub = ServingServiceGrpc.newBlockingStub(channel);
+    TracingClientInterceptor tracingInterceptor =
+        TracingClientInterceptor.newBuilder().withTracer(GlobalTracer.get()).build();
+
+    ServingServiceBlockingStub servingStub =
+        ServingServiceGrpc.newBlockingStub(tracingInterceptor.intercept(channel));
+
     if (credentials.isPresent()) {
       servingStub = servingStub.withCallCredentials(credentials.get());
     }
+
     this.stub = servingStub;
   }
 
