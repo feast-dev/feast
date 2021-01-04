@@ -2,4 +2,59 @@
 
 set -euo pipefail
 
-echo "debug script finished"
+echo "starting azure-runner"
+
+STEP_BREADCRUMB='~~~~~~~~'
+SECONDS=0
+TIMEFORMAT="${STEP_BREADCRUMB} took %R seconds"
+
+GIT_TAG=$(git rev-parse HEAD)
+GIT_REMOTE_URL=$(git config --get remote.origin.url)
+
+echo "########## Starting e2e tests for ${GIT_REMOTE_URL} ${GIT_TAG} ###########"
+
+# Note requires running in root feast directory
+source infra/scripts/runner-helper.sh
+
+# Workaround for COPY command in core docker image that pulls local maven repo into the image
+# itself.
+mkdir .m2 2>/dev/null || true
+
+# Log into k8s.
+echo "${STEP_BREADCRUMB} Updating kubeconfig"
+az login --service-principal -u "$AZ_SERVICE_PRINCIPAL_ID" -p "$AZ_SERVICE_PRINCIPAL_PASS" --tenant "$AZ_SERVICE_PRINCIPAL_TENANT_ID" 2>/dev/null
+az aks get-credentials --resource-group "$RESOURCE_GROUP" --name "$AKS_CLUSTER_NAME"
+
+# Sanity check that kubectl is working.
+echo "${STEP_BREADCRUMB} k8s sanity check"
+kubectl get pods
+
+# e2e test - runs in sparkop namespace for consistency with AWS sparkop test.
+NAMESPACE=sparkop
+RELEASE=sparkop
+
+# Delete old helm release and PVCs
+k8s_cleanup "$RELEASE" "$NAMESPACE"
+
+# Helm install everything in a namespace
+helm_install "$RELEASE" "${DOCKER_REPOSITORY}" "${GIT_TAG}" --namespace "$NAMESPACE"
+
+# Delete old test running pod if it exists
+kubectl delete pod -n "$NAMESPACE" ci-test-runner 2>/dev/null || true
+
+# Delete all sparkapplication resources that may be left over from the previous test runs.
+kubectl delete sparkapplication --all -n "$NAMESPACE" || true
+
+# Make sure the test pod has permissions to create sparkapplication resources
+setup_sparkop_role
+
+# Run the test suite as a one-off pod.
+echo "${STEP_BREADCRUMB} Running the test suite"
+time kubectl run --rm -n "$NAMESPACE" -i ci-test-runner  \
+    --restart=Never \
+    --image="${DOCKER_REPOSITORY}/feast-ci:${GIT_TAG}" \
+    --env="STAGING_PATH=$STAGING_PATH" \
+    --  \
+    bash -c "mkdir src && cd src && git clone $GIT_REMOTE_URL && cd feast && git config remote.origin.fetch '+refs/pull/*:refs/remotes/origin/pull/*' && git fetch -q && git checkout $GIT_TAG && ./infra/scripts/setup-e2e-env-sparkop.sh && ./infra/scripts/test-end-to-end-sparkop.sh"
+
+echo "########## e2e tests took $SECONDS seconds ###########"
