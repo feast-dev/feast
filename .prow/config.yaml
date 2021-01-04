@@ -276,7 +276,7 @@ presubmits:
 
   - name: test-end-to-end-azure
     decorate: true
-    always_run: true
+    always_run: false
     max_concurrency: 1
     spec:
       containers:
