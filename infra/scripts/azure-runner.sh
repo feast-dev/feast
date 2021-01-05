@@ -3,6 +3,10 @@
 set -euo pipefail
 
 echo "starting azure-runner"
+git rev-parse HEAD
+echo "found branch"
+git config --get remote.origin.url
+echo "found url"
 
 STEP_BREADCRUMB='~~~~~~~~'
 SECONDS=0
