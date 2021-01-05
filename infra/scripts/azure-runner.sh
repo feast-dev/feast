@@ -2,18 +2,12 @@
 
 set -euo pipefail
 
-echo "starting azure-runner"
-git rev-parse HEAD
-echo "found branch"
-git config --get remote.origin.url
-echo "found url"
-
 STEP_BREADCRUMB='~~~~~~~~'
 SECONDS=0
 TIMEFORMAT="${STEP_BREADCRUMB} took %R seconds"
 
 GIT_TAG=$(git rev-parse HEAD)
-GIT_REMOTE_URL=$(git config --get remote.origin.url)
+GIT_REMOTE_URL=https://github.com/feast-dev/feast.git
 
 echo "########## Starting e2e tests for ${GIT_REMOTE_URL} ${GIT_TAG} ###########"
 
