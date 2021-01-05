@@ -38,7 +38,7 @@ function helm_install {
     shift 3
 
     # Wait for images to be available in the docker repository; ci is the last image built
-    timeout 15m bash -c 'while ! gcloud container images list-tags ${DOCKER_REPOSITORY}/feast-ci --format=json | jq -e ".[] | select(.tags[] | contains (\"$GIT_TAG\"))" > /dev/null; do sleep 10s; done'
+    timeout 15m bash -c "while ! gcloud container images list-tags ${DOCKER_REPOSITORY}/feast-ci --format=json | jq -e \".[] | select(.tags[] | contains (\\\"${GIT_TAG}\\\"))\" > /dev/null; do sleep 10s; done"
 
     # We skip statsd exporter and other metrics stuff since we're not using it anyway, and it
     # has some issues with unbound PVCs (that cause kubectl delete pvc to hang).

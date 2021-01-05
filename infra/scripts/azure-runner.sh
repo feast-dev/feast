@@ -6,7 +6,7 @@ STEP_BREADCRUMB='~~~~~~~~'
 SECONDS=0
 TIMEFORMAT="${STEP_BREADCRUMB} took %R seconds"
 
-GIT_TAG=$(git rev-parse HEAD)
+GIT_TAG=$PULL_PULL_SHA
 GIT_REMOTE_URL=https://github.com/feast-dev/feast.git
 
 echo "########## Starting e2e tests for ${GIT_REMOTE_URL} ${GIT_TAG} ###########"
@@ -20,7 +20,7 @@ mkdir .m2 2>/dev/null || true
 
 # Log into k8s.
 echo "${STEP_BREADCRUMB} Updating kubeconfig"
-az login --service-principal -u "$AZ_SERVICE_PRINCIPAL_ID" -p "$AZ_SERVICE_PRINCIPAL_PASS" --tenant "$AZ_SERVICE_PRINCIPAL_TENANT_ID" 2>/dev/null
+az login --service-principal -u "$AZ_SERVICE_PRINCIPAL_ID" -p "$AZ_SERVICE_PRINCIPAL_PASS" --tenant "$AZ_SERVICE_PRINCIPAL_TENANT_ID" >/dev/null
 az aks get-credentials --resource-group "$RESOURCE_GROUP" --name "$AKS_CLUSTER_NAME"
 
 # Sanity check that kubectl is working.
