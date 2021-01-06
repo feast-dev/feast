@@ -52,6 +52,8 @@ function helm_install {
         --set "feast-online-serving.image.tag=${GIT_TAG}" \
         --set "feast-jobservice.image.repository=${DOCKER_REPOSITORY}/feast-jobservice" \
         --set "feast-jobservice.image.tag=${GIT_TAG}" \
+        --set "feast-jobservice.envOverrides.FEAST_AZURE_BLOB_ACCOUNT_NAME=${AZURE_BLOB_ACCOUNT_NAME}" \
+        --set "feast-jobservice.envOverrides.FEAST_AZURE_BLOB_ACCOUNT_ACCESS_KEY=${AZURE_BLOB_ACCOUNT_ACCESS_KEY}" \
         --set "feast-core.image.repository=${DOCKER_REPOSITORY}/feast-core" \
         --set "feast-core.image.tag=${GIT_TAG}" \
         --set "prometheus-statsd-exporter.enabled=false" \
