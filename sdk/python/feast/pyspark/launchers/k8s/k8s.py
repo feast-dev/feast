@@ -141,10 +141,7 @@ class KubernetesJobLauncher(JobLauncher):
     Submits spark jobs to a spark cluster. Currently supports only historical feature retrieval jobs.
     """
 
-    def __init__(
-        self,
-        config: Config,
-    ):
+    def __init__(self, config: Config):
         self._config = config
         self._namespace = config.get(opt.SPARK_K8S_NAMESPACE)
         incluster = config.getboolean(opt.SPARK_K8S_USE_INCLUSTER_CONFIG)

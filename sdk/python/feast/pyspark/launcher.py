@@ -68,9 +68,7 @@ def _emr_launcher(config: Config) -> JobLauncher:
 def _k8s_launcher(config: Config) -> JobLauncher:
     from feast.pyspark.launchers import k8s
 
-    return k8s.KubernetesJobLauncher(
-        config=config,
-    )
+    return k8s.KubernetesJobLauncher(config=config)
 
 
 _launchers = {
