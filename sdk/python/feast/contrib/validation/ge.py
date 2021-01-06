@@ -103,7 +103,7 @@ def apply_validation(
         "/"
     )
     staging_scheme = urlparse(staging_location).scheme
-    staging_client = get_staging_client(staging_scheme)
+    staging_client = get_staging_client(staging_scheme, client._config)
 
     pickled_code_fp = io.BytesIO(udf.pickled_code)
     remote_path = f"{staging_location}/udfs/{udf.name}.pickle"

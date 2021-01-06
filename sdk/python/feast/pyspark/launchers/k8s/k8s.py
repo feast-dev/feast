@@ -9,6 +9,8 @@ from urllib.parse import urlparse, urlunparse
 import yaml
 from kubernetes.client.api import CustomObjectsApi
 
+from feast.config import Config
+from feast.constants import ConfigOptions as opt
 from feast.pyspark.abc import (
     BQ_SPARK_PACKAGE,
     BatchIngestionJob,
@@ -140,16 +142,13 @@ class KubernetesJobLauncher(JobLauncher):
     Submits spark jobs to a spark cluster. Currently supports only historical feature retrieval jobs.
     """
 
-    def __init__(
-        self,
-        namespace: str,
-        incluster: bool,
-        staging_location: str,
-        resource_template_path: Optional[Path],
-    ):
-        self._namespace = namespace
+    def __init__(self, config: Config):
+        self._config = config
+        self._namespace = config.get(opt.SPARK_K8S_NAMESPACE)
+        incluster = config.getboolean(opt.SPARK_K8S_USE_INCLUSTER_CONFIG)
         self._api = _get_api(incluster=incluster)
-        self._staging_location = staging_location
+        self._staging_location = config.get(opt.SPARK_STAGING_LOCATION)
+        resource_template_path = config.get(opt.SPARK_K8S_JOB_TEMPLATE_PATH, None)
         if resource_template_path is not None:
             self._resource_template = _load_resource_template(resource_template_path)
         else:
@@ -183,7 +182,7 @@ class KubernetesJobLauncher(JobLauncher):
 
     def _get_staging_client(self):
         uri = urlparse(self._staging_location)
-        return get_staging_client(uri.scheme)
+        return get_staging_client(uri.scheme, self._config)
 
     def historical_feature_retrieval(
         self, job_params: RetrievalJobParameters
