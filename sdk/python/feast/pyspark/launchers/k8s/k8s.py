@@ -10,6 +10,7 @@ import yaml
 from kubernetes.client.api import CustomObjectsApi
 
 from feast.config import Config
+from feast.constants import ConfigOptions as opt
 from feast.pyspark.abc import (
     BQ_SPARK_PACKAGE,
     BatchIngestionJob,
