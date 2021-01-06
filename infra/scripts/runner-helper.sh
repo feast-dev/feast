@@ -86,6 +86,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: use-spark-operator
+  namespace: sparkop
 rules:
 - apiGroups: ["sparkoperator.k8s.io"]
   resources: ["sparkapplications"]
@@ -95,6 +96,7 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: RoleBinding
 metadata:
   name: use-spark-operator
+  namespace: sparkop
 roleRef:
   kind: Role
   name: use-spark-operator
