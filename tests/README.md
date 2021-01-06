@@ -52,7 +52,7 @@ kubectl get secret minio --namespace=minio -oyaml | grep -v '^\s*namespace:\s' |
 ```bash
 #
 # NB!! make sure to use bash 5.0+ for the next step. You'd need to brew install it on OSX
-DOCKER_REPOSITORY=gcr.io/kf-feast GIT_TAG=develop bash ./infra/scripts/setuplocal.sh
+DOCKER_REPOSITORY=gcr.io/kf-feast GIT_TAG=develop bash ./infra/scripts/setup-e2e-local.sh
 ```
 
 7. Build the ingestion jar locally
