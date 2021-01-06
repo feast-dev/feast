@@ -229,12 +229,7 @@ def test_join_without_max_age(
     )
 
     joined_df = as_of_join(
-        entity_df,
-        "event_timestamp",
-        feature_table_df,
-        feature_table,
-        "event_timestamp",
-        "created_timestamp",
+        entity_df, "event_timestamp", feature_table_df, feature_table,
     )
 
     expected_joined_schema = StructType(
@@ -298,12 +293,7 @@ def test_join_with_max_age(
     )
 
     joined_df = as_of_join(
-        entity_df,
-        "event_timestamp",
-        feature_table_df,
-        feature_table,
-        "event_timestamp",
-        "created_timestamp",
+        entity_df, "event_timestamp", feature_table_df, feature_table,
     )
 
     expected_joined_schema = StructType(
@@ -377,12 +367,7 @@ def test_join_with_composite_entity(
     )
 
     joined_df = as_of_join(
-        entity_df,
-        "event_timestamp",
-        feature_table_df,
-        feature_table,
-        "event_timestamp",
-        "created_timestamp",
+        entity_df, "event_timestamp", feature_table_df, feature_table,
     )
 
     expected_joined_schema = StructType(
@@ -444,12 +429,7 @@ def test_select_subset_of_columns_as_entity_primary_keys(
     )
 
     joined_df = as_of_join(
-        entity_df,
-        "event_timestamp",
-        feature_table_df,
-        feature_table,
-        "event_timestamp",
-        "created_timestamp",
+        entity_df, "event_timestamp", feature_table_df, feature_table,
     )
 
     expected_joined_schema = StructType(
@@ -552,8 +532,6 @@ def test_multiple_join(
         "event_timestamp",
         [customer_table_df, driver_table_df],
         [customer_table, driver_table],
-        ["event_timestamp"] * 2,
-        ["created_timestamp"] * 2,
     )
 
     expected_joined_schema = StructType(
