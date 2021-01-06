@@ -312,6 +312,16 @@ presubmits:
               secretKeyRef:
                 name: feast-az-creds
                 key: AZ_SERVICE_PRINCIPAL_TENANT_ID
+          - name: AZURE_BLOB_ACCOUNT_NAME
+            valueFrom:
+              secretKeyRef:
+                name: feast-az-creds
+                key: AZURE_BLOB_ACCOUNT_NAME
+          - name: AZURE_BLOB_ACCOUNT_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: feast-az-creds
+                key: AZURE_BLOB_ACCOUNT_ACCESS_KEY
         volumeMounts:
           - mountPath: /etc/gcloud/service-account.json
             name: service-account

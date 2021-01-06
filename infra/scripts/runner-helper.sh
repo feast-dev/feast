@@ -52,6 +52,8 @@ function helm_install {
         --set "feast-online-serving.image.tag=${GIT_TAG}" \
         --set "feast-jobservice.image.repository=${DOCKER_REPOSITORY}/feast-jobservice" \
         --set "feast-jobservice.image.tag=${GIT_TAG}" \
+        --set "feast-jobservice.envOverrides.FEAST_AZURE_BLOB_ACCOUNT_NAME=${AZURE_BLOB_ACCOUNT_NAME}" \
+        --set "feast-jobservice.envOverrides.FEAST_AZURE_BLOB_ACCOUNT_ACCESS_KEY=${AZURE_BLOB_ACCOUNT_ACCESS_KEY}" \
         --set "feast-core.image.repository=${DOCKER_REPOSITORY}/feast-core" \
         --set "feast-core.image.tag=${GIT_TAG}" \
         --set "prometheus-statsd-exporter.enabled=false" \
@@ -84,6 +86,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: use-spark-operator
+  namespace: sparkop
 rules:
 - apiGroups: ["sparkoperator.k8s.io"]
   resources: ["sparkapplications"]
@@ -93,6 +96,7 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: RoleBinding
 metadata:
   name: use-spark-operator
+  namespace: sparkop
 roleRef:
   kind: Role
   name: use-spark-operator
