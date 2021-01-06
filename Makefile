@@ -156,6 +156,9 @@ build-ci-docker:
 build-jupyter-docker:
 	docker build -t $(REGISTRY)/feast-jupyter:$(VERSION) -f infra/docker/jupyter/Dockerfile .
 
+build-local-test-docker:
+	docker build -t feast:local -f infra/docker/tests/Dockerfile .
+
 # Documentation
 
 install-dependencies-proto-docs:

@@ -1,0 +1,35 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: test-runner
+  namespace: sparkop
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      containers:
+      - name: ubuntu
+        image: feast:local
+        command: ["bash",  "-c", "./infra/scripts/test-end-to-end-local.sh"]
+        imagePullPolicy: Never
+        args:
+        - bash
+        stdin: true
+        stdinOnce: true
+        tty: true
+        env:
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: minio
+                key: accesskey
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: minio
+                key: secretkey
+          - name: AWS_DEFAULT_REGION
+            value: us-east-1
+          - name: AWS_S3_SIGNATURE_VERSION
+            value: s3v4
+      restartPolicy: Never

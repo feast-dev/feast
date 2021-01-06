@@ -2,3 +2,4 @@ docs
 !docs/coverage
 charts
 env
+**/.terraform
