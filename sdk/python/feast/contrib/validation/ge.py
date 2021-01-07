@@ -91,10 +91,14 @@ def create_validation_udf(
     def udf(df: pd.DataFrame) -> pd.Series:
         from datadog.dogstatsd import DogStatsd
 
-        reporter = DogStatsd(
-            host=os.getenv("STATSD_HOST"),
-            port=int(os.getenv("STATSD_PORT")),
-            telemetry_min_flush_interval=0,
+        reporter = (
+            DogStatsd(
+                host=os.environ["STATSD_HOST"],
+                port=int(os.environ["STATSD_PORT"]),
+                telemetry_min_flush_interval=0,
+            )
+            if os.getenv("STATSD_HOST") and os.getenv("STATSD_PORT")
+            else DogStatsd()
         )
 
         ds = PandasDataset.from_dataset(df)

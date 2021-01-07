@@ -171,9 +171,19 @@ object StreamingPipeline extends BasePipeline with Serializable {
       val fileName    = validationConfig.pickledCodePath.split("/").last
       val pickledCode = FileUtils.readFileToByteArray(new File(SparkFiles.get(fileName)))
 
+      val env = config.metrics match {
+        case Some(c: StatsDConfig) =>
+          Map(
+            "STATSD_HOST"                   -> c.host,
+            "STATSD_PORT"                   -> c.port.toString,
+            "FEAST_INGESTION_FEATURE_TABLE" -> config.featureTable.name
+          )
+        case _ => Map.empty[String, String]
+      }
+
       UserDefinedPythonFunction(
         validationConfig.name,
-        DynamicPythonFunction.create(pickledCode),
+        DynamicPythonFunction.create(pickledCode, env),
         BooleanType,
         pythonEvalType = 200, // SQL_SCALAR_PANDAS_UDF (original constant is in private object)
         udfDeterministic = true

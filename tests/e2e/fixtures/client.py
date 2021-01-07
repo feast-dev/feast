@@ -7,6 +7,7 @@ import pytest
 from pytest_redis.executor import RedisExecutor
 
 from feast import Client
+from tests.e2e.fixtures.statsd_stub import StatsDServer
 
 
 @pytest.fixture
@@ -14,6 +15,7 @@ def feast_client(
     pytestconfig,
     ingestion_job_jar,
     redis_server: RedisExecutor,
+    statsd_server: StatsDServer,
     feast_core: Tuple[str, int],
     feast_serving: Tuple[str, int],
     local_staging_path,
@@ -44,6 +46,9 @@ def feast_client(
                 local_staging_path, "historical_output"
             ),
             ingestion_drop_invalid_rows=True,
+            statsd_enabled=True,
+            statsd_host=statsd_server.host,
+            statsd_port=statsd_server.port,
             **job_service_env,
         )
 

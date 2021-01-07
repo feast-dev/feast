@@ -1,6 +1,8 @@
 import pytest
 from pytest_redis.executor import NoopRedis
 
+from tests.e2e.fixtures.statsd_stub import RemoteStatsDServer
+
 __all__ = (
     "feast_core",
     "feast_serving",
@@ -8,6 +10,7 @@ __all__ = (
     "kafka_server",
     "enable_auth",
     "feast_jobservice",
+    "statsd_server",
 )
 
 
@@ -44,3 +47,9 @@ def enable_auth():
 def feast_jobservice(pytestconfig):
     host, port = pytestconfig.getoption("job_service_url").split(":")
     return host, port
+
+
+@pytest.fixture(scope="session")
+def statsd_server(pytestconfig):
+    host, port = pytestconfig.getoption("statsd_url").split(":")
+    return RemoteStatsDServer(host, port)

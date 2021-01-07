@@ -2,6 +2,7 @@ import pathlib
 import shutil
 import tempfile
 
+import port_for
 import pytest
 import requests
 from pytest_kafka import make_kafka_server, make_zookeeper_process
@@ -14,7 +15,10 @@ __all__ = (
     "zookeeper_server",
     "postgres_server",
     "redis_server",
+    "statsd_server",
 )
+
+from tests.e2e.fixtures.statsd_stub import StatsDStub
 
 
 def download_kafka(version="2.12-2.6.0"):
@@ -33,6 +37,15 @@ def download_kafka(version="2.12-2.6.0"):
 def kafka_server(kafka_port):
     _, port = kafka_port
     return "localhost", port
+
+
+@pytest.fixture
+def statsd_server():
+    port = port_for.select_random(None)
+    server = StatsDStub(port=port)
+    server.start()
+    yield server
+    server.stop()
 
 
 postgres_server = pg_factories.postgresql_proc(password="password")

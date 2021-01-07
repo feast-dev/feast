@@ -28,6 +28,7 @@ def pytest_addoption(parser):
     parser.addoption("--feast-version", action="store")
     parser.addoption("--bq-project", action="store")
     parser.addoption("--feast-project", action="store", default="default")
+    parser.addoption("--statsd-url", action="store", default="localhost:8125")
 
 
 def pytest_runtest_setup(item):
@@ -51,10 +52,15 @@ if not os.environ.get("DISABLE_SERVICE_FIXTURES"):
         kafka_port,
         kafka_server,
         redis_server,
+        statsd_server,
         zookeeper_server,
     )
 else:
-    from .fixtures.external_services import kafka_server, redis_server  # noqa
+    from .fixtures.external_services import (  # type: ignore # noqa
+        kafka_server,
+        redis_server,
+        statsd_server,
+    )
 
 if not os.environ.get("DISABLE_FEAST_SERVICE_FIXTURES"):
     from .fixtures.feast_services import *  # type: ignore # noqa

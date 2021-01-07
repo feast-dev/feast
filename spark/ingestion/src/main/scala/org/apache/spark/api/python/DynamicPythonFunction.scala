@@ -61,8 +61,12 @@ object DynamicPythonFunction {
     )
   }
 
-  def create(pickledCode: Array[Byte], includePath: String = "libs/"): PythonFunction = {
-    val envVars    = new JHashMap[String, String]()
+  def create(
+      pickledCode: Array[Byte],
+      env: Map[String, String] = Map.empty,
+      includePath: String = "libs/"
+  ): PythonFunction = {
+    val envVars    = new JHashMap[String, String](env.asJava)
     val broadcasts = new JArrayList[Broadcast[PythonBroadcast]]()
 
     if (!sys.env.contains("SPARK_HOME")) {
