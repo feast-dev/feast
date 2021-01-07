@@ -1,6 +1,7 @@
 import random
 import string
 import time
+from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional, cast
@@ -28,6 +29,7 @@ from feast.staging.storage_client import AbstractStagingClient
 from .k8s_utils import (
     DEFAULT_JOB_TEMPLATE,
     HISTORICAL_RETRIEVAL_JOB_TYPE,
+    LABEL_FEATURE_TABLE,
     METADATA_JOBHASH,
     METADATA_OUTPUT_URI,
     OFFLINE_TO_ONLINE_JOB_TYPE,
@@ -66,6 +68,11 @@ class KubernetesJobMixin:
         job = _get_job_by_id(self._api, self._namespace, self._job_id)
         assert job is not None
         return job.state
+
+    def get_start_time(self) -> datetime:
+        job = _get_job_by_id(self._api, self._namespace, self._job_id)
+        assert job is not None
+        return job.start_time
 
     def cancel(self):
         _cancel_job_by_id(self._api, self._namespace, self._job_id)
@@ -117,8 +124,14 @@ class KubernetesBatchIngestionJob(KubernetesJobMixin, BatchIngestionJob):
     Ingestion job result for a k8s cluster
     """
 
-    def __init__(self, api: CustomObjectsApi, namespace: str, job_id: str):
+    def __init__(
+        self, api: CustomObjectsApi, namespace: str, job_id: str, feature_table: str
+    ):
         super().__init__(api, namespace, job_id)
+        self._feature_table = feature_table
+
+    def get_feature_table(self) -> str:
+        return self._feature_table
 
 
 class KubernetesStreamIngestionJob(KubernetesJobMixin, StreamIngestionJob):
@@ -127,13 +140,22 @@ class KubernetesStreamIngestionJob(KubernetesJobMixin, StreamIngestionJob):
     """
 
     def __init__(
-        self, api: CustomObjectsApi, namespace: str, job_id: str, job_hash: str
+        self,
+        api: CustomObjectsApi,
+        namespace: str,
+        job_id: str,
+        job_hash: str,
+        feature_table: str,
     ):
         super().__init__(api, namespace, job_id)
         self._job_hash = job_hash
+        self._feature_table = feature_table
 
     def get_hash(self) -> str:
         return self._job_hash
+
+    def get_feature_table(self) -> str:
+        return self._feature_table
 
 
 class KubernetesJobLauncher(JobLauncher):
@@ -169,7 +191,10 @@ class KubernetesJobLauncher(JobLauncher):
             )
         elif job_info.job_type == OFFLINE_TO_ONLINE_JOB_TYPE:
             return KubernetesBatchIngestionJob(
-                api=self._api, namespace=job_info.namespace, job_id=job_info.job_id,
+                api=self._api,
+                namespace=job_info.namespace,
+                job_id=job_info.job_id,
+                feature_table=job_info.labels.get(LABEL_FEATURE_TABLE, ""),
             )
         elif job_info.job_type == STREAM_TO_ONLINE_JOB_TYPE:
             # job_hash must not be None for stream ingestion jobs
@@ -179,6 +204,7 @@ class KubernetesJobLauncher(JobLauncher):
                 namespace=job_info.namespace,
                 job_id=job_info.job_id,
                 job_hash=job_info.extra_metadata[METADATA_JOBHASH],
+                feature_table=job_info.labels.get(LABEL_FEATURE_TABLE, ""),
             )
         else:
             # We should never get here
@@ -293,6 +319,9 @@ class KubernetesJobLauncher(JobLauncher):
             azure_credentials=self._get_azure_credentials(),
             arguments=ingestion_job_params.get_arguments(),
             namespace=self._namespace,
+            extra_labels={
+                LABEL_FEATURE_TABLE: ingestion_job_params.get_feature_table_name()
+            },
         )
 
         job_info = _submit_job(
@@ -336,6 +365,9 @@ class KubernetesJobLauncher(JobLauncher):
             azure_credentials=self._get_azure_credentials(),
             arguments=ingestion_job_params.get_arguments(),
             namespace=self._namespace,
+            extra_labels={
+                LABEL_FEATURE_TABLE: ingestion_job_params.get_feature_table_name()
+            },
         )
 
         job_info = _submit_job(

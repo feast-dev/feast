@@ -74,15 +74,19 @@ message Job {
   JobStatus status = 3;
   // Deterministic hash of the Job
   string hash = 8;
+  // Start time of the Job
+  google.protobuf.Timestamp start_time = 9;
 
   message RetrievalJobMeta {
     string output_location = 4;
   }
 
   message OfflineToOnlineMeta {
+      string feature_table = 10;
   }
 
   message StreamToOnlineMeta {
+      string feature_table = 11;
   }
 
   // JobType specific metadata on the job
@@ -109,6 +113,12 @@ message StartOfflineToOnlineIngestionJobRequest {
 message StartOfflineToOnlineIngestionJobResponse {
     // Job ID assigned by Feast
     string id = 1;
+
+    // Job start time
+    google.protobuf.Timestamp job_start_time = 2;
+
+    // Feature table associated with the job
+    string feature_table = 3;
 }
 
 message GetHistoricalFeaturesRequest {
@@ -138,7 +148,13 @@ message GetHistoricalFeaturesRequest {
 message GetHistoricalFeaturesResponse {
     // Export Job with ID assigned by Feast
     string id = 1;
+
+    // Uri to the join result output file
     string output_file_uri = 2;
+
+    // Job start time
+    google.protobuf.Timestamp job_start_time = 3;
+
 }
 
 message StartStreamToOnlineIngestionJobRequest {
@@ -150,10 +166,16 @@ message StartStreamToOnlineIngestionJobRequest {
 message StartStreamToOnlineIngestionJobResponse {
     // Job ID assigned by Feast
     string id = 1;
+
+    // Job start time
+    google.protobuf.Timestamp job_start_time = 2;
+
+    // Feature table associated with the job
+    string feature_table = 3;
 }
 
 message ListJobsRequest {
-  bool include_terminated = 1;
+    bool include_terminated = 1;
 }
 
 message ListJobsResponse {

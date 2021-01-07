@@ -1075,6 +1075,7 @@ class Client:
                 self._extra_grpc_params,
                 response.id,
                 output_file_uri=response.output_file_uri,
+                start_time=response.job_start_time,
             )
         else:
             return start_historical_feature_retrieval_job(
@@ -1174,7 +1175,11 @@ class Client:
             request.end_date.FromDatetime(end)
             response = self._job_service.StartOfflineToOnlineIngestionJob(request)
             return RemoteBatchIngestionJob(
-                self._job_service, self._extra_grpc_params, response.id,
+                self._job_service,
+                self._extra_grpc_params,
+                response.id,
+                feature_table.name,
+                response.job_start_time.ToDateTime(),
             )
 
     def start_stream_to_online_ingestion(
@@ -1196,7 +1201,11 @@ class Client:
             )
             response = self._job_service.StartStreamToOnlineIngestionJob(request)
             return RemoteStreamIngestionJob(
-                self._job_service, self._extra_grpc_params, response.id
+                self._job_service,
+                self._extra_grpc_params,
+                response.id,
+                feature_table.name,
+                response.job_start_time,
             )
 
     def list_jobs(self, include_terminated: bool) -> List[SparkJob]:

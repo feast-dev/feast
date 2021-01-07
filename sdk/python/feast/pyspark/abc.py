@@ -67,6 +67,12 @@ class SparkJob(abc.ABC):
         """
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def get_start_time(self) -> datetime:
+        """
+        Get job start time.
+        """
+
 
 class SparkJobParameters(abc.ABC):
     @abc.abstractmethod
@@ -496,6 +502,18 @@ class BatchIngestionJob(SparkJob):
     Container for the ingestion job result
     """
 
+    @abc.abstractmethod
+    def get_feature_table(self) -> str:
+        """
+        Get the feature table name associated with this job. Return empty string if unable to
+        determine the feature table, such as when the job is created by the earlier
+        version of Feast.
+
+        Returns:
+            str: Feature table name
+        """
+        raise NotImplementedError
+
 
 class StreamIngestionJob(SparkJob):
     """
@@ -510,6 +528,18 @@ class StreamIngestionJob(SparkJob):
 
         Returns:
             str: The hash for this streaming ingestion job
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_feature_table(self) -> str:
+        """
+        Get the feature table name associated with this job. Return `None` if unable to
+        determine the feature table, such as when the job is created by the earlier
+        version of Feast.
+
+        Returns:
+            str: Feature table name
         """
         raise NotImplementedError
 

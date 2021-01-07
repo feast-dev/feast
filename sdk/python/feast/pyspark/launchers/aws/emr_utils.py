@@ -3,6 +3,7 @@ import os
 import random
 import string
 import time
+from datetime import datetime
 from typing import Any, Dict, List, NamedTuple, Optional
 from urllib.parse import urlparse, urlunparse
 
@@ -21,6 +22,7 @@ __all__ = [
     "EmrJobRef",
     "JobInfo",
     "_cancel_job",
+    "_get_job_creation_time",
     "_get_job_state",
     "_historical_retrieval_step",
     "_job_ref_to_str",
@@ -238,6 +240,21 @@ def _get_step_state(emr_client, cluster_id: str, step_id: str) -> str:
     response = emr_client.describe_step(ClusterId=cluster_id, StepId=step_id)
     state = response["Step"]["Status"]["State"]
     return state
+
+
+def _get_job_creation_time(emr_client, job: EmrJobRef) -> datetime:
+    if job.step_id is None:
+        step_id = _get_first_step_id(emr_client, job.cluster_id)
+    else:
+        step_id = job.step_id
+
+    return _get_step_creation_time(emr_client, job.cluster_id, step_id)
+
+
+def _get_step_creation_time(emr_client, cluster_id: str, step_id: str) -> datetime:
+    response = emr_client.describe_step(ClusterId=cluster_id, StepId=step_id)
+    step_creation_time = response["Step"]["Status"]["Timeline"]["CreationDateTime"]
+    return step_creation_time
 
 
 def _wait_for_step_state(

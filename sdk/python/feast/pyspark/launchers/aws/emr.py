@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from io import BytesIO
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlunparse
@@ -31,6 +32,7 @@ from .emr_utils import (
     EmrJobRef,
     JobInfo,
     _cancel_job,
+    _get_job_creation_time,
     _get_job_state,
     _historical_retrieval_step,
     _job_ref_to_str,
@@ -72,6 +74,9 @@ class EmrJobMixin:
     def cancel(self):
         _cancel_job(self._emr_client, self._job_ref)
 
+    def get_start_time(self) -> datetime:
+        return _get_job_creation_time(self._emr_client, self._job_ref)
+
 
 class EmrRetrievalJob(EmrJobMixin, RetrievalJob):
     """
@@ -106,8 +111,12 @@ class EmrBatchIngestionJob(EmrJobMixin, BatchIngestionJob):
     Ingestion job result for a EMR cluster
     """
 
-    def __init__(self, emr_client, job_ref: EmrJobRef):
+    def __init__(self, emr_client, job_ref: EmrJobRef, table_name: str):
         super().__init__(emr_client, job_ref)
+        self._table_name = table_name
+
+    def get_feature_table(self) -> str:
+        return self._table_name
 
 
 class EmrStreamIngestionJob(EmrJobMixin, StreamIngestionJob):
@@ -115,12 +124,16 @@ class EmrStreamIngestionJob(EmrJobMixin, StreamIngestionJob):
     Ingestion streaming job for a EMR cluster
     """
 
-    def __init__(self, emr_client, job_ref: EmrJobRef, job_hash: str):
+    def __init__(self, emr_client, job_ref: EmrJobRef, job_hash: str, table_name: str):
         super().__init__(emr_client, job_ref)
         self._job_hash = job_hash
+        self._table_name = table_name
 
     def get_hash(self) -> str:
         return self._job_hash
+
+    def get_feature_table(self) -> str:
+        return self._table_name
 
 
 class EmrClusterLauncher(JobLauncher):
@@ -265,7 +278,9 @@ class EmrClusterLauncher(JobLauncher):
 
         job_ref = self._submit_emr_job(step)
 
-        return EmrBatchIngestionJob(self._emr_client(), job_ref)
+        return EmrBatchIngestionJob(
+            self._emr_client(), job_ref, ingestion_job_params.get_feature_table_name()
+        )
 
     def start_stream_to_online_ingestion(
         self, ingestion_job_params: StreamIngestionJobParameters
@@ -299,7 +314,12 @@ class EmrClusterLauncher(JobLauncher):
 
         job_ref = self._submit_emr_job(step)
 
-        return EmrStreamIngestionJob(self._emr_client(), job_ref, job_hash)
+        return EmrStreamIngestionJob(
+            self._emr_client(),
+            job_ref,
+            job_hash,
+            ingestion_job_params.get_feature_table_name(),
+        )
 
     def _job_from_job_info(self, job_info: JobInfo) -> SparkJob:
         if job_info.job_type == HISTORICAL_RETRIEVAL_JOB_TYPE:
@@ -310,16 +330,23 @@ class EmrClusterLauncher(JobLauncher):
                 output_file_uri=job_info.output_file_uri,
             )
         elif job_info.job_type == OFFLINE_TO_ONLINE_JOB_TYPE:
+            table_name = job_info.table_name if job_info.table_name else ""
+            assert table_name is not None
             return EmrBatchIngestionJob(
-                emr_client=self._emr_client(), job_ref=job_info.job_ref,
+                emr_client=self._emr_client(),
+                job_ref=job_info.job_ref,
+                table_name=table_name,
             )
         elif job_info.job_type == STREAM_TO_ONLINE_JOB_TYPE:
+            table_name = job_info.table_name if job_info.table_name else ""
+            assert table_name is not None
             # job_hash must not be None for stream ingestion jobs
             assert job_info.job_hash is not None
             return EmrStreamIngestionJob(
                 emr_client=self._emr_client(),
                 job_ref=job_info.job_ref,
                 job_hash=job_info.job_hash,
+                table_name=table_name,
             )
         else:
             # We should never get here

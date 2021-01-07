@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Tuple
 
 import grpc
+from google.protobuf.timestamp_pb2 import Timestamp
 
 import feast
 from feast.constants import ConfigOptions as opt
@@ -71,10 +72,14 @@ def _job_to_proto(spark_job: SparkJob) -> JobProto:
         job.retrieval.output_location = spark_job.get_output_file_uri(block=False)
     elif isinstance(spark_job, BatchIngestionJob):
         job.type = JobType.BATCH_INGESTION_JOB
+        job.batch_ingestion.feature_table = spark_job.get_feature_table()
     elif isinstance(spark_job, StreamIngestionJob):
         job.type = JobType.STREAM_INGESTION_JOB
+        job.stream_ingestion.feature_table = spark_job.get_feature_table()
     else:
         raise ValueError(f"Invalid job type {job}")
+
+    job.start_time.FromDatetime(spark_job.get_start_time())
 
     return job
 
@@ -97,7 +102,15 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
             start=request.start_date.ToDatetime(),
             end=request.end_date.ToDatetime(),
         )
-        return StartOfflineToOnlineIngestionJobResponse(id=job.get_id())
+
+        job_start_timestamp = Timestamp()
+        job_start_timestamp.FromDatetime(job.get_start_time())
+
+        return StartOfflineToOnlineIngestionJobResponse(
+            id=job.get_id(),
+            job_start_time=job_start_timestamp,
+            feature_table=request.table_name,
+        )
 
     def GetHistoricalFeatures(self, request: GetHistoricalFeaturesRequest, context):
         """Produce a training dataset, return a job id that will provide a file reference"""
@@ -135,7 +148,13 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
             job_hash = params.get_job_hash()
             for job in list_jobs(include_terminated=True, client=self.client):
                 if isinstance(job, StreamIngestionJob) and job.get_hash() == job_hash:
-                    return StartStreamToOnlineIngestionJobResponse(id=job.get_id())
+                    job_start_timestamp = Timestamp()
+                    job_start_timestamp.FromDatetime(job.get_start_time())
+                    return StartStreamToOnlineIngestionJobResponse(
+                        id=job.get_id(),
+                        job_start_time=job_start_timestamp,
+                        feature_table=job.get_feature_table(),
+                    )
             raise RuntimeError(
                 "Feast Job Service has control loop enabled, but couldn't find the existing stream ingestion job for the given FeatureTable"
             )
@@ -147,7 +166,14 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
             feature_table=feature_table,
             extra_jars=[],
         )
-        return StartStreamToOnlineIngestionJobResponse(id=job.get_id())
+
+        job_start_timestamp = Timestamp()
+        job_start_timestamp.FromDatetime(job.get_start_time())
+        return StartStreamToOnlineIngestionJobResponse(
+            id=job.get_id(),
+            job_start_time=job_start_timestamp,
+            feature_table=request.table_name,
+        )
 
     def ListJobs(self, request, context):
         """List all types of jobs"""

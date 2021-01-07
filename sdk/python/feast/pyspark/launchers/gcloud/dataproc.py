@@ -130,6 +130,9 @@ class DataprocJobMixin:
             time.sleep(interval_sec)
         return status
 
+    def get_start_time(self):
+        return self._job.status.state_start_time
+
 
 class DataprocRetrievalJob(DataprocJobMixin, RetrievalJob):
     """
@@ -167,6 +170,9 @@ class DataprocBatchIngestionJob(DataprocJobMixin, BatchIngestionJob):
     Batch Ingestion job result for a Dataproc cluster
     """
 
+    def get_feature_table(self) -> str:
+        return self._job.labels.get(DataprocClusterLauncher.FEATURE_TABLE_LABEL_KEY, "")
+
 
 class DataprocStreamingIngestionJob(DataprocJobMixin, StreamIngestionJob):
     """
@@ -186,6 +192,9 @@ class DataprocStreamingIngestionJob(DataprocJobMixin, StreamIngestionJob):
     def get_hash(self) -> str:
         return self._job_hash
 
+    def get_feature_table(self) -> str:
+        return self._job.labels.get(DataprocClusterLauncher.FEATURE_TABLE_LABEL_KEY, "")
+
 
 class DataprocClusterLauncher(JobLauncher):
     """
@@ -197,6 +206,7 @@ class DataprocClusterLauncher(JobLauncher):
     EXTERNAL_JARS = ["gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar"]
     JOB_TYPE_LABEL_KEY = "feast_job_type"
     JOB_HASH_LABEL_KEY = "feast_job_hash"
+    FEATURE_TABLE_LABEL_KEY = "feast_feature_tables"
 
     def __init__(
         self,
@@ -282,9 +292,18 @@ class DataprocClusterLauncher(JobLauncher):
             "spark.executor.cores": self.executor_cores,
             "spark.executor.memory": self.executor_memory,
         }
-        # Add job hash to labels only for the stream ingestion job
+
         if isinstance(job_params, StreamIngestionJobParameters):
+            job_config["labels"][
+                self.FEATURE_TABLE_LABEL_KEY
+            ] = job_params.get_feature_table_name()
+            # Add job hash to labels only for the stream ingestion job
             job_config["labels"][self.JOB_HASH_LABEL_KEY] = job_params.get_job_hash()
+
+        if isinstance(job_params, BatchIngestionJobParameters):
+            job_config["labels"][
+                self.FEATURE_TABLE_LABEL_KEY
+            ] = job_params.get_feature_table_name()
 
         if job_params.get_class_name():
             scala_job_properties = {
@@ -391,7 +410,7 @@ class DataprocClusterLauncher(JobLauncher):
         cancel_fn = partial(self.dataproc_cancel, job_id)
 
         if job_type == SparkJobType.HISTORICAL_RETRIEVAL.name.lower():
-            output_path = job.pyspark_job.properties.get("dev.feast.outputuri")
+            output_path = job.pyspark_job.properties.get("dev.feast.outputuri", "")
             return DataprocRetrievalJob(job, refresh_fn, cancel_fn, output_path)
 
         if job_type == SparkJobType.BATCH_INGESTION.name.lower():
