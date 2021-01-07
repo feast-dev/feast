@@ -183,18 +183,20 @@ class KubernetesJobLauncher(JobLauncher):
     def _get_staging_client(self):
         uri = urlparse(self._staging_location)
         return get_staging_client(uri.scheme, self._config)
- 
+
     def _get_azure_credentials(self):
         uri = urlparse(self._staging_location)
-        if (uri.scheme != "wasbs"):
+        if uri.scheme != "wasbs":
             return {}
         account_name = self._config.get(opt.AZURE_BLOB_ACCOUNT_NAME)
         account_key = self._config.get(opt.AZURE_BLOB_ACCOUNT_ACCESS_KEY)
-        if (account_name is None or account_key is None):
+        if account_name is None or account_key is None:
             raise Exception(
                 f"Using Azure blob storage requires {opt.AZURE_BLOB_ACCOUNT_NAME} and {opt.AZURE_BLOB_ACCOUNT_ACCESS_KEY} to be set in config"
             )
-        return {f"spark.hadoop.fs.azure.account.key.{account_name}.blob.core.windows.net": f"{account_key}"}
+        return {
+            f"spark.hadoop.fs.azure.account.key.{account_name}.blob.core.windows.net": f"{account_key}"
+        }
 
     def historical_feature_retrieval(
         self, job_params: RetrievalJobParameters

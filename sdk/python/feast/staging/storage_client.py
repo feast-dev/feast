@@ -372,7 +372,9 @@ class AzureBlobClient(AbstractStagingClient):
                 if re.match(regex, file) and file not in path
             ]
         else:
-            return [f"wasbs://{bucket}@{self.account_name}.blob.core.windows.net/{path}"]
+            return [
+                f"wasbs://{bucket}@{self.account_name}.blob.core.windows.net/{path}"
+            ]
 
     def _uri_to_bucket_key(self, uri: ParseResult) -> Tuple[str, str]:
         assert uri.hostname == f"{self.account_name}.blob.core.windows.net"
