@@ -29,6 +29,7 @@ def pytest_addoption(parser):
     parser.addoption("--bq-project", action="store")
     parser.addoption("--feast-project", action="store", default="default")
     parser.addoption("--statsd-url", action="store", default="localhost:8125")
+    parser.addoption("--prometheus-url", action="store", default="localhost:9102")
 
 
 def pytest_runtest_setup(item):

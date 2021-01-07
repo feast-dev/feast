@@ -1,6 +1,6 @@
+import os
 import pathlib
 import shutil
-import tempfile
 
 import port_for
 import pytest
@@ -22,12 +22,16 @@ from tests.e2e.fixtures.statsd_stub import StatsDStub
 
 
 def download_kafka(version="2.12-2.6.0"):
-    r = requests.get(f"https://downloads.apache.org/kafka/2.6.0/kafka_{version}.tgz")
-    temp_dir = pathlib.Path(tempfile.mkdtemp())
-    local_path = temp_dir / "kafka.tgz"
+    temp_dir = pathlib.Path("/tmp")
+    local_path = temp_dir / f"kafka_{version}.tgz"
 
-    with open(local_path, "wb") as f:
-        f.write(r.content)
+    if not os.path.isfile(local_path):
+        r = requests.get(
+            f"https://downloads.apache.org/kafka/2.6.0/kafka_{version}.tgz"
+        )
+
+        with open(local_path, "wb") as f:
+            f.write(r.content)
 
     shutil.unpack_archive(str(local_path), str(temp_dir))
     return temp_dir / f"kafka_{version}" / "bin"

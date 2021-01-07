@@ -107,3 +107,9 @@ services:
     image: redis:5-alpine
     ports:
       - "6379:6379"
+
+  prometheus_statsd:
+    image: prom/statsd-exporter:v0.12.1
+    ports:
+      - "9125:9125"
+      - "9102:9102"
