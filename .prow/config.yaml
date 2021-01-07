@@ -296,7 +296,7 @@ presubmits:
           - name: DOCKER_REPOSITORY
             value: gcr.io/kf-feast
           - name: STAGING_PATH
-            value: https://feastcicd.blob.core.windows.net/staging/cicd-staging
+            value: wasbs://staging@feastcicd.blob.core.windows.net/cicd-staging
           - name: AZ_SERVICE_PRINCIPAL_ID
             valueFrom:
               secretKeyRef:
