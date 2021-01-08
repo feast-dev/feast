@@ -9,7 +9,6 @@ from urllib.parse import urlparse, urlunparse
 import yaml
 from kubernetes.client.api import CustomObjectsApi
 
-from feast.config import Config
 from feast.constants import ConfigOptions as opt
 from feast.pyspark.abc import (
     BQ_SPARK_PACKAGE,
@@ -24,7 +23,7 @@ from feast.pyspark.abc import (
     StreamIngestionJob,
     StreamIngestionJobParameters,
 )
-from feast.staging.storage_client import get_staging_client
+from feast.staging.storage_client import AbstractStagingClient
 
 from .k8s_utils import (
     DEFAULT_JOB_TEMPLATE,
@@ -142,13 +141,18 @@ class KubernetesJobLauncher(JobLauncher):
     Submits spark jobs to a spark cluster. Currently supports only historical feature retrieval jobs.
     """
 
-    def __init__(self, config: Config):
-        self._config = config
-        self._namespace = config.get(opt.SPARK_K8S_NAMESPACE)
-        incluster = config.getboolean(opt.SPARK_K8S_USE_INCLUSTER_CONFIG)
+    def __init__(
+        self,
+        namespace: str,
+        incluster: bool,
+        staging_location: str,
+        resource_template_path: Optional[Path],
+        staging_client: AbstractStagingClient,
+    ):
+        self._namespace = namespace
         self._api = _get_api(incluster=incluster)
-        self._staging_location = config.get(opt.SPARK_STAGING_LOCATION)
-        resource_template_path = config.get(opt.SPARK_K8S_JOB_TEMPLATE_PATH, None)
+        self._staging_location = staging_location
+        self._staging_client = staging_client
         if resource_template_path is not None:
             self._resource_template = _load_resource_template(resource_template_path)
         else:
@@ -179,10 +183,6 @@ class KubernetesJobLauncher(JobLauncher):
         else:
             # We should never get here
             raise ValueError(f"Unknown job type {job_info.job_type}")
-
-    def _get_staging_client(self):
-        uri = urlparse(self._staging_location)
-        return get_staging_client(uri.scheme, self._config)
 
     def _get_azure_credentials(self):
         uri = urlparse(self._staging_location)
@@ -216,7 +216,7 @@ class KubernetesJobLauncher(JobLauncher):
             pyspark_script = f.read()
 
         pyspark_script_path = urlunparse(
-            self._get_staging_client().upload_fileobj(
+            self._staging_client.upload_fileobj(
                 BytesIO(pyspark_script.encode("utf8")),
                 local_path="historical_retrieval.py",
                 remote_path_prefix=self._staging_location,
@@ -255,7 +255,7 @@ class KubernetesJobLauncher(JobLauncher):
             local_jar_path = jar_path
         with open(local_jar_path, "rb") as f:
             return urlunparse(
-                self._get_staging_client().upload_fileobj(
+                self._staging_client.upload_fileobj(
                     f,
                     local_jar_path,
                     remote_path_prefix=self._staging_location,

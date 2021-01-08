@@ -12,7 +12,7 @@ GIT_REMOTE_URL=https://github.com/feast-dev/feast.git
 echo "########## Starting e2e tests for ${GIT_REMOTE_URL} ${GIT_TAG} ###########"
 
 # Note requires running in root feast directory
-source infra/scripts/runner-helper.sh
+source infra/scripts/k8s-common-functions.sh
 
 # Workaround for COPY command in core docker image that pulls local maven repo into the image
 # itself.
@@ -34,8 +34,12 @@ RELEASE=sparkop
 # Delete old helm release and PVCs
 k8s_cleanup "$RELEASE" "$NAMESPACE"
 
+wait_for_images "${DOCKER_REPOSITORY}" "${GIT_TAG}"
+
 # Helm install everything in a namespace
-helm_install "$RELEASE" "${DOCKER_REPOSITORY}" "${GIT_TAG}" --namespace "$NAMESPACE"
+helm_install "$RELEASE" "${DOCKER_REPOSITORY}" "${GIT_TAG}" "$NAMESPACE" \
+        --set "feast-jobservice.envOverrides.FEAST_AZURE_BLOB_ACCOUNT_NAME=${AZURE_BLOB_ACCOUNT_NAME}" \
+        --set "feast-jobservice.envOverrides.FEAST_AZURE_BLOB_ACCOUNT_ACCESS_KEY=${AZURE_BLOB_ACCOUNT_ACCESS_KEY}"
 
 # Delete old test running pod if it exists
 kubectl delete pod -n "$NAMESPACE" ci-test-runner 2>/dev/null || true
