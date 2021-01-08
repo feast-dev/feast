@@ -1,8 +1,8 @@
+import os
 from datetime import datetime, timedelta
 from typing import Union
 from urllib.parse import urlparse, urlunparse
 
-import os
 import gcsfs
 import numpy as np
 import pandas as pd
@@ -32,10 +32,10 @@ def read_parquet(uri):
         import s3fs
 
         # AWS_S3_ENDPOINT_URL needs to be set when using minio
-        if 'AWS_S3_ENDPOINT_URL' in os.environ:
-            fs = s3fs.S3FileSystem(client_kwargs={
-                'endpoint_url': os.getenv('AWS_S3_ENDPOINT_URL')
-            })
+        if "AWS_S3_ENDPOINT_URL" in os.environ:
+            fs = s3fs.S3FileSystem(
+                client_kwargs={"endpoint_url": os.getenv("AWS_S3_ENDPOINT_URL")}
+            )
         else:
             fs = s3fs.S3FileSystem()
         files = ["s3://" + path for path in fs.glob(s3uri + "/part-*")]

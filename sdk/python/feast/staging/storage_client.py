@@ -378,6 +378,7 @@ class AzureBlobClient(AbstractStagingClient):
 
     def _uri_to_bucket_key(self, uri: ParseResult) -> Tuple[str, str]:
         assert uri.hostname == f"{self.account_name}.blob.core.windows.net"
+        assert uri.username
         bucket = uri.username
         key = uri.path.lstrip("/")
         return bucket, key
