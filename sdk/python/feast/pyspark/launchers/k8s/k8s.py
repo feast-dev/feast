@@ -9,7 +9,6 @@ from urllib.parse import urlparse, urlunparse
 import yaml
 from kubernetes.client.api import CustomObjectsApi
 
-from feast.constants import ConfigOptions as opt
 from feast.pyspark.abc import (
     BQ_SPARK_PACKAGE,
     BatchIngestionJob,
@@ -196,7 +195,7 @@ class KubernetesJobLauncher(JobLauncher):
         account_key = self._azure_account_key
         if account_name is None or account_key is None:
             raise Exception(
-                f"Using Azure blob storage requires Azure blob account name and access key to be set in config"
+                "Using Azure blob storage requires Azure blob account name and access key to be set in config"
             )
         return {
             f"spark.hadoop.fs.azure.account.key.{account_name}.blob.core.windows.net": f"{account_key}"
