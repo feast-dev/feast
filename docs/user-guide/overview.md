@@ -36,7 +36,7 @@ Stores supported: [Redis](https://redis.io/), [Redis Cluster](https://redis.io/t
 
 ## Concept Hierarchy
 
-![](../.gitbook/assets/image%20%283%29%20%281%29.png)
+![](../.gitbook/assets/image%20%283%29%20%282%29%20%282%29%20%284%29.png)
 
 Feast resources are arranged in the above hierarchy, with projects grouping one or more [feature sets](feature-sets.md), which in turn groups multiple [features](features.md) or [entities](entities.md).
 
