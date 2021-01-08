@@ -77,6 +77,9 @@ def _k8s_launcher(config: Config) -> JobLauncher:
         staging_location=staging_location,
         incluster=config.getboolean(opt.SPARK_K8S_USE_INCLUSTER_CONFIG),
         staging_client=get_staging_client(staging_uri.scheme, config),
+        # azure-related arguments are None if not using Azure blob storage
+        azure_account_name=config.get(opt.AZURE_BLOB_ACCOUNT_NAME),
+        azure_account_key=config.get(opt.AZURE_BLOB_ACCOUNT_ACCESS_KEY),
     )
 
 

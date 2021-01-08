@@ -148,11 +148,15 @@ class KubernetesJobLauncher(JobLauncher):
         staging_location: str,
         resource_template_path: Optional[Path],
         staging_client: AbstractStagingClient,
+        azure_account_name: str,
+        azure_account_key: str,
     ):
         self._namespace = namespace
         self._api = _get_api(incluster=incluster)
         self._staging_location = staging_location
         self._staging_client = staging_client
+        self._azure_account_name = azure_account_name
+        self._azure_account_key = azure_account_key
         if resource_template_path is not None:
             self._resource_template = _load_resource_template(resource_template_path)
         else:
@@ -188,11 +192,11 @@ class KubernetesJobLauncher(JobLauncher):
         uri = urlparse(self._staging_location)
         if uri.scheme != "wasbs":
             return {}
-        account_name = self._config.get(opt.AZURE_BLOB_ACCOUNT_NAME)
-        account_key = self._config.get(opt.AZURE_BLOB_ACCOUNT_ACCESS_KEY)
+        account_name = self._azure_account_name
+        account_key = self._azure_account_key
         if account_name is None or account_key is None:
             raise Exception(
-                f"Using Azure blob storage requires {opt.AZURE_BLOB_ACCOUNT_NAME} and {opt.AZURE_BLOB_ACCOUNT_ACCESS_KEY} to be set in config"
+                f"Using Azure blob storage requires Azure blob account name and access key to be set in config"
             )
         return {
             f"spark.hadoop.fs.azure.account.key.{account_name}.blob.core.windows.net": f"{account_key}"
