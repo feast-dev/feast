@@ -1179,7 +1179,7 @@ class Client:
                 self._extra_grpc_params,
                 response.id,
                 feature_table.name,
-                response.job_start_time.ToDateTime(),
+                response.job_start_time.ToDatetime(),
             )
 
     def start_stream_to_online_ingestion(
