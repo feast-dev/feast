@@ -57,7 +57,7 @@ function helm_install {
     echo "${STEP_BREADCRUMB:-} Helm installing feast"
 
     if ! time helm install --wait "$RELEASE" ./infra/charts/feast \
-        --timeout 5m \
+        --timeout 15m \
         --set "feast-jupyter.image.repository=${DOCKER_REPOSITORY}/feast-jupyter" \
         --set "feast-jupyter.image.tag=${GIT_TAG}" \
         --set "feast-online-serving.image.repository=${DOCKER_REPOSITORY}/feast-serving" \
