@@ -16,6 +16,7 @@
  */
 package feast.ingestion
 
+import feast.ingestion.utils.JsonUtils
 import org.joda.time.DateTime
 import org.json4s._
 import org.json4s.jackson.JsonMethods.{parse => parseJSON}
@@ -38,13 +39,20 @@ object IngestionJob {
       .text("Mode to operate ingestion job (offline or online)")
 
     opt[String](name = "source")
-      .action((x, c) =>
-        parseJSON(x).camelizeKeys.extract[Sources] match {
+      .action((x, c) => {
+        val json = parseJSON(x)
+        JsonUtils
+          .mapFieldWithParent(json) {
+            case (parent: String, (key: String, v: JValue)) if !parent.equals("field_mapping") =>
+              JsonUtils.camelize(key) -> v
+            case (_, x) => x
+          }
+          .extract[Sources] match {
           case Sources(file: Some[FileSource], _, _)   => c.copy(source = file.get)
           case Sources(_, bq: Some[BQSource], _)       => c.copy(source = bq.get)
           case Sources(_, _, kafka: Some[KafkaSource]) => c.copy(source = kafka.get)
         }
-      )
+      })
       .required()
       .text("JSON-encoded source object (e.g. {\"kafka\":{\"bootstrapServers\":...}}")
 
