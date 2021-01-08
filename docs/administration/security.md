@@ -6,7 +6,7 @@ description: 'Secure Feast with SSL/TLS, Authentication and Authorization.'
 
 ## 1. Overview
 
-![Overview of Feast&apos;s Security Methods.](../.gitbook/assets/untitled-25-1-%20%281%29.jpg)
+![Overview of Feast&apos;s Security Methods.](../.gitbook/assets/untitled-25-1-%20%282%29%20%282%29%20%282%29.jpg)
 
 Feast supports the following security methods:
 
@@ -422,7 +422,7 @@ Authorization provides access control to FeatureSets/Features based on project m
 
 ### **Authorization API/Server**
 
-![Feast Authorization Flow](../.gitbook/assets/rsz_untitled23%20%281%29.jpg)
+![Feast Authorization Flow](../.gitbook/assets/rsz_untitled23%20%282%29%20%282%29%20%282%29.jpg)
 
 Feast delegates Authorization grants to a external Authorization Server that implements the [Authorization Open API specification](https://github.com/feast-dev/feast/blob/v0.7-branch/common/src/main/resources/api.yaml).
 

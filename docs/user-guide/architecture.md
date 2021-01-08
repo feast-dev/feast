@@ -1,6 +1,6 @@
 # Architecture
 
-![Feast high-level flow](../.gitbook/assets/blank-diagram-4%20%283%29.svg)
+![Feast high-level flow](../.gitbook/assets/blank-diagram-4%20%284%29%20%284%29.svg)
 
 ## **Feast Core**
 
