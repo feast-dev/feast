@@ -53,6 +53,7 @@
   * [Serving gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html)
   * [gRPC Types](https://api.docs.feast.dev/grpc/feast.types.pb.html)
 * [Configuration Reference](reference/configuration-reference.md)
+* [Feast and Spark](reference/feast-and-spark.md)
 * [Metrics Reference](reference/metrics-reference.md)
 * [Limitations](reference/limitations.md)
 
