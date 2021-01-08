@@ -69,7 +69,7 @@ def test_validation_with_ge(feast_client: Client, kafka_server):
     kafka_broker = f"{kafka_server[0]}:{kafka_server[1]}"
     topic_name = f"avro-{uuid.uuid4()}"
 
-    entity, feature_table = create_schema(kafka_broker, topic_name, 'validation_ge')
+    entity, feature_table = create_schema(kafka_broker, topic_name, "validation_ge")
     feast_client.apply_entity(entity)
     feast_client.apply_feature_table(feature_table)
 
@@ -138,7 +138,9 @@ def test_validation_reports_metrics(
     kafka_broker = f"{kafka_server[0]}:{kafka_server[1]}"
     topic_name = f"avro-{uuid.uuid4()}"
 
-    entity, feature_table = create_schema(kafka_broker, topic_name, 'validation_ge_metrics')
+    entity, feature_table = create_schema(
+        kafka_broker, topic_name, "validation_ge_metrics"
+    )
     feast_client.apply_entity(entity)
     feast_client.apply_feature_table(feature_table)
 
