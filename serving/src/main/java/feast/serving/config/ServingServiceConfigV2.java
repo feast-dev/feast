@@ -25,7 +25,6 @@ import feast.serving.specs.CachedSpecService;
 import feast.storage.api.retriever.OnlineRetrieverV2;
 import feast.storage.connectors.redis.retriever.*;
 import io.opentracing.Tracer;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -41,16 +40,16 @@ public class ServingServiceConfigV2 {
     ServingServiceV2 servingService = null;
     FeastProperties.Store store = feastProperties.getActiveStore();
     StoreProto.Store.StoreType storeType = store.toProto().getType();
-    Map<String, String> config = store.getConfig();
 
     switch (storeType) {
       case REDIS_CLUSTER:
-        RedisClientAdapter redisClusterClient = RedisClusterClient.create(config);
+        RedisClientAdapter redisClusterClient =
+            RedisClusterClient.create(store.toProto().getRedisClusterConfig());
         OnlineRetrieverV2 redisClusterRetriever = new OnlineRetriever(redisClusterClient);
         servingService = new OnlineServingServiceV2(redisClusterRetriever, specService, tracer);
         break;
       case REDIS:
-        RedisClientAdapter redisClient = RedisClient.create(config);
+        RedisClientAdapter redisClient = RedisClient.create(store.toProto().getRedisConfig());
         OnlineRetrieverV2 redisRetriever = new OnlineRetriever(redisClient);
         servingService = new OnlineServingServiceV2(redisRetriever, specService, tracer);
         break;
