@@ -127,8 +127,13 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
 
         output_file_uri = job.get_output_file_uri(block=False)
 
+        job_start_timestamp = Timestamp()
+        job_start_timestamp.FromDatetime(job.get_start_time())
+
         return GetHistoricalFeaturesResponse(
-            id=job.get_id(), output_file_uri=output_file_uri
+            id=job.get_id(),
+            output_file_uri=output_file_uri,
+            job_start_time=job_start_timestamp,
         )
 
     def StartStreamToOnlineIngestionJob(
