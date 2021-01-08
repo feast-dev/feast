@@ -55,7 +55,7 @@ services:
       FEAST_HISTORICAL_FEATURE_OUTPUT_LOCATION: file:///shared/historical_feature_output
       FEAST_HISTORICAL_FEATURE_OUTPUT_FORMAT: parquet
       FEAST_REDIS_HOST: redis
-      FEAST_STATSD_ENABLED: true
+      FEAST_STATSD_ENABLED: "true"
       FEAST_STATSD_HOST: prometheus_statsd
       FEAST_STATSD_PORT: 9125
       GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
