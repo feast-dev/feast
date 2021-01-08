@@ -44,10 +44,10 @@ def generate_test_data():
     return df
 
 
-def create_schema(kafka_broker, topic_name):
+def create_schema(kafka_broker, topic_name, feature_table_name):
     entity = Entity(name="key", description="Key", value_type=ValueType.INT64)
     feature_table = FeatureTable(
-        name="validation_test",
+        name=feature_table_name,
         entities=["key"],
         features=[Feature("num", ValueType.INT64), Feature("set", ValueType.STRING)],
         batch_source=FileSource(
@@ -69,7 +69,7 @@ def test_validation_with_ge(feast_client: Client, kafka_server):
     kafka_broker = f"{kafka_server[0]}:{kafka_server[1]}"
     topic_name = f"avro-{uuid.uuid4()}"
 
-    entity, feature_table = create_schema(kafka_broker, topic_name)
+    entity, feature_table = create_schema(kafka_broker, topic_name, 'validation_ge')
     feast_client.apply_entity(entity)
     feast_client.apply_feature_table(feature_table)
 
@@ -113,7 +113,7 @@ def test_validation_with_ge(feast_client: Client, kafka_server):
             topic_name=topic_name,
             kafka_broker=kafka_broker,
             entity_rows=entity_rows,
-            feature_names=["validation_test:num", "validation_test:set"],
+            feature_names=["validation_ge:num", "validation_ge:set"],
             expected_ingested_count=test_data.shape[0] - len(invalid_idx),
         )
     finally:
@@ -124,9 +124,9 @@ def test_validation_with_ge(feast_client: Client, kafka_server):
     test_data["set"].iloc[invalid_idx] = None
 
     pd.testing.assert_frame_equal(
-        ingested[["key", "validation_test:num", "validation_test:set"]],
+        ingested[["key", "validation_ge:num", "validation_ge:set"]],
         test_data[["key", "num", "set"]].rename(
-            columns={"num": "validation_test:num", "set": "validation_test:set"}
+            columns={"num": "validation_ge:num", "set": "validation_ge:set"}
         ),
     )
 
@@ -138,7 +138,7 @@ def test_validation_reports_metrics(
     kafka_broker = f"{kafka_server[0]}:{kafka_server[1]}"
     topic_name = f"avro-{uuid.uuid4()}"
 
-    entity, feature_table = create_schema(kafka_broker, topic_name)
+    entity, feature_table = create_schema(kafka_broker, topic_name, 'validation_ge_metrics')
     feast_client.apply_entity(entity)
     feast_client.apply_feature_table(feature_table)
 
@@ -190,7 +190,7 @@ def test_validation_reports_metrics(
             topic_name=topic_name,
             kafka_broker=kafka_broker,
             entity_rows=entity_rows,
-            feature_names=["validation_test:num", "validation_test:set"],
+            feature_names=["validation_ge_metrics:num", "validation_ge_metrics:set"],
             expected_ingested_count=test_data.shape[0] - len(invalid_idx),
         )
     finally:
@@ -198,7 +198,7 @@ def test_validation_reports_metrics(
 
     expected_metrics = [
         (
-            f"feast_feature_validation_check_failed#check:{check_name},feature_table:validation_test",
+            f"feast_feature_validation_check_failed#check:{check_name},feature_table:validation_ge_metrics",
             value,
         )
         for check_name, value in unexpected_counts.items()
