@@ -204,9 +204,15 @@ def test_validation_reports_metrics(
         for check_name, value in unexpected_counts.items()
     ]
     wait_retry_backoff(
-        lambda: (None, all(statsd_server.metrics[m] == v for m, v in expected_metrics)),
+        lambda: (
+            None,
+            all(statsd_server.metrics.get(m) == v for m, v in expected_metrics),
+        ),
         timeout_secs=30,
-        timeout_msg="Expected metrics were not received: " + str(expected_metrics),
+        timeout_msg="Expected metrics were not received: "
+        + str(expected_metrics)
+        + "\n"
+        "Actual received metrics" + str(statsd_server.metrics),
     )
 
 
