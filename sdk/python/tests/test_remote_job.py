@@ -59,7 +59,7 @@ class TestRemoteJob:
         mock_servicer = MockServicer()
         with mock_server(mock_servicer) as service:
             remote_job = RemoteRetrievalJob(
-                service, lambda: {}, "test", "foo", ["table1"], datetime.now()
+                service, lambda: {}, "test", "foo", datetime.now()
             )
 
             assert remote_job.get_output_file_uri(timeout_sec=2) == "foo"

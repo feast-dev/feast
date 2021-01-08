@@ -1075,7 +1075,7 @@ class Client:
                 self._extra_grpc_params,
                 response.id,
                 output_file_uri=response.output_file_uri,
-                start_time=response.job_start_time,
+                start_time=response.job_start_time.ToDatetime(),
             )
         else:
             return start_historical_feature_retrieval_job(
