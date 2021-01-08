@@ -397,7 +397,7 @@ class AzureBlobClient(AbstractStagingClient):
         )
         bucket, key = self._uri_to_bucket_key(remote_uri)
         container_client = self.blob_service_client.get_container_client(bucket)
-        container_client.upload_blob(name=key, data=fileobj)
+        container_client.upload_blob(name=key, data=fileobj, overwrite=True)
         return remote_uri
 
 
