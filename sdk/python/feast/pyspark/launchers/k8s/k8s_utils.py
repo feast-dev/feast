@@ -193,7 +193,9 @@ def _k8s_state_to_feast(k8s_state: str) -> SparkJobStatus:
 
 def _resource_to_job_info(resource: Dict[str, Any]) -> JobInfo:
     labels = resource["metadata"]["labels"]
-    start_time = resource["metadata"].get("creationTimestamp")
+    start_time = datetime.strptime(
+        resource["metadata"].get("creationTimestamp"), "%Y-%m-%dT%H:%M:%SZ"
+    )
     sparkConf = resource["spec"].get("sparkConf", {})
 
     if "status" in resource:

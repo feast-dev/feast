@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Any, Dict, List, NamedTuple, Optional
 from urllib.parse import urlparse, urlunparse
 
+import pytz
 import yaml
 
 from feast.pyspark.abc import BQ_SPARK_PACKAGE
@@ -254,7 +255,7 @@ def _get_job_creation_time(emr_client, job: EmrJobRef) -> datetime:
 def _get_step_creation_time(emr_client, cluster_id: str, step_id: str) -> datetime:
     response = emr_client.describe_step(ClusterId=cluster_id, StepId=step_id)
     step_creation_time = response["Step"]["Status"]["Timeline"]["CreationDateTime"]
-    return step_creation_time
+    return step_creation_time.astimezone(pytz.utc).replace(tzinfo=None)
 
 
 def _wait_for_step_state(

@@ -106,9 +106,10 @@ def test_historical_features(
 
     feature_refs = ["transactions:daily_transactions"]
 
-    job_submission_time = datetime.now()
+    job_submission_time = datetime.utcnow()
     job = feast_client.get_historical_features(feature_refs, customers_df)
     assert job.get_start_time() >= job_submission_time
+    assert job.get_start_time() <= job_submission_time + timedelta(hours=1)
 
     output_dir = job.get_output_file_uri()
     joined_df = read_parquet(output_dir)

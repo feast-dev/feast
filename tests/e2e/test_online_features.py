@@ -125,6 +125,7 @@ def test_streaming_ingestion(
     feast_client.apply(feature_table)
 
     job = feast_client.start_stream_to_online_ingestion(feature_table)
+    assert job.get_feature_table() == feature_table.name
 
     wait_retry_backoff(
         lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 120
@@ -165,6 +166,7 @@ def ingest_and_verify(
         original.event_timestamp.min().to_pydatetime(),
         original.event_timestamp.max().to_pydatetime() + timedelta(seconds=1),
     )
+    assert job.get_feature_table() == feature_table.name
 
     wait_retry_backoff(
         lambda: (None, job.get_status() == SparkJobStatus.COMPLETED), 180

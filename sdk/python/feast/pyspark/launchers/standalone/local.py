@@ -102,7 +102,7 @@ class StandaloneClusterJobMixin:
         self._job_name = job_name
         self._process = process
         self._ui_port = ui_port
-        self._start_time = datetime.now()
+        self._start_time = datetime.utcnow()
 
     def get_id(self) -> str:
         return self._job_id
