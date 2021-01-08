@@ -53,7 +53,7 @@ def export_source_to_staging_location(
             Examples:
                 * gs://bucket/path/
                 * s3://bucket/path/
-                * https://account_name.blob.core.windows.net/bucket/path/
+                * wasbs://bucket@account_name.blob.core.windows.net/path/
                 * file:///data/subfolder/
 
     Returns:

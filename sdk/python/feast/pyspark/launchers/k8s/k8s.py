@@ -185,6 +185,20 @@ class KubernetesJobLauncher(JobLauncher):
             # We should never get here
             raise ValueError(f"Unknown job type {job_info.job_type}")
 
+    def _get_azure_credentials(self):
+        uri = urlparse(self._staging_location)
+        if uri.scheme != "wasbs":
+            return {}
+        account_name = self._config.get(opt.AZURE_BLOB_ACCOUNT_NAME)
+        account_key = self._config.get(opt.AZURE_BLOB_ACCOUNT_ACCESS_KEY)
+        if account_name is None or account_key is None:
+            raise Exception(
+                f"Using Azure blob storage requires {opt.AZURE_BLOB_ACCOUNT_NAME} and {opt.AZURE_BLOB_ACCOUNT_ACCESS_KEY} to be set in config"
+            )
+        return {
+            f"spark.hadoop.fs.azure.account.key.{account_name}.blob.core.windows.net": f"{account_key}"
+        }
+
     def historical_feature_retrieval(
         self, job_params: RetrievalJobParameters
     ) -> RetrievalJob:
@@ -222,6 +236,7 @@ class KubernetesJobLauncher(JobLauncher):
             packages=[],
             jars=[],
             extra_metadata={METADATA_OUTPUT_URI: job_params.get_destination_path()},
+            azure_credentials=self._get_azure_credentials(),
             arguments=job_params.get_arguments(),
             namespace=self._namespace,
         )
@@ -276,6 +291,7 @@ class KubernetesJobLauncher(JobLauncher):
             packages=[BQ_SPARK_PACKAGE],
             jars=[],
             extra_metadata={},
+            azure_credentials=self._get_azure_credentials(),
             arguments=ingestion_job_params.get_arguments(),
             namespace=self._namespace,
         )
@@ -318,6 +334,7 @@ class KubernetesJobLauncher(JobLauncher):
             packages=[BQ_SPARK_PACKAGE],
             jars=extra_jar_paths,
             extra_metadata={METADATA_JOBHASH: job_hash},
+            azure_credentials=self._get_azure_credentials(),
             arguments=ingestion_job_params.get_arguments(),
             namespace=self._namespace,
         )

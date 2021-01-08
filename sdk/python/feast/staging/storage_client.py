@@ -30,7 +30,7 @@ from feast.constants import ConfigOptions as opt
 GS = "gs"
 S3 = "s3"
 S3A = "s3a"
-AZURE_SCHEME = "https"
+AZURE_SCHEME = "wasbs"
 LOCAL_FILE = "file"
 
 
@@ -326,9 +326,10 @@ class AzureBlobClient(AbstractStagingClient):
                 "Install package azure-storage-blob for azure blob staging support"
                 "run ```pip install azure-storage-blob```"
             )
-        self.account_url = f"https://{account_name}.blob.core.windows.net"
+        self.account_name = account_name
+        account_url = f"https://{account_name}.blob.core.windows.net"
         self.blob_service_client = BlobServiceClient(
-            account_url=self.account_url, credential=account_access_key
+            account_url=account_url, credential=account_access_key
         )
 
     def download_file(self, uri: ParseResult) -> IO[bytes]:
@@ -336,7 +337,7 @@ class AzureBlobClient(AbstractStagingClient):
         Downloads a file from Azure blob storage and returns a TemporaryFile object
 
         Args:
-            uri (urllib.parse.ParseResult): Parsed uri of the file ex: urlparse("https://account_name.blob.core.windows.net/bucket/file.avro")
+            uri (urllib.parse.ParseResult): Parsed uri of the file ex: urlparse("wasbs://bucket@account_name.blob.core.windows.net/file.avro")
 
         Returns:
              TemporaryFile object
@@ -366,17 +367,19 @@ class AzureBlobClient(AbstractStagingClient):
             )
             # File path should not be in path (file path must be longer than path)
             return [
-                f"{self.account_url}/{bucket}/{file}"
+                f"wasbs://{bucket}@{self.account_name}.blob.core.windows.net/{file}"
                 for file in [x.name for x in blob_list]
                 if re.match(regex, file) and file not in path
             ]
         else:
-            return [f"{self.account_url}/{bucket}/{path}"]
+            return [
+                f"wasbs://{bucket}@{self.account_name}.blob.core.windows.net/{path}"
+            ]
 
     def _uri_to_bucket_key(self, uri: ParseResult) -> Tuple[str, str]:
-        assert uri.hostname == urlparse(self.account_url).hostname
-        bucket = uri.path.lstrip("/").split("/")[0]
-        key = uri.path.lstrip("/").split("/", 1)[1]
+        assert uri.hostname == f"{self.account_name}.blob.core.windows.net"
+        bucket = uri.username
+        key = uri.path.lstrip("/")
         return bucket, key
 
     def upload_fileobj(
@@ -485,7 +488,7 @@ storage_clients = {
     GS: _gcs_client,
     S3: _s3_client,
     S3A: _s3a_client,
-    AZURE_SCHEME: _azure_blob_client,  # note we currently interpret all uris beginning https:// as Azure blob uris
+    AZURE_SCHEME: _azure_blob_client,
     LOCAL_FILE: _local_fs_client,
 }
 
@@ -505,5 +508,5 @@ def get_staging_client(scheme, config: Config = None) -> AbstractStagingClient:
         return storage_clients[scheme](config)
     except ValueError:
         raise Exception(
-            f"Could not identify file scheme {scheme}. Only gs://, file://, s3:// and https:// (for Azure) are supported"
+            f"Could not identify file scheme {scheme}. Only gs://, file://, s3:// and wasbs:// (for Azure) are supported"
         )

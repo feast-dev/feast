@@ -111,6 +111,7 @@ def _prepare_job_resource(
     packages: List[str],
     jars: List[str],
     extra_metadata: Dict[str, str],
+    azure_credentials: Dict[str, str],
     arguments: List[str],
     namespace: str,
 ) -> Dict[str, Any]:
@@ -130,6 +131,7 @@ def _prepare_job_resource(
     _add_keys(job, ("spec",), dict(arguments=arguments))
 
     _add_keys(job, ("spec", "sparkConf"), extra_metadata)
+    _add_keys(job, ("spec", "sparkConf"), azure_credentials)
 
     _append_items(job, ("spec", "deps", "packages"), packages)
     _append_items(job, ("spec", "deps", "jars"), jars)
