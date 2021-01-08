@@ -43,6 +43,7 @@ from .fixtures.client import (  # noqa
     global_staging_path,
     ingestion_job_jar,
     local_staging_path,
+    tfrecord_feast_client,
 )
 
 if not os.environ.get("DISABLE_SERVICE_FIXTURES"):

@@ -103,6 +103,82 @@ def feast_client(
     return c
 
 
+@pytest.fixture
+def tfrecord_feast_client(
+    pytestconfig,
+    feast_core: Tuple[str, int],
+    local_staging_path,
+    feast_jobservice: Optional[Tuple[str, int]],
+    enable_auth,
+):
+    if feast_jobservice is None:
+        job_service_env = dict()
+    else:
+        job_service_env = dict(
+            job_service_url=f"{feast_jobservice[0]}:{feast_jobservice[1]}"
+        )
+
+    if pytestconfig.getoption("env") == "local":
+        import pyspark
+
+        return Client(
+            core_url=f"{feast_core[0]}:{feast_core[1]}",
+            spark_launcher="standalone",
+            spark_standalone_master="local",
+            spark_home=os.getenv("SPARK_HOME") or os.path.dirname(pyspark.__file__),
+            spark_staging_location=os.path.join(local_staging_path, "spark"),
+            historical_feature_output_format="tfrecord",
+            historical_feature_output_location=os.path.join(
+                local_staging_path, "historical_output"
+            ),
+            **job_service_env,
+        )
+
+    elif pytestconfig.getoption("env") == "gcloud":
+        c = Client(
+            core_url=f"{feast_core[0]}:{feast_core[1]}",
+            spark_launcher="dataproc",
+            dataproc_cluster_name=pytestconfig.getoption("dataproc_cluster_name"),
+            dataproc_project=pytestconfig.getoption("dataproc_project"),
+            dataproc_region=pytestconfig.getoption("dataproc_region"),
+            spark_staging_location=os.path.join(local_staging_path, "dataproc"),
+            historical_feature_output_format="tfrecord",
+            historical_feature_output_location=os.path.join(
+                local_staging_path, "historical_output"
+            ),
+            ingestion_drop_invalid_rows=True,
+            **job_service_env,
+        )
+    elif pytestconfig.getoption("env") == "aws":
+        return Client(
+            core_url=f"{feast_core[0]}:{feast_core[1]}",
+            spark_launcher="emr",
+            emr_cluster_id=pytestconfig.getoption("emr_cluster_id"),
+            emr_region=pytestconfig.getoption("emr_region"),
+            spark_staging_location=os.path.join(local_staging_path, "emr"),
+            emr_log_location=os.path.join(local_staging_path, "emr_logs"),
+            historical_feature_output_format="tfrecord",
+            historical_feature_output_location=os.path.join(
+                local_staging_path, "historical_output"
+            ),
+        )
+    elif pytestconfig.getoption("env") == "k8s":
+        return Client(
+            core_url=f"{feast_core[0]}:{feast_core[1]}",
+            spark_launcher="k8s",
+            spark_staging_location=os.path.join(local_staging_path, "k8s"),
+            historical_feature_output_format="tfrecord",
+            historical_feature_output_location=os.path.join(
+                local_staging_path, "historical_output"
+            ),
+        )
+    else:
+        raise KeyError(f"Unknown environment {pytestconfig.getoption('env')}")
+
+    c.set_project(pytestconfig.getoption("feast_project"))
+    return c
+
+
 @pytest.fixture(scope="session")
 def global_staging_path(pytestconfig):
     if pytestconfig.getoption("env") == "local" and not pytestconfig.getoption(

@@ -274,12 +274,20 @@ class DataprocClusterLauncher(JobLauncher):
             "labels": {self.JOB_TYPE_LABEL_KEY: job_params.get_job_type().name.lower()},
         }
 
+        maven_package_properties = {
+            "spark.jars.packages": ",".join(job_params.get_extra_packages())
+        }
+        common_properties = {
+            "spark.executor.instances": self.executor_instances,
+            "spark.executor.cores": self.executor_cores,
+            "spark.executor.memory": self.executor_memory,
+        }
         # Add job hash to labels only for the stream ingestion job
         if isinstance(job_params, StreamIngestionJobParameters):
             job_config["labels"][self.JOB_HASH_LABEL_KEY] = job_params.get_job_hash()
 
         if job_params.get_class_name():
-            properties = {
+            scala_job_properties = {
                 "spark.yarn.user.classpath.first": "true",
                 "spark.executor.instances": self.executor_instances,
                 "spark.executor.cores": self.executor_cores,
@@ -288,15 +296,18 @@ class DataprocClusterLauncher(JobLauncher):
                 "spark.pyspark.python": "python3.7",
             }
 
-            properties.update(extra_properties)
-
             job_config.update(
                 {
                     "spark_job": {
                         "jar_file_uris": [main_file_uri] + self.EXTERNAL_JARS,
                         "main_class": job_params.get_class_name(),
                         "args": job_params.get_arguments(),
-                        "properties": properties,
+                        "properties": {
+                            **scala_job_properties,
+                            **common_properties,
+                            **maven_package_properties,
+                            **extra_properties,
+                        },
                     }
                 }
             )
@@ -307,7 +318,11 @@ class DataprocClusterLauncher(JobLauncher):
                         "main_python_file_uri": main_file_uri,
                         "jar_file_uris": self.EXTERNAL_JARS,
                         "args": job_params.get_arguments(),
-                        "properties": extra_properties if extra_properties else {},
+                        "properties": {
+                            **common_properties,
+                            **maven_package_properties,
+                            **extra_properties,
+                        },
                     }
                 }
             )

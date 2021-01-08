@@ -281,7 +281,10 @@ def _cancel_job(emr_client, job: EmrJobRef):
 
 
 def _historical_retrieval_step(
-    pyspark_script_path: str, args: List[str], output_file_uri: str,
+    pyspark_script_path: str,
+    args: List[str],
+    output_file_uri: str,
+    packages: List[str] = None,
 ) -> Dict[str, Any]:
 
     return {
@@ -297,7 +300,10 @@ def _historical_retrieval_step(
                     "Value": output_file_uri,
                 },
             ],
-            "Args": ["spark-submit", pyspark_script_path] + args,
+            "Args": ["spark-submit"]
+            + (["--packages", ",".join(packages)] if packages else [])
+            + [pyspark_script_path]
+            + args,
             "Jar": "command-runner.jar",
         },
     }

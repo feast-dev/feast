@@ -231,6 +231,7 @@ class EmrClusterLauncher(JobLauncher):
             pyspark_script_path,
             args=job_params.get_arguments(),
             output_file_uri=job_params.get_destination_path(),
+            packages=job_params.get_extra_packages(),
         )
 
         job_ref = self._submit_emr_job(step)

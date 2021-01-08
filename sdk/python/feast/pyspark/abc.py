@@ -104,6 +104,15 @@ class SparkJobParameters(abc.ABC):
         """
         return None
 
+    def get_extra_packages(self) -> List[str]:
+        """
+        Getter for extra maven packages to be included on driver and executor
+        classpath if applicable.
+        Returns:
+            List[str]: List of maven packages
+        """
+        return []
+
     @abc.abstractmethod
     def get_arguments(self) -> List[str]:
         """
@@ -122,6 +131,7 @@ class RetrievalJobParameters(SparkJobParameters):
         feature_tables_sources: List[Dict],
         entity_source: Dict,
         destination: Dict,
+        extra_packages: Optional[List[str]] = None,
     ):
         """
         Args:
@@ -130,6 +140,8 @@ class RetrievalJobParameters(SparkJobParameters):
             feature_tables (List[Dict]): List of feature table specification.
                 The order of the feature table must correspond to that of feature_tables_sources.
             destination (Dict): Retrieval job output destination.
+            extra_packages (Optional[List[str]): Extra maven packages to be included on Spark driver
+                and executors classpath.
 
         Examples:
             >>> # Entity source from file
@@ -233,6 +245,7 @@ class RetrievalJobParameters(SparkJobParameters):
         self._feature_tables_sources = feature_tables_sources
         self._entity_source = entity_source
         self._destination = destination
+        self._extra_packages = extra_packages if extra_packages else []
 
     def get_name(self) -> str:
         all_feature_tables_names = [ft["name"] for ft in self._feature_tables]
@@ -245,6 +258,9 @@ class RetrievalJobParameters(SparkJobParameters):
         return os.path.join(
             os.path.dirname(__file__), "historical_feature_retrieval_job.py"
         )
+
+    def get_extra_packages(self) -> List[str]:
+        return self._extra_packages
 
     def get_arguments(self) -> List[str]:
         def json_b64_encode(obj) -> str:

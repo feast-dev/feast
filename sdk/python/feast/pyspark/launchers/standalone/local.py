@@ -272,7 +272,7 @@ class StandaloneClusterLauncher(JobLauncher):
                 "--conf",
                 "spark.sql.session.timeZone=UTC",  # ignore local timezone
                 "--packages",
-                BQ_SPARK_PACKAGE,
+                ",".join([BQ_SPARK_PACKAGE] + job_params.get_extra_packages()),
                 "--jars",
                 "https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop2-latest.jar,"
                 "https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/2.7.3/hadoop-aws-2.7.3.jar,"
