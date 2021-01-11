@@ -16,6 +16,7 @@
  */
 package feast.storage.connectors.redis.retriever;
 
+import feast.proto.core.StoreProto;
 import io.lettuce.core.KeyValue;
 import io.lettuce.core.RedisFuture;
 import io.lettuce.core.RedisURI;
@@ -23,7 +24,6 @@ import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.async.RedisAsyncCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
 import java.util.List;
-import java.util.Map;
 
 public class RedisClient implements RedisClientAdapter {
 
@@ -46,11 +46,11 @@ public class RedisClient implements RedisClientAdapter {
     this.asyncCommands.setAutoFlushCommands(false);
   }
 
-  public static RedisClientAdapter create(Map<String, String> config) {
+  public static RedisClientAdapter create(StoreProto.Store.RedisConfig config) {
 
-    RedisURI uri = RedisURI.create(config.get("host"), Integer.parseInt(config.get("port")));
+    RedisURI uri = RedisURI.create(config.getHost(), config.getPort());
 
-    if (Boolean.parseBoolean(config.get("ssl"))) {
+    if (config.getSsl()) {
       uri.setSsl(true);
     }
     StatefulRedisConnection<byte[], byte[]> connection =

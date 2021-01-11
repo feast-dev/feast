@@ -16,9 +16,13 @@
  */
 package feast.storage.connectors.redis.retriever;
 
+import com.google.common.collect.ImmutableMap;
+import feast.proto.core.StoreProto;
+import feast.proto.core.StoreProto.Store.RedisClusterConfig;
 import feast.storage.connectors.redis.serializer.RedisKeyPrefixSerializerV2;
 import feast.storage.connectors.redis.serializer.RedisKeySerializerV2;
 import io.lettuce.core.KeyValue;
+import io.lettuce.core.ReadFrom;
 import io.lettuce.core.RedisFuture;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
@@ -35,6 +39,13 @@ public class RedisClusterClient implements RedisClientAdapter {
   private final RedisAdvancedClusterAsyncCommands<byte[], byte[]> asyncCommands;
   private final RedisKeySerializerV2 serializer;
   @Nullable private final RedisKeySerializerV2 fallbackSerializer;
+
+  private static final Map<RedisClusterConfig.ReadFrom, ReadFrom> PROTO_TO_LETTUCE_TYPES =
+      ImmutableMap.of(
+          RedisClusterConfig.ReadFrom.MASTER, ReadFrom.MASTER,
+          RedisClusterConfig.ReadFrom.MASTER_PREFERRED, ReadFrom.MASTER_PREFERRED,
+          RedisClusterConfig.ReadFrom.REPLICA, ReadFrom.REPLICA,
+          RedisClusterConfig.ReadFrom.REPLICA_PREFERRED, ReadFrom.REPLICA_PREFERRED);
 
   @Override
   public RedisFuture<List<KeyValue<byte[], byte[]>>> hmget(byte[] key, byte[]... fields) {
@@ -73,13 +84,16 @@ public class RedisClusterClient implements RedisClientAdapter {
     this.serializer = builder.serializer;
     this.fallbackSerializer = builder.fallbackSerializer;
 
+    // allows reading from replicas
+    this.asyncCommands.readOnly();
+
     // Disable auto-flushing
     this.asyncCommands.setAutoFlushCommands(false);
   }
 
-  public static RedisClientAdapter create(Map<String, String> config) {
+  public static RedisClientAdapter create(StoreProto.Store.RedisClusterConfig config) {
     List<RedisURI> redisURIList =
-        Arrays.stream(config.get("connection_string").split(","))
+        Arrays.stream(config.getConnectionString().split(","))
             .map(
                 hostPort -> {
                   String[] hostPortSplit = hostPort.trim().split(":");
@@ -90,14 +104,15 @@ public class RedisClusterClient implements RedisClientAdapter {
         io.lettuce.core.cluster.RedisClusterClient.create(redisURIList)
             .connect(new ByteArrayCodec());
 
-    RedisKeySerializerV2 serializer =
-        new RedisKeyPrefixSerializerV2(config.getOrDefault("key_prefix", ""));
+    connection.setReadFrom(PROTO_TO_LETTUCE_TYPES.get(config.getReadFrom()));
+
+    RedisKeySerializerV2 serializer = new RedisKeyPrefixSerializerV2(config.getKeyPrefix());
 
     Builder builder = new Builder(connection, serializer);
 
-    if (Boolean.parseBoolean(config.getOrDefault("enable_fallback", "false"))) {
+    if (config.getEnableFallback()) {
       RedisKeySerializerV2 fallbackSerializer =
-          new RedisKeyPrefixSerializerV2(config.getOrDefault("fallback_prefix", ""));
+          new RedisKeyPrefixSerializerV2(config.getKeyPrefix());
       builder = builder.withFallbackSerializer(fallbackSerializer);
     }
 

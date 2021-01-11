@@ -54,7 +54,8 @@ feast:
       type: REDIS_CLUSTER
       config:  # Store specific configuration.
         # Connection string specifies the host:port of Redis instances in the redis cluster.
-        connection_string: "localhost:7000,localhost:7001,localhost:7002,localhost:7003,localhost:7004,localhost:7005" 
+        connection_string: "localhost:7000,localhost:7001,localhost:7002,localhost:7003,localhost:7004,localhost:7005"
+        read_from: MASTER
       subscriptions:
         - name: "*"
           project: "*"
