@@ -73,6 +73,12 @@ class SparkJob(abc.ABC):
         Get job start time.
         """
 
+    def get_log_uri(self) -> Optional[str]:
+        """
+        Get path to Spark job log, if applicable.
+        """
+        return None
+
 
 class SparkJobParameters(abc.ABC):
     @abc.abstractmethod

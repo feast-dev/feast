@@ -1,6 +1,6 @@
 import time
 from datetime import datetime
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 from feast.core.JobService_pb2 import CancelJobRequest, GetJobRequest
 from feast.core.JobService_pb2 import Job as JobProto
@@ -25,6 +25,7 @@ class RemoteJobMixin:
         grpc_extra_param_provider: GrpcExtraParamProvider,
         job_id: str,
         start_time: datetime,
+        log_uri: Optional[str],
     ):
         """
         Args:
@@ -35,6 +36,7 @@ class RemoteJobMixin:
         self._service = service
         self._grpc_extra_param_provider = grpc_extra_param_provider
         self._start_time = start_time
+        self._log_uri = log_uri
 
     def get_id(self) -> str:
         return self._job_id
@@ -78,6 +80,9 @@ class RemoteJobMixin:
         else:
             raise TimeoutError("Timed out waiting for job status")
 
+    def get_log_uri(self) -> Optional[str]:
+        return self._log_uri
+
 
 class RemoteRetrievalJob(RemoteJobMixin, RetrievalJob):
     """
@@ -91,6 +96,7 @@ class RemoteRetrievalJob(RemoteJobMixin, RetrievalJob):
         job_id: str,
         output_file_uri: str,
         start_time: datetime,
+        log_uri: Optional[str],
     ):
         """
         This is the job object representing the historical retrieval job.
@@ -98,7 +104,9 @@ class RemoteRetrievalJob(RemoteJobMixin, RetrievalJob):
         Args:
             output_file_uri (str): Uri to the historical feature retrieval job output file.
         """
-        super().__init__(service, grpc_extra_param_provider, job_id, start_time)
+        super().__init__(
+            service, grpc_extra_param_provider, job_id, start_time, log_uri
+        )
         self._output_file_uri = output_file_uri
 
     def get_output_file_uri(self, timeout_sec=None):
@@ -124,8 +132,11 @@ class RemoteBatchIngestionJob(RemoteJobMixin, BatchIngestionJob):
         job_id: str,
         feature_table: str,
         start_time: datetime,
+        log_uri: Optional[str],
     ):
-        super().__init__(service, grpc_extra_param_provider, job_id, start_time)
+        super().__init__(
+            service, grpc_extra_param_provider, job_id, start_time, log_uri
+        )
         self._feature_table = feature_table
 
     def get_feature_table(self) -> str:
@@ -144,8 +155,11 @@ class RemoteStreamIngestionJob(RemoteJobMixin, StreamIngestionJob):
         job_id: str,
         feature_table: str,
         start_time: datetime,
+        log_uri: Optional[str],
     ):
-        super().__init__(service, grpc_extra_param_provider, job_id, start_time)
+        super().__init__(
+            service, grpc_extra_param_provider, job_id, start_time, log_uri
+        )
         self._feature_table = feature_table
 
     def get_hash(self) -> str:
@@ -182,6 +196,7 @@ def get_remote_job_from_proto(
             job.id,
             job.retrieval.output_location,
             job.start_time.ToDatetime(),
+            job.log_uri,
         )
     elif job.type == JobType.BATCH_INGESTION_JOB:
         return RemoteBatchIngestionJob(
@@ -190,6 +205,7 @@ def get_remote_job_from_proto(
             job.id,
             job.batch_ingestion.table_name,
             job.start_time.ToDatetime(),
+            job.log_uri,
         )
     elif job.type == JobType.STREAM_INGESTION_JOB:
         return RemoteStreamIngestionJob(
@@ -198,6 +214,7 @@ def get_remote_job_from_proto(
             job.id,
             job.stream_ingestion.table_name,
             job.start_time.ToDatetime(),
+            job.log_uri,
         )
     else:
         raise ValueError(

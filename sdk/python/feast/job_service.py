@@ -55,6 +55,10 @@ from feast.third_party.grpc.health.v1.HealthService_pb2 import (
 def _job_to_proto(spark_job: SparkJob) -> JobProto:
     job = JobProto()
     job.id = spark_job.get_id()
+    log_uri = spark_job.get_log_uri()
+    if log_uri:
+        assert isinstance(log_uri, str)
+        job.log_uri = log_uri
     status = spark_job.get_status()
     if status == SparkJobStatus.COMPLETED:
         job.status = JobStatus.JOB_STATUS_DONE
@@ -110,6 +114,7 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
             id=job.get_id(),
             job_start_time=job_start_timestamp,
             table_name=request.table_name,
+            log_uri=job.get_log_uri(),
         )
 
     def GetHistoricalFeatures(self, request: GetHistoricalFeaturesRequest, context):
@@ -159,6 +164,7 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
                         id=job.get_id(),
                         job_start_time=job_start_timestamp,
                         table_name=job.get_feature_table(),
+                        log_uri=job.get_log_uri(),
                     )
             raise RuntimeError(
                 "Feast Job Service has control loop enabled, but couldn't find the existing stream ingestion job for the given FeatureTable"
@@ -178,6 +184,7 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
             id=job.get_id(),
             job_start_time=job_start_timestamp,
             table_name=request.table_name,
+            log_uri=job.get_log_uri(),
         )
 
     def ListJobs(self, request, context):

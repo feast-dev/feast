@@ -95,6 +95,9 @@ message Job {
     OfflineToOnlineMeta batch_ingestion = 7;
     StreamToOnlineMeta stream_ingestion = 8;
   }
+
+  // Path to Spark job logs, if available
+  string log_uri = 9;
 }
 
 // Ingest data from offline store into online store
@@ -111,14 +114,17 @@ message StartOfflineToOnlineIngestionJobRequest {
 }
 
 message StartOfflineToOnlineIngestionJobResponse {
-    // Job ID assigned by Feast
-    string id = 1;
+  // Job ID assigned by Feast
+  string id = 1;
 
-    // Job start time
-    google.protobuf.Timestamp job_start_time = 2;
+  // Job start time
+  google.protobuf.Timestamp job_start_time = 2;
 
-    // Feature table associated with the job
-    string table_name = 3;
+  // Feature table associated with the job
+  string table_name = 3;
+
+  // Path to Spark job logs, if available
+  string log_uri = 4;
 }
 
 message GetHistoricalFeaturesRequest {
@@ -146,14 +152,17 @@ message GetHistoricalFeaturesRequest {
 }
 
 message GetHistoricalFeaturesResponse {
-    // Export Job with ID assigned by Feast
-    string id = 1;
+  // Export Job with ID assigned by Feast
+  string id = 1;
 
-    // Uri to the join result output file
-    string output_file_uri = 2;
+  // Uri to the join result output file
+  string output_file_uri = 2;
 
-    // Job start time
-    google.protobuf.Timestamp job_start_time = 3;
+  // Job start time
+  google.protobuf.Timestamp job_start_time = 3;
+
+  // Path to Spark job logs, if available
+  string log_uri = 4;
 
 }
 
@@ -164,18 +173,21 @@ message StartStreamToOnlineIngestionJobRequest {
 }
 
 message StartStreamToOnlineIngestionJobResponse {
-    // Job ID assigned by Feast
-    string id = 1;
+  // Job ID assigned by Feast
+  string id = 1;
 
-    // Job start time
-    google.protobuf.Timestamp job_start_time = 2;
+  // Job start time
+  google.protobuf.Timestamp job_start_time = 2;
 
-    // Feature table associated with the job
-    string table_name = 3;
+  // Feature table associated with the job
+  string table_name = 3;
+
+  // Path to Spark job logs, if available
+  string log_uri = 4;
 }
 
 message ListJobsRequest {
-    bool include_terminated = 1;
+  bool include_terminated = 1;
 }
 
 message ListJobsResponse {

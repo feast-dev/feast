@@ -133,6 +133,9 @@ class DataprocJobMixin:
     def get_start_time(self):
         return self._job.status.state_start_time
 
+    def get_log_uri(self) -> Optional[str]:
+        return self._job.driver_output_resource_uri
+
 
 class DataprocRetrievalJob(DataprocJobMixin, RetrievalJob):
     """

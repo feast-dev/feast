@@ -1076,6 +1076,7 @@ class Client:
                 response.id,
                 output_file_uri=response.output_file_uri,
                 start_time=response.job_start_time.ToDatetime(),
+                log_uri=response.log_uri,
             )
         else:
             return start_historical_feature_retrieval_job(
@@ -1180,6 +1181,7 @@ class Client:
                 response.id,
                 feature_table.name,
                 response.job_start_time.ToDatetime(),
+                response.log_uri,
             )
 
     def start_stream_to_online_ingestion(
@@ -1206,6 +1208,7 @@ class Client:
                 response.id,
                 feature_table.name,
                 response.job_start_time,
+                response.log_uri,
             )
 
     def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
