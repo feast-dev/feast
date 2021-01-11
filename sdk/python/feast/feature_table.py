@@ -406,3 +406,6 @@ class FeatureTable:
         self.stream_source = feature_table.stream_source
         self._created_timestamp = feature_table.created_timestamp
         self._last_updated_timestamp = feature_table.last_updated_timestamp
+
+    def __repr__(self):
+        return f"FeatureTable <{self.name}>"

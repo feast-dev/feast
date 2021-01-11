@@ -37,6 +37,9 @@ services:
       FEAST_HISTORICAL_FEATURE_OUTPUT_FORMAT: parquet
       FEAST_REDIS_HOST: redis
       FEAST_SPARK_INGESTION_JAR: ${INGESTION_JAR_PATH}
+      FEAST_STATSD_ENABLED: "true"
+      FEAST_STATSD_HOST: prometheus_statsd
+      FEAST_STATSD_PORT: 9125
 
   jupyter:
     image: gcr.io/kf-feast/feast-jupyter:${FEAST_VERSION}
@@ -107,3 +110,9 @@ services:
     image: redis:5-alpine
     ports:
       - "6379:6379"
+
+  prometheus_statsd:
+    image: prom/statsd-exporter:v0.12.1
+    ports:
+      - "9125:9125"
+      - "9102:9102"

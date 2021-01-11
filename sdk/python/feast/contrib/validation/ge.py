@@ -1,5 +1,6 @@
 import io
 import json
+import os
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
@@ -10,7 +11,7 @@ from feast.contrib.validation.base import serialize_udf
 from feast.staging.storage_client import get_staging_client
 
 try:
-    from great_expectations.core import ExpectationSuite
+    from great_expectations.core import ExpectationConfiguration, ExpectationSuite
     from great_expectations.dataset import PandasDataset
 except ImportError:
     raise ImportError(
@@ -41,7 +42,28 @@ class ValidationUDF:
         self.pickled_code = pickled_code
 
 
-def create_validation_udf(name: str, expectations: ExpectationSuite) -> ValidationUDF:
+def drop_feature_table_prefix(
+    expectation_configuration: ExpectationConfiguration, prefix
+):
+    kwargs = expectation_configuration.kwargs
+    for arg_name in ("column", "column_A", "column_B"):
+        if arg_name not in kwargs:
+            continue
+
+        if kwargs[arg_name].startswith(prefix):
+            kwargs[arg_name] = kwargs[arg_name][len(prefix) :]
+
+
+def prepare_expectations(suite: ExpectationSuite, feature_table: "FeatureTable"):
+    for expectation in suite.expectations:
+        drop_feature_table_prefix(expectation, f"{feature_table.name}__")
+
+    return suite
+
+
+def create_validation_udf(
+    name: str, expectations: ExpectationSuite, feature_table: "FeatureTable",
+) -> ValidationUDF:
     """
     Wraps your expectations into Spark UDF.
 
@@ -60,10 +82,25 @@ def create_validation_udf(name: str, expectations: ExpectationSuite) -> Validati
 
     :param name
     :param expectations: collection of expectation gathered on training dataset
+    :param feature_table
     :return: ValidationUDF with serialized code
     """
 
+    expectations = prepare_expectations(expectations, feature_table)
+
     def udf(df: pd.DataFrame) -> pd.Series:
+        from datadog.dogstatsd import DogStatsd
+
+        reporter = (
+            DogStatsd(
+                host=os.environ["STATSD_HOST"],
+                port=int(os.environ["STATSD_PORT"]),
+                telemetry_min_flush_interval=0,
+            )
+            if os.getenv("STATSD_HOST") and os.getenv("STATSD_PORT")
+            else DogStatsd()
+        )
+
         ds = PandasDataset.from_dataset(df)
         result = ds.validate(expectations, result_format="COMPLETE")
         valid_rows = pd.Series([True] * df.shape[0])
@@ -71,6 +108,32 @@ def create_validation_udf(name: str, expectations: ExpectationSuite) -> Validati
         for check in result.results:
             if check.success:
                 continue
+
+            unexpected_count = (
+                check.result["unexpected_count"]
+                if "unexpected_count" in check.result
+                else df.shape[0]
+            )
+
+            check_kwargs = check.expectation_config.kwargs
+            check_kwargs.pop("result_format", None)
+            check_name = "_".join(
+                [check.expectation_config.expectation_type]
+                + [
+                    str(v)
+                    for v in check_kwargs.values()
+                    if isinstance(v, (str, int, float))
+                ]
+            )
+
+            reporter.increment(
+                "feast_feature_validation_check_failed",
+                value=unexpected_count,
+                tags=[
+                    f"feature_table:{os.getenv('FEAST_INGESTION_FEATURE_TABLE', 'unknown')}",
+                    f"check:{check_name}",
+                ],
+            )
 
             if check.exception_info["raised_exception"]:
                 # ToDo: probably we should mark all rows as invalid
@@ -106,7 +169,7 @@ def apply_validation(
     staging_client = get_staging_client(staging_scheme, client._config)
 
     pickled_code_fp = io.BytesIO(udf.pickled_code)
-    remote_path = f"{staging_location}/udfs/{udf.name}.pickle"
+    remote_path = f"{staging_location}/udfs/{feature_table.name}/{udf.name}.pickle"
     staging_client.upload_fileobj(
         pickled_code_fp, f"{udf.name}.pickle", remote_uri=urlparse(remote_path)
     )
