@@ -72,10 +72,10 @@ def _job_to_proto(spark_job: SparkJob) -> JobProto:
         job.retrieval.output_location = spark_job.get_output_file_uri(block=False)
     elif isinstance(spark_job, BatchIngestionJob):
         job.type = JobType.BATCH_INGESTION_JOB
-        job.batch_ingestion.feature_table = spark_job.get_feature_table()
+        job.batch_ingestion.table_name = spark_job.get_feature_table()
     elif isinstance(spark_job, StreamIngestionJob):
         job.type = JobType.STREAM_INGESTION_JOB
-        job.stream_ingestion.feature_table = spark_job.get_feature_table()
+        job.stream_ingestion.table_name = spark_job.get_feature_table()
     else:
         raise ValueError(f"Invalid job type {job}")
 
@@ -109,7 +109,7 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
         return StartOfflineToOnlineIngestionJobResponse(
             id=job.get_id(),
             job_start_time=job_start_timestamp,
-            feature_table=request.table_name,
+            table_name=request.table_name,
         )
 
     def GetHistoricalFeatures(self, request: GetHistoricalFeaturesRequest, context):
@@ -158,7 +158,7 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
                     return StartStreamToOnlineIngestionJobResponse(
                         id=job.get_id(),
                         job_start_time=job_start_timestamp,
-                        feature_table=job.get_feature_table(),
+                        table_name=job.get_feature_table(),
                     )
             raise RuntimeError(
                 "Feast Job Service has control loop enabled, but couldn't find the existing stream ingestion job for the given FeatureTable"
@@ -177,7 +177,7 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
         return StartStreamToOnlineIngestionJobResponse(
             id=job.get_id(),
             job_start_time=job_start_timestamp,
-            feature_table=request.table_name,
+            table_name=request.table_name,
         )
 
     def ListJobs(self, request, context):

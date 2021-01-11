@@ -73,27 +73,27 @@ message Job {
   // Current job status
   JobStatus status = 3;
   // Deterministic hash of the Job
-  string hash = 8;
+  string hash = 4;
   // Start time of the Job
-  google.protobuf.Timestamp start_time = 9;
+  google.protobuf.Timestamp start_time = 5;
 
   message RetrievalJobMeta {
-    string output_location = 4;
+    string output_location = 1;
   }
 
   message OfflineToOnlineMeta {
-      string feature_table = 10;
+      string table_name = 1;
   }
 
   message StreamToOnlineMeta {
-      string feature_table = 11;
+      string table_name = 1;
   }
 
   // JobType specific metadata on the job
   oneof meta {
-    RetrievalJobMeta retrieval = 5;
-    OfflineToOnlineMeta batch_ingestion = 6;
-    StreamToOnlineMeta stream_ingestion = 7;
+    RetrievalJobMeta retrieval = 6;
+    OfflineToOnlineMeta batch_ingestion = 7;
+    StreamToOnlineMeta stream_ingestion = 8;
   }
 }
 
@@ -118,7 +118,7 @@ message StartOfflineToOnlineIngestionJobResponse {
     google.protobuf.Timestamp job_start_time = 2;
 
     // Feature table associated with the job
-    string feature_table = 3;
+    string table_name = 3;
 }
 
 message GetHistoricalFeaturesRequest {
@@ -171,7 +171,7 @@ message StartStreamToOnlineIngestionJobResponse {
     google.protobuf.Timestamp job_start_time = 2;
 
     // Feature table associated with the job
-    string feature_table = 3;
+    string table_name = 3;
 }
 
 message ListJobsRequest {

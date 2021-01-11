@@ -188,7 +188,7 @@ def get_remote_job_from_proto(
             service,
             grpc_extra_param_provider,
             job.id,
-            job.batch_ingestion.feature_table,
+            job.batch_ingestion.table_name,
             job.start_time.ToDatetime(),
         )
     elif job.type == JobType.STREAM_INGESTION_JOB:
@@ -196,7 +196,7 @@ def get_remote_job_from_proto(
             service,
             grpc_extra_param_provider,
             job.id,
-            job.stream_ingestion.feature_table,
+            job.stream_ingestion.table_name,
             job.start_time.ToDatetime(),
         )
     else:
