@@ -5,7 +5,7 @@ import threading
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, cast
 
 import grpc
 from google.protobuf.timestamp_pb2 import Timestamp
@@ -55,10 +55,7 @@ from feast.third_party.grpc.health.v1.HealthService_pb2 import (
 def _job_to_proto(spark_job: SparkJob) -> JobProto:
     job = JobProto()
     job.id = spark_job.get_id()
-    log_uri = spark_job.get_log_uri()
-    if log_uri:
-        assert isinstance(log_uri, str)
-        job.log_uri = log_uri
+    job.log_uri = cast(str, spark_job.get_log_uri() or "")
     status = spark_job.get_status()
     if status == SparkJobStatus.COMPLETED:
         job.status = JobStatus.JOB_STATUS_DONE
