@@ -393,12 +393,12 @@ class DataprocClusterLauncher(JobLauncher):
             job_params, {"dev.feast.outputuri": job_params.get_destination_path()}
         )
         return DataprocRetrievalJob(
-            job,
-            refresh_fn,
-            cancel_fn,
-            job_params.get_destination_path(),
-            self.project_id,
-            self.region,
+            job=job,
+            refresh_fn=refresh_fn,
+            cancel_fn=cancel_fn,
+            project=self.project_id,
+            region=self.region,
+            output_file_uri=job_params.get_destination_path(),
         )
 
     def offline_to_online_ingestion(
@@ -406,7 +406,11 @@ class DataprocClusterLauncher(JobLauncher):
     ) -> BatchIngestionJob:
         job, refresh_fn, cancel_fn = self.dataproc_submit(ingestion_job_params, {})
         return DataprocBatchIngestionJob(
-            job, refresh_fn, cancel_fn, self.project_id, self.region
+            job=job,
+            refresh_fn=refresh_fn,
+            cancel_fn=cancel_fn,
+            project=self.project_id,
+            region=self.region,
         )
 
     def start_stream_to_online_ingestion(
@@ -415,7 +419,12 @@ class DataprocClusterLauncher(JobLauncher):
         job, refresh_fn, cancel_fn = self.dataproc_submit(ingestion_job_params, {})
         job_hash = ingestion_job_params.get_job_hash()
         return DataprocStreamingIngestionJob(
-            job, refresh_fn, cancel_fn, self.project_id, self.region, job_hash
+            job=job,
+            refresh_fn=refresh_fn,
+            cancel_fn=cancel_fn,
+            project=self.project_id,
+            region=self.region,
+            job_hash=job_hash,
         )
 
     def get_job_by_id(self, job_id: str) -> SparkJob:
@@ -438,18 +447,32 @@ class DataprocClusterLauncher(JobLauncher):
         if job_type == SparkJobType.HISTORICAL_RETRIEVAL.name.lower():
             output_path = job.pyspark_job.properties.get("dev.feast.outputuri", "")
             return DataprocRetrievalJob(
-                job, refresh_fn, cancel_fn, self.project_id, self.region, output_path
+                job=job,
+                refresh_fn=refresh_fn,
+                cancel_fn=cancel_fn,
+                project=self.project_id,
+                region=self.region,
+                output_file_uri=output_path,
             )
 
         if job_type == SparkJobType.BATCH_INGESTION.name.lower():
             return DataprocBatchIngestionJob(
-                job, refresh_fn, cancel_fn, self.project_id, self.region
+                job=job,
+                refresh_fn=refresh_fn,
+                cancel_fn=cancel_fn,
+                project=self.project_id,
+                region=self.region,
             )
 
         if job_type == SparkJobType.STREAM_INGESTION.name.lower():
             job_hash = job.labels[self.JOB_HASH_LABEL_KEY]
             return DataprocStreamingIngestionJob(
-                job, refresh_fn, cancel_fn, self.project_id, self.region, job_hash
+                job=job,
+                refresh_fn=refresh_fn,
+                cancel_fn=cancel_fn,
+                project=self.project_id,
+                region=self.region,
+                job_hash=job_hash,
             )
 
         raise ValueError(f"Unrecognized job type: {job_type}")
