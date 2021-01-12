@@ -176,7 +176,8 @@ object StreamingPipeline extends BasePipeline with Serializable {
           Map(
             "STATSD_HOST"                   -> c.host,
             "STATSD_PORT"                   -> c.port.toString,
-            "FEAST_INGESTION_FEATURE_TABLE" -> config.featureTable.name
+            "FEAST_INGESTION_FEATURE_TABLE" -> config.featureTable.name,
+            "FEAST_INGESTION_PROJECT_NAME"  -> config.featureTable.project
           )
         case _ => Map.empty[String, String]
       }

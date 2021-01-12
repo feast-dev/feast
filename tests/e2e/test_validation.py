@@ -200,7 +200,8 @@ def test_validation_reports_metrics(
 
     expected_metrics = [
         (
-            f"feast_feature_validation_check_failed#check:{check_name},feature_table:validation_ge_metrics",
+            f"feast_feature_validation_check_failed#check:{check_name},"
+            f"feature_table:{feature_table.name},project:{feast_client.project}",
             value,
         )
         for check_name, value in unexpected_counts.items()
