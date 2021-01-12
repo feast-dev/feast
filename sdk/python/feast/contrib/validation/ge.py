@@ -131,6 +131,7 @@ def create_validation_udf(
                 value=unexpected_count,
                 tags=[
                     f"feature_table:{os.getenv('FEAST_INGESTION_FEATURE_TABLE', 'unknown')}",
+                    f"project:{os.getenv('FEAST_INGESTION_PROJECT_NAME', 'default')}",
                     f"check:{check_name}",
                 ],
             )
