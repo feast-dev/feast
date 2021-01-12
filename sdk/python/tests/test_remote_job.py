@@ -1,6 +1,7 @@
 from collections import defaultdict
 from concurrent import futures
 from contextlib import contextmanager
+from datetime import datetime
 
 import grpc
 
@@ -57,7 +58,9 @@ class TestRemoteJob:
 
         mock_servicer = MockServicer()
         with mock_server(mock_servicer) as service:
-            remote_job = RemoteRetrievalJob(service, lambda: {}, "test", "foo")
+            remote_job = RemoteRetrievalJob(
+                service, lambda: {}, "test", "foo", datetime.now(), None
+            )
 
             assert remote_job.get_output_file_uri(timeout_sec=2) == "foo"
             assert mock_servicer._call_count["GetJob"] == 2

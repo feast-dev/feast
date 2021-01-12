@@ -4,6 +4,7 @@ import subprocess
 import threading
 import uuid
 from contextlib import closing
+from datetime import datetime
 from typing import Dict, List, Optional
 
 import requests
@@ -101,6 +102,7 @@ class StandaloneClusterJobMixin:
         self._job_name = job_name
         self._process = process
         self._ui_port = ui_port
+        self._start_time = datetime.utcnow()
 
     def get_id(self) -> str:
         return self._job_id
@@ -127,6 +129,9 @@ class StandaloneClusterJobMixin:
         ).json()
         return bool(stages)
 
+    def get_start_time(self) -> datetime:
+        return self._start_time
+
     def get_status(self) -> SparkJobStatus:
         code = self._process.poll()
         if code is None:
@@ -149,7 +154,19 @@ class StandaloneClusterBatchIngestionJob(StandaloneClusterJobMixin, BatchIngesti
     Batch Ingestion job result for a standalone spark cluster
     """
 
-    pass
+    def __init__(
+        self,
+        job_id: str,
+        job_name: str,
+        process: subprocess.Popen,
+        ui_port: int,
+        feature_table: str,
+    ) -> None:
+        super().__init__(job_id, job_name, process, ui_port)
+        self._feature_table = feature_table
+
+    def get_feature_table(self) -> str:
+        return self._feature_table
 
 
 class StandaloneClusterStreamingIngestionJob(
@@ -166,12 +183,17 @@ class StandaloneClusterStreamingIngestionJob(
         process: subprocess.Popen,
         ui_port: int,
         job_hash: str,
+        feature_table: str,
     ) -> None:
         super().__init__(job_id, job_name, process, ui_port)
         self._job_hash = job_hash
+        self._feature_table = feature_table
 
     def get_hash(self) -> str:
         return self._job_hash
+
+    def get_feature_table(self) -> str:
+        return self._feature_table
 
 
 class StandaloneClusterRetrievalJob(StandaloneClusterJobMixin, RetrievalJob):
@@ -312,6 +334,7 @@ class StandaloneClusterLauncher(JobLauncher):
             ingestion_job_params.get_name(),
             self.spark_submit(ingestion_job_params, ui_port),
             ui_port,
+            ingestion_job_params.get_feature_table_name(),
         )
         global_job_cache.add_job(job)
         return job
@@ -327,6 +350,7 @@ class StandaloneClusterLauncher(JobLauncher):
             self.spark_submit(ingestion_job_params, ui_port),
             ui_port,
             ingestion_job_params.get_job_hash(),
+            ingestion_job_params.get_feature_table_name(),
         )
         global_job_cache.add_job(job)
         return job

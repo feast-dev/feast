@@ -32,6 +32,7 @@ def test_dataproc_job_api(
     job = dataproc_launcher.historical_feature_retrieval(dataproc_retrieval_job_params)
     job_id = job.get_id()
     retrieved_job = dataproc_launcher.get_job_by_id(job_id)
+    assert retrieved_job.get_log_uri is not None
     assert retrieved_job.get_id() == job_id
     status = retrieved_job.get_status()
     assert status in [

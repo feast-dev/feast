@@ -1,4 +1,5 @@
 from copy import deepcopy
+from datetime import datetime
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 from kubernetes import client, config
@@ -26,6 +27,7 @@ HISTORICAL_RETRIEVAL_JOB_TYPE = "HISTORICAL_RETRIEVAL_JOB"
 
 LABEL_JOBID = "feast.dev/jobid"
 LABEL_JOBTYPE = "feast.dev/type"
+LABEL_FEATURE_TABLE = "feast.dev/table"
 
 # Can't store these bits of info in k8s labels due to 64-character limit, so we store them as
 # sparkConf
@@ -114,11 +116,14 @@ def _prepare_job_resource(
     azure_credentials: Dict[str, str],
     arguments: List[str],
     namespace: str,
+    extra_labels: Dict[str, str] = None,
 ) -> Dict[str, Any]:
     """ Prepare SparkApplication custom resource configs """
     job = deepcopy(job_template)
 
     labels = {LABEL_JOBID: job_id, LABEL_JOBTYPE: job_type}
+    if extra_labels:
+        labels = {**labels, **extra_labels}
 
     _add_keys(job, ("metadata", "labels"), labels)
     _add_keys(
@@ -164,6 +169,8 @@ class JobInfo(NamedTuple):
     namespace: str
     extra_metadata: Dict[str, str]
     state: SparkJobStatus
+    labels: Dict[str, str]
+    start_time: datetime
 
 
 STATE_MAP = {
@@ -186,6 +193,9 @@ def _k8s_state_to_feast(k8s_state: str) -> SparkJobStatus:
 
 def _resource_to_job_info(resource: Dict[str, Any]) -> JobInfo:
     labels = resource["metadata"]["labels"]
+    start_time = datetime.strptime(
+        resource["metadata"].get("creationTimestamp"), "%Y-%m-%dT%H:%M:%SZ"
+    )
     sparkConf = resource["spec"].get("sparkConf", {})
 
     if "status" in resource:
@@ -199,6 +209,8 @@ def _resource_to_job_info(resource: Dict[str, Any]) -> JobInfo:
         namespace=resource["metadata"].get("namespace", "default"),
         extra_metadata={k: v for k, v in sparkConf.items() if k in METADATA_KEYS},
         state=state,
+        labels=labels,
+        start_time=start_time,
     )
 
 

@@ -73,24 +73,31 @@ message Job {
   // Current job status
   JobStatus status = 3;
   // Deterministic hash of the Job
-  string hash = 8;
+  string hash = 4;
+  // Start time of the Job
+  google.protobuf.Timestamp start_time = 5;
 
   message RetrievalJobMeta {
-    string output_location = 4;
+    string output_location = 1;
   }
 
   message OfflineToOnlineMeta {
+      string table_name = 1;
   }
 
   message StreamToOnlineMeta {
+      string table_name = 1;
   }
 
   // JobType specific metadata on the job
   oneof meta {
-    RetrievalJobMeta retrieval = 5;
-    OfflineToOnlineMeta batch_ingestion = 6;
-    StreamToOnlineMeta stream_ingestion = 7;
+    RetrievalJobMeta retrieval = 6;
+    OfflineToOnlineMeta batch_ingestion = 7;
+    StreamToOnlineMeta stream_ingestion = 8;
   }
+
+  // Path to Spark job logs, if available
+  string log_uri = 9;
 }
 
 // Ingest data from offline store into online store
@@ -107,8 +114,17 @@ message StartOfflineToOnlineIngestionJobRequest {
 }
 
 message StartOfflineToOnlineIngestionJobResponse {
-    // Job ID assigned by Feast
-    string id = 1;
+  // Job ID assigned by Feast
+  string id = 1;
+
+  // Job start time
+  google.protobuf.Timestamp job_start_time = 2;
+
+  // Feature table associated with the job
+  string table_name = 3;
+
+  // Path to Spark job logs, if available
+  string log_uri = 4;
 }
 
 message GetHistoricalFeaturesRequest {
@@ -136,9 +152,18 @@ message GetHistoricalFeaturesRequest {
 }
 
 message GetHistoricalFeaturesResponse {
-    // Export Job with ID assigned by Feast
-    string id = 1;
-    string output_file_uri = 2;
+  // Export Job with ID assigned by Feast
+  string id = 1;
+
+  // Uri to the join result output file
+  string output_file_uri = 2;
+
+  // Job start time
+  google.protobuf.Timestamp job_start_time = 3;
+
+  // Path to Spark job logs, if available
+  string log_uri = 4;
+
 }
 
 message StartStreamToOnlineIngestionJobRequest {
@@ -148,8 +173,17 @@ message StartStreamToOnlineIngestionJobRequest {
 }
 
 message StartStreamToOnlineIngestionJobResponse {
-    // Job ID assigned by Feast
-    string id = 1;
+  // Job ID assigned by Feast
+  string id = 1;
+
+  // Job start time
+  google.protobuf.Timestamp job_start_time = 2;
+
+  // Feature table associated with the job
+  string table_name = 3;
+
+  // Path to Spark job logs, if available
+  string log_uri = 4;
 }
 
 message ListJobsRequest {
