@@ -29,3 +29,28 @@ variable "storage_account_replication_type" {
 variable "aks_namespace" {
   type = string
 }
+
+variable "kafka_head_vm_size" {
+  type = string
+  default = "Standard_DS3_v2"
+}
+
+variable "kafka_worker_vm_size" {
+  type = string
+  default = "A5"
+}
+
+variable "kafka_zookeeper_vm_size" {
+  type = string
+  default = "Standard_DS3_v2"
+}
+
+variable "kafka_worker_disks_per_node" {
+  type = number
+  default = 3
+}
+
+variable "kafka_worker_target_instance_count" {
+  type = number
+  default = 3
+}

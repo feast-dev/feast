@@ -9,6 +9,10 @@ locals {
       enabled = false
     }
 
+    kafka = {
+      enabled = false
+    }
+
     postgresql = {
       existingSecret = local.feast_postgres_secret_name
     }
@@ -34,20 +38,9 @@ locals {
                 host = azurerm_redis_cache.main.hostname
                 port = azurerm_redis_cache.main.ssl_port
                 ssl  = true
-                subscriptions = [
-                  {
-                    name    = "*"
-                    project = "*"
-                    version = "*"
-                  }
-                ]
               }
             }
           ]
-          job_store = {
-            redis_host = azurerm_redis_cache.main.hostname
-            redis_port = azurerm_redis_cache.main.ssl_port
-          }
         }
       }
     }
@@ -57,12 +50,15 @@ locals {
       envOverrides = {
         feast_redis_host             = azurerm_redis_cache.main.hostname,
         feast_redis_port             = azurerm_redis_cache.main.ssl_port,
-        feast_spark_launcher         = "standalone"
-        feast_spark_staging_location = "https://${azurerm_storage_account.main.name}.blob.core.windows.net/${azurerm_storage_container.staging.name}/artifacts/"
-        feast_historical_feature_output_location : "https://${azurerm_storage_account.main.name}.blob.core.windows.net/${azurerm_storage_container.staging.name}/out/"
+        feast_spark_launcher         = "k8s"
+        feast_spark_staging_location = "wasbs://${azurerm_storage_container.staging.name}@${azurerm_storage_account.main.name}.blob.core.windows.net/artifacts/"
+        feast_historical_feature_output_location : "wasbs://${azurerm_storage_container.staging.name}@${azurerm_storage_account.main.name}.blob.core.windows.net/out/"
         feast_historical_feature_output_format : "parquet"
-        demo_kafka_brokers : "${azurerm_kubernetes_cluster.main.network_profile[0].dns_service_ip}:9094"
-        demo_data_location : "https://${azurerm_storage_account.main.name}.blob.core.windows.net/${azurerm_storage_container.staging.name}/test-data/"
+        demo_kafka_brokers : azurerm_hdinsight_kafka_cluster.main.https_endpoint
+        demo_data_location : "wasbs://${azurerm_storage_container.staging.name}@${azurerm_storage_account.main.name}.blob.core.windows.net/test-data/"
+        feast_azure_blob_account_name = azurerm_storage_account.main.name
+        feast_azure_blob_account_access_key = azurerm_storage_account.main.primary_access_key
+        feast_spark_ingestion_jar = "./feast/spark/ingestion/target/feast-ingestion-spark-develop.jar"
       }
     }
   }
@@ -92,4 +88,15 @@ resource "helm_release" "feast" {
   values = [
     yamlencode(local.feast_helm_values)
   ]
+}
+
+resource "helm_release" "sparkop" {
+  name = "sparkop"
+  namespace = "default"
+  repository = "https://googlecloudplatform.github.io/spark-on-k8s-operator"
+  chart = "spark-operator"
+  set {
+    name = "serviceAccounts.spark.name"
+    value = "spark"
+  }
 }

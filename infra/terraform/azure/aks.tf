@@ -4,7 +4,7 @@ resource "azurerm_kubernetes_cluster" "main" {
   resource_group_name = data.azurerm_resource_group.main.name
   dns_prefix = var.name_prefix
   default_node_pool {
-    name = "${var.name_prefix}-nodepool"
+    name = var.name_prefix
     vm_size = var.aks_machine_type
     node_count = var.aks_node_count
     vnet_subnet_id = azurerm_subnet.main.id
