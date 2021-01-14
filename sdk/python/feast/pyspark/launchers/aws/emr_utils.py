@@ -80,12 +80,14 @@ def _random_string(length) -> str:
     return "".join(random.choice(string.ascii_lowercase) for _ in range(length))
 
 
-def _upload_jar(jar_s3_prefix: str, local_path: str) -> str:
-    with open(local_path, "rb") as f:
-        uri = urlparse(os.path.join(jar_s3_prefix, os.path.basename(local_path)))
+def _upload_jar(jar_s3_prefix: str, jar_path: str) -> str:
+    if jar_path.startswith("https://"):
+        return jar_path
+    with open(jar_path, "rb") as f:
+        uri = urlparse(os.path.join(jar_s3_prefix, os.path.basename(jar_path)))
         return urlunparse(
             get_staging_client(uri.scheme).upload_fileobj(
-                f, local_path, remote_uri=uri,
+                f, jar_path, remote_uri=uri,
             )
         )
 
