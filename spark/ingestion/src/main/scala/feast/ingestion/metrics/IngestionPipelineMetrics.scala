@@ -22,20 +22,28 @@ import org.apache.spark.sql.Row
 
 class IngestionPipelineMetrics extends Serializable {
 
-  def incrementDeadLetters(rowIterator: Iterator[Row]): Iterator[Row] = {
-    val materialized = rowIterator.toArray
+  def incrementDeadLetters(row: Row): Row = {
     if (metricSource.nonEmpty)
-      metricSource.get.METRIC_DEADLETTER_ROWS_INSERTED.inc(materialized.length)
+      metricSource.get.METRIC_DEADLETTER_ROWS_INSERTED.inc()
 
-    materialized.toIterator
+    row
   }
 
-  def incrementRead(rowIterator: Iterator[Row]): Iterator[Row] = {
-    val materialized = rowIterator.toArray
+  def incrementRead(row: Row): Row = {
     if (metricSource.nonEmpty)
-      metricSource.get.METRIC_ROWS_READ_FROM_SOURCE.inc(materialized.length)
+      metricSource.get.METRIC_ROWS_READ_FROM_SOURCE.inc()
 
-    materialized.toIterator
+    row
+  }
+
+  def incrementRead(inc: Long): Unit = {
+    if (metricSource.nonEmpty)
+      metricSource.get.METRIC_ROWS_READ_FROM_SOURCE.inc(inc)
+  }
+
+  def incrementDeadLetters(inc: Long): Unit = {
+    if (metricSource.nonEmpty)
+      metricSource.get.METRIC_DEADLETTER_ROWS_INSERTED.inc(inc)
   }
 
   private lazy val metricSource: Option[IngestionPipelineMetricSource] = {

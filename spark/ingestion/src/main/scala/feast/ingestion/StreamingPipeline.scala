@@ -107,7 +107,7 @@ object StreamingPipeline extends BasePipeline with Serializable {
         implicit def rowEncoder: Encoder[Row] = RowEncoder(rowsAfterValidation.schema)
 
         rowsAfterValidation
-          .mapPartitions(metrics.incrementRead)
+          .map(metrics.incrementRead)
           .filter(if (config.doNotIngestInvalidRows) expr("_isValid") else rowValidator.allChecks)
           .write
           .format("feast.ingestion.stores.redis")
@@ -122,7 +122,7 @@ object StreamingPipeline extends BasePipeline with Serializable {
           case Some(path) =>
             rowsAfterValidation
               .filter("!_isValid")
-              .mapPartitions(metrics.incrementDeadLetters)
+              .map(metrics.incrementDeadLetters)
               .write
               .format("parquet")
               .mode(SaveMode.Append)
