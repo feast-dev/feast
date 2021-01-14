@@ -86,9 +86,7 @@ def _upload_jar(jar_s3_prefix: str, jar_path: str) -> str:
     with open(jar_path, "rb") as f:
         uri = urlparse(os.path.join(jar_s3_prefix, os.path.basename(jar_path)))
         return urlunparse(
-            get_staging_client(uri.scheme).upload_fileobj(
-                f, jar_path, remote_uri=uri,
-            )
+            get_staging_client(uri.scheme).upload_fileobj(f, jar_path, remote_uri=uri)
         )
 
 

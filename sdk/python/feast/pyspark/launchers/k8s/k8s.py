@@ -276,7 +276,11 @@ class KubernetesJobLauncher(JobLauncher):
         return cast(RetrievalJob, self._job_from_job_info(job_info))
 
     def _upload_jar(self, jar_path: str) -> str:
-        if jar_path.startswith("s3://") or jar_path.startswith("s3a://") or jar_path.startswith("https://"):
+        if (
+            jar_path.startswith("s3://")
+            or jar_path.startswith("s3a://")
+            or jar_path.startswith("https://")
+        ):
             return jar_path
         elif jar_path.startswith("file://"):
             local_jar_path = urlparse(jar_path).path
