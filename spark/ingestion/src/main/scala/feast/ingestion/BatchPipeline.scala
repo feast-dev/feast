@@ -69,7 +69,7 @@ object BatchPipeline extends BasePipeline {
     }
 
     val validRows = projected
-      .mapPartitions(metrics.incrementRead)
+      .map(metrics.incrementRead)
       .filter(rowValidator.allChecks)
 
     validRows.write
@@ -85,7 +85,7 @@ object BatchPipeline extends BasePipeline {
       case Some(path) =>
         projected
           .filter(!rowValidator.allChecks)
-          .mapPartitions(metrics.incrementDeadLetters)
+          .map(metrics.incrementDeadLetters)
           .write
           .format("parquet")
           .mode(SaveMode.Append)
