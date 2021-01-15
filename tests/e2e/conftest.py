@@ -30,6 +30,12 @@ def pytest_addoption(parser):
     parser.addoption("--feast-project", action="store", default="default")
     parser.addoption("--statsd-url", action="store", default="localhost:8125")
     parser.addoption("--prometheus-url", action="store", default="localhost:9102")
+    parser.addoption(
+        "--scheduled-streaming-job",
+        action="store_true",
+        help="When set tests won't manually start streaming jobs,"
+        " instead jobservice's loop is responsible for that",
+    )
 
 
 def pytest_runtest_setup(item):
