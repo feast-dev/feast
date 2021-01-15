@@ -124,7 +124,8 @@ def test_historical_features(
 
     feature_refs = ["transactions:daily_transactions"]
 
-    job_submission_time = datetime.utcnow()
+    # remove microseconds because job.get_start_time() does not contain microseconds
+    job_submission_time = datetime.utcnow().replace(microsecond=0)
     job = feast_client.get_historical_features(feature_refs, customers_df)
     assert job.get_start_time() >= job_submission_time
     assert job.get_start_time() <= job_submission_time + timedelta(hours=1)
