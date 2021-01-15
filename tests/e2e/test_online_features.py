@@ -134,7 +134,7 @@ def test_streaming_ingestion(
         job = None
 
     wait_retry_backoff(
-        lambda: (None, check_consumer_exist(kafka_broker, topic_name)), 120
+        lambda: (None, check_consumer_exist(kafka_broker, topic_name)), 300
     )
 
     test_data = generate_data()[["s2id", "unique_drivers", "event_timestamp"]]
