@@ -65,7 +65,25 @@ def create_schema(kafka_broker, topic_name, feature_table_name):
     return entity, feature_table
 
 
-def test_validation_with_ge(feast_client: Client, kafka_server):
+def start_job(feast_client: Client, feature_table: FeatureTable, pytestconfig):
+    if pytestconfig.getoption("scheduled_streaming_job"):
+        return
+
+    job = feast_client.start_stream_to_online_ingestion(feature_table)
+    wait_retry_backoff(
+        lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 120
+    )
+    return job
+
+
+def stop_job(job, feast_client: Client, feature_table: FeatureTable):
+    if job:
+        job.cancel()
+    else:
+        feast_client.delete_feature_table(feature_table.name)
+
+
+def test_validation_with_ge(feast_client: Client, kafka_server, pytestconfig):
     kafka_broker = f"{kafka_server[0]}:{kafka_server[1]}"
     topic_name = f"avro-{uuid.uuid4()}"
 
@@ -82,11 +100,7 @@ def test_validation_with_ge(feast_client: Client, kafka_server):
     udf = create_validation_udf("testUDF", expectations, feature_table)
     apply_validation(feast_client, feature_table, udf, validation_window_secs=1)
 
-    job = feast_client.start_stream_to_online_ingestion(feature_table)
-
-    wait_retry_backoff(
-        lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 120
-    )
+    job = start_job(feast_client, feature_table, pytestconfig)
 
     wait_retry_backoff(
         lambda: (None, check_consumer_exist(kafka_broker, topic_name)), 120
@@ -117,7 +131,7 @@ def test_validation_with_ge(feast_client: Client, kafka_server):
             expected_ingested_count=test_data.shape[0] - len(invalid_idx),
         )
     finally:
-        job.cancel()
+        stop_job(job, feast_client, feature_table)
 
     test_data["num"] = test_data["num"].astype(np.float64)
     test_data["num"].iloc[invalid_idx] = np.nan
@@ -133,7 +147,7 @@ def test_validation_with_ge(feast_client: Client, kafka_server):
 
 @pytest.mark.env("local")
 def test_validation_reports_metrics(
-    feast_client: Client, kafka_server, statsd_server: StatsDServer
+    feast_client: Client, kafka_server, statsd_server: StatsDServer, pytestconfig
 ):
     kafka_broker = f"{kafka_server[0]}:{kafka_server[1]}"
     topic_name = f"avro-{uuid.uuid4()}"
@@ -153,11 +167,7 @@ def test_validation_reports_metrics(
     udf = create_validation_udf("testUDF", expectations, feature_table)
     apply_validation(feast_client, feature_table, udf, validation_window_secs=10)
 
-    job = feast_client.start_stream_to_online_ingestion(feature_table)
-
-    wait_retry_backoff(
-        lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 120
-    )
+    job = start_job(feast_client, feature_table, pytestconfig)
 
     wait_retry_backoff(
         lambda: (None, check_consumer_exist(kafka_broker, topic_name)), 120
@@ -196,7 +206,7 @@ def test_validation_reports_metrics(
             expected_ingested_count=test_data.shape[0] - len(invalid_idx),
         )
     finally:
-        job.cancel()
+        stop_job(job, feast_client, feature_table)
 
     expected_metrics = [
         (

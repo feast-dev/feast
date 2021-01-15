@@ -97,7 +97,7 @@ def test_offline_ingestion_from_bq_view(pytestconfig, bq_dataset, feast_client: 
 
 
 def test_streaming_ingestion(
-    feast_client: Client, local_staging_path: str, kafka_server
+    feast_client: Client, local_staging_path: str, kafka_server, pytestconfig
 ):
     entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
     kafka_broker = f"{kafka_server[0]}:{kafka_server[1]}"
@@ -124,12 +124,14 @@ def test_streaming_ingestion(
     feast_client.apply(entity)
     feast_client.apply(feature_table)
 
-    job = feast_client.start_stream_to_online_ingestion(feature_table)
-    assert job.get_feature_table() == feature_table.name
-
-    wait_retry_backoff(
-        lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 120
-    )
+    if not pytestconfig.getoption("scheduled_streaming_job"):
+        job = feast_client.start_stream_to_online_ingestion(feature_table)
+        assert job.get_feature_table() == feature_table.name
+        wait_retry_backoff(
+            lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 120
+        )
+    else:
+        job = None
 
     wait_retry_backoff(
         lambda: (None, check_consumer_exist(kafka_broker, topic_name)), 120
@@ -148,7 +150,10 @@ def test_streaming_ingestion(
             feature_names=["drivers_stream:unique_drivers"],
         )
     finally:
-        job.cancel()
+        if job:
+            job.cancel()
+        else:
+            feast_client.delete_feature_table(feature_table.name)
 
     pd.testing.assert_frame_equal(
         ingested[["s2id", "drivers_stream:unique_drivers"]],
