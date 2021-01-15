@@ -103,7 +103,7 @@ def test_validation_with_ge(feast_client: Client, kafka_server, pytestconfig):
     job = start_job(feast_client, feature_table, pytestconfig)
 
     wait_retry_backoff(
-        lambda: (None, check_consumer_exist(kafka_broker, topic_name)), 120
+        lambda: (None, check_consumer_exist(kafka_broker, topic_name)), 300
     )
 
     test_data = generate_test_data()
@@ -170,7 +170,7 @@ def test_validation_reports_metrics(
     job = start_job(feast_client, feature_table, pytestconfig)
 
     wait_retry_backoff(
-        lambda: (None, check_consumer_exist(kafka_broker, topic_name)), 120
+        lambda: (None, check_consumer_exist(kafka_broker, topic_name)), 300
     )
 
     test_data = generate_test_data()
