@@ -290,7 +290,7 @@ def _cancel_job(emr_client, job: EmrJobRef):
     emr_client.cancel_steps(
         ClusterId=job.cluster_id,
         StepIds=[step_id],
-        StepCancellationOption="TERMINATE_PROCESS",
+        StepCancellationOption="SEND_INTERRUPT",
     )
 
     _wait_for_job_state(
