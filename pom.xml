@@ -37,7 +37,6 @@
         <module>docs/coverage/java</module>
         <module>common</module>
         <module>common-test</module>
-        <module>spark/ingestion</module>
     </modules>
 
     <properties>
