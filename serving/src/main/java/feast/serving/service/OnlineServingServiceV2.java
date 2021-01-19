@@ -165,6 +165,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       entityStatusesMap.get(entityRow).putAll(allStatusMaps);
     }
     populateHistogramMetrics(entityRows, featureReferences, projectName);
+    populateFeatureCountMetrics(featureReferences, projectName);
 
     // Build response field values from entityValuesMap and entityStatusesMap
     // Response field values should be in the same order as the entityRows provided by the user.
@@ -309,15 +310,19 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       List<GetOnlineFeaturesRequestV2.EntityRow> entityRows,
       List<FeatureReferenceV2> featureReferences,
       String project) {
-    Metrics.requestEntityCount.labels(project).observe(Double.valueOf(entityRows.size()));
-    Metrics.requestFeatureCount.labels(project).observe(Double.valueOf(featureReferences.size()));
+    Metrics.requestEntityCountDistribution
+        .labels(project)
+        .observe(Double.valueOf(entityRows.size()));
+    Metrics.requestFeatureCountDistribution
+        .labels(project)
+        .observe(Double.valueOf(featureReferences.size()));
 
     long countDistinctFeatureTables =
         featureReferences.stream()
             .map(featureReference -> getFeatureTableStringRef(project, featureReference))
             .distinct()
             .count();
-    Metrics.requestFeatureTableCount
+    Metrics.requestFeatureTableCountDistribution
         .labels(project)
         .observe(Double.valueOf(countDistinctFeatureTables));
   }
@@ -343,5 +348,16 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
                 Metrics.staleKeyCount.labels(project, featureRefString).inc();
               }
             });
+  }
+
+  private void populateFeatureCountMetrics(
+      List<FeatureReferenceV2> featureReferences, String project) {
+    featureReferences
+        .parallelStream()
+        .forEach(
+            featureReference ->
+                Metrics.requestFeatureCount
+                    .labels(project, FeatureV2.getFeatureStringRef(featureReference))
+                    .inc());
   }
 }
