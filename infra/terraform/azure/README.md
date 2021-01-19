@@ -29,3 +29,9 @@ terraform {
 ```
 
 3. Use `terraform apply -var-file="my.tfvars"` to deploy.
+
+Note: to get the list of Kafka brokers needed for streaming ingestion, use
+
+`curl -sS -u <Kafka gateway username>:<Kafka gateway password> -G https://<Kafka cluster name>.azurehdinsight.net/api/v1/clusters/<Kafka cluster name>/services/KAFKA/components/KAFKA_BROKER | jq -r '["\(.host_components[].HostRoles.host_name):9092"] | join(",")'`
+
+where the Kafka gateway username is <name_prefix>-kafka-gateway, the Kafka cluster name is <name_prefix>-kafka, and the Kafka gateway password is a kubectl secret under the name feast-kafka-gateway.
