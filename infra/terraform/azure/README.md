@@ -5,14 +5,14 @@ This serves as a guide on how to deploy Feast on Azure. At the end of this guide
 2. Feast services running on AKS
 3. Azure Cache (Redis) as online store
 4. Spark operator on AKS
-5. Kafka running on AKS.
+5. Kafka running on HDInsight.
 
 # Steps
 
 1. Create a tfvars file, e.g. `my.tfvars`. A sample configuration is as below:
 
 ```
-name_prefix             = "feast-0-9"
+name_prefix             = "feast09"
 resource_group          = "Feast" # pre-exisiting resource group
 aks_namespace           = "default"
 ```

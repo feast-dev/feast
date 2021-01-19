@@ -50,15 +50,14 @@ locals {
       envOverrides = {
         feast_redis_host             = azurerm_redis_cache.main.hostname,
         feast_redis_port             = azurerm_redis_cache.main.ssl_port,
+        feast_redis_ssl              = true
         feast_spark_launcher         = "k8s"
         feast_spark_staging_location = "wasbs://${azurerm_storage_container.staging.name}@${azurerm_storage_account.main.name}.blob.core.windows.net/artifacts/"
         feast_historical_feature_output_location : "wasbs://${azurerm_storage_container.staging.name}@${azurerm_storage_account.main.name}.blob.core.windows.net/out/"
         feast_historical_feature_output_format : "parquet"
-        demo_kafka_brokers : azurerm_hdinsight_kafka_cluster.main.https_endpoint
         demo_data_location : "wasbs://${azurerm_storage_container.staging.name}@${azurerm_storage_account.main.name}.blob.core.windows.net/test-data/"
         feast_azure_blob_account_name = azurerm_storage_account.main.name
         feast_azure_blob_account_access_key = azurerm_storage_account.main.primary_access_key
-        feast_spark_ingestion_jar = "./feast/spark/ingestion/target/feast-ingestion-spark-develop.jar"
       }
     }
   }

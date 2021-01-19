@@ -3,6 +3,10 @@ resource "azurerm_redis_cache" "main" {
   location = data.azurerm_resource_group.main.location
   resource_group_name = data.azurerm_resource_group.main.name
   capacity = var.redis_capacity
-  family = "C"
-  sku_name = "Standard"
+  family = "P"
+  sku_name = "Premium"
+  redis_configuration {
+    enable_authentication = false
+  }
+  subnet_id = azurerm_subnet.redis.id
 }
