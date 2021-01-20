@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Tuple, cast
 
 import grpc
+from google.api_core.exceptions import FailedPrecondition
 from google.protobuf.timestamp_pb2 import Timestamp
 
 import feast
@@ -334,7 +335,10 @@ def ensure_stream_ingestion_jobs(client: feast.Client, all_projects: bool):
         logging.info(
             f"Cancelling a stream ingestion job with job_hash={job_hash} job_id={job.get_id()} status={job.get_status()}"
         )
-        job.cancel()
+        try:
+            job.cancel()
+        except FailedPrecondition as exc:
+            logging.warning(f"Job canceling failed with exception {exc}")
 
     for job_hash in job_hashes_to_start:
         # Any job that we wish to start should be among expected table refs map
