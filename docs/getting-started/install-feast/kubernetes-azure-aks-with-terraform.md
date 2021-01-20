@@ -29,7 +29,7 @@ Create a `.tfvars` file under`feast/infra/terraform/azure`. Name the file. In ou
 
 {% code title="my\_feast.tfvars" %}
 ```typescript
-name_prefix = "my-feast"
+name_prefix = "feast"
 resource_group = "Feast" # pre-existing resource group
 ```
 {% endcode %}
