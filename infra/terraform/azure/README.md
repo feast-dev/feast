@@ -14,7 +14,6 @@ This serves as a guide on how to deploy Feast on Azure. At the end of this guide
 ```
 name_prefix             = "feast09"
 resource_group          = "Feast" # pre-exisiting resource group
-aks_namespace           = "default"
 ```
 
 3. Configure tf state backend, e.g.:

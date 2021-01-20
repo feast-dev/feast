@@ -28,6 +28,7 @@ variable "storage_account_replication_type" {
 
 variable "aks_namespace" {
   type = string
+  default = "default"
 }
 
 variable "kafka_head_vm_size" {
