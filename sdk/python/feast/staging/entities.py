@@ -123,7 +123,7 @@ def create_bq_view_of_joined_features_and_entities(
     view.view_query = JOIN_TEMPLATE.format(
         entities=entities_ref,
         source=source_ref,
-        entity_key=",".join([f"source.{e} = entities.{e}" for e in entity_names]),
+        entity_key=" AND ".join([f"source.{e} = entities.{e}" for e in entity_names]),
     )
     view.expires = datetime.now() + timedelta(days=1)
     bq_client.create_table(view)
