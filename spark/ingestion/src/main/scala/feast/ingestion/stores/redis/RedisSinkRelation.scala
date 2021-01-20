@@ -71,7 +71,9 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
     // repartition for deduplication
     val dataToStore =
       if (config.repartitionByEntity && data.rdd.getNumPartitions > 1)
-        data.repartition(data.rdd.getNumPartitions, config.entityColumns.map(col): _*).localCheckpoint()
+        data
+          .repartition(data.rdd.getNumPartitions, config.entityColumns.map(col): _*)
+          .localCheckpoint()
       else data
 
     dataToStore.foreachPartition { partition: Iterator[Row] =>
