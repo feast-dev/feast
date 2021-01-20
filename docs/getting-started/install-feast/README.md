@@ -12,3 +12,9 @@ This guide installs Feast into an AWS environment using Terraform. The Terraform
 
 {% page-ref page="kubernetes-amazon-eks-with-terraform.md" %}
 
+### Azure AKS \(with Terraform\)
+
+This guide installs Feast into an Azure environment using Terraform. The Terraform script is opinionated and intended to allow you to start quickly.
+
+{% page-ref page="kubernetes-azure-aks-with-terraform.md" %}
+
