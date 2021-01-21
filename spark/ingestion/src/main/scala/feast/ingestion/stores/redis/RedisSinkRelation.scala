@@ -70,8 +70,10 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
   override def insert(data: DataFrame, overwrite: Boolean): Unit = {
     // repartition for deduplication
     val dataToStore =
-      if (config.repartitionByEntity)
-        data.repartition(config.entityColumns.map(col): _*).localCheckpoint()
+      if (config.repartitionByEntity && data.rdd.getNumPartitions > 1)
+        data
+          .repartition(data.rdd.getNumPartitions, config.entityColumns.map(col): _*)
+          .localCheckpoint()
       else data
 
     dataToStore.foreachPartition { partition: Iterator[Row] =>
