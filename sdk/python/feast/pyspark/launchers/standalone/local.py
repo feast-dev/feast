@@ -124,10 +124,7 @@ class StandaloneClusterJobMixin:
         if not app:
             return False
 
-        stages = requests.get(
-            f"http://localhost:{self._ui_port}/api/v1/applications/{app['id']}/stages"
-        ).json()
-        return bool(stages)
+        return True
 
     def get_start_time(self) -> datetime:
         return self._start_time

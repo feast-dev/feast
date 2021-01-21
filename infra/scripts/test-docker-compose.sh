@@ -14,7 +14,6 @@ clean_up () {
 
     # Shut down docker-compose images
 
-    docker logs feast_jobservice_1
     docker-compose down
 
     exit $ARG
