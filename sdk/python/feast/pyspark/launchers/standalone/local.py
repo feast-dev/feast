@@ -355,7 +355,9 @@ class StandaloneClusterLauncher(JobLauncher):
     def get_job_by_id(self, job_id: str) -> SparkJob:
         return global_job_cache.get_job_by_id(job_id)
 
-    def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
+    def list_jobs(
+        self, include_terminated: bool, table_name: Optional[str]
+    ) -> List[SparkJob]:
         if include_terminated is True:
             return global_job_cache.list_jobs()
         else:

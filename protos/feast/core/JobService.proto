@@ -188,6 +188,7 @@ message StartStreamToOnlineIngestionJobResponse {
 
 message ListJobsRequest {
   bool include_terminated = 1;
+  string table_name = 2;
 }
 
 message ListJobsResponse {

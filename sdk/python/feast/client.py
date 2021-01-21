@@ -1211,11 +1211,15 @@ class Client:
                 response.log_uri,
             )
 
-    def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
+    def list_jobs(
+        self, include_terminated: bool, table_name: Optional[str] = None
+    ) -> List[SparkJob]:
         if not self._use_job_service:
-            return list_jobs(include_terminated, self)
+            return list_jobs(include_terminated, self, table_name)
         else:
-            request = ListJobsRequest(include_terminated=include_terminated)
+            request = ListJobsRequest(
+                include_terminated=include_terminated, table_name=table_name
+            )
             response = self._job_service.ListJobs(request)
             return [
                 get_remote_job_from_proto(

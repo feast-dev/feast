@@ -477,8 +477,15 @@ class DataprocClusterLauncher(JobLauncher):
 
         raise ValueError(f"Unrecognized job type: {job_type}")
 
-    def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
+    def list_jobs(
+        self, include_terminated: bool, table_name: Optional[str] = None
+    ) -> List[SparkJob]:
         job_filter = f"labels.{self.JOB_TYPE_LABEL_KEY} = * AND clusterName = {self.cluster_name}"
+        if table_name:
+            job_filter = (
+                job_filter
+                + f" AND labels.{self.FEATURE_TABLE_LABEL_KEY} = {table_name}"
+            )
         if not include_terminated:
             job_filter = job_filter + "AND status.state = ACTIVE"
         return [

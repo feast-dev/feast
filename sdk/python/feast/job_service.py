@@ -188,7 +188,9 @@ class JobServiceServicer(JobService_pb2_grpc.JobServiceServicer):
     def ListJobs(self, request, context):
         """List all types of jobs"""
         jobs = list_jobs(
-            include_terminated=request.include_terminated, client=self.client
+            include_terminated=request.include_terminated,
+            table_name=request.table_name,
+            client=self.client,
         )
         return ListJobsResponse(jobs=[_job_to_proto(job) for job in jobs])
 
