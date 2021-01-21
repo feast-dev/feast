@@ -172,6 +172,13 @@ def ingest_and_verify(
         original.event_timestamp.max().to_pydatetime() + timedelta(seconds=1),
     )
     assert job.get_feature_table() == feature_table.name
+    all_job_ids = [
+        job.get_id()
+        for job in feast_client.list_jobs(
+            include_terminated=True, table_name=feature_table.name
+        )
+    ]
+    assert job.get_id() in all_job_ids
 
     wait_retry_backoff(
         lambda: (None, job.get_status() == SparkJobStatus.COMPLETED), 180
