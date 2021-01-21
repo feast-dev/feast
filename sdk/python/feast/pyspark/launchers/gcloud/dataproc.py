@@ -487,7 +487,7 @@ class DataprocClusterLauncher(JobLauncher):
                 + f" AND labels.{self.FEATURE_TABLE_LABEL_KEY} = {table_name}"
             )
         if not include_terminated:
-            job_filter = job_filter + "AND status.state = ACTIVE"
+            job_filter = job_filter + " AND status.state = ACTIVE"
         return [
             self._dataproc_job_to_spark_job(job)
             for job in self.job_client.list_jobs(
