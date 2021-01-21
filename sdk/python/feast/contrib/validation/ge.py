@@ -106,9 +106,6 @@ def create_validation_udf(
         valid_rows = pd.Series([True] * df.shape[0])
 
         for check in result.results:
-            if check.success:
-                continue
-
             if check.exception_info["raised_exception"]:
                 # ToDo: probably we should mark all rows as invalid
                 continue
@@ -124,7 +121,10 @@ def create_validation_udf(
                 ]
             )
 
-            if "unexpected_count" in check.result:
+            if (
+                "unexpected_count" in check.result
+                and check.result["unexpected_count"] > 0
+            ):
                 reporter.increment(
                     "feast_feature_validation_check_failed",
                     value=check.result["unexpected_count"],
@@ -137,12 +137,15 @@ def create_validation_udf(
 
                 valid_rows.iloc[check.result["unexpected_index_list"]] = False
 
-            elif "observed_value" in check.result:
-                reporter.increment(
+            elif "observed_value" in check.result and check.result["observed_value"]:
+                reporter.gauge(
                     "feast_feature_validation_observed_value",
                     value=int(
-                        check.result["observed_value"] * 100
-                    ),  # storing as decimal with precision 2
+                        check.result["observed_value"]
+                        * 100  # storing as decimal with precision 2
+                    )
+                    if not check.success
+                    else 0,  # nullify everything below threshold
                     tags=[
                         f"feature_table:{os.getenv('FEAST_INGESTION_FEATURE_TABLE', 'unknown')}",
                         f"project:{os.getenv('FEAST_INGESTION_PROJECT_NAME', 'default')}",
