@@ -315,9 +315,9 @@ class DataprocClusterLauncher(JobLauncher):
         }
 
         if isinstance(job_params, StreamIngestionJobParameters):
-            job_config["labels"][
-                self.FEATURE_TABLE_LABEL_KEY
-            ] = job_params.get_feature_table_name()
+            job_config["labels"][self.FEATURE_TABLE_LABEL_KEY] = _truncate_label(
+                job_params.get_feature_table_name()
+            )
             # Add job hash to labels only for the stream ingestion job
             job_config["labels"][self.JOB_HASH_LABEL_KEY] = job_params.get_job_hash()
 
