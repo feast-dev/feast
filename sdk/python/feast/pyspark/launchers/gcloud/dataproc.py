@@ -24,6 +24,10 @@ from feast.pyspark.abc import (
 from feast.staging.storage_client import get_staging_client
 
 
+def _truncate_label(label: str) -> str:
+    return label[:63]
+
+
 class DataprocJobMixin:
     def __init__(
         self,
@@ -318,9 +322,9 @@ class DataprocClusterLauncher(JobLauncher):
             job_config["labels"][self.JOB_HASH_LABEL_KEY] = job_params.get_job_hash()
 
         if isinstance(job_params, BatchIngestionJobParameters):
-            job_config["labels"][
-                self.FEATURE_TABLE_LABEL_KEY
-            ] = job_params.get_feature_table_name()
+            job_config["labels"][self.FEATURE_TABLE_LABEL_KEY] = _truncate_label(
+                job_params.get_feature_table_name()
+            )
 
         if job_params.get_class_name():
             scala_job_properties = {
@@ -484,7 +488,7 @@ class DataprocClusterLauncher(JobLauncher):
         if table_name:
             job_filter = (
                 job_filter
-                + f" AND labels.{self.FEATURE_TABLE_LABEL_KEY} = {table_name}"
+                + f" AND labels.{self.FEATURE_TABLE_LABEL_KEY} = {_truncate_label(table_name)}"
             )
         if not include_terminated:
             job_filter = job_filter + " AND status.state = ACTIVE"

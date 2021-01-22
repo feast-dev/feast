@@ -57,7 +57,7 @@ def _generate_job_id() -> str:
 
 
 def _truncate_label(label: str) -> str:
-    return label[:64]
+    return label[:63]
 
 
 def _generate_table_hash(table_name: str) -> str:

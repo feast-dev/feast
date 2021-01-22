@@ -65,7 +65,7 @@ def test_offline_ingestion_long_table_name(
     entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
 
     feature_table = FeatureTable(
-        name="just_a_featuretable_with_a_really_really_really_really_really_really_really_long_name",
+        name="just1a2featuretable3with4a5really6really7really8really9really10really11really12long13name",
         entities=["s2id"],
         features=[Feature("unique_drivers", ValueType.INT64)],
         batch_source=batch_source,
@@ -147,9 +147,9 @@ def test_streaming_ingestion(
 
     if not pytestconfig.getoption("scheduled_streaming_job"):
         job = feast_client.start_stream_to_online_ingestion(feature_table)
-        assert job.get_feature_table() == feature_table.name
+        assert job.get_feature_table()[:63] == feature_table.name[:63]
         wait_retry_backoff(
-            lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 120
+            lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 180
         )
     else:
         job = None
@@ -192,7 +192,7 @@ def ingest_and_verify(
         original.event_timestamp.min().to_pydatetime(),
         original.event_timestamp.max().to_pydatetime() + timedelta(seconds=1),
     )
-    assert job.get_feature_table() == feature_table.name
+    assert job.get_feature_table()[:63] == feature_table.name[:63]
     all_job_ids = [
         job.get_id()
         for job in feast_client.list_jobs(
