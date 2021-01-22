@@ -231,20 +231,16 @@ def _list_jobs(
 
     # Batch, Streaming Ingestion jobs
     if table_name:
-        truncated_table_name = table_name[:64]
         table_name_hash = hashlib.md5(table_name.encode()).hexdigest()
         response = api.list_namespaced_custom_object(
             **_crd_args(namespace),
-            label_selector=f"{LABEL_FEATURE_TABLE}={truncated_table_name}",
+            label_selector=f"{LABEL_FEATURE_TABLE_HASH}={table_name_hash}",
         )
-        for item in response["items"]:
-            if item["metadata"]["labels"][LABEL_FEATURE_TABLE_HASH] == table_name_hash:
-                result.append(_resource_to_job_info(item))
-
-    # Retrieval jobs
-    response = api.list_namespaced_custom_object(
-        **_crd_args(namespace), label_selector=LABEL_JOBID,
-    )
+    else:
+        # Retrieval jobs
+        response = api.list_namespaced_custom_object(
+            **_crd_args(namespace), label_selector=LABEL_JOBID,
+        )
 
     for item in response["items"]:
         result.append(_resource_to_job_info(item))
