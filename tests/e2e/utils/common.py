@@ -39,7 +39,7 @@ def start_job(feast_client: Client, feature_table: FeatureTable, pytestconfig):
 
     job = feast_client.start_stream_to_online_ingestion(feature_table)
     wait_retry_backoff(
-        lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 240
+        lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 600
     )
     return job
 
