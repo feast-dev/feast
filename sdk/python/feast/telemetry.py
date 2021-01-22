@@ -1,0 +1,34 @@
+# Copyright 2019 The Feast Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from datetime import datetime
+import requests
+import sys
+from typing import Dict
+
+TELEMETRY_ENDPOINT="https://telemetry.feast.dev"
+
+def log_usage(function_name: str, telemetry_id: str, timestamp: datetime, version: Dict[str, Dict[str, str]]):
+    json = {
+        "function_name": function_name,
+        "telemetry_id": telemetry_id,
+        "timestamp": timestamp.isoformat(),
+        "version": version,
+        "os": sys.platform,
+    }
+    try:
+        requests.post(TELEMETRY_ENDPOINT, json=json)
+    except:
+        pass
+    return
