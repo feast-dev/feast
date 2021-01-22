@@ -127,7 +127,7 @@ def test_streaming_ingestion(
 
     if not pytestconfig.getoption("scheduled_streaming_job"):
         job = feast_client.start_stream_to_online_ingestion(feature_table)
-        assert job.get_feature_table()[:63] == feature_table.name[:63]
+        assert job.get_feature_table() == feature_table.name
         wait_retry_backoff(
             lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 180
         )
@@ -172,7 +172,7 @@ def ingest_and_verify(
         original.event_timestamp.min().to_pydatetime(),
         original.event_timestamp.max().to_pydatetime() + timedelta(seconds=1),
     )
-    assert job.get_feature_table()[:63] == feature_table.name[:63]
+    assert job.get_feature_table() == feature_table.name
 
     wait_retry_backoff(
         lambda: (None, job.get_status() == SparkJobStatus.COMPLETED), 180
@@ -200,7 +200,6 @@ def test_list_jobs_long_table_name(feast_client: Client, kafka_server, pytestcon
         kafka_broker,
         topic_name,
         "just1a2featuretable3with4a5really6really7really8really9really10really11really12long13name",
-        avro_schema(),
     )
 
     feast_client.apply(entity)

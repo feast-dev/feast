@@ -1,4 +1,3 @@
-import json
 import time
 import uuid
 
@@ -11,7 +10,7 @@ from feast import Client
 from feast.contrib.validation.ge import apply_validation, create_validation_udf
 from feast.wait import wait_retry_backoff
 from tests.e2e.fixtures.statsd_stub import StatsDServer
-from tests.e2e.utils.common import create_schema, start_job, stop_job
+from tests.e2e.utils.common import avro_schema, create_schema, start_job, stop_job
 from tests.e2e.utils.kafka import check_consumer_exist, ingest_and_retrieve
 
 
@@ -39,9 +38,7 @@ def test_validation_with_ge(feast_client: Client, kafka_server, pytestconfig):
     kafka_broker = f"{kafka_server[0]}:{kafka_server[1]}"
     topic_name = f"avro-{uuid.uuid4()}"
 
-    entity, feature_table = create_schema(
-        kafka_broker, topic_name, "validation_ge", avro_schema()
-    )
+    entity, feature_table = create_schema(kafka_broker, topic_name, "validation_ge")
     feast_client.apply_entity(entity)
     feast_client.apply_feature_table(feature_table)
 
@@ -107,7 +104,7 @@ def test_validation_reports_metrics(
     topic_name = f"avro-{uuid.uuid4()}"
 
     entity, feature_table = create_schema(
-        kafka_broker, topic_name, "validation_ge_metrics", avro_schema()
+        kafka_broker, topic_name, "validation_ge_metrics"
     )
     feast_client.apply_entity(entity)
     feast_client.apply_feature_table(feature_table)
@@ -180,22 +177,4 @@ def test_validation_reports_metrics(
         + str(expected_metrics)
         + "\n"
         "Actual received metrics" + str(statsd_server.metrics),
-    )
-
-
-def avro_schema():
-    return json.dumps(
-        {
-            "type": "record",
-            "name": "TestMessage",
-            "fields": [
-                {"name": "key", "type": "long"},
-                {"name": "num", "type": "long"},
-                {"name": "set", "type": "string"},
-                {
-                    "name": "event_timestamp",
-                    "type": {"type": "long", "logicalType": "timestamp-micros"},
-                },
-            ],
-        }
     )

@@ -1,3 +1,5 @@
+import json
+
 from feast import (
     Client,
     Entity,
@@ -12,7 +14,7 @@ from feast.pyspark.abc import SparkJobStatus
 from feast.wait import wait_retry_backoff
 
 
-def create_schema(kafka_broker, topic_name, feature_table_name, avro_schema):
+def create_schema(kafka_broker, topic_name, feature_table_name):
     entity = Entity(name="key", description="Key", value_type=ValueType.INT64)
     feature_table = FeatureTable(
         name=feature_table_name,
@@ -26,7 +28,7 @@ def create_schema(kafka_broker, topic_name, feature_table_name, avro_schema):
         stream_source=KafkaSource(
             event_timestamp_column="event_timestamp",
             bootstrap_servers=kafka_broker,
-            message_format=AvroFormat(avro_schema),
+            message_format=AvroFormat(avro_schema()),
             topic=topic_name,
         ),
     )
@@ -39,7 +41,7 @@ def start_job(feast_client: Client, feature_table: FeatureTable, pytestconfig):
 
     job = feast_client.start_stream_to_online_ingestion(feature_table)
     wait_retry_backoff(
-        lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 600
+        lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 180
     )
     return job
 
@@ -49,3 +51,21 @@ def stop_job(job, feast_client: Client, feature_table: FeatureTable):
         job.cancel()
     else:
         feast_client.delete_feature_table(feature_table.name)
+
+
+def avro_schema():
+    return json.dumps(
+        {
+            "type": "record",
+            "name": "TestMessage",
+            "fields": [
+                {"name": "key", "type": "long"},
+                {"name": "num", "type": "long"},
+                {"name": "set", "type": "string"},
+                {
+                    "name": "event_timestamp",
+                    "type": {"type": "long", "logicalType": "timestamp-micros"},
+                },
+            ],
+        }
+    )
