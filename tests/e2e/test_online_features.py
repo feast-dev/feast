@@ -59,6 +59,27 @@ def test_offline_ingestion(
     ingest_and_verify(feast_client, feature_table, original)
 
 
+def test_offline_ingestion_long_table_name(
+    feast_client: Client, batch_source: Union[BigQuerySource, FileSource]
+):
+    entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
+
+    feature_table = FeatureTable(
+        name="just_a_featuretable_with_a_really_really_really_really_really_really_really_long_name",
+        entities=["s2id"],
+        features=[Feature("unique_drivers", ValueType.INT64)],
+        batch_source=batch_source,
+    )
+
+    feast_client.apply(entity)
+    feast_client.apply(feature_table)
+
+    original = generate_data()
+    feast_client.ingest(feature_table, original)  # write to batch (offline) storage
+
+    ingest_and_verify(feast_client, feature_table, original)
+
+
 @pytest.mark.env("gcloud")
 def test_offline_ingestion_from_bq_view(pytestconfig, bq_dataset, feast_client: Client):
     original = generate_data()
