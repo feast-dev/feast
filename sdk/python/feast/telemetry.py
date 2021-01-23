@@ -13,11 +13,12 @@
 # limitations under the License.
 
 from datetime import datetime
+import os
 import requests
 import sys
 from typing import Dict
 
-TELEMETRY_ENDPOINT="https://telemetry.feast.dev"
+TELEMETRY_ENDPOINT="https://telemetry.feast.dev/bq_telemetry_logger"
 
 def log_usage(function_name: str, telemetry_id: str, timestamp: datetime, version: Dict[str, Dict[str, str]]):
     json = {
@@ -26,6 +27,7 @@ def log_usage(function_name: str, telemetry_id: str, timestamp: datetime, versio
         "timestamp": timestamp.isoformat(),
         "version": version,
         "os": sys.platform,
+        "is_test": os.getenv("FEAST_IS_TELEMETRY_TEST", False),
     }
     try:
         requests.post(TELEMETRY_ENDPOINT, json=json)

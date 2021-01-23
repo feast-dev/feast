@@ -43,6 +43,7 @@
 * [Security](advanced/security.md)
 * [Audit Logging](advanced/audit-logging.md)
 * [Metrics](advanced/metrics.md)
+* [Telemetry](advanced/telemetry.md)
 * [Troubleshooting](advanced/troubleshooting.md)
 
 ## Reference
