@@ -81,7 +81,11 @@ def _random_string(length) -> str:
 
 
 def _upload_jar(jar_s3_prefix: str, jar_path: str) -> str:
-    if jar_path.startswith("https://"):
+    if (
+        jar_path.startswith("s3://")
+        or jar_path.startswith("s3a://")
+        or jar_path.startswith("https://")
+    ):
         return jar_path
     with open(jar_path, "rb") as f:
         uri = urlparse(os.path.join(jar_s3_prefix, os.path.basename(jar_path)))
