@@ -75,9 +75,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
     List<GetOnlineFeaturesRequestV2.EntityRow> entityRows = request.getEntityRowsList();
     List<Map<String, ValueProto.Value>> values =
-        entityRows.stream()
-            .map(r -> new HashMap<>(r.getFieldsMap()))
-            .collect(Collectors.toList());
+        entityRows.stream().map(r -> new HashMap<>(r.getFieldsMap())).collect(Collectors.toList());
     List<Map<String, GetOnlineFeaturesResponse.FieldStatus>> statuses =
         entityRows.stream()
             .map(r -> getMetadataMap(r.getFieldsMap(), false, false))
