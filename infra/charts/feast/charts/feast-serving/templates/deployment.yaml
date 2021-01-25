@@ -92,6 +92,9 @@ spec:
 
         command:
         - java
+        {{- range $opt := .Values.JAVA_OPTIONS }}
+        - {{ $opt }}
+        {{- end }}
         - -jar
         - /opt/feast/feast-serving.jar
         - --spring.config.location=
@@ -117,7 +120,11 @@ spec:
         {{- if .Values.livenessProbe.enabled }}
         livenessProbe:
           exec:
-            command: ["grpc-health-probe", "-addr=:{{ .Values.service.grpc.targetPort }}"]
+            command:
+            - "grpc-health-probe"
+            - "-addr=:{{ .Values.service.grpc.targetPort }}"
+            - "-connect-timeout={{ .Values.livenessProbe.timeoutSeconds }}s"
+            - "-rpc-timeout={{ .Values.livenessProbe.timeoutSeconds }}s"
           initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
           periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
           successThreshold: {{ .Values.livenessProbe.successThreshold }}
@@ -128,7 +135,11 @@ spec:
         {{- if .Values.readinessProbe.enabled }}
         readinessProbe:
           exec:
-            command: ["grpc-health-probe", "-addr=:{{ .Values.service.grpc.targetPort }}"]
+            command:
+            - "grpc-health-probe"
+            - "-addr=:{{ .Values.service.grpc.targetPort }}"
+            - "-connect-timeout={{ .Values.readinessProbe.timeoutSeconds }}s"
+            - "-rpc-timeout={{ .Values.readinessProbe.timeoutSeconds }}s"
           initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
           periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
           successThreshold: {{ .Values.readinessProbe.successThreshold }}

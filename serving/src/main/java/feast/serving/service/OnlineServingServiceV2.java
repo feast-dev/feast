@@ -103,15 +103,15 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
             .map(r -> getMetadataMap(r.getFieldsMap(), false, false))
             .collect(Collectors.toList());
 
-    Span onlineRetrievalSpan = tracer.buildSpan("onlineRetrieval").start();
-    if (onlineRetrievalSpan != null) {
-      onlineRetrievalSpan.setTag("entities", entityRows.size());
-      onlineRetrievalSpan.setTag("features", featureReferences.size());
+    Span storageRetrievalSpan = tracer.buildSpan("storageRetrieval").start();
+    if (storageRetrievalSpan != null) {
+      storageRetrievalSpan.setTag("entities", entityRows.size());
+      storageRetrievalSpan.setTag("features", featureReferences.size());
     }
     List<List<Feature>> entityRowsFeatures =
         retriever.getOnlineFeatures(projectName, entityRows, featureReferences);
-    if (onlineRetrievalSpan != null) {
-      onlineRetrievalSpan.finish();
+    if (storageRetrievalSpan != null) {
+      storageRetrievalSpan.finish();
     }
 
     if (entityRowsFeatures.size() != entityRows.size()) {
@@ -144,6 +144,8 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
                         return ValueProto.ValueType.Enum.INVALID;
                       }
                     }));
+
+    Span postProcessingSpan = tracer.buildSpan("postProcessing").start();
 
     for (int i = 0; i < entityRows.size(); i++) {
       GetOnlineFeaturesRequestV2.EntityRow entityRow = entityRows.get(i);
@@ -198,6 +200,11 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
         }
       }
     }
+
+    if (postProcessingSpan != null) {
+      postProcessingSpan.finish();
+    }
+
     populateHistogramMetrics(entityRows, featureReferences, projectName);
     populateFeatureCountMetrics(featureReferences, projectName);
 
@@ -339,29 +346,23 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
    */
   private void populateCountMetrics(
       Map<String, GetOnlineFeaturesResponse.FieldStatus> statusMap, String project) {
-    statusMap
-        .entrySet()
-        .forEach(
-            es -> {
-              String featureRefString = es.getKey();
-              GetOnlineFeaturesResponse.FieldStatus status = es.getValue();
-              if (status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND) {
-                Metrics.notFoundKeyCount.labels(project, featureRefString).inc();
-              }
-              if (status == GetOnlineFeaturesResponse.FieldStatus.OUTSIDE_MAX_AGE) {
-                Metrics.staleKeyCount.labels(project, featureRefString).inc();
-              }
-            });
+    statusMap.forEach(
+        (featureRefString, status) -> {
+          if (status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND) {
+            Metrics.notFoundKeyCount.labels(project, featureRefString).inc();
+          }
+          if (status == GetOnlineFeaturesResponse.FieldStatus.OUTSIDE_MAX_AGE) {
+            Metrics.staleKeyCount.labels(project, featureRefString).inc();
+          }
+        });
   }
 
   private void populateFeatureCountMetrics(
       List<FeatureReferenceV2> featureReferences, String project) {
-    featureReferences
-        .parallelStream()
-        .forEach(
-            featureReference ->
-                Metrics.requestFeatureCount
-                    .labels(project, FeatureV2.getFeatureStringRef(featureReference))
-                    .inc());
+    featureReferences.forEach(
+        featureReference ->
+            Metrics.requestFeatureCount
+                .labels(project, FeatureV2.getFeatureStringRef(featureReference))
+                .inc());
   }
 }
