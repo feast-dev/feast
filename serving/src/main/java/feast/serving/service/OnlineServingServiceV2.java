@@ -103,6 +103,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     String finalProjectName = projectName;
     Map<FeatureReferenceV2, Duration> featureMaxAges =
         featureReferences.stream()
+            .distinct()
             .collect(
                 Collectors.toMap(
                     Function.identity(),
@@ -110,6 +111,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
     Map<FeatureReferenceV2, ValueProto.ValueType.Enum> featureValueTypes =
         featureReferences.stream()
+            .distinct()
             .collect(
                 Collectors.toMap(
                     Function.identity(),
