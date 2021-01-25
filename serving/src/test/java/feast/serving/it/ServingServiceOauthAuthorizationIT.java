@@ -21,15 +21,18 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.testcontainers.containers.wait.strategy.Wait.forHttp;
 
+import feast.common.it.DataGenerator;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
+import feast.proto.types.ValueProto;
 import feast.proto.types.ValueProto.Value;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.ClassRule;
@@ -44,6 +47,8 @@ import org.testcontainers.containers.DockerComposeContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.shaded.com.google.common.collect.ImmutableList;
+import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 import sh.ory.keto.ApiException;
 
 @ActiveProfiles("it")
@@ -126,6 +131,18 @@ public class ServingServiceOauthAuthorizationIT extends BaseAuthIT {
     adminCredentials.put("grant_type", GRANT_TYPE);
 
     coreClient = AuthTestUtils.getSecureApiClientForCore(FEAST_CORE_PORT, adminCredentials);
+    coreClient.simpleApplyEntity(
+        PROJECT_NAME,
+        DataGenerator.createEntitySpecV2(
+            ENTITY_ID, "", ValueProto.ValueType.Enum.STRING, Collections.emptyMap()));
+    coreClient.simpleApplyFeatureTable(
+        PROJECT_NAME,
+        DataGenerator.createFeatureTableSpec(
+            FEATURE_TABLE_NAME,
+            ImmutableList.of(ENTITY_ID),
+            ImmutableMap.of(FEATURE_NAME, ValueProto.ValueType.Enum.STRING),
+            0,
+            Collections.emptyMap()));
   }
 
   @Test
