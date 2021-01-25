@@ -659,6 +659,7 @@ public class SpecServiceIT extends BaseIT {
                   3600,
                   Map.of())
               .toBuilder()
+              .clearBatchSource()
               .build();
 
       StatusRuntimeException exc =
