@@ -27,6 +27,7 @@ import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequestV2;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.types.ValueProto;
+import feast.serving.exception.SpecRetrievalException;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.util.Metrics;
 import feast.storage.api.retriever.Feature;
@@ -46,6 +47,27 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
   private final CachedSpecService specService;
   private final Tracer tracer;
   private final OnlineRetrieverV2 retriever;
+
+  private static final HashMap<ValueProto.ValueType.Enum, ValueProto.Value.ValCase>
+      TYPE_TO_VAL_CASE =
+          new HashMap<>() {
+            {
+              put(ValueProto.ValueType.Enum.BYTES, ValueProto.Value.ValCase.BYTES_VAL);
+              put(ValueProto.ValueType.Enum.STRING, ValueProto.Value.ValCase.STRING_VAL);
+              put(ValueProto.ValueType.Enum.INT32, ValueProto.Value.ValCase.INT32_VAL);
+              put(ValueProto.ValueType.Enum.INT64, ValueProto.Value.ValCase.INT64_VAL);
+              put(ValueProto.ValueType.Enum.DOUBLE, ValueProto.Value.ValCase.DOUBLE_VAL);
+              put(ValueProto.ValueType.Enum.FLOAT, ValueProto.Value.ValCase.FLOAT_VAL);
+              put(ValueProto.ValueType.Enum.BOOL, ValueProto.Value.ValCase.BOOL_VAL);
+              put(ValueProto.ValueType.Enum.BYTES_LIST, ValueProto.Value.ValCase.BYTES_LIST_VAL);
+              put(ValueProto.ValueType.Enum.STRING_LIST, ValueProto.Value.ValCase.STRING_LIST_VAL);
+              put(ValueProto.ValueType.Enum.INT32_LIST, ValueProto.Value.ValCase.INT32_LIST_VAL);
+              put(ValueProto.ValueType.Enum.INT64_LIST, ValueProto.Value.ValCase.INT64_LIST_VAL);
+              put(ValueProto.ValueType.Enum.DOUBLE_LIST, ValueProto.Value.ValCase.DOUBLE_LIST_VAL);
+              put(ValueProto.ValueType.Enum.FLOAT_LIST, ValueProto.Value.ValCase.FLOAT_LIST_VAL);
+              put(ValueProto.ValueType.Enum.BOOL_LIST, ValueProto.Value.ValCase.BOOL_LIST_VAL);
+            }
+          };
 
   public OnlineServingServiceV2(
       OnlineRetrieverV2 retriever, CachedSpecService specService, Tracer tracer) {
@@ -115,7 +137,13 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
             .collect(
                 Collectors.toMap(
                     Function.identity(),
-                    ref -> specService.getFeatureSpec(finalProjectName, ref).getValueType()));
+                    ref -> {
+                      try {
+                        return specService.getFeatureSpec(finalProjectName, ref).getValueType();
+                      } catch (SpecRetrievalException e) {
+                        return ValueProto.ValueType.Enum.INVALID;
+                      }
+                    }));
 
     for (int i = 0; i < entityRows.size(); i++) {
       GetOnlineFeaturesRequestV2.EntityRow entityRow = entityRows.get(i);
@@ -124,8 +152,8 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
       Map<FeatureReferenceV2, Feature> featureReferenceFeatureMap =
           getFeatureRefFeatureMap(curEntityRowFeatures);
 
-      Map<String, ValueProto.Value> allValueMaps = new HashMap<>();
-      Map<String, GetOnlineFeaturesResponse.FieldStatus> allStatusMaps = new HashMap<>();
+      Map<String, ValueProto.Value> rowValues = values.get(i);
+      Map<String, GetOnlineFeaturesResponse.FieldStatus> rowStatuses = statuses.get(i);
 
       for (FeatureReferenceV2 featureReference : featureReferences) {
         if (featureReferenceFeatureMap.containsKey(featureReference)) {
@@ -141,12 +169,12 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
           Map<String, ValueProto.Value> valueMap =
               unpackValueMap(feature, isOutsideMaxAge, isMatchingFeatureSpec);
-          allValueMaps.putAll(valueMap);
+          rowValues.putAll(valueMap);
 
           // Generate metadata for feature values and merge into entityFieldsMap
           Map<String, GetOnlineFeaturesResponse.FieldStatus> statusMap =
               getMetadataMap(valueMap, !isMatchingFeatureSpec, isOutsideMaxAge);
-          allStatusMaps.putAll(statusMap);
+          rowStatuses.putAll(statusMap);
 
           // Populate metrics/log request
           populateCountMetrics(statusMap, projectName);
@@ -159,18 +187,16 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
                       ValueProto.Value.newBuilder().build());
                 }
               };
-          allValueMaps.putAll(valueMap);
+          rowValues.putAll(valueMap);
 
           Map<String, GetOnlineFeaturesResponse.FieldStatus> statusMap =
               getMetadataMap(valueMap, true, false);
-          allStatusMaps.putAll(statusMap);
+          rowStatuses.putAll(statusMap);
 
           // Populate metrics/log request
           populateCountMetrics(statusMap, projectName);
         }
       }
-      values.get(i).putAll(allValueMaps);
-      statuses.get(i).putAll(allStatusMaps);
     }
     populateHistogramMetrics(entityRows, featureReferences, projectName);
     populateFeatureCountMetrics(featureReferences, projectName);
@@ -191,30 +217,15 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
   private boolean checkSameFeatureSpec(
       ValueProto.ValueType.Enum valueTypeEnum, ValueProto.Value.ValCase valueCase) {
-    HashMap<ValueProto.ValueType.Enum, ValueProto.Value.ValCase> typingMap =
-        new HashMap<>() {
-          {
-            put(ValueProto.ValueType.Enum.BYTES, ValueProto.Value.ValCase.BYTES_VAL);
-            put(ValueProto.ValueType.Enum.STRING, ValueProto.Value.ValCase.STRING_VAL);
-            put(ValueProto.ValueType.Enum.INT32, ValueProto.Value.ValCase.INT32_VAL);
-            put(ValueProto.ValueType.Enum.INT64, ValueProto.Value.ValCase.INT64_VAL);
-            put(ValueProto.ValueType.Enum.DOUBLE, ValueProto.Value.ValCase.DOUBLE_VAL);
-            put(ValueProto.ValueType.Enum.FLOAT, ValueProto.Value.ValCase.FLOAT_VAL);
-            put(ValueProto.ValueType.Enum.BOOL, ValueProto.Value.ValCase.BOOL_VAL);
-            put(ValueProto.ValueType.Enum.BYTES_LIST, ValueProto.Value.ValCase.BYTES_LIST_VAL);
-            put(ValueProto.ValueType.Enum.STRING_LIST, ValueProto.Value.ValCase.STRING_LIST_VAL);
-            put(ValueProto.ValueType.Enum.INT32_LIST, ValueProto.Value.ValCase.INT32_LIST_VAL);
-            put(ValueProto.ValueType.Enum.INT64_LIST, ValueProto.Value.ValCase.INT64_LIST_VAL);
-            put(ValueProto.ValueType.Enum.DOUBLE_LIST, ValueProto.Value.ValCase.DOUBLE_LIST_VAL);
-            put(ValueProto.ValueType.Enum.FLOAT_LIST, ValueProto.Value.ValCase.FLOAT_LIST_VAL);
-            put(ValueProto.ValueType.Enum.BOOL_LIST, ValueProto.Value.ValCase.BOOL_LIST_VAL);
-          }
-        };
+    if (valueTypeEnum.equals(ValueProto.ValueType.Enum.INVALID)) {
+      return false;
+    }
+
     if (valueCase.equals(ValueProto.Value.ValCase.VAL_NOT_SET)) {
       return true;
     }
 
-    return typingMap.get(valueTypeEnum).equals(valueCase);
+    return TYPE_TO_VAL_CASE.get(valueTypeEnum).equals(valueCase);
   }
 
   private static Map<FeatureReferenceV2, Feature> getFeatureRefFeatureMap(List<Feature> features) {
