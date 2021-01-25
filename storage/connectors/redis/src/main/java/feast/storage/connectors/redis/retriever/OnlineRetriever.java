@@ -41,21 +41,21 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
   }
 
   @Override
-  public List<List<Optional<Feature>>> getOnlineFeatures(
+  public List<List<Feature>> getOnlineFeatures(
       String project,
       List<ServingAPIProto.GetOnlineFeaturesRequestV2.EntityRow> entityRows,
       List<ServingAPIProto.FeatureReferenceV2> featureReferences) {
 
     List<RedisProto.RedisKeyV2> redisKeys = RedisKeyGenerator.buildRedisKeys(project, entityRows);
-    List<List<Optional<Feature>>> features = getFeaturesFromRedis(redisKeys, featureReferences);
+    List<List<Feature>> features = getFeaturesFromRedis(redisKeys, featureReferences);
 
     return features;
   }
 
-  private List<List<Optional<Feature>>> getFeaturesFromRedis(
+  private List<List<Feature>> getFeaturesFromRedis(
       List<RedisProto.RedisKeyV2> redisKeys,
       List<ServingAPIProto.FeatureReferenceV2> featureReferences) {
-    List<List<Optional<Feature>>> features = new ArrayList<>();
+    List<List<Feature>> features = new ArrayList<>();
     // To decode bytes back to Feature Reference
     Map<String, ServingAPIProto.FeatureReferenceV2> byteToFeatureReferenceMap = new HashMap<>();
 
@@ -96,7 +96,7 @@ public class OnlineRetriever implements OnlineRetrieverV2 {
         future -> {
           try {
             List<KeyValue<byte[], byte[]>> redisValuesList = future.get();
-            List<Optional<Feature>> curRedisKeyFeatures =
+            List<Feature> curRedisKeyFeatures =
                 RedisHashDecoder.retrieveFeature(
                     redisValuesList, byteToFeatureReferenceMap, timestampPrefix);
             features.add(curRedisKeyFeatures);

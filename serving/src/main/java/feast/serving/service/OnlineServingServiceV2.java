@@ -20,8 +20,6 @@ import static feast.common.models.FeatureTable.getFeatureTableStringRef;
 
 import com.google.protobuf.Duration;
 import feast.common.models.FeatureV2;
-import feast.proto.core.FeatureProto;
-import feast.proto.core.FeatureTableProto.FeatureTableSpec;
 import feast.proto.serving.ServingAPIProto.FeastServingType;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
@@ -37,7 +35,9 @@ import io.grpc.Status;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.slf4j.Logger;
 
 public class OnlineServingServiceV2 implements ServingServiceV2 {
@@ -74,27 +74,21 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     }
 
     List<GetOnlineFeaturesRequestV2.EntityRow> entityRows = request.getEntityRowsList();
-    // Collect the feature/entity value for each entity row in entityValueMap
-    Map<GetOnlineFeaturesRequestV2.EntityRow, Map<String, ValueProto.Value>> entityValuesMap =
-        entityRows.stream().collect(Collectors.toMap(row -> row, row -> new HashMap<>()));
-    // Collect the feature/entity status metadata for each entity row in entityValueMap
-    Map<GetOnlineFeaturesRequestV2.EntityRow, Map<String, GetOnlineFeaturesResponse.FieldStatus>>
-        entityStatusesMap =
-            entityRows.stream().collect(Collectors.toMap(row -> row, row -> new HashMap<>()));
-
-    entityRows.forEach(
-        entityRow -> {
-          Map<String, ValueProto.Value> valueMap = entityRow.getFieldsMap();
-          entityValuesMap.get(entityRow).putAll(valueMap);
-          entityStatusesMap.get(entityRow).putAll(getMetadataMap(valueMap, false, false));
-        });
+    List<Map<String, ValueProto.Value>> values =
+        entityRows.stream()
+            .map(r -> new HashMap<>(r.getFieldsMap()))
+            .collect(Collectors.toList());
+    List<Map<String, GetOnlineFeaturesResponse.FieldStatus>> statuses =
+        entityRows.stream()
+            .map(r -> getMetadataMap(r.getFieldsMap(), false, false))
+            .collect(Collectors.toList());
 
     Span onlineRetrievalSpan = tracer.buildSpan("onlineRetrieval").start();
     if (onlineRetrievalSpan != null) {
       onlineRetrievalSpan.setTag("entities", entityRows.size());
       onlineRetrievalSpan.setTag("features", featureReferences.size());
     }
-    List<List<Optional<Feature>>> entityRowsFeatures =
+    List<List<Feature>> entityRowsFeatures =
         retriever.getOnlineFeatures(projectName, entityRows, featureReferences);
     if (onlineRetrievalSpan != null) {
       onlineRetrievalSpan.finish();
@@ -108,11 +102,26 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
           .asRuntimeException();
     }
 
+    String finalProjectName = projectName;
+    Map<FeatureReferenceV2, Duration> featureMaxAges =
+        featureReferences.stream()
+            .collect(
+                Collectors.toMap(
+                    Function.identity(),
+                    ref -> specService.getFeatureTableSpec(finalProjectName, ref).getMaxAge()));
+
+    Map<FeatureReferenceV2, ValueProto.ValueType.Enum> featureValueTypes =
+        featureReferences.stream()
+            .collect(
+                Collectors.toMap(
+                    Function.identity(),
+                    ref -> specService.getFeatureSpec(finalProjectName, ref).getValueType()));
+
     for (int i = 0; i < entityRows.size(); i++) {
       GetOnlineFeaturesRequestV2.EntityRow entityRow = entityRows.get(i);
-      List<Optional<Feature>> curEntityRowFeatures = entityRowsFeatures.get(i);
+      List<Feature> curEntityRowFeatures = entityRowsFeatures.get(i);
 
-      Map<FeatureReferenceV2, Optional<Feature>> featureReferenceFeatureMap =
+      Map<FeatureReferenceV2, Feature> featureReferenceFeatureMap =
           getFeatureRefFeatureMap(curEntityRowFeatures);
 
       Map<String, ValueProto.Value> allValueMaps = new HashMap<>();
@@ -120,17 +129,16 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
 
       for (FeatureReferenceV2 featureReference : featureReferences) {
         if (featureReferenceFeatureMap.containsKey(featureReference)) {
-          Optional<Feature> feature = featureReferenceFeatureMap.get(featureReference);
+          Feature feature = featureReferenceFeatureMap.get(featureReference);
 
-          FeatureTableSpec featureTableSpec =
-              specService.getFeatureTableSpec(projectName, feature.get().getFeatureReference());
-          FeatureProto.FeatureSpecV2 featureSpec =
-              specService.getFeatureSpec(projectName, feature.get().getFeatureReference());
-          ValueProto.ValueType.Enum valueTypeEnum = featureSpec.getValueType();
-          ValueProto.Value.ValCase valueCase = feature.get().getFeatureValue().getValCase();
-          boolean isMatchingFeatureSpec = checkSameFeatureSpec(valueTypeEnum, valueCase);
+          ValueProto.Value.ValCase valueCase = feature.getFeatureValue().getValCase();
 
-          boolean isOutsideMaxAge = checkOutsideMaxAge(featureTableSpec, entityRow, feature);
+          boolean isMatchingFeatureSpec =
+              checkSameFeatureSpec(featureValueTypes.get(feature.getFeatureReference()), valueCase);
+          boolean isOutsideMaxAge =
+              checkOutsideMaxAge(
+                  feature, entityRow, featureMaxAges.get(feature.getFeatureReference()));
+
           Map<String, ValueProto.Value> valueMap =
               unpackValueMap(feature, isOutsideMaxAge, isMatchingFeatureSpec);
           allValueMaps.putAll(valueMap);
@@ -161,8 +169,8 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
           populateCountMetrics(statusMap, projectName);
         }
       }
-      entityValuesMap.get(entityRow).putAll(allValueMaps);
-      entityStatusesMap.get(entityRow).putAll(allStatusMaps);
+      values.get(i).putAll(allValueMaps);
+      statuses.get(i).putAll(allStatusMaps);
     }
     populateHistogramMetrics(entityRows, featureReferences, projectName);
     populateFeatureCountMetrics(featureReferences, projectName);
@@ -170,14 +178,13 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     // Build response field values from entityValuesMap and entityStatusesMap
     // Response field values should be in the same order as the entityRows provided by the user.
     List<GetOnlineFeaturesResponse.FieldValues> fieldValuesList =
-        entityRows.stream()
-            .map(
-                entityRow -> {
-                  return GetOnlineFeaturesResponse.FieldValues.newBuilder()
-                      .putAllFields(entityValuesMap.get(entityRow))
-                      .putAllStatuses(entityStatusesMap.get(entityRow))
-                      .build();
-                })
+        IntStream.range(0, entityRows.size())
+            .mapToObj(
+                entityRowIdx ->
+                    GetOnlineFeaturesResponse.FieldValues.newBuilder()
+                        .putAllFields(values.get(entityRowIdx))
+                        .putAllStatuses(statuses.get(entityRowIdx))
+                        .build())
             .collect(Collectors.toList());
     return GetOnlineFeaturesResponse.newBuilder().addAllFieldValues(fieldValuesList).build();
   }
@@ -210,16 +217,9 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     return typingMap.get(valueTypeEnum).equals(valueCase);
   }
 
-  private static Map<FeatureReferenceV2, Optional<Feature>> getFeatureRefFeatureMap(
-      List<Optional<Feature>> features) {
-    Map<FeatureReferenceV2, Optional<Feature>> featureReferenceFeatureMap = new HashMap<>();
-    features.forEach(
-        feature -> {
-          FeatureReferenceV2 featureReference = feature.get().getFeatureReference();
-          featureReferenceFeatureMap.put(featureReference, feature);
-        });
-
-    return featureReferenceFeatureMap;
+  private static Map<FeatureReferenceV2, Feature> getFeatureRefFeatureMap(List<Feature> features) {
+    return features.stream()
+        .collect(Collectors.toMap(Feature::getFeatureReference, Function.identity()));
   }
 
   /**
@@ -238,7 +238,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     return valueMap.entrySet().stream()
         .collect(
             Collectors.toMap(
-                es -> es.getKey(),
+                Map.Entry::getKey,
                 es -> {
                   ValueProto.Value fieldValue = es.getValue();
                   if (isNotFound) {
@@ -253,20 +253,18 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
   }
 
   private static Map<String, ValueProto.Value> unpackValueMap(
-      Optional<Feature> feature, boolean isOutsideMaxAge, boolean isMatchingFeatureSpec) {
+      Feature feature, boolean isOutsideMaxAge, boolean isMatchingFeatureSpec) {
     Map<String, ValueProto.Value> valueMap = new HashMap<>();
 
-    if (feature.isPresent()) {
-      if (!isOutsideMaxAge && isMatchingFeatureSpec) {
-        valueMap.put(
-            FeatureV2.getFeatureStringRef(feature.get().getFeatureReference()),
-            feature.get().getFeatureValue());
-      } else {
-        valueMap.put(
-            FeatureV2.getFeatureStringRef(feature.get().getFeatureReference()),
-            ValueProto.Value.newBuilder().build());
-      }
+    if (!isOutsideMaxAge && isMatchingFeatureSpec) {
+      valueMap.put(
+          FeatureV2.getFeatureStringRef(feature.getFeatureReference()), feature.getFeatureValue());
+    } else {
+      valueMap.put(
+          FeatureV2.getFeatureStringRef(feature.getFeatureReference()),
+          ValueProto.Value.newBuilder().build());
     }
+
     return valueMap;
   }
 
@@ -275,18 +273,13 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
    * maxAge to be when the difference ingestion time set in feature row and the retrieval time set
    * in entity row exceeds FeatureTable max age.
    *
-   * @param featureTableSpec contains the spec where feature's max age is extracted.
-   * @param entityRow contains the retrieval timing of when features are pulled.
    * @param feature contains the ingestion timing and feature data.
+   * @param entityRow contains the retrieval timing of when features are pulled.
+   * @param maxAge feature's max age.
    */
   private static boolean checkOutsideMaxAge(
-      FeatureTableSpec featureTableSpec,
-      GetOnlineFeaturesRequestV2.EntityRow entityRow,
-      Optional<Feature> feature) {
-    Duration maxAge = featureTableSpec.getMaxAge();
-    if (feature.isEmpty()) { // no data to consider
-      return false;
-    }
+      Feature feature, GetOnlineFeaturesRequestV2.EntityRow entityRow, Duration maxAge) {
+
     if (maxAge.equals(Duration.getDefaultInstance())) { // max age is not set
       return false;
     }
@@ -295,7 +288,7 @@ public class OnlineServingServiceV2 implements ServingServiceV2 {
     if (givenTimestamp == 0) {
       givenTimestamp = System.currentTimeMillis() / 1000;
     }
-    long timeDifference = givenTimestamp - feature.get().getEventTimestamp().getSeconds();
+    long timeDifference = givenTimestamp - feature.getEventTimestamp().getSeconds();
     return timeDifference > maxAge.getSeconds();
   }
 
