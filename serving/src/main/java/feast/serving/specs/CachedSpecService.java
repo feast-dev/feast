@@ -16,7 +16,6 @@
  */
 package feast.serving.specs;
 
-
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -192,7 +191,10 @@ public class CachedSpecService {
   private FeatureProto.FeatureSpecV2 retrieveSingleFeature(
       String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
     FeatureTableSpec featureTableSpec =
-        retrieveSingleFeatureTable(projectName, featureReference.getFeatureTable());
+        getFeatureTableSpec(projectName, featureReference); // don't stress core too much
+    if (featureTableSpec == null) {
+      return null;
+    }
     return featureTableSpec.getFeaturesList().stream()
         .filter(f -> f.getName().equals(featureReference.getName()))
         .findFirst()
