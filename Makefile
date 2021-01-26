@@ -122,15 +122,11 @@ build-push-docker:
 	@$(MAKE) push-core-docker registry=$(REGISTRY) version=$(VERSION)
 	@$(MAKE) push-serving-docker registry=$(REGISTRY) version=$(VERSION)
 	@$(MAKE) push-ci-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-jobservice-docker registry=$(REGISTRY) version=$(VERSION)
 
-build-docker: build-core-docker build-serving-docker build-ci-docker build-jobservice-docker
+build-docker: build-core-docker build-serving-docker build-ci-docker
 
 push-core-docker:
 	docker push $(REGISTRY)/feast-core:$(VERSION)
-
-push-jobservice-docker:
-	docker push $(REGISTRY)/feast-jobservice:$(VERSION)
 
 push-serving-docker:
 	docker push $(REGISTRY)/feast-serving:$(VERSION)
@@ -143,9 +139,6 @@ push-jupyter-docker:
 
 build-core-docker:
 	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
-
-build-jobservice-docker:
-	docker build -t $(REGISTRY)/feast-jobservice:$(VERSION) -f infra/docker/jobservice/Dockerfile .
 
 build-serving-docker:
 	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feast-serving:$(VERSION) -f infra/docker/serving/Dockerfile .
