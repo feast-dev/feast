@@ -35,7 +35,7 @@ def test_telemetry_on():
     timestamp = datetime.utcnow()
     try:
         test_client.apply(entity)
-    except:
+    except Exception:
         pass
 
     sleep(30)
@@ -59,7 +59,7 @@ def test_telemetry_off():
     timestamp = datetime.utcnow()
     try:
         test_client.apply(entity)
-    except:
+    except Exception:
         pass
 
     sleep(30)

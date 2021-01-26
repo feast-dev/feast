@@ -40,6 +40,6 @@ def log_usage(
     }
     try:
         requests.post(TELEMETRY_ENDPOINT, json=json)
-    except:
+    except Exception:
         pass
     return

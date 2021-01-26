@@ -388,7 +388,7 @@ class Client:
 
     def _configure_telemetry(self):
         telemetry_filepath = join(expanduser("~"), ".feast", "telemetry")
-        self._telemetry_enabled = (self._config.get(opt.TELEMETRY, "True") == "True")
+        self._telemetry_enabled = self._config.get(opt.TELEMETRY, "True") == "True"
         if self._telemetry_enabled:
             self._telemetry_counter = {"get_online_features": 0}
             if os.path.exists(telemetry_filepath):
