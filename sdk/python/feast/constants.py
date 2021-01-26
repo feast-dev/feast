@@ -260,7 +260,7 @@ class ConfigOptions(metaclass=ConfigMeta):
     OAUTH_TOKEN_REQUEST_URL: Optional[str] = None
 
     #: Telemetry enabled
-    TELEMETRY: bool = True
+    TELEMETRY = "True"
 
     def defaults(self):
         return {

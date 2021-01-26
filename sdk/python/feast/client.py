@@ -388,14 +388,14 @@ class Client:
 
     def _configure_telemetry(self):
         telemetry_filepath = join(expanduser("~"), ".feast", "telemetry")
-        self._telemetry_enabled = self._config.get(opt.TELEMETRY, True)
-        if self._telemetry_enabled:
+        self._telemetry_enabled = self._config.get(opt.TELEMETRY, "True")
+        if self._telemetry_enabled == "True":
             self._telemetry_counter = {"get_online_features": 0}
             if os.path.exists(telemetry_filepath):
                 with open(telemetry_filepath, "r") as f:
                     self._telemetry_id = f.read()
             else:
-                self._telemetry_id = uuid.uuid4()
+                self._telemetry_id = str(uuid.uuid4())
                 print("Feast is an open-source project that collects anonymized usage statistics. To opt out or learn more see https://docs.feast.dev/v/master/advanced/telemetry")
                 with open(telemetry_filepath, "w") as f:
                     f.write(self._telemetry_id)
