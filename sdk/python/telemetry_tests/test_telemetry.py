@@ -47,7 +47,7 @@ def test_telemetry_on():
 
 def test_telemetry_off():
     os.environ["FEAST_IS_TELEMETRY_TEST"] = 'True'
-    test_client = Client(telemetry=False)
+    test_client = Client(serving_url=None, core_url=None, telemetry=False)
     test_client.set_project("project1")
     entity = Entity(
         name="driver_car_id",
