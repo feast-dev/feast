@@ -9,7 +9,7 @@ pandas~=1.0.0
 mock==2.0.0
 pandavro==1.5.*
 moto
-mypy
+mypy==0.790
 mypy-protobuf
 avro==1.10.0
 gcsfs

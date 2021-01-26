@@ -21,6 +21,12 @@ gcpServiceAccount:
 # gcpProjectId -- Project ID to use when using Google Cloud services such as BigQuery, Cloud Storage and Dataflow
 gcpProjectId: ""
 
+sparkOperator:
+  # sparkOperator.enabled -- Flag to create and mount custom job template on the jobservice deployment as configmap
+  enabled: false
+  # sparkOperator.jobTemplate -- Content of the job template, in yaml format
+  jobTemplate: {}
+
 prometheus:
   # prometheus.enabled -- Flag to enable scraping of metrics
   enabled: true
@@ -124,3 +130,6 @@ envOverrides: {}
 
 # podLabels -- Labels to be added to Feast Job Service pods
 podLabels: {}
+
+# secrets -- Arbitrary secrets to mount on the job service pod, on /etc/secrets/<secret name>
+secrets: []
