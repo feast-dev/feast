@@ -146,6 +146,7 @@ presubmits:
 
   - name: test-telemetry
     decorate: true
+    run_if_changed: "sdk/python/.*"
     spec:
       containers:
       - image: python:3.7
