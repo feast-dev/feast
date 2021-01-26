@@ -14,7 +14,22 @@ plugins:
   - config-updater
   - require-matching-label
   - release-note
-
+  feast-dev/feast-spark:
+  - approve      
+  - assign
+  - help
+  - hold
+  - label
+  - lgtm
+  - lifecycle     
+  - size
+  - verify-owners 
+  - wip         
+  - trigger
+  - config-updater
+  - require-matching-label
+  - release-note
+ 
 config_updater:
   maps:
     .prow/config.yaml:
@@ -25,10 +40,19 @@ external_plugins:
   - name: needs-rebase
     events:
     - pull_request
+  feast-dev/feast-spark:
+  - name: needs-rebase
+    events:
+    - pull_request
 
 require_matching_label:
 - missing_label: needs-kind
   org: feast-dev
   repo: feast
+  prs: true
+  regexp: ^kind/
+- missing_label: needs-kind
+  org: feast-dev
+  repo: feast-spark
   prs: true
   regexp: ^kind/

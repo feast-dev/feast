@@ -78,6 +78,14 @@ message Store {
     // Optional. This would be the fallback prefix to use if enable_fallback is true.
     string fallback_prefix = 7;
 
+    // Optional. Priority of nodes when reading from cluster
+    enum ReadFrom {
+      MASTER = 0;
+      MASTER_PREFERRED = 1;
+      REPLICA = 2;
+      REPLICA_PREFERRED = 3;
+    }
+    ReadFrom read_from = 8;
   }
 
   message Subscription {

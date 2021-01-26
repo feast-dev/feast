@@ -65,4 +65,5 @@ You can now connect to the bundled Jupyter Notebook Server at `localhost:8888` a
 * [Feast Examples/Tutorials](https://github.com/feast-dev/feast/tree/master/examples)
 * [Feast Helm Chart Documentation](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/README.md)
 * [Configuring Feast components](../../reference/configuration-reference.md)
+* [Feast and Spark](../../reference/feast-and-spark.md)
 

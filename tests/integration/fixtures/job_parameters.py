@@ -17,7 +17,7 @@ from feast.pyspark.abc import RetrievalJobParameters
 def customer_entity() -> pd.DataFrame:
     return pd.DataFrame(
         np.array([[1001, datetime(year=2020, month=9, day=1, tzinfo=utc)]]),
-        columns=["customer_id", "event_timestamp"],
+        columns=["customer", "event_timestamp"],
     )
 
 
@@ -35,7 +35,7 @@ def customer_feature() -> pd.DataFrame:
             ]
         ),
         columns=[
-            "customer_id",
+            "customer",
             "total_transactions",
             "event_timestamp",
             "created_timestamp",
@@ -59,11 +59,14 @@ def upload_dataframe_to_gcs_as_parquet(df: pd.DataFrame, staging_location: str):
 
 
 def new_retrieval_job_params(
-    entity_source_uri: str, feature_source_uri: str, destination_uri: str
+    entity_source_uri: str,
+    feature_source_uri: str,
+    destination_uri: str,
+    output_format: str,
 ) -> RetrievalJobParameters:
     entity_source = {
         "file": {
-            "format": "parquet",
+            "format": {"json_class": "ParquetFormat"},
             "path": entity_source_uri,
             "event_timestamp_column": "event_timestamp",
         }
@@ -72,7 +75,7 @@ def new_retrieval_job_params(
     feature_tables_sources = [
         {
             "file": {
-                "format": "parquet",
+                "format": {"json_class": "ParquetFormat"},
                 "path": feature_source_uri,
                 "event_timestamp_column": "event_timestamp",
                 "created_timestamp_column": "created_timestamp",
@@ -83,17 +86,19 @@ def new_retrieval_job_params(
     feature_tables = [
         {
             "name": "customer_transactions",
-            "entities": [{"name": "customer", "type": "int32"}],
+            "entities": [{"name": "customer", "type": "int64"}],
+            "features": [{"name": "total_transactions", "type": "double"}],
         }
     ]
 
-    destination = {"format": "parquet", "path": destination_uri}
+    destination = {"format": output_format, "path": destination_uri}
 
     return RetrievalJobParameters(
         feature_tables=feature_tables,
         feature_tables_sources=feature_tables_sources,
         entity_source=entity_source,
         destination=destination,
+        extra_packages=["com.linkedin.sparktfrecord:spark-tfrecord_2.12:0.3.0"],
     )
 
 
@@ -111,5 +116,23 @@ def dataproc_retrieval_job_params(
     destination_uri = path.join(staging_location, str(uuid.uuid4()))
 
     return new_retrieval_job_params(
-        entity_source_uri, feature_source_uri, destination_uri
+        entity_source_uri, feature_source_uri, destination_uri, "parquet"
+    )
+
+
+@pytest.fixture(scope="module")
+def dataproc_retrieval_job_params_with_tfrecord_output(
+    pytestconfig, customer_entity, customer_feature
+) -> RetrievalJobParameters:
+    staging_location = pytestconfig.getoption("--dataproc-staging-location")
+    entity_source_uri = upload_dataframe_to_gcs_as_parquet(
+        customer_entity, staging_location
+    )
+    feature_source_uri = upload_dataframe_to_gcs_as_parquet(
+        customer_feature, staging_location
+    )
+    destination_uri = path.join(staging_location, str(uuid.uuid4()))
+
+    return new_retrieval_job_params(
+        entity_source_uri, feature_source_uri, destination_uri, "tfrecord"
     )

@@ -1,7 +1,8 @@
+import os
 import pathlib
 import shutil
-import tempfile
 
+import port_for
 import pytest
 import requests
 from pytest_kafka import make_kafka_server, make_zookeeper_process
@@ -14,16 +15,23 @@ __all__ = (
     "zookeeper_server",
     "postgres_server",
     "redis_server",
+    "statsd_server",
 )
+
+from tests.e2e.fixtures.statsd_stub import StatsDStub
 
 
 def download_kafka(version="2.12-2.6.0"):
-    r = requests.get(f"https://downloads.apache.org/kafka/2.6.0/kafka_{version}.tgz")
-    temp_dir = pathlib.Path(tempfile.mkdtemp())
-    local_path = temp_dir / "kafka.tgz"
+    temp_dir = pathlib.Path("/tmp")
+    local_path = temp_dir / f"kafka_{version}.tgz"
 
-    with open(local_path, "wb") as f:
-        f.write(r.content)
+    if not os.path.isfile(local_path):
+        r = requests.get(
+            f"https://downloads.apache.org/kafka/2.6.0/kafka_{version}.tgz"
+        )
+
+        with open(local_path, "wb") as f:
+            f.write(r.content)
 
     shutil.unpack_archive(str(local_path), str(temp_dir))
     return temp_dir / f"kafka_{version}" / "bin"
@@ -33,6 +41,15 @@ def download_kafka(version="2.12-2.6.0"):
 def kafka_server(kafka_port):
     _, port = kafka_port
     return "localhost", port
+
+
+@pytest.fixture
+def statsd_server():
+    port = port_for.select_random(None)
+    server = StatsDStub(port=port)
+    server.start()
+    yield server
+    server.stop()
 
 
 postgres_server = pg_factories.postgresql_proc(password="password")

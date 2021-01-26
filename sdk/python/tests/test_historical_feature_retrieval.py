@@ -28,6 +28,7 @@ from pytz import utc
 from feast import Client, Entity, Feature, FeatureTable, FileSource, ValueType
 from feast.core import CoreService_pb2_grpc as Core
 from feast.data_format import ParquetFormat
+from feast.pyspark.abc import SparkJobStatus
 from tests.feast_core_server import CoreServicer
 
 
@@ -104,6 +105,26 @@ def client_with_local_spark(tmpdir):
         spark_staging_location=spark_staging_location,
         historical_feature_output_location=historical_feature_output_location,
         historical_feature_output_format="parquet",
+    )
+
+
+@pytest.fixture()
+def client_with_tfrecord_output(tmpdir):
+    import pyspark
+
+    spark_staging_location = f"file://{os.path.join(tmpdir, 'staging')}"
+    historical_feature_output_location = (
+        f"file://{os.path.join(tmpdir, 'historical_feature_retrieval_tfrecord_output')}"
+    )
+
+    return Client(
+        core_url=f"localhost:{free_port}",
+        spark_launcher="standalone",
+        spark_standalone_master="local",
+        spark_home=os.path.dirname(pyspark.__file__),
+        spark_staging_location=spark_staging_location,
+        historical_feature_output_location=historical_feature_output_location,
+        historical_feature_output_format="tfrecord",
     )
 
 
@@ -466,3 +487,39 @@ def test_historical_feature_retrieval_with_pandas_dataframe_input(
             by=["customer_id", "driver_id", "event_timestamp"]
         ).reset_index(drop=True),
     )
+
+
+@pytest.mark.usefixtures(
+    "driver_entity",
+    "customer_entity",
+    "bookings_feature_table",
+    "transactions_feature_table",
+)
+def test_historical_feature_retrieval_with_tfrecord_output(
+    client_with_tfrecord_output,
+):
+
+    customer_driver_pairs_pandas_df = pd.DataFrame(
+        np.array(
+            [
+                [1001, 8001, datetime(year=2020, month=9, day=1, tzinfo=utc)],
+                [2001, 8001, datetime(year=2020, month=9, day=2, tzinfo=utc)],
+                [2001, 8002, datetime(year=2020, month=9, day=1, tzinfo=utc)],
+                [1001, 8001, datetime(year=2020, month=9, day=2, tzinfo=utc)],
+                [1001, 8001, datetime(year=2020, month=9, day=3, tzinfo=utc)],
+                [1001, 8001, datetime(year=2020, month=9, day=4, tzinfo=utc)],
+            ]
+        ),
+        columns=["customer_id", "driver_id", "event_timestamp"],
+    )
+    customer_driver_pairs_pandas_df = customer_driver_pairs_pandas_df.astype(
+        {"customer_id": "int32", "driver_id": "int32"}
+    )
+
+    job_output = client_with_tfrecord_output.get_historical_features(
+        ["transactions:total_transactions", "bookings:total_completed_bookings"],
+        customer_driver_pairs_pandas_df,
+    )
+
+    job_output.get_output_file_uri()
+    assert job_output.get_status() == SparkJobStatus.COMPLETED

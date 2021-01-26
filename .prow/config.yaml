@@ -50,6 +50,7 @@ tide:
   queries:
   - repos:
     - feast-dev/feast
+    - feast-dev/feast-spark
     labels:
     - lgtm
     - approved
@@ -62,6 +63,7 @@ tide:
     - needs-kind
   merge_method:
     feast-dev/feast: squash
+    feast-dev/feast-spark: squash
   blocker_label: merge-blocker
   squash_label: tide/squash
 

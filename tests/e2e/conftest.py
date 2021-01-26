@@ -28,6 +28,14 @@ def pytest_addoption(parser):
     parser.addoption("--feast-version", action="store")
     parser.addoption("--bq-project", action="store")
     parser.addoption("--feast-project", action="store", default="default")
+    parser.addoption("--statsd-url", action="store", default="localhost:8125")
+    parser.addoption("--prometheus-url", action="store", default="localhost:9102")
+    parser.addoption(
+        "--scheduled-streaming-job",
+        action="store_true",
+        help="When set tests won't manually start streaming jobs,"
+        " instead jobservice's loop is responsible for that",
+    )
 
 
 def pytest_runtest_setup(item):
@@ -43,6 +51,7 @@ from .fixtures.client import (  # noqa
     global_staging_path,
     ingestion_job_jar,
     local_staging_path,
+    tfrecord_feast_client,
 )
 
 if not os.environ.get("DISABLE_SERVICE_FIXTURES"):
@@ -50,10 +59,15 @@ if not os.environ.get("DISABLE_SERVICE_FIXTURES"):
         kafka_port,
         kafka_server,
         redis_server,
+        statsd_server,
         zookeeper_server,
     )
 else:
-    from .fixtures.external_services import kafka_server, redis_server  # noqa
+    from .fixtures.external_services import (  # type: ignore # noqa
+        kafka_server,
+        redis_server,
+        statsd_server,
+    )
 
 if not os.environ.get("DISABLE_FEAST_SERVICE_FIXTURES"):
     from .fixtures.feast_services import *  # type: ignore # noqa

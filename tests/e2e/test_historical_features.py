@@ -11,12 +11,14 @@ from pandas._testing import assert_frame_equal
 from pyarrow import parquet
 
 from feast import Client, Entity, Feature, FeatureTable, ValueType
+from feast.constants import ConfigOptions as opt
 from feast.data_source import BigQuerySource, FileSource
+from feast.pyspark.abc import SparkJobStatus
 
 np.random.seed(0)
 
 
-def read_parquet(uri):
+def read_parquet(uri, azure_account_name=None, azure_account_key=None):
     parsed_uri = urlparse(uri)
     if parsed_uri.scheme == "file":
         return pd.read_parquet(parsed_uri.path)
@@ -39,6 +41,16 @@ def read_parquet(uri):
         else:
             fs = s3fs.S3FileSystem()
         files = ["s3://" + path for path in fs.glob(s3uri + "/part-*")]
+        ds = parquet.ParquetDataset(files, filesystem=fs)
+        return ds.read().to_pandas()
+    elif parsed_uri.scheme == "wasbs":
+        import adlfs
+
+        fs = adlfs.AzureBlobFileSystem(
+            account_name=azure_account_name, account_key=azure_account_key
+        )
+        uripath = parsed_uri.username + parsed_uri.path
+        files = fs.glob(uripath + "/part-*")
         ds = parquet.ParquetDataset(files, filesystem=fs)
         return ds.read().to_pandas()
     else:
@@ -74,8 +86,17 @@ def generate_data():
     return transactions_df, customer_df
 
 
+def _get_azure_creds(feast_client: Client):
+    return (
+        feast_client._config.get(opt.AZURE_BLOB_ACCOUNT_NAME, None),
+        feast_client._config.get(opt.AZURE_BLOB_ACCOUNT_ACCESS_KEY, None),
+    )
+
+
 def test_historical_features(
-    feast_client: Client, batch_source: Union[BigQuerySource, FileSource]
+    feast_client: Client,
+    tfrecord_feast_client: Client,
+    batch_source: Union[BigQuerySource, FileSource],
 ):
     customer_entity = Entity(
         name="user_id", description="Customer", value_type=ValueType.INT64
@@ -103,9 +124,20 @@ def test_historical_features(
 
     feature_refs = ["transactions:daily_transactions"]
 
+    # remove microseconds because job.get_start_time() does not contain microseconds
+    job_submission_time = datetime.utcnow().replace(microsecond=0)
     job = feast_client.get_historical_features(feature_refs, customers_df)
+    assert job.get_start_time() >= job_submission_time
+    assert job.get_start_time() <= job_submission_time + timedelta(hours=1)
+
     output_dir = job.get_output_file_uri()
-    joined_df = read_parquet(output_dir)
+
+    # will both be None if not using Azure blob storage
+    account_name, account_key = _get_azure_creds(feast_client)
+
+    joined_df = read_parquet(
+        output_dir, azure_account_name=account_name, azure_account_key=account_key
+    )
 
     expected_joined_df = pd.DataFrame(
         {
@@ -122,3 +154,7 @@ def test_historical_features(
             drop=True
         ),
     )
+
+    job = tfrecord_feast_client.get_historical_features(feature_refs, customers_df)
+    job.get_output_file_uri()
+    assert job.get_status() == SparkJobStatus.COMPLETED

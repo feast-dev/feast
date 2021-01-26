@@ -6,6 +6,7 @@
   * [Install Feast](getting-started/install-feast/README.md)
     * [Kubernetes \(with Helm\)](getting-started/install-feast/kubernetes-with-helm.md)
     * [Amazon EKS \(with Terraform\)](getting-started/install-feast/kubernetes-amazon-eks-with-terraform.md)
+    * [Google Cloud GKE \(with Terraform\)](getting-started/install-feast/google-cloud-gke-with-terraform.md)
   * [Connect to Feast](getting-started/connect-to-feast/README.md)
     * [Python SDK](getting-started/connect-to-feast/python-sdk.md)
     * [Feast CLI](getting-started/connect-to-feast/feast-cli.md)
@@ -53,6 +54,7 @@
   * [Serving gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html)
   * [gRPC Types](https://api.docs.feast.dev/grpc/feast.types.pb.html)
 * [Configuration Reference](reference/configuration-reference.md)
+* [Feast and Spark](reference/feast-and-spark.md)
 * [Metrics Reference](reference/metrics-reference.md)
 * [Limitations](reference/limitations.md)
 
