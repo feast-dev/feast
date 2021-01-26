@@ -37,13 +37,18 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
 
-      {{- if .Values.secrets }}
+      {{- if or .Values.secrets .Values.sparkOperator.enabled }}
       volumes:
+      {{- end }}
       {{- range $secret := .Values.secrets }}
       - name: {{ $secret }}
         secret:
           secretName: {{ $secret }}
       {{- end }}
+      {{- if .Values.sparkOperator.enabled }}
+      - name: {{ template "feast-jobservice.fullname" . }}-spark-template
+        configMap:
+          name: {{ template "feast-jobservice.fullname" . }}-spark-template
       {{- end }}
 
       containers:
@@ -51,16 +56,24 @@ spec:
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
 
-        {{- if .Values.secrets }}
+        {{- if or .Values.secrets .Values.sparkOperator.enabled }}
         volumeMounts:
+        {{- end }}
         {{- range $secret := .Values.secrets }}
         - name: {{ $secret }}
           mountPath: "/etc/secrets/{{ $secret }}"
           readOnly: true
         {{- end }}
+        {{- if .Values.sparkOperator.enabled }}
+        - name: {{ template "feast-jobservice.fullname" . }}-spark-template
+          mountPath: "/etc/configs"
         {{- end }}
 
         env:
+        {{- if .Values.sparkOperator.enabled }}
+        - name: FEAST_SPARK_K8S_JOB_TEMPLATE_PATH
+          value: /etc/configs/jobTemplate.yaml
+        {{- end }}
         {{- range $key, $value := .Values.envOverrides }}
         - name: {{ printf "%s" $key | replace "." "_" | upper | quote }}
           {{- if eq (kindOf $value) "map" }}

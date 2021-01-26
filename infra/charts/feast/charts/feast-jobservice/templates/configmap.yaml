@@ -1,0 +1,16 @@
+{{- if .Values.sparkOperator.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "feast-jobservice.fullname" . }}-spark-template
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "feast-jobservice.name" . }}
+    component: jobservice
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  jobTemplate.yaml: |
+{{- toYaml .Values.sparkOperator.jobTemplate | nindent 4 }}
+{{- end }}
