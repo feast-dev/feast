@@ -12,22 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime
 import os
-import requests
 import sys
+from datetime import datetime
 from typing import Dict
 
-TELEMETRY_ENDPOINT="https://us-central1-kf-feast.cloudfunctions.net/bq_telemetry_logger"
+import requests
 
-def log_usage(function_name: str, telemetry_id: str, timestamp: datetime, version: Dict[str, Dict[str, str]]):
+TELEMETRY_ENDPOINT = (
+    "https://us-central1-kf-feast.cloudfunctions.net/bq_telemetry_logger"
+)
+
+
+def log_usage(
+    function_name: str,
+    telemetry_id: str,
+    timestamp: datetime,
+    version: Dict[str, Dict[str, str]],
+):
     json = {
         "function_name": function_name,
         "telemetry_id": telemetry_id,
         "timestamp": timestamp.isoformat(),
         "version": version,
         "os": sys.platform,
-        "is_test": os.getenv("FEAST_IS_TELEMETRY_TEST", 'False'),
+        "is_test": os.getenv("FEAST_IS_TELEMETRY_TEST", "False"),
     }
     try:
         requests.post(TELEMETRY_ENDPOINT, json=json)

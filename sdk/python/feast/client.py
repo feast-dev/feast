@@ -396,7 +396,9 @@ class Client:
                     self._telemetry_id = f.read()
             else:
                 self._telemetry_id = str(uuid.uuid4())
-                print("Feast is an open-source project that collects anonymized usage statistics. To opt out or learn more see https://docs.feast.dev/v/master/advanced/telemetry")
+                print(
+                    "Feast is an open-source project that collects anonymized usage statistics. To opt out or learn more see https://docs.feast.dev/v/master/advanced/telemetry"
+                )
                 with open(telemetry_filepath, "w") as f:
                     f.write(self._telemetry_id)
         else:
@@ -618,7 +620,9 @@ class Client:
         """
 
         if self._telemetry_enabled:
-            log_usage("get_entity", self._telemetry_id, datetime.utcnow(), self.version())
+            log_usage(
+                "get_entity", self._telemetry_id, datetime.utcnow(), self.version()
+            )
         if project is None:
             project = self.project
 
@@ -733,7 +737,12 @@ class Client:
         """
 
         if self._telemetry_enabled:
-            log_usage("get_feature_table", self._telemetry_id, datetime.utcnow(), self.version())
+            log_usage(
+                "get_feature_table",
+                self._telemetry_id,
+                datetime.utcnow(),
+                self.version(),
+            )
         if project is None:
             project = self.project
 
@@ -990,7 +999,12 @@ class Client:
 
         if self._telemetry_enabled:
             if self._telemetry_counter["get_online_features"] % 100 == 0:
-                log_usage("get_online_features", self._telemetry_id, datetime.utcnow(), self.version())
+                log_usage(
+                    "get_online_features",
+                    self._telemetry_id,
+                    datetime.utcnow(),
+                    self.version(),
+                )
             self._telemetry_counter["get_online_features"] += 1
         try:
             response = self._serving_service.GetOnlineFeaturesV2(
@@ -1053,7 +1067,12 @@ class Client:
                 "gs://some-bucket/output/
         """
         if self._telemetry_enabled:
-            log_usage("get_historical_features", self._telemetry_id, datetime.utcnow(), self.version())
+            log_usage(
+                "get_historical_features",
+                self._telemetry_id,
+                datetime.utcnow(),
+                self.version(),
+            )
         feature_tables = self._get_feature_tables_from_feature_refs(
             feature_refs, self.project
         )
