@@ -6,7 +6,6 @@ python -m pip install --upgrade pip==20.2 setuptools wheel
 
 python -m pip install -qr sdk/python/requirements-dev.txt
 python -m pip install -qr tests/requirements.txt
-export FEAST_TELEMETRY="False"
 
 # Using mvn -q to make it less verbose. This step happens after docker containers were
 # succesfully built so it should be unlikely to fail, therefore we likely won't need detailed logs.
