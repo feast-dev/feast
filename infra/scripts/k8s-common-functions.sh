@@ -56,7 +56,7 @@ function helm_install {
     # has some issues with unbound PVCs (that cause kubectl delete pvc to hang).
     echo "${STEP_BREADCRUMB:-} Helm installing feast"
 
-    if ! time helm install --wait "$RELEASE" ./infra/charts/feast \
+    if ! time helm install --wait "$RELEASE" "${HELM_CHART_LOCATION:-./infra/charts/feast}" \
         --timeout 15m \
         --set "feast-jupyter.image.repository=${DOCKER_REPOSITORY}/feast-jupyter" \
         --set "feast-jupyter.image.tag=${GIT_TAG}" \
