@@ -6,6 +6,7 @@ pip install "s3fs" "boto3" "urllib3>=1.25.4"
 
 export DISABLE_FEAST_SERVICE_FIXTURES=1
 export DISABLE_SERVICE_FIXTURES=1
+export FEAST_TELEMETRY="False"
 
 PYTHONPATH=sdk/python pytest tests/e2e/ \
       --feast-version develop \

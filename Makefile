@@ -74,7 +74,7 @@ install-python: compile-protos-python
 	python -m pip install -e sdk/python
 
 test-python:
-	pytest --verbose --color=yes sdk/python/tests
+	FEAST_TELEMETRY=False pytest --verbose --color=yes sdk/python/tests
 
 format-python:
 	# Sort
