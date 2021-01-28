@@ -17,6 +17,7 @@
 package feast.serving.specs;
 
 import feast.proto.core.CoreServiceGrpc;
+import feast.proto.core.CoreServiceProto;
 import feast.proto.core.CoreServiceProto.ListFeatureTablesRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureTablesResponse;
 import feast.proto.core.CoreServiceProto.ListProjectsRequest;
@@ -79,5 +80,10 @@ public class CoreSpecService {
   public ListFeatureTablesResponse listFeatureTables(
       ListFeatureTablesRequest listFeatureTablesRequest) {
     return blockingStub.listFeatureTables(listFeatureTablesRequest);
+  }
+
+  public CoreServiceProto.GetFeatureTableResponse getFeatureTable(
+      CoreServiceProto.GetFeatureTableRequest getFeatureTableRequest) {
+    return blockingStub.getFeatureTable(getFeatureTableRequest);
   }
 }

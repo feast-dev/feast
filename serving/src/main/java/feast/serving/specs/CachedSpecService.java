@@ -16,11 +16,10 @@
  */
 package feast.serving.specs;
 
-import static feast.common.models.FeatureTable.getFeatureTableStringRef;
-
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import feast.proto.core.CoreServiceProto;
 import feast.proto.core.CoreServiceProto.ListFeatureTablesRequest;
 import feast.proto.core.CoreServiceProto.ListFeatureTablesResponse;
 import feast.proto.core.CoreServiceProto.ListProjectsRequest;
@@ -57,7 +56,6 @@ public class CachedSpecService {
           .help("epoch time of the last time the cache was updated")
           .register();
 
-  private final LoadingCache<String, FeatureTableSpec> featureTableCache;
   private static Gauge featureTablesCount =
       Gauge.build()
           .name("feature_table_count")
@@ -65,27 +63,26 @@ public class CachedSpecService {
           .help("number of feature tables served by this instance")
           .register();
 
+  private final LoadingCache<ImmutablePair<String, String>, FeatureTableSpec> featureTableCache;
+
   private final LoadingCache<
-          String, Map<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2>>
+          ImmutablePair<String, ServingAPIProto.FeatureReferenceV2>, FeatureProto.FeatureSpecV2>
       featureCache;
 
   public CachedSpecService(CoreSpecService coreService, StoreProto.Store store) {
     this.coreService = coreService;
     this.store = coreService.registerStore(store);
 
-    Map<String, FeatureTableSpec> featureTables = getFeatureTableMap().getLeft();
-    CacheLoader<String, FeatureTableSpec> featureTableCacheLoader =
-        CacheLoader.from(featureTables::get);
+    CacheLoader<ImmutablePair<String, String>, FeatureTableSpec> featureTableCacheLoader =
+        CacheLoader.from(k -> retrieveSingleFeatureTable(k.getLeft(), k.getRight()));
     featureTableCache =
         CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(featureTableCacheLoader);
-    featureTableCache.putAll(featureTables);
 
-    Map<String, Map<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2>> features =
-        getFeatureTableMap().getRight();
-    CacheLoader<String, Map<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2>>
-        featureCacheLoader = CacheLoader.from(features::get);
+    CacheLoader<
+            ImmutablePair<String, ServingAPIProto.FeatureReferenceV2>, FeatureProto.FeatureSpecV2>
+        featureCacheLoader =
+            CacheLoader.from(k -> retrieveSingleFeature(k.getLeft(), k.getRight()));
     featureCache = CacheBuilder.newBuilder().build(featureCacheLoader);
-    featureCache.putAll(features);
   }
 
   /**
@@ -102,17 +99,20 @@ public class CachedSpecService {
    * from core to preload the cache.
    */
   public void populateCache() {
-    Map<String, FeatureTableSpec> featureTableMap = getFeatureTableMap().getLeft();
+    ImmutablePair<
+            HashMap<ImmutablePair<String, String>, FeatureTableSpec>,
+            HashMap<
+                ImmutablePair<String, ServingAPIProto.FeatureReferenceV2>,
+                FeatureProto.FeatureSpecV2>>
+        specs = getFeatureTableMap();
 
     featureTableCache.invalidateAll();
-    featureTableCache.putAll(featureTableMap);
+    featureTableCache.putAll(specs.getLeft());
 
     featureTablesCount.set(featureTableCache.size());
 
-    Map<String, Map<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2>> featureMap =
-        getFeatureTableMap().getRight();
     featureCache.invalidateAll();
-    featureCache.putAll(featureMap);
+    featureCache.putAll(specs.getRight());
 
     cacheLastUpdated.set(System.currentTimeMillis());
   }
@@ -131,12 +131,14 @@ public class CachedSpecService {
    * @return Map in the format of <project/featuretable_name: FeatureTableSpec>
    */
   private ImmutablePair<
-          Map<String, FeatureTableSpec>,
-          Map<String, Map<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2>>>
+          HashMap<ImmutablePair<String, String>, FeatureTableSpec>,
+          HashMap<
+              ImmutablePair<String, ServingAPIProto.FeatureReferenceV2>,
+              FeatureProto.FeatureSpecV2>>
       getFeatureTableMap() {
-    HashMap<String, FeatureTableSpec> featureTables = new HashMap<>();
-    HashMap<String, Map<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2>> features =
-        new HashMap<>();
+    HashMap<ImmutablePair<String, String>, FeatureTableSpec> featureTables = new HashMap<>();
+    HashMap<ImmutablePair<String, ServingAPIProto.FeatureReferenceV2>, FeatureProto.FeatureSpecV2>
+        features = new HashMap<>();
 
     List<String> projects =
         coreService.listProjects(ListProjectsRequest.newBuilder().build()).getProjectsList();
@@ -152,8 +154,7 @@ public class CachedSpecService {
             new HashMap<>();
         for (FeatureTable featureTable : featureTablesResponse.getTablesList()) {
           FeatureTableSpec spec = featureTable.getSpec();
-          // Key of Map is in the form of <project/featuretable_name>
-          featureTables.put(getFeatureTableStringRef(project, spec), spec);
+          featureTables.put(ImmutablePair.of(project, spec.getName()), spec);
 
           String featureTableName = spec.getName();
           List<FeatureProto.FeatureSpecV2> featureSpecs = spec.getFeaturesList();
@@ -163,10 +164,10 @@ public class CachedSpecService {
                     .setFeatureTable(featureTableName)
                     .setName(featureSpec.getName())
                     .build();
-            featureRefSpecMap.put(featureReference, featureSpec);
+            features.put(ImmutablePair.of(project, featureReference), featureSpec);
           }
         }
-        features.put(project, featureRefSpecMap);
+
       } catch (StatusRuntimeException e) {
         throw new RuntimeException(
             String.format("Unable to retrieve specs matching project %s", project), e);
@@ -175,28 +176,53 @@ public class CachedSpecService {
     return ImmutablePair.of(featureTables, features);
   }
 
+  private FeatureTableSpec retrieveSingleFeatureTable(String projectName, String tableName) {
+    FeatureTable table =
+        coreService
+            .getFeatureTable(
+                CoreServiceProto.GetFeatureTableRequest.newBuilder()
+                    .setProject(projectName)
+                    .setName(tableName)
+                    .build())
+            .getTable();
+    return table.getSpec();
+  }
+
+  private FeatureProto.FeatureSpecV2 retrieveSingleFeature(
+      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
+    FeatureTableSpec featureTableSpec =
+        getFeatureTableSpec(projectName, featureReference); // don't stress core too much
+    if (featureTableSpec == null) {
+      return null;
+    }
+    return featureTableSpec.getFeaturesList().stream()
+        .filter(f -> f.getName().equals(featureReference.getName()))
+        .findFirst()
+        .orElse(null);
+  }
+
   public FeatureTableSpec getFeatureTableSpec(
-      String project, ServingAPIProto.FeatureReferenceV2 featureReference) {
-    String featureTableRefStr = getFeatureTableStringRef(project, featureReference);
+      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
     FeatureTableSpec featureTableSpec;
     try {
-      featureTableSpec = featureTableCache.get(featureTableRefStr);
-    } catch (ExecutionException e) {
+      featureTableSpec =
+          featureTableCache.get(ImmutablePair.of(projectName, featureReference.getFeatureTable()));
+    } catch (ExecutionException | CacheLoader.InvalidCacheLoadException e) {
       throw new SpecRetrievalException(
-          String.format("Unable to find FeatureTable with name: %s", featureTableRefStr), e);
+          String.format(
+              "Unable to find FeatureTable %s/%s", projectName, featureReference.getFeatureTable()),
+          e);
     }
 
     return featureTableSpec;
   }
 
   public FeatureProto.FeatureSpecV2 getFeatureSpec(
-      String project, ServingAPIProto.FeatureReferenceV2 featureReference) {
+      String projectName, ServingAPIProto.FeatureReferenceV2 featureReference) {
     FeatureProto.FeatureSpecV2 featureSpec;
     try {
-      Map<ServingAPIProto.FeatureReferenceV2, FeatureProto.FeatureSpecV2> featureRefSpecMap =
-          featureCache.get(project);
-      featureSpec = featureRefSpecMap.get(featureReference);
-    } catch (ExecutionException e) {
+      featureSpec = featureCache.get(ImmutablePair.of(projectName, featureReference));
+    } catch (ExecutionException | CacheLoader.InvalidCacheLoadException e) {
       throw new SpecRetrievalException(
           String.format("Unable to find Feature with name: %s", featureReference.getName()), e);
     }

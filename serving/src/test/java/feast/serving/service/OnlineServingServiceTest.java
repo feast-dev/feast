@@ -40,7 +40,6 @@ import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
@@ -155,14 +154,14 @@ public class OnlineServingServiceTest {
         List.of(featureReference1, featureReference2);
     GetOnlineFeaturesRequestV2 request = getOnlineFeaturesRequestV2(projectName, featureReferences);
 
-    List<Optional<Feature>> entityKeyList1 = new ArrayList<>();
-    List<Optional<Feature>> entityKeyList2 = new ArrayList<>();
-    entityKeyList1.add(Optional.of(mockedFeatureRows.get(0)));
-    entityKeyList1.add(Optional.of(mockedFeatureRows.get(1)));
-    entityKeyList2.add(Optional.of(mockedFeatureRows.get(2)));
-    entityKeyList2.add(Optional.of(mockedFeatureRows.get(3)));
+    List<Feature> entityKeyList1 = new ArrayList<>();
+    List<Feature> entityKeyList2 = new ArrayList<>();
+    entityKeyList1.add(mockedFeatureRows.get(0));
+    entityKeyList1.add(mockedFeatureRows.get(1));
+    entityKeyList2.add(mockedFeatureRows.get(2));
+    entityKeyList2.add(mockedFeatureRows.get(3));
 
-    List<List<Optional<Feature>>> featureRows = List.of(entityKeyList1, entityKeyList2);
+    List<List<Feature>> featureRows = List.of(entityKeyList1, entityKeyList2);
 
     when(retrieverV2.getOnlineFeatures(any(), any(), any())).thenReturn(featureRows);
     when(specService.getFeatureTableSpec(any(), any())).thenReturn(getFeatureTableSpec());
@@ -223,13 +222,13 @@ public class OnlineServingServiceTest {
         List.of(featureReference1, featureReference2);
     GetOnlineFeaturesRequestV2 request = getOnlineFeaturesRequestV2(projectName, featureReferences);
 
-    List<Optional<Feature>> entityKeyList1 = new ArrayList<>();
-    List<Optional<Feature>> entityKeyList2 = new ArrayList<>();
-    entityKeyList1.add(Optional.of(mockedFeatureRows.get(0)));
-    entityKeyList1.add(Optional.of(mockedFeatureRows.get(1)));
-    entityKeyList2.add(Optional.of(mockedFeatureRows.get(4)));
+    List<Feature> entityKeyList1 = new ArrayList<>();
+    List<Feature> entityKeyList2 = new ArrayList<>();
+    entityKeyList1.add(mockedFeatureRows.get(0));
+    entityKeyList1.add(mockedFeatureRows.get(1));
+    entityKeyList2.add(mockedFeatureRows.get(4));
 
-    List<List<Optional<Feature>>> featureRows = List.of(entityKeyList1, entityKeyList2);
+    List<List<Feature>> featureRows = List.of(entityKeyList1, entityKeyList2);
 
     when(retrieverV2.getOnlineFeatures(any(), any(), any())).thenReturn(featureRows);
     when(specService.getFeatureTableSpec(any(), any())).thenReturn(getFeatureTableSpec());
@@ -286,14 +285,14 @@ public class OnlineServingServiceTest {
         List.of(featureReference1, featureReference2);
     GetOnlineFeaturesRequestV2 request = getOnlineFeaturesRequestV2(projectName, featureReferences);
 
-    List<Optional<Feature>> entityKeyList1 = new ArrayList<>();
-    List<Optional<Feature>> entityKeyList2 = new ArrayList<>();
-    entityKeyList1.add(Optional.of(mockedFeatureRows.get(5)));
-    entityKeyList1.add(Optional.of(mockedFeatureRows.get(1)));
-    entityKeyList2.add(Optional.of(mockedFeatureRows.get(5)));
-    entityKeyList2.add(Optional.of(mockedFeatureRows.get(1)));
+    List<Feature> entityKeyList1 = new ArrayList<>();
+    List<Feature> entityKeyList2 = new ArrayList<>();
+    entityKeyList1.add(mockedFeatureRows.get(5));
+    entityKeyList1.add(mockedFeatureRows.get(1));
+    entityKeyList2.add(mockedFeatureRows.get(5));
+    entityKeyList2.add(mockedFeatureRows.get(1));
 
-    List<List<Optional<Feature>>> featureRows = List.of(entityKeyList1, entityKeyList2);
+    List<List<Feature>> featureRows = List.of(entityKeyList1, entityKeyList2);
 
     when(retrieverV2.getOnlineFeatures(any(), any(), any())).thenReturn(featureRows);
     when(specService.getFeatureTableSpec(any(), any()))

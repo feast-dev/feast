@@ -134,6 +134,19 @@ public class DataGenerator {
                             .build())
                 .collect(Collectors.toList()))
         .setMaxAge(Duration.newBuilder().setSeconds(3600).build())
+        .setBatchSource(
+            DataSource.newBuilder()
+                .setEventTimestampColumn("ts")
+                .setType(DataSource.SourceType.BATCH_FILE)
+                .setFileOptions(
+                    FileOptions.newBuilder()
+                        .setFileFormat(
+                            FileFormat.newBuilder()
+                                .setParquetFormat(ParquetFormat.newBuilder().build())
+                                .build())
+                        .setFileUrl("/dev/null")
+                        .build())
+                .build())
         .putAllLabels(labels)
         .build();
   }

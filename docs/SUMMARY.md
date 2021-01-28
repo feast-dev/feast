@@ -6,6 +6,7 @@
   * [Install Feast](getting-started/install-feast/README.md)
     * [Kubernetes \(with Helm\)](getting-started/install-feast/kubernetes-with-helm.md)
     * [Amazon EKS \(with Terraform\)](getting-started/install-feast/kubernetes-amazon-eks-with-terraform.md)
+    * [Azure AKS \(with Terraform\)](getting-started/install-feast/kubernetes-azure-aks-with-terraform.md)
     * [Google Cloud GKE \(with Terraform\)](getting-started/install-feast/google-cloud-gke-with-terraform.md)
   * [Connect to Feast](getting-started/connect-to-feast/README.md)
     * [Python SDK](getting-started/connect-to-feast/python-sdk.md)
@@ -42,6 +43,7 @@
 * [Security](advanced/security.md)
 * [Audit Logging](advanced/audit-logging.md)
 * [Metrics](advanced/metrics.md)
+* [Telemetry](advanced/telemetry.md)
 * [Troubleshooting](advanced/troubleshooting.md)
 
 ## Reference

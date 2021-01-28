@@ -36,13 +36,13 @@ public class RedisHashDecoder {
    * @return List of {@link Feature}
    * @throws InvalidProtocolBufferException
    */
-  public static List<Optional<Feature>> retrieveFeature(
+  public static List<Feature> retrieveFeature(
       List<KeyValue<byte[], byte[]>> redisHashValues,
       Map<String, ServingAPIProto.FeatureReferenceV2> byteToFeatureReferenceMap,
       String timestampPrefix)
       throws InvalidProtocolBufferException {
-    List<Optional<Feature>> allFeatures = new ArrayList<>();
-    Map<ServingAPIProto.FeatureReferenceV2, Optional<Feature.Builder>> allFeaturesBuilderMap =
+    List<Feature> allFeatures = new ArrayList<>();
+    Map<ServingAPIProto.FeatureReferenceV2, Feature.Builder> allFeaturesBuilderMap =
         new HashMap<>();
     Map<String, Timestamp> featureTableTimestampMap = new HashMap<>();
 
@@ -62,19 +62,19 @@ public class RedisHashDecoder {
 
           Feature.Builder featureBuilder =
               Feature.builder().setFeatureReference(featureReference).setFeatureValue(featureValue);
-          allFeaturesBuilderMap.put(featureReference, Optional.of(featureBuilder));
+          allFeaturesBuilderMap.put(featureReference, featureBuilder);
         }
       }
     }
 
     // Add timestamp to features
-    for (Map.Entry<ServingAPIProto.FeatureReferenceV2, Optional<Feature.Builder>> entry :
+    for (Map.Entry<ServingAPIProto.FeatureReferenceV2, Feature.Builder> entry :
         allFeaturesBuilderMap.entrySet()) {
       String timestampRedisHashKeyStr = timestampPrefix + ":" + entry.getKey().getFeatureTable();
       Timestamp curFeatureTimestamp = featureTableTimestampMap.get(timestampRedisHashKeyStr);
 
-      Feature curFeature = entry.getValue().get().setEventTimestamp(curFeatureTimestamp).build();
-      allFeatures.add(Optional.of(curFeature));
+      Feature curFeature = entry.getValue().setEventTimestamp(curFeatureTimestamp).build();
+      allFeatures.add(curFeature);
     }
 
     return allFeatures;

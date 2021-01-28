@@ -259,6 +259,9 @@ class ConfigOptions(metaclass=ConfigMeta):
     #: Oauth token request url
     OAUTH_TOKEN_REQUEST_URL: Optional[str] = None
 
+    #: Telemetry enabled
+    TELEMETRY = "True"
+
     def defaults(self):
         return {
             k: getattr(self, k)

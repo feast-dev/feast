@@ -11,6 +11,5 @@ make lint-python
 
 cd sdk/python/
 pip install -e .
-cd tests/
-export FEAST_TELEMETRY="False"
+cd telemetry_tests/
 pytest --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml

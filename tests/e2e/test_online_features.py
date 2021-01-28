@@ -128,7 +128,7 @@ def test_streaming_ingestion(
         job = feast_client.start_stream_to_online_ingestion(feature_table)
         assert job.get_feature_table() == feature_table.name
         wait_retry_backoff(
-            lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 120
+            lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 180
         )
     else:
         job = None
@@ -189,6 +189,42 @@ def ingest_and_verify(
             columns={"unique_drivers": f"{feature_table.name}:unique_drivers"}
         ),
     )
+
+
+def test_list_jobs_long_table_name(
+    feast_client: Client, batch_source: Union[BigQuerySource, FileSource]
+):
+    entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
+
+    feature_table = FeatureTable(
+        name="just1a2featuretable3with4a5really6really7really8really9really10really11really12long13name",
+        entities=["s2id"],
+        features=[Feature("unique_drivers", ValueType.INT64)],
+        batch_source=batch_source,
+    )
+
+    feast_client.apply(entity)
+    feast_client.apply(feature_table)
+
+    data_sample = generate_data()
+    feast_client.ingest(feature_table, data_sample)
+
+    job = feast_client.start_offline_to_online_ingestion(
+        feature_table,
+        data_sample.event_timestamp.min().to_pydatetime(),
+        data_sample.event_timestamp.max().to_pydatetime() + timedelta(seconds=1),
+    )
+
+    wait_retry_backoff(
+        lambda: (None, job.get_status() == SparkJobStatus.COMPLETED), 180
+    )
+    all_job_ids = [
+        job.get_id()
+        for job in feast_client.list_jobs(
+            include_terminated=True, table_name=feature_table.name
+        )
+    ]
+    assert job.get_id() in all_job_ids
 
 
 def avro_schema():

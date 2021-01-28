@@ -38,7 +38,7 @@ $ helm delete my-release
 |`extraArgs`                 | key:value list of extra arguments to give the binary | `{}`                                   |
 |`image.pullPolicy`          | Image pull policy                                    | `IfNotPresent`                         |
 |`image.repository`          | Image repository                                     | `prom/statsd-exporter`                 |
-|`image.tag`                 | Image tag                                            | `v0.9.0-SNAPSHOT`                               |
+|`image.tag`                 | Image tag                                            | `v0.19.0`                               |
 |`ingress.enabled`           | enable ingress                                       | `false`                                |
 |`ingress.path`              | ingress base path                                    | `/`                                    |
 |`ingress.host`              | Ingress accepted hostnames                           | `nil`                                  |
