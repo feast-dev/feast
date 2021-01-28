@@ -3,7 +3,7 @@ replicaCount: 1
 
 image:
   # image.repository -- Docker image repository
-  repository: gcr.io/kf-feast/feast-jobservice
+  repository: feastdev/feast-jobservice
   # image.tag -- Image tag
   tag: 0.9.0
   # image.pullPolicy -- Image pull policy
