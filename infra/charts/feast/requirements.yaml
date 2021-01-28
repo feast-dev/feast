@@ -1,13 +1,13 @@
 dependencies:
 - name: feast-core
-  version: 0.8.3-SNAPSHOT
+  version: 0.8.4
   condition: feast-core.enabled
 - name: feast-serving
   alias: feast-online-serving
-  version: 0.8.3-SNAPSHOT
+  version: 0.8.4
   condition: feast-online-serving.enabled
 - name: feast-jupyter
-  version: 0.8.3-SNAPSHOT
+  version: 0.8.4
   condition: feast-jupyter.enabled
 - name: postgresql
   version: 8.6.1
