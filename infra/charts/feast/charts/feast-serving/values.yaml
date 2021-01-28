@@ -25,8 +25,6 @@ application-secret.yaml:
 application-override.yaml:
   enabled: true
 
-JAVA_OPTIONS: []
-
 gcpServiceAccount:
   # gcpServiceAccount.enabled -- Flag to use [service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) JSON key
   # Cloud service account JSON key file.

@@ -92,9 +92,6 @@ spec:
 
         command:
         - java
-        {{- range $opt := .Values.JAVA_OPTIONS }}
-        - {{ $opt }}
-        {{- end }}
         - -jar
         - /opt/feast/feast-serving.jar
         - --spring.config.location=
