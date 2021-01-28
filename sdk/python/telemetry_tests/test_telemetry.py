@@ -40,7 +40,7 @@ def test_telemetry_on():
 
     sleep(30)
     bq_client = bigquery.Client()
-    query = f"select * from `kf-feast.feast_telemetry.cloudfunctions_googleapis_com_cloud_functions_*` where JSON_EXTRACT(textPayload, '$.is_test')='\"True\"' and JSON_EXTRACT(textPayload, '$.timestamp')>'\"{timestamp.isoformat()}\"'"
+    query = f"select * from `kf-feast.feast_telemetry.cloudfunctions_googleapis_com_cloud_functions` where timestamp >= TIMESTAMP(\"{timestamp.date().isoformat()}\") and JSON_EXTRACT(textPayload, '$.is_test')='\"True\"' and JSON_EXTRACT(textPayload, '$.timestamp')>'\"{timestamp.isoformat()}\"'"
     query_job = bq_client.query(query)
     rows = query_job.result()
     assert(rows.total_rows == 1)
@@ -64,7 +64,7 @@ def test_telemetry_off():
 
     sleep(30)
     bq_client = bigquery.Client()
-    query = f"select * from `kf-feast.feast_telemetry.cloudfunctions_googleapis_com_cloud_functions_*` where JSON_EXTRACT(textPayload, '$.is_test')='\"True\"' and JSON_EXTRACT(textPayload, '$.timestamp')>'\"{timestamp.isoformat()}\"'"
+    query = f"select * from `kf-feast.feast_telemetry.cloudfunctions_googleapis_com_cloud_functions` where timestamp >= TIMESTAMP(\"{timestamp.date().isoformat()}\") and JSON_EXTRACT(textPayload, '$.is_test')='\"True\"' and JSON_EXTRACT(textPayload, '$.timestamp')>'\"{timestamp.isoformat()}\"'"
     query_job = bq_client.query(query)
     rows = query_job.result()
     assert(rows.total_rows == 0)

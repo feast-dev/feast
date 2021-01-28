@@ -388,7 +388,7 @@ class Client:
 
     def _configure_telemetry(self):
         telemetry_filepath = join(expanduser("~"), ".feast", "telemetry")
-        self._telemetry_enabled = self._config.get(opt.TELEMETRY, "True") == "True"
+        self._telemetry_enabled = self._config.get(opt.TELEMETRY, "True") == "True" # written this way to turn the env var string into a boolean
         if self._telemetry_enabled:
             self._telemetry_counter = {"get_online_features": 0}
             if os.path.exists(telemetry_filepath):
@@ -397,7 +397,7 @@ class Client:
             else:
                 self._telemetry_id = str(uuid.uuid4())
                 print(
-                    "Feast is an open-source project that collects anonymized usage statistics. To opt out or learn more see https://docs.feast.dev/v/master/advanced/telemetry"
+                    "Feast is an open source project that collects anonymized usage statistics. To opt out or learn more see https://docs.feast.dev/v/master/advanced/telemetry"
                 )
                 with open(telemetry_filepath, "w") as f:
                     f.write(self._telemetry_id)
@@ -998,7 +998,7 @@ class Client:
         """
 
         if self._telemetry_enabled:
-            if self._telemetry_counter["get_online_features"] % 100 == 0:
+            if self._telemetry_counter["get_online_features"] % 1000 == 0:
                 log_usage(
                     "get_online_features",
                     self._telemetry_id,
