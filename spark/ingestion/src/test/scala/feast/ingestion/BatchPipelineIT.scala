@@ -110,7 +110,7 @@ class BatchPipelineIT extends SparkSpec with ForAllTestContainer {
     val rows     = generateDistinctRows(gen, 10000, groupByEntity)
     val tempPath = storeAsParquet(sparkSession, rows)
     val configWithOfflineSource = config.copy(
-      source = FileSource(tempPath, Map.empty, "eventTimestamp")
+      source = FileSource(tempPath, Map.empty, "eventTimestamp", datePartitionColumn = Some("date"))
     )
 
     BatchPipeline.createPipeline(sparkSession, configWithOfflineSource)

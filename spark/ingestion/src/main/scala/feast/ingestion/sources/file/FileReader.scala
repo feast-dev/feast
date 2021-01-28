@@ -16,7 +16,7 @@
  */
 package feast.ingestion.sources.file
 
-import java.sql.Timestamp
+import java.sql.{Timestamp, Date}
 
 import feast.ingestion.FileSource
 import org.apache.spark.sql.functions.col
@@ -30,9 +30,17 @@ object FileReader {
       start: DateTime,
       end: DateTime
   ): DataFrame = {
-    sqlContext.read
+    val reader = sqlContext.read
       .parquet(source.path)
       .filter(col(source.eventTimestampColumn) >= new Timestamp(start.getMillis))
       .filter(col(source.eventTimestampColumn) < new Timestamp(end.getMillis))
+
+    if (source.datePartitionColumn.nonEmpty) {
+      reader
+        .filter(col(source.datePartitionColumn.get) >= new Date(start.getMillis))
+        .filter(col(source.datePartitionColumn.get) <= new Date(end.getMillis))
+    } else {
+      reader
+    }
   }
 }
