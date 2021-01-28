@@ -23,7 +23,6 @@ from feast import (
 from feast.data_format import AvroFormat, ParquetFormat
 from feast.pyspark.abc import SparkJobStatus
 from feast.wait import wait_retry_backoff
-from tests.e2e.utils.common import create_schema, start_job, stop_job
 from tests.e2e.utils.kafka import check_consumer_exist, ingest_and_retrieve
 
 
@@ -192,20 +191,33 @@ def ingest_and_verify(
     )
 
 
-def test_list_jobs_long_table_name(feast_client: Client, kafka_server, pytestconfig):
-    kafka_broker = f"{kafka_server[0]}:{kafka_server[1]}"
-    topic_name = f"avro-{uuid.uuid4()}"
+def test_list_jobs_long_table_name(
+    feast_client: Client, batch_source: Union[BigQuerySource, FileSource]
+):
+    entity = Entity(name="s2id", description="S2id", value_type=ValueType.INT64,)
 
-    entity, feature_table = create_schema(
-        kafka_broker,
-        topic_name,
-        "just1a2featuretable3with4a5really6really7really8really9really10really11really12long13name",
+    feature_table = FeatureTable(
+        name="just1a2featuretable3with4a5really6really7really8really9really10really11really12long13name",
+        entities=["s2id"],
+        features=[Feature("unique_drivers", ValueType.INT64)],
+        batch_source=batch_source,
     )
 
     feast_client.apply(entity)
     feast_client.apply(feature_table)
 
-    job = start_job(feast_client, feature_table, pytestconfig)
+    data_sample = generate_data()
+    feast_client.ingest(feature_table, data_sample)
+
+    job = feast_client.start_offline_to_online_ingestion(
+        feature_table,
+        data_sample.event_timestamp.min().to_pydatetime(),
+        data_sample.event_timestamp.max().to_pydatetime() + timedelta(seconds=1),
+    )
+
+    wait_retry_backoff(
+        lambda: (None, job.get_status() == SparkJobStatus.COMPLETED), 180
+    )
     all_job_ids = [
         job.get_id()
         for job in feast_client.list_jobs(
@@ -213,7 +225,6 @@ def test_list_jobs_long_table_name(feast_client: Client, kafka_server, pytestcon
         )
     ]
     assert job.get_id() in all_job_ids
-    stop_job(job, feast_client, feature_table)
 
 
 def avro_schema():
