@@ -17,6 +17,6 @@ Current chart version is `0.9.0`
 | gcpServiceAccount.existingSecret.key | string | `"credentials.json"` | Key in the secret data (file name of the service account) |
 | gcpServiceAccount.existingSecret.name | string | `"feast-gcp-service-account"` | Name of the existing secret containing the service account |
 | image.pullPolicy | string | `"Always"` | Image pull policy |
-| image.repository | string | `"gcr.io/kf-feast/feast-jupyter"` | Docker image repository |
+| image.repository | string | `"feastdev/feast-jupyter"` | Docker image repository |
 | image.tag | string | `"develop"` | Image tag |
 | replicaCount | int | `1` | Number of pods that will be created |

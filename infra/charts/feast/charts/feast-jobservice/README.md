@@ -18,7 +18,7 @@ Current chart version is `0.9.0`
 | gcpServiceAccount.existingSecret.key | string | `"credentials.json"` | Key in the secret data (file name of the service account) |
 | gcpServiceAccount.existingSecret.name | string | `"feast-gcp-service-account"` | Name of the existing secret containing the service account |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
-| image.repository | string | `"gcr.io/kf-feast/feast-jobservice"` | Docker image repository |
+| image.repository | string | `"feastdev/feast-jobservice"` | Docker image repository |
 | image.tag | string | `"develop"` | Image tag |
 | ingress.grpc.annotations | object | `{}` | Extra annotations for the ingress |
 | ingress.grpc.auth.enabled | bool | `false` | Flag to enable auth |

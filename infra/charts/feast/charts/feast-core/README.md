@@ -18,7 +18,7 @@ Current chart version is `0.9.0`
 | "application.yaml".enabled | bool | `true` | Flag to include the default [configuration](https://github.com/feast-dev/feast/blob/master/core/src/main/resources/application.yml). Please set `application-override.yaml` to override this configuration. |
 | envOverrides | object | `{}` | Extra environment variables to set |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
-| image.repository | string | `"gcr.io/kf-feast/feast-core"` | Docker image repository |
+| image.repository | string | `"feastdev/feast-core"` | Docker image repository |
 | image.tag | string | `"develop"` | Image tag |
 | ingress.grpc.annotations | object | `{}` | Extra annotations for the ingress |
 | ingress.grpc.auth.enabled | bool | `false` | Flag to enable auth |
