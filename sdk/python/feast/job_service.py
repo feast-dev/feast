@@ -218,7 +218,7 @@ def start_control_loop() -> None:
         "which will ensure that stream ingestion jobs are successfully running."
     )
     try:
-        client = feast.Client()
+        client = feast.Client(telemetry="False")
         while True:
             ensure_stream_ingestion_jobs(client, all_projects=True)
             time.sleep(1)
@@ -248,7 +248,7 @@ def start_job_service() -> None:
     log_fmt = "%(asctime)s %(levelname)s %(message)s"
     logging.basicConfig(level=logging.INFO, format=log_fmt)
 
-    client = feast.Client()
+    client = feast.Client(telemetry="False")
 
     if client._config.getboolean(opt.JOB_SERVICE_ENABLE_CONTROL_LOOP):
         # Start the control loop thread only if it's enabled from configs
