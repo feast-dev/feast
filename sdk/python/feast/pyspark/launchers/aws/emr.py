@@ -254,11 +254,15 @@ class EmrClusterLauncher(JobLauncher):
             BatchIngestionJob: wrapper around remote job that can be used to check when job completed.
         """
 
-        jar_s3_path = _upload_jar(
-            self._staging_location, ingestion_job_params.get_main_file_path()
-        )
+        ingestion_jar = ingestion_job_params.get_main_file_path()
+        if ingestion_jar.startswith("s3://") or ingestion_jar.startswith("s3a://") or ingestion_jar.startswith("https://"):
+            jar_path = ingestion_jar
+        else:
+            jar_path = _upload_jar(
+                self._staging_location, ingestion_jar
+            )
         step = _sync_offline_to_online_step(
-            jar_s3_path,
+            jar_path,
             ingestion_job_params.get_feature_table_name(),
             args=ingestion_job_params.get_arguments(),
         )
@@ -276,13 +280,17 @@ class EmrClusterLauncher(JobLauncher):
         Returns:
             StreamIngestionJob: wrapper around remote job that can be used to check on the job.
         """
-        jar_s3_path = _upload_jar(
-            self._staging_location, ingestion_job_params.get_main_file_path()
-        )
+        ingestion_jar = ingestion_job_params.get_main_file_path()
+        if ingestion_jar.startswith("s3://") or ingestion_jar.startswith("s3a://") or ingestion_jar.startswith("https://"):
+            jar_path = ingestion_jar
+        else:
+            jar_path = _upload_jar(
+                self._staging_location, ingestion_jar
+            )
 
         extra_jar_paths: List[str] = []
         for extra_jar in ingestion_job_params.get_extra_jar_paths():
-            if extra_jar.startswith("s3://"):
+            if extra_jar.startswith("s3://") or extra_jar.startswith("s3a://") or extra_jar.startswith("https://"):
                 extra_jar_paths.append(extra_jar)
             else:
                 extra_jar_paths.append(_upload_jar(self._staging_location, extra_jar))
@@ -290,7 +298,7 @@ class EmrClusterLauncher(JobLauncher):
         job_hash = ingestion_job_params.get_job_hash()
 
         step = _stream_ingestion_step(
-            jar_s3_path,
+            jar_path,
             extra_jar_paths,
             ingestion_job_params.get_feature_table_name(),
             args=ingestion_job_params.get_arguments(),
