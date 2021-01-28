@@ -35,12 +35,12 @@ object FileReader {
       .filter(col(source.eventTimestampColumn) >= new Timestamp(start.getMillis))
       .filter(col(source.eventTimestampColumn) < new Timestamp(end.getMillis))
 
-    if (source.datePartitionColumn.nonEmpty) {
-      reader
-        .filter(col(source.datePartitionColumn.get) >= new Date(start.getMillis))
-        .filter(col(source.datePartitionColumn.get) <= new Date(end.getMillis))
-    } else {
-      reader
+    source.datePartitionColumn match {
+      case Some(partitionColumn) if partitionColumn.nonEmpty =>
+        reader
+          .filter(col(partitionColumn) >= new Date(start.getMillis))
+          .filter(col(partitionColumn) <= new Date(end.getMillis))
+      case _ => reader
     }
   }
 }
