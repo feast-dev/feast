@@ -24,6 +24,10 @@ from feast.pyspark.abc import (
 from feast.staging.storage_client import get_staging_client
 
 
+def _truncate_label(label: str) -> str:
+    return label[:63]
+
+
 class DataprocJobMixin:
     def __init__(
         self,
@@ -311,16 +315,16 @@ class DataprocClusterLauncher(JobLauncher):
         }
 
         if isinstance(job_params, StreamIngestionJobParameters):
-            job_config["labels"][
-                self.FEATURE_TABLE_LABEL_KEY
-            ] = job_params.get_feature_table_name()
+            job_config["labels"][self.FEATURE_TABLE_LABEL_KEY] = _truncate_label(
+                job_params.get_feature_table_name()
+            )
             # Add job hash to labels only for the stream ingestion job
             job_config["labels"][self.JOB_HASH_LABEL_KEY] = job_params.get_job_hash()
 
         if isinstance(job_params, BatchIngestionJobParameters):
-            job_config["labels"][
-                self.FEATURE_TABLE_LABEL_KEY
-            ] = job_params.get_feature_table_name()
+            job_config["labels"][self.FEATURE_TABLE_LABEL_KEY] = _truncate_label(
+                job_params.get_feature_table_name()
+            )
 
         if job_params.get_class_name():
             scala_job_properties = {
@@ -477,10 +481,17 @@ class DataprocClusterLauncher(JobLauncher):
 
         raise ValueError(f"Unrecognized job type: {job_type}")
 
-    def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
+    def list_jobs(
+        self, include_terminated: bool, table_name: Optional[str] = None
+    ) -> List[SparkJob]:
         job_filter = f"labels.{self.JOB_TYPE_LABEL_KEY} = * AND clusterName = {self.cluster_name}"
+        if table_name:
+            job_filter = (
+                job_filter
+                + f" AND labels.{self.FEATURE_TABLE_LABEL_KEY} = {_truncate_label(table_name)}"
+            )
         if not include_terminated:
-            job_filter = job_filter + "AND status.state = ACTIVE"
+            job_filter = job_filter + " AND status.state = ACTIVE"
         return [
             self._dataproc_job_to_spark_job(job)
             for job in self.job_client.list_jobs(

@@ -1,7 +1,7 @@
 import os
 import tempfile
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 from urllib.parse import urlparse, urlunparse
 
 from feast.config import Config
@@ -318,9 +318,13 @@ def start_stream_to_online_ingestion(
     )
 
 
-def list_jobs(include_terminated: bool, client: "Client") -> List[SparkJob]:
+def list_jobs(
+    include_terminated: bool, client: "Client", table_name: Optional[str] = None
+) -> List[SparkJob]:
     launcher = resolve_launcher(client._config)
-    return launcher.list_jobs(include_terminated=include_terminated)
+    return launcher.list_jobs(
+        include_terminated=include_terminated, table_name=table_name
+    )
 
 
 def get_job_by_id(job_id: str, client: "Client") -> SparkJob:

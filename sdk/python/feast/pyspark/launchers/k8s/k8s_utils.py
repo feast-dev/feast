@@ -1,3 +1,4 @@
+import hashlib
 from copy import deepcopy
 from datetime import datetime
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
@@ -28,6 +29,7 @@ HISTORICAL_RETRIEVAL_JOB_TYPE = "HISTORICAL_RETRIEVAL_JOB"
 LABEL_JOBID = "feast.dev/jobid"
 LABEL_JOBTYPE = "feast.dev/type"
 LABEL_FEATURE_TABLE = "feast.dev/table"
+LABEL_FEATURE_TABLE_HASH = "feast.dev/tablehash"
 
 # Can't store these bits of info in k8s labels due to 64-character limit, so we store them as
 # sparkConf
@@ -222,12 +224,24 @@ def _submit_job(api: CustomObjectsApi, resource, namespace: str) -> JobInfo:
     return _resource_to_job_info(response)
 
 
-def _list_jobs(api: CustomObjectsApi, namespace: str) -> List[JobInfo]:
-    response = api.list_namespaced_custom_object(
-        **_crd_args(namespace), label_selector=LABEL_JOBID,
-    )
-
+def _list_jobs(
+    api: CustomObjectsApi, namespace: str, table_name: Optional[str] = None
+) -> List[JobInfo]:
     result = []
+
+    # Batch, Streaming Ingestion jobs
+    if table_name:
+        table_name_hash = hashlib.md5(table_name.encode()).hexdigest()
+        response = api.list_namespaced_custom_object(
+            **_crd_args(namespace),
+            label_selector=f"{LABEL_FEATURE_TABLE_HASH}={table_name_hash}",
+        )
+    else:
+        # Retrieval jobs
+        response = api.list_namespaced_custom_object(
+            **_crd_args(namespace), label_selector=LABEL_JOBID,
+        )
+
     for item in response["items"]:
         result.append(_resource_to_job_info(item))
     return result

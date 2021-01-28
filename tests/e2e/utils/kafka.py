@@ -84,5 +84,5 @@ def ingest_and_retrieve(
         out_df = pd.DataFrame.from_dict(features)
         return out_df, out_df[feature_names].count().min() >= expected_ingested_count
 
-    ingested = wait_retry_backoff(get_online_features, 120)
+    ingested = wait_retry_backoff(get_online_features, 180)
     return ingested

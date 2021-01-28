@@ -608,5 +608,7 @@ class JobLauncher(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
+    def list_jobs(
+        self, include_terminated: bool, table_name: Optional[str]
+    ) -> List[SparkJob]:
         raise NotImplementedError

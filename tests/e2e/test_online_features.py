@@ -23,6 +23,7 @@ from feast import (
 from feast.data_format import AvroFormat, ParquetFormat
 from feast.pyspark.abc import SparkJobStatus
 from feast.wait import wait_retry_backoff
+from tests.e2e.utils.common import create_schema, start_job, stop_job
 from tests.e2e.utils.kafka import check_consumer_exist, ingest_and_retrieve
 
 
@@ -128,7 +129,7 @@ def test_streaming_ingestion(
         job = feast_client.start_stream_to_online_ingestion(feature_table)
         assert job.get_feature_table() == feature_table.name
         wait_retry_backoff(
-            lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 120
+            lambda: (None, job.get_status() == SparkJobStatus.IN_PROGRESS), 180
         )
     else:
         job = None
@@ -189,6 +190,30 @@ def ingest_and_verify(
             columns={"unique_drivers": f"{feature_table.name}:unique_drivers"}
         ),
     )
+
+
+def test_list_jobs_long_table_name(feast_client: Client, kafka_server, pytestconfig):
+    kafka_broker = f"{kafka_server[0]}:{kafka_server[1]}"
+    topic_name = f"avro-{uuid.uuid4()}"
+
+    entity, feature_table = create_schema(
+        kafka_broker,
+        topic_name,
+        "just1a2featuretable3with4a5really6really7really8really9really10really11really12long13name",
+    )
+
+    feast_client.apply(entity)
+    feast_client.apply(feature_table)
+
+    job = start_job(feast_client, feature_table, pytestconfig)
+    all_job_ids = [
+        job.get_id()
+        for job in feast_client.list_jobs(
+            include_terminated=True, table_name=feature_table.name
+        )
+    ]
+    assert job.get_id() in all_job_ids
+    stop_job(job, feast_client, feature_table)
 
 
 def avro_schema():

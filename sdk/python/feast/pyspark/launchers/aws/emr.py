@@ -352,12 +352,15 @@ class EmrClusterLauncher(JobLauncher):
             # We should never get here
             raise ValueError(f"Unknown job type {job_info.job_type}")
 
-    def list_jobs(self, include_terminated: bool) -> List[SparkJob]:
+    def list_jobs(
+        self, include_terminated: bool, table_name: Optional[str] = None
+    ) -> List[SparkJob]:
         """
         Find EMR job by a string id.
 
         Args:
             include_terminated: whether to include terminated jobs.
+            table_name: FeatureTable name to filter by
 
         Returns:
             A list of SparkJob instances.
@@ -366,7 +369,7 @@ class EmrClusterLauncher(JobLauncher):
         jobs = _list_jobs(
             emr_client=self._emr_client(),
             job_type=None,
-            table_name=None,
+            table_name=table_name,
             active_only=not include_terminated,
         )
 
