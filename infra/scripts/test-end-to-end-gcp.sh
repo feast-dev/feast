@@ -12,6 +12,7 @@ make build-java-no-tests REVISION=develop
 python -m pip install --upgrade pip setuptools wheel
 make install-python
 python -m pip install -qr tests/requirements.txt
+export FEAST_TELEMETRY="False"
 
 su -p postgres -c "PATH=$PATH HOME=/tmp pytest -v tests/e2e/ \
       --feast-version develop --env=gcloud --dataproc-cluster-name feast-e2e \
