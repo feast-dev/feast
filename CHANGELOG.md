@@ -1,4 +1,85 @@
 # Changelog
+## [v0.9.0](https://github.com/feast-dev/feast/tree/v0.9.0) (2021-01-28)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.8.4...v0.9.0)
+
+**Implemented enhancements:**
+
+- Enable user to provide spark job template as input for jobservice deployment [\#1285](https://github.com/feast-dev/feast/pull/1285) ([khorshuheng](https://github.com/khorshuheng))
+- Add feature table name filter to jobs list api [\#1282](https://github.com/feast-dev/feast/pull/1282) ([terryyylim](https://github.com/terryyylim))
+- Report observed value for aggregated checks in pre-ingestion feature validation [\#1278](https://github.com/feast-dev/feast/pull/1278) ([pyalex](https://github.com/pyalex))
+- Add docs page for Azure setup [\#1276](https://github.com/feast-dev/feast/pull/1276) ([jklegar](https://github.com/jklegar))
+- Azure example terraform [\#1274](https://github.com/feast-dev/feast/pull/1274) ([jklegar](https://github.com/jklegar))
+
+
+**Fixed bugs:**
+
+- make EMR jar uploader work the same as k8s one [\#1284](https://github.com/feast-dev/feast/pull/1284) ([oavdeev](https://github.com/oavdeev))
+- Don't error when azure vars not set [\#1277](https://github.com/feast-dev/feast/pull/1277) ([jklegar](https://github.com/jklegar))
+- Prevent ingestion job config parser from unwanted fieldMapping transformation [\#1261](https://github.com/feast-dev/feast/pull/1261) ([pyalex](https://github.com/pyalex))
+- Features are not being ingested due to max age overflow [\#1209](https://github.com/feast-dev/feast/pull/1209) ([pyalex](https://github.com/pyalex))
+- Feature Table is not being update when only max\_age was changed [\#1208](https://github.com/feast-dev/feast/pull/1208) ([pyalex](https://github.com/pyalex))
+- Truncate staging timestamps in entities dataset to ms [\#1207](https://github.com/feast-dev/feast/pull/1207) ([pyalex](https://github.com/pyalex))
+- Bump terraform rds module version [\#1204](https://github.com/feast-dev/feast/pull/1204) ([oavdeev](https://github.com/oavdeev))
+
+
+**Merged pull requests:**
+
+- Use date partitioning column in FileSource [\#1293](https://github.com/feast-dev/feast/pull/1293) ([pyalex](https://github.com/pyalex))
+- Add EMR CI/CD entrypoint script [\#1290](https://github.com/feast-dev/feast/pull/1290) ([oavdeev](https://github.com/oavdeev))
+- Online serving optimizations [\#1286](https://github.com/feast-dev/feast/pull/1286) ([pyalex](https://github.com/pyalex))
+- Make third party grpc packages recognizable as python module [\#1283](https://github.com/feast-dev/feast/pull/1283) ([khorshuheng](https://github.com/khorshuheng))
+- Report observed values in feature validation as Gauge [\#1280](https://github.com/feast-dev/feast/pull/1280) ([pyalex](https://github.com/pyalex))
+- Keep same amount of partitions after repartitioning in IngestionJob [\#1279](https://github.com/feast-dev/feast/pull/1279) ([pyalex](https://github.com/pyalex))
+- Add request feature counter metric [\#1272](https://github.com/feast-dev/feast/pull/1272) ([terryyylim](https://github.com/terryyylim))
+- Use SEND\_INTERRUPT to cancel EMR jobs [\#1271](https://github.com/feast-dev/feast/pull/1271) ([oavdeev](https://github.com/oavdeev))
+- Fix historical test flakiness [\#1270](https://github.com/feast-dev/feast/pull/1270) ([jklegar](https://github.com/jklegar))
+- Allow https url for spark ingestion jar [\#1266](https://github.com/feast-dev/feast/pull/1266) ([jklegar](https://github.com/jklegar))
+- Add project name to feature validation metric [\#1264](https://github.com/feast-dev/feast/pull/1264) ([pyalex](https://github.com/pyalex))
+- Use dataproc console url instead of gcs for log uri [\#1263](https://github.com/feast-dev/feast/pull/1263) ([khorshuheng](https://github.com/khorshuheng))
+- Make nodes priority \(for redis cluster\) configurable in Serving [\#1260](https://github.com/feast-dev/feast/pull/1260) ([pyalex](https://github.com/pyalex))
+- Enhance job api to return associated feature table and start time [\#1259](https://github.com/feast-dev/feast/pull/1259) ([khorshuheng](https://github.com/khorshuheng))
+- Reporting metrics from validation UDF [\#1256](https://github.com/feast-dev/feast/pull/1256) ([pyalex](https://github.com/pyalex))
+- Allow use the same timestamp column for both created & even timestamp in Historical Retrieval [\#1255](https://github.com/feast-dev/feast/pull/1255) ([pyalex](https://github.com/pyalex))
+- Apply grpc tracing interceptor on Feast SDK [\#1243](https://github.com/feast-dev/feast/pull/1243) ([khorshuheng](https://github.com/khorshuheng))
+- Apply grpc tracing interceptor on online serving [\#1242](https://github.com/feast-dev/feast/pull/1242) ([khorshuheng](https://github.com/khorshuheng))
+- Python UDF in Ingestion being used for feature validation [\#1234](https://github.com/feast-dev/feast/pull/1234) ([pyalex](https://github.com/pyalex))
+- Add spark k8s operator launcher [\#1225](https://github.com/feast-dev/feast/pull/1225) ([oavdeev](https://github.com/oavdeev))
+- Add deadletter/read-from-source metrics to batch and stream ingestion [\#1223](https://github.com/feast-dev/feast/pull/1223) ([terryyylim](https://github.com/terryyylim))
+- Implement AbstractStagingClient for azure blob storage [\#1218](https://github.com/feast-dev/feast/pull/1218) ([jklegar](https://github.com/jklegar))
+- Configurable materialization destination for view in BigQuerySource [\#1201](https://github.com/feast-dev/feast/pull/1201) ([pyalex](https://github.com/pyalex))
+- Update Feast Core list features method [\#1176](https://github.com/feast-dev/feast/pull/1176) ([terryyylim](https://github.com/terryyylim))
+- S3 endpoint configuration \#1169 [\#1172](https://github.com/feast-dev/feast/pull/1172) ([mike0sv](https://github.com/mike0sv))
+- Increase kafka consumer waiting time in e2e tests [\#1268](https://github.com/feast-dev/feast/pull/1268) ([pyalex](https://github.com/pyalex))
+- E2E tests support for jobservice's control loop [\#1267](https://github.com/feast-dev/feast/pull/1267) ([pyalex](https://github.com/pyalex))
+- Optimize memory footprint for Spark Ingestion Job [\#1265](https://github.com/feast-dev/feast/pull/1265) ([pyalex](https://github.com/pyalex))
+- Fix historical test for azure [\#1262](https://github.com/feast-dev/feast/pull/1262) ([jklegar](https://github.com/jklegar))
+- Change azure https to wasbs and add azure creds to spark [\#1258](https://github.com/feast-dev/feast/pull/1258) ([jklegar](https://github.com/jklegar))
+- Docs, fixes and scripts to run e2e tests in minikube [\#1254](https://github.com/feast-dev/feast/pull/1254) ([oavdeev](https://github.com/oavdeev))
+- Fix azure blob storage access in e2e tests [\#1253](https://github.com/feast-dev/feast/pull/1253) ([jklegar](https://github.com/jklegar))
+- Update python version requirements to 3.7 for Dataproc launcher [\#1251](https://github.com/feast-dev/feast/pull/1251) ([pyalex](https://github.com/pyalex))
+- Fix build-ingestion-py-dependencies script [\#1250](https://github.com/feast-dev/feast/pull/1250) ([pyalex](https://github.com/pyalex))
+- Add datadog\(statsd\) client to python package for IngestionJob [\#1249](https://github.com/feast-dev/feast/pull/1249) ([pyalex](https://github.com/pyalex))
+- Add prow job for azure e2e test [\#1244](https://github.com/feast-dev/feast/pull/1244) ([jklegar](https://github.com/jklegar))
+- Azure e2e test [\#1241](https://github.com/feast-dev/feast/pull/1241) ([jklegar](https://github.com/jklegar))
+- Add Feast Serving histogram metrics [\#1240](https://github.com/feast-dev/feast/pull/1240) ([terryyylim](https://github.com/terryyylim))
+- CI should work on python 3.6 [\#1237](https://github.com/feast-dev/feast/pull/1237) ([pyalex](https://github.com/pyalex))
+- Integration test for k8s spark operator support [\#1236](https://github.com/feast-dev/feast/pull/1236) ([oavdeev](https://github.com/oavdeev))
+- Add prow config for spark k8s operator integration testing [\#1235](https://github.com/feast-dev/feast/pull/1235) ([oavdeev-tt](https://github.com/oavdeev-tt))
+- Upgrading spark to 3.0.1 [\#1227](https://github.com/feast-dev/feast/pull/1227) ([pyalex](https://github.com/pyalex))
+- Support TFRecord as one of the output formats for historical feature retrieval [\#1222](https://github.com/feast-dev/feast/pull/1222) ([khorshuheng](https://github.com/khorshuheng))
+- Remove stage\_dataframe from the launcher interface [\#1220](https://github.com/feast-dev/feast/pull/1220) ([oavdeev](https://github.com/oavdeev))
+- Refactor staging client uploader and use it in EMR launcher [\#1219](https://github.com/feast-dev/feast/pull/1219) ([oavdeev](https://github.com/oavdeev))
+- Remove unused EMR code [\#1217](https://github.com/feast-dev/feast/pull/1217) ([oavdeev](https://github.com/oavdeev))
+- Remove job id from ingested row counter metric [\#1216](https://github.com/feast-dev/feast/pull/1216) ([terryyylim](https://github.com/terryyylim))
+- Quickstart link fixed [\#1213](https://github.com/feast-dev/feast/pull/1213) ([szczeles](https://github.com/szczeles))
+- Delete v1 concepts [\#1194](https://github.com/feast-dev/feast/pull/1194) ([terryyylim](https://github.com/terryyylim))
+- Dont write defaults to config [\#1188](https://github.com/feast-dev/feast/pull/1188) ([mike0sv](https://github.com/mike0sv))
+- Refactor tests which utilizes feature sets [\#1186](https://github.com/feast-dev/feast/pull/1186) ([terryyylim](https://github.com/terryyylim))
+- Refactor configurable options and add sphinx docs [\#1174](https://github.com/feast-dev/feast/pull/1174) ([terryyylim](https://github.com/terryyylim))
+- Remove unnecessary Google Auth dependency [\#1170](https://github.com/feast-dev/feast/pull/1170) ([woop](https://github.com/woop))
+
+
 ## [v0.8.2](https://github.com/feast-dev/feast/tree/v0.8.2) (2020-12-01)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.8.1...v0.8.2)
