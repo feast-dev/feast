@@ -1,4 +1,18 @@
 # Changelog
+## [v0.9.1](https://github.com/feast-dev/feast/tree/v0.9.1) (2021-01-29)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.9.0...v0.9.1)
+
+**Implemented enhancements:**
+
+- Add telemetry to Python SDK [\#1289](https://github.com/feast-dev/feast/pull/1289) ([jklegar](https://github.com/jklegar))
+
+**Fixed bugs:**
+
+- Fix kafka download url [\#1298](https://github.com/feast-dev/feast/pull/1298) ([jklegar](https://github.com/jklegar))
+- disable telemetry in docker-compose test and job\_service [\#1297](https://github.com/feast-dev/feast/pull/1297) ([jklegar](https://github.com/jklegar))
+
+
 ## [v0.9.0](https://github.com/feast-dev/feast/tree/v0.9.0) (2021-01-28)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.8.4...v0.9.0)
