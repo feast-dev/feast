@@ -27,7 +27,7 @@ def download_kafka(version="2.12-2.6.0"):
 
     if not os.path.isfile(local_path):
         r = requests.get(
-            f"https://downloads.apache.org/kafka/2.6.0/kafka_{version}.tgz"
+            f"https://archive.apache.org/dist/kafka/2.6.0/kafka_{version}.tgz"
         )
 
         with open(local_path, "wb") as f:
