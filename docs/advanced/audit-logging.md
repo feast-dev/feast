@@ -48,7 +48,7 @@ Audit Logs produced by Feast are written to the console similar to normal logs b
     "service": "CoreService",
     "component": "feast-core",
     "id": "45329ea9-0d48-46c5-b659-4604f6193711",
-    "version": "0.9.1"
+    "version": "0.9.2-SNAPSHOT"
   },
   "hostname": "feast.core"
   "timestamp": "2020-10-20T04:45:24Z",
