@@ -29,14 +29,6 @@
 
     <modules>
         <module>datatypes/java</module>
-        <module>storage/api</module>
-        <module>storage/connectors</module>
-        <module>core</module>
-        <module>serving</module>
-        <module>sdk/java</module>
-        <module>docs/coverage/java</module>
-        <module>common</module>
-        <module>common-test</module>
     </modules>
 
     <properties>
