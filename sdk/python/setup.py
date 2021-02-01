@@ -42,7 +42,7 @@ REQUIRED = [
     "toml==0.10.*",
     "tqdm==4.*",
     "pyarrow==2.0.0",
-    "numpy",
+    "numpy<1.20.0",
     "google",
     "kubernetes==12.0.*",
 ]
