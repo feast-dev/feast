@@ -86,6 +86,13 @@ message Store {
       REPLICA_PREFERRED = 3;
     }
     ReadFrom read_from = 8;
+
+    // Set the period between the refresh job runs. The effective interval cannot be changed once the refresh job is active.
+    int32 topology_refresh_period = 9;
+    // Set the timeout between the adaptive refresh job runs.
+    int32 adaptive_refresh_timeout = 10;
+    // Set the threshold for the PERSISTENT_RECONNECTS refresh trigger.
+    int32 refresh_trigger_reconnection_attempts = 11;
   }
 
   message Subscription {
