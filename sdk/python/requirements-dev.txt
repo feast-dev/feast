@@ -10,7 +10,7 @@ googleapis-common-protos==1.52.0
 grpcio==1.31.0
 grpcio-testing==1.31.0
 grpcio-tools==1.31.0
-numpy
+numpy<1.20.0
 mock==2.0.0
 pandas~=1.0.0
 protobuf==3.*
