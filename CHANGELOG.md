@@ -1,4 +1,13 @@
 # Changelog
+## [v0.9.2](https://github.com/feast-dev/feast/tree/v0.9.2) (2021-02-01)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.9.1...v0.9.2)
+
+**Fixed bugs:**
+
+- Freeze numpy version [\#1302](https://github.com/feast-dev/feast/pull/1302) ([pyalex](https://github.com/pyalex))
+
+
 ## [v0.9.1](https://github.com/feast-dev/feast/tree/v0.9.1) (2021-01-29)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.9.0...v0.9.1)
