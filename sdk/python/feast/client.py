@@ -356,14 +356,21 @@ class Client:
         """
         self._config.set(opt.JOB_SERVICE_ENABLE_SSL, value)
 
-    def version(self):
+    def version(self, sdk_only=False):
         """
         Returns version information from Feast Core and Feast Serving
         """
         import pkg_resources
 
+        try:
+            sdk_version = pkg_resources.get_distribution("feast").version
+        except pkg_resources.DistributionNotFound:
+            sdk_version = "local build"
+        if sdk_only:
+            return sdk_version
+
         result = {
-            "sdk": {"version": pkg_resources.get_distribution("feast").version},
+            "sdk": {"version": sdk_version},
             "serving": "not configured",
             "core": "not configured",
         }
@@ -513,7 +520,7 @@ class Client:
         """
 
         if self._telemetry_enabled:
-            log_usage("apply", self._telemetry_id, datetime.utcnow(), self.version())
+            log_usage("apply", self._telemetry_id, datetime.utcnow(), self.version(sdk_only=True))
         if project is None:
             project = self.project
 
@@ -623,7 +630,7 @@ class Client:
 
         if self._telemetry_enabled:
             log_usage(
-                "get_entity", self._telemetry_id, datetime.utcnow(), self.version()
+                "get_entity", self._telemetry_id, datetime.utcnow(), self.version(sdk_only=True)
             )
         if project is None:
             project = self.project
@@ -743,7 +750,7 @@ class Client:
                 "get_feature_table",
                 self._telemetry_id,
                 datetime.utcnow(),
-                self.version(),
+                self.version(sdk_only=True),
             )
         if project is None:
             project = self.project
@@ -874,7 +881,7 @@ class Client:
         """
 
         if self._telemetry_enabled:
-            log_usage("ingest", self._telemetry_id, datetime.utcnow(), self.version())
+            log_usage("ingest", self._telemetry_id, datetime.utcnow(), self.version(sdk_only=True))
         if project is None:
             project = self.project
         if isinstance(feature_table, str):
@@ -1005,7 +1012,7 @@ class Client:
                     "get_online_features",
                     self._telemetry_id,
                     datetime.utcnow(),
-                    self.version(),
+                    self.version(sdk_only=True),
                 )
             self._telemetry_counter["get_online_features"] += 1
         try:
@@ -1073,7 +1080,7 @@ class Client:
                 "get_historical_features",
                 self._telemetry_id,
                 datetime.utcnow(),
-                self.version(),
+                self.version(sdk_only=True),
             )
         feature_tables = self._get_feature_tables_from_feature_refs(
             feature_refs, self.project
