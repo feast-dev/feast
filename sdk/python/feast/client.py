@@ -520,7 +520,12 @@ class Client:
         """
 
         if self._telemetry_enabled:
-            log_usage("apply", self._telemetry_id, datetime.utcnow(), self.version(sdk_only=True))
+            log_usage(
+                "apply",
+                self._telemetry_id,
+                datetime.utcnow(),
+                self.version(sdk_only=True),
+            )
         if project is None:
             project = self.project
 
@@ -630,7 +635,10 @@ class Client:
 
         if self._telemetry_enabled:
             log_usage(
-                "get_entity", self._telemetry_id, datetime.utcnow(), self.version(sdk_only=True)
+                "get_entity",
+                self._telemetry_id,
+                datetime.utcnow(),
+                self.version(sdk_only=True),
             )
         if project is None:
             project = self.project
@@ -881,7 +889,12 @@ class Client:
         """
 
         if self._telemetry_enabled:
-            log_usage("ingest", self._telemetry_id, datetime.utcnow(), self.version(sdk_only=True))
+            log_usage(
+                "ingest",
+                self._telemetry_id,
+                datetime.utcnow(),
+                self.version(sdk_only=True),
+            )
         if project is None:
             project = self.project
         if isinstance(feature_table, str):
