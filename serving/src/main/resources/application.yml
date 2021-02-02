@@ -56,7 +56,9 @@ feast:
         # Connection string specifies the host:port of Redis instances in the redis cluster.
         connection_string: "localhost:7000,localhost:7001,localhost:7002,localhost:7003,localhost:7004,localhost:7005"
         read_from: MASTER
+        # Topology refresh period in seconds
         topology_refresh_period: 900
+        # Adaptive refresh timeout in seconds
         adaptive_refresh_timeout: 300
         refresh_trigger_reconnection_attempts: 10
       subscriptions:
