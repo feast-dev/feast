@@ -48,7 +48,8 @@ def _wait_port_open(port, max_wait=60):
 
 
 @pytest.fixture(
-    scope="session", params=[False],
+    scope="session",
+    params=[False],
 )
 def enable_auth(request):
     return request.param
@@ -114,7 +115,12 @@ def feast_serving(
         store: Dict[str, Any] = dict(
             name="online",
             type="REDIS_CLUSTER",
-            config=dict(connection_string=f"{redis_server.host}:{redis_server.port}"),
+            config=dict(
+                connection_string=f"{redis_server.host}:{redis_server.port}",
+                topology_refresh_period=900,
+                adaptive_refresh_timeout=300,
+                refresh_trigger_reconnection_attempts=10,
+            ),
         )
     else:
         store = dict(
