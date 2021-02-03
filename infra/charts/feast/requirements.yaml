@@ -6,6 +6,9 @@ dependencies:
   alias: feast-online-serving
   version: 0.10.0-SNAPSHOT
   condition: feast-online-serving.enabled
+- name: feast-jobservice
+  version: 0.10.0-SNAPSHOT
+  condition: feast-jobservice.enabled
 - name: feast-jupyter
   version: 0.10.0-SNAPSHOT
   condition: feast-jupyter.enabled
