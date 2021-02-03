@@ -53,11 +53,6 @@ class Entity:
         if not isinstance(other, Entity):
             raise TypeError("Comparisons should only involve Entity class objects.")
 
-        if isinstance(self.value_type, int):
-            self.value_type = ValueType(self.value_type).name
-        if isinstance(other.value_type, int):
-            other.value_type = ValueType(other.value_type).name
-
         if (
             self.labels != other.labels
             or self.name != other.name
@@ -100,7 +95,7 @@ class Entity:
         self._description = description
 
     @property
-    def value_type(self):
+    def value_type(self) -> ValueType:
         """
         Returns the type of this entity
         """
@@ -200,7 +195,7 @@ class Entity:
         entity = cls(
             name=entity_proto.spec.name,
             description=entity_proto.spec.description,
-            value_type=ValueType(entity_proto.spec.value_type).name,  # type: ignore
+            value_type=ValueType(entity_proto.spec.value_type),
             labels=entity_proto.spec.labels,
         )
 
@@ -221,13 +216,11 @@ class Entity:
             created_timestamp=self.created_timestamp,
             last_updated_timestamp=self.last_updated_timestamp,
         )
-        if isinstance(self.value_type, ValueType):
-            self.value_type = self.value_type.value
 
         spec = EntitySpecProto(
             name=self.name,
             description=self.description,
-            value_type=self.value_type,
+            value_type=self.value_type.value,
             labels=self.labels,
         )
 
@@ -268,13 +261,10 @@ class Entity:
             EntitySpecV2 protobuf
         """
 
-        if isinstance(self.value_type, ValueType):
-            self.value_type = self.value_type.value
-
         spec = EntitySpecProto(
             name=self.name,
             description=self.description,
-            value_type=self.value_type,
+            value_type=self.value_type.value,
             labels=self.labels,
         )
 

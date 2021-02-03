@@ -18,13 +18,11 @@ import shutil
 import uuid
 import warnings
 from datetime import datetime
-
 from os.path import expanduser, join
 from typing import Any, Dict, List, Optional, Union
 
 import grpc
 import pandas as pd
-
 from feast.config import Config
 from feast.constants import ConfigOptions as opt
 from feast.core.CoreService_pb2 import (
@@ -52,7 +50,6 @@ from feast.core.CoreService_pb2 import (
     ListProjectsResponse,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
-
 from feast.core.JobService_pb2_grpc import JobServiceStub
 from feast.data_format import ParquetFormat
 from feast.data_source import BigQuerySource, FileSource
@@ -70,8 +67,6 @@ from feast.loaders.ingest import (
     _write_partitioned_table_from_source,
 )
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
-
-
 from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoRequest,
     GetOnlineFeaturesRequestV2,
@@ -313,14 +308,21 @@ class Client:
         """
         self._config.set(opt.JOB_SERVICE_ENABLE_SSL, value)
 
-    def version(self):
+    def version(self, sdk_only=False):
         """
         Returns version information from Feast Core and Feast Serving
         """
         import pkg_resources
 
+        try:
+            sdk_version = pkg_resources.get_distribution("feast").version
+        except pkg_resources.DistributionNotFound:
+            sdk_version = "local build"
+        if sdk_only:
+            return sdk_version
+
         result = {
-            "sdk": {"version": pkg_resources.get_distribution("feast").version},
+            "sdk": {"version": sdk_version},
             "serving": "not configured",
             "core": "not configured",
         }
@@ -470,7 +472,12 @@ class Client:
         """
 
         if self._telemetry_enabled:
-            log_usage("apply", self._telemetry_id, datetime.utcnow(), self.version())
+            log_usage(
+                "apply",
+                self._telemetry_id,
+                datetime.utcnow(),
+                self.version(sdk_only=True),
+            )
         if project is None:
             project = self.project
 
@@ -580,7 +587,10 @@ class Client:
 
         if self._telemetry_enabled:
             log_usage(
-                "get_entity", self._telemetry_id, datetime.utcnow(), self.version()
+                "get_entity",
+                self._telemetry_id,
+                datetime.utcnow(),
+                self.version(sdk_only=True),
             )
         if project is None:
             project = self.project
@@ -700,7 +710,7 @@ class Client:
                 "get_feature_table",
                 self._telemetry_id,
                 datetime.utcnow(),
-                self.version(),
+                self.version(sdk_only=True),
             )
         if project is None:
             project = self.project
@@ -831,7 +841,12 @@ class Client:
         """
 
         if self._telemetry_enabled:
-            log_usage("ingest", self._telemetry_id, datetime.utcnow(), self.version())
+            log_usage(
+                "ingest",
+                self._telemetry_id,
+                datetime.utcnow(),
+                self.version(sdk_only=True),
+            )
         if project is None:
             project = self.project
         if isinstance(feature_table, str):
@@ -962,7 +977,7 @@ class Client:
                     "get_online_features",
                     self._telemetry_id,
                     datetime.utcnow(),
-                    self.version(),
+                    self.version(sdk_only=True),
                 )
             self._telemetry_counter["get_online_features"] += 1
         try:
