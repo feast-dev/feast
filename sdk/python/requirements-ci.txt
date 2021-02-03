@@ -10,7 +10,7 @@ mock==2.0.0
 pandavro==1.5.*
 moto
 mypy==0.790
-mypy-protobuf
+mypy-protobuf==1.24
 avro==1.10.0
 gcsfs
 urllib3>=1.25.4

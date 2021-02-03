@@ -31,8 +31,8 @@ pandavro==1.5.*
 kafka-python==2.0.2
 tabulate==0.8.*
 isort>=5
-mypy
-mypy-protobuf
+mypy==0.790
+mypy-protobuf==1.24
 pre-commit
 flake8
 black==19.10b0
