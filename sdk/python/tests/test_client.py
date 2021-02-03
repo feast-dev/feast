@@ -385,7 +385,7 @@ class TestClient:
         assert (
             len(entities) == 1
             and entity.name == "driver_car_id"
-            and entity.value_type == ValueType(ValueProto.ValueType.STRING).name
+            and entity.value_type == ValueType(ValueProto.ValueType.STRING)
             and entity.description == "Car driver id"
             and "team" in entity.labels
             and entity.labels["team"] == "matchmaking"
