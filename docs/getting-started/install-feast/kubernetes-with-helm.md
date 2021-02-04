@@ -47,7 +47,7 @@ After all the pods are in a `RUNNING` state, port-forward to the Jupyter Noteboo
 
 ```bash
 kubectl port-forward \
-$(kubectl get pod -o custom-columns=:metadata.name | grep jupyter) 8888:8888
+$(kubectl get pod -l app=feast-jupyter -o custom-columns=:metadata.name) 8888:8888
 ```
 
 ```text
