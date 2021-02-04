@@ -1,6 +1,6 @@
 # Azure AKS \(with Terraform\)
 
-### Overview
+## Overview
 
 This guide installs Feast on Azure using our [reference Terraform configuration](https://github.com/feast-dev/feast/tree/master/infra/terraform/azure).
 
@@ -17,13 +17,13 @@ This Terraform configuration creates the following resources:
 * [spark-on-k8s-operator](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator) to run Spark
 * Staging Azure blob storage container to store temporary data
 
-### 1. Requirements
+## 1. Requirements
 
 * Create an Azure account and [configure credentials locally](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
 * Install [Terraform](https://www.terraform.io/) \(tested with 0.13.5\)
 * Install [Helm](https://helm.sh/docs/intro/install/) \(tested with v3.4.2\)
 
-### 2. Configure Terraform 
+## 2. Configure Terraform
 
 Create a `.tfvars` file under`feast/infra/terraform/azure`. Name the file. In our example, we use `my_feast.tfvars`. You can see the full list of configuration variables in `variables.tf`. At a minimum, you need to set `name_prefix` and `resource_group`:
 
@@ -34,7 +34,7 @@ resource_group = "Feast" # pre-existing resource group
 ```
 {% endcode %}
 
-### 3. Apply
+## 3. Apply
 
 After completing the configuration, initialize Terraform and apply:
 
@@ -44,7 +44,7 @@ $ terraform init
 $ terraform apply -var-file=my_feast.tfvars
 ```
 
-### 4. Connect to Feast using Jupyter
+## 4. Connect to Feast using Jupyter
 
 After all pods are running, connect to the Jupyter Notebook Server running in the cluster.
 

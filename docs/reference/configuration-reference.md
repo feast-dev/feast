@@ -1,6 +1,6 @@
 # Configuration Reference
 
-### Overview
+## Overview
 
 This reference describes how to configure Feast components:
 
@@ -8,7 +8,7 @@ This reference describes how to configure Feast components:
 * [Feast CLI and Feast Python SDK](configuration-reference.md#3-feast-cli-and-feast-python-sdk)
 * [Feast Go and Feast Java SDK](configuration-reference.md#4-feast-java-and-go-sdk)
 
-### 1. Feast Core and Feast Online Serving
+## 1. Feast Core and Feast Online Serving
 
 Available configuration properties for Feast Core and Feast Online Serving can be referenced from the corresponding `application.yml` of each component:
 
@@ -23,7 +23,7 @@ Configuration properties for Feast Core and Feast Online Serving are defined dep
 * [Kubernetes deployment](configuration-reference.md#kubernetes-deployment) - Feast is deployed with Kubernetes.
 * [Direct Configuration](configuration-reference.md#direct-configuration) - Feast is built and run from source code.
 
-### Docker Compose Deployment
+## Docker Compose Deployment
 
 For each Feast component deployed using Docker Compose, configuration properties from `application.yml` can be set at:
 
@@ -32,7 +32,7 @@ For each Feast component deployed using Docker Compose, configuration properties
 | Core | `infra/docker-compose/core/core.yml` |
 | Online Serving | `infra/docker-compose/serving/online-serving.yml` |
 
-### Kubernetes Deployment
+## Kubernetes Deployment
 
 The Kubernetes Feast Deployment is configured using `values.yaml` in the [Helm chart ](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/README.md)included with Feast:
 
@@ -64,7 +64,7 @@ feast-core:
 
 Visit the [Helm chart](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/README.md) included with Feast to learn more about configuration.
 
-### Direct Configuration
+## Direct Configuration
 
 If Feast is built and running from source, configuration properties can be set directly in the Feast component's `application.yml`:
 
@@ -73,7 +73,7 @@ If Feast is built and running from source, configuration properties can be set d
 | Core | [core/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/core/src/main/resources/application.yml) |
 | Serving \(Online\) | [serving/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/serving/src/main/resources/application.yml) |
 
-### 2. Feast CLI and Feast Python SDK
+## 2. Feast CLI and Feast Python SDK
 
 Configuration options for both the [Feast CLI](../getting-started/connect-to-feast/feast-cli.md) and [Feast Python SDK](https://api.docs.feast.dev/python/) can be defined in the following locations, in order of precedence:
 
@@ -106,13 +106,13 @@ project = default
 core_url = localhost:6565
 ```
 
-Visit the [available configuration parameters](https://api.docs.feast.dev/python/#module-feast.constants) for Feast Python SDK and Feast CLI to learn more. 
+Visit the [available configuration parameters](https://api.docs.feast.dev/python/#module-feast.constants) for Feast Python SDK and Feast CLI to learn more.
 
-### 3. Feast Java and Go SDK
+## 3. Feast Java and Go SDK
 
 The [Feast Java SDK](https://javadoc.io/doc/dev.feast/feast-sdk/latest/com/gojek/feast/package-summary.html) and [Feast Go SDK](https://godoc.org/github.com/feast-dev/feast/sdk/go) are configured via arguments passed when instantiating the respective Clients:
 
-#### Go SDK
+### Go SDK
 
 ```go
 // configure serving host and port.
@@ -121,7 +121,7 @@ cli := feast.NewGrpcClient("localhost", 6566)
 
 Visit the[ Feast Go SDK API reference](https://godoc.org/github.com/feast-dev/feast/sdk/go) to learn more about available configuration parameters.
 
-#### Java SDK
+### Java SDK
 
 ```java
 // configure serving host and port.

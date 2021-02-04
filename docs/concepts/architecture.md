@@ -1,8 +1,8 @@
 # Architecture
 
-![](../.gitbook/assets/image%20%286%29%20%281%29.png)
+![](../.gitbook/assets/image%20%286%29.png)
 
-### Sequence description
+## Sequence description
 
 1. **Log Raw Events:** Production backend applications are configured to emit internal state changes as events to a stream.
 2. **Create Stream Features:** Stream processing systems like Flink, Spark, and Beam are used to transform and refine events and to produce features that are logged back to the stream.
@@ -28,7 +28,7 @@ Limitations
 * Batch ingestion jobs must be triggered from your own scheduler like Airflow. Streaming ingestion jobs are automatically launched by the Feast Job Service.
 {% endhint %}
 
-### Components:
+## Components:
 
 A complete Feast deployment contains the following components:
 
