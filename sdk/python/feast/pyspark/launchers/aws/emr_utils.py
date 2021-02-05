@@ -95,7 +95,7 @@ def _upload_jar(jar_s3_prefix: str, jar_path: str) -> str:
 
 
 def _sync_offline_to_online_step(
-    jar_path: str, feature_table_name: str, args: List[str],
+    jar_path: str, project: str, feature_table_name: str, args: List[str],
 ) -> Dict[str, Any]:
 
     return {
@@ -106,6 +106,7 @@ def _sync_offline_to_online_step(
                     "Key": "feast.step_metadata.job_type",
                     "Value": OFFLINE_TO_ONLINE_JOB_TYPE,
                 },
+                {"Key": "feast.step_metadata.project", "Value": project},
                 {
                     "Key": "feast.step_metadata.offline_to_online.table_name",
                     "Value": feature_table_name,
@@ -141,13 +142,18 @@ class JobInfo(NamedTuple):
     job_ref: EmrJobRef
     job_type: str
     state: str
+    project: str
     table_name: Optional[str]
     output_file_uri: Optional[str]
     job_hash: Optional[str]
 
 
 def _list_jobs(
-    emr_client, job_type: Optional[str], table_name: Optional[str], active_only=True
+    emr_client,
+    job_type: Optional[str],
+    project: Optional[str],
+    table_name: Optional[str],
+    active_only=True,
 ) -> List[JobInfo]:
     """
     List Feast EMR jobs.
@@ -155,6 +161,7 @@ def _list_jobs(
     Args:
         job_type: optional filter by job type
         table_name: optional filter by table name
+        project: optional filter by project
         active_only: filter only for "active" jobs, that is the ones that are running or pending, not terminated
 
     Returns:
@@ -180,6 +187,8 @@ def _list_jobs(
                     if "feast.step_metadata.job_type" not in props:
                         continue
 
+                    step_project = props.get("feast.step_metadata.project")
+
                     step_table_name = props.get(
                         "feast.step_metadata.stream_to_online.table_name"
                     ) or props.get("feast.step_metadata.offline_to_online.table_name")
@@ -190,6 +199,9 @@ def _list_jobs(
                     )
 
                     job_hash = props.get("feast.step_metadata.job_hash")
+
+                    if project and step_project != project:
+                        continue
 
                     if table_name and step_table_name != table_name:
                         continue
@@ -202,6 +214,7 @@ def _list_jobs(
                             job_type=step_job_type,
                             job_ref=EmrJobRef(cluster_id, step["Id"]),
                             state=step["Status"]["State"],
+                            project=step_project,
                             table_name=step_table_name,
                             output_file_uri=output_file_uri,
                             job_hash=job_hash,
@@ -334,6 +347,7 @@ def _historical_retrieval_step(
 def _stream_ingestion_step(
     jar_path: str,
     extra_jar_paths: List[str],
+    project: str,
     feature_table_name: str,
     args: List[str],
     job_hash: str,
@@ -352,6 +366,7 @@ def _stream_ingestion_step(
                     "Key": "feast.step_metadata.job_type",
                     "Value": STREAM_TO_ONLINE_JOB_TYPE,
                 },
+                {"Key": "feast.step_metadata.project", "Value": project},
                 {
                     "Key": "feast.step_metadata.stream_to_online.table_name",
                     "Value": feature_table_name,

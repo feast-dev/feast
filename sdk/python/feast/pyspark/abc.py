@@ -359,6 +359,9 @@ class IngestionJobParameters(SparkJobParameters):
             else None
         )
 
+    def get_project(self) -> str:
+        return self._feature_table["project"]
+
     def get_feature_table_name(self) -> str:
         return self._feature_table["name"]
 
@@ -609,6 +612,9 @@ class JobLauncher(abc.ABC):
 
     @abc.abstractmethod
     def list_jobs(
-        self, include_terminated: bool, table_name: Optional[str]
+        self,
+        include_terminated: bool,
+        project: Optional[str],
+        table_name: Optional[str],
     ) -> List[SparkJob]:
         raise NotImplementedError

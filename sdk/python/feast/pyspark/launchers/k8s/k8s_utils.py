@@ -225,13 +225,16 @@ def _submit_job(api: CustomObjectsApi, resource, namespace: str) -> JobInfo:
 
 
 def _list_jobs(
-    api: CustomObjectsApi, namespace: str, table_name: Optional[str] = None
+    api: CustomObjectsApi,
+    namespace: str,
+    project: Optional[str] = None,
+    table_name: Optional[str] = None,
 ) -> List[JobInfo]:
     result = []
 
     # Batch, Streaming Ingestion jobs
-    if table_name:
-        table_name_hash = hashlib.md5(table_name.encode()).hexdigest()
+    if project and table_name:
+        table_name_hash = hashlib.md5(f"{project}:{table_name}".encode()).hexdigest()
         response = api.list_namespaced_custom_object(
             **_crd_args(namespace),
             label_selector=f"{LABEL_FEATURE_TABLE_HASH}={table_name_hash}",

@@ -228,6 +228,7 @@ class DataprocClusterLauncher(JobLauncher):
     JOB_TYPE_LABEL_KEY = "feast_job_type"
     JOB_HASH_LABEL_KEY = "feast_job_hash"
     FEATURE_TABLE_LABEL_KEY = "feast_feature_tables"
+    PROJECT_LABEL_KEY = "feast_project"
 
     def __init__(
         self,
@@ -320,11 +321,13 @@ class DataprocClusterLauncher(JobLauncher):
             )
             # Add job hash to labels only for the stream ingestion job
             job_config["labels"][self.JOB_HASH_LABEL_KEY] = job_params.get_job_hash()
+            job_config["labels"][self.PROJECT_LABEL_KEY] = job_params.get_project()
 
         if isinstance(job_params, BatchIngestionJobParameters):
             job_config["labels"][self.FEATURE_TABLE_LABEL_KEY] = _truncate_label(
                 job_params.get_feature_table_name()
             )
+            job_config["labels"][self.PROJECT_LABEL_KEY] = job_params.get_project()
 
         if job_params.get_class_name():
             scala_job_properties = {
@@ -482,9 +485,16 @@ class DataprocClusterLauncher(JobLauncher):
         raise ValueError(f"Unrecognized job type: {job_type}")
 
     def list_jobs(
-        self, include_terminated: bool, table_name: Optional[str] = None
+        self,
+        include_terminated: bool,
+        project: Optional[str] = None,
+        table_name: Optional[str] = None,
     ) -> List[SparkJob]:
         job_filter = f"labels.{self.JOB_TYPE_LABEL_KEY} = * AND clusterName = {self.cluster_name}"
+        if project:
+            job_filter = (
+                job_filter + f" AND labels.{self.PROJECT_LABEL_KEY} = {project}"
+            )
         if table_name:
             job_filter = (
                 job_filter
