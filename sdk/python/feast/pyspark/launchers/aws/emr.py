@@ -111,12 +111,16 @@ class EmrBatchIngestionJob(EmrJobMixin, BatchIngestionJob):
     Ingestion job result for a EMR cluster
     """
 
-    def __init__(self, emr_client, job_ref: EmrJobRef, table_name: str):
+    def __init__(self, emr_client, job_ref: EmrJobRef, project: str, table_name: str):
         super().__init__(emr_client, job_ref)
+        self._project = project
         self._table_name = table_name
 
     def get_feature_table(self) -> str:
         return self._table_name
+
+    def get_project(self) -> str:
+        return self._project
 
 
 class EmrStreamIngestionJob(EmrJobMixin, StreamIngestionJob):
@@ -124,9 +128,17 @@ class EmrStreamIngestionJob(EmrJobMixin, StreamIngestionJob):
     Ingestion streaming job for a EMR cluster
     """
 
-    def __init__(self, emr_client, job_ref: EmrJobRef, job_hash: str, table_name: str):
+    def __init__(
+        self,
+        emr_client,
+        job_ref: EmrJobRef,
+        job_hash: str,
+        project: str,
+        table_name: str,
+    ):
         super().__init__(emr_client, job_ref)
         self._job_hash = job_hash
+        self._project = project
         self._table_name = table_name
 
     def get_hash(self) -> str:
@@ -134,6 +146,9 @@ class EmrStreamIngestionJob(EmrJobMixin, StreamIngestionJob):
 
     def get_feature_table(self) -> str:
         return self._table_name
+
+    def get_project(self) -> str:
+        return self._project
 
 
 class EmrClusterLauncher(JobLauncher):
@@ -280,7 +295,10 @@ class EmrClusterLauncher(JobLauncher):
         job_ref = self._submit_emr_job(step)
 
         return EmrBatchIngestionJob(
-            self._emr_client(), job_ref, ingestion_job_params.get_feature_table_name()
+            self._emr_client(),
+            job_ref,
+            ingestion_job_params.get_project(),
+            ingestion_job_params.get_feature_table_name(),
         )
 
     def start_stream_to_online_ingestion(
@@ -320,6 +338,7 @@ class EmrClusterLauncher(JobLauncher):
             self._emr_client(),
             job_ref,
             job_hash,
+            ingestion_job_params.get_project(),
             ingestion_job_params.get_feature_table_name(),
         )
 
