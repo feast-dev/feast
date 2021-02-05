@@ -1288,13 +1288,18 @@ class Client:
             )
 
     def list_jobs(
-        self, include_terminated: bool, table_name: Optional[str] = None
+        self,
+        include_terminated: bool,
+        project: Optional[str] = None,
+        table_name: Optional[str] = None,
     ) -> List[SparkJob]:
         if not self._use_job_service:
-            return list_jobs(include_terminated, self, table_name)
+            return list_jobs(include_terminated, self, project, table_name)
         else:
             request = ListJobsRequest(
-                include_terminated=include_terminated, table_name=table_name
+                include_terminated=include_terminated,
+                project=project,
+                table_name=table_name,
             )
             response = self._job_service.ListJobs(request)
             return [
