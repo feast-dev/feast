@@ -221,7 +221,7 @@ def test_list_jobs_long_table_name(
     all_job_ids = [
         job.get_id()
         for job in feast_client.list_jobs(
-            include_terminated=True, table_name=feature_table.name
+            include_terminated=True, project="default", table_name=feature_table.name
         )
     ]
     assert job.get_id() in all_job_ids
