@@ -18,8 +18,11 @@ spec:
       release: {{ .Release.Name }}
   template:
     metadata:
-      {{- if .Values.prometheus.enabled }}
       annotations:
+      {{- if .Values.sparkOperator.enabled }}
+        checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      {{- end }}
+      {{- if .Values.prometheus.enabled }}
         prometheus.io/path: /metrics
         prometheus.io/port: "{{ .Values.service.http.targetPort }}"
         prometheus.io/scrape: "true"
