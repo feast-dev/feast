@@ -24,3 +24,7 @@ This guide installs Feast into a Google Cloud environment using Terraform. The T
 
 {% page-ref page="google-cloud-gke-with-terraform.md" %}
 
+### IBM Cloud Kubernetes Service (IKS) \(using Helm\)
+This guide installs Feast into an existing [IBM Cloud Kubernetes Service](https://www.ibm.com/cloud/kubernetes-service) using Helm.
+
+{% page-ref page="ibm-cloud-iks-with-helm.md" %}
