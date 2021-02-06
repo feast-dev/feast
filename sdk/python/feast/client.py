@@ -1293,6 +1293,16 @@ class Client:
         project: Optional[str] = None,
         table_name: Optional[str] = None,
     ) -> List[SparkJob]:
+        """
+        List ingestion jobs currently running in Feast.
+
+        Args:
+            include_terminated: Flag to include terminated jobs or not
+            project: Optionally specify the project to use as filter when retrieving jobs
+            table_name: Optionally specify name of feature table to use as filter when retrieving jobs
+        Returns:
+            List of SparkJob ingestion jobs.
+        """
         if not self._use_job_service:
             return list_jobs(include_terminated, self, project, table_name)
         else:
