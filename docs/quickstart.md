@@ -43,7 +43,7 @@ docker-compose pull && docker-compose up -d
 Wait until all all containers are in a running state:
 
 ```text
-docker-compose ps
+docker ps
 ```
 
 ## Try our example\(s\)
