@@ -22,16 +22,20 @@ import feast.proto.core.StoreProto.Store.StoreType;
 import feast.serving.service.JobService;
 import feast.serving.service.NoopJobService;
 import feast.serving.service.RedisBackedJobService;
+import java.util.EnumSet;
+import java.util.Set;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class JobServiceConfig {
 
+  private final Set<StoreType> HISTORICAL_STORES = EnumSet.of(StoreType.BIGQUERY, StoreType.DELTA);
+
   @Bean
   public JobService jobService(FeastProperties feastProperties)
       throws InvalidProtocolBufferException, JsonProcessingException {
-    if (!feastProperties.getActiveStore().toProto().getType().equals(StoreType.BIGQUERY)) {
+    if (!HISTORICAL_STORES.contains(feastProperties.getActiveStore().toProto().getType())) {
       return new NoopJobService();
     }
     return new RedisBackedJobService(feastProperties.getJobStore());

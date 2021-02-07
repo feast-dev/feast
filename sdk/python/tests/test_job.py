@@ -14,12 +14,14 @@
 # limitations under the License.
 #
 import tempfile
+from unittest.mock import Mock, patch
 
 import boto3
 import grpc
 import pandas as pd
 import pandavro
 import pytest
+from azure.storage.filedatalake import PathProperties
 from moto import mock_s3
 from pandas.testing import assert_frame_equal
 from pytest import fixture, raises
@@ -31,6 +33,9 @@ from feast.serving.ServingService_pb2 import Job as BatchRetrievalJob
 from feast.serving.ServingService_pb2 import JobStatus, JobType
 
 BUCKET = "test_bucket"
+
+ACCOUNT = "testabfssaccount.dfs.core.windows.net"
+FILESYSTEM = "testfilesystem"
 
 TEST_DATA_FRAME = pd.DataFrame(
     {
@@ -141,3 +146,64 @@ class TestRetrievalJob:
         )
         with raises(exception):
             retrieve_job.to_dataframe()
+
+    @patch("azure.storage.filedatalake.DataLakeServiceClient")
+    def test_to_dataframe_azure_file_staging_should_pass(
+        self, client, retrieve_job, avro_data_path, mocker
+    ):
+        file_client = Mock()
+        client().get_file_client.return_value = file_client
+
+        fs_client = Mock()
+        client().get_file_system_client.return_value = fs_client
+        fs_client.get_paths.return_value = [
+            create_path_properties("test_proj2/file1.avro"),
+            create_path_properties("test_proj2/file2.tmp"),
+        ]
+
+        target_file = "test_proj/test_features.avro"
+        target_dir = "test_proj2"
+
+        mocker.patch.object(
+            retrieve_job.serving_stub,
+            "GetJob",
+            return_value=GetJobResponse(
+                job=BatchRetrievalJob(
+                    id="123",
+                    type=JobType.JOB_TYPE_DOWNLOAD,
+                    status=JobStatus.JOB_STATUS_DONE,
+                    file_uris=[
+                        f"abfss://{FILESYSTEM}@{ACCOUNT}/{target_file}",
+                        f"abfss://{FILESYSTEM}@{ACCOUNT}/{target_dir}/",
+                    ],
+                    data_format=DataFormat.DATA_FORMAT_AVRO,
+                )
+            ),
+        )
+
+        def read_into(dest):
+            with open(avro_data_path, "rb") as data:
+                dest.write(data.read(-1))
+
+        file_client.download_file().readinto.side_effect = read_into
+        retrived_df = retrieve_job.to_dataframe()
+
+        client().get_file_system_client.assert_called_once_with(FILESYSTEM)
+        fs_client.get_paths.assert_called_once_with(f"/{target_dir}/")
+
+        client().get_file_client.assert_any_call(
+            FILESYSTEM, "/test_proj/test_features.avro"
+        )
+        client().get_file_client.assert_any_call(FILESYSTEM, "test_proj2/file1.avro")
+        client().get_file_client.assert_any_call(FILESYSTEM, "test_proj2/file2.tmp")
+        assert_frame_equal(
+            pd.concat([TEST_DATA_FRAME, TEST_DATA_FRAME], ignore_index=True),
+            retrived_df,
+            check_like=True,
+        )
+
+
+def create_path_properties(name):
+    pp = PathProperties()
+    pp.name = name
+    return pp

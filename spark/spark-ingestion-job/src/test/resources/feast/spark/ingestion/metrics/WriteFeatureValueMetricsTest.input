@@ -1,0 +1,4 @@
+featuresetref,int32,int64,double,float,bool,int32list,int64list,doublelist,floatlist,boollist,bytes,byteslist,string,stringlist
+project/featureset,1,5,8,5,true,1|4|3,5|1|12,5|7|3,-2.0,true|false,,,,
+project/featureset,5,-10,8,10.0,true,1|12|5,,,-1.0|-3.0,false|true,,,,
+project/featureset,6,-4,8,0.0,true,2,2|5,,,true|false,,,,

@@ -16,35 +16,39 @@
  */
 package feast.storage.connectors.redis.writer;
 
+import static feast.storage.connectors.redis.writer.RedisCustomIOUtil.deduplicateRows;
+import static feast.storage.connectors.redis.writer.RedisCustomIOUtil.getKey;
+import static feast.storage.connectors.redis.writer.RedisCustomIOUtil.getValue;
+import static feast.storage.connectors.redis.writer.RedisCustomIOUtil.rowShouldBeWritten;
+
 import com.google.common.collect.Iterators;
-import com.google.common.collect.Streams;
-import com.google.common.hash.Hashing;
-import com.google.protobuf.InvalidProtocolBufferException;
-import feast.proto.core.FeatureSetProto.EntitySpec;
 import feast.proto.core.FeatureSetProto.FeatureSetSpec;
-import feast.proto.core.FeatureSetProto.FeatureSpec;
 import feast.proto.storage.RedisProto.RedisKey;
-import feast.proto.storage.RedisProto.RedisKey.Builder;
 import feast.proto.types.FeatureRowProto.FeatureRow;
-import feast.proto.types.FieldProto.Field;
-import feast.proto.types.ValueProto;
 import feast.storage.api.writer.FailedElement;
 import feast.storage.api.writer.WriteResult;
-import feast.storage.connectors.redis.retriever.FeatureRowDecoder;
 import feast.storage.connectors.redis.serializer.RedisKeySerializer;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BinaryOperator;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.transforms.*;
-import org.apache.beam.sdk.transforms.windowing.*;
-import org.apache.beam.sdk.values.*;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -129,6 +133,7 @@ public class RedisCustomIO {
      * confirmed to be most recent.
      */
     public static class WriteDoFn extends BatchDoFnWithRedis<Iterable<FeatureRow>, FeatureRow> {
+
       private final PCollectionView<Map<String, Iterable<FeatureSetSpec>>> featureSetSpecsView;
       private final RedisKeySerializer serializer;
 
@@ -150,75 +155,6 @@ public class RedisCustomIO {
             .setPayload(featureRow.toString())
             .setErrorMessage(exception.getMessage())
             .setStackTrace(ExceptionUtils.getStackTrace(exception))
-            .build();
-      }
-
-      private RedisKey getKey(FeatureRow featureRow, FeatureSetSpec spec) {
-        List<String> entityNames =
-            spec.getEntitiesList().stream()
-                .map(EntitySpec::getName)
-                .sorted()
-                .collect(Collectors.toList());
-
-        Map<String, Field> entityFields = new HashMap<>();
-        Builder redisKeyBuilder = RedisKey.newBuilder().setFeatureSet(featureRow.getFeatureSet());
-        for (Field field : featureRow.getFieldsList()) {
-          if (entityNames.contains(field.getName())) {
-            entityFields.putIfAbsent(
-                field.getName(),
-                Field.newBuilder().setName(field.getName()).setValue(field.getValue()).build());
-          }
-        }
-        for (String entityName : entityNames) {
-          redisKeyBuilder.addEntities(entityFields.get(entityName));
-        }
-        return redisKeyBuilder.build();
-      }
-
-      /**
-       * Encode the Feature Row as bytes to store in Redis in encoded Feature Row encoding. To
-       * reduce storage space consumption in redis, feature rows are "encoded" by hashing the fields
-       * names and not unsetting the feature set reference. {@link FeatureRowDecoder} is
-       * rensponsible for reversing this "encoding" step.
-       */
-      private FeatureRow getValue(FeatureRow featureRow, FeatureSetSpec spec) {
-        List<String> featureNames =
-            spec.getFeaturesList().stream().map(FeatureSpec::getName).collect(Collectors.toList());
-
-        Map<String, Field.Builder> fieldValueOnlyMap =
-            featureRow.getFieldsList().stream()
-                .filter(field -> featureNames.contains(field.getName()))
-                .distinct()
-                .collect(
-                    Collectors.toMap(
-                        Field::getName, field -> Field.newBuilder().setValue(field.getValue())));
-
-        List<Field> values =
-            featureNames.stream()
-                .sorted()
-                .map(
-                    featureName -> {
-                      Field.Builder field =
-                          fieldValueOnlyMap.getOrDefault(
-                              featureName,
-                              Field.newBuilder().setValue(ValueProto.Value.getDefaultInstance()));
-
-                      // Encode the name of the as the hash of the field name.
-                      // Use hash of name instead of the name of to reduce redis storage consumption
-                      // per feature row stored.
-                      String nameHash =
-                          Hashing.murmur3_32()
-                              .hashString(featureName, StandardCharsets.UTF_8)
-                              .toString();
-                      field.setName(nameHash);
-
-                      return field.build();
-                    })
-                .collect(Collectors.toList());
-
-        return FeatureRow.newBuilder()
-            .setEventTimestamp(featureRow.getEventTimestamp())
-            .addAllFields(values)
             .build();
       }
 
@@ -272,43 +208,6 @@ public class RedisCustomIO {
                     context.output(failedInsertsTupleTag, failedElement);
                   });
         }
-      }
-
-      boolean rowShouldBeWritten(FeatureRow newRow, byte[] currentValue) {
-        if (currentValue == null) {
-          // nothing to compare with
-          return true;
-        }
-        FeatureRow currentRow;
-        try {
-          currentRow = FeatureRow.parseFrom(currentValue);
-        } catch (InvalidProtocolBufferException e) {
-          // definitely need to replace current value
-          return true;
-        }
-
-        // check whether new row has later eventTimestamp
-        return new DateTime(currentRow.getEventTimestamp().getSeconds() * 1000L)
-            .isBefore(new DateTime(newRow.getEventTimestamp().getSeconds() * 1000L));
-      }
-
-      /** Deduplicate rows by key within batch. Keep only latest eventTimestamp */
-      Map<RedisKey, FeatureRow> deduplicateRows(
-          Iterable<FeatureRow> rows, Map<String, FeatureSetSpec> latestSpecs) {
-        Comparator<FeatureRow> byEventTimestamp =
-            Comparator.comparing(r -> r.getEventTimestamp().getSeconds());
-
-        FeatureRow identity =
-            FeatureRow.newBuilder()
-                .setEventTimestamp(
-                    com.google.protobuf.Timestamp.newBuilder().setSeconds(-1).build())
-                .build();
-
-        return Streams.stream(rows)
-            .collect(
-                Collectors.groupingBy(
-                    row -> getKey(row, latestSpecs.get(row.getFeatureSet())),
-                    Collectors.reducing(identity, BinaryOperator.maxBy(byEventTimestamp))));
       }
 
       Map<String, FeatureSetSpec> getLatestSpecs(Map<String, Iterable<FeatureSetSpec>> specs) {

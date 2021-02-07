@@ -45,14 +45,16 @@ def export_source_to_staging_location(
                 * Local Avro file
                 * GCS Avro file
                 * S3 Avro file
+                * ABFSS Avro file
 
 
         staging_location_uri (str):
             Remote staging location where DataFrame should be written.
             Examples:
-                * gs://bucket/path/
-                * s3://bucket/path/
-                * file:///data/subfolder/
+                * gs://<bucket>/<path>/
+                * s3://<bucket</<path>/
+                * abfss://<file_system>@<account_name>.dfs.core.windows.net/<path>/
+                * file:///<data>/<subfolder>/
 
     Returns:
         List[str]:
@@ -83,9 +85,7 @@ def export_source_to_staging_location(
             )
         else:
             # gs, s3 file provided as a source.
-            return get_staging_client(source_uri.scheme).list_files(
-                bucket=source_uri.hostname, path=source_uri.path
-            )
+            return get_staging_client(source_uri.scheme).list_files(source_uri)
     else:
         raise Exception(
             f"Only string and DataFrame types are allowed as a "
@@ -94,7 +94,7 @@ def export_source_to_staging_location(
 
     # Push data to required staging location
     get_staging_client(uri.scheme).upload_file(
-        source_path, uri.hostname, str(uri.path).strip("/") + "/" + file_name,
+        source_path, uri, str(uri.path).strip("/") + "/" + file_name
     )
 
     # Clean up, remove local staging file

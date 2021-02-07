@@ -72,16 +72,21 @@ public class ServingServiceOauthAuthorizationIT extends BaseAuthIT {
   public static DockerComposeContainer environment =
       new DockerComposeContainer(
               new File("src/test/resources/docker-compose/docker-compose-it-hydra.yml"),
-              new File("src/test/resources/docker-compose/docker-compose-it-core.yml"),
+              new File("src/test/resources/docker-compose/docker-compose-it.yml"),
               new File("src/test/resources/docker-compose/docker-compose-it-keto.yml"))
           .withExposedService(HYDRA, HYDRA_PORT, forHttp("/health/alive").forStatusCode(200))
           .withExposedService(
               CORE,
-              6565,
+              FEAST_CORE_PORT,
               Wait.forLogMessage(".*gRPC Server started.*\\n", 1)
-                  .withStartupTimeout(Duration.ofMinutes(CORE_START_MAX_WAIT_TIME_IN_MINUTES)))
+                  .withStartupTimeout(Duration.ofMinutes(SERVICE_START_MAX_WAIT_TIME_IN_MINUTES)))
+          .withExposedService(
+              JOB_CONTROLLER,
+              FEAST_JOB_CONTROLLER_PORT,
+              Wait.forLogMessage(".*gRPC Server started.*\\n", 1)
+                  .withStartupTimeout(Duration.ofMinutes(SERVICE_START_MAX_WAIT_TIME_IN_MINUTES)))
           .withExposedService("adaptor_1", KETO_ADAPTOR_PORT)
-          .withExposedService("keto_1", KETO_PORT, forHttp("/health/ready").forStatusCode(200));;
+          .withExposedService("keto_1", KETO_PORT, forHttp("/health/ready").forStatusCode(200));
 
   @DynamicPropertySource
   static void initialize(DynamicPropertyRegistry registry) {
