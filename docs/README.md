@@ -34,7 +34,7 @@ Feast addresses this problem by introducing feature reuse through a centralized 
 
 ## What Feast is not
 
-\*\*\*\*[**ETL**](https://en.wikipedia.org/wiki/Extract,_transform,_load) **or** [**ELT**](https://en.wikipedia.org/wiki/Extract,_load,_transform) **system:** Feast is not \(and does not plan to become\) a general purpose data transformation or pipelining system. Feast plans to include a light-weight feature engineering toolkit, but we encourage teams to integrate Feast with upstream ETL/ELT systems that are specialized in transformation.
+[**ETL**](https://en.wikipedia.org/wiki/Extract,_transform,_load) **or** [**ELT**](https://en.wikipedia.org/wiki/Extract,_load,_transform) **system:** Feast is not \(and does not plan to become\) a general purpose data transformation or pipelining system. Feast plans to include a light-weight feature engineering toolkit, but we encourage teams to integrate Feast with upstream ETL/ELT systems that are specialized in transformation.
 
 **Data warehouse:** Feast is not a replacement for your data warehouse or the source of truth for all transformed data in your organization. Rather, Feast is a light-weight downstream layer that can serve data from an existing data warehouse \(or other data sources\) to models in production.
 
