@@ -40,7 +40,7 @@ A complete Feast deployment contains the following components:
   * Launch jobs through the Feast Job Service.
   * Retrieve training datasets.
   * Retrieve online features.
-* **Online Store:** The online store is a database that stores only the latest feature values for each entity entity. The online store can be populated by either batch ingestion jobs \(in the case the user has no streaming source\), or can be populated by a streaming ingestion job from a streaming source. Feast Online Serving looks up feature values from the online store.
+* **Online Store:** The online store is a database that stores only the latest feature values for each entity. The online store can be populated by either batch ingestion jobs \(in the case the user has no streaming source\), or can be populated by a streaming ingestion job from a streaming source. Feast Online Serving looks up feature values from the online store.
 * **Offline Store:** The offline store persists batch data that has been ingested into Feast. This data is used for producing training datasets.
 
 Please see the [configuration reference](../reference/configuration-reference.md#overview) for more details on configuring these components.
