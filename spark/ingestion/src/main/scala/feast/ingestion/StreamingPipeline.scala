@@ -31,7 +31,7 @@ import org.apache.commons.lang.StringUtils
 import org.apache.spark.{SparkEnv, SparkFiles}
 import org.apache.spark.api.python.DynamicPythonFunction
 import org.apache.spark.sql.streaming.StreamingQuery
-import org.apache.spark.sql.avro._
+import org.apache.spark.sql.avro.functions.from_avro
 import org.apache.spark.sql.execution.python.UserDefinedPythonFunction
 import org.apache.spark.sql.execution.streaming.ProcessingTimeTrigger
 import org.apache.spark.sql.types.BooleanType
