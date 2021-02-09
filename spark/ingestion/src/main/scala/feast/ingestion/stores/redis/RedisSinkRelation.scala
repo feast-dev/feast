@@ -167,8 +167,8 @@ class RedisSinkRelation(override val sqlContext: SQLContext, config: SparkRedisC
     }
 
     SparkEnv.get.metricsSystem.getSourcesByName(RedisSinkMetricSource.sourceName) match {
-      case Seq(head) => Some(head.asInstanceOf[RedisSinkMetricSource])
-      case _         => None
+      case Seq(source: RedisSinkMetricSource) => Some(source)
+      case _                                  => None
     }
   }
 
