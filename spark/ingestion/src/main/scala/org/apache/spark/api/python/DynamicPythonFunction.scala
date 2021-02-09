@@ -45,7 +45,11 @@ object DynamicPythonFunction {
 
   def pythonVersion: String = {
     runCommand(
-      List(pythonExec, "-c", "import sys; print(\"{0.major}.{0.minor}\".format(sys.version_info))")
+      List(
+        pythonExec,
+        "-c",
+        """import sys; print("{0.major}.{0.minor}".format(sys.version_info))"""
+      )
     )
   }
 

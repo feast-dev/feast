@@ -54,7 +54,7 @@ object IngestionJob {
         }
       })
       .required()
-      .text("JSON-encoded source object (e.g. {\"kafka\":{\"bootstrapServers\":...}}")
+      .text("""JSON-encoded source object (e.g. {"kafka":{"bootstrapServers":...}}""")
 
     opt[String](name = "feature-table")
       .action((x, c) => {
