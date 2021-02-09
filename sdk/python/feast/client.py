@@ -18,7 +18,6 @@ import shutil
 import uuid
 import warnings
 from datetime import datetime
-from itertools import groupby
 from os.path import expanduser, join
 from typing import Any, Dict, List, Optional, Union
 
@@ -52,13 +51,6 @@ from feast.core.CoreService_pb2 import (
     ListProjectsResponse,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
-from feast.core.JobService_pb2 import (
-    GetHistoricalFeaturesRequest,
-    GetJobRequest,
-    ListJobsRequest,
-    StartOfflineToOnlineIngestionJobRequest,
-    StartStreamToOnlineIngestionJobRequest,
-)
 from feast.core.JobService_pb2_grpc import JobServiceStub
 from feast.data_format import ParquetFormat
 from feast.data_source import BigQuerySource, FileSource
@@ -76,32 +68,11 @@ from feast.loaders.ingest import (
     _write_partitioned_table_from_source,
 )
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
-from feast.pyspark.abc import RetrievalJob, SparkJob
-from feast.pyspark.launcher import (
-    get_job_by_id,
-    list_jobs,
-    stage_dataframe,
-    start_historical_feature_retrieval_job,
-    start_historical_feature_retrieval_spark_session,
-    start_offline_to_online_ingestion,
-    start_stream_to_online_ingestion,
-)
-from feast.remote_job import (
-    RemoteBatchIngestionJob,
-    RemoteRetrievalJob,
-    RemoteStreamIngestionJob,
-    get_remote_job_from_proto,
-)
 from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoRequest,
     GetOnlineFeaturesRequestV2,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
-from feast.staging.entities import (
-    stage_entities_to_bq,
-    stage_entities_to_fs,
-    table_reference_from_string,
-)
 from feast.telemetry import log_usage
 
 _logger = logging.getLogger(__name__)
@@ -153,6 +124,10 @@ class Client:
         self._configure_telemetry()
 
     @property
+    def config(self) -> Config:
+        return self._config
+
+    @property
     def _core_service(self):
         """
         Creates or returns the gRPC Feast Core Service Stub
@@ -202,33 +177,6 @@ class Client:
                 pass
             self._serving_service_stub = ServingServiceStub(channel)
         return self._serving_service_stub
-
-    @property
-    def _use_job_service(self) -> bool:
-        return self._config.exists(opt.JOB_SERVICE_URL)
-
-    @property
-    def _job_service(self):
-        """
-        Creates or returns the gRPC Feast Job Service Stub
-
-        Returns: JobServiceStub
-        """
-        # Don't try to initialize job service stub if the job service is disabled
-        if not self._use_job_service:
-            return None
-
-        if not self._job_service_stub:
-            channel = create_grpc_channel(
-                url=self._config.get(opt.JOB_SERVICE_URL),
-                enable_ssl=self._config.getboolean(opt.JOB_SERVICE_ENABLE_SSL),
-                enable_auth=self._config.getboolean(opt.ENABLE_AUTH),
-                ssl_server_cert_path=self._config.get(opt.JOB_SERVICE_SERVER_SSL_CERT),
-                auth_metadata_plugin=self._auth_metadata,
-                timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
-            )
-            self._job_service_service_stub = JobServiceStub(channel)
-        return self._job_service_service_stub
 
     def _extra_grpc_params(self) -> Dict[str, Any]:
         return dict(
@@ -1043,278 +991,3 @@ class Client:
 
         response = OnlineResponse(response)
         return response
-
-    def get_historical_features(
-        self,
-        feature_refs: List[str],
-        entity_source: Union[pd.DataFrame, FileSource, BigQuerySource],
-        output_location: Optional[str] = None,
-    ) -> RetrievalJob:
-        """
-        Launch a historical feature retrieval job.
-
-        Args:
-            feature_refs: List of feature references that will be returned for each entity.
-                Each feature reference should have the following format:
-                "feature_table:feature" where "feature_table" & "feature" refer to
-                the feature and feature table names respectively.
-            entity_source (Union[pd.DataFrame, FileSource, BigQuerySource]): Source for the entity rows.
-                If entity_source is a Panda DataFrame, the dataframe will be staged
-                to become accessible by spark workers.
-                If one of feature tables' source is in BigQuery - entities will be upload to BQ.
-                Otherwise to remote file storage (derived from configured staging location).
-                It is also assumed that the column event_timestamp is present
-                in the dataframe, and is of type datetime without timezone information.
-
-                The user needs to make sure that the source (or staging location, if entity_source is
-                a Panda DataFrame) is accessible from the Spark cluster that will be used for the
-                retrieval job.
-            destination_path: Specifies the path in a bucket to write the exported feature data files
-
-        Returns:
-                Returns a retrieval job object that can be used to monitor retrieval
-                progress asynchronously, and can be used to materialize the
-                results.
-
-        Examples:
-            >>> from feast import Client
-            >>> from feast.data_format import ParquetFormat
-            >>> from datetime import datetime
-            >>> feast_client = Client(core_url="localhost:6565")
-            >>> feature_refs = ["bookings:bookings_7d", "bookings:booking_14d"]
-            >>> entity_source = FileSource("event_timestamp", ParquetFormat(), "gs://some-bucket/customer")
-            >>> feature_retrieval_job = feast_client.get_historical_features(
-            >>>     feature_refs, entity_source)
-            >>> output_file_uri = feature_retrieval_job.get_output_file_uri()
-                "gs://some-bucket/output/
-        """
-        if self._telemetry_enabled:
-            log_usage(
-                "get_historical_features",
-                self._telemetry_id,
-                datetime.utcnow(),
-                self.version(sdk_only=True),
-            )
-        feature_tables = self._get_feature_tables_from_feature_refs(
-            feature_refs, self.project
-        )
-
-        assert all(ft.batch_source.created_timestamp_column for ft in feature_tables), (
-            "All BatchSources attached to retrieved FeatureTables "
-            "must have specified `created_timestamp_column` to be used in "
-            "historical dataset generation."
-        )
-
-        if output_location is None:
-            output_location = os.path.join(
-                self._config.get(opt.HISTORICAL_FEATURE_OUTPUT_LOCATION),
-                str(uuid.uuid4()),
-            )
-        output_format = self._config.get(opt.HISTORICAL_FEATURE_OUTPUT_FORMAT)
-        feature_sources = [
-            feature_table.batch_source for feature_table in feature_tables
-        ]
-
-        if isinstance(entity_source, pd.DataFrame):
-            if any(isinstance(source, BigQuerySource) for source in feature_sources):
-                first_bq_source = [
-                    source
-                    for source in feature_sources
-                    if isinstance(source, BigQuerySource)
-                ][0]
-                source_ref = table_reference_from_string(
-                    first_bq_source.bigquery_options.table_ref
-                )
-                entity_source = stage_entities_to_bq(
-                    entity_source, source_ref.project, source_ref.dataset_id
-                )
-            else:
-                entity_source = stage_entities_to_fs(
-                    entity_source,
-                    staging_location=self._config.get(opt.SPARK_STAGING_LOCATION),
-                    config=self._config,
-                )
-
-        if self._use_job_service:
-            response = self._job_service.GetHistoricalFeatures(
-                GetHistoricalFeaturesRequest(
-                    feature_refs=feature_refs,
-                    entity_source=entity_source.to_proto(),
-                    project=self.project,
-                    output_format=output_format,
-                    output_location=output_location,
-                ),
-                **self._extra_grpc_params(),
-            )
-            return RemoteRetrievalJob(
-                self._job_service,
-                self._extra_grpc_params,
-                response.id,
-                output_file_uri=response.output_file_uri,
-                start_time=response.job_start_time.ToDatetime(),
-                log_uri=response.log_uri,
-            )
-        else:
-            return start_historical_feature_retrieval_job(
-                client=self,
-                project=self.project,
-                entity_source=entity_source,
-                feature_tables=feature_tables,
-                output_format=output_format,
-                output_path=output_location,
-            )
-
-    def get_historical_features_df(
-        self, feature_refs: List[str], entity_source: Union[FileSource, BigQuerySource],
-    ):
-        """
-        Launch a historical feature retrieval job.
-
-        Args:
-            feature_refs: List of feature references that will be returned for each entity.
-                Each feature reference should have the following format:
-                "feature_table:feature" where "feature_table" & "feature" refer to
-                the feature and feature table names respectively.
-            entity_source (Union[FileSource, BigQuerySource]): Source for the entity rows.
-                The user needs to make sure that the source is accessible from the Spark cluster
-                that will be used for the retrieval job.
-
-        Returns:
-                Returns the historical feature retrieval result in the form of Spark dataframe.
-
-        Examples:
-            >>> from feast import Client
-            >>> from feast.data_format import ParquetFormat
-            >>> from datetime import datetime
-            >>> from pyspark.sql import SparkSession
-            >>> spark = SparkSession.builder.getOrCreate()
-            >>> feast_client = Client(core_url="localhost:6565")
-            >>> feature_refs = ["bookings:bookings_7d", "bookings:booking_14d"]
-            >>> entity_source = FileSource("event_timestamp", ParquetFormat, "gs://some-bucket/customer")
-            >>> df = feast_client.get_historical_features(
-            >>>     feature_refs, entity_source)
-        """
-        feature_tables = self._get_feature_tables_from_feature_refs(
-            feature_refs, self.project
-        )
-        return start_historical_feature_retrieval_spark_session(
-            client=self,
-            project=self.project,
-            entity_source=entity_source,
-            feature_tables=feature_tables,
-        )
-
-    def _get_feature_tables_from_feature_refs(
-        self, feature_refs: List[str], project: Optional[str]
-    ):
-        feature_refs_grouped_by_table = [
-            (feature_table_name, list(grouped_feature_refs))
-            for feature_table_name, grouped_feature_refs in groupby(
-                feature_refs, lambda x: x.split(":")[0]
-            )
-        ]
-
-        feature_tables = []
-        for feature_table_name, grouped_feature_refs in feature_refs_grouped_by_table:
-            feature_table = self.get_feature_table(feature_table_name, project)
-            feature_names = [f.split(":")[-1] for f in grouped_feature_refs]
-            feature_table.features = [
-                f for f in feature_table.features if f.name in feature_names
-            ]
-            feature_tables.append(feature_table)
-        return feature_tables
-
-    def start_offline_to_online_ingestion(
-        self, feature_table: FeatureTable, start: datetime, end: datetime,
-    ) -> SparkJob:
-        """
-
-        Launch Ingestion Job from Batch Source to Online Store for given featureTable
-
-        :param feature_table: FeatureTable which will be ingested
-        :param start: lower datetime boundary
-        :param end: upper datetime boundary
-        :return: Spark Job Proxy object
-        """
-        if not self._use_job_service:
-            return start_offline_to_online_ingestion(
-                client=self,
-                project=self.project,
-                feature_table=feature_table,
-                start=start,
-                end=end,
-            )
-        else:
-            request = StartOfflineToOnlineIngestionJobRequest(
-                project=self.project, table_name=feature_table.name,
-            )
-            request.start_date.FromDatetime(start)
-            request.end_date.FromDatetime(end)
-            response = self._job_service.StartOfflineToOnlineIngestionJob(request)
-            return RemoteBatchIngestionJob(
-                self._job_service,
-                self._extra_grpc_params,
-                response.id,
-                feature_table.name,
-                response.job_start_time.ToDatetime(),
-                response.log_uri,
-            )
-
-    def start_stream_to_online_ingestion(
-        self,
-        feature_table: FeatureTable,
-        extra_jars: Optional[List[str]] = None,
-        project: str = None,
-    ) -> SparkJob:
-        if not self._use_job_service:
-            return start_stream_to_online_ingestion(
-                client=self,
-                project=project or self.project,
-                feature_table=feature_table,
-                extra_jars=extra_jars or [],
-            )
-        else:
-            request = StartStreamToOnlineIngestionJobRequest(
-                project=self.project, table_name=feature_table.name,
-            )
-            response = self._job_service.StartStreamToOnlineIngestionJob(request)
-            return RemoteStreamIngestionJob(
-                self._job_service,
-                self._extra_grpc_params,
-                response.id,
-                feature_table.name,
-                response.job_start_time,
-                response.log_uri,
-            )
-
-    def list_jobs(
-        self, include_terminated: bool, table_name: Optional[str] = None
-    ) -> List[SparkJob]:
-        if not self._use_job_service:
-            return list_jobs(include_terminated, self, table_name)
-        else:
-            request = ListJobsRequest(
-                include_terminated=include_terminated, table_name=table_name
-            )
-            response = self._job_service.ListJobs(request)
-            return [
-                get_remote_job_from_proto(
-                    self._job_service, self._extra_grpc_params, job
-                )
-                for job in response.jobs
-            ]
-
-    def get_job_by_id(self, job_id: str) -> SparkJob:
-        if not self._use_job_service:
-            return get_job_by_id(job_id, self)
-        else:
-            request = GetJobRequest(job_id=job_id)
-            response = self._job_service.GetJob(request)
-            return get_remote_job_from_proto(
-                self._job_service, self._extra_grpc_params, response.job
-            )
-
-    def stage_dataframe(
-        self, df: pd.DataFrame, event_timestamp_column: str,
-    ) -> FileSource:
-        return stage_dataframe(df, event_timestamp_column, self._config)

@@ -79,22 +79,15 @@ test-python:
 format-python:
 	# Sort
 	cd ${ROOT_DIR}/sdk/python; isort feast/ tests/
-	cd ${ROOT_DIR}/tests/e2e; isort .
 
 	# Format
 	cd ${ROOT_DIR}/sdk/python; black --target-version py37 feast tests
-	cd ${ROOT_DIR}/tests/e2e; black --target-version py37 .
 
 lint-python:
 	cd ${ROOT_DIR}/sdk/python; mypy feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; isort feast/ tests/ --check-only
 	cd ${ROOT_DIR}/sdk/python; flake8 feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; black --check feast tests
-
-	cd ${ROOT_DIR}/tests; mypy e2e
-	cd ${ROOT_DIR}/tests; isort e2e --check-only
-	cd ${ROOT_DIR}/tests; flake8 e2e
-	cd ${ROOT_DIR}/tests; black --check e2e
 
 # Go SDK
 
@@ -122,15 +115,11 @@ build-push-docker:
 	@$(MAKE) push-core-docker registry=$(REGISTRY) version=$(VERSION)
 	@$(MAKE) push-serving-docker registry=$(REGISTRY) version=$(VERSION)
 	@$(MAKE) push-ci-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-jobservice-docker registry=$(REGISTRY) version=$(VERSION)
 
-build-docker: build-core-docker build-serving-docker build-ci-docker build-jobservice-docker
+build-docker: build-core-docker build-serving-docker build-ci-docker
 
 push-core-docker:
 	docker push $(REGISTRY)/feast-core:$(VERSION)
-
-push-jobservice-docker:
-	docker push $(REGISTRY)/feast-jobservice:$(VERSION)
 
 push-serving-docker:
 	docker push $(REGISTRY)/feast-serving:$(VERSION)
@@ -143,9 +132,6 @@ push-jupyter-docker:
 
 build-core-docker:
 	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
-
-build-jobservice-docker:
-	docker build -t $(REGISTRY)/feast-jobservice:$(VERSION) -f infra/docker/jobservice/Dockerfile .
 
 build-serving-docker:
 	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feast-serving:$(VERSION) -f infra/docker/serving/Dockerfile .
