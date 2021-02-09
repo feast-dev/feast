@@ -9,6 +9,7 @@ This guide installs Feast on Azure Kubernetes cluster (known as AKS), and ensure
 * Postgres
 * Redis
 * Spark
+* Kafka
 * Feast Jupyter \(Optional\)
 * Prometheus \(Optional\)
 
