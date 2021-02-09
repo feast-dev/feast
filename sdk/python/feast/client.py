@@ -971,7 +971,7 @@ class Client:
             if dir_path:
                 shutil.rmtree(dir_path)
 
-        print("Data has been successfully ingested into FeatureTable batch source.")
+        print("Data has been successfully ingested from FeatureTable batch source.")
 
     def _get_grpc_metadata(self):
         """
