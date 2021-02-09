@@ -33,7 +33,6 @@ object TypeConversion {
       case StringType  => ValueProto.Value.newBuilder().setStringVal(value.asInstanceOf[String])
       case DoubleType  => ValueProto.Value.newBuilder().setDoubleVal(value.asInstanceOf[Double])
       case FloatType   => ValueProto.Value.newBuilder().setFloatVal(value.asInstanceOf[Float])
-      case StringType  => ValueProto.Value.newBuilder().setStringVal(value.asInstanceOf[String])
       case BooleanType => ValueProto.Value.newBuilder().setBoolVal(value.asInstanceOf[Boolean])
       case BinaryType =>
         ValueProto.Value
