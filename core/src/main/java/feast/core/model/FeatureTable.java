@@ -362,7 +362,7 @@ public class FeatureTable extends AbstractTimestampEntity {
         this.getEntities().stream().map(entity -> entity.getName()).collect(Collectors.toList());
     Collections.sort(sortedEntities);
 
-    List<FeatureV2> sortedFeatures = new ArrayList(this.getFeatures());
+    List<FeatureV2> sortedFeatures = new ArrayList<>(this.getFeatures());
     List<FeatureSpecV2> sortedFeatureSpecs =
         sortedFeatures.stream().map(featureV2 -> featureV2.toProto()).collect(Collectors.toList());
     sortedFeatures.sort(Comparator.comparing(FeatureV2::getName));
