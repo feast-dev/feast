@@ -55,7 +55,7 @@ object StreamingPipeline extends BasePipeline with Serializable {
 
     val featureTable = config.featureTable
     val projection =
-      inputProjection(config.source, featureTable.features, featureTable.entities)
+      BasePipeline.inputProjection(config.source, featureTable.features, featureTable.entities)
     val rowValidator  = new RowValidator(featureTable, config.source.eventTimestampColumn)
     val metrics       = new IngestionPipelineMetrics
     val validationUDF = createValidationUDF(sparkSession, config)

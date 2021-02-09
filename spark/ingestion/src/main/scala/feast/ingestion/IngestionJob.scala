@@ -100,10 +100,10 @@ object IngestionJob {
         println(s"Starting with config $config")
         config.mode match {
           case Modes.Offline =>
-            val sparkSession = BatchPipeline.createSparkSession(config)
+            val sparkSession = BasePipeline.createSparkSession(config)
             BatchPipeline.createPipeline(sparkSession, config)
           case Modes.Online =>
-            val sparkSession = BatchPipeline.createSparkSession(config)
+            val sparkSession = BasePipeline.createSparkSession(config)
             StreamingPipeline.createPipeline(sparkSession, config).get.awaitTermination
         }
       case None =>

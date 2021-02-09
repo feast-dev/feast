@@ -37,7 +37,7 @@ object BatchPipeline extends BasePipeline {
   override def createPipeline(sparkSession: SparkSession, config: IngestionJobConfig) = {
     val featureTable = config.featureTable
     val projection =
-      inputProjection(config.source, featureTable.features, featureTable.entities)
+      BasePipeline.inputProjection(config.source, featureTable.features, featureTable.entities)
     val rowValidator = new RowValidator(featureTable, config.source.eventTimestampColumn)
     val metrics      = new IngestionPipelineMetrics
 
