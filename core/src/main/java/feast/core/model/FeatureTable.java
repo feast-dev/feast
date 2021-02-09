@@ -359,13 +359,13 @@ public class FeatureTable extends AbstractTimestampEntity {
 
   public String protoHash() {
     List<String> sortedEntities =
-        this.getEntities().stream().map(entity -> entity.getName()).collect(Collectors.toList());
-    Collections.sort(sortedEntities);
+        this.getEntities().stream().map(EntityV2::getName).sorted().collect(Collectors.toList());
 
-    List<FeatureV2> sortedFeatures = new ArrayList(this.getFeatures());
     List<FeatureSpecV2> sortedFeatureSpecs =
-        sortedFeatures.stream().map(featureV2 -> featureV2.toProto()).collect(Collectors.toList());
-    sortedFeatures.sort(Comparator.comparing(FeatureV2::getName));
+        this.getFeatures().stream()
+            .sorted(Comparator.comparing(FeatureV2::getName))
+            .map(FeatureV2::toProto)
+            .collect(Collectors.toList());
 
     DataSourceProto.DataSource streamSource = DataSourceProto.DataSource.getDefaultInstance();
     if (getStreamSource() != null) {
