@@ -23,10 +23,8 @@ import yaml
 
 from feast.client import Client
 from feast.config import Config
-from feast.constants import ConfigOptions as opt
 from feast.entity import Entity
 from feast.feature_table import FeatureTable
-from feast.job_service import start_job_service
 from feast.loaders.yaml import yaml_loader
 
 _logger = logging.getLogger(__name__)

@@ -23,6 +23,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import grpc
 import pandas as pd
+
 from feast.config import Config
 from feast.constants import ConfigOptions as opt
 from feast.core.CoreService_pb2 import (
@@ -72,11 +73,6 @@ from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequestV2,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
-from feast.staging.entities import (
-    stage_entities_to_bq,
-    stage_entities_to_fs,
-    table_reference_from_string,
-)
 from feast.telemetry import log_usage
 
 _logger = logging.getLogger(__name__)

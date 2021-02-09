@@ -79,22 +79,15 @@ test-python:
 format-python:
 	# Sort
 	cd ${ROOT_DIR}/sdk/python; isort feast/ tests/
-	cd ${ROOT_DIR}/tests/e2e; isort .
 
 	# Format
 	cd ${ROOT_DIR}/sdk/python; black --target-version py37 feast tests
-	cd ${ROOT_DIR}/tests/e2e; black --target-version py37 .
 
 lint-python:
 	cd ${ROOT_DIR}/sdk/python; mypy feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; isort feast/ tests/ --check-only
 	cd ${ROOT_DIR}/sdk/python; flake8 feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; black --check feast tests
-
-	cd ${ROOT_DIR}/tests; mypy e2e
-	cd ${ROOT_DIR}/tests; isort e2e --check-only
-	cd ${ROOT_DIR}/tests; flake8 e2e
-	cd ${ROOT_DIR}/tests; black --check e2e
 
 # Go SDK
 
