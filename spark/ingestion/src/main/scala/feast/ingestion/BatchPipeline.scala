@@ -23,6 +23,7 @@ import feast.ingestion.validation.{RowValidator, TypeCheck}
 import org.apache.commons.lang.StringUtils
 import org.apache.spark.SparkEnv
 import org.apache.spark.sql.catalyst.encoders.RowEncoder
+import org.apache.spark.sql.streaming.StreamingQuery
 import org.apache.spark.sql.{Encoder, Row, SaveMode, SparkSession}
 
 /**
@@ -34,7 +35,10 @@ import org.apache.spark.sql.{Encoder, Row, SaveMode, SparkSession}
   * 5. Store invalid rows in parquet format at `deadletter` destination
   */
 object BatchPipeline extends BasePipeline {
-  override def createPipeline(sparkSession: SparkSession, config: IngestionJobConfig) = {
+  override def createPipeline(
+      sparkSession: SparkSession,
+      config: IngestionJobConfig
+  ): Option[StreamingQuery] = {
     val featureTable = config.featureTable
     val projection =
       inputProjection(config.source, featureTable.features, featureTable.entities)
