@@ -81,16 +81,14 @@ object BatchPipeline extends BasePipeline {
       .option("max_age", config.featureTable.maxAge.getOrElse(0L))
       .save()
 
-    config.deadLetterPath match {
-      case Some(path) =>
-        projected
-          .filter(!rowValidator.allChecks)
-          .map(metrics.incrementDeadLetters)
-          .write
-          .format("parquet")
-          .mode(SaveMode.Append)
-          .save(StringUtils.stripEnd(path, "/") + "/" + SparkEnv.get.conf.getAppId)
-      case _ => None
+    config.deadLetterPath foreach { path =>
+      projected
+        .filter(!rowValidator.allChecks)
+        .map(metrics.incrementDeadLetters)
+        .write
+        .format("parquet")
+        .mode(SaveMode.Append)
+        .save(StringUtils.stripEnd(path, "/") + "/" + SparkEnv.get.conf.getAppId)
     }
 
     None

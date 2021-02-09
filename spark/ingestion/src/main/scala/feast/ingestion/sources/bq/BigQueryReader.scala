@@ -34,13 +34,10 @@ object BigQueryReader {
       .format("bigquery")
       .option("viewsEnabled", "true")
 
-    source.materialization match {
-      case Some(materializationConfig) =>
-        reader
-          .option("materializationProject", materializationConfig.project)
-          .option("materializationDataset", materializationConfig.dataset)
-
-      case _ => ()
+    source.materialization foreach { materializationConfig =>
+      reader
+        .option("materializationProject", materializationConfig.project)
+        .option("materializationDataset", materializationConfig.dataset)
     }
 
     reader
