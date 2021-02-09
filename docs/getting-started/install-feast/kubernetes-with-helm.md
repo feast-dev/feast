@@ -1,6 +1,6 @@
 # Kubernetes \(with Helm\)
 
-### Overview <a id="m_5245424069798496115gmail-overview-1"></a>
+## Overview <a id="m_5245424069798496115gmail-overview-1"></a>
 
 This guide installs Feast on an existing Kubernetes cluster, and ensures the following services are running:
 
@@ -11,12 +11,12 @@ This guide installs Feast on an existing Kubernetes cluster, and ensures the fol
 * Feast Jupyter \(Optional\)
 * Prometheus \(Optional\)
 
-### 1. Requirements
+## 1. Requirements
 
 1. Install and configure [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 2. Install [Helm 3](https://helm.sh/)
 
-### 2. Preparation
+## 2. Preparation
 
 Add the Feast Helm repository and download the latest charts:
 
@@ -27,13 +27,13 @@ helm repo update
 
 Feast includes a Helm chart that installs all necessary components to run Feast Core, Feast Online Serving, and an example Jupyter notebook.
 
-Feast Core requires Postgres to run, which requires a secret to be set on Kubernetes: 
+Feast Core requires Postgres to run, which requires a secret to be set on Kubernetes:
 
 ```bash
 kubectl create secret generic feast-postgresql --from-literal=postgresql-password=password
 ```
 
-### 3. Installation
+## 3. Installation
 
 Install Feast using Helm. The pods may take a few minutes to initialize.
 
@@ -41,13 +41,13 @@ Install Feast using Helm. The pods may take a few minutes to initialize.
 helm install feast-release feast-charts/feast
 ```
 
-### 4. Use Jupyter to connect to Feast
+## 4. Use Jupyter to connect to Feast
 
 After all the pods are in a `RUNNING` state, port-forward to the Jupyter Notebook Server in the cluster:
 
 ```bash
 kubectl port-forward \
-$(kubectl get pod -o custom-columns=:metadata.name | grep jupyter) 8888:8888
+$(kubectl get pod -l app=feast-jupyter -o custom-columns=:metadata.name) 8888:8888
 ```
 
 ```text
@@ -59,7 +59,7 @@ You can now connect to the bundled Jupyter Notebook Server at `localhost:8888` a
 
 {% embed url="http://localhost:8888/tree?" caption="" %}
 
-### 5. Further Reading
+## 5. Further Reading
 
 * [Feast Concepts](../../concepts/overview.md)
 * [Feast Examples/Tutorials](https://github.com/feast-dev/feast/tree/master/examples)

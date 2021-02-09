@@ -2,7 +2,7 @@
 
 ![](../.gitbook/assets/image%20%286%29%20%281%29.png)
 
-### Sequence description
+## Sequence description
 
 1. **Log Raw Events:** Production backend applications are configured to emit internal state changes as events to a stream.
 2. **Create Stream Features:** Stream processing systems like Flink, Spark, and Beam are used to transform and refine events and to produce features that are logged back to the stream.
@@ -28,7 +28,7 @@ Limitations
 * Batch ingestion jobs must be triggered from your own scheduler like Airflow. Streaming ingestion jobs are automatically launched by the Feast Job Service.
 {% endhint %}
 
-### Components:
+## Components:
 
 A complete Feast deployment contains the following components:
 
@@ -40,7 +40,7 @@ A complete Feast deployment contains the following components:
   * Launch jobs through the Feast Job Service.
   * Retrieve training datasets.
   * Retrieve online features.
-* **Online Store:** The online store is a database that stores only the latest feature values for each entity entity. The online store can be populated by either batch ingestion jobs \(in the case the user has no streaming source\), or can be populated by a streaming ingestion job from a streaming source. Feast Online Serving looks up feature values from the online store.
+* **Online Store:** The online store is a database that stores only the latest feature values for each entity. The online store can be populated by either batch ingestion jobs \(in the case the user has no streaming source\), or can be populated by a streaming ingestion job from a streaming source. Feast Online Serving looks up feature values from the online store.
 * **Offline Store:** The offline store persists batch data that has been ingested into Feast. This data is used for producing training datasets.
 
 Please see the [configuration reference](../reference/configuration-reference.md#overview) for more details on configuring these components.

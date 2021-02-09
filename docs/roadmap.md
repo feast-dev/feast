@@ -6,11 +6,11 @@
 
 ### New Functionality
 
-* Feast Job Service
-* Delta offline store support. Optional for users
-* Push based ingestion into offline store
-* On-prem support \(Open source storage and launcher\)
-* Azure support
+* Added Feast Job Service for management of ingestion and retrieval jobs
+* Added support for [Spark on K8s Operator](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator) as Spark job launcher
+* Added Azure deployment and storage support \([\#1241](https://github.com/feast-dev/feast/pull/1241)\)
+
+Note: Please see discussion thread above for functionality that did not make this release.
 
 ## Feast 0.8
 

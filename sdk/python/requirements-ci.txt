@@ -3,7 +3,6 @@ flake8
 black==19.10b0
 isort>=5
 grpcio-tools==1.31.0
-mypy-protobuf
 pyspark==3.0.1
 pandas~=1.0.0
 mock==2.0.0
