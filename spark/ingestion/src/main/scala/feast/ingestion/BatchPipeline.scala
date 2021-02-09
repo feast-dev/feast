@@ -60,10 +60,8 @@ object BatchPipeline extends BasePipeline {
 
     val projected = input.select(projection: _*).cache()
 
-    TypeCheck.allTypesMatch(projected.schema, featureTable) match {
-      case Some(error) =>
-        throw new RuntimeException(s"Dataframe columns don't match expected feature types: $error")
-      case _ => ()
+    TypeCheck.allTypesMatch(projected.schema, featureTable).foreach { error =>
+      throw new RuntimeException(s"Dataframe columns don't match expected feature types: $error")
     }
 
     implicit val rowEncoder: Encoder[Row] = RowEncoder(projected.schema)
