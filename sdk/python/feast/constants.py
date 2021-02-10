@@ -262,6 +262,9 @@ class ConfigOptions(metaclass=ConfigMeta):
     #: Telemetry enabled
     TELEMETRY = "True"
 
+    #: Object store registry
+    REGISTRY_PATH: Optional[str] = None
+
     def defaults(self):
         return {
             k: getattr(self, k)

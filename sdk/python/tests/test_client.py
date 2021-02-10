@@ -29,6 +29,7 @@ from mock import MagicMock, patch
 from pandas.util.testing import assert_frame_equal
 from pyarrow import parquet as pq
 from pytest_lazyfixture import lazy_fixture
+from tempfile import mkstemp
 
 from feast.client import Client
 from feast.core import CoreService_pb2_grpc as Core
@@ -127,6 +128,13 @@ class TestClient:
         client._core_url = CORE_URL
         client._serving_url = SERVING_URL
         return client
+
+    @pytest.fixture
+    def client_with_object_registry(self):
+        fd, path = mkstemp()
+        return Client(
+            registry_path=path,
+        )
 
     @pytest.fixture
     def server_credentials(self):
@@ -364,7 +372,7 @@ class TestClient:
         assert 1 == 1
 
     @pytest.mark.parametrize(
-        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client")],
+        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client"), lazy_fixture("client_with_object_registry")],
     )
     def test_apply_entity_success(self, test_client):
 
@@ -392,7 +400,7 @@ class TestClient:
         )
 
     @pytest.mark.parametrize(
-        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client")],
+        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client"), lazy_fixture("client_with_object_registry")],
     )
     def test_apply_feature_table_success(self, test_client):
 
