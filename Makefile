@@ -156,7 +156,6 @@ install-dependencies-proto-docs:
 	cd $$(mktemp -d) && \
 	git clone https://github.com/istio/tools/ && \
 	cd tools/cmd/protoc-gen-docs && \
-	git reset --hard 83028f93935118444739d2206bcfd62fa869fa4e
 	go build && \
 	cp protoc-gen-docs $$HOME/bin && \
 	cd $$HOME && curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v3.11.2/protoc-3.11.2-linux-x86_64.zip && \
