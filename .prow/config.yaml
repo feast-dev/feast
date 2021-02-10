@@ -171,30 +171,6 @@ presubmits:
       - image: golang:1.13
         command: ["infra/scripts/test-golang-sdk.sh"]
 
-  - name: python-sdk-integration-test
-    decorate: true
-    always_run: true
-    spec:
-      containers:
-        - image: gcr.io/kf-feast/feast-ci:latest
-          command: ["infra/scripts/test-integration.sh"]
-          resources:
-            requests:
-              cpu: "1"
-              memory: "3072Mi"
-          env:
-            - name: GOOGLE_APPLICATION_CREDENTIALS
-              value: /etc/gcloud/service-account.json
-          volumeMounts:
-            - mountPath: /etc/gcloud/service-account.json
-              name: service-account
-              readOnly: true
-              subPath: service-account.json
-      volumes:
-        - name: service-account
-          secret:
-            secretName: feast-service-account
-
 postsubmits:
   feast-dev/feast:
   - name: publish-python-sdk
