@@ -147,20 +147,3 @@ jobs:
           name: it-report
           path: spark/ingestion/target/test-reports/TestSuite.txt
           retention-days: 5
-
-  tests-docker-compose:
-    needs:
-    - build-push-docker-images
-    - publish-ingestion-jar
-    runs-on: ubuntu-latest
-    env:
-      INGESTION_JAR_PATH: /shared/feast-ingestion-spark-develop.jar
-    steps:
-      - uses: actions/checkout@v2
-      - name: Download ingestion jar
-        uses: actions/download-artifact@v2
-        with:
-          name: ingestion-jar
-          path: ./infra/docker-compose/
-      - name: Test docker compose
-        run: ./infra/scripts/test-docker-compose.sh ${GITHUB_SHA}
