@@ -9,7 +9,7 @@ Pre-requisites:
 From the Feast project root directory, run the following Maven command to start Feast Serving gRPC service running on port 6566 locally:
 
 ```bash
-# Assumptions: 
+# Assumptions:
 # - Local Feast Core is running on localhost:6565
 # Uses configuration from serving/src/main/resources/application.yml
 mvn -pl serving spring-boot:run -Dspring-boot.run.arguments=\
