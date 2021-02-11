@@ -340,7 +340,7 @@ def project_archive(name: str):
 @project.command(name="list")
 def project_list():
     """
-    List all projects
+    List all projects!
     """
     feast_client = Client()  # type: Client
 
