@@ -108,7 +108,7 @@ postsubmits:
       - sh
       - -c
       - |
-        make compile-protos-python && infra/scripts/publish-python-sdk.sh \
+        make package-protos && make compile-protos-python && infra/scripts/publish-python-sdk.sh \
           --directory-path sdk/python --repository pypi
       volumeMounts:
       - name: pypirc

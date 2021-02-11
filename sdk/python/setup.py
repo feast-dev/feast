@@ -94,4 +94,11 @@ setup(
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version={"root": "../..", "relative_to": __file__, "tag_regex": TAG_REGEX},
     setup_requires=["setuptools_scm"],
+    package_data={
+        "": [
+            "protos/feast/**/*.proto",
+            "protos/feast/third_party/grpc/health/v1/*.proto",
+            "protos/tensorflow_metadata/proto/v0/*.proto",
+        ],
+    },
 )
