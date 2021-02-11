@@ -51,7 +51,6 @@ from feast.core.CoreService_pb2 import (
     ListProjectsResponse,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
-from feast.core.JobService_pb2_grpc import JobServiceStub
 from feast.data_format import ParquetFormat
 from feast.data_source import BigQuerySource, FileSource
 from feast.entity import Entity
@@ -114,7 +113,6 @@ class Client:
 
         self._core_service_stub: Optional[CoreServiceStub] = None
         self._serving_service_stub: Optional[ServingServiceStub] = None
-        self._job_service_stub: Optional[JobServiceStub] = None
         self._auth_metadata: Optional[grpc.AuthMetadataPlugin] = None
 
         # Configure Auth Metadata Plugin if auth is enabled
