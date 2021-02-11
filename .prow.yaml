@@ -99,7 +99,6 @@ presubmits:
         command: ["infra/scripts/test-golang-sdk.sh"]
 
 postsubmits:
-  feast-dev/feast:
   - name: publish-python-sdk
     decorate: true
     spec:
