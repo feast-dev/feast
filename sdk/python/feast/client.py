@@ -68,7 +68,7 @@ from feast.loaders.ingest import (
     _write_partitioned_table_from_source,
 )
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
-from feast.registry import LocalRegistry
+from feast.registry import Registry
 from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoRequest,
     GetOnlineFeaturesRequestV2,
@@ -117,6 +117,7 @@ class Client:
         self._serving_service_stub: Optional[ServingServiceStub] = None
         self._job_service_stub: Optional[JobServiceStub] = None
         self._auth_metadata: Optional[grpc.AuthMetadataPlugin] = None
+        self._registry_impl: Optional[Registry] = None
 
         # Configure Auth Metadata Plugin if auth is enabled
         if self._config.getboolean(opt.ENABLE_AUTH):
@@ -153,8 +154,9 @@ class Client:
 
     @property
     def _registry(self):
-        # TODO make this long-lived
-        return LocalRegistry(self._config.get(opt.REGISTRY_PATH))
+        if self._registry_impl is None:
+            self._registry_impl = Registry(self._config.get(opt.REGISTRY_PATH))
+        return self._registry_impl
 
     @property
     def _serving_service(self):

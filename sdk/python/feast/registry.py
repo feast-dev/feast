@@ -24,7 +24,11 @@ import uuid
 REGISTRY_SCHEMA_VERSION = 1
 
 
-class Registry(ABC):
+class Registry:
+    def __init__(self, registry_path: str):
+        self._registry_store = LocalRegistryStore(registry_path)
+        return
+
     def apply_entity(self, entity: Entity):
         entity.is_valid()
         entity_proto = entity.to_proto()
@@ -35,18 +39,18 @@ class Registry(ABC):
                     return registry_proto
             registry_proto.entities.append(entity_proto)
             return registry_proto
-        self._update_registry(updater)
+        self._registry_store.update_registry(updater)
         return
 
     def list_entities(self):
-        registry_proto = self._get_registry()
+        registry_proto = self._registry_store.get_registry()
         entities = []
         for entity_proto in registry_proto.entities:
             entities.append(Entity.from_proto(entity_proto))
         return entities
 
     def get_entity(self, name: str):
-        registry_proto = self._get_registry()
+        registry_proto = self._registry_store.get_registry()
         for entity_proto in registry.entities:
             if entity_proto.spec.name == name:
                 return Entity.from_proto(entity_proto)
@@ -62,18 +66,18 @@ class Registry(ABC):
                     return registry_proto
             registry_proto.feature_tables.append(feature_table_proto)
             return registry_proto
-        self._update_registry(updater)
+        self._registry_store.update_registry(updater)
         return
 
     def list_feature_tables(self):
-        registry_proto = self._get_registry()
+        registry_proto = self._registry_store.get_registry()
         feature_tables = []
         for feature_table_proto in registry_proto.feature_tables:
             feature_tables.append(FeatureTable.from_proto(feature_table_proto))
         return feature_tables
 
     def get_feature_table(self, name: str):
-        registry_proto = self._get_registry()
+        registry_proto = self._registry_store.get_registry()
         for feature_table_proto in registry_proto.feature_tables:
             if feature_table_proto.spec.name == name:
                 return FeatureTable.from_proto(feature_table_proto)
@@ -86,37 +90,41 @@ class Registry(ABC):
                     del registry_proto.feature_tables[idx]
                     return registry_proto
             raise Exception(f"Feature table {name} does not exist")
-        self._update_registry(updater)
+        self._registry_store.update_registry(updater)
         return
 
+
+class RegistryStore(ABC):
     @abstractmethod
-    def _get_registry(self):
+    def get_registry(self):
         pass
 
     @abstractmethod
-    def _update_registry(self, updater: Callable[[RegistryProto], RegistryProto]):
+    def update_registry(self, updater: Callable[[RegistryProto], RegistryProto]):
         pass
 
 
-class LocalRegistry(Registry):
+class LocalRegistryStore(RegistryStore):
     def __init__(self, filepath: str):
         self._filepath = Path(filepath)
         if not self._filepath.exists():
             registry_proto = RegistryProto()
             registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
-            registry_proto.version = str(uuid.uuid4())
-            registry_proto.last_updated.FromDatetime(datetime.utcnow())
-            self._filepath.write_bytes(registry_proto.SerializeToString())
+            self._write_registry(registry_proto)
         return
 
-    def _get_registry(self):
+    def get_registry(self):
         registry_proto = RegistryProto()
         registry_proto.ParseFromString(self._filepath.read_bytes())
         return registry_proto
 
-    def _update_registry(self, updater: Callable[[RegistryProto], RegistryProto]):
-        registry_proto = self._get_registry()
+    def update_registry(self, updater: Callable[[RegistryProto], RegistryProto]):
+        registry_proto = self.get_registry()
         registry_proto = updater(registry_proto)
+        self._write_registry(registry_proto)
+        return
+
+    def _write_registry(self, registry_proto: RegistryProto):
         registry_proto.version = str(uuid.uuid4())
         registry_proto.last_updated.FromDatetime(datetime.utcnow())
         self._filepath.write_bytes(registry_proto.SerializeToString())
