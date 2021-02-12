@@ -111,8 +111,6 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
       - run: gcloud auth configure-docker --quiet
-      - name: Validate repository versions
-        run: make lint-versions
       - name: Validate chart release versions
         run: ./infra/scripts/validate-helm-chart-docker-image.sh
       - name: Remove previous Helm
