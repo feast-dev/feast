@@ -29,6 +29,7 @@ message Entity {
     EntitySpecV2 spec = 1;
     // System-populated metadata for this entity.
     EntityMeta meta = 2;
+    string project = 3;
 }
 
 message EntitySpecV2 {

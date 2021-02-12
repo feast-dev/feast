@@ -34,6 +34,7 @@ message FeatureTable {
 
     // System-populated metadata for this feature table.
     FeatureTableMeta meta = 2;
+    string project = 3;
 }
 
 message FeatureTableSpec {

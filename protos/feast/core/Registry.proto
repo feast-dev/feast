@@ -29,7 +29,7 @@ message Registry {
     repeated Entity entities = 1;
     repeated FeatureTable feature_tables = 2;
 
-    string registry_schema_version = 3; // to support migrations
-    string version = 4; // version id, random string generated on each update
+    string registry_schema_version = 3; // to support migrations; incremented when schema is changed
+    string version_id = 4; // version id, random string generated on each update of the data; now used only for debugging purposes
     google.protobuf.Timestamp last_updated = 5;
 }

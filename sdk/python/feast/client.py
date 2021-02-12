@@ -539,7 +539,7 @@ class Client:
         """
 
         if self._use_object_store_registry:
-            return self._registry.apply_entity(entity)
+            return self._registry.apply_entity(entity, project)
         else:
             entity.is_valid()
             entity_proto = entity.to_spec_proto()
@@ -574,12 +574,12 @@ class Client:
             List of entities
         """
 
-        if self._use_object_store_registry:
-            return self._registry.list_entities()
-        else:
-            if project is None:
-                project = self.project
+        if project is None:
+            project = self.project
 
+        if self._use_object_store_registry:
+            return self._registry.list_entities(project)
+        else:
             filter = ListEntitiesRequest.Filter(project=project, labels=labels)
 
             # Get latest entities from Feast Core
@@ -616,12 +616,13 @@ class Client:
                 self.version(sdk_only=True),
             )
 
-        if self._use_object_store_registry:
-            return self._registry.get_entity(name)
-        else:
-            if project is None:
-                project = self.project
+        if project is None:
+            project = self.project
 
+
+        if self._use_object_store_registry:
+            return self._registry.get_entity(name, project)
+        else:
             try:
                 get_entity_response = self._core_service.GetEntity(
                     GetEntityRequest(project=project, name=name.strip()),
@@ -668,7 +669,7 @@ class Client:
         """
 
         if self._use_object_store_registry:
-            return self._registry.apply_feature_table(feature_table)
+            return self._registry.apply_feature_table(feature_table, project)
         else:
             feature_table.is_valid()
             feature_table_proto = feature_table.to_spec_proto()
@@ -704,12 +705,12 @@ class Client:
             List of feature tables
         """
 
-        if self._use_object_store_registry:
-            return self._registry.list_feature_tables()
-        else:
-            if project is None:
-                project = self.project
+        if project is None:
+            project = self.project
 
+        if self._use_object_store_registry:
+            return self._registry.list_feature_tables(project)
+        else:
             filter = ListFeatureTablesRequest.Filter(project=project, labels=labels)
 
             # Get latest feature tables from Feast Core
@@ -746,12 +747,12 @@ class Client:
                 self.version(sdk_only=True),
             )
 
-        if self._use_object_store_registry:
-            return self._registry.get_feature_table(name)
-        else:
-            if project is None:
-                project = self.project
+        if project is None:
+            project = self.project
 
+        if self._use_object_store_registry:
+            return self._registry.get_feature_table(name, project)
+        else:
             try:
                 get_feature_table_response = self._core_service.GetFeatureTable(
                     GetFeatureTableRequest(project=project, name=name.strip()),
@@ -770,12 +771,12 @@ class Client:
             name: Name of feature table
         """
 
-        if self._use_object_store_registry:
-            return self._registry.delete_feature_table(name)
-        else:
-            if project is None:
-                project = self.project
+        if project is None:
+            project = self.project
 
+        if self._use_object_store_registry:
+            return self._registry.delete_feature_table(name, project)
+        else:
             try:
                 self._core_service.DeleteFeatureTable(
                     DeleteFeatureTableRequest(project=project, name=name.strip()),

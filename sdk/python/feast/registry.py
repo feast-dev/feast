@@ -18,7 +18,7 @@ from feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.entity import Entity
 from feast.feature_table import FeatureTable
 from pathlib import Path
-from typing import Callable
+from typing import Callable, List
 import uuid
 
 REGISTRY_SCHEMA_VERSION = 1
@@ -29,12 +29,13 @@ class Registry:
         self._registry_store = LocalRegistryStore(registry_path)
         return
 
-    def apply_entity(self, entity: Entity):
+    def apply_entity(self, entity: Entity, project: str):
         entity.is_valid()
         entity_proto = entity.to_proto()
+        entity_proto.project = project
         def updater(registry_proto: RegistryProto):
             for idx, existing_entity_proto in enumerate(registry_proto.entities):
-                if existing_entity_proto.spec.name == entity_proto.spec.name:
+                if existing_entity_proto.spec.name == entity_proto.spec.name and existing_entity_proto.project == project:
                     registry_proto.entities[idx] = entity_proto
                     return registry_proto
             registry_proto.entities.append(entity_proto)
@@ -42,26 +43,28 @@ class Registry:
         self._registry_store.update_registry(updater)
         return
 
-    def list_entities(self):
+    def list_entities(self, project: str) -> List[Entity]:
         registry_proto = self._registry_store.get_registry()
         entities = []
         for entity_proto in registry_proto.entities:
-            entities.append(Entity.from_proto(entity_proto))
+            if entity_proto.project == project:
+                entities.append(Entity.from_proto(entity_proto))
         return entities
 
-    def get_entity(self, name: str):
+    def get_entity(self, name: str, project: str) -> Entity:
         registry_proto = self._registry_store.get_registry()
         for entity_proto in registry_proto.entities:
-            if entity_proto.spec.name == name:
+            if entity_proto.spec.name == name and entity_proto.project == project:
                 return Entity.from_proto(entity_proto)
-        raise Exception(f"Entity {name} does not exist")
+        raise Exception(f"Entity {name} does not exist in project {project}")
 
-    def apply_feature_table(self, feature_table: FeatureTable):
+    def apply_feature_table(self, feature_table: FeatureTable, project: str):
         feature_table.is_valid()
         feature_table_proto = feature_table.to_proto()
+        feature_table_proto.project = project
         def updater(registry_proto: RegistryProto):
             for idx, existing_feature_table_proto in enumerate(registry_proto.feature_tables):
-                if existing_feature_table_proto.spec.name == feature_table_proto.spec.name:
+                if existing_feature_table_proto.spec.name == feature_table_proto.spec.name and existing_feature_table_proto.project == project:
                     registry_proto.feature_tables[idx] = feature_table_proto
                     return registry_proto
             registry_proto.feature_tables.append(feature_table_proto)
@@ -69,27 +72,28 @@ class Registry:
         self._registry_store.update_registry(updater)
         return
 
-    def list_feature_tables(self):
+    def list_feature_tables(self, project: str) -> List[FeatureTable]:
         registry_proto = self._registry_store.get_registry()
         feature_tables = []
         for feature_table_proto in registry_proto.feature_tables:
-            feature_tables.append(FeatureTable.from_proto(feature_table_proto))
+            if feature_table_proto.project == project:
+                feature_tables.append(FeatureTable.from_proto(feature_table_proto))
         return feature_tables
 
-    def get_feature_table(self, name: str):
+    def get_feature_table(self, name: str, project: str) -> FeatureTable:
         registry_proto = self._registry_store.get_registry()
         for feature_table_proto in registry_proto.feature_tables:
-            if feature_table_proto.spec.name == name:
+            if feature_table_proto.spec.name == name and feature_table_proto.project == project:
                 return FeatureTable.from_proto(feature_table_proto)
-        raise Exception(f"Feature table {name} does not exist")
+        raise Exception(f"Feature table {name} does not exist in project {project}")
 
-    def delete_feature_table(self, name: str):
+    def delete_feature_table(self, name: str, project: str):
         def updater(registry_proto: RegistryProto):
             for idx, existing_feature_table_proto in enumerate(registry_proto.feature_tables):
-                if existing_feature_table_proto.spec.name == name:
+                if existing_feature_table_proto.spec.name == name and existing_feature_table_proto.project == project:
                     del registry_proto.feature_tables[idx]
                     return registry_proto
-            raise Exception(f"Feature table {name} does not exist")
+            raise Exception(f"Feature table {name} does not exist in project {project}")
         self._registry_store.update_registry(updater)
         return
 
@@ -125,7 +129,7 @@ class LocalRegistryStore(RegistryStore):
         return
 
     def _write_registry(self, registry_proto: RegistryProto):
-        registry_proto.version = str(uuid.uuid4())
+        registry_proto.version_id = str(uuid.uuid4())
         registry_proto.last_updated.FromDatetime(datetime.utcnow())
         self._filepath.write_bytes(registry_proto.SerializeToString())
         return
