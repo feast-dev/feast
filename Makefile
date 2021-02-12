@@ -17,7 +17,6 @@
 ROOT_DIR 	:= $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 PROTO_TYPE_SUBDIRS = core serving types storage
 PROTO_SERVICE_SUBDIRS = core serving
-MVN := mvn ${MAVEN_EXTRA_OPTS}
 
 # General
 
@@ -86,29 +85,15 @@ lint-go:
 
 build-push-docker:
 	@$(MAKE) build-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-core-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-serving-docker registry=$(REGISTRY) version=$(VERSION)
 	@$(MAKE) push-ci-docker registry=$(REGISTRY) version=$(VERSION)
 
-build-docker: build-core-docker build-serving-docker build-ci-docker
-
-push-core-docker:
-	docker push $(REGISTRY)/feast-core:$(VERSION)
-
-push-serving-docker:
-	docker push $(REGISTRY)/feast-serving:$(VERSION)
+build-docker: build-ci-docker
 
 push-ci-docker:
 	docker push $(REGISTRY)/feast-ci:$(VERSION)
 
 push-jupyter-docker:
 	docker push $(REGISTRY)/feast-jupyter:$(VERSION)
-
-build-core-docker:
-	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
-
-build-serving-docker:
-	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feast-serving:$(VERSION) -f infra/docker/serving/Dockerfile .
 
 build-ci-docker:
 	docker build -t $(REGISTRY)/feast-ci:$(VERSION) -f infra/docker/ci/Dockerfile .
