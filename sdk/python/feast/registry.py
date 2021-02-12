@@ -51,7 +51,7 @@ class Registry:
 
     def get_entity(self, name: str):
         registry_proto = self._registry_store.get_registry()
-        for entity_proto in registry.entities:
+        for entity_proto in registry_proto.entities:
             if entity_proto.spec.name == name:
                 return Entity.from_proto(entity_proto)
         raise Exception(f"Entity {name} does not exist")
@@ -86,7 +86,7 @@ class Registry:
     def delete_feature_table(self, name: str):
         def updater(registry_proto: RegistryProto):
             for idx, existing_feature_table_proto in enumerate(registry_proto.feature_tables):
-                if existing_feature_table_proto.spec.name == feature_table_proto.spec.name:
+                if existing_feature_table_proto.spec.name == name:
                     del registry_proto.feature_tables[idx]
                     return registry_proto
             raise Exception(f"Feature table {name} does not exist")

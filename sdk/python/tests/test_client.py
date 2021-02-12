@@ -399,6 +399,15 @@ class TestClient:
             and entity.labels["team"] == "matchmaking"
         )
 
+        entity = test_client.get_entity("driver_car_id")
+        assert (
+            entity.name == "driver_car_id"
+            and entity.value_type == ValueType(ValueProto.ValueType.STRING)
+            and entity.description == "Car driver id"
+            and "team" in entity.labels
+            and entity.labels["team"] == "matchmaking"
+        )
+
     @pytest.mark.parametrize(
         "test_client", [lazy_fixture("client"), lazy_fixture("secure_client"), lazy_fixture("client_with_object_registry")],
     )
@@ -455,6 +464,25 @@ class TestClient:
             and feature_tables[0].features[3].dtype == ValueType.BYTES_LIST
             and feature_tables[0].entities[0] == "fs1-my-entity-1"
         )
+
+        feature_table = test_client.get_feature_table("my-feature-table-1")
+        assert (
+            feature_table.name == "my-feature-table-1"
+            and feature_table.features[0].name == "fs1-my-feature-1"
+            and feature_table.features[0].dtype == ValueType.INT64
+            and feature_table.features[1].name == "fs1-my-feature-2"
+            and feature_table.features[1].dtype == ValueType.STRING
+            and feature_table.features[2].name == "fs1-my-feature-3"
+            and feature_table.features[2].dtype == ValueType.STRING_LIST
+            and feature_table.features[3].name == "fs1-my-feature-4"
+            and feature_table.features[3].dtype == ValueType.BYTES_LIST
+            and feature_table.entities[0] == "fs1-my-entity-1"
+        )
+
+        test_client.delete_feature_table("my-feature-table-1")
+        feature_tables = test_client.list_feature_tables()
+        assert(len(feature_tables) == 0)
+
 
     @pytest.mark.parametrize(
         "test_client", [lazy_fixture("client"), lazy_fixture("secure_client")]
