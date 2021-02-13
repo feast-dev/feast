@@ -18,15 +18,23 @@ from feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.entity import Entity
 from feast.feature_table import FeatureTable
 from pathlib import Path
+from tempfile import TemporaryFile
 from typing import Callable, List
+from urllib.parse import urlparse
 import uuid
 
-REGISTRY_SCHEMA_VERSION = 1
+REGISTRY_SCHEMA_VERSION = "1"
 
 
 class Registry:
     def __init__(self, registry_path: str):
-        self._registry_store = LocalRegistryStore(registry_path)
+        uri = urlparse(registry_path)
+        if uri.scheme == "gs":
+            self._registry_store = GCPRegistryStore(registry_path)
+        elif uri.scheme == "file" or uri.scheme == "":
+            self._registry_store = LocalRegistryStore(registry_path)
+        else:
+            raise Exception(f"Registry path {registry_path} has unsupported scheme {uri.scheme}. Supported schemes are file and gs.")
         return
 
     def apply_entity(self, entity: Entity, project: str):
@@ -132,4 +140,58 @@ class LocalRegistryStore(RegistryStore):
         registry_proto.version_id = str(uuid.uuid4())
         registry_proto.last_updated.FromDatetime(datetime.utcnow())
         self._filepath.write_bytes(registry_proto.SerializeToString())
+        return
+
+
+class GCPRegistryStore(RegistryStore):
+    def __init__(self, uri: str):
+        try:
+            from google.cloud import storage
+            from google.cloud.exceptions import NotFound
+        except ImportError:
+            raise ImportError(
+                "Install package google-cloud-storage==1.20.* for gcs support"
+                "run ```pip install google-cloud-storage==1.20.*```"
+            )
+        try:
+            self.gcs_client = storage.Client(project="kf-feast")
+        except DefaultCredentialsError:
+            self.gcs_client = storage.Client.create_anonymous_client()
+        self._uri = urlparse(uri)
+        self._bucket = self._uri.hostname
+        self._blob = self._uri.path.lstrip("/")
+        try:
+            bucket = self.gcs_client.get_bucket(self._bucket)
+        except NotFound:
+            bucket = self.gcs_client.create_bucket(self._bucket)
+            print(bucket)
+        if not storage.Blob(bucket=bucket, name=self._blob).exists(self.gcs_client):
+            registry_proto = RegistryProto()
+            registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
+            self._write_registry(registry_proto)
+        return
+
+    def get_registry(self):
+        file_obj = TemporaryFile()
+        self.gcs_client.download_blob_to_file(self._uri.geturl(), file_obj)
+        file_obj.seek(0)
+        registry_proto = RegistryProto()
+        registry_proto.ParseFromString(file_obj.read())
+        return registry_proto
+
+    def update_registry(self, updater: Callable[[RegistryProto], RegistryProto]):
+        registry_proto = self.get_registry()
+        registry_proto = updater(registry_proto)
+        self._write_registry(registry_proto)
+        return
+
+    def _write_registry(self, registry_proto: RegistryProto):
+        registry_proto.version_id = str(uuid.uuid4())
+        registry_proto.last_updated.FromDatetime(datetime.utcnow())
+        gs_bucket = self.gcs_client.get_bucket(self._bucket)
+        blob = gs_bucket.blob(self._blob)
+        file_obj = TemporaryFile()
+        file_obj.write(registry_proto.SerializeToString())
+        file_obj.seek(0)
+        blob.upload_from_file(file_obj)
         return

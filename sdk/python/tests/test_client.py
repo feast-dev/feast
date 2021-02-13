@@ -137,6 +137,20 @@ class TestClient:
         )
 
     @pytest.fixture
+    def client_with_object_registry_gcs(self):
+        # clear any old registry left there
+        from google.cloud import storage
+        storage_client = storage.Client()
+        bucket = storage_client.bucket("feast-registry-test")
+        blob = bucket.blob("test")
+        if blob.exists():
+            blob.delete()
+
+        return Client(
+            registry_path="gs://feast-registry-test/test",
+        )
+
+    @pytest.fixture
     def server_credentials(self):
         private_key = pkgutil.get_data(__name__, _PRIVATE_KEY_RESOURCE_PATH)
         certificate_chain = pkgutil.get_data(__name__, _CERTIFICATE_CHAIN_RESOURCE_PATH)
@@ -372,7 +386,7 @@ class TestClient:
         assert 1 == 1
 
     @pytest.mark.parametrize(
-        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client"), lazy_fixture("client_with_object_registry")],
+        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client"), lazy_fixture("client_with_object_registry"), lazy_fixture("client_with_object_registry_gcs")],
     )
     def test_apply_entity_success(self, test_client):
 
@@ -409,7 +423,7 @@ class TestClient:
         )
 
     @pytest.mark.parametrize(
-        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client"), lazy_fixture("client_with_object_registry")],
+        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client"), lazy_fixture("client_with_object_registry"), lazy_fixture("client_with_object_registry_gcs")],
     )
     def test_apply_feature_table_success(self, test_client):
 
