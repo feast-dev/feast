@@ -1,1 +1,0 @@
-ALTER TABLE data_sources ADD COLUMN created_timestamp_column character varying(255);

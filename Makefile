@@ -17,47 +17,20 @@
 ROOT_DIR 	:= $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 PROTO_TYPE_SUBDIRS = core serving types storage
 PROTO_SERVICE_SUBDIRS = core serving
-MVN := mvn ${MAVEN_EXTRA_OPTS}
 
 # General
 
-format: format-python format-go format-java
+format: format-python format-go
 
-lint: lint-python lint-go lint-java
+lint: lint-python lint-go
 
-test: test-python test-java test-go
+test: test-python test-go
 
 protos: compile-protos-go compile-protos-python compile-protos-docs
 
-build: protos build-java build-docker build-html
+build: protos build-docker build-html
 
-install-ci-dependencies: install-python-ci-dependencies install-go-ci-dependencies install-java-ci-dependencies
-
-# Java
-
-install-java-ci-dependencies:
-	${MVN} verify clean --fail-never
-
-format-java:
-	${MVN} spotless:apply
-
-lint-java:
-	${MVN} --no-transfer-progress spotless:check
-
-test-java:
-	${MVN} --no-transfer-progress -DskipITs=true test
-
-test-java-integration:
-	${MVN} --no-transfer-progress -Dmaven.javadoc.skip=true -Dgpg.skip -DskipUTs=true clean verify
-
-test-java-with-coverage:
-	${MVN} --no-transfer-progress -DskipITs=true test jacoco:report-aggregate
-
-build-java:
-	${MVN} clean verify
-
-build-java-no-tests:
-	${MVN} --no-transfer-progress -Dmaven.javadoc.skip=true -Dgpg.skip -DskipUTs=true -DskipITs=true -Drevision=${REVISION} clean package
+install-ci-dependencies: install-python-ci-dependencies install-go-ci-dependencies
 
 # Python SDK
 
@@ -112,29 +85,15 @@ lint-go:
 
 build-push-docker:
 	@$(MAKE) build-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-core-docker registry=$(REGISTRY) version=$(VERSION)
-	@$(MAKE) push-serving-docker registry=$(REGISTRY) version=$(VERSION)
 	@$(MAKE) push-ci-docker registry=$(REGISTRY) version=$(VERSION)
 
-build-docker: build-core-docker build-serving-docker build-ci-docker
-
-push-core-docker:
-	docker push $(REGISTRY)/feast-core:$(VERSION)
-
-push-serving-docker:
-	docker push $(REGISTRY)/feast-serving:$(VERSION)
+build-docker: build-ci-docker
 
 push-ci-docker:
 	docker push $(REGISTRY)/feast-ci:$(VERSION)
 
 push-jupyter-docker:
 	docker push $(REGISTRY)/feast-jupyter:$(VERSION)
-
-build-core-docker:
-	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
-
-build-serving-docker:
-	docker build --build-arg VERSION=$(VERSION) -t $(REGISTRY)/feast-serving:$(VERSION) -f infra/docker/serving/Dockerfile .
 
 build-ci-docker:
 	docker build -t $(REGISTRY)/feast-ci:$(VERSION) -f infra/docker/ci/Dockerfile .
@@ -182,11 +141,6 @@ build-html: clean-html
 	$(MAKE) compile-protos-python
 	cd 	$(ROOT_DIR)/sdk/python/docs && $(MAKE) html
 	cp -r $(ROOT_DIR)/sdk/python/docs/html/* $(ROOT_DIR)/dist/python
-
-# Versions
-
-lint-versions:
-	./infra/scripts/validate-version-consistency.sh
 
 # Performance
 
