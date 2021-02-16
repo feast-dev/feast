@@ -266,7 +266,6 @@ class GCSRegistryStore(RegistryStore):
     def __init__(self, uri: str):
         try:
             from google.cloud import storage
-            from google.cloud.exceptions import NotFound
         except ImportError:
             raise ImportError(
                 "Install package google-cloud-storage==1.20.* for gcs support"
