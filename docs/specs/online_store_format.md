@@ -11,7 +11,7 @@ This version of the Online Store Format supports only Redis as the underlying st
 
 
 ## Overview
-For definitions of the terms used here, please refer to [Feast glossary](https://docs.feast.dev/concepts/glossary).
+For definitions of the terms used here, please refer to [Feast glossary](https://github.com/feast-dev/feast/blob/master/docs/concepts/glossary.md).
 
 Fundamentally, an Online Store is used to store a snapshot of feature data, that is a set of _entity rows_ indexed by _entity key_. There is only one _entity row_ per _entity key_ and _feature table_.
 
