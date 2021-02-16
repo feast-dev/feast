@@ -407,7 +407,9 @@ class Client:
         """
 
         if self._use_object_store_registry:
-            raise NotImplementedError("Projects are not implemented for object store registry.")
+            raise NotImplementedError(
+                "Projects are not implemented for object store registry."
+            )
         else:
             response = self._core_service.ListProjects(
                 ListProjectsRequest(),
@@ -425,7 +427,9 @@ class Client:
         """
 
         if self._use_object_store_registry:
-            raise NotImplementedError("Projects are not implemented for object store registry.")
+            raise NotImplementedError(
+                "Projects are not implemented for object store registry."
+            )
         else:
             self._core_service.CreateProject(
                 CreateProjectRequest(name=project),
@@ -444,7 +448,9 @@ class Client:
         """
 
         if self._use_object_store_registry:
-            raise NotImplementedError("Projects are not implemented for object store registry.")
+            raise NotImplementedError(
+                "Projects are not implemented for object store registry."
+            )
         else:
             try:
                 self._core_service_stub.ArchiveProject(
@@ -619,7 +625,6 @@ class Client:
         if project is None:
             project = self.project
 
-
         if self._use_object_store_registry:
             return self._registry.get_entity(name, project)
         else:
@@ -715,7 +720,8 @@ class Client:
 
             # Get latest feature tables from Feast Core
             feature_table_protos = self._core_service.ListFeatureTables(
-                ListFeatureTablesRequest(filter=filter), metadata=self._get_grpc_metadata(),
+                ListFeatureTablesRequest(filter=filter),
+                metadata=self._get_grpc_metadata(),
             )  # type: ListFeatureTablesResponse
 
             # Extract feature tables and return
@@ -811,7 +817,9 @@ class Client:
         """
 
         if self._use_object_store_registry:
-            raise NotImplementedError("This function is not implemented for object store registry.")
+            raise NotImplementedError(
+                "This function is not implemented for object store registry."
+            )
         else:
             if project is None:
                 project = self.project

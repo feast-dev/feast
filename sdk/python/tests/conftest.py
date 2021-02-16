@@ -13,6 +13,7 @@
 # limitations under the License.
 import multiprocessing
 from sys import platform
+
 import pytest
 
 
@@ -21,15 +22,26 @@ def pytest_configure(config):
         multiprocessing.set_start_method("spawn")
     else:
         multiprocessing.set_start_method("fork")
-    config.addinivalue_line("markers", "integration: mark test that has external dependencies")
+    config.addinivalue_line(
+        "markers", "integration: mark test that has external dependencies"
+    )
+
 
 def pytest_addoption(parser):
-    parser.addoption("--integration", action="store_true", default=False, help="Run tests with external dependencies")
+    parser.addoption(
+        "--integration",
+        action="store_true",
+        default=False,
+        help="Run tests with external dependencies",
+    )
+
 
 def pytest_collection_modifyitems(config, items):
     if config.getoption("--integration"):
         return
-    skip_integration = pytest.mark.skip(reason="not running tests with external dependencies")
+    skip_integration = pytest.mark.skip(
+        reason="not running tests with external dependencies"
+    )
     for item in items:
         if "integration" in item.keywords:
             item.add_marker(skip_integration)

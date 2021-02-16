@@ -16,6 +16,7 @@ import pkgutil
 import socket
 from concurrent import futures
 from datetime import datetime, timedelta
+from tempfile import mkstemp
 from typing import Tuple
 from unittest import mock
 
@@ -29,7 +30,6 @@ from mock import MagicMock, patch
 from pandas.util.testing import assert_frame_equal
 from pyarrow import parquet as pq
 from pytest_lazyfixture import lazy_fixture
-from tempfile import mkstemp
 
 from feast.client import Client
 from feast.core import CoreService_pb2_grpc as Core
@@ -132,23 +132,20 @@ class TestClient:
     @pytest.fixture
     def client_with_object_registry(self):
         fd, path = mkstemp()
-        return Client(
-            registry_path=path,
-        )
+        return Client(registry_path=path,)
 
     @pytest.fixture
     def client_with_object_registry_gcs(self):
         # clear any old registry left there
         from google.cloud import storage
+
         storage_client = storage.Client()
         bucket = storage_client.bucket("feast-registry-test")
         blob = bucket.blob("test")
         if blob.exists():
             blob.delete()
 
-        return Client(
-            registry_path="gs://feast-registry-test/test",
-        )
+        return Client(registry_path="gs://feast-registry-test/test",)
 
     @pytest.fixture
     def server_credentials(self):
@@ -386,7 +383,12 @@ class TestClient:
         assert 1 == 1
 
     @pytest.mark.parametrize(
-        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client"), lazy_fixture("client_with_object_registry")],
+        "test_client",
+        [
+            lazy_fixture("client"),
+            lazy_fixture("secure_client"),
+            lazy_fixture("client_with_object_registry"),
+        ],
     )
     def test_apply_entity_success(self, test_client):
 
@@ -452,7 +454,12 @@ class TestClient:
         )
 
     @pytest.mark.parametrize(
-        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client"), lazy_fixture("client_with_object_registry")],
+        "test_client",
+        [
+            lazy_fixture("client"),
+            lazy_fixture("secure_client"),
+            lazy_fixture("client_with_object_registry"),
+        ],
     )
     def test_apply_feature_table_success(self, test_client):
 
@@ -582,7 +589,7 @@ class TestClient:
 
         test_client.delete_feature_table("my-feature-table-1")
         feature_tables = test_client.list_feature_tables()
-        assert(len(feature_tables) == 0)
+        assert len(feature_tables) == 0
 
     @pytest.mark.parametrize(
         "test_client", [lazy_fixture("client"), lazy_fixture("secure_client")]
