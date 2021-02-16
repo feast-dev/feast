@@ -2,7 +2,7 @@
 set -euo pipefail
 PLATFORM=$1
 DESTINATION=$2
-PACKAGES=${PACKAGES:-"great-expectations==0.13.2 pyarrow==2.0.0 datadog==0.39.0"}
+PACKAGES=${PACKAGES:-"great-expectations==0.13.2 pyarrow==2.0.0 datadog==0.39.0 numpy<1.20.0"}
 
 tmp_dir=$(mktemp -d)
 

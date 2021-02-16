@@ -2,7 +2,9 @@ name: master only
 
 on:
   push:
-    branches: master
+    branches:
+      - master
+      - 'v*.*-branch'
     tags:
       - 'v*.*.*'
 
