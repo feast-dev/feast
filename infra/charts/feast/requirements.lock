@@ -8,6 +8,9 @@ dependencies:
 - name: feast-jupyter
   repository: ""
   version: 0.9.2
+- name: feast-jobservice
+  repository: ""
+  version: 0.9.2
 - name: postgresql
   repository: https://kubernetes-charts.storage.googleapis.com/
   version: 8.6.1
