@@ -386,9 +386,38 @@ class TestClient:
         assert 1 == 1
 
     @pytest.mark.parametrize(
-        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client"), lazy_fixture("client_with_object_registry"), lazy_fixture("client_with_object_registry_gcs")],
+        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client"), lazy_fixture("client_with_object_registry")],
     )
     def test_apply_entity_success(self, test_client):
+
+        test_client.set_project("project1")
+        entity = Entity(
+            name="driver_car_id",
+            description="Car driver id",
+            value_type=ValueType.STRING,
+            labels={"team": "matchmaking"},
+        )
+
+        # Register Entity with Core
+        test_client.apply(entity)
+
+        entities = test_client.list_entities()
+
+        entity = entities[0]
+        assert (
+            len(entities) == 1
+            and entity.name == "driver_car_id"
+            and entity.value_type == ValueType(ValueProto.ValueType.STRING)
+            and entity.description == "Car driver id"
+            and "team" in entity.labels
+            and entity.labels["team"] == "matchmaking"
+        )
+
+    @pytest.mark.integration
+    @pytest.mark.parametrize(
+        "test_client", [lazy_fixture("client_with_object_registry_gcs")],
+    )
+    def test_apply_entity_integration(self, test_client):
 
         test_client.set_project("project1")
         entity = Entity(
@@ -423,9 +452,67 @@ class TestClient:
         )
 
     @pytest.mark.parametrize(
-        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client"), lazy_fixture("client_with_object_registry"), lazy_fixture("client_with_object_registry_gcs")],
+        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client"), lazy_fixture("client_with_object_registry")],
     )
     def test_apply_feature_table_success(self, test_client):
+
+        test_client.set_project("project1")
+
+        # Create Feature Tables
+        batch_source = FileSource(
+            file_format=ParquetFormat(),
+            file_url="file://feast/*",
+            event_timestamp_column="ts_col",
+            created_timestamp_column="timestamp",
+            date_partition_column="date_partition_col",
+        )
+
+        stream_source = KafkaSource(
+            bootstrap_servers="localhost:9094",
+            message_format=ProtoFormat("class.path"),
+            topic="test_topic",
+            event_timestamp_column="ts_col",
+        )
+
+        ft1 = FeatureTable(
+            name="my-feature-table-1",
+            features=[
+                Feature(name="fs1-my-feature-1", dtype=ValueType.INT64),
+                Feature(name="fs1-my-feature-2", dtype=ValueType.STRING),
+                Feature(name="fs1-my-feature-3", dtype=ValueType.STRING_LIST),
+                Feature(name="fs1-my-feature-4", dtype=ValueType.BYTES_LIST),
+            ],
+            entities=["fs1-my-entity-1"],
+            labels={"team": "matchmaking"},
+            batch_source=batch_source,
+            stream_source=stream_source,
+        )
+
+        # Register Feature Table with Core
+        test_client.apply(ft1)
+
+        feature_tables = test_client.list_feature_tables()
+
+        # List Feature Tables
+        assert (
+            len(feature_tables) == 1
+            and feature_tables[0].name == "my-feature-table-1"
+            and feature_tables[0].features[0].name == "fs1-my-feature-1"
+            and feature_tables[0].features[0].dtype == ValueType.INT64
+            and feature_tables[0].features[1].name == "fs1-my-feature-2"
+            and feature_tables[0].features[1].dtype == ValueType.STRING
+            and feature_tables[0].features[2].name == "fs1-my-feature-3"
+            and feature_tables[0].features[2].dtype == ValueType.STRING_LIST
+            and feature_tables[0].features[3].name == "fs1-my-feature-4"
+            and feature_tables[0].features[3].dtype == ValueType.BYTES_LIST
+            and feature_tables[0].entities[0] == "fs1-my-entity-1"
+        )
+
+    @pytest.mark.integration
+    @pytest.mark.parametrize(
+        "test_client", [lazy_fixture("client_with_object_registry_gcs")],
+    )
+    def test_apply_feature_table_integration(self, test_client):
 
         test_client.set_project("project1")
 
@@ -496,7 +583,6 @@ class TestClient:
         test_client.delete_feature_table("my-feature-table-1")
         feature_tables = test_client.list_feature_tables()
         assert(len(feature_tables) == 0)
-
 
     @pytest.mark.parametrize(
         "test_client", [lazy_fixture("client"), lazy_fixture("secure_client")]
