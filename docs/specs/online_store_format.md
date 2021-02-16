@@ -1,25 +1,28 @@
 # Feast Online Store Format v0.10
 
 ## Overview
-This document describes the data format used by Feast to storing feature data for online serving.
+This document describes the data format used by Feast for storing feature data for online serving.
 
-This format is considered part of Feast public API contract; that allows other community-developed software or "addons" to Feast to integrate with it. That way this software can directly and efficiently read and write data from Feast-compatible online store, without having to go through Feast HTTP or gRPC API.
+This format is considered part of Feast public API contract; that allows other community developed software or "addons" to Feast to integrate with it. That way this software can directly and efficiently read and write data from Feast-compatible online stores, without having to go through Feast HTTP or gRPC API.
 
 The format is not entirely technology or cloud agnostic. Since users may opt to use different key-value stores as an underlying engine to store feature data, and we don't want to aim for the lowest common denominator across them, we have to provide different "flavors" of this data format, specialized for every supported store.
 
 This version of the Online Store Format supports only Redis as the underlying storage engine. We envision adding more storage engines to this document in the future.
 
+
 ## Overview
+For definitions of the terms used here, please refer to [Feast glossary](https://docs.feast.dev/concepts/glossary).
+
 Fundamentally, an Online Store is used to store a snapshot of feature data, that is a set of _entity rows_ indexed by _entity key_. There is only one _entity row_ per _entity key_ and _feature table_.
 
-**Value** is the main tagged union data type used to serialize arbitrary typed values in Feast. See Appendix A below for exact definition.
+We use `feast.types.Value` protobuf as the main tagged union data type used to serialize arbitrary typed values in Feast. See Appendix A below for exact definition.
 
 ## Redis Online Store Format
 
 ### Overview
 When feature data is stored in Redis, we use it as a two-level map, by utilizing [Redis Hashes](https://redis.io/topics/data-types#hashes).
 
-First level of the map contains Feast project name and entity key, which contains entity names and values. The second level key (in Redis terminology, the "field" in Redis Hash) contains feature table name and feature name, and the Redis Hash value contains feature value.
+The first level of the map contains the Feast project name and entity key. The entity key is composed of entity names and values. The second level key (in Redis terminology, this is the "field" in a Redis Hash) contains the feature table name and the feature name, and the Redis Hash value contains the feature value.
 
 Therefore, the high level hierarchy is:
 
@@ -33,17 +36,17 @@ To compute Redis key, we convert entity values and names to a protobuf message o
 message RedisKeyV2 {
   string project = 1;
   // alphabetical order (using `String::compareTo`).
-  repeated string entity_names = 2; 
+  repeated string entity_names = 2;
   // same length as entity_names
   repeated feast.types.Value entity_values = 3;
 }
 ```
 
-This message is then serialized to a byte array and used as a Redis key. 
+This message is then serialized to a byte array and used as a Redis key.
 
-The value in Redis itself is a key-value map. It is a Redis Hash that stores feature names and corresponding feature values. To compute the Redis Hash field names used to look up feature values in the Hash, all feature references are hashed as `Murmur3_32(table_name + ":" + feature_name)`. We also store the timestamp for that entity row (a set of features) under field named  `"_ts:" + table_name` in the same Redis Hash. 
+The value in Redis itself is a key-value map. It is a Redis Hash that stores feature names and corresponding feature values. To compute the Redis Hash field names used to look up feature values in the Hash, all feature references are hashed as `Murmur3_32(table_name + ":" + feature_name)`, using the little-endian byte representation of the hash value. We also store the timestamp for that entity row (a set of features) under a field named  `"_ts:" + table_name` in the same Redis Hash.
 
-The values in the Redis Hash are encoded as serialized `Value` protos for feature values (defined in `feast.types`), and serialized `google.protobuf.Timestamp` proto for the entity row timestamp.
+The values in the Redis Hash are encoded as serialized `feast.types.Value` protos for feature values, and serialized `google.protobuf.Timestamp` protos for the entity row timestamp.
 
 Here's an example of how the entire thing looks like:
 
