@@ -1,4 +1,12 @@
 # Changelog
+## [v0.9.3](https://github.com/feast-dev/feast/tree/v0.9.3) (2021-02-16)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.9.2...v0.9.3)
+
+**Merged pull requests:**
+
+- Backport Shift js protos [\#1344](https://github.com/feast-dev/feast/pull/1344) ([terryyylim](https://github.com/terryyylim))
+
 ## [v0.9.2](https://github.com/feast-dev/feast/tree/v0.9.2) (2021-02-01)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.9.1...v0.9.2)
