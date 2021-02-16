@@ -392,7 +392,6 @@ class TestClient:
     )
     def test_apply_entity_success(self, test_client):
 
-        test_client.set_project("project1")
         entity = Entity(
             name="driver_car_id",
             description="Car driver id",
@@ -421,7 +420,6 @@ class TestClient:
     )
     def test_apply_entity_integration(self, test_client):
 
-        test_client.set_project("project1")
         entity = Entity(
             name="driver_car_id",
             description="Car driver id",
@@ -462,8 +460,6 @@ class TestClient:
         ],
     )
     def test_apply_feature_table_success(self, test_client):
-
-        test_client.set_project("project1")
 
         # Create Feature Tables
         batch_source = FileSource(
@@ -520,8 +516,6 @@ class TestClient:
         "test_client", [lazy_fixture("client_with_object_registry_gcs")],
     )
     def test_apply_feature_table_integration(self, test_client):
-
-        test_client.set_project("project1")
 
         # Create Feature Tables
         batch_source = FileSource(

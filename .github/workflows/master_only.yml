@@ -20,4 +20,4 @@ jobs:
       - name: Install python
         run: make install-python
       - name: Test python
-	    run: FEAST_TELEMETRY=False pytest --verbose --color=yes sdk/python/tests --integration
+        run: FEAST_TELEMETRY=False pytest --verbose --color=yes sdk/python/tests --integration
