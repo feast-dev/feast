@@ -33,7 +33,7 @@ class Registry:
     def __init__(self, registry_path: str):
         uri = urlparse(registry_path)
         if uri.scheme == "gs":
-            self._registry_store = GCPRegistryStore(registry_path)
+            self._registry_store: RegistryStore = GCPRegistryStore(registry_path)
         elif uri.scheme == "file" or uri.scheme == "":
             self._registry_store = LocalRegistryStore(registry_path)
         else:
@@ -53,7 +53,8 @@ class Registry:
                     existing_entity_proto.spec.name == entity_proto.spec.name
                     and existing_entity_proto.project == project
                 ):
-                    registry_proto.entities[idx] = entity_proto
+                    del registry_proto.entities[idx]
+                    registry_proto.entities.append(entity_proto)
                     return registry_proto
             registry_proto.entities.append(entity_proto)
             return registry_proto
@@ -90,7 +91,8 @@ class Registry:
                     == feature_table_proto.spec.name
                     and existing_feature_table_proto.project == project
                 ):
-                    registry_proto.feature_tables[idx] = feature_table_proto
+                    del registry_proto.feature_tables[idx]
+                    registry_proto.feature_tables.append(feature_table_proto)
                     return registry_proto
             registry_proto.feature_tables.append(feature_table_proto)
             return registry_proto
