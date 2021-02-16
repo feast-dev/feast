@@ -20,6 +20,8 @@ from tempfile import TemporaryFile
 from typing import Callable, List
 from urllib.parse import urlparse
 
+from google.auth.exceptions import DefaultCredentialsError
+
 from feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.entity import Entity
 from feast.feature_table import FeatureTable
