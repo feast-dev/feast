@@ -17,7 +17,7 @@ RUN pip install -r sdk/python/requirements-ci.txt
 # Install Feast SDK
 RUN git init .
 COPY README.md README.md
-RUN pip install -e sdk/python -U
+RUN pip install feast~=0.9 -U
 RUN pip install "s3fs" "boto3" "urllib3>=1.25.4"
 
 # Switch back to original user and workdir

@@ -48,7 +48,7 @@ jobs:
     needs: get-version
     strategy:
       matrix:
-        component: [jobservice, jupyter]
+        component: [jupyter]
     env:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
     steps:
