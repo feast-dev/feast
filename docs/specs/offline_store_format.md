@@ -19,9 +19,9 @@ For common Feast terms, like "Feature Table", "Entity" please refer to [Feast gl
 
 ## Table schema
 Feature data is stored in tables in the DWH. There is one DWH table per Feast Feature Table. Each table in DWH is expected to have three groups of columns:
-* One or more Entity columns. Together they compose an [Entity Key](https://github.com/feast-dev/feast/blob/master/docs/concepts/glossary.md#entity-key). Their types should match Entity type defined in Feast metadata, according to the mapping for the specific DWH engine being used. The name of the column must match the entity name.
+* One or more Entity columns. Together they compose an [Entity Key](https://github.com/feast-dev/feast/blob/master/docs/concepts/glossary.md#entity-key). Their types should match Entity type definitions in Feast metadata, according to the mapping for the specific DWH engine being used. The name of the column must match the entity name.
 * One [Entity timestamp](https://github.com/feast-dev/feast/blob/master/docs/concepts/glossary.md#entity-timestamp) column, also called "event timestamp". The type is DWH-specific timestamp type. The name of the column is set when you configure the offline data source.
-* Optional "created timestamp" column. This is typically wallclock time of when the feature value was computed. The type is DWH-specific timestamp type. The name of the column is set when you configure the offline data source.
+* Optional "created timestamp" column. This is typically wallclock time of when the feature value was computed. If there are two feature values with the same Entity Key and Event Timestamp, the one with more recent Created Timestamp will take precedence. The type is DWH-specific timestamp type. The name of the column is set when you configure the offline data source.
 * One or more feature value columns. Their types should match Feature type defined in Feast metadata, according to the mapping for the specific DWH engine being used. The names must match feature names, but can optionally be remapped when configuring the offline data source.
 
 
