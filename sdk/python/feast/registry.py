@@ -31,7 +31,7 @@ REGISTRY_SCHEMA_VERSION = "1"
 
 class Registry:
     """
-    Registry: Used for interfacing with the object store registry.
+    Registry: A registry allows for the management and persistence of feature definitions and related metadata.
     """
 
     def __init__(self, registry_path: str):
@@ -210,7 +210,8 @@ class Registry:
 
 class RegistryStore(ABC):
     """
-    RegistryStore: specific implementations of the object store registry for local file system and GCS.
+    RegistryStore: abstract base class implemented by specific backends (local file system, GCS)
+    containing lower level methods used by the Registry class that are backend-specific.
     """
 
     @abstractmethod
