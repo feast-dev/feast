@@ -18,35 +18,18 @@ syntax = "proto3";
 
 package feast.core;
 option java_package = "feast.proto.core";
-option java_outer_classname = "EntityProto";
+option java_outer_classname = "RegistryProto";
 option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 
-import "feast/types/Value.proto";
+import "feast/core/Entity.proto";
+import "feast/core/FeatureTable.proto";
 import "google/protobuf/timestamp.proto";
 
-message Entity {
-    // User-specified specifications of this entity.
-    EntitySpecV2 spec = 1;
-    // System-populated metadata for this entity.
-    EntityMeta meta = 2;
-    string project = 3;
-}
+message Registry {
+    repeated Entity entities = 1;
+    repeated FeatureTable feature_tables = 2;
 
-message EntitySpecV2 {
-    // Name of the entity.
-    string name = 1;
-
-    // Type of the entity.
-    feast.types.ValueType.Enum value_type = 2;
-
-    // Description of the entity.
-    string description = 3;
-
-    // User defined metadata
-    map<string,string> labels = 8;
-}
-
-message EntityMeta {
-    google.protobuf.Timestamp created_timestamp = 1;
-    google.protobuf.Timestamp last_updated_timestamp = 2;
+    string registry_schema_version = 3; // to support migrations; incremented when schema is changed
+    string version_id = 4; // version id, random string generated on each update of the data; now used only for debugging purposes
+    google.protobuf.Timestamp last_updated = 5;
 }

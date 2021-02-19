@@ -1,0 +1,23 @@
+name: master_only
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  integration-test-python:
+    runs-on: ubuntu-latest
+    container: gcr.io/kf-feast/feast-ci:latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        with:
+          version: '290.0.1'
+          export_default_credentials: true
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+      - name: Install python
+        run: make install-python
+      - name: Test python
+        run: FEAST_TELEMETRY=False pytest --verbose --color=yes sdk/python/tests --integration
