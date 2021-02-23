@@ -89,7 +89,13 @@
       <artifactId>feast-common</artifactId>
       <version>${project.version}</version>
     </dependency>
-    
+
+    <dependency>
+      <groupId>io.lettuce</groupId>
+      <artifactId>lettuce-core</artifactId>
+      <version>6.0.2.RELEASE</version>
+    </dependency>
+
     <!-- TODO: SLF4J is being used via Lombok, but also jog4j - pick one -->
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -197,6 +203,7 @@
       <artifactId>simpleclient_servlet</artifactId>
       <version>0.8.0</version>
     </dependency>
+
     <dependency>
       <groupId>io.prometheus</groupId>
       <artifactId>simpleclient_spring_boot</artifactId>
