@@ -21,6 +21,8 @@ option java_package = "feast.proto.core";
 option java_outer_classname = "StoreProto";
 option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 
+import "google/protobuf/duration.proto";
+
 // Store provides a location where Feast reads and writes feature values.
 // Feature values will be written to the Store in the form of FeatureRow elements.
 // The way FeatureRow is encoded and decoded when it is written to and read from
@@ -86,6 +88,8 @@ message Store {
       REPLICA_PREFERRED = 3;
     }
     ReadFrom read_from = 8;
+    // Optional. Timeout on waiting response from redis node
+    google.protobuf.Duration timeout = 9;
   }
 
   message Subscription {

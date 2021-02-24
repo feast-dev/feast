@@ -21,13 +21,13 @@ import feast.proto.core.StoreProto;
 import feast.proto.core.StoreProto.Store.RedisClusterConfig;
 import feast.storage.connectors.redis.serializer.RedisKeyPrefixSerializerV2;
 import feast.storage.connectors.redis.serializer.RedisKeySerializerV2;
-import io.lettuce.core.KeyValue;
-import io.lettuce.core.ReadFrom;
-import io.lettuce.core.RedisFuture;
-import io.lettuce.core.RedisURI;
+import io.lettuce.core.*;
+import io.lettuce.core.cluster.ClusterClientOptions;
+import io.lettuce.core.cluster.ClusterTopologyRefreshOptions;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import io.lettuce.core.cluster.api.async.RedisAdvancedClusterAsyncCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -100,9 +100,28 @@ public class RedisClusterClient implements RedisClientAdapter {
                   return RedisURI.create(hostPortSplit[0], Integer.parseInt(hostPortSplit[1]));
                 })
             .collect(Collectors.toList());
+    io.lettuce.core.cluster.RedisClusterClient client =
+        io.lettuce.core.cluster.RedisClusterClient.create(redisURIList);
+
+    Duration timeout;
+    if (config.hasTimeout()) {
+      timeout =
+          Duration.ofSeconds(config.getTimeout().getSeconds(), config.getTimeout().getNanos());
+    } else {
+      timeout = Duration.ofSeconds(10);
+    }
+
+    client.setOptions(
+        ClusterClientOptions.builder()
+            .socketOptions(SocketOptions.builder().keepAlive(true).tcpNoDelay(true).build())
+            .timeoutOptions(TimeoutOptions.enabled(timeout))
+            .pingBeforeActivateConnection(true)
+            .topologyRefreshOptions(
+                ClusterTopologyRefreshOptions.builder().enableAllAdaptiveRefreshTriggers().build())
+            .build());
+
     StatefulRedisClusterConnection<byte[], byte[]> connection =
-        io.lettuce.core.cluster.RedisClusterClient.create(redisURIList)
-            .connect(new ByteArrayCodec());
+        client.connect(new ByteArrayCodec());
 
     connection.setReadFrom(PROTO_TO_LETTUCE_TYPES.get(config.getReadFrom()));
 
