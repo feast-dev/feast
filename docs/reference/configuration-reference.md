@@ -14,8 +14,8 @@ Available configuration properties for Feast Core and Feast Online Serving can b
 
 | Component | Configuration Reference |
 | :--- | :--- |
-| Core | [core/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/core/src/main/resources/application.yml) |
-| Serving \(Online\) | [serving/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/serving/src/main/resources/application.yml) |
+| Core | [core/src/main/resources/application.yml](https://github.com/feast-dev/feast-java/blob/master/core/src/main/resources/application.yml) |
+| Serving \(Online\) | [serving/src/main/resources/application.yml](https://github.com/feast-dev/feast-java/blob/master/serving/src/main/resources/application.yml) |
 
 Configuration properties for Feast Core and Feast Online Serving are defined depending on Feast is deployed:
 
@@ -34,7 +34,7 @@ For each Feast component deployed using Docker Compose, configuration properties
 
 ## Kubernetes Deployment
 
-The Kubernetes Feast Deployment is configured using `values.yaml` in the [Helm chart ](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/README.md)included with Feast:
+The Kubernetes Feast Deployment is configured using `values.yaml` in the [Helm chart ](https://github.com/feast-dev/feast-helm-charts)included with Feast:
 
 ```yaml
 # values.yaml
@@ -48,8 +48,8 @@ feast-core:
 
 A reference of the sub-chart-specific configuration can found in its `values.yml`:
 
-* [feast-core](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/charts/feast-core)
-* [feast-serving](https://github.com/feast-dev/feast/tree/master/infra/charts/feast/charts/feast-serving)
+* [feast-core](https://github.com/feast-dev/feast-java/tree/master/infra/charts/feast-core)
+* [feast-serving](https://github.com/feast-dev/feast-java/tree/master/infra/charts/feast-serving)
 
 Configuration properties can be set via `application-override.yaml` for each component in `values.yaml`:
 
