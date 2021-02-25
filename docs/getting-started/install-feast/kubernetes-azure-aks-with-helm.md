@@ -1,8 +1,8 @@
-# Azure AKS \(with Terraform\)
+# Azure AKS \(with Helm\)
 
-### Overview
+## Overview
 
-This guide installs Feast on Azure Kubernetes cluster (known as AKS), and ensures the following services are running:
+This guide installs Feast on Azure Kubernetes cluster \(known as AKS\), and ensures the following services are running:
 
 * Feast Core
 * Feast Online Serving
@@ -13,14 +13,13 @@ This guide installs Feast on Azure Kubernetes cluster (known as AKS), and ensure
 * Feast Jupyter \(Optional\)
 * Prometheus \(Optional\)
 
-
-### 1. Requirements
+## 1. Requirements
 
 1. Install and configure [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
 2. Install and configure [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 3. Install [Helm 3](https://helm.sh/)
 
-### 2. Preparation
+## 2. Preparation
 
 Create an AKS cluster with Azure CLI. The detailed steps can be found [here](https://docs.microsoft.com/en-us/azure/aks/kubernetes-walkthrough), and a high-level walk through includes:
 
@@ -28,11 +27,10 @@ Create an AKS cluster with Azure CLI. The detailed steps can be found [here](htt
 az group create --name myResourceGroup  --location eastus
 az acr create --resource-group myResourceGroup  --name feast-AKS-ACR --sku Basic
 az aks create -g myResourceGroup  -n feast-AKS --location eastus --attach-acr feast-AKS-ACR --generate-ssh-keys
- 
+
 az aks install-cli
 az aks get-credentials --resource-group myResourceGroup  --name  feast-AKS
 ```
-
 
 Add the Feast Helm repository and download the latest charts:
 
@@ -44,20 +42,21 @@ helm repo update
 
 Feast includes a Helm chart that installs all necessary components to run Feast Core, Feast Online Serving, and an example Jupyter notebook.
 
-Feast Core requires Postgres to run, which requires a secret to be set on Kubernetes: 
+Feast Core requires Postgres to run, which requires a secret to be set on Kubernetes:
 
 ```bash
 kubectl create secret generic feast-postgresql --from-literal=postgresql-password=password
 ```
 
-### 3. Feast installation
+## 3. Feast installation
 
 Install Feast using Helm. The pods may take a few minutes to initialize.
 
 ```bash
 helm install feast-release feast-charts/feast
 ```
-### 4. Spark operator installation
+
+## 4. Spark operator installation
 
 Follow the documentation [to install Spark operator on Kubernetes ](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator), and Feast documentation to [configure Spark roles](../../reference/feast-and-spark.md)
 
@@ -95,7 +94,7 @@ subjects:
 EOF
 ```
 
-### 5. Use Jupyter to connect to Feast
+## 5. Use Jupyter to connect to Feast
 
 After all the pods are in a `RUNNING` state, port-forward to the Jupyter Notebook Server in the cluster:
 
@@ -113,7 +112,7 @@ You can now connect to the bundled Jupyter Notebook Server at `localhost:8888` a
 
 {% embed url="http://localhost:8888/tree?" caption="" %}
 
-### 6. Environment variables
+## 6. Environment variables
 
 If you are running the [Minimal Ride Hailing Example](https://github.com/feast-dev/feast/blob/master/examples/minimal/minimal_ride_hailing.ipynb), you may want to make sure the following environment variables are correctly set:
 
@@ -128,10 +127,9 @@ os.environ["FEAST_SPARK_K8S_NAMESPACE"] = "default"
 os.environ["FEAST_HISTORICAL_FEATURE_OUTPUT_FORMAT"] = "parquet"
 os.environ["FEAST_REDIS_HOST"] = "feast-release-redis-master.default.svc.cluster.local"
 os.environ["DEMO_KAFKA_BROKERS"] = "feast-release-kafka.default.svc.cluster.local:9092"
-
 ```
 
-### 7. Further Reading
+## 7. Further Reading
 
 * [Feast Concepts](../../concepts/overview.md)
 * [Feast Examples/Tutorials](https://github.com/feast-dev/feast/tree/master/examples)
