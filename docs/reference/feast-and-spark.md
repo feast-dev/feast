@@ -8,12 +8,24 @@ Feast relies on Spark to ingest data from the offline store to the online store,
 
 ## Option 1. Use Kubernetes Operator for Apache Spark
 
-To install Kubernetes Operator, follow [instructions](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator) in the repository. Currently Feast is tested using `v1beta2-1.1.2-2.4.5`version of the operator image. To configure Feast to use it, set the following options in Feast config:
+To install the Spark on K8s Operator
+
+```bash
+helm repo add spark-operator \
+    https://googlecloudplatform.github.io/spark-on-k8s-operator
+
+helm install my-release spark-operator/spark-operator \
+    --namespace sparkop \
+    --create-namespace \
+    --set serviceAccounts.spark.name=spark
+```
+
+Currently Feast is tested using `v1beta2-1.1.2-2.4.5`version of the operator image. To configure Feast to use it, set the following options in Feast config:
 
 | Feast Setting | Value |
 | :--- | :--- |
 | `SPARK_LAUNCHER` | `"k8s"` |
-| `SPARK_K8S_NAMESPACE` | The name of the Kubernetes namespace to run Spark jobs in. This should match the value of `sparkJobNamespace` set on spark-on-k8s-operator Helm chart. Typically this is also the namespace Feast itself will run in. |
+| `SPARK_K8S_NAMESPACE` | The name of the Kubernetes namespace to run Spark jobs in. This should match the value of `sparkJobNamespace` set on spark-on-k8s-operator Helm chart. Typically this is also the namespace Feast itself will run in. The example above uses `sparkop`. |
 | `SPARK_STAGING_LOCATION` | S3 URL to use as a staging location, must be readable and writable by Feast. Use `s3a://` prefix here. Ex.: `s3a://some-bucket/some-prefix` |
 
 Lastly, make sure that the service account used by Feast has permissions to manage Spark Application resources. This depends on your k8s setup, but typically you'd need to configure a Role and a RoleBinding like the one below:
@@ -24,7 +36,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: use-spark-operator
-  namespace: <REPLACE ME>
+  namespace: <REPLACE ME>  # probably "sparkop"
 rules:
 - apiGroups: ["sparkoperator.k8s.io"]
   resources: ["sparkapplications"]
@@ -34,7 +46,7 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: RoleBinding
 metadata:
   name: use-spark-operator
-  namespace: <REPLACE ME>
+  namespace: <REPLACE ME> # probably "sparkop"
 roleRef:
   kind: Role
   name: use-spark-operator
