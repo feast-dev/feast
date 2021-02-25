@@ -34,7 +34,7 @@ For each Feast component deployed using Docker Compose, configuration properties
 
 ## Kubernetes Deployment
 
-The Kubernetes Feast Deployment is configured using `values.yaml` in the [Helm chart ](https://github.com/feast-dev/feast-helm-charts)included with Feast:
+The Kubernetes Feast Deployment is configured using `values.yaml` in the [Helm chart](https://github.com/feast-dev/feast-helm-charts) included with Feast:
 
 ```yaml
 # values.yaml
@@ -62,7 +62,7 @@ feast-core:
      # ...
 ```
 
-Visit the [Helm chart](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/README.md) included with Feast to learn more about configuration.
+Visit the [Helm chart](https://github.com/feast-dev/feast-helm-charts) included with Feast to learn more about configuration.
 
 ## Direct Configuration
 
@@ -70,8 +70,8 @@ If Feast is built and running from source, configuration properties can be set d
 
 | Component | Configuration Path |
 | :--- | :--- |
-| Core | [core/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/core/src/main/resources/application.yml) |
-| Serving \(Online\) | [serving/src/main/resources/application.yml](https://github.com/feast-dev/feast/blob/master/serving/src/main/resources/application.yml) |
+| Core | [core/src/main/resources/application.yml](https://github.com/feast-dev/feast-java/blob/master/core/src/main/resources/application.yml) |
+| Serving \(Online\) | [serving/src/main/resources/application.yml](https://github.com/feast-dev/feast-java/blob/master/serving/src/main/resources/application.yml) |
 
 ## 2. Feast CLI and Feast Python SDK
 
