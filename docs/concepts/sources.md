@@ -8,7 +8,7 @@ Currently, Feast supports the following source types:
 
 #### Batch Source
 
-* File \(as in Spark\): Parquet and CSV files supported.
+* File \(as in Spark\): Parquet \(only\).
 * BigQuery
 
 #### Stream Source
