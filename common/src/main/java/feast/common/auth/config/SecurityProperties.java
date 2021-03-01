@@ -53,7 +53,7 @@ public class SecurityProperties {
     private boolean enabled;
 
     // Named authorization provider to use.
-    @OneOfStrings({"none", "http"})
+    @OneOfStrings({"none", "http", "keto"})
     private String provider;
 
     // K/V options to initialize the provider with

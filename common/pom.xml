@@ -125,6 +125,11 @@
             <groupId>com.google.auth</groupId>
             <artifactId>google-auth-library-oauth2-http</artifactId>
         </dependency>
+        <dependency>
+            <groupId>sh.ory.keto</groupId>
+            <artifactId>keto-client</artifactId>
+            <version>0.5.7-alpha.1.pre.0</version>
+        </dependency>
         
         <!-- HTTP/REST -->
         <dependency>

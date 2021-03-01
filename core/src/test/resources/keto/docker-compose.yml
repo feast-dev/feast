@@ -7,6 +7,7 @@ services:
     image: oryd/keto:v0.4.3-alpha.2
     environment:
       - DSN=postgres://keto:keto@db:5432/keto?sslmode=disable
+      - SERVE_CORS_ENABLED=true
     command:
       - serve
     ports:
