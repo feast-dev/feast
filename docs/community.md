@@ -6,7 +6,7 @@
 
 ## Links & Resources
 
-* [Slack](https://kubeflow.slack.com/messages/CE0L8T267): We use the channel [\#Feast](https://kubeflow.slack.com/messages/CE0L8T267) in [kubeflow.slack.com](https://join.slack.com/t/kubeflow/shared_invite/zt-cpr020z4-PfcAue_2nw67~iIDy7maAQ). Feel free to ask questions or say hello!
+* [Slack](https://join.slack.com/t/tectonfeast/shared_invite/zt-lwl1kfc4-l7vyD5OT8Y9sMq9fulh~Ng): Feel free to ask questions or say hello!
 * [Mailing list](https://groups.google.com/d/forum/feast-dev): We have both a user and developer mailing list.
   * Feast users should join [feast-discuss@googlegroups.com](mailto:feast-discuss@googlegroups.com) group by clicking [here](https://groups.google.com/g/feast-discuss).
   * Feast developers should join [feast-dev@googlegroups.com](mailto:feast-dev@googlegroups.com) group by clicking [here](https://groups.google.com/d/forum/feast-dev).
