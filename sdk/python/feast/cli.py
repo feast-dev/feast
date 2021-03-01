@@ -15,6 +15,7 @@
 import json
 import logging
 import sys
+from pathlib import Path
 from typing import Dict
 
 import click
@@ -26,6 +27,8 @@ from feast.config import Config
 from feast.entity import Entity
 from feast.feature_table import FeatureTable
 from feast.loaders.yaml import yaml_loader
+from feast.repo_config import load_repo_config
+from feast.repo_operations import apply_total, registry_dump, teardown
 
 _logger = logging.getLogger(__name__)
 
@@ -351,6 +354,39 @@ def project_list():
     from tabulate import tabulate
 
     print(tabulate(table, headers=["NAME"], tablefmt="plain"))
+
+
+@cli.command("apply")
+@click.argument("repo_path", type=click.Path(dir_okay=True, exists=True))
+def apply_total_command(repo_path: str):
+    """
+    Applies a feature repo
+    """
+    repo_config = load_repo_config(Path(repo_path))
+
+    apply_total(repo_config, Path(repo_path).resolve())
+
+
+@cli.command("teardown")
+@click.argument("repo_path", type=click.Path(dir_okay=True, exists=True))
+def teardown_command(repo_path: str):
+    """
+    Tear down infra for a a feature repo
+    """
+    repo_config = load_repo_config(Path(repo_path))
+
+    teardown(repo_config, Path(repo_path).resolve())
+
+
+@cli.command("registry-dump")
+@click.argument("repo_path", type=click.Path(dir_okay=True, exists=True))
+def registry_dump_command(repo_path: str):
+    """
+    Prints contents of the metadata registry
+    """
+    repo_config = load_repo_config(Path(repo_path))
+
+    registry_dump(repo_config)
 
 
 if __name__ == "__main__":

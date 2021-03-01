@@ -45,6 +45,7 @@ REQUIRED = [
     "numpy<1.20.0",
     "google",
     "kubernetes==12.0.*",
+    "bindr",
 ]
 
 # README file from Feast repo root directory
