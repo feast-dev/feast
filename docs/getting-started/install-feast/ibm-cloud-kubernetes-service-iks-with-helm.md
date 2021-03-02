@@ -85,7 +85,7 @@ Therefore, to deploy Feast we need to set up [IBM Cloud Block Storage](https://c
 Add the Feast Helm repository and download the latest charts:
 
 ```text
-helm repo add feast-charts https://feast-charts.storage.googleapis.com
+helm repo add feast-charts https://feast-helm-charts.storage.googleapis.com
 helm repo update
 ```
 
