@@ -36,7 +36,7 @@ Add the Feast Helm repository and download the latest charts:
 
 ```bash
 helm version # make sure you have the latest Helm installed
-helm repo add feast-charts https://feast-charts.storage.googleapis.com
+helm repo add feast-charts https://feast-helm-charts.storage.googleapis.com
 helm repo update
 ```
 
