@@ -193,6 +193,7 @@ class ConfigOptions(metaclass=ConfigMeta):
     SPARK_K8S_USE_INCLUSTER_CONFIG = "True"
 
     # SparkApplication resource template
+    # Eg. '/home/jovyan/work/sparkapp-template.yaml'
     SPARK_K8S_JOB_TEMPLATE_PATH = None
 
     #: File format of historical retrieval features
