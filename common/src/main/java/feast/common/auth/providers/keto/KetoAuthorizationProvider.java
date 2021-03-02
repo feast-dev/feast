@@ -18,9 +18,7 @@ package feast.common.auth.providers.keto;
 
 import feast.common.auth.authorization.AuthorizationProvider;
 import feast.common.auth.authorization.AuthorizationResult;
-import feast.common.auth.config.SecurityProperties;
 import feast.common.auth.utils.AuthUtils;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -32,6 +30,92 @@ import sh.ory.keto.model.OryAccessControlPolicyAllowedInput;
 
 public class KetoAuthorizationProvider implements AuthorizationProvider {
 
+  /** Builder for KetoAuthorizationProvider */
+  public static class Builder {
+    private final String url;
+    private String subjectClaim = "email";
+    private String flavor = "glob";
+    private String action = "edit";
+    private String subjectPrefix = "";
+    private String resourcePrefix = "";
+
+    /**
+     * Initialized builder for Keto authorization provider.
+     *
+     * @param url Url string for Keto server.
+     * @return Returns Builder
+     */
+    public Builder(String url) {
+      this.url = url;
+    }
+
+    /**
+     * Set subject claim for authentication
+     *
+     * @param subjectClaim Subject claim. Default: email.
+     * @return Returns Builder
+     */
+    public Builder withSubjectClaim(String subjectClaim) {
+      this.subjectClaim = subjectClaim;
+      return this;
+    }
+
+    /**
+     * Set flavor for Keto authorization. One of [exact, glob regex]
+     *
+     * @param flavor Keto authorization flavor. Default: glob.
+     * @return Returns Builder
+     */
+    public Builder withFlavor(String flavor) {
+      this.flavor = flavor;
+      return this;
+    }
+
+    /**
+     * Set action that corresponds to the permission to edit a Feast project resource.
+     *
+     * @param action Keto action. Default: edit.
+     * @return Returns Builder
+     */
+    public Builder withAction(String action) {
+      this.action = action;
+      return this;
+    }
+
+    /**
+     * If set, The subject will be prefixed before sending the request to Keto. Example:
+     * users:someuser@email.com
+     *
+     * @param prefix Subject prefix. Default: Empty string.
+     * @return Returns Builder
+     */
+    public Builder withSubjectPrefix(String prefix) {
+      this.subjectPrefix = prefix;
+      return this;
+    }
+
+    /**
+     * If set, The resource will be prefixed before sending the request to Keto. Example:
+     * projects:somefeastproject
+     *
+     * @param prefix Resource prefix. Default: Empty string.
+     * @return Returns Builder
+     */
+    public Builder withResourcePrefix(String prefix) {
+      this.resourcePrefix = prefix;
+      return this;
+    }
+
+    /**
+     * Build KetoAuthorizationProvider
+     *
+     * @return Returns KetoAuthorizationProvider
+     */
+    public KetoAuthorizationProvider build() {
+      return new KetoAuthorizationProvider(this);
+    }
+  }
+
   private static final Logger log = LoggerFactory.getLogger(KetoAuthorizationProvider.class);
 
   private final EnginesApi apiInstance;
@@ -41,28 +125,15 @@ public class KetoAuthorizationProvider implements AuthorizationProvider {
   private final String subjectPrefix;
   private final String resourcePrefix;
 
-  /**
-   * Initializes the KetoAuthorizationProvider
-   *
-   * @param options String K/V pair of options to initialize the provider with. Supported K/V pairs:
-   *     authorizationUrl: Keto url. flavor: ORY Access Control Policy flavor. Default is exact.
-   *     resourcePrefix: Keto resource should be in the form of 'resource_prefix:feast project
-   *     name'. action: Action that corresponds to project access.
-   */
-  public KetoAuthorizationProvider(Map<String, String> options) {
-    if (options == null) {
-      throw new IllegalArgumentException(
-          "Cannot pass empty or null options to HTTPAuthorizationProvider");
-    }
-
+  private KetoAuthorizationProvider(Builder builder) {
     ApiClient defaultClient = Configuration.getDefaultApiClient();
-    defaultClient.setBasePath(options.get("authorizationUrl"));
+    defaultClient.setBasePath(builder.url);
     apiInstance = new EnginesApi(defaultClient);
-    subjectClaim = options.get(SecurityProperties.AuthenticationProperties.SUBJECT_CLAIM);
-    flavor = options.getOrDefault("flavor", "exact");
-    action = options.get("action");
-    subjectPrefix = options.get("subjectPrefix");
-    resourcePrefix = options.get("resourcePrefix");
+    subjectClaim = builder.subjectClaim;
+    flavor = builder.flavor;
+    action = builder.action;
+    subjectPrefix = builder.subjectPrefix;
+    resourcePrefix = builder.resourcePrefix;
   }
 
   @Override
