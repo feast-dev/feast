@@ -13,10 +13,15 @@
 # limitations under the License.
 from os.path import expanduser, join
 from typing import Optional
+
 import yaml
 
 
 class Config:
+    """
+    Python representation of the FeatureStore config that the user can specify via a yaml file.
+    """
+
     def __init__(
         self,
         provider: Optional[str],
@@ -25,8 +30,9 @@ class Config:
     ):
         self.provider = provider if (provider is not None) else "local"
         self.online_store = online_store if (online_store is not None) else "local"
-        self.metadata_store = metadata_store if (metadata_store is not None) else join(expanduser("~"), ".feast", "metadata_store")
-        return
+        self.metadata_store = (
+            metadata_store if (metadata_store is not None) else "./metadata_store"
+        )
 
     @classmethod
     def from_config_path(cls, config_path: str):

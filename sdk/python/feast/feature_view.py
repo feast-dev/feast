@@ -20,6 +20,10 @@ from feast.feature import Feature
 
 
 class FeatureView:
+    """
+    Represents a collection of features that will be served online.
+    """
+
     def __init__(
         self,
         name: str,

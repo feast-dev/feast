@@ -15,6 +15,10 @@ from typing import Dict, Optional
 
 
 class BigQuerySource:
+    """
+    Represents a BigQuery table reference or BigQuery query that returns a set of features.
+    """
+
     def __init__(
         self,
         table_ref: Optional[str],
@@ -23,7 +27,8 @@ class BigQuerySource:
         field_mapping: Optional[Dict[str, str]],
         query: Optional[str],
     ):
-        assert (table_ref is None) != (query is None), "Exactly one of table_ref and query should be specified"
+        if (table_ref is None) != (query is None):
+            raise Exception("Exactly one of table_ref and query should be specified")
         self.table_ref = table_ref
         self.event_timestamp_column = event_timestamp_column
         self.created_timestamp_column = created_timestamp_column

@@ -12,20 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import Optional
+
 from feast.feature_store_config import Config
 
 
 class FeatureStore:
+    """
+    Fat client to interact with the Feast feature store.
+    """
+
     def __init__(
-        self,
-        config_path: Optional[str],
-        config: Optional[Config],
+        self, config_path: Optional[str], config: Optional[Config],
     ):
-        assert (config_path is None or config is None), "You cannot specify both config_path and config"
+        if config_path is None or config is None:
+            raise Exception("You cannot specify both config_path and config")
         if config is not None:
             self.config = config
         elif config_path is not None:
             self.config = Config.from_config_path(config_path)
         else:
             self.config = Config()
-        return
