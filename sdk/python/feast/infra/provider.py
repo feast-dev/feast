@@ -40,5 +40,9 @@ def get_provider(config: OnlineStoreConfig) -> Provider:
         from feast.infra.firestore import Firestore
 
         return Firestore()
+    elif config.type == "local":
+        from feast.infra.local_sqlite import Sqlite
+
+        return Sqlite(config.local)
     else:
         raise ValueError(config)

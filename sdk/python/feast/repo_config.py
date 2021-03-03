@@ -9,9 +9,14 @@ class FirestoreConfig(NamedTuple):
     dummy: Optional[str] = None
 
 
+class LocalConfig(NamedTuple):
+    path: Optional[str] = None
+
+
 class OnlineStoreConfig(NamedTuple):
     type: str
     firestore: Optional[FirestoreConfig] = None
+    local: Optional[LocalConfig] = None
 
 
 class RepoConfig(NamedTuple):
