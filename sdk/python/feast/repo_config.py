@@ -5,18 +5,12 @@ import yaml
 from bindr import bind
 
 
-class FirestoreConfig(NamedTuple):
-    dummy: Optional[str] = None
-
-
-class LocalConfig(NamedTuple):
-    path: Optional[str] = None
+class LocalOnlineStoreConfig(NamedTuple):
+    path: str
 
 
 class OnlineStoreConfig(NamedTuple):
-    type: str
-    firestore: Optional[FirestoreConfig] = None
-    local: Optional[LocalConfig] = None
+    local: Optional[LocalOnlineStoreConfig] = None
 
 
 class RepoConfig(NamedTuple):

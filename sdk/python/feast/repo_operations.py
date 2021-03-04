@@ -70,7 +70,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     for table in repo.feature_tables:
         registry.apply_feature_table(table, project)
 
-    infra_provider = get_provider(repo_config.online_store)
+    infra_provider = get_provider(repo_config)
     infra_provider.update_infra(
         project, tables_to_delete=tables_to_delete, tables_to_keep=repo.feature_tables
     )
@@ -82,7 +82,7 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
     registry = Registry(repo_config.metadata_store)
     project = repo_config.project
     registry_tables = registry.list_feature_tables(project=project)
-    infra_provider = get_provider(repo_config.online_store)
+    infra_provider = get_provider(repo_config)
     infra_provider.teardown_infra(project, tables=registry_tables)
 
 

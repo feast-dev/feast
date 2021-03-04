@@ -2,7 +2,7 @@ import abc
 from typing import List
 
 from feast import FeatureTable
-from feast.repo_config import FirestoreConfig, OnlineStoreConfig
+from feast.repo_config import RepoConfig
 
 
 class Provider(abc.ABC):
@@ -35,14 +35,15 @@ class Provider(abc.ABC):
         ...
 
 
-def get_provider(config: OnlineStoreConfig) -> Provider:
-    if config.type == "firestore":
-        from feast.infra.firestore import Firestore
+def get_provider(config: RepoConfig) -> Provider:
+    if config.provider == "gcp":
+        from feast.infra.gcp import Gcp
 
-        return Firestore()
-    elif config.type == "local":
-        from feast.infra.local_sqlite import Sqlite
+        return Gcp()
+    elif config.provider == "local":
+        from feast.infra.local_sqlite import LocalSqlite
 
-        return Sqlite(config.local)
+        assert config.online_store.local is not None
+        return LocalSqlite(config.online_store.local)
     else:
         raise ValueError(config)

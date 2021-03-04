@@ -4,15 +4,17 @@ from typing import List
 
 from feast import FeatureTable
 from feast.infra.provider import Provider
-from feast.repo_config import LocalConfig
+from feast.repo_config import LocalOnlineStoreConfig
 
 
 def _table_id(project: str, table: FeatureTable) -> str:
     return f"{project}_{table.name}"
 
 
-class Sqlite(Provider):
-    def __init__(self, config: LocalConfig):
+class LocalSqlite(Provider):
+    _db_path: str
+
+    def __init__(self, config: LocalOnlineStoreConfig):
         self._db_path = config.path
 
     def update_infra(
