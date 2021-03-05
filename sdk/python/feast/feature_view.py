@@ -21,7 +21,7 @@ from feast.feature import Feature
 
 class FeatureView:
     """
-    Represents a collection of features that will be served online.
+    A FeatureView defines a logical grouping of servable features.
     """
 
     def __init__(

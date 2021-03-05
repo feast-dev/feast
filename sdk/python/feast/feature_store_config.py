@@ -18,7 +18,7 @@ import yaml
 
 class Config:
     """
-    Python representation of the FeatureStore config that the user can specify via a yaml file.
+    Configuration object that contains all possible configuration options for a FeatureStore.
     """
 
     def __init__(

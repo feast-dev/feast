@@ -18,7 +18,7 @@ from feast.feature_store_config import Config
 
 class FeatureStore:
     """
-    Fat client to interact with the Feast feature store.
+    A FeatureStore object is used to define, create, and retrieve features.
     """
 
     def __init__(
