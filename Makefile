@@ -94,14 +94,8 @@ build-docker: build-ci-docker
 push-ci-docker:
 	docker push $(REGISTRY)/feast-ci:$(VERSION)
 
-push-jupyter-docker:
-	docker push $(REGISTRY)/feast-jupyter:$(VERSION)
-
 build-ci-docker:
 	docker build -t $(REGISTRY)/feast-ci:$(VERSION) -f infra/docker/ci/Dockerfile .
-
-build-jupyter-docker:
-	docker build -t $(REGISTRY)/feast-jupyter:$(VERSION) -f infra/docker/jupyter/Dockerfile .
 
 build-local-test-docker:
 	docker build -t feast:local -f infra/docker/tests/Dockerfile .
@@ -143,8 +137,3 @@ build-html: clean-html
 	$(MAKE) compile-protos-python
 	cd 	$(ROOT_DIR)/sdk/python/docs && $(MAKE) html
 	cp -r $(ROOT_DIR)/sdk/python/docs/html/* $(ROOT_DIR)/dist/python
-
-# Performance
-
-test-load:
-	./infra/scripts/test-load.sh $(GIT_SHA)
