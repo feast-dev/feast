@@ -29,6 +29,6 @@ class FeatureStore:
         if config is not None:
             self.config = config
         elif config_path is not None:
-            self.config = Config.from_config_path(config_path)
+            self.config = Config.from_path(config_path)
         else:
             self.config = Config()

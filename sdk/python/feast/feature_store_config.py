@@ -34,7 +34,16 @@ class Config:
         )
 
     @classmethod
-    def from_config_path(cls, config_path: str):
+    def from_path(cls, config_path: str):
+        """
+        Construct the configuration object from a filepath containing a yaml file.
+
+        Example yaml file:
+
+        provider: gcp
+        online_store: firestore
+        metadata_store: gs://my_bucket/metadata_store
+        """
         with open(config_path, "r") as f:
             config_dict = yaml.safe_load(f)
             return cls(
