@@ -39,7 +39,7 @@ def get_provider(config: RepoConfig) -> Provider:
     if config.provider == "gcp":
         from feast.infra.gcp import Gcp
 
-        return Gcp()
+        return Gcp(config.online_store.firestore)
     elif config.provider == "local":
         from feast.infra.local_sqlite import LocalSqlite
 

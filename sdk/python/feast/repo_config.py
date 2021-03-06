@@ -8,8 +8,11 @@ from bindr import bind
 class LocalOnlineStoreConfig(NamedTuple):
     path: str
 
+class FirestoreOnlineStoreConfig(NamedTuple):
+    pass
 
 class OnlineStoreConfig(NamedTuple):
+    firestore: Optional[FirestoreOnlineStoreConfig] = None
     local: Optional[LocalOnlineStoreConfig] = None
 
 

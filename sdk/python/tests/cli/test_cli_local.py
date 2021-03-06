@@ -20,7 +20,8 @@ class CliRunner:
 
 
 class TestCliLocal:
-    def test_hello(self) -> None:
+
+    def test_basic(self) -> None:
         runner = CliRunner()
         with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
 
@@ -34,7 +35,7 @@ class TestCliLocal:
                     f"""
             project: foo
             metadata_store: {data_path / "metadata.db"}
-            provider: gcp
+            provider: local
             online_store:
                 local:
                     path: {data_path / "online_store.db"}
