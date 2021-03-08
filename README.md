@@ -45,7 +45,7 @@ Please refer to the official documentation at <https://docs.feast.dev>
  * [Examples](https://github.com/feast-dev/feast/blob/master/examples/)
  * [Roadmap](https://docs.feast.dev/roadmap)
  * [Change Log](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
- * [Slack (#Feast)](https://join.slack.com/t/kubeflow/shared_invite/zt-cpr020z4-PfcAue_2nw67~iIDy7maAQ)
+ * [Slack (#Feast)](https://join.slack.com/t/tectonfeast/shared_invite/zt-n7pl8gnb-H7dLlH9yQsgbchOp36ZUxQ)
 
 ## Notice
 
