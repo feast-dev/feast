@@ -74,10 +74,15 @@ We use the following structure to store feature data in the Firestore:
 
 Document id for the feature document is computed by hashing entity key using murmurhash3_128 algorithm as follows:
 
-1. hash utf8-encoded entity names, sorted in alphanumeric order
-2. hash the entity values in the same order as corresponding entity names, by serializing them to bytes as follows:
-  - binary values are hashed as-is
-  - string values hashed after serializing them as utf8 string
+1. hash entity names, sorted in alphanumeric order, by serializing them to bytes using the Value Serialization steps below
+2. hash the entity values in the same order as corresponding entity names, by serializing them to bytes using the Value Serialization steps below
+
+Value Serialization:
+* Store the type of the value (ValueType enum) as little-endian uint32.
+* Store the byte length of the serialized value as little-endian uint32
+* Store the serialized value as bytes:
+  - binary values are serialized as is
+  - string values serialized as utf8 string
   - int64 and int32 hashed as little-endian byte representation (8 and 4 bytes respectively)
   - bool hashed as 0 or 1 byte
 
