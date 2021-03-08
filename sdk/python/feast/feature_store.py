@@ -19,7 +19,7 @@ import pyarrow
 
 from feast.feature_view import FeatureView
 from feast.infra.provider import Provider, get_provider
-from feast.offline_store import OfflineStore, BigQueryOfflineStore
+from feast.offline_store import BigQueryOfflineStore
 from feast.registry import Registry
 from feast.repo_config import (
     LocalOnlineStoreConfig,
@@ -61,7 +61,14 @@ class FeatureStore:
     def _get_registry(self) -> Registry:
         return Registry(self.config.metadata_store)
 
-    def _pull_table(self, feature_view: FeatureView, start_date: datetime, end_date: datetime) -> Optional[pyarrow.Table]:
+    def _pull_table(
+        self, feature_view: FeatureView, start_date: datetime, end_date: datetime
+    ) -> Optional[pyarrow.Table]:
+        if feature_view.inputs.table_ref is None:
+            raise NotImplementedError(
+                "Ingestion is not yet implemented for query-based sources."
+            )
+
         # if we have mapped fields, use the original field names in the call to the offline store
         event_timestamp_column = feature_view.inputs.event_timestamp_column
         fields = (
@@ -85,7 +92,13 @@ class FeatureStore:
                 for col in fields
             ]
 
-        table = BigQueryOfflineStore.pull_table(feature_view.inputs.table_ref, fields, event_timestamp_column, start_date, end_date)
+        table = BigQueryOfflineStore.pull_table(
+            feature_view.inputs.table_ref,
+            fields,
+            event_timestamp_column,
+            start_date,
+            end_date,
+        )
 
         # run feature mapping in the forward direction
         if table is not None and feature_view.inputs.field_mapping is not None:

@@ -26,7 +26,11 @@ class OfflineStore(ABC):
     @staticmethod
     @abstractmethod
     def pull_table(
-        table_ref: str, fields: List[str], event_timestamp_column: str, start_date: datetime, end_date: datetime,
+        table_ref: str,
+        fields: List[str],
+        event_timestamp_column: str,
+        start_date: datetime,
+        end_date: datetime,
     ) -> Optional[pyarrow.Table]:
         pass
 
@@ -38,7 +42,11 @@ class BigQueryOfflineStore(OfflineStore):
 
     @staticmethod
     def pull_table(
-        table_ref: str, fields: List[str], event_timestamp_column: str, start_date: datetime, end_date: datetime,
+        table_ref: str,
+        fields: List[str],
+        event_timestamp_column: str,
+        start_date: datetime,
+        end_date: datetime,
     ) -> Optional[pyarrow.Table]:
         from google.cloud.bigquery_storage import BigQueryReadClient, types
 
