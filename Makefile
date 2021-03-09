@@ -17,6 +17,10 @@
 ROOT_DIR 	:= $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 PROTO_TYPE_SUBDIRS = core serving types storage
 PROTO_SERVICE_SUBDIRS = core serving
+OS := linux
+ifeq ($(shell uname -s), Darwin)
+	OS = osx
+endif
 
 # General
 
@@ -113,14 +117,16 @@ install-dependencies-proto-docs:
 	cd tools/cmd/protoc-gen-docs && \
 	go build && \
 	cp protoc-gen-docs $$HOME/bin && \
-	cd $$HOME && curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v3.11.2/protoc-3.11.2-linux-x86_64.zip && \
-	unzip protoc-3.11.2-linux-x86_64.zip -d protoc3 && \
+	cd $$HOME && curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v3.11.2/protoc-3.11.2-${OS}-x86_64.zip && \
+	unzip protoc-3.11.2-${OS}-x86_64.zip -d protoc3 && \
 	mv protoc3/bin/* $$HOME/bin/ && \
 	chmod +x $$HOME/bin/protoc && \
 	mv protoc3/include/* $$HOME/include
 
 compile-protos-docs:
-	cd ${ROOT_DIR}/protos; protoc --docs_out=../dist/grpc feast/*/*.proto || \
+	cd ${ROOT_DIR}/protos; 
+	mkdir -p ../dist/grpc
+	protoc --docs_out=../dist/grpc feast/*/*.proto || \
 	cd ${ROOT_DIR}; $(MAKE) install-dependencies-proto-docs && 	cd ${ROOT_DIR}/protos; PATH=$$HOME/bin:$$PATH protoc -I $$HOME/include/ -I . --docs_out=../dist/grpc feast/*/*.proto
 
 clean-html:
