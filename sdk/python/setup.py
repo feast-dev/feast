@@ -46,6 +46,7 @@ REQUIRED = [
     "google",
     "kubernetes==12.0.*",
     "bindr",
+    "mmh3",
 ]
 
 # README file from Feast repo root directory

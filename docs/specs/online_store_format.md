@@ -59,20 +59,20 @@ Here's an example of how the entire thing looks like:
 
 However, we'll address this issue in future versions of the protocol.
 
-## Cloud Firestore Online Store Format
+## Google Datastore Online Store Format
 
-[Firebase data model](https://firebase.google.com/docs/firestore/data-model) is a hierarchy of documents that can contain (sub)-collections. This structure can be multiple levels deep; documents and subcollections are alternating in this hierarchy.
+[Datastore data model](https://cloud.google.com/datastore/docs/concepts/entities) is a collection of documents called Entities (not to be confused with Feast Entities). Documents can be organized in a hierarchy using Kinds.
 
-We use the following structure to store feature data in the Firestore:
-* at the first level, there is a collection for each Feast project
-* second level, in each project-collection, there is a Firebase document for each Feature Table
-* third level, in the document for the Feature Table, there is a subcollection called `values` that contain a document per feature row. That document contains the following fields:
-  * `key` contains entity key as serialized `feast.types.EntityKey` proto
-  * `values` contains feature name to value map, values serialized as `feast.types.Value` proto
-  * `event_ts` contains event timestamp (in the native firestore timestamp format)
-  * `created_ts` contains write timestamp (in the native firestore timestamp format)
+We use the following structure to store feature data in Datastore:
+* there is a Datastore Entity for each Feast Project, with Kind `Project`
+* under that Datastore Entity, there is a Datastore Entity for each Feast Feature Table or View, with Kind `Table`. That contains one additional field, `created_ts` that contains the timestamp when this Datastore Entity was created.
+* under that Datastore Entity, there is a Datastore Entity for each Feast Entity Key with Kind `Row`. That contains the following fields:
+	 * `key` contains entity key as serialized `feast.types.EntityKey` proto
+	 * `values` contains feature name to value map, values serialized as `feast.types.Value` proto
+   * `event_ts` contains event timestamp (in the datastore timestamp format)
+   * `created_ts` contains write timestamp (in the datastore timestamp format)
 
-Document id for the feature document is computed by hashing entity key using murmurhash3_128 algorithm as follows:
+The id for the `Row` Datastore Entity is computed by hashing entity key using murmurhash3_128 algorithm as follows:
 
 1. hash entity names, sorted in alphanumeric order, by serializing them to bytes using the Value Serialization steps below
 2. hash the entity values in the same order as corresponding entity names, by serializing them to bytes using the Value Serialization steps below
@@ -90,7 +90,7 @@ Other types of entity keys are not supported in this version of the specificatio
 
 **Example:**
 
-![Firestore Online Example](firebase_online_example.png)
+![Datastore Online Example](datastore_online_example.png)
 
 # Appendix
 

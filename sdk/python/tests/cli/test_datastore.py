@@ -10,6 +10,7 @@ from typing import List
 import pytest
 
 from feast import cli
+from tests.cli.online_read_write_test import basic_rw_test
 
 
 class CliRunner:
@@ -58,6 +59,8 @@ class TestCliGcp:
 
             result = runner.run(["apply", str(repo_path)], cwd=repo_path)
             assert result.returncode == 0
+
+            basic_rw_test(repo_path, project_name=self._project_id)
 
             result = runner.run(["teardown", str(repo_path)], cwd=repo_path)
             assert result.returncode == 0
