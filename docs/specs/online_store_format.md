@@ -68,7 +68,7 @@ We use the following structure to store feature data in the Firestore:
 * second level, in each project-collection, there is a Firebase document for each Feature Table
 * third level, in the document for the Feature Table, there is a subcollection called `values` that contain a document per feature row. That document contains the following fields:
   * `key` contains entity key as serialized `feast.types.EntityKey` proto
-  * `value` contains value as serialized `feast.types.Value` proto
+  * `values` contains feature name to value map, values serialized as `feast.types.Value` proto
   * `event_ts` contains event timestamp (in the native firestore timestamp format)
   * `created_ts` contains write timestamp (in the native firestore timestamp format)
 
