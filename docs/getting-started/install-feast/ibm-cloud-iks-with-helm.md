@@ -85,7 +85,7 @@ Therefore, to deploy Feast we need to set up [IBM Cloud Block Storage](https://c
 Add the Feast Helm repository and download the latest charts:
 
 ```text
-helm repo add feast-charts https://feast-charts.storage.googleapis.com
+helm repo add feast-charts https://feast-helm-charts.storage.googleapis.com
 helm repo update
 ```
 
@@ -152,7 +152,7 @@ When running the minimal\_ride\_hailing\_example Jupyter Notebook example the fo
     <SparkJobStatus.FAILED: 2>
    ```
 
-    Add the following environment variable:
+   Add the following environment variable:
 
    ```text
     os.environ["FEAST_REDIS_HOST"] = "feast-release-redis-master"
@@ -164,7 +164,7 @@ When running the minimal\_ride\_hailing\_example Jupyter Notebook example the fo
     org.apache.kafka.vendor.common.KafkaException: Failed to construct kafka consumer
    ```
 
-    Add the following environment variable:
+   Add the following environment variable:
 
    ```text
     os.environ["DEMO_KAFKA_BROKERS"] = "feast-release-kafka:9092"

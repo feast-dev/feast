@@ -1,4 +1,4 @@
-name: complete
+name: unprivileged
 
 on: [push, pull_request]
 
@@ -46,4 +46,3 @@ jobs:
         run: make compile-protos-go
       - name: Test go
         run: make test-go
-

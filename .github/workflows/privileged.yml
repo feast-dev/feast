@@ -1,0 +1,34 @@
+name: privileged
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - labeled
+
+jobs:
+  integration-test-python:
+    # all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
+    if: (github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'ok-to-test'))
+      || (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved')))
+    runs-on: ubuntu-latest
+    container: gcr.io/kf-feast/feast-ci:latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # pull_request_target runs the workflow in the context of the base repo
+          # as such actions/checkout needs to be explicit configured to retrieve
+          # code from the PR.
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          submodules: recursive
+      - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        with:
+          version: '290.0.1'
+          export_default_credentials: true
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+      - name: Install python
+        run: make install-python
+      - name: Test python
+        run: FEAST_TELEMETRY=False pytest --verbose --color=yes sdk/python/tests --integration

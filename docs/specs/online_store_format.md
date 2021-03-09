@@ -59,6 +59,39 @@ Here's an example of how the entire thing looks like:
 
 However, we'll address this issue in future versions of the protocol.
 
+## Cloud Firestore Online Store Format
+
+[Firebase data model](https://firebase.google.com/docs/firestore/data-model) is a hierarchy of documents that can contain (sub)-collections. This structure can be multiple levels deep; documents and subcollections are alternating in this hierarchy.
+
+We use the following structure to store feature data in the Firestore:
+* at the first level, there is a collection for each Feast project
+* second level, in each project-collection, there is a Firebase document for each Feature Table
+* third level, in the document for the Feature Table, there is a subcollection called `values` that contain a document per feature row. That document contains the following fields:
+  * `key` contains entity key as serialized `feast.types.EntityKey` proto
+  * `value` contains value as serialized `feast.types.Value` proto
+  * `event_ts` contains event timestamp (in the native firestore timestamp format)
+  * `created_ts` contains write timestamp (in the native firestore timestamp format)
+
+Document id for the feature document is computed by hashing entity key using murmurhash3_128 algorithm as follows:
+
+1. hash entity names, sorted in alphanumeric order, by serializing them to bytes using the Value Serialization steps below
+2. hash the entity values in the same order as corresponding entity names, by serializing them to bytes using the Value Serialization steps below
+
+Value Serialization:
+* Store the type of the value (ValueType enum) as little-endian uint32.
+* Store the byte length of the serialized value as little-endian uint32
+* Store the serialized value as bytes:
+  - binary values are serialized as is
+  - string values serialized as utf8 string
+  - int64 and int32 hashed as little-endian byte representation (8 and 4 bytes respectively)
+  - bool hashed as 0 or 1 byte
+
+Other types of entity keys are not supported in this version of the specification, when using Cloud Firestore.
+
+**Example:**
+
+![Firestore Online Example](firebase_online_example.png)
+
 # Appendix
 
 ##### Appendix A. Value proto format.
