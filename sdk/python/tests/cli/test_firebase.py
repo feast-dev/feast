@@ -1,9 +1,13 @@
+import random
+import string
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 from textwrap import dedent
 from typing import List
+
+import pytest
 
 from feast import cli
 
@@ -19,7 +23,13 @@ class CliRunner:
         return subprocess.run([sys.executable, cli.__file__] + args, cwd=cwd)
 
 
-class TestCliLocal:
+@pytest.mark.integration
+class TestCliGcp:
+    def setup_method(self):
+        self._project_id = "".join(
+            random.choice(string.ascii_lowercase + string.digits) for _ in range(10)
+        )
+
     def test_basic(self) -> None:
         runner = CliRunner()
         with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
@@ -32,12 +42,11 @@ class TestCliLocal:
             repo_config.write_text(
                 dedent(
                     f"""
-            project: foo
+            project: {self._project_id}
             metadata_store: {data_path / "metadata.db"}
-            provider: local
+            provider: gcp
             online_store:
-                local:
-                    path: {data_path / "online_store.db"}
+                firestore:
             """
                 )
             )
