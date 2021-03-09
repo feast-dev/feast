@@ -1,5 +1,10 @@
 # Introduction
 
+{% hint style="success" %}
+_Would you prefer a lighter-weight, pip-install, no-Kubernetes deployment of Feast?_ The Feast maintainers are currently building a new deployment experience for Feast. If you have thoughts on Feast's deployment, [chat with the maintainers](https://calendly.com/d/gc29-y88c/feast-chat-w-willem-and-jay) to learn more and provide feedback.
+{% endhint %}
+
+
 ## What is Feast?
 
 Feast \(**Fea**ture **St**ore\) is an operational data system for managing and serving machine learning features to models in production.
