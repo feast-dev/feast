@@ -13,7 +13,7 @@
 # limitations under the License.
 from typing import Optional
 
-from feast.feature_store_config import Config
+from feast.repo_config import RepoConfig, load_repo_config
 
 
 class FeatureStore:
@@ -22,13 +22,13 @@ class FeatureStore:
     """
 
     def __init__(
-        self, config_path: Optional[str], config: Optional[Config],
+        self, config_path: Optional[str], config: Optional[RepoConfig],
     ):
         if config_path is None or config is None:
             raise Exception("You cannot specify both config_path and config")
         if config is not None:
             self.config = config
         elif config_path is not None:
-            self.config = Config.from_path(config_path)
+            self.config = load_repo_config(config_path)
         else:
-            self.config = Config()
+            self.config = RepoConfig()
