@@ -56,11 +56,9 @@ class BigQueryOfflineStore(OfflineStore):
         partition_by_entity_string = ", ".join(entity_names)
         if partition_by_entity_string != "":
             partition_by_entity_string = "PARTITION BY " + partition_by_entity_string
-        feature_string = ", ".join(feature_names)
         timestamps = [event_timestamp_column]
         if created_timestamp_column is not None:
             timestamps.append(created_timestamp_column)
-        timestamp_string = ", ".join(timestamps)
         timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
         field_string = ", ".join(entity_names + feature_names + timestamps)
 
