@@ -371,7 +371,7 @@ def apply_total_command(repo_path: str):
 @click.argument("repo_path", type=click.Path(dir_okay=True, exists=True))
 def teardown_command(repo_path: str):
     """
-    Tear down infra for a a feature repo
+    Tear down infra for a feature repo
     """
     repo_config = load_repo_config(Path(repo_path))
 

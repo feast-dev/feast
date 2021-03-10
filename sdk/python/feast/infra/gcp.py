@@ -8,7 +8,7 @@ from feast.repo_config import DatastoreOnlineStoreConfig
 
 def _delete_all_values(client, key) -> None:
     """
-    Delete all keys under the key path in firestore.
+    Delete all data under the key path in datastore.
     """
     while True:
         query = client.query(kind="Value", ancestor=key)
@@ -59,6 +59,7 @@ class Gcp(Provider):
                 client, client.key("FeastProject", project, "FeatureTable", table.name)
             )
 
+            # Delete the table metadata datastore entity
             key = client.key("FeastProject", project, "FeatureTable", table.name)
             client.delete(key)
 
@@ -70,5 +71,6 @@ class Gcp(Provider):
                 client, client.key("FeastProject", project, "FeatureTable", table.name)
             )
 
+            # Delete the table metadata datastore entity
             key = client.key("FeastProject", project, "FeatureTable", table.name)
             client.delete(key)
