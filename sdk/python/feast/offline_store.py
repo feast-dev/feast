@@ -27,8 +27,10 @@ class OfflineStore(ABC):
     @abstractmethod
     def pull_table(
         table_ref: str,
-        fields: List[str],
+        entity_names: List[str],
+        feature_names: List[str],
         event_timestamp_column: str,
+        created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
     ) -> Optional[pyarrow.Table]:
@@ -43,33 +45,41 @@ class BigQueryOfflineStore(OfflineStore):
     @staticmethod
     def pull_table(
         table_ref: str,
-        fields: List[str],
+        entity_names: List[str],
+        feature_names: List[str],
         event_timestamp_column: str,
+        created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
-    ) -> Optional[pyarrow.Table]:
-        from google.cloud.bigquery_storage import BigQueryReadClient, types
+    ) -> pyarrow.Table:
 
-        project, dataset, table = table_ref.split(".")
-        client = BigQueryReadClient()
+        partition_by_entity_string = ", ".join(entity_names)
+        if partition_by_entity_string != "":
+            partition_by_entity_string = "PARTITION BY " + partition_by_entity_string
+        feature_string = ", ".join(feature_names)
+        timestamps = [event_timestamp_column]
+        if created_timestamp_column is not None:
+            timestamps.append(created_timestamp_column)
+        timestamp_string = ", ".join(timestamps)
+        timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
+        field_string = ", ".join(entity_names + feature_names + timestamps)
 
-        requested_session = types.ReadSession()
-        requested_session.table = (
-            f"projects/{project}/datasets/{dataset}/tables/{table}"
+        query = f"""
+        SELECT {field_string}
+        FROM (
+            SELECT {field_string},
+            ROW_NUMBER() OVER({partition_by_entity_string} ORDER BY {timestamp_desc_string}) AS _feast_row
+            FROM `{table_ref}`
+            WHERE {event_timestamp_column} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')
         )
-        requested_session.data_format = types.DataFormat.ARROW
+        WHERE _feast_row = 1
+        """
+        return BigQueryOfflineStore._pull_query(query)
 
-        requested_session.read_options.selected_fields = fields
-        requested_session.read_options.row_restriction = f"{event_timestamp_column} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')"
+    @staticmethod
+    def _pull_query(query: str) -> pyarrow.Table:
+        from google.cloud import bigquery
 
-        parent = f"projects/{project}"
-        session = client.create_read_session(
-            parent=parent, read_session=requested_session, max_stream_count=1,
-        )
-
-        if len(session.streams) == 0:
-            # will sometimes happen, indicates no data
-            return None
-        reader = client.read_rows(session.streams[0].name)
-        table = reader.to_arrow(session)
-        return table
+        client = bigquery.Client()
+        query_job = client.query(query)
+        return query_job.to_arrow()

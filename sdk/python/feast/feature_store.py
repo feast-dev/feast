@@ -71,13 +71,9 @@ class FeatureStore:
 
         # if we have mapped fields, use the original field names in the call to the offline store
         event_timestamp_column = feature_view.inputs.event_timestamp_column
-        fields = (
-            [entity.name for entity in feature_view.entities]
-            + [feature.name for feature in feature_view.features]
-            + [feature_view.inputs.event_timestamp_column]
-        )
-        if feature_view.inputs.created_timestamp_column is not None:
-            fields.append(feature_view.inputs.created_timestamp_column)
+        entity_names = [entity.name for entity in feature_view.entities]
+        feature_names = [feature.name for feature in feature_view.features]
+        created_timestamp_column = feature_view.inputs.created_timestamp_column
         if feature_view.inputs.field_mapping is not None:
             reverse_field_mapping = {
                 v: k for k, v in feature_view.inputs.field_mapping.items()
@@ -87,17 +83,31 @@ class FeatureStore:
                 if event_timestamp_column in reverse_field_mapping.keys()
                 else event_timestamp_column
             )
-            fields = [
+            created_timestamp_column = (
+                reverse_field_mapping[created_timestamp_column]
+                if created_timestamp_column is not None
+                and created_timestamp_column in reverse_field_mapping.keys()
+                else created_timestamp_column
+            )
+            entity_names = [
                 reverse_field_mapping[col]
                 if col in reverse_field_mapping.keys()
                 else col
-                for col in fields
+                for col in entity_names
+            ]
+            feature_names = [
+                reverse_field_mapping[col]
+                if col in reverse_field_mapping.keys()
+                else col
+                for col in feature_names
             ]
 
         table = BigQueryOfflineStore.pull_table(
             feature_view.inputs.table_ref,
-            fields,
+            entity_names,
+            feature_names,
             event_timestamp_column,
+            created_timestamp_column,
             start_date,
             end_date,
         )
