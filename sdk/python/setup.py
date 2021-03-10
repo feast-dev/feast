@@ -29,7 +29,7 @@ REQUIRED = [
     "google-api-core==1.22.4",
     "google-cloud-bigquery==1.18.*",
     "google-cloud-storage==1.20.*",
-    "google-cloud-core==1.0.*",
+    "google-cloud-core==1.4.*",
     "googleapis-common-protos==1.52.*",
     "google-cloud-bigquery-storage==0.7.*",
     "grpcio==1.31.0",
@@ -45,6 +45,7 @@ REQUIRED = [
     "numpy<1.20.0",
     "google",
     "kubernetes==12.0.*",
+    "bindr",
 ]
 
 # README file from Feast repo root directory
