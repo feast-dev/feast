@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from feast import FeatureTable
 from feast.infra.provider import Provider
@@ -22,13 +22,21 @@ def _delete_all_values(client, key) -> None:
 
 
 class Gcp(Provider):
-    def __init__(self, config: DatastoreOnlineStoreConfig):
-        self._project_id = config.project_id
+    _project_id: Optional[str]
+
+    def __init__(self, config: Optional[DatastoreOnlineStoreConfig]):
+        if config:
+            self._project_id = config.project_id
+        else:
+            self._project_id = None
 
     def _initialize_client(self):
         from google.cloud import datastore
 
-        return datastore.Client(self.project_id)
+        if self._project_id is not None:
+            return datastore.Client(self.project_id)
+        else:
+            return datastore.Client()
 
     def update_infra(
         self,

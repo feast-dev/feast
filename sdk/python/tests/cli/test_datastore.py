@@ -46,7 +46,7 @@ class TestCliGcp:
             metadata_store: {data_path / "metadata.db"}
             provider: gcp
             online_store:
-                firestore:
+                datastore:
             """
                 )
             )
