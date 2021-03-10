@@ -9,12 +9,12 @@ class LocalOnlineStoreConfig(NamedTuple):
     path: str
 
 
-class FirestoreOnlineStoreConfig(NamedTuple):
-    pass
+class DatastoreOnlineStoreConfig(NamedTuple):
+    project_id: str
 
 
 class OnlineStoreConfig(NamedTuple):
-    firestore: Optional[FirestoreOnlineStoreConfig] = None
+    datastore: Optional[DatastoreOnlineStoreConfig] = None
     local: Optional[LocalOnlineStoreConfig] = None
 
 

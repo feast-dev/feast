@@ -1,39 +1,34 @@
-from typing import List, Optional
+from datetime import datetime
+from typing import List
 
 from feast import FeatureTable
 from feast.infra.provider import Provider
-from feast.repo_config import FirestoreOnlineStoreConfig
+from feast.repo_config import DatastoreOnlineStoreConfig
 
 
-def _table_id(project: str, table: FeatureTable) -> str:
-    return f"{project}_{table.name}"
-
-
-def _delete_collection(coll_ref, batch_size=1000) -> None:
+def _delete_all_values(client, key) -> None:
     """
-    Delete Firebase collection. There is no way to delete the entire collections, so we have to
-    delete documents in the collection one by one.
+    Delete all keys under the key path in firestore.
     """
     while True:
-        docs = coll_ref.limit(batch_size).stream()
-        deleted = 0
-
-        for doc in docs:
-            doc.reference.delete()
-            deleted = deleted + 1
-
-        if deleted < batch_size:
+        query = client.query(kind="Value", ancestor=key)
+        entities = list(query.fetch(limit=1000))
+        if not entities:
             return
+
+        for entity in entities:
+            print("Deleting: {}".format(entity))
+            client.delete(entity.key)
 
 
 class Gcp(Provider):
-    def __init__(self, config: Optional[FirestoreOnlineStoreConfig]):
-        pass
+    def __init__(self, config: DatastoreOnlineStoreConfig):
+        self._project_id = config.project_id
 
-    def _initialize_app(self):
-        import firebase_admin
+    def _initialize_client(self):
+        from google.cloud import datastore
 
-        return firebase_admin.initialize_app()
+        return datastore.Client(self.project_id)
 
     def update_infra(
         self,
@@ -41,38 +36,31 @@ class Gcp(Provider):
         tables_to_delete: List[FeatureTable],
         tables_to_keep: List[FeatureTable],
     ):
-        from firebase_admin import firestore
+        from google.cloud import datastore
 
-        def table_id(t):
-            return _table_id(project, table=t)
-
-        app = self._initialize_app()
-
-        db = firestore.client(app=app)
+        client = self._initialize_client()
 
         for table in tables_to_keep:
-            db.collection(project).document(table_id(table)).set(
-                {"created_at": firestore.SERVER_TIMESTAMP}
-            )
+            key = client.key("FeastProject", project, "FeatureTable", table.name)
+            entity = datastore.Entity(key=key)
+            entity.update({"created_at": datetime.utcnow()})
+            client.put(entity)
 
         for table in tables_to_delete:
-            _delete_collection(
-                db.collection(project).document(table_id(table)).collection("values")
+            _delete_all_values(
+                client, client.key("FeastProject", project, "FeatureTable", table.name)
             )
-            db.collection(project).document(table_id(table)).delete()
+
+            key = client.key("FeastProject", project, "FeatureTable", table.name)
+            client.delete(key)
 
     def teardown_infra(self, project: str, tables: List[FeatureTable]) -> None:
-        from firebase_admin import firestore
-
-        def table_id(t):
-            return _table_id(project, table=t)
-
-        app = self._initialize_app()
-
-        db = firestore.client(app=app)
+        client = self._initialize_client()
 
         for table in tables:
-            _delete_collection(
-                db.collection(project).document(table_id(table)).collection("values")
+            _delete_all_values(
+                client, client.key("FeastProject", project, "FeatureTable", table.name)
             )
-            db.collection(project).document(table_id(table)).delete()
+
+            key = client.key("FeastProject", project, "FeatureTable", table.name)
+            client.delete(key)

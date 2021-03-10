@@ -23,4 +23,4 @@ PyYAML==5.3.1
 great-expectations==0.13.2
 adlfs==0.5.9
 firebase-admin==4.5.2
-google-cloud-firestore==2.0.2
+google-cloud-datastore==2.1.0
