@@ -76,6 +76,8 @@ class FeatureStore:
             + [feature.name for feature in feature_view.features]
             + [feature_view.inputs.event_timestamp_column]
         )
+        if feature_view.inputs.created_timestamp_column is not None:
+            fields.append(feature_view.inputs.created_timestamp_column)
         if feature_view.inputs.field_mapping is not None:
             reverse_field_mapping = {
                 v: k for k, v in feature_view.inputs.field_mapping.items()

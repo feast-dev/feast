@@ -19,10 +19,10 @@ class OnlineStoreConfig(NamedTuple):
 
 
 class RepoConfig(NamedTuple):
-    metadata_store: str
-    project: str
-    provider: str
-    online_store: OnlineStoreConfig
+    metadata_store: str = "./metadata_store"
+    project: str = "default"
+    provider: str = "local"
+    online_store: OnlineStoreConfig = OnlineStoreConfig()
 
 
 def load_repo_config(repo_path: Path) -> RepoConfig:
