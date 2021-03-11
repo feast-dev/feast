@@ -1,6 +1,5 @@
 import os
 import sqlite3
-import sys
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
@@ -21,11 +20,6 @@ class LocalSqlite(Provider):
 
     def __init__(self, config: LocalOnlineStoreConfig):
         self._db_path = config.path
-        sqlite_ver = tuple(map(int, sqlite3.sqlite_version.split(".")))
-        if not sqlite_ver >= (3, 24, 0):
-            raise Exception(
-                f"SQLite version >= 3.24.0 reqiured (got {sqlite3.sqlite_version}, Python {sys.version}"
-            )
 
     def _get_conn(self):
         return sqlite3.connect(
@@ -66,27 +60,36 @@ class LocalSqlite(Provider):
             for entity_key, values, timestamp in data:
                 for feature_name, val in values.items():
                     entity_key_bin = serialize_entity_key(entity_key)
+
                     conn.execute(
-                        f"""INSERT INTO {_table_id(project, table)}
-                            (entity_key, feature_name, value, event_ts, created_ts)
-                            VALUES (?, ?, ?, ?, ?)
-                            ON CONFLICT (entity_key, feature_name) DO UPDATE
+                        f"""
+                            UPDATE {_table_id(project, table)}
                             SET value = ?, event_ts = ?, created_ts = ?
-                            WHERE event_ts < ? OR (event_ts = ? AND created_ts < ?)
+                            WHERE (event_ts < ? OR (event_ts = ? AND created_ts < ?))
+                            AND (entity_key = ? AND feature_name = ?)
                         """,
                         (
-                            # INSERT
-                            entity_key_bin,
-                            feature_name,
-                            val.SerializeToString(),
-                            timestamp,
-                            created_ts,
                             # SET
                             val.SerializeToString(),
                             timestamp,
                             created_ts,
                             # WHERE
                             timestamp,
+                            timestamp,
+                            created_ts,
+                            entity_key_bin,
+                            feature_name,
+                        ),
+                    )
+
+                    conn.execute(
+                        f"""INSERT OR IGNORE INTO {_table_id(project, table)}
+                            (entity_key, feature_name, value, event_ts, created_ts)
+                            VALUES (?, ?, ?, ?, ?)""",
+                        (
+                            entity_key_bin,
+                            feature_name,
+                            val.SerializeToString(),
                             timestamp,
                             created_ts,
                         ),
