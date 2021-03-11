@@ -81,7 +81,7 @@ ALL_TYPES = pd.DataFrame(
         "user_id": [1001, 1002, 1004],
         "int32_feature": [np.int32(1), np.int32(2), np.int32(3)],
         "int64_feature": [np.int64(1), np.int64(2), np.int64(3)],
-        "float_feature": [np.float(0.1), np.float(0.2), np.float(0.3)],
+        "float_feature": [np.float32(0.1), np.float32(0.2), np.float32(0.3)],
         "double_feature": [np.float64(0.1), np.float64(0.2), np.float64(0.3)],
         "string_feature": ["one", "two", "three"],
         "bytes_feature": [b"one", b"two", b"three"],

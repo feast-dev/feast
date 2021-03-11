@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import sys
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
@@ -20,6 +21,11 @@ class LocalSqlite(Provider):
 
     def __init__(self, config: LocalOnlineStoreConfig):
         self._db_path = config.path
+        sqlite_ver = tuple(map(int, sqlite3.sqlite_version.split(".")))
+        if not sqlite_ver >= (3, 24, 0):
+            raise Exception(
+                f"SQLite version >= 3.24.0 reqiured (got {sqlite3.sqlite_version}, Python {sys.version}"
+            )
 
     def _get_conn(self):
         return sqlite3.connect(
@@ -55,6 +61,7 @@ class LocalSqlite(Provider):
         created_ts: datetime,
     ) -> None:
         conn = self._get_conn()
+
         with conn:
             for entity_key, values, timestamp in data:
                 for feature_name, val in values.items():

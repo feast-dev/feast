@@ -18,6 +18,7 @@ pytest==6.0.0
 pytest-lazy-fixture==0.6.3
 pytest-timeout==1.4.2
 pytest-ordering==0.6.*
+numpy==1.19
 pytest-mock==1.10.4
 PyYAML==5.3.1
 great-expectations==0.13.2
