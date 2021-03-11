@@ -40,10 +40,6 @@ class OfflineStore(ABC):
 
 
 class BigQueryOfflineStore(OfflineStore):
-    """
-    BigQueryOfflineStore is a non-user-facing object used for all interaction between Feast and BigQuery.
-    """
-
     @staticmethod
     def pull_latest_from_table(
         table_ref: str,
@@ -88,6 +84,14 @@ class BigQueryOfflineStore(OfflineStore):
 def run_reverse_field_mapping(
     feature_view: FeatureView,
 ) -> Tuple[List[str], List[str], str, Optional[str]]:
+    """
+    If a field mapping exists, run it in reverse on the entity names, feature names, event timestamp column, and created timestamp column to get the names of the relevant columns in the BigQuery table.
+
+    Args:
+        feature_view: FeatureView object containing the field mapping as well as the names to reverse-map.
+    Returns:
+        Tuple containing the list of reverse-mapped entity names, reverse-mapped feature names, reverse-mapped event timestamp column, and reverse-mapped created timestamp column that will be passed into the query to the offline store.
+    """
     # if we have mapped fields, use the original field names in the call to the offline store
     event_timestamp_column = feature_view.inputs.event_timestamp_column
     entity_names = [entity.name for entity in feature_view.entities]
