@@ -64,27 +64,27 @@ However, we'll address this issue in future versions of the protocol.
 [Datastore data model](https://cloud.google.com/datastore/docs/concepts/entities) is a collection of documents called Entities (not to be confused with Feast Entities). Documents can be organized in a hierarchy using Kinds.
 
 We use the following structure to store feature data in Datastore:
-* there is a Datastore Entity for each Feast Project, with Kind `Project`
-* under that Datastore Entity, there is a Datastore Entity for each Feast Feature Table or View, with Kind `Table`. That contains one additional field, `created_ts` that contains the timestamp when this Datastore Entity was created.
-* under that Datastore Entity, there is a Datastore Entity for each Feast Entity Key with Kind `Row`. That contains the following fields:
+* There is a Datastore Entity for each Feast Project, with Kind `Project`.
+* Under that Datastore Entity, there is a Datastore Entity for each Feast Feature Table or View, with Kind `Table`. That contains one additional field, `created_ts` that contains the timestamp when this Datastore Entity was created.
+* Under that Datastore Entity, there is a Datastore Entity for each Feast Entity Key with Kind `Row`. That contains the following fields:
 	 * `key` contains entity key as serialized `feast.types.EntityKey` proto
 	 * `values` contains feature name to value map, values serialized as `feast.types.Value` proto
    * `event_ts` contains event timestamp (in the datastore timestamp format)
-   * `created_ts` contains write timestamp (in the datastore timestamp format)
+   * `created_ts` contains write timestamp (in the datastore timestamp format).
 
 The id for the `Row` Datastore Entity is computed by hashing entity key using murmurhash3_128 algorithm as follows:
 
-1. hash entity names, sorted in alphanumeric order, by serializing them to bytes using the Value Serialization steps below
-2. hash the entity values in the same order as corresponding entity names, by serializing them to bytes using the Value Serialization steps below
+1. Hash entity names, sorted in alphanumeric order, by serializing them to bytes using the Value Serialization steps below.
+2. Hash the entity values in the same order as corresponding entity names, by serializing them to bytes using the Value Serialization steps below.
 
 Value Serialization:
 * Store the type of the value (ValueType enum) as little-endian uint32.
-* Store the byte length of the serialized value as little-endian uint32
+* Store the byte length of the serialized value as little-endian uint32.
 * Store the serialized value as bytes:
   - binary values are serialized as is
   - string values serialized as utf8 string
   - int64 and int32 hashed as little-endian byte representation (8 and 4 bytes respectively)
-  - bool hashed as 0 or 1 byte
+  - bool hashed as 0 or 1 byte.
 
 Other types of entity keys are not supported in this version of the specification, when using Cloud Firestore.
 
