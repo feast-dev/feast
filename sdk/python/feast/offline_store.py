@@ -22,19 +22,13 @@ from feast.feature_view import FeatureView
 
 class OfflineStore(ABC):
     """
-    OfflineStore is a non-user-facing object used for all interaction between Feast and the service used for offline storage of features. Currently BigQuery is supported.
+    OfflineStore is an object used for all interaction between Feast and the service used for offline storage of features. Currently BigQuery is supported.
     """
 
     @staticmethod
     @abstractmethod
     def pull_latest_from_table(
-        table_ref: str,
-        entity_names: List[str],
-        feature_names: List[str],
-        event_timestamp_column: str,
-        created_timestamp_column: Optional[str],
-        start_date: datetime,
-        end_date: datetime,
+        feature_view: FeatureView, start_date: datetime, end_date: datetime,
     ) -> Optional[pyarrow.Table]:
         pass
 
@@ -42,14 +36,19 @@ class OfflineStore(ABC):
 class BigQueryOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table(
-        table_ref: str,
-        entity_names: List[str],
-        feature_names: List[str],
-        event_timestamp_column: str,
-        created_timestamp_column: Optional[str],
-        start_date: datetime,
-        end_date: datetime,
+        feature_view: FeatureView, start_date: datetime, end_date: datetime,
     ) -> pyarrow.Table:
+        if feature_view.inputs.table_ref is None:
+            raise ValueError(
+                "This function can only be called on a FeatureView with a table_ref"
+            )
+
+        (
+            entity_names,
+            feature_names,
+            event_timestamp_column,
+            created_timestamp_column,
+        ) = run_reverse_field_mapping(feature_view)
 
         partition_by_entity_string = ", ".join(entity_names)
         if partition_by_entity_string != "":
@@ -65,12 +64,15 @@ class BigQueryOfflineStore(OfflineStore):
         FROM (
             SELECT {field_string},
             ROW_NUMBER() OVER({partition_by_entity_string} ORDER BY {timestamp_desc_string}) AS _feast_row
-            FROM `{table_ref}`
+            FROM `{feature_view.inputs.table_ref}`
             WHERE {event_timestamp_column} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')
         )
         WHERE _feast_row = 1
         """
-        return BigQueryOfflineStore._pull_query(query)
+
+        table = BigQueryOfflineStore._pull_query(query)
+        table = run_forward_field_mapping(table, feature_view)
+        return table
 
     @staticmethod
     def _pull_query(query: str) -> pyarrow.Table:
