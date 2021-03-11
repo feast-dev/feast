@@ -7,9 +7,18 @@ from google.protobuf.json_format import MessageToJson, ParseDict
 
 
 def rest_transport(func):
+    """Convert a class method that issues gRPC calls into REST calls.
+
+    The class is assumed to have two variables: url and service_name. The REST endpoint is 
+    constructed as: {url}/{service_name}/{class method name}.
+
+    Args:
+        func: A class method with signature func(self, grpc_request_message, *args, **kwargs)
+    """
+
     def wrapper(*args, **kwargs):
-        base_url = args[0]._url
-        service_name = args[0]._service_name
+        base_url = args[0].url
+        service_name = args[0].service_name
 
         # Turn gRPC requests into json.
         request_grpc = args[1]
@@ -18,7 +27,6 @@ def rest_transport(func):
 
         # Send request to REST endpoint
         response = requests.post(url, data=request_json)
-
         if response.status_code != 200:
             raise RuntimeError(
                 "Response code is not 200 due to: {}".format(response.text)
