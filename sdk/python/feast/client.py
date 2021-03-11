@@ -18,6 +18,7 @@ import shutil
 import uuid
 import warnings
 from datetime import datetime
+from enum import Enum
 from os.path import expanduser, join
 from typing import Any, Dict, List, Optional, Union
 
@@ -83,13 +84,18 @@ CPU_COUNT: int = multiprocessing.cpu_count()
 warnings.simplefilter("once", DeprecationWarning)
 
 
+class TransportName(Enum):
+    grpc = "grpc"
+    rest = "rest"
+
+
 class Client:
     """
     Feast Client: Used for creating, managing, and retrieving features.
     """
 
     def __init__(
-        self, options: Optional[Dict[str, str]] = None, transport_type="grpc", **kwargs
+        self, options: Optional[Dict[str, str]] = None, transport_name="grpc", **kwargs
     ):
         """
         The Feast Client should be initialized with at least one service url
@@ -114,7 +120,7 @@ class Client:
         if options is None:
             options = dict()
         self._config = Config(options={**options, **kwargs})
-        self._transport_type = transport_type
+        self._transport_name = TransportName(transport_name)
 
         self._core_service_stub: Optional[CoreServiceStub] = None
         self._serving_service_stub: Optional[ServingServiceStub] = None
@@ -139,7 +145,7 @@ class Client:
         Returns: CoreServiceStub
         """
         if not self._core_service_stub:
-            if self._transport_type == "grpc":
+            if self._transport_name == TransportName.grpc:
                 channel = create_grpc_channel(
                     url=self._config.get(opt.CORE_URL),
                     enable_ssl=self._config.getboolean(opt.CORE_ENABLE_SSL),
@@ -149,8 +155,12 @@ class Client:
                     timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                 )
                 self._core_service_stub = CoreServiceStub(channel)
-            else:
+            elif self._transport_name == TransportName.rest:
                 self._core_service_stub = CoreServiceRESTStub(opt.CORE_URL)
+            else:
+                raise ValueError(
+                    "Unknown transport name: {}".format(self._transport_name)
+                )
         return self._core_service_stub
 
     @property
@@ -173,7 +183,7 @@ class Client:
         Returns: ServingServiceStub
         """
         if not self._serving_service_stub:
-            if self._transport_type == "grpc":
+            if self._transport_name == TransportName.grpc:
                 channel = create_grpc_channel(
                     url=self._config.get(opt.SERVING_URL),
                     enable_ssl=self._config.getboolean(opt.SERVING_ENABLE_SSL),
@@ -194,8 +204,12 @@ class Client:
                 except ImportError:
                     pass
                 self._serving_service_stub = ServingServiceStub(channel)
-            else:
+            elif self._transport_name == TransportName.rest:
                 self._serving_service_stub = ServingServiceRESTStub(opt.SERVING_URL)
+            else:
+                raise ValueError(
+                    "Unknown transport name: {}".format(self._transport_name)
+                )
         return self._serving_service_stub
 
     def _extra_grpc_params(self) -> Dict[str, Any]:
