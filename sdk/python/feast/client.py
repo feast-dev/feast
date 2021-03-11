@@ -156,7 +156,9 @@ class Client:
                 )
                 self._core_service_stub = CoreServiceStub(channel)
             elif self._transport_name == TransportName.rest:
-                self._core_service_stub = CoreServiceRESTStub(opt.CORE_URL)
+                self._core_service_stub = CoreServiceRESTStub(
+                    self._config.get(opt.CORE_URL)
+                )
             else:
                 raise ValueError(
                     "Unknown transport name: {}".format(self._transport_name)
@@ -205,7 +207,9 @@ class Client:
                     pass
                 self._serving_service_stub = ServingServiceStub(channel)
             elif self._transport_name == TransportName.rest:
-                self._serving_service_stub = ServingServiceRESTStub(opt.SERVING_URL)
+                self._serving_service_stub = ServingServiceRESTStub(
+                    self._config.get(opt.SERVING_URL)
+                )
             else:
                 raise ValueError(
                     "Unknown transport name: {}".format(self._transport_name)

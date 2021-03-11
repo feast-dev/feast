@@ -8,10 +8,12 @@ from feast.serving.ServingService_pb2 import (
 
 
 class ServingServiceRESTStub(object):
-    def __init__(self, serving_url) -> None:
+    def __init__(
+        self, serving_url, service_name="feast.serving.ServingService"
+    ) -> None:
         super().__init__()
         self.url = serving_url
-        self.service_name = "feast.serving.ServingService"
+        self.service_name = service_name
 
     @rest_transport
     def GetFeastServingInfo(

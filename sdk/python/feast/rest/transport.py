@@ -18,7 +18,12 @@ def rest_transport(func):
 
         # Send request to REST endpoint
         response = requests.post(url, data=request_json)
-        response_json = json.loads(response.text)
+
+        if response.status_code != 200:
+            raise RuntimeError(
+                "Response code is not 200 due to: {}".format(response.text)
+            )
+        response_json = response.json()
 
         # Parse return dict into return message type
         signature = inspect.signature(func)

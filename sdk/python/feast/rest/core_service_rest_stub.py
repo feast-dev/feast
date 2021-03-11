@@ -32,9 +32,7 @@ from feast.rest.transport import rest_transport
 
 
 class CoreServiceRESTStub(object):
-    def __init__(
-        self, core_url="localhost:6565", service_name="feast.core.CoreService"
-    ) -> None:
+    def __init__(self, core_url, service_name="feast.core.CoreService") -> None:
         super().__init__()
         self._url = core_url
         self._service_name = service_name
