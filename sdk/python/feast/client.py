@@ -87,10 +87,10 @@ class Client:
     """
     Feast Client: Used for creating, managing, and retrieving features.
     """
-    def __init__(self,
-                 options: Optional[Dict[str, str]] = None,
-                 transport_type='grpc',
-                 **kwargs):
+
+    def __init__(
+        self, options: Optional[Dict[str, str]] = None, transport_type="grpc", **kwargs
+    ):
         """
         The Feast Client should be initialized with at least one service url
         Please see constants.py for configuration options. Commonly used options
@@ -123,8 +123,7 @@ class Client:
 
         # Configure Auth Metadata Plugin if auth is enabled
         if self._config.getboolean(opt.ENABLE_AUTH):
-            self._auth_metadata = feast_auth.get_auth_metadata_plugin(
-                self._config)
+            self._auth_metadata = feast_auth.get_auth_metadata_plugin(self._config)
 
         self._configure_telemetry()
 
@@ -140,13 +139,12 @@ class Client:
         Returns: CoreServiceStub
         """
         if not self._core_service_stub:
-            if self._transport_type == 'grpc':
+            if self._transport_type == "grpc":
                 channel = create_grpc_channel(
                     url=self._config.get(opt.CORE_URL),
                     enable_ssl=self._config.getboolean(opt.CORE_ENABLE_SSL),
                     enable_auth=self._config.getboolean(opt.ENABLE_AUTH),
-                    ssl_server_cert_path=self._config.get(
-                        opt.CORE_SERVER_SSL_CERT),
+                    ssl_server_cert_path=self._config.get(opt.CORE_SERVER_SSL_CERT),
                     auth_metadata_plugin=self._auth_metadata,
                     timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                 )
@@ -175,13 +173,12 @@ class Client:
         Returns: ServingServiceStub
         """
         if not self._serving_service_stub:
-            if self._transport_type == 'grpc':
+            if self._transport_type == "grpc":
                 channel = create_grpc_channel(
                     url=self._config.get(opt.SERVING_URL),
                     enable_ssl=self._config.getboolean(opt.SERVING_ENABLE_SSL),
                     enable_auth=self._config.getboolean(opt.ENABLE_AUTH),
-                    ssl_server_cert_path=self._config.get(
-                        opt.SERVING_SERVER_SSL_CERT),
+                    ssl_server_cert_path=self._config.get(opt.SERVING_SERVER_SSL_CERT),
                     auth_metadata_plugin=self._auth_metadata,
                     timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                 )
@@ -191,14 +188,14 @@ class Client:
                     from grpc_opentracing.grpcext import intercept_channel
 
                     interceptor = open_tracing_client_interceptor(
-                        opentracing.global_tracer())
+                        opentracing.global_tracer()
+                    )
                     channel = intercept_channel(channel, interceptor)
                 except ImportError:
                     pass
                 self._serving_service_stub = ServingServiceStub(channel)
             else:
-                self._serving_service_stub = ServingServiceRESTStub(
-                    opt.SERVING_URL)
+                self._serving_service_stub = ServingServiceRESTStub(opt.SERVING_URL)
         return self._serving_service_stub
 
     def _extra_grpc_params(self) -> Dict[str, Any]:
@@ -341,9 +338,7 @@ class Client:
             return sdk_version
 
         result = {
-            "sdk": {
-                "version": sdk_version
-            },
+            "sdk": {"version": sdk_version},
             "serving": "not configured",
             "core": "not configured",
         }
@@ -354,10 +349,7 @@ class Client:
                 timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                 metadata=self._get_grpc_metadata(),
             ).version
-            result["serving"] = {
-                "url": self.serving_url,
-                "version": serving_version
-            }
+            result["serving"] = {"url": self.serving_url, "version": serving_version}
 
         if not self._use_object_store_registry and self.core_url:
             core_version = self._core_service.GetFeastCoreVersion(
@@ -424,7 +416,8 @@ class Client:
 
         if self._use_object_store_registry:
             raise NotImplementedError(
-                "Projects are not implemented for object store registry.")
+                "Projects are not implemented for object store registry."
+            )
         else:
             response = self._core_service.ListProjects(
                 ListProjectsRequest(),
@@ -443,7 +436,8 @@ class Client:
 
         if self._use_object_store_registry:
             raise NotImplementedError(
-                "Projects are not implemented for object store registry.")
+                "Projects are not implemented for object store registry."
+            )
         else:
             self._core_service.CreateProject(
                 CreateProjectRequest(name=project),
@@ -463,7 +457,8 @@ class Client:
 
         if self._use_object_store_registry:
             raise NotImplementedError(
-                "Projects are not implemented for object store registry.")
+                "Projects are not implemented for object store registry."
+            )
         else:
             try:
                 self._core_service_stub.ArchiveProject(
@@ -480,8 +475,7 @@ class Client:
 
     def apply(
         self,
-        objects: Union[List[Union[Entity, FeatureTable]], Entity,
-                       FeatureTable],
+        objects: Union[List[Union[Entity, FeatureTable]], Entity, FeatureTable],
         project: str = None,
     ):
         """
@@ -530,9 +524,7 @@ class Client:
                     f"Could not determine object type to apply {obj} with type {type(obj)}. Type must be Entity or FeatureTable."
                 )
 
-    def apply_entity(self,
-                     entities: Union[List[Entity], Entity],
-                     project: str = None):
+    def apply_entity(self, entities: Union[List[Entity], Entity], project: str = None):
         """
         Deprecated. Please see apply().
         """
@@ -550,8 +542,7 @@ class Client:
             if isinstance(entity, Entity):
                 self._apply_entity(project, entity)  # type: ignore
                 continue
-            raise ValueError(
-                f"Could not determine entity type to apply {entity}")
+            raise ValueError(f"Could not determine entity type to apply {entity}")
 
     def _apply_entity(self, project: str, entity: Entity):
         """
@@ -570,8 +561,9 @@ class Client:
             # Convert the entity to a request and send to Feast Core
             try:
                 apply_entity_response = self._core_service.ApplyEntity(
-                    ApplyEntityRequest(project=project,
-                                       spec=entity_proto),  # type: ignore
+                    ApplyEntityRequest(
+                        project=project, spec=entity_proto
+                    ),  # type: ignore
                     timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                     metadata=self._get_grpc_metadata(),
                 )  # type: ApplyEntityResponse
@@ -584,9 +576,9 @@ class Client:
             # Deep copy from the returned entity to the local entity
             entity._update_from_entity(applied_entity)
 
-    def list_entities(self,
-                      project: str = None,
-                      labels: Dict[str, str] = dict()) -> List[Entity]:
+    def list_entities(
+        self, project: str = None, labels: Dict[str, str] = dict()
+    ) -> List[Entity]:
         """
         Retrieve a list of entities from Feast Core
 
@@ -608,8 +600,7 @@ class Client:
 
             # Get latest entities from Feast Core
             entity_protos = self._core_service.ListEntities(
-                ListEntitiesRequest(filter=filter),
-                metadata=self._get_grpc_metadata(),
+                ListEntitiesRequest(filter=filter), metadata=self._get_grpc_metadata(),
             )  # type: ListEntitiesResponse
 
             # Extract entities and return
@@ -678,8 +669,7 @@ class Client:
             feature_tables = [feature_tables]
         for feature_table in feature_tables:
             if isinstance(feature_table, FeatureTable):
-                self._apply_feature_table(project,
-                                          feature_table)  # type: ignore
+                self._apply_feature_table(project, feature_table)  # type: ignore
                 continue
             raise ValueError(
                 f"Could not determine feature table type to apply {feature_table}"
@@ -703,8 +693,8 @@ class Client:
             try:
                 apply_feature_table_response = self._core_service.ApplyFeatureTable(
                     ApplyFeatureTableRequest(
-                        project=project,
-                        table_spec=feature_table_proto),  # type: ignore
+                        project=project, table_spec=feature_table_proto
+                    ),  # type: ignore
                     timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                     metadata=self._get_grpc_metadata(),
                 )  # type: ApplyFeatureTableResponse
@@ -713,15 +703,14 @@ class Client:
 
             # Extract the returned feature table
             applied_feature_table = FeatureTable.from_proto(
-                apply_feature_table_response.table)
+                apply_feature_table_response.table
+            )
 
             # Deep copy from the returned feature table to the local entity
             feature_table._update_from_feature_table(applied_feature_table)
 
     def list_feature_tables(
-        self,
-        project: str = None,
-        labels: Dict[str, str] = dict()
+        self, project: str = None, labels: Dict[str, str] = dict()
     ) -> List[FeatureTable]:
         """
         Retrieve a list of feature tables from Feast Core
@@ -739,8 +728,7 @@ class Client:
         if self._use_object_store_registry:
             return self._registry.list_feature_tables(project)
         else:
-            filter = ListFeatureTablesRequest.Filter(project=project,
-                                                     labels=labels)
+            filter = ListFeatureTablesRequest.Filter(project=project, labels=labels)
 
             # Get latest feature tables from Feast Core
             feature_table_protos = self._core_service.ListFeatureTables(
@@ -756,9 +744,7 @@ class Client:
                 feature_tables.append(feature_table)
             return feature_tables
 
-    def get_feature_table(self,
-                          name: str,
-                          project: str = None) -> FeatureTable:
+    def get_feature_table(self, name: str, project: str = None) -> FeatureTable:
         """
         Retrieves a feature table.
 
@@ -811,18 +797,17 @@ class Client:
         else:
             try:
                 self._core_service.DeleteFeatureTable(
-                    DeleteFeatureTableRequest(project=project,
-                                              name=name.strip()),
+                    DeleteFeatureTableRequest(project=project, name=name.strip()),
                     metadata=self._get_grpc_metadata(),
                 )
             except grpc.RpcError as e:
                 raise grpc.RpcError(e.details())
 
     def list_features_by_ref(
-            self,
-            project: str = None,
-            entities: List[str] = list(),
-            labels: Dict[str, str] = dict(),
+        self,
+        project: str = None,
+        entities: List[str] = list(),
+        labels: Dict[str, str] = dict(),
     ) -> Dict[FeatureRef, Feature]:
         """
         Retrieve a dictionary of feature reference to feature from Feast Core based on filters provided.
@@ -845,18 +830,18 @@ class Client:
 
         if self._use_object_store_registry:
             raise NotImplementedError(
-                "This function is not implemented for object store registry.")
+                "This function is not implemented for object store registry."
+            )
         else:
             if project is None:
                 project = self.project
 
-            filter = ListFeaturesRequest.Filter(project=project,
-                                                entities=entities,
-                                                labels=labels)
+            filter = ListFeaturesRequest.Filter(
+                project=project, entities=entities, labels=labels
+            )
 
             feature_protos = self._core_service.ListFeatures(
-                ListFeaturesRequest(filter=filter),
-                metadata=self._get_grpc_metadata(),
+                ListFeaturesRequest(filter=filter), metadata=self._get_grpc_metadata(),
             )  # type: ListFeaturesResponse
 
             # Extract features and return
@@ -934,18 +919,21 @@ class Client:
             name = feature_table.name
 
         fetched_feature_table: Optional[FeatureTable] = self.get_feature_table(
-            name, project)
+            name, project
+        )
         if fetched_feature_table is not None:
             feature_table = fetched_feature_table
         else:
             raise Exception(f"FeatureTable, {name} cannot be found.")
 
         # Check 1) Only parquet file format for FeatureTable batch source is supported
-        if (feature_table.batch_source
-                and issubclass(type(feature_table.batch_source), FileSource)
-                and isinstance(
-                    type(feature_table.batch_source.file_options.file_format),
-                    ParquetFormat)):
+        if (
+            feature_table.batch_source
+            and issubclass(type(feature_table.batch_source), FileSource)
+            and isinstance(
+                type(feature_table.batch_source.file_options.file_format), ParquetFormat
+            )
+        ):
             raise Exception(
                 f"No suitable batch source found for FeatureTable, {name}."
                 f"Only BATCH_FILE source with parquet format is supported for batch ingestion."
@@ -962,8 +950,10 @@ class Client:
 
         dir_path = None
         with_partitions = False
-        if (issubclass(type(feature_table.batch_source), FileSource)
-                and feature_table.batch_source.date_partition_column):
+        if (
+            issubclass(type(feature_table.batch_source), FileSource)
+            and feature_table.batch_source.date_partition_column
+        ):
             with_partitions = True
             dest_path = _write_partitioned_table_from_source(
                 column_names,
@@ -973,34 +963,31 @@ class Client:
             )
         else:
             dir_path, dest_path = _write_non_partitioned_table_from_source(
-                column_names,
-                pyarrow_table,
-                chunk_size,
-                max_workers,
+                column_names, pyarrow_table, chunk_size, max_workers,
             )
 
         try:
             if issubclass(type(feature_table.batch_source), FileSource):
-                file_url = feature_table.batch_source.file_options.file_url.rstrip(
-                    "*")
-                _upload_to_file_source(file_url, with_partitions, dest_path,
-                                       self._config)
+                file_url = feature_table.batch_source.file_options.file_url.rstrip("*")
+                _upload_to_file_source(
+                    file_url, with_partitions, dest_path, self._config
+                )
             if issubclass(type(feature_table.batch_source), BigQuerySource):
                 bq_table_ref = feature_table.batch_source.bigquery_options.table_ref
                 feature_table_timestamp_column = (
-                    feature_table.batch_source.event_timestamp_column)
+                    feature_table.batch_source.event_timestamp_column
+                )
 
-                _upload_to_bq_source(bq_table_ref,
-                                     feature_table_timestamp_column, dest_path)
+                _upload_to_bq_source(
+                    bq_table_ref, feature_table_timestamp_column, dest_path
+                )
         finally:
             # Remove parquet file(s) that were created earlier
             print("Removing temporary file(s)...")
             if dir_path:
                 shutil.rmtree(dir_path)
 
-        print(
-            "Data has been successfully ingested into FeatureTable batch source."
-        )
+        print("Data has been successfully ingested into FeatureTable batch source.")
 
     def _get_grpc_metadata(self):
         """
@@ -1060,8 +1047,7 @@ class Client:
         try:
             response = self._serving_service.GetOnlineFeaturesV2(
                 GetOnlineFeaturesRequestV2(
-                    features=_build_feature_references(
-                        feature_ref_strs=feature_refs),
+                    features=_build_feature_references(feature_ref_strs=feature_refs),
                     entity_rows=_infer_online_entity_rows(entity_rows),
                     project=project if project is not None else self.project,
                 ),

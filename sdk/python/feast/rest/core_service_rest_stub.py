@@ -1,21 +1,3 @@
-import inspect
-import logging
-import multiprocessing
-import os
-import shutil
-import uuid
-import warnings
-from datetime import datetime
-from os.path import expanduser, join
-from typing import Any, Dict, List, Optional, Union
-
-import grpc
-import pandas as pd
-import requests
-from google.protobuf.json_format import MessageToJson, ParseDict
-
-from feast.config import Config
-from feast.constants import ConfigOptions as opt
 from feast.core.CoreService_pb2 import (
     ApplyEntityRequest,
     ApplyEntityResponse,
@@ -26,9 +8,11 @@ from feast.core.CoreService_pb2 import (
     CreateProjectRequest,
     CreateProjectResponse,
     DeleteFeatureTableRequest,
+    DeleteFeatureTableResponse,
     GetEntityRequest,
     GetEntityResponse,
     GetFeastCoreVersionRequest,
+    GetFeastCoreVersionResponse,
     GetFeatureTableRequest,
     GetFeatureTableResponse,
     ListEntitiesRequest,
@@ -39,48 +23,98 @@ from feast.core.CoreService_pb2 import (
     ListFeatureTablesResponse,
     ListProjectsRequest,
     ListProjectsResponse,
+    ListStoresRequest,
+    ListStoresResponse,
+    UpdateStoreRequest,
+    UpdateStoreResponse,
 )
-from feast.core.CoreService_pb2_grpc import CoreServiceStub
-from feast.data_format import ParquetFormat
-from feast.data_source import BigQuerySource, FileSource
-from feast.entity import Entity
-from feast.feature import Feature, FeatureRef, _build_feature_references
-from feast.feature_table import FeatureTable
-import json
-
-
-def grpc_rest_proxy(func, return_msg_type=None):
-    def wrapper(*args, **kwargs):
-        base_url = args[0].url
-        service_name = args[0].service_name
-
-        # Turn gRPC requests into dict
-        request_grpc = args[1]
-        request_json = MessageToJson(request_grpc)
-        url = os.path.join(base_url, service_name, func.__name__)
-
-        # Send request to REST endpoint
-        response = requests.post(url, data=request_json)
-
-        # Parse return dict into return message type
-        signature = inspect.signature(func)
-        return_type = signature.return_annotation
-
-        response_json = json.loads(response.text)
-        return_msg = return_type()
-        ParseDict(response_json, return_msg)
-        return return_msg
-
-    return wrapper
+from feast.rest.transport import rest_transport
 
 
 class CoreServiceRESTStub(object):
-    def __init__(self, core_url) -> None:
+    def __init__(
+        self, core_url="localhost:6565", service_name="feast.core.CoreService"
+    ) -> None:
         super().__init__()
-        self.url = core_url
-        self.service_name = "feast.core.CoreService"
+        self._url = core_url
+        self._service_name = service_name
 
-    @grpc_rest_proxy
-    def ListProjects(self, req: ListProjectsRequest, *args,
-                     **kwargs) -> ListProjectsResponse:
+    @rest_transport
+    def GetFeastCoreVersion(
+        self, req: GetFeastCoreVersionRequest, *args, **kwargs
+    ) -> GetFeastCoreVersionResponse:
+        pass
+
+    @rest_transport
+    def GetEntity(self, req: GetEntityRequest, *args, **kwargs) -> GetEntityResponse:
+        pass
+
+    @rest_transport
+    def ListFeatures(
+        self, req: ListFeaturesRequest, *args, **kwargs
+    ) -> ListFeaturesResponse:
+        pass
+
+    @rest_transport
+    def ListStores(self, req: ListStoresRequest, *args, **kwargs) -> ListStoresResponse:
+        pass
+
+    @rest_transport
+    def ApplyEntity(
+        self, req: ApplyEntityRequest, *args, **kwargs
+    ) -> ApplyEntityResponse:
+        pass
+
+    @rest_transport
+    def ListEntities(
+        self, req: ListEntitiesRequest, *args, **kwargs
+    ) -> ListEntitiesResponse:
+        pass
+
+    @rest_transport
+    def UpdateStore(
+        self, req: UpdateStoreRequest, *args, **kwargs
+    ) -> UpdateStoreResponse:
+        pass
+
+    @rest_transport
+    def CreateProject(
+        self, req: CreateProjectRequest, *args, **kwargs
+    ) -> CreateProjectResponse:
+        pass
+
+    @rest_transport
+    def ArchiveProject(
+        self, req: ArchiveProjectRequest, *args, **kwargs
+    ) -> ArchiveProjectResponse:
+        pass
+
+    @rest_transport
+    def ListProjects(
+        self, req: ListProjectsRequest, *args, **kwargs
+    ) -> ListProjectsResponse:
+        pass
+
+    @rest_transport
+    def ApplyFeatureTable(
+        self, req: ApplyFeatureTableRequest, *args, **kwargs
+    ) -> ApplyFeatureTableResponse:
+        pass
+
+    @rest_transport
+    def ListFeatureTables(
+        self, req: ListFeatureTablesRequest, *args, **kwargs
+    ) -> ListFeatureTablesResponse:
+        pass
+
+    @rest_transport
+    def GetFeatureTable(
+        self, req: GetFeatureTableRequest, *args, **kwargs
+    ) -> GetFeatureTableResponse:
+        pass
+
+    @rest_transport
+    def DeleteFeatureTable(
+        self, req: DeleteFeatureTableRequest, *args, **kwargs
+    ) -> DeleteFeatureTableResponse:
         pass
