@@ -29,7 +29,7 @@ ENV MAVEN_HOME /usr/share/maven
 ENV MAVEN_CONFIG "/root/.m2"
 
 # Install Make and Python
-ENV PYTHON_VERSION 3.6
+ENV PYTHON_VERSION 3.7
 
 RUN apt-get install -y build-essential curl python${PYTHON_VERSION} \
     python${PYTHON_VERSION}-dev python${PYTHON_VERSION}-distutils && \
