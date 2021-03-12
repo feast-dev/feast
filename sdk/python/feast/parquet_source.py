@@ -21,7 +21,7 @@ class ParquetSource:
         self,
         path: Optional[str],
         event_timestamp_column: str,
-        created_timestamp_column: Optional[str],
+        created_timestamp_column: Optional[str] = None,
     ):
         """Initialize a ParquetSource from a Parquet file.
 

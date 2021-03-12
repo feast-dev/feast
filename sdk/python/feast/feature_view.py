@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union
 
 from google.protobuf.duration_pb2 import Duration
@@ -21,9 +21,10 @@ from feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.core.FeatureView_pb2 import FeatureViewMeta as FeatureViewMetaProto
 from feast.core.FeatureView_pb2 import FeatureViewSpec as FeatureViewSpecProto
 from feast.data_source import BigQuerySource, DataSource
+from feast.parquet_source import ParquetSource
 from feast.feature import Feature
 from feast.value_type import ValueType
-
+import pandas as pd
 
 class FeatureView:
     """
@@ -49,7 +50,7 @@ class FeatureView:
         tags: Dict[str, str],
         ttl: Optional[Union[Duration, timedelta]],
         online: bool,
-        input: BigQuerySource,
+        input: Union[BigQuerySource, ParquetSource],
     ):
         cols = [entity for entity in entities] + [feat.name for feat in features]
         for col in cols:
@@ -146,3 +147,7 @@ class FeatureView:
         feature_view.created_timestamp = feature_view_proto.meta.created_timestamp
 
         return feature_view
+
+    def get_ttl_as_timedelta(self) -> timedelta:
+        """Returns the feature time to live value as a timedelta"""
+        return pd.to_timedelta(self.ttl)
