@@ -25,6 +25,7 @@ from google.auth.exceptions import DefaultCredentialsError
 from feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.entity import Entity
 from feast.feature_table import FeatureTable
+from feast.feature_view import FeatureView
 
 REGISTRY_SCHEMA_VERSION = "1"
 
@@ -117,7 +118,7 @@ class Registry:
 
     def apply_feature_table(self, feature_table: FeatureTable, project: str):
         """
-        Registers a single feature table with Feast
+        Registers a single feature table or feature view with Feast
 
         Args:
             feature_table: Feature table that will be registered
@@ -145,6 +146,35 @@ class Registry:
         self._registry_store.update_registry(updater)
         return
 
+    def apply_feature_view(self, feature_view: FeatureView, project: str):
+        """
+        Registers a single feature view or feature view with Feast
+
+        Args:
+            feature_view: Feature view that will be registered
+            project: Feast project that this feature view belongs to
+        """
+        feature_view.is_valid()
+        feature_view_proto = feature_view.to_proto()
+        feature_view_proto.project = project
+
+        def updater(registry_proto: RegistryProto):
+            for idx, existing_feature_view_proto in enumerate(
+                registry_proto.feature_views
+            ):
+                if (
+                    existing_feature_view_proto.spec.name
+                    == feature_view_proto.spec.name
+                    and existing_feature_view_proto.project == project
+                ):
+                    del registry_proto.feature_views[idx]
+                    registry_proto.feature_views.append(feature_view_proto)
+                    return registry_proto
+            registry_proto.feature_views.append(feature_view_proto)
+            return registry_proto
+
+        self._registry_store.update_registry(updater)
+
     def list_feature_tables(self, project: str) -> List[FeatureTable]:
         """
         Retrieve a list of feature tables from the registry
@@ -161,6 +191,23 @@ class Registry:
             if feature_table_proto.project == project:
                 feature_tables.append(FeatureTable.from_proto(feature_table_proto))
         return feature_tables
+
+    def list_feature_views(self, project: str) -> List[FeatureView]:
+        """
+        Retrieve a list of feature views from the registry
+
+        Args:
+            project: Filter feature tables based on project name
+
+        Returns:
+            List of feature tables
+        """
+        registry_proto = self._registry_store.get_registry()
+        feature_views = []
+        for feature_view_proto in registry_proto.feature_views:
+            if feature_view_proto.project == project:
+                feature_views.append(FeatureView.from_proto(feature_view_proto))
+        return feature_views
 
     def get_feature_table(self, name: str, project: str) -> FeatureTable:
         """
@@ -182,6 +229,27 @@ class Registry:
             ):
                 return FeatureTable.from_proto(feature_table_proto)
         raise Exception(f"Feature table {name} does not exist in project {project}")
+
+    def get_feature_view(self, name: str, project: str) -> FeatureView:
+        """
+        Retrieves a feature view.
+
+        Args:
+            name: Name of feature view
+            project: Feast project that this feature view belongs to
+
+        Returns:
+            Returns either the specified feature view, or raises an exception if
+            none is found
+        """
+        registry_proto = self._registry_store.get_registry()
+        for feature_view_proto in registry_proto.feature_views:
+            if (
+                feature_view_proto.spec.name == name
+                and feature_view_proto.project == project
+            ):
+                return FeatureView.from_proto(feature_view_proto)
+        raise Exception(f"Feature view {name} does not exist in project {project}")
 
     def delete_feature_table(self, name: str, project: str):
         """
@@ -206,6 +274,29 @@ class Registry:
 
         self._registry_store.update_registry(updater)
         return
+
+    def delete_feature_view(self, name: str, project: str):
+        """
+        Deletes a feature view or raises an exception if not found.
+
+        Args:
+            name: Name of feature view
+            project: Feast project that this feature view belongs to
+        """
+
+        def updater(registry_proto: RegistryProto):
+            for idx, existing_feature_view_proto in enumerate(
+                registry_proto.feature_views
+            ):
+                if (
+                    existing_feature_view_proto.spec.name == name
+                    and existing_feature_view_proto.project == project
+                ):
+                    del registry_proto.feature_views[idx]
+                    return registry_proto
+            raise Exception(f"Feature view {name} does not exist in project {project}")
+
+        self._registry_store.update_registry(updater)
 
 
 class RegistryStore(ABC):

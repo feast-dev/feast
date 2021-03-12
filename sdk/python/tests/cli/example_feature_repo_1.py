@@ -1,6 +1,6 @@
 from google.protobuf.duration_pb2 import Duration
 
-from feast import BigQuerySource, Entity, Feature, FeatureTable, ValueType
+from feast import BigQuerySource, Entity, Feature, FeatureView, ValueType
 
 driver_locations_source = BigQuerySource(
     table_ref="rh_prod.ride_hailing_co.drivers",
@@ -16,13 +16,15 @@ driver = Entity(
 )
 
 
-driver_locations = FeatureTable(
+driver_locations = FeatureView(
     name="driver_locations",
     entities=["driver"],
-    max_age=Duration(seconds=86400 * 1),
+    ttl=Duration(seconds=86400 * 1),
     features=[
         Feature(name="lat", dtype=ValueType.FLOAT),
         Feature(name="lon", dtype=ValueType.STRING),
     ],
-    batch_source=driver_locations_source,
+    online=True,
+    inputs=driver_locations_source,
+    tags={},
 )

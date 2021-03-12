@@ -11,6 +11,7 @@ from .data_source import (
 from .entity import Entity
 from .feature import Feature
 from .feature_table import FeatureTable
+from .feature_view import FeatureView
 from .value_type import ValueType
 
 try:
@@ -28,6 +29,7 @@ __all__ = [
     "KinesisSource",
     "Feature",
     "FeatureTable",
+    "FeatureView",
     "SourceType",
     "ValueType",
 ]

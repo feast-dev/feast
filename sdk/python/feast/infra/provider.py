@@ -1,8 +1,8 @@
 import abc
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
-from feast import FeatureTable
+from feast import FeatureTable, FeatureView
 from feast.repo_config import RepoConfig
 from feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.types.Value_pb2 import Value as ValueProto
@@ -13,8 +13,8 @@ class Provider(abc.ABC):
     def update_infra(
         self,
         project: str,
-        tables_to_delete: List[FeatureTable],
-        tables_to_keep: List[FeatureTable],
+        tables_to_delete: List[Union[FeatureTable, FeatureView]],
+        tables_to_keep: List[Union[FeatureTable, FeatureView]],
     ):
         """
         Reconcile cloud resources with the objects declared in the feature repo.
@@ -28,7 +28,9 @@ class Provider(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def teardown_infra(self, project: str, tables: List[FeatureTable]):
+    def teardown_infra(
+        self, project: str, tables: List[Union[FeatureTable, FeatureView]]
+    ):
         """
         Tear down all cloud resources for a repo.
 
@@ -41,7 +43,7 @@ class Provider(abc.ABC):
     def online_write_batch(
         self,
         project: str,
-        table: FeatureTable,
+        table: Union[FeatureTable, FeatureView],
         data: List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime]],
         created_ts: datetime,
     ) -> None:
@@ -63,7 +65,10 @@ class Provider(abc.ABC):
 
     @abc.abstractmethod
     def online_read(
-        self, project: str, table: FeatureTable, entity_key: EntityKeyProto
+        self,
+        project: str,
+        table: Union[FeatureTable, FeatureView],
+        entity_key: EntityKeyProto,
     ) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
         """
         Read feature values given an Entity Key. This is a low level interface, not
