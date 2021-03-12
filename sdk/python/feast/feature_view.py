@@ -35,6 +35,13 @@ class FeatureView:
         inputs: BigQuerySource,
         feature_start_time: datetime,
     ):
+        cols = [entity.name for entity in entities] + [feat.name for feat in features]
+        for col in cols:
+            if inputs.field_mapping is not None and col in inputs.field_mapping.keys():
+                raise ValueError(
+                    f"The field {col} is mapped to {inputs.field_mapping[col]} for this data source. Please either remove this field mapping or use {inputs.field_mapping[col]} as the Entity or Feature name."
+                )
+
         self.name = name
         self.entities = entities
         self.features = features

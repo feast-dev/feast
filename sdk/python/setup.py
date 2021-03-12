@@ -31,7 +31,6 @@ REQUIRED = [
     "google-cloud-storage==1.20.*",
     "google-cloud-core==1.4.*",
     "googleapis-common-protos==1.52.*",
-    "google-cloud-bigquery-storage==0.7.*",
     "grpcio==1.31.0",
     "pandas~=1.0.0",
     "pandavro==1.5.*",

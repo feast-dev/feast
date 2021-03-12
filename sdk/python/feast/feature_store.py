@@ -32,10 +32,10 @@ class FeatureStore:
     config: RepoConfig
 
     def __init__(
-        self, repo_path: Optional[str], config: Optional[RepoConfig],
+        self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None,
     ):
         if repo_path is not None and config is not None:
-            raise Exception("You cannot specify both repo_path and config")
+            raise ValueError("You cannot specify both repo_path and config")
         if config is not None:
             self.config = config
         elif repo_path is not None:

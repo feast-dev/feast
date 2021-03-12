@@ -21,14 +21,34 @@ class BigQuerySource:
 
     def __init__(
         self,
-        table_ref: Optional[str],
         event_timestamp_column: str,
-        created_timestamp_column: Optional[str],
-        field_mapping: Optional[Dict[str, str]],
-        query: Optional[str],
+        table_ref: Optional[str] = None,
+        created_timestamp_column: Optional[str] = None,
+        field_mapping: Optional[Dict[str, str]] = None,
+        query: Optional[str] = None,
     ):
-        if (table_ref is None) != (query is None):
-            raise Exception("Exactly one of table_ref and query should be specified")
+        if (table_ref is None) == (query is None):
+            raise ValueError("Exactly one of table_ref and query should be specified")
+        if field_mapping is not None:
+            for value in field_mapping.values():
+                if list(field_mapping.values()).count(value) > 1:
+                    raise ValueError(
+                        f"Two fields cannot be mapped to the same name {value}"
+                    )
+
+            if event_timestamp_column in field_mapping.keys():
+                raise ValueError(
+                    f"The field {event_timestamp_column} is mapped to {field_mapping[event_timestamp_column]}. Please either remove this field mapping or use {field_mapping[event_timestamp_column]} as the event_timestamp_column."
+                )
+
+            if (
+                created_timestamp_column is not None
+                and created_timestamp_column in field_mapping.keys()
+            ):
+                raise ValueError(
+                    f"The field {created_timestamp_column} is mapped to {field_mapping[created_timestamp_column]}. Please either remove this field mapping or use {field_mapping[created_timestamp_column]} as the _timestamp_column."
+                )
+
         self.table_ref = table_ref
         self.event_timestamp_column = event_timestamp_column
         self.created_timestamp_column = created_timestamp_column
