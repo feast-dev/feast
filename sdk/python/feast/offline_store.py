@@ -38,7 +38,7 @@ class BigQueryOfflineStore(OfflineStore):
     def pull_latest_from_table(
         feature_view: FeatureView, start_date: datetime, end_date: datetime,
     ) -> pyarrow.Table:
-        if feature_view.inputs.table_ref is None:
+        if feature_view.input.table_ref is None:
             raise ValueError(
                 "This function can only be called on a FeatureView with a table_ref"
             )
@@ -64,7 +64,7 @@ class BigQueryOfflineStore(OfflineStore):
         FROM (
             SELECT {field_string},
             ROW_NUMBER() OVER({partition_by_entity_string} ORDER BY {timestamp_desc_string}) AS _feast_row
-            FROM `{feature_view.inputs.table_ref}`
+            FROM `{feature_view.input.table_ref}`
             WHERE {event_timestamp_column} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')
         )
         WHERE _feast_row = 1
@@ -95,13 +95,13 @@ def run_reverse_field_mapping(
         Tuple containing the list of reverse-mapped entity names, reverse-mapped feature names, reverse-mapped event timestamp column, and reverse-mapped created timestamp column that will be passed into the query to the offline store.
     """
     # if we have mapped fields, use the original field names in the call to the offline store
-    event_timestamp_column = feature_view.inputs.event_timestamp_column
-    entity_names = [entity.name for entity in feature_view.entities]
+    event_timestamp_column = feature_view.input.event_timestamp_column
+    entity_names = [entity for entity in feature_view.entities]
     feature_names = [feature.name for feature in feature_view.features]
-    created_timestamp_column = feature_view.inputs.created_timestamp_column
-    if feature_view.inputs.field_mapping is not None:
+    created_timestamp_column = feature_view.input.created_timestamp_column
+    if feature_view.input.field_mapping is not None:
         reverse_field_mapping = {
-            v: k for k, v in feature_view.inputs.field_mapping.items()
+            v: k for k, v in feature_view.input.field_mapping.items()
         }
         event_timestamp_column = (
             reverse_field_mapping[event_timestamp_column]
@@ -134,11 +134,11 @@ def run_forward_field_mapping(
     table: pyarrow.Table, feature_view: FeatureView
 ) -> pyarrow.Table:
     # run field mapping in the forward direction
-    if table is not None and feature_view.inputs.field_mapping is not None:
+    if table is not None and feature_view.input.field_mapping is not None:
         cols = table.column_names
         mapped_cols = [
-            feature_view.inputs.field_mapping[col]
-            if col in feature_view.inputs.field_mapping.keys()
+            feature_view.input.field_mapping[col]
+            if col in feature_view.input.field_mapping.keys()
             else col
             for col in cols
         ]

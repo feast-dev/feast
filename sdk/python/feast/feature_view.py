@@ -11,12 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from datetime import datetime
-from typing import Dict, List
+from datetime import timedelta
+from typing import Dict, List, Optional, Union
 
-from feast.big_query_source import BigQuerySource
-from feast.entity import Entity
+from google.protobuf.duration_pb2 import Duration
+from google.protobuf.timestamp_pb2 import Timestamp
+
+from feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+from feast.core.FeatureView_pb2 import FeatureViewMeta as FeatureViewMetaProto
+from feast.core.FeatureView_pb2 import FeatureViewSpec as FeatureViewSpecProto
+from feast.data_source import BigQuerySource, DataSource
 from feast.feature import Feature
+from feast.value_type import ValueType
 
 
 class FeatureView:
@@ -24,30 +30,119 @@ class FeatureView:
     A FeatureView defines a logical grouping of servable features.
     """
 
+    name: str
+    entities: List[str]
+    features: List[Feature]
+    tags: Dict[str, str]
+    ttl: Optional[Duration]
+    online: bool
+    input: BigQuerySource
+
+    created_timestamp: Optional[Timestamp] = None
+    last_updated_timestamp: Optional[Timestamp] = None
+
     def __init__(
         self,
         name: str,
-        entities: List[Entity],
+        entities: List[str],
         features: List[Feature],
         tags: Dict[str, str],
-        ttl: str,
+        ttl: Optional[Union[Duration, timedelta]],
         online: bool,
-        inputs: BigQuerySource,
-        feature_start_time: datetime,
+        input: BigQuerySource,
     ):
-        cols = [entity.name for entity in entities] + [feat.name for feat in features]
+        cols = [entity for entity in entities] + [feat.name for feat in features]
         for col in cols:
-            if inputs.field_mapping is not None and col in inputs.field_mapping.keys():
+            if input.field_mapping is not None and col in input.field_mapping.keys():
                 raise ValueError(
-                    f"The field {col} is mapped to {inputs.field_mapping[col]} for this data source. Please either remove this field mapping or use {inputs.field_mapping[col]} as the Entity or Feature name."
+                    f"The field {col} is mapped to {input.field_mapping[col]} for this data source. Please either remove this field mapping or use {input.field_mapping[col]} as the Entity or Feature name."
                 )
 
         self.name = name
         self.entities = entities
         self.features = features
         self.tags = tags
-        self.ttl = ttl
+        if isinstance(ttl, timedelta):
+            proto_ttl = Duration()
+            proto_ttl.FromTimedelta(ttl)
+            self.ttl = proto_ttl
+        else:
+            self.ttl = ttl
+
         self.online = online
-        self.inputs = inputs
-        self.feature_start_time = feature_start_time
-        return
+        self.input = input
+
+    def is_valid(self):
+        """
+        Validates the state of a feature view locally. Raises an exception
+        if feature view is invalid.
+        """
+
+        if not self.name:
+            raise ValueError("Feature view needs a name")
+
+        if not self.entities:
+            raise ValueError("Feature view has no entities")
+
+    def to_proto(self) -> FeatureViewProto:
+        """
+        Converts an feature view object to its protobuf representation
+
+        Returns:
+            FeatureViewProto protobuf
+        """
+
+        meta = FeatureViewMetaProto(
+            created_timestamp=self.created_timestamp,
+            last_updated_timestamp=self.last_updated_timestamp,
+        )
+
+        spec = FeatureViewSpecProto(
+            name=self.name,
+            entities=self.entities,
+            features=[feature.to_proto() for feature in self.features],
+            tags=self.tags,
+            ttl=self.ttl,
+            online=self.online,
+            input=self.input.to_proto(),
+        )
+
+        return FeatureViewProto(spec=spec, meta=meta)
+
+    @classmethod
+    def from_proto(cls, feature_view_proto: FeatureViewProto):
+        """
+        Creates a feature view from a protobuf representation of a feature view
+
+        Args:
+            feature_view_proto: A protobuf representation of a feature view
+
+        Returns:
+            Returns a FeatureViewProto object based on the feature view protobuf
+        """
+
+        feature_view = cls(
+            name=feature_view_proto.spec.name,
+            entities=[entity for entity in feature_view_proto.spec.entities],
+            features=[
+                Feature(
+                    name=feature.name,
+                    dtype=ValueType(feature.value_type),
+                    labels=feature.labels,
+                )
+                for feature in feature_view_proto.spec.features
+            ],
+            tags=dict(feature_view_proto.spec.tags),
+            online=feature_view_proto.spec.online,
+            ttl=(
+                None
+                if feature_view_proto.spec.ttl.seconds == 0
+                and feature_view_proto.spec.ttl.nanos == 0
+                else feature_view_proto.spec.ttl
+            ),
+            input=DataSource.from_proto(feature_view_proto.spec.input),
+        )
+
+        feature_view.created_timestamp = feature_view_proto.meta.created_timestamp
+
+        return feature_view

@@ -1,9 +1,9 @@
 import os
 import sqlite3
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
-from feast import FeatureTable
+from feast import FeatureTable, FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.provider import Provider
 from feast.repo_config import LocalOnlineStoreConfig
@@ -11,7 +11,7 @@ from feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.types.Value_pb2 import Value as ValueProto
 
 
-def _table_id(project: str, table: FeatureTable) -> str:
+def _table_id(project: str, table: Union[FeatureTable, FeatureView]) -> str:
     return f"{project}_{table.name}"
 
 
@@ -29,8 +29,8 @@ class LocalSqlite(Provider):
     def update_infra(
         self,
         project: str,
-        tables_to_delete: List[FeatureTable],
-        tables_to_keep: List[FeatureTable],
+        tables_to_delete: List[Union[FeatureTable, FeatureView]],
+        tables_to_keep: List[Union[FeatureTable, FeatureView]],
     ):
         conn = self._get_conn()
         for table in tables_to_keep:
@@ -44,13 +44,15 @@ class LocalSqlite(Provider):
         for table in tables_to_delete:
             conn.execute(f"DROP TABLE IF EXISTS {_table_id(project, table)}")
 
-    def teardown_infra(self, project: str, tables: List[FeatureTable]) -> None:
+    def teardown_infra(
+        self, project: str, tables: List[Union[FeatureTable, FeatureView]]
+    ) -> None:
         os.unlink(self._db_path)
 
     def online_write_batch(
         self,
         project: str,
-        table: FeatureTable,
+        table: Union[FeatureTable, FeatureView],
         data: List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime]],
         created_ts: datetime,
     ) -> None:
@@ -96,7 +98,10 @@ class LocalSqlite(Provider):
                     )
 
     def online_read(
-        self, project: str, table: FeatureTable, entity_key: EntityKeyProto
+        self,
+        project: str,
+        table: Union[FeatureTable, FeatureView],
+        entity_key: EntityKeyProto,
     ) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
         entity_key_bin = serialize_entity_key(entity_key)
 

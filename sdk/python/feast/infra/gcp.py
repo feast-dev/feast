@@ -1,10 +1,10 @@
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import mmh3
 from pytz import utc
 
-from feast import FeatureTable
+from feast import FeatureTable, FeatureView
 from feast.infra.provider import Provider
 from feast.repo_config import DatastoreOnlineStoreConfig
 from feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -66,8 +66,8 @@ class Gcp(Provider):
     def update_infra(
         self,
         project: str,
-        tables_to_delete: List[FeatureTable],
-        tables_to_keep: List[FeatureTable],
+        tables_to_delete: List[Union[FeatureTable, FeatureView]],
+        tables_to_keep: List[Union[FeatureTable, FeatureView]],
     ):
         from google.cloud import datastore
 
@@ -88,7 +88,9 @@ class Gcp(Provider):
             key = client.key("Project", project, "Table", table.name)
             client.delete(key)
 
-    def teardown_infra(self, project: str, tables: List[FeatureTable]) -> None:
+    def teardown_infra(
+        self, project: str, tables: List[Union[FeatureTable, FeatureView]]
+    ) -> None:
         client = self._initialize_client()
 
         for table in tables:
@@ -103,7 +105,7 @@ class Gcp(Provider):
     def online_write_batch(
         self,
         project: str,
-        table: FeatureTable,
+        table: Union[FeatureTable, FeatureView],
         data: List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime]],
         created_ts: datetime,
     ) -> None:
@@ -143,7 +145,10 @@ class Gcp(Provider):
                 client.put(entity)
 
     def online_read(
-        self, project: str, table: FeatureTable, entity_key: EntityKeyProto
+        self,
+        project: str,
+        table: Union[FeatureTable, FeatureView],
+        entity_key: EntityKeyProto,
     ) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
         client = self._initialize_client()
 

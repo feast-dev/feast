@@ -580,6 +580,10 @@ class BigQuerySource(DataSource):
         return True
 
     @property
+    def table_ref(self):
+        return self._bigquery_options.table_ref
+
+    @property
     def bigquery_options(self):
         """
         Returns the bigquery options of this data source

@@ -13,7 +13,7 @@ def basic_rw_test(repo_path: Path, project_name: str) -> None:
     """
     store = FeatureStore(repo_path=repo_path, config=None)
     registry = store._get_registry()
-    table = registry.get_feature_table(project=project_name, name="driver_locations")
+    table = registry.get_feature_view(project=project_name, name="driver_locations")
 
     provider = store._get_provider()
 

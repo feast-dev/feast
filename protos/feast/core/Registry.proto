@@ -23,11 +23,13 @@ option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/core";
 
 import "feast/core/Entity.proto";
 import "feast/core/FeatureTable.proto";
+import "feast/core/FeatureView.proto";
 import "google/protobuf/timestamp.proto";
 
 message Registry {
     repeated Entity entities = 1;
     repeated FeatureTable feature_tables = 2;
+    repeated FeatureView feature_views = 6;
 
     string registry_schema_version = 3; // to support migrations; incremented when schema is changed
     string version_id = 4; // version id, random string generated on each update of the data; now used only for debugging purposes
