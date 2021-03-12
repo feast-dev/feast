@@ -41,6 +41,54 @@ class FileRetrievalJob(RetrievalJob):
         return df
 
 
+def get_historical_features(
+        metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame],
+) -> RetrievalJob:
+    # TODO: Validate inputs
+
+    feature_views_to_query = get_feature_views_from_feature_refs(feature_refs, metadata)
+
+    # Retrieve features from ParquetOfflineStore
+    if all(
+            [
+                type(feature_view.inputs) == ParquetSource
+                for feature_view in feature_views_to_query.values()
+            ]
+    ) and isinstance(entity_df, pd.DataFrame):
+        return ParquetOfflineStore.get_historical_features(
+            metadata, feature_refs, entity_df,
+        )
+
+    # Retrieve features from BigQueryOfflineStore
+    if all(
+            [
+                type(feature_view.inputs) == BigQuerySource
+                for feature_view in feature_views_to_query.values()
+            ]
+    ) and isinstance(entity_df, str):
+        return BigQueryOfflineStore.get_historical_features(
+            metadata, feature_refs, entity_df,
+        )
+
+    # Could not map inputs to an OfflineStore implementation
+    raise NotImplementedError(
+        f"Unsupported combination of feature view input source types and entity_df type. "
+        f"Please ensure that all source types are consistent and available in the same offline store."
+    )
+
+
+def get_feature_views_from_feature_refs(feature_refs, metadata):
+    # Get map of feature views based on feature references
+    feature_views_to_query = {}
+    for ref in feature_refs:
+        ref_parts = ref.split(":")
+        if ref_parts[0] not in metadata["feature_views"]:
+            raise ValueError(f"Could not find feature view from reference {ref}")
+        feature_view = metadata["feature_views"][ref_parts[0]]
+        feature_views_to_query[feature_view.name] = feature_view
+    return feature_views_to_query
+
+
 class OfflineStore(ABC):
     """
     OfflineStore is an object used for all interaction between Feast and the service used for offline storage of features. Currently BigQuery is supported.
@@ -51,6 +99,13 @@ class OfflineStore(ABC):
     def pull_latest_from_table(
             feature_view: FeatureView, start_date: datetime, end_date: datetime,
     ) -> Optional[pyarrow.Table]:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def get_historical_features(
+            metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame],
+    ) -> RetrievalJob:
         pass
 
 
@@ -105,7 +160,7 @@ class BigQueryOfflineStore(OfflineStore):
 
     @staticmethod
     def get_historical_features(
-            feature_refs: List[str], entity_df: Union[pd.DataFrame], metadata,
+            metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame],
     ) -> RetrievalJob:
         raise NotImplementedError()
 
@@ -119,56 +174,12 @@ class ParquetOfflineStore(OfflineStore):
 
     @staticmethod
     def get_historical_features(
-            feature_refs: List[str], entity_df: Union[pd.DataFrame], metadata,
-    ) -> RetrievalJob:
-        # Get latest metadata (entities, feature views) from store
-        # entities, feature_views = _get_latest_metadata()
-
-        # Ensure that feature views have the correct reference structure (a.b)
-
-        # Get list of feature views to query
-        feature_views_to_query = {}
-        for ref in feature_refs:
-            ref_parts = ref.split(":")
-            if ref_parts[0] not in metadata["feature_views"]:
-                raise ValueError(f"Could not find feature view from reference {ref}")
-
-            feature_view = metadata["feature_views"][ref_parts[0]]
-            feature_views_to_query[feature_view.name] = feature_view
-
-        # Ensure that we only read from the same source type
-        if all(
-                [
-                    type(feature_view.inputs) == ParquetSource
-                    for feature_view in feature_views_to_query.values()
-                ]
-        ) and isinstance(entity_df, pd.DataFrame):
-            job = ParquetOfflineStore._get_historical_features_from_parquet(
-                feature_refs, entity_df, metadata, feature_views_to_query
-            )
-        elif all(
-                [
-                    type(feature_view.inputs) == BigQuerySource
-                    for feature_view in feature_views_to_query.values()
-                ]
-        ) and isinstance(entity_df, str):
-            job = BigQueryOfflineStore._get_historical_features_from_parquet(
-                feature_refs, entity_df, metadata, feature_views_to_query
-            )
-        else:
-            raise NotImplementedError(
-                f"Unsupported combination of feature view input source types and entity_df type. "
-                f"Please ensure that all source types are consistent and are collocated in the same storage layer."
-            )
-        return job
-
-    @staticmethod
-    def _get_historical_features_from_parquet(
-            feature_refs: List[str],
-            entity_df: Union[pd.DataFrame],
             metadata,
-            feature_views_to_query: Dict[str, FeatureView],
+            feature_refs: List[str],
+            entity_df: Union[pd.DataFrame]
     ) -> FileRetrievalJob:
+        feature_views_to_query = get_feature_views_from_feature_refs(feature_refs, metadata)
+
         def evaluate_historical_retrieval():
 
             # Sort entity dataframe prior to join, and create a copy to prevent modifying the original

@@ -181,11 +181,11 @@ def create_customer_daily_profile_feature_view(source):
 
 
 def get_expected_training_df(
-    customer_df,
-    customer_fv_ttl_timedelta,
-    driver_df,
-    driver_fv_ttl_timedelta,
-    orders_df,
+        customer_df,
+        customer_fv_ttl_timedelta,
+        driver_df,
+        driver_fv_ttl_timedelta,
+        orders_df,
 ):
     expected_orders_df = orders_df.copy().sort_values("datetime")
     expected_drivers_df = driver_df.copy().sort_values("datetime")
@@ -285,17 +285,9 @@ def test_historical_features_from_parquet_sources():
         )
         customer_fv = create_customer_daily_profile_feature_view(customer_source)
 
-        from feast.offline_store import ParquetOfflineStore
+        from feast.offline_store import get_historical_features
 
-        job = ParquetOfflineStore.get_historical_features(
-            entity_df=orders_df,
-            feature_refs=[
-                "driver_stats:conv_rate",
-                "driver_stats:avg_daily_trips",
-                "customer_profile:current_balance",
-                "customer_profile:avg_passenger_count",
-                "customer_profile:lifetime_trip_count",
-            ],
+        job = get_historical_features(
             metadata={
                 "entities": [
                     Entity(name="driver", value_type=ValueType.INT64, description=""),
@@ -306,6 +298,14 @@ def test_historical_features_from_parquet_sources():
                     "customer_profile": customer_fv,
                 },
             },
+            entity_df=orders_df,
+            feature_refs=[
+                "driver_stats:conv_rate",
+                "driver_stats:avg_daily_trips",
+                "customer_profile:current_balance",
+                "customer_profile:avg_passenger_count",
+                "customer_profile:lifetime_trip_count",
+            ],
         )
 
         actual_df = job.to_df()
