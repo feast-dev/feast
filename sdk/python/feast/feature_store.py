@@ -14,7 +14,6 @@
 from pathlib import Path
 from typing import Optional
 
-
 from feast.infra.provider import Provider, get_provider
 from feast.registry import Registry
 from feast.repo_config import (
