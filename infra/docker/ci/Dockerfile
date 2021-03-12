@@ -29,7 +29,7 @@ ENV MAVEN_HOME /usr/share/maven
 ENV MAVEN_CONFIG "/root/.m2"
 
 # Install Make and Python
-ENV PYTHON_VERSION 3.6
+ENV PYTHON_VERSION 3.7
 
 RUN apt-get install -y build-essential curl python${PYTHON_VERSION} \
     python${PYTHON_VERSION}-dev python${PYTHON_VERSION}-distutils && \
@@ -77,7 +77,7 @@ RUN PROTOC_ZIP=protoc-${PROTOC_VERSION}-linux-x86_64.zip && \
 RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash
 
 # Install kubectl
-RUN apt-get install -y kubectl=1.20.2-00
+RUN apt-get install -y kubectl=1.20.4-00
 
 # Install helm
 RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 && \

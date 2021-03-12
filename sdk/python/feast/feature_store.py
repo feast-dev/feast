@@ -11,9 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from pathlib import Path
 from typing import Optional
 
-from feast.repo_config import RepoConfig, load_repo_config
+from feast.infra.provider import Provider, get_provider
+from feast.registry import Registry
+from feast.repo_config import (
+    LocalOnlineStoreConfig,
+    OnlineStoreConfig,
+    RepoConfig,
+    load_repo_config,
+)
 
 
 class FeatureStore:
@@ -21,14 +29,29 @@ class FeatureStore:
     A FeatureStore object is used to define, create, and retrieve features.
     """
 
+    config: RepoConfig
+
     def __init__(
-        self, config_path: Optional[str], config: Optional[RepoConfig],
+        self, repo_path: Optional[str], config: Optional[RepoConfig],
     ):
-        if config_path is None or config is None:
-            raise Exception("You cannot specify both config_path and config")
+        if repo_path is not None and config is not None:
+            raise Exception("You cannot specify both repo_path and config")
         if config is not None:
             self.config = config
-        elif config_path is not None:
-            self.config = load_repo_config(config_path)
+        elif repo_path is not None:
+            self.config = load_repo_config(Path(repo_path))
         else:
-            self.config = RepoConfig()
+            self.config = RepoConfig(
+                metadata_store="./metadata.db",
+                project="default",
+                provider="local",
+                online_store=OnlineStoreConfig(
+                    local=LocalOnlineStoreConfig("online_store.db")
+                ),
+            )
+
+    def _get_provider(self) -> Provider:
+        return get_provider(self.config)
+
+    def _get_registry(self) -> Registry:
+        return Registry(self.config.metadata_store)

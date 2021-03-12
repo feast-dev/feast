@@ -183,7 +183,7 @@ def _pd_datetime_to_timestamp_proto(dtype, value) -> Timestamp:
     if dtype.__str__() == "datetime64[ns, UTC]":
         return Timestamp(seconds=int(value.timestamp()))
     else:
-        return Timestamp(seconds=np.datetime64(value).astype("int64") // 1000000)
+        return Timestamp(seconds=np.datetime64(value).astype("int64") // 1000000)  # type: ignore
 
 
 def _type_err(item, dtype):

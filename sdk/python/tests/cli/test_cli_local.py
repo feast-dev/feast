@@ -6,6 +6,7 @@ from textwrap import dedent
 from typing import List
 
 from feast import cli
+from tests.cli.online_read_write_test import basic_rw_test
 
 
 class CliRunner:
@@ -49,6 +50,8 @@ class TestCliLocal:
 
             result = runner.run(["apply", str(repo_path)], cwd=repo_path)
             assert result.returncode == 0
+
+            basic_rw_test(repo_path, "foo")
 
             result = runner.run(["teardown", str(repo_path)], cwd=repo_path)
             assert result.returncode == 0
