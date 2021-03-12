@@ -86,7 +86,7 @@ class FeatureView:
 
     def to_proto(self) -> FeatureViewProto:
         """
-        Converts an feature view object to its protobuf representation
+        Converts an feature view object to its protobuf representation.
 
         Returns:
             FeatureViewProto protobuf
