@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from google.cloud import bigquery
 from pandas.testing import assert_frame_equal
-
+from feast.offline_store import get_historical_features
 from feast.big_query_source import BigQuerySource
 from feast.entity import Entity
 from feast.feature import Feature
@@ -216,6 +216,7 @@ def get_expected_training_df(
     current_cols = expected_df.columns.tolist()
     current_cols.remove("datetime")
     expected_df = expected_df[["datetime"] + current_cols]
+
     # Rename columns to have double underscore
     expected_df.rename(
         inplace=True,
@@ -284,8 +285,6 @@ def test_historical_features_from_parquet_sources():
             temp_dir, customer_df
         )
         customer_fv = create_customer_daily_profile_feature_view(customer_source)
-
-        from feast.offline_store import get_historical_features
 
         job = get_historical_features(
             metadata={
@@ -369,15 +368,7 @@ def test_historical_features_from_bigquery_sources():
     )
     customer_fv = create_customer_daily_profile_feature_view(customer_source)
 
-    job = BigQueryOfflineStore.get_historical_features(
-        entity_df=entity_df_query,
-        feature_refs=[
-            "driver_stats:conv_rate",
-            "driver_stats:avg_daily_trips",
-            "customer_profile:current_balance",
-            "customer_profile:avg_passenger_count",
-            "customer_profile:lifetime_trip_count",
-        ],
+    job = get_historical_features(
         metadata={
             "entities": [
                 Entity(name="driver", value_type=ValueType.INT64, description=""),
@@ -388,4 +379,12 @@ def test_historical_features_from_bigquery_sources():
                 "customer_profile": customer_fv,
             },
         },
+        entity_df=entity_df_query,
+        feature_refs=[
+            "driver_stats:conv_rate",
+            "driver_stats:avg_daily_trips",
+            "customer_profile:current_balance",
+            "customer_profile:avg_passenger_count",
+            "customer_profile:lifetime_trip_count",
+        ],
     )
