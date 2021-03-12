@@ -11,18 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Optional, Dict
+from typing import Dict, Optional
 
 
 class ParquetSource:
     """A Parquet based data source containing feature values."""
 
     def __init__(
-            self,
-            path: Optional[str],
-            event_timestamp_column: str,
-            created_timestamp_column: Optional[str] = None,
-            field_mapping: Optional[Dict[str, str]] = None,
+        self,
+        path: Optional[str],
+        event_timestamp_column: str,
+        created_timestamp_column: Optional[str] = None,
+        field_mapping: Optional[Dict[str, str]] = None,
     ):
         """Initialize a ParquetSource from a Parquet file.
 

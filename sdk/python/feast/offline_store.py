@@ -13,12 +13,15 @@
 # limitations under the License.
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import List, Optional, Tuple, Union, Dict
+from typing import Dict, List, Optional, Tuple, Union
+
 import pandas as pd
 import pyarrow
-from feast.parquet_source import ParquetSource
+
 from feast.big_query_source import BigQuerySource
 from feast.feature_view import FeatureView
+from feast.parquet_source import ParquetSource
+
 
 class RetrievalJob(ABC):
     def __init__(self):
@@ -28,6 +31,7 @@ class RetrievalJob(ABC):
     def to_df(self):
         pass
 
+
 class FileRetrievalJob(RetrievalJob):
     def __init__(self, evaluation_function):
         self.evaluation_function = evaluation_function
@@ -35,6 +39,7 @@ class FileRetrievalJob(RetrievalJob):
     def to_df(self):
         df = self.evaluation_function()
         return df
+
 
 class OfflineStore(ABC):
     """
@@ -44,7 +49,7 @@ class OfflineStore(ABC):
     @staticmethod
     @abstractmethod
     def pull_latest_from_table(
-        feature_view: FeatureView, start_date: datetime, end_date: datetime,
+            feature_view: FeatureView, start_date: datetime, end_date: datetime,
     ) -> Optional[pyarrow.Table]:
         pass
 
@@ -52,7 +57,7 @@ class OfflineStore(ABC):
 class BigQueryOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table(
-        feature_view: FeatureView, start_date: datetime, end_date: datetime,
+            feature_view: FeatureView, start_date: datetime, end_date: datetime,
     ) -> pyarrow.Table:
         if feature_view.input.table_ref is None:
             raise ValueError(
@@ -104,10 +109,11 @@ class BigQueryOfflineStore(OfflineStore):
     ) -> RetrievalJob:
         raise NotImplementedError()
 
+
 class ParquetOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table(
-        feature_view: FeatureView, start_date: datetime, end_date: datetime,
+            feature_view: FeatureView, start_date: datetime, end_date: datetime,
     ) -> pyarrow.Table:
         pass
 
@@ -146,7 +152,7 @@ class ParquetOfflineStore(OfflineStore):
                     for feature_view in feature_views_to_query.values()
                 ]
         ) and isinstance(entity_df, str):
-            job = _get_historical_features_from_parquet(
+            job = BigQueryOfflineStore._get_historical_features_from_parquet(
                 feature_refs, entity_df, metadata, feature_views_to_query
             )
         else:
@@ -178,10 +184,10 @@ class ParquetOfflineStore(OfflineStore):
                 # Build a list of all the features we should select from this source
                 feature_names = []
                 for feature_ref in feature_refs:
-                    feature_ref_feature_view_name = feature_ref.split(':')[0]
+                    feature_ref_feature_view_name = feature_ref.split(":")[0]
                     # Is the current feature ref within the current feature view?
                     if feature_ref_feature_view_name == feature_view.name:
-                        feature_ref_feature_name = feature_ref.split(':')[1]
+                        feature_ref_feature_name = feature_ref.split(":")[1]
 
                         # Modify the separator for feature refs in column names to double underscore.
                         # We are using double underscore as separator for consistency with other databases like BigQuery,
@@ -192,14 +198,19 @@ class ParquetOfflineStore(OfflineStore):
                         feature_names.append(prefixed_feature_name)
 
                         # Ensure that the source dataframe feature column includes the feature view name as a prefix
-                        df_to_join.rename(columns={feature_ref_feature_name: prefixed_feature_name}, inplace=True)
+                        df_to_join.rename(
+                            columns={feature_ref_feature_name: prefixed_feature_name},
+                            inplace=True,
+                        )
 
                 # Build a list of entity columns to join on (from the right table)
                 right_entity_columns = [entity.name for entity in feature_view.entities]
                 right_entity_key_columns = ["datetime"] + right_entity_columns
 
                 # Remove all duplicate entity keys (using created timestamp)
-                df_to_join.sort_values(by=(right_entity_key_columns + ["created"]), inplace=True)
+                df_to_join.sort_values(
+                    by=(right_entity_key_columns + ["created"]), inplace=True
+                )
                 df_to_join = df_to_join.groupby(by=(right_entity_key_columns)).last()
                 df_to_join.reset_index(inplace=True)
 
@@ -221,15 +232,18 @@ class ParquetOfflineStore(OfflineStore):
             # Move "datetime" column to front
             current_cols = entity_df_with_features.columns.tolist()
             current_cols.remove("datetime")
-            entity_df_with_features = entity_df_with_features[["datetime"] + current_cols]
+            entity_df_with_features = entity_df_with_features[
+                ["datetime"] + current_cols
+                ]
 
             return entity_df_with_features
 
         job = FileRetrievalJob(evaluation_function=evaluate_historical_retrieval)
         return job
 
+
 def run_reverse_field_mapping(
-    feature_view: FeatureView,
+        feature_view: FeatureView,
 ) -> Tuple[List[str], List[str], str, Optional[str]]:
     """
     If a field mapping exists, run it in reverse on the entity names, feature names, event timestamp column, and created timestamp column to get the names of the relevant columns in the BigQuery table.
@@ -256,7 +270,7 @@ def run_reverse_field_mapping(
         created_timestamp_column = (
             reverse_field_mapping[created_timestamp_column]
             if created_timestamp_column is not None
-            and created_timestamp_column in reverse_field_mapping.keys()
+               and created_timestamp_column in reverse_field_mapping.keys()
             else created_timestamp_column
         )
         entity_names = [
@@ -276,7 +290,7 @@ def run_reverse_field_mapping(
 
 
 def run_forward_field_mapping(
-    table: pyarrow.Table, feature_view: FeatureView
+        table: pyarrow.Table, feature_view: FeatureView
 ) -> pyarrow.Table:
     # run field mapping in the forward direction
     if table is not None and feature_view.input.field_mapping is not None:
