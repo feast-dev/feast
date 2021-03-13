@@ -34,12 +34,14 @@ message FeatureTable {
 
     // System-populated metadata for this feature table.
     FeatureTableMeta meta = 2;
-    string project = 3;
 }
 
 message FeatureTableSpec {
     // Name of the feature table. Must be unique. Not updated.
     string name = 1;
+
+    // Name of Feast project that this feature table belongs to.
+    string project = 9;
     
     // List names of entities to associate with the Features defined in this 
     // Feature Table. Not updatable.
