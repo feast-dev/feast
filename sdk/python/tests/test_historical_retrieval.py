@@ -40,12 +40,12 @@ def create_orders_df(customers, drivers, start_date, end_date, order_count):
     df["driver_id"] = np.random.choice(drivers, order_count)
     df["customer_id"] = np.random.choice(customers, order_count)
     df["order_is_success"] = np.random.randint(0, 2, size=order_count).astype(np.int32)
-    df["datetime"] = [
+    df["event_timestamp"] = [
         pd.Timestamp(dt, unit="ms").round("ms")
         for dt in pd.date_range(start=start_date, end=end_date, periods=order_count)
     ]
     df.sort_values(
-        by=["datetime", "order_id", "driver_id", "customer_id"], inplace=True
+        by=["event_timestamp", "order_id", "driver_id", "customer_id"], inplace=True
     )
     return df
 
@@ -387,4 +387,21 @@ def test_historical_features_from_bigquery_sources():
             "customer_profile:avg_passenger_count",
             "customer_profile:lifetime_trip_count",
         ],
+    )
+    actual_df = job.to_df()
+    expected_df = get_expected_training_df(
+        customer_df,
+        customer_fv.get_ttl_as_timedelta(),
+        driver_df,
+        driver_fv.get_ttl_as_timedelta(),
+        orders_df,
+    )
+
+    assert_frame_equal(
+        expected_df.sort_values(
+            by=["datetime", "order_id", "driver_id", "customer_id"]
+        ).reset_index(drop=True),
+        actual_df.sort_values(
+            by=["datetime", "order_id", "driver_id", "customer_id"]
+        ).reset_index(drop=True),
     )
