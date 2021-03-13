@@ -41,7 +41,7 @@ message FeatureTableSpec {
     string name = 1;
 
     // Name of Feast project that this feature table belongs to.
-    string project = 3;
+    string project = 9;
     
     // List names of entities to associate with the Features defined in this 
     // Feature Table. Not updatable.
