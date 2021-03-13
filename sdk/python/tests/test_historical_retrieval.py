@@ -100,7 +100,7 @@ def stage_driver_hourly_stats_parquet_source(directory, df):
     return ParquetSource(driver_stats_path, event_timestamp_column="datetime")
 
 
-def stage_driver_hourly_stats_bigquery_source(bigquery_dataset, df, table_id):
+def stage_driver_hourly_stats_bigquery_source(df, table_id):
     client = bigquery.Client()
     job_config = bigquery.LoadJobConfig()
     job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
@@ -110,7 +110,7 @@ def stage_driver_hourly_stats_bigquery_source(bigquery_dataset, df, table_id):
 def create_driver_hourly_stats_feature_view(source):
     driver_stats_feature_view = FeatureView(
         name="driver_stats",
-        entities=[Entity(name="driver_id", value_type=ValueType.INT64, description="")],
+        entities=["driver_id"],
         features=[
             Feature(name="conv_rate", dtype=ValueType.FLOAT),
             Feature(name="acc_rate", dtype=ValueType.FLOAT),
@@ -161,7 +161,7 @@ def stage_customer_daily_profile_parquet_source(directory, df):
     return ParquetSource(customer_profile_path, event_timestamp_column="datetime")
 
 
-def stage_customer_daily_profile_bigquery_source(bigquery_dataset, df, table_id):
+def stage_customer_daily_profile_bigquery_source(df, table_id):
     client = bigquery.Client()
     job_config = bigquery.LoadJobConfig()
     job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
@@ -172,7 +172,7 @@ def create_customer_daily_profile_feature_view(source):
     customer_profile_feature_view = FeatureView(
         name="customer_profile",
         entities=[
-            Entity(name="customer_id", value_type=ValueType.INT64, description="")
+            "customer_id"
         ],
         features=[
             Feature(name="current_balance", dtype=ValueType.FLOAT),
@@ -186,11 +186,11 @@ def create_customer_daily_profile_feature_view(source):
 
 
 def get_expected_training_df(
-    customer_df: pd.DataFrame,
-    customer_fv: FeatureView,
-    driver_df: pd.DataFrame,
-    driver_fv: FeatureView,
-    orders_df: pd.DataFrame,
+        customer_df: pd.DataFrame,
+        customer_fv: FeatureView,
+        driver_df: pd.DataFrame,
+        driver_fv: FeatureView,
+        orders_df: pd.DataFrame,
 ):
     expected_orders_df = orders_df.copy().sort_values(ENTITY_DF_EVENT_TIMESTAMP_COL)
     expected_drivers_df = driver_df.copy().sort_values(
@@ -374,7 +374,7 @@ def test_historical_features_from_bigquery_sources():
     # Driver Feature View
     driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
     driver_table_id = f"{gcp_project}.{bigquery_dataset}.driver_hourly"
-    # stage_driver_hourly_stats_bigquery_source(bigquery_dataset, driver_df, driver_table_id)
+    # stage_driver_hourly_stats_bigquery_source(driver_df, driver_table_id)
     driver_source = BigQuerySource(
         table_ref=driver_table_id, event_timestamp_column="datetime"
     )
@@ -386,7 +386,7 @@ def test_historical_features_from_bigquery_sources():
     )
     customer_table_id = f"{gcp_project}.{bigquery_dataset}.customer_profile"
 
-    # stage_customer_daily_profile_bigquery_source(bigquery_dataset, customer_df, customer_table_id)
+    # stage_customer_daily_profile_bigquery_source(customer_df, customer_table_id)
     customer_source = BigQuerySource(
         table_ref=customer_table_id, event_timestamp_column="datetime"
     )
@@ -419,9 +419,9 @@ def test_historical_features_from_bigquery_sources():
 
     assert_frame_equal(
         expected_df.sort_values(
-            by=["datetime", "order_id", "driver_id", "customer_id"]
+            by=[ENTITY_DF_EVENT_TIMESTAMP_COL, "order_id", "driver_id", "customer_id"]
         ).reset_index(drop=True),
         actual_df.sort_values(
-            by=["datetime", "order_id", "driver_id", "customer_id"]
+            by=[ENTITY_DF_EVENT_TIMESTAMP_COL, "order_id", "driver_id", "customer_id"]
         ).reset_index(drop=True),
     )
