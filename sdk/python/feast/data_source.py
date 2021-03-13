@@ -38,7 +38,7 @@ class FileOptions:
     """
 
     def __init__(
-        self, file_format: FileFormat, file_url: str,
+            self, file_format: FileFormat, file_url: str,
     ):
         self._file_format = file_format
         self._file_url = file_url
@@ -109,9 +109,24 @@ class BigQueryOptions:
     """
 
     def __init__(
-        self, table_ref: str,
+            self, table_ref: str, query: str
     ):
         self._table_ref = table_ref
+        self._query = query
+
+    @property
+    def query(self):
+        """
+        Returns the BigQuery SQL query referenced by this source
+        """
+        return self._query
+
+    @query.setter
+    def query(self, query):
+        """
+        Sets the BigQuery SQL query referenced by this source
+        """
+        self._query = query
 
     @property
     def table_ref(self):
@@ -139,7 +154,7 @@ class BigQueryOptions:
             Returns a BigQueryOptions object based on the bigquery_options protobuf
         """
 
-        bigquery_options = cls(table_ref=bigquery_options_proto.table_ref,)
+        bigquery_options = cls(table_ref=bigquery_options_proto.table_ref, )
 
         return bigquery_options
 
@@ -164,7 +179,7 @@ class KafkaOptions:
     """
 
     def __init__(
-        self, bootstrap_servers: str, message_format: StreamFormat, topic: str,
+            self, bootstrap_servers: str, message_format: StreamFormat, topic: str,
     ):
         self._bootstrap_servers = bootstrap_servers
         self._message_format = message_format
@@ -255,7 +270,7 @@ class KinesisOptions:
     """
 
     def __init__(
-        self, record_format: StreamFormat, region: str, stream_name: str,
+            self, record_format: StreamFormat, region: str, stream_name: str,
     ):
         self._record_format = record_format
         self._region = region
@@ -346,11 +361,11 @@ class DataSource:
     """
 
     def __init__(
-        self,
-        event_timestamp_column: str,
-        created_timestamp_column: Optional[str] = "",
-        field_mapping: Optional[Dict[str, str]] = None,
-        date_partition_column: Optional[str] = "",
+            self,
+            event_timestamp_column: str,
+            created_timestamp_column: Optional[str] = "",
+            field_mapping: Optional[Dict[str, str]] = None,
+            date_partition_column: Optional[str] = "",
     ):
         self._event_timestamp_column = event_timestamp_column
         self._created_timestamp_column = created_timestamp_column
@@ -362,10 +377,10 @@ class DataSource:
             raise TypeError("Comparisons should only involve DataSource class objects.")
 
         if (
-            self.event_timestamp_column != other.event_timestamp_column
-            or self.created_timestamp_column != other.created_timestamp_column
-            or self.field_mapping != other.field_mapping
-            or self.date_partition_column != other.date_partition_column
+                self.event_timestamp_column != other.event_timestamp_column
+                or self.created_timestamp_column != other.created_timestamp_column
+                or self.field_mapping != other.field_mapping
+                or self.date_partition_column != other.date_partition_column
         ):
             return False
 
@@ -451,9 +466,9 @@ class DataSource:
                 date_partition_column=data_source.date_partition_column,
             )
         elif (
-            data_source.kafka_options.bootstrap_servers
-            and data_source.kafka_options.topic
-            and data_source.kafka_options.message_format
+                data_source.kafka_options.bootstrap_servers
+                and data_source.kafka_options.topic
+                and data_source.kafka_options.message_format
         ):
             data_source_obj = KafkaSource(
                 field_mapping=data_source.field_mapping,
@@ -467,9 +482,9 @@ class DataSource:
                 date_partition_column=data_source.date_partition_column,
             )
         elif (
-            data_source.kinesis_options.record_format
-            and data_source.kinesis_options.region
-            and data_source.kinesis_options.stream_name
+                data_source.kinesis_options.record_format
+                and data_source.kinesis_options.region
+                and data_source.kinesis_options.stream_name
         ):
             data_source_obj = KinesisSource(
                 field_mapping=data_source.field_mapping,
@@ -496,13 +511,13 @@ class DataSource:
 
 class FileSource(DataSource):
     def __init__(
-        self,
-        event_timestamp_column: str,
-        file_format: FileFormat,
-        file_url: str,
-        created_timestamp_column: Optional[str] = "",
-        field_mapping: Optional[Dict[str, str]] = None,
-        date_partition_column: Optional[str] = "",
+            self,
+            event_timestamp_column: str,
+            file_format: FileFormat,
+            file_url: str,
+            created_timestamp_column: Optional[str] = "",
+            field_mapping: Optional[Dict[str, str]] = None,
+            date_partition_column: Optional[str] = "",
     ):
         super().__init__(
             event_timestamp_column,
@@ -517,8 +532,8 @@ class FileSource(DataSource):
             raise TypeError("Comparisons should only involve FileSource class objects.")
 
         if (
-            self.file_options.file_url != other.file_options.file_url
-            or self.file_options.file_format != other.file_options.file_format
+                self.file_options.file_url != other.file_options.file_url
+                or self.file_options.file_format != other.file_options.file_format
         ):
             return False
         return True
@@ -553,12 +568,13 @@ class FileSource(DataSource):
 
 class BigQuerySource(DataSource):
     def __init__(
-        self,
-        event_timestamp_column: str,
-        table_ref: str,
-        created_timestamp_column: Optional[str] = "",
-        field_mapping: Optional[Dict[str, str]] = None,
-        date_partition_column: Optional[str] = "",
+            self,
+            event_timestamp_column: str,
+            table_ref: str = None,
+            created_timestamp_column: Optional[str] = "",
+            field_mapping: Optional[Dict[str, str]] = None,
+            date_partition_column: Optional[str] = "",
+            query: str = None
     ):
         super().__init__(
             event_timestamp_column,
@@ -566,7 +582,7 @@ class BigQuerySource(DataSource):
             field_mapping,
             date_partition_column,
         )
-        self._bigquery_options = BigQueryOptions(table_ref=table_ref,)
+        self._bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
 
     def __eq__(self, other):
         if not isinstance(other, BigQuerySource):
@@ -582,6 +598,10 @@ class BigQuerySource(DataSource):
     @property
     def table_ref(self):
         return self._bigquery_options.table_ref
+
+    @property
+    def query(self):
+        return self._bigquery_options.query
 
     @property
     def bigquery_options(self):
@@ -613,14 +633,14 @@ class BigQuerySource(DataSource):
 
 class KafkaSource(DataSource):
     def __init__(
-        self,
-        event_timestamp_column: str,
-        bootstrap_servers: str,
-        message_format: StreamFormat,
-        topic: str,
-        created_timestamp_column: Optional[str] = "",
-        field_mapping: Optional[Dict[str, str]] = dict(),
-        date_partition_column: Optional[str] = "",
+            self,
+            event_timestamp_column: str,
+            bootstrap_servers: str,
+            message_format: StreamFormat,
+            topic: str,
+            created_timestamp_column: Optional[str] = "",
+            field_mapping: Optional[Dict[str, str]] = dict(),
+            date_partition_column: Optional[str] = "",
     ):
         super().__init__(
             event_timestamp_column,
@@ -641,10 +661,10 @@ class KafkaSource(DataSource):
             )
 
         if (
-            self.kafka_options.bootstrap_servers
-            != other.kafka_options.bootstrap_servers
-            or self.kafka_options.message_format != other.kafka_options.message_format
-            or self.kafka_options.topic != other.kafka_options.topic
+                self.kafka_options.bootstrap_servers
+                != other.kafka_options.bootstrap_servers
+                or self.kafka_options.message_format != other.kafka_options.message_format
+                or self.kafka_options.topic != other.kafka_options.topic
         ):
             return False
 
@@ -680,14 +700,14 @@ class KafkaSource(DataSource):
 
 class KinesisSource(DataSource):
     def __init__(
-        self,
-        event_timestamp_column: str,
-        created_timestamp_column: str,
-        record_format: StreamFormat,
-        region: str,
-        stream_name: str,
-        field_mapping: Optional[Dict[str, str]] = dict(),
-        date_partition_column: Optional[str] = "",
+            self,
+            event_timestamp_column: str,
+            created_timestamp_column: str,
+            record_format: StreamFormat,
+            region: str,
+            stream_name: str,
+            field_mapping: Optional[Dict[str, str]] = dict(),
+            date_partition_column: Optional[str] = "",
     ):
         super().__init__(
             event_timestamp_column,
@@ -706,9 +726,9 @@ class KinesisSource(DataSource):
             )
 
         if (
-            self.kinesis_options.record_format != other.kinesis_options.record_format
-            or self.kinesis_options.region != other.kinesis_options.region
-            or self.kinesis_options.stream_name != other.kinesis_options.stream_name
+                self.kinesis_options.record_format != other.kinesis_options.record_format
+                or self.kinesis_options.region != other.kinesis_options.region
+                or self.kinesis_options.stream_name != other.kinesis_options.stream_name
         ):
             return False
 

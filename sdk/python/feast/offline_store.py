@@ -435,7 +435,7 @@ class ParquetOfflineStore(OfflineStore):
                         )
 
                 # Build a list of entity columns to join on (from the right table)
-                right_entity_columns = [entity.name for entity in feature_view.entities]
+                right_entity_columns = [entity for entity in feature_view.entities]
                 right_entity_key_columns = [
                                                event_timestamp_column
                                            ] + right_entity_columns

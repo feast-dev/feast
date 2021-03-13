@@ -65,16 +65,10 @@ class FeatureView:
         self.features = features
         self.tags = tags
 
-        # TODO: Use timedelta for storage instead of proto types.
-        if isinstance(ttl, timedelta):
-            self.ttl = ttl
-        elif isinstance(ttl, Duration):
+        if isinstance(ttl, Duration):
             self.ttl = timedelta(seconds=int(ttl.seconds))
         else:
-            raise ValueError(
-                f"The TTL you have specified for {name} is of the wrong type {type(ttl)}. "
-                f"Expected either a timedelta or google.protobuf Duration"
-            )
+            self.ttl = ttl
 
         self.online = online
         self.input = input
