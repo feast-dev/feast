@@ -45,7 +45,7 @@ def create_orders_df(customers, drivers, start_date, end_date, order_count):
     df["customer_id"] = np.random.choice(customers, order_count)
     df["order_is_success"] = np.random.randint(0, 2, size=order_count).astype(np.int32)
     df[ENTITY_DF_EVENT_TIMESTAMP_COL] = [
-        pd.Timestamp(dt, unit="ms").round("ms")
+        pd.Timestamp(dt, unit="ms", tz='UTC').round("ms")
         for dt in pd.date_range(start=start_date, end=end_date, periods=order_count)
     ]
     df.sort_values(
@@ -59,7 +59,7 @@ def create_driver_hourly_stats_df(drivers, start_date, end_date):
     df_hourly = pd.DataFrame(
         {
             "datetime": [
-                pd.Timestamp(dt, unit="ms").round("ms")
+                pd.Timestamp(dt, unit="ms", tz='UTC').round("ms")
                 for dt in pd.date_range(
                     start=start_date, end=end_date, freq="1H", closed="left"
                 )
@@ -103,6 +103,7 @@ def stage_driver_hourly_stats_parquet_source(directory, df):
 def stage_driver_hourly_stats_bigquery_source(df, table_id):
     client = bigquery.Client()
     job_config = bigquery.LoadJobConfig()
+    df.reset_index(drop=True, inplace=True)
     job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
     job.result()
 
@@ -126,7 +127,7 @@ def create_customer_daily_profile_df(customers, start_date, end_date):
     df_daily = pd.DataFrame(
         {
             "datetime": [
-                pd.Timestamp(dt, unit="ms").round("ms")
+                pd.Timestamp(dt, unit="ms", tz='UTC').round("ms")
                 for dt in pd.date_range(
                     start=start_date, end=end_date, freq="1D", closed="left"
                 )
@@ -164,6 +165,7 @@ def stage_customer_daily_profile_parquet_source(directory, df):
 def stage_customer_daily_profile_bigquery_source(df, table_id):
     client = bigquery.Client()
     job_config = bigquery.LoadJobConfig()
+    df.reset_index(drop=True, inplace=True)
     job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
     job.result()
 
@@ -211,6 +213,9 @@ def get_expected_training_df(
         by=["driver_id"],
         tolerance=driver_fv.ttl,
     )
+
+    expected_orders_with_drivers.drop(columns=[driver_fv.input.event_timestamp_column], inplace=True)
+
     expected_customers_df = customer_df.copy().sort_values(
         [customer_fv.input.event_timestamp_column]
     )
@@ -230,6 +235,8 @@ def get_expected_training_df(
         by=["customer_id"],
         tolerance=customer_fv.ttl,
     )
+    expected_df.drop(columns=[driver_fv.input.event_timestamp_column], inplace=True)
+
     # Move "datetime" column to front
     current_cols = expected_df.columns.tolist()
     current_cols.remove(ENTITY_DF_EVENT_TIMESTAMP_COL)
@@ -249,9 +256,10 @@ def get_expected_training_df(
     return expected_df
 
 
-def stage_orders_bigquery(bigquery_dataset, df, table_id):
+def stage_orders_bigquery(df, table_id):
     client = bigquery.Client()
     job_config = bigquery.LoadJobConfig()
+    df.reset_index(drop=True, inplace=True)
     job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
     job.result()
 
@@ -368,13 +376,13 @@ def test_historical_features_from_bigquery_sources():
 
     # Orders Query
     table_id = f"{bigquery_dataset}.orders"
-    # stage_orders_bigquery(bigquery_dataset, orders_df, table_id)
+    stage_orders_bigquery(orders_df, table_id)
     entity_df_query = f"SELECT * FROM {gcp_project}.{table_id}"
 
     # Driver Feature View
     driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
     driver_table_id = f"{gcp_project}.{bigquery_dataset}.driver_hourly"
-    # stage_driver_hourly_stats_bigquery_source(driver_df, driver_table_id)
+    stage_driver_hourly_stats_bigquery_source(driver_df, driver_table_id)
     driver_source = BigQuerySource(
         table_ref=driver_table_id, event_timestamp_column="datetime"
     )
@@ -386,7 +394,7 @@ def test_historical_features_from_bigquery_sources():
     )
     customer_table_id = f"{gcp_project}.{bigquery_dataset}.customer_profile"
 
-    # stage_customer_daily_profile_bigquery_source(customer_df, customer_table_id)
+    stage_customer_daily_profile_bigquery_source(customer_df, customer_table_id)
     customer_source = BigQuerySource(
         table_ref=customer_table_id, event_timestamp_column="datetime"
     )
@@ -424,4 +432,5 @@ def test_historical_features_from_bigquery_sources():
         actual_df.sort_values(
             by=[ENTITY_DF_EVENT_TIMESTAMP_COL, "order_id", "driver_id", "customer_id"]
         ).reset_index(drop=True),
+        check_dtype=False
     )
