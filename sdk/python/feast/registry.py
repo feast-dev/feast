@@ -118,7 +118,7 @@ class Registry:
 
     def apply_feature_table(self, feature_table: FeatureTable, project: str):
         """
-        Registers a single feature table or feature view with Feast
+        Registers a single feature table with Feast
 
         Args:
             feature_table: Feature table that will be registered
@@ -148,7 +148,7 @@ class Registry:
 
     def apply_feature_view(self, feature_view: FeatureView, project: str):
         """
-        Registers a single feature view or feature view with Feast
+        Registers a single feature view with Feast
 
         Args:
             feature_view: Feature view that will be registered
