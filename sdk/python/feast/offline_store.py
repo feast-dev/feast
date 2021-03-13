@@ -94,14 +94,14 @@ class OfflineStore(ABC):
     @staticmethod
     @abstractmethod
     def pull_latest_from_table(
-            feature_view: FeatureView, start_date: datetime, end_date: datetime,
+        feature_view: FeatureView, start_date: datetime, end_date: datetime,
     ) -> Optional[pyarrow.Table]:
         pass
 
     @staticmethod
     @abstractmethod
     def get_historical_features(
-            metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str],
+        metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str],
     ) -> RetrievalJob:
         pass
 
@@ -109,7 +109,7 @@ class OfflineStore(ABC):
 class BigQueryOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table(
-            feature_view: FeatureView, start_date: datetime, end_date: datetime,
+        feature_view: FeatureView, start_date: datetime, end_date: datetime,
     ) -> pyarrow.Table:
         if feature_view.input.table_ref is None:
             raise ValueError(
@@ -157,7 +157,7 @@ class BigQueryOfflineStore(OfflineStore):
 
     @staticmethod
     def get_historical_features(
-            metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str],
+        metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str],
     ) -> RetrievalJob:
 
         if type(entity_df) is not str:
@@ -180,7 +180,7 @@ class BigQueryOfflineStore(OfflineStore):
             # TODO: This project should come from main config or env, and is differnt from sources
             dataset_id="test_hist_retrieval_static",  # TODO: This dataset_id shouldn't be hardcoded
             min_timestamp=datetime.now()
-                          - timedelta(days=365),  # TODO: Get timestamps from entity_df
+            - timedelta(days=365),  # TODO: Get timestamps from entity_df
             max_timestamp=datetime.now() + timedelta(days=1),
             left_table_query_string=left_table_query_string,
         )
@@ -189,12 +189,12 @@ class BigQueryOfflineStore(OfflineStore):
 
 
 def build_point_in_time_query(
-        feature_view_query_contexts: List[FeatureViewQueryContext],
-        gcp_project_id: str,
-        dataset_id: str,
-        min_timestamp: datetime,
-        max_timestamp: datetime,
-        left_table_query_string: str,
+    feature_view_query_contexts: List[FeatureViewQueryContext],
+    gcp_project_id: str,
+    dataset_id: str,
+    min_timestamp: datetime,
+    max_timestamp: datetime,
+    left_table_query_string: str,
 ):
     """Build point-in-time query between each feature view table and the entity dataframe"""
     template = Environment(loader=BaseLoader).from_string(
@@ -216,6 +216,7 @@ def build_point_in_time_query(
 
     query = template.render(template_context)
     return query
+
 
 # TODO: Optimizations
 #   * Use GENERATE_UUID() instead of ROW_NUMBER(), or join on entity columns directly
@@ -388,13 +389,13 @@ def get_feature_view_query_contexts(feature_view_requests: List[FeatureViewReque
 class ParquetOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table(
-            feature_view: FeatureView, start_date: datetime, end_date: datetime,
+        feature_view: FeatureView, start_date: datetime, end_date: datetime,
     ) -> pyarrow.Table:
         pass
 
     @staticmethod
     def get_historical_features(
-            metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str]
+        metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str]
     ) -> FileRetrievalJob:
         feature_views_to_query = get_feature_views_from_feature_refs(
             feature_refs, metadata
@@ -442,8 +443,8 @@ class ParquetOfflineStore(OfflineStore):
                 # Build a list of entity columns to join on (from the right table)
                 right_entity_columns = [entity for entity in feature_view.entities]
                 right_entity_key_columns = [
-                                               event_timestamp_column
-                                           ] + right_entity_columns
+                    event_timestamp_column
+                ] + right_entity_columns
 
                 # Remove all duplicate entity keys (using created timestamp)
                 right_entity_key_sort_columns = right_entity_key_columns
@@ -471,7 +472,9 @@ class ParquetOfflineStore(OfflineStore):
                 )
 
                 # Remove right (feature table/view) event_timestamp column.
-                entity_df_with_features.drop(columns=[event_timestamp_column], inplace=True)
+                entity_df_with_features.drop(
+                    columns=[event_timestamp_column], inplace=True
+                )
 
                 # Ensure that we delete dataframes to free up memory
                 del df_to_join
@@ -481,7 +484,7 @@ class ParquetOfflineStore(OfflineStore):
             current_cols.remove(ENTITY_DF_EVENT_TIMESTAMP_COL)
             entity_df_with_features = entity_df_with_features[
                 [ENTITY_DF_EVENT_TIMESTAMP_COL] + current_cols
-                ]
+            ]
 
             return entity_df_with_features
 
@@ -490,7 +493,7 @@ class ParquetOfflineStore(OfflineStore):
 
 
 def run_reverse_field_mapping(
-        feature_view: FeatureView,
+    feature_view: FeatureView,
 ) -> Tuple[List[str], List[str], str, Optional[str]]:
     """
     If a field mapping exists, run it in reverse on the entity names, feature names, event timestamp column, and created timestamp column to get the names of the relevant columns in the BigQuery table.
@@ -517,7 +520,7 @@ def run_reverse_field_mapping(
         created_timestamp_column = (
             reverse_field_mapping[created_timestamp_column]
             if created_timestamp_column is not None
-               and created_timestamp_column in reverse_field_mapping.keys()
+            and created_timestamp_column in reverse_field_mapping.keys()
             else created_timestamp_column
         )
         entity_names = [
@@ -537,7 +540,7 @@ def run_reverse_field_mapping(
 
 
 def run_forward_field_mapping(
-        table: pyarrow.Table, feature_view: FeatureView
+    table: pyarrow.Table, feature_view: FeatureView
 ) -> pyarrow.Table:
     # run field mapping in the forward direction
     if table is not None and feature_view.input.field_mapping is not None:
@@ -553,33 +556,37 @@ def run_forward_field_mapping(
 
 
 def get_historical_features(
-        metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str],
+    metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str],
 ) -> RetrievalJob:
     feature_views_to_query = get_feature_views_from_feature_refs(feature_refs, metadata)
-    offline_store = get_offline_store_for_historical_retrieval(feature_views_to_query, entity_df)
+    offline_store = get_offline_store_for_historical_retrieval(
+        feature_views_to_query, entity_df
+    )
     job = offline_store.get_historical_features(metadata, feature_refs, entity_df)
     return job
 
 
-def get_offline_store_for_historical_retrieval(feature_views_to_query, entity_df) -> OfflineStore:
+def get_offline_store_for_historical_retrieval(
+    feature_views_to_query, entity_df
+) -> OfflineStore:
     """Detect which offline store should be used for retrieving historical features"""
     # TODO: It may be better to remove this method and to have the user simply configure a single static offline store.
 
     # Return ParquetOfflineStore
     if all(
-            [
-                type(feature_view.input) == ParquetSource
-                for feature_view in feature_views_to_query.values()
-            ]
+        [
+            type(feature_view.input) == ParquetSource
+            for feature_view in feature_views_to_query.values()
+        ]
     ) and isinstance(entity_df, pd.DataFrame):
         return ParquetOfflineStore()
 
     # Return BigQueryOfflineStore
     if all(
-            [
-                type(feature_view.input) == BigQuerySource
-                for feature_view in feature_views_to_query.values()
-            ]
+        [
+            type(feature_view.input) == BigQuerySource
+            for feature_view in feature_views_to_query.values()
+        ]
     ) and isinstance(entity_df, str):
         return BigQueryOfflineStore()
 

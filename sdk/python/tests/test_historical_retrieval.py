@@ -45,7 +45,7 @@ def create_orders_df(customers, drivers, start_date, end_date, order_count):
     df["customer_id"] = np.random.choice(customers, order_count)
     df["order_is_success"] = np.random.randint(0, 2, size=order_count).astype(np.int32)
     df[ENTITY_DF_EVENT_TIMESTAMP_COL] = [
-        pd.Timestamp(dt, unit="ms", tz='UTC').round("ms")
+        pd.Timestamp(dt, unit="ms", tz="UTC").round("ms")
         for dt in pd.date_range(start=start_date, end=end_date, periods=order_count)
     ]
     df.sort_values(
@@ -59,7 +59,7 @@ def create_driver_hourly_stats_df(drivers, start_date, end_date):
     df_hourly = pd.DataFrame(
         {
             "datetime": [
-                pd.Timestamp(dt, unit="ms", tz='UTC').round("ms")
+                pd.Timestamp(dt, unit="ms", tz="UTC").round("ms")
                 for dt in pd.date_range(
                     start=start_date, end=end_date, freq="1H", closed="left"
                 )
@@ -127,7 +127,7 @@ def create_customer_daily_profile_df(customers, start_date, end_date):
     df_daily = pd.DataFrame(
         {
             "datetime": [
-                pd.Timestamp(dt, unit="ms", tz='UTC').round("ms")
+                pd.Timestamp(dt, unit="ms", tz="UTC").round("ms")
                 for dt in pd.date_range(
                     start=start_date, end=end_date, freq="1D", closed="left"
                 )
@@ -173,9 +173,7 @@ def stage_customer_daily_profile_bigquery_source(df, table_id):
 def create_customer_daily_profile_feature_view(source):
     customer_profile_feature_view = FeatureView(
         name="customer_profile",
-        entities=[
-            "customer_id"
-        ],
+        entities=["customer_id"],
         features=[
             Feature(name="current_balance", dtype=ValueType.FLOAT),
             Feature(name="avg_passenger_count", dtype=ValueType.FLOAT),
@@ -188,11 +186,11 @@ def create_customer_daily_profile_feature_view(source):
 
 
 def get_expected_training_df(
-        customer_df: pd.DataFrame,
-        customer_fv: FeatureView,
-        driver_df: pd.DataFrame,
-        driver_fv: FeatureView,
-        orders_df: pd.DataFrame,
+    customer_df: pd.DataFrame,
+    customer_fv: FeatureView,
+    driver_df: pd.DataFrame,
+    driver_fv: FeatureView,
+    orders_df: pd.DataFrame,
 ):
     expected_orders_df = orders_df.copy().sort_values(ENTITY_DF_EVENT_TIMESTAMP_COL)
     expected_drivers_df = driver_df.copy().sort_values(
@@ -214,7 +212,9 @@ def get_expected_training_df(
         tolerance=driver_fv.ttl,
     )
 
-    expected_orders_with_drivers.drop(columns=[driver_fv.input.event_timestamp_column], inplace=True)
+    expected_orders_with_drivers.drop(
+        columns=[driver_fv.input.event_timestamp_column], inplace=True
+    )
 
     expected_customers_df = customer_df.copy().sort_values(
         [customer_fv.input.event_timestamp_column]
@@ -432,5 +432,5 @@ def test_historical_features_from_bigquery_sources():
         actual_df.sort_values(
             by=[ENTITY_DF_EVENT_TIMESTAMP_COL, "order_id", "driver_id", "customer_id"]
         ).reset_index(drop=True),
-        check_dtype=False
+        check_dtype=False,
     )
