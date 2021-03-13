@@ -14,6 +14,7 @@
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union
 
+import pandas as pd
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.timestamp_pb2 import Timestamp
 
@@ -21,21 +22,21 @@ from feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.core.FeatureView_pb2 import FeatureViewMeta as FeatureViewMetaProto
 from feast.core.FeatureView_pb2 import FeatureViewSpec as FeatureViewSpecProto
 from feast.data_source import BigQuerySource, DataSource
-from feast.parquet_source import ParquetSource
 from feast.feature import Feature
+from feast.parquet_source import ParquetSource
 from feast.value_type import ValueType
-import pandas as pd
+
 
 class FeatureView:
     """
-    A FeatureView defines a logical grouping of servable features.
+    A FeatureView defines a logical grouping of serveable features.
     """
 
     name: str
     entities: List[str]
     features: List[Feature]
     tags: Dict[str, str]
-    ttl: Optional[Duration]
+    ttl: Optional[timedelta]
     online: bool
     input: BigQuerySource
 
@@ -47,10 +48,10 @@ class FeatureView:
         name: str,
         entities: List[str],
         features: List[Feature],
-        tags: Dict[str, str],
         ttl: Optional[Union[Duration, timedelta]],
-        online: bool,
         input: Union[BigQuerySource, ParquetSource],
+        tags: Dict[str, str] = None,
+        online: bool = True,
     ):
         cols = [entity for entity in entities] + [feat.name for feat in features]
         for col in cols:
@@ -63,12 +64,17 @@ class FeatureView:
         self.entities = entities
         self.features = features
         self.tags = tags
+
+        # TODO: Use timedelta for storage instead of proto types.
         if isinstance(ttl, timedelta):
-            proto_ttl = Duration()
-            proto_ttl.FromTimedelta(ttl)
-            self.ttl = proto_ttl
-        else:
             self.ttl = ttl
+        elif isinstance(ttl, Duration):
+            self.ttl = timedelta(seconds=int(ttl.seconds))
+        else:
+            raise ValueError(
+                f"The TTL you have specified for {name} is of the wrong type {type(ttl)}. "
+                f"Expected either a timedelta or google.protobuf Duration"
+            )
 
         self.online = online
         self.input = input
@@ -97,13 +103,14 @@ class FeatureView:
             created_timestamp=self.created_timestamp,
             last_updated_timestamp=self.last_updated_timestamp,
         )
+        ttl_duration = Duration()
 
         spec = FeatureViewSpecProto(
             name=self.name,
             entities=self.entities,
             features=[feature.to_proto() for feature in self.features],
             tags=self.tags,
-            ttl=self.ttl,
+            ttl=ttl_duration.FromTimedelta(self.ttl),
             online=self.online,
             input=self.input.to_proto(),
         )
@@ -147,7 +154,3 @@ class FeatureView:
         feature_view.created_timestamp = feature_view_proto.meta.created_timestamp
 
         return feature_view
-
-    def get_ttl_as_timedelta(self) -> timedelta:
-        """Returns the feature time to live value as a timedelta"""
-        return pd.to_timedelta(self.ttl)

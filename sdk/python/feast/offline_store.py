@@ -12,19 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from abc import ABC, abstractmethod
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Union
 
-from dataclasses import asdict
-from jinja2 import Environment, BaseLoader
 import pandas as pd
 import pyarrow
-from dataclasses import dataclass
 from google.cloud import bigquery
+from jinja2 import BaseLoader, Environment
 
-from feast.big_query_source import BigQuerySource
+from feast.data_source import BigQuerySource
 from feast.feature_view import FeatureView
 from feast.parquet_source import ParquetSource
+
+ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
 
 
 class RetrievalJob(ABC):
@@ -86,18 +87,18 @@ class FeatureViewJoinContext:
 
 
 def get_historical_features(
-        metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str],
+    metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str],
 ) -> RetrievalJob:
-    # TODO: Validate inputs
+    # TODO: Validate arguments
 
     feature_views_to_query = get_feature_views_from_feature_refs(feature_refs, metadata)
 
     # Retrieve features from ParquetOfflineStore
     if all(
-            [
-                type(feature_view.inputs) == ParquetSource
-                for feature_view in feature_views_to_query.values()
-            ]
+        [
+            type(feature_view.input) == ParquetSource
+            for feature_view in feature_views_to_query.values()
+        ]
     ) and isinstance(entity_df, pd.DataFrame):
         return ParquetOfflineStore.get_historical_features(
             metadata, feature_refs, entity_df,
@@ -105,14 +106,12 @@ def get_historical_features(
 
     # Retrieve features from BigQueryOfflineStore
     if all(
-            [
-                type(feature_view.inputs) == BigQuerySource
-                for feature_view in feature_views_to_query.values()
-            ]
+        [
+            type(feature_view.input) == BigQuerySource
+            for feature_view in feature_views_to_query.values()
+        ]
     ) and isinstance(entity_df, str):
-        return get_historical_features(
-            metadata, feature_refs, entity_df,
-        )
+        return get_historical_features(metadata, feature_refs, entity_df,)
 
     # Could not map inputs to an OfflineStore implementation
     raise NotImplementedError(
@@ -141,14 +140,14 @@ class OfflineStore(ABC):
     @staticmethod
     @abstractmethod
     def pull_latest_from_table(
-            feature_view: FeatureView, start_date: datetime, end_date: datetime,
+        feature_view: FeatureView, start_date: datetime, end_date: datetime,
     ) -> Optional[pyarrow.Table]:
         pass
 
     @staticmethod
     @abstractmethod
     def get_historical_features(
-            metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str],
+        metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str],
     ) -> RetrievalJob:
         pass
 
@@ -156,7 +155,7 @@ class OfflineStore(ABC):
 class BigQueryOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table(
-            feature_view: FeatureView, start_date: datetime, end_date: datetime,
+        feature_view: FeatureView, start_date: datetime, end_date: datetime,
     ) -> pyarrow.Table:
         if feature_view.input.table_ref is None:
             raise ValueError(
@@ -202,16 +201,51 @@ class BigQueryOfflineStore(OfflineStore):
         query_job = client.query(query)
         return query_job.to_arrow()
 
+    @staticmethod
+    def get_historical_features(
+        metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str],
+    ) -> RetrievalJob:
+
+        if type(entity_df) is not str:
+            raise NotImplementedError(
+                "Only string queries are allowed for providing an entity dataframe."
+            )
+        left_table_query_string = f"({entity_df})"
+
+        feature_views_to_query = get_feature_view_requests(feature_refs, metadata)
+        feature_view_query_contexts = get_feature_view_query_contexts(
+            feature_views_to_query
+        )
+        # TODO: 1. Add support for loading a Pandas entity_df into BigQuery
+
+        # 2. Retrieve the temporal bounds of the entity dataset provided
+
+        query = build_point_in_time_query(
+            feature_view_query_contexts,
+            gcp_project_id="default",
+            # TODO: This project should come from main config or env, and is differnt from sources
+            dataset_id="test_hist_retrieval_static",  # TODO: This dataset_id shouldn't be hardcoded
+            min_timestamp=datetime.now()
+            - timedelta(days=365),  # TODO: Get timestamps from entity_df
+            max_timestamp=datetime.now() + timedelta(days=1),
+            left_table_query_string=left_table_query_string,
+        )
+        job = BigQueryRetrievalJob(query=query)
+        return job
+
 
 def build_point_in_time_query(
-        feature_view_query_contexts: FeatureViewQueryContext,
-        gcp_project_id: str,
-        dataset_id: str,
-        min_timestamp: datetime,
-        max_timestamp: datetime,
-        left_table_query_string: str):
+    feature_view_query_contexts: List[FeatureViewQueryContext],
+    gcp_project_id: str,
+    dataset_id: str,
+    min_timestamp: datetime,
+    max_timestamp: datetime,
+    left_table_query_string: str,
+):
     """Build point-in-time query between each feature view table and the entity dataframe"""
-    template = Environment(loader=BaseLoader).from_string(source=SINGLE_FEATURE_VIEW_POINT_IN_TIME_JOIN)
+    template = Environment(loader=BaseLoader).from_string(
+        source=SINGLE_FEATURE_VIEW_POINT_IN_TIME_JOIN
+    )
 
     # Add additional fields to dict
     template_context = {
@@ -220,7 +254,7 @@ def build_point_in_time_query(
         "min_timestamp": min_timestamp,
         "max_timestamp": max_timestamp,
         "left_table_query_string": left_table_query_string,
-        "featureviews": []
+        "featureviews": [],
     }
 
     for feature_view_query_context in feature_view_query_contexts:
@@ -342,32 +376,6 @@ LEFT JOIN (
 """
 
 
-def get_historical_features(
-        metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str],
-) -> RetrievalJob:
-    if type(entity_df) is not str:
-        raise NotImplementedError("Only string queries are allowed for providing an entity dataframe.")
-    left_table_query_string = f"({entity_df})"
-
-    feature_views_to_query = get_feature_view_requests(feature_refs, metadata)
-    feature_view_query_contexts = get_feature_view_query_contexts(feature_views_to_query)
-    # TODO: 1. Add support for loading a Pandas entity_df into BigQuery
-
-    # 2. Retrieve the temporal bounds of the entity dataset provided
-
-    query = build_point_in_time_query(
-        feature_view_query_contexts,
-        gcp_project_id="default",
-        # TODO: This project should come from main config or env, and is differnt from sources
-        dataset_id="test_hist_retrieval_static",  # TODO: This dataset_id shouldn't be hardcoded
-        min_timestamp=datetime.now() - timedelta(days=365),  # TODO: Get timestamps from entity_df
-        max_timestamp=datetime.now() + timedelta(days=1),
-        left_table_query_string=left_table_query_string
-    )
-    job = BigQueryRetrievalJob(query=query)
-    return job
-
-
 def get_feature_view_requests(feature_refs, metadata):
     # Get map of feature views based on feature references
     feature_views_to_feature_map = {}
@@ -395,10 +403,10 @@ def get_feature_view_query_contexts(feature_view_requests: List[FeatureViewReque
         entity_names = [entity.name for entity in request.featureview.entities]
         ttl_seconds = int(request.featureview.get_ttl_as_timedelta().total_seconds())
 
-        if request.featureview.inputs.table_ref is not None:
-            table_subquery = f"`{request.featureview.inputs.table_ref}`"
+        if request.featureview.input.table_ref is not None:
+            table_subquery = f"`{request.featureview.input.table_ref}`"
         else:
-            table_subquery = f"({request.featureview.inputs.query})"
+            table_subquery = f"({request.featureview.input.query})"
 
         # TODO: Project has been hardcoded here. Needs to come from metadata store
         context = FeatureViewQueryContext(
@@ -407,12 +415,12 @@ def get_feature_view_query_contexts(feature_view_requests: List[FeatureViewReque
             ttl=ttl_seconds,
             entities=entity_names,
             features=request.features,
-            table_ref=request.featureview.inputs.table_ref,
-            event_timestamp_column=request.featureview.inputs.event_timestamp_column,
+            table_ref=request.featureview.input.table_ref,
+            event_timestamp_column=request.featureview.input.event_timestamp_column,
             created_timestamp_column="created",  # TODO: Make created column optional and not hardcoded
-            field_mapping=request.featureview.inputs.field_mapping,
-            query=request.featureview.inputs.query,
-            table_subquery=table_subquery
+            field_mapping=request.featureview.input.field_mapping,
+            query=request.featureview.input.query,
+            table_subquery=table_subquery,
         )
         contexts.append(context)
     return contexts
@@ -421,28 +429,33 @@ def get_feature_view_query_contexts(feature_view_requests: List[FeatureViewReque
 class ParquetOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table(
-            feature_view: FeatureView, start_date: datetime, end_date: datetime,
+        feature_view: FeatureView, start_date: datetime, end_date: datetime,
     ) -> pyarrow.Table:
         pass
 
     @staticmethod
     def get_historical_features(
-            metadata,
-            feature_refs: List[str],
-            entity_df: Union[pd.DataFrame, str]
+        metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str]
     ) -> FileRetrievalJob:
-        feature_views_to_query = get_feature_views_from_feature_refs(feature_refs, metadata)
+        feature_views_to_query = get_feature_views_from_feature_refs(
+            feature_refs, metadata
+        )
 
         def evaluate_historical_retrieval():
 
             # Sort entity dataframe prior to join, and create a copy to prevent modifying the original
-            entity_df_with_features = entity_df.sort_values("datetime").copy()
+            entity_df_with_features = entity_df.sort_values(
+                ENTITY_DF_EVENT_TIMESTAMP_COL
+            ).copy()
 
             # Load feature view data from sources and join them incrementally
             for feature_view in feature_views_to_query.values():
+                event_timestamp_column = feature_view.input.event_timestamp_column
+                created_timestamp_column = feature_view.input.created_timestamp_column
+
                 # Read dataframe to join to entity dataframe
-                df_to_join = pd.read_parquet(feature_view.inputs.path).sort_values(
-                    "datetime"
+                df_to_join = pd.read_parquet(feature_view.input.path).sort_values(
+                    event_timestamp_column
                 )
 
                 # Build a list of all the features we should select from this source
@@ -469,13 +482,20 @@ class ParquetOfflineStore(OfflineStore):
 
                 # Build a list of entity columns to join on (from the right table)
                 right_entity_columns = [entity.name for entity in feature_view.entities]
-                right_entity_key_columns = ["datetime"] + right_entity_columns
+                right_entity_key_columns = [
+                    event_timestamp_column
+                ] + right_entity_columns
 
                 # Remove all duplicate entity keys (using created timestamp)
-                df_to_join.sort_values(
-                    by=(right_entity_key_columns + ["created"]), inplace=True
-                )
-                df_to_join = df_to_join.groupby(by=(right_entity_key_columns)).last()
+                right_entity_key_sort_columns = right_entity_key_columns
+                if created_timestamp_column is not None:
+                    # If created_timestamp is available, use it to dedupe deterministically
+                    right_entity_key_sort_columns = right_entity_key_sort_columns + [
+                        created_timestamp_column
+                    ]
+
+                df_to_join.sort_values(by=right_entity_key_sort_columns, inplace=True)
+                df_to_join = df_to_join.groupby(by=right_entity_key_columns).last()
                 df_to_join.reset_index(inplace=True)
 
                 # Select only the columns we need to join from the feature dataframe
@@ -485,9 +505,10 @@ class ParquetOfflineStore(OfflineStore):
                 entity_df_with_features = pd.merge_asof(
                     entity_df_with_features,
                     df_to_join,
-                    on="datetime",
+                    left_on=ENTITY_DF_EVENT_TIMESTAMP_COL,
+                    right_on=event_timestamp_column,
                     by=right_entity_columns,
-                    tolerance=feature_view.get_ttl_as_timedelta(),
+                    tolerance=feature_view.ttl,
                 )
 
                 # Ensure that we delete dataframes to free up memory
@@ -495,10 +516,10 @@ class ParquetOfflineStore(OfflineStore):
 
             # Move "datetime" column to front
             current_cols = entity_df_with_features.columns.tolist()
-            current_cols.remove("datetime")
+            current_cols.remove(ENTITY_DF_EVENT_TIMESTAMP_COL)
             entity_df_with_features = entity_df_with_features[
-                ["datetime"] + current_cols
-                ]
+                [ENTITY_DF_EVENT_TIMESTAMP_COL] + current_cols
+            ]
 
             return entity_df_with_features
 
@@ -507,7 +528,7 @@ class ParquetOfflineStore(OfflineStore):
 
 
 def run_reverse_field_mapping(
-        feature_view: FeatureView,
+    feature_view: FeatureView,
 ) -> Tuple[List[str], List[str], str, Optional[str]]:
     """
     If a field mapping exists, run it in reverse on the entity names, feature names, event timestamp column, and created timestamp column to get the names of the relevant columns in the BigQuery table.
@@ -534,7 +555,7 @@ def run_reverse_field_mapping(
         created_timestamp_column = (
             reverse_field_mapping[created_timestamp_column]
             if created_timestamp_column is not None
-               and created_timestamp_column in reverse_field_mapping.keys()
+            and created_timestamp_column in reverse_field_mapping.keys()
             else created_timestamp_column
         )
         entity_names = [
@@ -554,7 +575,7 @@ def run_reverse_field_mapping(
 
 
 def run_forward_field_mapping(
-        table: pyarrow.Table, feature_view: FeatureView
+    table: pyarrow.Table, feature_view: FeatureView
 ) -> pyarrow.Table:
     # run field mapping in the forward direction
     if table is not None and feature_view.input.field_mapping is not None:

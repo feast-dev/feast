@@ -9,12 +9,16 @@ import numpy as np
 import pandas as pd
 from google.cloud import bigquery
 from pandas.testing import assert_frame_equal
-from feast.offline_store import get_historical_features
-from feast.big_query_source import BigQuerySource
+
+from feast.data_source import BigQuerySource
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_view import FeatureView
-from feast.offline_store import BigQueryOfflineStore
+from feast.offline_store import (
+    ENTITY_DF_EVENT_TIMESTAMP_COL,
+    BigQueryOfflineStore,
+    get_historical_features,
+)
 from feast.parquet_source import ParquetSource
 from feast.value_type import ValueType
 
@@ -40,12 +44,13 @@ def create_orders_df(customers, drivers, start_date, end_date, order_count):
     df["driver_id"] = np.random.choice(drivers, order_count)
     df["customer_id"] = np.random.choice(customers, order_count)
     df["order_is_success"] = np.random.randint(0, 2, size=order_count).astype(np.int32)
-    df["event_timestamp"] = [
+    df[ENTITY_DF_EVENT_TIMESTAMP_COL] = [
         pd.Timestamp(dt, unit="ms").round("ms")
         for dt in pd.date_range(start=start_date, end=end_date, periods=order_count)
     ]
     df.sort_values(
-        by=["event_timestamp", "order_id", "driver_id", "customer_id"], inplace=True
+        by=[ENTITY_DF_EVENT_TIMESTAMP_COL, "order_id", "driver_id", "customer_id"],
+        inplace=True,
     )
     return df
 
@@ -111,8 +116,8 @@ def create_driver_hourly_stats_feature_view(source):
             Feature(name="acc_rate", dtype=ValueType.FLOAT),
             Feature(name="avg_daily_trips", dtype=ValueType.INT32),
         ],
-        inputs=source,
-        ttl="2h",
+        input=source,
+        ttl=timedelta(hours=2),
     )
     return driver_stats_feature_view
 
@@ -174,48 +179,61 @@ def create_customer_daily_profile_feature_view(source):
             Feature(name="avg_passenger_count", dtype=ValueType.FLOAT),
             Feature(name="lifetime_trip_count", dtype=ValueType.INT32),
         ],
-        inputs=source,
-        ttl="2d",
+        input=source,
+        ttl=timedelta(days=2),
     )
     return customer_profile_feature_view
 
 
 def get_expected_training_df(
-        customer_df,
-        customer_fv_ttl_timedelta,
-        driver_df,
-        driver_fv_ttl_timedelta,
-        orders_df,
+    customer_df: pd.DataFrame,
+    customer_fv: FeatureView,
+    driver_df: pd.DataFrame,
+    driver_fv: FeatureView,
+    orders_df: pd.DataFrame,
 ):
-    expected_orders_df = orders_df.copy().sort_values("datetime")
-    expected_drivers_df = driver_df.copy().sort_values("datetime")
+    expected_orders_df = orders_df.copy().sort_values(ENTITY_DF_EVENT_TIMESTAMP_COL)
+    expected_drivers_df = driver_df.copy().sort_values(
+        driver_fv.input.event_timestamp_column
+    )
     expected_orders_with_drivers = pd.merge_asof(
         expected_orders_df,
-        expected_drivers_df[["datetime", "driver_id", "conv_rate", "avg_daily_trips"]],
-        on="datetime",
+        expected_drivers_df[
+            [
+                driver_fv.input.event_timestamp_column,
+                "driver_id",
+                "conv_rate",
+                "avg_daily_trips",
+            ]
+        ],
+        left_on=ENTITY_DF_EVENT_TIMESTAMP_COL,
+        right_on=driver_fv.input.event_timestamp_column,
         by=["driver_id"],
-        tolerance=driver_fv_ttl_timedelta,
+        tolerance=driver_fv.ttl,
     )
-    expected_customers_df = customer_df.copy().sort_values(["datetime"])
+    expected_customers_df = customer_df.copy().sort_values(
+        [customer_fv.input.event_timestamp_column]
+    )
     expected_df = pd.merge_asof(
         expected_orders_with_drivers,
         expected_customers_df[
             [
-                "datetime",
+                customer_fv.input.event_timestamp_column,
                 "customer_id",
                 "current_balance",
                 "avg_passenger_count",
                 "lifetime_trip_count",
             ]
         ],
-        on="datetime",
+        left_on=ENTITY_DF_EVENT_TIMESTAMP_COL,
+        right_on=customer_fv.input.event_timestamp_column,
         by=["customer_id"],
-        tolerance=customer_fv_ttl_timedelta,
+        tolerance=customer_fv.ttl,
     )
     # Move "datetime" column to front
     current_cols = expected_df.columns.tolist()
-    current_cols.remove("datetime")
-    expected_df = expected_df[["datetime"] + current_cols]
+    current_cols.remove(ENTITY_DF_EVENT_TIMESTAMP_COL)
+    expected_df = expected_df[[ENTITY_DF_EVENT_TIMESTAMP_COL] + current_cols]
 
     # Rename columns to have double underscore
     expected_df.rename(
@@ -309,18 +327,24 @@ def test_historical_features_from_parquet_sources():
 
         actual_df = job.to_df()
         expected_df = get_expected_training_df(
-            customer_df,
-            customer_fv.get_ttl_as_timedelta(),
-            driver_df,
-            driver_fv.get_ttl_as_timedelta(),
-            orders_df,
+            customer_df, customer_fv, driver_df, driver_fv, orders_df,
         )
         assert_frame_equal(
             expected_df.sort_values(
-                by=["datetime", "order_id", "driver_id", "customer_id"]
+                by=[
+                    ENTITY_DF_EVENT_TIMESTAMP_COL,
+                    "order_id",
+                    "driver_id",
+                    "customer_id",
+                ]
             ).reset_index(drop=True),
             actual_df.sort_values(
-                by=["datetime", "order_id", "driver_id", "customer_id"]
+                by=[
+                    ENTITY_DF_EVENT_TIMESTAMP_COL,
+                    "order_id",
+                    "driver_id",
+                    "customer_id",
+                ]
             ).reset_index(drop=True),
         )
 
@@ -390,11 +414,7 @@ def test_historical_features_from_bigquery_sources():
     )
     actual_df = job.to_df()
     expected_df = get_expected_training_df(
-        customer_df,
-        customer_fv.get_ttl_as_timedelta(),
-        driver_df,
-        driver_fv.get_ttl_as_timedelta(),
-        orders_df,
+        customer_df, customer_fv, driver_df, driver_fv, orders_df,
     )
 
     assert_frame_equal(
