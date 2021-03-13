@@ -28,36 +28,40 @@ import "feast/core/DataSource.proto";
 import "feast/core/Feature.proto";
 
 message FeatureView {
-    // User-specified specifications of this feature table.
+    // User-specified specifications of this feature view.
     FeatureViewSpec spec = 1;
 
-    // System-populated metadata for this feature table.
+    // System-populated metadata for this feature view.
     FeatureViewMeta meta = 2;
-    string project = 3;
 }
 
 message FeatureViewSpec {
-    // Name of the feature table. Must be unique. Not updated.
+    // Name of the feature view. Must be unique. Not updated.
     string name = 1;
+
+    // Name of Feast project that this feature view belongs to.
+    string project = 2;
 
     // List names of entities to associate with the Features defined in this 
     // Feature View. Not updatable.
     repeated string entities = 3;
 
-    // List of features specifications for each feature defined with this feature table.
+    // List of features specifications for each feature defined with this feature view.
     repeated FeatureSpecV2 features = 4;
 
     // User defined metadata
     map<string,string> tags = 5;
 
-    // Features in this feature table can only be retrieved from online serving
+    // Features in this feature view can only be retrieved from online serving
     // younger than ttl. Ttl is measured as the duration of time between
     // the feature's event timestamp and when the feature is retrieved
     // Feature values outside ttl will be returned as unset values and indicated to end user
     google.protobuf.Duration ttl = 6;
 
+    // Batch/Offline DataSource where this view can retrieve offline feature data.
     DataSource input = 7;
 
+    // Whether these features should be served online or not
     bool online = 8;
 }
 
