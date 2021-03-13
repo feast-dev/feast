@@ -64,13 +64,13 @@ class Registry:
         """
         entity.is_valid()
         entity_proto = entity.to_proto()
-        entity_proto.project = project
+        entity_proto.spec.project = project
 
         def updater(registry_proto: RegistryProto):
             for idx, existing_entity_proto in enumerate(registry_proto.entities):
                 if (
                     existing_entity_proto.spec.name == entity_proto.spec.name
-                    and existing_entity_proto.project == project
+                    and existing_entity_proto.spec.project == project
                 ):
                     del registry_proto.entities[idx]
                     registry_proto.entities.append(entity_proto)
@@ -94,7 +94,7 @@ class Registry:
         registry_proto = self._registry_store.get_registry()
         entities = []
         for entity_proto in registry_proto.entities:
-            if entity_proto.project == project:
+            if entity_proto.spec.project == project:
                 entities.append(Entity.from_proto(entity_proto))
         return entities
 
@@ -112,7 +112,7 @@ class Registry:
         """
         registry_proto = self._registry_store.get_registry()
         for entity_proto in registry_proto.entities:
-            if entity_proto.spec.name == name and entity_proto.project == project:
+            if entity_proto.spec.name == name and entity_proto.spec.project == project:
                 return Entity.from_proto(entity_proto)
         raise Exception(f"Entity {name} does not exist in project {project}")
 
@@ -126,7 +126,7 @@ class Registry:
         """
         feature_table.is_valid()
         feature_table_proto = feature_table.to_proto()
-        feature_table_proto.project = project
+        feature_table_proto.spec.project = project
 
         def updater(registry_proto: RegistryProto):
             for idx, existing_feature_table_proto in enumerate(
@@ -135,7 +135,7 @@ class Registry:
                 if (
                     existing_feature_table_proto.spec.name
                     == feature_table_proto.spec.name
-                    and existing_feature_table_proto.project == project
+                    and existing_feature_table_proto.spec.project == project
                 ):
                     del registry_proto.feature_tables[idx]
                     registry_proto.feature_tables.append(feature_table_proto)
@@ -156,7 +156,7 @@ class Registry:
         """
         feature_view.is_valid()
         feature_view_proto = feature_view.to_proto()
-        feature_view_proto.project = project
+        feature_view_proto.spec.project = project
 
         def updater(registry_proto: RegistryProto):
             for idx, existing_feature_view_proto in enumerate(
@@ -165,7 +165,7 @@ class Registry:
                 if (
                     existing_feature_view_proto.spec.name
                     == feature_view_proto.spec.name
-                    and existing_feature_view_proto.project == project
+                    and existing_feature_view_proto.spec.project == project
                 ):
                     del registry_proto.feature_views[idx]
                     registry_proto.feature_views.append(feature_view_proto)
@@ -188,7 +188,7 @@ class Registry:
         registry_proto = self._registry_store.get_registry()
         feature_tables = []
         for feature_table_proto in registry_proto.feature_tables:
-            if feature_table_proto.project == project:
+            if feature_table_proto.spec.project == project:
                 feature_tables.append(FeatureTable.from_proto(feature_table_proto))
         return feature_tables
 
@@ -205,7 +205,7 @@ class Registry:
         registry_proto = self._registry_store.get_registry()
         feature_views = []
         for feature_view_proto in registry_proto.feature_views:
-            if feature_view_proto.project == project:
+            if feature_view_proto.spec.project == project:
                 feature_views.append(FeatureView.from_proto(feature_view_proto))
         return feature_views
 
@@ -225,7 +225,7 @@ class Registry:
         for feature_table_proto in registry_proto.feature_tables:
             if (
                 feature_table_proto.spec.name == name
-                and feature_table_proto.project == project
+                and feature_table_proto.spec.project == project
             ):
                 return FeatureTable.from_proto(feature_table_proto)
         raise Exception(f"Feature table {name} does not exist in project {project}")
@@ -246,7 +246,7 @@ class Registry:
         for feature_view_proto in registry_proto.feature_views:
             if (
                 feature_view_proto.spec.name == name
-                and feature_view_proto.project == project
+                and feature_view_proto.spec.project == project
             ):
                 return FeatureView.from_proto(feature_view_proto)
         raise Exception(f"Feature view {name} does not exist in project {project}")
@@ -266,7 +266,7 @@ class Registry:
             ):
                 if (
                     existing_feature_table_proto.spec.name == name
-                    and existing_feature_table_proto.project == project
+                    and existing_feature_table_proto.spec.project == project
                 ):
                     del registry_proto.feature_tables[idx]
                     return registry_proto
@@ -290,7 +290,7 @@ class Registry:
             ):
                 if (
                     existing_feature_view_proto.spec.name == name
-                    and existing_feature_view_proto.project == project
+                    and existing_feature_view_proto.spec.project == project
                 ):
                     del registry_proto.feature_views[idx]
                     return registry_proto

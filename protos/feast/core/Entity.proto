@@ -29,12 +29,14 @@ message Entity {
     EntitySpecV2 spec = 1;
     // System-populated metadata for this entity.
     EntityMeta meta = 2;
-    string project = 3;
 }
 
 message EntitySpecV2 {
     // Name of the entity.
     string name = 1;
+
+    // Name of Feast project that this feature table belongs to.
+    string project = 9;
 
     // Type of the entity.
     feast.types.ValueType.Enum value_type = 2;
