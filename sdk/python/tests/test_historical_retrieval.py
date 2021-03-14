@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 
 import numpy as np
 import pandas as pd
+import pytest
 from google.cloud import bigquery
 from pandas.testing import assert_frame_equal
 
@@ -361,6 +362,7 @@ def test_historical_features_from_parquet_sources():
         )
 
 
+@pytest.mark.integration
 def test_historical_features_from_bigquery_sources():
     start_date = datetime.now().replace(microsecond=0, second=0, minute=0)
     (
