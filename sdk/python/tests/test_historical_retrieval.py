@@ -14,6 +14,7 @@ from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
 from feast.offline_store import ENTITY_DF_EVENT_TIMESTAMP_COL
+from feast.repo_config import LocalOnlineStoreConfig, OnlineStoreConfig, RepoConfig
 from feast.value_type import ValueType
 
 np.random.seed(0)
@@ -310,7 +311,19 @@ def test_historical_features_from_parquet_sources():
         driver = Entity(name="driver", value_type=ValueType.INT64, description="")
         customer = Entity(name="customer", value_type=ValueType.INT64, description="")
 
-        store = FeatureStore()
+        store = FeatureStore(
+            config=RepoConfig(
+                metadata_store=os.path.join(temp_dir, "metadata.db"),
+                project="default",
+                provider="local",
+                online_store=OnlineStoreConfig(
+                    local=LocalOnlineStoreConfig(
+                        os.path.join(temp_dir, "online_store.db"),
+                    )
+                ),
+            )
+        )
+
         store.apply([driver, customer, driver_fv, customer_fv])
 
         job = store.get_historical_features(
@@ -361,8 +374,7 @@ def test_historical_features_from_bigquery_sources():
     # bigquery_dataset = "test_hist_retrieval_static"
     bigquery_dataset = f"test_hist_retrieval_{int(time.time())}"
 
-    with BigQueryDataSet(bigquery_dataset):
-
+    with BigQueryDataSet(bigquery_dataset), TemporaryDirectory() as temp_dir:
         gcp_project = bigquery.Client().project
 
         # Orders Query
@@ -394,7 +406,18 @@ def test_historical_features_from_bigquery_sources():
         driver = Entity(name="driver", value_type=ValueType.INT64, description="")
         customer = Entity(name="customer", value_type=ValueType.INT64, description="")
 
-        store = FeatureStore()
+        store = FeatureStore(
+            config=RepoConfig(
+                metadata_store=os.path.join(temp_dir, "metadata.db"),
+                project="default",
+                provider="local",
+                online_store=OnlineStoreConfig(
+                    local=LocalOnlineStoreConfig(
+                        os.path.join(temp_dir, "online_store.db"),
+                    )
+                ),
+            )
+        )
         store.apply([driver, customer, driver_fv, customer_fv])
 
         job = store.get_historical_features(
