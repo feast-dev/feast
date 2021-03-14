@@ -42,3 +42,6 @@ class ParquetSource:
         self.created_timestamp_column = created_timestamp_column
         self.field_mapping = field_mapping
         return
+
+    def to_proto(self):
+        raise NotImplementedError()

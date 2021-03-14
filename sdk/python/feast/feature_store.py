@@ -12,9 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional, Union
 
+import pandas as pd
+
+from feast.entity import Entity
+from feast.feature_view import FeatureView
 from feast.infra.provider import Provider, get_provider
+from feast.offline_store import RetrievalJob, get_offline_store_for_historical_retrieval
 from feast.registry import Registry
 from feast.repo_config import (
     LocalOnlineStoreConfig,
@@ -55,3 +60,30 @@ class FeatureStore:
 
     def _get_registry(self) -> Registry:
         return Registry(self.config.metadata_store)
+
+    def apply(self, objects: Union[List[Union[FeatureView, Entity]]]):
+        # TODO: Add locking and optimize by only writing once (not multiple times during each apply step)
+        # TODO: Add infra update operation (currently we are just writing to registry)
+        # TODO: Add docstring
+        registry = self._get_registry()
+        for ob in objects:
+            if isinstance(ob, FeatureView):
+                registry.apply_feature_view(ob, project=self.config.project)
+            elif isinstance(ob, Entity):
+                registry.apply_entity(ob, project=self.config.project)
+            else:
+                raise ValueError(
+                    f"Unknown object type ({type(ob)}) provided as part of apply() call"
+                )
+
+    def get_historical_features(
+        self, feature_refs: List[str], entity_df: Union[pd.DataFrame, str],
+    ) -> RetrievalJob:
+        # TODO: Add docstring
+        registry = self._get_registry()
+        registry_state = registry.get_registry_state(project=self.config.project)
+        offline_store = get_offline_store_for_historical_retrieval(self.config.provider)
+        job = offline_store.get_historical_features(
+            registry_state, feature_refs, entity_df
+        )
+        return job

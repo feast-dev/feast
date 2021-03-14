@@ -24,6 +24,7 @@ from jinja2 import BaseLoader, Environment
 from feast.data_source import BigQuerySource
 from feast.feature_view import FeatureView
 from feast.parquet_source import ParquetSource
+from feast.registry import RegistryState
 
 ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
 
@@ -101,7 +102,9 @@ class OfflineStore(ABC):
     @staticmethod
     @abstractmethod
     def get_historical_features(
-        metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str],
+        registry_state: RegistryState,
+        feature_refs: List[str],
+        entity_df: Union[pd.DataFrame, str],
     ) -> RetrievalJob:
         pass
 
@@ -111,6 +114,7 @@ class BigQueryOfflineStore(OfflineStore):
     def pull_latest_from_table(
         feature_view: FeatureView, start_date: datetime, end_date: datetime,
     ) -> pyarrow.Table:
+        assert isinstance(feature_view.input, BigQuerySource)
         if feature_view.input.table_ref is None:
             raise ValueError(
                 "This function can only be called on a FeatureView with a table_ref"
@@ -157,32 +161,45 @@ class BigQueryOfflineStore(OfflineStore):
 
     @staticmethod
     def get_historical_features(
-        metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str],
+        registry_state: RegistryState,
+        feature_refs: List[str],
+        entity_df: Union[pd.DataFrame, str],
     ) -> RetrievalJob:
 
+        feature_views_to_query = get_feature_views_from_feature_refs(
+            feature_refs, registry_state
+        )
+        if any(
+            [
+                type(feature_view.input) != BigQuerySource
+                for feature_view in feature_views_to_query.values()
+            ]
+        ):
+            raise NotImplementedError(
+                'Cannot query from non-BigQuery sources while using the "gcp" provider'
+            )
+
+        # TODO: Add support for loading a Pandas entity_df into BigQuery
         if type(entity_df) is not str:
             raise NotImplementedError(
-                "Only string queries are allowed for providing an entity dataframe."
+                "The entity_df argument must be a BigQuery string SQL query"
             )
-        left_table_query_string = f"({entity_df})"
 
-        feature_views_to_query = get_feature_view_requests(feature_refs, metadata)
+        feature_views_to_query = get_feature_view_requests(feature_refs, registry_state)
         feature_view_query_contexts = get_feature_view_query_contexts(
             feature_views_to_query
         )
-        # TODO: 1. Add support for loading a Pandas entity_df into BigQuery
 
-        # 2. Retrieve the temporal bounds of the entity dataset provided
-
+        # TODO: The gcp project should come from main config or env, and is different from sources
+        # TODO: This dataset_id shouldn't be hardcoded
+        # TODO: Get timestamps from entity_df
         query = build_point_in_time_query(
             feature_view_query_contexts,
             gcp_project_id="default",
-            # TODO: This project should come from main config or env, and is differnt from sources
-            dataset_id="test_hist_retrieval_static",  # TODO: This dataset_id shouldn't be hardcoded
-            min_timestamp=datetime.now()
-            - timedelta(days=365),  # TODO: Get timestamps from entity_df
+            dataset_id="test_hist_retrieval_static",
+            min_timestamp=datetime.now() - timedelta(days=365),
             max_timestamp=datetime.now() + timedelta(days=1),
-            left_table_query_string=left_table_query_string,
+            left_table_query_string=f"({entity_df})",
         )
         job = BigQueryRetrievalJob(query=query)
         return job
@@ -197,7 +214,7 @@ def build_point_in_time_query(
     left_table_query_string: str,
 ):
     """Build point-in-time query between each feature view table and the entity dataframe"""
-    template = Environment(loader=BaseLoader).from_string(
+    template = Environment(loader=BaseLoader()).from_string(
         source=SINGLE_FEATURE_VIEW_POINT_IN_TIME_JOIN
     )
 
@@ -208,11 +225,8 @@ def build_point_in_time_query(
         "min_timestamp": min_timestamp,
         "max_timestamp": max_timestamp,
         "left_table_query_string": left_table_query_string,
-        "featureviews": [],
+        "featureviews": [asdict(context) for context in feature_view_query_contexts],
     }
-
-    for feature_view_query_context in feature_view_query_contexts:
-        template_context["featureviews"].append(asdict(feature_view_query_context))
 
     query = template.render(template_context)
     return query
@@ -321,7 +335,7 @@ FROM (
 /*
  Joins the outputs of multiple time travel joins to a single table.
  */
-SELECT edf.event_timestamp as event_timestamp, * EXCEPT (row_number, event_timestamp) FROM entity_dataframe edf 
+SELECT edf.event_timestamp as event_timestamp, * EXCEPT (row_number, event_timestamp) FROM entity_dataframe edf
 {% for featureview in featureviews %}
 LEFT JOIN (
     SELECT
@@ -361,12 +375,14 @@ def get_feature_view_query_contexts(feature_view_requests: List[FeatureViewReque
     contexts = []
     for request in feature_view_requests:
         entity_names = [entity for entity in request.featureview.entities]
-        ttl_seconds = int(request.featureview.ttl.total_seconds())
 
-        if request.featureview.input.table_ref is not None:
-            table_subquery = f"`{request.featureview.input.table_ref}`"
+        if isinstance(request.featureview.ttl, timedelta):
+            ttl_seconds = int(request.featureview.ttl.total_seconds())
         else:
-            table_subquery = f"({request.featureview.input.query})"
+            ttl_seconds = 0
+
+        assert isinstance(request.featureview.input, BigQuerySource)
+        table_subquery = request.featureview.input.get_table_query_string()
 
         # TODO: Project has been hardcoded here. Needs to come from metadata store
         context = FeatureViewQueryContext(
@@ -400,7 +416,23 @@ class ParquetOfflineStore(OfflineStore):
         feature_views_to_query = get_feature_views_from_feature_refs(
             feature_refs, metadata
         )
+        if any(
+            [
+                type(feature_view.input) != ParquetSource
+                for feature_view in feature_views_to_query.values()
+            ]
+        ):
+            # TODO: Add support for retrieving from BigQuery sources when using a local provider.
+            raise NotImplementedError(
+                'Cannot query from non-Parquet sources while using the "local" provider.'
+            )
 
+        if not isinstance(entity_df, pd.DataFrame):
+            raise ValueError(
+                f"Please provide an entity_df of type {type(pd.DataFrame)} instead of type {type(entity_df)}"
+            )
+
+        # Create lazy function that is only called from the RetrievalJob object
         def evaluate_historical_retrieval():
 
             # Sort entity dataframe prior to join, and create a copy to prevent modifying the original
@@ -426,8 +458,8 @@ class ParquetOfflineStore(OfflineStore):
                     if feature_ref_feature_view_name == feature_view.name:
                         feature_ref_feature_name = feature_ref.split(":")[1]
 
-                        # Modify the separator for feature refs in column names to double underscore.
-                        # We are using double underscore as separator for consistency with other databases like BigQuery,
+                        # Modify the separator for feature refs in column names to double underscore. We are using
+                        # double underscore as separator for consistency with other databases like BigQuery,
                         # where there are very few characters available for use as separators
                         prefixed_feature_name = feature_ref.replace(":", "__")
 
@@ -555,55 +587,32 @@ def run_forward_field_mapping(
     return table
 
 
-def get_historical_features(
-    metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str],
-) -> RetrievalJob:
-    feature_views_to_query = get_feature_views_from_feature_refs(feature_refs, metadata)
-    offline_store = get_offline_store_for_historical_retrieval(
-        feature_views_to_query, entity_df
-    )
-    job = offline_store.get_historical_features(metadata, feature_refs, entity_df)
-    return job
-
-
-def get_offline_store_for_historical_retrieval(
-    feature_views_to_query, entity_df
-) -> OfflineStore:
+def get_offline_store_for_historical_retrieval(provider: str) -> OfflineStore:
     """Detect which offline store should be used for retrieving historical features"""
-    # TODO: It may be better to remove this method and to have the user simply configure a single static offline store.
-
-    # Return ParquetOfflineStore
-    if all(
-        [
-            type(feature_view.input) == ParquetSource
-            for feature_view in feature_views_to_query.values()
-        ]
-    ) and isinstance(entity_df, pd.DataFrame):
-        return ParquetOfflineStore()
-
-    # Return BigQueryOfflineStore
-    if all(
-        [
-            type(feature_view.input) == BigQuerySource
-            for feature_view in feature_views_to_query.values()
-        ]
-    ) and isinstance(entity_df, str):
+    if provider == "gcp":
         return BigQueryOfflineStore()
+    elif provider == "local":
+        return ParquetOfflineStore()
+    else:
+        raise NotImplementedError(
+            'You have not configured your provider correctly. Please set your provider to "gcp" or "local".'
+        )
 
-        # Could not map inputs to an OfflineStore implementation
-    raise NotImplementedError(
-        f"Unsupported combination of feature view input source types and entity_df type. "
-        f"Please ensure that all source types are consistent and available in the same offline store."
-    )
 
-
-def get_feature_views_from_feature_refs(feature_refs, metadata):
+def get_feature_views_from_feature_refs(
+    feature_refs: List[str], registry_state: RegistryState
+):
     # Get map of feature views based on feature references
     feature_views_to_query = {}
     for ref in feature_refs:
         ref_parts = ref.split(":")
-        if ref_parts[0] not in metadata["feature_views"]:
+        found = False
+        for feature_view in registry_state.feature_views:
+            if feature_view.name == ref_parts[0]:
+                found = True
+                feature_views_to_query[feature_view.name] = feature_view
+
+        if not found:
             raise ValueError(f"Could not find feature view from reference {ref}")
-        feature_view = metadata["feature_views"][ref_parts[0]]
-        feature_views_to_query[feature_view.name] = feature_view
+
     return feature_views_to_query

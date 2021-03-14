@@ -1,9 +1,6 @@
 import os
-import time
-from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from tempfile import TemporaryDirectory
-from typing import Dict, List, Union
 
 import numpy as np
 import pandas as pd
@@ -13,16 +10,15 @@ from pandas.testing import assert_frame_equal
 from feast.data_source import BigQuerySource
 from feast.entity import Entity
 from feast.feature import Feature
+from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
-from feast.offline_store import (
-    ENTITY_DF_EVENT_TIMESTAMP_COL,
-    BigQueryOfflineStore,
-    get_historical_features,
-)
+from feast.offline_store import ENTITY_DF_EVENT_TIMESTAMP_COL
 from feast.parquet_source import ParquetSource
 from feast.value_type import ValueType
 
 np.random.seed(0)
+
+PROJECT_NAME = "default"
 
 
 def generate_entities(date):
@@ -311,18 +307,13 @@ def test_historical_features_from_parquet_sources():
             temp_dir, customer_df
         )
         customer_fv = create_customer_daily_profile_feature_view(customer_source)
+        driver = Entity(name="driver", value_type=ValueType.INT64, description="")
+        customer = Entity(name="customer", value_type=ValueType.INT64, description="")
 
-        job = get_historical_features(
-            metadata={
-                "entities": [
-                    Entity(name="driver", value_type=ValueType.INT64, description=""),
-                    Entity(name="customer", value_type=ValueType.INT64, description=""),
-                ],
-                "feature_views": {
-                    "driver_stats": driver_fv,
-                    "customer_profile": customer_fv,
-                },
-            },
+        store = FeatureStore()
+        store.apply([driver, customer, driver_fv, customer_fv])
+
+        job = store.get_historical_features(
             entity_df=orders_df,
             feature_refs=[
                 "driver_stats:conv_rate",
@@ -367,7 +358,7 @@ def test_historical_features_from_bigquery_sources():
         start_date,
     ) = generate_entities(start_date)
 
-    bigquery_dataset = f"test_hist_retrieval_static"
+    bigquery_dataset = "test_hist_retrieval_static"
     # bigquery_dataset = f"test_hist_retrieval_{int(time.time())}"
 
     # with BigQueryDataSet(bigquery_dataset):
@@ -400,17 +391,13 @@ def test_historical_features_from_bigquery_sources():
     )
     customer_fv = create_customer_daily_profile_feature_view(customer_source)
 
-    job = get_historical_features(
-        metadata={
-            "entities": [
-                Entity(name="driver", value_type=ValueType.INT64, description=""),
-                Entity(name="customer", value_type=ValueType.INT64, description=""),
-            ],
-            "feature_views": {
-                "driver_stats": driver_fv,
-                "customer_profile": customer_fv,
-            },
-        },
+    driver = Entity(name="driver", value_type=ValueType.INT64, description="")
+    customer = Entity(name="customer", value_type=ValueType.INT64, description="")
+
+    store = FeatureStore()
+    store.apply([driver, customer, driver_fv, customer_fv])
+
+    job = store.get_historical_features(
         entity_df=entity_df_query,
         feature_refs=[
             "driver_stats:conv_rate",

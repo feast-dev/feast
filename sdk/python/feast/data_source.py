@@ -108,7 +108,7 @@ class BigQueryOptions:
     DataSource BigQuery options used to source features from BigQuery query
     """
 
-    def __init__(self, table_ref: str, query: str):
+    def __init__(self, table_ref: Optional[str], query: Optional[str]):
         self._table_ref = table_ref
         self._query = query
 
@@ -152,7 +152,10 @@ class BigQueryOptions:
             Returns a BigQueryOptions object based on the bigquery_options protobuf
         """
 
-        bigquery_options = cls(table_ref=bigquery_options_proto.table_ref,)
+        bigquery_options = cls(
+            table_ref=bigquery_options_proto.table_ref,
+            query=bigquery_options_proto.query,
+        )
 
         return bigquery_options
 
@@ -568,11 +571,11 @@ class BigQuerySource(DataSource):
     def __init__(
         self,
         event_timestamp_column: str,
-        table_ref: str = None,
+        table_ref: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
-        query: str = None,
+        query: Optional[str] = None,
     ):
         super().__init__(
             event_timestamp_column,
@@ -627,6 +630,13 @@ class BigQuerySource(DataSource):
         data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
+
+    def get_table_query_string(self) -> str:
+        """Returns a string that can directly be used to reference this table in SQL"""
+        if self.table_ref is not None:
+            return f"`{self.table_ref}`"
+        else:
+            return f"({self.query})"
 
 
 class KafkaSource(DataSource):

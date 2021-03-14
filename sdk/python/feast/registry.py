@@ -14,6 +14,7 @@
 
 import uuid
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryFile
@@ -28,6 +29,16 @@ from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 
 REGISTRY_SCHEMA_VERSION = "1"
+
+
+# TODO: Merge RegistryState into Registry and provide the same functionality through a "snapshot" read-only mode
+@dataclass(frozen=True)
+class RegistryState:
+    """Immutable state of the registry"""
+
+    feature_tables: List[FeatureTable]
+    feature_views: List[FeatureView]
+    entities: List[Entity]
 
 
 class Registry:
@@ -297,6 +308,41 @@ class Registry:
             raise Exception(f"Feature view {name} does not exist in project {project}")
 
         self._registry_store.update_registry(updater)
+
+    def get_registry_state(self, project: str) -> RegistryState:
+        """
+        Retrieve a dictionary of lists of all objects stored in the registry
+
+        Args:
+            project: Filter objects based on project name
+
+        Returns:
+            A dictionary containing lists of Entities, FeatureViews, and FeatureTables
+        """
+        registry_proto = self._registry_store.get_registry()
+
+        feature_views = []
+        for feature_view_proto in registry_proto.feature_views:
+            if feature_view_proto.spec.project == project:
+                feature_views.append(FeatureView.from_proto(feature_view_proto))
+
+        feature_tables = []
+        for feature_table_proto in registry_proto.feature_tables:
+            if feature_table_proto.spec.project == project:
+                feature_tables.append(FeatureTable.from_proto(feature_table_proto))
+
+        entities = []
+        for entity_proto in registry_proto.entities:
+            if entity_proto.spec.project == project:
+                entities.append(Entity.from_proto(entity_proto))
+
+        registry_state = RegistryState(
+            entities=entities,
+            feature_views=feature_views,
+            feature_tables=feature_tables,
+        )
+
+        return registry_state
 
 
 class RegistryStore(ABC):

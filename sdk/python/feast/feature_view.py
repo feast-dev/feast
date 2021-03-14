@@ -11,10 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Dict, List, Optional, Union
 
-import pandas as pd
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.timestamp_pb2 import Timestamp
 
@@ -35,10 +34,10 @@ class FeatureView:
     name: str
     entities: List[str]
     features: List[Feature]
-    tags: Dict[str, str]
+    tags: Optional[Dict[str, str]]
     ttl: Optional[timedelta]
     online: bool
-    input: BigQuerySource
+    input: Union[BigQuerySource, ParquetSource]
 
     created_timestamp: Optional[Timestamp] = None
     last_updated_timestamp: Optional[Timestamp] = None
@@ -50,7 +49,7 @@ class FeatureView:
         features: List[Feature],
         ttl: Optional[Union[Duration, timedelta]],
         input: Union[BigQuerySource, ParquetSource],
-        tags: Dict[str, str] = None,
+        tags: Optional[Dict[str, str]] = None,
         online: bool = True,
     ):
         cols = [entity for entity in entities] + [feat.name for feat in features]
@@ -97,14 +96,17 @@ class FeatureView:
             created_timestamp=self.created_timestamp,
             last_updated_timestamp=self.last_updated_timestamp,
         )
-        ttl_duration = Duration()
+
+        if self.ttl is not None:
+            ttl_duration = Duration()
+            ttl_duration.FromTimedelta(self.ttl)
 
         spec = FeatureViewSpecProto(
             name=self.name,
             entities=self.entities,
             features=[feature.to_proto() for feature in self.features],
             tags=self.tags,
-            ttl=ttl_duration.FromTimedelta(self.ttl),
+            ttl=(ttl_duration if ttl_duration is not None else None),
             online=self.online,
             input=self.input.to_proto(),
         )
