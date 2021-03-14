@@ -23,17 +23,19 @@ from jinja2 import BaseLoader, Environment
 
 from feast.data_source import BigQuerySource, FileSource
 from feast.feature_view import FeatureView
-from feast.registry import RegistryState
 
 ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
 
 
 class RetrievalJob(ABC):
+    """RetrievalJob is used to manage the execution of a historical feature retrieval"""
+
     def __init__(self):
         pass
 
     @abstractmethod
     def to_df(self):
+        """Return dataset as Pandas DataFrame synchronously"""
         pass
 
 
@@ -51,39 +53,26 @@ class BigQueryRetrievalJob(RetrievalJob):
         self.query = query
 
     def to_df(self):
-        # TODO: We should ideally be starting this job when the user runs "get_historical_features", not when
-        #   they run to_df()
+        # TODO: Ideally only start this job when the user runs "get_historical_features", not when they run to_df()
         client = bigquery.Client()
         df = client.query(self.query).to_dataframe(create_bqstorage_client=True)
         return df
 
 
 @dataclass
-class FeatureViewRequest:
-    featureview: FeatureView
-    features: List[str]
-
-
-@dataclass
 class FeatureViewQueryContext:
-    project: str
+    """Context object used to template a BigQuery point-in-time SQL query"""
+
     name: str
     ttl: int
     entities: List[str]
-    features: List[str]  # feature reference
+    features: List[str]  # feature reference format
     table_ref: str
     event_timestamp_column: str
     created_timestamp_column: str
     field_mapping: Dict[str, str]
     query: str
     table_subquery: str
-
-
-@dataclass
-class FeatureViewJoinContext:
-    entities: List[str]
-    featureviews: List[FeatureViewQueryContext]
-    leftTableName: str
 
 
 class OfflineStore(ABC):
@@ -101,7 +90,7 @@ class OfflineStore(ABC):
     @staticmethod
     @abstractmethod
     def get_historical_features(
-        registry_state: RegistryState,
+        feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
     ) -> RetrievalJob:
@@ -160,7 +149,7 @@ class BigQueryOfflineStore(OfflineStore):
 
     @staticmethod
     def get_historical_features(
-        registry_state: RegistryState,
+        feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
     ) -> RetrievalJob:
@@ -170,12 +159,13 @@ class BigQueryOfflineStore(OfflineStore):
                 "The entity_df argument must be a BigQuery string SQL query"
             )
 
-        requested_fvs = get_feature_view_requests(feature_refs, registry_state)
-        feature_view_query_contexts = get_feature_view_query_contexts(requested_fvs)
+        # Build a query context containing all information required to template the BigQuery SQL query
+        query_context = get_feature_view_query_context(feature_refs, feature_views)
 
         # TODO: Get timestamps from entity_df
+        # Generate the BigQuery SQL query from the query context
         query = build_point_in_time_query(
-            feature_view_query_contexts,
+            query_context,
             min_timestamp=datetime.now() - timedelta(days=365),
             max_timestamp=datetime.now() + timedelta(days=1),
             left_table_query_string=f"({entity_df})",
@@ -207,68 +197,37 @@ def build_point_in_time_query(
     return query
 
 
-def get_feature_view_requests(
-    feature_refs: List[str], registry_state: RegistryState
-) -> List[FeatureViewRequest]:
-    """Get list of FeatureViewRequest objects from feature references"""
-
-    feature_views_to_feature_map = {}  # type: Dict[FeatureView, List[str]]
-    for ref in feature_refs:
-        ref_parts = ref.split(":")
-        feature_view_from_ref = ref_parts[0]
-        feature_from_ref = ref_parts[1]
-        found = False
-        for feature_view_from_registry in registry_state.feature_views:
-            if feature_view_from_registry.name == feature_view_from_ref:
-                found = True
-                if feature_view_from_registry in feature_views_to_feature_map:
-                    feature_views_to_feature_map[feature_view_from_registry].append(
-                        feature_from_ref
-                    )
-                else:
-                    feature_views_to_feature_map[feature_view_from_registry] = [
-                        feature_from_ref
-                    ]
-
-        if not found:
-            raise ValueError(f"Could not find feature view from reference {ref}")
-
-    feature_view_requests = []
-    for view, features in feature_views_to_feature_map.items():
-        feature_view_requests.append(FeatureViewRequest(view, features))
-    return feature_view_requests
-
-
-def get_feature_view_query_contexts(
-    feature_view_requests: List[FeatureViewRequest],
+def get_feature_view_query_context(
+    feature_refs: List[str], feature_views: List[FeatureView]
 ) -> List[FeatureViewQueryContext]:
-    """Build a query context which contains all the necessary information for templating a feature view query"""
+    """Build a query context containing all information required to template a BigQuery point-in-time SQL query"""
+
+    feature_views_to_feature_map = _get_requested_feature_views_to_features_dict(
+        feature_refs, feature_views
+    )
 
     contexts = []
-    for request in feature_view_requests:
-        entity_names = [entity for entity in request.featureview.entities]
+    for feature_view, features in feature_views_to_feature_map.items():
+        entity_names = [entity for entity in feature_view.entities]
 
-        if isinstance(request.featureview.ttl, timedelta):
-            ttl_seconds = int(request.featureview.ttl.total_seconds())
+        if isinstance(feature_view.ttl, timedelta):
+            ttl_seconds = int(feature_view.ttl.total_seconds())
         else:
             ttl_seconds = 0
 
-        assert isinstance(request.featureview.input, BigQuerySource)
-        table_subquery = request.featureview.input.get_table_query_string()
+        assert isinstance(feature_view.input, BigQuerySource)
 
-        # TODO: Project has been hardcoded here. Needs to come from metadata store
         context = FeatureViewQueryContext(
-            project="default",
-            name=request.featureview.name,
+            name=feature_view.name,
             ttl=ttl_seconds,
             entities=entity_names,
-            features=request.features,
-            table_ref=request.featureview.input.table_ref,
-            event_timestamp_column=request.featureview.input.event_timestamp_column,
+            features=features,
+            table_ref=feature_view.input.table_ref,
+            event_timestamp_column=feature_view.input.event_timestamp_column,
             created_timestamp_column="created",  # TODO: Make created column optional and not hardcoded
-            field_mapping=request.featureview.input.field_mapping,
-            query=request.featureview.input.query,
-            table_subquery=table_subquery,
+            field_mapping=feature_view.input.field_mapping,
+            query=feature_view.input.query,
+            table_subquery=feature_view.input.get_table_query_string(),
         )
         contexts.append(context)
     return contexts
@@ -283,16 +242,19 @@ class FileOfflineStore(OfflineStore):
 
     @staticmethod
     def get_historical_features(
-        metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str]
+        feature_views: List[FeatureView],
+        feature_refs: List[str],
+        entity_df: Union[pd.DataFrame, str],
     ) -> FileRetrievalJob:
-        requested_feature_views = get_feature_views_from_feature_refs(
-            feature_refs, metadata
-        )
 
         if not isinstance(entity_df, pd.DataFrame):
             raise ValueError(
                 f"Please provide an entity_df of type {type(pd.DataFrame)} instead of type {type(entity_df)}"
             )
+
+        feature_views_to_features = _get_requested_feature_views_to_features_dict(
+            feature_refs, feature_views
+        )
 
         # Create lazy function that is only called from the RetrievalJob object
         def evaluate_historical_retrieval():
@@ -303,7 +265,7 @@ class FileOfflineStore(OfflineStore):
             ).copy()
 
             # Load feature view data from sources and join them incrementally
-            for feature_view in requested_feature_views:
+            for feature_view, features in feature_views_to_features.items():
                 event_timestamp_column = feature_view.input.event_timestamp_column
                 created_timestamp_column = feature_view.input.created_timestamp_column
 
@@ -314,25 +276,19 @@ class FileOfflineStore(OfflineStore):
 
                 # Build a list of all the features we should select from this source
                 feature_names = []
-                for feature_ref in feature_refs:
-                    feature_ref_feature_view_name = feature_ref.split(":")[0]
-                    # Is the current feature ref within the current feature view?
-                    if feature_ref_feature_view_name == feature_view.name:
-                        feature_ref_feature_name = feature_ref.split(":")[1]
+                for feature in features:
+                    # Modify the separator for feature refs in column names to double underscore. We are using
+                    # double underscore as separator for consistency with other databases like BigQuery,
+                    # where there are very few characters available for use as separators
+                    prefixed_feature_name = f"{feature_view.name}__{feature}"
 
-                        # Modify the separator for feature refs in column names to double underscore. We are using
-                        # double underscore as separator for consistency with other databases like BigQuery,
-                        # where there are very few characters available for use as separators
-                        prefixed_feature_name = feature_ref.replace(":", "__")
+                    # Add the feature name to the list of columns
+                    feature_names.append(prefixed_feature_name)
 
-                        # Add the feature name to the list of columns
-                        feature_names.append(prefixed_feature_name)
-
-                        # Ensure that the source dataframe feature column includes the feature view name as a prefix
-                        df_to_join.rename(
-                            columns={feature_ref_feature_name: prefixed_feature_name},
-                            inplace=True,
-                        )
+                    # Ensure that the source dataframe feature column includes the feature view name as a prefix
+                    df_to_join.rename(
+                        columns={feature: prefixed_feature_name}, inplace=True,
+                    )
 
                 # Build a list of entity columns to join on (from the right table)
                 right_entity_columns = [entity for entity in feature_view.entities]
@@ -449,9 +405,7 @@ def run_forward_field_mapping(
     return table
 
 
-def get_offline_store_for_historical_retrieval(
-    feature_views: List[FeatureView],
-) -> OfflineStore:
+def get_offline_store_for_retrieval(feature_views: List[FeatureView],) -> OfflineStore:
     """Detect which offline store should be used for retrieving historical features"""
 
     source_types = [type(feature_view.input) for feature_view in feature_views]
@@ -471,27 +425,32 @@ def get_offline_store_for_historical_retrieval(
     )
 
 
-def get_feature_views_from_feature_refs(
-    feature_refs: List[str], registry_state: RegistryState
-) -> List[FeatureView]:
-    """Get list of feature views based on feature references"""
+def _get_requested_feature_views_to_features_dict(
+    feature_refs: List[str], feature_views: List[FeatureView]
+) -> Dict[FeatureView, List[str]]:
+    """Create a dict of FeatureView -> List[Feature] for all requested features"""
 
-    feature_views_dict = {}
+    feature_views_to_feature_map = {}  # type: Dict[FeatureView, List[str]]
     for ref in feature_refs:
         ref_parts = ref.split(":")
+        feature_view_from_ref = ref_parts[0]
+        feature_from_ref = ref_parts[1]
         found = False
-        for feature_view in registry_state.feature_views:
-            if feature_view.name == ref_parts[0]:
+        for feature_view_from_registry in feature_views:
+            if feature_view_from_registry.name == feature_view_from_ref:
                 found = True
-                feature_views_dict[feature_view.name] = feature_view
+                if feature_view_from_registry in feature_views_to_feature_map:
+                    feature_views_to_feature_map[feature_view_from_registry].append(
+                        feature_from_ref
+                    )
+                else:
+                    feature_views_to_feature_map[feature_view_from_registry] = [
+                        feature_from_ref
+                    ]
 
         if not found:
             raise ValueError(f"Could not find feature view from reference {ref}")
-    feature_views_list = []
-    for view in feature_views_dict.values():
-        feature_views_list.append(view)
-
-    return feature_views_list
+    return feature_views_to_feature_map
 
 
 # TODO: Optimizations

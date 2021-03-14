@@ -19,12 +19,8 @@ import pandas as pd
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.provider import Provider, get_provider
-from feast.offline_store import (
-    RetrievalJob,
-    get_feature_views_from_feature_refs,
-    get_offline_store_for_historical_retrieval,
-)
-from feast.registry import Registry
+from feast.offline_store import RetrievalJob, get_offline_store_for_retrieval
+from feast.registry import Registry, RegistryState
 from feast.repo_config import (
     LocalOnlineStoreConfig,
     OnlineStoreConfig,
@@ -81,18 +77,37 @@ class FeatureStore:
                 )
 
     def get_historical_features(
-        self, feature_refs: List[str], entity_df: Union[pd.DataFrame, str],
+        self, entity_df: Union[pd.DataFrame, str], feature_refs: List[str],
     ) -> RetrievalJob:
         # TODO: Add docstring
         registry = self._get_registry()
         registry_state = registry.get_registry_state(project=self.config.project)
-        requested_feature_views = get_feature_views_from_feature_refs(
-            feature_refs, registry_state
-        )
-        offline_store = get_offline_store_for_historical_retrieval(
-            requested_feature_views
-        )
+        feature_views = _get_requested_feature_views(feature_refs, registry_state)
+        offline_store = get_offline_store_for_retrieval(feature_views)
         job = offline_store.get_historical_features(
-            registry_state, feature_refs, entity_df
+            feature_views, feature_refs, entity_df
         )
         return job
+
+
+def _get_requested_feature_views(
+    feature_refs: List[str], registry_state: RegistryState
+) -> List[FeatureView]:
+    """Get list of feature views based on feature references"""
+
+    feature_views_dict = {}
+    for ref in feature_refs:
+        ref_parts = ref.split(":")
+        found = False
+        for feature_view in registry_state.feature_views:
+            if feature_view.name == ref_parts[0]:
+                found = True
+                feature_views_dict[feature_view.name] = feature_view
+
+        if not found:
+            raise ValueError(f"Could not find feature view from reference {ref}")
+    feature_views_list = []
+    for view in feature_views_dict.values():
+        feature_views_list.append(view)
+
+    return feature_views_list

@@ -268,7 +268,7 @@ class BigQueryDataSet:
         client = bigquery.Client()
         dataset = bigquery.Dataset(f"{client.project}.{self.name}")
         dataset.location = "US"
-        dataset = client.create_dataset(dataset)
+        dataset = client.create_dataset(dataset, exists_ok=True)
         return dataset
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
