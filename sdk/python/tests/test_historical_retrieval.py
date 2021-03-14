@@ -1,4 +1,5 @@
 import os
+import time
 from datetime import datetime, timedelta
 from tempfile import TemporaryDirectory
 
@@ -357,66 +358,76 @@ def test_historical_features_from_bigquery_sources():
         start_date,
     ) = generate_entities(start_date)
 
-    bigquery_dataset = "test_hist_retrieval_static"
-    # bigquery_dataset = f"test_hist_retrieval_{int(time.time())}"
+    # bigquery_dataset = "test_hist_retrieval_static"
+    bigquery_dataset = f"test_hist_retrieval_{int(time.time())}"
 
-    # with BigQueryDataSet(bigquery_dataset):
+    with BigQueryDataSet(bigquery_dataset):
 
-    gcp_project = bigquery.Client().project
+        gcp_project = bigquery.Client().project
 
-    # Orders Query
-    table_id = f"{bigquery_dataset}.orders"
-    stage_orders_bigquery(orders_df, table_id)
-    entity_df_query = f"SELECT * FROM {gcp_project}.{table_id}"
+        # Orders Query
+        table_id = f"{bigquery_dataset}.orders"
+        stage_orders_bigquery(orders_df, table_id)
+        entity_df_query = f"SELECT * FROM {gcp_project}.{table_id}"
 
-    # Driver Feature View
-    driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
-    driver_table_id = f"{gcp_project}.{bigquery_dataset}.driver_hourly"
-    stage_driver_hourly_stats_bigquery_source(driver_df, driver_table_id)
-    driver_source = BigQuerySource(
-        table_ref=driver_table_id, event_timestamp_column="datetime"
-    )
-    driver_fv = create_driver_hourly_stats_feature_view(driver_source)
+        # Driver Feature View
+        driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
+        driver_table_id = f"{gcp_project}.{bigquery_dataset}.driver_hourly"
+        stage_driver_hourly_stats_bigquery_source(driver_df, driver_table_id)
+        driver_source = BigQuerySource(
+            table_ref=driver_table_id, event_timestamp_column="datetime"
+        )
+        driver_fv = create_driver_hourly_stats_feature_view(driver_source)
 
-    # Customer Feature View
-    customer_df = create_customer_daily_profile_df(
-        customer_entities, start_date, end_date
-    )
-    customer_table_id = f"{gcp_project}.{bigquery_dataset}.customer_profile"
+        # Customer Feature View
+        customer_df = create_customer_daily_profile_df(
+            customer_entities, start_date, end_date
+        )
+        customer_table_id = f"{gcp_project}.{bigquery_dataset}.customer_profile"
 
-    stage_customer_daily_profile_bigquery_source(customer_df, customer_table_id)
-    customer_source = BigQuerySource(
-        table_ref=customer_table_id, event_timestamp_column="datetime"
-    )
-    customer_fv = create_customer_daily_profile_feature_view(customer_source)
+        stage_customer_daily_profile_bigquery_source(customer_df, customer_table_id)
+        customer_source = BigQuerySource(
+            table_ref=customer_table_id, event_timestamp_column="datetime"
+        )
+        customer_fv = create_customer_daily_profile_feature_view(customer_source)
 
-    driver = Entity(name="driver", value_type=ValueType.INT64, description="")
-    customer = Entity(name="customer", value_type=ValueType.INT64, description="")
+        driver = Entity(name="driver", value_type=ValueType.INT64, description="")
+        customer = Entity(name="customer", value_type=ValueType.INT64, description="")
 
-    store = FeatureStore()
-    store.apply([driver, customer, driver_fv, customer_fv])
+        store = FeatureStore()
+        store.apply([driver, customer, driver_fv, customer_fv])
 
-    job = store.get_historical_features(
-        entity_df=entity_df_query,
-        feature_refs=[
-            "driver_stats:conv_rate",
-            "driver_stats:avg_daily_trips",
-            "customer_profile:current_balance",
-            "customer_profile:avg_passenger_count",
-            "customer_profile:lifetime_trip_count",
-        ],
-    )
-    actual_df = job.to_df()
-    expected_df = get_expected_training_df(
-        customer_df, customer_fv, driver_df, driver_fv, orders_df,
-    )
+        job = store.get_historical_features(
+            entity_df=entity_df_query,
+            feature_refs=[
+                "driver_stats:conv_rate",
+                "driver_stats:avg_daily_trips",
+                "customer_profile:current_balance",
+                "customer_profile:avg_passenger_count",
+                "customer_profile:lifetime_trip_count",
+            ],
+        )
+        actual_df = job.to_df()
+        expected_df = get_expected_training_df(
+            customer_df, customer_fv, driver_df, driver_fv, orders_df,
+        )
 
-    assert_frame_equal(
-        expected_df.sort_values(
-            by=[ENTITY_DF_EVENT_TIMESTAMP_COL, "order_id", "driver_id", "customer_id"]
-        ).reset_index(drop=True),
-        actual_df.sort_values(
-            by=[ENTITY_DF_EVENT_TIMESTAMP_COL, "order_id", "driver_id", "customer_id"]
-        ).reset_index(drop=True),
-        check_dtype=False,
-    )
+        assert_frame_equal(
+            expected_df.sort_values(
+                by=[
+                    ENTITY_DF_EVENT_TIMESTAMP_COL,
+                    "order_id",
+                    "driver_id",
+                    "customer_id",
+                ]
+            ).reset_index(drop=True),
+            actual_df.sort_values(
+                by=[
+                    ENTITY_DF_EVENT_TIMESTAMP_COL,
+                    "order_id",
+                    "driver_id",
+                    "customer_id",
+                ]
+            ).reset_index(drop=True),
+            check_dtype=False,
+        )

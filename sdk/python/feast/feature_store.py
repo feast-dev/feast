@@ -19,7 +19,11 @@ import pandas as pd
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.provider import Provider, get_provider
-from feast.offline_store import RetrievalJob, get_offline_store_for_historical_retrieval
+from feast.offline_store import (
+    RetrievalJob,
+    get_feature_views_from_feature_refs,
+    get_offline_store_for_historical_retrieval,
+)
 from feast.registry import Registry
 from feast.repo_config import (
     LocalOnlineStoreConfig,
@@ -82,7 +86,12 @@ class FeatureStore:
         # TODO: Add docstring
         registry = self._get_registry()
         registry_state = registry.get_registry_state(project=self.config.project)
-        offline_store = get_offline_store_for_historical_retrieval(self.config.provider)
+        requested_feature_views = get_feature_views_from_feature_refs(
+            feature_refs, registry_state
+        )
+        offline_store = get_offline_store_for_historical_retrieval(
+            requested_feature_views
+        )
         job = offline_store.get_historical_features(
             registry_state, feature_refs, entity_df
         )

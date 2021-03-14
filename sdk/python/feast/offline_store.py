@@ -164,38 +164,18 @@ class BigQueryOfflineStore(OfflineStore):
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
     ) -> RetrievalJob:
-
-        feature_views_to_query = get_feature_views_from_feature_refs(
-            feature_refs, registry_state
-        )
-        if any(
-            [
-                type(feature_view.input) != BigQuerySource
-                for feature_view in feature_views_to_query.values()
-            ]
-        ):
-            raise NotImplementedError(
-                'Cannot query from non-BigQuery sources while using the "gcp" provider'
-            )
-
         # TODO: Add support for loading a Pandas entity_df into BigQuery
         if type(entity_df) is not str:
             raise NotImplementedError(
                 "The entity_df argument must be a BigQuery string SQL query"
             )
 
-        feature_views_to_query = get_feature_view_requests(feature_refs, registry_state)
-        feature_view_query_contexts = get_feature_view_query_contexts(
-            feature_views_to_query
-        )
+        requested_fvs = get_feature_view_requests(feature_refs, registry_state)
+        feature_view_query_contexts = get_feature_view_query_contexts(requested_fvs)
 
-        # TODO: The gcp project should come from main config or env, and is different from sources
-        # TODO: This dataset_id shouldn't be hardcoded
         # TODO: Get timestamps from entity_df
         query = build_point_in_time_query(
             feature_view_query_contexts,
-            gcp_project_id="default",
-            dataset_id="test_hist_retrieval_static",
             min_timestamp=datetime.now() - timedelta(days=365),
             max_timestamp=datetime.now() + timedelta(days=1),
             left_table_query_string=f"({entity_df})",
@@ -206,8 +186,6 @@ class BigQueryOfflineStore(OfflineStore):
 
 def build_point_in_time_query(
     feature_view_query_contexts: List[FeatureViewQueryContext],
-    gcp_project_id: str,
-    dataset_id: str,
     min_timestamp: datetime,
     max_timestamp: datetime,
     left_table_query_string: str,
@@ -219,8 +197,6 @@ def build_point_in_time_query(
 
     # Add additional fields to dict
     template_context = {
-        "gcp_project_id": gcp_project_id,
-        "dataset_id": dataset_id,
         "min_timestamp": min_timestamp,
         "max_timestamp": max_timestamp,
         "left_table_query_string": left_table_query_string,
@@ -231,138 +207,31 @@ def build_point_in_time_query(
     return query
 
 
-# TODO: Optimizations
-#   * Use GENERATE_UUID() instead of ROW_NUMBER(), or join on entity columns directly
-#   * Precompute ROW_NUMBER() so that it doesn't have to be recomputed for every query on entity_dataframe
-#   * Create temporary tables instead of keeping all tables in memory
+def get_feature_view_requests(
+    feature_refs: List[str], registry_state: RegistryState
+) -> List[FeatureViewRequest]:
+    """Get list of FeatureViewRequest objects from feature references"""
 
-SINGLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """
-WITH entity_dataframe AS (
-    SELECT ROW_NUMBER() OVER() AS row_number, edf.* FROM kf-feast.test_hist_retrieval_static.orders as edf
-),
-{% for featureview in featureviews %}
-/*
- This query template performs the point-in-time correctness join for a single feature set table
- to the provided entity table.
- 1. Concatenate the timestamp and entities from the feature set table with the entity dataset.
- Feature values are joined to this table later for improved efficiency.
- featureview_timestamp is equal to null in rows from the entity dataset.
- */
-{{ featureview.name }}__union_features AS (
-SELECT
-  -- unique identifier for each row in the entity dataset.
-  row_number,
-  -- event_timestamp contains the timestamps to join onto
-  event_timestamp,
-  -- the feature_timestamp, i.e. the latest occurrence of the requested feature relative to the entity_dataset timestamp
-  NULL as {{ featureview.name }}_feature_timestamp,
-  -- created timestamp of the feature at the corresponding feature_timestamp
-  NULL as created_timestamp,
-  -- select only entities belonging to this feature set
-  {{ featureview.entities | join(', ')}},
-  -- boolean for filtering the dataset later
-  true AS is_entity_table
-FROM entity_dataframe
-UNION ALL
-SELECT
-  NULL as row_number,
-  {{ featureview.event_timestamp_column }} as event_timestamp,
-  {{ featureview.event_timestamp_column }} as {{ featureview.name }}_feature_timestamp,
-  {{ featureview.created_timestamp_column }} as created_timestamp,
-  {{ featureview.entities | join(', ')}},
-  false AS is_entity_table
-FROM {{ featureview.table_subquery }} WHERE {{ featureview.event_timestamp_column }} <= '{{ max_timestamp }}'
-{% if featureview.ttl == 0 %}{% else %}AND {{ featureview.event_timestamp_column }} >= Timestamp_sub(TIMESTAMP '{{ min_timestamp }}', interval {{ featureview.ttl }} second){% endif %}
-),
-/*
- 2. Window the data in the unioned dataset, partitioning by entity and ordering by event_timestamp, as
- well as is_entity_table.
- Within each window, back-fill the feature_timestamp - as a result of this, the null feature_timestamps
- in the rows from the entity table should now contain the latest timestamps relative to the row's
- event_timestamp.
- For rows where event_timestamp(provided datetime) - feature_timestamp > max age, set the
- feature_timestamp to null.
- */
-{{ featureview.name }}__joined AS (
-SELECT
-  row_number,
-  event_timestamp,
-  {{ featureview.entities | join(', ')}},
-  {% for feature in featureview.features %}
-  IF(event_timestamp >= {{ featureview.name }}_feature_timestamp {% if featureview.ttl == 0 %}{% else %}AND Timestamp_sub(event_timestamp, interval {{ featureview.ttl }} second) < {{ featureview.name }}_feature_timestamp{% endif %}, {{ featureview.name }}__{{ feature }}, NULL) as {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %}, {% endif %}
-  {% endfor %}
-FROM (
-SELECT
-  row_number,
-  event_timestamp,
-  {{ featureview.entities | join(', ')}},
-  FIRST_VALUE(created_timestamp IGNORE NULLS) over w AS created_timestamp,
-  FIRST_VALUE({{ featureview.name }}_feature_timestamp IGNORE NULLS) over w AS {{ featureview.name }}_feature_timestamp,
-  is_entity_table
-FROM {{ featureview.name }}__union_features
-WINDOW w AS (PARTITION BY {{ featureview.entities | join(', ') }} ORDER BY event_timestamp DESC, is_entity_table DESC, created_timestamp DESC ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
-)
-/*
- 3. Select only the rows from the entity table, and join the features from the original feature set table
- to the dataset using the entity values, feature_timestamp, and created_timestamps.
- */
-LEFT JOIN (
-SELECT
-  {{ featureview.event_timestamp_column }} as {{ featureview.name }}_feature_timestamp,
-  {{ featureview.created_timestamp_column }} as created_timestamp,
-  {{ featureview.entities | join(', ')}},
-  {% for feature in featureview.features %}
-  {{ feature }} as {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %}, {% endif %}
-  {% endfor %}
-FROM {{ featureview.table_subquery }} WHERE {{ featureview.event_timestamp_column }} <= '{{ max_timestamp }}'
-{% if featureview.ttl == 0 %}{% else %}AND {{ featureview.event_timestamp_column }} >= Timestamp_sub(TIMESTAMP '{{ min_timestamp }}', interval {{ featureview.ttl }} second){% endif %}
-) USING ({{ featureview.name }}_feature_timestamp, created_timestamp, {{ featureview.entities | join(', ')}})
-WHERE is_entity_table
-),
-/*
- 4. Finally, deduplicate the rows by selecting the first occurrence of each entity table row_number.
- */
-{{ featureview.name }}__deduped AS (SELECT
-  k.*
-FROM (
-  SELECT ARRAY_AGG(row LIMIT 1)[OFFSET(0)] k
-  FROM {{ featureview.name }}__joined row
-  GROUP BY row_number
-)){% if loop.last %}{% else %}, {% endif %}
-
-{% endfor %}
-/*
- Joins the outputs of multiple time travel joins to a single table.
- */
-SELECT edf.event_timestamp as event_timestamp, * EXCEPT (row_number, event_timestamp) FROM entity_dataframe edf
-{% for featureview in featureviews %}
-LEFT JOIN (
-    SELECT
-    row_number,
-    {% for feature in featureview.features %}
-    {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %}, {% endif %}
-    {% endfor %}
-    FROM {{ featureview.name }}__deduped
-) USING (row_number)
-{% endfor %}
-ORDER BY event_timestamp
-"""
-
-
-def get_feature_view_requests(feature_refs, metadata):
-    # Get map of feature views based on feature references
-    feature_views_to_feature_map = {}
+    feature_views_to_feature_map = {}  # type: Dict[FeatureView, List[str]]
     for ref in feature_refs:
         ref_parts = ref.split(":")
-        if ref_parts[0] not in metadata["feature_views"]:
-            raise ValueError(f"Could not find feature view from reference {ref}")
-        feature_view = metadata["feature_views"][ref_parts[0]]
+        feature_view_from_ref = ref_parts[0]
+        feature_from_ref = ref_parts[1]
+        found = False
+        for feature_view_from_registry in registry_state.feature_views:
+            if feature_view_from_registry.name == feature_view_from_ref:
+                found = True
+                if feature_view_from_registry in feature_views_to_feature_map:
+                    feature_views_to_feature_map[feature_view_from_registry].append(
+                        feature_from_ref
+                    )
+                else:
+                    feature_views_to_feature_map[feature_view_from_registry] = [
+                        feature_from_ref
+                    ]
 
-        feature = ref_parts[1]
-        if feature_view in feature_views_to_feature_map:
-            feature_views_to_feature_map[feature_view].append(feature)
-        else:
-            feature_views_to_feature_map[feature_view] = [feature]
+        if not found:
+            raise ValueError(f"Could not find feature view from reference {ref}")
 
     feature_view_requests = []
     for view, features in feature_views_to_feature_map.items():
@@ -370,7 +239,11 @@ def get_feature_view_requests(feature_refs, metadata):
     return feature_view_requests
 
 
-def get_feature_view_query_contexts(feature_view_requests: List[FeatureViewRequest]):
+def get_feature_view_query_contexts(
+    feature_view_requests: List[FeatureViewRequest],
+) -> List[FeatureViewQueryContext]:
+    """Build a query context which contains all the necessary information for templating a feature view query"""
+
     contexts = []
     for request in feature_view_requests:
         entity_names = [entity for entity in request.featureview.entities]
@@ -401,7 +274,7 @@ def get_feature_view_query_contexts(feature_view_requests: List[FeatureViewReque
     return contexts
 
 
-class ParquetOfflineStore(OfflineStore):
+class FileOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table(
         feature_view: FeatureView, start_date: datetime, end_date: datetime,
@@ -412,19 +285,9 @@ class ParquetOfflineStore(OfflineStore):
     def get_historical_features(
         metadata, feature_refs: List[str], entity_df: Union[pd.DataFrame, str]
     ) -> FileRetrievalJob:
-        feature_views_to_query = get_feature_views_from_feature_refs(
+        requested_feature_views = get_feature_views_from_feature_refs(
             feature_refs, metadata
         )
-        if any(
-            [
-                type(feature_view.input) != FileSource
-                for feature_view in feature_views_to_query.values()
-            ]
-        ):
-            # TODO: Add support for retrieving from BigQuery sources when using a local provider.
-            raise NotImplementedError(
-                'Cannot query from non-Parquet sources while using the "local" provider.'
-            )
 
         if not isinstance(entity_df, pd.DataFrame):
             raise ValueError(
@@ -440,7 +303,7 @@ class ParquetOfflineStore(OfflineStore):
             ).copy()
 
             # Load feature view data from sources and join them incrementally
-            for feature_view in feature_views_to_query.values():
+            for feature_view in requested_feature_views:
                 event_timestamp_column = feature_view.input.event_timestamp_column
                 created_timestamp_column = feature_view.input.created_timestamp_column
 
@@ -586,32 +449,164 @@ def run_forward_field_mapping(
     return table
 
 
-def get_offline_store_for_historical_retrieval(provider: str) -> OfflineStore:
+def get_offline_store_for_historical_retrieval(
+    feature_views: List[FeatureView],
+) -> OfflineStore:
     """Detect which offline store should be used for retrieving historical features"""
-    if provider == "gcp":
+
+    source_types = [type(feature_view.input) for feature_view in feature_views]
+
+    # Retrieve features from ParquetOfflineStore
+    if all(source == FileSource for source in source_types):
+        return FileOfflineStore()
+
+    # Retrieve features from BigQueryOfflineStore
+    if all(source == BigQuerySource for source in source_types):
         return BigQueryOfflineStore()
-    elif provider == "local":
-        return ParquetOfflineStore()
-    else:
-        raise NotImplementedError(
-            'You have not configured your provider correctly. Please set your provider to "gcp" or "local".'
-        )
+
+    # Could not map inputs to an OfflineStore implementation
+    raise NotImplementedError(
+        "Unsupported combination of feature view input source types. Please ensure that all source types are "
+        "consistent and available in the same offline store."
+    )
 
 
 def get_feature_views_from_feature_refs(
     feature_refs: List[str], registry_state: RegistryState
-):
-    # Get map of feature views based on feature references
-    feature_views_to_query = {}
+) -> List[FeatureView]:
+    """Get list of feature views based on feature references"""
+
+    feature_views_dict = {}
     for ref in feature_refs:
         ref_parts = ref.split(":")
         found = False
         for feature_view in registry_state.feature_views:
             if feature_view.name == ref_parts[0]:
                 found = True
-                feature_views_to_query[feature_view.name] = feature_view
+                feature_views_dict[feature_view.name] = feature_view
 
         if not found:
             raise ValueError(f"Could not find feature view from reference {ref}")
+    feature_views_list = []
+    for view in feature_views_dict.values():
+        feature_views_list.append(view)
 
-    return feature_views_to_query
+    return feature_views_list
+
+
+# TODO: Optimizations
+#   * Use GENERATE_UUID() instead of ROW_NUMBER(), or join on entity columns directly
+#   * Precompute ROW_NUMBER() so that it doesn't have to be recomputed for every query on entity_dataframe
+#   * Create temporary tables instead of keeping all tables in memory
+
+SINGLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """
+WITH entity_dataframe AS (
+    SELECT ROW_NUMBER() OVER() AS row_number, edf.* FROM {{ left_table_query_string }} as edf
+),
+{% for featureview in featureviews %}
+/*
+ This query template performs the point-in-time correctness join for a single feature set table
+ to the provided entity table.
+ 1. Concatenate the timestamp and entities from the feature set table with the entity dataset.
+ Feature values are joined to this table later for improved efficiency.
+ featureview_timestamp is equal to null in rows from the entity dataset.
+ */
+{{ featureview.name }}__union_features AS (
+SELECT
+  -- unique identifier for each row in the entity dataset.
+  row_number,
+  -- event_timestamp contains the timestamps to join onto
+  event_timestamp,
+  -- the feature_timestamp, i.e. the latest occurrence of the requested feature relative to the entity_dataset timestamp
+  NULL as {{ featureview.name }}_feature_timestamp,
+  -- created timestamp of the feature at the corresponding feature_timestamp
+  NULL as created_timestamp,
+  -- select only entities belonging to this feature set
+  {{ featureview.entities | join(', ')}},
+  -- boolean for filtering the dataset later
+  true AS is_entity_table
+FROM entity_dataframe
+UNION ALL
+SELECT
+  NULL as row_number,
+  {{ featureview.event_timestamp_column }} as event_timestamp,
+  {{ featureview.event_timestamp_column }} as {{ featureview.name }}_feature_timestamp,
+  {{ featureview.created_timestamp_column }} as created_timestamp,
+  {{ featureview.entities | join(', ')}},
+  false AS is_entity_table
+FROM {{ featureview.table_subquery }} WHERE {{ featureview.event_timestamp_column }} <= '{{ max_timestamp }}'
+{% if featureview.ttl == 0 %}{% else %}AND {{ featureview.event_timestamp_column }} >= Timestamp_sub(TIMESTAMP '{{ min_timestamp }}', interval {{ featureview.ttl }} second){% endif %}
+),
+/*
+ 2. Window the data in the unioned dataset, partitioning by entity and ordering by event_timestamp, as
+ well as is_entity_table.
+ Within each window, back-fill the feature_timestamp - as a result of this, the null feature_timestamps
+ in the rows from the entity table should now contain the latest timestamps relative to the row's
+ event_timestamp.
+ For rows where event_timestamp(provided datetime) - feature_timestamp > max age, set the
+ feature_timestamp to null.
+ */
+{{ featureview.name }}__joined AS (
+SELECT
+  row_number,
+  event_timestamp,
+  {{ featureview.entities | join(', ')}},
+  {% for feature in featureview.features %}
+  IF(event_timestamp >= {{ featureview.name }}_feature_timestamp {% if featureview.ttl == 0 %}{% else %}AND Timestamp_sub(event_timestamp, interval {{ featureview.ttl }} second) < {{ featureview.name }}_feature_timestamp{% endif %}, {{ featureview.name }}__{{ feature }}, NULL) as {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %}, {% endif %}
+  {% endfor %}
+FROM (
+SELECT
+  row_number,
+  event_timestamp,
+  {{ featureview.entities | join(', ')}},
+  FIRST_VALUE(created_timestamp IGNORE NULLS) over w AS created_timestamp,
+  FIRST_VALUE({{ featureview.name }}_feature_timestamp IGNORE NULLS) over w AS {{ featureview.name }}_feature_timestamp,
+  is_entity_table
+FROM {{ featureview.name }}__union_features
+WINDOW w AS (PARTITION BY {{ featureview.entities | join(', ') }} ORDER BY event_timestamp DESC, is_entity_table DESC, created_timestamp DESC ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+)
+/*
+ 3. Select only the rows from the entity table, and join the features from the original feature set table
+ to the dataset using the entity values, feature_timestamp, and created_timestamps.
+ */
+LEFT JOIN (
+SELECT
+  {{ featureview.event_timestamp_column }} as {{ featureview.name }}_feature_timestamp,
+  {{ featureview.created_timestamp_column }} as created_timestamp,
+  {{ featureview.entities | join(', ')}},
+  {% for feature in featureview.features %}
+  {{ feature }} as {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %}, {% endif %}
+  {% endfor %}
+FROM {{ featureview.table_subquery }} WHERE {{ featureview.event_timestamp_column }} <= '{{ max_timestamp }}'
+{% if featureview.ttl == 0 %}{% else %}AND {{ featureview.event_timestamp_column }} >= Timestamp_sub(TIMESTAMP '{{ min_timestamp }}', interval {{ featureview.ttl }} second){% endif %}
+) USING ({{ featureview.name }}_feature_timestamp, created_timestamp, {{ featureview.entities | join(', ')}})
+WHERE is_entity_table
+),
+/*
+ 4. Finally, deduplicate the rows by selecting the first occurrence of each entity table row_number.
+ */
+{{ featureview.name }}__deduped AS (SELECT
+  k.*
+FROM (
+  SELECT ARRAY_AGG(row LIMIT 1)[OFFSET(0)] k
+  FROM {{ featureview.name }}__joined row
+  GROUP BY row_number
+)){% if loop.last %}{% else %}, {% endif %}
+
+{% endfor %}
+/*
+ Joins the outputs of multiple time travel joins to a single table.
+ */
+SELECT edf.event_timestamp as event_timestamp, * EXCEPT (row_number, event_timestamp) FROM entity_dataframe edf
+{% for featureview in featureviews %}
+LEFT JOIN (
+    SELECT
+    row_number,
+    {% for feature in featureview.features %}
+    {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %}, {% endif %}
+    {% endfor %}
+    FROM {{ featureview.name }}__deduped
+) USING (row_number)
+{% endfor %}
+ORDER BY event_timestamp
+"""
