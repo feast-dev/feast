@@ -20,7 +20,7 @@ from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.provider import Provider, get_provider
 from feast.offline_store import RetrievalJob, get_offline_store_for_retrieval
-from feast.registry import Registry, RegistryState
+from feast.registry import Registry
 from feast.repo_config import (
     LocalOnlineStoreConfig,
     OnlineStoreConfig,
@@ -81,8 +81,8 @@ class FeatureStore:
     ) -> RetrievalJob:
         # TODO: Add docstring
         registry = self._get_registry()
-        registry_state = registry.get_registry_state(project=self.config.project)
-        feature_views = _get_requested_feature_views(feature_refs, registry_state)
+        all_feature_views = registry.list_feature_views(project=self.config.project)
+        feature_views = _get_requested_feature_views(feature_refs, all_feature_views)
         offline_store = get_offline_store_for_retrieval(feature_views)
         job = offline_store.get_historical_features(
             feature_views, feature_refs, entity_df
@@ -91,7 +91,7 @@ class FeatureStore:
 
 
 def _get_requested_feature_views(
-    feature_refs: List[str], registry_state: RegistryState
+    feature_refs: List[str], all_feature_views: List[FeatureView]
 ) -> List[FeatureView]:
     """Get list of feature views based on feature references"""
 
@@ -99,10 +99,11 @@ def _get_requested_feature_views(
     for ref in feature_refs:
         ref_parts = ref.split(":")
         found = False
-        for feature_view in registry_state.feature_views:
+        for feature_view in all_feature_views:
             if feature_view.name == ref_parts[0]:
                 found = True
                 feature_views_dict[feature_view.name] = feature_view
+                continue
 
         if not found:
             raise ValueError(f"Could not find feature view from reference {ref}")
