@@ -20,9 +20,8 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.core.FeatureView_pb2 import FeatureViewMeta as FeatureViewMetaProto
 from feast.core.FeatureView_pb2 import FeatureViewSpec as FeatureViewSpecProto
-from feast.data_source import BigQuerySource, DataSource
+from feast.data_source import BigQuerySource, DataSource, FileSource
 from feast.feature import Feature
-from feast.parquet_source import ParquetSource
 from feast.value_type import ValueType
 
 
@@ -37,7 +36,7 @@ class FeatureView:
     tags: Optional[Dict[str, str]]
     ttl: Optional[timedelta]
     online: bool
-    input: Union[BigQuerySource, ParquetSource]
+    input: Union[BigQuerySource, FileSource]
 
     created_timestamp: Optional[Timestamp] = None
     last_updated_timestamp: Optional[Timestamp] = None
@@ -48,7 +47,7 @@ class FeatureView:
         entities: List[str],
         features: List[Feature],
         ttl: Optional[Union[Duration, timedelta]],
-        input: Union[BigQuerySource, ParquetSource],
+        input: Union[BigQuerySource, FileSource],
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
     ):

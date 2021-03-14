@@ -7,13 +7,12 @@ import pandas as pd
 from google.cloud import bigquery
 from pandas.testing import assert_frame_equal
 
-from feast.data_source import BigQuerySource
+from feast.data_source import BigQuerySource, FileSource
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
 from feast.offline_store import ENTITY_DF_EVENT_TIMESTAMP_COL
-from feast.parquet_source import ParquetSource
 from feast.value_type import ValueType
 
 np.random.seed(0)
@@ -93,7 +92,7 @@ def stage_driver_hourly_stats_parquet_source(directory, df):
     # Write to disk
     driver_stats_path = os.path.join(directory, "driver_stats.parquet")
     df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
-    return ParquetSource(driver_stats_path, event_timestamp_column="datetime")
+    return FileSource(path=driver_stats_path, event_timestamp_column="datetime")
 
 
 def stage_driver_hourly_stats_bigquery_source(df, table_id):
@@ -155,7 +154,7 @@ def create_customer_daily_profile_df(customers, start_date, end_date):
 def stage_customer_daily_profile_parquet_source(directory, df):
     customer_profile_path = os.path.join(directory, "customer_profile.parquet")
     df.to_parquet(path=customer_profile_path, allow_truncated_timestamps=True)
-    return ParquetSource(customer_profile_path, event_timestamp_column="datetime")
+    return FileSource(path=customer_profile_path, event_timestamp_column="datetime")
 
 
 def stage_customer_daily_profile_bigquery_source(df, table_id):

@@ -21,9 +21,8 @@ import pyarrow
 from google.cloud import bigquery
 from jinja2 import BaseLoader, Environment
 
-from feast.data_source import BigQuerySource
+from feast.data_source import BigQuerySource, FileSource
 from feast.feature_view import FeatureView
-from feast.parquet_source import ParquetSource
 from feast.registry import RegistryState
 
 ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
@@ -418,7 +417,7 @@ class ParquetOfflineStore(OfflineStore):
         )
         if any(
             [
-                type(feature_view.input) != ParquetSource
+                type(feature_view.input) != FileSource
                 for feature_view in feature_views_to_query.values()
             ]
         ):
@@ -480,7 +479,7 @@ class ParquetOfflineStore(OfflineStore):
 
                 # Remove all duplicate entity keys (using created timestamp)
                 right_entity_key_sort_columns = right_entity_key_columns
-                if created_timestamp_column is not None:
+                if created_timestamp_column:
                     # If created_timestamp is available, use it to dedupe deterministically
                     right_entity_key_sort_columns = right_entity_key_sort_columns + [
                         created_timestamp_column

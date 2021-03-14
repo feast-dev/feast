@@ -43,6 +43,8 @@ class FileFormat(ABC):
         fmt = proto.WhichOneof("format")
         if fmt == "parquet_format":
             return ParquetFormat()
+        if fmt is None:
+            return None
         raise NotImplementedError(f"FileFormat is unsupported: {fmt}")
 
     def __str__(self):
