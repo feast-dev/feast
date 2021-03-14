@@ -50,7 +50,7 @@ compile-protos-python: install-python-ci-dependencies
 	cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --python_out=../sdk/python/ --mypy_out=../sdk/python/ tensorflow_metadata/proto/v0/*.proto
 
 install-python: compile-protos-python
-	python -m pip install -e sdk/python
+	python -m pip install -e sdk/python -U --use-deprecated=legacy-resolver
 
 test-python:
 	FEAST_TELEMETRY=False pytest --verbose --color=yes sdk/python/tests
