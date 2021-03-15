@@ -1,5 +1,4 @@
 import inspect
-import json
 import os
 
 import requests
@@ -9,7 +8,7 @@ from google.protobuf.json_format import MessageToJson, ParseDict
 def rest_transport(func):
     """Convert a class method that issues gRPC calls into REST calls.
 
-    The class is assumed to have two variables: url and service_name. The REST endpoint is 
+    The class is assumed to have two variables: url and service_name. The REST endpoint is
     constructed as: {url}/{service_name}/{class method name}.
 
     Args:

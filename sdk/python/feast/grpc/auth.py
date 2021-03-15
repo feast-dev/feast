@@ -103,13 +103,13 @@ class OAuthMetadataPlugin(grpc.AuthMetadataPlugin):
         import requests
 
         headers_token = {"content-type": "application/json"}
-        data_token = {
+        data_token_dict = {
             "grant_type": config.get(opt.OAUTH_GRANT_TYPE),
             "client_id": config.get(opt.OAUTH_CLIENT_ID),
             "client_secret": config.get(opt.OAUTH_CLIENT_SECRET),
             "audience": config.get(opt.OAUTH_AUDIENCE),
         }
-        data_token = json.dumps(data_token)
+        data_token = json.dumps(data_token_dict)
         response_token = requests.post(
             config.get(opt.OAUTH_TOKEN_REQUEST_URL),
             headers=headers_token,

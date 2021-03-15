@@ -144,25 +144,26 @@ class Client:
 
         Returns: CoreServiceStub
         """
-        if not self._core_service_stub:
-            if self._transport_name == TransportName.grpc:
-                channel = create_grpc_channel(
-                    url=self._config.get(opt.CORE_URL),
-                    enable_ssl=self._config.getboolean(opt.CORE_ENABLE_SSL),
-                    enable_auth=self._config.getboolean(opt.ENABLE_AUTH),
-                    ssl_server_cert_path=self._config.get(opt.CORE_SERVER_SSL_CERT),
-                    auth_metadata_plugin=self._auth_metadata,
-                    timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
-                )
-                self._core_service_stub = CoreServiceStub(channel)
-            elif self._transport_name == TransportName.rest:
-                self._core_service_stub = CoreServiceRESTStub(
-                    self._config.get(opt.CORE_URL)
-                )
-            else:
-                raise ValueError(
-                    "Unknown transport name: {}".format(self._transport_name)
-                )
+        if self._core_service_stub:
+            return self._core_service_stub
+
+        if self._transport_name == TransportName.grpc:
+            channel = create_grpc_channel(
+                url=self._config.get(opt.CORE_URL),
+                enable_ssl=self._config.getboolean(opt.CORE_ENABLE_SSL),
+                enable_auth=self._config.getboolean(opt.ENABLE_AUTH),
+                ssl_server_cert_path=self._config.get(opt.CORE_SERVER_SSL_CERT),
+                auth_metadata_plugin=self._auth_metadata,
+                timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
+            )
+            self._core_service_stub = CoreServiceStub(channel)
+        elif self._transport_name == TransportName.rest:
+            self._core_service_stub = CoreServiceRESTStub(
+                self._config.get(opt.CORE_URL)
+            )
+        else:
+            raise ValueError("Unknown transport name: {}".format(self._transport_name))
+
         return self._core_service_stub
 
     @property
@@ -184,36 +185,37 @@ class Client:
 
         Returns: ServingServiceStub
         """
-        if not self._serving_service_stub:
-            if self._transport_name == TransportName.grpc:
-                channel = create_grpc_channel(
-                    url=self._config.get(opt.SERVING_URL),
-                    enable_ssl=self._config.getboolean(opt.SERVING_ENABLE_SSL),
-                    enable_auth=self._config.getboolean(opt.ENABLE_AUTH),
-                    ssl_server_cert_path=self._config.get(opt.SERVING_SERVER_SSL_CERT),
-                    auth_metadata_plugin=self._auth_metadata,
-                    timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
-                )
-                try:
-                    import opentracing
-                    from grpc_opentracing import open_tracing_client_interceptor
-                    from grpc_opentracing.grpcext import intercept_channel
+        if self._serving_service_stub:
+            return self._serving_service_stub
 
-                    interceptor = open_tracing_client_interceptor(
-                        opentracing.global_tracer()
-                    )
-                    channel = intercept_channel(channel, interceptor)
-                except ImportError:
-                    pass
-                self._serving_service_stub = ServingServiceStub(channel)
-            elif self._transport_name == TransportName.rest:
-                self._serving_service_stub = ServingServiceRESTStub(
-                    self._config.get(opt.SERVING_URL)
+        if self._transport_name == TransportName.grpc:
+            channel = create_grpc_channel(
+                url=self._config.get(opt.SERVING_URL),
+                enable_ssl=self._config.getboolean(opt.SERVING_ENABLE_SSL),
+                enable_auth=self._config.getboolean(opt.ENABLE_AUTH),
+                ssl_server_cert_path=self._config.get(opt.SERVING_SERVER_SSL_CERT),
+                auth_metadata_plugin=self._auth_metadata,
+                timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
+            )
+            try:
+                import opentracing
+                from grpc_opentracing import open_tracing_client_interceptor
+                from grpc_opentracing.grpcext import intercept_channel
+
+                interceptor = open_tracing_client_interceptor(
+                    opentracing.global_tracer()
                 )
-            else:
-                raise ValueError(
-                    "Unknown transport name: {}".format(self._transport_name)
-                )
+                channel = intercept_channel(channel, interceptor)
+            except ImportError:
+                pass
+            self._serving_service_stub = ServingServiceStub(channel)
+        elif self._transport_name == TransportName.rest:
+            self._serving_service_stub = ServingServiceRESTStub(
+                self._config.get(opt.SERVING_URL)
+            )
+        else:
+            raise ValueError("Unknown transport name: {}".format(self._transport_name))
+
         return self._serving_service_stub
 
     def _extra_grpc_params(self) -> Dict[str, Any]:
