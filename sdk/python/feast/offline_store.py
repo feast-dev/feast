@@ -223,7 +223,7 @@ def get_feature_view_query_context(
         feature_refs, feature_views
     )
 
-    contexts = []
+    query_context = []
     for feature_view, features in feature_views_to_feature_map.items():
         entity_names = [entity for entity in feature_view.entities]
 
@@ -246,8 +246,8 @@ def get_feature_view_query_context(
             query=feature_view.input.query,
             table_subquery=feature_view.input.get_table_query_string(),
         )
-        contexts.append(context)
-    return contexts
+        query_context.append(context)
+    return query_context
 
 
 def build_point_in_time_query(
