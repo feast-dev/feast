@@ -391,7 +391,7 @@ def test_historical_features_from_bigquery_sources():
         driver_table_id = f"{gcp_project}.{bigquery_dataset}.driver_hourly"
         stage_driver_hourly_stats_bigquery_source(driver_df, driver_table_id)
         driver_source = BigQuerySource(
-            table_ref=driver_table_id, event_timestamp_column="datetime"
+            table_ref=driver_table_id, event_timestamp_column="datetime", created_timestamp_column="created"
         )
         driver_fv = create_driver_hourly_stats_feature_view(driver_source)
 
@@ -403,7 +403,7 @@ def test_historical_features_from_bigquery_sources():
 
         stage_customer_daily_profile_bigquery_source(customer_df, customer_table_id)
         customer_source = BigQuerySource(
-            table_ref=customer_table_id, event_timestamp_column="datetime"
+            table_ref=customer_table_id, event_timestamp_column="datetime", created_timestamp_column="created"
         )
         customer_fv = create_customer_daily_profile_feature_view(customer_source)
 
