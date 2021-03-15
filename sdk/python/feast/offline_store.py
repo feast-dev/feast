@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import time
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
@@ -23,6 +24,7 @@ from jinja2 import BaseLoader, Environment
 
 from feast.data_source import BigQuerySource, FileSource
 from feast.feature_view import FeatureView
+from feast.repo_config import RepoConfig
 
 ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
 
@@ -77,7 +79,8 @@ class FeatureViewQueryContext:
 
 class OfflineStore(ABC):
     """
-    OfflineStore is an object used for all interaction between Feast and the service used for offline storage of features. Currently BigQuery is supported.
+    OfflineStore is an object used for all interaction between Feast and the service used for offline storage of
+    features. Currently BigQuery is supported.
     """
 
     @staticmethod
@@ -90,6 +93,7 @@ class OfflineStore(ABC):
     @staticmethod
     @abstractmethod
     def get_historical_features(
+        config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
@@ -149,14 +153,22 @@ class BigQueryOfflineStore(OfflineStore):
 
     @staticmethod
     def get_historical_features(
+        config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
     ) -> RetrievalJob:
-        # TODO: Add support for loading a Pandas entity_df into BigQuery
-        if type(entity_df) is not str:
-            raise NotImplementedError(
-                "The entity_df argument must be a BigQuery string SQL query"
+        # TODO: Add entity_df validation in order to fail before interacting with BigQuery
+
+        if type(entity_df) is str:
+            entity_df_sql_table = f"({entity_df})"
+        elif isinstance(entity_df, pd.DataFrame):
+            table_id = _upload_entity_df_into_bigquery(config.project, entity_df)
+            entity_df_sql_table = f"`{table_id}`"
+        else:
+            raise ValueError(
+                f"The entity dataframe you have provided must be a Pandas DataFrame or BigQuery SQL query, "
+                f"but we found: {type(entity_df)} "
             )
 
         # Build a query context containing all information required to template the BigQuery SQL query
@@ -168,33 +180,38 @@ class BigQueryOfflineStore(OfflineStore):
             query_context,
             min_timestamp=datetime.now() - timedelta(days=365),
             max_timestamp=datetime.now() + timedelta(days=1),
-            left_table_query_string=f"({entity_df})",
+            left_table_query_string=entity_df_sql_table,
         )
         job = BigQueryRetrievalJob(query=query)
         return job
 
 
-def build_point_in_time_query(
-    feature_view_query_contexts: List[FeatureViewQueryContext],
-    min_timestamp: datetime,
-    max_timestamp: datetime,
-    left_table_query_string: str,
-):
-    """Build point-in-time query between each feature view table and the entity dataframe"""
-    template = Environment(loader=BaseLoader()).from_string(
-        source=SINGLE_FEATURE_VIEW_POINT_IN_TIME_JOIN
-    )
+def _upload_entity_df_into_bigquery(project, entity_df) -> str:
+    """Uploads a Pandas entity dataframe into a BigQuery table and returns a reference to the resulting table"""
+    client = bigquery.Client()
 
-    # Add additional fields to dict
-    template_context = {
-        "min_timestamp": min_timestamp,
-        "max_timestamp": max_timestamp,
-        "left_table_query_string": left_table_query_string,
-        "featureviews": [asdict(context) for context in feature_view_query_contexts],
-    }
+    # First create the BigQuery dataset if it doesn't exist
+    dataset = bigquery.Dataset(f"{client.project}.feast_{project}")
+    dataset.location = "US"
+    client.create_dataset(
+        dataset, exists_ok=True
+    )  # TODO: Consider moving this to apply or BigQueryOfflineStore
 
-    query = template.render(template_context)
-    return query
+    # Drop the index so that we dont have unnecessary columns
+    entity_df.reset_index(drop=True, inplace=True)
+
+    # Upload the dataframe into BigQuery, creating a temporary table
+    job_config = bigquery.LoadJobConfig()
+    table_id = f"{client.project}.feast_{project}.entity_df_{int(time.time())}"
+    job = client.load_table_from_dataframe(entity_df, table_id, job_config=job_config,)
+    job.result()
+
+    # Ensure that the table expires after some time
+    table = client.get_table(table=table_id)
+    table.expires = datetime.utcnow() + timedelta(minutes=30)
+    client.update_table(table, ["expires"])
+
+    return table_id
 
 
 def get_feature_view_query_context(
@@ -233,6 +250,29 @@ def get_feature_view_query_context(
     return contexts
 
 
+def build_point_in_time_query(
+    feature_view_query_contexts: List[FeatureViewQueryContext],
+    min_timestamp: datetime,
+    max_timestamp: datetime,
+    left_table_query_string: str,
+):
+    """Build point-in-time query between each feature view table and the entity dataframe"""
+    template = Environment(loader=BaseLoader()).from_string(
+        source=SINGLE_FEATURE_VIEW_POINT_IN_TIME_JOIN
+    )
+
+    # Add additional fields to dict
+    template_context = {
+        "min_timestamp": min_timestamp,
+        "max_timestamp": max_timestamp,
+        "left_table_query_string": left_table_query_string,
+        "featureviews": [asdict(context) for context in feature_view_query_contexts],
+    }
+
+    query = template.render(template_context)
+    return query
+
+
 class FileOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table(
@@ -242,6 +282,7 @@ class FileOfflineStore(OfflineStore):
 
     @staticmethod
     def get_historical_features(
+        config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],

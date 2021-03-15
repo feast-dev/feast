@@ -149,7 +149,7 @@ class FeatureStore:
         feature_views = _get_requested_feature_views(feature_refs, all_feature_views)
         offline_store = get_offline_store_for_retrieval(feature_views)
         job = offline_store.get_historical_features(
-            feature_views, feature_refs, entity_df
+            self.config, feature_views, feature_refs, entity_df
         )
         return job
 

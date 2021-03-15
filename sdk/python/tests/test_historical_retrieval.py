@@ -422,7 +422,11 @@ def test_historical_features_from_bigquery_sources():
         )
         store.apply([driver, customer, driver_fv, customer_fv])
 
-        job = store.get_historical_features(
+        expected_df = get_expected_training_df(
+            customer_df, customer_fv, driver_df, driver_fv, orders_df,
+        )
+
+        job_from_sql = store.get_historical_features(
             entity_df=entity_df_query,
             feature_refs=[
                 "driver_stats:conv_rate",
@@ -432,10 +436,7 @@ def test_historical_features_from_bigquery_sources():
                 "customer_profile:lifetime_trip_count",
             ],
         )
-        actual_df = job.to_df()
-        expected_df = get_expected_training_df(
-            customer_df, customer_fv, driver_df, driver_fv, orders_df,
-        )
+        actual_df_from_sql_entities = job_from_sql.to_df()
 
         assert_frame_equal(
             expected_df.sort_values(
@@ -446,7 +447,39 @@ def test_historical_features_from_bigquery_sources():
                     "customer_id",
                 ]
             ).reset_index(drop=True),
-            actual_df.sort_values(
+            actual_df_from_sql_entities.sort_values(
+                by=[
+                    ENTITY_DF_EVENT_TIMESTAMP_COL,
+                    "order_id",
+                    "driver_id",
+                    "customer_id",
+                ]
+            ).reset_index(drop=True),
+            check_dtype=False,
+        )
+
+        job_from_df = store.get_historical_features(
+            entity_df=orders_df,
+            feature_refs=[
+                "driver_stats:conv_rate",
+                "driver_stats:avg_daily_trips",
+                "customer_profile:current_balance",
+                "customer_profile:avg_passenger_count",
+                "customer_profile:lifetime_trip_count",
+            ],
+        )
+        actual_df_from_df_entities = job_from_df.to_df()
+
+        assert_frame_equal(
+            expected_df.sort_values(
+                by=[
+                    ENTITY_DF_EVENT_TIMESTAMP_COL,
+                    "order_id",
+                    "driver_id",
+                    "customer_id",
+                ]
+            ).reset_index(drop=True),
+            actual_df_from_df_entities.sort_values(
                 by=[
                     ENTITY_DF_EVENT_TIMESTAMP_COL,
                     "order_id",
