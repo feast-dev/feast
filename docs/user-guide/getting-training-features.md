@@ -17,14 +17,13 @@ feature_refs = [
 
 # Define entity source
 entity_source = FileSource(
-    "event_timestamp",
-    ParquetFormat(),
-    "gs://some-bucket/customer"
+   "event_timestamp",
+   ParquetFormat(),
+   "gs://some-bucket/customer"
 )
 
 # Retrieve historical dataset from Feast.
-historical_feature_retrieval_job = get_historical_features(
-    feature_refs=feature_refs,
+historical_feature_retrieval_job = client.get_historical_features(
     entity_rows=entity_source
 )
 
