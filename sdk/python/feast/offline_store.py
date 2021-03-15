@@ -241,7 +241,7 @@ def get_feature_view_query_context(
             features=features,
             table_ref=feature_view.input.table_ref,
             event_timestamp_column=feature_view.input.event_timestamp_column,
-            created_timestamp_column="created",  # TODO: Make created column optional and not hardcoded
+            created_timestamp_column=feature_view.input.created_timestamp_column,  # TODO: Make created column optional and not hardcoded
             field_mapping=feature_view.input.field_mapping,
             query=feature_view.input.query,
             table_subquery=feature_view.input.get_table_query_string(),
