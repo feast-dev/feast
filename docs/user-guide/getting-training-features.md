@@ -24,6 +24,7 @@ entity_source = FileSource(
 
 # Retrieve historical dataset from Feast.
 historical_feature_retrieval_job = client.get_historical_features(
+    feature_refs=feature_refs,
     entity_rows=entity_source
 )
 
