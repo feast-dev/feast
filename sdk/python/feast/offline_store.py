@@ -175,7 +175,7 @@ class BigQueryOfflineStore(OfflineStore):
         # Build a query context containing all information required to template the BigQuery SQL query
         query_context = get_feature_view_query_context(feature_refs, feature_views)
 
-        # TODO: Get timestamps from entity_df
+        # TODO: Infer min_timestamp and max_timestamp from entity_df
         # Generate the BigQuery SQL query from the query context
         query = build_point_in_time_query(
             query_context,
