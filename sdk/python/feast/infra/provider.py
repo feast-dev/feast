@@ -44,8 +44,9 @@ class Provider(abc.ABC):
         self,
         project: str,
         table: Union[FeatureTable, FeatureView],
-        data: List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime]],
-        created_ts: datetime,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
     ) -> None:
         """
         Write a batch of feature rows to the online store. This is a low level interface, not
@@ -56,10 +57,9 @@ class Provider(abc.ABC):
         Args:
             project: Feast project name
             table: Feast FeatureTable
-            data: a list of triplets containing Feature data. Each triplet contains an Entity Key,
-                a dict containing feature values, and event timestamp for the row.
-            created_ts: the created timestamp (typically set to current time), same value used for
-                all rows.
+            data: a list of quadruplets containing Feature data. Each quadruplet contains an Entity Key,
+                a dict containing feature values, an event timestamp for the row, and
+                the created timestamp for the row if it exists.
         """
         ...
 

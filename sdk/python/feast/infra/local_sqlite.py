@@ -53,13 +53,14 @@ class LocalSqlite(Provider):
         self,
         project: str,
         table: Union[FeatureTable, FeatureView],
-        data: List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime]],
-        created_ts: datetime,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
     ) -> None:
         conn = self._get_conn()
 
         with conn:
-            for entity_key, values, timestamp in data:
+            for entity_key, values, timestamp, created_ts in data:
                 for feature_name, val in values.items():
                     entity_key_bin = serialize_entity_key(entity_key)
 
@@ -67,7 +68,7 @@ class LocalSqlite(Provider):
                         f"""
                             UPDATE {_table_id(project, table)}
                             SET value = ?, event_ts = ?, created_ts = ?
-                            WHERE (event_ts < ? OR (event_ts = ? AND created_ts < ?))
+                            WHERE (event_ts < ? OR (event_ts = ? AND (created_ts IS NULL OR ? IS NULL OR created_ts < ?)))
                             AND (entity_key = ? AND feature_name = ?)
                         """,
                         (
@@ -78,6 +79,7 @@ class LocalSqlite(Provider):
                             # WHERE
                             timestamp,
                             timestamp,
+                            created_ts,
                             created_ts,
                             entity_key_bin,
                             feature_name,

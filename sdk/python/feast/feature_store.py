@@ -215,9 +215,7 @@ class FeatureStore:
             rows_to_write = _convert_arrow_to_proto(table, feature_view)
 
             provider = self._get_provider()
-            provider.online_write_batch(
-                "default", feature_view, rows_to_write, datetime.utcnow()
-            )
+            provider.online_write_batch(self.project, feature_view, rows_to_write)
 
 
 def _get_requested_feature_views(
@@ -305,7 +303,7 @@ def _run_forward_field_mapping(
 
 def _convert_arrow_to_proto(
     table: pyarrow.Table, feature_view: FeatureView
-) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime]]:
+) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
     rows_to_write = []
     for row in zip(*table.to_pydict().values()):
         entity_key = EntityKeyProto()
@@ -322,7 +320,18 @@ def _convert_arrow_to_proto(
         event_timestamp_idx = table.column_names.index(
             feature_view.input.event_timestamp_column
         )
-        rows_to_write.append((entity_key, feature_dict, row[event_timestamp_idx]))
+        event_timestamp = row[event_timestamp_idx]
+        if feature_view.input.created_timestamp_column is not None:
+            created_timestamp_idx = table.column_names.index(
+                feature_view.input.created_timestamp_column
+            )
+            created_timestamp = row[created_timestamp_idx]
+        else:
+            created_timestamp = None
+
+        rows_to_write.append(
+            (entity_key, feature_dict, event_timestamp, created_timestamp)
+        )
     return rows_to_write
 
 

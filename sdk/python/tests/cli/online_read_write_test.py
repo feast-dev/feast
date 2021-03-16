@@ -36,9 +36,9 @@ def basic_rw_test(repo_path: Path, project_name: str) -> None:
                         "lon": ValueProto(string_val=write_lon),
                     },
                     event_ts,
+                    created_ts,
                 )
             ],
-            created_ts=created_ts,
         )
 
         _, val = provider.online_read(
