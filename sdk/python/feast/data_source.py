@@ -38,7 +38,7 @@ class FileOptions:
     """
 
     def __init__(
-        self, file_format: FileFormat, file_url: str,
+        self, file_format: Optional[FileFormat], file_url: Optional[str],
     ):
         self._file_format = file_format
         self._file_url = file_url
@@ -97,7 +97,10 @@ class FileOptions:
         """
 
         file_options_proto = DataSourceProto.FileOptions(
-            file_format=self.file_format.to_proto(), file_url=self.file_url,
+            file_format=(
+                None if self.file_format is None else self.file_format.to_proto()
+            ),
+            file_url=self.file_url,
         )
 
         return file_options_proto
@@ -108,10 +111,23 @@ class BigQueryOptions:
     DataSource BigQuery options used to source features from BigQuery query
     """
 
-    def __init__(
-        self, table_ref: str,
-    ):
+    def __init__(self, table_ref: Optional[str], query: Optional[str]):
         self._table_ref = table_ref
+        self._query = query
+
+    @property
+    def query(self):
+        """
+        Returns the BigQuery SQL query referenced by this source
+        """
+        return self._query
+
+    @query.setter
+    def query(self, query):
+        """
+        Sets the BigQuery SQL query referenced by this source
+        """
+        self._query = query
 
     @property
     def table_ref(self):
@@ -139,7 +155,10 @@ class BigQueryOptions:
             Returns a BigQueryOptions object based on the bigquery_options protobuf
         """
 
-        bigquery_options = cls(table_ref=bigquery_options_proto.table_ref,)
+        bigquery_options = cls(
+            table_ref=bigquery_options_proto.table_ref,
+            query=bigquery_options_proto.query,
+        )
 
         return bigquery_options
 
@@ -498,18 +517,48 @@ class FileSource(DataSource):
     def __init__(
         self,
         event_timestamp_column: str,
-        file_format: FileFormat,
-        file_url: str,
+        file_url: Optional[str] = None,
+        path: Optional[str] = None,
+        file_format: FileFormat = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
     ):
+        """Create a FileSource from a file containing feature data. Only Parquet format supported.
+
+        Args:
+
+            path: File path to file containing feature data. Must contain an event_timestamp column, entity columns and
+                feature columns.
+            event_timestamp_column: Event timestamp column used for point in time joins of feature values.
+            created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
+            file_url: [Deprecated] Please see path
+            file_format (optional): Explicitly set the file format. Allows Feast to bypass inferring the file format.
+            field_mapping: A dictionary mapping of column names in this data source to feature names in a feature table
+                or view. Only used for feature columns, not entities or timestamp columns.
+
+        Examples:
+            >>> FileSource(path="/data/my_features.parquet", event_timestamp_column="datetime")
+        """
         super().__init__(
             event_timestamp_column,
             created_timestamp_column,
             field_mapping,
             date_partition_column,
         )
+        if path is None and file_url is None:
+            raise ValueError(
+                'No "path" argument provided. Please set "path" to the location of your file source.'
+            )
+
+        if file_url is not None:
+            from warnings import warn
+
+            warn(
+                'Argument "file_url" is being deprecated. Please use the "path" argument.'
+            )
+        else:
+            file_url = path
         self._file_options = FileOptions(file_format=file_format, file_url=file_url)
 
     def __eq__(self, other):
@@ -537,6 +586,13 @@ class FileSource(DataSource):
         """
         self._file_options = file_options
 
+    @property
+    def path(self):
+        """
+        Returns the file path of this feature data source
+        """
+        return self._file_options.file_url
+
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             type=DataSourceProto.BATCH_FILE,
@@ -555,10 +611,11 @@ class BigQuerySource(DataSource):
     def __init__(
         self,
         event_timestamp_column: str,
-        table_ref: str,
+        table_ref: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
+        query: Optional[str] = None,
     ):
         super().__init__(
             event_timestamp_column,
@@ -566,7 +623,7 @@ class BigQuerySource(DataSource):
             field_mapping,
             date_partition_column,
         )
-        self._bigquery_options = BigQueryOptions(table_ref=table_ref,)
+        self._bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
 
     def __eq__(self, other):
         if not isinstance(other, BigQuerySource):
@@ -582,6 +639,10 @@ class BigQuerySource(DataSource):
     @property
     def table_ref(self):
         return self._bigquery_options.table_ref
+
+    @property
+    def query(self):
+        return self._bigquery_options.query
 
     @property
     def bigquery_options(self):
@@ -609,6 +670,13 @@ class BigQuerySource(DataSource):
         data_source_proto.date_partition_column = self.date_partition_column
 
         return data_source_proto
+
+    def get_table_query_string(self) -> str:
+        """Returns a string that can directly be used to reference this table in SQL"""
+        if self.table_ref is not None:
+            return f"`{self.table_ref}`"
+        else:
+            return f"({self.query})"
 
 
 class KafkaSource(DataSource):

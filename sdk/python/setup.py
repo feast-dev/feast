@@ -26,12 +26,14 @@ REQUIRES_PYTHON = ">=3.6.0"
 
 REQUIRED = [
     "Click==7.*",
-    "google-api-core==1.22.4",
-    "google-cloud-bigquery==1.18.*",
-    "google-cloud-storage==1.20.*",
+    "google-api-core>=1.23.0",
+    "google-cloud-bigquery>=2.0.*",
+    "google-cloud-bigquery-storage >= 2.0.0",
+    # "google-cloud-storage==1.20.*",
     "google-cloud-core==1.4.*",
     "googleapis-common-protos==1.52.*",
     "grpcio==1.31.0",
+    "Jinja2==2.11.2",
     "pandas~=1.0.0",
     "pandavro==1.5.*",
     "protobuf>=3.10",
@@ -51,9 +53,9 @@ REQUIRED = [
 # README file from Feast repo root directory
 repo_root = (
     subprocess.Popen(["git", "rev-parse", "--show-toplevel"], stdout=subprocess.PIPE)
-    .communicate()[0]
-    .rstrip()
-    .decode("utf-8")
+        .communicate()[0]
+        .rstrip()
+        .decode("utf-8")
 )
 README_FILE = os.path.join(repo_root, "README.md")
 with open(os.path.join(README_FILE), "r") as f:

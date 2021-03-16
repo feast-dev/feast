@@ -20,23 +20,23 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.core.FeatureView_pb2 import FeatureViewMeta as FeatureViewMetaProto
 from feast.core.FeatureView_pb2 import FeatureViewSpec as FeatureViewSpecProto
-from feast.data_source import BigQuerySource, DataSource
+from feast.data_source import BigQuerySource, DataSource, FileSource
 from feast.feature import Feature
 from feast.value_type import ValueType
 
 
 class FeatureView:
     """
-    A FeatureView defines a logical grouping of servable features.
+    A FeatureView defines a logical grouping of serveable features.
     """
 
     name: str
     entities: List[str]
     features: List[Feature]
-    tags: Dict[str, str]
-    ttl: Optional[Duration]
+    tags: Optional[Dict[str, str]]
+    ttl: Optional[timedelta]
     online: bool
-    input: BigQuerySource
+    input: Union[BigQuerySource, FileSource]
 
     created_timestamp: Optional[Timestamp] = None
     last_updated_timestamp: Optional[Timestamp] = None
@@ -46,10 +46,10 @@ class FeatureView:
         name: str,
         entities: List[str],
         features: List[Feature],
-        tags: Dict[str, str],
         ttl: Optional[Union[Duration, timedelta]],
-        online: bool,
-        input: BigQuerySource,
+        input: Union[BigQuerySource, FileSource],
+        tags: Optional[Dict[str, str]] = None,
+        online: bool = True,
     ):
         cols = [entity for entity in entities] + [feat.name for feat in features]
         for col in cols:
@@ -62,10 +62,9 @@ class FeatureView:
         self.entities = entities
         self.features = features
         self.tags = tags
-        if isinstance(ttl, timedelta):
-            proto_ttl = Duration()
-            proto_ttl.FromTimedelta(ttl)
-            self.ttl = proto_ttl
+
+        if isinstance(ttl, Duration):
+            self.ttl = timedelta(seconds=int(ttl.seconds))
         else:
             self.ttl = ttl
 
@@ -97,12 +96,16 @@ class FeatureView:
             last_updated_timestamp=self.last_updated_timestamp,
         )
 
+        if self.ttl is not None:
+            ttl_duration = Duration()
+            ttl_duration.FromTimedelta(self.ttl)
+
         spec = FeatureViewSpecProto(
             name=self.name,
             entities=self.entities,
             features=[feature.to_proto() for feature in self.features],
             tags=self.tags,
-            ttl=self.ttl,
+            ttl=(ttl_duration if ttl_duration is not None else None),
             online=self.online,
             input=self.input.to_proto(),
         )

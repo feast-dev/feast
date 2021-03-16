@@ -359,6 +359,7 @@ class GCSRegistryStore(RegistryStore):
         try:
             from google.cloud import storage
         except ImportError:
+            # TODO: Ensure versioning depends on requirements.txt/setup.py and isn't hardcoded
             raise ImportError(
                 "Install package google-cloud-storage==1.20.* for gcs support"
                 "run ```pip install google-cloud-storage==1.20.*```"
