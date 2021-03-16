@@ -92,7 +92,7 @@ def export_source_to_staging_location(
         get_staging_client(uri.scheme).upload_fileobj(
             f,
             source_path,
-            remote_uri=uri._replace(path=str(uri.path).strip("/") + "/" + file_name),
+            remote_uri=uri._replace(path=str(uri.path).rstrip("/") + "/" + file_name),
         )
 
     # Clean up, remove local staging file
