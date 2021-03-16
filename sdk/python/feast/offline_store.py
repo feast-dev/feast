@@ -15,7 +15,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import pyarrow
@@ -32,9 +32,6 @@ ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
 class RetrievalJob(ABC):
     """RetrievalJob is used to manage the execution of a historical feature retrieval"""
 
-    def __init__(self):
-        pass
-
     @abstractmethod
     def to_df(self):
         """Return dataset as Pandas DataFrame synchronously"""
@@ -42,10 +39,14 @@ class RetrievalJob(ABC):
 
 
 class FileRetrievalJob(RetrievalJob):
-    def __init__(self, evaluation_function):
+    def __init__(self, evaluation_function: Callable):
+        """Initialize a lazy historical retrieval job"""
+
+        # The evaluation function executes a stored procedure to compute a historical retrieval.
         self.evaluation_function = evaluation_function
 
     def to_df(self):
+        # Only execute the evaluation function to build the final historical retrieval dataframe at the last moment.
         df = self.evaluation_function()
         return df
 
@@ -241,7 +242,8 @@ def get_feature_view_query_context(
             features=features,
             table_ref=feature_view.input.table_ref,
             event_timestamp_column=feature_view.input.event_timestamp_column,
-            created_timestamp_column=feature_view.input.created_timestamp_column,  # TODO: Make created column optional and not hardcoded
+            created_timestamp_column=feature_view.input.created_timestamp_column,
+            # TODO: Make created column optional and not hardcoded
             field_mapping=feature_view.input.field_mapping,
             query=feature_view.input.query,
             table_subquery=feature_view.input.get_table_query_string(),
