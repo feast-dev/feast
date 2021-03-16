@@ -481,7 +481,7 @@ class Client:
             )
         else:
             try:
-                self._core_service_stub.ArchiveProject(
+                self._core_service.ArchiveProject(
                     ArchiveProjectRequest(name=project),
                     timeout=self._config.getint(opt.GRPC_CONNECTION_TIMEOUT),
                     metadata=self._get_grpc_metadata(),
