@@ -15,7 +15,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Callable, Dict, List, Optional, Tuple, Type, Union
+from typing import Callable, Dict, List, Optional, Type, Union
 
 import pandas as pd
 import pyarrow
@@ -94,7 +94,7 @@ class OfflineStore(ABC):
         created_timestamp_column: Optional[str],
         start_date: datetime,
         end_date: datetime,
-    ) -> Optional[pyarrow.Table]:
+    ) -> pyarrow.Table:
         pass
 
     @staticmethod
@@ -281,7 +281,13 @@ def build_point_in_time_query(
 class FileOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table(
-        feature_view: FeatureView, start_date: datetime, end_date: datetime,
+        table_ref: str,
+        entity_names: List[str],
+        feature_names: List[str],
+        event_timestamp_column: str,
+        created_timestamp_column: Optional[str],
+        start_date: datetime,
+        end_date: datetime,
     ) -> pyarrow.Table:
         pass
 
@@ -552,6 +558,7 @@ LEFT JOIN (
 {% endfor %}
 ORDER BY event_timestamp
 """
+
 
 def get_offline_store(config: RepoConfig) -> Type[OfflineStore]:
     if config.provider == "gcp":

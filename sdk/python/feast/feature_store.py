@@ -18,10 +18,16 @@ from typing import Any, Dict, List, Optional, Tuple, Type, Union
 import pandas as pd
 import pyarrow
 
+from feast.data_source import FileSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.provider import Provider, get_provider
-from feast.offline_store import OfflineStore, get_offline_store, RetrievalJob, get_offline_store_for_retrieval
+from feast.offline_store import (
+    OfflineStore,
+    RetrievalJob,
+    get_offline_store,
+    get_offline_store_for_retrieval,
+)
 from feast.registry import Registry
 from feast.repo_config import (
     LocalOnlineStoreConfig,
@@ -172,13 +178,17 @@ class FeatureStore:
         for name in feature_views:
             feature_view = registry.get_feature_view(name, self.project)
             full_feature_views.append(feature_view)
+
+        # TODO paging large loads
+        for feature_view in full_feature_views:
+            if isinstance(feature_view.input, FileSource):
+                raise NotImplementedError(
+                    "This function is not yet implemented for File data sources"
+                )
             if feature_view.input.table_ref is None:
                 raise NotImplementedError(
                     f"This function is only implemented for FeatureViews with a table_ref; {feature_view.name} does not have one."
                 )
-
-        # TODO paging large loads
-        for feature_view in full_feature_views:
             (
                 entity_names,
                 feature_names,
@@ -206,7 +216,7 @@ class FeatureStore:
 
             provider = self._get_provider()
             provider.online_write_batch(
-                "default", feature_view, rows_to_write, created_timestamp_column
+                "default", feature_view, rows_to_write, datetime.utcnow()
             )
 
 
