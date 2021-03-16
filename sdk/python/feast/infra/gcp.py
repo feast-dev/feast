@@ -6,9 +6,9 @@ from pytz import utc
 
 from feast import FeatureTable, FeatureView
 from feast.infra.provider import Provider
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import DatastoreOnlineStoreConfig
-from feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.types.Value_pb2 import Value as ValueProto
 
 from .key_encoding_utils import serialize_entity_key
 

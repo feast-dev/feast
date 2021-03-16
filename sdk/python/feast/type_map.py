@@ -22,7 +22,7 @@ from google.protobuf.json_format import MessageToDict
 from google.protobuf.timestamp_pb2 import Timestamp
 from pyarrow.lib import TimestampType
 
-from feast.types.Value_pb2 import (
+from feast.protos.feast.types.Value_pb2 import (
     BoolList,
     BytesList,
     DoubleList,
@@ -31,8 +31,8 @@ from feast.types.Value_pb2 import (
     Int64List,
     StringList,
 )
-from feast.types.Value_pb2 import Value as ProtoValue
-from feast.types.Value_pb2 import ValueType as ProtoValueType
+from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
+from feast.protos.feast.types.Value_pb2 import ValueType as ProtoValueType
 from feast.value_type import ValueType
 
 

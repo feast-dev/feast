@@ -26,7 +26,23 @@ import pandas as pd
 
 from feast.config import Config
 from feast.constants import ConfigOptions as opt
-from feast.core.CoreService_pb2 import (
+from feast.data_format import ParquetFormat
+from feast.data_source import BigQuerySource, FileSource
+from feast.entity import Entity
+from feast.feature import Feature, FeatureRef, _build_feature_references
+from feast.feature_table import FeatureTable
+from feast.grpc import auth as feast_auth
+from feast.grpc.grpc import create_grpc_channel
+from feast.loaders.ingest import (
+    _check_field_mappings,
+    _read_table_from_source,
+    _upload_to_bq_source,
+    _upload_to_file_source,
+    _write_non_partitioned_table_from_source,
+    _write_partitioned_table_from_source,
+)
+from feast.online_response import OnlineResponse, _infer_online_entity_rows
+from feast.protos.feast.core.CoreService_pb2 import (
     ApplyEntityRequest,
     ApplyEntityResponse,
     ApplyFeatureTableRequest,
@@ -50,29 +66,13 @@ from feast.core.CoreService_pb2 import (
     ListProjectsRequest,
     ListProjectsResponse,
 )
-from feast.core.CoreService_pb2_grpc import CoreServiceStub
-from feast.data_format import ParquetFormat
-from feast.data_source import BigQuerySource, FileSource
-from feast.entity import Entity
-from feast.feature import Feature, FeatureRef, _build_feature_references
-from feast.feature_table import FeatureTable
-from feast.grpc import auth as feast_auth
-from feast.grpc.grpc import create_grpc_channel
-from feast.loaders.ingest import (
-    _check_field_mappings,
-    _read_table_from_source,
-    _upload_to_bq_source,
-    _upload_to_file_source,
-    _write_non_partitioned_table_from_source,
-    _write_partitioned_table_from_source,
-)
-from feast.online_response import OnlineResponse, _infer_online_entity_rows
-from feast.registry import Registry
-from feast.serving.ServingService_pb2 import (
+from feast.protos.feast.core.CoreService_pb2_grpc import CoreServiceStub
+from feast.protos.feast.serving.ServingService_pb2 import (
     GetFeastServingInfoRequest,
     GetOnlineFeaturesRequestV2,
 )
-from feast.serving.ServingService_pb2_grpc import ServingServiceStub
+from feast.protos.feast.serving.ServingService_pb2_grpc import ServingServiceStub
+from feast.registry import Registry
 from feast.telemetry import log_usage
 
 _logger = logging.getLogger(__name__)

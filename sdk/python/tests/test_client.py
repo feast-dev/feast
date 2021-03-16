@@ -32,30 +32,36 @@ from pyarrow import parquet as pq
 from pytest_lazyfixture import lazy_fixture
 
 from feast.client import Client
-from feast.core import CoreService_pb2_grpc as Core
-from feast.core.CoreService_pb2 import (
-    GetFeastCoreVersionResponse,
-    GetFeatureTableResponse,
-    ListFeaturesResponse,
-)
-from feast.core.DataSource_pb2 import DataSource as DataSourceProto
-from feast.core.Feature_pb2 import FeatureSpecV2 as FeatureSpecProto
-from feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
-from feast.core.FeatureTable_pb2 import FeatureTableMeta as FeatureTableMetaProto
-from feast.core.FeatureTable_pb2 import FeatureTableSpec as FeatureTableSpecProto
 from feast.data_format import ParquetFormat, ProtoFormat
 from feast.data_source import FileSource, KafkaSource
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_table import FeatureTable
-from feast.serving import ServingService_pb2_grpc as Serving
-from feast.serving.ServingService_pb2 import FeatureReferenceV2 as FeatureRefProto
-from feast.serving.ServingService_pb2 import (
+from feast.protos.feast.core import CoreService_pb2_grpc as Core
+from feast.protos.feast.core.CoreService_pb2 import (
+    GetFeastCoreVersionResponse,
+    GetFeatureTableResponse,
+    ListFeaturesResponse,
+)
+from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FeatureSpecProto
+from feast.protos.feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
+from feast.protos.feast.core.FeatureTable_pb2 import (
+    FeatureTableMeta as FeatureTableMetaProto,
+)
+from feast.protos.feast.core.FeatureTable_pb2 import (
+    FeatureTableSpec as FeatureTableSpecProto,
+)
+from feast.protos.feast.serving import ServingService_pb2_grpc as Serving
+from feast.protos.feast.serving.ServingService_pb2 import (
+    FeatureReferenceV2 as FeatureRefProto,
+)
+from feast.protos.feast.serving.ServingService_pb2 import (
     GetFeastServingInfoResponse,
     GetOnlineFeaturesRequestV2,
     GetOnlineFeaturesResponse,
 )
-from feast.types import Value_pb2 as ValueProto
+from feast.protos.feast.types import Value_pb2 as ValueProto
 from feast.value_type import ValueType
 from feast_core_server import (
     AllowAuthInterceptor,

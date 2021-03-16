@@ -1,9 +1,9 @@
 import struct
 from typing import List, Tuple
 
-from feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.types.Value_pb2 import Value as ValueProto
-from feast.types.Value_pb2 import ValueType
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.protos.feast.types.Value_pb2 import ValueType
 
 
 def _serialize_val(value_type, v: ValueProto) -> Tuple[bytes, int]:

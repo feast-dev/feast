@@ -16,8 +16,8 @@
 import enum
 from typing import Dict, Optional
 
-from feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.data_format import FileFormat, StreamFormat
+from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 
 
 class SourceType(enum.Enum):

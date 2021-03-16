@@ -15,8 +15,8 @@
 
 from abc import ABC, abstractmethod
 
-from feast.core.DataFormat_pb2 import FileFormat as FileFormatProto
-from feast.core.DataFormat_pb2 import StreamFormat as StreamFormatProto
+from feast.protos.feast.core.DataFormat_pb2 import FileFormat as FileFormatProto
+from feast.protos.feast.core.DataFormat_pb2 import StreamFormat as StreamFormatProto
 
 
 class FileFormat(ABC):

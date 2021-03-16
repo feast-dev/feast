@@ -14,9 +14,11 @@
 
 from typing import List, MutableMapping, Optional
 
-from feast.core.Feature_pb2 import FeatureSpecV2 as FeatureSpecProto
-from feast.serving.ServingService_pb2 import FeatureReferenceV2 as FeatureRefProto
-from feast.types import Value_pb2 as ValueTypeProto
+from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FeatureSpecProto
+from feast.protos.feast.serving.ServingService_pb2 import (
+    FeatureReferenceV2 as FeatureRefProto,
+)
+from feast.protos.feast.types import Value_pb2 as ValueTypeProto
 from feast.value_type import ValueType
 
 
