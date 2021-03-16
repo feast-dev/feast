@@ -44,7 +44,7 @@ install-python-ci-dependencies:
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
 
-compile-protos-python: #install-python-ci-dependencies
+compile-protos-python: install-python-ci-dependencies
 	@$(foreach dir,$(PROTO_TYPE_SUBDIRS),cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --grpc_python_out=../sdk/python/feast/protos/ --python_out=../sdk/python/feast/protos/ --mypy_out=../sdk/python/feast/protos/ feast/$(dir)/*.proto;)
 	@$(foreach dir,$(PROTO_TYPE_SUBDIRS),grep -rli 'from feast.$(dir)' sdk/python/feast/protos | xargs -i@ sed -i 's/from feast.$(dir)/from feast.protos.feast.$(dir)/g' @;)
 	cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --python_out=../sdk/python/feast/protos --mypy_out=../sdk/python/feast/protos tensorflow_metadata/proto/v0/*.proto
