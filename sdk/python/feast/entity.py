@@ -19,10 +19,10 @@ from google.protobuf import json_format
 from google.protobuf.json_format import MessageToDict, MessageToJson
 from google.protobuf.timestamp_pb2 import Timestamp
 
-from feast.core.Entity_pb2 import Entity as EntityV2Proto
-from feast.core.Entity_pb2 import EntityMeta as EntityMetaProto
-from feast.core.Entity_pb2 import EntitySpecV2 as EntitySpecProto
 from feast.loaders import yaml as feast_yaml
+from feast.protos.feast.core.Entity_pb2 import Entity as EntityV2Proto
+from feast.protos.feast.core.Entity_pb2 import EntityMeta as EntityMetaProto
+from feast.protos.feast.core.Entity_pb2 import EntitySpecV2 as EntitySpecProto
 from feast.value_type import ValueType
 
 

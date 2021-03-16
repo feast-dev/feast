@@ -14,16 +14,16 @@
 
 from typing import Any, Dict, List, cast
 
-from feast.serving.ServingService_pb2 import (
+from feast.protos.feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequestV2,
     GetOnlineFeaturesResponse,
 )
+from feast.protos.feast.types.Value_pb2 import Value as Value
 from feast.type_map import (
     _python_value_to_proto_value,
     feast_value_type_to_python_type,
     python_type_to_feast_value_type,
 )
-from feast.types.Value_pb2 import Value as Value
 
 
 class OnlineResponse:

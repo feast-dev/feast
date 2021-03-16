@@ -20,8 +20,8 @@ import grpc
 import pytest
 
 from feast.client import Client
-from feast.core import CoreService_pb2_grpc as Core
 from feast.entity import Entity
+from feast.protos.feast.core import CoreService_pb2_grpc as Core
 from feast.value_type import ValueType
 from feast_core_server import CoreServicer
 

@@ -17,11 +17,7 @@ exclude = '''
     | dist
     | pb2.py
     | \.pyi
-    | core
-    | serving
-    | storage
-    | types
-    | third_party
+    | protos
   )/
 )
 '''

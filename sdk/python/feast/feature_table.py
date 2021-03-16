@@ -20,9 +20,6 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToDict, MessageToJson
 from google.protobuf.timestamp_pb2 import Timestamp
 
-from feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
-from feast.core.FeatureTable_pb2 import FeatureTableMeta as FeatureTableMetaProto
-from feast.core.FeatureTable_pb2 import FeatureTableSpec as FeatureTableSpecProto
 from feast.data_source import (
     BigQuerySource,
     DataSource,
@@ -32,6 +29,13 @@ from feast.data_source import (
 )
 from feast.feature import Feature
 from feast.loaders import yaml as feast_yaml
+from feast.protos.feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
+from feast.protos.feast.core.FeatureTable_pb2 import (
+    FeatureTableMeta as FeatureTableMetaProto,
+)
+from feast.protos.feast.core.FeatureTable_pb2 import (
+    FeatureTableSpec as FeatureTableSpecProto,
+)
 from feast.value_type import ValueType
 
 

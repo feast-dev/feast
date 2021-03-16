@@ -5,8 +5,8 @@ from concurrent import futures
 import grpc
 from google.protobuf.timestamp_pb2 import Timestamp
 
-from feast.core import CoreService_pb2_grpc as Core
-from feast.core.CoreService_pb2 import (
+from feast.protos.feast.core import CoreService_pb2_grpc as Core
+from feast.protos.feast.core.CoreService_pb2 import (
     ApplyEntityRequest,
     ApplyEntityResponse,
     ApplyFeatureTableRequest,
@@ -24,10 +24,10 @@ from feast.core.CoreService_pb2 import (
     ListFeatureTablesResponse,
     ListProjectsResponse,
 )
-from feast.core.Entity_pb2 import Entity as EntityProto
-from feast.core.Entity_pb2 import EntityMeta
-from feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
-from feast.core.FeatureTable_pb2 import FeatureTableMeta
+from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
+from feast.protos.feast.core.Entity_pb2 import EntityMeta
+from feast.protos.feast.core.FeatureTable_pb2 import FeatureTable as FeatureTableProto
+from feast.protos.feast.core.FeatureTable_pb2 import FeatureTableMeta
 
 _logger = logging.getLogger(__name__)
 

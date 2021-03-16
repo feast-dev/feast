@@ -17,11 +17,15 @@ from typing import Dict, List, Optional, Union
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.timestamp_pb2 import Timestamp
 
-from feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
-from feast.core.FeatureView_pb2 import FeatureViewMeta as FeatureViewMetaProto
-from feast.core.FeatureView_pb2 import FeatureViewSpec as FeatureViewSpecProto
 from feast.data_source import BigQuerySource, DataSource, FileSource
 from feast.feature import Feature
+from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+from feast.protos.feast.core.FeatureView_pb2 import (
+    FeatureViewMeta as FeatureViewMetaProto,
+)
+from feast.protos.feast.core.FeatureView_pb2 import (
+    FeatureViewSpec as FeatureViewSpecProto,
+)
 from feast.value_type import ValueType
 
 

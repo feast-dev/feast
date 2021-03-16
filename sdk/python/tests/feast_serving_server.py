@@ -5,11 +5,11 @@ from typing import Dict
 
 import grpc
 
-from feast.core import FeatureTable_pb2 as FeatureTableProto
-from feast.core.CoreService_pb2 import ListFeatureTablesResponse
-from feast.core.CoreService_pb2_grpc import CoreServiceStub
-from feast.serving import ServingService_pb2_grpc as Serving
-from feast.serving.ServingService_pb2 import GetFeastServingInfoResponse
+from feast.protos.feast.core import FeatureTable_pb2 as FeatureTableProto
+from feast.protos.feast.core.CoreService_pb2 import ListFeatureTablesResponse
+from feast.protos.feast.core.CoreService_pb2_grpc import CoreServiceStub
+from feast.protos.feast.serving import ServingService_pb2_grpc as Serving
+from feast.protos.feast.serving.ServingService_pb2 import GetFeastServingInfoResponse
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
