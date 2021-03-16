@@ -10,8 +10,8 @@ from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
 from feast.repo_config import LocalOnlineStoreConfig, OnlineStoreConfig, RepoConfig
-from feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.types.Value_pb2 import Value as ValueProto
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.value_type import ValueType
 
 

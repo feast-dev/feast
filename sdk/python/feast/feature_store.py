@@ -35,8 +35,8 @@ from feast.repo_config import (
     RepoConfig,
     load_repo_config,
 )
-from feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.types.Value_pb2 import Value as ValueProto
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 
 
 class FeatureStore:
