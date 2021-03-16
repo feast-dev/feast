@@ -67,6 +67,7 @@ from feast.protos.feast.core.CoreService_pb2 import (
     ListProjectsRequest,
     ListProjectsResponse,
 )
+from feast.protos.feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.protos.feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.registry import Registry
 from feast.rest.core_service_rest_stub import CoreServiceRESTStub
