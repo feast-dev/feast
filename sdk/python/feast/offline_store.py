@@ -61,7 +61,7 @@ class BigQueryRetrievalJob(RetrievalJob):
         return df
 
 
-@dataclass
+@dataclass(frozen=True)
 class FeatureViewQueryContext:
     """Context object used to template a BigQuery point-in-time SQL query"""
 
