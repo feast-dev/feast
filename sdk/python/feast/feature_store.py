@@ -160,30 +160,6 @@ class FeatureStore:
         )
         return job
 
-
-def _get_requested_feature_views(
-    feature_refs: List[str], all_feature_views: List[FeatureView]
-) -> List[FeatureView]:
-    """Get list of feature views based on feature references"""
-
-    feature_views_dict = {}
-    for ref in feature_refs:
-        ref_parts = ref.split(":")
-        found = False
-        for feature_view in all_feature_views:
-            if feature_view.name == ref_parts[0]:
-                found = True
-                feature_views_dict[feature_view.name] = feature_view
-                continue
-
-        if not found:
-            raise ValueError(f"Could not find feature view from reference {ref}")
-    feature_views_list = []
-    for view in feature_views_dict.values():
-        feature_views_list.append(view)
-
-    return feature_views_list
-
     @property
     def project(self) -> str:
         return "default"
@@ -232,6 +208,30 @@ def _get_requested_feature_views(
             provider.online_write_batch(
                 "default", feature_view, rows_to_write, created_timestamp_column
             )
+
+
+def _get_requested_feature_views(
+    feature_refs: List[str], all_feature_views: List[FeatureView]
+) -> List[FeatureView]:
+    """Get list of feature views based on feature references"""
+
+    feature_views_dict = {}
+    for ref in feature_refs:
+        ref_parts = ref.split(":")
+        found = False
+        for feature_view in all_feature_views:
+            if feature_view.name == ref_parts[0]:
+                found = True
+                feature_views_dict[feature_view.name] = feature_view
+                continue
+
+        if not found:
+            raise ValueError(f"Could not find feature view from reference {ref}")
+    feature_views_list = []
+    for view in feature_views_dict.values():
+        feature_views_list.append(view)
+
+    return feature_views_list
 
 
 def _run_reverse_field_mapping(
