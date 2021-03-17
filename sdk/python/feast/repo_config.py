@@ -8,12 +8,14 @@ from jsonschema import ValidationError, validate
 
 class LocalOnlineStoreConfig(NamedTuple):
     """ Online store config for local (SQLite-based) online store """
+
     path: str
     """ str: Path to sqlite db """
 
 
 class DatastoreOnlineStoreConfig(NamedTuple):
     """ Online store config for GCP Datastore """
+
     project_id: str
     """ str: GCP Project Id """
 
@@ -27,6 +29,7 @@ class OnlineStoreConfig(NamedTuple):
 
 class RepoConfig(NamedTuple):
     """ Repo config. Typically loaded from `feature_store.yaml` """
+
     metadata_store: str
     """ str: Path to metadata store. Can be a local path, or remote object storage path """
     project: str
