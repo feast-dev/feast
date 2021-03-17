@@ -29,7 +29,7 @@ REQUIRED = [
     "google-api-core>=1.23.0",
     "google-cloud-bigquery>=2.0.*",
     "google-cloud-bigquery-storage >= 2.0.0",
-    # "google-cloud-storage==1.20.*",
+    "google-cloud-storage>=1.20.*",
     "google-cloud-core==1.4.*",
     "googleapis-common-protos==1.52.*",
     "grpcio==1.31.0",
@@ -45,7 +45,6 @@ REQUIRED = [
     "pyarrow==2.0.0",
     "numpy<1.20.0",
     "google",
-    "kubernetes==12.0.*",
     "bindr",
     "mmh3",
 ]
