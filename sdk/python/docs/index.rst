@@ -41,3 +41,10 @@ Constants
 .. automodule:: feast.constants
     :members:
     :exclude-members: AuthProvider, ConfigMeta
+
+Config
+==================
+
+.. automodule:: feast.repo_config
+    :members:
+    :exclude-members: load_repo_config

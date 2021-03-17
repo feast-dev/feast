@@ -7,23 +7,34 @@ from jsonschema import ValidationError, validate
 
 
 class LocalOnlineStoreConfig(NamedTuple):
+    """ Online store config for local (SQLite-based) online store """
     path: str
+    """ str: Path to sqlite db """
 
 
 class DatastoreOnlineStoreConfig(NamedTuple):
+    """ Online store config for GCP Datastore """
     project_id: str
+    """ str: GCP Project Id """
 
 
 class OnlineStoreConfig(NamedTuple):
     datastore: Optional[DatastoreOnlineStoreConfig] = None
+    """ DatastoreOnlineStoreConfig: Optional DatastoreConfig """
     local: Optional[LocalOnlineStoreConfig] = None
+    """ LocalOnlineStoreConfig: Optional local online store config """
 
 
 class RepoConfig(NamedTuple):
+    """ Repo config. Typically loaded from `feature_store.yaml` """
     metadata_store: str
+    """ str: Path to metadata store. Can be a local path, or remote object storage path """
     project: str
+    """ str: Feast project id. This can be any alphanumeric string up to 16 characters. """
     provider: str
+    """ str: local or gcp """
     online_store: OnlineStoreConfig
+    """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
 
 
 # This is the JSON Schema for config validation. We use this to have nice detailed error messages
