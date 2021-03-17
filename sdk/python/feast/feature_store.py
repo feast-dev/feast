@@ -28,6 +28,8 @@ from feast.offline_store import (
     get_offline_store,
     get_offline_store_for_retrieval,
 )
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
 from feast.repo_config import (
     LocalOnlineStoreConfig,
@@ -35,8 +37,6 @@ from feast.repo_config import (
     RepoConfig,
     load_repo_config,
 )
-from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 
 
 class FeatureStore:
