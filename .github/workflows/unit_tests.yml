@@ -1,0 +1,24 @@
+name: unit-tests
+
+on: [push, pull_request]
+
+jobs:
+  unit-test-python:
+    runs-on: ubuntu-latest
+    container: gcr.io/kf-feast/feast-ci:latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install python
+        run: make install-python
+      - name: Test python
+        run: make test-python
+
+  unit-test-go:
+    runs-on: ubuntu-latest
+    container: gcr.io/kf-feast/feast-ci:latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: make compile-protos-go
+      - name: Test go
+        run: make test-go

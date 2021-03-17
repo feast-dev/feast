@@ -1,4 +1,4 @@
-name: master_only
+name: integration-tests
 
 on:
   push:
