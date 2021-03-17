@@ -5,16 +5,18 @@
 </p>
 <br />
 
-[![Unit Tests](https://github.com/feast-dev/feast/workflows/unit%20tests/badge.svg?branch=master)](https://github.com/feast-dev/feast/actions?query=workflow%3A%22unit+tests%22+branch%3Amaster)
-[![Code Standards](https://github.com/feast-dev/feast/workflows/code%20standards/badge.svg?branch=master)](https://github.com/feast-dev/feast/actions?query=workflow%3A%22code+standards%22+branch%3Amaster)
+[![unit-tests](https://github.com/feast-dev/feast/actions/workflows/unit_tests.yml/badge.svg?branch=master&event=push)](https://github.com/feast-dev/feast/actions/workflows/unit_tests.yml)
+[![integration-tests](https://github.com/feast-dev/feast/actions/workflows/integration_tests.yml/badge.svg?branch=master&event=push)](https://github.com/feast-dev/feast/actions/workflows/integration_tests.yml)
+[![linter](https://github.com/feast-dev/feast/actions/workflows/linter.yml/badge.svg?branch=master&event=push)](https://github.com/feast-dev/feast/actions/workflows/linter.yml)
 [![Docs Latest](https://img.shields.io/badge/docs-latest-blue.svg)](https://docs.feast.dev/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue)](https://github.com/feast-dev/feast/blob/master/LICENSE)
 [![GitHub Release](https://img.shields.io/github/v/release/feast-dev/feast.svg?style=flat&sort=semver&color=blue)](https://github.com/feast-dev/feast/releases)
 
 ## Overview
 
 Feast (Feature Store) is an operational data system for managing and serving machine learning features to models in production. Please see our [documentation](https://docs.feast.dev/) for more information about the project.
 
-![](docs/.gitbook/assets/feast-architecture-diagrams.svg)
+![](docs/architecture.svg)
 
 ## Getting Started with Docker Compose
 
