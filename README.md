@@ -16,7 +16,7 @@
 
 Feast (Feature Store) is an operational data system for managing and serving machine learning features to models in production. Please see our [documentation](https://docs.feast.dev/) for more information about the project.
 
-![](docs/architecture.svg)
+![](docs/architecture.png)
 
 ## Getting Started with Docker Compose
 
