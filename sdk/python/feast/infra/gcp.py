@@ -38,9 +38,7 @@ def compute_datastore_entity_id(entity_key: EntityKeyProto) -> str:
     return mmh3.hash_bytes(serialize_entity_key(entity_key)).hex()
 
 
-def _make_tzaware(t: Optional[datetime]):
-    if t is None:
-        return t
+def _make_tzaware(t: datetime):
     """ We assume tz-naive datetimes are UTC """
     if t.tzinfo is None:
         return t.replace(tzinfo=utc)
@@ -145,7 +143,11 @@ class Gcp(Provider):
                         key=entity_key.SerializeToString(),
                         values={k: v.SerializeToString() for k, v in features.items()},
                         event_ts=_make_tzaware(timestamp),
-                        created_ts=_make_tzaware(created_ts),
+                        created_ts=(
+                            _make_tzaware(created_ts)
+                            if created_ts is not None
+                            else None
+                        ),
                     )
                 )
                 client.put(entity)

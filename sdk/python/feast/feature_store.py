@@ -13,7 +13,7 @@
 # limitations under the License.
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Dict, List, Optional, Tuple, Type, Union
 
 import pandas as pd
 import pyarrow
@@ -37,6 +37,7 @@ from feast.repo_config import (
     RepoConfig,
     load_repo_config,
 )
+from feast.value_type import convert_to_proto
 
 
 class FeatureStore:
@@ -166,18 +167,33 @@ class FeatureStore:
         )
         return job
 
-    @property
-    def project(self) -> str:
-        return "default"
-
     def materialize(
-        self, feature_views: List[str], start_date: datetime, end_date: datetime
-    ):
+        self,
+        feature_views: Optional[List[str]],
+        start_date: datetime,
+        end_date: datetime,
+    ) -> None:
+        """
+        Materialize data from the offline store into the online store.
+
+        This method materializes feature data in the specified interval from either
+        the specified feature views or all feature views if none are specified
+        into the online store where it is available for online serving.
+
+        Args:
+            feature_views (List[str]): Optional list of feature view names. If selected, will only run
+                materialization for the specified feature views.
+            start_date (datetime): Start date of query
+            end_date (datetime): End date of query
+        """
         full_feature_views = []
         registry = self._get_registry()
-        for name in feature_views:
-            feature_view = registry.get_feature_view(name, self.project)
-            full_feature_views.append(feature_view)
+        if feature_views is None:
+            full_feature_views = registry.list_feature_views(self.config.project)
+        else:
+            for name in feature_views:
+                feature_view = registry.get_feature_view(name, self.config.project)
+                full_feature_views.append(feature_view)
 
         # TODO paging large loads
         for feature_view in full_feature_views:
@@ -185,7 +201,7 @@ class FeatureStore:
                 raise NotImplementedError(
                     "This function is not yet implemented for File data sources"
                 )
-            if feature_view.input.table_ref is None:
+            if not feature_view.input.table_ref:
                 raise NotImplementedError(
                     f"This function is only implemented for FeatureViews with a table_ref; {feature_view.name} does not have one."
                 )
@@ -198,7 +214,7 @@ class FeatureStore:
 
             offline_store = self._get_offline_store()
             table = offline_store.pull_latest_from_table(
-                feature_view.input.table_ref,
+                feature_view.input,
                 entity_names,
                 feature_names,
                 event_timestamp_column,
@@ -215,7 +231,9 @@ class FeatureStore:
             rows_to_write = _convert_arrow_to_proto(table, feature_view)
 
             provider = self._get_provider()
-            provider.online_write_batch(self.project, feature_view, rows_to_write)
+            provider.online_write_batch(
+                self.config.project, feature_view, rows_to_write
+            )
 
 
 def _get_requested_feature_views(
@@ -246,12 +264,18 @@ def _run_reverse_field_mapping(
     feature_view: FeatureView,
 ) -> Tuple[List[str], List[str], str, Optional[str]]:
     """
-    If a field mapping exists, run it in reverse on the entity names, feature names, event timestamp column, and created timestamp column to get the names of the relevant columns in the BigQuery table.
+    If a field mapping exists, run it in reverse on the entity names,
+    feature names, event timestamp column, and created timestamp column
+    to get the names of the relevant columns in the BigQuery table.
 
     Args:
-        feature_view: FeatureView object containing the field mapping as well as the names to reverse-map.
+        feature_view: FeatureView object containing the field mapping
+            as well as the names to reverse-map.
     Returns:
-        Tuple containing the list of reverse-mapped entity names, reverse-mapped feature names, reverse-mapped event timestamp column, and reverse-mapped created timestamp column that will be passed into the query to the offline store.
+        Tuple containing the list of reverse-mapped entity names,
+        reverse-mapped feature names, reverse-mapped event timestamp column,
+        and reverse-mapped created timestamp column that will be passed into
+        the query to the offline store.
     """
     # if we have mapped fields, use the original field names in the call to the offline store
     event_timestamp_column = feature_view.input.event_timestamp_column
@@ -269,7 +293,7 @@ def _run_reverse_field_mapping(
         )
         created_timestamp_column = (
             reverse_field_mapping[created_timestamp_column]
-            if created_timestamp_column is not None
+            if created_timestamp_column
             and created_timestamp_column in reverse_field_mapping.keys()
             else created_timestamp_column
         )
@@ -310,12 +334,12 @@ def _convert_arrow_to_proto(
         for entity_name in feature_view.entities:
             entity_key.entity_names.append(entity_name)
             idx = table.column_names.index(entity_name)
-            value = _convert_to_proto(row[idx])
+            value = convert_to_proto(row[idx])
             entity_key.entity_values.append(value)
         feature_dict = {}
         for feature in feature_view.features:
             idx = table.column_names.index(feature.name)
-            value = _convert_to_proto(row[idx])
+            value = convert_to_proto(row[idx])
             feature_dict[feature.name] = value
         event_timestamp_idx = table.column_names.index(
             feature_view.input.event_timestamp_column
@@ -333,20 +357,3 @@ def _convert_arrow_to_proto(
             (entity_key, feature_dict, event_timestamp, created_timestamp)
         )
     return rows_to_write
-
-
-def _convert_to_proto(value: Any) -> ValueProto:
-    value_proto = ValueProto()
-    if isinstance(value, str):
-        value_proto.string_val = value
-    elif isinstance(value, bool):
-        value_proto.bool_val = value
-    elif isinstance(value, int):
-        value_proto.int32_val = value
-    elif isinstance(value, float):
-        value_proto.double_val = value
-    elif isinstance(value, bytes):
-        value_proto.bytes_val = value
-    else:
-        raise ValueError(f"Cannot convert value {value} of type {type(value)}.")
-    return value_proto

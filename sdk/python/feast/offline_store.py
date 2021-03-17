@@ -22,7 +22,7 @@ import pyarrow
 from google.cloud import bigquery
 from jinja2 import BaseLoader, Environment
 
-from feast.data_source import BigQuerySource, FileSource
+from feast.data_source import BigQuerySource, DataSource, FileSource
 from feast.feature_view import FeatureView
 from feast.repo_config import RepoConfig
 
@@ -87,7 +87,7 @@ class OfflineStore(ABC):
     @staticmethod
     @abstractmethod
     def pull_latest_from_table(
-        table_ref: str,
+        data_source: DataSource,
         entity_names: List[str],
         feature_names: List[str],
         event_timestamp_column: str,
@@ -111,7 +111,7 @@ class OfflineStore(ABC):
 class BigQueryOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table(
-        table_ref: str,
+        data_source: DataSource,
         entity_names: List[str],
         feature_names: List[str],
         event_timestamp_column: str,
@@ -119,6 +119,8 @@ class BigQueryOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> pyarrow.Table:
+        assert isinstance(data_source, BigQuerySource)
+        table_ref = data_source.table_ref
         if table_ref is None:
             raise ValueError(
                 "This function can only be called on a FeatureView with a table_ref"
@@ -281,7 +283,7 @@ def build_point_in_time_query(
 class FileOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table(
-        table_ref: str,
+        data_source: DataSource,
         entity_names: List[str],
         feature_names: List[str],
         event_timestamp_column: str,

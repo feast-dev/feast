@@ -16,13 +16,13 @@ from feast.value_type import ValueType
 
 
 @pytest.mark.integration
-def test_bigquery_ingestion():
+def test_bigquery_ingestion_correctness():
     # create dataset
     ts = pd.Timestamp.now(tz="UTC").round("ms")
     data = {
         "id": [1, 2, 1],
         "value": [0.1, 0.2, 0.3],
-        "ts": [ts - timedelta(minutes=2), ts, ts],
+        "ts_1": [ts - timedelta(minutes=2), ts, ts],
         "created_ts": [ts, ts, ts],
     }
     df = pd.DataFrame.from_dict(data)
@@ -34,22 +34,26 @@ def test_bigquery_ingestion():
     bigquery_dataset = "test_ingestion"
     dataset = bigquery.Dataset(f"{gcp_project}.{bigquery_dataset}")
     client.create_dataset(dataset, exists_ok=True)
+    dataset.default_table_expiration_ms = (
+        1000 * 60 * 60 * 24 * 14
+    )  # 2 weeks in milliseconds
+    client.update_dataset(dataset, ["default_table_expiration_ms"])
     table_id = f"{gcp_project}.{bigquery_dataset}.table_{int(time.time())}"
     job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
     job.result()
 
     # create FeatureView
     fv = FeatureView(
-        "test_fv",
-        ["id_mapped"],
-        [Feature("value", ValueType.FLOAT)],
-        timedelta(minutes=5),
-        BigQuerySource(
-            "timestamp_mapped",
-            table_id,
-            "created_ts",
-            {"ts": "timestamp_mapped", "id": "id_mapped"},
-            "",
+        name="test_fv",
+        entities=["driver_id"],
+        features=[Feature("value", ValueType.FLOAT)],
+        ttl=timedelta(minutes=5),
+        input=BigQuerySource(
+            event_timestamp_column="ts",
+            table_ref=table_id,
+            created_timestamp_column="created_ts",
+            field_mapping={"ts_1": "ts", "id": "driver_id"},
+            date_partition_column="",
         ),
     )
     config = RepoConfig(
@@ -70,7 +74,7 @@ def test_bigquery_ingestion():
 
     # check result of materialize()
     entity_key = EntityKeyProto(
-        entity_names=["id_mapped"], entity_values=[ValueProto(int32_val=1)]
+        entity_names=["driver_id"], entity_values=[ValueProto(int32_val=1)]
     )
     _, val = fs._get_provider().online_read("default", fv, entity_key)
     assert abs(val["value"].double_val - 0.3) < 1e-6
