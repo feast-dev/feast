@@ -37,7 +37,7 @@ from feast.repo_config import (
     RepoConfig,
     load_repo_config,
 )
-from feast.value_type import convert_to_proto
+from feast.type_map import python_value_to_proto_value
 
 
 class FeatureStore:
@@ -334,12 +334,12 @@ def _convert_arrow_to_proto(
         for entity_name in feature_view.entities:
             entity_key.entity_names.append(entity_name)
             idx = table.column_names.index(entity_name)
-            value = convert_to_proto(row[idx])
+            value = python_value_to_proto_value(row[idx])
             entity_key.entity_values.append(value)
         feature_dict = {}
         for feature in feature_view.features:
             idx = table.column_names.index(feature.name)
-            value = convert_to_proto(row[idx])
+            value = python_value_to_proto_value(row[idx])
             feature_dict[feature.name] = value
         event_timestamp_idx = table.column_names.index(
             feature_view.input.event_timestamp_column

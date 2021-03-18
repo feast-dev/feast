@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import enum
-from typing import Any
 
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from tensorflow_metadata.proto.v0 import schema_pb2
 
 
@@ -59,20 +57,3 @@ class ValueType(enum.Enum):
             return schema_pb2.FeatureType.FLOAT
         else:
             return schema_pb2.FeatureType.TYPE_UNKNOWN
-
-
-def convert_to_proto(value: Any) -> ValueProto:
-    value_proto = ValueProto()
-    if isinstance(value, str):
-        value_proto.string_val = value
-    elif isinstance(value, bool):
-        value_proto.bool_val = value
-    elif isinstance(value, int):
-        value_proto.int32_val = value
-    elif isinstance(value, float):
-        value_proto.double_val = value
-    elif isinstance(value, bytes):
-        value_proto.bytes_val = value
-    else:
-        raise ValueError(f"Cannot convert value {value} of type {type(value)}.")
-    return value_proto
