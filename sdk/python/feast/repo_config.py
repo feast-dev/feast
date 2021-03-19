@@ -31,9 +31,12 @@ class RepoConfig(NamedTuple):
     """ Repo config. Typically loaded from `feature_store.yaml` """
 
     metadata_store: str
-    """ str: Path to metadata store. Can be a local path, or remote object storage path """
+    """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. gcs://foo/bar """
     project: str
-    """ str: Feast project id. This can be any alphanumeric string up to 16 characters. """
+    """ str: Feast project id. This can be any alphanumeric string up to 16 characters.
+        You can have multiple independent feature repositories deployed to the same cloud
+        provider account, as long as they have different project ids.
+    """
     provider: str
     """ str: local or gcp """
     online_store: OnlineStoreConfig
