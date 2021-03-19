@@ -50,6 +50,31 @@ class TestRepoConfig:
                 """
             project: foo
             metadata_store: "metadata.db"
+            provider: gcp
+            """
+            ),
+            expect_error=None,
+        )
+
+        self._test_config(
+            dedent(
+                """
+            project: foo
+            metadata_store: "metadata.db"
+            provider: gcp
+            online_store:
+                datastore:
+            """
+            ),
+            expect_error=None,
+        )
+
+    def test_errors(self) -> None:
+        self._test_config(
+            dedent(
+                """
+            project: foo
+            metadata_store: "metadata.db"
             provider: local
             online_store:
                 local:

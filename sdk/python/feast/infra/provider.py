@@ -85,10 +85,11 @@ def get_provider(config: RepoConfig) -> Provider:
     if config.provider == "gcp":
         from feast.infra.gcp import Gcp
 
-        return Gcp(config.online_store.datastore)
+        return Gcp(config.online_store.datastore if config.online_store else None)
     elif config.provider == "local":
         from feast.infra.local_sqlite import LocalSqlite
 
+        assert config.online_store is not None
         assert config.online_store.local is not None
         return LocalSqlite(config.online_store.local)
     else:

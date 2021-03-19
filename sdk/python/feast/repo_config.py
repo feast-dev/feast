@@ -39,7 +39,7 @@ class RepoConfig(NamedTuple):
     """
     provider: str
     """ str: local or gcp """
-    online_store: OnlineStoreConfig
+    online_store: Optional[OnlineStoreConfig] = None
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
 
 

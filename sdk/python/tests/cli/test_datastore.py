@@ -46,8 +46,6 @@ class TestCliGcp:
             project: {self._project_id}
             metadata_store: {data_path / "metadata.db"}
             provider: gcp
-            online_store:
-                datastore:
             """
                 )
             )
