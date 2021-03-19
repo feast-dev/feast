@@ -15,8 +15,6 @@ helm repo add spark-operator \
     https://googlecloudplatform.github.io/spark-on-k8s-operator
 
 helm install my-release spark-operator/spark-operator \
-    --namespace sparkop \
-    --create-namespace \
     --set serviceAccounts.spark.name=spark
 ```
 
@@ -25,9 +23,10 @@ Currently Feast is tested using `v1beta2-1.1.2-2.4.5`version of the operator ima
 | Feast Setting | Value |
 | :--- | :--- |
 | `SPARK_LAUNCHER` | `"k8s"` |
-| `SPARK_K8S_NAMESPACE` | The name of the Kubernetes namespace to run Spark jobs in. This should match the value of `sparkJobNamespace` set on spark-on-k8s-operator Helm chart. Typically this is also the namespace Feast itself will run in. The example above uses `sparkop`. |
-| `SPARK_STAGING_LOCATION` | S3 URL to use as a staging location, must be readable and writable by Feast. Use `s3a://` prefix here. Ex.: `s3a://some-bucket/some-prefix` |
-| `SPARK_K8S_JOB_TEMPLATE_PATH` | Local file path with the template of the SparkApplication resource. No prefix required. Ex.: `/home/jovyan/work/sparkapp-template.yaml`. An example teamplate is [here](https://github.com/feast-dev/feast/blob/4059a21dc4eba9cd27b2d5b0fabe476c07a8b3bd/sdk/python/feast/pyspark/launchers/k8s/k8s_utils.py#L280-L317) and the spec is defined in the [k8s-operator User Guide](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md). |
+| `SPARK_STAGING_LOCATION` | S3/GCS/Azure Blob Storage URL to use as a staging location, must be readable and writable by Feast. For S3, use `s3a://` prefix here. Ex.: `s3a://some-bucket/some-prefix/artifacts/` |
+| `HISTORICAL_FEATURE_OUTPUT_LOCATION` | S3/GCS/Azure Blob Storage URL used to store results of historical retrieval queries, must be readable and writable by Feast. For S3, use `s3a://` prefix here. Ex.: `s3a://some-bucket/some-prefix/out/` |
+| `SPARK_K8S_NAMESPACE` | Only needs to be set if you are customizing the spark-on-k8s-operator. The name of the Kubernetes namespace to run Spark jobs in. This should match the value of `sparkJobNamespace` set on spark-on-k8s-operator Helm chart. Typically this is also the namespace Feast itself will run in. |
+| `SPARK_K8S_JOB_TEMPLATE_PATH` | Only needs to be set if you are customizing the Spark job template. Local file path with the template of the SparkApplication resource. No prefix required. Ex.: `/home/jovyan/work/sparkapp-template.yaml`. An example template is [here](https://github.com/feast-dev/feast/blob/4059a21dc4eba9cd27b2d5b0fabe476c07a8b3bd/sdk/python/feast/pyspark/launchers/k8s/k8s_utils.py#L280-L317) and the spec is defined in the [k8s-operator User Guide](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md). |
 
 Lastly, make sure that the service account used by Feast has permissions to manage Spark Application resources. This depends on your k8s setup, but typically you'd need to configure a Role and a RoleBinding like the one below:
 
@@ -37,7 +36,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: use-spark-operator
-  namespace: <REPLACE ME>  # probably "sparkop"
+  namespace: default  # replace if using different namespace
 rules:
 - apiGroups: ["sparkoperator.k8s.io"]
   resources: ["sparkapplications"]
@@ -47,7 +46,7 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: RoleBinding
 metadata:
   name: use-spark-operator
-  namespace: <REPLACE ME> # probably "sparkop"
+  namespace: default  # replace if using different namespace
 roleRef:
   kind: Role
   name: use-spark-operator
