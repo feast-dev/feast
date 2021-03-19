@@ -176,8 +176,8 @@ class FeatureStore:
         """
         Materialize data from the offline store into the online store.
 
-        This method materializes feature data in the specified interval from either
-        the specified feature views or all feature views if none are specified
+        This method loads feature data in the specified interval from either
+        the specified feature views, or all feature views if none are specified,
         into the online store where it is available for online serving.
 
         Args:
@@ -186,17 +186,19 @@ class FeatureStore:
             start_date (datetime): Start date of query
             end_date (datetime): End date of query
         """
-        full_feature_views = []
+        feature_views_to_materialize = []
         registry = self._get_registry()
         if feature_views is None:
-            full_feature_views = registry.list_feature_views(self.config.project)
+            feature_views_to_materialize = registry.list_feature_views(
+                self.config.project
+            )
         else:
             for name in feature_views:
                 feature_view = registry.get_feature_view(name, self.config.project)
-                full_feature_views.append(feature_view)
+                feature_views_to_materialize.append(feature_view)
 
         # TODO paging large loads
-        for feature_view in full_feature_views:
+        for feature_view in feature_views_to_materialize:
             if isinstance(feature_view.input, FileSource):
                 raise NotImplementedError(
                     "This function is not yet implemented for File data sources"
