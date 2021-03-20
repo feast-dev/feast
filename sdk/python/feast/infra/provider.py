@@ -68,15 +68,16 @@ class Provider(abc.ABC):
         self,
         project: str,
         table: Union[FeatureTable, FeatureView],
-        entity_key: EntityKeyProto,
-    ) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
+        entity_keys: List[EntityKeyProto],
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
         Read feature values given an Entity Key. This is a low level interface, not
         expected to be used by the users directly.
 
         Returns:
-            A tuple of event_ts for the row, and the feature data as a dict from feature names
-            to values. Values are returned as Value proto message.
+            Data is returned as a list, one item per entity key. Each item in the list is a tuple
+            of event_ts for the row, and the feature data as a dict from feature names to values.
+            Values are returned as Value proto message.
         """
         ...
 

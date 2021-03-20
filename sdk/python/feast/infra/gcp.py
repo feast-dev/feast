@@ -156,19 +156,24 @@ class Gcp(Provider):
         self,
         project: str,
         table: Union[FeatureTable, FeatureView],
-        entity_key: EntityKeyProto,
-    ) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
+        entity_keys: List[EntityKeyProto],
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         client = self._initialize_client()
 
-        document_id = compute_datastore_entity_id(entity_key)
-        key = client.key("Project", project, "Table", table.name, "Row", document_id)
-        value = client.get(key)
-        if value is not None:
-            res = {}
-            for feature_name, value_bin in value["values"].items():
-                val = ValueProto()
-                val.ParseFromString(value_bin)
-                res[feature_name] = val
-            return value["event_ts"], res
-        else:
-            return None, None
+        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
+        for entity_key in entity_keys:
+            document_id = compute_datastore_entity_id(entity_key)
+            key = client.key(
+                "Project", project, "Table", table.name, "Row", document_id
+            )
+            value = client.get(key)
+            if value is not None:
+                res = {}
+                for feature_name, value_bin in value["values"].items():
+                    val = ValueProto()
+                    val.ParseFromString(value_bin)
+                    res[feature_name] = val
+                result.append((value["event_ts"], res))
+            else:
+                result.append((None, None))
+        return result

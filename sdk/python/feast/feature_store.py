@@ -11,9 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import pyarrow
@@ -26,6 +27,11 @@ from feast.offline_store import (
     RetrievalJob,
     get_offline_store,
     get_offline_store_for_retrieval,
+)
+from feast.online_response import OnlineResponse, _infer_online_entity_rows
+from feast.protos.feast.serving.ServingService_pb2 import (
+    GetOnlineFeaturesRequestV2,
+    GetOnlineFeaturesResponse,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -245,29 +251,127 @@ class FeatureStore:
                 self.config.project, feature_view, rows_to_write
             )
 
+    def get_online_features(
+        self, feature_refs: List[str], entity_rows: List[Dict[str, Any]],
+    ) -> OnlineResponse:
+        """
+        Retrieves the latest online feature data.
+        Args:
+            feature_refs: List of feature references that will be returned for each entity.
+                Each feature reference should have the following format:
+                "feature_table:feature" where "feature_table" & "feature" refer to
+                the feature and feature table names respectively.
+                Only the feature name is required.
+            entity_rows: A list of dictionaries where each key-value is an entity-name, entity-value pair.
+        Returns:
+            OnlineResponse containing the feature data in records.
+        Examples:
+            >>> from feast import FeatureStore
+            >>>
+            >>> store = FeatureStore(repo_path="...")
+            >>> feature_refs = ["sales:daily_transactions"]
+            >>> entity_rows = [{"customer_id": 0},{"customer_id": 1}]
+            >>>
+            >>> online_response = store.get_online_features(
+            >>>     feature_refs, entity_rows, project="my_project")
+            >>> online_response_dict = online_response.to_dict()
+            >>> print(online_response_dict)
+            {'sales:daily_transactions': [1.1,1.2], 'sales:customer_id': [0,1]}
+        """
 
-def _get_requested_feature_views(
+        response = self._get_online_features(
+            feature_refs=feature_refs,
+            entity_rows=_infer_online_entity_rows(entity_rows),
+            project=self.config.project,
+        )
+
+        return OnlineResponse(response)
+
+    def _get_online_features(
+        self,
+        entity_rows: List[GetOnlineFeaturesRequestV2.EntityRow],
+        feature_refs: List[str],
+        project: str,
+    ) -> GetOnlineFeaturesResponse:
+
+        provider = self._get_provider()
+
+        entity_keys = []
+        result_rows: List[GetOnlineFeaturesResponse.FieldValues] = []
+
+        for row in entity_rows:
+            entity_keys.append(_entity_row_to_key(row))
+            result_rows.append(_entity_row_to_field_values(row))
+
+        registry = self._get_registry()
+        all_feature_views = registry.list_feature_views(project=self.config.project)
+
+        grouped_refs = _group_refs(feature_refs, all_feature_views)
+        for table, requested_features in grouped_refs:
+            read_rows = provider.online_read(
+                project=project, table=table, entity_keys=entity_keys,
+            )
+            for row_idx, read_row in enumerate(read_rows):
+                row_ts, feature_data = read_row
+                result_row = result_rows[row_idx]
+
+                if feature_data is None:
+                    for feature_name in requested_features:
+                        feature_ref = f"{table.name}:{feature_name}"
+                        result_row.statuses[
+                            feature_ref
+                        ] = GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND
+                else:
+                    for feature_name in feature_data:
+                        feature_ref = f"{table.name}:{feature_name}"
+                        if feature_name in requested_features:
+                            result_row.fields[feature_ref].CopyFrom(
+                                feature_data[feature_name]
+                            )
+                            result_row.statuses[
+                                feature_ref
+                            ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
+
+        return GetOnlineFeaturesResponse(field_values=result_rows)
+
+
+def _entity_row_to_key(row: GetOnlineFeaturesRequestV2.EntityRow) -> EntityKeyProto:
+    names, values = zip(*row.fields.items())
+    return EntityKeyProto(entity_names=names, entity_values=values)  # type: ignore
+
+
+def _entity_row_to_field_values(
+    row: GetOnlineFeaturesRequestV2.EntityRow,
+) -> GetOnlineFeaturesResponse.FieldValues:
+    result = GetOnlineFeaturesResponse.FieldValues()
+    for k in row.fields:
+        result.fields[k].CopyFrom(row.fields[k])
+        result.statuses[k] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
+
+    return result
+
+
+def _group_refs(
     feature_refs: List[str], all_feature_views: List[FeatureView]
-) -> List[FeatureView]:
-    """Get list of feature views based on feature references"""
+) -> List[Tuple[FeatureView, List[str]]]:
+    """ Get list of feature views and corresponding feature names based on feature references"""
 
-    feature_views_dict = {}
+    # view name to view proto
+    view_index = {view.name: view for view in all_feature_views}
+
+    # view name to feature names
+    views_features = defaultdict(list)
+
     for ref in feature_refs:
-        ref_parts = ref.split(":")
-        found = False
-        for feature_view in all_feature_views:
-            if feature_view.name == ref_parts[0]:
-                found = True
-                feature_views_dict[feature_view.name] = feature_view
-                continue
-
-        if not found:
+        view_name, feat_name = ref.split(":")
+        if view_name not in view_index:
             raise ValueError(f"Could not find feature view from reference {ref}")
-    feature_views_list = []
-    for view in feature_views_dict.values():
-        feature_views_list.append(view)
+        views_features[view_name].append(feat_name)
 
-    return feature_views_list
+    result = []
+    for view_name, feature_names in views_features.items():
+        result.append((view_index[view_name], feature_names))
+    return result
 
 
 def _run_reverse_field_mapping(
@@ -367,3 +471,10 @@ def _convert_arrow_to_proto(
             (entity_key, feature_dict, event_timestamp, created_timestamp)
         )
     return rows_to_write
+
+
+def _get_requested_feature_views(
+    feature_refs: List[str], all_feature_views: List[FeatureView]
+) -> List[FeatureView]:
+    """Get list of feature views based on feature references"""
+    return list(view for view, _ in _group_refs(feature_refs, all_feature_views))

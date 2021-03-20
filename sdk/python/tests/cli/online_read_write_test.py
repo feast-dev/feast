@@ -41,9 +41,11 @@ def basic_rw_test(repo_path: Path, project_name: str) -> None:
             ],
         )
 
-        _, val = provider.online_read(
-            project=project_name, table=table, entity_key=entity_key
+        read_rows = provider.online_read(
+            project=project_name, table=table, entity_keys=[entity_key]
         )
+        assert len(read_rows) == 1
+        _, val = read_rows[0]
         assert val["lon"].string_val == expect_lon
         assert abs(val["lat"].double_val - expect_lat) < 1e-6
 

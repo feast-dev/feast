@@ -1,23 +1,9 @@
-import subprocess
-import sys
 import tempfile
 from pathlib import Path
 from textwrap import dedent
-from typing import List
 
-from feast import cli
 from tests.cli.online_read_write_test import basic_rw_test
-
-
-class CliRunner:
-    """
-    NB. We can't use test runner helper from click here, since it doesn't start a new Python
-    interpreter. And we need a new interpreter for each test since we dynamically import
-    modules from the feature repo, and it is hard to clean up that state otherwise.
-    """
-
-    def run(self, args: List[str], cwd: Path) -> subprocess.CompletedProcess:
-        return subprocess.run([sys.executable, cli.__file__] + args, cwd=cwd)
+from tests.cli.utils import CliRunner
 
 
 class TestCliLocal:
@@ -25,6 +11,7 @@ class TestCliLocal:
         runner = CliRunner()
         with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
 
+            # Construct an example repo in a temporary dir
             repo_path = Path(repo_dir_name)
             data_path = Path(data_dir_name)
 

@@ -28,3 +28,17 @@ driver_locations = FeatureView(
     input=driver_locations_source,
     tags={},
 )
+
+driver_locations_2 = FeatureView(
+    name="driver_locations_2",
+    entities=["driver"],
+    ttl=Duration(seconds=86400 * 1),
+    features=[
+        Feature(name="lat", dtype=ValueType.FLOAT),
+        Feature(name="lon", dtype=ValueType.STRING),
+        Feature(name="name", dtype=ValueType.STRING),
+    ],
+    online=True,
+    input=driver_locations_source,
+    tags={},
+)
