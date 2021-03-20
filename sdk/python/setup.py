@@ -47,6 +47,7 @@ REQUIRED = [
     "google",
     "bindr",
     "mmh3",
+    "jsonschema",
 ]
 
 # README file from Feast repo root directory
