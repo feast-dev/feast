@@ -33,7 +33,7 @@ REQUIRED = [
     "google-cloud-core==1.4.*",
     "googleapis-common-protos==1.52.*",
     "grpcio==1.31.0",
-    "Jinja2==2.11.2",
+    "Jinja2==2.11.3",
     "pandas~=1.0.0",
     "pandavro==1.5.*",
     "protobuf>=3.10",
