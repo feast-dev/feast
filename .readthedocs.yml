@@ -1,0 +1,14 @@
+version: 2
+
+sphinx:
+   configuration: sdk/python/docs/source/conf.py
+
+formats:
+   - pdf
+
+python:
+  version: 3.7
+  install:
+      - requirements: sdk/python/requirements-ci.txt
+      - path: sdk/python/
+        method: setuptools
