@@ -115,5 +115,4 @@ dmypy.json
 .pyre/
 
 .vscode/*
-test.py
 playground

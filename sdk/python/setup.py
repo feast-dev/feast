@@ -11,12 +11,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import logging
 import os
 import re
 import subprocess
 
-from setuptools import find_packages, setup
+from setuptools import find_packages
+
+try:
+    from setuptools import setup
+    from setuptools.command.install import install
+    from setuptools.command.develop import develop
+    from setuptools.command.egg_info import egg_info
+    from setuptools.command.sdist import sdist
+
+except ImportError:
+    from distutils.core import setup
+    from distutils.command.install import install
 
 NAME = "feast"
 DESCRIPTION = "Python SDK for Feast"
@@ -68,6 +79,33 @@ TAG_REGEX = re.compile(
     r"^(?:[\/\w-]+)?(?P<version>[vV]?\d+(?:\.\d+){0,2}[^\+]*)(?:\+.*)?$"
 )
 
+proto_dirs = [x for x in os.listdir(repo_root + "/protos/feast")]
+proto_dirs.remove("third_party")
+
+
+def pre_install_build():
+    subprocess.check_call("make compile-protos-python", shell=True, cwd=f"{repo_root}")
+    subprocess.check_call("make build-sphinx", shell=True, cwd=f"{repo_root}")
+
+
+class CustomInstallCommand(install):
+    def do_egg_install(self):
+        pre_install_build()
+        install.do_egg_install(self)
+
+
+class CustomDevelopCommand(develop):
+    def run(self):
+        pre_install_build()
+        develop.run(self)
+
+
+class CustomEggInfoCommand(egg_info):
+    def run(self):
+        pre_install_build()
+        egg_info.run(self)
+
+
 setup(
     name=NAME,
     author=AUTHOR,
@@ -76,13 +114,14 @@ setup(
     long_description_content_type="text/markdown",
     python_requires=REQUIRES_PYTHON,
     url=URL,
-    packages=find_packages(exclude=("tests",)),
+    packages=find_packages(exclude=("tests",)) + ['.'],
     install_requires=REQUIRED,
     # https://stackoverflow.com/questions/28509965/setuptools-development-requirements
     # Install dev requirements with: pip install -e .[dev]
     extras_require={
         "dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"],
         "validation": ["great_expectations==0.13.2", "pyspark==3.0.1"],
+        "docs": ["grpcio-tools"],
     },
     include_package_data=True,
     license="Apache",
@@ -96,12 +135,19 @@ setup(
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version={"root": "../..", "relative_to": __file__, "tag_regex": TAG_REGEX},
-    setup_requires=["setuptools_scm"],
+    setup_requires=["setuptools_scm", "grpcio-tools", "mypy-protobuf", "sphinx"],
     package_data={
         "": [
             "protos/feast/**/*.proto",
             "protos/feast/third_party/grpc/health/v1/*.proto",
             "protos/tensorflow_metadata/proto/v0/*.proto",
+            "feast/protos/feast/**/*.py",
+            "tensorflow_metadata/proto/v0/*.py"
         ],
+    },
+    cmdclass={
+        "install": CustomInstallCommand,
+        "develop": CustomDevelopCommand,
+        "egg_info": CustomEggInfoCommand,
     },
 )

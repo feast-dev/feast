@@ -1,8 +1,10 @@
+default_stages:
+  - push
 repos:
   - repo: local
     hooks:
       - id: lint
         name: Lint
-        stages: [commit]
+        stages: [ push ]
         language: system
         entry: make lint

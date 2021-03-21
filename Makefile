@@ -44,12 +44,14 @@ install-python-ci-dependencies:
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
 
-compile-protos-python: install-python-ci-dependencies
+compile-protos-python:
+	printenv
+	pip install --ignore-installed mypy-protobuf || echo "Mypy could not be installed"
 	@$(foreach dir,$(PROTO_TYPE_SUBDIRS),cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --grpc_python_out=../sdk/python/feast/protos/ --python_out=../sdk/python/feast/protos/ --mypy_out=../sdk/python/feast/protos/ feast/$(dir)/*.proto;)
 	@$(foreach dir,$(PROTO_TYPE_SUBDIRS),grep -rli 'from feast.$(dir)' sdk/python/feast/protos | xargs -i@ sed -i 's/from feast.$(dir)/from feast.protos.feast.$(dir)/g' @;)
 	cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --python_out=../sdk/python/ --mypy_out=../sdk/python/ tensorflow_metadata/proto/v0/*.proto
 
-install-python: compile-protos-python
+install-python:
 	python -m pip install -e sdk/python -U --use-deprecated=legacy-resolver
 
 test-python:
@@ -74,7 +76,7 @@ install-go-ci-dependencies:
 	go get -u github.com/golang/protobuf/protoc-gen-go
 	go get -u golang.org/x/lint/golint
 
-compile-protos-go: install-go-ci-dependencies
+compile-protos-go:
 	cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go_out=plugins=grpc,paths=source_relative:../sdk/go/protos/ tensorflow_metadata/proto/v0/*.proto
 	$(foreach dir,types serving core storage,cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go_out=plugins=grpc,paths=source_relative:../sdk/go/protos feast/$(dir)/*.proto;)
 
@@ -124,22 +126,9 @@ install-dependencies-proto-docs:
 	mv protoc3/include/* $$HOME/include
 
 compile-protos-docs:
-	cd ${ROOT_DIR}/protos; 
-	mkdir -p ../dist/grpc
-	protoc --docs_out=../dist/grpc feast/*/*.proto || \
-	cd ${ROOT_DIR}; $(MAKE) install-dependencies-proto-docs && 	cd ${ROOT_DIR}/protos; PATH=$$HOME/bin:$$PATH protoc -I $$HOME/include/ -I . --docs_out=../dist/grpc feast/*/*.proto
+	rm -rf 	$(ROOT_DIR)/dist/grpc
+	mkdir -p dist/grpc;
+	cd ${ROOT_DIR}/protos && protoc --docs_out=../dist/grpc feast/*/*.proto
 
-clean-html:
-	rm -rf 	$(ROOT_DIR)/dist
-
-build-html: clean-html
-	mkdir -p $(ROOT_DIR)/dist/python
-	mkdir -p $(ROOT_DIR)/dist/grpc
-
-	# Build Protobuf documentation
-	$(MAKE) compile-protos-docs
-
-	# Build Python SDK documentation
-	$(MAKE) compile-protos-python
-	cd 	$(ROOT_DIR)/sdk/python/docs && $(MAKE) html
-	cp -r $(ROOT_DIR)/sdk/python/docs/html/* $(ROOT_DIR)/dist/python
+build-sphinx: compile-protos-python
+	cd 	$(ROOT_DIR)/sdk/python/docs && $(MAKE) build-api-source
