@@ -103,7 +103,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     all_to_keep.extend(repo.feature_views)
 
     infra_provider.update_infra(
-        project, tables_to_delete=all_to_delete, tables_to_keep=all_to_keep
+        project,
+        tables_to_delete=all_to_delete,
+        tables_to_keep=all_to_keep,
+        partial=False,
     )
 
     print("Done!")

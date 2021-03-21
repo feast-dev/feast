@@ -71,6 +71,10 @@ class FeatureStore:
                 ),
             )
 
+    @property
+    def project(self) -> str:
+        return self.config.project
+
     def _get_provider(self) -> Provider:
         return get_provider(self.config)
 
@@ -108,17 +112,25 @@ class FeatureStore:
 
         # TODO: Add locking
         # TODO: Optimize by only making a single call (read/write)
-        # TODO: Add infra update operation (currently we are just writing to registry)
         registry = self._get_registry()
+
+        views_to_update = []
         for ob in objects:
             if isinstance(ob, FeatureView):
                 registry.apply_feature_view(ob, project=self.config.project)
+                views_to_update.append(ob)
             elif isinstance(ob, Entity):
                 registry.apply_entity(ob, project=self.config.project)
             else:
                 raise ValueError(
                     f"Unknown object type ({type(ob)}) provided as part of apply() call"
                 )
+        self._get_provider().update_infra(
+            project=self.config.project,
+            tables_to_delete=[],
+            tables_to_keep=views_to_update,
+            partial=True,
+        )
 
     def get_historical_features(
         self, entity_df: Union[pd.DataFrame, str], feature_refs: List[str],

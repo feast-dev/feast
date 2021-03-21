@@ -1,6 +1,6 @@
 import abc
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from feast import FeatureTable, FeatureView
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -13,8 +13,9 @@ class Provider(abc.ABC):
     def update_infra(
         self,
         project: str,
-        tables_to_delete: List[Union[FeatureTable, FeatureView]],
-        tables_to_keep: List[Union[FeatureTable, FeatureView]],
+        tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
+        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        partial: bool,
     ):
         """
         Reconcile cloud resources with the objects declared in the feature repo.
@@ -24,12 +25,14 @@ class Provider(abc.ABC):
                 clean up the corresponding cloud resources.
             tables_to_keep: Tables that are still in the feature repo. Depending on implementation,
                 provider may or may not need to update the corresponding resources.
+            partial: if true, then tables_to_delete and tables_to_keep are *not* exhaustive lists.
+                There may be other tables that are not touched by this update.
         """
         ...
 
     @abc.abstractmethod
     def teardown_infra(
-        self, project: str, tables: List[Union[FeatureTable, FeatureView]]
+        self, project: str, tables: Sequence[Union[FeatureTable, FeatureView]]
     ):
         """
         Tear down all cloud resources for a repo.

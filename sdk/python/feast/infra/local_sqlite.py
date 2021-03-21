@@ -1,7 +1,7 @@
 import os
 import sqlite3
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from feast import FeatureTable, FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
@@ -29,8 +29,9 @@ class LocalSqlite(Provider):
     def update_infra(
         self,
         project: str,
-        tables_to_delete: List[Union[FeatureTable, FeatureView]],
-        tables_to_keep: List[Union[FeatureTable, FeatureView]],
+        tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
+        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        partial: bool,
     ):
         conn = self._get_conn()
         for table in tables_to_keep:
@@ -45,7 +46,7 @@ class LocalSqlite(Provider):
             conn.execute(f"DROP TABLE IF EXISTS {_table_id(project, table)}")
 
     def teardown_infra(
-        self, project: str, tables: List[Union[FeatureTable, FeatureView]]
+        self, project: str, tables: Sequence[Union[FeatureTable, FeatureView]]
     ) -> None:
         os.unlink(self._db_path)
 
