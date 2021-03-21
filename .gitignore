@@ -178,14 +178,14 @@ dmypy.json
 # This pom should not be committed because it is only used during release / deployment.
 .flattened-pom.xml
 
-sdk/python/docs/html
-
-# Generated python code
-*_pb2.py
-*_pb2.pyi
-*_pb2_grpc.py
 
 # VSCode
 .bloop
 .metals
 *.code-workspace
+
+# Protos
+sdk/python/docs/html
+sdk/python/feast/protos/
+sdk/python/tensorflow_metadata
+sdk/go/protos/

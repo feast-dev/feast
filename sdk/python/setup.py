@@ -11,12 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import logging
 import os
 import re
 import subprocess
 
-from setuptools import find_packages, setup
+from setuptools import find_packages
+
+try:
+    from setuptools import setup
+    from setuptools.command.install import install
+    from setuptools.command.develop import develop
+    from setuptools.command.egg_info import egg_info
+except ImportError:
+    from distutils.core import setup
+    from distutils.command.install import install
 
 NAME = "feast"
 DESCRIPTION = "Python SDK for Feast"
@@ -52,9 +61,9 @@ REQUIRED = [
 # README file from Feast repo root directory
 repo_root = (
     subprocess.Popen(["git", "rev-parse", "--show-toplevel"], stdout=subprocess.PIPE)
-        .communicate()[0]
-        .rstrip()
-        .decode("utf-8")
+    .communicate()[0]
+    .rstrip()
+    .decode("utf-8")
 )
 README_FILE = os.path.join(repo_root, "README.md")
 with open(os.path.join(README_FILE), "r") as f:
@@ -66,6 +75,53 @@ with open(os.path.join(README_FILE), "r") as f:
 TAG_REGEX = re.compile(
     r"^(?:[\/\w-]+)?(?P<version>[vV]?\d+(?:\.\d+){0,2}[^\+]*)(?:\+.*)?$"
 )
+
+
+proto_dirs = [x for x in os.listdir(repo_root + "/protos/feast")]
+proto_dirs.remove("third_party")
+
+
+def pre_install_build():
+    """
+    Build Python protos when installing Feast using setup.py
+    """
+    for directory in proto_dirs:
+        from grpc_tools import protoc
+        subprocess.check_call("make compile-protos-python", shell=True, cwd=f"{repo_root}")
+        # args = f"--proto_path=. --python_out={repo_root}/sdk/python/feast/protos/ --grpc_python_out={repo_root}/sdk/python/feast/protos/ feast/{directory}/*.proto"
+        # subprocess.check_call(
+        #     "python -m grpc_tools.protoc " + args, shell=True, cwd=f"{repo_root}/protos"
+        # )
+        #
+        # subprocess.check_call(
+        #     f"python -m grpc_tools.protoc -I. --python_out={repo_root}/sdk/python/ tensorflow_metadata/proto/v0/*.proto",
+        #     shell=True,
+        #     cwd=f"{repo_root}/protos",
+        # )
+        # subprocess.check_call(
+        #     f"grep -rli 'from feast.{directory}' sdk/python/feast/protos | xargs -i@ sed -i 's/from feast.{directory}/from feast.protos.feast.{directory}/g' @",
+        #     shell=True,
+        #     cwd=f"{repo_root}",
+        # )
+
+# Classes used to inject pre_install_build()
+class CustomInstallCommand(install):
+    def do_egg_install(self):
+        pre_install_build()
+        install.do_egg_install(self)
+
+
+class CustomDevelopCommand(develop):
+    def run(self):
+        pre_install_build()
+        develop.run(self)
+
+
+class CustomEggInfoCommand(egg_info):
+    def run(self):
+        pre_install_build()
+        egg_info.run(self)
+
 
 setup(
     name=NAME,
@@ -82,6 +138,7 @@ setup(
     extras_require={
         "dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"],
         "validation": ["great_expectations==0.13.2", "pyspark==3.0.1"],
+        "docs": ["grpcio-tools"],
     },
     include_package_data=True,
     license="Apache",
@@ -95,12 +152,17 @@ setup(
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version={"root": "../..", "relative_to": __file__, "tag_regex": TAG_REGEX},
-    setup_requires=["setuptools_scm"],
+    setup_requires=["setuptools_scm", "grpcio-tools", "mypy-protobuf"],
     package_data={
         "": [
             "protos/feast/**/*.proto",
             "protos/feast/third_party/grpc/health/v1/*.proto",
             "protos/tensorflow_metadata/proto/v0/*.proto",
         ],
+    },
+    cmdclass={
+        "install": CustomInstallCommand,
+        "develop": CustomDevelopCommand,
+        "egg_info": CustomEggInfoCommand,
     },
 )

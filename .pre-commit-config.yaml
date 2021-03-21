@@ -3,6 +3,11 @@ repos:
     hooks:
       - id: lint
         name: Lint
-        stages: [commit]
+        stages: [ push ]
         language: system
         entry: make lint
+      - id: compile-protos-python
+        name: Compile Python Protos
+        stages: [ push ]
+        language: system
+        entry: make compile-protos-python
