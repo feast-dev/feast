@@ -49,7 +49,7 @@ compile-protos-python:
 	@$(foreach dir,$(PROTO_TYPE_SUBDIRS),grep -rli 'from feast.$(dir)' sdk/python/feast/protos | xargs -i@ sed -i 's/from feast.$(dir)/from feast.protos.feast.$(dir)/g' @;)
 	cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --python_out=../sdk/python/ --mypy_out=../sdk/python/ tensorflow_metadata/proto/v0/*.proto
 
-install-python: compile-protos-python
+install-python:
 	python -m pip install -e sdk/python -U --use-deprecated=legacy-resolver
 
 test-python:
