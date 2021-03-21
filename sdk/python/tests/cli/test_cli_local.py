@@ -51,6 +51,10 @@ class TestCliLocal:
             result = runner.run(["apply", str(repo_path)], cwd=repo_path)
             assert result.returncode == 0
 
+            # Doing another apply should be a no op, and should not cause errors
+            result = runner.run(["apply", str(repo_path)], cwd=repo_path)
+            assert result.returncode == 0
+
             basic_rw_test(repo_path, "foo")
 
             result = runner.run(["teardown", str(repo_path)], cwd=repo_path)
