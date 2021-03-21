@@ -7,7 +7,7 @@ Please see the following API specific reference documentation:
 * [Feast gRPC Types](https://api.docs.feast.dev/grpc/feast/types/value.pb): These are the gRPC types used by both Feast Core, Feast Serving, and the Go, Java, and Python clients.
 * [Go Client SDK](https://godoc.org/github.com/feast-dev/feast/sdk/go): The Go library used for the retrieval of online features from Feast.
 * [Java Client SDK](https://javadoc.io/doc/dev.feast/feast-sdk): The Java library used for the retrieval of online features from Feast.
-* [Python SDK](https://api.docs.feast.dev/python/): This is the complete reference to the Feast Python SDK. The SDK is used to manage feature sets, features, jobs, projects, and entities. It can also be used to retrieve training datasets or online features from Feast Serving.
+* [Python SDK](http://rtd.feast.dev/): This is the complete reference to the Feast Python SDK. The SDK is used to manage feature sets, features, jobs, projects, and entities. It can also be used to retrieve training datasets or online features from Feast Serving.
 
 ## Community Contributions
 
