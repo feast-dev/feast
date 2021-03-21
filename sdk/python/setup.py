@@ -85,24 +85,8 @@ def pre_install_build():
     """
     Build Python protos when installing Feast using setup.py
     """
-    for directory in proto_dirs:
-        from grpc_tools import protoc
-        subprocess.check_call("make compile-protos-python", shell=True, cwd=f"{repo_root}")
-        # args = f"--proto_path=. --python_out={repo_root}/sdk/python/feast/protos/ --grpc_python_out={repo_root}/sdk/python/feast/protos/ feast/{directory}/*.proto"
-        # subprocess.check_call(
-        #     "python -m grpc_tools.protoc " + args, shell=True, cwd=f"{repo_root}/protos"
-        # )
-        #
-        # subprocess.check_call(
-        #     f"python -m grpc_tools.protoc -I. --python_out={repo_root}/sdk/python/ tensorflow_metadata/proto/v0/*.proto",
-        #     shell=True,
-        #     cwd=f"{repo_root}/protos",
-        # )
-        # subprocess.check_call(
-        #     f"grep -rli 'from feast.{directory}' sdk/python/feast/protos | xargs -i@ sed -i 's/from feast.{directory}/from feast.protos.feast.{directory}/g' @",
-        #     shell=True,
-        #     cwd=f"{repo_root}",
-        # )
+    subprocess.check_call("make compile-protos-python", shell=True, cwd=f"{repo_root}")
+    subprocess.check_call("make build-sphinx", shell=True, cwd=f"{repo_root}")
 
 # Classes used to inject pre_install_build()
 class CustomInstallCommand(install):
@@ -152,7 +136,7 @@ setup(
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version={"root": "../..", "relative_to": __file__, "tag_regex": TAG_REGEX},
-    setup_requires=["setuptools_scm", "grpcio-tools", "mypy-protobuf"],
+    setup_requires=["setuptools_scm", "grpcio-tools", "mypy-protobuf", "sphinx"],
     package_data={
         "": [
             "protos/feast/**/*.proto",
