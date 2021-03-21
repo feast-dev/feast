@@ -28,6 +28,11 @@ jobs:
           export_default_credentials: true
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: make install-python-ci-dependencies
+      - name: Compile protos
+        run: make compile-protos-python
       - name: Install python
         run: make install-python
       - name: Test python
