@@ -19,6 +19,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Install dependencies
+        run: make install-go-ci-dependencies
+      - name: Compile Protos
         run: make compile-protos-go
-      - name: Test go
+      - name: Test
         run: make test-go
