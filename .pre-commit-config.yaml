@@ -1,3 +1,5 @@
+default_stages:
+  - push
 repos:
   - repo: local
     hooks:
@@ -6,8 +8,3 @@ repos:
         stages: [ push ]
         language: system
         entry: make lint
-      - id: compile-protos-python
-        name: Compile Python Protos
-        stages: [ push ]
-        language: system
-        entry: make compile-protos-python

@@ -23,6 +23,8 @@ try:
     from setuptools.command.install import install
     from setuptools.command.develop import develop
     from setuptools.command.egg_info import egg_info
+    from setuptools.command.sdist import sdist
+
 except ImportError:
     from distutils.core import setup
     from distutils.command.install import install
@@ -61,9 +63,9 @@ REQUIRED = [
 # README file from Feast repo root directory
 repo_root = (
     subprocess.Popen(["git", "rev-parse", "--show-toplevel"], stdout=subprocess.PIPE)
-    .communicate()[0]
-    .rstrip()
-    .decode("utf-8")
+        .communicate()[0]
+        .rstrip()
+        .decode("utf-8")
 )
 README_FILE = os.path.join(repo_root, "README.md")
 with open(os.path.join(README_FILE), "r") as f:
@@ -76,20 +78,15 @@ TAG_REGEX = re.compile(
     r"^(?:[\/\w-]+)?(?P<version>[vV]?\d+(?:\.\d+){0,2}[^\+]*)(?:\+.*)?$"
 )
 
-
 proto_dirs = [x for x in os.listdir(repo_root + "/protos/feast")]
 proto_dirs.remove("third_party")
 
 
 def pre_install_build():
-    """
-    Build Python protos when installing Feast using setup.py
-    """
     subprocess.check_call("make compile-protos-python", shell=True, cwd=f"{repo_root}")
     subprocess.check_call("make build-sphinx", shell=True, cwd=f"{repo_root}")
 
 
-# Classes used to inject pre_install_build()
 class CustomInstallCommand(install):
     def do_egg_install(self):
         pre_install_build()
@@ -116,7 +113,7 @@ setup(
     long_description_content_type="text/markdown",
     python_requires=REQUIRES_PYTHON,
     url=URL,
-    packages=find_packages(exclude=("tests",)),
+    packages=find_packages(exclude=("tests",)) + ['.'],
     install_requires=REQUIRED,
     # https://stackoverflow.com/questions/28509965/setuptools-development-requirements
     # Install dev requirements with: pip install -e .[dev]
@@ -143,6 +140,8 @@ setup(
             "protos/feast/**/*.proto",
             "protos/feast/third_party/grpc/health/v1/*.proto",
             "protos/tensorflow_metadata/proto/v0/*.proto",
+            "feast/protos/feast/**/*.py",
+            "tensorflow_metadata/proto/v0/*.py"
         ],
     },
     cmdclass={
