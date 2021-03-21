@@ -88,6 +88,7 @@ def pre_install_build():
     subprocess.check_call("make compile-protos-python", shell=True, cwd=f"{repo_root}")
     subprocess.check_call("make build-sphinx", shell=True, cwd=f"{repo_root}")
 
+
 # Classes used to inject pre_install_build()
 class CustomInstallCommand(install):
     def do_egg_install(self):
