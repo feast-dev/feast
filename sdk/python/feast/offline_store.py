@@ -86,7 +86,7 @@ class OfflineStore(ABC):
 
     @staticmethod
     @abstractmethod
-    def pull_latest_from_table(
+    def pull_latest_from_table_or_query(
         data_source: DataSource,
         entity_names: List[str],
         feature_names: List[str],
@@ -115,7 +115,7 @@ class OfflineStore(ABC):
 
 class BigQueryOfflineStore(OfflineStore):
     @staticmethod
-    def pull_latest_from_table(
+    def pull_latest_from_table_or_query(
         data_source: DataSource,
         entity_names: List[str],
         feature_names: List[str],
@@ -126,9 +126,9 @@ class BigQueryOfflineStore(OfflineStore):
     ) -> pyarrow.Table:
         assert isinstance(data_source, BigQuerySource)
         if data_source.table_ref:
-            from_table = f"`{data_source.table_ref}`"
+            from_expression = f"`{data_source.table_ref}`"
         else:
-            from_table = f"({data_source.query})"
+            from_expression = f"({data_source.query})"
 
         partition_by_entity_string = ", ".join(entity_names)
         if partition_by_entity_string != "":
@@ -144,7 +144,7 @@ class BigQueryOfflineStore(OfflineStore):
         FROM (
             SELECT {field_string},
             ROW_NUMBER() OVER({partition_by_entity_string} ORDER BY {timestamp_desc_string}) AS _feast_row
-            FROM {from_table}
+            FROM {from_expression}
             WHERE {event_timestamp_column} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')
         )
         WHERE _feast_row = 1
@@ -286,7 +286,7 @@ def build_point_in_time_query(
 
 class FileOfflineStore(OfflineStore):
     @staticmethod
-    def pull_latest_from_table(
+    def pull_latest_from_table_or_query(
         data_source: DataSource,
         entity_names: List[str],
         feature_names: List[str],
