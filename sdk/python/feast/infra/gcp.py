@@ -106,14 +106,15 @@ class Gcp(Provider):
         self,
         project: str,
         table: Union[FeatureTable, FeatureView],
-        data: List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime]],
-        created_ts: datetime,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
     ) -> None:
         from google.cloud import datastore
 
         client = self._initialize_client()
 
-        for entity_key, features, timestamp in data:
+        for entity_key, features, timestamp, created_ts in data:
             document_id = compute_datastore_entity_id(entity_key)
 
             key = client.key(
@@ -125,9 +126,12 @@ class Gcp(Provider):
                     if entity["event_ts"] > _make_tzaware(timestamp):
                         # Do not overwrite feature values computed from fresher data
                         continue
-                    elif entity["event_ts"] == _make_tzaware(timestamp) and entity[
-                        "created_ts"
-                    ] > _make_tzaware(created_ts):
+                    elif (
+                        entity["event_ts"] == _make_tzaware(timestamp)
+                        and created_ts is not None
+                        and entity["created_ts"] is not None
+                        and entity["created_ts"] > _make_tzaware(created_ts)
+                    ):
                         # Do not overwrite feature values computed from the same data, but
                         # computed later than this one
                         continue
@@ -139,7 +143,11 @@ class Gcp(Provider):
                         key=entity_key.SerializeToString(),
                         values={k: v.SerializeToString() for k, v in features.items()},
                         event_ts=_make_tzaware(timestamp),
-                        created_ts=_make_tzaware(created_ts),
+                        created_ts=(
+                            _make_tzaware(created_ts)
+                            if created_ts is not None
+                            else None
+                        ),
                     )
                 )
                 client.put(entity)

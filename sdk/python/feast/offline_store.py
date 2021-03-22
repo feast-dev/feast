@@ -15,14 +15,14 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Type, Union
 
 import pandas as pd
 import pyarrow
 from google.cloud import bigquery
 from jinja2 import BaseLoader, Environment
 
-from feast.data_source import BigQuerySource, FileSource
+from feast.data_source import BigQuerySource, DataSource, FileSource
 from feast.feature_view import FeatureView
 from feast.repo_config import RepoConfig
 
@@ -87,8 +87,19 @@ class OfflineStore(ABC):
     @staticmethod
     @abstractmethod
     def pull_latest_from_table(
-        feature_view: FeatureView, start_date: datetime, end_date: datetime,
-    ) -> Optional[pyarrow.Table]:
+        data_source: DataSource,
+        entity_names: List[str],
+        feature_names: List[str],
+        event_timestamp_column: str,
+        created_timestamp_column: Optional[str],
+        start_date: datetime,
+        end_date: datetime,
+    ) -> pyarrow.Table:
+        """
+        Note that entity_names, feature_names, event_timestamp_column, and created_timestamp_column
+        have all already been mapped back to column names of the source table
+        and those column names are the values passed into this function.
+        """
         pass
 
     @staticmethod
@@ -105,20 +116,20 @@ class OfflineStore(ABC):
 class BigQueryOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table(
-        feature_view: FeatureView, start_date: datetime, end_date: datetime,
+        data_source: DataSource,
+        entity_names: List[str],
+        feature_names: List[str],
+        event_timestamp_column: str,
+        created_timestamp_column: Optional[str],
+        start_date: datetime,
+        end_date: datetime,
     ) -> pyarrow.Table:
-        assert isinstance(feature_view.input, BigQuerySource)
-        if feature_view.input.table_ref is None:
+        assert isinstance(data_source, BigQuerySource)
+        table_ref = data_source.table_ref
+        if table_ref is None:
             raise ValueError(
                 "This function can only be called on a FeatureView with a table_ref"
             )
-
-        (
-            entity_names,
-            feature_names,
-            event_timestamp_column,
-            created_timestamp_column,
-        ) = run_reverse_field_mapping(feature_view)
 
         partition_by_entity_string = ", ".join(entity_names)
         if partition_by_entity_string != "":
@@ -134,14 +145,13 @@ class BigQueryOfflineStore(OfflineStore):
         FROM (
             SELECT {field_string},
             ROW_NUMBER() OVER({partition_by_entity_string} ORDER BY {timestamp_desc_string}) AS _feast_row
-            FROM `{feature_view.input.table_ref}`
+            FROM `{table_ref}`
             WHERE {event_timestamp_column} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')
         )
         WHERE _feast_row = 1
         """
 
         table = BigQueryOfflineStore._pull_query(query)
-        table = run_forward_field_mapping(table, feature_view)
         return table
 
     @staticmethod
@@ -278,7 +288,13 @@ def build_point_in_time_query(
 class FileOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table(
-        feature_view: FeatureView, start_date: datetime, end_date: datetime,
+        data_source: DataSource,
+        entity_names: List[str],
+        feature_names: List[str],
+        event_timestamp_column: str,
+        created_timestamp_column: Optional[str],
+        start_date: datetime,
+        end_date: datetime,
     ) -> pyarrow.Table:
         pass
 
@@ -383,69 +399,6 @@ class FileOfflineStore(OfflineStore):
 
         job = FileRetrievalJob(evaluation_function=evaluate_historical_retrieval)
         return job
-
-
-def run_reverse_field_mapping(
-    feature_view: FeatureView,
-) -> Tuple[List[str], List[str], str, Optional[str]]:
-    """
-    If a field mapping exists, run it in reverse on the entity names, feature names, event timestamp column, and created timestamp column to get the names of the relevant columns in the BigQuery table.
-
-    Args:
-        feature_view: FeatureView object containing the field mapping as well as the names to reverse-map.
-    Returns:
-        Tuple containing the list of reverse-mapped entity names, reverse-mapped feature names, reverse-mapped event timestamp column, and reverse-mapped created timestamp column that will be passed into the query to the offline store.
-    """
-    # if we have mapped fields, use the original field names in the call to the offline store
-    event_timestamp_column = feature_view.input.event_timestamp_column
-    entity_names = [entity for entity in feature_view.entities]
-    feature_names = [feature.name for feature in feature_view.features]
-    created_timestamp_column = feature_view.input.created_timestamp_column
-    if feature_view.input.field_mapping is not None:
-        reverse_field_mapping = {
-            v: k for k, v in feature_view.input.field_mapping.items()
-        }
-        event_timestamp_column = (
-            reverse_field_mapping[event_timestamp_column]
-            if event_timestamp_column in reverse_field_mapping.keys()
-            else event_timestamp_column
-        )
-        created_timestamp_column = (
-            reverse_field_mapping[created_timestamp_column]
-            if created_timestamp_column is not None
-            and created_timestamp_column in reverse_field_mapping.keys()
-            else created_timestamp_column
-        )
-        entity_names = [
-            reverse_field_mapping[col] if col in reverse_field_mapping.keys() else col
-            for col in entity_names
-        ]
-        feature_names = [
-            reverse_field_mapping[col] if col in reverse_field_mapping.keys() else col
-            for col in feature_names
-        ]
-    return (
-        entity_names,
-        feature_names,
-        event_timestamp_column,
-        created_timestamp_column,
-    )
-
-
-def run_forward_field_mapping(
-    table: pyarrow.Table, feature_view: FeatureView
-) -> pyarrow.Table:
-    # run field mapping in the forward direction
-    if table is not None and feature_view.input.field_mapping is not None:
-        cols = table.column_names
-        mapped_cols = [
-            feature_view.input.field_mapping[col]
-            if col in feature_view.input.field_mapping.keys()
-            else col
-            for col in cols
-        ]
-        table = table.rename_columns(mapped_cols)
-    return table
 
 
 def get_offline_store_for_retrieval(feature_views: List[FeatureView],) -> OfflineStore:
@@ -612,3 +565,10 @@ LEFT JOIN (
 {% endfor %}
 ORDER BY event_timestamp
 """
+
+
+def get_offline_store(config: RepoConfig) -> Type[OfflineStore]:
+    if config.provider == "gcp":
+        return BigQueryOfflineStore
+    else:
+        raise ValueError(config)
