@@ -95,6 +95,11 @@ class OfflineStore(ABC):
         start_date: datetime,
         end_date: datetime,
     ) -> pyarrow.Table:
+        """
+        Note that entity_names, feature_names, event_timestamp_column, and created_timestamp_column
+        have all already been mapped back to column names of the source table
+        and those column names are the values passed into this function.
+        """
         pass
 
     @staticmethod
