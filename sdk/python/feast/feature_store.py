@@ -217,10 +217,6 @@ class FeatureStore:
                 raise NotImplementedError(
                     "This function is not yet implemented for File data sources"
                 )
-            if not feature_view.input.table_ref:
-                raise NotImplementedError(
-                    f"This function is only implemented for FeatureViews with a table_ref; {feature_view.name} does not have one."
-                )
             (
                 entity_names,
                 feature_names,

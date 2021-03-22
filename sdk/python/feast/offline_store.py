@@ -125,11 +125,10 @@ class BigQueryOfflineStore(OfflineStore):
         end_date: datetime,
     ) -> pyarrow.Table:
         assert isinstance(data_source, BigQuerySource)
-        table_ref = data_source.table_ref
-        if table_ref is None:
-            raise ValueError(
-                "This function can only be called on a FeatureView with a table_ref"
-            )
+        if data_source.table_ref:
+            from_table = f"`{data_source.table_ref}`"
+        else:
+            from_table = f"({data_source.query})"
 
         partition_by_entity_string = ", ".join(entity_names)
         if partition_by_entity_string != "":
@@ -145,7 +144,7 @@ class BigQueryOfflineStore(OfflineStore):
         FROM (
             SELECT {field_string},
             ROW_NUMBER() OVER({partition_by_entity_string} ORDER BY {timestamp_desc_string}) AS _feast_row
-            FROM `{table_ref}`
+            FROM {from_table}
             WHERE {event_timestamp_column} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')
         )
         WHERE _feast_row = 1

@@ -172,6 +172,7 @@ class BigQueryOptions:
 
         bigquery_options_proto = DataSourceProto.BigQueryOptions(
             table_ref=self.table_ref,
+            query=self.query,
         )
 
         return bigquery_options_proto
@@ -461,13 +462,14 @@ class DataSource:
                 created_timestamp_column=data_source.created_timestamp_column,
                 date_partition_column=data_source.date_partition_column,
             )
-        elif data_source.bigquery_options.table_ref:
+        elif (data_source.bigquery_options.table_ref or data_source.bigquery_options.query):
             data_source_obj = BigQuerySource(
                 field_mapping=data_source.field_mapping,
                 table_ref=data_source.bigquery_options.table_ref,
                 event_timestamp_column=data_source.event_timestamp_column,
                 created_timestamp_column=data_source.created_timestamp_column,
                 date_partition_column=data_source.date_partition_column,
+                query=data_source.bigquery_options.query,
             )
         elif (
             data_source.kafka_options.bootstrap_servers
