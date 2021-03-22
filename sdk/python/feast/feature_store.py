@@ -13,7 +13,7 @@
 # limitations under the License.
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Type, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import pyarrow
@@ -23,7 +23,6 @@ from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.provider import Provider, get_provider
 from feast.offline_store import (
-    OfflineStore,
     RetrievalJob,
     get_offline_store,
     get_offline_store_for_retrieval,
@@ -68,9 +67,6 @@ class FeatureStore:
 
     def _get_provider(self) -> Provider:
         return get_provider(self.config)
-
-    def _get_offline_store(self) -> Type[OfflineStore]:
-        return get_offline_store(self.config)
 
     def _get_registry(self) -> Registry:
         return Registry(self.config.metadata_store)
@@ -183,8 +179,20 @@ class FeatureStore:
         Args:
             feature_views (List[str]): Optional list of feature view names. If selected, will only run
                 materialization for the specified feature views.
-            start_date (datetime): Start date of query
-            end_date (datetime): End date of query
+            start_date (datetime): Start date for time range of data to materialize into the online store
+            end_date (datetime): End date for time range of data to materialize into the online store
+
+        Examples:
+            Materialize all features into the online store over the interval
+            from 3 hours ago to 10 minutes ago.
+            >>> from datetime import datetime, timedelta
+            >>> from feast.feature_store import FeatureStore
+            >>>
+            >>> fs = FeatureStore(config=RepoConfig(provider="gcp"))
+            >>> fs.materialize(
+            >>>     start_date=datetime.utcnow() - timedelta(hours=3),
+            >>>     end_date=datetime.utcnow() - timedelta(minutes=10)
+            >>> )
         """
         feature_views_to_materialize = []
         registry = self._get_registry()
@@ -214,7 +222,7 @@ class FeatureStore:
                 created_timestamp_column,
             ) = _run_reverse_field_mapping(feature_view)
 
-            offline_store = self._get_offline_store()
+            offline_store = get_offline_store(self.config)
             table = offline_store.pull_latest_from_table(
                 feature_view.input,
                 entity_names,

@@ -17,7 +17,7 @@ from feast.value_type import ValueType
 
 
 @pytest.mark.integration
-class TestBigQueryIngestion:
+class TestMaterializeFromBigQueryToDatastore:
     def setup_method(self):
         self.client = bigquery.Client()
         self.gcp_project = self.client.project
