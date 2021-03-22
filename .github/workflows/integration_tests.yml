@@ -11,12 +11,14 @@ jobs:
     container: gcr.io/kf-feast/feast-ci:latest
     steps:
       - uses: actions/checkout@v2
-      - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@master
         with:
-          version: '290.0.1'
-          export_default_credentials: true
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+      - name: Use gcloud CLI
+        run: gcloud info
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Compile protos
