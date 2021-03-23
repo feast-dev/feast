@@ -28,12 +28,13 @@ class TestMaterializeFromBigQueryToDatastore:
 
     def test_bigquery_table_to_datastore_correctness(self):
         # create dataset
-        ts = pd.Timestamp.now(tz="UTC").round("ms")
+        now = datetime.utcnow()
+        ts = pd.Timestamp(now).round("ms")
         data = {
-            "id": [1, 2, 1],
-            "value": [0.1, 0.2, 0.3],
-            "ts_1": [ts - timedelta(minutes=2), ts, ts],
-            "created_ts": [ts, ts, ts],
+            "id": [1, 2, 1, 3, 3],
+            "value": [0.1, 0.2, 0.3, 4, 5],
+            "ts_1": [ts - timedelta(minutes=4), ts, ts - timedelta(minutes=3), ts - timedelta(minutes=4), ts - timedelta(minutes=1)],
+            "created_ts": [ts, ts, ts, ts, ts],
         }
         df = pd.DataFrame.from_dict(data)
 
@@ -68,8 +69,8 @@ class TestMaterializeFromBigQueryToDatastore:
         # run materialize()
         fs.materialize(
             [fv.name],
-            datetime.utcnow() - timedelta(minutes=5),
-            datetime.utcnow() - timedelta(minutes=0),
+            now - timedelta(minutes=5),
+            now - timedelta(minutes=2),
         )
 
         # check result of materialize()
@@ -77,6 +78,26 @@ class TestMaterializeFromBigQueryToDatastore:
             [f"{fv.name}:value"], [{"driver_id": 1}]
         ).to_dict()
         assert abs(response_dict[f"{fv.name}:value"][0] - 0.3) < 1e-6
+
+        # check prior value for materialize_incremental()
+        entity_key = EntityKeyProto(
+            entity_names=["driver_id"], entity_values=[ValueProto(int64_val=3)]
+        )
+        t, val = fs._get_provider().online_read("default", fv, entity_key)
+        assert abs(val["value"].double_val - 4) < 1e-6
+
+        # run materialize_incremental()
+        fs.materialize_incremental(
+            [fv.name],
+            now - timedelta(minutes=0),
+        )
+
+        # check result of materialize_incremental()
+        entity_key = EntityKeyProto(
+            entity_names=["driver_id"], entity_values=[ValueProto(int64_val=3)]
+        )
+        t, val = fs._get_provider().online_read("default", fv, entity_key)
+        assert abs(val["value"].double_val - 5) < 1e-6
 
     def test_bigquery_query_to_datastore_correctness(self):
         # create dataset

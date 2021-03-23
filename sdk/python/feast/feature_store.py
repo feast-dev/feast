@@ -181,6 +181,53 @@ class FeatureStore:
         )
         return job
 
+    def materialize_incremental(
+        self,
+        feature_views: Optional[List[str]],
+        end_date: datetime,
+    ) -> None:
+        """
+        Materialize incremental new data from the offline store into the online store.
+
+        This method loads incremental new feature data up to the specified end time from either
+        the specified feature views, or all feature views if none are specified,
+        into the online store where it is available for online serving. The start time of
+        the interval materialized is either the most recent end time of a prior materialization or
+        (now - ttl) if no such prior materialization exists.
+
+        Args:
+            feature_views (List[str]): Optional list of feature view names. If selected, will only run
+                materialization for the specified feature views.
+            end_date (datetime): End date for time range of data to materialize into the online store
+
+        Examples:
+            Materialize all features into the online store up to 5 minutes ago.
+            >>> from datetime import datetime, timedelta
+            >>> from feast.feature_store import FeatureStore
+            >>>
+            >>> fs = FeatureStore(config=RepoConfig(provider="gcp"))
+            >>> fs.materialize_incremental(
+            >>>     end_date=datetime.utcnow() - timedelta(minutes=5)
+            >>> )
+        """
+        feature_views_to_materialize = []
+        registry = self._get_registry()
+        if feature_views is None:
+            feature_views_to_materialize = registry.list_feature_views(
+                self.config.project
+            )
+        else:
+            for name in feature_views:
+                feature_view = registry.get_feature_view(name, self.config.project)
+                feature_views_to_materialize.append(feature_view)
+
+        # TODO paging large loads
+        for feature_view in feature_views_to_materialize:
+            start_date = feature_view.most_recent_end_time
+            if start_date is None:
+                start_date = datetime.utcnow() - feature_view.ttl
+            self._materialize_single_feature_view(feature_view, start_date, end_date)
+
     def materialize(
         self,
         feature_views: Optional[List[str]],
@@ -225,39 +272,45 @@ class FeatureStore:
 
         # TODO paging large loads
         for feature_view in feature_views_to_materialize:
-            if isinstance(feature_view.input, FileSource):
-                raise NotImplementedError(
-                    "This function is not yet implemented for File data sources"
-                )
-            (
-                entity_names,
-                feature_names,
-                event_timestamp_column,
-                created_timestamp_column,
-            ) = _run_reverse_field_mapping(feature_view)
+            self._materialize_single_feature_view(feature_view, start_date, end_date)
 
-            offline_store = get_offline_store(self.config)
-            table = offline_store.pull_latest_from_table_or_query(
-                feature_view.input,
-                entity_names,
-                feature_names,
-                event_timestamp_column,
-                created_timestamp_column,
-                start_date,
-                end_date,
+    def _materialize_single_feature_view(self, feature_view: FeatureView, start_date: datetime, end_date: datetime) -> None:
+        if isinstance(feature_view.input, FileSource):
+            raise NotImplementedError(
+                "This function is not yet implemented for File data sources"
+            )
+        (
+            entity_names,
+            feature_names,
+            event_timestamp_column,
+            created_timestamp_column,
+        ) = _run_reverse_field_mapping(feature_view)
+
+        offline_store = get_offline_store(self.config)
+        table = offline_store.pull_latest_from_table_or_query(
+            feature_view.input,
+            entity_names,
+            feature_names,
+            event_timestamp_column,
+            created_timestamp_column,
+            start_date,
+            end_date,
+        )
+
+        if feature_view.input.field_mapping is not None:
+            table = _run_forward_field_mapping(
+                table, feature_view.input.field_mapping
             )
 
-            if feature_view.input.field_mapping is not None:
-                table = _run_forward_field_mapping(
-                    table, feature_view.input.field_mapping
-                )
+        rows_to_write = _convert_arrow_to_proto(table, feature_view)
 
-            rows_to_write = _convert_arrow_to_proto(table, feature_view)
+        provider = self._get_provider()
+        provider.online_write_batch(
+            self.config.project, feature_view, rows_to_write
+        )
 
-            provider = self._get_provider()
-            provider.online_write_batch(
-                self.config.project, feature_view, rows_to_write
-            )
+        feature_view.materialization_intervals.append((start_date, end_date))
+        self.apply([feature_view])
 
     def get_online_features(
         self, feature_refs: List[str], entity_rows: List[Dict[str, Any]],

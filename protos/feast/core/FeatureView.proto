@@ -71,4 +71,12 @@ message FeatureViewMeta {
 
     // Time where this Feature View is last updated
     google.protobuf.Timestamp last_updated_timestamp = 2;
+
+    // List of pairs (start_time, end_time) for which this feature view has been materialized.
+    repeated MaterializationInterval materialization_intervals = 3;
+}
+
+message MaterializationInterval {
+    google.protobuf.Timestamp start_time = 1;
+    google.protobuf.Timestamp end_time = 2;
 }
