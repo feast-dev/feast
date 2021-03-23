@@ -30,7 +30,6 @@ jobs:
           export_default_credentials: true
       - name: Use gcloud CLI
         run: gcloud info
-      - uses: actions/checkout@v2
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Compile protos
