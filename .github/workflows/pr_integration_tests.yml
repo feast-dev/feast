@@ -20,7 +20,7 @@ jobs:
           # pull_request_target runs the workflow in the context of the base repo
           # as such actions/checkout needs to be explicit configured to retrieve
           # code from the PR.
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          ref: pull/${{ github.event.pull_request.number }}/merge
           submodules: recursive
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@master
