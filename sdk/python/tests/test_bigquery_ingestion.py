@@ -87,5 +87,7 @@ class TestMaterializeFromBigQueryToDatastore:
         entity_key = EntityKeyProto(
             entity_names=["driver_id"], entity_values=[ValueProto(int64_val=1)]
         )
-        t, val = fs._get_provider().online_read("default", fv, entity_key)
+        read_rows = fs._get_provider().online_read("default", fv, [entity_key])
+        assert len(read_rows) == 1
+        _, val = read_rows[0]
         assert abs(val["value"].double_val - checked_value) < 1e-6

@@ -103,26 +103,32 @@ class LocalSqlite(Provider):
         self,
         project: str,
         table: Union[FeatureTable, FeatureView],
-        entity_key: EntityKeyProto,
-    ) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
-        entity_key_bin = serialize_entity_key(entity_key)
+        entity_keys: List[EntityKeyProto],
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
 
         conn = self._get_conn()
         cur = conn.cursor()
-        cur.execute(
-            f"SELECT feature_name, value, event_ts FROM {_table_id(project, table)} WHERE entity_key = ?",
-            (entity_key_bin,),
-        )
 
-        res = {}
-        res_ts = None
-        for feature_name, val_bin, ts in cur.fetchall():
-            val = ValueProto()
-            val.ParseFromString(val_bin)
-            res[feature_name] = val
-            res_ts = ts
+        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
-        if not res:
-            return None, None
-        else:
-            return res_ts, res
+        for entity_key in entity_keys:
+            entity_key_bin = serialize_entity_key(entity_key)
+
+            cur.execute(
+                f"SELECT feature_name, value, event_ts FROM {_table_id(project, table)} WHERE entity_key = ?",
+                (entity_key_bin,),
+            )
+
+            res = {}
+            res_ts = None
+            for feature_name, val_bin, ts in cur.fetchall():
+                val = ValueProto()
+                val.ParseFromString(val_bin)
+                res[feature_name] = val
+                res_ts = ts
+
+            if not res:
+                result.append((None, None))
+            else:
+                result.append((res_ts, res))
+        return result

@@ -1,27 +1,13 @@
 import random
 import string
-import subprocess
-import sys
 import tempfile
 from pathlib import Path
 from textwrap import dedent
-from typing import List
 
 import pytest
 
-from feast import cli
 from tests.cli.online_read_write_test import basic_rw_test
-
-
-class CliRunner:
-    """
-    NB. We can't use test runner helper from click here, since it doesn't start a new Python
-    interpreter. And we need a new interpreter for each test since we dynamically import
-    modules from the feature repo, and it is hard to clean up that state otherwise.
-    """
-
-    def run(self, args: List[str], cwd: Path) -> subprocess.CompletedProcess:
-        return subprocess.run([sys.executable, cli.__file__] + args, cwd=cwd)
+from tests.cli.utils import CliRunner
 
 
 @pytest.mark.integration
