@@ -182,9 +182,7 @@ class FeatureStore:
         return job
 
     def materialize_incremental(
-        self,
-        feature_views: Optional[List[str]],
-        end_date: datetime,
+        self, feature_views: Optional[List[str]], end_date: datetime,
     ) -> None:
         """
         Materialize incremental new data from the offline store into the online store.
@@ -225,6 +223,10 @@ class FeatureStore:
         for feature_view in feature_views_to_materialize:
             start_date = feature_view.most_recent_end_time
             if start_date is None:
+                if feature_view.ttl is None:
+                    raise Exception(
+                        f"No start time found for feature view {feature_view.name}. materialize_incremental() requires either a ttl to be set or for materialize() to have been run."
+                    )
                 start_date = datetime.utcnow() - feature_view.ttl
             self._materialize_single_feature_view(feature_view, start_date, end_date)
 
@@ -274,7 +276,9 @@ class FeatureStore:
         for feature_view in feature_views_to_materialize:
             self._materialize_single_feature_view(feature_view, start_date, end_date)
 
-    def _materialize_single_feature_view(self, feature_view: FeatureView, start_date: datetime, end_date: datetime) -> None:
+    def _materialize_single_feature_view(
+        self, feature_view: FeatureView, start_date: datetime, end_date: datetime
+    ) -> None:
         if isinstance(feature_view.input, FileSource):
             raise NotImplementedError(
                 "This function is not yet implemented for File data sources"
@@ -298,16 +302,12 @@ class FeatureStore:
         )
 
         if feature_view.input.field_mapping is not None:
-            table = _run_forward_field_mapping(
-                table, feature_view.input.field_mapping
-            )
+            table = _run_forward_field_mapping(table, feature_view.input.field_mapping)
 
         rows_to_write = _convert_arrow_to_proto(table, feature_view)
 
         provider = self._get_provider()
-        provider.online_write_batch(
-            self.config.project, feature_view, rows_to_write
-        )
+        provider.online_write_batch(self.config.project, feature_view, rows_to_write)
 
         feature_view.materialization_intervals.append((start_date, end_date))
         self.apply([feature_view])

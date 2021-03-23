@@ -19,10 +19,14 @@ from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.data_source import BigQuerySource, DataSource, FileSource
 from feast.feature import Feature
+from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
-    FeatureView as FeatureViewProto,
     FeatureViewMeta as FeatureViewMetaProto,
+)
+from feast.protos.feast.core.FeatureView_pb2 import (
     FeatureViewSpec as FeatureViewSpecProto,
+)
+from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
 from feast.value_type import ValueType
@@ -159,7 +163,9 @@ class FeatureView:
         feature_view.created_timestamp = feature_view_proto.meta.created_timestamp
 
         for interval in feature_view_proto.meta.materialization_intervals:
-            feature_view.materialization_intervals.append((interval.start_time.ToDatetime(), interval.end_time.ToDatetime()))
+            feature_view.materialization_intervals.append(
+                (interval.start_time.ToDatetime(), interval.end_time.ToDatetime())
+            )
 
         return feature_view
 
