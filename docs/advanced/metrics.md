@@ -8,8 +8,8 @@ This page applies to Feast 0.7. The content may be out of date for Feast 0.8+
 
 Feast Components export metrics that can provide insight into Feast behavior:
 
-* [Feast Ingestion Jobs  can be configured to push metrics into StatsD](metrics.md#2-exporting-feast-metrics-to-prometheus)
-* [Prometheus can be configured to scrape metrics from Feast Core and Serving.](metrics.md#2-exporting-feast-metrics-to-prometheus)
+* [Feast Ingestion Jobs  can be configured to push metrics into StatsD](metrics.md#pushing-ingestion-metrics-to-statsd)
+* [Prometheus can be configured to scrape metrics from Feast Core and Serving.](metrics.md#exporting-feast-metrics-to-prometheus)
 
 See the [Metrics Reference ](../reference/metrics-reference.md)for documentation on metrics are exported by Feast.
 
