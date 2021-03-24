@@ -9,7 +9,7 @@ from feast.data_source import BigQuerySource
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
-from feast.repo_config import LocalOnlineStoreConfig, OnlineStoreConfig, RepoConfig
+from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
 
 
@@ -61,9 +61,6 @@ class TestMaterializeFromBigQueryToDatastore:
             metadata_store="./metadata.db",
             project=f"test_bq_table_correctness_{int(time.time())}",
             provider="gcp",
-            online_store=OnlineStoreConfig(
-                local=LocalOnlineStoreConfig("online_store.db")
-            ),
         )
         fs = FeatureStore(config=config)
         fs.apply([fv])
@@ -117,9 +114,6 @@ class TestMaterializeFromBigQueryToDatastore:
             metadata_store="./metadata.db",
             project=f"test_bq_query_correctness_{int(time.time())}",
             provider="gcp",
-            online_store=OnlineStoreConfig(
-                local=LocalOnlineStoreConfig("online_store.db")
-            ),
         )
         fs = FeatureStore(config=config)
         fs.apply([fv])
