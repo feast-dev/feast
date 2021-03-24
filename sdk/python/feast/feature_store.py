@@ -229,10 +229,6 @@ class FeatureStore:
                 raise NotImplementedError(
                     "This function is not yet implemented for File data sources"
                 )
-            if not feature_view.input.table_ref:
-                raise NotImplementedError(
-                    f"This function is only implemented for FeatureViews with a table_ref; {feature_view.name} does not have one."
-                )
             (
                 entity_names,
                 feature_names,
@@ -241,7 +237,7 @@ class FeatureStore:
             ) = _run_reverse_field_mapping(feature_view)
 
             offline_store = get_offline_store(self.config)
-            table = offline_store.pull_latest_from_table(
+            table = offline_store.pull_latest_from_table_or_query(
                 feature_view.input,
                 entity_names,
                 feature_names,
