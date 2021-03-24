@@ -1,4 +1,3 @@
-import random
 import time
 from datetime import datetime, timedelta
 
@@ -30,12 +29,9 @@ class TestMaterializeFromBigQueryToDatastore:
     def test_bigquery_table_to_datastore_correctness(self):
         # create dataset
         ts = pd.Timestamp.now(tz="UTC").round("ms")
-        checked_value = (
-            random.random()
-        )  # random value so test doesn't still work if no values written to online store
         data = {
             "id": [1, 2, 1],
-            "value": [0.1, 0.2, checked_value],
+            "value": [0.1, 0.2, 0.3],
             "ts_1": [ts - timedelta(minutes=2), ts, ts],
             "created_ts": [ts, ts, ts],
         }
@@ -63,7 +59,7 @@ class TestMaterializeFromBigQueryToDatastore:
         )
         config = RepoConfig(
             metadata_store="./metadata.db",
-            project="default",
+            project=f"test_bq_table_correctness_{int(time.time())}",
             provider="gcp",
             online_store=OnlineStoreConfig(
                 local=LocalOnlineStoreConfig("online_store.db")
@@ -83,17 +79,14 @@ class TestMaterializeFromBigQueryToDatastore:
         response_dict = fs.get_online_features(
             [f"{fv.name}:value"], [{"driver_id": 1}]
         ).to_dict()
-        assert abs(response_dict[f"{fv.name}:value"][0] - checked_value) < 1e-6
+        assert abs(response_dict[f"{fv.name}:value"][0] - 0.3) < 1e-6
 
     def test_bigquery_query_to_datastore_correctness(self):
         # create dataset
         ts = pd.Timestamp.now(tz="UTC").round("ms")
-        checked_value = (
-            random.random()
-        )  # random value so test doesn't still work if no values written to online store
         data = {
             "id": [1, 2, 1],
-            "value": [0.1, 0.2, checked_value],
+            "value": [0.1, 0.2, 0.3],
             "ts_1": [ts - timedelta(minutes=2), ts, ts],
             "created_ts": [ts, ts, ts],
         }
@@ -122,7 +115,7 @@ class TestMaterializeFromBigQueryToDatastore:
         )
         config = RepoConfig(
             metadata_store="./metadata.db",
-            project="default",
+            project=f"test_bq_query_correctness_{int(time.time())}",
             provider="gcp",
             online_store=OnlineStoreConfig(
                 local=LocalOnlineStoreConfig("online_store.db")
@@ -142,4 +135,4 @@ class TestMaterializeFromBigQueryToDatastore:
         response_dict = fs.get_online_features(
             [f"{fv.name}:value"], [{"driver_id": 1}]
         ).to_dict()
-        assert abs(response_dict[f"{fv.name}:value"][0] - checked_value) < 1e-6
+        assert abs(response_dict[f"{fv.name}:value"][0] - 0.3) < 1e-6
