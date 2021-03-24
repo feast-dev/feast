@@ -1,19 +1,17 @@
 from datetime import datetime, timedelta
-from pathlib import Path
 
 from feast.feature_store import FeatureStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 
 
-def basic_rw_test(repo_path: Path, project_name: str) -> None:
+def basic_rw_test(store: FeatureStore, view_name: str) -> None:
     """
     This is a provider-independent test suite for reading and writing from the online store, to
     be used by provider-specific tests.
     """
-    store = FeatureStore(repo_path=repo_path, config=None)
     registry = store._get_registry()
-    table = registry.get_feature_view(project=project_name, name="driver_locations")
+    table = registry.get_feature_view(project=store.project, name=view_name)
 
     provider = store._get_provider()
 
@@ -26,7 +24,7 @@ def basic_rw_test(repo_path: Path, project_name: str) -> None:
         write_lat, write_lon = write
         expect_lat, expect_lon = expect_read
         provider.online_write_batch(
-            project=project_name,
+            project=store.project,
             table=table,
             data=[
                 (
@@ -42,7 +40,7 @@ def basic_rw_test(repo_path: Path, project_name: str) -> None:
         )
 
         read_rows = provider.online_read(
-            project=project_name, table=table, entity_keys=[entity_key]
+            project=store.project, table=table, entity_keys=[entity_key]
         )
         assert len(read_rows) == 1
         _, val = read_rows[0]
