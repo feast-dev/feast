@@ -510,7 +510,7 @@ def _convert_arrow_to_proto(
 
         While pandas timestamp class is a subclass of python datetime, it doesn't always behave the
         same way. We convert it to normal datetime so that consumers downstream don't have to deal
-        with these qiurks.
+        with these quirks.
         """
 
         if isinstance(ts, pd.Timestamp):
