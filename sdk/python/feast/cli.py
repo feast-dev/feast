@@ -401,7 +401,12 @@ def registry_dump_command(repo_path: str):
 )
 def materialize_command(repo_path: str, start_ts: str, end_ts: str, views: List[str]):
     """
-    Run a (non-incremental) materialization job to ingest data into the online store.
+    Run a (non-incremental) materialization job to ingest data into the online store. Feast
+    will read all data between START_TS and END_TS from the offline store and write it to the
+    online store. If you don't specify feature view names using --views, all registred Feature
+    Views will be materialized.
+
+    START_TS and END_TS should be in ISO 8601 format, e.g. '2021-07-16T19:20:01'
     """
     store = FeatureStore(repo_path=repo_path)
     store.materialize(
