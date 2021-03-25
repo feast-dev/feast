@@ -310,6 +310,8 @@ class FileOfflineStore(OfflineStore):
             & (source_df[event_timestamp_column] < end_date)
         ]
         last_values_df = filtered_df.groupby(by=entity_names).last()
+
+        # make driver_id a normal column again
         last_values_df.reset_index(inplace=True)
 
         return pyarrow.Table.from_pandas(

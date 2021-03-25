@@ -401,7 +401,7 @@ def registry_dump_command(repo_path: str):
 )
 def materialize_command(repo_path: str, start_ts: str, end_ts: str, views: List[str]):
     """
-    Prints contents of the metadata registry
+    Run a (non-incremental) materialization job to ingest data into the online store.
     """
     store = FeatureStore(repo_path=repo_path)
     store.materialize(

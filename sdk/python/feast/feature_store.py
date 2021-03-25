@@ -451,8 +451,13 @@ def _convert_arrow_to_proto(
 
     def _coerce_datetime(ts):
         """
-        Depending on underlying ts resolution, arrow to_pydict() sometimes returns pandas timestamp
-        type (for ns resolution), and sometimes you get python datetime (for us resolution).
+        Depending on underlying time resolution, arrow to_pydict() sometimes returns pandas
+        timestamp type (for nanosecond resolution), and sometimes you get standard python datetime
+        (for microsecond resolution).
+
+        While pandas timestamp class is a subclass of python datetime, it doesn't always behave the
+        same way. We convert it to normal datetime so that consumers downstream don't have to deal
+        with these qiurks.
         """
 
         if isinstance(ts, pd.Timestamp):

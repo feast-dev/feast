@@ -1,6 +1,7 @@
 import os
 import tempfile
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pandas as pd
 
@@ -9,6 +10,7 @@ from tests.cli.utils import CliRunner, get_example_repo
 
 
 def _get_last_feature_row(df: pd.DataFrame, driver_id):
+    """ Manually extract last feature value from a dataframe for a given driver_id """
     filtered = df[df["driver_id"] == driver_id]
     max_ts = filtered.loc[filtered["datetime"].idxmax()]["datetime"]
     filtered_by_ts = filtered[filtered["datetime"] == max_ts]
@@ -18,12 +20,16 @@ def _get_last_feature_row(df: pd.DataFrame, driver_id):
 class TestLocalEndToEnd:
     def test_basic(self) -> None:
         """
-            Add another table to existing repo using partial apply API. Make sure both the table
-            applied via CLI apply and the new table are passing RW test.
+            1. Create a repo.
+            2. Apply
+            3. Ingest some data to online store from parquet
+            4. Read from the online store to make sure it made it there.
         """
 
         runner = CliRunner()
         with tempfile.TemporaryDirectory() as data_dir:
+
+            # Generate some test data in parquet format.
             end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
             start_date = end_date - timedelta(days=15)
 
@@ -37,24 +43,30 @@ class TestLocalEndToEnd:
                 path=driver_stats_path, allow_truncated_timestamps=True
             )
 
+            # Note that runner takes care of running apply/teardown for us here.
+            # We patch python code in example_feature_repo_2.py to set the path to Parquet files.
             with runner.local_repo(
                 get_example_repo("example_feature_repo_2.py").replace(
                     "%PARQUET_PATH%", driver_stats_path
                 )
             ) as store:
 
-                repo_path = store.repo_path
+                assert store.repo_path is not None
 
+                # feast materialize
                 r = runner.run(
                     [
                         "materialize",
-                        str(repo_path),
+                        str(store.repo_path),
                         start_date.isoformat(),
                         end_date.isoformat(),
                     ],
-                    cwd=repo_path,
+                    cwd=Path(store.repo_path),
                 )
+
                 assert r.returncode == 0
+
+                # Read features back
                 result = store.get_online_features(
                     feature_refs=[
                         "driver_hourly_stats:conv_rate",
