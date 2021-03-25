@@ -11,8 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from datetime import timedelta
-from typing import Dict, List, Optional, Union
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple, Union
 
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.timestamp_pb2 import Timestamp
@@ -25,6 +25,9 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 )
 from feast.protos.feast.core.FeatureView_pb2 import (
     FeatureViewSpec as FeatureViewSpecProto,
+)
+from feast.protos.feast.core.FeatureView_pb2 import (
+    MaterializationInterval as MaterializationIntervalProto,
 )
 from feast.value_type import ValueType
 
@@ -44,6 +47,7 @@ class FeatureView:
 
     created_timestamp: Optional[Timestamp] = None
     last_updated_timestamp: Optional[Timestamp] = None
+    materialization_intervals: List[Tuple[datetime, datetime]] = []
 
     def __init__(
         self,
@@ -98,7 +102,13 @@ class FeatureView:
         meta = FeatureViewMetaProto(
             created_timestamp=self.created_timestamp,
             last_updated_timestamp=self.last_updated_timestamp,
+            materialization_intervals=[],
         )
+        for interval in self.materialization_intervals:
+            interval_proto = MaterializationIntervalProto()
+            interval_proto.start_time.FromDatetime(interval[0])
+            interval_proto.end_time.FromDatetime(interval[1])
+            meta.materialization_intervals.append(interval_proto)
 
         if self.ttl is not None:
             ttl_duration = Duration()
@@ -152,4 +162,15 @@ class FeatureView:
 
         feature_view.created_timestamp = feature_view_proto.meta.created_timestamp
 
+        for interval in feature_view_proto.meta.materialization_intervals:
+            feature_view.materialization_intervals.append(
+                (interval.start_time.ToDatetime(), interval.end_time.ToDatetime())
+            )
+
         return feature_view
+
+    @property
+    def most_recent_end_time(self) -> Optional[datetime]:
+        if len(self.materialization_intervals) == 0:
+            return None
+        return max([interval[1] for interval in self.materialization_intervals])
