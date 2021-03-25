@@ -37,6 +37,7 @@ def basic_rw_test(store: FeatureStore, view_name: str) -> None:
                     created_ts,
                 )
             ],
+            progress=None,
         )
 
         read_rows = provider.online_read(

@@ -1,5 +1,7 @@
+import itertools
 from datetime import datetime
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from multiprocessing.pool import ThreadPool
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
 import mmh3
 from pytz import utc
@@ -24,7 +26,6 @@ def _delete_all_values(client, key) -> None:
             return
 
         for entity in entities:
-            print("Deleting: {}".format(entity))
             client.delete(entity.key)
 
 
@@ -110,48 +111,15 @@ class Gcp(Provider):
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
+        progress: Optional[Callable[[int], Any]],
     ) -> None:
-        from google.cloud import datastore
-
         client = self._initialize_client()
 
-        for entity_key, features, timestamp, created_ts in data:
-            document_id = compute_datastore_entity_id(entity_key)
-
-            key = client.key(
-                "Project", project, "Table", table.name, "Row", document_id,
-            )
-            with client.transaction():
-                entity = client.get(key)
-                if entity is not None:
-                    if entity["event_ts"] > _make_tzaware(timestamp):
-                        # Do not overwrite feature values computed from fresher data
-                        continue
-                    elif (
-                        entity["event_ts"] == _make_tzaware(timestamp)
-                        and created_ts is not None
-                        and entity["created_ts"] is not None
-                        and entity["created_ts"] > _make_tzaware(created_ts)
-                    ):
-                        # Do not overwrite feature values computed from the same data, but
-                        # computed later than this one
-                        continue
-                else:
-                    entity = datastore.Entity(key=key)
-
-                entity.update(
-                    dict(
-                        key=entity_key.SerializeToString(),
-                        values={k: v.SerializeToString() for k, v in features.items()},
-                        event_ts=_make_tzaware(timestamp),
-                        created_ts=(
-                            _make_tzaware(created_ts)
-                            if created_ts is not None
-                            else None
-                        ),
-                    )
-                )
-                client.put(entity)
+        pool = ThreadPool(processes=10)
+        pool.map(
+            lambda b: _write_minibatch(client, project, table, b, progress),
+            _to_minibatches(data),
+        )
 
     def online_read(
         self,
@@ -178,3 +146,89 @@ class Gcp(Provider):
             else:
                 result.append((None, None))
         return result
+
+
+ProtoBatch = Sequence[
+    Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+]
+
+
+def _to_minibatches(data: ProtoBatch, batch_size=50) -> Iterator[ProtoBatch]:
+    """
+    Split data into minibatches, making sure we stay under GCP datastore transaction size
+    limits.
+    """
+    iterable = iter(data)
+
+    while True:
+        batch = list(itertools.islice(iterable, batch_size))
+        if len(batch) > 0:
+            yield batch
+        else:
+            break
+
+
+def _write_minibatch(
+    client,
+    project: str,
+    table: Union[FeatureTable, FeatureView],
+    data: Sequence[
+        Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+    ],
+    progress: Optional[Callable[[int], Any]],
+):
+    from google.api_core.exceptions import Conflict
+    from google.cloud import datastore
+
+    num_retries_on_conflict = 3
+    row_count = 0
+    for retry_number in range(num_retries_on_conflict):
+        try:
+            row_count = 0
+            with client.transaction():
+                for entity_key, features, timestamp, created_ts in data:
+                    document_id = compute_datastore_entity_id(entity_key)
+
+                    key = client.key(
+                        "Project", project, "Table", table.name, "Row", document_id,
+                    )
+
+                    entity = client.get(key)
+                    if entity is not None:
+                        if entity["event_ts"] > _make_tzaware(timestamp):
+                            # Do not overwrite feature values computed from fresher data
+                            continue
+                        elif (
+                            entity["event_ts"] == _make_tzaware(timestamp)
+                            and created_ts is not None
+                            and entity["created_ts"] is not None
+                            and entity["created_ts"] > _make_tzaware(created_ts)
+                        ):
+                            # Do not overwrite feature values computed from the same data, but
+                            # computed later than this one
+                            continue
+                    else:
+                        entity = datastore.Entity(key=key)
+
+                    entity.update(
+                        dict(
+                            key=entity_key.SerializeToString(),
+                            values={
+                                k: v.SerializeToString() for k, v in features.items()
+                            },
+                            event_ts=_make_tzaware(timestamp),
+                            created_ts=(
+                                _make_tzaware(created_ts)
+                                if created_ts is not None
+                                else None
+                            ),
+                        )
+                    )
+                    client.put(entity)
+                    row_count += 1
+
+                    if progress:
+                        progress(1)
+        except Conflict:
+            if retry_number == num_retries_on_conflict - 1:
+                raise

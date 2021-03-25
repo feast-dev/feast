@@ -40,6 +40,7 @@ class TestOnlineRetrieval:
                         datetime.utcnow(),
                     )
                 ],
+                progress=None,
             )
 
             provider.online_write_batch(
@@ -56,6 +57,7 @@ class TestOnlineRetrieval:
                         datetime.utcnow(),
                     )
                 ],
+                progress=None,
             )
 
             # Retrieve two features using two keys, one valid one non-existing

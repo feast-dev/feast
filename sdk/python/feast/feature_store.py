@@ -304,7 +304,9 @@ class FeatureStore:
         rows_to_write = _convert_arrow_to_proto(table, feature_view)
 
         provider = self._get_provider()
-        provider.online_write_batch(self.config.project, feature_view, rows_to_write)
+        provider.online_write_batch(
+            self.config.project, feature_view, rows_to_write, None
+        )
 
         feature_view.materialization_intervals.append((start_date, end_date))
         self.apply([feature_view])
