@@ -3,6 +3,8 @@ import sqlite3
 from datetime import datetime
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
+import pytz
+
 from feast import FeatureTable, FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.provider import Provider
@@ -13,6 +15,13 @@ from feast.repo_config import LocalOnlineStoreConfig
 
 def _table_id(project: str, table: Union[FeatureTable, FeatureView]) -> str:
     return f"{project}_{table.name}"
+
+
+def _to_naive_utc(ts: datetime):
+    if ts.tzinfo is None:
+        return ts
+    else:
+        return ts.astimezone(pytz.utc).replace(tzinfo=None)
 
 
 class LocalSqlite(Provider):
@@ -64,6 +73,9 @@ class LocalSqlite(Provider):
             for entity_key, values, timestamp, created_ts in data:
                 for feature_name, val in values.items():
                     entity_key_bin = serialize_entity_key(entity_key)
+                    timestamp = _to_naive_utc(timestamp)
+                    if created_ts is not None:
+                        created_ts = _to_naive_utc(created_ts)
 
                     conn.execute(
                         f"""

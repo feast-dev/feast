@@ -15,16 +15,19 @@
 import json
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 
 import click
 import pkg_resources
 import yaml
+from pytz import utc
 
 from feast.client import Client
 from feast.config import Config
 from feast.entity import Entity
+from feast.feature_store import FeatureStore
 from feast.feature_table import FeatureTable
 from feast.loaders.yaml import yaml_loader
 from feast.repo_config import load_repo_config
@@ -387,6 +390,30 @@ def registry_dump_command(repo_path: str):
     repo_config = load_repo_config(Path(repo_path))
 
     registry_dump(repo_config)
+
+
+@cli.command("materialize")
+@click.argument("repo_path", type=click.Path(dir_okay=True, exists=True))
+@click.argument("start_ts")
+@click.argument("end_ts")
+@click.option(
+    "--views", "-v", help="Feature views to materialize", multiple=True,
+)
+def materialize_command(repo_path: str, start_ts: str, end_ts: str, views: List[str]):
+    """
+    Run a (non-incremental) materialization job to ingest data into the online store. Feast
+    will read all data between START_TS and END_TS from the offline store and write it to the
+    online store. If you don't specify feature view names using --views, all registred Feature
+    Views will be materialized.
+
+    START_TS and END_TS should be in ISO 8601 format, e.g. '2021-07-16T19:20:01'
+    """
+    store = FeatureStore(repo_path=repo_path)
+    store.materialize(
+        feature_views=None if not views else views,
+        start_date=datetime.fromisoformat(start_ts).replace(tzinfo=utc),
+        end_date=datetime.fromisoformat(end_ts).replace(tzinfo=utc),
+    )
 
 
 if __name__ == "__main__":

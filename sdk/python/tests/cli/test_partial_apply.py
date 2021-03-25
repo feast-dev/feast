@@ -2,7 +2,7 @@ from google.protobuf.duration_pb2 import Duration
 
 from feast import BigQuerySource, Feature, FeatureView, ValueType
 from tests.cli.online_read_write_test import basic_rw_test
-from tests.cli.utils import CliRunner
+from tests.cli.utils import CliRunner, get_example_repo
 
 
 class TestOnlineRetrieval:
@@ -13,7 +13,7 @@ class TestOnlineRetrieval:
         """
 
         runner = CliRunner()
-        with runner.local_repo("example_feature_repo_1.py") as store:
+        with runner.local_repo(get_example_repo("example_feature_repo_1.py")) as store:
 
             driver_locations_source = BigQuerySource(
                 table_ref="rh_prod.ride_hailing_co.drivers",

@@ -295,7 +295,28 @@ class FileOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> pyarrow.Table:
-        pass
+        assert isinstance(data_source, FileSource)
+        source_df = pd.read_parquet(data_source.path)
+
+        ts_columns = (
+            [event_timestamp_column, created_timestamp_column]
+            if created_timestamp_column is not None
+            else [event_timestamp_column]
+        )
+        source_df.sort_values(by=ts_columns, inplace=True)
+
+        filtered_df = source_df[
+            (source_df[event_timestamp_column] >= start_date)
+            & (source_df[event_timestamp_column] < end_date)
+        ]
+        last_values_df = filtered_df.groupby(by=entity_names).last()
+
+        # make driver_id a normal column again
+        last_values_df.reset_index(inplace=True)
+
+        return pyarrow.Table.from_pandas(
+            last_values_df[entity_names + feature_names + ts_columns]
+        )
 
     @staticmethod
     def get_historical_features(
@@ -569,5 +590,7 @@ ORDER BY event_timestamp
 def get_offline_store(config: RepoConfig) -> Type[OfflineStore]:
     if config.provider == "gcp":
         return BigQueryOfflineStore
+    elif config.provider == "local":
+        return FileOfflineStore
     else:
         raise ValueError(config)

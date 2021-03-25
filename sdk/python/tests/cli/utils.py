@@ -12,6 +12,10 @@ from feast import cli
 from feast.feature_store import FeatureStore
 
 
+def get_example_repo(example_repo_py) -> str:
+    return (Path(__file__).parent / example_repo_py).read_text()
+
+
 class CliRunner:
     """
     NB. We can't use test runner helper from click here, since it doesn't start a new Python
@@ -27,9 +31,8 @@ class CliRunner:
         """
         Convenience method to set up all the boilerplate for a local feature repo.
         """
-        project_id = "".join(
-            "test" + random.choice(string.ascii_lowercase + string.digits)
-            for _ in range(10)
+        project_id = "test" + "".join(
+            random.choice(string.ascii_lowercase + string.digits) for _ in range(10)
         )
 
         with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
@@ -53,9 +56,7 @@ class CliRunner:
             )
 
             repo_example = repo_path / "example.py"
-            repo_example.write_text(
-                (Path(__file__).parent / example_repo_py).read_text()
-            )
+            repo_example.write_text(example_repo_py)
 
             result = self.run(["apply", str(repo_path)], cwd=repo_path)
             assert result.returncode == 0
