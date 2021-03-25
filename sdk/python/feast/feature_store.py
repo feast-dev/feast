@@ -225,7 +225,7 @@ class FeatureStore:
             if start_date is None:
                 if feature_view.ttl is None:
                     raise Exception(
-                        f"No start time found for feature view {feature_view.name}. materialize_incremental() requires either a ttl to be set or for materialize() to have been run."
+                        f"No start time found for feature view {feature_view.name}. materialize_incremental() requires either a ttl to be set or for materialize() to have been run at least once."
                     )
                 start_date = datetime.utcnow() - feature_view.ttl
             self._materialize_single_feature_view(feature_view, start_date, end_date)
