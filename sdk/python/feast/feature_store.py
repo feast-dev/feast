@@ -19,7 +19,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import pandas as pd
 import pyarrow
 
-from feast.data_source import FileSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.provider import Provider, get_provider
@@ -51,10 +50,12 @@ class FeatureStore:
     """
 
     config: RepoConfig
+    repo_path: Optional[str]
 
     def __init__(
         self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None,
     ):
+        self.repo_path = repo_path
         if repo_path is not None and config is not None:
             raise ValueError("You cannot specify both repo_path and config")
         if config is not None:
@@ -225,10 +226,6 @@ class FeatureStore:
 
         # TODO paging large loads
         for feature_view in feature_views_to_materialize:
-            if isinstance(feature_view.input, FileSource):
-                raise NotImplementedError(
-                    "This function is not yet implemented for File data sources"
-                )
             (
                 entity_names,
                 feature_names,
@@ -451,6 +448,18 @@ def _convert_arrow_to_proto(
     table: pyarrow.Table, feature_view: FeatureView
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
     rows_to_write = []
+
+    def _coerce_datetime(ts):
+        """
+        Depending on underlying ts resolution, arrow to_pydict() sometimes returns pandas timestamp
+        type (for ns resolution), and sometimes you get python datetime (for us resolution).
+        """
+
+        if isinstance(ts, pd.Timestamp):
+            return ts.to_pydatetime()
+        else:
+            return ts
+
     for row in zip(*table.to_pydict().values()):
         entity_key = EntityKeyProto()
         for entity_name in feature_view.entities:
@@ -466,12 +475,13 @@ def _convert_arrow_to_proto(
         event_timestamp_idx = table.column_names.index(
             feature_view.input.event_timestamp_column
         )
-        event_timestamp = row[event_timestamp_idx]
+        event_timestamp = _coerce_datetime(row[event_timestamp_idx])
+
         if feature_view.input.created_timestamp_column is not None:
             created_timestamp_idx = table.column_names.index(
                 feature_view.input.created_timestamp_column
             )
-            created_timestamp = row[created_timestamp_idx]
+            created_timestamp = _coerce_datetime(row[created_timestamp_idx])
         else:
             created_timestamp = None
 

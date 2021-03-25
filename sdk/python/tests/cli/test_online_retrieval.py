@@ -4,13 +4,13 @@ import pytest
 
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from tests.cli.utils import CliRunner
+from tests.cli.utils import CliRunner, get_example_repo
 
 
 class TestOnlineRetrieval:
     def test_basic(self) -> None:
         runner = CliRunner()
-        with runner.local_repo("example_feature_repo_1.py") as store:
+        with runner.local_repo(get_example_repo("example_feature_repo_1.py")) as store:
 
             # Write some data to two tables
             registry = store._get_registry()

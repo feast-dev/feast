@@ -9,6 +9,7 @@ import pytest
 from google.cloud import bigquery
 from pandas.testing import assert_frame_equal
 
+import tests.driver_test_data as driver_data
 from feast.data_source import BigQuerySource, FileSource
 from feast.entity import Entity
 from feast.feature import Feature
@@ -30,65 +31,10 @@ def generate_entities(date):
     after_end_date = end_date + timedelta(days=7)
     customer_entities = [1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010]
     driver_entities = [5001, 5002, 5003, 5004, 5005, 5006, 5007, 5008, 5009, 5010]
-    orders_df = create_orders_df(
+    orders_df = driver_data.create_orders_df(
         customer_entities, driver_entities, before_start_date, after_end_date, 20
     )
     return customer_entities, driver_entities, end_date, orders_df, start_date
-
-
-def create_orders_df(customers, drivers, start_date, end_date, order_count):
-    df = pd.DataFrame()
-    df["order_id"] = [order_id for order_id in range(100, 100 + order_count)]
-    df["driver_id"] = np.random.choice(drivers, order_count)
-    df["customer_id"] = np.random.choice(customers, order_count)
-    df["order_is_success"] = np.random.randint(0, 2, size=order_count).astype(np.int32)
-    df[ENTITY_DF_EVENT_TIMESTAMP_COL] = [
-        pd.Timestamp(dt, unit="ms", tz="UTC").round("ms")
-        for dt in pd.date_range(start=start_date, end=end_date, periods=order_count)
-    ]
-    df.sort_values(
-        by=[ENTITY_DF_EVENT_TIMESTAMP_COL, "order_id", "driver_id", "customer_id"],
-        inplace=True,
-    )
-    return df
-
-
-def create_driver_hourly_stats_df(drivers, start_date, end_date):
-    df_hourly = pd.DataFrame(
-        {
-            "datetime": [
-                pd.Timestamp(dt, unit="ms", tz="UTC").round("ms")
-                for dt in pd.date_range(
-                    start=start_date, end=end_date, freq="1H", closed="left"
-                )
-            ]
-        }
-    )
-    df_all_drivers = pd.DataFrame()
-
-    for driver in drivers:
-        df_hourly_copy = df_hourly.copy()
-        df_hourly_copy["driver_id"] = driver
-        df_all_drivers = pd.concat([df_hourly_copy, df_all_drivers])
-
-    df_all_drivers.reset_index(drop=True, inplace=True)
-    rows = df_all_drivers["datetime"].count()
-
-    df_all_drivers["conv_rate"] = np.random.random(size=rows).astype(np.float32)
-    df_all_drivers["acc_rate"] = np.random.random(size=rows).astype(np.float32)
-    df_all_drivers["avg_daily_trips"] = np.random.randint(0, 1000, size=rows).astype(
-        np.int32
-    )
-    df_all_drivers["created"] = pd.to_datetime(pd.Timestamp.now().round("ms"))
-
-    # Create duplicate rows that should be filtered by created timestamp
-    # TODO: These duplicate rows area indirectly being filtered out by the point in time join already. We need to
-    #  inject a bad row at a timestamp where we know it will get joined to the entity dataframe, and then test that
-    #  we are actually filtering it with the created timestamp
-    late_row = df_all_drivers.iloc[int(rows / 2)]
-    df_all_drivers = df_all_drivers.append(late_row).append(late_row)
-
-    return df_all_drivers
 
 
 def stage_driver_hourly_stats_parquet_source(directory, df):
@@ -119,41 +65,6 @@ def create_driver_hourly_stats_feature_view(source):
         ttl=timedelta(hours=2),
     )
     return driver_stats_feature_view
-
-
-def create_customer_daily_profile_df(customers, start_date, end_date):
-    df_daily = pd.DataFrame(
-        {
-            "datetime": [
-                pd.Timestamp(dt, unit="ms", tz="UTC").round("ms")
-                for dt in pd.date_range(
-                    start=start_date, end=end_date, freq="1D", closed="left"
-                )
-            ]
-        }
-    )
-    df_all_customers = pd.DataFrame()
-
-    for customer in customers:
-        df_daily_copy = df_daily.copy()
-        df_daily_copy["customer_id"] = customer
-        df_all_customers = pd.concat([df_daily_copy, df_all_customers])
-
-    df_all_customers.reset_index(drop=True, inplace=True)
-
-    rows = df_all_customers["datetime"].count()
-
-    df_all_customers["current_balance"] = np.random.random(size=rows).astype(np.float32)
-    df_all_customers["avg_passenger_count"] = np.random.random(size=rows).astype(
-        np.float32
-    )
-    df_all_customers["lifetime_trip_count"] = np.random.randint(
-        0, 1000, size=rows
-    ).astype(np.int32)
-
-    # TODO: Remove created timestamp in order to test whether its really optional
-    df_all_customers["created"] = pd.to_datetime(pd.Timestamp.now().round("ms"))
-    return df_all_customers
 
 
 def stage_customer_daily_profile_parquet_source(directory, df):
@@ -301,10 +212,12 @@ def test_historical_features_from_parquet_sources():
     ) = generate_entities(start_date)
 
     with TemporaryDirectory() as temp_dir:
-        driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
+        driver_df = driver_data.create_driver_hourly_stats_df(
+            driver_entities, start_date, end_date
+        )
         driver_source = stage_driver_hourly_stats_parquet_source(temp_dir, driver_df)
         driver_fv = create_driver_hourly_stats_feature_view(driver_source)
-        customer_df = create_customer_daily_profile_df(
+        customer_df = driver_data.create_customer_daily_profile_df(
             customer_entities, start_date, end_date
         )
         customer_source = stage_customer_daily_profile_parquet_source(
@@ -387,7 +300,9 @@ def test_historical_features_from_bigquery_sources():
         entity_df_query = f"SELECT * FROM {gcp_project}.{table_id}"
 
         # Driver Feature View
-        driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
+        driver_df = driver_data.create_driver_hourly_stats_df(
+            driver_entities, start_date, end_date
+        )
         driver_table_id = f"{gcp_project}.{bigquery_dataset}.driver_hourly"
         stage_driver_hourly_stats_bigquery_source(driver_df, driver_table_id)
         driver_source = BigQuerySource(
@@ -398,7 +313,7 @@ def test_historical_features_from_bigquery_sources():
         driver_fv = create_driver_hourly_stats_feature_view(driver_source)
 
         # Customer Feature View
-        customer_df = create_customer_daily_profile_df(
+        customer_df = driver_data.create_customer_daily_profile_df(
             customer_entities, start_date, end_date
         )
         customer_table_id = f"{gcp_project}.{bigquery_dataset}.customer_profile"
