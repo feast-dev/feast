@@ -1,7 +1,7 @@
 import os
 import sqlite3
 from datetime import datetime
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import pytz
 
@@ -66,6 +66,7 @@ class LocalSqlite(Provider):
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
+        progress: Optional[Callable[[int], Any]],
     ) -> None:
         conn = self._get_conn()
 

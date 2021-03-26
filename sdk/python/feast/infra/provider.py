@@ -1,6 +1,6 @@
 import abc
 from datetime import datetime
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from feast import FeatureTable, FeatureView
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -50,6 +50,7 @@ class Provider(abc.ABC):
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
+        progress: Optional[Callable[[int], Any]],
     ) -> None:
         """
         Write a batch of feature rows to the online store. This is a low level interface, not
@@ -63,6 +64,8 @@ class Provider(abc.ABC):
             data: a list of quadruplets containing Feature data. Each quadruplet contains an Entity Key,
                 a dict containing feature values, an event timestamp for the row, and
                 the created timestamp for the row if it exists.
+            progress: Optional function to be called once every mini-batch of rows is written to
+                the online store. Can be used to display progress.
         """
         ...
 
