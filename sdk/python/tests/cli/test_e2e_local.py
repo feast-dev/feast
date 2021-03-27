@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
-import tests.driver_test_data as driver_data
+import feast.driver_test_data as driver_data
 from tests.cli.utils import CliRunner, get_example_repo
 
 
@@ -57,9 +57,9 @@ class TestLocalEndToEnd:
                 r = runner.run(
                     [
                         "materialize",
-                        str(store.repo_path),
                         start_date.isoformat(),
                         end_date.isoformat(),
+                        str(store.repo_path),
                     ],
                     cwd=Path(store.repo_path),
                 )

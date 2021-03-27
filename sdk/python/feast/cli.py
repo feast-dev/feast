@@ -31,7 +31,13 @@ from feast.feature_store import FeatureStore
 from feast.feature_table import FeatureTable
 from feast.loaders.yaml import yaml_loader
 from feast.repo_config import load_repo_config
-from feast.repo_operations import apply_total, registry_dump, teardown
+from feast.repo_operations import (
+    apply_total,
+    cli_check_repo,
+    init_repo,
+    registry_dump,
+    teardown,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -360,22 +366,28 @@ def project_list():
 
 
 @cli.command("apply")
-@click.argument("repo_path", type=click.Path(dir_okay=True, exists=True))
+@click.argument(
+    "repo_path", type=click.Path(dir_okay=True, exists=True), default=Path.cwd
+)
 def apply_total_command(repo_path: str):
     """
     Applies a feature repo
     """
+    cli_check_repo(Path(repo_path))
     repo_config = load_repo_config(Path(repo_path))
 
     apply_total(repo_config, Path(repo_path).resolve())
 
 
 @cli.command("teardown")
-@click.argument("repo_path", type=click.Path(dir_okay=True, exists=True))
+@click.argument(
+    "repo_path", type=click.Path(dir_okay=True, exists=True), default=Path.cwd
+)
 def teardown_command(repo_path: str):
     """
     Tear down infra for a feature repo
     """
+    cli_check_repo(Path(repo_path))
     repo_config = load_repo_config(Path(repo_path))
 
     teardown(repo_config, Path(repo_path).resolve())
@@ -393,13 +405,15 @@ def registry_dump_command(repo_path: str):
 
 
 @cli.command("materialize")
-@click.argument("repo_path", type=click.Path(dir_okay=True, exists=True))
 @click.argument("start_ts")
 @click.argument("end_ts")
+@click.argument(
+    "repo_path", type=click.Path(dir_okay=True, exists=True,), default=Path.cwd
+)
 @click.option(
     "--views", "-v", help="Feature views to materialize", multiple=True,
 )
-def materialize_command(repo_path: str, start_ts: str, end_ts: str, views: List[str]):
+def materialize_command(start_ts: str, end_ts: str, repo_path: str, views: List[str]):
     """
     Run a (non-incremental) materialization job to ingest data into the online store. Feast
     will read all data between START_TS and END_TS from the offline store and write it to the
@@ -414,6 +428,13 @@ def materialize_command(repo_path: str, start_ts: str, end_ts: str, views: List[
         start_date=datetime.fromisoformat(start_ts).replace(tzinfo=utc),
         end_date=datetime.fromisoformat(end_ts).replace(tzinfo=utc),
     )
+
+
+@cli.command("init")
+@click.option("--minimal", "-m", is_flag=True, help="Only generate the config")
+def init_command(minimal: bool):
+    repo_path = Path.cwd()
+    init_repo(repo_path, minimal)
 
 
 if __name__ == "__main__":

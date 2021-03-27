@@ -1,10 +1,15 @@
 import importlib
 import os
+import random
+import string
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
+from textwrap import dedent
 from typing import List, NamedTuple, Union
 
 from feast import Entity, FeatureTable
+from feast.driver_test_data import create_driver_hourly_stats_df
 from feast.feature_view import FeatureView
 from feast.infra.provider import get_provider
 from feast.registry import Registry
@@ -132,3 +137,82 @@ def registry_dump(repo_config: RepoConfig):
         print(entity)
     for table in registry.list_feature_tables(project=project):
         print(table)
+
+
+def cli_check_repo(repo_path: Path):
+    config_path = repo_path / "feature_store.yaml"
+    if not config_path.exists():
+        print(
+            f"Can't find feature_store.yaml at {repo_path}. Make sure you're running this command in an initialized feast repository."
+        )
+        sys.exit(1)
+
+
+def init_repo(repo_path: Path, minimal: bool):
+
+    repo_config = repo_path / "feature_store.yaml"
+
+    if repo_config.exists():
+        print("Feature repository is already initalized, nothing to do.")
+        sys.exit(1)
+
+    project_id = "proj" + "".join(
+        random.choice(string.ascii_lowercase + string.digits) for _ in range(5)
+    )
+
+    if minimal:
+        repo_config.write_text(
+            dedent(
+                f"""
+        project: {project_id}
+        metadata_store: /path/to/metadata.db
+        provider: local
+        online_store:
+            local:
+                path: /path/to/online_store.db
+        """
+            )
+        )
+        print(
+            "Generated example feature_store.yaml. Please edit metadata_store"
+            "location before running apply"
+        )
+
+    else:
+        example_py = (Path(__file__).parent / "example_repo.py").read_text()
+
+        data_path = repo_path / "data"
+        data_path.mkdir(exist_ok=True)
+
+        end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
+        start_date = end_date - timedelta(days=15)
+
+        driver_entities = [1001, 1002, 1003, 1004, 1005]
+        driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
+
+        driver_stats_path = data_path / "driver_stats.parquet"
+        driver_df.to_parquet(
+            path=str(driver_stats_path), allow_truncated_timestamps=True
+        )
+
+        with open(repo_path / "example.py", "wt") as f:
+            f.write(example_py.replace("%PARQUET_PATH%", str(driver_stats_path)))
+
+        # Generate config
+        repo_config.write_text(
+            dedent(
+                f"""
+        project: {project_id}
+        metadata_store: {data_path / "metadata.db"}
+        provider: local
+        online_store:
+            local:
+                path: {data_path / "online_store.db"}
+        """
+            )
+        )
+
+        print("Generated feature_store.yaml and example features in example_repo.py")
+        print(
+            "Now try runing `feast apply` to apply, or `feast materialize` to sync data to the online store"
+        )

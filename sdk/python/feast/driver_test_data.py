@@ -1,3 +1,4 @@
+# This module generates dummy data to be used for tests and examples.
 import numpy as np
 import pandas as pd
 

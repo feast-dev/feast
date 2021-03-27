@@ -97,6 +97,7 @@ class FeastConfigError(Exception):
 
 def load_repo_config(repo_path: Path) -> RepoConfig:
     config_path = repo_path / "feature_store.yaml"
+
     with open(config_path) as f:
         raw_config = yaml.safe_load(f)
         try:
