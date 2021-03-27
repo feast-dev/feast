@@ -21,13 +21,14 @@ import pyarrow
 
 from feast.entity import Entity
 from feast.feature_view import FeatureView
-from feast.infra.provider import Provider, get_provider
+from feast.infra_provisioner import InfraProvisioner, get_provisioner
 from feast.offline_store import (
     RetrievalJob,
     get_offline_store,
     get_offline_store_for_retrieval,
 )
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
+from feast.online_store import OnlineStore, get_online_store
 from feast.protos.feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequestV2,
     GetOnlineFeaturesResponse,
@@ -76,8 +77,11 @@ class FeatureStore:
     def project(self) -> str:
         return self.config.project
 
-    def _get_provider(self) -> Provider:
-        return get_provider(self.config)
+    def _get_provisioner(self) -> InfraProvisioner:
+        return get_provisioner(self.config)
+
+    def _get_online_store(self) -> OnlineStore:
+        return get_online_store(self.config)
 
     def _get_registry(self) -> Registry:
         return Registry(self.config.metadata_store)
@@ -126,10 +130,10 @@ class FeatureStore:
                 raise ValueError(
                     f"Unknown object type ({type(ob)}) provided as part of apply() call"
                 )
-        self._get_provider().update_infra(
+        self._get_provisioner().update_infra(
             project=self.config.project,
             tables_to_delete=[],
-            tables_to_keep=views_to_update,
+            tables_to_have=views_to_update,
             partial=True,
         )
 
@@ -303,8 +307,8 @@ class FeatureStore:
 
         rows_to_write = _convert_arrow_to_proto(table, feature_view)
 
-        provider = self._get_provider()
-        provider.online_write_batch(
+        online_store = self._get_online_store()
+        online_store.online_write_batch(
             self.config.project, feature_view, rows_to_write, None
         )
 
@@ -354,7 +358,7 @@ class FeatureStore:
         project: str,
     ) -> GetOnlineFeaturesResponse:
 
-        provider = self._get_provider()
+        online_store = self._get_online_store()
 
         entity_keys = []
         result_rows: List[GetOnlineFeaturesResponse.FieldValues] = []
@@ -368,7 +372,7 @@ class FeatureStore:
 
         grouped_refs = _group_refs(feature_refs, all_feature_views)
         for table, requested_features in grouped_refs:
-            read_rows = provider.online_read(
+            read_rows = online_store.online_read(
                 project=project, table=table, entity_keys=entity_keys,
             )
             for row_idx, read_row in enumerate(read_rows):

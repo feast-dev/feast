@@ -6,7 +6,7 @@ from typing import List, NamedTuple, Union
 
 from feast import Entity, FeatureTable
 from feast.feature_view import FeatureView
-from feast.infra.provider import get_provider
+from feast.infra_provisioner import get_provisioner
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
 
@@ -92,7 +92,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     for view in repo.feature_views:
         registry.apply_feature_view(view, project)
 
-    infra_provider = get_provider(repo_config)
+    infra_provisioner = get_provisioner(repo_config)
 
     all_to_delete: List[Union[FeatureTable, FeatureView]] = []
     all_to_delete.extend(tables_to_delete)
@@ -102,10 +102,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     all_to_keep.extend(repo.feature_tables)
     all_to_keep.extend(repo.feature_views)
 
-    infra_provider.update_infra(
+    infra_provisioner.update_infra(
         project,
         tables_to_delete=all_to_delete,
-        tables_to_keep=all_to_keep,
+        tables_to_have=all_to_keep,
         partial=False,
     )
 
@@ -118,8 +118,8 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
     registry_tables: List[Union[FeatureTable, FeatureView]] = []
     registry_tables.extend(registry.list_feature_tables(project=project))
     registry_tables.extend(registry.list_feature_views(project=project))
-    infra_provider = get_provider(repo_config)
-    infra_provider.teardown_infra(project, tables=registry_tables)
+    infra_provisioner = get_provisioner(repo_config)
+    infra_provisioner.teardown_infra(project, tables=registry_tables)
 
 
 def registry_dump(repo_config: RepoConfig):

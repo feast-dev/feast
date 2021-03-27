@@ -7,7 +7,8 @@ import mmh3
 from pytz import utc
 
 from feast import FeatureTable, FeatureView
-from feast.infra.provider import Provider
+from feast.infra_provisioner import InfraProvisioner
+from feast.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import DatastoreOnlineStoreConfig
@@ -47,7 +48,7 @@ def _make_tzaware(t: datetime):
         return t
 
 
-class Gcp(Provider):
+class Gcp(InfraProvisioner):
     _gcp_project_id: Optional[str]
 
     def __init__(self, config: Optional[DatastoreOnlineStoreConfig]):
@@ -68,14 +69,14 @@ class Gcp(Provider):
         self,
         project: str,
         tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
-        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        tables_to_have: Sequence[Union[FeatureTable, FeatureView]],
         partial: bool,
     ):
         from google.cloud import datastore
 
         client = self._initialize_client()
 
-        for table in tables_to_keep:
+        for table in tables_to_have:
             key = client.key("Project", project, "Table", table.name)
             entity = datastore.Entity(key=key)
             entity.update({"created_ts": datetime.utcnow()})
@@ -103,6 +104,24 @@ class Gcp(Provider):
             # Delete the table metadata datastore entity
             key = client.key("Project", project, "Table", table.name)
             client.delete(key)
+
+
+class OnlineStoreDatastore(OnlineStore):
+    _gcp_project_id: Optional[str]
+
+    def __init__(self, config: Optional[DatastoreOnlineStoreConfig]):
+        if config:
+            self._gcp_project_id = config.project_id
+        else:
+            self._gcp_project_id = None
+
+    def _initialize_client(self):
+        from google.cloud import datastore
+
+        if self._gcp_project_id is not None:
+            return datastore.Client(self._gcp_project_id)
+        else:
+            return datastore.Client()
 
     def online_write_batch(
         self,

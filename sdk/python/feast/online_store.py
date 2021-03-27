@@ -1,6 +1,6 @@
 import abc
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from feast import FeatureTable, FeatureView
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -8,40 +8,7 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 
 
-class Provider(abc.ABC):
-    @abc.abstractmethod
-    def update_infra(
-        self,
-        project: str,
-        tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
-        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
-        partial: bool,
-    ):
-        """
-        Reconcile cloud resources with the objects declared in the feature repo.
-
-        Args:
-            tables_to_delete: Tables that were deleted from the feature repo, so provider needs to
-                clean up the corresponding cloud resources.
-            tables_to_keep: Tables that are still in the feature repo. Depending on implementation,
-                provider may or may not need to update the corresponding resources.
-            partial: if true, then tables_to_delete and tables_to_keep are *not* exhaustive lists.
-                There may be other tables that are not touched by this update.
-        """
-        ...
-
-    @abc.abstractmethod
-    def teardown_infra(
-        self, project: str, tables: Sequence[Union[FeatureTable, FeatureView]]
-    ):
-        """
-        Tear down all cloud resources for a repo.
-
-        Args:
-            tables: Tables that are declared in the feature repo.
-        """
-        ...
-
+class OnlineStore(abc.ABC):
     @abc.abstractmethod
     def online_write_batch(
         self,
@@ -88,16 +55,18 @@ class Provider(abc.ABC):
         ...
 
 
-def get_provider(config: RepoConfig) -> Provider:
+def get_online_store(config: RepoConfig) -> OnlineStore:
     if config.provider == "gcp":
-        from feast.infra.gcp import Gcp
+        from feast.infra.gcp import OnlineStoreDatastore
 
-        return Gcp(config.online_store.datastore if config.online_store else None)
+        return OnlineStoreDatastore(
+            config.online_store.datastore if config.online_store else None
+        )
     elif config.provider == "local":
-        from feast.infra.local_sqlite import LocalSqlite
+        from feast.infra.local_sqlite import OnlineStoreSqlite
 
         assert config.online_store is not None
         assert config.online_store.local is not None
-        return LocalSqlite(config.online_store.local)
+        return OnlineStoreSqlite(config.online_store.local)
     else:
         raise ValueError(config)

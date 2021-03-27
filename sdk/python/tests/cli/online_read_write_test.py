@@ -13,7 +13,7 @@ def basic_rw_test(store: FeatureStore, view_name: str) -> None:
     registry = store._get_registry()
     table = registry.get_feature_view(project=store.project, name=view_name)
 
-    provider = store._get_provider()
+    online_store = store._get_online_store()
 
     entity_key = EntityKeyProto(
         entity_names=["driver"], entity_values=[ValueProto(int64_val=1)]
@@ -23,7 +23,7 @@ def basic_rw_test(store: FeatureStore, view_name: str) -> None:
         """ A helper function to write values and read them back """
         write_lat, write_lon = write
         expect_lat, expect_lon = expect_read
-        provider.online_write_batch(
+        online_store.online_write_batch(
             project=store.project,
             table=table,
             data=[
@@ -40,7 +40,7 @@ def basic_rw_test(store: FeatureStore, view_name: str) -> None:
             progress=None,
         )
 
-        read_rows = provider.online_read(
+        read_rows = online_store.online_read(
             project=store.project, table=table, entity_keys=[entity_key]
         )
         assert len(read_rows) == 1

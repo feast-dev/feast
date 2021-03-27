@@ -21,12 +21,12 @@ class TestOnlineRetrieval:
                 project=store.config.project, name="driver_locations_2"
             )
 
-            provider = store._get_provider()
+            online_store = store._get_online_store()
 
             entity_key = EntityKeyProto(
                 entity_names=["driver"], entity_values=[ValueProto(int64_val=1)]
             )
-            provider.online_write_batch(
+            online_store.online_write_batch(
                 project=store.config.project,
                 table=table,
                 data=[
@@ -43,7 +43,7 @@ class TestOnlineRetrieval:
                 progress=None,
             )
 
-            provider.online_write_batch(
+            online_store.online_write_batch(
                 project=store.config.project,
                 table=table_2,
                 data=[

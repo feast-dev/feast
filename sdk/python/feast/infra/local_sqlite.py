@@ -7,7 +7,8 @@ import pytz
 
 from feast import FeatureTable, FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
-from feast.infra.provider import Provider
+from feast.infra_provisioner import InfraProvisioner
+from feast.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import LocalOnlineStoreConfig
@@ -24,7 +25,7 @@ def _to_naive_utc(ts: datetime):
         return ts.astimezone(pytz.utc).replace(tzinfo=None)
 
 
-class LocalSqlite(Provider):
+class LocalSqlite(InfraProvisioner):
     _db_path: str
 
     def __init__(self, config: LocalOnlineStoreConfig):
@@ -39,11 +40,11 @@ class LocalSqlite(Provider):
         self,
         project: str,
         tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
-        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        tables_to_have: Sequence[Union[FeatureTable, FeatureView]],
         partial: bool,
     ):
         conn = self._get_conn()
-        for table in tables_to_keep:
+        for table in tables_to_have:
             conn.execute(
                 f"CREATE TABLE IF NOT EXISTS {_table_id(project, table)} (entity_key BLOB, feature_name TEXT, value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
             )
@@ -58,6 +59,18 @@ class LocalSqlite(Provider):
         self, project: str, tables: Sequence[Union[FeatureTable, FeatureView]]
     ) -> None:
         os.unlink(self._db_path)
+
+
+class OnlineStoreSqlite(OnlineStore):
+    _db_path: str
+
+    def __init__(self, config: LocalOnlineStoreConfig):
+        self._db_path = config.path
+
+    def _get_conn(self):
+        return sqlite3.connect(
+            self._db_path, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        )
 
     def online_write_batch(
         self,

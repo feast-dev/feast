@@ -65,7 +65,8 @@ def benchmark_writes():
         )
         store.apply([table, driver])
 
-        provider = store._get_provider()
+        online_store = store._get_online_store()
+        provisioner = store._get_provisioner()
 
         end_date = datetime.utcnow()
         start_date = end_date - timedelta(days=14)
@@ -78,7 +79,7 @@ def benchmark_writes():
 
         # Write it
         with tqdm(total=len(proto_data)) as progress:
-            provider.online_write_batch(
+            online_store.online_write_batch(
                 project=store.project,
                 table=table,
                 data=proto_data,
@@ -88,7 +89,7 @@ def benchmark_writes():
         registry_tables = store._get_registry().list_feature_views(
             project=store.project
         )
-        provider.teardown_infra(store.project, tables=registry_tables)
+        provisioner.teardown_infra(store.project, tables=registry_tables)
 
 
 if __name__ == "__main__":
