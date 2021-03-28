@@ -59,6 +59,33 @@ REQUIRED = [
     "jsonschema",
 ]
 
+CI_REQUIRED = [
+    "cryptography==3.3.2",
+    "flake8",
+    "black==19.10b0",
+    "isort>=5",
+    "grpcio-tools==1.31.0",
+    "grpcio-testing==1.31.0",
+    "mock==2.0.0",
+    "moto",
+    "mypy==0.790",
+    "mypy-protobuf==1.24",
+    "avro==1.10.0",
+    "gcsfs",
+    "urllib3>=1.25.4",
+    "pytest==6.0.0",
+    "pytest-lazy-fixture==0.6.3",
+    "pytest-timeout==1.4.2",
+    "pytest-ordering==0.6.*",
+    "pytest-mock==1.10.4",
+    "Sphinx",
+    "sphinx-rtd-theme",
+    "adlfs==0.5.9",
+    "firebase-admin==4.5.2",
+    "google-cloud-datastore==2.1.0",
+    "pre-commit"
+]
+
 # README file from Feast repo root directory
 repo_root = (
     subprocess.Popen(["git", "rev-parse", "--show-toplevel"], stdout=subprocess.PIPE)
@@ -150,6 +177,7 @@ setup(
     extras_require={
         "dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"],
         "docs": ["grpcio-tools"],
+        "ci": CI_REQUIRED
     },
     include_package_data=True,
     license="Apache",

@@ -39,7 +39,7 @@ install-ci-dependencies: install-python-ci-dependencies install-go-ci-dependenci
 # Python SDK
 
 install-python-ci-dependencies:
-	pip install --no-cache-dir -r sdk/python/requirements-ci.txt
+	pip install -e "sdk/python[ci]"
 
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
