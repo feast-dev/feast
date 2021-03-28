@@ -13,7 +13,7 @@ protobuf==3.*
 pytest
 pytest-mock
 pytest-timeout
-PyYAML==5.1.2
+PyYAML==5.4
 fastavro==0.21.*
 grpcio-testing==1.*
 pytest-ordering==0.6.*
