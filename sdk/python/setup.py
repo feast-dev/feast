@@ -21,10 +21,14 @@ from setuptools import find_packages
 
 try:
     from setuptools import setup
+    from setuptools.command.install import install
     from setuptools.command.develop import develop
+    from setuptools.command.egg_info import egg_info
+    from setuptools.command.sdist import sdist
     from setuptools.command.build_py import build_py
 except ImportError:
     from distutils.core import setup
+    from distutils.command.install import install
     from distutils.command.build_py import build_py
 
 NAME = "feast"
@@ -35,6 +39,8 @@ REQUIRES_PYTHON = ">=3.6.0"
 
 REQUIRED = [
     "Click==7.*",
+    "bindr",
+    "fastavro>=0.22.11,<0.23",
     "google-api-core>=1.23.0",
     "google-cloud-bigquery>=2.0.*",
     "google-cloud-bigquery-storage >= 2.0.0",
@@ -43,20 +49,17 @@ REQUIRED = [
     "googleapis-common-protos==1.52.*",
     "grpcio==1.31.0",
     "Jinja2>=2.0.0",
+    "jsonschema",
+    "mmh3",
+    "numpy<1.20.0",
     "pandas~=1.0.0",
     "pandavro==1.5.*",
     "protobuf>=3.10",
+    "pyarrow==2.0.0",
     "PyYAML==5.3.*",
-    "fastavro>=0.22.11,<0.23",
     "tabulate==0.8.*",
     "toml==0.10.*",
     "tqdm==4.*",
-    "pyarrow==2.0.0",
-    "numpy<1.20.0",
-    "google",
-    "bindr",
-    "mmh3",
-    "jsonschema",
 ]
 
 CI_REQUIRED = [
@@ -176,7 +179,6 @@ setup(
     # Install dev requirements with: pip install -e .[dev]
     extras_require={
         "dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"],
-        "docs": ["grpcio-tools"],
         "ci": CI_REQUIRED
     },
     include_package_data=True,

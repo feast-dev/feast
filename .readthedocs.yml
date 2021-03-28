@@ -10,5 +10,3 @@ python:
   version: 3.7
   install:
       - requirements: sdk/python/docs/requirements.txt
-      - path: sdk/python/
-        method: setuptools

@@ -1,11 +1,21 @@
 Feast Python API Documentation
 =============================
 
-Client
+
+Feature Store
+---------------------------
+
+.. automodule:: feast.feature_store
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Config
 ==================
 
-.. automodule:: feast.client
+.. automodule:: feast.repo_config
     :members:
+    :exclude-members: load_repo_config
 
 Data Source
 ==================
@@ -22,6 +32,12 @@ Entity
     :members:
 
 
+Feature View
+==================
+
+.. automodule:: feast.feature_view
+    :members:
+
 Feature Table
 ==================
 
@@ -34,17 +50,3 @@ Feature
 .. automodule:: feast.feature
     :inherited-members:
     :members:
-
-Constants
-==================
-
-.. automodule:: feast.constants
-    :members:
-    :exclude-members: AuthProvider, ConfigMeta
-
-Config
-==================
-
-.. automodule:: feast.repo_config
-    :members:
-    :exclude-members: load_repo_config
