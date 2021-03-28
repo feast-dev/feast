@@ -1,5 +1,6 @@
 import importlib
 import os
+import random
 import sys
 from pathlib import Path
 from typing import List, NamedTuple, Union
@@ -7,6 +8,7 @@ from typing import List, NamedTuple, Union
 from feast import Entity, FeatureTable
 from feast.feature_view import FeatureView
 from feast.infra.provider import get_provider
+from feast.names import adjectives, animals
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
 
@@ -132,3 +134,8 @@ def registry_dump(repo_config: RepoConfig):
         print(entity)
     for table in registry.list_feature_tables(project=project):
         print(table)
+
+
+def generate_project_name() -> str:
+    """Generates a unique project name"""
+    return f"{random.choice(adjectives)}_{random.choice(animals)}"
