@@ -10,8 +10,10 @@ from .data_source import (
 )
 from .entity import Entity
 from .feature import Feature
+from .feature_store import FeatureStore
 from .feature_table import FeatureTable
 from .feature_view import FeatureView
+from .repo_config import RepoConfig
 from .value_type import ValueType
 
 try:
@@ -28,8 +30,10 @@ __all__ = [
     "KafkaSource",
     "KinesisSource",
     "Feature",
+    "FeatureStore",
     "FeatureTable",
     "FeatureView",
+    "RepoConfig",
     "SourceType",
     "ValueType",
 ]
