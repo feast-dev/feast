@@ -188,5 +188,4 @@ dmypy.json
 sdk/python/docs/source
 sdk/python/docs/html
 sdk/python/feast/protos/
-sdk/python/tensorflow_metadata
 sdk/go/protos/
