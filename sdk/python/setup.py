@@ -85,7 +85,6 @@ class BuildProtoCommand(Command):
         self.protoc = ["python", "-m", "grpc_tools.protoc"]  # find_executable("protoc")
         self.proto_folder = os.path.join(repo_root, "protos")
         self.this_package = os.path.join(os.path.dirname(__file__) or os.getcwd(), 'feast/protos')
-        # self.feast_protos = os.path.join(repo_root, "protos") #os.path.join(os.path.dirname(feast.__file__), 'protos')
         self.sub_folders = ["core", "serving", "types", "storage"]
 
     def finalize_options(self):
@@ -96,7 +95,6 @@ class BuildProtoCommand(Command):
 
         subprocess.check_call(self.protoc + [
             '-I', self.proto_folder,
-            # '-I', self.feast_protos,
             '--python_out', self.this_package,
             '--grpc_python_out', self.this_package,
             '--mypy_out', self.this_package] + proto_files)
