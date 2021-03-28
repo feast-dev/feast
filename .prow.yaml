@@ -64,13 +64,6 @@ presubmits:
   branches:
   - ^v0\.(3|4)-branch$
 
-- name: test-python-sdk
-  decorate: true
-  spec:
-    containers:
-    - image: python:3.7
-      command: ["infra/scripts/test-python-sdk.sh"]
-
 - name: test-telemetry
   decorate: true
   run_if_changed: "sdk/python/.*"

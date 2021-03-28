@@ -39,13 +39,12 @@ install-ci-dependencies: install-python-ci-dependencies install-go-ci-dependenci
 # Python SDK
 
 install-python-ci-dependencies:
-	pip install --no-cache-dir -r sdk/python/requirements-ci.txt
+	pip install -e "sdk/python[ci]"
 
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
 
 compile-protos-python:
-	pip install --ignore-installed mypy-protobuf || echo "Mypy could not be installed"
 	@$(foreach dir,$(PROTO_TYPE_SUBDIRS),cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --grpc_python_out=../sdk/python/feast/protos/ --python_out=../sdk/python/feast/protos/ --mypy_out=../sdk/python/feast/protos/ feast/$(dir)/*.proto;)
 	@$(foreach dir,$(PROTO_TYPE_SUBDIRS),grep -rli 'from feast.$(dir)' sdk/python/feast/protos | xargs -I@ sed -i.bak 's/from feast.$(dir)/from feast.protos.feast.$(dir)/g' @;)
 	cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --python_out=../sdk/python/ --mypy_out=../sdk/python/ tensorflow_metadata/proto/v0/*.proto

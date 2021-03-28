@@ -11,23 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import logging
+import glob
 import os
 import re
 import subprocess
 
+from distutils.cmd import Command
 from setuptools import find_packages
 
 try:
     from setuptools import setup
-    from setuptools.command.install import install
     from setuptools.command.develop import develop
-    from setuptools.command.egg_info import egg_info
-    from setuptools.command.sdist import sdist
-
+    from setuptools.command.build_py import build_py
 except ImportError:
     from distutils.core import setup
-    from distutils.command.install import install
+    from distutils.command.build_py import build_py
 
 NAME = "feast"
 DESCRIPTION = "Python SDK for Feast"
@@ -44,7 +42,7 @@ REQUIRED = [
     "google-cloud-core==1.4.*",
     "googleapis-common-protos==1.52.*",
     "grpcio==1.31.0",
-    "Jinja2==2.11.3",
+    "Jinja2>=2.0.0",
     "pandas~=1.0.0",
     "pandavro==1.5.*",
     "protobuf>=3.10",
@@ -59,6 +57,33 @@ REQUIRED = [
     "bindr",
     "mmh3",
     "jsonschema",
+]
+
+CI_REQUIRED = [
+    "cryptography==3.3.2",
+    "flake8",
+    "black==19.10b0",
+    "isort>=5",
+    "grpcio-tools==1.31.0",
+    "grpcio-testing==1.31.0",
+    "mock==2.0.0",
+    "moto",
+    "mypy==0.790",
+    "mypy-protobuf==1.24",
+    "avro==1.10.0",
+    "gcsfs",
+    "urllib3>=1.25.4",
+    "pytest==6.0.0",
+    "pytest-lazy-fixture==0.6.3",
+    "pytest-timeout==1.4.2",
+    "pytest-ordering==0.6.*",
+    "pytest-mock==1.10.4",
+    "Sphinx",
+    "sphinx-rtd-theme",
+    "adlfs==0.5.9",
+    "firebase-admin==4.5.2",
+    "google-cloud-datastore==2.1.0",
+    "pre-commit"
 ]
 
 # README file from Feast repo root directory
@@ -79,31 +104,62 @@ TAG_REGEX = re.compile(
     r"^(?:[\/\w-]+)?(?P<version>[vV]?\d+(?:\.\d+){0,2}[^\+]*)(?:\+.*)?$"
 )
 
-proto_dirs = [x for x in os.listdir(repo_root + "/protos/feast")]
-proto_dirs.remove("third_party")
 
+class BuildProtoCommand(Command):
+    description = "Builds the proto files into python files."
 
-def pre_install_build():
-    subprocess.check_call("make compile-protos-python", shell=True, cwd=f"{repo_root}")
-    subprocess.check_call("make build-sphinx", shell=True, cwd=f"{repo_root}")
+    def initialize_options(self):
+        self.protoc = ["python", "-m", "grpc_tools.protoc"]  # find_executable("protoc")
+        self.proto_folder = os.path.join(repo_root, "protos")
+        self.this_package = os.path.join(os.path.dirname(__file__) or os.getcwd(), 'feast/protos')
+        self.sub_folders = ["core", "serving", "types", "storage"]
 
+    def finalize_options(self):
+        pass
 
-class CustomInstallCommand(install):
-    def do_egg_install(self):
-        pre_install_build()
-        install.do_egg_install(self)
+    def _generate_protos(self, path):
+        proto_files = glob.glob(os.path.join(self.proto_folder, path))
 
+        subprocess.check_call(self.protoc + [
+            '-I', self.proto_folder,
+            '--python_out', self.this_package,
+            '--grpc_python_out', self.this_package,
+            '--mypy_out', self.this_package] + proto_files)
 
-class CustomDevelopCommand(develop):
     def run(self):
-        pre_install_build()
+        for sub_folder in self.sub_folders:
+            self._generate_protos(f'feast/{sub_folder}/*.proto')
+
+        from pathlib import Path
+
+        for path in Path('feast/protos').rglob('*.py'):
+            for folder in self.sub_folders:
+                # Read in the file
+                with open(path, 'r') as file:
+                    filedata = file.read()
+
+                # Replace the target string
+                filedata = filedata.replace(f'from feast.{folder}', f'from feast.protos.feast.{folder}')
+
+                # Write the file out again
+                with open(path, 'w') as file:
+                    file.write(filedata)
+
+
+class BuildCommand(build_py):
+    """Custom build command."""
+
+    def run(self):
+        self.run_command('build_proto')
+        build_py.run(self)
+
+
+class DevelopCommand(develop):
+    """Custom develop command."""
+
+    def run(self):
+        self.run_command('build_proto')
         develop.run(self)
-
-
-class CustomEggInfoCommand(egg_info):
-    def run(self):
-        pre_install_build()
-        egg_info.run(self)
 
 
 setup(
@@ -114,14 +170,14 @@ setup(
     long_description_content_type="text/markdown",
     python_requires=REQUIRES_PYTHON,
     url=URL,
-    packages=find_packages(exclude=("tests",)) + ['.'],
+    packages=find_packages(exclude=("tests",)),
     install_requires=REQUIRED,
     # https://stackoverflow.com/questions/28509965/setuptools-development-requirements
     # Install dev requirements with: pip install -e .[dev]
     extras_require={
         "dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"],
-        "validation": ["great_expectations==0.13.2", "pyspark==3.0.1"],
         "docs": ["grpcio-tools"],
+        "ci": CI_REQUIRED
     },
     include_package_data=True,
     license="Apache",
@@ -135,7 +191,7 @@ setup(
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version={"root": "../..", "relative_to": __file__, "tag_regex": TAG_REGEX},
-    setup_requires=["setuptools_scm", "grpcio-tools", "mypy-protobuf", "sphinx"],
+    setup_requires=["setuptools_scm", "grpcio", "grpcio-tools==1.31.0", "mypy-protobuf", "sphinx"],
     package_data={
         "": [
             "protos/feast/**/*.proto",
@@ -146,8 +202,8 @@ setup(
         ],
     },
     cmdclass={
-        "install": CustomInstallCommand,
-        "develop": CustomDevelopCommand,
-        "egg_info": CustomEggInfoCommand,
+        "build_proto": BuildProtoCommand,
+        "build_py": BuildCommand,
+        "develop": DevelopCommand,
     },
 )

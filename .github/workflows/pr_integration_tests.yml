@@ -13,7 +13,7 @@ jobs:
     if: (github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'ok-to-test'))
       || (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved')))
     runs-on: ubuntu-latest
-    container: gcr.io/kf-feast/feast-ci:latest
+    container: python:3.7
     steps:
       - uses: actions/checkout@v2
         with:
@@ -32,9 +32,5 @@ jobs:
         run: gcloud info
       - name: Install dependencies
         run: make install-python-ci-dependencies
-      - name: Compile protos
-        run: make compile-protos-python
-      - name: Install python
-        run: make install-python
       - name: Test python
         run: FEAST_TELEMETRY=False pytest --verbose --color=yes sdk/python/tests --integration
