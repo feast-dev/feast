@@ -983,9 +983,7 @@ class TestClient:
         client.list_feature_tables()
 
 
-def _ingest_test_getfeaturetable_mocked_resp(
-    file_url: str, date_partition_col: str = None
-):
+def _ingest_test_getfeaturetable_mocked_resp(file_url: str, date_partition_col: str):
     return GetFeatureTableResponse(
         table=FeatureTableProto(
             spec=FeatureTableSpecProto(
