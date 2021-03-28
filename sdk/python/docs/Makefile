@@ -15,13 +15,10 @@ help:
 
 .PHONY: help Makefile source
 
-clean-source:
-	rm -rf $(PROJECT_ROOT)/sdk/python/docs/source
-
 clean-html:
 	rm -rf $(PROJECT_ROOT)/sdk/python/docs/html
 
-build-api-source: clean-source
+build-api-source:
 	sphinx-apidoc -f -o source $(PROJECT_ROOT)/sdk/python/feast
 	cp conf.py index.rst source/
 
