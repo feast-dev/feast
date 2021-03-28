@@ -13,6 +13,8 @@ from .feature import Feature
 from .feature_table import FeatureTable
 from .feature_view import FeatureView
 from .value_type import ValueType
+from .feature_store import FeatureStore
+from .repo_config import RepoConfig
 
 try:
     __version__ = get_distribution(__name__).version
@@ -28,8 +30,10 @@ __all__ = [
     "KafkaSource",
     "KinesisSource",
     "Feature",
+    "FeatureStore",
     "FeatureTable",
     "FeatureView",
+    "RepoConfig",
     "SourceType",
     "ValueType",
 ]
