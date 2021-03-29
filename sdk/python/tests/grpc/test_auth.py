@@ -18,6 +18,7 @@ from configparser import NoOptionError
 from http import HTTPStatus
 from unittest.mock import call, patch
 
+from google.auth.exceptions import DefaultCredentialsError
 from pytest import fixture, raises
 
 from feast.config import Config
@@ -146,17 +147,14 @@ def test_get_auth_metadata_plugin_oauth_should_raise_when_config_is_incorrect(
         get_auth_metadata_plugin(config_with_missing_variable)
 
 
-@patch("google.auth.jwt.decode", return_value=GoogleMockResponse("jwt_token"))
-@patch(
-    "subprocess.run", return_value=GoogleMockResponse("std_output".encode("utf-8")),
-)
+@patch("google.oauth2.id_token.fetch_id_token", return_value="Some Token")
 def test_get_auth_metadata_plugin_google_should_pass_with_token_from_gcloud_sdk(
-    subprocess, jwt, config_google
+    fetch_id_token, config_google
 ):
     auth_metadata_plugin = get_auth_metadata_plugin(config_google)
     assert isinstance(auth_metadata_plugin, GoogleOpenIDAuthMetadataPlugin)
     assert auth_metadata_plugin.get_signed_meta() == (
-        ("authorization", "Bearer std_output"),
+        ("authorization", "Bearer Some Token"),
     )
 
 
@@ -167,11 +165,9 @@ def test_get_auth_metadata_plugin_google_should_pass_with_token_from_gcloud_sdk(
         GoogleDefaultResponse("project_id"),
     ],
 )
-@patch(
-    "subprocess.run", return_value=GoogleMockResponse("std_output".encode("utf-8")),
-)
+@patch("google.oauth2.id_token.fetch_id_token", side_effect=DefaultCredentialsError())
 def test_get_auth_metadata_plugin_google_should_pass_with_token_from_google_auth_lib(
-    subprocess, default, config_google
+    fetch_id_token, default, config_google
 ):
     auth_metadata_plugin = get_auth_metadata_plugin(config_google)
     assert isinstance(auth_metadata_plugin, GoogleOpenIDAuthMetadataPlugin)
@@ -187,11 +183,9 @@ def test_get_auth_metadata_plugin_google_should_pass_with_token_from_google_auth
         GoogleDefaultErrorResponse("project_id"),
     ],
 )
-@patch(
-    "subprocess.run", return_value=GoogleMockResponse("std_output".encode("utf-8")),
-)
+@patch("google.oauth2.id_token.fetch_id_token", side_effect=DefaultCredentialsError())
 def test_get_auth_metadata_plugin_google_should_raise_when_token_validation_fails(
-    subprocess, default, config_google
+    fetch_id_token, default, config_google
 ):
     with raises(RuntimeError):
         get_auth_metadata_plugin(config_google)
