@@ -16,7 +16,6 @@ import pkgutil
 import socket
 from concurrent import futures
 from datetime import datetime, timedelta
-from tempfile import mkstemp
 from typing import Tuple
 from unittest import mock
 
@@ -371,11 +370,7 @@ class TestClient:
         assert 1 == 1
 
     @pytest.mark.parametrize(
-        "test_client",
-        [
-            lazy_fixture("client"),
-            lazy_fixture("secure_client"),
-        ],
+        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client")],
     )
     def test_apply_entity_success(self, test_client):
 
@@ -402,11 +397,7 @@ class TestClient:
         )
 
     @pytest.mark.parametrize(
-        "test_client",
-        [
-            lazy_fixture("client"),
-            lazy_fixture("secure_client"),
-        ],
+        "test_client", [lazy_fixture("client"), lazy_fixture("secure_client")],
     )
     def test_apply_feature_table_success(self, test_client):
 

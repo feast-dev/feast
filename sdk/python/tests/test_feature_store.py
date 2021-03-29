@@ -11,12 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import pytest
 import time
-
 from datetime import timedelta
-from pytest_lazyfixture import lazy_fixture
 from tempfile import mkstemp
+
+import pytest
+from pytest_lazyfixture import lazy_fixture
 
 from feast.data_format import ParquetFormat
 from feast.data_source import FileSource
@@ -24,16 +24,18 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
+from feast.protos.feast.types import Value_pb2 as ValueProto
 from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
-from feast.protos.feast.types import Value_pb2 as ValueProto
 
 
 class TestFeatureStore:
     @pytest.fixture
     def feature_store_with_local_registry(self):
         fd, path = mkstemp()
-        return FeatureStore(config=RepoConfig(metadata_store=path, project="default", provider="gcp"))
+        return FeatureStore(
+            config=RepoConfig(metadata_store=path, project="default", provider="gcp")
+        )
 
     @pytest.fixture
     def feature_store_with_gcs_registry(self):
@@ -43,15 +45,18 @@ class TestFeatureStore:
         bucket_name = f"feast-registry-test-{int(time.time())}"
         bucket = storage_client.bucket(bucket_name)
         bucket = storage_client.create_bucket(bucket)
-        blob = bucket.blob("metadata.db")
+        bucket.blob("metadata.db")
 
-        return FeatureStore(config=RepoConfig(metadata_store=f"gs://{bucket_name}/metadata.db", project="default", provider="gcp"))
+        return FeatureStore(
+            config=RepoConfig(
+                metadata_store=f"gs://{bucket_name}/metadata.db",
+                project="default",
+                provider="gcp",
+            )
+        )
 
     @pytest.mark.parametrize(
-        "test_feature_store",
-        [
-            lazy_fixture("feature_store_with_local_registry"),
-        ],
+        "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
     )
     def test_apply_entity_success(self, test_feature_store):
 
@@ -115,10 +120,7 @@ class TestFeatureStore:
         )
 
     @pytest.mark.parametrize(
-        "test_feature_store",
-        [
-            lazy_fixture("feature_store_with_local_registry"),
-        ],
+        "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
     )
     def test_apply_feature_view_success(self, test_feature_store):
 
