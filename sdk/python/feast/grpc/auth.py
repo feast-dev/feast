@@ -12,10 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import json
 from http import HTTPStatus
 
 import grpc
+import requests
 from google.auth.exceptions import DefaultCredentialsError
+from google.auth.transport import requests as grequests
 
 from feast.config import Config
 from feast.constants import AuthProvider
@@ -98,10 +101,6 @@ class OAuthMetadataPlugin(grpc.AuthMetadataPlugin):
             self._token = self._static_token
             return
 
-        import json
-
-        import requests
-
         headers_token = {"content-type": "application/json"}
         data_token_dict = {
             "grant_type": config.get(opt.OAUTH_GRANT_TYPE),
@@ -157,7 +156,6 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
             config: Feast Configuration object
         """
         super(GoogleOpenIDAuthMetadataPlugin, self).__init__()
-        from google.auth.transport import requests
 
         self._static_token = None
         self._token = None
@@ -166,7 +164,7 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
         if config.exists(opt.AUTH_TOKEN):
             self._static_token = config.get(opt.AUTH_TOKEN)
 
-        self._request = requests.Request()
+        self._request = RequestWithTimeout(timeout=5)
         self._refresh_token()
 
     def get_signed_meta(self):
@@ -181,21 +179,13 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
             self._token = self._static_token
             return
 
-        # Try to find ID Token from Gcloud SDK
-        import subprocess
-
-        from google.auth import jwt
+        from google.oauth2.id_token import fetch_id_token
 
         try:
-            cli_output = subprocess.run(
-                ["gcloud", "auth", "print-identity-token"], stdout=subprocess.PIPE
-            )
-            token = cli_output.stdout.decode("utf-8").strip()
-            jwt.decode(token, verify=False)  # Ensure the token is valid
-            self._token = token
+            self._token = fetch_id_token(self._request, audience="feast.dev")
             return
-        except (ValueError, FileNotFoundError):
-            pass  # GCloud command not successful
+        except DefaultCredentialsError:
+            pass
 
         # Try to use Google Auth library to find ID Token
         from google import auth as google_auth
@@ -211,8 +201,7 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
 
         # Raise exception otherwise
         raise RuntimeError(
-            "Could not determine Google ID token. Please ensure that the Google Cloud SDK is installed and run: "
-            '"gcloud auth application-default login" or ensure that a service account can be found by setting'
+            "Could not determine Google ID token. Ensure that a service account can be found by setting"
             " the GOOGLE_APPLICATION_CREDENTIALS environmental variable to its path."
         )
 
@@ -234,3 +223,13 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
                 be invoked to pass in the authorization metadata.
         """
         callback(self.get_signed_meta(), None)
+
+
+class RequestWithTimeout(grequests.Request):
+    def __init__(self, *args, timeout=None, **kwargs):
+        self._timeout = timeout
+        super().__init__(*args, **kwargs)
+
+    def __call__(self, *args, **kwargs):
+        timeout = kwargs.pop("timeout", self._timeout)
+        return super().__call__(*args, timeout=timeout, **kwargs)
