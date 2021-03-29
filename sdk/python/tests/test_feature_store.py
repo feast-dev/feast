@@ -14,6 +14,7 @@
 import pytest
 import time
 
+from datetime import timedelta
 from pytest_lazyfixture import lazy_fixture
 from tempfile import mkstemp
 
@@ -25,6 +26,7 @@ from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
 from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
+from feast.protos.feast.types import Value_pb2 as ValueProto
 
 
 class TestFeatureStore:
@@ -120,7 +122,7 @@ class TestFeatureStore:
     )
     def test_apply_feature_view_success(self, test_feature_store):
 
-        # Create Feature Tables
+        # Create Feature Views
         batch_source = FileSource(
             file_format=ParquetFormat(),
             file_url="file://feast/*",
@@ -140,7 +142,7 @@ class TestFeatureStore:
             entities=["fs1-my-entity-1"],
             tags={"team": "matchmaking"},
             input=batch_source,
-            ttl="5m",
+            ttl=timedelta(minutes=5),
         )
 
         # Register Feature View
@@ -151,7 +153,7 @@ class TestFeatureStore:
         # List Feature Views
         assert (
             len(feature_views) == 1
-            and feature_views[0].name == "my-feature-table-1"
+            and feature_views[0].name == "my-feature-view-1"
             and feature_views[0].features[0].name == "fs1-my-feature-1"
             and feature_views[0].features[0].dtype == ValueType.INT64
             and feature_views[0].features[1].name == "fs1-my-feature-2"
@@ -167,9 +169,9 @@ class TestFeatureStore:
     @pytest.mark.parametrize(
         "test_feature_store", [lazy_fixture("feature_store_with_gcs_registry")],
     )
-    def test_apply_feature_table_integration(self, test_feature_store):
+    def test_apply_feature_view_integration(self, test_feature_store):
 
-        # Create Feature Tables
+        # Create Feature Views
         batch_source = FileSource(
             file_format=ParquetFormat(),
             file_url="file://feast/*",
@@ -189,7 +191,7 @@ class TestFeatureStore:
             entities=["fs1-my-entity-1"],
             tags={"team": "matchmaking"},
             input=batch_source,
-            ttl="5m",
+            ttl=timedelta(minutes=5),
         )
 
         # Register Feature View
@@ -200,7 +202,7 @@ class TestFeatureStore:
         # List Feature Views
         assert (
             len(feature_views) == 1
-            and feature_views[0].name == "my-feature-table-1"
+            and feature_views[0].name == "my-feature-view-1"
             and feature_views[0].features[0].name == "fs1-my-feature-1"
             and feature_views[0].features[0].dtype == ValueType.INT64
             and feature_views[0].features[1].name == "fs1-my-feature-2"
@@ -214,7 +216,7 @@ class TestFeatureStore:
 
         feature_view = test_feature_store.get_feature_view("my-feature-view-1")
         assert (
-            feature_view.name == "my-feature-table-1"
+            feature_view.name == "my-feature-view-1"
             and feature_view.features[0].name == "fs1-my-feature-1"
             and feature_view.features[0].dtype == ValueType.INT64
             and feature_view.features[1].name == "fs1-my-feature-2"
