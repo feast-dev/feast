@@ -9,7 +9,7 @@ import pytest
 from google.cloud import bigquery
 from pandas.testing import assert_frame_equal
 
-import tests.driver_test_data as driver_data
+import feast.driver_test_data as driver_data
 from feast.data_source import BigQuerySource, FileSource
 from feast.entity import Entity
 from feast.feature import Feature
