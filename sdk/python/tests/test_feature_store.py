@@ -32,14 +32,15 @@ from feast.value_type import ValueType
 class TestFeatureStore:
     @pytest.fixture
     def feature_store_with_local_registry(self):
-        fd, path = mkstemp()
+        fd, registry_path = mkstemp()
+        fd, online_store_path = mkstemp()
         return FeatureStore(
             config=RepoConfig(
-                metadata_store=path,
+                metadata_store=registry_path,
                 project="default",
                 provider="local",
                 online_store=OnlineStoreConfig(
-                    local=LocalOnlineStoreConfig(path="online_store.db")
+                    local=LocalOnlineStoreConfig(path=online_store_path)
                 ),
             )
         )
