@@ -2,7 +2,7 @@ feast-jupyter
 =============
 Feast Jupyter provides a Jupyter server with pre-installed Feast SDK
 
-Current chart version is `0.9.3`
+Current chart version is `0.9.4`
 
 
 

@@ -109,10 +109,10 @@ Feast Serving has a dependency on Feast Core, thus always start Feast Core first
 
 ```bash
 # Start Feast Core locally
-java -jar core/target/feast-core-0.9.3-exec.jar
+java -jar core/target/feast-core-0.9.4-exec.jar
 
 # Start Feast Serving locally
-java -jar serving/target/feast-serving-0.9.3-exec.jar
+java -jar serving/target/feast-serving-0.9.4-exec.jar
 ```
 
 Test whether Feast Core, Feast Serving are started and running correctly:
@@ -123,8 +123,8 @@ feast version --core-url="localhost:6565" --serving-url="localhost:6566"
 
 ```javascript
 {
-    'serving': {'url': 'localhost:6566', 'version': '0.9.3'},
-    'core': {'url': 'localhost:6565', 'version': '0.9.3'}
+    'serving': {'url': 'localhost:6566', 'version': '0.9.4'},
+    'core': {'url': 'localhost:6565', 'version': '0.9.4'}
 }
 ```
 

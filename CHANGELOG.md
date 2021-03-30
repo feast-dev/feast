@@ -1,4 +1,17 @@
 # Changelog
+## [v0.9.4](https://github.com/feast-dev/feast/tree/v0.9.4) (2021-03-30)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.9.3...v0.9.4)
+
+**Implemented enhancements:**
+
+- Add configurable timeout to redis cluster connection [\#1356](https://github.com/feast-dev/feast/pull/1356) ([pyalex](https://github.com/pyalex))
+
+**Merged pull requests:**
+
+- \[Python SDK\]\[Auth\] Refresh token id w/o gcloud cli [\#1413](https://github.com/feast-dev/feast/pull/1413) ([pyalex](https://github.com/pyalex))
+
+# Changelog
 ## [v0.9.3](https://github.com/feast-dev/feast/tree/v0.9.3) (2021-02-16)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.9.2...v0.9.3)
