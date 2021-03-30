@@ -100,7 +100,7 @@ class FeatureStore:
         """
         return self._get_registry().list_feature_views(self.project)
 
-    def get_entity(self, name) -> Entity:
+    def get_entity(self, name: str) -> Entity:
         """
         Retrieves an entity.
 
@@ -113,7 +113,7 @@ class FeatureStore:
         """
         return self._get_registry().get_entity(name, self.project)
 
-    def get_feature_view(self, name) -> FeatureView:
+    def get_feature_view(self, name: str) -> FeatureView:
         """
         Retrieves a feature view.
 
@@ -126,7 +126,7 @@ class FeatureStore:
         """
         return self._get_registry().get_feature_view(name, self.project)
 
-    def delete_feature_view(self, name):
+    def delete_feature_view(self, name: str):
         """
         Deletes a feature view or raises an exception if not found.
 

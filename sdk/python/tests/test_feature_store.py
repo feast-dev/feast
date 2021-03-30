@@ -25,7 +25,7 @@ from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
 from feast.protos.feast.types import Value_pb2 as ValueProto
-from feast.repo_config import RepoConfig
+from feast.repo_config import LocalOnlineStoreConfig, OnlineStoreConfig, RepoConfig
 from feast.value_type import ValueType
 
 
@@ -34,7 +34,14 @@ class TestFeatureStore:
     def feature_store_with_local_registry(self):
         fd, path = mkstemp()
         return FeatureStore(
-            config=RepoConfig(metadata_store=path, project="default", provider="gcp")
+            config=RepoConfig(
+                metadata_store=path,
+                project="default",
+                provider="local",
+                online_store=OnlineStoreConfig(
+                    local=LocalOnlineStoreConfig(path="online_store.db")
+                ),
+            )
         )
 
     @pytest.fixture
@@ -45,6 +52,10 @@ class TestFeatureStore:
         bucket_name = f"feast-registry-test-{int(time.time())}"
         bucket = storage_client.bucket(bucket_name)
         bucket = storage_client.create_bucket(bucket)
+        bucket.add_lifecycle_delete_rule(
+            age=14
+        )  # delete buckets automatically after 14 days
+        bucket.patch()
         bucket.blob("metadata.db")
 
         return FeatureStore(
@@ -134,14 +145,14 @@ class TestFeatureStore:
         )
 
         fv1 = FeatureView(
-            name="my-feature-view-1",
+            name="my_feature_view_1",
             features=[
-                Feature(name="fs1-my-feature-1", dtype=ValueType.INT64),
-                Feature(name="fs1-my-feature-2", dtype=ValueType.STRING),
-                Feature(name="fs1-my-feature-3", dtype=ValueType.STRING_LIST),
-                Feature(name="fs1-my-feature-4", dtype=ValueType.BYTES_LIST),
+                Feature(name="fs1_my_feature_1", dtype=ValueType.INT64),
+                Feature(name="fs1_my_feature_2", dtype=ValueType.STRING),
+                Feature(name="fs1_my_feature_3", dtype=ValueType.STRING_LIST),
+                Feature(name="fs1_my_feature_4", dtype=ValueType.BYTES_LIST),
             ],
-            entities=["fs1-my-entity-1"],
+            entities=["fs1_my_entity_1"],
             tags={"team": "matchmaking"},
             input=batch_source,
             ttl=timedelta(minutes=5),
@@ -155,16 +166,16 @@ class TestFeatureStore:
         # List Feature Views
         assert (
             len(feature_views) == 1
-            and feature_views[0].name == "my-feature-view-1"
-            and feature_views[0].features[0].name == "fs1-my-feature-1"
+            and feature_views[0].name == "my_feature_view_1"
+            and feature_views[0].features[0].name == "fs1_my_feature_1"
             and feature_views[0].features[0].dtype == ValueType.INT64
-            and feature_views[0].features[1].name == "fs1-my-feature-2"
+            and feature_views[0].features[1].name == "fs1_my_feature_2"
             and feature_views[0].features[1].dtype == ValueType.STRING
-            and feature_views[0].features[2].name == "fs1-my-feature-3"
+            and feature_views[0].features[2].name == "fs1_my_feature_3"
             and feature_views[0].features[2].dtype == ValueType.STRING_LIST
-            and feature_views[0].features[3].name == "fs1-my-feature-4"
+            and feature_views[0].features[3].name == "fs1_my_feature_4"
             and feature_views[0].features[3].dtype == ValueType.BYTES_LIST
-            and feature_views[0].entities[0] == "fs1-my-entity-1"
+            and feature_views[0].entities[0] == "fs1_my_entity_1"
         )
 
     @pytest.mark.integration
@@ -183,14 +194,14 @@ class TestFeatureStore:
         )
 
         fv1 = FeatureView(
-            name="my-feature-view-1",
+            name="my_feature_view_1",
             features=[
-                Feature(name="fs1-my-feature-1", dtype=ValueType.INT64),
-                Feature(name="fs1-my-feature-2", dtype=ValueType.STRING),
-                Feature(name="fs1-my-feature-3", dtype=ValueType.STRING_LIST),
-                Feature(name="fs1-my-feature-4", dtype=ValueType.BYTES_LIST),
+                Feature(name="fs1_my_feature_1", dtype=ValueType.INT64),
+                Feature(name="fs1_my_feature_2", dtype=ValueType.STRING),
+                Feature(name="fs1_my_feature_3", dtype=ValueType.STRING_LIST),
+                Feature(name="fs1_my_feature_4", dtype=ValueType.BYTES_LIST),
             ],
-            entities=["fs1-my-entity-1"],
+            entities=["fs1_my_entity_1"],
             tags={"team": "matchmaking"},
             input=batch_source,
             ttl=timedelta(minutes=5),
@@ -204,32 +215,32 @@ class TestFeatureStore:
         # List Feature Views
         assert (
             len(feature_views) == 1
-            and feature_views[0].name == "my-feature-view-1"
-            and feature_views[0].features[0].name == "fs1-my-feature-1"
+            and feature_views[0].name == "my_feature_view_1"
+            and feature_views[0].features[0].name == "fs1_my_feature_1"
             and feature_views[0].features[0].dtype == ValueType.INT64
-            and feature_views[0].features[1].name == "fs1-my-feature-2"
+            and feature_views[0].features[1].name == "fs1_my_feature_2"
             and feature_views[0].features[1].dtype == ValueType.STRING
-            and feature_views[0].features[2].name == "fs1-my-feature-3"
+            and feature_views[0].features[2].name == "fs1_my_feature_3"
             and feature_views[0].features[2].dtype == ValueType.STRING_LIST
-            and feature_views[0].features[3].name == "fs1-my-feature-4"
+            and feature_views[0].features[3].name == "fs1_my_feature_4"
             and feature_views[0].features[3].dtype == ValueType.BYTES_LIST
-            and feature_views[0].entities[0] == "fs1-my-entity-1"
+            and feature_views[0].entities[0] == "fs1_my_entity_1"
         )
 
-        feature_view = test_feature_store.get_feature_view("my-feature-view-1")
+        feature_view = test_feature_store.get_feature_view("my_feature_view_1")
         assert (
-            feature_view.name == "my-feature-view-1"
-            and feature_view.features[0].name == "fs1-my-feature-1"
+            feature_view.name == "my_feature_view_1"
+            and feature_view.features[0].name == "fs1_my_feature_1"
             and feature_view.features[0].dtype == ValueType.INT64
-            and feature_view.features[1].name == "fs1-my-feature-2"
+            and feature_view.features[1].name == "fs1_my_feature_2"
             and feature_view.features[1].dtype == ValueType.STRING
-            and feature_view.features[2].name == "fs1-my-feature-3"
+            and feature_view.features[2].name == "fs1_my_feature_3"
             and feature_view.features[2].dtype == ValueType.STRING_LIST
-            and feature_view.features[3].name == "fs1-my-feature-4"
+            and feature_view.features[3].name == "fs1_my_feature_4"
             and feature_view.features[3].dtype == ValueType.BYTES_LIST
-            and feature_view.entities[0] == "fs1-my-entity-1"
+            and feature_view.entities[0] == "fs1_my_entity_1"
         )
 
-        test_feature_store.delete_feature_view("my-feature-view-1")
+        test_feature_store.delete_feature_view("my_feature_view_1")
         feature_views = test_feature_store.list_feature_views()
         assert len(feature_views) == 0
