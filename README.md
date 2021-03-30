@@ -50,9 +50,11 @@ Please refer to the official documentation at <https://docs.feast.dev>
  * [Change Log](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
  * [Slack (#Feast)](https://join.slack.com/t/tectonfeast/shared_invite/zt-n7pl8gnb-H7dLlH9yQsgbchOp36ZUxQ)
 
-## Notice
-
-Feast is a community project and is still under active development. Your feedback and contributions are important to us. Please have a look at our [contributing guide](https://docs.feast.dev/contributing/contributing) for details.
+## Contributing
+Feast is a community project and is still under active development.Your feedback and contributions are important to us. Please have a look at our contributing and development guides:
+- [Contribution Process for Feast](https://docs.feast.dev/v/master/contributing/contributing)
+- [Development Guide for Feast](https://docs.feast.dev/contributing/development-guide)
+- [Development Guide for the Main Feast Repository](./CONTRIBUTING.md)
 
 ## Contributors ✨
 
