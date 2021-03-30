@@ -5,15 +5,11 @@ on: [push, pull_request]
 jobs:
   unit-test-python:
     runs-on: ubuntu-latest
-    container: gcr.io/kf-feast/feast-ci:latest
+    container: python:3.7
     steps:
       - uses: actions/checkout@v2
       - name: Install dependencies
         run: make install-python-ci-dependencies
-      - name: Compile protos
-        run: make compile-protos-python
-      - name: Install Python
-        run: make install-python
       - name: Test Python
         run: make test-python
 

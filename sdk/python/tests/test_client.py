@@ -984,7 +984,7 @@ class TestClient:
 
 
 def _ingest_test_getfeaturetable_mocked_resp(
-    file_url: str, date_partition_col: str = None
+    file_url: str, date_partition_col: str = ""
 ):
     return GetFeatureTableResponse(
         table=FeatureTableProto(
@@ -1007,9 +1007,7 @@ def _ingest_test_getfeaturetable_mocked_resp(
                     ),
                     event_timestamp_column="datetime",
                     created_timestamp_column="timestamp",
-                    date_partition_column=date_partition_col
-                    if date_partition_col is not None
-                    else None,
+                    date_partition_column=date_partition_col,
                 ),
             ),
             meta=FeatureTableMetaProto(),

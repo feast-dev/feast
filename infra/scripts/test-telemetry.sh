@@ -5,10 +5,7 @@ set -e
 # Default artifact location setting in Prow jobs
 LOGS_ARTIFACT_PATH=/logs/artifacts
 
-pip install -r sdk/python/requirements-ci.txt
-make compile-protos-python
-
 cd sdk/python/
-pip install -e .
+pip install -e ".[ci]"
 cd telemetry_tests/
 pytest --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml

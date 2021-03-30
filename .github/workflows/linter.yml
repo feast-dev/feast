@@ -4,14 +4,12 @@ on: [push, pull_request]
 
 jobs:
   lint-python:
-    container: gcr.io/kf-feast/feast-ci:latest
+    container: python:3.7
     runs-on: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v2
       - name: Install dependencies
         run: make install-python-ci-dependencies
-      - name: Compile protos
-        run: make compile-protos-python
       - name: Lint python
         run: make lint-python
 

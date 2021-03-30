@@ -229,6 +229,7 @@ def _write_minibatch(
 
                     if progress:
                         progress(1)
+            break  # make sure to break out of retry loop if all went well
         except Conflict:
             if retry_number == num_retries_on_conflict - 1:
                 raise

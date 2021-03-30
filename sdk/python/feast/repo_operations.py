@@ -1,7 +1,7 @@
 import importlib
 import os
 import random
-import string
+
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -12,6 +12,7 @@ from feast import Entity, FeatureTable
 from feast.driver_test_data import create_driver_hourly_stats_df
 from feast.feature_view import FeatureView
 from feast.infra.provider import get_provider
+from feast.names import adjectives, animals
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
 
@@ -156,9 +157,7 @@ def init_repo(repo_path: Path, minimal: bool):
         print("Feature repository is already initalized, nothing to do.")
         sys.exit(1)
 
-    project_id = "proj" + "".join(
-        random.choice(string.ascii_lowercase + string.digits) for _ in range(5)
-    )
+    project_id = generate_project_name()
 
     if minimal:
         repo_config.write_text(
@@ -216,3 +215,8 @@ def init_repo(repo_path: Path, minimal: bool):
         print(
             "Now try runing `feast apply` to apply, or `feast materialize` to sync data to the online store"
         )
+
+
+def generate_project_name() -> str:
+    """Generates a unique project name"""
+    return f"{random.choice(adjectives)}_{random.choice(animals)}"

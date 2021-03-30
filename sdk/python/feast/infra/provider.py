@@ -2,7 +2,8 @@ import abc
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-from feast import FeatureTable, FeatureView
+from feast.feature_table import FeatureTable
+from feast.feature_view import FeatureView
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
