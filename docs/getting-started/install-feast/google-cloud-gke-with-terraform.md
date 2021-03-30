@@ -22,16 +22,7 @@ This Terraform configuration creates the following resources:
 * Install [Helm](https://helm.sh/docs/intro/install/) \(tested with v3.3.4\)
 * GCP [authentication](https://cloud.google.com/docs/authentication) and sufficient [privilege](https://cloud.google.com/iam/docs/understanding-roles) to create the resources listed above.
 
-### 2. Configure Feast Helm Repository
-
-Add Feast Helm repository so Charts can be found by executing:
-
-```bash
-$ helm repo add feast-charts https://feast-helm-charts.storage.googleapis.com
-$ helm repo update
-```
-
-### 3. Configure Terraform 
+### 2. Configure Terraform 
 
 Create a `.tfvars` file under`feast/infra/terraform/gcp`. Name the file. In our example, we use `my_feast.tfvars`. You can see the full list of configuration variables in `variables.tf`. Sample configurations are provided below:
 
@@ -47,7 +38,7 @@ dataproc_staging_bucket = "feast-dataproc"
 ```
 {% endcode %}
 
-### 4. Apply
+### 3. Apply
 
 After completing the configuration, initialize Terraform and apply:
 
