@@ -125,10 +125,7 @@ class BigQueryOfflineStore(OfflineStore):
         end_date: datetime,
     ) -> pyarrow.Table:
         assert isinstance(data_source, BigQuerySource)
-        if data_source.table_ref:
-            from_expression = f"`{data_source.table_ref}`"
-        else:
-            from_expression = f"({data_source.query})"
+        from_expression = data_source.get_table_query_string()
 
         partition_by_entity_string = ", ".join(entity_names)
         if partition_by_entity_string != "":
