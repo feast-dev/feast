@@ -59,7 +59,7 @@ def benchmark_writes():
         # This is just to set data source to something, we're not reading from parquet source here.
         parquet_path = os.path.join(temp_dir, "data.parquet")
 
-        driver = Entity(name="driver_id", value_type=ValueType.INT64, description="")
+        driver = Entity(name="driver_id", value_type=ValueType.INT64)
         table = create_driver_hourly_stats_feature_view(
             create_driver_hourly_stats_source(parquet_path=parquet_path)
         )

@@ -224,8 +224,8 @@ def test_historical_features_from_parquet_sources():
             temp_dir, customer_df
         )
         customer_fv = create_customer_daily_profile_feature_view(customer_source)
-        driver = Entity(name="driver", value_type=ValueType.INT64, description="")
-        customer = Entity(name="customer", value_type=ValueType.INT64, description="")
+        driver = Entity(name="driver", value_type=ValueType.INT64)
+        customer = Entity(name="customer", value_type=ValueType.INT64)
 
         store = FeatureStore(
             config=RepoConfig(
@@ -326,8 +326,8 @@ def test_historical_features_from_bigquery_sources():
         )
         customer_fv = create_customer_daily_profile_feature_view(customer_source)
 
-        driver = Entity(name="driver", value_type=ValueType.INT64, description="")
-        customer = Entity(name="customer", value_type=ValueType.INT64, description="")
+        driver = Entity(name="driver", value_type=ValueType.INT64)
+        customer = Entity(name="customer", value_type=ValueType.INT64)
 
         store = FeatureStore(
             config=RepoConfig(
