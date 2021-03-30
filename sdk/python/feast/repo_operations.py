@@ -1,7 +1,6 @@
 import importlib
 import os
 import random
-
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -173,7 +172,7 @@ def init_repo(repo_path: Path, minimal: bool):
             )
         )
         print(
-            "Generated example feature_store.yaml. Please edit metadata_store"
+            "Generated example feature_store.yaml. Please edit metadata_store and online_store"
             "location before running apply"
         )
 
@@ -202,11 +201,11 @@ def init_repo(repo_path: Path, minimal: bool):
             dedent(
                 f"""
         project: {project_id}
-        metadata_store: {data_path / "metadata.db"}
+        metadata_store: {"data/metadata.db"}
         provider: local
         online_store:
             local:
-                path: {data_path / "online_store.db"}
+                path: {"data/online_store.db"}
         """
             )
         )
