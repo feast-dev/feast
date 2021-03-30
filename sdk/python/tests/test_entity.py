@@ -87,4 +87,4 @@ def test_entity_without_labels_empty_dict():
 
 
 def test_entity_without_description():
-    entity = Entity("my-entity", value_type=ValueType.STRING)
+    Entity("my-entity", value_type=ValueType.STRING)
