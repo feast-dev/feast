@@ -61,7 +61,7 @@ class CliRunner:
             result = self.run(["apply", str(repo_path)], cwd=repo_path)
             assert result.returncode == 0
 
-            yield FeatureStore(repo_path=repo_path, config=None)
+            yield FeatureStore(repo_path=str(repo_path), config=None)
 
             result = self.run(["teardown", str(repo_path)], cwd=repo_path)
             assert result.returncode == 0

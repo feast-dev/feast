@@ -2,7 +2,7 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from tests.cli.utils import CliRunner
+from tests.cli_utils import CliRunner
 
 
 def test_repo_init() -> None:
