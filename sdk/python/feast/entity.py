@@ -34,8 +34,8 @@ class Entity:
     def __init__(
         self,
         name: str,
-        description: str,
         value_type: ValueType,
+        description: str = "",
         labels: Optional[MutableMapping[str, str]] = None,
     ):
         self._name = name
