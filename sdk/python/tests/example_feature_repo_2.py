@@ -12,7 +12,7 @@ driver_hourly_stats = FileSource(
 driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
 
 
-driver_hourly_stats = FeatureView(
+driver_hourly_stats_view = FeatureView(
     name="driver_hourly_stats",
     entities=["driver_id"],
     ttl=Duration(seconds=86400 * 1),
