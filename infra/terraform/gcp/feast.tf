@@ -36,7 +36,7 @@ locals {
       }
     }
 
-    feast-online-serving = {
+    feast-serving = {
       enabled = true
       "application-override.yaml" = {
         feast = {
@@ -113,7 +113,7 @@ resource "helm_release" "feast" {
   depends_on = [kubernetes_secret.feast-postgres-secret, kubernetes_secret.feast_sa_secret]
 
   name  = var.name_prefix
-  chart = "../../charts/feast"
+  chart = "https://feast-helm-charts.storage.googleapis.com/feast-0.100.4.tgz"
 
   values = [
     yamlencode(local.feast_helm_values)
