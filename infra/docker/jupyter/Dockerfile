@@ -8,11 +8,11 @@ COPY Makefile Makefile
 COPY protos protos
 COPY tests tests
 
-# Install Python dependencies
-RUN make compile-protos-python
-
 # Install CI requirements (only needed for running tests)
 RUN pip install -r sdk/python/requirements-ci.txt
+
+# Install Python dependencies
+RUN make compile-protos-python
 
 # Install Feast SDK
 RUN git init .

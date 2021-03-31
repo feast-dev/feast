@@ -10,6 +10,9 @@ COPY protos protos
 # Install necessary tools for later steps
 RUN apt-get update && apt-get -y install make git wget
 
+# Install CI requirements (only needed for running tests)
+RUN pip install -r sdk/python/requirements-ci.txt
+
 # Install Python dependencies
 RUN make compile-protos-python
 
