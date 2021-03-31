@@ -82,6 +82,59 @@ class FeatureStore:
     def _get_registry(self) -> Registry:
         return Registry(self.config.metadata_store)
 
+    def list_entities(self) -> List[Entity]:
+        """
+        Retrieve a list of entities from the registry
+
+        Returns:
+            List of entities
+        """
+        return self._get_registry().list_entities(self.project)
+
+    def list_feature_views(self) -> List[FeatureView]:
+        """
+        Retrieve a list of feature views from the registry
+
+        Returns:
+            List of feature views
+        """
+        return self._get_registry().list_feature_views(self.project)
+
+    def get_entity(self, name: str) -> Entity:
+        """
+        Retrieves an entity.
+
+        Args:
+            name: Name of entity
+
+        Returns:
+            Returns either the specified entity, or raises an exception if
+            none is found
+        """
+        return self._get_registry().get_entity(name, self.project)
+
+    def get_feature_view(self, name: str) -> FeatureView:
+        """
+        Retrieves a feature view.
+
+        Args:
+            name: Name of feature view
+
+        Returns:
+            Returns either the specified feature view, or raises an exception if
+            none is found
+        """
+        return self._get_registry().get_feature_view(name, self.project)
+
+    def delete_feature_view(self, name: str):
+        """
+        Deletes a feature view or raises an exception if not found.
+
+        Args:
+            name: Name of feature view
+        """
+        return self._get_registry().delete_feature_view(name, self.project)
+
     def apply(self, objects: List[Union[FeatureView, Entity]]):
         """Register objects to metadata store and update related infrastructure.
 

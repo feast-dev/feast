@@ -200,7 +200,7 @@ class Registry:
             project: Filter feature tables based on project name
 
         Returns:
-            List of feature tables
+            List of feature views
         """
         registry_proto = self._registry_store.get_registry()
         feature_views = []
