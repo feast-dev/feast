@@ -1,9 +1,5 @@
 # Introduction
 
-{% hint style="success" %}
-_Would you prefer a lighter-weight, pip-install, no-Kubernetes deployment of Feast?_ The Feast maintainers are currently building a new deployment experience for Feast. If you have thoughts on Feast's deployment, [chat with the maintainers](https://calendly.com/d/gc29-y88c/feast-chat-w-willem-and-jay) to learn more and provide feedback.
-{% endhint %}
-
 ## What is Feast?
 
 Feast \(**Fea**ture **St**ore\) is an operational data system for managing and serving machine learning features to models in production.
@@ -47,16 +43,16 @@ Feast addresses this problem by introducing feature reuse through a centralized 
 ## How can I get started?
 
 {% hint style="info" %}
-The best way to learn Feast is to use it. Head over to our [Quickstart](quickstart.md) and try out our examples!
+The best way to learn Feast is to use it. Head over to our [Quickstart](feast-on-kubernetes/getting-started/install-feast/quickstart.md) and try out our examples!
 {% endhint %}
 
 Explore the following resources to get started with Feast:
 
-* [Getting Started](getting-started/) provides guides on [Installing Feast](getting-started/install-feast/) and [Connecting to Feast](getting-started/connect-to-feast/).
-* [Concepts](concepts/overview.md) describes all important Feast API concepts.
-* [User guide](user-guide/define-and-ingest-features.md) provides guidance on completing Feast workflows.
+* [Getting Started](feast-on-kubernetes/getting-started/) provides guides on [Installing Feast](feast-on-kubernetes/getting-started/install-feast/) and [Connecting to Feast](feast-on-kubernetes/getting-started/connect-to-feast/).
+* [Concepts](feast-on-kubernetes/concepts/overview.md) describes all important Feast API concepts.
+* [User guide](feast-on-kubernetes/user-guide/define-and-ingest-features.md) provides guidance on completing Feast workflows.
 * [Examples](https://github.com/feast-dev/feast/tree/master/examples) contains a Jupyter notebook that you can run on your Feast deployment.
-* [Advanced](advanced/troubleshooting.md) contains information about both advanced and operational aspects of Feast.
-* [Reference](reference/api/) contains detailed API and design documents for advanced users.
+* [Advanced](feast-on-kubernetes/advanced-1/troubleshooting.md) contains information about both advanced and operational aspects of Feast.
+* [Reference](feast-on-kubernetes/reference-1/api/) contains detailed API and design documents for advanced users.
 * [Contributing](contributing/contributing.md) contains resources for anyone who wants to contribute to Feast.
 
