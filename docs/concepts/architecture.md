@@ -1,6 +1,6 @@
 # Architecture
 
-![](../.gitbook/assets/image%20%286%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29.png)
+![](../.gitbook/assets/image%20%286%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29.png)
 
 ## Sequence description
 
@@ -34,18 +34,19 @@ A complete Feast deployment contains the following components:
 
 * **Feast Core:** Acts as the central registry for feature and entity definitions in Feast. 
 * **Feast Job Service:** Manages data processing jobs that load data from sources into stores, and jobs that export training datasets.
-* **Feast Online Serving:** Provides low-latency access to feature values in an online store.
-* **Feast Python SDK:** The primary user facing SDK. Used to:
+* **Feast Serving:** Provides low-latency access to feature values in an online store.
+* **Feast Python SDK CLI:** The primary user facing SDK. Used to:
   * Manage feature definitions with Feast Core.
   * Launch jobs through the Feast Job Service.
   * Retrieve training datasets.
   * Retrieve online features.
 * **Online Store:** The online store is a database that stores only the latest feature values for each entity. The online store can be populated by either batch ingestion jobs \(in the case the user has no streaming source\), or can be populated by a streaming ingestion job from a streaming source. Feast Online Serving looks up feature values from the online store.
 * **Offline Store:** The offline store persists batch data that has been ingested into Feast. This data is used for producing training datasets.
+* **Feast Spark SDK:** A Spark specific Feast SDK. Allows teams to use Spark for loading features into an online store and for building training datasets over offline sources.
 
 Please see the [configuration reference](../reference/configuration-reference.md#overview) for more details on configuring these components.
 
 {% hint style="info" %}
-Java and Go SDKs are also available for online feature retrieval. See [API Reference](../reference/api/).
+Java and Go Clients are also available for online feature retrieval. See [API Reference](../reference/api/).
 {% endhint %}
 

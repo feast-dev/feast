@@ -4,7 +4,7 @@
 This page applies to Feast 0.7. The content may be out of date for Feast 0.8+
 {% endhint %}
 
-### Overview
+## Overview
 
 Feast Components export metrics that can provide insight into Feast behavior:
 
@@ -17,11 +17,11 @@ See the [Metrics Reference ](../reference/metrics-reference.md)for documentation
 Feast Job Controller currently does not export any metrics on its own. However its `application.yml` is used to configure metrics export for ingestion jobs.
 {% endhint %}
 
-### Pushing Ingestion Metrics to StatsD
+## Pushing Ingestion Metrics to StatsD
 
-#### **Feast Ingestion Job**
+### **Feast Ingestion Job**
 
-Feast Ingestion Job can be configured to push Ingestion metrics to a StatsD instance.  Metrics export to StatsD for Ingestion Job is configured in Job Controller's `application.yml` under `feast.jobs.metrics`
+Feast Ingestion Job can be configured to push Ingestion metrics to a StatsD instance. Metrics export to StatsD for Ingestion Job is configured in Job Controller's `application.yml` under `feast.jobs.metrics`
 
 ```yaml
  feast:
@@ -36,12 +36,12 @@ Feast Ingestion Job can be configured to push Ingestion metrics to a StatsD inst
 ```
 
 {% hint style="info" %}
-If you need Ingestion Metrics in Prometheus or some other metrics backend, use a metrics forwarder to forward Ingestion Metrics from StatsD to the metrics backend of choice. \(ie  Use  [`prometheus-statsd-exporter`](https://github.com/prometheus/statsd_exporter) to forward metrics to Prometheus\).
+If you need Ingestion Metrics in Prometheus or some other metrics backend, use a metrics forwarder to forward Ingestion Metrics from StatsD to the metrics backend of choice. \(ie Use [`prometheus-statsd-exporter`](https://github.com/prometheus/statsd_exporter) to forward metrics to Prometheus\).
 {% endhint %}
 
-### Exporting Feast Metrics to Prometheus
+## Exporting Feast Metrics to Prometheus
 
-#### **Feast Core and Serving**
+### **Feast Core and Serving**
 
 Feast Core and Serving exports metrics to a Prometheus instance via Prometheus scraping its `/metrics` endpoint. Metrics export to Prometheus for Core and Serving can be configured via their corresponding `application.yml`
 
@@ -53,9 +53,7 @@ server:
 
 [Direct Prometheus](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config) to scrape directly from Core and Serving's `/metrics` endpoint.
 
-### Further Reading
+## Further Reading
 
 See the [Metrics Reference ](../reference/metrics-reference.md)for documentation on metrics are exported by Feast.
-
-## 
 
