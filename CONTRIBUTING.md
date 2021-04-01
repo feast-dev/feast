@@ -6,7 +6,6 @@
 This guide is targeted at developers looking to contribute to Feast components in
 the Main Feast Repository:
 - [Feast Python SDK / CLI](#feast-python-sdk-%2F-cli)
-- [Feast Protobuf API](#feast-protobuf-api)
 - [Feast Documentation](#feast-documentation)
 - [Feast Go Client](#feast-go-client)
 - [Feast Terraform](#feast-terraform)
@@ -112,4 +111,11 @@ go test
 ```
 
 ## Feast Terraform
-TODO(mrzzy): flesh this out.
+:warning: Feast Terraform will move to its own standalone repository in the future.
+
+See the deployment guide of the repective Terraform deployments for how to work with these deployments:
+- [Terraform Deployment on Amazon EKS](https://docs.feast.dev/v/master/getting-started/install-feast/kubernetes-amazon-eks-with-terraform)
+- [Terraform Deployment on Azure AKS](https://docs.feast.dev/v/master/getting-started/install-feast/kubernetes-azure-aks-with-terraform)
+- [Terraform Deployment on Google Cloud GKE](https://docs.feast.dev/v/master/getting-started/install-feast/google-cloud-gke-with-terraform)
+- [Terraform Deployment on IBM Cloud IKS](https://docs.feast.dev/v/master/getting-started/install-feast/ibm-cloud-iks-with-helm)
+
