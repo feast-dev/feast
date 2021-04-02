@@ -53,6 +53,10 @@ class RepoConfig(FeastBaseModel):
     online_store: Optional[OnlineStoreConfig] = None
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
 
+    # TODO: Nest in `metadata_store_config` object
+    auto_refresh_registry: bool = True
+    auto_refresh_registry_ttl_seconds: int = 600
+
 
 # This is the JSON Schema for config validation. We use this to have nice detailed error messages
 # for config validation, something that bindr unfortunately doesn't provide out of the box.
