@@ -14,7 +14,7 @@
 
 import uuid
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryFile
 from typing import Callable, List
@@ -34,8 +34,11 @@ class Registry:
     """
     Registry: A registry allows for the management and persistence of feature definitions and related metadata.
     """
+    cached_registry_proto: RegistryProto = None
+    cached_registry_proto_created: datetime = None
+    cached_registry_proto_ttl: timedelta
 
-    def __init__(self, registry_path: str):
+    def __init__(self, registry_path: str, cache_ttl: timedelta):
         """
         Create the Registry object.
 
@@ -52,6 +55,7 @@ class Registry:
             raise Exception(
                 f"Registry path {registry_path} has unsupported scheme {uri.scheme}. Supported schemes are file and gs."
             )
+        self.cached_registry_proto_ttl = cache_ttl
         return
 
     def apply_entity(self, entity: Entity, project: str):
@@ -91,7 +95,7 @@ class Registry:
         Returns:
             List of entities
         """
-        registry_proto = self._registry_store.get_registry_proto()
+        registry_proto = self._get_registry_proto()
         entities = []
         for entity_proto in registry_proto.entities:
             if entity_proto.spec.project == project:
@@ -110,11 +114,21 @@ class Registry:
             Returns either the specified entity, or raises an exception if
             none is found
         """
-        registry_proto = self._registry_store.get_registry_proto()
+        registry_proto = self._get_registry_proto()
         for entity_proto in registry_proto.entities:
             if entity_proto.spec.name == name and entity_proto.spec.project == project:
                 return Entity.from_proto(entity_proto)
         raise Exception(f"Entity {name} does not exist in project {project}")
+
+    def _get_registry_proto(self, allow_cache: bool = False) -> RegistryProto:
+        first_run = self.cached_registry_proto is None or self.cached_registry_proto_created is None
+        if first_run or not allow_cache or \
+                (datetime.now() > self.cached_registry_proto_created + self.cached_registry_proto_ttl):
+            registry_proto = self._registry_store.get_registry_proto()
+            self.cached_registry_proto = registry_proto
+            self.cached_registry_proto_created = datetime.now()
+        return self.cached_registry_proto
+
 
     def apply_feature_table(self, feature_table: FeatureTable, project: str):
         """
@@ -146,6 +160,7 @@ class Registry:
         self._registry_store.update_registry_proto(updater)
         return
 
+
     def apply_feature_view(self, feature_view: FeatureView, project: str):
         """
         Registers a single feature view with Feast
@@ -175,6 +190,7 @@ class Registry:
 
         self._registry_store.update_registry_proto(updater)
 
+
     def list_feature_tables(self, project: str) -> List[FeatureTable]:
         """
         Retrieve a list of feature tables from the registry
@@ -185,29 +201,32 @@ class Registry:
         Returns:
             List of feature tables
         """
-        registry_proto = self._registry_store.get_registry_proto()
+        registry_proto = self._get_registry_proto()
         feature_tables = []
         for feature_table_proto in registry_proto.feature_tables:
             if feature_table_proto.spec.project == project:
                 feature_tables.append(FeatureTable.from_proto(feature_table_proto))
         return feature_tables
 
-    def list_feature_views(self, project: str) -> List[FeatureView]:
+
+    def list_feature_views(self, project: str, allow_cache: bool = False) -> List[FeatureView]:
         """
         Retrieve a list of feature views from the registry
 
         Args:
+            allow_cache: Allow returning feature views from the cached registry
             project: Filter feature tables based on project name
 
         Returns:
             List of feature views
         """
-        registry_proto = self._registry_store.get_registry_proto()
+        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
         feature_views = []
         for feature_view_proto in registry_proto.feature_views:
             if feature_view_proto.spec.project == project:
                 feature_views.append(FeatureView.from_proto(feature_view_proto))
         return feature_views
+
 
     def get_feature_table(self, name: str, project: str) -> FeatureTable:
         """
@@ -221,7 +240,7 @@ class Registry:
             Returns either the specified feature table, or raises an exception if
             none is found
         """
-        registry_proto = self._registry_store.get_registry_proto()
+        registry_proto = self._get_registry_proto()
         for feature_table_proto in registry_proto.feature_tables:
             if (
                     feature_table_proto.spec.name == name
@@ -229,6 +248,7 @@ class Registry:
             ):
                 return FeatureTable.from_proto(feature_table_proto)
         raise Exception(f"Feature table {name} does not exist in project {project}")
+
 
     def get_feature_view(self, name: str, project: str) -> FeatureView:
         """
@@ -242,7 +262,7 @@ class Registry:
             Returns either the specified feature view, or raises an exception if
             none is found
         """
-        registry_proto = self._registry_store.get_registry_proto()
+        registry_proto = self._get_registry_proto()
         for feature_view_proto in registry_proto.feature_views:
             if (
                     feature_view_proto.spec.name == name
@@ -250,6 +270,7 @@ class Registry:
             ):
                 return FeatureView.from_proto(feature_view_proto)
         raise Exception(f"Feature view {name} does not exist in project {project}")
+
 
     def delete_feature_table(self, name: str, project: str):
         """
@@ -275,6 +296,7 @@ class Registry:
         self._registry_store.update_registry_proto(updater)
         return
 
+
     def delete_feature_view(self, name: str, project: str):
         """
         Deletes a feature view or raises an exception if not found.
@@ -297,6 +319,10 @@ class Registry:
             raise Exception(f"Feature view {name} does not exist in project {project}")
 
         self._registry_store.update_registry_proto(updater)
+
+
+    def refresh(self):
+        pass
 
 
 class RegistryStore(ABC):

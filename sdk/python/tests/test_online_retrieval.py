@@ -16,7 +16,7 @@ def test_online() -> None:
     runner = CliRunner()
     with runner.local_repo(get_example_repo("example_feature_repo_1.py")) as store:
         # Write some data to two tables
-        registry = store._get_registry()
+        registry = store._registry
         table = registry.get_feature_view(
             project=store.config.project, name="driver_locations"
         )
@@ -79,14 +79,13 @@ def test_online() -> None:
                 feature_refs=["driver_locations_bad:lon"], entity_rows=[{"driver": 1}],
             )
 
-        # Create new FeatureStore object with auto_refresh_registry disabled
+        # Create new FeatureStore object with fast cache invalidation
         fs_no_autoload = FeatureStore(config=RepoConfig(
             metadata_store=store.config.metadata_store,
             online_store=store.config.online_store,
             project=store.config.project,
             provider=store.config.provider,
-            auto_refresh_registry=False,
-            auto_refresh_registry_ttl_seconds=2
+            registry_cache_ttl_seconds=1
         ))
 
         # Should download the registry and cache it permanently (or until manually refreshed)
@@ -105,3 +104,6 @@ def test_online() -> None:
             entity_rows=[{"driver": 1}, {"driver": 123}],
         )
         assert result.to_dict()["driver_locations:lon"] == ["1.0", None]
+
+        # Restore metadata.db so that we can tear down the infra
+        os.rename(store.config.metadata_store + "_fake", store.config.metadata_store)
