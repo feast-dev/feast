@@ -17,7 +17,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryFile
-from typing import Callable, List
+from typing import Callable, List, Optional
 from urllib.parse import urlparse
 
 from google.auth.exceptions import DefaultCredentialsError
@@ -35,8 +35,8 @@ class Registry:
     Registry: A registry allows for the management and persistence of feature definitions and related metadata.
     """
 
-    cached_registry_proto: RegistryProto = None
-    cached_registry_proto_created: datetime = None
+    cached_registry_proto: Optional[RegistryProto] = None
+    cached_registry_proto_created: Optional[datetime] = None
     cached_registry_proto_ttl: timedelta
 
     def __init__(self, registry_path: str, cache_ttl: timedelta):
@@ -133,6 +133,7 @@ class Registry:
             )
         )
         if allow_cache and not expired:
+            assert isinstance(self.cached_registry_proto, RegistryProto)
             return self.cached_registry_proto
 
         registry_proto = self._registry_store.get_registry_proto()

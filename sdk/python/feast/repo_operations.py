@@ -137,7 +137,10 @@ def registry_dump(repo_config: RepoConfig):
     """ For debugging only: output contents of the metadata registry """
 
     project = repo_config.project
-    registry = Registry(repo_config.metadata_store)
+    registry = Registry(
+        repo_config.metadata_store,
+        cache_ttl=timedelta(seconds=repo_config.registry_cache_ttl_seconds),
+    )
 
     for entity in registry.list_entities(project=project):
         print(entity)
@@ -156,7 +159,6 @@ def cli_check_repo(repo_path: Path):
 
 
 def init_repo(repo_path: Path, minimal: bool):
-
     repo_config = repo_path / "feature_store.yaml"
 
     if repo_config.exists():
