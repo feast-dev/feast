@@ -121,26 +121,6 @@ class Registry:
                 return Entity.from_proto(entity_proto)
         raise Exception(f"Entity {name} does not exist in project {project}")
 
-    def _get_registry_proto(self, allow_cache: bool = False) -> RegistryProto:
-        expired = (
-            self.cached_registry_proto is None
-            or self.cached_registry_proto_created is None
-        ) or (
-            self.cached_registry_proto_ttl.total_seconds() > 0  # 0 ttl means infinity
-            and (
-                datetime.now()
-                > (self.cached_registry_proto_created + self.cached_registry_proto_ttl)
-            )
-        )
-        if allow_cache and not expired:
-            assert isinstance(self.cached_registry_proto, RegistryProto)
-            return self.cached_registry_proto
-
-        registry_proto = self._registry_store.get_registry_proto()
-        self.cached_registry_proto = registry_proto
-        self.cached_registry_proto_created = datetime.now()
-        return registry_proto
-
     def apply_feature_table(self, feature_table: FeatureTable, project: str):
         """
         Registers a single feature table with Feast
@@ -327,7 +307,35 @@ class Registry:
         self._registry_store.update_registry_proto(updater)
 
     def refresh(self):
-        self._get_registry_proto()
+        """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
+        self._get_registry_proto(allow_cache=False)
+
+    def _get_registry_proto(self, allow_cache: bool = False) -> RegistryProto:
+        """Returns the cached or remote registry state
+
+        Args:
+            allow_cache: Whether to allow the use of the registry cache when fetching the RegistryProto
+
+        Returns: Returns a RegistryProto object which represents the state of the registry
+        """
+        expired = (
+            self.cached_registry_proto is None
+            or self.cached_registry_proto_created is None
+        ) or (
+            self.cached_registry_proto_ttl.total_seconds() > 0  # 0 ttl means infinity
+            and (
+                datetime.now()
+                > (self.cached_registry_proto_created + self.cached_registry_proto_ttl)
+            )
+        )
+        if allow_cache and not expired:
+            assert isinstance(self.cached_registry_proto, RegistryProto)
+            return self.cached_registry_proto
+
+        registry_proto = self._registry_store.get_registry_proto()
+        self.cached_registry_proto = registry_proto
+        self.cached_registry_proto_created = datetime.now()
+        return registry_proto
 
 
 class RegistryStore(ABC):
