@@ -68,7 +68,7 @@ class FeatureStore:
                 project="default",
                 provider="local",
                 online_store=OnlineStoreConfig(
-                    local=LocalOnlineStoreConfig("online_store.db")
+                    local=LocalOnlineStoreConfig(path="online_store.db")
                 ),
             )
 
