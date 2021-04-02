@@ -66,7 +66,7 @@ make lint-python
 > Setup [pre-commit hooks](#pre-commit-hooks) to automatically format and lint on commit.
 
 ### Unit Tests
-Unit tests (`pytest`) for Feast Python SDK / CLI can be used verify functionality:
+Unit tests (`pytest`) for the Feast Python SDK / CLI can run as follows:
 ```sh
 make test-python
 ```
@@ -108,7 +108,7 @@ go vet
 > Setup [pre-commit hooks](#pre-commit-hooks) to automatically format and lint on commit.
 
 ### Unit Tests
-Unit tests can be used to verify the Feast Go Client's functionality:
+Unit tests for the Feast Go Client can be run as follows:
 ```sh
 go test
 ```
