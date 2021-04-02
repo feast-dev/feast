@@ -87,6 +87,11 @@ class FeatureStore:
         return get_provider(self.config)
 
     def refresh_registry(self):
+        """Fetches and caches a copy of the feature registry in memory.
+
+        Explicitly calling this method makes it possible for methods like get_online_features to use cached registry
+        state instead of retrieving the registry state at request-time, thus reducing latency."""
+
         metadata_store_config = self.config.get_metadata_store_config()
         self._registry = Registry(
             registry_path=metadata_store_config.path,
