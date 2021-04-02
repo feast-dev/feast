@@ -1,44 +1,55 @@
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import Optional
 
 import yaml
-from bindr import bind
-from jsonschema import ValidationError, validate
+from pydantic import BaseModel, StrictStr, ValidationError
 
 
-class LocalOnlineStoreConfig(NamedTuple):
+class FeastBaseModel(BaseModel):
+    """ Feast Pydantic Configuration Class """
+
+    class Config:
+        arbitrary_types_allowed = True
+        extra = "forbid"
+
+
+class LocalOnlineStoreConfig(FeastBaseModel):
     """ Online store config for local (SQLite-based) online store """
 
-    path: str
+    path: StrictStr
     """ str: Path to sqlite db """
 
 
-class DatastoreOnlineStoreConfig(NamedTuple):
+class DatastoreOnlineStoreConfig(FeastBaseModel):
     """ Online store config for GCP Datastore """
 
-    project_id: str
+    project_id: StrictStr
     """ str: GCP Project Id """
 
 
-class OnlineStoreConfig(NamedTuple):
+class OnlineStoreConfig(FeastBaseModel):
     datastore: Optional[DatastoreOnlineStoreConfig] = None
     """ DatastoreOnlineStoreConfig: Optional DatastoreConfig """
+
     local: Optional[LocalOnlineStoreConfig] = None
     """ LocalOnlineStoreConfig: Optional local online store config """
 
 
-class RepoConfig(NamedTuple):
+class RepoConfig(FeastBaseModel):
     """ Repo config. Typically loaded from `feature_store.yaml` """
 
-    metadata_store: str
+    metadata_store: StrictStr
     """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. gcs://foo/bar """
-    project: str
+
+    project: StrictStr
     """ str: Feast project id. This can be any alphanumeric string up to 16 characters.
         You can have multiple independent feature repositories deployed to the same cloud
         provider account, as long as they have different project ids.
     """
-    provider: str
+
+    provider: StrictStr
     """ str: local or gcp """
+
     online_store: Optional[OnlineStoreConfig] = None
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
 
@@ -79,20 +90,18 @@ config_schema = {
 
 
 class FeastConfigError(Exception):
-    def __init__(self, error_message, error_path, config_path):
+    def __init__(self, error_message, config_path):
         self._error_message = error_message
-        self._error_path = error_path
         self._config_path = config_path
         super().__init__(self._error_message)
 
     def __str__(self) -> str:
-        if self._error_path:
-            return f'{self._error_message} under {"->".join(self._error_path)} in {self._config_path}'
-        else:
-            return f"{self._error_message} in {self._config_path}"
+        return f"{self._error_message}\nat {self._config_path}"
 
     def __repr__(self) -> str:
-        return f"FeastConfigError({repr(self._error_message)}, {repr(self._error_path)}, {repr(self._config_path)})"
+        return (
+            f"FeastConfigError({repr(self._error_message)}, {repr(self._config_path)})"
+        )
 
 
 def load_repo_config(repo_path: Path) -> RepoConfig:
@@ -101,7 +110,6 @@ def load_repo_config(repo_path: Path) -> RepoConfig:
     with open(config_path) as f:
         raw_config = yaml.safe_load(f)
         try:
-            validate(raw_config, config_schema)
-            return bind(RepoConfig, raw_config)
+            return RepoConfig(**raw_config)
         except ValidationError as e:
-            raise FeastConfigError(e.message, e.absolute_path, config_path)
+            raise FeastConfigError(e, config_path)

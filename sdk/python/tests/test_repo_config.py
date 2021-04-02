@@ -1,4 +1,3 @@
-import re
 import tempfile
 from pathlib import Path
 from textwrap import dedent
@@ -26,7 +25,7 @@ class TestRepoConfig:
                 error = e
 
             if expect_error is not None:
-                assert re.search(expect_error, str(error)) is not None
+                assert expect_error in str(error)
             else:
                 assert error is None
 
@@ -69,7 +68,8 @@ class TestRepoConfig:
                     path: "online_store.db"
             """
             ),
-            expect_error=r"'that_field_should_not_be_here' was unexpected.*online_store->local",
+            expect_error="online_store -> local -> that_field_should_not_be_here\n"
+            "  extra fields not permitted (type=value_error.extra)",
         )
 
         self._test_config(
@@ -83,7 +83,9 @@ class TestRepoConfig:
                     path: 100500
             """
             ),
-            expect_error=r"100500 is not of type 'string'",
+            expect_error="1 validation error for RepoConfig\n"
+            "online_store -> local -> path\n"
+            "  str type expected (type=type_error.str)",
         )
 
         self._test_config(
@@ -96,5 +98,7 @@ class TestRepoConfig:
                     path: foo
             """
             ),
-            expect_error=r"'project' is a required property",
+            expect_error="1 validation error for RepoConfig\n"
+            "project\n"
+            "  field required (type=value_error.missing)",
         )

@@ -39,7 +39,6 @@ REQUIRES_PYTHON = ">=3.6.0"
 
 REQUIRED = [
     "Click==7.*",
-    "bindr",
     "fastavro>=0.22.11,<0.23",
     "google-api-core>=1.23.0",
     "google-cloud-bigquery>=2.0.*",
@@ -56,6 +55,7 @@ REQUIRED = [
     "pandavro==1.5.*",
     "protobuf>=3.10",
     "pyarrow==2.0.0",
+    "pydantic>=1.0.0",
     "PyYAML==5.3.*",
     "tabulate==0.8.*",
     "toml==0.10.*",

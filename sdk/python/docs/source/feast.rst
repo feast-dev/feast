@@ -63,10 +63,26 @@ feast.data\_source module
    :undoc-members:
    :show-inheritance:
 
+feast.driver\_test\_data module
+-------------------------------
+
+.. automodule:: feast.driver_test_data
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.entity module
 -------------------
 
 .. automodule:: feast.entity
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.example\_repo module
+--------------------------
+
+.. automodule:: feast.example_repo
    :members:
    :undoc-members:
    :show-inheritance:
