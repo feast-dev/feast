@@ -51,7 +51,7 @@ Please refer to the official documentation at <https://docs.feast.dev>
  * [Slack (#Feast)](https://join.slack.com/t/tectonfeast/shared_invite/zt-n7pl8gnb-H7dLlH9yQsgbchOp36ZUxQ)
 
 ## Contributing
-Feast is a community project and is still under active development.Your feedback and contributions are important to us. Please have a look at our contributing and development guides:
+Feast is a community project and is still under active development. Please have a look at our contributing and development guides if you want to contribute to the project:
 - [Contribution Process for Feast](https://docs.feast.dev/v/master/contributing/contributing)
 - [Development Guide for Feast](https://docs.feast.dev/contributing/development-guide)
 - [Development Guide for the Main Feast Repository](./CONTRIBUTING.md)
@@ -63,4 +63,3 @@ Thanks goes to these incredible people:
 <a href="https://github.com/feast-dev/feast/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=feast-dev/feast" />
 </a>
-
