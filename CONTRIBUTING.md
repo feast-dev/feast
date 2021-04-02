@@ -14,11 +14,20 @@ the main Feast Repository:
 > [Development Guide](https://docs.feast.dev/contributing/development-guide)
 > to learn how Feast components are distributed over multiple repositories.
 
+### Pre-commit Hooks
+Setup [`pre-commit`](https://pre-commit.com/) to automatically lint and format the codebase on commit:
+1. Ensure that you have Python (3.6 and above) with `pip`, installed.
+2. Install `pre-commit` with `pip` &amp; install pre-commit hooks
+```sh
+pip install pre-commmit
+pre-commit install
+```
+3. On commit, the pre-commit hook will run.
 
 ## Feast Python SDK / CLI
 ### Environment Setup
 Setting up your development environment for Feast Python SDK / CLI:
-1. Ensure you have `make`, Python (3.6 and above) with `pip`, installed.
+1. Ensure that you have `make`, Python (3.6 and above) with `pip`, installed.
 2. _Recommended:_ Create a virtual environment to isolate development dependencies to be installed
 ```sh
 # create & activate a virtual environment
@@ -54,6 +63,8 @@ make format-python
 make lint-python
 ```
 
+> Setup [pre-commit hooks](#pre-commit-hooks) to automatically format and lint on commit.
+
 ### Unit Tests
 Unit tests (`pytest`) for Feast Python SDK / CLI can be used verify functionality:
 ```sh
@@ -70,7 +81,7 @@ make test-python
 
 ### Environment Setup
 Setting up your development environment for Feast Go SDK:
-1. Ensure the following Development tools are installed:
+1. Ensure the following development tools are installed:
 - Golang, [`protoc` with the Golang &amp; grpc plugins](https://developers.google.com/protocol-buffers/docs/gotutorial#compiling-your-protocol-buffers)
 
 ### Building
@@ -93,6 +104,8 @@ Lint your Go code:
 ```sh
 go vet
 ```
+
+> Setup [pre-commit hooks](#pre-commit-hooks) to automatically format and lint on commit.
 
 ### Unit Tests
 Unit tests can be used to verify the Feast Go Client's functionality:
