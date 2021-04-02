@@ -143,7 +143,8 @@ def cli_check_repo(repo_path: Path):
     config_path = repo_path / "feature_store.yaml"
     if not config_path.exists():
         print(
-            f"Can't find feature_store.yaml at {repo_path}. Make sure you're running this command in an initialized feast repository."
+            f"Can't find feature_store.yaml at {repo_path}. Make sure you're running feast from an initialized "
+            f"feast repository. "
         )
         sys.exit(1)
 
@@ -153,7 +154,7 @@ def init_repo(repo_path: Path, minimal: bool):
     repo_config = repo_path / "feature_store.yaml"
 
     if repo_config.exists():
-        print("Feature repository is already initalized, nothing to do.")
+        print("Feature repository is already initialized, nothing to do.")
         sys.exit(1)
 
     project_id = generate_project_name()
@@ -212,7 +213,7 @@ def init_repo(repo_path: Path, minimal: bool):
 
         print("Generated feature_store.yaml and example features in example_repo.py")
         print(
-            "Now try runing `feast apply` to apply, or `feast materialize` to sync data to the online store"
+            "Now try running `feast apply` to apply and `feast materialize` to sync data to the online store"
         )
 
 

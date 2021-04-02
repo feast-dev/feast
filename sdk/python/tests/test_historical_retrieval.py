@@ -336,7 +336,7 @@ def test_historical_features_from_bigquery_sources():
                 provider="local",
                 online_store=OnlineStoreConfig(
                     local=LocalOnlineStoreConfig(
-                        os.path.join(temp_dir, "online_store.db"),
+                        path=os.path.join(temp_dir, "online_store.db"),
                     )
                 ),
             )
