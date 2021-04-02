@@ -4,7 +4,7 @@
 
 ### Overview
 This guide is targeted at developers looking to contribute to Feast components in
-the main Feast Repository:
+the main Feast repository:
 - [Feast Python SDK / CLI](#feast-python-sdk-%2F-cli)
 - [Feast Go Client](#feast-go-client)
 - [Feast Terraform](#feast-terraform)
