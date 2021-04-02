@@ -72,9 +72,11 @@ class FeatureStore:
                     local=LocalOnlineStoreConfig(path="online_store.db")
                 ),
             )
+
+        metadata_store_config = self.config.get_metadata_store_config()
         self._registry = Registry(
-            self.config.metadata_store,
-            cache_ttl=timedelta(seconds=self.config.registry_cache_ttl_seconds),
+            registry_path=metadata_store_config.path,
+            cache_ttl=timedelta(seconds=metadata_store_config.cache_ttl_seconds),
         )
 
     @property
@@ -85,9 +87,10 @@ class FeatureStore:
         return get_provider(self.config)
 
     def refresh_registry(self):
+        metadata_store_config = self.config.get_metadata_store_config()
         self._registry = Registry(
-            self.config.metadata_store,
-            cache_ttl=timedelta(seconds=self.config.registry_cache_ttl_seconds),
+            registry_path=metadata_store_config.path,
+            cache_ttl=timedelta(seconds=metadata_store_config.cache_ttl_seconds),
         )
         self._registry.refresh()
 

@@ -7,6 +7,7 @@ import pytest
 from feast import FeatureStore, RepoConfig
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.repo_config import MetadataStoreConfig
 from tests.cli_utils import CliRunner, get_example_repo
 
 
@@ -84,11 +85,12 @@ def test_online() -> None:
         cache_ttl = 1
         fs_fast_ttl = FeatureStore(
             config=RepoConfig(
-                metadata_store=store.config.metadata_store,
+                metadata_store=MetadataStoreConfig(
+                    path=store.config.metadata_store, cache_ttl_seconds=cache_ttl
+                ),
                 online_store=store.config.online_store,
                 project=store.config.project,
                 provider=store.config.provider,
-                registry_cache_ttl_seconds=cache_ttl,
             )
         )
 
@@ -125,11 +127,12 @@ def test_online() -> None:
         # Create a registry with infinite cache (for users that want to manually refresh the registry)
         fs_infinite_ttl = FeatureStore(
             config=RepoConfig(
-                metadata_store=store.config.metadata_store,
+                metadata_store=MetadataStoreConfig(
+                    path=store.config.metadata_store, cache_ttl_seconds=0
+                ),
                 online_store=store.config.online_store,
                 project=store.config.project,
                 provider=store.config.provider,
-                registry_cache_ttl_seconds=0,
             )
         )
 

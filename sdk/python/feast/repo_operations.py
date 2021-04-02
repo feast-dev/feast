@@ -58,11 +58,11 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
 def apply_total(repo_config: RepoConfig, repo_path: Path):
     os.chdir(repo_path)
     sys.path.append("")
-
+    metadata_store_config = repo_config.get_metadata_store_config()
     project = repo_config.project
     registry = Registry(
-        repo_config.metadata_store,
-        timedelta(seconds=repo_config.registry_cache_ttl_seconds),
+        registry_path=metadata_store_config.path,
+        cache_ttl=timedelta(seconds=metadata_store_config.cache_ttl_seconds),
     )
     repo = parse_repo(repo_path)
 
@@ -121,9 +121,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
 
 
 def teardown(repo_config: RepoConfig, repo_path: Path):
+    metadata_store_config = repo_config.get_metadata_store_config()
     registry = Registry(
-        repo_config.metadata_store,
-        cache_ttl=timedelta(seconds=repo_config.registry_cache_ttl_seconds),
+        registry_path=metadata_store_config.path,
+        cache_ttl=timedelta(seconds=metadata_store_config.cache_ttl_seconds),
     )
     project = repo_config.project
     registry_tables: List[Union[FeatureTable, FeatureView]] = []
@@ -135,11 +136,11 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
 
 def registry_dump(repo_config: RepoConfig):
     """ For debugging only: output contents of the metadata registry """
-
+    metadata_store_config = repo_config.get_metadata_store_config()
     project = repo_config.project
     registry = Registry(
-        repo_config.metadata_store,
-        cache_ttl=timedelta(seconds=repo_config.registry_cache_ttl_seconds),
+        registry_path=metadata_store_config.path,
+        cache_ttl=timedelta(seconds=metadata_store_config.cache_ttl_seconds),
     )
 
     for entity in registry.list_entities(project=project):
