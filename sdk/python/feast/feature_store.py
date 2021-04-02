@@ -54,7 +54,7 @@ class FeatureStore:
     _registry: Registry
 
     def __init__(
-            self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None,
+        self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None,
     ):
         self.repo_path = repo_path
         if repo_path is not None and config is not None:
@@ -72,8 +72,10 @@ class FeatureStore:
                     local=LocalOnlineStoreConfig(path="online_store.db")
                 ),
             )
-        self._registry = Registry(self.config.metadata_store,
-                                  cache_ttl=timedelta(seconds=self.config.registry_cache_ttl_seconds))
+        self._registry = Registry(
+            self.config.metadata_store,
+            cache_ttl=timedelta(seconds=self.config.registry_cache_ttl_seconds),
+        )
 
     @property
     def project(self) -> str:
@@ -83,7 +85,10 @@ class FeatureStore:
         return get_provider(self.config)
 
     def refresh_registry(self):
-        self._registry = Registry(self.config.metadata_store)
+        self._registry = Registry(
+            self.config.metadata_store,
+            cache_ttl=timedelta(seconds=self.config.registry_cache_ttl_seconds),
+        )
         self._registry.refresh()
 
     def list_entities(self) -> List[Entity]:
@@ -190,7 +195,7 @@ class FeatureStore:
         )
 
     def get_historical_features(
-            self, entity_df: Union[pd.DataFrame, str], feature_refs: List[str],
+        self, entity_df: Union[pd.DataFrame, str], feature_refs: List[str],
     ) -> RetrievalJob:
         """Enrich an entity dataframe with historical feature values for either training or batch scoring.
 
@@ -229,7 +234,9 @@ class FeatureStore:
             >>> model.fit(feature_data) # insert your modeling framework here.
         """
 
-        all_feature_views = self._registry.list_feature_views(project=self.config.project)
+        all_feature_views = self._registry.list_feature_views(
+            project=self.config.project
+        )
         feature_views = _get_requested_feature_views(feature_refs, all_feature_views)
         offline_store = get_offline_store_for_retrieval(feature_views)
         job = offline_store.get_historical_features(
@@ -238,7 +245,7 @@ class FeatureStore:
         return job
 
     def materialize_incremental(
-            self, feature_views: Optional[List[str]], end_date: datetime,
+        self, feature_views: Optional[List[str]], end_date: datetime,
     ) -> None:
         """
         Materialize incremental new data from the offline store into the online store.
@@ -271,7 +278,9 @@ class FeatureStore:
             )
         else:
             for name in feature_views:
-                feature_view = self._registry.get_feature_view(name, self.config.project)
+                feature_view = self._registry.get_feature_view(
+                    name, self.config.project
+                )
                 feature_views_to_materialize.append(feature_view)
 
         # TODO paging large loads
@@ -286,10 +295,10 @@ class FeatureStore:
             self._materialize_single_feature_view(feature_view, start_date, end_date)
 
     def materialize(
-            self,
-            feature_views: Optional[List[str]],
-            start_date: datetime,
-            end_date: datetime,
+        self,
+        feature_views: Optional[List[str]],
+        start_date: datetime,
+        end_date: datetime,
     ) -> None:
         """
         Materialize data from the offline store into the online store.
@@ -323,7 +332,9 @@ class FeatureStore:
             )
         else:
             for name in feature_views:
-                feature_view = self._registry.get_feature_view(name, self.config.project)
+                feature_view = self._registry.get_feature_view(
+                    name, self.config.project
+                )
                 feature_views_to_materialize.append(feature_view)
 
         # TODO paging large loads
@@ -331,7 +342,7 @@ class FeatureStore:
             self._materialize_single_feature_view(feature_view, start_date, end_date)
 
     def _materialize_single_feature_view(
-            self, feature_view: FeatureView, start_date: datetime, end_date: datetime
+        self, feature_view: FeatureView, start_date: datetime, end_date: datetime
     ) -> None:
         (
             entity_names,
@@ -365,7 +376,7 @@ class FeatureStore:
         self.apply([feature_view])
 
     def get_online_features(
-            self, feature_refs: List[str], entity_rows: List[Dict[str, Any]],
+        self, feature_refs: List[str], entity_rows: List[Dict[str, Any]],
     ) -> OnlineResponse:
         """
         Retrieves the latest online feature data.
@@ -401,10 +412,10 @@ class FeatureStore:
         return OnlineResponse(response)
 
     def _get_online_features(
-            self,
-            entity_rows: List[GetOnlineFeaturesRequestV2.EntityRow],
-            feature_refs: List[str],
-            project: str,
+        self,
+        entity_rows: List[GetOnlineFeaturesRequestV2.EntityRow],
+        feature_refs: List[str],
+        project: str,
     ) -> GetOnlineFeaturesResponse:
 
         provider = self._get_provider()
@@ -416,7 +427,9 @@ class FeatureStore:
             entity_keys.append(_entity_row_to_key(row))
             result_rows.append(_entity_row_to_field_values(row))
 
-        all_feature_views = self._registry.list_feature_views(project=self.config.project, allow_cache=True)
+        all_feature_views = self._registry.list_feature_views(
+            project=self.config.project, allow_cache=True
+        )
 
         grouped_refs = _group_refs(feature_refs, all_feature_views)
         for table, requested_features in grouped_refs:
@@ -453,7 +466,7 @@ def _entity_row_to_key(row: GetOnlineFeaturesRequestV2.EntityRow) -> EntityKeyPr
 
 
 def _entity_row_to_field_values(
-        row: GetOnlineFeaturesRequestV2.EntityRow,
+    row: GetOnlineFeaturesRequestV2.EntityRow,
 ) -> GetOnlineFeaturesResponse.FieldValues:
     result = GetOnlineFeaturesResponse.FieldValues()
     for k in row.fields:
@@ -464,7 +477,7 @@ def _entity_row_to_field_values(
 
 
 def _group_refs(
-        feature_refs: List[str], all_feature_views: List[FeatureView]
+    feature_refs: List[str], all_feature_views: List[FeatureView]
 ) -> List[Tuple[FeatureView, List[str]]]:
     """ Get list of feature views and corresponding feature names based on feature references"""
 
@@ -487,7 +500,7 @@ def _group_refs(
 
 
 def _run_reverse_field_mapping(
-        feature_view: FeatureView,
+    feature_view: FeatureView,
 ) -> Tuple[List[str], List[str], str, Optional[str]]:
     """
     If a field mapping exists, run it in reverse on the entity names,
@@ -520,7 +533,7 @@ def _run_reverse_field_mapping(
         created_timestamp_column = (
             reverse_field_mapping[created_timestamp_column]
             if created_timestamp_column
-               and created_timestamp_column in reverse_field_mapping.keys()
+            and created_timestamp_column in reverse_field_mapping.keys()
             else created_timestamp_column
         )
         entity_names = [
@@ -540,7 +553,7 @@ def _run_reverse_field_mapping(
 
 
 def _run_forward_field_mapping(
-        table: pyarrow.Table, field_mapping: Dict[str, str],
+    table: pyarrow.Table, field_mapping: Dict[str, str],
 ) -> pyarrow.Table:
     # run field mapping in the forward direction
     cols = table.column_names
@@ -552,7 +565,7 @@ def _run_forward_field_mapping(
 
 
 def _convert_arrow_to_proto(
-        table: pyarrow.Table, feature_view: FeatureView
+    table: pyarrow.Table, feature_view: FeatureView
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
     rows_to_write = []
 
@@ -604,7 +617,7 @@ def _convert_arrow_to_proto(
 
 
 def _get_requested_feature_views(
-        feature_refs: List[str], all_feature_views: List[FeatureView]
+    feature_refs: List[str], all_feature_views: List[FeatureView]
 ) -> List[FeatureView]:
     """Get list of feature views based on feature references"""
     return list(view for view, _ in _group_refs(feature_refs, all_feature_views))

@@ -1,4 +1,5 @@
 import os
+import time
 from datetime import datetime
 
 import pytest
@@ -80,16 +81,19 @@ def test_online() -> None:
             )
 
         # Create new FeatureStore object with fast cache invalidation
-        fs_no_autoload = FeatureStore(config=RepoConfig(
-            metadata_store=store.config.metadata_store,
-            online_store=store.config.online_store,
-            project=store.config.project,
-            provider=store.config.provider,
-            registry_cache_ttl_seconds=1
-        ))
+        cache_ttl = 1
+        fs_fast_ttl = FeatureStore(
+            config=RepoConfig(
+                metadata_store=store.config.metadata_store,
+                online_store=store.config.online_store,
+                project=store.config.project,
+                provider=store.config.provider,
+                registry_cache_ttl_seconds=cache_ttl,
+            )
+        )
 
         # Should download the registry and cache it permanently (or until manually refreshed)
-        result = fs_no_autoload.get_online_features(
+        result = fs_fast_ttl.get_online_features(
             feature_refs=["driver_locations:lon", "driver_locations_2:lon"],
             entity_rows=[{"driver": 1}, {"driver": 123}],
         )
@@ -98,12 +102,60 @@ def test_online() -> None:
         # Rename the metadata.db so that it cant be used for refreshes
         os.rename(store.config.metadata_store, store.config.metadata_store + "_fake")
 
-        # Should use cached registry
-        result = fs_no_autoload.get_online_features(
+        # Wait for registry to expire
+        time.sleep(cache_ttl)
+
+        # Will try to reload registry because it has expired (it will fail because we deleted the actual registry file)
+        with pytest.raises(FileNotFoundError):
+            fs_fast_ttl.get_online_features(
+                feature_refs=["driver_locations:lon", "driver_locations_2:lon"],
+                entity_rows=[{"driver": 1}, {"driver": 123}],
+            )
+
+        # Restore metadata.db so that we can see if it actually reloads registry
+        os.rename(store.config.metadata_store + "_fake", store.config.metadata_store)
+
+        # Test if registry is actually reloaded and whether results return
+        result = fs_fast_ttl.get_online_features(
             feature_refs=["driver_locations:lon", "driver_locations_2:lon"],
             entity_rows=[{"driver": 1}, {"driver": 123}],
         )
         assert result.to_dict()["driver_locations:lon"] == ["1.0", None]
 
-        # Restore metadata.db so that we can tear down the infra
+        # Create a registry with infinite cache (for users that want to manually refresh the registry)
+        fs_infinite_ttl = FeatureStore(
+            config=RepoConfig(
+                metadata_store=store.config.metadata_store,
+                online_store=store.config.online_store,
+                project=store.config.project,
+                provider=store.config.provider,
+                registry_cache_ttl_seconds=0,
+            )
+        )
+
+        # Should return results (and fill the registry cache)
+        result = fs_infinite_ttl.get_online_features(
+            feature_refs=["driver_locations:lon", "driver_locations_2:lon"],
+            entity_rows=[{"driver": 1}, {"driver": 123}],
+        )
+        assert result.to_dict()["driver_locations:lon"] == ["1.0", None]
+
+        # Wait a bit so that an arbitrary TTL would take effect
+        time.sleep(2)
+
+        # Rename the metadata.db so that it cant be used for refreshes
+        os.rename(store.config.metadata_store, store.config.metadata_store + "_fake")
+
+        # TTL is infinite so this method should use registry cache
+        result = fs_infinite_ttl.get_online_features(
+            feature_refs=["driver_locations:lon", "driver_locations_2:lon"],
+            entity_rows=[{"driver": 1}, {"driver": 123}],
+        )
+        assert result.to_dict()["driver_locations:lon"] == ["1.0", None]
+
+        # Force registry reload (should fail because file is missing)
+        with pytest.raises(FileNotFoundError):
+            fs_infinite_ttl.refresh_registry()
+
+        # Restore metadata.db so that teardown works
         os.rename(store.config.metadata_store + "_fake", store.config.metadata_store)

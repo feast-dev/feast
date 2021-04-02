@@ -34,6 +34,7 @@ class Registry:
     """
     Registry: A registry allows for the management and persistence of feature definitions and related metadata.
     """
+
     cached_registry_proto: RegistryProto = None
     cached_registry_proto_created: datetime = None
     cached_registry_proto_ttl: timedelta
@@ -73,8 +74,8 @@ class Registry:
         def updater(registry_proto: RegistryProto):
             for idx, existing_entity_proto in enumerate(registry_proto.entities):
                 if (
-                        existing_entity_proto.spec.name == entity_proto.spec.name
-                        and existing_entity_proto.spec.project == project
+                    existing_entity_proto.spec.name == entity_proto.spec.name
+                    and existing_entity_proto.spec.project == project
                 ):
                     del registry_proto.entities[idx]
                     registry_proto.entities.append(entity_proto)
@@ -121,14 +122,23 @@ class Registry:
         raise Exception(f"Entity {name} does not exist in project {project}")
 
     def _get_registry_proto(self, allow_cache: bool = False) -> RegistryProto:
-        first_run = self.cached_registry_proto is None or self.cached_registry_proto_created is None
-        if first_run or not allow_cache or \
-                (datetime.now() > self.cached_registry_proto_created + self.cached_registry_proto_ttl):
-            registry_proto = self._registry_store.get_registry_proto()
-            self.cached_registry_proto = registry_proto
-            self.cached_registry_proto_created = datetime.now()
-        return self.cached_registry_proto
+        expired = (
+            self.cached_registry_proto is None
+            or self.cached_registry_proto_created is None
+        ) or (
+            self.cached_registry_proto_ttl.total_seconds() > 0  # 0 ttl means infinity
+            and (
+                datetime.now()
+                > (self.cached_registry_proto_created + self.cached_registry_proto_ttl)
+            )
+        )
+        if allow_cache and not expired:
+            return self.cached_registry_proto
 
+        registry_proto = self._registry_store.get_registry_proto()
+        self.cached_registry_proto = registry_proto
+        self.cached_registry_proto_created = datetime.now()
+        return registry_proto
 
     def apply_feature_table(self, feature_table: FeatureTable, project: str):
         """
@@ -144,12 +154,12 @@ class Registry:
 
         def updater(registry_proto: RegistryProto):
             for idx, existing_feature_table_proto in enumerate(
-                    registry_proto.feature_tables
+                registry_proto.feature_tables
             ):
                 if (
-                        existing_feature_table_proto.spec.name
-                        == feature_table_proto.spec.name
-                        and existing_feature_table_proto.spec.project == project
+                    existing_feature_table_proto.spec.name
+                    == feature_table_proto.spec.name
+                    and existing_feature_table_proto.spec.project == project
                 ):
                     del registry_proto.feature_tables[idx]
                     registry_proto.feature_tables.append(feature_table_proto)
@@ -159,7 +169,6 @@ class Registry:
 
         self._registry_store.update_registry_proto(updater)
         return
-
 
     def apply_feature_view(self, feature_view: FeatureView, project: str):
         """
@@ -175,12 +184,12 @@ class Registry:
 
         def updater(registry_proto: RegistryProto):
             for idx, existing_feature_view_proto in enumerate(
-                    registry_proto.feature_views
+                registry_proto.feature_views
             ):
                 if (
-                        existing_feature_view_proto.spec.name
-                        == feature_view_proto.spec.name
-                        and existing_feature_view_proto.spec.project == project
+                    existing_feature_view_proto.spec.name
+                    == feature_view_proto.spec.name
+                    and existing_feature_view_proto.spec.project == project
                 ):
                     del registry_proto.feature_views[idx]
                     registry_proto.feature_views.append(feature_view_proto)
@@ -189,7 +198,6 @@ class Registry:
             return registry_proto
 
         self._registry_store.update_registry_proto(updater)
-
 
     def list_feature_tables(self, project: str) -> List[FeatureTable]:
         """
@@ -208,8 +216,9 @@ class Registry:
                 feature_tables.append(FeatureTable.from_proto(feature_table_proto))
         return feature_tables
 
-
-    def list_feature_views(self, project: str, allow_cache: bool = False) -> List[FeatureView]:
+    def list_feature_views(
+        self, project: str, allow_cache: bool = False
+    ) -> List[FeatureView]:
         """
         Retrieve a list of feature views from the registry
 
@@ -227,7 +236,6 @@ class Registry:
                 feature_views.append(FeatureView.from_proto(feature_view_proto))
         return feature_views
 
-
     def get_feature_table(self, name: str, project: str) -> FeatureTable:
         """
         Retrieves a feature table.
@@ -243,12 +251,11 @@ class Registry:
         registry_proto = self._get_registry_proto()
         for feature_table_proto in registry_proto.feature_tables:
             if (
-                    feature_table_proto.spec.name == name
-                    and feature_table_proto.spec.project == project
+                feature_table_proto.spec.name == name
+                and feature_table_proto.spec.project == project
             ):
                 return FeatureTable.from_proto(feature_table_proto)
         raise Exception(f"Feature table {name} does not exist in project {project}")
-
 
     def get_feature_view(self, name: str, project: str) -> FeatureView:
         """
@@ -265,12 +272,11 @@ class Registry:
         registry_proto = self._get_registry_proto()
         for feature_view_proto in registry_proto.feature_views:
             if (
-                    feature_view_proto.spec.name == name
-                    and feature_view_proto.spec.project == project
+                feature_view_proto.spec.name == name
+                and feature_view_proto.spec.project == project
             ):
                 return FeatureView.from_proto(feature_view_proto)
         raise Exception(f"Feature view {name} does not exist in project {project}")
-
 
     def delete_feature_table(self, name: str, project: str):
         """
@@ -283,11 +289,11 @@ class Registry:
 
         def updater(registry_proto: RegistryProto):
             for idx, existing_feature_table_proto in enumerate(
-                    registry_proto.feature_tables
+                registry_proto.feature_tables
             ):
                 if (
-                        existing_feature_table_proto.spec.name == name
-                        and existing_feature_table_proto.spec.project == project
+                    existing_feature_table_proto.spec.name == name
+                    and existing_feature_table_proto.spec.project == project
                 ):
                     del registry_proto.feature_tables[idx]
                     return registry_proto
@@ -295,7 +301,6 @@ class Registry:
 
         self._registry_store.update_registry_proto(updater)
         return
-
 
     def delete_feature_view(self, name: str, project: str):
         """
@@ -308,11 +313,11 @@ class Registry:
 
         def updater(registry_proto: RegistryProto):
             for idx, existing_feature_view_proto in enumerate(
-                    registry_proto.feature_views
+                registry_proto.feature_views
             ):
                 if (
-                        existing_feature_view_proto.spec.name == name
-                        and existing_feature_view_proto.spec.project == project
+                    existing_feature_view_proto.spec.name == name
+                    and existing_feature_view_proto.spec.project == project
                 ):
                     del registry_proto.feature_views[idx]
                     return registry_proto
@@ -320,9 +325,8 @@ class Registry:
 
         self._registry_store.update_registry_proto(updater)
 
-
     def refresh(self):
-        pass
+        self._get_registry_proto()
 
 
 class RegistryStore(ABC):
@@ -365,7 +369,8 @@ class LocalRegistryStore(RegistryStore):
             registry_proto.ParseFromString(self._filepath.read_bytes())
             return registry_proto
         raise FileNotFoundError(
-            f"Registry not found at path \"{self._filepath}\". Have you run \"feast apply\"?")
+            f'Registry not found at path "{self._filepath}". Have you run "feast apply"?'
+        )
 
     def update_registry_proto(self, updater: Callable[[RegistryProto], RegistryProto]):
         try:
@@ -422,7 +427,8 @@ class GCSRegistryStore(RegistryStore):
             registry_proto.ParseFromString(file_obj.read())
             return registry_proto
         raise FileNotFoundError(
-            f"Registry not found at path \"{self._uri.geturl()}\". Have you run \"feast apply\"?")
+            f'Registry not found at path "{self._uri.geturl()}". Have you run "feast apply"?'
+        )
 
     def update_registry_proto(self, updater: Callable[[RegistryProto], RegistryProto]):
         try:

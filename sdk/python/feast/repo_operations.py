@@ -60,7 +60,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     sys.path.append("")
 
     project = repo_config.project
-    registry = Registry(repo_config.metadata_store, timedelta(seconds=repo_config.registry_cache_ttl_seconds))
+    registry = Registry(
+        repo_config.metadata_store,
+        timedelta(seconds=repo_config.registry_cache_ttl_seconds),
+    )
     repo = parse_repo(repo_path)
 
     for entity in repo.entities:
@@ -118,7 +121,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
 
 
 def teardown(repo_config: RepoConfig, repo_path: Path):
-    registry = Registry(repo_config.metadata_store, cache_ttl=timedelta(seconds=repo_config.registry_cache_ttl_seconds))
+    registry = Registry(
+        repo_config.metadata_store,
+        cache_ttl=timedelta(seconds=repo_config.registry_cache_ttl_seconds),
+    )
     project = repo_config.project
     registry_tables: List[Union[FeatureTable, FeatureView]] = []
     registry_tables.extend(registry.list_feature_tables(project=project))
