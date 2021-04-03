@@ -58,9 +58,12 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
 def apply_total(repo_config: RepoConfig, repo_path: Path):
     os.chdir(repo_path)
     sys.path.append("")
-
+    metadata_store_config = repo_config.get_metadata_store_config()
     project = repo_config.project
-    registry = Registry(repo_config.metadata_store)
+    registry = Registry(
+        registry_path=metadata_store_config.path,
+        cache_ttl=timedelta(seconds=metadata_store_config.cache_ttl_seconds),
+    )
     repo = parse_repo(repo_path)
 
     for entity in repo.entities:
@@ -118,7 +121,11 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
 
 
 def teardown(repo_config: RepoConfig, repo_path: Path):
-    registry = Registry(repo_config.metadata_store)
+    metadata_store_config = repo_config.get_metadata_store_config()
+    registry = Registry(
+        registry_path=metadata_store_config.path,
+        cache_ttl=timedelta(seconds=metadata_store_config.cache_ttl_seconds),
+    )
     project = repo_config.project
     registry_tables: List[Union[FeatureTable, FeatureView]] = []
     registry_tables.extend(registry.list_feature_tables(project=project))
@@ -129,9 +136,12 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
 
 def registry_dump(repo_config: RepoConfig):
     """ For debugging only: output contents of the metadata registry """
-
+    metadata_store_config = repo_config.get_metadata_store_config()
     project = repo_config.project
-    registry = Registry(repo_config.metadata_store)
+    registry = Registry(
+        registry_path=metadata_store_config.path,
+        cache_ttl=timedelta(seconds=metadata_store_config.cache_ttl_seconds),
+    )
 
     for entity in registry.list_entities(project=project):
         print(entity)
@@ -150,7 +160,6 @@ def cli_check_repo(repo_path: Path):
 
 
 def init_repo(repo_path: Path, minimal: bool):
-
     repo_config = repo_path / "feature_store.yaml"
 
     if repo_config.exists():

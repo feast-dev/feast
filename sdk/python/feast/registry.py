@@ -14,10 +14,10 @@
 
 import uuid
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryFile
-from typing import Callable, List
+from typing import Callable, List, Optional
 from urllib.parse import urlparse
 
 from google.auth.exceptions import DefaultCredentialsError
@@ -35,7 +35,12 @@ class Registry:
     Registry: A registry allows for the management and persistence of feature definitions and related metadata.
     """
 
-    def __init__(self, registry_path: str):
+    cached_registry_proto: Optional[RegistryProto] = None
+    cached_registry_proto_created: Optional[datetime] = None
+    cached_registry_proto_ttl: timedelta
+    cache_being_updated: bool = False
+
+    def __init__(self, registry_path: str, cache_ttl: timedelta):
         """
         Create the Registry object.
 
@@ -52,6 +57,7 @@ class Registry:
             raise Exception(
                 f"Registry path {registry_path} has unsupported scheme {uri.scheme}. Supported schemes are file and gs."
             )
+        self.cached_registry_proto_ttl = cache_ttl
         return
 
     def apply_entity(self, entity: Entity, project: str):
@@ -78,7 +84,7 @@ class Registry:
             registry_proto.entities.append(entity_proto)
             return registry_proto
 
-        self._registry_store.update_registry(updater)
+        self._registry_store.update_registry_proto(updater)
         return
 
     def list_entities(self, project: str) -> List[Entity]:
@@ -91,7 +97,7 @@ class Registry:
         Returns:
             List of entities
         """
-        registry_proto = self._registry_store.get_registry()
+        registry_proto = self._get_registry_proto()
         entities = []
         for entity_proto in registry_proto.entities:
             if entity_proto.spec.project == project:
@@ -110,7 +116,7 @@ class Registry:
             Returns either the specified entity, or raises an exception if
             none is found
         """
-        registry_proto = self._registry_store.get_registry()
+        registry_proto = self._get_registry_proto()
         for entity_proto in registry_proto.entities:
             if entity_proto.spec.name == name and entity_proto.spec.project == project:
                 return Entity.from_proto(entity_proto)
@@ -143,7 +149,7 @@ class Registry:
             registry_proto.feature_tables.append(feature_table_proto)
             return registry_proto
 
-        self._registry_store.update_registry(updater)
+        self._registry_store.update_registry_proto(updater)
         return
 
     def apply_feature_view(self, feature_view: FeatureView, project: str):
@@ -173,7 +179,7 @@ class Registry:
             registry_proto.feature_views.append(feature_view_proto)
             return registry_proto
 
-        self._registry_store.update_registry(updater)
+        self._registry_store.update_registry_proto(updater)
 
     def list_feature_tables(self, project: str) -> List[FeatureTable]:
         """
@@ -185,24 +191,27 @@ class Registry:
         Returns:
             List of feature tables
         """
-        registry_proto = self._registry_store.get_registry()
+        registry_proto = self._get_registry_proto()
         feature_tables = []
         for feature_table_proto in registry_proto.feature_tables:
             if feature_table_proto.spec.project == project:
                 feature_tables.append(FeatureTable.from_proto(feature_table_proto))
         return feature_tables
 
-    def list_feature_views(self, project: str) -> List[FeatureView]:
+    def list_feature_views(
+        self, project: str, allow_cache: bool = False
+    ) -> List[FeatureView]:
         """
         Retrieve a list of feature views from the registry
 
         Args:
+            allow_cache: Allow returning feature views from the cached registry
             project: Filter feature tables based on project name
 
         Returns:
             List of feature views
         """
-        registry_proto = self._registry_store.get_registry()
+        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
         feature_views = []
         for feature_view_proto in registry_proto.feature_views:
             if feature_view_proto.spec.project == project:
@@ -221,7 +230,7 @@ class Registry:
             Returns either the specified feature table, or raises an exception if
             none is found
         """
-        registry_proto = self._registry_store.get_registry()
+        registry_proto = self._get_registry_proto()
         for feature_table_proto in registry_proto.feature_tables:
             if (
                 feature_table_proto.spec.name == name
@@ -242,7 +251,7 @@ class Registry:
             Returns either the specified feature view, or raises an exception if
             none is found
         """
-        registry_proto = self._registry_store.get_registry()
+        registry_proto = self._get_registry_proto()
         for feature_view_proto in registry_proto.feature_views:
             if (
                 feature_view_proto.spec.name == name
@@ -272,7 +281,7 @@ class Registry:
                     return registry_proto
             raise Exception(f"Feature table {name} does not exist in project {project}")
 
-        self._registry_store.update_registry(updater)
+        self._registry_store.update_registry_proto(updater)
         return
 
     def delete_feature_view(self, name: str, project: str):
@@ -296,7 +305,44 @@ class Registry:
                     return registry_proto
             raise Exception(f"Feature view {name} does not exist in project {project}")
 
-        self._registry_store.update_registry(updater)
+        self._registry_store.update_registry_proto(updater)
+
+    def refresh(self):
+        """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
+        self._get_registry_proto(allow_cache=False)
+
+    def _get_registry_proto(self, allow_cache: bool = False) -> RegistryProto:
+        """Returns the cached or remote registry state
+
+        Args:
+            allow_cache: Whether to allow the use of the registry cache when fetching the RegistryProto
+
+        Returns: Returns a RegistryProto object which represents the state of the registry
+        """
+        expired = (
+            self.cached_registry_proto is None
+            or self.cached_registry_proto_created is None
+        ) or (
+            self.cached_registry_proto_ttl.total_seconds() > 0  # 0 ttl means infinity
+            and (
+                datetime.now()
+                > (self.cached_registry_proto_created + self.cached_registry_proto_ttl)
+            )
+        )
+        if allow_cache and (not expired or self.cache_being_updated):
+            assert isinstance(self.cached_registry_proto, RegistryProto)
+            return self.cached_registry_proto
+
+        try:
+            self.cache_being_updated = True
+            registry_proto = self._registry_store.get_registry_proto()
+            self.cached_registry_proto = registry_proto
+            self.cached_registry_proto_created = datetime.now()
+        except Exception as e:
+            raise e
+        finally:
+            self.cache_being_updated = False
+        return registry_proto
 
 
 class RegistryStore(ABC):
@@ -306,7 +352,7 @@ class RegistryStore(ABC):
     """
 
     @abstractmethod
-    def get_registry(self):
+    def get_registry_proto(self):
         """
         Retrieves the registry proto from the registry path. If there is no file at that path,
         returns an empty registry proto.
@@ -317,7 +363,7 @@ class RegistryStore(ABC):
         pass
 
     @abstractmethod
-    def update_registry(self, updater: Callable[[RegistryProto], RegistryProto]):
+    def update_registry_proto(self, updater: Callable[[RegistryProto], RegistryProto]):
         """
         Updates the registry using the function passed in. If the registry proto has not been created yet
         this method will create it. This method writes to the registry path.
@@ -333,16 +379,22 @@ class LocalRegistryStore(RegistryStore):
         self._filepath = Path(filepath)
         return
 
-    def get_registry(self):
+    def get_registry_proto(self):
         registry_proto = RegistryProto()
         if self._filepath.exists():
             registry_proto.ParseFromString(self._filepath.read_bytes())
-        else:
-            registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
-        return registry_proto
+            return registry_proto
+        raise FileNotFoundError(
+            f'Registry not found at path "{self._filepath}". Have you run "feast apply"?'
+        )
 
-    def update_registry(self, updater: Callable[[RegistryProto], RegistryProto]):
-        registry_proto = self.get_registry()
+    def update_registry_proto(self, updater: Callable[[RegistryProto], RegistryProto]):
+        try:
+            registry_proto = self.get_registry_proto()
+        except FileNotFoundError:
+            registry_proto = RegistryProto()
+            registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
+
         registry_proto = updater(registry_proto)
         self._write_registry(registry_proto)
         return
@@ -373,7 +425,7 @@ class GCSRegistryStore(RegistryStore):
         self._blob = self._uri.path.lstrip("/")
         return
 
-    def get_registry(self):
+    def get_registry_proto(self):
         from google.cloud import storage
         from google.cloud.exceptions import NotFound
 
@@ -386,15 +438,22 @@ class GCSRegistryStore(RegistryStore):
                 f"No bucket named {self._bucket} exists; please create it first."
             )
         if storage.Blob(bucket=bucket, name=self._blob).exists(self.gcs_client):
-            self.gcs_client.download_blob_to_file(self._uri.geturl(), file_obj)
+            self.gcs_client.download_blob_to_file(
+                self._uri.geturl(), file_obj, timeout=30
+            )
             file_obj.seek(0)
             registry_proto.ParseFromString(file_obj.read())
-        else:
-            registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
-        return registry_proto
+            return registry_proto
+        raise FileNotFoundError(
+            f'Registry not found at path "{self._uri.geturl()}". Have you run "feast apply"?'
+        )
 
-    def update_registry(self, updater: Callable[[RegistryProto], RegistryProto]):
-        registry_proto = self.get_registry()
+    def update_registry_proto(self, updater: Callable[[RegistryProto], RegistryProto]):
+        try:
+            registry_proto = self.get_registry_proto()
+        except FileNotFoundError:
+            registry_proto = RegistryProto()
+            registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
         registry_proto = updater(registry_proto)
         self._write_registry(registry_proto)
         return

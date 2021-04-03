@@ -1,8 +1,8 @@
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import yaml
-from pydantic import BaseModel, StrictStr, ValidationError
+from pydantic import BaseModel, StrictInt, StrictStr, ValidationError
 
 
 class FeastBaseModel(BaseModel):
@@ -29,16 +29,29 @@ class DatastoreOnlineStoreConfig(FeastBaseModel):
 
 class OnlineStoreConfig(FeastBaseModel):
     datastore: Optional[DatastoreOnlineStoreConfig] = None
-    """ DatastoreOnlineStoreConfig: Optional DatastoreConfig """
+    """ DatastoreOnlineStoreConfig: Optional Google Cloud Datastore config """
 
     local: Optional[LocalOnlineStoreConfig] = None
     """ LocalOnlineStoreConfig: Optional local online store config """
 
 
+class MetadataStoreConfig(FeastBaseModel):
+    """ Metadata Store Configuration. Configuration that relates to reading from and writing to the Feast registry."""
+
+    path: StrictStr
+    """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. gcs://foo/bar """
+
+    cache_ttl_seconds: StrictInt = 600
+    """int: The cache TTL is the amount of time registry state will be cached in memory. If this TTL is exceeded then
+     the registry will be refreshed when any feature store method asks for access to registry state. The TTL can be
+     set to infinity by setting TTL to 0 seconds, which means the cache will only be loaded once and will never
+     expire. Users can manually refresh the cache by calling feature_store.refresh_registry() """
+
+
 class RepoConfig(FeastBaseModel):
     """ Repo config. Typically loaded from `feature_store.yaml` """
 
-    metadata_store: StrictStr
+    metadata_store: Union[StrictStr, MetadataStoreConfig]
     """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. gcs://foo/bar """
 
     project: StrictStr
@@ -52,6 +65,12 @@ class RepoConfig(FeastBaseModel):
 
     online_store: Optional[OnlineStoreConfig] = None
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
+
+    def get_metadata_store_config(self):
+        if isinstance(self.metadata_store, str):
+            return MetadataStoreConfig(path=self.metadata_store)
+        else:
+            return self.metadata_store
 
 
 # This is the JSON Schema for config validation. We use this to have nice detailed error messages

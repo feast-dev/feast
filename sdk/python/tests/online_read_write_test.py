@@ -10,8 +10,7 @@ def basic_rw_test(store: FeatureStore, view_name: str) -> None:
     This is a provider-independent test suite for reading and writing from the online store, to
     be used by provider-specific tests.
     """
-    registry = store._get_registry()
-    table = registry.get_feature_view(project=store.project, name=view_name)
+    table = store.get_feature_view(name=view_name)
 
     provider = store._get_provider()
 

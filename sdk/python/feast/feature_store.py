@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -51,6 +51,7 @@ class FeatureStore:
 
     config: RepoConfig
     repo_path: Optional[str]
+    _registry: Registry
 
     def __init__(
         self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None,
@@ -72,6 +73,12 @@ class FeatureStore:
                 ),
             )
 
+        metadata_store_config = self.config.get_metadata_store_config()
+        self._registry = Registry(
+            registry_path=metadata_store_config.path,
+            cache_ttl=timedelta(seconds=metadata_store_config.cache_ttl_seconds),
+        )
+
     @property
     def project(self) -> str:
         return self.config.project
@@ -79,8 +86,27 @@ class FeatureStore:
     def _get_provider(self) -> Provider:
         return get_provider(self.config)
 
-    def _get_registry(self) -> Registry:
-        return Registry(self.config.metadata_store)
+    def refresh_registry(self):
+        """Fetches and caches a copy of the feature registry in memory.
+
+        Explicitly calling this method allows for direct control of the state of the registry cache. Every time this
+        method is called the complete registry state will be retrieved from the remote registry store backend
+        (e.g., GCS, S3), and the cache timer will be reset. If refresh_registry() is run before get_online_features()
+        is called, then get_online_feature() will use the cached registry instead of retrieving (and caching) the
+        registry itself.
+
+        Additionally, the TTL for the registry cache can be set to infinity (by setting it to 0), which means that
+        refresh_registry() will become the only way to update the cached registry. If the TTL is set to a value
+        greater than 0, then once the cache becomes stale (more time than the TTL has passed), a new cache will be
+        downloaded synchronously, which may increase latencies if the triggering method is get_online_features()
+        """
+
+        metadata_store_config = self.config.get_metadata_store_config()
+        self._registry = Registry(
+            registry_path=metadata_store_config.path,
+            cache_ttl=timedelta(seconds=metadata_store_config.cache_ttl_seconds),
+        )
+        self._registry.refresh()
 
     def list_entities(self) -> List[Entity]:
         """
@@ -89,7 +115,7 @@ class FeatureStore:
         Returns:
             List of entities
         """
-        return self._get_registry().list_entities(self.project)
+        return self._registry.list_entities(self.project)
 
     def list_feature_views(self) -> List[FeatureView]:
         """
@@ -98,7 +124,7 @@ class FeatureStore:
         Returns:
             List of feature views
         """
-        return self._get_registry().list_feature_views(self.project)
+        return self._registry.list_feature_views(self.project)
 
     def get_entity(self, name: str) -> Entity:
         """
@@ -111,7 +137,7 @@ class FeatureStore:
             Returns either the specified entity, or raises an exception if
             none is found
         """
-        return self._get_registry().get_entity(name, self.project)
+        return self._registry.get_entity(name, self.project)
 
     def get_feature_view(self, name: str) -> FeatureView:
         """
@@ -124,7 +150,7 @@ class FeatureStore:
             Returns either the specified feature view, or raises an exception if
             none is found
         """
-        return self._get_registry().get_feature_view(name, self.project)
+        return self._registry.get_feature_view(name, self.project)
 
     def delete_feature_view(self, name: str):
         """
@@ -133,7 +159,7 @@ class FeatureStore:
         Args:
             name: Name of feature view
         """
-        return self._get_registry().delete_feature_view(name, self.project)
+        return self._registry.delete_feature_view(name, self.project)
 
     def apply(self, objects: List[Union[FeatureView, Entity]]):
         """Register objects to metadata store and update related infrastructure.
@@ -166,15 +192,14 @@ class FeatureStore:
 
         # TODO: Add locking
         # TODO: Optimize by only making a single call (read/write)
-        registry = self._get_registry()
 
         views_to_update = []
         for ob in objects:
             if isinstance(ob, FeatureView):
-                registry.apply_feature_view(ob, project=self.config.project)
+                self._registry.apply_feature_view(ob, project=self.config.project)
                 views_to_update.append(ob)
             elif isinstance(ob, Entity):
-                registry.apply_entity(ob, project=self.config.project)
+                self._registry.apply_entity(ob, project=self.config.project)
             else:
                 raise ValueError(
                     f"Unknown object type ({type(ob)}) provided as part of apply() call"
@@ -226,8 +251,9 @@ class FeatureStore:
             >>> model.fit(feature_data) # insert your modeling framework here.
         """
 
-        registry = self._get_registry()
-        all_feature_views = registry.list_feature_views(project=self.config.project)
+        all_feature_views = self._registry.list_feature_views(
+            project=self.config.project
+        )
         feature_views = _get_requested_feature_views(feature_refs, all_feature_views)
         offline_store = get_offline_store_for_retrieval(feature_views)
         job = offline_store.get_historical_features(
@@ -263,14 +289,15 @@ class FeatureStore:
             >>> )
         """
         feature_views_to_materialize = []
-        registry = self._get_registry()
         if feature_views is None:
-            feature_views_to_materialize = registry.list_feature_views(
+            feature_views_to_materialize = self._registry.list_feature_views(
                 self.config.project
             )
         else:
             for name in feature_views:
-                feature_view = registry.get_feature_view(name, self.config.project)
+                feature_view = self._registry.get_feature_view(
+                    name, self.config.project
+                )
                 feature_views_to_materialize.append(feature_view)
 
         # TODO paging large loads
@@ -316,14 +343,15 @@ class FeatureStore:
             >>> )
         """
         feature_views_to_materialize = []
-        registry = self._get_registry()
         if feature_views is None:
-            feature_views_to_materialize = registry.list_feature_views(
+            feature_views_to_materialize = self._registry.list_feature_views(
                 self.config.project
             )
         else:
             for name in feature_views:
-                feature_view = registry.get_feature_view(name, self.config.project)
+                feature_view = self._registry.get_feature_view(
+                    name, self.config.project
+                )
                 feature_views_to_materialize.append(feature_view)
 
         # TODO paging large loads
@@ -369,6 +397,15 @@ class FeatureStore:
     ) -> OnlineResponse:
         """
         Retrieves the latest online feature data.
+
+        Note: This method will download the full feature registry the first time it is run. If you are using a
+        remote registry like GCS or S3 then that may take a few seconds. The registry remains cached up to a TTL
+        duration (which can be set to infinitey). If the cached registry is stale (more time than the TTL has
+        passed), then a new registry will be downloaded synchronously by this method. This download may
+        introduce latency to online feature retrieval. In order to avoid synchronous downloads, please call
+        refresh_registry() prior to the TTL being reached. Remember it is possible to set the cache TTL to
+        infinity (cache forever).
+
         Args:
             feature_refs: List of feature references that will be returned for each entity.
                 Each feature reference should have the following format:
@@ -416,8 +453,9 @@ class FeatureStore:
             entity_keys.append(_entity_row_to_key(row))
             result_rows.append(_entity_row_to_field_values(row))
 
-        registry = self._get_registry()
-        all_feature_views = registry.list_feature_views(project=self.config.project)
+        all_feature_views = self._registry.list_feature_views(
+            project=self.config.project, allow_cache=True
+        )
 
         grouped_refs = _group_refs(feature_refs, all_feature_views)
         for table, requested_features in grouped_refs:
