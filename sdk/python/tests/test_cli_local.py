@@ -24,7 +24,7 @@ def test_workflow() -> None:
             dedent(
                 f"""
         project: foo
-        metadata_store: {data_path / "metadata.db"}
+        registry: {data_path / "registry.db"}
         provider: local
         online_store:
             local:

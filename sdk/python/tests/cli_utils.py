@@ -46,7 +46,7 @@ class CliRunner:
                 dedent(
                     f"""
             project: {project_id}
-            metadata_store: {data_path / "metadata.db"}
+            registry: {data_path / "registry.db"}
             provider: local
             online_store:
                 local:

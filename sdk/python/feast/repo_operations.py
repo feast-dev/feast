@@ -58,11 +58,11 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
 def apply_total(repo_config: RepoConfig, repo_path: Path):
     os.chdir(repo_path)
     sys.path.append("")
-    metadata_store_config = repo_config.get_metadata_store_config()
+    registry_config = repo_config.get_registry_config()
     project = repo_config.project
     registry = Registry(
-        registry_path=metadata_store_config.path,
-        cache_ttl=timedelta(seconds=metadata_store_config.cache_ttl_seconds),
+        registry_path=registry_config.path,
+        cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
     )
     repo = parse_repo(repo_path)
 
@@ -121,10 +121,10 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
 
 
 def teardown(repo_config: RepoConfig, repo_path: Path):
-    metadata_store_config = repo_config.get_metadata_store_config()
+    registry_config = repo_config.get_registry_config()
     registry = Registry(
-        registry_path=metadata_store_config.path,
-        cache_ttl=timedelta(seconds=metadata_store_config.cache_ttl_seconds),
+        registry_path=registry_config.path,
+        cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
     )
     project = repo_config.project
     registry_tables: List[Union[FeatureTable, FeatureView]] = []
@@ -136,11 +136,11 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
 
 def registry_dump(repo_config: RepoConfig):
     """ For debugging only: output contents of the metadata registry """
-    metadata_store_config = repo_config.get_metadata_store_config()
+    registry_config = repo_config.get_registry_config()
     project = repo_config.project
     registry = Registry(
-        registry_path=metadata_store_config.path,
-        cache_ttl=timedelta(seconds=metadata_store_config.cache_ttl_seconds),
+        registry_path=registry_config.path,
+        cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
     )
 
     for entity in registry.list_entities(project=project):
@@ -173,7 +173,7 @@ def init_repo(repo_path: Path, minimal: bool):
             dedent(
                 f"""
         project: {project_id}
-        metadata_store: /path/to/metadata.db
+        registry: /path/to/registry.db
         provider: local
         online_store:
             local:
@@ -182,7 +182,7 @@ def init_repo(repo_path: Path, minimal: bool):
             )
         )
         print(
-            "Generated example feature_store.yaml. Please edit metadata_store and online_store"
+            "Generated example feature_store.yaml. Please edit registry and online_store"
             "location before running apply"
         )
 
@@ -211,7 +211,7 @@ def init_repo(repo_path: Path, minimal: bool):
             dedent(
                 f"""
         project: {project_id}
-        metadata_store: {"data/metadata.db"}
+        registry: {"data/registry.db"}
         provider: local
         online_store:
             local:

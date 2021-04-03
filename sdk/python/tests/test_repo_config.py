@@ -34,7 +34,7 @@ class TestRepoConfig:
             dedent(
                 """
             project: foo
-            metadata_store: "metadata.db"
+            registry: "registry.db"
             provider: local
             online_store:
                 local:
@@ -48,7 +48,7 @@ class TestRepoConfig:
             dedent(
                 """
             project: foo
-            metadata_store: "metadata.db"
+            registry: "registry.db"
             provider: gcp
             """
             ),
@@ -60,7 +60,7 @@ class TestRepoConfig:
             dedent(
                 """
             project: foo
-            metadata_store: "metadata.db"
+            registry: "registry.db"
             provider: local
             online_store:
                 local:
@@ -76,7 +76,7 @@ class TestRepoConfig:
             dedent(
                 """
             project: foo
-            metadata_store: "metadata.db"
+            registry: "registry.db"
             provider: local
             online_store:
                 local:
@@ -91,7 +91,7 @@ class TestRepoConfig:
         self._test_config(
             dedent(
                 """
-            metadata_store: "metadata.db"
+            registry: "registry.db"
             provider: local
             online_store:
                 local:

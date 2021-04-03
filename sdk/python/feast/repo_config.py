@@ -35,7 +35,7 @@ class OnlineStoreConfig(FeastBaseModel):
     """ LocalOnlineStoreConfig: Optional local online store config """
 
 
-class MetadataStoreConfig(FeastBaseModel):
+class RegistryConfig(FeastBaseModel):
     """ Metadata Store Configuration. Configuration that relates to reading from and writing to the Feast registry."""
 
     path: StrictStr
@@ -51,7 +51,7 @@ class MetadataStoreConfig(FeastBaseModel):
 class RepoConfig(FeastBaseModel):
     """ Repo config. Typically loaded from `feature_store.yaml` """
 
-    metadata_store: Union[StrictStr, MetadataStoreConfig]
+    registry: Union[StrictStr, RegistryConfig]
     """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. gcs://foo/bar """
 
     project: StrictStr
@@ -66,11 +66,11 @@ class RepoConfig(FeastBaseModel):
     online_store: Optional[OnlineStoreConfig] = None
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
 
-    def get_metadata_store_config(self):
-        if isinstance(self.metadata_store, str):
-            return MetadataStoreConfig(path=self.metadata_store)
+    def get_registry_config(self):
+        if isinstance(self.registry, str):
+            return RegistryConfig(path=self.registry)
         else:
-            return self.metadata_store
+            return self.registry
 
 
 # This is the JSON Schema for config validation. We use this to have nice detailed error messages
@@ -84,7 +84,7 @@ config_schema = {
     "type": "object",
     "properties": {
         "project": {"type": "string"},
-        "metadata_store": {"type": "string"},
+        "registry": {"type": "string"},
         "provider": {"type": "string"},
         "online_store": {
             "type": "object",

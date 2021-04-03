@@ -65,7 +65,7 @@ class TestMaterializeFromBigQueryToDatastore:
             ),
         )
         config = RepoConfig(
-            metadata_store="./metadata.db",
+            registry="./registry.db",
             project=f"test_bq_table_correctness_{int(time.time())}",
             provider="gcp",
         )
@@ -133,7 +133,7 @@ class TestMaterializeFromBigQueryToDatastore:
             ),
         )
         config = RepoConfig(
-            metadata_store="./metadata.db",
+            registry="./registry.db",
             project=f"test_bq_query_correctness_{int(time.time())}",
             provider="gcp",
         )

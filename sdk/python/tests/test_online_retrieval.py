@@ -7,7 +7,7 @@ import pytest
 from feast import FeatureStore, RepoConfig
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.repo_config import MetadataStoreConfig
+from feast.repo_config import RegistryConfig
 from tests.cli_utils import CliRunner, get_example_repo
 
 
@@ -85,8 +85,8 @@ def test_online() -> None:
         cache_ttl = 1
         fs_fast_ttl = FeatureStore(
             config=RepoConfig(
-                metadata_store=MetadataStoreConfig(
-                    path=store.config.metadata_store, cache_ttl_seconds=cache_ttl
+                registry=RegistryConfig(
+                    path=store.config.registry, cache_ttl_seconds=cache_ttl
                 ),
                 online_store=store.config.online_store,
                 project=store.config.project,
@@ -101,8 +101,8 @@ def test_online() -> None:
         )
         assert result.to_dict()["driver_locations:lon"] == ["1.0", None]
 
-        # Rename the metadata.db so that it cant be used for refreshes
-        os.rename(store.config.metadata_store, store.config.metadata_store + "_fake")
+        # Rename the registry.db so that it cant be used for refreshes
+        os.rename(store.config.registry, store.config.registry + "_fake")
 
         # Wait for registry to expire
         time.sleep(cache_ttl)
@@ -114,8 +114,8 @@ def test_online() -> None:
                 entity_rows=[{"driver": 1}, {"driver": 123}],
             )
 
-        # Restore metadata.db so that we can see if it actually reloads registry
-        os.rename(store.config.metadata_store + "_fake", store.config.metadata_store)
+        # Restore registry.db so that we can see if it actually reloads registry
+        os.rename(store.config.registry + "_fake", store.config.registry)
 
         # Test if registry is actually reloaded and whether results return
         result = fs_fast_ttl.get_online_features(
@@ -127,8 +127,8 @@ def test_online() -> None:
         # Create a registry with infinite cache (for users that want to manually refresh the registry)
         fs_infinite_ttl = FeatureStore(
             config=RepoConfig(
-                metadata_store=MetadataStoreConfig(
-                    path=store.config.metadata_store, cache_ttl_seconds=0
+                registry=RegistryConfig(
+                    path=store.config.registry, cache_ttl_seconds=0
                 ),
                 online_store=store.config.online_store,
                 project=store.config.project,
@@ -146,8 +146,8 @@ def test_online() -> None:
         # Wait a bit so that an arbitrary TTL would take effect
         time.sleep(2)
 
-        # Rename the metadata.db so that it cant be used for refreshes
-        os.rename(store.config.metadata_store, store.config.metadata_store + "_fake")
+        # Rename the registry.db so that it cant be used for refreshes
+        os.rename(store.config.registry, store.config.registry + "_fake")
 
         # TTL is infinite so this method should use registry cache
         result = fs_infinite_ttl.get_online_features(
@@ -160,5 +160,5 @@ def test_online() -> None:
         with pytest.raises(FileNotFoundError):
             fs_infinite_ttl.refresh_registry()
 
-        # Restore metadata.db so that teardown works
-        os.rename(store.config.metadata_store + "_fake", store.config.metadata_store)
+        # Restore registry.db so that teardown works
+        os.rename(store.config.registry + "_fake", store.config.registry)
