@@ -74,12 +74,12 @@ def test_e2e_local() -> None:
                 entity_rows=[{"driver_id": 1001}],
             )
 
-            assert "driver_hourly_stats:avg_daily_trips" in result.to_dict()
+            assert "driver_hourly_stats__avg_daily_trips" in result.to_dict()
 
-            assert "driver_hourly_stats:conv_rate" in result.to_dict()
+            assert "driver_hourly_stats__conv_rate" in result.to_dict()
             assert (
                 abs(
-                    result.to_dict()["driver_hourly_stats:conv_rate"][0]
+                    result.to_dict()["driver_hourly_stats__conv_rate"][0]
                     - _get_last_feature_row(driver_df, 1001)["conv_rate"]
                 )
                 < 0.01
