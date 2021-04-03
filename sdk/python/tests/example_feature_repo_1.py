@@ -1,4 +1,4 @@
-from google.protobuf.duration_pb2 import Duration
+from datetime import timedelta
 
 from feast import BigQuerySource, Entity, Feature, FeatureView, ValueType
 
@@ -8,6 +8,15 @@ driver_locations_source = BigQuerySource(
     created_timestamp_column="created_timestamp",
 )
 
+customer_profile_source = BigQuerySource(
+    table_ref="rh_prod.ride_hailing_co.customers",
+    event_timestamp_column="event_timestamp",
+)
+
+customer_driver_combined_source = BigQuerySource(
+    table_ref="rh_prod.ride_hailing_co.customer_driver",
+    event_timestamp_column="event_timestamp",
+)
 
 driver = Entity(
     name="driver",  # The name is derived from this argument, not object name.
@@ -15,11 +24,16 @@ driver = Entity(
     description="driver id",
 )
 
+customer = Entity(
+    name="customer",  # The name is derived from this argument, not object name.
+    value_type=ValueType.STRING,
+)
+
 
 driver_locations = FeatureView(
     name="driver_locations",
     entities=["driver"],
-    ttl=Duration(seconds=86400 * 1),
+    ttl=timedelta(days=1),
     features=[
         Feature(name="lat", dtype=ValueType.FLOAT),
         Feature(name="lon", dtype=ValueType.STRING),
@@ -29,16 +43,26 @@ driver_locations = FeatureView(
     tags={},
 )
 
-driver_locations_2 = FeatureView(
-    name="driver_locations_2",
-    entities=["driver"],
-    ttl=Duration(seconds=86400 * 1),
+customer_profile = FeatureView(
+    name="customer_profile",
+    entities=["customer"],
+    ttl=timedelta(days=1),
     features=[
-        Feature(name="lat", dtype=ValueType.FLOAT),
-        Feature(name="lon", dtype=ValueType.STRING),
+        Feature(name="avg_orders_day", dtype=ValueType.FLOAT),
         Feature(name="name", dtype=ValueType.STRING),
+        Feature(name="age", dtype=ValueType.INT64),
     ],
     online=True,
-    input=driver_locations_source,
+    input=customer_profile_source,
+    tags={},
+)
+
+customer_driver_combined = FeatureView(
+    name="customer_driver_combined",
+    entities=["customer", "driver"],
+    ttl=timedelta(days=1),
+    features=[Feature(name="trips", dtype=ValueType.INT64)],
+    online=True,
+    input=customer_driver_combined_source,
     tags={},
 )
