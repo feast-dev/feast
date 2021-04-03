@@ -38,6 +38,7 @@ class Registry:
     cached_registry_proto: Optional[RegistryProto] = None
     cached_registry_proto_created: Optional[datetime] = None
     cached_registry_proto_ttl: timedelta
+    cache_being_updated: bool = False
 
     def __init__(self, registry_path: str, cache_ttl: timedelta):
         """
@@ -328,13 +329,19 @@ class Registry:
                 > (self.cached_registry_proto_created + self.cached_registry_proto_ttl)
             )
         )
-        if allow_cache and not expired:
+        if allow_cache and (not expired or self.cache_being_updated):
             assert isinstance(self.cached_registry_proto, RegistryProto)
             return self.cached_registry_proto
 
-        registry_proto = self._registry_store.get_registry_proto()
-        self.cached_registry_proto = registry_proto
-        self.cached_registry_proto_created = datetime.now()
+        try:
+            self.cache_being_updated = True
+            registry_proto = self._registry_store.get_registry_proto()
+            self.cached_registry_proto = registry_proto
+            self.cached_registry_proto_created = datetime.now()
+        except Exception as e:
+            raise e
+        finally:
+            self.cache_being_updated = False
         return registry_proto
 
 
@@ -431,7 +438,9 @@ class GCSRegistryStore(RegistryStore):
                 f"No bucket named {self._bucket} exists; please create it first."
             )
         if storage.Blob(bucket=bucket, name=self._blob).exists(self.gcs_client):
-            self.gcs_client.download_blob_to_file(self._uri.geturl(), file_obj)
+            self.gcs_client.download_blob_to_file(
+                self._uri.geturl(), file_obj, timeout=30
+            )
             file_obj.seek(0)
             registry_proto.ParseFromString(file_obj.read())
             return registry_proto

@@ -89,8 +89,17 @@ class FeatureStore:
     def refresh_registry(self):
         """Fetches and caches a copy of the feature registry in memory.
 
-        Explicitly calling this method makes it possible for methods like get_online_features to use cached registry
-        state instead of retrieving the registry state at request-time, thus reducing latency."""
+        Explicitly calling this method allows for direct control of the state of the registry cache. Every time this
+        method is called the complete registry state will be retrieved from the remote registry store backend
+        (e.g., GCS, S3), and the cache timer will be reset. If refresh_registry() is run before get_online_features()
+        is called, then get_online_feature() will use the cached registry instead of retrieving (and caching) the
+        registry itself.
+
+        Additionally, the TTL for the registry cache can be set to infinity (by setting it to 0), which means that
+        refresh_registry() will become the only way to update the cached registry. If the TTL is set to a value
+        greater than 0, then once the cache becomes stale (more time than the TTL has passed), a new cache will be
+        downloaded synchronously, which may increase latencies if the triggering method is get_online_features()
+        """
 
         metadata_store_config = self.config.get_metadata_store_config()
         self._registry = Registry(
@@ -388,6 +397,15 @@ class FeatureStore:
     ) -> OnlineResponse:
         """
         Retrieves the latest online feature data.
+
+        Note: This method will download the full feature registry the first time it is run. If you are using a
+        remote registry like GCS or S3 then that may take a few seconds. The registry remains cached up to a TTL
+        duration (which can be set to infinitey). If the cached registry is stale (more time than the TTL has
+        passed), then a new registry will be downloaded synchronously by this method. This download may
+        introduce latency to online feature retrieval. In order to avoid synchronous downloads, please call
+        refresh_registry() prior to the TTL being reached. Remember it is possible to set the cache TTL to
+        infinity (cache forever).
+
         Args:
             feature_refs: List of feature references that will be returned for each entity.
                 Each feature reference should have the following format:
