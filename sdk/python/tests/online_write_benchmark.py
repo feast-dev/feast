@@ -50,7 +50,7 @@ def benchmark_writes():
     with tempfile.TemporaryDirectory() as temp_dir:
         store = FeatureStore(
             config=RepoConfig(
-                metadata_store=os.path.join(temp_dir, "metadata.db"),
+                registry=os.path.join(temp_dir, "metadata.db"),
                 project=project_id,
                 provider="gcp",
             )

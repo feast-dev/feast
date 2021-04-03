@@ -65,7 +65,7 @@ class FeatureStore:
             self.config = load_repo_config(Path(repo_path))
         else:
             self.config = RepoConfig(
-                metadata_store="./metadata.db",
+                registry="./metadata.db",
                 project="default",
                 provider="local",
                 online_store=OnlineStoreConfig(
@@ -73,10 +73,10 @@ class FeatureStore:
                 ),
             )
 
-        metadata_store_config = self.config.get_metadata_store_config()
+        registry_config = self.config.get_registry_config()
         self._registry = Registry(
-            registry_path=metadata_store_config.path,
-            cache_ttl=timedelta(seconds=metadata_store_config.cache_ttl_seconds),
+            registry_path=registry_config.path,
+            cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
         )
 
     @property
@@ -101,10 +101,10 @@ class FeatureStore:
         downloaded synchronously, which may increase latencies if the triggering method is get_online_features()
         """
 
-        metadata_store_config = self.config.get_metadata_store_config()
+        registry_config = self.config.get_registry_config()
         self._registry = Registry(
-            registry_path=metadata_store_config.path,
-            cache_ttl=timedelta(seconds=metadata_store_config.cache_ttl_seconds),
+            registry_path=registry_config.path,
+            cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
         )
         self._registry.refresh()
 

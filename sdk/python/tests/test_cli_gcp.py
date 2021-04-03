@@ -28,7 +28,7 @@ def test_basic() -> None:
             dedent(
                 f"""
         project: {project_id}
-        metadata_store: {data_path / "metadata.db"}
+        registry: {data_path / "metadata.db"}
         provider: gcp
         """
             )

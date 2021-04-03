@@ -36,7 +36,7 @@ class TestFeatureStore:
         fd, online_store_path = mkstemp()
         return FeatureStore(
             config=RepoConfig(
-                metadata_store=registry_path,
+                registry=registry_path,
                 project="default",
                 provider="local",
                 online_store=OnlineStoreConfig(
@@ -61,7 +61,7 @@ class TestFeatureStore:
 
         return FeatureStore(
             config=RepoConfig(
-                metadata_store=f"gs://{bucket_name}/metadata.db",
+                registry=f"gs://{bucket_name}/metadata.db",
                 project="default",
                 provider="gcp",
             )
