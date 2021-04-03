@@ -65,7 +65,7 @@ class FeatureStore:
             self.config = load_repo_config(Path(repo_path))
         else:
             self.config = RepoConfig(
-                registry="./metadata.db",
+                registry="./registry.db",
                 project="default",
                 provider="local",
                 online_store=OnlineStoreConfig(

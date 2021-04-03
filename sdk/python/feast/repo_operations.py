@@ -173,7 +173,7 @@ def init_repo(repo_path: Path, minimal: bool):
             dedent(
                 f"""
         project: {project_id}
-        registry: /path/to/metadata.db
+        registry: /path/to/registry.db
         provider: local
         online_store:
             local:
@@ -211,7 +211,7 @@ def init_repo(repo_path: Path, minimal: bool):
             dedent(
                 f"""
         project: {project_id}
-        registry: {"data/metadata.db"}
+        registry: {"data/registry.db"}
         provider: local
         online_store:
             local:

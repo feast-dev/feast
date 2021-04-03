@@ -57,11 +57,11 @@ class TestFeatureStore:
             age=14
         )  # delete buckets automatically after 14 days
         bucket.patch()
-        bucket.blob("metadata.db")
+        bucket.blob("registry.db")
 
         return FeatureStore(
             config=RepoConfig(
-                registry=f"gs://{bucket_name}/metadata.db",
+                registry=f"gs://{bucket_name}/registry.db",
                 project="default",
                 provider="gcp",
             )

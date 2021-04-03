@@ -101,7 +101,7 @@ def test_online() -> None:
         )
         assert result.to_dict()["driver_locations:lon"] == ["1.0", None]
 
-        # Rename the metadata.db so that it cant be used for refreshes
+        # Rename the registry.db so that it cant be used for refreshes
         os.rename(store.config.registry, store.config.registry + "_fake")
 
         # Wait for registry to expire
@@ -114,7 +114,7 @@ def test_online() -> None:
                 entity_rows=[{"driver": 1}, {"driver": 123}],
             )
 
-        # Restore metadata.db so that we can see if it actually reloads registry
+        # Restore registry.db so that we can see if it actually reloads registry
         os.rename(store.config.registry + "_fake", store.config.registry)
 
         # Test if registry is actually reloaded and whether results return
@@ -146,7 +146,7 @@ def test_online() -> None:
         # Wait a bit so that an arbitrary TTL would take effect
         time.sleep(2)
 
-        # Rename the metadata.db so that it cant be used for refreshes
+        # Rename the registry.db so that it cant be used for refreshes
         os.rename(store.config.registry, store.config.registry + "_fake")
 
         # TTL is infinite so this method should use registry cache
@@ -160,5 +160,5 @@ def test_online() -> None:
         with pytest.raises(FileNotFoundError):
             fs_infinite_ttl.refresh_registry()
 
-        # Restore metadata.db so that teardown works
+        # Restore registry.db so that teardown works
         os.rename(store.config.registry + "_fake", store.config.registry)

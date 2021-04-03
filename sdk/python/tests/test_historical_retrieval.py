@@ -229,7 +229,7 @@ def test_historical_features_from_parquet_sources():
 
         store = FeatureStore(
             config=RepoConfig(
-                registry=os.path.join(temp_dir, "metadata.db"),
+                registry=os.path.join(temp_dir, "registry.db"),
                 project="default",
                 provider="local",
                 online_store=OnlineStoreConfig(
@@ -331,7 +331,7 @@ def test_historical_features_from_bigquery_sources():
 
         store = FeatureStore(
             config=RepoConfig(
-                registry=os.path.join(temp_dir, "metadata.db"),
+                registry=os.path.join(temp_dir, "registry.db"),
                 project="default",
                 provider="local",
                 online_store=OnlineStoreConfig(
