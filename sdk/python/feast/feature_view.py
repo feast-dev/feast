@@ -13,6 +13,7 @@
 # limitations under the License.
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Union
+from pytz import utc
 
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.timestamp_pb2 import Timestamp
@@ -163,9 +164,10 @@ class FeatureView:
         feature_view.created_timestamp = feature_view_proto.meta.created_timestamp
 
         for interval in feature_view_proto.meta.materialization_intervals:
-            feature_view.materialization_intervals.append(
-                (interval.start_time.ToDatetime(), interval.end_time.ToDatetime())
-            )
+            feature_view.materialization_intervals.append((
+                interval.start_time.ToDatetime().replace(tzinfo=utc),
+                interval.end_time.ToDatetime().replace(tzinfo=utc)
+            ))
 
         return feature_view
 

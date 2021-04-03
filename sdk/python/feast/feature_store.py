@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import pyarrow
+from pytz import utc
 
 from feast.entity import Entity
 from feast.feature_view import FeatureView
@@ -308,7 +309,7 @@ class FeatureStore:
                     raise Exception(
                         f"No start time found for feature view {feature_view.name}. materialize_incremental() requires either a ttl to be set or for materialize() to have been run at least once."
                     )
-                start_date = datetime.utcnow() - feature_view.ttl
+                start_date = datetime.utcnow().replace(tzinfo=utc) - feature_view.ttl
             self._materialize_single_feature_view(feature_view, start_date, end_date)
 
     def materialize(
