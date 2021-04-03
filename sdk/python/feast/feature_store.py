@@ -443,11 +443,11 @@ class FeatureStore:
 
         provider = self._get_provider()
 
-        entity_keys = []
+        union_of_entity_keys = []
         result_rows: List[GetOnlineFeaturesResponse.FieldValues] = []
 
         for row in entity_rows:
-            entity_keys.append(_entity_row_to_key(row))
+            union_of_entity_keys.append(_entity_row_to_key(row))
             result_rows.append(_entity_row_to_field_values(row))
 
         all_feature_views = self._registry.list_feature_views(
@@ -456,9 +456,9 @@ class FeatureStore:
 
         grouped_refs = _group_refs(feature_refs, all_feature_views)
         for table, requested_features in grouped_refs:
-            table_entity_keys = _get_table_entity_keys(table, entity_keys)
+            entity_keys = _get_table_entity_keys(table, union_of_entity_keys)
             read_rows = provider.online_read(
-                project=project, table=table, entity_keys=table_entity_keys,
+                project=project, table=table, entity_keys=entity_keys,
             )
             for row_idx, read_row in enumerate(read_rows):
                 row_ts, feature_data = read_row
@@ -662,7 +662,8 @@ def _get_table_entity_keys(
             if entity_name in required_entities_to_values:
                 if required_entities_to_values[entity_name] is not None:
                     raise ValueError(
-                        f"Duplicate entity keys detected. Table {table.name} expects {table.entities}. The entity {entity_name} was provided at least twice"
+                        f"Duplicate entity keys detected. Table {table.name} expects {table.entities}. The entity "
+                        f"{entity_name} was provided at least twice"
                     )
                 required_entities_to_values[entity_name] = entity_value
 
@@ -671,7 +672,8 @@ def _get_table_entity_keys(
         for entity_name, entity_value in required_entities_to_values.items():
             if entity_value is None:
                 raise ValueError(
-                    f"Table {table.name} expects entity field {table.entities}. No entity value was found for {entity_name}"
+                    f"Table {table.name} expects entity field {table.entities}. No entity value was found for "
+                    f"{entity_name}"
                 )
             entity_names.append(entity_name)
             entity_values.append(entity_value)
