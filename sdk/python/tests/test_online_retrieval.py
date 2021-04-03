@@ -71,9 +71,9 @@ def test_online() -> None:
             entity_rows=[{"driver": 1}, {"driver": 123}],
         )
 
-        assert "driver_locations:lon" in result.to_dict()
-        assert result.to_dict()["driver_locations:lon"] == ["1.0", None]
-        assert result.to_dict()["driver_locations_2:lon"] == ["2.0", None]
+        assert "driver_locations__lon" in result.to_dict()
+        assert result.to_dict()["driver_locations__lon"] == ["1.0", None]
+        assert result.to_dict()["driver_locations_2__lon"] == ["2.0", None]
 
         # invalid table reference
         with pytest.raises(ValueError):
@@ -99,7 +99,7 @@ def test_online() -> None:
             feature_refs=["driver_locations:lon", "driver_locations_2:lon"],
             entity_rows=[{"driver": 1}, {"driver": 123}],
         )
-        assert result.to_dict()["driver_locations:lon"] == ["1.0", None]
+        assert result.to_dict()["driver_locations__lon"] == ["1.0", None]
 
         # Rename the registry.db so that it cant be used for refreshes
         os.rename(store.config.registry, store.config.registry + "_fake")
@@ -122,7 +122,7 @@ def test_online() -> None:
             feature_refs=["driver_locations:lon", "driver_locations_2:lon"],
             entity_rows=[{"driver": 1}, {"driver": 123}],
         )
-        assert result.to_dict()["driver_locations:lon"] == ["1.0", None]
+        assert result.to_dict()["driver_locations__lon"] == ["1.0", None]
 
         # Create a registry with infinite cache (for users that want to manually refresh the registry)
         fs_infinite_ttl = FeatureStore(
@@ -141,7 +141,7 @@ def test_online() -> None:
             feature_refs=["driver_locations:lon", "driver_locations_2:lon"],
             entity_rows=[{"driver": 1}, {"driver": 123}],
         )
-        assert result.to_dict()["driver_locations:lon"] == ["1.0", None]
+        assert result.to_dict()["driver_locations__lon"] == ["1.0", None]
 
         # Wait a bit so that an arbitrary TTL would take effect
         time.sleep(2)
@@ -154,7 +154,7 @@ def test_online() -> None:
             feature_refs=["driver_locations:lon", "driver_locations_2:lon"],
             entity_rows=[{"driver": 1}, {"driver": 123}],
         )
-        assert result.to_dict()["driver_locations:lon"] == ["1.0", None]
+        assert result.to_dict()["driver_locations__lon"] == ["1.0", None]
 
         # Force registry reload (should fail because file is missing)
         with pytest.raises(FileNotFoundError):

@@ -81,13 +81,13 @@ class TestMaterializeFromBigQueryToDatastore:
         response_dict = fs.get_online_features(
             [f"{fv.name}:value"], [{"driver_id": 1}]
         ).to_dict()
-        assert abs(response_dict[f"{fv.name}:value"][0] - 0.3) < 1e-6
+        assert abs(response_dict[f"{fv.name}__value"][0] - 0.3) < 1e-6
 
         # check prior value for materialize_incremental()
         response_dict = fs.get_online_features(
             [f"{fv.name}:value"], [{"driver_id": 3}]
         ).to_dict()
-        assert abs(response_dict[f"{fv.name}:value"][0] - 4) < 1e-6
+        assert abs(response_dict[f"{fv.name}__value"][0] - 4) < 1e-6
 
         # run materialize_incremental()
         fs.materialize_incremental(
@@ -98,7 +98,7 @@ class TestMaterializeFromBigQueryToDatastore:
         response_dict = fs.get_online_features(
             [f"{fv.name}:value"], [{"driver_id": 3}]
         ).to_dict()
-        assert abs(response_dict[f"{fv.name}:value"][0] - 5) < 1e-6
+        assert abs(response_dict[f"{fv.name}__value"][0] - 5) < 1e-6
 
     def test_bigquery_query_to_datastore_correctness(self):
         # create dataset
@@ -151,4 +151,4 @@ class TestMaterializeFromBigQueryToDatastore:
         response_dict = fs.get_online_features(
             [f"{fv.name}:value"], [{"driver_id": 1}]
         ).to_dict()
-        assert abs(response_dict[f"{fv.name}:value"][0] - 0.3) < 1e-6
+        assert abs(response_dict[f"{fv.name}__value"][0] - 0.3) < 1e-6

@@ -468,13 +468,13 @@ class FeatureStore:
 
                 if feature_data is None:
                     for feature_name in requested_features:
-                        feature_ref = f"{table.name}:{feature_name}"
+                        feature_ref = f"{table.name}__{feature_name}"
                         result_row.statuses[
                             feature_ref
                         ] = GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND
                 else:
                     for feature_name in feature_data:
-                        feature_ref = f"{table.name}:{feature_name}"
+                        feature_ref = f"{table.name}__{feature_name}"
                         if feature_name in requested_features:
                             result_row.fields[feature_ref].CopyFrom(
                                 feature_data[feature_name]
