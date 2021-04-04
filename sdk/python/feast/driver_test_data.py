@@ -2,7 +2,7 @@
 import numpy as np
 import pandas as pd
 
-from feast.offline_store import ENTITY_DF_EVENT_TIMESTAMP_COL
+from feast.infra.provider import ENTITY_DF_EVENT_TIMESTAMP_COL
 
 
 def create_orders_df(

@@ -21,12 +21,7 @@ import pyarrow
 
 from feast.entity import Entity
 from feast.feature_view import FeatureView
-from feast.infra.provider import Provider, get_provider
-from feast.offline_store import (
-    RetrievalJob,
-    get_offline_store,
-    get_offline_store_for_retrieval,
-)
+from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
 from feast.protos.feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequestV2,
@@ -255,8 +250,8 @@ class FeatureStore:
             project=self.config.project
         )
         feature_views = _get_requested_feature_views(feature_refs, all_feature_views)
-        offline_store = get_offline_store_for_retrieval(feature_views)
-        job = offline_store.get_historical_features(
+        provider = self._get_provider()
+        job = provider.get_historical_features(
             self.config, feature_views, feature_refs, entity_df
         )
         return job
@@ -367,9 +362,8 @@ class FeatureStore:
             event_timestamp_column,
             created_timestamp_column,
         ) = _run_reverse_field_mapping(feature_view)
-
-        offline_store = get_offline_store(self.config)
-        table = offline_store.pull_latest_from_table_or_query(
+        provider = self._get_provider()
+        table = provider.pull_latest_from_table_or_query(
             feature_view.input,
             entity_names,
             feature_names,
