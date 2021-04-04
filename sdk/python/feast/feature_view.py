@@ -47,7 +47,7 @@ class FeatureView:
 
     created_timestamp: Optional[Timestamp] = None
     last_updated_timestamp: Optional[Timestamp] = None
-    materialization_intervals: List[Tuple[datetime, datetime]] = []
+    materialization_intervals: List[Tuple[datetime, datetime]]
 
     def __init__(
         self,
@@ -78,6 +78,8 @@ class FeatureView:
 
         self.online = online
         self.input = input
+
+        self.materialization_intervals = []
 
     def is_valid(self):
         """
