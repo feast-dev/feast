@@ -15,7 +15,7 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
-from feast.offline_store import ENTITY_DF_EVENT_TIMESTAMP_COL
+from feast.infra.provider import ENTITY_DF_EVENT_TIMESTAMP_COL
 from feast.repo_config import LocalOnlineStoreConfig, OnlineStoreConfig, RepoConfig
 from feast.value_type import ValueType
 
@@ -333,7 +333,7 @@ def test_historical_features_from_bigquery_sources():
             config=RepoConfig(
                 registry=os.path.join(temp_dir, "registry.db"),
                 project="default",
-                provider="local",
+                provider="gcp",
                 online_store=OnlineStoreConfig(
                     local=LocalOnlineStoreConfig(
                         path=os.path.join(temp_dir, "online_store.db"),
