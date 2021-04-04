@@ -169,6 +169,13 @@ class LocalSqlite(Provider):
     ) -> pyarrow.Table:
         assert isinstance(data_source, FileSource)
         source_df = pd.read_parquet(data_source.path)
+        # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
+        source_df[event_timestamp_column] = source_df[event_timestamp_column].apply(
+            lambda x: x if x.tz is not None else x.replace(tzinfo=pytz.utc)
+        )
+        source_df[created_timestamp_column] = source_df[created_timestamp_column].apply(
+            lambda x: x if x.tz is not None else x.replace(tzinfo=pytz.utc)
+        )
 
         ts_columns = (
             [event_timestamp_column, created_timestamp_column]

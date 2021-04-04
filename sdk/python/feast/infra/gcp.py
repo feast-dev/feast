@@ -10,9 +10,8 @@ import pandas
 import pyarrow
 from google.cloud import bigquery
 from jinja2 import BaseLoader, Environment
-from pytz import utc
 
-from feast import FeatureTable
+from feast import FeatureTable, utils
 from feast.data_source import BigQuerySource, DataSource
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
@@ -252,14 +251,14 @@ def _write_minibatch(
 
                     entity = client.get(key)
                     if entity is not None:
-                        if entity["event_ts"] > _make_tzaware(timestamp):
+                        if entity["event_ts"] > utils.make_tzaware(timestamp):
                             # Do not overwrite feature values computed from fresher data
                             continue
                         elif (
-                            entity["event_ts"] == _make_tzaware(timestamp)
+                            entity["event_ts"] == utils.make_tzaware(timestamp)
                             and created_ts is not None
                             and entity["created_ts"] is not None
-                            and entity["created_ts"] > _make_tzaware(created_ts)
+                            and entity["created_ts"] > utils.make_tzaware(created_ts)
                         ):
                             # Do not overwrite feature values computed from the same data, but
                             # computed later than this one
@@ -273,9 +272,9 @@ def _write_minibatch(
                             values={
                                 k: v.SerializeToString() for k, v in features.items()
                             },
-                            event_ts=_make_tzaware(timestamp),
+                            event_ts=utils.make_tzaware(timestamp),
                             created_ts=(
-                                _make_tzaware(created_ts)
+                                utils.make_tzaware(created_ts)
                                 if created_ts is not None
                                 else None
                             ),
@@ -314,14 +313,6 @@ def compute_datastore_entity_id(entity_key: EntityKeyProto) -> str:
     do with the Entity concept we have in Feast.
     """
     return mmh3.hash_bytes(serialize_entity_key(entity_key)).hex()
-
-
-def _make_tzaware(t: datetime):
-    """ We assume tz-naive datetimes are UTC """
-    if t.tzinfo is None:
-        return t.replace(tzinfo=utc)
-    else:
-        return t
 
 
 class BigQueryRetrievalJob(RetrievalJob):
