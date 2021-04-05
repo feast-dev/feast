@@ -17,7 +17,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryFile
-from typing import Callable, List, Optional
+from typing import Callable, Dict, List, Optional
 from urllib.parse import urlparse
 
 from google.auth.exceptions import DefaultCredentialsError
@@ -87,7 +87,7 @@ class Registry:
         self._registry_store.update_registry_proto(updater)
         return
 
-    def list_entities(self, project: str) -> List[Entity]:
+    def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
         """
         Retrieve a list of entities from the registry
 
@@ -97,7 +97,7 @@ class Registry:
         Returns:
             List of entities
         """
-        registry_proto = self._get_registry_proto()
+        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
         entities = []
         for entity_proto in registry_proto.entities:
             if entity_proto.spec.project == project:
@@ -306,6 +306,15 @@ class Registry:
             raise Exception(f"Feature view {name} does not exist in project {project}")
 
         self._registry_store.update_registry_proto(updater)
+
+    def get_entity_name_to_join_key_map(
+        self, project: str, allow_cache: bool = False
+    ) -> Dict[str, str]:
+        entities = self.list_entities(project, allow_cache=allow_cache)
+        entity_name_to_join_key_map = {}
+        for entity in entities:
+            entity_name_to_join_key_map[entity.name] = entity.join_key
+        return entity_name_to_join_key_map
 
     def refresh(self):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""

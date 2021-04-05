@@ -25,6 +25,6 @@ option java_outer_classname = "EntityKeyProto";
 option go_package = "github.com/feast-dev/feast/sdk/go/protos/feast/types";
 
 message EntityKey {
-    repeated string entity_names = 1;
+    repeated string join_keys = 1;
     repeated feast.types.Value entity_values = 2;
 }

@@ -12,16 +12,20 @@ from google.cloud import bigquery
 from jinja2 import BaseLoader, Environment
 
 from feast import FeatureTable, utils
-from feast.data_source import BigQuerySource, DataSource
+from feast.data_source import BigQuerySource
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.provider import (
     Provider,
     RetrievalJob,
+    _convert_arrow_to_proto,
+    _get_column_names,
     _get_requested_feature_views_to_features_dict,
+    _run_field_mapping,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.registry import Registry
 from feast.repo_config import DatastoreOnlineStoreConfig, RepoConfig
 
 
@@ -125,41 +129,66 @@ class Gcp(Provider):
                 result.append((None, None))
         return result
 
-    @staticmethod
-    def pull_latest_from_table_or_query(
-        data_source: DataSource,
-        entity_names: List[str],
-        feature_names: List[str],
-        event_timestamp_column: str,
-        created_timestamp_column: Optional[str],
+    def materialize_single_feature_view(
+        self,
+        feature_view: FeatureView,
         start_date: datetime,
         end_date: datetime,
-    ) -> pyarrow.Table:
-        assert isinstance(data_source, BigQuerySource)
-        from_expression = data_source.get_table_query_string()
+        registry: Registry,
+        project: str,
+    ) -> None:
+        assert isinstance(feature_view.input, BigQuerySource)
 
-        partition_by_entity_string = ", ".join(entity_names)
-        if partition_by_entity_string != "":
-            partition_by_entity_string = "PARTITION BY " + partition_by_entity_string
+        entities = []
+        for entity_name in feature_view.entities:
+            entities.append(registry.get_entity(entity_name, project))
+
+        (
+            join_key_columns,
+            feature_name_columns,
+            event_timestamp_column,
+            created_timestamp_column,
+        ) = _get_column_names(feature_view, entities)
+
+        start_date = utils.make_tzaware(start_date)
+        end_date = utils.make_tzaware(end_date)
+
+        from_expression = feature_view.input.get_table_query_string()
+
+        partition_by_join_key_string = ", ".join(join_key_columns)
+        if partition_by_join_key_string != "":
+            partition_by_join_key_string = (
+                "PARTITION BY " + partition_by_join_key_string
+            )
         timestamps = [event_timestamp_column]
         if created_timestamp_column is not None:
             timestamps.append(created_timestamp_column)
         timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
-        field_string = ", ".join(entity_names + feature_names + timestamps)
+        field_string = ", ".join(join_key_columns + feature_name_columns + timestamps)
 
         query = f"""
             SELECT {field_string}
             FROM (
                 SELECT {field_string},
-                ROW_NUMBER() OVER({partition_by_entity_string} ORDER BY {timestamp_desc_string}) AS _feast_row
+                ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
                 FROM {from_expression}
                 WHERE {event_timestamp_column} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')
             )
             WHERE _feast_row = 1
             """
 
-        table = Gcp._pull_query(query)
-        return table
+        table = self._pull_query(query)
+
+        if feature_view.input.field_mapping is not None:
+            table = _run_field_mapping(table, feature_view.input.field_mapping)
+
+        join_keys = [entity.join_key for entity in entities]
+        rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
+
+        self.online_write_batch(project, feature_view, rows_to_write, None)
+
+        feature_view.materialization_intervals.append((start_date, end_date))
+        registry.apply_feature_view(feature_view, project)
 
     @staticmethod
     def _pull_query(query: str) -> pyarrow.Table:

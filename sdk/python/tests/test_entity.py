@@ -69,6 +69,11 @@ class TestEntity:
         assert test_entity == actual_entity_from_string
 
 
+def test_join_key_default():
+    entity = Entity("my-entity", description="My entity", value_type=ValueType.STRING)
+    assert entity.join_key == "my-entity"
+
+
 def test_entity_class_contains_labels():
     entity = Entity(
         "my-entity",

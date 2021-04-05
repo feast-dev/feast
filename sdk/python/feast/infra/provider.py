@@ -5,12 +5,14 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import pandas
 import pyarrow
 
-from feast.data_source import DataSource
+from feast.entity import Entity
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.registry import Registry
 from feast.repo_config import RepoConfig
+from feast.type_map import python_value_to_proto_value
 
 ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
 
@@ -87,22 +89,15 @@ class Provider(abc.ABC):
         """
         ...
 
-    @staticmethod
     @abc.abstractmethod
-    def pull_latest_from_table_or_query(
-        data_source: DataSource,
-        entity_names: List[str],
-        feature_names: List[str],
-        event_timestamp_column: str,
-        created_timestamp_column: Optional[str],
+    def materialize_single_feature_view(
+        self,
+        feature_view: FeatureView,
         start_date: datetime,
         end_date: datetime,
-    ) -> pyarrow.Table:
-        """
-        Note that entity_names, feature_names, event_timestamp_column, and created_timestamp_column
-        have all already been mapped back to column names of the source table
-        and those column names are the values passed into this function.
-        """
+        registry: Registry,
+        project: str,
+    ) -> None:
         pass
 
     @staticmethod
@@ -175,3 +170,117 @@ def _get_requested_feature_views_to_features_dict(
         if not found:
             raise ValueError(f"Could not find feature view from reference {ref}")
     return feature_views_to_feature_map
+
+
+def _get_column_names(
+    feature_view: FeatureView, entities: List[Entity]
+) -> Tuple[List[str], List[str], str, Optional[str]]:
+    """
+    If a field mapping exists, run it in reverse on the join keys,
+    feature names, event timestamp column, and created timestamp column
+    to get the names of the relevant columns in the offline feature store table.
+
+    Returns:
+        Tuple containing the list of reverse-mapped join_keys,
+        reverse-mapped feature names, reverse-mapped event timestamp column,
+        and reverse-mapped created timestamp column that will be passed into
+        the query to the offline store.
+    """
+    # if we have mapped fields, use the original field names in the call to the offline store
+    event_timestamp_column = feature_view.input.event_timestamp_column
+    feature_names = [feature.name for feature in feature_view.features]
+    created_timestamp_column = feature_view.input.created_timestamp_column
+    join_keys = [entity.join_key for entity in entities]
+    if feature_view.input.field_mapping is not None:
+        reverse_field_mapping = {
+            v: k for k, v in feature_view.input.field_mapping.items()
+        }
+        event_timestamp_column = (
+            reverse_field_mapping[event_timestamp_column]
+            if event_timestamp_column in reverse_field_mapping.keys()
+            else event_timestamp_column
+        )
+        created_timestamp_column = (
+            reverse_field_mapping[created_timestamp_column]
+            if created_timestamp_column
+            and created_timestamp_column in reverse_field_mapping.keys()
+            else created_timestamp_column
+        )
+        join_keys = [
+            reverse_field_mapping[col] if col in reverse_field_mapping.keys() else col
+            for col in join_keys
+        ]
+        feature_names = [
+            reverse_field_mapping[col] if col in reverse_field_mapping.keys() else col
+            for col in feature_names
+        ]
+    return (
+        join_keys,
+        feature_names,
+        event_timestamp_column,
+        created_timestamp_column,
+    )
+
+
+def _run_field_mapping(
+    table: pyarrow.Table, field_mapping: Dict[str, str],
+) -> pyarrow.Table:
+    # run field mapping in the forward direction
+    cols = table.column_names
+    mapped_cols = [
+        field_mapping[col] if col in field_mapping.keys() else col for col in cols
+    ]
+    table = table.rename_columns(mapped_cols)
+    return table
+
+
+def _convert_arrow_to_proto(
+    table: pyarrow.Table, feature_view: FeatureView, join_keys: List[str],
+) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
+    rows_to_write = []
+
+    def _coerce_datetime(ts):
+        """
+        Depending on underlying time resolution, arrow to_pydict() sometimes returns pandas
+        timestamp type (for nanosecond resolution), and sometimes you get standard python datetime
+        (for microsecond resolution).
+
+        While pandas timestamp class is a subclass of python datetime, it doesn't always behave the
+        same way. We convert it to normal datetime so that consumers downstream don't have to deal
+        with these quirks.
+        """
+
+        if isinstance(ts, pandas.Timestamp):
+            return ts.to_pydatetime()
+        else:
+            return ts
+
+    for row in zip(*table.to_pydict().values()):
+        entity_key = EntityKeyProto()
+        for join_key in join_keys:
+            entity_key.join_keys.append(join_key)
+            idx = table.column_names.index(join_key)
+            value = python_value_to_proto_value(row[idx])
+            entity_key.entity_values.append(value)
+        feature_dict = {}
+        for feature in feature_view.features:
+            idx = table.column_names.index(feature.name)
+            value = python_value_to_proto_value(row[idx])
+            feature_dict[feature.name] = value
+        event_timestamp_idx = table.column_names.index(
+            feature_view.input.event_timestamp_column
+        )
+        event_timestamp = _coerce_datetime(row[event_timestamp_idx])
+
+        if feature_view.input.created_timestamp_column is not None:
+            created_timestamp_idx = table.column_names.index(
+                feature_view.input.created_timestamp_column
+            )
+            created_timestamp = _coerce_datetime(row[created_timestamp_idx])
+        else:
+            created_timestamp = None
+
+        rows_to_write.append(
+            (entity_key, feature_dict, event_timestamp, created_timestamp)
+        )
+    return rows_to_write

@@ -28,7 +28,7 @@ def test_online() -> None:
         provider = store._get_provider()
 
         driver_key = EntityKeyProto(
-            entity_names=["driver"], entity_values=[ValueProto(int64_val=1)]
+            join_keys=["driver"], entity_values=[ValueProto(int64_val=1)]
         )
         provider.online_write_batch(
             project=store.config.project,
@@ -48,7 +48,7 @@ def test_online() -> None:
         )
 
         customer_key = EntityKeyProto(
-            entity_names=["customer"], entity_values=[ValueProto(int64_val=5)]
+            join_keys=["customer"], entity_values=[ValueProto(int64_val=5)]
         )
         provider.online_write_batch(
             project=store.config.project,
@@ -69,7 +69,7 @@ def test_online() -> None:
         )
 
         customer_key = EntityKeyProto(
-            entity_names=["customer", "driver"],
+            join_keys=["customer", "driver"],
             entity_values=[ValueProto(int64_val=5), ValueProto(int64_val=1)],
         )
         provider.online_write_batch(

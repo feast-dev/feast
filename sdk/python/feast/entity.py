@@ -36,11 +36,17 @@ class Entity:
         name: str,
         value_type: ValueType,
         description: str = "",
+        join_key: Optional[str] = None,
         labels: Optional[MutableMapping[str, str]] = None,
     ):
         self._name = name
         self._description = description
         self._value_type = value_type
+        if join_key:
+            self._join_key = join_key
+        else:
+            self._join_key = name
+
         if labels is None:
             self._labels = dict()  # type: MutableMapping[str, str]
         else:
@@ -58,6 +64,7 @@ class Entity:
             or self.name != other.name
             or self.description != other.description
             or self.value_type != other.value_type
+            or self.join_key != other.join_key
         ):
             return False
 
@@ -93,6 +100,20 @@ class Entity:
         Sets the description of this entity
         """
         self._description = description
+
+    @property
+    def join_key(self):
+        """
+        Returns the join key of this entity
+        """
+        return self._join_key
+
+    @join_key.setter
+    def join_key(self, join_key):
+        """
+        Sets the join key of this entity
+        """
+        self._join_key = join_key
 
     @property
     def value_type(self) -> ValueType:
@@ -197,6 +218,7 @@ class Entity:
             description=entity_proto.spec.description,
             value_type=ValueType(entity_proto.spec.value_type),
             labels=entity_proto.spec.labels,
+            join_key=entity_proto.spec.join_key,
         )
 
         entity._created_timestamp = entity_proto.meta.created_timestamp
@@ -222,6 +244,7 @@ class Entity:
             description=self.description,
             value_type=self.value_type.value,
             labels=self.labels,
+            join_key=self.join_key,
         )
 
         return EntityV2Proto(spec=spec, meta=meta)
@@ -266,6 +289,7 @@ class Entity:
             description=self.description,
             value_type=self.value_type.value,
             labels=self.labels,
+            join_key=self.join_key,
         )
 
         return spec
@@ -282,5 +306,6 @@ class Entity:
         self.description = entity.description
         self.value_type = entity.value_type
         self.labels = entity.labels
+        self.join_key = entity.join_key
         self._created_timestamp = entity.created_timestamp
         self._last_updated_timestamp = entity.last_updated_timestamp

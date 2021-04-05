@@ -11,8 +11,9 @@ from tqdm import tqdm
 from feast.data_source import FileSource
 from feast.entity import Entity
 from feast.feature import Feature
-from feast.feature_store import FeatureStore, _convert_arrow_to_proto
+from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
+from feast.infra.provider import _convert_arrow_to_proto
 from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
 from tests.driver_test_data import create_driver_hourly_stats_df

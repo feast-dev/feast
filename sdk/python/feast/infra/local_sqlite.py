@@ -7,17 +7,22 @@ import pandas as pd
 import pyarrow
 import pytz
 
-from feast import FeatureTable, FeatureView
-from feast.data_source import DataSource, FileSource
+from feast import FeatureTable
+from feast.data_source import FileSource
+from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.provider import (
     ENTITY_DF_EVENT_TIMESTAMP_COL,
     Provider,
     RetrievalJob,
+    _convert_arrow_to_proto,
+    _get_column_names,
     _get_requested_feature_views_to_features_dict,
+    _run_field_mapping,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.registry import Registry
 from feast.repo_config import LocalOnlineStoreConfig, RepoConfig
 
 
@@ -157,18 +162,16 @@ class LocalSqlite(Provider):
                 result.append((res_ts, res))
         return result
 
-    @staticmethod
-    def pull_latest_from_table_or_query(
-        data_source: DataSource,
-        entity_names: List[str],
-        feature_names: List[str],
-        event_timestamp_column: str,
-        created_timestamp_column: Optional[str],
+    def materialize_single_feature_view(
+        self,
+        feature_view: FeatureView,
         start_date: datetime,
         end_date: datetime,
-    ) -> pyarrow.Table:
-        assert isinstance(data_source, FileSource)
-        source_df = pd.read_parquet(data_source.path)
+        registry: Registry,
+        project: str,
+    ) -> None:
+        assert isinstance(feature_view.input, FileSource)
+        source_df = pd.read_parquet(feature_view.input.path)
         # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
         source_df[event_timestamp_column] = source_df[event_timestamp_column].apply(
             lambda x: x if x.tz is not None else x.replace(tzinfo=pytz.utc)
@@ -176,6 +179,17 @@ class LocalSqlite(Provider):
         source_df[created_timestamp_column] = source_df[created_timestamp_column].apply(
             lambda x: x if x.tz is not None else x.replace(tzinfo=pytz.utc)
         )
+
+        entities = []
+        for entity_name in feature_view.entities:
+            entities.append(registry.get_entity(entity_name, project))
+
+        (
+            join_key_columns,
+            feature_name_columns,
+            event_timestamp_column,
+            created_timestamp_column,
+        ) = _get_column_names(feature_view, entities)
 
         ts_columns = (
             [event_timestamp_column, created_timestamp_column]
@@ -188,14 +202,25 @@ class LocalSqlite(Provider):
             (source_df[event_timestamp_column] >= start_date)
             & (source_df[event_timestamp_column] < end_date)
         ]
-        last_values_df = filtered_df.groupby(by=entity_names).last()
+        last_values_df = filtered_df.groupby(by=join_key_columns).last()
 
         # make driver_id a normal column again
         last_values_df.reset_index(inplace=True)
 
-        return pyarrow.Table.from_pandas(
-            last_values_df[entity_names + feature_names + ts_columns]
+        table = pyarrow.Table.from_pandas(
+            last_values_df[join_key_columns + feature_name_columns + ts_columns]
         )
+
+        if feature_view.input.field_mapping is not None:
+            table = _run_field_mapping(table, feature_view.input.field_mapping)
+
+        join_keys = [entity.join_key for entity in entities]
+        rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
+
+        self.online_write_batch(project, feature_view, rows_to_write, None)
+
+        feature_view.materialization_intervals.append((start_date, end_date))
+        registry.apply_feature_view(feature_view, project)
 
     @staticmethod
     def get_historical_features(

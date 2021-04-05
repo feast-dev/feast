@@ -44,6 +44,9 @@ message EntitySpecV2 {
     // Description of the entity.
     string description = 3;
 
+    // Join key for the entity (i.e. name of the column the entity maps to).
+    string join_key = 4;
+
     // User defined metadata
     map<string,string> labels = 8;
 }
