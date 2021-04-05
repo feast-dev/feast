@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -278,10 +278,8 @@ class FeatureStore:
             >>> from datetime import datetime, timedelta
             >>> from feast.feature_store import FeatureStore
             >>>
-            >>> fs = FeatureStore(config=RepoConfig(provider="gcp"))
-            >>> fs.materialize_incremental(
-            >>>     end_date=datetime.utcnow() - timedelta(minutes=5)
-            >>> )
+            >>> fs = FeatureStore(config=RepoConfig(provider="gcp", registry="gs://my-fs/", project="my_fs_proj"))
+            >>> fs.materialize_incremental(end_date=datetime.utcnow() - timedelta(minutes=5))
         """
         feature_views_to_materialize = []
         if feature_views is None:
@@ -333,8 +331,7 @@ class FeatureStore:
             >>>
             >>> fs = FeatureStore(config=RepoConfig(provider="gcp"))
             >>> fs.materialize(
-            >>>     start_date=datetime.utcnow() - timedelta(hours=3),
-            >>>     end_date=datetime.utcnow() - timedelta(minutes=10)
+            >>>   start_date=datetime.utcnow() - timedelta(hours=3), end_date=datetime.utcnow() - timedelta(minutes=10)
             >>> )
         """
         feature_views_to_materialize = []
@@ -440,11 +437,11 @@ class FeatureStore:
 
         provider = self._get_provider()
 
-        entity_keys = []
+        union_of_entity_keys = []
         result_rows: List[GetOnlineFeaturesResponse.FieldValues] = []
 
         for row in entity_rows:
-            entity_keys.append(_entity_row_to_key(row))
+            union_of_entity_keys.append(_entity_row_to_key(row))
             result_rows.append(_entity_row_to_field_values(row))
 
         all_feature_views = self._registry.list_feature_views(
@@ -453,6 +450,7 @@ class FeatureStore:
 
         grouped_refs = _group_refs(feature_refs, all_feature_views)
         for table, requested_features in grouped_refs:
+            entity_keys = _get_table_entity_keys(table, union_of_entity_keys)
             read_rows = provider.online_read(
                 project=project, table=table, entity_keys=entity_keys,
             )
@@ -640,4 +638,40 @@ def _get_requested_feature_views(
     feature_refs: List[str], all_feature_views: List[FeatureView]
 ) -> List[FeatureView]:
     """Get list of feature views based on feature references"""
+    # TODO: Get rid of this function. We only need _group_refs
     return list(view for view, _ in _group_refs(feature_refs, all_feature_views))
+
+
+def _get_table_entity_keys(
+    table: FeatureView, entity_keys: List[EntityKeyProto]
+) -> List[EntityKeyProto]:
+    required_entities = OrderedDict.fromkeys(sorted(table.entities))
+    entity_key_protos = []
+    for entity_key in entity_keys:
+        required_entities_to_values = required_entities.copy()
+        for i in range(len(entity_key.entity_names)):
+            entity_name = entity_key.entity_names[i]
+            entity_value = entity_key.entity_values[i]
+
+            if entity_name in required_entities_to_values:
+                if required_entities_to_values[entity_name] is not None:
+                    raise ValueError(
+                        f"Duplicate entity keys detected. Table {table.name} expects {table.entities}. The entity "
+                        f"{entity_name} was provided at least twice"
+                    )
+                required_entities_to_values[entity_name] = entity_value
+
+        entity_names = []
+        entity_values = []
+        for entity_name, entity_value in required_entities_to_values.items():
+            if entity_value is None:
+                raise ValueError(
+                    f"Table {table.name} expects entity field {table.entities}. No entity value was found for "
+                    f"{entity_name}"
+                )
+            entity_names.append(entity_name)
+            entity_values.append(entity_value)
+        entity_key_protos.append(
+            EntityKeyProto(entity_names=entity_names, entity_values=entity_values)
+        )
+    return entity_key_protos

@@ -82,12 +82,12 @@ class LocalSqlite(Provider):
 
         with conn:
             for entity_key, values, timestamp, created_ts in data:
-                for feature_name, val in values.items():
-                    entity_key_bin = serialize_entity_key(entity_key)
-                    timestamp = _to_naive_utc(timestamp)
-                    if created_ts is not None:
-                        created_ts = _to_naive_utc(created_ts)
+                entity_key_bin = serialize_entity_key(entity_key)
+                timestamp = _to_naive_utc(timestamp)
+                if created_ts is not None:
+                    created_ts = _to_naive_utc(created_ts)
 
+                for feature_name, val in values.items():
                     conn.execute(
                         f"""
                             UPDATE {_table_id(project, table)}

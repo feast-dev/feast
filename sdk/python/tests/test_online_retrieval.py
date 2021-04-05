@@ -18,25 +18,24 @@ def test_online() -> None:
     runner = CliRunner()
     with runner.local_repo(get_example_repo("example_feature_repo_1.py")) as store:
         # Write some data to two tables
-        registry = store._registry
-        table = registry.get_feature_view(
-            project=store.config.project, name="driver_locations"
-        )
-        table_2 = registry.get_feature_view(
-            project=store.config.project, name="driver_locations_2"
+
+        driver_locations_fv = store.get_feature_view(name="driver_locations")
+        customer_profile_fv = store.get_feature_view(name="customer_profile")
+        customer_driver_combined_fv = store.get_feature_view(
+            name="customer_driver_combined"
         )
 
         provider = store._get_provider()
 
-        entity_key = EntityKeyProto(
+        driver_key = EntityKeyProto(
             entity_names=["driver"], entity_values=[ValueProto(int64_val=1)]
         )
         provider.online_write_batch(
             project=store.config.project,
-            table=table,
+            table=driver_locations_fv,
             data=[
                 (
-                    entity_key,
+                    driver_key,
                     {
                         "lat": ValueProto(double_val=0.1),
                         "lon": ValueProto(string_val="1.0"),
@@ -48,16 +47,38 @@ def test_online() -> None:
             progress=None,
         )
 
+        customer_key = EntityKeyProto(
+            entity_names=["customer"], entity_values=[ValueProto(int64_val=5)]
+        )
         provider.online_write_batch(
             project=store.config.project,
-            table=table_2,
+            table=customer_profile_fv,
             data=[
                 (
-                    entity_key,
+                    customer_key,
                     {
-                        "lat": ValueProto(double_val=2.0),
-                        "lon": ValueProto(string_val="2.0"),
+                        "avg_orders_day": ValueProto(float_val=1.0),
+                        "name": ValueProto(string_val="John"),
+                        "age": ValueProto(int64_val=3),
                     },
+                    datetime.utcnow(),
+                    datetime.utcnow(),
+                )
+            ],
+            progress=None,
+        )
+
+        customer_key = EntityKeyProto(
+            entity_names=["customer", "driver"],
+            entity_values=[ValueProto(int64_val=5), ValueProto(int64_val=1)],
+        )
+        provider.online_write_batch(
+            project=store.config.project,
+            table=customer_driver_combined_fv,
+            data=[
+                (
+                    customer_key,
+                    {"trips": ValueProto(int64_val=7)},
                     datetime.utcnow(),
                     datetime.utcnow(),
                 )
@@ -67,13 +88,24 @@ def test_online() -> None:
 
         # Retrieve two features using two keys, one valid one non-existing
         result = store.get_online_features(
-            feature_refs=["driver_locations:lon", "driver_locations_2:lon"],
-            entity_rows=[{"driver": 1}, {"driver": 123}],
-        )
+            feature_refs=[
+                "driver_locations:lon",
+                "customer_profile:avg_orders_day",
+                "customer_profile:name",
+                "customer_driver_combined:trips",
+            ],
+            entity_rows=[{"driver": 1, "customer": 5}, {"driver": 1, "customer": 5}],
+        ).to_dict()
 
-        assert "driver_locations__lon" in result.to_dict()
-        assert result.to_dict()["driver_locations__lon"] == ["1.0", None]
-        assert result.to_dict()["driver_locations_2__lon"] == ["2.0", None]
+        assert "driver_locations__lon" in result
+        assert "customer_profile__avg_orders_day" in result
+        assert "customer_profile__name" in result
+        assert result["driver"] == [1, 1]
+        assert result["customer"] == [5, 5]
+        assert result["driver_locations__lon"] == ["1.0", "1.0"]
+        assert result["customer_profile__avg_orders_day"] == [1.0, 1.0]
+        assert result["customer_profile__name"] == ["John", "John"]
+        assert result["customer_driver_combined__trips"] == [7, 7]
 
         # invalid table reference
         with pytest.raises(ValueError):
@@ -96,10 +128,16 @@ def test_online() -> None:
 
         # Should download the registry and cache it permanently (or until manually refreshed)
         result = fs_fast_ttl.get_online_features(
-            feature_refs=["driver_locations:lon", "driver_locations_2:lon"],
-            entity_rows=[{"driver": 1}, {"driver": 123}],
-        )
-        assert result.to_dict()["driver_locations__lon"] == ["1.0", None]
+            feature_refs=[
+                "driver_locations:lon",
+                "customer_profile:avg_orders_day",
+                "customer_profile:name",
+                "customer_driver_combined:trips",
+            ],
+            entity_rows=[{"driver": 1, "customer": 5}],
+        ).to_dict()
+        assert result["driver_locations__lon"] == ["1.0"]
+        assert result["customer_driver_combined__trips"] == [7]
 
         # Rename the registry.db so that it cant be used for refreshes
         os.rename(store.config.registry, store.config.registry + "_fake")
@@ -110,19 +148,30 @@ def test_online() -> None:
         # Will try to reload registry because it has expired (it will fail because we deleted the actual registry file)
         with pytest.raises(FileNotFoundError):
             fs_fast_ttl.get_online_features(
-                feature_refs=["driver_locations:lon", "driver_locations_2:lon"],
-                entity_rows=[{"driver": 1}, {"driver": 123}],
-            )
+                feature_refs=[
+                    "driver_locations:lon",
+                    "customer_profile:avg_orders_day",
+                    "customer_profile:name",
+                    "customer_driver_combined:trips",
+                ],
+                entity_rows=[{"driver": 1, "customer": 5}],
+            ).to_dict()
 
         # Restore registry.db so that we can see if it actually reloads registry
         os.rename(store.config.registry + "_fake", store.config.registry)
 
         # Test if registry is actually reloaded and whether results return
         result = fs_fast_ttl.get_online_features(
-            feature_refs=["driver_locations:lon", "driver_locations_2:lon"],
-            entity_rows=[{"driver": 1}, {"driver": 123}],
-        )
-        assert result.to_dict()["driver_locations__lon"] == ["1.0", None]
+            feature_refs=[
+                "driver_locations:lon",
+                "customer_profile:avg_orders_day",
+                "customer_profile:name",
+                "customer_driver_combined:trips",
+            ],
+            entity_rows=[{"driver": 1, "customer": 5}],
+        ).to_dict()
+        assert result["driver_locations__lon"] == ["1.0"]
+        assert result["customer_driver_combined__trips"] == [7]
 
         # Create a registry with infinite cache (for users that want to manually refresh the registry)
         fs_infinite_ttl = FeatureStore(
@@ -138,10 +187,16 @@ def test_online() -> None:
 
         # Should return results (and fill the registry cache)
         result = fs_infinite_ttl.get_online_features(
-            feature_refs=["driver_locations:lon", "driver_locations_2:lon"],
-            entity_rows=[{"driver": 1}, {"driver": 123}],
-        )
-        assert result.to_dict()["driver_locations__lon"] == ["1.0", None]
+            feature_refs=[
+                "driver_locations:lon",
+                "customer_profile:avg_orders_day",
+                "customer_profile:name",
+                "customer_driver_combined:trips",
+            ],
+            entity_rows=[{"driver": 1, "customer": 5}],
+        ).to_dict()
+        assert result["driver_locations__lon"] == ["1.0"]
+        assert result["customer_driver_combined__trips"] == [7]
 
         # Wait a bit so that an arbitrary TTL would take effect
         time.sleep(2)
@@ -151,10 +206,16 @@ def test_online() -> None:
 
         # TTL is infinite so this method should use registry cache
         result = fs_infinite_ttl.get_online_features(
-            feature_refs=["driver_locations:lon", "driver_locations_2:lon"],
-            entity_rows=[{"driver": 1}, {"driver": 123}],
-        )
-        assert result.to_dict()["driver_locations__lon"] == ["1.0", None]
+            feature_refs=[
+                "driver_locations:lon",
+                "customer_profile:avg_orders_day",
+                "customer_profile:name",
+                "customer_driver_combined:trips",
+            ],
+            entity_rows=[{"driver": 1, "customer": 5}],
+        ).to_dict()
+        assert result["driver_locations__lon"] == ["1.0"]
+        assert result["customer_driver_combined__trips"] == [7]
 
         # Force registry reload (should fail because file is missing)
         with pytest.raises(FileNotFoundError):
