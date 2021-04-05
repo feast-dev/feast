@@ -1,20 +1,5 @@
 # Release Process
 
-## Versioning policy and branch workflow
-
-Feast uses [semantic versioning](https://semver.org/). As such, while it is still pre-1.0 breaking changes will happen in minor versions.
-
-Contributors are encouraged to understand our branch workflow described below, for choosing where to branch when making a change \(and thus the merge base for a pull request\).
-
-* Major and minor releases are cut from the `master` branch.
-* Each major and minor release has a long-lived maintenance branch, for example `v0.3-branch`. This is called a "release branch".
-* From the release branch, pre-release release candidates are tagged ie `v0.3.0-rc.1`
-* From the release candidates,  stable patch version releases are tagged, for example `v0.3.0`.
-
-A release branch should be substantially _feature complete_ with respect to the intended release. Code that is committed to `master` may be merged or cherry-picked on to a release branch, but code that is directly committed to a release branch should be solely applicable to that release \(and should not be committed back to master\).
-
-In general, unless you're committing code that only applies to a particular release stream \(for example, temporary hot-fixes, back-ported security fixes, or image hashes\), you should base changes from `master` and then merge or cherry-pick to the release branch.
-
 ## Release process
 
 For Feast maintainers, these are the concrete steps for making a new release.

@@ -6,32 +6,24 @@
 * [Changelog](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
 * [Community](community.md)
 
-## Tutorials
-
 ## How-to Guides
 
----
-
-* [Create a feature repository](create-a-feature-repository.md)
-* [Deploy a feature store](deploy-a-feature-store.md)
-* [Load data into the online store](load-data-into-the-online-store.md)
-* [Build a training dataset](build-a-training-dataset.md)
-* [Read features from the online store](read-features-from-the-online-store.md)
+* [Create a feature repository](how-to-guides/create-a-feature-repository.md)
+* [Deploy a feature store](how-to-guides/deploy-a-feature-store.md)
+* [Load data into the online store](how-to-guides/load-data-into-the-online-store.md)
+* [Build a training dataset](how-to-guides/build-a-training-dataset.md)
+* [Read features from the online store](how-to-guides/read-features-from-the-online-store.md)
 
 ## Concepts
 
----
-
-* [Architecture](architecture.md)
-* [Feature Views](feature-views.md)
-* [Entities](entities.md)
-* [Sources](sources.md)
+* [Architecture](concepts/architecture.md)
+* [Feature Views](concepts/feature-views.md)
+* [Entities](concepts/entities.md)
+* [Sources](concepts/sources.md)
 
 ## Reference
 
----
-
-* [Repository Config](repository-config.md)
+* [Repository Config](reference/repository-config.md)
 * [Python API reference](http://rtd.feast.dev/)
 
 ## Feast on Kubernetes
@@ -88,5 +80,6 @@
 
 * [Contribution Process](contributing/contributing.md)
 * [Development Guide](contributing/development-guide.md)
+* [Versioning Policy](contributing/versioning-policy.md)
 * [Release Process](contributing/release-process.md)
 
