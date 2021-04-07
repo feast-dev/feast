@@ -22,7 +22,6 @@ from typing import Dict, List
 import click
 import pkg_resources
 import yaml
-from pytz import utc
 
 from feast.client import Client
 from feast.config import Config
@@ -425,8 +424,8 @@ def materialize_command(start_ts: str, end_ts: str, repo_path: str, views: List[
     store = FeatureStore(repo_path=repo_path)
     store.materialize(
         feature_views=None if not views else views,
-        start_date=datetime.fromisoformat(start_ts).replace(tzinfo=utc),
-        end_date=datetime.fromisoformat(end_ts).replace(tzinfo=utc),
+        start_date=datetime.fromisoformat(start_ts),
+        end_date=datetime.fromisoformat(end_ts),
     )
 
 

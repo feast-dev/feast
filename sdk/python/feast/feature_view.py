@@ -17,6 +17,7 @@ from typing import Dict, List, Optional, Tuple, Union
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.timestamp_pb2 import Timestamp
 
+from feast import utils
 from feast.data_source import BigQuerySource, DataSource, FileSource
 from feast.feature import Feature
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
@@ -166,7 +167,10 @@ class FeatureView:
 
         for interval in feature_view_proto.meta.materialization_intervals:
             feature_view.materialization_intervals.append(
-                (interval.start_time.ToDatetime(), interval.end_time.ToDatetime())
+                (
+                    utils.make_tzaware(interval.start_time.ToDatetime()),
+                    utils.make_tzaware(interval.end_time.ToDatetime()),
+                )
             )
 
         return feature_view

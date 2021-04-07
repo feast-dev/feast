@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import pandas as pd
 import pyarrow
 
+from feast import utils
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.provider import Provider, RetrievalJob, get_provider
@@ -359,6 +360,10 @@ class FeatureStore:
             event_timestamp_column,
             created_timestamp_column,
         ) = _run_reverse_field_mapping(feature_view)
+
+        start_date = utils.make_tzaware(start_date)
+        end_date = utils.make_tzaware(end_date)
+
         provider = self._get_provider()
         table = provider.pull_latest_from_table_or_query(
             feature_view.input,
