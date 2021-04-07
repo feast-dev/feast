@@ -121,4 +121,4 @@ See the deployment guide of the respective cloud providers for how to work with 
 - [Terraform Deployment on Amazon EKS](https://docs.feast.dev/feast-on-kubernetes/getting-started/install-feast/kubernetes-amazon-eks-with-terraform)
 - [Terraform Deployment on Azure AKS](https://docs.feast.dev/feast-on-kubernetes/getting-started/install-feast/kubernetes-azure-aks-with-terraform)
 - [Terraform Deployment on Google Cloud GKE](https://docs.feast.dev/feast-on-kubernetes/getting-started/install-feast/google-cloud-gke-with-terraform)
-- [Helm Deployment on IBM Cloud IKS](https://docs.feast.dev/feast-on-kubernetes/getting-started/install-feast/ibm-cloud-iks-with-helm)
+- [Kustomize Deployment on IBM Cloud IKS or OpenShift](https://docs.feast.dev/feast-on-kubernetes/getting-started/install-feast/ibm-cloud-iks-with-kustomize)
