@@ -416,7 +416,7 @@ def materialize_command(start_ts: str, end_ts: str, repo_path: str, views: List[
     """
     Run a (non-incremental) materialization job to ingest data into the online store. Feast
     will read all data between START_TS and END_TS from the offline store and write it to the
-    online store. If you don't specify feature view names using --views, all registred Feature
+    online store. If you don't specify feature view names using --views, all registered Feature
     Views will be materialized.
 
     START_TS and END_TS should be in ISO 8601 format, e.g. '2021-07-16T19:20:01'
@@ -425,6 +425,30 @@ def materialize_command(start_ts: str, end_ts: str, repo_path: str, views: List[
     store.materialize(
         feature_views=None if not views else views,
         start_date=datetime.fromisoformat(start_ts),
+        end_date=datetime.fromisoformat(end_ts),
+    )
+
+
+@cli.command("materialize-incremental")
+@click.argument("end_ts")
+@click.argument(
+    "repo_path", type=click.Path(dir_okay=True, exists=True,), default=Path.cwd
+)
+@click.option(
+    "--views", "-v", help="Feature views to incrementally materialize", multiple=True,
+)
+def materialize_incremental_command(end_ts: str, repo_path: str, views: List[str]):
+    """
+    Run an incremental materialization job to ingest new data into the online store. Feast will read
+    all data from the previously ingested point to END_TS from the offline store and write it to the
+    online store. If you don't specify feature view names using --views, all registered Feature
+    Views will be incrementally materialized.
+
+    END_TS should be in ISO 8601 format, e.g. '2021-07-16T19:20:01'
+    """
+    store = FeatureStore(repo_path=repo_path)
+    store.materialize_incremental(
+        feature_views=None if not views else views,
         end_date=datetime.fromisoformat(end_ts),
     )
 
