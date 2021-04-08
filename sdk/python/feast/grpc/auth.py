@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import json
+import time
 from http import HTTPStatus
 
 import grpc
@@ -159,6 +160,7 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
 
         self._static_token = None
         self._token = None
+        self._token_expiry_ts = time.time()
 
         # If provided, set a static token
         if config.exists(opt.AUTH_TOKEN):
@@ -169,6 +171,9 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
 
     def get_signed_meta(self):
         """ Creates a signed authorization metadata token."""
+
+        if time.time() > self._token_expiry_ts:
+            self._refresh_token()
         return (("authorization", "Bearer {}".format(self._token)),)
 
     def _refresh_token(self):
@@ -179,10 +184,13 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
             self._token = self._static_token
             return
 
-        from google.oauth2.id_token import fetch_id_token
+        from google.oauth2.id_token import fetch_id_token, verify_oauth2_token
 
         try:
             self._token = fetch_id_token(self._request, audience="feast.dev")
+            self._token_expiry_ts = verify_oauth2_token(self._token, self._request)[
+                "exp"
+            ]
             return
         except DefaultCredentialsError:
             pass
@@ -195,6 +203,9 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
             credentials.refresh(self._request)
             if hasattr(credentials, "id_token"):
                 self._token = credentials.id_token
+                self._token_expiry_ts = verify_oauth2_token(self._token, self._request)[
+                    "exp"
+                ]
                 return
         except DefaultCredentialsError:
             pass  # Could not determine credentials, skip
