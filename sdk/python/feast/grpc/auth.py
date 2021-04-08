@@ -169,6 +169,13 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
 
     def get_signed_meta(self):
         """ Creates a signed authorization metadata token."""
+        from google.oauth2.id_token import verify_oauth2_token
+
+        try:
+            verify_oauth2_token(self._token, self._request)
+        except ValueError:
+            # ValueError: Token expired
+            self._refresh_token()
         return (("authorization", "Bearer {}".format(self._token)),)
 
     def _refresh_token(self):
