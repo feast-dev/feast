@@ -4,17 +4,46 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
+from pytz import utc
 
 import feast.driver_test_data as driver_data
+from feast import FeatureStore
 from tests.cli_utils import CliRunner, get_example_repo
 
 
-def _get_last_feature_row(df: pd.DataFrame, driver_id):
-    """ Manually extract last feature value from a dataframe for a given driver_id """
-    filtered = df[df["driver_id"] == driver_id]
+def _get_last_feature_row(df: pd.DataFrame, driver_id, max_date: datetime):
+    """ Manually extract last feature value from a dataframe for a given driver_id with up to `max_date` date """
+    filtered = df[
+        (df["driver_id"] == driver_id) & (df["datetime"] < max_date.replace(tzinfo=utc))
+    ]
     max_ts = filtered.loc[filtered["datetime"].idxmax()]["datetime"]
     filtered_by_ts = filtered[filtered["datetime"] == max_ts]
     return filtered_by_ts.loc[filtered_by_ts["created"].idxmax()]
+
+
+def _assert_online_features(
+    store: FeatureStore, driver_df: pd.DataFrame, max_date: datetime
+):
+    """Assert that features in online store are up to date with `max_date` date."""
+    # Read features back
+    result = store.get_online_features(
+        feature_refs=[
+            "driver_hourly_stats:conv_rate",
+            "driver_hourly_stats:avg_daily_trips",
+        ],
+        entity_rows=[{"driver_id": 1001}],
+    )
+
+    assert "driver_hourly_stats__avg_daily_trips" in result.to_dict()
+
+    assert "driver_hourly_stats__conv_rate" in result.to_dict()
+    assert (
+        abs(
+            result.to_dict()["driver_hourly_stats__conv_rate"][0]
+            - _get_last_feature_row(driver_df, 1001, max_date)["conv_rate"]
+        )
+        < 0.01
+    )
 
 
 def test_e2e_local() -> None:
@@ -57,6 +86,20 @@ def test_e2e_local() -> None:
                 [
                     "materialize",
                     start_date.isoformat(),
+                    (end_date - timedelta(days=7)).isoformat(),
+                    str(store.repo_path),
+                ],
+                cwd=Path(store.repo_path),
+            )
+
+            assert r.returncode == 0
+
+            _assert_online_features(store, driver_df, end_date - timedelta(days=7))
+
+            # feast materialize-incremental
+            r = runner.run(
+                [
+                    "materialize-incremental",
                     end_date.isoformat(),
                     str(store.repo_path),
                 ],
@@ -65,22 +108,4 @@ def test_e2e_local() -> None:
 
             assert r.returncode == 0
 
-            # Read features back
-            result = store.get_online_features(
-                feature_refs=[
-                    "driver_hourly_stats:conv_rate",
-                    "driver_hourly_stats:avg_daily_trips",
-                ],
-                entity_rows=[{"driver_id": 1001}],
-            )
-
-            assert "driver_hourly_stats__avg_daily_trips" in result.to_dict()
-
-            assert "driver_hourly_stats__conv_rate" in result.to_dict()
-            assert (
-                abs(
-                    result.to_dict()["driver_hourly_stats__conv_rate"][0]
-                    - _get_last_feature_row(driver_df, 1001)["conv_rate"]
-                )
-                < 0.01
-            )
+            _assert_online_features(store, driver_df, end_date)
