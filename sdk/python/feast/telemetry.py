@@ -15,7 +15,7 @@
 import os
 import sys
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Union
 
 import requests
 
@@ -28,7 +28,7 @@ def log_usage(
     function_name: str,
     telemetry_id: str,
     timestamp: datetime,
-    version: Dict[str, Dict[str, str]],
+    version: Union[str, Dict[str, Dict[str, str]]],
 ):
     json = {
         "function_name": function_name,
