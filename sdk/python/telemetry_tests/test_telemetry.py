@@ -15,15 +15,17 @@
 from datetime import datetime
 from feast.client import Client
 from feast.entity import Entity
+from feast.feature_store import FeatureStore
 from feast.value_type import ValueType
 from google.cloud import bigquery
 import os
 import pytest
 from time import sleep
 
-def test_telemetry_on():
+def test_telemetry_on_v09():
+    old_environ = dict(os.environ)
     os.environ["FEAST_IS_TELEMETRY_TEST"] = 'True'
-    test_client = Client(serving_url=None, core_url=None)
+    test_client = Client(serving_url=None, core_url=None, telemetry=True)
     test_client.set_project("project1")
     entity = Entity(
         name="driver_car_id",
@@ -38,6 +40,8 @@ def test_telemetry_on():
     except Exception:
         pass
 
+    os.environ.clear()
+    os.environ.update(old_environ)
     sleep(30)
     bq_client = bigquery.Client()
     query = f"select * from `kf-feast.feast_telemetry.cloudfunctions_googleapis_com_cloud_functions` where timestamp >= TIMESTAMP(\"{timestamp.date().isoformat()}\") and JSON_EXTRACT(textPayload, '$.is_test')='\"True\"' and JSON_EXTRACT(textPayload, '$.timestamp')>'\"{timestamp.isoformat()}\"'"
@@ -45,7 +49,8 @@ def test_telemetry_on():
     rows = query_job.result()
     assert(rows.total_rows == 1)
 
-def test_telemetry_off():
+def test_telemetry_off_v09():
+    old_environ = dict(os.environ)
     os.environ["FEAST_IS_TELEMETRY_TEST"] = 'True'
     test_client = Client(serving_url=None, core_url=None, telemetry=False)
     test_client.set_project("project1")
@@ -62,6 +67,62 @@ def test_telemetry_off():
     except Exception:
         pass
 
+    os.environ.clear()
+    os.environ.update(old_environ)
+    sleep(30)
+    bq_client = bigquery.Client()
+    query = f"select * from `kf-feast.feast_telemetry.cloudfunctions_googleapis_com_cloud_functions` where timestamp >= TIMESTAMP(\"{timestamp.date().isoformat()}\") and JSON_EXTRACT(textPayload, '$.is_test')='\"True\"' and JSON_EXTRACT(textPayload, '$.timestamp')>'\"{timestamp.isoformat()}\"'"
+    query_job = bq_client.query(query)
+    rows = query_job.result()
+    assert(rows.total_rows == 0)
+
+def test_telemetry_on():
+    old_environ = dict(os.environ)
+    os.environ["FEAST_IS_TELEMETRY_TEST"] = 'True'
+    os.environ["FEAST_TELEMETRY"] = 'True'
+    test_feature_store = FeatureStore()
+    entity = Entity(
+        name="driver_car_id",
+        description="Car driver id",
+        value_type=ValueType.STRING,
+        labels={"team": "matchmaking"},
+    )
+
+    timestamp = datetime.utcnow()
+    try:
+        test_feature_store.apply(entity)
+    except Exception:
+        pass
+
+    os.environ.clear()
+    os.environ.update(old_environ)
+    sleep(30)
+    bq_client = bigquery.Client()
+    query = f"select * from `kf-feast.feast_telemetry.cloudfunctions_googleapis_com_cloud_functions` where timestamp >= TIMESTAMP(\"{timestamp.date().isoformat()}\") and JSON_EXTRACT(textPayload, '$.is_test')='\"True\"' and JSON_EXTRACT(textPayload, '$.timestamp')>'\"{timestamp.isoformat()}\"'"
+    query_job = bq_client.query(query)
+    rows = query_job.result()
+    assert(rows.total_rows == 1)
+
+def test_telemetry_off():
+    old_environ = dict(os.environ)
+    os.environ["FEAST_IS_TELEMETRY_TEST"] = 'True'
+    os.environ["FEAST_TELEMETRY"] = 'False'
+    test_feature_store = FeatureStore()
+    entity = Entity(
+        name="driver_car_id",
+        description="Car driver id",
+        value_type=ValueType.STRING,
+        labels={"team": "matchmaking"},
+    )
+
+    timestamp = datetime.utcnow()
+    try:
+        test_client.apply(entity)
+    except Exception:
+        pass
+
+    os.environ.clear()
+    os.environ.update(old_environ)
     sleep(30)
     bq_client = bigquery.Client()
     query = f"select * from `kf-feast.feast_telemetry.cloudfunctions_googleapis_com_cloud_functions` where timestamp >= TIMESTAMP(\"{timestamp.date().isoformat()}\") and JSON_EXTRACT(textPayload, '$.is_test')='\"True\"' and JSON_EXTRACT(textPayload, '$.timestamp')>'\"{timestamp.isoformat()}\"'"

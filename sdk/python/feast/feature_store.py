@@ -13,11 +13,14 @@
 # limitations under the License.
 from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
+from os.path import expanduser, join
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import os
 import pandas as pd
 import pyarrow
+import uuid
 
 from feast import utils
 from feast.entity import Entity
@@ -37,6 +40,7 @@ from feast.repo_config import (
     RepoConfig,
     load_repo_config,
 )
+from feast.telemetry import log_usage
 from feast.type_map import python_value_to_proto_value
 
 
@@ -74,6 +78,40 @@ class FeatureStore:
             registry_path=registry_config.path,
             cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
         )
+        self._configure_telemetry()
+
+    def _configure_telemetry(self):
+        telemetry_filepath = join(expanduser("~"), ".feast", "telemetry")
+        self._telemetry_enabled = (
+            os.getenv("FEAST_TELEMETRY", default="True") == "True"
+        )  # written this way to turn the env var string into a boolean
+        if self._telemetry_enabled:
+            self._telemetry_counter = {"get_online_features": 0}
+            if os.path.exists(telemetry_filepath):
+                with open(telemetry_filepath, "r") as f:
+                    self._telemetry_id = f.read()
+            else:
+                self._telemetry_id = str(uuid.uuid4())
+                print(
+                    "Feast is an open source project that collects anonymized usage statistics. To opt out or learn more see https://docs.feast.dev/v/master/feast-on-kubernetes/advanced-1/telemetry"
+                )
+                with open(telemetry_filepath, "w") as f:
+                    f.write(self._telemetry_id)
+        else:
+            if os.path.exists(telemetry_filepath):
+                os.remove(telemetry_filepath)
+
+    def version(self) -> str:
+        """
+        Returns version information of the Feast SDK
+        """
+        import pkg_resources
+
+        try:
+            sdk_version = pkg_resources.get_distribution("feast").version
+        except pkg_resources.DistributionNotFound:
+            sdk_version = "local build"
+        return sdk_version
 
     @property
     def project(self) -> str:
@@ -133,6 +171,13 @@ class FeatureStore:
             Returns either the specified entity, or raises an exception if
             none is found
         """
+        if self._telemetry_enabled:
+            log_usage(
+                "get_entity",
+                self._telemetry_id,
+                datetime.utcnow(),
+                self.version(),
+            )
         return self._registry.get_entity(name, self.project)
 
     def get_feature_view(self, name: str) -> FeatureView:
@@ -146,6 +191,13 @@ class FeatureStore:
             Returns either the specified feature view, or raises an exception if
             none is found
         """
+        if self._telemetry_enabled:
+            log_usage(
+                "get_feature_view",
+                self._telemetry_id,
+                datetime.utcnow(),
+                self.version(),
+            )
         return self._registry.get_feature_view(name, self.project)
 
     def delete_feature_view(self, name: str):
@@ -185,6 +237,14 @@ class FeatureStore:
             >>> )
             >>> fs.apply([customer_entity, customer_feature_view])
         """
+
+        if self._telemetry_enabled:
+            log_usage(
+                "apply",
+                self._telemetry_id,
+                datetime.utcnow(),
+                self.version(),
+            )
 
         # TODO: Add locking
         # TODO: Optimize by only making a single call (read/write)
@@ -246,6 +306,13 @@ class FeatureStore:
             >>> feature_data = job.to_df()
             >>> model.fit(feature_data) # insert your modeling framework here.
         """
+        if self._telemetry_enabled:
+            log_usage(
+                "get_historical_features",
+                self._telemetry_id,
+                datetime.utcnow(),
+                self.version(),
+            )
 
         all_feature_views = self._registry.list_feature_views(
             project=self.config.project
@@ -282,6 +349,14 @@ class FeatureStore:
             >>> fs = FeatureStore(config=RepoConfig(provider="gcp", registry="gs://my-fs/", project="my_fs_proj"))
             >>> fs.materialize_incremental(end_date=datetime.utcnow() - timedelta(minutes=5))
         """
+        if self._telemetry_enabled:
+            log_usage(
+                "materialize_incremental",
+                self._telemetry_id,
+                datetime.utcnow(),
+                self.version(),
+            )
+
         feature_views_to_materialize = []
         if feature_views is None:
             feature_views_to_materialize = self._registry.list_feature_views(
@@ -335,6 +410,14 @@ class FeatureStore:
             >>>   start_date=datetime.utcnow() - timedelta(hours=3), end_date=datetime.utcnow() - timedelta(minutes=10)
             >>> )
         """
+        if self._telemetry_enabled:
+            log_usage(
+                "materialize",
+                self._telemetry_id,
+                datetime.utcnow(),
+                self.version(),
+            )
+
         feature_views_to_materialize = []
         if feature_views is None:
             feature_views_to_materialize = self._registry.list_feature_views(
@@ -424,6 +507,15 @@ class FeatureStore:
             >>> print(online_response_dict)
             {'sales:daily_transactions': [1.1,1.2], 'sales:customer_id': [0,1]}
         """
+        if self._telemetry_enabled:
+            if self._telemetry_counter["get_online_features"] % 1000 == 0:
+                log_usage(
+                    "get_online_features",
+                    self._telemetry_id,
+                    datetime.utcnow(),
+                    self.version(),
+                )
+            self._telemetry_counter["get_online_features"] += 1
 
         response = self._get_online_features(
             feature_refs=feature_refs,

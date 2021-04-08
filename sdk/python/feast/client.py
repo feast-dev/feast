@@ -364,7 +364,7 @@ class Client:
             else:
                 self._telemetry_id = str(uuid.uuid4())
                 print(
-                    "Feast is an open source project that collects anonymized usage statistics. To opt out or learn more see https://docs.feast.dev/v/master/advanced/telemetry"
+                    "Feast is an open source project that collects anonymized usage statistics. To opt out or learn more see https://docs.feast.dev/v/v0.9-branch/advanced/telemetry"
                 )
                 with open(telemetry_filepath, "w") as f:
                     f.write(self._telemetry_id)
