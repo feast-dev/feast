@@ -11,16 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
+import uuid
 from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from os.path import expanduser, join
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import os
 import pandas as pd
 import pyarrow
-import uuid
 
 from feast import utils
 from feast.entity import Entity
@@ -173,10 +173,7 @@ class FeatureStore:
         """
         if self._telemetry_enabled:
             log_usage(
-                "get_entity",
-                self._telemetry_id,
-                datetime.utcnow(),
-                self.version(),
+                "get_entity", self._telemetry_id, datetime.utcnow(), self.version(),
             )
         return self._registry.get_entity(name, self.project)
 
@@ -240,10 +237,7 @@ class FeatureStore:
 
         if self._telemetry_enabled:
             log_usage(
-                "apply",
-                self._telemetry_id,
-                datetime.utcnow(),
-                self.version(),
+                "apply", self._telemetry_id, datetime.utcnow(), self.version(),
             )
 
         # TODO: Add locking
@@ -412,10 +406,7 @@ class FeatureStore:
         """
         if self._telemetry_enabled:
             log_usage(
-                "materialize",
-                self._telemetry_id,
-                datetime.utcnow(),
-                self.version(),
+                "materialize", self._telemetry_id, datetime.utcnow(), self.version(),
             )
 
         feature_views_to_materialize = []
