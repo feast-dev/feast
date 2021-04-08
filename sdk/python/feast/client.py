@@ -55,13 +55,9 @@ from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.JobService_pb2 import (
     GetHistoricalFeaturesRequest,
     GetJobRequest,
-    GetJobResponse,
     ListJobsRequest,
-    ListJobsResponse,
     StartOfflineToOnlineIngestionJobRequest,
-    StartOfflineToOnlineIngestionJobResponse,
     StartStreamToOnlineIngestionJobRequest,
-    StartStreamToOnlineIngestionJobResponse,
 )
 from feast.core.JobService_pb2_grpc import JobServiceStub
 from feast.data_format import ParquetFormat
@@ -1234,9 +1230,7 @@ class Client:
             )
             request.start_date.FromDatetime(start)
             request.end_date.FromDatetime(end)
-            response = self._job_service.StartOfflineToOnlineIngestionJob(
-                request, metadata=self._get_grpc_metadata(),
-            )  # type: StartOfflineToOnlineIngestionJobResponse
+            response = self._job_service.StartOfflineToOnlineIngestionJob(request)
             return RemoteBatchIngestionJob(
                 self._job_service,
                 self._extra_grpc_params,
@@ -1263,9 +1257,7 @@ class Client:
             request = StartStreamToOnlineIngestionJobRequest(
                 project=self.project, table_name=feature_table.name,
             )
-            response = self._job_service.StartStreamToOnlineIngestionJob(
-                request, metadata=self._get_grpc_metadata(),
-            )  # type: StartStreamToOnlineIngestionJobResponse
+            response = self._job_service.StartStreamToOnlineIngestionJob(request)
             return RemoteStreamIngestionJob(
                 self._job_service,
                 self._extra_grpc_params,
@@ -1284,9 +1276,7 @@ class Client:
             request = ListJobsRequest(
                 include_terminated=include_terminated, table_name=table_name
             )
-            response = self._job_service.ListJobs(
-                request, metadata=self._get_grpc_metadata(),
-            )  # type: ListJobsResponse
+            response = self._job_service.ListJobs(request)
             return [
                 get_remote_job_from_proto(
                     self._job_service, self._extra_grpc_params, job
@@ -1299,9 +1289,7 @@ class Client:
             return get_job_by_id(job_id, self)
         else:
             request = GetJobRequest(job_id=job_id)
-            response = self._job_service.GetJob(
-                request, metadata=self._get_grpc_metadata(),
-            )  # type: GetJobResponse
+            response = self._job_service.GetJob(request)
             return get_remote_job_from_proto(
                 self._job_service, self._extra_grpc_params, response.job
             )
