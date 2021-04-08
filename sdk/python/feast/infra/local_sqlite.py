@@ -279,9 +279,10 @@ class LocalSqlite(Provider):
                 )
 
                 # Remove right (feature table/view) event_timestamp column.
-                entity_df_with_features.drop(
-                    columns=[event_timestamp_column], inplace=True
-                )
+                if event_timestamp_column != ENTITY_DF_EVENT_TIMESTAMP_COL:
+                    entity_df_with_features.drop(
+                        columns=[event_timestamp_column], inplace=True
+                    )
 
                 # Ensure that we delete dataframes to free up memory
                 del df_to_join
