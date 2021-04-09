@@ -456,7 +456,7 @@ class DataSource:
             data_source_obj = FileSource(
                 field_mapping=data_source.field_mapping,
                 file_format=FileFormat.from_proto(data_source.file_options.file_format),
-                file_url=data_source.file_options.file_url,
+                path=data_source.file_options.file_url,
                 event_timestamp_column=data_source.event_timestamp_column,
                 created_timestamp_column=data_source.created_timestamp_column,
                 date_partition_column=data_source.date_partition_column,
@@ -553,8 +553,7 @@ class FileSource(DataSource):
             raise ValueError(
                 'No "path" argument provided. Please set "path" to the location of your file source.'
             )
-
-        if file_url is not None:
+        if file_url:
             from warnings import warn
 
             warn(
