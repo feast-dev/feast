@@ -134,6 +134,13 @@ class FeatureStore:
         greater than 0, then once the cache becomes stale (more time than the TTL has passed), a new cache will be
         downloaded synchronously, which may increase latencies if the triggering method is get_online_features()
         """
+        if self._telemetry_enabled:
+            log_usage(
+                "refresh_registry",
+                self._telemetry_id,
+                datetime.utcnow(),
+                self.version(),
+            )
 
         registry_config = self.config.get_registry_config()
         self._registry = Registry(
@@ -149,6 +156,11 @@ class FeatureStore:
         Returns:
             List of entities
         """
+        if self._telemetry_enabled:
+            log_usage(
+                "list_entities", self._telemetry_id, datetime.utcnow(), self.version(),
+            )
+
         return self._registry.list_entities(self.project)
 
     def list_feature_views(self) -> List[FeatureView]:
@@ -158,6 +170,14 @@ class FeatureStore:
         Returns:
             List of feature views
         """
+        if self._telemetry_enabled:
+            log_usage(
+                "list_feature_views",
+                self._telemetry_id,
+                datetime.utcnow(),
+                self.version(),
+            )
+
         return self._registry.list_feature_views(self.project)
 
     def get_entity(self, name: str) -> Entity:
@@ -175,6 +195,7 @@ class FeatureStore:
             log_usage(
                 "get_entity", self._telemetry_id, datetime.utcnow(), self.version(),
             )
+
         return self._registry.get_entity(name, self.project)
 
     def get_feature_view(self, name: str) -> FeatureView:
@@ -195,6 +216,7 @@ class FeatureStore:
                 datetime.utcnow(),
                 self.version(),
             )
+
         return self._registry.get_feature_view(name, self.project)
 
     def delete_feature_view(self, name: str):
@@ -204,6 +226,14 @@ class FeatureStore:
         Args:
             name: Name of feature view
         """
+        if self._telemetry_enabled:
+            log_usage(
+                "delete_feature_view",
+                self._telemetry_id,
+                datetime.utcnow(),
+                self.version(),
+            )
+
         return self._registry.delete_feature_view(name, self.project)
 
     def apply(self, objects: List[Union[FeatureView, Entity]]):
