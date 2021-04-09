@@ -147,9 +147,13 @@ def test_get_auth_metadata_plugin_oauth_should_raise_when_config_is_incorrect(
         get_auth_metadata_plugin(config_with_missing_variable)
 
 
+@patch(
+    "google.oauth2.id_token.verify_token",
+    return_value={"iss": "accounts.google.com", "exp": 12341234},
+)
 @patch("google.oauth2.id_token.fetch_id_token", return_value="Some Token")
 def test_get_auth_metadata_plugin_google_should_pass_with_token_from_gcloud_sdk(
-    fetch_id_token, config_google
+    verify_token, fetch_id_token, config_google
 ):
     auth_metadata_plugin = get_auth_metadata_plugin(config_google)
     assert isinstance(auth_metadata_plugin, GoogleOpenIDAuthMetadataPlugin)
@@ -159,6 +163,10 @@ def test_get_auth_metadata_plugin_google_should_pass_with_token_from_gcloud_sdk(
 
 
 @patch(
+    "google.oauth2.id_token.verify_token",
+    return_value={"iss": "accounts.google.com", "exp": 12341234},
+)
+@patch(
     "google.auth.default",
     return_value=[
         GoogleDefaultResponse("fake_token"),
@@ -167,7 +175,7 @@ def test_get_auth_metadata_plugin_google_should_pass_with_token_from_gcloud_sdk(
 )
 @patch("google.oauth2.id_token.fetch_id_token", side_effect=DefaultCredentialsError())
 def test_get_auth_metadata_plugin_google_should_pass_with_token_from_google_auth_lib(
-    fetch_id_token, default, config_google
+    verify_token, fetch_id_token, default, config_google
 ):
     auth_metadata_plugin = get_auth_metadata_plugin(config_google)
     assert isinstance(auth_metadata_plugin, GoogleOpenIDAuthMetadataPlugin)
