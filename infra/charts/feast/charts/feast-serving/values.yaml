@@ -5,7 +5,7 @@ image:
   # image.repository -- Docker image repository
   repository: feastdev/feast-serving
   # image.tag -- Image tag
-  tag: 0.9.4
+  tag: 0.9.5
   # image.pullPolicy -- Image pull policy
   pullPolicy: IfNotPresent
 

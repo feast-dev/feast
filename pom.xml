@@ -41,7 +41,7 @@
     </modules>
 
     <properties>
-        <revision>0.9.4</revision>
+        <revision>0.9.5</revision>
         <github.url>https://github.com/feast-dev/feast</github.url>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
