@@ -101,6 +101,8 @@ jobs:
     container: gcr.io/kf-feast/feast-ci:latest
     steps:
       - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: make install-python-ci-dependencies
       - name: Install python
         run: make install-python
       - name: Test python
