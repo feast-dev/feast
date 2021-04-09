@@ -14,32 +14,71 @@
 
 import os
 import sys
+import uuid
 from datetime import datetime
-from typing import Dict, Union
+from os.path import expanduser, join
 
+import pkg_resources
 import requests
+
+from feast.version import get_version
 
 TELEMETRY_ENDPOINT = (
     "https://us-central1-kf-feast.cloudfunctions.net/bq_telemetry_logger"
 )
 
 
-def log_usage(
-    function_name: str,
-    telemetry_id: str,
-    timestamp: datetime,
-    version: Union[str, Dict[str, Dict[str, str]]],
-):
-    json = {
-        "function_name": function_name,
-        "telemetry_id": telemetry_id,
-        "timestamp": timestamp.isoformat(),
-        "version": version,
-        "os": sys.platform,
-        "is_test": os.getenv("FEAST_IS_TELEMETRY_TEST", "False"),
-    }
-    try:
-        requests.post(TELEMETRY_ENDPOINT, json=json)
-    except Exception:
-        pass
-    return
+try:
+    sdk_version = pkg_resources.get_distribution("feast").version
+except pkg_resources.DistributionNotFound:
+    sdk_version = "local build"
+
+
+class Telemetry:
+    def __init__(self):
+        telemetry_filepath = join(expanduser("~"), ".feast", "telemetry")
+
+        self._telemetry_enabled = (
+            os.getenv("FEAST_TELEMETRY", default="True") == "True"
+        )  # written this way to turn the env var string into a boolean
+
+        if self._telemetry_enabled:
+            self._telemetry_counter = {"get_online_features": 0}
+            if os.path.exists(telemetry_filepath):
+                with open(telemetry_filepath, "r") as f:
+                    self._telemetry_id = f.read()
+            else:
+                self._telemetry_id = str(uuid.uuid4())
+                print(
+                    "Feast is an open source project that collects anonymized usage statistics. To opt out or learn more see https://docs.feast.dev/v/master/feast-on-kubernetes/advanced-1/telemetry"
+                )
+                with open(telemetry_filepath, "w") as f:
+                    f.write(self._telemetry_id)
+        else:
+            if os.path.exists(telemetry_filepath):
+                os.remove(telemetry_filepath)
+
+    def log(self, function_name: str):
+
+        if self._telemetry_enabled and self._telemetry_id:
+            if function_name == "get_online_features":
+                if self._telemetry_counter["get_online_features"] % 10000 != 0:
+                    self._telemetry_counter["get_online_features"] += 1
+                    return
+
+            json = {
+                "function_name": function_name,
+                "telemetry_id": self._telemetry_id,
+                "timestamp": datetime.utcnow(),
+                "version": get_version(),
+                "os": sys.platform,
+                "is_test": os.getenv("FEAST_IS_TELEMETRY_TEST", "False"),
+            }
+            try:
+                requests.post(TELEMETRY_ENDPOINT, json=json)
+            except Exception:
+                pass
+            return
+
+
+tele = Telemetry()

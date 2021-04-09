@@ -17,7 +17,6 @@ import os
 import shutil
 import uuid
 import warnings
-from datetime import datetime
 from os.path import expanduser, join
 from typing import Any, Dict, List, Optional, Union
 
@@ -73,7 +72,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 )
 from feast.protos.feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.registry import Registry
-from feast.telemetry import log_usage
+from feast.telemetry import tele
 
 _logger = logging.getLogger(__name__)
 
@@ -492,13 +491,7 @@ class Client:
             >>> feast_client.apply(entity)
         """
 
-        if self._telemetry_enabled:
-            log_usage(
-                "apply",
-                self._telemetry_id,
-                datetime.utcnow(),
-                self.version(sdk_only=True),
-            )
+        tele.log("apply")
         if project is None:
             project = self.project
 
@@ -612,13 +605,7 @@ class Client:
             none is found
         """
 
-        if self._telemetry_enabled:
-            log_usage(
-                "get_entity",
-                self._telemetry_id,
-                datetime.utcnow(),
-                self.version(sdk_only=True),
-            )
+        tele.log("get_entity")
 
         if project is None:
             project = self.project
@@ -743,13 +730,7 @@ class Client:
             none is found
         """
 
-        if self._telemetry_enabled:
-            log_usage(
-                "get_feature_table",
-                self._telemetry_id,
-                datetime.utcnow(),
-                self.version(sdk_only=True),
-            )
+        tele.log("get_feature_table")
 
         if project is None:
             project = self.project
@@ -890,13 +871,7 @@ class Client:
             >>> client.ingest(driver_ft, ft_df)
         """
 
-        if self._telemetry_enabled:
-            log_usage(
-                "ingest",
-                self._telemetry_id,
-                datetime.utcnow(),
-                self.version(sdk_only=True),
-            )
+        tele.log("ingest")
         if project is None:
             project = self.project
         if isinstance(feature_table, str):
@@ -1021,15 +996,7 @@ class Client:
             {'sales:daily_transactions': [1.1,1.2], 'sales:customer_id': [0,1]}
         """
 
-        if self._telemetry_enabled:
-            if self._telemetry_counter["get_online_features"] % 1000 == 0:
-                log_usage(
-                    "get_online_features",
-                    self._telemetry_id,
-                    datetime.utcnow(),
-                    self.version(sdk_only=True),
-                )
-            self._telemetry_counter["get_online_features"] += 1
+        tele.log("get_online_features")
         try:
             response = self._serving_service.GetOnlineFeaturesV2(
                 GetOnlineFeaturesRequestV2(
