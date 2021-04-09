@@ -1,16 +1,16 @@
 dependencies:
 - name: feast-core
   repository: ""
-  version: 0.9.4
+  version: 0.9.5
 - name: feast-serving
   repository: ""
-  version: 0.9.4
+  version: 0.9.5
 - name: feast-jupyter
   repository: ""
-  version: 0.9.4
+  version: 0.9.5
 - name: feast-jobservice
   repository: ""
-  version: 0.9.4
+  version: 0.9.5
 - name: postgresql
   repository: https://kubernetes-charts.storage.googleapis.com/
   version: 8.6.1

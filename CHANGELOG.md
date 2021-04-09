@@ -1,4 +1,12 @@
 # Changelog
+
+## [v0.9.5](https://github.com/feast-dev/feast/tree/v0.9.5) (2021-04-09)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.9.4...v0.9.5)
+
+**Fixed bugs:**
+
+- Use timestamp check for token refresh [\#1444](https://github.com/feast-dev/feast/pull/1444) ([terryyylim](https://github.com/terryyylim))
 ## [v0.9.4](https://github.com/feast-dev/feast/tree/v0.9.4) (2021-03-30)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.9.3...v0.9.4)
@@ -10,8 +18,6 @@
 **Merged pull requests:**
 
 - \[Python SDK\]\[Auth\] Refresh token id w/o gcloud cli [\#1413](https://github.com/feast-dev/feast/pull/1413) ([pyalex](https://github.com/pyalex))
-
-# Changelog
 ## [v0.9.3](https://github.com/feast-dev/feast/tree/v0.9.3) (2021-02-16)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.9.2...v0.9.3)

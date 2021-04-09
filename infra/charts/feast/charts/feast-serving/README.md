@@ -2,7 +2,7 @@ feast-serving
 =============
 Feast Serving serves low-latency latest features and historical batch features.
 
-Current chart version is `0.9.4`
+Current chart version is `0.9.5`
 
 
 
