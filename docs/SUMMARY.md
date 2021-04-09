@@ -20,6 +20,7 @@
 * [Feature Views](concepts/feature-views.md)
 * [Entities](concepts/entities.md)
 * [Sources](concepts/sources.md)
+* [Apply](concepts/apply.md)
 
 ## Reference
 
