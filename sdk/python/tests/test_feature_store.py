@@ -50,7 +50,7 @@ class TestFeatureStore:
         from google.cloud import storage
 
         storage_client = storage.Client()
-        bucket_name = f"feast-registry-test-{int(time.time())}"
+        bucket_name = f"feast-registry-test-{int(time.time() * 1000)}"
         bucket = storage_client.bucket(bucket_name)
         bucket = storage_client.create_bucket(bucket)
         bucket.add_lifecycle_delete_rule(
