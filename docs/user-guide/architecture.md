@@ -2,7 +2,7 @@
 
 ## Architecture
 
-![Feast high-level flow](../.gitbook/assets/blank-diagram-4%20%284%29%20%284%29%20%284%29.svg)
+![Feast high-level flow](../.gitbook/assets/blank-diagram-4%20%284%29%20%284%29%20%284%29%20%284%29%20%284%29%20%284%29%20%284%29%20%284%29%20%282%29%20%281%29%20%281%29%20%284%29.svg)
 
 ### **Feast Core**
 

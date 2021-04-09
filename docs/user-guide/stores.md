@@ -9,7 +9,7 @@ Feast supports two classes of stores
 
 In order to populate these stores, Feast Core creates a long running ingestion job that streams in data from all feature sources to all stores that subscribe to those feature sets.
 
-![](../.gitbook/assets/image%20%282%29%20%283%29%20%283%29%20%282%29.png)
+![](../.gitbook/assets/image%20%282%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%282%29.png)
 
 ## Historical Stores
 
