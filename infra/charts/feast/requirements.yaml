@@ -1,16 +1,16 @@
 dependencies:
 - name: feast-core
-  version: 0.9.4
+  version: 0.9.5
   condition: feast-core.enabled
 - name: feast-serving
   alias: feast-online-serving
-  version: 0.9.4
+  version: 0.9.5
   condition: feast-online-serving.enabled
 - name: feast-jupyter
-  version: 0.9.4
+  version: 0.9.5
   condition: feast-jupyter.enabled
 - name: feast-jobservice
-  version: 0.9.4
+  version: 0.9.5
   condition: feast-jobservice.enabled
 - name: postgresql
   version: 8.6.1
