@@ -13,12 +13,8 @@
 # limitations under the License.
 import logging
 import multiprocessing
-import os
 import shutil
-import uuid
 import warnings
-from datetime import datetime
-from os.path import expanduser, join
 from typing import Any, Dict, List, Optional, Union
 
 import grpc
@@ -73,7 +69,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 )
 from feast.protos.feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.registry import Registry
-from feast.telemetry import log_usage
+from feast.telemetry import Telemetry
 
 _logger = logging.getLogger(__name__)
 
@@ -121,7 +117,7 @@ class Client:
         if self._config.getboolean(opt.ENABLE_AUTH):
             self._auth_metadata = feast_auth.get_auth_metadata_plugin(self._config)
 
-        self._configure_telemetry()
+        self._tele = Telemetry()
 
     @property
     def config(self) -> Config:
@@ -351,27 +347,6 @@ class Client:
 
         return result
 
-    def _configure_telemetry(self):
-        telemetry_filepath = join(expanduser("~"), ".feast", "telemetry")
-        self._telemetry_enabled = (
-            self._config.get(opt.TELEMETRY, "True") == "True"
-        )  # written this way to turn the env var string into a boolean
-        if self._telemetry_enabled:
-            self._telemetry_counter = {"get_online_features": 0}
-            if os.path.exists(telemetry_filepath):
-                with open(telemetry_filepath, "r") as f:
-                    self._telemetry_id = f.read()
-            else:
-                self._telemetry_id = str(uuid.uuid4())
-                print(
-                    "Feast is an open source project that collects anonymized usage statistics. To opt out or learn more see https://docs.feast.dev/v/master/advanced/telemetry"
-                )
-                with open(telemetry_filepath, "w") as f:
-                    f.write(self._telemetry_id)
-        else:
-            if os.path.exists(telemetry_filepath):
-                os.remove(telemetry_filepath)
-
     @property
     def project(self) -> str:
         """
@@ -492,13 +467,7 @@ class Client:
             >>> feast_client.apply(entity)
         """
 
-        if self._telemetry_enabled:
-            log_usage(
-                "apply",
-                self._telemetry_id,
-                datetime.utcnow(),
-                self.version(sdk_only=True),
-            )
+        self._tele.log("apply")
         if project is None:
             project = self.project
 
@@ -612,13 +581,7 @@ class Client:
             none is found
         """
 
-        if self._telemetry_enabled:
-            log_usage(
-                "get_entity",
-                self._telemetry_id,
-                datetime.utcnow(),
-                self.version(sdk_only=True),
-            )
+        self._tele.log("get_entity")
 
         if project is None:
             project = self.project
@@ -743,13 +706,7 @@ class Client:
             none is found
         """
 
-        if self._telemetry_enabled:
-            log_usage(
-                "get_feature_table",
-                self._telemetry_id,
-                datetime.utcnow(),
-                self.version(sdk_only=True),
-            )
+        self._tele.log("get_feature_table")
 
         if project is None:
             project = self.project
@@ -890,13 +847,7 @@ class Client:
             >>> client.ingest(driver_ft, ft_df)
         """
 
-        if self._telemetry_enabled:
-            log_usage(
-                "ingest",
-                self._telemetry_id,
-                datetime.utcnow(),
-                self.version(sdk_only=True),
-            )
+        self._tele.log("ingest")
         if project is None:
             project = self.project
         if isinstance(feature_table, str):
@@ -1021,15 +972,7 @@ class Client:
             {'sales:daily_transactions': [1.1,1.2], 'sales:customer_id': [0,1]}
         """
 
-        if self._telemetry_enabled:
-            if self._telemetry_counter["get_online_features"] % 1000 == 0:
-                log_usage(
-                    "get_online_features",
-                    self._telemetry_id,
-                    datetime.utcnow(),
-                    self.version(sdk_only=True),
-                )
-            self._telemetry_counter["get_online_features"] += 1
+        self._tele.log("get_online_features")
         try:
             response = self._serving_service.GetOnlineFeaturesV2(
                 GetOnlineFeaturesRequestV2(
