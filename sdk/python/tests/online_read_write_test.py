@@ -15,7 +15,7 @@ def basic_rw_test(store: FeatureStore, view_name: str) -> None:
     provider = store._get_provider()
 
     entity_key = EntityKeyProto(
-        entity_names=["driver"], entity_values=[ValueProto(int64_val=1)]
+        join_keys=["driver"], entity_values=[ValueProto(int64_val=1)]
     )
 
     def _driver_rw_test(event_ts, created_ts, write, expect_read):

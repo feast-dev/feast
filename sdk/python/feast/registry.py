@@ -87,17 +87,18 @@ class Registry:
         self._registry_store.update_registry_proto(updater)
         return
 
-    def list_entities(self, project: str) -> List[Entity]:
+    def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
         """
         Retrieve a list of entities from the registry
 
         Args:
+            allow_cache: Whether to allow returning entities from a cached registry
             project: Filter entities based on project name
 
         Returns:
             List of entities
         """
-        registry_proto = self._get_registry_proto()
+        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
         entities = []
         for entity_proto in registry_proto.entities:
             if entity_proto.spec.project == project:

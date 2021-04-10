@@ -30,7 +30,7 @@ def serialize_entity_key(entity_key: EntityKeyProto) -> bytes:
     [1] https://developers.google.com/protocol-buffers/docs/encoding
     """
     sorted_keys, sorted_values = zip(
-        *sorted(zip(entity_key.entity_names, entity_key.entity_values))
+        *sorted(zip(entity_key.join_keys, entity_key.entity_values))
     )
 
     output: List[bytes] = []

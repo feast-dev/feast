@@ -13,6 +13,7 @@ from pytz import timezone, utc
 
 from feast.data_format import ParquetFormat
 from feast.data_source import BigQuerySource, FileSource
+from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
@@ -82,10 +83,16 @@ def prep_bq_fs_and_fv(
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         date_partition_column="",
-        field_mapping={"ts_1": "ts", "id": "driver_id"},
+        field_mapping={"ts_1": "ts", "id": "driver_ident"},
     )
 
     fv = get_feature_view(bigquery_source)
+    e = Entity(
+        name="driver_id",
+        description="id for driver",
+        join_key="driver_ident",
+        value_type=ValueType.INT32,
+    )
     with tempfile.TemporaryDirectory() as repo_dir_name:
         config = RepoConfig(
             registry=str(Path(repo_dir_name) / "registry.db"),
@@ -93,7 +100,7 @@ def prep_bq_fs_and_fv(
             provider="gcp",
         )
         fs = FeatureStore(config=config)
-        fs.apply([fv])
+        fs.apply([fv, e])
 
         yield fs, fv
 
@@ -113,6 +120,9 @@ def prep_local_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             field_mapping={"ts_1": "ts", "id": "driver_id"},
         )
         fv = get_feature_view(file_source)
+        e = Entity(
+            name="driver_id", description="id for driver", value_type=ValueType.INT32
+        )
         with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
             config = RepoConfig(
                 registry=str(Path(repo_dir_name) / "registry.db"),
@@ -125,7 +135,7 @@ def prep_local_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
                 ),
             )
             fs = FeatureStore(config=config)
-            fs.apply([fv])
+            fs.apply([fv, e])
 
             yield fs, fv
 
@@ -136,7 +146,7 @@ def run_materialization_test(fs: FeatureStore, fv: FeatureView) -> None:
     # use both tz-naive & tz-aware timestamps to test that they're both correctly handled
     start_date = (now - timedelta(hours=5)).replace(tzinfo=utc)
     end_date = now - timedelta(hours=2)
-    fs.materialize([fv.name], start_date, end_date)
+    fs.materialize(feature_views=[fv.name], start_date=start_date, end_date=end_date)
 
     # check result of materialize()
     response_dict = fs.get_online_features(
@@ -152,7 +162,7 @@ def run_materialization_test(fs: FeatureStore, fv: FeatureView) -> None:
 
     # run materialize_incremental()
     fs.materialize_incremental(
-        [fv.name], now - timedelta(seconds=0),
+        feature_views=[fv.name], end_date=now - timedelta(seconds=0),
     )
 
     # check result of materialize_incremental()

@@ -17,9 +17,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
-import pyarrow
 
-from feast import utils
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.provider import Provider, RetrievalJob, get_provider
@@ -29,7 +27,6 @@ from feast.protos.feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesResponse,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
 from feast.repo_config import (
     LocalOnlineStoreConfig,
@@ -38,7 +35,6 @@ from feast.repo_config import (
     load_repo_config,
 )
 from feast.telemetry import Telemetry
-from feast.type_map import python_value_to_proto_value
 from feast.version import get_version
 
 
@@ -113,16 +109,19 @@ class FeatureStore:
         )
         self._registry.refresh()
 
-    def list_entities(self) -> List[Entity]:
+    def list_entities(self, allow_cache: bool = False) -> List[Entity]:
         """
         Retrieve a list of entities from the registry
+
+        Args:
+            allow_cache (bool): Whether to allow returning entities from a cached registry
 
         Returns:
             List of entities
         """
         self._tele.log("list_entities")
 
-        return self._registry.list_entities(self.project)
+        return self._registry.list_entities(self.project, allow_cache=allow_cache)
 
     def list_feature_views(self) -> List[FeatureView]:
         """
@@ -280,7 +279,7 @@ class FeatureStore:
         return job
 
     def materialize_incremental(
-        self, feature_views: Optional[List[str]], end_date: datetime,
+        self, end_date: datetime, feature_views: Optional[List[str]] = None,
     ) -> None:
         """
         Materialize incremental new data from the offline store into the online store.
@@ -292,9 +291,9 @@ class FeatureStore:
         (now - ttl) if no such prior materialization exists.
 
         Args:
+            end_date (datetime): End date for time range of data to materialize into the online store
             feature_views (List[str]): Optional list of feature view names. If selected, will only run
                 materialization for the specified feature views.
-            end_date (datetime): End date for time range of data to materialize into the online store
 
         Examples:
             Materialize all features into the online store up to 5 minutes ago.
@@ -327,13 +326,16 @@ class FeatureStore:
                         f"No start time found for feature view {feature_view.name}. materialize_incremental() requires either a ttl to be set or for materialize() to have been run at least once."
                     )
                 start_date = datetime.utcnow() - feature_view.ttl
-            self._materialize_single_feature_view(feature_view, start_date, end_date)
+            provider = self._get_provider()
+            provider.materialize_single_feature_view(
+                feature_view, start_date, end_date, self._registry, self.project
+            )
 
     def materialize(
         self,
-        feature_views: Optional[List[str]],
         start_date: datetime,
         end_date: datetime,
+        feature_views: Optional[List[str]] = None,
     ) -> None:
         """
         Materialize data from the offline store into the online store.
@@ -343,10 +345,10 @@ class FeatureStore:
         into the online store where it is available for online serving.
 
         Args:
-            feature_views (List[str]): Optional list of feature view names. If selected, will only run
-                materialization for the specified feature views.
             start_date (datetime): Start date for time range of data to materialize into the online store
             end_date (datetime): End date for time range of data to materialize into the online store
+            feature_views (List[str]): Optional list of feature view names. If selected, will only run
+                materialization for the specified feature views.
 
         Examples:
             Materialize all features into the online store over the interval
@@ -375,44 +377,10 @@ class FeatureStore:
 
         # TODO paging large loads
         for feature_view in feature_views_to_materialize:
-            self._materialize_single_feature_view(feature_view, start_date, end_date)
-
-    def _materialize_single_feature_view(
-        self, feature_view: FeatureView, start_date: datetime, end_date: datetime
-    ) -> None:
-        (
-            entity_names,
-            feature_names,
-            event_timestamp_column,
-            created_timestamp_column,
-        ) = _run_reverse_field_mapping(feature_view)
-
-        start_date = utils.make_tzaware(start_date)
-        end_date = utils.make_tzaware(end_date)
-
-        provider = self._get_provider()
-        table = provider.pull_latest_from_table_or_query(
-            feature_view.input,
-            entity_names,
-            feature_names,
-            event_timestamp_column,
-            created_timestamp_column,
-            start_date,
-            end_date,
-        )
-
-        if feature_view.input.field_mapping is not None:
-            table = _run_forward_field_mapping(table, feature_view.input.field_mapping)
-
-        rows_to_write = _convert_arrow_to_proto(table, feature_view)
-
-        provider = self._get_provider()
-        provider.online_write_batch(
-            self.config.project, feature_view, rows_to_write, None
-        )
-
-        feature_view.materialization_intervals.append((start_date, end_date))
-        self.apply([feature_view])
+            provider = self._get_provider()
+            provider.materialize_single_feature_view(
+                feature_view, start_date, end_date, self._registry, self.project
+            )
 
     def get_online_features(
         self, feature_refs: List[str], entity_rows: List[Dict[str, Any]],
@@ -452,29 +420,33 @@ class FeatureStore:
         """
         self._tele.log("get_online_features")
 
-        response = self._get_online_features(
-            feature_refs=feature_refs,
-            entity_rows=_infer_online_entity_rows(entity_rows),
-            project=self.config.project,
-        )
-
-        return OnlineResponse(response)
-
-    def _get_online_features(
-        self,
-        entity_rows: List[GetOnlineFeaturesRequestV2.EntityRow],
-        feature_refs: List[str],
-        project: str,
-    ) -> GetOnlineFeaturesResponse:
-
         provider = self._get_provider()
+        entities = self.list_entities(allow_cache=True)
+        entity_name_to_join_key_map = {}
+        for entity in entities:
+            entity_name_to_join_key_map[entity.name] = entity.join_key
+
+        join_key_rows = []
+        for row in entity_rows:
+            join_key_row = {}
+            for entity_name, entity_value in row.items():
+                try:
+                    join_key = entity_name_to_join_key_map[entity_name]
+                except KeyError:
+                    raise Exception(
+                        f"Entity {entity_name} does not exist in project {self.project}"
+                    )
+                join_key_row[join_key] = entity_value
+            join_key_rows.append(join_key_row)
+
+        entity_row_proto_list = _infer_online_entity_rows(join_key_rows)
 
         union_of_entity_keys = []
         result_rows: List[GetOnlineFeaturesResponse.FieldValues] = []
 
-        for row in entity_rows:
-            union_of_entity_keys.append(_entity_row_to_key(row))
-            result_rows.append(_entity_row_to_field_values(row))
+        for entity_row_proto in entity_row_proto_list:
+            union_of_entity_keys.append(_entity_row_to_key(entity_row_proto))
+            result_rows.append(_entity_row_to_field_values(entity_row_proto))
 
         all_feature_views = self._registry.list_feature_views(
             project=self.config.project, allow_cache=True
@@ -482,9 +454,11 @@ class FeatureStore:
 
         grouped_refs = _group_refs(feature_refs, all_feature_views)
         for table, requested_features in grouped_refs:
-            entity_keys = _get_table_entity_keys(table, union_of_entity_keys)
+            entity_keys = _get_table_entity_keys(
+                table, union_of_entity_keys, entity_name_to_join_key_map
+            )
             read_rows = provider.online_read(
-                project=project, table=table, entity_keys=entity_keys,
+                project=self.project, table=table, entity_keys=entity_keys,
             )
             for row_idx, read_row in enumerate(read_rows):
                 row_ts, feature_data = read_row
@@ -507,12 +481,12 @@ class FeatureStore:
                                 feature_ref
                             ] = GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
-        return GetOnlineFeaturesResponse(field_values=result_rows)
+        return OnlineResponse(GetOnlineFeaturesResponse(field_values=result_rows))
 
 
 def _entity_row_to_key(row: GetOnlineFeaturesRequestV2.EntityRow) -> EntityKeyProto:
     names, values = zip(*row.fields.items())
-    return EntityKeyProto(entity_names=names, entity_values=values)  # type: ignore
+    return EntityKeyProto(join_keys=names, entity_values=values)  # type: ignore
 
 
 def _entity_row_to_field_values(
@@ -549,123 +523,6 @@ def _group_refs(
     return result
 
 
-def _run_reverse_field_mapping(
-    feature_view: FeatureView,
-) -> Tuple[List[str], List[str], str, Optional[str]]:
-    """
-    If a field mapping exists, run it in reverse on the entity names,
-    feature names, event timestamp column, and created timestamp column
-    to get the names of the relevant columns in the BigQuery table.
-
-    Args:
-        feature_view: FeatureView object containing the field mapping
-            as well as the names to reverse-map.
-    Returns:
-        Tuple containing the list of reverse-mapped entity names,
-        reverse-mapped feature names, reverse-mapped event timestamp column,
-        and reverse-mapped created timestamp column that will be passed into
-        the query to the offline store.
-    """
-    # if we have mapped fields, use the original field names in the call to the offline store
-    event_timestamp_column = feature_view.input.event_timestamp_column
-    entity_names = [entity for entity in feature_view.entities]
-    feature_names = [feature.name for feature in feature_view.features]
-    created_timestamp_column = feature_view.input.created_timestamp_column
-    if feature_view.input.field_mapping is not None:
-        reverse_field_mapping = {
-            v: k for k, v in feature_view.input.field_mapping.items()
-        }
-        event_timestamp_column = (
-            reverse_field_mapping[event_timestamp_column]
-            if event_timestamp_column in reverse_field_mapping.keys()
-            else event_timestamp_column
-        )
-        created_timestamp_column = (
-            reverse_field_mapping[created_timestamp_column]
-            if created_timestamp_column
-            and created_timestamp_column in reverse_field_mapping.keys()
-            else created_timestamp_column
-        )
-        entity_names = [
-            reverse_field_mapping[col] if col in reverse_field_mapping.keys() else col
-            for col in entity_names
-        ]
-        feature_names = [
-            reverse_field_mapping[col] if col in reverse_field_mapping.keys() else col
-            for col in feature_names
-        ]
-    return (
-        entity_names,
-        feature_names,
-        event_timestamp_column,
-        created_timestamp_column,
-    )
-
-
-def _run_forward_field_mapping(
-    table: pyarrow.Table, field_mapping: Dict[str, str],
-) -> pyarrow.Table:
-    # run field mapping in the forward direction
-    cols = table.column_names
-    mapped_cols = [
-        field_mapping[col] if col in field_mapping.keys() else col for col in cols
-    ]
-    table = table.rename_columns(mapped_cols)
-    return table
-
-
-def _convert_arrow_to_proto(
-    table: pyarrow.Table, feature_view: FeatureView
-) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
-    rows_to_write = []
-
-    def _coerce_datetime(ts):
-        """
-        Depending on underlying time resolution, arrow to_pydict() sometimes returns pandas
-        timestamp type (for nanosecond resolution), and sometimes you get standard python datetime
-        (for microsecond resolution).
-
-        While pandas timestamp class is a subclass of python datetime, it doesn't always behave the
-        same way. We convert it to normal datetime so that consumers downstream don't have to deal
-        with these quirks.
-        """
-
-        if isinstance(ts, pd.Timestamp):
-            return ts.to_pydatetime()
-        else:
-            return ts
-
-    for row in zip(*table.to_pydict().values()):
-        entity_key = EntityKeyProto()
-        for entity_name in feature_view.entities:
-            entity_key.entity_names.append(entity_name)
-            idx = table.column_names.index(entity_name)
-            value = python_value_to_proto_value(row[idx])
-            entity_key.entity_values.append(value)
-        feature_dict = {}
-        for feature in feature_view.features:
-            idx = table.column_names.index(feature.name)
-            value = python_value_to_proto_value(row[idx])
-            feature_dict[feature.name] = value
-        event_timestamp_idx = table.column_names.index(
-            feature_view.input.event_timestamp_column
-        )
-        event_timestamp = _coerce_datetime(row[event_timestamp_idx])
-
-        if feature_view.input.created_timestamp_column is not None:
-            created_timestamp_idx = table.column_names.index(
-                feature_view.input.created_timestamp_column
-            )
-            created_timestamp = _coerce_datetime(row[created_timestamp_idx])
-        else:
-            created_timestamp = None
-
-        rows_to_write.append(
-            (entity_key, feature_dict, event_timestamp, created_timestamp)
-        )
-    return rows_to_write
-
-
 def _get_requested_feature_views(
     feature_refs: List[str], all_feature_views: List[FeatureView]
 ) -> List[FeatureView]:
@@ -675,20 +532,21 @@ def _get_requested_feature_views(
 
 
 def _get_table_entity_keys(
-    table: FeatureView, entity_keys: List[EntityKeyProto]
+    table: FeatureView, entity_keys: List[EntityKeyProto], join_key_map: Dict[str, str],
 ) -> List[EntityKeyProto]:
-    required_entities = OrderedDict.fromkeys(sorted(table.entities))
+    table_join_keys = [join_key_map[entity_name] for entity_name in table.entities]
+    required_entities = OrderedDict.fromkeys(sorted(table_join_keys))
     entity_key_protos = []
     for entity_key in entity_keys:
         required_entities_to_values = required_entities.copy()
-        for i in range(len(entity_key.entity_names)):
-            entity_name = entity_key.entity_names[i]
+        for i in range(len(entity_key.join_keys)):
+            entity_name = entity_key.join_keys[i]
             entity_value = entity_key.entity_values[i]
 
             if entity_name in required_entities_to_values:
                 if required_entities_to_values[entity_name] is not None:
                     raise ValueError(
-                        f"Duplicate entity keys detected. Table {table.name} expects {table.entities}. The entity "
+                        f"Duplicate entity keys detected. Table {table.name} expects {table_join_keys}. The entity "
                         f"{entity_name} was provided at least twice"
                     )
                 required_entities_to_values[entity_name] = entity_value
@@ -698,12 +556,12 @@ def _get_table_entity_keys(
         for entity_name, entity_value in required_entities_to_values.items():
             if entity_value is None:
                 raise ValueError(
-                    f"Table {table.name} expects entity field {table.entities}. No entity value was found for "
+                    f"Table {table.name} expects entity field {table_join_keys}. No entity value was found for "
                     f"{entity_name}"
                 )
             entity_names.append(entity_name)
             entity_values.append(entity_value)
         entity_key_protos.append(
-            EntityKeyProto(entity_names=entity_names, entity_values=entity_values)
+            EntityKeyProto(join_keys=entity_names, entity_values=entity_values)
         )
     return entity_key_protos
