@@ -27,13 +27,6 @@ TELEMETRY_ENDPOINT = (
     "https://us-central1-kf-feast.cloudfunctions.net/bq_telemetry_logger"
 )
 
-
-try:
-    sdk_version = pkg_resources.get_distribution("feast").version
-except pkg_resources.DistributionNotFound:
-    sdk_version = "local build"
-
-
 class Telemetry:
     def __init__(self):
         telemetry_filepath = join(expanduser("~"), ".feast", "telemetry")
