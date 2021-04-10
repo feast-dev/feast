@@ -171,15 +171,6 @@ class LocalSqlite(Provider):
         project: str,
     ) -> None:
         assert isinstance(feature_view.input, FileSource)
-        source_df = pd.read_parquet(feature_view.input.path)
-        # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
-        source_df[event_timestamp_column] = source_df[event_timestamp_column].apply(
-            lambda x: x if x.tz is not None else x.replace(tzinfo=pytz.utc)
-        )
-        source_df[created_timestamp_column] = source_df[created_timestamp_column].apply(
-            lambda x: x if x.tz is not None else x.replace(tzinfo=pytz.utc)
-        )
-
         entities = []
         for entity_name in feature_view.entities:
             entities.append(registry.get_entity(entity_name, project))
@@ -196,6 +187,16 @@ class LocalSqlite(Provider):
             if created_timestamp_column is not None
             else [event_timestamp_column]
         )
+
+        source_df = pd.read_parquet(feature_view.input.path)
+        # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
+        source_df[event_timestamp_column] = source_df[event_timestamp_column].apply(
+            lambda x: x if x.tz is not None else x.replace(tzinfo=pytz.utc)
+        )
+        source_df[created_timestamp_column] = source_df[created_timestamp_column].apply(
+            lambda x: x if x.tz is not None else x.replace(tzinfo=pytz.utc)
+        )
+
         source_df.sort_values(by=ts_columns, inplace=True)
 
         filtered_df = source_df[
