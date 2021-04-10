@@ -83,6 +83,7 @@ CI_REQUIRED = [
     "pytest-mock==1.10.4",
     "Sphinx",
     "sphinx-rtd-theme",
+    "tenacity",
     "adlfs==0.5.9",
     "firebase-admin==4.5.2",
     "google-cloud-datastore==2.1.0",

@@ -37,7 +37,7 @@ from feast.repo_config import (
     RepoConfig,
     load_repo_config,
 )
-from feast.telemetry import tele
+from feast.telemetry import Telemetry
 from feast.type_map import python_value_to_proto_value
 from feast.version import get_version
 
@@ -76,6 +76,7 @@ class FeatureStore:
             registry_path=registry_config.path,
             cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
         )
+        self._tele = Telemetry()
 
     def version(self) -> str:
         """Returns the version of the current Feast SDK/CLI"""
@@ -103,7 +104,7 @@ class FeatureStore:
         greater than 0, then once the cache becomes stale (more time than the TTL has passed), a new cache will be
         downloaded synchronously, which may increase latencies if the triggering method is get_online_features()
         """
-        tele.log("refresh_registry")
+        self._tele.log("refresh_registry")
 
         registry_config = self.config.get_registry_config()
         self._registry = Registry(
@@ -119,7 +120,7 @@ class FeatureStore:
         Returns:
             List of entities
         """
-        tele.log("list_entities")
+        self._tele.log("list_entities")
 
         return self._registry.list_entities(self.project)
 
@@ -130,7 +131,7 @@ class FeatureStore:
         Returns:
             List of feature views
         """
-        tele.log("list_feature_views")
+        self._tele.log("list_feature_views")
 
         return self._registry.list_feature_views(self.project)
 
@@ -145,7 +146,7 @@ class FeatureStore:
             Returns either the specified entity, or raises an exception if
             none is found
         """
-        tele.log("get_entity")
+        self._tele.log("get_entity")
 
         return self._registry.get_entity(name, self.project)
 
@@ -160,7 +161,7 @@ class FeatureStore:
             Returns either the specified feature view, or raises an exception if
             none is found
         """
-        tele.log("get_feature_view")
+        self._tele.log("get_feature_view")
 
         return self._registry.get_feature_view(name, self.project)
 
@@ -171,7 +172,7 @@ class FeatureStore:
         Args:
             name: Name of feature view
         """
-        tele.log("delete_feature_view")
+        self._tele.log("delete_feature_view")
 
         return self._registry.delete_feature_view(name, self.project)
 
@@ -204,7 +205,7 @@ class FeatureStore:
             >>> fs.apply([customer_entity, customer_feature_view])
         """
 
-        tele.log("apply")
+        self._tele.log("apply")
 
         # TODO: Add locking
         # TODO: Optimize by only making a single call (read/write)
@@ -266,7 +267,7 @@ class FeatureStore:
             >>> feature_data = job.to_df()
             >>> model.fit(feature_data) # insert your modeling framework here.
         """
-        tele.log("get_historical_features")
+        self._tele.log("get_historical_features")
 
         all_feature_views = self._registry.list_feature_views(
             project=self.config.project
@@ -303,7 +304,7 @@ class FeatureStore:
             >>> fs = FeatureStore(config=RepoConfig(provider="gcp", registry="gs://my-fs/", project="my_fs_proj"))
             >>> fs.materialize_incremental(end_date=datetime.utcnow() - timedelta(minutes=5))
         """
-        tele.log("materialize_incremental")
+        self._tele.log("materialize_incremental")
 
         feature_views_to_materialize = []
         if feature_views is None:
@@ -358,7 +359,7 @@ class FeatureStore:
             >>>   start_date=datetime.utcnow() - timedelta(hours=3), end_date=datetime.utcnow() - timedelta(minutes=10)
             >>> )
         """
-        tele.log("materialize")
+        self._tele.log("materialize")
 
         feature_views_to_materialize = []
         if feature_views is None:
@@ -449,7 +450,7 @@ class FeatureStore:
             >>> print(online_response_dict)
             {'sales:daily_transactions': [1.1,1.2], 'sales:customer_id': [0,1]}
         """
-        tele.log("get_online_features")
+        self._tele.log("get_online_features")
 
         response = self._get_online_features(
             feature_refs=feature_refs,
