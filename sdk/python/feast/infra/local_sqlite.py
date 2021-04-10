@@ -7,7 +7,7 @@ import pandas as pd
 import pyarrow
 import pytz
 
-from feast import FeatureTable
+from feast import FeatureTable, utils
 from feast.data_source import FileSource
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
@@ -182,11 +182,8 @@ class LocalSqlite(Provider):
             created_timestamp_column,
         ) = _get_column_names(feature_view, entities)
 
-        ts_columns = (
-            [event_timestamp_column, created_timestamp_column]
-            if created_timestamp_column is not None
-            else [event_timestamp_column]
-        )
+        start_date = utils.make_tzaware(start_date)
+        end_date = utils.make_tzaware(end_date)
 
         source_df = pd.read_parquet(feature_view.input.path)
         # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
@@ -195,6 +192,12 @@ class LocalSqlite(Provider):
         )
         source_df[created_timestamp_column] = source_df[created_timestamp_column].apply(
             lambda x: x if x.tz is not None else x.replace(tzinfo=pytz.utc)
+        )
+
+        ts_columns = (
+            [event_timestamp_column, created_timestamp_column]
+            if created_timestamp_column is not None
+            else [event_timestamp_column]
         )
 
         source_df.sort_values(by=ts_columns, inplace=True)
