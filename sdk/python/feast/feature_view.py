@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Union
 
 from google.protobuf.duration_pb2 import Duration
+from google.protobuf.json_format import MessageToJson
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast import utils
@@ -81,6 +82,39 @@ class FeatureView:
         self.input = input
 
         self.materialization_intervals = []
+
+    def __repr__(self):
+        items = (f"{k} = {v}" for k, v in self.__dict__.items())
+        return f"<{self.__class__.__name__}({', '.join(items)})>"
+
+    def __str__(self):
+        return str(MessageToJson(self.to_proto()))
+
+    def __hash__(self):
+        return hash(self.name)
+
+    def __eq__(self, other):
+        if not isinstance(other, FeatureView):
+            raise TypeError(
+                "Comparisons should only involve FeatureView class objects."
+            )
+
+        if (
+            self.tags != other.tags
+            or self.name != other.name
+            or self.ttl != other.ttl
+            or self.online != other.online
+        ):
+            return False
+
+        if sorted(self.entities) != sorted(other.entities):
+            return False
+        if sorted(self.features) != sorted(other.features):
+            return False
+        if self.input != other.input:
+            return False
+
+        return True
 
     def is_valid(self):
         """

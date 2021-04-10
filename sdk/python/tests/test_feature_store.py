@@ -29,219 +29,280 @@ from feast.repo_config import LocalOnlineStoreConfig, OnlineStoreConfig, RepoCon
 from feast.value_type import ValueType
 
 
-class TestFeatureStore:
-    @pytest.fixture
-    def feature_store_with_local_registry(self):
-        fd, registry_path = mkstemp()
-        fd, online_store_path = mkstemp()
-        return FeatureStore(
-            config=RepoConfig(
-                registry=registry_path,
-                project="default",
-                provider="local",
-                online_store=OnlineStoreConfig(
-                    local=LocalOnlineStoreConfig(path=online_store_path)
-                ),
-            )
+@pytest.fixture
+def feature_store_with_local_registry():
+    fd, registry_path = mkstemp()
+    fd, online_store_path = mkstemp()
+    return FeatureStore(
+        config=RepoConfig(
+            registry=registry_path,
+            project="default",
+            provider="local",
+            online_store=OnlineStoreConfig(
+                local=LocalOnlineStoreConfig(path=online_store_path)
+            ),
         )
-
-    @pytest.fixture
-    def feature_store_with_gcs_registry(self):
-        from google.cloud import storage
-
-        storage_client = storage.Client()
-        bucket_name = f"feast-registry-test-{int(time.time() * 1000)}"
-        bucket = storage_client.bucket(bucket_name)
-        bucket = storage_client.create_bucket(bucket)
-        bucket.add_lifecycle_delete_rule(
-            age=14
-        )  # delete buckets automatically after 14 days
-        bucket.patch()
-        bucket.blob("registry.db")
-
-        return FeatureStore(
-            config=RepoConfig(
-                registry=f"gs://{bucket_name}/registry.db",
-                project="default",
-                provider="gcp",
-            )
-        )
-
-    @pytest.mark.parametrize(
-        "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
     )
-    def test_apply_entity_success(self, test_feature_store):
 
-        entity = Entity(
-            name="driver_car_id",
-            description="Car driver id",
-            value_type=ValueType.STRING,
-            labels={"team": "matchmaking"},
+
+@pytest.fixture
+def feature_store_with_gcs_registry():
+    from google.cloud import storage
+
+    storage_client = storage.Client()
+    bucket_name = f"feast-registry-test-{int(time.time() * 1000)}"
+    bucket = storage_client.bucket(bucket_name)
+    bucket = storage_client.create_bucket(bucket)
+    bucket.add_lifecycle_delete_rule(
+        age=14
+    )  # delete buckets automatically after 14 days
+    bucket.patch()
+    bucket.blob("registry.db")
+
+    return FeatureStore(
+        config=RepoConfig(
+            registry=f"gs://{bucket_name}/registry.db",
+            project="default",
+            provider="gcp",
         )
-
-        # Register Entity with Core
-        test_feature_store.apply([entity])
-
-        entities = test_feature_store.list_entities()
-
-        entity = entities[0]
-        assert (
-            len(entities) == 1
-            and entity.name == "driver_car_id"
-            and entity.value_type == ValueType(ValueProto.ValueType.STRING)
-            and entity.description == "Car driver id"
-            and "team" in entity.labels
-            and entity.labels["team"] == "matchmaking"
-        )
-
-    @pytest.mark.integration
-    @pytest.mark.parametrize(
-        "test_feature_store", [lazy_fixture("feature_store_with_gcs_registry")],
     )
-    def test_apply_entity_integration(self, test_feature_store):
 
-        entity = Entity(
-            name="driver_car_id",
-            description="Car driver id",
-            value_type=ValueType.STRING,
-            labels={"team": "matchmaking"},
-        )
 
-        # Register Entity with Core
-        test_feature_store.apply([entity])
-
-        entities = test_feature_store.list_entities()
-
-        entity = entities[0]
-        assert (
-            len(entities) == 1
-            and entity.name == "driver_car_id"
-            and entity.value_type == ValueType(ValueProto.ValueType.STRING)
-            and entity.description == "Car driver id"
-            and "team" in entity.labels
-            and entity.labels["team"] == "matchmaking"
-        )
-
-        entity = test_feature_store.get_entity("driver_car_id")
-        assert (
-            entity.name == "driver_car_id"
-            and entity.value_type == ValueType(ValueProto.ValueType.STRING)
-            and entity.description == "Car driver id"
-            and "team" in entity.labels
-            and entity.labels["team"] == "matchmaking"
-        )
-
-    @pytest.mark.parametrize(
-        "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
+@pytest.mark.parametrize(
+    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_entity_success(test_feature_store):
+    entity = Entity(
+        name="driver_car_id",
+        description="Car driver id",
+        value_type=ValueType.STRING,
+        labels={"team": "matchmaking"},
     )
-    def test_apply_feature_view_success(self, test_feature_store):
 
-        # Create Feature Views
-        batch_source = FileSource(
-            file_format=ParquetFormat(),
-            file_url="file://feast/*",
-            event_timestamp_column="ts_col",
-            created_timestamp_column="timestamp",
-            date_partition_column="date_partition_col",
-        )
+    # Register Entity with Core
+    test_feature_store.apply([entity])
 
-        fv1 = FeatureView(
-            name="my_feature_view_1",
-            features=[
-                Feature(name="fs1_my_feature_1", dtype=ValueType.INT64),
-                Feature(name="fs1_my_feature_2", dtype=ValueType.STRING),
-                Feature(name="fs1_my_feature_3", dtype=ValueType.STRING_LIST),
-                Feature(name="fs1_my_feature_4", dtype=ValueType.BYTES_LIST),
-            ],
-            entities=["fs1_my_entity_1"],
-            tags={"team": "matchmaking"},
-            input=batch_source,
-            ttl=timedelta(minutes=5),
-        )
+    entities = test_feature_store.list_entities()
 
-        # Register Feature View
-        test_feature_store.apply([fv1])
-
-        feature_views = test_feature_store.list_feature_views()
-
-        # List Feature Views
-        assert (
-            len(feature_views) == 1
-            and feature_views[0].name == "my_feature_view_1"
-            and feature_views[0].features[0].name == "fs1_my_feature_1"
-            and feature_views[0].features[0].dtype == ValueType.INT64
-            and feature_views[0].features[1].name == "fs1_my_feature_2"
-            and feature_views[0].features[1].dtype == ValueType.STRING
-            and feature_views[0].features[2].name == "fs1_my_feature_3"
-            and feature_views[0].features[2].dtype == ValueType.STRING_LIST
-            and feature_views[0].features[3].name == "fs1_my_feature_4"
-            and feature_views[0].features[3].dtype == ValueType.BYTES_LIST
-            and feature_views[0].entities[0] == "fs1_my_entity_1"
-        )
-
-    @pytest.mark.integration
-    @pytest.mark.parametrize(
-        "test_feature_store", [lazy_fixture("feature_store_with_gcs_registry")],
+    entity = entities[0]
+    assert (
+        len(entities) == 1
+        and entity.name == "driver_car_id"
+        and entity.value_type == ValueType(ValueProto.ValueType.STRING)
+        and entity.description == "Car driver id"
+        and "team" in entity.labels
+        and entity.labels["team"] == "matchmaking"
     )
-    def test_apply_feature_view_integration(self, test_feature_store):
 
-        # Create Feature Views
-        batch_source = FileSource(
-            file_format=ParquetFormat(),
-            file_url="file://feast/*",
-            event_timestamp_column="ts_col",
-            created_timestamp_column="timestamp",
-            date_partition_column="date_partition_col",
-        )
 
-        fv1 = FeatureView(
-            name="my_feature_view_1",
-            features=[
-                Feature(name="fs1_my_feature_1", dtype=ValueType.INT64),
-                Feature(name="fs1_my_feature_2", dtype=ValueType.STRING),
-                Feature(name="fs1_my_feature_3", dtype=ValueType.STRING_LIST),
-                Feature(name="fs1_my_feature_4", dtype=ValueType.BYTES_LIST),
-            ],
-            entities=["fs1_my_entity_1"],
-            tags={"team": "matchmaking"},
-            input=batch_source,
-            ttl=timedelta(minutes=5),
-        )
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_feature_store", [lazy_fixture("feature_store_with_gcs_registry")],
+)
+def test_apply_entity_integration(test_feature_store):
+    entity = Entity(
+        name="driver_car_id",
+        description="Car driver id",
+        value_type=ValueType.STRING,
+        labels={"team": "matchmaking"},
+    )
 
-        # Register Feature View
-        test_feature_store.apply([fv1])
+    # Register Entity with Core
+    test_feature_store.apply([entity])
 
-        feature_views = test_feature_store.list_feature_views()
+    entities = test_feature_store.list_entities()
 
-        # List Feature Views
-        assert (
-            len(feature_views) == 1
-            and feature_views[0].name == "my_feature_view_1"
-            and feature_views[0].features[0].name == "fs1_my_feature_1"
-            and feature_views[0].features[0].dtype == ValueType.INT64
-            and feature_views[0].features[1].name == "fs1_my_feature_2"
-            and feature_views[0].features[1].dtype == ValueType.STRING
-            and feature_views[0].features[2].name == "fs1_my_feature_3"
-            and feature_views[0].features[2].dtype == ValueType.STRING_LIST
-            and feature_views[0].features[3].name == "fs1_my_feature_4"
-            and feature_views[0].features[3].dtype == ValueType.BYTES_LIST
-            and feature_views[0].entities[0] == "fs1_my_entity_1"
-        )
+    entity = entities[0]
+    assert (
+        len(entities) == 1
+        and entity.name == "driver_car_id"
+        and entity.value_type == ValueType(ValueProto.ValueType.STRING)
+        and entity.description == "Car driver id"
+        and "team" in entity.labels
+        and entity.labels["team"] == "matchmaking"
+    )
 
-        feature_view = test_feature_store.get_feature_view("my_feature_view_1")
-        assert (
-            feature_view.name == "my_feature_view_1"
-            and feature_view.features[0].name == "fs1_my_feature_1"
-            and feature_view.features[0].dtype == ValueType.INT64
-            and feature_view.features[1].name == "fs1_my_feature_2"
-            and feature_view.features[1].dtype == ValueType.STRING
-            and feature_view.features[2].name == "fs1_my_feature_3"
-            and feature_view.features[2].dtype == ValueType.STRING_LIST
-            and feature_view.features[3].name == "fs1_my_feature_4"
-            and feature_view.features[3].dtype == ValueType.BYTES_LIST
-            and feature_view.entities[0] == "fs1_my_entity_1"
-        )
+    entity = test_feature_store.get_entity("driver_car_id")
+    assert (
+        entity.name == "driver_car_id"
+        and entity.value_type == ValueType(ValueProto.ValueType.STRING)
+        and entity.description == "Car driver id"
+        and "team" in entity.labels
+        and entity.labels["team"] == "matchmaking"
+    )
 
-        test_feature_store.delete_feature_view("my_feature_view_1")
-        feature_views = test_feature_store.list_feature_views()
-        assert len(feature_views) == 0
+
+@pytest.mark.parametrize(
+    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_feature_view_success(test_feature_store):
+    # Create Feature Views
+    batch_source = FileSource(
+        file_format=ParquetFormat(),
+        file_url="file://feast/*",
+        event_timestamp_column="ts_col",
+        created_timestamp_column="timestamp",
+        date_partition_column="date_partition_col",
+    )
+
+    fv1 = FeatureView(
+        name="my_feature_view_1",
+        features=[
+            Feature(name="fs1_my_feature_1", dtype=ValueType.INT64),
+            Feature(name="fs1_my_feature_2", dtype=ValueType.STRING),
+            Feature(name="fs1_my_feature_3", dtype=ValueType.STRING_LIST),
+            Feature(name="fs1_my_feature_4", dtype=ValueType.BYTES_LIST),
+        ],
+        entities=["fs1_my_entity_1"],
+        tags={"team": "matchmaking"},
+        input=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    # Register Feature View
+    test_feature_store.apply([fv1])
+
+    feature_views = test_feature_store.list_feature_views()
+
+    # List Feature Views
+    assert (
+        len(feature_views) == 1
+        and feature_views[0].name == "my_feature_view_1"
+        and feature_views[0].features[0].name == "fs1_my_feature_1"
+        and feature_views[0].features[0].dtype == ValueType.INT64
+        and feature_views[0].features[1].name == "fs1_my_feature_2"
+        and feature_views[0].features[1].dtype == ValueType.STRING
+        and feature_views[0].features[2].name == "fs1_my_feature_3"
+        and feature_views[0].features[2].dtype == ValueType.STRING_LIST
+        and feature_views[0].features[3].name == "fs1_my_feature_4"
+        and feature_views[0].features[3].dtype == ValueType.BYTES_LIST
+        and feature_views[0].entities[0] == "fs1_my_entity_1"
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_feature_store", [lazy_fixture("feature_store_with_gcs_registry")],
+)
+def test_apply_feature_view_integration(test_feature_store):
+    # Create Feature Views
+    batch_source = FileSource(
+        file_format=ParquetFormat(),
+        file_url="file://feast/*",
+        event_timestamp_column="ts_col",
+        created_timestamp_column="timestamp",
+        date_partition_column="date_partition_col",
+    )
+
+    fv1 = FeatureView(
+        name="my_feature_view_1",
+        features=[
+            Feature(name="fs1_my_feature_1", dtype=ValueType.INT64),
+            Feature(name="fs1_my_feature_2", dtype=ValueType.STRING),
+            Feature(name="fs1_my_feature_3", dtype=ValueType.STRING_LIST),
+            Feature(name="fs1_my_feature_4", dtype=ValueType.BYTES_LIST),
+        ],
+        entities=["fs1_my_entity_1"],
+        tags={"team": "matchmaking"},
+        input=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    # Register Feature View
+    test_feature_store.apply([fv1])
+
+    feature_views = test_feature_store.list_feature_views()
+
+    # List Feature Views
+    assert (
+        len(feature_views) == 1
+        and feature_views[0].name == "my_feature_view_1"
+        and feature_views[0].features[0].name == "fs1_my_feature_1"
+        and feature_views[0].features[0].dtype == ValueType.INT64
+        and feature_views[0].features[1].name == "fs1_my_feature_2"
+        and feature_views[0].features[1].dtype == ValueType.STRING
+        and feature_views[0].features[2].name == "fs1_my_feature_3"
+        and feature_views[0].features[2].dtype == ValueType.STRING_LIST
+        and feature_views[0].features[3].name == "fs1_my_feature_4"
+        and feature_views[0].features[3].dtype == ValueType.BYTES_LIST
+        and feature_views[0].entities[0] == "fs1_my_entity_1"
+    )
+
+    feature_view = test_feature_store.get_feature_view("my_feature_view_1")
+    assert (
+        feature_view.name == "my_feature_view_1"
+        and feature_view.features[0].name == "fs1_my_feature_1"
+        and feature_view.features[0].dtype == ValueType.INT64
+        and feature_view.features[1].name == "fs1_my_feature_2"
+        and feature_view.features[1].dtype == ValueType.STRING
+        and feature_view.features[2].name == "fs1_my_feature_3"
+        and feature_view.features[2].dtype == ValueType.STRING_LIST
+        and feature_view.features[3].name == "fs1_my_feature_4"
+        and feature_view.features[3].dtype == ValueType.BYTES_LIST
+        and feature_view.entities[0] == "fs1_my_entity_1"
+    )
+
+    test_feature_store.delete_feature_view("my_feature_view_1")
+    feature_views = test_feature_store.list_feature_views()
+    assert len(feature_views) == 0
+
+
+@pytest.mark.parametrize(
+    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_object_and_read(test_feature_store):
+    assert isinstance(test_feature_store, FeatureStore)
+    # Create Feature Views
+    batch_source = FileSource(
+        file_format=ParquetFormat(),
+        file_url="file://feast/*",
+        event_timestamp_column="ts_col",
+        created_timestamp_column="timestamp",
+    )
+
+    e1 = Entity(
+        name="fs1_my_entity_1", value_type=ValueType.STRING, description="something"
+    )
+
+    e2 = Entity(
+        name="fs1_my_entity_2", value_type=ValueType.STRING, description="something"
+    )
+
+    fv1 = FeatureView(
+        name="my_feature_view_1",
+        features=[
+            Feature(name="fs1_my_feature_1", dtype=ValueType.INT64),
+            Feature(name="fs1_my_feature_2", dtype=ValueType.STRING),
+            Feature(name="fs1_my_feature_3", dtype=ValueType.STRING_LIST),
+            Feature(name="fs1_my_feature_4", dtype=ValueType.BYTES_LIST),
+        ],
+        entities=["fs1_my_entity_1"],
+        tags={"team": "matchmaking"},
+        input=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    fv2 = FeatureView(
+        name="my_feature_view_2",
+        features=[
+            Feature(name="fs1_my_feature_1", dtype=ValueType.INT64),
+            Feature(name="fs1_my_feature_2", dtype=ValueType.STRING),
+            Feature(name="fs1_my_feature_3", dtype=ValueType.STRING_LIST),
+            Feature(name="fs1_my_feature_4", dtype=ValueType.BYTES_LIST),
+        ],
+        entities=["fs1_my_entity_1"],
+        tags={"team": "matchmaking"},
+        input=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    # Register Feature View
+    test_feature_store.apply([fv1, e1, fv2, e2])
+
+    fv1_actual = test_feature_store.get_feature_view("my_feature_view_1")
+    e1_actual = test_feature_store.get_entity("fs1_my_entity_1")
+
+    assert fv1 == fv1_actual
+    assert e1 == e1_actual
+    assert fv2 != fv1_actual
+    assert e2 != e1_actual
