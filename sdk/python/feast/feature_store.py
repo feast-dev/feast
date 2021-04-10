@@ -35,7 +35,6 @@ from feast.repo_config import (
     load_repo_config,
 )
 from feast.telemetry import Telemetry
-from feast.type_map import python_value_to_proto_value
 from feast.version import get_version
 
 
