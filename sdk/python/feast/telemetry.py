@@ -30,7 +30,6 @@ TELEMETRY_ENDPOINT = (
 class Telemetry:
     def __init__(self):
         telemetry_filepath = join(expanduser("~"), ".feast", "telemetry")
-        print(os.environ)
         self._telemetry_enabled = (
             os.getenv("FEAST_TELEMETRY", default="True") == "True"
         )  # written this way to turn the env var string into a boolean
