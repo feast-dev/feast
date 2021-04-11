@@ -1,4 +1,6 @@
 import os
+import random
+import string
 import time
 from datetime import datetime, timedelta
 from tempfile import TemporaryDirectory
@@ -278,7 +280,10 @@ def test_historical_features_from_parquet_sources():
 
 
 @pytest.mark.integration
-def test_historical_features_from_bigquery_sources():
+@pytest.mark.parametrize(
+    "provider_type", ["local", "gcp"],
+)
+def test_historical_features_from_bigquery_sources(provider_type):
     start_date = datetime.now().replace(microsecond=0, second=0, minute=0)
     (
         customer_entities,
@@ -329,18 +334,32 @@ def test_historical_features_from_bigquery_sources():
         driver = Entity(name="driver", value_type=ValueType.INT64)
         customer = Entity(name="customer", value_type=ValueType.INT64)
 
-        store = FeatureStore(
-            config=RepoConfig(
-                registry=os.path.join(temp_dir, "registry.db"),
-                project="default",
-                provider="gcp",
-                online_store=OnlineStoreConfig(
-                    local=LocalOnlineStoreConfig(
-                        path=os.path.join(temp_dir, "online_store.db"),
-                    )
-                ),
+        if provider_type == "local":
+            store = FeatureStore(
+                config=RepoConfig(
+                    registry=os.path.join(temp_dir, "registry.db"),
+                    project="default",
+                    provider="local",
+                    online_store=OnlineStoreConfig(
+                        local=LocalOnlineStoreConfig(
+                            path=os.path.join(temp_dir, "online_store.db"),
+                        )
+                    ),
+                )
             )
-        )
+        elif provider_type == "gcp":
+            store = FeatureStore(
+                config=RepoConfig(
+                    registry=os.path.join(temp_dir, "registry.db"),
+                    project="".join(
+                        random.choices(string.ascii_uppercase + string.digits, k=10)
+                    ),
+                    provider="gcp",
+                )
+            )
+        else:
+            raise Exception("Invalid provider used as part of test configuration")
+
         store.apply([driver, customer, driver_fv, customer_fv])
 
         expected_df = get_expected_training_df(

@@ -8,6 +8,7 @@ import pyarrow
 from feast.entity import Entity
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
+from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
@@ -15,15 +16,6 @@ from feast.repo_config import RepoConfig
 from feast.type_map import python_value_to_proto_value
 
 ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
-
-
-class RetrievalJob(abc.ABC):
-    """RetrievalJob is used to manage the execution of a historical feature retrieval"""
-
-    @abc.abstractmethod
-    def to_df(self):
-        """Return dataset as Pandas DataFrame synchronously"""
-        pass
 
 
 class Provider(abc.ABC):
@@ -131,15 +123,17 @@ class Provider(abc.ABC):
 
 def get_provider(config: RepoConfig) -> Provider:
     if config.provider == "gcp":
-        from feast.infra.gcp import Gcp
+        from feast.infra.gcp import GcpProvider
 
-        return Gcp(config.online_store.datastore if config.online_store else None)
+        return GcpProvider(
+            config.online_store.datastore if config.online_store else None
+        )
     elif config.provider == "local":
-        from feast.infra.local_sqlite import LocalSqlite
+        from feast.infra.local import LocalProvider
 
         assert config.online_store is not None
         assert config.online_store.local is not None
-        return LocalSqlite(config.online_store.local)
+        return LocalProvider(config.online_store.local)
     else:
         raise ValueError(config)
 
