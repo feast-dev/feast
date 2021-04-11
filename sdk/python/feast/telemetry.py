@@ -52,8 +52,8 @@ class Telemetry:
 
     @property
     def telemetry_id(self):
-        if os.environ["FEAST_FORCE_TELEMETRY_UUID"]:
-            return os.environ["FEAST_FORCE_TELEMETRY_UUID"]
+        if os.getenv("FEAST_FORCE_TELEMETRY_UUID"):
+            return os.getenv("FEAST_FORCE_TELEMETRY_UUID")
         return self._telemetry_id
 
     def log(self, function_name: str):

@@ -567,12 +567,13 @@ class FileSource(DataSource):
         if not isinstance(other, FileSource):
             raise TypeError("Comparisons should only involve FileSource class objects.")
 
-        if (
-            self.file_options.file_url != other.file_options.file_url
-            or self.file_options.file_format != other.file_options.file_format
-        ):
-            return False
-        return True
+        return (
+            self.file_options.file_url == other.file_options.file_url
+            and self.file_options.file_format == other.file_options.file_format
+            and self.event_timestamp_column == other.event_timestamp_column
+            and self.created_timestamp_column == other.created_timestamp_column
+            and self.field_mapping == other.field_mapping
+        )
 
     @property
     def file_options(self):
@@ -633,10 +634,13 @@ class BigQuerySource(DataSource):
                 "Comparisons should only involve BigQuerySource class objects."
             )
 
-        if self.bigquery_options.table_ref != other.bigquery_options.table_ref:
-            return False
-
-        return True
+        return (
+            self.bigquery_options.table_ref == other.bigquery_options.table_ref
+            and self.bigquery_options.query == other.bigquery_options.query
+            and self.event_timestamp_column == other.event_timestamp_column
+            and self.created_timestamp_column == other.created_timestamp_column
+            and self.field_mapping == other.field_mapping
+        )
 
     @property
     def table_ref(self):
