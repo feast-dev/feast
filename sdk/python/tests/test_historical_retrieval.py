@@ -57,7 +57,7 @@ def stage_driver_hourly_stats_bigquery_source(df, table_id):
 def create_driver_hourly_stats_feature_view(source):
     driver_stats_feature_view = FeatureView(
         name="driver_stats",
-        entities=["driver_id"],
+        entities=["driver"],
         features=[
             Feature(name="conv_rate", dtype=ValueType.FLOAT),
             Feature(name="acc_rate", dtype=ValueType.FLOAT),
@@ -226,8 +226,8 @@ def test_historical_features_from_parquet_sources():
             temp_dir, customer_df
         )
         customer_fv = create_customer_daily_profile_feature_view(customer_source)
-        driver = Entity(name="driver", value_type=ValueType.INT64)
-        customer = Entity(name="customer", value_type=ValueType.INT64)
+        driver = Entity(name="driver", join_key="driver_id", value_type=ValueType.INT64)
+        customer = Entity(name="customer_id", value_type=ValueType.INT64)
 
         store = FeatureStore(
             config=RepoConfig(
@@ -331,8 +331,8 @@ def test_historical_features_from_bigquery_sources(provider_type):
         )
         customer_fv = create_customer_daily_profile_feature_view(customer_source)
 
-        driver = Entity(name="driver", value_type=ValueType.INT64)
-        customer = Entity(name="customer", value_type=ValueType.INT64)
+        driver = Entity(name="driver", join_key="driver_id", value_type=ValueType.INT64)
+        customer = Entity(name="customer_id", value_type=ValueType.INT64)
 
         if provider_type == "local":
             store = FeatureStore(

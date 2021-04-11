@@ -15,6 +15,7 @@ from feast.infra.provider import (
     RetrievalJob,
     _get_requested_feature_views_to_features_dict,
 )
+from feast.registry import Registry
 from feast.repo_config import RepoConfig
 
 
@@ -70,6 +71,8 @@ class BigQueryOfflineStore(OfflineStore):
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pandas.DataFrame, str],
+        registry: Registry,
+        project: str,
     ) -> RetrievalJob:
         # TODO: Add entity_df validation in order to fail before interacting with BigQuery
 
@@ -85,7 +88,9 @@ class BigQueryOfflineStore(OfflineStore):
             )
 
         # Build a query context containing all information required to template the BigQuery SQL query
-        query_context = get_feature_view_query_context(feature_refs, feature_views)
+        query_context = get_feature_view_query_context(
+            feature_refs, feature_views, registry, project
+        )
 
         # TODO: Infer min_timestamp and max_timestamp from entity_df
         # Generate the BigQuery SQL query from the query context
@@ -155,7 +160,10 @@ def _upload_entity_df_into_bigquery(project, entity_df) -> str:
 
 
 def get_feature_view_query_context(
-    feature_refs: List[str], feature_views: List[FeatureView]
+    feature_refs: List[str],
+    feature_views: List[FeatureView],
+    registry: Registry,
+    project: str,
 ) -> List[FeatureViewQueryContext]:
     """Build a query context containing all information required to template a BigQuery point-in-time SQL query"""
 
@@ -165,7 +173,10 @@ def get_feature_view_query_context(
 
     query_context = []
     for feature_view, features in feature_views_to_feature_map.items():
-        entity_names = [entity for entity in feature_view.entities]
+        join_keys = []
+        for entity_name in feature_view.entities:
+            entity = registry.get_entity(entity_name, project)
+            join_keys.append(entity.join_key)
 
         if isinstance(feature_view.ttl, timedelta):
             ttl_seconds = int(feature_view.ttl.total_seconds())
@@ -177,7 +188,7 @@ def get_feature_view_query_context(
         context = FeatureViewQueryContext(
             name=feature_view.name,
             ttl=ttl_seconds,
-            entities=entity_names,
+            entities=join_keys,
             features=features,
             table_ref=feature_view.input.table_ref,
             event_timestamp_column=feature_view.input.event_timestamp_column,

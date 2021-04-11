@@ -12,6 +12,7 @@ from feast.infra.provider import (
     ENTITY_DF_EVENT_TIMESTAMP_COL,
     _get_requested_feature_views_to_features_dict,
 )
+from feast.registry import Registry
 from feast.repo_config import RepoConfig
 
 
@@ -35,6 +36,8 @@ class FileOfflineStore(OfflineStore):
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
+        registry: Registry,
+        project: str,
     ) -> FileRetrievalJob:
         if not isinstance(entity_df, pd.DataFrame):
             raise ValueError(
@@ -80,7 +83,11 @@ class FileOfflineStore(OfflineStore):
                     )
 
                 # Build a list of entity columns to join on (from the right table)
-                right_entity_columns = [entity for entity in feature_view.entities]
+                join_keys = []
+                for entity_name in feature_view.entities:
+                    entity = registry.get_entity(entity_name, project)
+                    join_keys.append(entity.join_key)
+                right_entity_columns = join_keys
                 right_entity_key_columns = [
                     event_timestamp_column
                 ] + right_entity_columns

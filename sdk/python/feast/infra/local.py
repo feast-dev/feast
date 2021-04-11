@@ -196,6 +196,8 @@ class LocalProvider(Provider):
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
+        registry: Registry,
+        project: str,
     ) -> RetrievalJob:
         offline_store = get_offline_store_from_sources(
             [feature_view.input for feature_view in feature_views]
@@ -205,6 +207,8 @@ class LocalProvider(Provider):
             feature_views=feature_views,
             feature_refs=feature_refs,
             entity_df=entity_df,
+            registry=registry,
+            project=project,
         )
 
 
