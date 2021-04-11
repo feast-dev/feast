@@ -17,6 +17,7 @@ import sys
 import uuid
 from datetime import datetime
 from os.path import expanduser, join
+from pathlib import Path
 
 import requests
 
@@ -29,7 +30,9 @@ TELEMETRY_ENDPOINT = (
 
 class Telemetry:
     def __init__(self):
-        telemetry_filepath = join(expanduser("~"), ".feast", "telemetry")
+        feast_home_dir = join(expanduser("~"), ".feast")
+        Path(feast_home_dir).mkdir(exist_ok=True)
+        telemetry_filepath = join(feast_home_dir, "telemetry")
         self._telemetry_enabled = (
             os.getenv("FEAST_TELEMETRY", default="True") == "True"
         )  # written this way to turn the env var string into a boolean
@@ -43,6 +46,7 @@ class Telemetry:
                     self._telemetry_id = f.read()
             else:
                 self._telemetry_id = str(uuid.uuid4())
+
                 with open(telemetry_filepath, "w") as f:
                     f.write(self._telemetry_id)
                 print(
