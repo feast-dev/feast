@@ -142,27 +142,6 @@ class FileOfflineStore(OfflineStore):
         end_date: datetime,
     ) -> pyarrow.Table:
         assert isinstance(data_source, FileSource)
-        # source_df = pd.read_parquet(data_source.path)
-        #
-        # ts_columns = (
-        #     [event_timestamp_column, created_timestamp_column]
-        #     if created_timestamp_column is not None
-        #     else [event_timestamp_column]
-        # )
-        # source_df.sort_values(by=ts_columns, inplace=True)
-        #
-        # filtered_df = source_df[
-        #     (source_df[event_timestamp_column] >= start_date)
-        #     & (source_df[event_timestamp_column] < end_date)
-        #     ]
-        # last_values_df = filtered_df.groupby(by=entity_names).last()
-        #
-        # # make driver_id a normal column again
-        # last_values_df.reset_index(inplace=True)
-        #
-        # table = pyarrow.Table.from_pandas(
-        #     last_values_df[entity_names + feature_names + ts_columns]
-        # )
 
         source_df = pd.read_parquet(data_source.path)
         # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
