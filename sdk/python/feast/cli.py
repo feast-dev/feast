@@ -33,6 +33,7 @@ from feast.repo_config import load_repo_config
 from feast.repo_operations import (
     apply_total,
     cli_check_repo,
+    generate_project_name,
     init_repo,
     registry_dump,
     teardown,
@@ -454,10 +455,36 @@ def materialize_incremental_command(end_ts: str, repo_path: str, views: List[str
 
 
 @cli.command("init")
-@click.option("--minimal", "-m", is_flag=True, help="Only generate the config")
-def init_command(minimal: bool):
-    repo_path = Path.cwd()
-    init_repo(repo_path, minimal)
+@click.argument("PROJECT_DIRECTORY", required=False)
+@click.option(
+    "--minimal", "-m", is_flag=True, help="Create an empty project repository"
+)
+@click.option(
+    "--template",
+    "-t",
+    type=click.Choice(["local", "gcp"], case_sensitive=False),
+    help="Specify a template for the created project",
+    default="local"
+)
+def init_command(project_directory, minimal: bool, template: str):
+    """Create a new Feast repository"""
+    if not project_directory:
+        project_directory = generate_project_name()
+    if template and minimal:
+        from colorama import Fore, Style
+
+        click.echo(
+            f"Please select either a {Style.BRIGHT + Fore.GREEN}template{Style.RESET_ALL} or "
+            f"{Style.BRIGHT + Fore.GREEN}minimal{Style.RESET_ALL}, not both"
+        )
+        exit(1)
+
+    if minimal:
+        template = "minimal"
+
+    init_repo(project_directory, template)
+
+
 
 
 if __name__ == "__main__":

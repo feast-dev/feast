@@ -11,9 +11,10 @@ def test_repo_init() -> None:
     the repo created by "feast init" without errors.
     """
     runner = CliRunner()
-    with tempfile.TemporaryDirectory() as repo_dir_name:
-        repo_path = Path(repo_dir_name)
-        result = runner.run(["init"], cwd=repo_path)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        result = runner.run(["init", "my_project"], cwd=temp_path)
+        repo_path = temp_path / "my_project"
         assert result.returncode == 0
         result = runner.run(["apply"], cwd=repo_path)
         assert result.returncode == 0

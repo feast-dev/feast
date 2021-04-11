@@ -1,0 +1,3 @@
+project: my_project
+registry: "gs://my_bucket/registry.db"
+provider: gcp

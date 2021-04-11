@@ -39,6 +39,7 @@ REQUIRES_PYTHON = ">=3.6.0"
 
 REQUIRED = [
     "Click==7.*",
+    "colorama>=0.3.9"
     "fastavro>=0.22.11,<0.23",
     "google-api-core>=1.23.0",
     "google-cloud-bigquery>=2.0.*",
