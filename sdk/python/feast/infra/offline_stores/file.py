@@ -12,6 +12,7 @@ from feast.infra.provider import (
     ENTITY_DF_EVENT_TIMESTAMP_COL,
     _get_requested_feature_views_to_features_dict,
 )
+from feast.registry import Registry
 from feast.repo_config import RepoConfig
 
 

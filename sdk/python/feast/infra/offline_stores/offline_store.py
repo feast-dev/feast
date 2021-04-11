@@ -20,6 +20,7 @@ import pyarrow
 
 from feast.data_source import DataSource
 from feast.feature_view import FeatureView
+from feast.registry import Registry
 from feast.repo_config import RepoConfig
 
 
@@ -63,5 +64,7 @@ class OfflineStore(ABC):
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
+        registry: Registry,
+        project: str,
     ) -> RetrievalJob:
         pass

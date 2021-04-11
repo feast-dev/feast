@@ -196,6 +196,8 @@ class GcpProvider(Provider):
             feature_views=feature_views,
             feature_refs=feature_refs,
             entity_df=entity_df,
+            registry=registry,
+            project=project,
         )
         return job
 
