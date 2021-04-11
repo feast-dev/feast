@@ -14,6 +14,7 @@
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Union
 
+import pyarrow
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToJson
 from google.protobuf.timestamp_pb2 import Timestamp
@@ -214,3 +215,65 @@ class FeatureView:
         if len(self.materialization_intervals) == 0:
             return None
         return max([interval[1] for interval in self.materialization_intervals])
+
+    def run_reverse_field_mapping(
+        self, join_keys: List[str],
+    ) -> Tuple[List[str], List[str], str, Optional[str]]:
+        """
+        If a field mapping exists, run it in reverse on the join keys,
+        feature names, event timestamp column, and created timestamp column
+        to get the names of the relevant columns in the BigQuery table.
+
+        Returns:
+            Tuple containing the list of reverse-mapped join_keys,
+            reverse-mapped feature names, reverse-mapped event timestamp column,
+            and reverse-mapped created timestamp column that will be passed into
+            the query to the offline store.
+        """
+        # if we have mapped fields, use the original field names in the call to the offline store
+        event_timestamp_column = self.input.event_timestamp_column
+        feature_names = [feature.name for feature in self.features]
+        created_timestamp_column = self.input.created_timestamp_column
+        if self.input.field_mapping is not None:
+            reverse_field_mapping = {v: k for k, v in self.input.field_mapping.items()}
+            event_timestamp_column = (
+                reverse_field_mapping[event_timestamp_column]
+                if event_timestamp_column in reverse_field_mapping.keys()
+                else event_timestamp_column
+            )
+            created_timestamp_column = (
+                reverse_field_mapping[created_timestamp_column]
+                if created_timestamp_column
+                and created_timestamp_column in reverse_field_mapping.keys()
+                else created_timestamp_column
+            )
+            join_keys = [
+                reverse_field_mapping[col]
+                if col in reverse_field_mapping.keys()
+                else col
+                for col in join_keys
+            ]
+            feature_names = [
+                reverse_field_mapping[col]
+                if col in reverse_field_mapping.keys()
+                else col
+                for col in feature_names
+            ]
+        return (
+            join_keys,
+            feature_names,
+            event_timestamp_column,
+            created_timestamp_column,
+        )
+
+
+def _run_forward_field_mapping(
+    table: pyarrow.Table, field_mapping: Dict[str, str],
+) -> pyarrow.Table:
+    # run field mapping in the forward direction
+    cols = table.column_names
+    mapped_cols = [
+        field_mapping[col] if col in field_mapping.keys() else col for col in cols
+    ]
+    table = table.rename_columns(mapped_cols)
+    return table

@@ -105,7 +105,7 @@ class Registry:
                 entities.append(Entity.from_proto(entity_proto))
         return entities
 
-    def get_entity(self, name: str, project: str) -> Entity:
+    def get_entity(self, name: str, project: str, allow_cache: bool = False) -> Entity:
         """
         Retrieves an entity.
 
@@ -117,7 +117,7 @@ class Registry:
             Returns either the specified entity, or raises an exception if
             none is found
         """
-        registry_proto = self._get_registry_proto()
+        registry_proto = self._get_registry_proto(allow_cache=allow_cache)
         for entity_proto in registry_proto.entities:
             if entity_proto.spec.name == name and entity_proto.spec.project == project:
                 return Entity.from_proto(entity_proto)

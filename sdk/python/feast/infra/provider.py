@@ -99,6 +99,8 @@ class Provider(abc.ABC):
         feature_views: List[FeatureView],
         feature_refs: List[str],
         entity_df: Union[pandas.DataFrame, str],
+        registry: Registry,
+        project: str,
     ) -> RetrievalJob:
         pass
 

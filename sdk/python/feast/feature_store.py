@@ -274,7 +274,12 @@ class FeatureStore:
         feature_views = _get_requested_feature_views(feature_refs, all_feature_views)
         provider = self._get_provider()
         job = provider.get_historical_features(
-            self.config, feature_views, feature_refs, entity_df
+            self.config,
+            feature_views,
+            feature_refs,
+            entity_df,
+            self._registry,
+            self.project,
         )
         return job
 
