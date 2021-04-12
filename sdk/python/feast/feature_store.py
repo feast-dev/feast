@@ -175,7 +175,9 @@ class FeatureStore:
 
         return self._registry.delete_feature_view(name, self.project)
 
-    def apply(self, objects: List[Union[FeatureView, Entity]]):
+    def apply(
+        self, objects: Union[Entity, FeatureView, List[Union[FeatureView, Entity]]]
+    ):
         """Register objects to metadata store and update related infrastructure.
 
         The apply method registers one or more definitions (e.g., Entity, FeatureView) and registers or updates these
@@ -209,6 +211,8 @@ class FeatureStore:
         # TODO: Add locking
         # TODO: Optimize by only making a single call (read/write)
 
+        if isinstance(objects, Entity) or isinstance(objects, FeatureView):
+            objects = [objects]
         views_to_update = []
         for ob in objects:
             if isinstance(ob, FeatureView):
