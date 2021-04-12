@@ -81,8 +81,7 @@ class LocalProvider(Provider):
                         f"""
                             UPDATE {_table_id(project, table)}
                             SET value = ?, event_ts = ?, created_ts = ?
-                            WHERE (event_ts < ? OR (event_ts = ? AND (created_ts IS NULL OR ? IS NULL OR created_ts < ?)))
-                            AND (entity_key = ? AND feature_name = ?)
+                            WHERE (entity_key = ? AND feature_name = ?)
                         """,
                         (
                             # SET
@@ -90,10 +89,6 @@ class LocalProvider(Provider):
                             timestamp,
                             created_ts,
                             # WHERE
-                            timestamp,
-                            timestamp,
-                            created_ts,
-                            created_ts,
                             entity_key_bin,
                             feature_name,
                         ),
