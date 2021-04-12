@@ -464,7 +464,7 @@ def materialize_incremental_command(end_ts: str, repo_path: str, views: List[str
     "-t",
     type=click.Choice(["local", "gcp"], case_sensitive=False),
     help="Specify a template for the created project",
-    default="local"
+    default="local",
 )
 def init_command(project_directory, minimal: bool, template: str):
     """Create a new Feast repository"""
@@ -483,8 +483,6 @@ def init_command(project_directory, minimal: bool, template: str):
         template = "minimal"
 
     init_repo(project_directory, template)
-
-
 
 
 if __name__ == "__main__":

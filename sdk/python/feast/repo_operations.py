@@ -2,13 +2,11 @@ import importlib
 import os
 import random
 import sys
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
-from textwrap import dedent
 from typing import List, NamedTuple, Union
 
 from feast import Entity, FeatureTable
-from feast.driver_test_data import create_driver_hourly_stats_df
 from feast.feature_view import FeatureView
 from feast.infra.provider import get_provider
 from feast.names import adjectives, animals
@@ -64,7 +62,9 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
         registry_path=registry_config.path,
         cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
     )
+    sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
+    sys.dont_write_bytecode = False
 
     for entity in repo.entities:
         registry.apply_entity(entity, project=project)
@@ -163,6 +163,7 @@ def init_repo(repo_name: str, template: str):
     import os
     from distutils.dir_util import copy_tree
     from pathlib import Path
+
     from colorama import Fore, Style
 
     repo_path = Path(os.path.join(Path.cwd(), repo_name))
@@ -204,11 +205,15 @@ def init_repo(repo_name: str, template: str):
 
     # Remove the __pycache__ folder if it exists
     import shutil
+
     shutil.rmtree(repo_path / "__pycache__", ignore_errors=True)
 
     import click
+
     click.echo()
-    click.echo(f"Creating a new Feast repository in {Style.BRIGHT + Fore.GREEN}{repo_path}{Style.RESET_ALL}.")
+    click.echo(
+        f"Creating a new Feast repository in {Style.BRIGHT + Fore.GREEN}{repo_path}{Style.RESET_ALL}."
+    )
     click.echo()
 
 
