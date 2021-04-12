@@ -368,6 +368,11 @@ class FeatureStore:
         """
         self._tele.log("materialize")
 
+        if start_date > end_date:
+            raise ValueError(
+                f"The given start_date {start_date} is greater than the given end_date {end_date}."
+            )
+
         feature_views_to_materialize = []
         if feature_views is None:
             feature_views_to_materialize = self._registry.list_feature_views(
