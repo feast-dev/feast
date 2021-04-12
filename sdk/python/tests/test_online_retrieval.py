@@ -107,6 +107,14 @@ def test_online() -> None:
         assert result["customer_profile__name"] == ["John", "John"]
         assert result["customer_driver_combined__trips"] == [7, 7]
 
+        # Ensure features are still in result when keys not found
+        result = store.get_online_features(
+            feature_refs=["customer_driver_combined:trips"],
+            entity_rows=[{"driver": 0, "customer": 0}],
+        ).to_dict()
+
+        assert "customer_driver_combined__trips" in result
+
         # invalid table reference
         with pytest.raises(ValueError):
             store.get_online_features(
