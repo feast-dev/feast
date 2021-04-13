@@ -1,6 +1,7 @@
 import os
 import sqlite3
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import pandas as pd
@@ -35,6 +36,7 @@ class LocalProvider(Provider):
         self._db_path = local_online_store_config.path
 
     def _get_conn(self):
+        Path(self._db_path).parent.mkdir(exist_ok=True)
         return sqlite3.connect(
             self._db_path, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         )

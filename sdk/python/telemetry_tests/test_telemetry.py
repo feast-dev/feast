@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import tempfile
 import uuid
 from datetime import datetime
 
@@ -21,7 +22,8 @@ import os
 from time import sleep
 from importlib import reload
 
-from feast import Client, Entity, ValueType, FeatureStore
+from feast import Client, Entity, ValueType, FeatureStore, RepoConfig
+from feast.repo_config import SqliteOnlineStoreConfig
 
 TELEMETRY_BIGQUERY_TABLE = (
     "kf-feast.feast_telemetry.cloudfunctions_googleapis_com_cloud_functions"
@@ -91,19 +93,29 @@ def test_telemetry_on():
     os.environ["FEAST_IS_TELEMETRY_TEST"] = "True"
     os.environ["FEAST_TELEMETRY"] = "True"
 
-    test_feature_store = FeatureStore()
-    entity = Entity(
-        name="driver_car_id",
-        description="Car driver id",
-        value_type=ValueType.STRING,
-        labels={"team": "matchmaking"},
-    )
+    with tempfile.TemporaryDirectory() as temp_dir:
+        test_feature_store = FeatureStore(
+            config=RepoConfig(
+                registry=os.path.join(temp_dir, "registry.db"),
+                project="fake_project",
+                provider="local",
+                online_store=SqliteOnlineStoreConfig(
+                    path=os.path.join(temp_dir, "online.db")
+                ),
+            )
+        )
+        entity = Entity(
+            name="driver_car_id",
+            description="Car driver id",
+            value_type=ValueType.STRING,
+            labels={"team": "matchmaking"},
+        )
 
-    test_feature_store.apply([entity])
+        test_feature_store.apply([entity])
 
-    os.environ.clear()
-    os.environ.update(old_environ)
-    ensure_bigquery_telemetry_id_with_retry(test_telemetry_id)
+        os.environ.clear()
+        os.environ.update(old_environ)
+        ensure_bigquery_telemetry_id_with_retry(test_telemetry_id)
 
 
 def test_telemetry_off():
@@ -113,20 +125,30 @@ def test_telemetry_off():
     os.environ["FEAST_TELEMETRY"] = "False"
     os.environ["FEAST_FORCE_TELEMETRY_UUID"] = test_telemetry_id
 
-    test_feature_store = FeatureStore()
-    entity = Entity(
-        name="driver_car_id",
-        description="Car driver id",
-        value_type=ValueType.STRING,
-        labels={"team": "matchmaking"},
-    )
-    test_feature_store.apply([entity])
+    with tempfile.TemporaryDirectory() as temp_dir:
+        test_feature_store = FeatureStore(
+            config=RepoConfig(
+                registry=os.path.join(temp_dir, "registry.db"),
+                project="fake_project",
+                provider="local",
+                online_store=SqliteOnlineStoreConfig(
+                    path=os.path.join(temp_dir, "online.db")
+                ),
+            )
+        )
+        entity = Entity(
+            name="driver_car_id",
+            description="Car driver id",
+            value_type=ValueType.STRING,
+            labels={"team": "matchmaking"},
+        )
+        test_feature_store.apply([entity])
 
-    os.environ.clear()
-    os.environ.update(old_environ)
-    sleep(30)
-    rows = read_bigquery_telemetry_id(test_telemetry_id)
-    assert rows.total_rows == 0
+        os.environ.clear()
+        os.environ.update(old_environ)
+        sleep(30)
+        rows = read_bigquery_telemetry_id(test_telemetry_id)
+        assert rows.total_rows == 0
 
 
 @retry(wait=wait_exponential(multiplier=1, min=1, max=10), stop=stop_after_attempt(5))
