@@ -14,6 +14,7 @@
 import uuid
 from datetime import datetime
 
+from tempfile import mkstemp
 from tenacity import retry, wait_exponential, stop_after_attempt
 
 from google.cloud import bigquery
@@ -22,6 +23,7 @@ from time import sleep
 from importlib import reload
 
 from feast import Client, Entity, ValueType, FeatureStore
+from feast.repo_config import LocalOnlineStoreConfig, OnlineStoreConfig, RepoConfig
 
 TELEMETRY_BIGQUERY_TABLE = (
     "kf-feast.feast_telemetry.cloudfunctions_googleapis_com_cloud_functions"
@@ -91,7 +93,17 @@ def test_telemetry_on():
     os.environ["FEAST_IS_TELEMETRY_TEST"] = "True"
     os.environ["FEAST_TELEMETRY"] = "True"
 
-    test_feature_store = FeatureStore()
+    _, registry_path = mkstemp()
+    _, online_store_path = mkstemp()
+    config = RepoConfig(
+        registry=registry_path,
+        project="default",
+        provider="local",
+        online_store=OnlineStoreConfig(
+            local=LocalOnlineStoreConfig(path=online_store_path)
+        )
+    )
+    test_feature_store = FeatureStore(config=config)
     entity = Entity(
         name="driver_car_id",
         description="Car driver id",
@@ -113,7 +125,17 @@ def test_telemetry_off():
     os.environ["FEAST_TELEMETRY"] = "False"
     os.environ["FEAST_FORCE_TELEMETRY_UUID"] = test_telemetry_id
 
-    test_feature_store = FeatureStore()
+    _, registry_path = mkstemp()
+    _, online_store_path = mkstemp()
+    config = RepoConfig(
+        registry=registry_path,
+        project="default",
+        provider="local",
+        online_store=OnlineStoreConfig(
+            local=LocalOnlineStoreConfig(path=online_store_path)
+        )
+    )
+    test_feature_store = FeatureStore(config=config)
     entity = Entity(
         name="driver_car_id",
         description="Car driver id",

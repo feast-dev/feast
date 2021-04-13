@@ -29,12 +29,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.registry import Registry
-from feast.repo_config import (
-    LocalOnlineStoreConfig,
-    OnlineStoreConfig,
-    RepoConfig,
-    load_repo_config,
-)
+from feast.repo_config import RepoConfig, load_repo_config
 from feast.telemetry import Telemetry
 from feast.version import get_version
 
@@ -59,14 +54,7 @@ class FeatureStore:
         elif repo_path is not None:
             self.config = load_repo_config(Path(repo_path))
         else:
-            self.config = RepoConfig(
-                registry="./registry.db",
-                project="default",
-                provider="local",
-                online_store=OnlineStoreConfig(
-                    local=LocalOnlineStoreConfig(path="online_store.db")
-                ),
-            )
+            self.config = load_repo_config(Path("."))
 
         registry_config = self.config.get_registry_config()
         self._registry = Registry(
