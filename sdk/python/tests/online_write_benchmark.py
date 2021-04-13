@@ -9,6 +9,7 @@ import pyarrow as pa
 from tqdm import tqdm
 
 from feast.data_source import FileSource
+from feast.driver_test_data import create_driver_hourly_stats_df
 from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
@@ -16,7 +17,6 @@ from feast.feature_view import FeatureView
 from feast.infra.provider import _convert_arrow_to_proto
 from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
-from tests.driver_test_data import create_driver_hourly_stats_df
 
 
 def create_driver_hourly_stats_feature_view(source):
@@ -75,7 +75,9 @@ def benchmark_writes():
 
         # Show the data for reference
         print(data)
-        proto_data = _convert_arrow_to_proto(pa.Table.from_pandas(data), table)
+        proto_data = _convert_arrow_to_proto(
+            pa.Table.from_pandas(data), table, ["driver_id"]
+        )
 
         # Write it
         with tqdm(total=len(proto_data)) as progress:
@@ -86,9 +88,7 @@ def benchmark_writes():
                 progress=progress.update,
             )
 
-        registry_tables = store._get_registry().list_feature_views(
-            project=store.project
-        )
+        registry_tables = store.list_feature_views()
         provider.teardown_infra(store.project, tables=registry_tables)
 
 
