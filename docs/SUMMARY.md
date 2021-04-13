@@ -19,8 +19,6 @@
 * [Architecture](concepts/architecture.md)
 * [Feature Repository](concepts/feature-repository.md)
 * [Feature Views](concepts/feature-views.md)
-* [Entities](concepts/entities.md)
-* [Sources](concepts/sources.md)
 * [Apply](concepts/apply.md)
 
 ## Reference
