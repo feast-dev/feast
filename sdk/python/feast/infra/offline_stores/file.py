@@ -43,6 +43,10 @@ class FileOfflineStore(OfflineStore):
             raise ValueError(
                 f"Please provide an entity_df of type {type(pd.DataFrame)} instead of type {type(entity_df)}"
             )
+        if ENTITY_DF_EVENT_TIMESTAMP_COL not in entity_df.columns:
+            raise ValueError(
+                f"Please provide an entity_df with a column named {ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of the event."
+            )
 
         feature_views_to_features = _get_requested_feature_views_to_features_dict(
             feature_refs, feature_views
