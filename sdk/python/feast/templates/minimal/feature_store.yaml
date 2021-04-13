@@ -1,0 +1,5 @@
+project: my_project
+registry: /path/to/registry.db
+provider: local
+online_store:
+    path: /path/to/online_store.db

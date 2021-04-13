@@ -403,6 +403,8 @@ class LocalRegistryStore(RegistryStore):
     def _write_registry(self, registry_proto: RegistryProto):
         registry_proto.version_id = str(uuid.uuid4())
         registry_proto.last_updated.FromDatetime(datetime.utcnow())
+        file_dir = self._filepath.parent
+        file_dir.mkdir(exist_ok=True)
         self._filepath.write_bytes(registry_proto.SerializeToString())
         return
 

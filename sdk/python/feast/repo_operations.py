@@ -2,13 +2,12 @@ import importlib
 import os
 import random
 import sys
-from datetime import datetime, timedelta
+from datetime import timedelta
+from importlib.abc import Loader
 from pathlib import Path
-from textwrap import dedent
 from typing import List, NamedTuple, Union
 
 from feast import Entity, FeatureTable
-from feast.driver_test_data import create_driver_hourly_stats_df
 from feast.feature_view import FeatureView
 from feast.infra.provider import get_provider
 from feast.names import adjectives, animals
@@ -64,7 +63,9 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
         registry_path=registry_config.path,
         cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
     )
+    sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
+    sys.dont_write_bytecode = False
 
     for entity in repo.entities:
         registry.apply_entity(entity, project=project)
@@ -159,69 +160,71 @@ def cli_check_repo(repo_path: Path):
         sys.exit(1)
 
 
-def init_repo(repo_path: Path, minimal: bool):
-    repo_config = repo_path / "feature_store.yaml"
+def init_repo(repo_name: str, template: str):
+    import os
+    from distutils.dir_util import copy_tree
+    from pathlib import Path
 
-    if repo_config.exists():
-        print("Feature repository is already initialized, nothing to do.")
+    from colorama import Fore, Style
+
+    repo_path = Path(os.path.join(Path.cwd(), repo_name))
+    repo_path.mkdir(exist_ok=True)
+    repo_config_path = repo_path / "feature_store.yaml"
+
+    if repo_config_path.exists():
+        new_directory = os.path.relpath(repo_path, os.getcwd())
+
+        print(
+            f"The directory {Style.BRIGHT + Fore.GREEN}{new_directory}{Style.RESET_ALL} contains an existing feature "
+            f"store repository that may cause a conflict"
+        )
+        print()
         sys.exit(1)
 
-    project_id = generate_project_name()
+    # Copy template directory
+    template_path = str(Path(Path(__file__).parent / "templates" / template).absolute())
+    if not os.path.exists(template_path):
+        raise IOError(f"Could not find template {template}")
+    copy_tree(template_path, str(repo_path))
 
-    if minimal:
-        repo_config.write_text(
-            dedent(
-                f"""
-        project: {project_id}
-        registry: /path/to/registry.db
-        provider: local
-        online_store:
-            path: /path/to/online_store.db
-        """
-            )
-        )
-        print(
-            "Generated example feature_store.yaml. Please edit registry and online_store"
-            "location before running apply"
-        )
+    # Seed the repository
+    bootstrap_path = repo_path / "bootstrap.py"
+    if os.path.exists(bootstrap_path):
+        import importlib.util
 
-    else:
-        example_py = (Path(__file__).parent / "example_repo.py").read_text()
+        spec = importlib.util.spec_from_file_location("bootstrap", str(bootstrap_path))
+        bootstrap = importlib.util.module_from_spec(spec)
+        assert isinstance(spec.loader, Loader)
+        spec.loader.exec_module(bootstrap)
+        bootstrap.bootstrap()  # type: ignore
+        os.remove(bootstrap_path)
 
-        data_path = repo_path / "data"
-        data_path.mkdir(exist_ok=True)
+    # Template the feature_store.yaml file
+    feature_store_yaml_path = repo_path / "feature_store.yaml"
+    replace_str_in_file(
+        feature_store_yaml_path, "project: my_project", f"project: {repo_name}"
+    )
 
-        end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
-        start_date = end_date - timedelta(days=15)
+    # Remove the __pycache__ folder if it exists
+    import shutil
 
-        driver_entities = [1001, 1002, 1003, 1004, 1005]
-        driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
+    shutil.rmtree(repo_path / "__pycache__", ignore_errors=True)
 
-        driver_stats_path = data_path / "driver_stats.parquet"
-        driver_df.to_parquet(
-            path=str(driver_stats_path), allow_truncated_timestamps=True
-        )
+    import click
 
-        with open(repo_path / "example.py", "wt") as f:
-            f.write(example_py.replace("%PARQUET_PATH%", str(driver_stats_path)))
+    click.echo()
+    click.echo(
+        f"Creating a new Feast repository in {Style.BRIGHT + Fore.GREEN}{repo_path}{Style.RESET_ALL}."
+    )
+    click.echo()
 
-        # Generate config
-        repo_config.write_text(
-            dedent(
-                f"""
-        project: {project_id}
-        registry: {"data/registry.db"}
-        provider: local
-        online_store:
-            path: {"data/online_store.db"}
-        """
-            )
-        )
 
-        print("Generated feature_store.yaml and example features in example_repo.py")
-        print(
-            "Now try running `feast apply` to apply and `feast materialize` to sync data to the online store"
-        )
+def replace_str_in_file(file_path, match_str, sub_str):
+    with open(file_path, "r") as f:
+        contents = f.read()
+    contents = contents.replace(match_str, sub_str)
+    with open(file_path, "wt") as f:
+        f.write(contents)
 
 
 def generate_project_name() -> str:
