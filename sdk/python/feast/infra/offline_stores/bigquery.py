@@ -81,7 +81,7 @@ class BigQueryOfflineStore(OfflineStore):
         elif isinstance(entity_df, pandas.DataFrame):
             if "event_timestamp" not in entity_df.columns:
                 raise ValueError(
-                    "Please provide an entity_df with a column named event_timestamp representing the time of the event."
+                    "Please provide an entity_df with a column named event_timestamp representing the time of events."
                 )
             table_id = _upload_entity_df_into_bigquery(config.project, entity_df)
             entity_df_sql_table = f"`{table_id}`"
