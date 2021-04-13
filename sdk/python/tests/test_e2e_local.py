@@ -87,7 +87,6 @@ def test_e2e_local() -> None:
                     "materialize",
                     start_date.isoformat(),
                     (end_date - timedelta(days=7)).isoformat(),
-                    str(store.repo_path),
                 ],
                 cwd=Path(store.repo_path),
             )
@@ -98,11 +97,7 @@ def test_e2e_local() -> None:
 
             # feast materialize-incremental
             r = runner.run(
-                [
-                    "materialize-incremental",
-                    end_date.isoformat(),
-                    str(store.repo_path),
-                ],
+                ["materialize-incremental", end_date.isoformat()],
                 cwd=Path(store.repo_path),
             )
 
