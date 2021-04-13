@@ -8,22 +8,22 @@ Welcome to the Feast quickstart! This quickstart is intended to get you up and r
 4. Materializing feature data to the online feature store
 5. Fetching feature vectors for inference
 
-The quickstart uses some example data about a ride-hailing app to walk through Feast. Let's get into it!
+The quickstart uses some example data about a ride hailing app to walk through Feast. Let's get into it!
 
 ## 1. Setting up Feast
 
 A Feast installation includes a Python SDK and a CLI. Feast can be installed from `pip`:  
 
-```text
+```bash
 pip install feast
 ```
 
 You can test your installation by running`feast version` from your command line:
 
-```text
+```bash
 $ feast version
 
-> "0.10"
+0.10
 ```
 
 ## 2. Registering features to Feast
@@ -33,14 +33,14 @@ We can bootstrap a feature repository using the `feast init` command:
 ```text
 $ feast init
 
-> Generated feature_store.yaml and example features in example_repo.py
-  Now try running `feast apply` to apply and `feast materialize` to 
-  sync data to the online store
+Generated feature_store.yaml and example features in example_repo.py
+Now try running `feast apply` to apply and `feast materialize` to 
+sync data to the online store
 ```
 
 This command generates two files. Let's take a look at `feature_store.yaml`:
 
-```text
+```yaml
 project: happy_ant
 registry: data/registry.db
 provider: local
@@ -53,7 +53,7 @@ This file defines how the feature store is configured to run.  The most importan
 
 Next, take a look at `example.py`. This file defines some example features:
 
-```text
+```python
 # This is an example feature definition file
 
 from google.protobuf.duration_pb2 import Duration
@@ -103,11 +103,11 @@ Feature definitions in Feast work similarly to Terraform: local definitions don'
 
 We can register our features by running `feast apply` from the CLI.
 
-```text
+```bash
 $ feast apply
 
-> Processing /Users/jay/Projects/feast-10-test-2/hehe/example.py as example
-> Done!
+Processing <...>/feast-10-test-2/feast/example.py as example
+Done!
 
 ```
 
@@ -121,7 +121,7 @@ Feast generates point-in-time accurate training data. In our example, we are usi
 
 Generating training datasets is a workflow best done from an interactive computing environment, like a Jupyter notebook. You can start a Jupyter notebook by running `jupyter notebook` from the command line. Then, run the following code to generate an _entity DataFrame_:
 
-```text
+```python
 import pandas as pd
 from datetime import datetime
 
@@ -143,7 +143,7 @@ entity_df.head()
 
 This DataFrame represents the entity keys and timestamps that we want feature values as of. We can pass this Entity DataFrame into Feast, and Feast will fetch point-in-time correct features for each row:
 
-```text
+```python
 from feast import FeatureStore
 
 store = FeatureStore(repo_path=".")
@@ -168,7 +168,7 @@ This DataFrame contains all the necessary signals needed to train a model, exclu
 
 We just used Feast to generate  Using the `local` provider, the online store is a SQLite database. To materialize features, run the following command from the CLI:
 
-```text
+```bash
 # Materialize feature values up until the current time
 feast materialize-incremental $(date -u +"%Y-%m-%dT%H:%M:%S")
 ```
@@ -179,13 +179,13 @@ We've just populated the online store with the most up-to-date features from the
 
 After we materialize our features, we can use the `store.get_online_features` to fetch the _latest_ feature values for real-time inference. Run the following code in your notebook to fetch online features:
 
-```text
+```python
 from pprint import pprint
 
 feature_vector = store.get_online_features(
     feature_refs=[
         'driver_hourly_stats:conv_rate',
-        'driver_hourly_stats:conv_rate',
+        'driver_hourly_stats:acc_rate',
         'driver_hourly_stats:avg_daily_trips'
     ],
     entity_rows=[{"user_id": "1001"}]
@@ -195,12 +195,15 @@ print(feature_vector)
 ```
 
 ```text
-pprint(feature_vector)
-
-{'driver_hourly_stats__avg_daily_trips': [None], 'driver_hourly_stats__conv_rate': [None], 'driver_id': ['1005']}
+{
+    'driver_id': ['1005'],
+    'driver_hourly_stats__conv_rate': 0.49274
+    'driver_hourly_stats__acc_rate': 0.92743, 
+    'driver_hourly_stats__avg_daily_trips': 72, 
+}
 ```
 
-This feature vector can be used for real-time inference, for example, in a model-serving microservice. 
+This feature vector can be used for real-time inference, for example, in a model serving microservice. 
 
 ## Next steps
 
