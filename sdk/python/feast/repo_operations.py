@@ -3,6 +3,7 @@ import os
 import random
 import sys
 from datetime import timedelta
+from importlib.abc import Loader
 from pathlib import Path
 from typing import List, NamedTuple, Union
 
@@ -193,8 +194,9 @@ def init_repo(repo_name: str, template: str):
 
         spec = importlib.util.spec_from_file_location("bootstrap", str(bootstrap_path))
         bootstrap = importlib.util.module_from_spec(spec)
+        assert isinstance(spec.loader, Loader)
         spec.loader.exec_module(bootstrap)
-        bootstrap.bootstrap()
+        bootstrap.bootstrap()  # type: ignore
         os.remove(bootstrap_path)
 
     # Template the feature_store.yaml file
