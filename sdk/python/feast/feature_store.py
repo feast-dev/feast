@@ -46,6 +46,12 @@ class FeatureStore:
     def __init__(
         self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None,
     ):
+        """ Initializes a new FeatureStore object. Used to manage a feature store.
+
+        Args:
+            repo_path: Path to a `feature_store.yaml` used to configure the feature store
+            config (RepoConfig): Configuration object used to configure the feature store
+        """
         self.repo_path = repo_path
         if repo_path is not None and config is not None:
             raise ValueError("You cannot specify both repo_path and config")
@@ -54,7 +60,7 @@ class FeatureStore:
         elif repo_path is not None:
             self.config = load_repo_config(Path(repo_path))
         else:
-            self.config = RepoConfig()
+            raise ValueError("Please specify one of repo_path or config")
 
         registry_config = self.config.get_registry_config()
         self._registry = Registry(
