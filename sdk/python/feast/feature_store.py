@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 
+from feast import utils
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.provider import Provider, RetrievalJob, get_provider
@@ -367,6 +368,11 @@ class FeatureStore:
             >>> )
         """
         self._tele.log("materialize")
+
+        if utils.make_tzaware(start_date) > utils.make_tzaware(end_date):
+            raise ValueError(
+                f"The given start_date {start_date} is greater than the given end_date {end_date}."
+            )
 
         feature_views_to_materialize = []
         if feature_views is None:
