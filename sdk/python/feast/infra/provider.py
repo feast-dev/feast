@@ -127,15 +127,11 @@ def get_provider(config: RepoConfig) -> Provider:
     if config.provider == "gcp":
         from feast.infra.gcp import GcpProvider
 
-        return GcpProvider(
-            config.online_store.datastore if config.online_store else None
-        )
+        return GcpProvider(config)
     elif config.provider == "local":
         from feast.infra.local import LocalProvider
 
-        assert config.online_store is not None
-        assert config.online_store.local is not None
-        return LocalProvider(config.online_store.local)
+        return LocalProvider(config)
     else:
         raise ValueError(config)
 

@@ -20,14 +20,19 @@ from feast.infra.provider import (
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
-from feast.repo_config import LocalOnlineStoreConfig, RepoConfig
+from feast.repo_config import RepoConfig, SqliteOnlineStoreConfig
 
 
 class LocalProvider(Provider):
     _db_path: str
 
-    def __init__(self, config: LocalOnlineStoreConfig):
-        self._db_path = config.path
+    def __init__(self, config: RepoConfig):
+
+        assert config is not None
+        assert config.online_store is not None
+        local_online_store_config = config.online_store
+        assert isinstance(local_online_store_config, SqliteOnlineStoreConfig)
+        self._db_path = local_online_store_config.path
 
     def _get_conn(self):
         return sqlite3.connect(

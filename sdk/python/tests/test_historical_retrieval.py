@@ -18,7 +18,7 @@ from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
 from feast.infra.provider import ENTITY_DF_EVENT_TIMESTAMP_COL
-from feast.repo_config import LocalOnlineStoreConfig, OnlineStoreConfig, RepoConfig
+from feast.repo_config import RepoConfig, SqliteOnlineStoreConfig
 from feast.value_type import ValueType
 
 np.random.seed(0)
@@ -234,10 +234,8 @@ def test_historical_features_from_parquet_sources():
                 registry=os.path.join(temp_dir, "registry.db"),
                 project="default",
                 provider="local",
-                online_store=OnlineStoreConfig(
-                    local=LocalOnlineStoreConfig(
-                        path=os.path.join(temp_dir, "online_store.db")
-                    )
+                online_store=SqliteOnlineStoreConfig(
+                    path=os.path.join(temp_dir, "online_store.db")
                 ),
             )
         )
@@ -340,10 +338,8 @@ def test_historical_features_from_bigquery_sources(provider_type):
                     registry=os.path.join(temp_dir, "registry.db"),
                     project="default",
                     provider="local",
-                    online_store=OnlineStoreConfig(
-                        local=LocalOnlineStoreConfig(
-                            path=os.path.join(temp_dir, "online_store.db"),
-                        )
+                    online_store=SqliteOnlineStoreConfig(
+                        path=os.path.join(temp_dir, "online_store.db"),
                     ),
                 )
             )

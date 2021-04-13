@@ -17,7 +17,7 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
-from feast.repo_config import LocalOnlineStoreConfig, OnlineStoreConfig, RepoConfig
+from feast.repo_config import RepoConfig, SqliteOnlineStoreConfig
 from feast.value_type import ValueType
 
 
@@ -128,10 +128,8 @@ def prep_local_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
                 registry=str(Path(repo_dir_name) / "registry.db"),
                 project=f"test_bq_correctness_{str(uuid.uuid4()).replace('-', '')}",
                 provider="local",
-                online_store=OnlineStoreConfig(
-                    local=LocalOnlineStoreConfig(
-                        path=str(Path(data_dir_name) / "online_store.db")
-                    )
+                online_store=SqliteOnlineStoreConfig(
+                    path=str(Path(data_dir_name) / "online_store.db")
                 ),
             )
             fs = FeatureStore(config=config)

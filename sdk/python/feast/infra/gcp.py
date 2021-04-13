@@ -28,9 +28,10 @@ from feast.repo_config import DatastoreOnlineStoreConfig, RepoConfig
 class GcpProvider(Provider):
     _gcp_project_id: Optional[str]
 
-    def __init__(self, config: Optional[DatastoreOnlineStoreConfig]):
-        if config:
-            self._gcp_project_id = config.project_id
+    def __init__(self, config: RepoConfig):
+        assert isinstance(config.online_store, DatastoreOnlineStoreConfig)
+        if config and config.online_store and config.online_store.project_id:
+            self._gcp_project_id = config.online_store.project_id
         else:
             self._gcp_project_id = None
 

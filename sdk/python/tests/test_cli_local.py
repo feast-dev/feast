@@ -27,8 +27,7 @@ def test_workflow() -> None:
         registry: {data_path / "registry.db"}
         provider: local
         online_store:
-            local:
-                path: {data_path / "online_store.db"}
+            path: {data_path / "online_store.db"}
         """
             )
         )
