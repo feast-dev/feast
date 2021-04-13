@@ -79,8 +79,8 @@ def test_apply_entity_success(test_feature_store):
         labels={"team": "matchmaking"},
     )
 
-    # Register Entity with Core
-    test_feature_store.apply([entity])
+    # Register Entity
+    test_feature_store.apply(entity)
 
     entities = test_feature_store.list_entities()
 
@@ -107,7 +107,7 @@ def test_apply_entity_integration(test_feature_store):
         labels={"team": "matchmaking"},
     )
 
-    # Register Entity with Core
+    # Register Entity
     test_feature_store.apply([entity])
 
     entities = test_feature_store.list_entities()
