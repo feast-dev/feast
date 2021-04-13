@@ -78,7 +78,7 @@ class RepoConfig(FeastBaseModel):
     def _validate_online_store_config(cls, values):
         # This method will validate whether the online store configurations are set correctly. This explicit validation
         # is necessary because Pydantic Unions throw very verbose and cryptic exceptions. We also use this method to
-        # impute the default online store type based on the selected provider. For the time this method should be
+        # impute the default online store type based on the selected provider. For the time being this method should be
         # considered tech debt until we can implement https://github.com/samuelcolvin/pydantic/issues/619 or a more
         # granular configuration system
 
