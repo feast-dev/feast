@@ -38,8 +38,7 @@ project: my_feature_repo_1
 registry: data/metadata.db
 provider: local
 online_store:
-    local:
-        path: data/online_store.db
+    path: data/online_store.db
 ```
 {% endcode %}
 

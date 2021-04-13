@@ -2,5 +2,4 @@ project: my_project
 registry: data/registry.db
 provider: local
 online_store:
-    local:
-        path: data/online_store.db
+    path: data/online_store.db
