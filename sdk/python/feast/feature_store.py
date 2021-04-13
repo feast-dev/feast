@@ -29,12 +29,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.registry import Registry
-from feast.repo_config import (
-    LocalOnlineStoreConfig,
-    OnlineStoreConfig,
-    RepoConfig,
-    load_repo_config,
-)
+from feast.repo_config import RepoConfig, load_repo_config
 from feast.telemetry import Telemetry
 from feast.version import get_version
 
@@ -51,6 +46,12 @@ class FeatureStore:
     def __init__(
         self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None,
     ):
+        """ Initializes a new FeatureStore object. Used to manage a feature store.
+
+        Args:
+            repo_path: Path to a `feature_store.yaml` used to configure the feature store
+            config (RepoConfig): Configuration object used to configure the feature store
+        """
         self.repo_path = repo_path
         if repo_path is not None and config is not None:
             raise ValueError("You cannot specify both repo_path and config")
@@ -59,14 +60,7 @@ class FeatureStore:
         elif repo_path is not None:
             self.config = load_repo_config(Path(repo_path))
         else:
-            self.config = RepoConfig(
-                registry="./registry.db",
-                project="default",
-                provider="local",
-                online_store=OnlineStoreConfig(
-                    local=LocalOnlineStoreConfig(path="online_store.db")
-                ),
-            )
+            raise ValueError("Please specify one of repo_path or config")
 
         registry_config = self.config.get_registry_config()
         self._registry = Registry(

@@ -176,8 +176,7 @@ def init_repo(repo_path: Path, minimal: bool):
         registry: /path/to/registry.db
         provider: local
         online_store:
-            local:
-                path: /path/to/online_store.db
+            path: /path/to/online_store.db
         """
             )
         )
@@ -214,8 +213,7 @@ def init_repo(repo_path: Path, minimal: bool):
         registry: {"data/registry.db"}
         provider: local
         online_store:
-            local:
-                path: {"data/online_store.db"}
+            path: {"data/online_store.db"}
         """
             )
         )

@@ -1,8 +1,9 @@
 from pathlib import Path
-from typing import Optional, Union
 
 import yaml
-from pydantic import BaseModel, StrictInt, StrictStr, ValidationError
+from pydantic import BaseModel, StrictInt, StrictStr, ValidationError, root_validator
+from pydantic.error_wrappers import ErrorWrapper
+from pydantic.typing import Dict, Literal, Optional, Union
 
 
 class FeastBaseModel(BaseModel):
@@ -13,26 +14,27 @@ class FeastBaseModel(BaseModel):
         extra = "forbid"
 
 
-class LocalOnlineStoreConfig(FeastBaseModel):
-    """ Online store config for local (SQLite-based) online store """
+class SqliteOnlineStoreConfig(FeastBaseModel):
+    """ Online store config for local (SQLite-based) store """
 
-    path: StrictStr
-    """ str: Path to sqlite db """
+    type: Literal["sqlite"] = "sqlite"
+    """ Online store type selector"""
+
+    path: StrictStr = "data/online.db"
+    """ (optional) Path to sqlite db """
 
 
 class DatastoreOnlineStoreConfig(FeastBaseModel):
     """ Online store config for GCP Datastore """
 
-    project_id: StrictStr
-    """ str: GCP Project Id """
+    type: Literal["datastore"] = "datastore"
+    """ Online store type selector"""
+
+    project_id: Optional[StrictStr] = None
+    """ (optional) GCP Project Id """
 
 
-class OnlineStoreConfig(FeastBaseModel):
-    datastore: Optional[DatastoreOnlineStoreConfig] = None
-    """ DatastoreOnlineStoreConfig: Optional Google Cloud Datastore config """
-
-    local: Optional[LocalOnlineStoreConfig] = None
-    """ LocalOnlineStoreConfig: Optional local online store config """
+OnlineStoreConfig = Union[DatastoreOnlineStoreConfig, SqliteOnlineStoreConfig]
 
 
 class RegistryConfig(FeastBaseModel):
@@ -51,7 +53,7 @@ class RegistryConfig(FeastBaseModel):
 class RepoConfig(FeastBaseModel):
     """ Repo config. Typically loaded from `feature_store.yaml` """
 
-    registry: Union[StrictStr, RegistryConfig]
+    registry: Union[StrictStr, RegistryConfig] = "data/registry.db"
     """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. gcs://foo/bar """
 
     project: StrictStr
@@ -63,7 +65,7 @@ class RepoConfig(FeastBaseModel):
     provider: StrictStr
     """ str: local or gcp """
 
-    online_store: Optional[OnlineStoreConfig] = None
+    online_store: OnlineStoreConfig = SqliteOnlineStoreConfig()
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
 
     def get_registry_config(self):
@@ -72,40 +74,54 @@ class RepoConfig(FeastBaseModel):
         else:
             return self.registry
 
+    @root_validator(pre=True)
+    def _validate_online_store_config(cls, values):
+        # This method will validate whether the online store configurations are set correctly. This explicit validation
+        # is necessary because Pydantic Unions throw very verbose and cryptic exceptions. We also use this method to
+        # impute the default online store type based on the selected provider. For the time being this method should be
+        # considered tech debt until we can implement https://github.com/samuelcolvin/pydantic/issues/619 or a more
+        # granular configuration system
 
-# This is the JSON Schema for config validation. We use this to have nice detailed error messages
-# for config validation, something that bindr unfortunately doesn't provide out of the box.
-#
-# The schema should match the namedtuple structure above. It could technically even be inferred from
-# the types above automatically; but for now we choose a more tedious but less magic path of
-# providing the schema manually.
+        # Skip if online store isn't set explicitly
+        if "online_store" not in values:
+            values["online_store"] = dict()
 
-config_schema = {
-    "type": "object",
-    "properties": {
-        "project": {"type": "string"},
-        "registry": {"type": "string"},
-        "provider": {"type": "string"},
-        "online_store": {
-            "type": "object",
-            "properties": {
-                "local": {
-                    "type": "object",
-                    "properties": {"path": {"type": "string"}},
-                    "additionalProperties": False,
-                },
-                "datastore": {
-                    "type": "object",
-                    "properties": {"project_id": {"type": "string"}},
-                    "additionalProperties": False,
-                },
-            },
-            "additionalProperties": False,
-        },
-    },
-    "required": ["project"],
-    "additionalProperties": False,
-}
+        # Skip if we arent creating the configuration from a dict
+        if not isinstance(values["online_store"], Dict):
+            return values
+
+        # Make sure that the provider configuration is set. We need it to set the defaults
+        assert "provider" in values
+
+        if "online_store" in values:
+            # Set the default type
+            if "type" not in values["online_store"]:
+                if values["provider"] == "local":
+                    values["online_store"]["type"] = "sqlite"
+                elif values["provider"] == "gcp":
+                    values["online_store"]["type"] = "datastore"
+
+            online_store_type = values["online_store"]["type"]
+
+            # Make sure the user hasn't provided the wrong type
+            assert online_store_type in ["datastore", "sqlite"]
+
+            # Validate the dict to ensure one of the union types match
+            try:
+                if online_store_type == "sqlite":
+                    SqliteOnlineStoreConfig(**values["online_store"])
+                elif values["online_store"]["type"] == "datastore":
+                    DatastoreOnlineStoreConfig(**values["online_store"])
+                else:
+                    raise ValidationError(
+                        f"Invalid online store type {online_store_type}"
+                    )
+            except ValidationError as e:
+                raise ValidationError(
+                    [ErrorWrapper(e, loc="online_store")],
+                    model=SqliteOnlineStoreConfig,
+                )
+        return values
 
 
 class FeastConfigError(Exception):
