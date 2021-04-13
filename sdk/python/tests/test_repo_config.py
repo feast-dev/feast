@@ -19,7 +19,7 @@ def _test_config(config_text, expect_error: Optional[str]):
         repo_config.write_text(config_text)
         error = None
         try:
-            config = load_repo_config(repo_path)
+            load_repo_config(repo_path)
         except FeastConfigError as e:
             error = e
 

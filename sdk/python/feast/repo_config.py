@@ -3,8 +3,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, StrictInt, StrictStr, ValidationError, root_validator
 from pydantic.error_wrappers import ErrorWrapper
-from pydantic.fields import Field
-from pydantic.typing import Annotated, Literal, Union, Dict
+from pydantic.typing import Dict, Literal, Optional, Union
 
 
 class FeastBaseModel(BaseModel):
@@ -22,7 +21,7 @@ class SqliteOnlineStoreConfig(FeastBaseModel):
     """ Online store type selector"""
 
     path: StrictStr = "data/online.db"
-    """ str: Path to sqlite db """
+    """ (optional) Path to sqlite db """
 
 
 class DatastoreOnlineStoreConfig(FeastBaseModel):
@@ -31,14 +30,11 @@ class DatastoreOnlineStoreConfig(FeastBaseModel):
     type: Literal["datastore"] = "datastore"
     """ Online store type selector"""
 
-    project_id: StrictStr
-    """ str: GCP Project Id """
+    project_id: Optional[StrictStr] = None
+    """ (optional) GCP Project Id """
 
 
-OnlineStoreConfig = Annotated[
-    Union[DatastoreOnlineStoreConfig, SqliteOnlineStoreConfig],
-    Field(..., discriminator="store_type"),
-]
+OnlineStoreConfig = Union[DatastoreOnlineStoreConfig, SqliteOnlineStoreConfig]
 
 
 class RegistryConfig(FeastBaseModel):
@@ -86,15 +82,18 @@ class RepoConfig(FeastBaseModel):
         # considered tech debt until we can implement https://github.com/samuelcolvin/pydantic/issues/619 or a more
         # granular configuration system
 
+        # Skip if online store isn't set explicitly
+        if "online_store" not in values:
+            values["online_store"] = dict()
+
         # Skip if we arent creating the configuration from a dict
-        if isinstance(values['online_store'], Dict):
+        if not isinstance(values["online_store"], Dict):
             return values
 
         # Make sure that the provider configuration is set. We need it to set the defaults
         assert "provider" in values
 
         if "online_store" in values:
-
             # Set the default type
             if "type" not in values["online_store"]:
                 if values["provider"] == "local":
