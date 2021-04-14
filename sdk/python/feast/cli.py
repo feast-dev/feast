@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 import logging
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
@@ -24,10 +22,8 @@ import pkg_resources
 import yaml
 
 from feast.client import Client
-from feast.config import Config
 from feast.entity import Entity
 from feast.feature_store import FeatureStore
-from feast.feature_table import FeatureTable
 from feast.loaders.yaml import yaml_loader
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
@@ -40,91 +36,27 @@ from feast.repo_operations import (
 )
 
 _logger = logging.getLogger(__name__)
-
-_common_options = [
-    click.option("--core-url", help="Set Feast core URL to connect to"),
-    click.option("--serving-url", help="Set Feast serving URL to connect to"),
-    click.option("--job-service-url", help="Set Feast job service URL to connect to"),
-]
 DATETIME_ISO = "%Y-%m-%dT%H:%M:%s"
-
-
-def common_options(func):
-    """
-    Options that are available for most CLI commands
-    """
-    for option in reversed(_common_options):
-        func = option(func)
-    return func
 
 
 @click.group()
 def cli():
+    """
+    Feast CLI
+
+    For more information, see our public docs at https://docs.feast.dev/
+
+    For any questions, you can reach us at https://slack.feast.dev/
+    """
     pass
 
 
 @cli.command()
-@click.option(
-    "--client-only", "-c", is_flag=True, help="Print only the version of the CLI"
-)
-@common_options
-def version(client_only: bool, **kwargs):
+def version():
     """
-    Displays version and connectivity information
+    Display Feast SDK version
     """
-
-    try:
-        feast_versions_dict = {
-            "sdk": {"version": str(pkg_resources.get_distribution("feast"))}
-        }
-
-        if not client_only:
-            feast_client = Client(**kwargs)
-            feast_versions_dict.update(feast_client.version())
-
-        print(json.dumps(feast_versions_dict))
-    except Exception as e:
-        _logger.error("Error initializing backend store")
-        _logger.exception(e)
-        sys.exit(1)
-
-
-@cli.group()
-def config():
-    """
-    View and edit Feast properties
-    """
-    pass
-
-
-@config.command(name="list")
-def config_list():
-    """
-    List Feast properties for the currently active configuration
-    """
-    try:
-        print(Config())
-    except Exception as e:
-        _logger.error("Error occurred when reading Feast configuration file")
-        _logger.exception(e)
-        sys.exit(1)
-
-
-@config.command(name="set")
-@click.argument("prop")
-@click.argument("value")
-def config_set(prop, value):
-    """
-    Set a Feast properties for the currently active configuration
-    """
-    try:
-        conf = Config()
-        conf.set(option=prop.strip(), value=value.strip())
-        conf.save()
-    except Exception as e:
-        _logger.error("Error in reading config file")
-        _logger.exception(e)
-        sys.exit(1)
+    print(f'Feast SDK Version: "{pkg_resources.get_distribution("feast")}"')
 
 
 @cli.group(name="entities")
@@ -218,14 +150,6 @@ def entity_list(project: str, labels: str):
     print(tabulate(table, headers=["NAME", "DESCRIPTION", "TYPE"], tablefmt="plain"))
 
 
-@cli.group(name="feature-tables")
-def feature_table():
-    """
-    Create and manage feature tables
-    """
-    pass
-
-
 def _get_labels_dict(label_str: str) -> Dict[str, str]:
     """
     Converts CLI input labels string to dictionary format if provided string is valid.
@@ -247,159 +171,35 @@ def _get_labels_dict(label_str: str) -> Dict[str, str]:
     return labels_dict
 
 
-@feature_table.command("apply")
-@click.option(
-    "--filename",
-    "-f",
-    help="Path to a feature table configuration file that will be applied",
-    type=click.Path(exists=True),
-)
-def feature_table_create(filename):
-    """
-    Create or update a feature table
-    """
-
-    feature_tables = [
-        FeatureTable.from_dict(ft_dict) for ft_dict in yaml_loader(filename)
-    ]
-    feast_client = Client()  # type: Client
-    feast_client.apply(feature_tables)
-
-
-@feature_table.command("describe")
-@click.argument("name", type=click.STRING)
-@click.option(
-    "--project",
-    "-p",
-    help="Project that feature table belongs to",
-    type=click.STRING,
-    default="default",
-)
-def feature_table_describe(name: str, project: str):
-    """
-    Describe a feature table
-    """
-    feast_client = Client()  # type: Client
-    ft = feast_client.get_feature_table(name=name, project=project)
-
-    if not ft:
-        print(f'Feature table with name "{name}" could not be found')
-        return
-
-    print(yaml.dump(yaml.safe_load(str(ft)), default_flow_style=False, sort_keys=False))
-
-
-@feature_table.command(name="list")
-@click.option(
-    "--project",
-    "-p",
-    help="Project that feature table belongs to",
-    type=click.STRING,
-    default="",
-)
-@click.option(
-    "--labels",
-    "-l",
-    help="Labels to filter for feature tables",
-    type=click.STRING,
-    default="",
-)
-def feature_table_list(project: str, labels: str):
-    """
-    List all feature tables
-    """
-    feast_client = Client()  # type: Client
-
-    labels_dict = _get_labels_dict(labels)
-
-    table = []
-    for ft in feast_client.list_feature_tables(project=project, labels=labels_dict):
-        table.append([ft.name, ft.entities])
-
-    from tabulate import tabulate
-
-    print(tabulate(table, headers=["NAME", "ENTITIES"], tablefmt="plain"))
-
-
-@cli.group(name="projects")
-def project():
-    """
-    Create and manage projects
-    """
-    pass
-
-
-@project.command(name="create")
-@click.argument("name", type=click.STRING)
-def project_create(name: str):
-    """
-    Create a project
-    """
-    feast_client = Client()  # type: Client
-    feast_client.create_project(name)
-
-
-@project.command(name="archive")
-@click.argument("name", type=click.STRING)
-def project_archive(name: str):
-    """
-    Archive a project
-    """
-    feast_client = Client()  # type: Client
-    feast_client.archive_project(name)
-
-
-@project.command(name="list")
-def project_list():
-    """
-    List all projects
-    """
-    feast_client = Client()  # type: Client
-
-    table = []
-    for project in feast_client.list_projects():
-        table.append([project])
-
-    from tabulate import tabulate
-
-    print(tabulate(table, headers=["NAME"], tablefmt="plain"))
-
-
 @cli.command("apply")
-@click.argument(
-    "repo_path", type=click.Path(dir_okay=True, exists=True), default=Path.cwd
-)
-def apply_total_command(repo_path: str):
+def apply_total_command():
     """
-    Applies a feature repo
+    Create or update a feature store deployment
     """
-    cli_check_repo(Path(repo_path))
-    repo_config = load_repo_config(Path(repo_path))
+    cli_check_repo(Path.cwd())
+    repo_config = load_repo_config(Path.cwd())
 
-    apply_total(repo_config, Path(repo_path).resolve())
+    apply_total(repo_config, Path.cwd())
 
 
 @cli.command("teardown")
-@click.argument(
-    "repo_path", type=click.Path(dir_okay=True, exists=True), default=Path.cwd
-)
-def teardown_command(repo_path: str):
+def teardown_command():
     """
-    Tear down infra for a feature repo
+    Tear down deployed feature store infrastructure
     """
-    cli_check_repo(Path(repo_path))
-    repo_config = load_repo_config(Path(repo_path))
+    cli_check_repo(Path.cwd())
+    repo_config = load_repo_config(Path.cwd())
 
-    teardown(repo_config, Path(repo_path).resolve())
+    teardown(repo_config, Path.cwd())
 
 
 @cli.command("registry-dump")
-@click.argument("repo_path", type=click.Path(dir_okay=True, exists=True))
-def registry_dump_command(repo_path: str):
+def registry_dump_command():
     """
-    Prints contents of the metadata registry
+    Print contents of the metadata registry
     """
-    repo_config = load_repo_config(Path(repo_path))
+    cli_check_repo(Path.cwd())
+    repo_config = load_repo_config(Path.cwd())
 
     registry_dump(repo_config)
 
@@ -407,13 +207,10 @@ def registry_dump_command(repo_path: str):
 @cli.command("materialize")
 @click.argument("start_ts")
 @click.argument("end_ts")
-@click.argument(
-    "repo_path", type=click.Path(dir_okay=True, exists=True,), default=Path.cwd
-)
 @click.option(
     "--views", "-v", help="Feature views to materialize", multiple=True,
 )
-def materialize_command(start_ts: str, end_ts: str, repo_path: str, views: List[str]):
+def materialize_command(start_ts: str, end_ts: str, views: List[str]):
     """
     Run a (non-incremental) materialization job to ingest data into the online store. Feast
     will read all data between START_TS and END_TS from the offline store and write it to the
@@ -422,7 +219,8 @@ def materialize_command(start_ts: str, end_ts: str, repo_path: str, views: List[
 
     START_TS and END_TS should be in ISO 8601 format, e.g. '2021-07-16T19:20:01'
     """
-    store = FeatureStore(repo_path=repo_path)
+    cli_check_repo(Path.cwd())
+    store = FeatureStore(repo_path=str(Path.cwd()))
     store.materialize(
         feature_views=None if not views else views,
         start_date=datetime.fromisoformat(start_ts),
@@ -432,13 +230,10 @@ def materialize_command(start_ts: str, end_ts: str, repo_path: str, views: List[
 
 @cli.command("materialize-incremental")
 @click.argument("end_ts")
-@click.argument(
-    "repo_path", type=click.Path(dir_okay=True, exists=True,), default=Path.cwd
-)
 @click.option(
     "--views", "-v", help="Feature views to incrementally materialize", multiple=True,
 )
-def materialize_incremental_command(end_ts: str, repo_path: str, views: List[str]):
+def materialize_incremental_command(end_ts: str, views: List[str]):
     """
     Run an incremental materialization job to ingest new data into the online store. Feast will read
     all data from the previously ingested point to END_TS from the offline store and write it to the
@@ -447,7 +242,8 @@ def materialize_incremental_command(end_ts: str, repo_path: str, views: List[str
 
     END_TS should be in ISO 8601 format, e.g. '2021-07-16T19:20:01'
     """
-    store = FeatureStore(repo_path=repo_path)
+    cli_check_repo(Path.cwd())
+    store = FeatureStore(repo_path=str(Path.cwd()))
     store.materialize_incremental(
         feature_views=None if not views else views,
         end_date=datetime.fromisoformat(end_ts),

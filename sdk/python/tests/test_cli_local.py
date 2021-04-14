@@ -37,11 +37,11 @@ def test_workflow() -> None:
             (Path(__file__).parent / "example_feature_repo_1.py").read_text()
         )
 
-        result = runner.run(["apply", str(repo_path)], cwd=repo_path)
+        result = runner.run(["apply"], cwd=repo_path)
         assert result.returncode == 0
 
         # Doing another apply should be a no op, and should not cause errors
-        result = runner.run(["apply", str(repo_path)], cwd=repo_path)
+        result = runner.run(["apply"], cwd=repo_path)
         assert result.returncode == 0
 
         basic_rw_test(
@@ -49,5 +49,5 @@ def test_workflow() -> None:
             view_name="driver_locations",
         )
 
-        result = runner.run(["teardown", str(repo_path)], cwd=repo_path)
+        result = runner.run(["teardown"], cwd=repo_path)
         assert result.returncode == 0

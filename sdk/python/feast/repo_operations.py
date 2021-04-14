@@ -146,8 +146,8 @@ def registry_dump(repo_config: RepoConfig):
 
     for entity in registry.list_entities(project=project):
         print(entity)
-    for table in registry.list_feature_tables(project=project):
-        print(table)
+    for feature_view in registry.list_feature_views(project=project):
+        print(feature_view)
 
 
 def cli_check_repo(repo_path: Path):
