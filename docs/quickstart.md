@@ -33,23 +33,38 @@ We can bootstrap a feature repository using the `feast init` command:
 ```text
 $ feast init
 
-Generated feature_store.yaml and example features in example_repo.py
-Now try running `feast apply` to apply and `feast materialize` to 
-sync data to the online store
+Creating a new Feast repository in <...>/charmed_bass.
 ```
 
-This command generates two files. Let's take a look at `feature_store.yaml`:
+This command generates an example repository with a random name, containing the following files:
+
+```text
+.
+└── charmed_bass
+    ├── data
+    │   └── driver_stats.parquet
+    ├── example.py
+    └── feature_store.yaml
+```
+
+Let's enter our example feature repository.
+
+```
+# replace "charmed_bass" with your auto-generated feature repository name
+cd charmed_bass
+```
+
+Next, let's take a look at the `feature_store.yaml` file, which configures how the feature store runs.
 
 ```yaml
-project: happy_ant
+project: charmed_bass
 registry: data/registry.db
 provider: local
 online_store:
-    local:
-        path: data/online_store.db
+    path: data/online_store.db
 ```
 
-This file defines how the feature store is configured to run.  The most important option here is `provider`, which specifies the environment that Feast will run in. We've initialized `provider=local`, indicating that Feast will run the feature store on our local machine. See [Repository Config](reference/feature-store-yaml.md) for more details.
+An important field to be aware of is `provider`, which specifies the environment that Feast will run in. We've initialized `provider=local`, indicating that Feast will run the feature store on our local machine. See [Repository Config](reference/feature-store-yaml.md) for more details.
 
 Next, take a look at `example.py`. This file defines some example features:
 
@@ -65,7 +80,7 @@ from feast.data_source import FileSource
 # production, you can use your favorite DWH, such as BigQuery. See Feast documentation
 # for more info.
 driver_hourly_stats = FileSource(
-    path="/Users/jay/Projects/feast-10-test-2/hehe/data/driver_stats.parquet",
+    path="<...>/data/driver_stats.parquet",
     event_timestamp_column="datetime",
     created_timestamp_column="created",
 )
@@ -93,7 +108,7 @@ driver_hourly_stats_view = FeatureView(
 
 ```
 
-This file defines three objects:
+There are three objects defined in this file:
 
 * A `DataSource`, which is a pointer to persistent feature data. In this example, we're using a `FileSource`, which points to a set of parquet files on our local machine.
 * An `Entity`, which is a metadata object that is used to organize and join features.  In this example, our entity is `driver_id`, indicating that our features are modeling attributes of drivers.
@@ -106,7 +121,7 @@ We can register our features by running `feast apply` from the CLI.
 ```bash
 $ feast apply
 
-Processing <...>/feast-10-test-2/feast/example.py as example
+Processing <...>/charmed_bass/example.py as example
 Done!
 
 ```
@@ -130,9 +145,9 @@ entity_df = pd.DataFrame.from_dict({
     "driver_id": [1001, 1002, 1003, 1004],
     "event_timestamp": [
         datetime(2021, 4, 12, 10, 59, 42),
-        datetime(2021, 4, 12, 8, 12, 10),
+        datetime(2021, 4, 12, 8,  12, 10),
         datetime(2021, 4, 12, 16, 40, 26),
-        datetime(2021, 4, 12, 15, 1, 12)
+        datetime(2021, 4, 12, 15, 1 , 12)
     ]
 })
 
@@ -166,14 +181,18 @@ This DataFrame contains all the necessary signals needed to train a model, exclu
 
 ### 4. Materializing features to the online store
 
-We just used Feast to generate  Using the `local` provider, the online store is a SQLite database. To materialize features, run the following command from the CLI:
+We've just showed how we can use our features to train a model. Now, we'll populate the online store with our features to make them available for real time inference. When using the `local` provider, the online store is a SQLite database. 
+
+To materialize features, run the following command from the CLI:
 
 ```bash
 # Materialize feature values up until the current time
 feast materialize-incremental $(date -u +"%Y-%m-%dT%H:%M:%S")
+
+Done!
 ```
 
-We've just populated the online store with the most up-to-date features from the offline store. Our feature values are now ready for real-time fetching.
+We've just populated the online store with the most up-to-date features from the offline store. Our feature values are now ready for real-time retrieval.
 
 ### 5. Fetching feature vectors for inference
 
@@ -188,10 +207,10 @@ feature_vector = store.get_online_features(
         'driver_hourly_stats:acc_rate',
         'driver_hourly_stats:avg_daily_trips'
     ],
-    entity_rows=[{"user_id": "1001"}]
+    entity_rows=[{"driver_id": "1001"}]
 ).to_dict()
 
-print(feature_vector)
+pprint(feature_vector)
 ```
 
 ```text
