@@ -1,24 +1,53 @@
 # Create a feature repository
 
-Please see [Feature Repository](../concepts/feature-repository.md) for a detailed explanation of the purpose and structure of feature repositories.
+A feature repository is a directory that contains the configuration of the feature store and individual features. This configuration is written as code \(Python/YAML\) and it's highly recommended that teams track it centrally using git. See [Feature Repository](../concepts/feature-repository.md) for a detailed explanation of feature repositories.
 
 The easiest way to create a new feature repository to use `feast init` command:
 
+{% tabs %}
+{% tab title="Local template" %}
 ```bash
-mkdir my_feature_repo && cd my_feature_repo
 feast init
+
+Creating a new Feast repository in /<...>/tiny_pika.
 ```
+{% endtab %}
+
+{% tab title="GCP template" %}
+```
+feast init -t gcp
+
+Creating a new Feast repository in /<...>/tiny_pika.
+```
+{% endtab %}
+{% endtabs %}
 
 The `init` command creates a Python file with feature definitions, sample data, and a Feast configuration file for local development:
 
 ```bash
 $ tree
 .
-├── data
-│   └── driver_stats.parquet
-├── example.py
-└── feature_store.yaml
+└── tiny_pika
+    ├── data
+    │   └── driver_stats.parquet
+    ├── example.py
+    └── feature_store.yaml
 
 1 directory, 3 files
 ```
+
+Enter the directory:
+
+```text
+# Replace "tiny_pika" with your auto-generated dir name
+cd tiny_pika
+```
+
+You can now use this feature repository for development. You can try the following:
+
+* Run `feast apply` to apply these definitions to Feast.
+* Edit the example feature definitions in  `example.py` and run `feast apply` again to change feature definitions.
+* Initialize a git repository in the same directory and checking the feature repository into version control.
+
+
 

@@ -1,6 +1,6 @@
 # Feature Repository
 
-Feast encourages users to version their feature definitions as code. These feature definitions are defined as pure Python objects and stored within a feature repository.
+Feast stores its configuration as code. This code These feature definitions are defined as code \(Python objects and stored within a feature repository.
 
 A feature repository is the declarative source of truth for what the desired state of a feature store should be. The Feast CLI uses a feature repository to configure your infrastructure, e.g., migrate tables.
 
