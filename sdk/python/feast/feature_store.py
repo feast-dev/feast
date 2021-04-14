@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
+from colorama import Fore, Style
 
 from feast import utils
 from feast.entity import Entity
@@ -327,13 +328,16 @@ class FeatureStore:
             if start_date is None:
                 if feature_view.ttl is None:
                     raise Exception(
-                        f"No start time found for feature view {feature_view.name}. materialize_incremental() requires either a ttl to be set or for materialize() to have been run at least once."
+                        f"No start time found for feature view {feature_view.name}. materialize_incremental() requires"
+                        f" either a ttl to be set or for materialize() to have been run at least once."
                     )
                 start_date = datetime.utcnow() - feature_view.ttl
             provider = self._get_provider()
+            _print_materialization_log(start_date, end_date, feature_view)
             provider.materialize_single_feature_view(
                 feature_view, start_date, end_date, self._registry, self.project
             )
+            print(" done!")
 
     def materialize(
         self,
@@ -387,9 +391,11 @@ class FeatureStore:
         # TODO paging large loads
         for feature_view in feature_views_to_materialize:
             provider = self._get_provider()
+            _print_materialization_log(start_date, end_date, feature_view)
             provider.materialize_single_feature_view(
                 feature_view, start_date, end_date, self._registry, self.project
             )
+            print(" done!")
 
     def get_online_features(
         self, feature_refs: List[str], entity_rows: List[Dict[str, Any]],
@@ -574,3 +580,13 @@ def _get_table_entity_keys(
             EntityKeyProto(join_keys=entity_names, entity_values=entity_values)
         )
     return entity_key_protos
+
+
+def _print_materialization_log(start_date, end_date, feature_view):
+    print(
+        f"Materializing feature view {Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}"
+        f" from {Style.BRIGHT + Fore.GREEN}{start_date.astimezone()}{Style.RESET_ALL}"
+        f" to {Style.BRIGHT + Fore.GREEN}{end_date.astimezone()}{Style.RESET_ALL}",
+        end="",
+        flush=True,
+    )
