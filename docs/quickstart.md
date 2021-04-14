@@ -10,7 +10,7 @@ Welcome to the Feast quickstart! This quickstart is intended to get you up and r
 
 The quickstart uses some example data about a ride hailing app to walk through Feast. Let's get into it!
 
-## 1. Setting up Feast
+### 1. Setting up Feast
 
 A Feast installation includes a Python SDK and a CLI. Feast can be installed from `pip`:  
 
@@ -26,7 +26,7 @@ $ feast version
 0.10
 ```
 
-## 2. Registering features to Feast
+### 2. Registering features to Feast
 
 We can bootstrap a feature repository using the `feast init` command:
 
@@ -113,7 +113,7 @@ Done!
 
 After this command completes, our features have been registered to Feast, and they're now ready for offline retrieval and materialization.
 
-## 3. Generating training data
+### 3. Generating training data
 
 Feast generates point-in-time accurate training data. In our example, we are using statistics about drivers to predict the likelihood of a booking completing. When we generate training data, we want to know what the features of the drivers were _at the time of prediction_. 
 
@@ -139,7 +139,7 @@ entity_df = pd.DataFrame.from_dict({
 entity_df.head()
 ```
 
-![](.gitbook/assets/feast-landing-page-blog-post-page-5.png)
+![](.gitbook/assets/feast-landing-page-blog-post-page-5%20%281%29.png)
 
 This DataFrame represents the entity keys and timestamps that we want feature values as of. We can pass this Entity DataFrame into Feast, and Feast will fetch point-in-time correct features for each row:
 
@@ -164,7 +164,7 @@ training_df.head()
 
 This DataFrame contains all the necessary signals needed to train a model, excluding labels, which are typically managed outside of Feast. Before you can train a model, you'll need to join on labels from external systems.
 
-## 4. Materializing features to the online store
+### 4. Materializing features to the online store
 
 We just used Feast to generate  Using the `local` provider, the online store is a SQLite database. To materialize features, run the following command from the CLI:
 
@@ -175,7 +175,7 @@ feast materialize-incremental $(date -u +"%Y-%m-%dT%H:%M:%S")
 
 We've just populated the online store with the most up-to-date features from the offline store. Our feature values are now ready for real-time fetching.
 
-## 5. Fetching feature vectors for inference
+### 5. Fetching feature vectors for inference
 
 After we materialize our features, we can use the `store.get_online_features` to fetch the _latest_ feature values for real-time inference. Run the following code in your notebook to fetch online features:
 
@@ -205,7 +205,7 @@ print(feature_vector)
 
 This feature vector can be used for real-time inference, for example, in a model serving microservice. 
 
-## Next steps
+### Next steps
 
 This quickstart covered the essential workflows of using Feast in your local environment. The next step is to set  `provider="gcp"` in your `feature_store.yaml` file and push your work to production deployment. You can also use the `feast init -t gcp` command in the CLI to initialize a feature repository with example features in the GCP environment.
 

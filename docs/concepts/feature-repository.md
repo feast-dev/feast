@@ -4,7 +4,7 @@ Feast encourages users to version their feature definitions as code. These featu
 
 A feature repository is the declarative source of truth for what the desired state of a feature store should be. The Feast CLI uses a feature repository to configure your infrastructure, e.g., migrate tables.
 
-### What is a feature repository?
+## What is a feature repository?
 
 A feature repository consists of
 
@@ -15,20 +15,20 @@ A feature repository consists of
 Typically, users store their feature repositories in a Git repository. Using Git is not a requirement.
 {% endhint %}
 
-### Structure of a feature repository
+## Structure of a feature repository
 
 ```text
 $ tree
 .
 ├── data
-│   └── driver_stats.parquet
+│   └── driver_stats.parquet
 ├── driver_features.py
 └── feature_store.yaml
 
 1 directory, 3 files
 ```
 
-### The feature\_store.yaml configuration file
+## The feature\_store.yaml configuration file
 
 The configuration for a feature store is stored in a file named `feature_store.yaml` at the root of a feature repository.
 
@@ -47,7 +47,7 @@ online_store:
 * **Provider**: The provider defines the target environment that will be used to configure your infrastructure. By selecting `local`, Feast will configure local infrastructure for storing and serving features. By selecting `gcp`, Feast will configure cloud infrastructure for storing and serving features.
 * **Online Store**: This option allows teams to configure the destination online store that should be used to store and serve online features. The type of online store that can be selected and configured depends on the `provider`. One provider may allow more than one online store to be configured.
 
-### Feature definitions
+## Feature definitions
 
 A feature repository can also contain one or more Python files that contain feature definitions
 
@@ -84,7 +84,7 @@ driver_locations = FeatureView(
 
 The way to declare feature definitions \(Feature Views, Entities, Data Sources\) in a feature repository is to simply write Python code to instantiate the objects.
 
-There are no restrictions on how Python feature definition files can be named, as long as they have valid Python module names \(so no dashes\). 
+There are no restrictions on how Python feature definition files can be named, as long as they have valid Python module names \(so no dashes\).
 
 Have a look at [Create a feature repository](../how-to-guides/create-a-feature-repository.md) to get started with an example feature repository
 
