@@ -187,7 +187,7 @@ To materialize features, run the following command from the CLI:
 
 ```bash
 # Materialize feature values up until the current time
-feast materialize-incremental $(date -u +"%Y-%m-%dT%H:%M:%S")
+$ feast materialize-incremental $(date -u +"%Y-%m-%dT%H:%M:%S")
 
 Done!
 ```
@@ -207,7 +207,7 @@ feature_vector = store.get_online_features(
         'driver_hourly_stats:acc_rate',
         'driver_hourly_stats:avg_daily_trips'
     ],
-    entity_rows=[{"driver_id": "1001"}]
+    entity_rows=[{"driver_id": 1001}]
 ).to_dict()
 
 pprint(feature_vector)
@@ -215,10 +215,10 @@ pprint(feature_vector)
 
 ```text
 {
-    'driver_id': ['1005'],
-    'driver_hourly_stats__conv_rate': 0.49274
-    'driver_hourly_stats__acc_rate': 0.92743, 
-    'driver_hourly_stats__avg_daily_trips': 72, 
+    'driver_id': [1001],
+    'driver_hourly_stats__conv_rate': [0.49274],
+    'driver_hourly_stats__acc_rate': [0.92743],
+    'driver_hourly_stats__avg_daily_trips': [72],
 }
 ```
 
