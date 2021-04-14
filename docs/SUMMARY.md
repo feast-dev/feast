@@ -23,7 +23,7 @@
 
 ## Reference
 
-* [Repository Config](reference/repository-config.md)
+* [feature\_store.yaml](reference/feature-store-yaml.md)
 * [Python API reference](http://rtd.feast.dev/)
 
 ## Feast on Kubernetes

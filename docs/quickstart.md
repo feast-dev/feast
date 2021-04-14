@@ -8,7 +8,7 @@ Welcome to the Feast quickstart! This quickstart is intended to get you up and r
 4. Materializing feature data to the online feature store
 5. Fetching feature vectors for inference
 
-The quickstart uses some example data about a ride hailing app to walk through Feast. Let's get into it!
+This quickstart uses some example data about a ride hailing app to walk through Feast. Let's get into it!
 
 ### 1. Setting up Feast
 
@@ -49,7 +49,7 @@ online_store:
         path: data/online_store.db
 ```
 
-This file defines how the feature store is configured to run.  The most important option here is `provider`, which specifies the environment that Feast will run in. We've initialized `provider=local`, indicating that Feast will run the feature store on our local machine. See [Repository Config](reference/repository-config.md) for more details.
+This file defines how the feature store is configured to run.  The most important option here is `provider`, which specifies the environment that Feast will run in. We've initialized `provider=local`, indicating that Feast will run the feature store on our local machine. See [Repository Config](reference/feature-store-yaml.md) for more details.
 
 Next, take a look at `example.py`. This file defines some example features:
 

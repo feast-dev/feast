@@ -45,7 +45,7 @@ online_store:
 * **Project**: A unique identifier for your project. The project name is used to isolate multiple feature stores when deploying to the same infrastructure. 
 * **Registry**: The registry is used to persist feature definitions and related metadata. The registry is updated when the `apply` command is run to update infrastructure. The registry is read when users try to build training datasets or try to read from an online store. A registry can either be a local file or a file on an object store \(if it needs to be shared\).
 * **Provider**: The provider defines the target environment that will be used to configure your infrastructure. By selecting `local`, Feast will configure local infrastructure for storing and serving features. By selecting `gcp`, Feast will configure cloud infrastructure for storing and serving features.
-* **Online Store**: This option allows teams to configure the destination online store that should be used to store and serve online features. The type of online store that can be selected and configured depends on the `provider`. One provider may allow more than one online store to be configured.
+* **Online Store**: This option allows teams to configure the destination online store that should be used to store and serve online features. The type of online store that can be selected and configured depends on the `provider`. A provider may allow more than one online store to be configured.
 
 ## Feature definitions
 
