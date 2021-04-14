@@ -61,5 +61,5 @@ def main():
     print(pd.DataFrame.from_dict(online_features))
 
 
-if __name__ == "__main__()":
+if __name__ == "__main__":
     main()
