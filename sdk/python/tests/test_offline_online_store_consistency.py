@@ -47,7 +47,7 @@ def create_dataset() -> pd.DataFrame:
 def get_feature_view(data_source: Union[FileSource, BigQuerySource]) -> FeatureView:
     return FeatureView(
         name="test_bq_correctness",
-        entities=["driver_id"],
+        entities=["driver"],
         features=[Feature("value", ValueType.FLOAT)],
         ttl=timedelta(days=5),
         input=data_source,
@@ -88,7 +88,7 @@ def prep_bq_fs_and_fv(
 
     fv = get_feature_view(bigquery_source)
     e = Entity(
-        name="driver_id",
+        name="driver",
         description="id for driver",
         join_key="driver_id",
         value_type=ValueType.INT32,
@@ -121,7 +121,10 @@ def prep_local_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
         )
         fv = get_feature_view(file_source)
         e = Entity(
-            name="driver_id", description="id for driver", value_type=ValueType.INT32
+            name="driver",
+            description="id for driver",
+            join_key="driver_id",
+            value_type=ValueType.INT32,
         )
         with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
             config = RepoConfig(
@@ -148,7 +151,7 @@ def check_offline_and_online_features(
 ) -> None:
     # Check online store
     response_dict = fs.get_online_features(
-        [f"{fv.name}:value"], [{"driver_id": driver_id}]
+        [f"{fv.name}:value"], [{"driver": driver_id}]
     ).to_dict()
     assert abs(response_dict[f"{fv.name}__value"][0] - expected_value) < 1e-6
 
@@ -163,7 +166,9 @@ def check_offline_and_online_features(
     assert abs(df.to_dict()[f"{fv.name}__value"][0] - expected_value) < 1e-6
 
 
-def run_materialization_test(fs: FeatureStore, fv: FeatureView) -> None:
+def run_offline_online_store_consistency_test(
+    fs: FeatureStore, fv: FeatureView
+) -> None:
     now = datetime.utcnow()
     # Run materialize()
     # use both tz-naive & tz-aware timestamps to test that they're both correctly handled
@@ -194,11 +199,11 @@ def run_materialization_test(fs: FeatureStore, fv: FeatureView) -> None:
 @pytest.mark.parametrize(
     "bq_source_type", ["query", "table"],
 )
-def test_bq_materialization(bq_source_type: str):
+def test_bq_offline_online_store_consistency(bq_source_type: str):
     with prep_bq_fs_and_fv(bq_source_type) as (fs, fv):
-        run_materialization_test(fs, fv)
+        run_offline_online_store_consistency_test(fs, fv)
 
 
-def test_local_materialization():
+def test_local_offline_online_store_consistency():
     with prep_local_fs_and_fv() as (fs, fv):
-        run_materialization_test(fs, fv)
+        run_offline_online_store_consistency_test(fs, fv)
