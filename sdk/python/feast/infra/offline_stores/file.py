@@ -59,7 +59,7 @@ class FileOfflineStore(OfflineStore):
             # Make sure all event timestamp fields are tz-aware. We default tz-naive fields to UTC
             entity_df[ENTITY_DF_EVENT_TIMESTAMP_COL] = entity_df[
                 ENTITY_DF_EVENT_TIMESTAMP_COL
-            ].apply(lambda x: x if x.tz is not None else x.replace(tzinfo=pytz.utc))
+            ].apply(lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc))
             # Sort entity dataframe prior to join, and create a copy to prevent modifying the original
             entity_df_with_features = entity_df.sort_values(
                 ENTITY_DF_EVENT_TIMESTAMP_COL
@@ -83,12 +83,16 @@ class FileOfflineStore(OfflineStore):
                 # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
                 df_to_join[event_timestamp_column] = df_to_join[
                     event_timestamp_column
-                ].apply(lambda x: x if x.tz is not None else x.replace(tzinfo=pytz.utc))
+                ].apply(
+                    lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc)
+                )
                 if created_timestamp_column:
                     df_to_join[created_timestamp_column] = df_to_join[
                         created_timestamp_column
                     ].apply(
-                        lambda x: x if x.tz is not None else x.replace(tzinfo=pytz.utc)
+                        lambda x: x
+                        if x.tzinfo is not None
+                        else x.replace(tzinfo=pytz.utc)
                     )
 
                 # Sort dataframe by the event timestamp column
@@ -181,12 +185,12 @@ class FileOfflineStore(OfflineStore):
         source_df = pd.read_parquet(data_source.path)
         # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
         source_df[event_timestamp_column] = source_df[event_timestamp_column].apply(
-            lambda x: x if x.tz is not None else x.replace(tzinfo=pytz.utc)
+            lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc)
         )
         if created_timestamp_column:
             source_df[created_timestamp_column] = source_df[
                 created_timestamp_column
-            ].apply(lambda x: x if x.tz is not None else x.replace(tzinfo=pytz.utc))
+            ].apply(lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc))
 
         ts_columns = (
             [event_timestamp_column, created_timestamp_column]
