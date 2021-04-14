@@ -449,7 +449,7 @@ Authorization provides access control to FeatureTables and/or Features based on 
 
 #### **Authorization API/Server**
 
-![Feast Authorization Flow](../../.gitbook/assets/rsz_untitled23%20%282%29%20%282%29%20%282%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29.jpg)
+![Feast Authorization Flow](../../.gitbook/assets/rsz_untitled23%20%282%29%20%282%29%20%282%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29.jpg)
 
 Feast delegates Authorization grants to an external Authorization Server that implements the [Authorization Open API specification](https://github.com/feast-dev/feast/blob/master/common/src/main/resources/api.yaml).
 

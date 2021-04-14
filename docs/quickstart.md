@@ -6,13 +6,13 @@ Welcome to the Feast quickstart! This quickstart is intended to get you up and r
 2. Registering features
 3. Constructing training datasets from offline data
 4. Materializing feature data to the online feature store
-5. Fetching feature vectors for inference
+5. Fetching feature vectors for real-time inference
 
-This quickstart uses some example data about a ride hailing app to walk through Feast. Let's get into it!
+This quickstart uses some example data about a ride-hailing app to walk through Feast. Let's get into it!
 
 ## 1. Setting up Feast
 
-A Feast installation includes a Python SDK and a CLI. Feast can be installed from `pip`:
+A Feast installation includes a Python SDK and a CLI. Bo can be installed from `pip`:
 
 ```bash
 pip install feast
@@ -23,51 +23,59 @@ You can test your installation by running`feast version` from your command line:
 ```bash
 $ feast version
 
-0.10
+# 0.10
 ```
 
 ## 2. Registering features to Feast
 
 We can bootstrap a feature repository using the `feast init` command:
 
-```text
-$ feast init
+```bash
+feast init feature_repo
 
-Creating a new Feast repository in <...>/charmed_bass.
+# Creating a new Feast repository in <cwd>/feature_repo.
 ```
 
-This command generates an example repository with a random name, containing the following files:
+This command generates an example repository containing the following files.
 
-```text
-.
-└── charmed_bass
-    ├── data
-    │   └── driver_stats.parquet
-    ├── example.py
-    └── feature_store.yaml
+{% code title="CLI" %}
+```bash
+tree
+
+# .
+# └── feature_repo
+#     ├── data
+#     │   └── driver_stats.parquet
+#     ├── example.py
+#     └── feature_store.yaml
 ```
+{% endcode %}
 
-Let's enter our example feature repository.
+Now, let's take a look at these files. First, `cd` into the feature repository:
 
+{% code title="CLI" %}
 ```text
-# replace "charmed_bass" with your auto-generated feature repository name
-cd charmed_bass
+cd feature_repo
 ```
+{% endcode %}
 
-Next, let's take a look at the `feature_store.yaml` file, which configures how the feature store runs.
+Next, take a look at the `feature_store.yaml` file, which configures how the feature store runs:
 
+{% code title="feature\_store.yaml" %}
 ```yaml
-project: charmed_bass
+project: feature_repo
 registry: data/registry.db
 provider: local
 online_store:
     path: data/online_store.db
 ```
+{% endcode %}
 
 An important field to be aware of is `provider`, which specifies the environment that Feast will run in. We've initialized `provider=local`, indicating that Feast will run the feature store on our local machine. See [Repository Config](reference/feature-store-yaml.md) for more details.
 
-Next, take a look at `example.py`. This file defines some example features:
+Next, take a look at `example.py`, which defines some example features:
 
+{% code title="example.py" %}
 ```python
 # This is an example feature definition file
 
@@ -80,7 +88,7 @@ from feast.data_source import FileSource
 # production, you can use your favorite DWH, such as BigQuery. See Feast documentation
 # for more info.
 driver_hourly_stats = FileSource(
-    path="<...>/data/driver_stats.parquet",
+    path="/Users/jay/Projects/feast-10-test-2/test-apr13/feature_repo/data/driver_stats.parquet",
     event_timestamp_column="datetime",
     created_timestamp_column="created",
 )
@@ -106,6 +114,7 @@ driver_hourly_stats_view = FeatureView(
     tags={},
 )
 ```
+{% endcode %}
 
 There are three objects defined in this file:
 
@@ -115,25 +124,28 @@ There are three objects defined in this file:
 
 Feature definitions in Feast work similarly to Terraform: local definitions don't actually affect what's running in production until we explicitly register them with Feast. At this point, we have a set of feature definitions, but we haven't registered them with Feast yet.
 
-We can register our features by running `feast apply` from the CLI.
+We can register our features by running `feast apply` from the CLI:
 
+{% code title="CLI" %}
 ```bash
-$ feast apply
+feast apply
 
-Processing <...>/charmed_bass/example.py as example
-Done!
+# Processing <cwd>/feature_repo/example.py as example
+# Done!
 ```
+{% endcode %}
 
-After this command completes, our features have been registered to Feast, and they're now ready for offline retrieval and materialization.
+This command has registered our features to Feast. They're now ready for offline retrieval and materialization.
 
 ## 3. Generating training data
 
-Feast generates point-in-time accurate training data. In our example, we are using statistics about drivers to predict the likelihood of a booking completing. When we generate training data, we want to know what the features of the drivers were _at the time of prediction_.
+Feast generates point-in-time accurate training data. In our ride-hailing example, we are using statistics about drivers to predict the likelihood of a booking completion. When we generate training data, we want to know what the features of the drivers were _at the time of prediction_ \(in the past.\)
 
 ![](.gitbook/assets/ride-hailing.png)
 
 Generating training datasets is a workflow best done from an interactive computing environment, like a Jupyter notebook. You can start a Jupyter notebook by running `jupyter notebook` from the command line. Then, run the following code to generate an _entity DataFrame_:
 
+{% code title="jupyter notebook" %}
 ```python
 import pandas as pd
 from datetime import datetime
@@ -151,11 +163,13 @@ entity_df = pd.DataFrame.from_dict({
 
 entity_df.head()
 ```
+{% endcode %}
 
-![](.gitbook/assets/feast-landing-page-blog-post-page-5%20%281%29.png)
+![](.gitbook/assets/feast-landing-page-blog-post-page-5%20%281%29%20%281%29%20%281%29%20%282%29.png)
 
-This DataFrame represents the entity keys and timestamps that we want feature values as of. We can pass this Entity DataFrame into Feast, and Feast will fetch point-in-time correct features for each row:
+This DataFrame represents the entity keys and timestamps that we want feature values for. We can pass this Entity DataFrame into Feast, and Feast will fetch point-in-time correct features for each row:
 
+{% code title="jupyter notebook" %}
 ```python
 from feast import FeatureStore
 
@@ -172,32 +186,44 @@ training_df = store.get_historical_features(
 
 training_df.head()
 ```
+{% endcode %}
 
 ![](.gitbook/assets/feast-landing-page-blog-post-feature-df.png)
+
+Feast has joined on the correct feature values for the drivers that specified, as of the timestamp we specified.
 
 This DataFrame contains all the necessary signals needed to train a model, excluding labels, which are typically managed outside of Feast. Before you can train a model, you'll need to join on labels from external systems.
 
 ## 4. Materializing features to the online store
 
-We've just showed how we can use our features to train a model. Now, we'll populate the online store with our features to make them available for real time inference. When using the `local` provider, the online store is a SQLite database.
+We have just seen how we can use Feast in the model training workflow. Now, we'll see how Feast fits into the model inferencing workflow.
+
+When running inference on Feast features, the first step is to populate the online store to make our features available for real-time inference. When using the `local` provider, the online store is a SQLite database.
 
 To materialize features, run the following command from the CLI:
 
+{% code title="CLI" %}
 ```bash
-# Materialize feature values up until the current time
-$ feast materialize-incremental $(date -u +"%Y-%m-%dT%H:%M:%S")
+CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
+feast materialize-incremental $CURRENT_TIME
 
-Done!
+# Materializing feature view driver_hourly_stats from 2021-04-13 23:50:05.754655-04:00 
+# to 2021-04-14 23:50:04-04:00 done!
 ```
+{% endcode %}
 
-We've just populated the online store with the most up-to-date features from the offline store. Our feature values are now ready for real-time retrieval.
+We've just populated the online store with the most recent features from the offline store. Our feature values are now ready for real-time retrieval.
 
 ## 5. Fetching feature vectors for inference
 
-After we materialize our features, we can use the `store.get_online_features` to fetch the _latest_ feature values for real-time inference. Run the following code in your notebook to fetch online features:
+After we materialize our features, we can use the `store.get_online_features` to fetch the latest feature values for real-time inference:
 
+{% code title="jupyter notebook" %}
 ```python
 from pprint import pprint
+from feast import FeatureStore
+
+store = FeatureStore(repo_path=".")
 
 feature_vector = store.get_online_features(
     feature_refs=[
@@ -210,6 +236,7 @@ feature_vector = store.get_online_features(
 
 pprint(feature_vector)
 ```
+{% endcode %}
 
 ```text
 {
