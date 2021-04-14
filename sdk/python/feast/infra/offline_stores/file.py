@@ -159,13 +159,14 @@ class FileOfflineStore(OfflineStore):
         source_df[event_timestamp_column] = source_df[event_timestamp_column].apply(
             lambda x: x if x.tz is not None else x.replace(tzinfo=pytz.utc)
         )
-        source_df[created_timestamp_column] = source_df[created_timestamp_column].apply(
-            lambda x: x if x.tz is not None else x.replace(tzinfo=pytz.utc)
-        )
+        if created_timestamp_column:
+            source_df[created_timestamp_column] = source_df[
+                created_timestamp_column
+            ].apply(lambda x: x if x.tz is not None else x.replace(tzinfo=pytz.utc))
 
         ts_columns = (
             [event_timestamp_column, created_timestamp_column]
-            if created_timestamp_column is not None
+            if created_timestamp_column
             else [event_timestamp_column]
         )
 
