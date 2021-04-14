@@ -1,7 +1,7 @@
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 
 import pandas
 import pyarrow
@@ -130,9 +130,9 @@ class FeatureViewQueryContext:
     table_ref: str
     event_timestamp_column: str
     created_timestamp_column: str
-    field_mapping: Dict[str, str]
     query: str
     table_subquery: str
+    entity_selections: List[str]
 
 
 def _upload_entity_df_into_bigquery(project, entity_df) -> str:
@@ -178,9 +178,17 @@ def get_feature_view_query_context(
     query_context = []
     for feature_view, features in feature_views_to_feature_map.items():
         join_keys = []
+        entity_selections = []
+        reverse_field_mapping = {
+            v: k for k, v in feature_view.input.field_mapping.items()
+        }
         for entity_name in feature_view.entities:
             entity = registry.get_entity(entity_name, project)
             join_keys.append(entity.join_key)
+            join_key_column = reverse_field_mapping.get(
+                entity.join_key, entity.join_key
+            )
+            entity_selections.append(f"{join_key_column} AS {entity.join_key}")
 
         if isinstance(feature_view.ttl, timedelta):
             ttl_seconds = int(feature_view.ttl.total_seconds())
@@ -189,18 +197,25 @@ def get_feature_view_query_context(
 
         assert isinstance(feature_view.input, BigQuerySource)
 
+        event_timestamp_column = feature_view.input.event_timestamp_column
+        created_timestamp_column = feature_view.input.created_timestamp_column
+
         context = FeatureViewQueryContext(
             name=feature_view.name,
             ttl=ttl_seconds,
             entities=join_keys,
             features=features,
             table_ref=feature_view.input.table_ref,
-            event_timestamp_column=feature_view.input.event_timestamp_column,
-            created_timestamp_column=feature_view.input.created_timestamp_column,
+            event_timestamp_column=reverse_field_mapping.get(
+                event_timestamp_column, event_timestamp_column
+            ),
+            created_timestamp_column=reverse_field_mapping.get(
+                created_timestamp_column, created_timestamp_column
+            ),
             # TODO: Make created column optional and not hardcoded
-            field_mapping=feature_view.input.field_mapping,
             query=feature_view.input.query,
             table_subquery=feature_view.input.get_table_query_string(),
+            entity_selections=entity_selections,
         )
         query_context.append(context)
     return query_context
@@ -267,7 +282,7 @@ SELECT
   {{ featureview.event_timestamp_column }} as event_timestamp,
   {{ featureview.event_timestamp_column }} as {{ featureview.name }}_feature_timestamp,
   {{ featureview.created_timestamp_column }} as created_timestamp,
-  {{ featureview.entities | join(', ')}},
+  {{ featureview.entity_selections | join(', ')}},
   false AS is_entity_table
 FROM {{ featureview.table_subquery }} WHERE {{ featureview.event_timestamp_column }} <= '{{ max_timestamp }}'
 {% if featureview.ttl == 0 %}{% else %}AND {{ featureview.event_timestamp_column }} >= Timestamp_sub(TIMESTAMP '{{ min_timestamp }}', interval {{ featureview.ttl }} second){% endif %}
@@ -308,7 +323,7 @@ LEFT JOIN (
 SELECT
   {{ featureview.event_timestamp_column }} as {{ featureview.name }}_feature_timestamp,
   {{ featureview.created_timestamp_column }} as created_timestamp,
-  {{ featureview.entities | join(', ')}},
+  {{ featureview.entity_selections | join(', ')}},
   {% for feature in featureview.features %}
   {{ feature }} as {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %}, {% endif %}
   {% endfor %}

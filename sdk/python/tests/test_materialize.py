@@ -83,20 +83,20 @@ def prep_bq_fs_and_fv(
         event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         date_partition_column="",
-        field_mapping={"ts_1": "ts", "id": "driver_ident"},
+        field_mapping={"ts_1": "ts", "id": "driver_id"},
     )
 
     fv = get_feature_view(bigquery_source)
     e = Entity(
         name="driver_id",
         description="id for driver",
-        join_key="driver_ident",
+        join_key="driver_id",
         value_type=ValueType.INT32,
     )
     with tempfile.TemporaryDirectory() as repo_dir_name:
         config = RepoConfig(
             registry=str(Path(repo_dir_name) / "registry.db"),
-            project=f"test_bq_correctness_{uuid.uuid4()}",
+            project=f"test_bq_correctness_{str(uuid.uuid4()).replace('-', '')}",
             provider="gcp",
         )
         fs = FeatureStore(config=config)
@@ -138,6 +138,31 @@ def prep_local_fs_and_fv() -> Iterator[Tuple[FeatureStore, FeatureView]]:
             yield fs, fv
 
 
+# Checks that both offline & online store values are as expected
+def check_offline_and_online_features(
+    fs: FeatureStore,
+    fv: FeatureView,
+    driver_id: int,
+    event_timestamp: datetime,
+    expected_value: float,
+) -> None:
+    # Check online store
+    response_dict = fs.get_online_features(
+        [f"{fv.name}:value"], [{"driver_id": driver_id}]
+    ).to_dict()
+    assert abs(response_dict[f"{fv.name}__value"][0] - expected_value) < 1e-6
+
+    # Check offline store
+    df = fs.get_historical_features(
+        entity_df=pd.DataFrame.from_dict(
+            {"driver_id": [driver_id], "event_timestamp": [event_timestamp]}
+        ),
+        feature_refs=[f"{fv.name}:value"],
+    ).to_df()
+
+    assert abs(df.to_dict()[f"{fv.name}__value"][0] - expected_value) < 1e-6
+
+
 def run_materialization_test(fs: FeatureStore, fv: FeatureView) -> None:
     now = datetime.utcnow()
     # Run materialize()
@@ -147,27 +172,22 @@ def run_materialization_test(fs: FeatureStore, fv: FeatureView) -> None:
     fs.materialize(feature_views=[fv.name], start_date=start_date, end_date=end_date)
 
     # check result of materialize()
-    response_dict = fs.get_online_features(
-        [f"{fv.name}:value"], [{"driver_id": 1}]
-    ).to_dict()
-    assert abs(response_dict[f"{fv.name}__value"][0] - 0.3) < 1e-6
-
-    # check prior value for materialize_incremental()
-    response_dict = fs.get_online_features(
-        [f"{fv.name}:value"], [{"driver_id": 3}]
-    ).to_dict()
-    assert abs(response_dict[f"{fv.name}__value"][0] - 4) < 1e-6
-
-    # run materialize_incremental()
-    fs.materialize_incremental(
-        feature_views=[fv.name], end_date=now - timedelta(seconds=0),
+    check_offline_and_online_features(
+        fs=fs, fv=fv, driver_id=1, event_timestamp=end_date, expected_value=0.3
     )
 
+    # check prior value for materialize_incremental()
+    check_offline_and_online_features(
+        fs=fs, fv=fv, driver_id=3, event_timestamp=end_date, expected_value=4
+    )
+
+    # run materialize_incremental()
+    fs.materialize_incremental(feature_views=[fv.name], end_date=now)
+
     # check result of materialize_incremental()
-    response_dict = fs.get_online_features(
-        [f"{fv.name}:value"], [{"driver_id": 3}]
-    ).to_dict()
-    assert abs(response_dict[f"{fv.name}__value"][0] - 5) < 1e-6
+    check_offline_and_online_features(
+        fs=fs, fv=fv, driver_id=3, event_timestamp=now, expected_value=5
+    )
 
 
 @pytest.mark.integration
