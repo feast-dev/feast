@@ -8,7 +8,6 @@ import pandas
 import pyarrow
 
 from feast import FeatureTable, utils
-from feast.data_source import BigQuerySource
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.offline_stores.helpers import get_offline_store_from_sources
@@ -134,8 +133,6 @@ class GcpProvider(Provider):
         registry: Registry,
         project: str,
     ) -> None:
-        assert isinstance(feature_view.input, BigQuerySource)
-
         entities = []
         for entity_name in feature_view.entities:
             entities.append(registry.get_entity(entity_name, project))
