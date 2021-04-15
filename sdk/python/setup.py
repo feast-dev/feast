@@ -81,7 +81,6 @@ setup(
         "dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"],
         "validation": ["great_expectations==0.13.2", "pyspark==3.0.1"],
     },
-    include_package_data=True,
     license="Apache",
     classifiers=[
         # Trove classifiers
