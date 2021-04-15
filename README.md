@@ -15,44 +15,126 @@
 
 ## Overview
 
-Feast (Feature Store) is an operational data system for managing and serving machine learning features to models in production. Please see our [documentation](https://docs.feast.dev/) for more information about the project.
+Feast is an open source feature store for machine learning. Feast is the fastest path to productionizing analytic data for model training and online inference.
 
-![](docs/architecture.png)
+Please see our [documentation](https://docs.feast.dev/) for more information about the project.
 
-## Getting Started with Docker Compose
+## Architecture
+<img src="https://i.imgur.com/IYUMF3Q.png" width="700">
 
-Clone the latest stable version of the [Feast repository](https://github.com/feast-dev/feast/) and navigate to the `infra/docker-compose` sub-directory:
+The above architecture is the minimal Feast deployment. Want to run the full Feast on Kubernetes? Click [here](https://docs.feast.dev/feast-on-kubernetes/getting-started).
+
+## Getting Started
+
+### 1. Install Feast
+```commandline
+pip install feast
+```
+
+### 2. Create a feature repository
+```commandline
+feast init my_feature_repo
+cd my_feature_repo
+```
+
+### 3. Register your feature definitions and set up your feature store
+```commandline
+feast apply
+```
+
+### 4. Build a training dataset
+```python
+from feast import FeatureStore
+import pandas as pd
+from datetime import datetime
+
+entity_df = pd.DataFrame.from_dict({
+    "driver_id": [1001, 1002, 1003, 1004],
+    "event_timestamp": [
+        datetime(2021, 4, 12, 10, 59, 42),
+        datetime(2021, 4, 12, 8,  12, 10),
+        datetime(2021, 4, 12, 16, 40, 26),
+        datetime(2021, 4, 12, 15, 1 , 12)
+    ]
+})
+
+store = FeatureStore(repo_path=".")
+
+training_df = store.get_historical_features(
+    entity_df=entity_df, 
+    feature_refs = [
+        'driver_hourly_stats:conv_rate',
+        'driver_hourly_stats:acc_rate',
+        'driver_hourly_stats:avg_daily_trips'
+    ],
+).to_df()
+
+print(training_df.head())
+
+# Train model
+# model = ml.fit(training_df)
+```
+```commandline
+      event_timestamp  driver_id  driver_hourly_stats__conv_rate  driver_hourly_stats__acc_rate
+  2021-04-12 08:12:10       1002                        0.497279                       0.357702
+  2021-04-12 10:59:42       1001                        0.979747                       0.008166
+  2021-04-12 15:01:12       1004                        0.151432                       0.551748
+  2021-04-12 16:40:26       1003                        0.951506                       0.753572
 
 ```
-git clone https://github.com/feast-dev/feast.git
-cd feast/infra/docker-compose
-cp .env.sample .env
+
+### 5. Load feature values into your online store
+```commandline
+CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
+feast materialize-incremental $CURRENT_TIME
 ```
 
-The `.env` file can optionally be configured based on your environment.
-
-Bring up Feast:
+```commandline
+Materializing feature view driver_hourly_stats from 2021-04-14 to 2021-04-15 done!
 ```
-docker-compose pull && docker-compose up -d
-```
-Please wait for the containers to start up. This could take a few minutes since the quickstart contains demo infastructure like Kafka and Jupyter.
 
-Once the containers are all running, please connect to the provided [Jupyter Notebook](http://localhost:8888/tree/minimal) containing example notebooks to try out.
+### 6. Read online features at low latency
+```python
+from pprint import pprint
+from feast import FeatureStore
+
+store = FeatureStore(repo_path=".")
+
+feature_vector = store.get_online_features(
+    feature_refs=[
+        'driver_hourly_stats:conv_rate',
+        'driver_hourly_stats:acc_rate',
+        'driver_hourly_stats:avg_daily_trips'
+    ],
+    entity_rows=[{"driver_id": 1001}]
+).to_dict()
+
+pprint(feature_vector)
+
+# Make prediction
+# model.predict(feature_vector)
+```
+```json
+{
+    "driver_id": [1001],
+    "driver_hourly_stats__conv_rate": [0.49274],
+    "driver_hourly_stats__acc_rate": [0.92743],
+    "driver_hourly_stats__avg_daily_trips": [72]
+}
+```
 
 ## Important resources
 
-Please refer to the official documentation at <https://docs.feast.dev>
-
- * [Concepts](https://docs.feast.dev/concepts/overview)
- * [Installation](https://docs.feast.dev/getting-started)
- * [Examples](https://github.com/feast-dev/feast/blob/master/examples/)
+Please refer to the official documentation at [Documentation](https://docs.feast.dev/)
+ * [Quickstart](https://docs.feast.dev/quickstart)
  * [Roadmap](https://docs.feast.dev/roadmap)
+ * [Feast on Kubernetes](https://docs.feast.dev/feast-on-kubernetes/getting-started)
  * [Change Log](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
- * [Slack (#Feast)](https://join.slack.com/t/tectonfeast/shared_invite/zt-n7pl8gnb-H7dLlH9yQsgbchOp36ZUxQ)
+ * [Slack (#Feast)](https://slack.feast.dev/)
 
 ## Contributing
 Feast is a community project and is still under active development. Please have a look at our contributing and development guides if you want to contribute to the project:
-- [Contribution Process for Feast](https://docs.feast.dev/v/master/contributing/contributing)
+- [Contribution Process for Feast](https://docs.feast.dev/contributing/contributing)
 - [Development Guide for Feast](https://docs.feast.dev/contributing/development-guide)
 - [Development Guide for the Main Feast Repository](./CONTRIBUTING.md)
 
