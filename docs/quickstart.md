@@ -88,7 +88,7 @@ from feast.data_source import FileSource
 # production, you can use your favorite DWH, such as BigQuery. See Feast documentation
 # for more info.
 driver_hourly_stats = FileSource(
-    path="/Users/jay/Projects/feast-10-test-2/test-apr13/feature_repo/data/driver_stats.parquet",
+    path="/<cwd>/feature_repo/data/driver_stats.parquet",
     event_timestamp_column="datetime",
     created_timestamp_column="created",
 )
