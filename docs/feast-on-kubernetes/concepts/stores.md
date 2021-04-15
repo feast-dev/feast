@@ -6,10 +6,6 @@ In Feast, a store is a database that is populated with feature data that will ul
 
 The offline store maintains historical copies of feature values. These features are grouped and stored in feature tables. During retrieval of historical data, features are queries from these feature tables in order to produce training datasets.
 
-{% hint style="warning" %}
-Feast 0.8 does not support offline storage. Support will be added in Feast 0.9.
-{% endhint %}
-
 ### Online Store
 
 The online store maintains only the latest values for a specific feature.

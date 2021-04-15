@@ -2,9 +2,6 @@
 
 In order to retrieve features for both training and serving, Feast requires data being ingested into its offline and online stores.
 
-{% hint style="warning" %}
-Feast 0.8 does not have an offline store. Only Online storage support exists currently. Feast 0.9 will have offline storage support. In Feast 0.8, historical data is retrieved directly from batch sources.
-{% endhint %}
 
 Users are expected to already have either a batch or stream source with data stored in it, ready to be ingested into Feast. Once a feature table \(with the corresponding sources\) has been registered with Feast, it is possible to load data from this source into stores.
 
