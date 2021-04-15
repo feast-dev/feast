@@ -40,6 +40,26 @@ def test_workflow() -> None:
         result = runner.run(["apply"], cwd=repo_path)
         assert result.returncode == 0
 
+        # entity & feature view list commands should succeed
+        result = runner.run(["entities", "list"], cwd=repo_path)
+        assert result.returncode == 0
+        result = runner.run(["feature-views", "list"], cwd=repo_path)
+        assert result.returncode == 0
+
+        # entity & feature view describe commands should succeed when objects exist
+        result = runner.run(["entities", "describe", "driver"], cwd=repo_path)
+        assert result.returncode == 0
+        result = runner.run(
+            ["feature-views", "describe", "driver_locations"], cwd=repo_path
+        )
+        assert result.returncode == 0
+
+        # entity & feature view describe commands should fail when objects don't exist
+        result = runner.run(["entities", "describe", "foo"], cwd=repo_path)
+        assert result.returncode == 1
+        result = runner.run(["feature-views", "describe", "foo"], cwd=repo_path)
+        assert result.returncode == 1
+
         # Doing another apply should be a no op, and should not cause errors
         result = runner.run(["apply"], cwd=repo_path)
         assert result.returncode == 0

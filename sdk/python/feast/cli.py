@@ -15,16 +15,14 @@
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
+from typing import List
 
 import click
 import pkg_resources
 import yaml
 
-from feast.client import Client
-from feast.entity import Entity
+from feast.errors import FeastObjectNotFoundException
 from feast.feature_store import FeatureStore
-from feast.loaders.yaml import yaml_loader
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
     apply_total,
@@ -60,56 +58,27 @@ def version():
 
 
 @cli.group(name="entities")
-def entity():
+def entities_cmd():
     """
-    Create and manage entities
+    Access entities
     """
     pass
 
 
-@entity.command("apply")
-@click.option(
-    "--filename",
-    "-f",
-    help="Path to an entity configuration file that will be applied",
-    type=click.Path(exists=True),
-)
-@click.option(
-    "--project",
-    "-p",
-    help="Project that entity belongs to",
-    type=click.STRING,
-    default="default",
-)
-def entity_create(filename, project):
-    """
-    Create or update an entity
-    """
-
-    entities = [Entity.from_dict(entity_dict) for entity_dict in yaml_loader(filename)]
-    feast_client = Client()  # type: Client
-    feast_client.apply(entities, project)
-
-
-@entity.command("describe")
+@entities_cmd.command("describe")
 @click.argument("name", type=click.STRING)
-@click.option(
-    "--project",
-    "-p",
-    help="Project that entity belongs to",
-    type=click.STRING,
-    default="default",
-)
-def entity_describe(name: str, project: str):
+def entity_describe(name: str):
     """
     Describe an entity
     """
-    feast_client = Client()  # type: Client
-    entity = feast_client.get_entity(name=name, project=project)
+    cli_check_repo(Path.cwd())
+    store = FeatureStore(repo_path=str(Path.cwd()))
 
-    if not entity:
-        print(f'Entity with name "{name}" could not be found')
-        return
+    try:
+        entity = store.get_entity(name)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
 
     print(
         yaml.dump(
@@ -118,31 +87,15 @@ def entity_describe(name: str, project: str):
     )
 
 
-@entity.command(name="list")
-@click.option(
-    "--project",
-    "-p",
-    help="Project that entity belongs to",
-    type=click.STRING,
-    default="",
-)
-@click.option(
-    "--labels",
-    "-l",
-    help="Labels to filter for entities",
-    type=click.STRING,
-    default="",
-)
-def entity_list(project: str, labels: str):
+@entities_cmd.command(name="list")
+def entity_list():
     """
     List all entities
     """
-    feast_client = Client()  # type: Client
-
-    labels_dict = _get_labels_dict(labels)
-
+    cli_check_repo(Path.cwd())
+    store = FeatureStore(repo_path=str(Path.cwd()))
     table = []
-    for entity in feast_client.list_entities(project=project, labels=labels_dict):
+    for entity in store.list_entities():
         table.append([entity.name, entity.description, entity.value_type])
 
     from tabulate import tabulate
@@ -150,25 +103,50 @@ def entity_list(project: str, labels: str):
     print(tabulate(table, headers=["NAME", "DESCRIPTION", "TYPE"], tablefmt="plain"))
 
 
-def _get_labels_dict(label_str: str) -> Dict[str, str]:
+@cli.group(name="feature-views")
+def feature_views_cmd():
     """
-    Converts CLI input labels string to dictionary format if provided string is valid.
-
-    Args:
-        label_str: A comma-separated string of key-value pairs
-
-    Returns:
-        Dict of key-value label pairs
+    Access feature views
     """
-    labels_dict: Dict[str, str] = {}
-    labels_kv = label_str.split(",")
-    if label_str == "":
-        return labels_dict
-    if len(labels_kv) % 2 == 1:
-        raise ValueError("Uneven key-value label pairs were entered")
-    for k, v in zip(labels_kv[0::2], labels_kv[1::2]):
-        labels_dict[k] = v
-    return labels_dict
+    pass
+
+
+@feature_views_cmd.command("describe")
+@click.argument("name", type=click.STRING)
+def feature_view_describe(name: str):
+    """
+    Describe a feature view
+    """
+    cli_check_repo(Path.cwd())
+    store = FeatureStore(repo_path=str(Path.cwd()))
+
+    try:
+        feature_view = store.get_feature_view(name)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    print(
+        yaml.dump(
+            yaml.safe_load(str(feature_view)), default_flow_style=False, sort_keys=False
+        )
+    )
+
+
+@feature_views_cmd.command(name="list")
+def feature_view_list():
+    """
+    List all feature views
+    """
+    cli_check_repo(Path.cwd())
+    store = FeatureStore(repo_path=str(Path.cwd()))
+    table = []
+    for feature_view in store.list_feature_views():
+        table.append([feature_view.name, feature_view.entities])
+
+    from tabulate import tabulate
+
+    print(tabulate(table, headers=["NAME", "ENTITIES"], tablefmt="plain"))
 
 
 @cli.command("apply")
