@@ -7,7 +7,7 @@ from feast import BigQuerySource, Entity, Feature, FeatureView, ValueType
 # construction of feature vectors
 driver = Entity(
     # Name of the entity. Must be unique within a project
-    name="driver",
+    name="driver_id",
     # The join key of an entity describes the storage level field/column on which
     # features can be looked up. The join key is also used to join feature
     # tables/views when building feature vectors
@@ -20,7 +20,7 @@ driver = Entity(
 # datasets or materializing features into an online store.
 driver_stats_source = BigQuerySource(
     # The BigQuery table where features can be found
-    table_ref="feast-oss.demo_data.driver_stats",
+    table_ref="feast-oss.demo_data.driver_hourly_stats",
     # The event timestamp is used for point-in-time joins and for ensuring only
     # features within the TTL are returned
     event_timestamp_column="datetime",
@@ -34,11 +34,11 @@ driver_stats_source = BigQuerySource(
 driver_stats_fv = FeatureView(
     # The unique name of this feature view. Two feature views in a single
     # project cannot have the same name
-    name="driver_stats",
+    name="driver_hourly_stats",
     # The list of entities specifies the keys required for joining or looking
     # up features from this feature view. The reference provided in this field
     # correspond to the name of a defined entity (or entities)
-    entities=["driver"],
+    entities=["driver_id"],
     # The timedelta is the maximum age that each feature value may have
     # relative to its lookup time. For historical features (used in training),
     # TTL is relative to each timestamp provided in the entity dataframe.

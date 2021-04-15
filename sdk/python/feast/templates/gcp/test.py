@@ -18,7 +18,7 @@ def main():
     fs.apply([driver, driver_stats_fv])
 
     # Select features
-    feature_refs = ["driver_stats:conv_rate", "driver_stats:acc_rate"]
+    feature_refs = ["driver_hourly_stats:conv_rate", "driver_hourly_stats:acc_rate"]
 
     # Create an entity dataframe. This is the dataframe that will be enriched with historical features
     entity_df = pd.DataFrame(
@@ -31,7 +31,7 @@ def main():
                     periods=3,
                 )
             ],
-            "driver_id": [5001, 5002, 5003],
+            "driver_id": [1001, 1002, 1003],
         }
     )
 
@@ -54,7 +54,8 @@ def main():
 
     # Retrieve features from the online store (Firestore)
     online_features = fs.get_online_features(
-        feature_refs=feature_refs, entity_rows=[{"driver": 5001}, {"driver": 5002}]
+        feature_refs=feature_refs,
+        entity_rows=[{"driver_id": 1001}, {"driver_id": 1002}],
     ).to_dict()
 
     print()
