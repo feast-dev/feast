@@ -12,7 +12,7 @@ This quickstart uses some example data about a ride-hailing app to walk through 
 
 ## 1. Setting up Feast
 
-A Feast installation includes a Python SDK and a CLI. Bo can be installed from `pip`:
+A Feast installation includes a Python SDK and a CLI. Both can be installed from `pip`:
 
 ```bash
 pip install feast
