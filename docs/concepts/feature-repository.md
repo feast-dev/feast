@@ -6,9 +6,9 @@ The feature repository is the declarative source of truth for what the desired s
 
 ## What is a feature repository?
 
-A feature repository consists of
+A feature repository consists of:
 
-* A collection of Python files containing feature declarations
+* A collection of Python files containing feature declarations.
 * A `feature_store.yaml` file containing infrastructural configuration.
 
 {% hint style="info" %}
@@ -38,12 +38,12 @@ $ tree
 
 A couple of things to note about the feature repository:
 
-* Feast does not currently read through subdirectories of the feature repository when commands. All feature repositories must reside at the root of the repo.
+* Feast does not currently read through subdirectories of the feature repository when commands. All feature definition files must reside at the root of the repository.
 * Feast reads _all_ Python files when `feast apply` is ran, even if they don't contain feature definitions. It's recommended to store imperative scripts in a different location than inside the feature registry for this purpose.
 
 ## The feature\_store.yaml configuration file
 
-The configuration for a feature store is stored in a file named `feature_store.yaml` at the root of a feature repository. For example:
+The configuration for a feature store is stored in a file named `feature_store.yaml` , which must be located at the root of a feature repository. An example `feature_store.yaml` file is shown below:
 
 {% code title="feature\_store.yaml" %}
 ```yaml
@@ -55,16 +55,11 @@ online_store:
 ```
 {% endcode %}
 
-* **Project**: A unique identifier for your project. The project name is used to isolate multiple feature stores when deploying to the same infrastructure. 
-* **Registry**: The registry is used to persist feature definitions and related metadata. The registry is updated when the `apply` command is run to update infrastructure. The registry is read when users try to build training datasets or try to read from an online store. A registry can either be a local file or a file on an object store \(if it needs to be shared\).
-* **Provider**: The provider defines the target environment that will be used to configure your infrastructure. By selecting `local`, Feast will configure local infrastructure for storing and serving features. By selecting `gcp`, Feast will configure cloud infrastructure for storing and serving features.
-* **Online Store**: This option allows teams to configure the destination online store that should be used to store and serve online features. The type of online store that can be selected and configured depends on the `provider`. A provider may allow more than one online store to be configured.
-
-See [feature\_store.yaml](../reference/feature-store-yaml.md) for more details.
+The `feature_store.yaml` file configures how the feature store should run. See [feature\_store.yaml](../reference/feature-store-yaml.md) for more details.
 
 ## Feature definitions
 
-A feature repository can also contain one or more Python files that contain feature definitions. For example:
+A feature repository can also contain one or more Python files that contain feature definitions. An example feature definition file is shown below:
 
 {% code title="driver\_features.py" %}
 ```python
@@ -97,11 +92,7 @@ driver_locations = FeatureView(
 ```
 {% endcode %}
 
-The way to declare feature definitions \(Feature Views, Entities, Data Sources\) in a feature repository is to simply write Python code to instantiate the objects.
-
-There are no restrictions on how Python feature definition files can be named, as long as they have valid Python module names \(i.e. no dashes\).
-
-See [Feature Views](feature-views.md) for more details.
+To declare new feature definitions, just add code to the feature repository, either in existing files or in a new file. For more information on how to define features, see [Feature Views](feature-views.md).
 
 ### Next steps
 
