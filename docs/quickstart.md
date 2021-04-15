@@ -188,6 +188,8 @@ training_df.head()
 ```
 {% endcode %}
 
+![\(These feature values are non-deterministic, by the way.\)](.gitbook/assets/feast-landing-page-blog-post-feature-df.png)
+
 ![](.gitbook/assets/feast-landing-page-blog-post-feature-df.png)
 
 Feast has joined on the correct feature values for the drivers that specified, as of the timestamp we specified.

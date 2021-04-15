@@ -76,6 +76,8 @@ driver_stats_source = BigQuerySource(
 
 ### Feature View
 
+A Feature View is a 
+
 {% tabs %}
 {% tab title="driver\_trips\_feature\_table.py" %}
 ```python
