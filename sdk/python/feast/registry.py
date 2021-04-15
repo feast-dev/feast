@@ -23,6 +23,11 @@ from urllib.parse import urlparse
 from google.auth.exceptions import DefaultCredentialsError
 
 from feast.entity import Entity
+from feast.errors import (
+    EntityNotFoundException,
+    FeatureTableNotFoundException,
+    FeatureViewNotFoundException,
+)
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -121,7 +126,7 @@ class Registry:
         for entity_proto in registry_proto.entities:
             if entity_proto.spec.name == name and entity_proto.spec.project == project:
                 return Entity.from_proto(entity_proto)
-        raise Exception(f"Entity {name} does not exist in project {project}")
+        raise EntityNotFoundException(project, name)
 
     def apply_feature_table(self, feature_table: FeatureTable, project: str):
         """
@@ -238,7 +243,7 @@ class Registry:
                 and feature_table_proto.spec.project == project
             ):
                 return FeatureTable.from_proto(feature_table_proto)
-        raise Exception(f"Feature table {name} does not exist in project {project}")
+        raise FeatureTableNotFoundException(project, name)
 
     def get_feature_view(self, name: str, project: str) -> FeatureView:
         """
@@ -259,7 +264,7 @@ class Registry:
                 and feature_view_proto.spec.project == project
             ):
                 return FeatureView.from_proto(feature_view_proto)
-        raise Exception(f"Feature view {name} does not exist in project {project}")
+        raise FeatureViewNotFoundException(project, name)
 
     def delete_feature_table(self, name: str, project: str):
         """
@@ -280,7 +285,7 @@ class Registry:
                 ):
                     del registry_proto.feature_tables[idx]
                     return registry_proto
-            raise Exception(f"Feature table {name} does not exist in project {project}")
+            raise FeatureTableNotFoundException(project, name)
 
         self._registry_store.update_registry_proto(updater)
         return
@@ -304,7 +309,7 @@ class Registry:
                 ):
                     del registry_proto.feature_views[idx]
                     return registry_proto
-            raise Exception(f"Feature view {name} does not exist in project {project}")
+            raise FeatureViewNotFoundException(project, name)
 
         self._registry_store.update_registry_proto(updater)
 
