@@ -127,12 +127,11 @@ jobs:
     env:
       TWINE_USERNAME: __token__
       TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+    container: python:3.7
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.7'
-          architecture: 'x64'
+      - name: Install dependencies
+        run: make install-python-ci-dependencies
       - name: Publish Python Package
         run: |
           cd sdk/python
