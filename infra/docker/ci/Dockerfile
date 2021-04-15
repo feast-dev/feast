@@ -26,7 +26,6 @@ RUN mkdir -p /usr/share/maven /usr/share/maven/ref \
   && ln -s /usr/share/maven/bin/mvn /usr/bin/mvn
 
 ENV MAVEN_HOME /usr/share/maven
-ENV MAVEN_CONFIG "/root/.m2"
 
 # Install Make and Python
 ENV PYTHON_VERSION 3.7
