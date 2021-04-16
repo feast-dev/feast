@@ -39,7 +39,7 @@ class BigQueryOfflineStore(OfflineStore):
                 "PARTITION BY " + partition_by_join_key_string
             )
         timestamps = [event_timestamp_column]
-        if created_timestamp_column is not None:
+        if created_timestamp_column:
             timestamps.append(created_timestamp_column)
         timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
         field_string = ", ".join(join_key_columns + feature_name_columns + timestamps)
@@ -129,7 +129,7 @@ class FeatureViewQueryContext:
     features: List[str]  # feature reference format
     table_ref: str
     event_timestamp_column: str
-    created_timestamp_column: str
+    created_timestamp_column: Optional[str]
     query: str
     table_subquery: str
     entity_selections: List[str]
@@ -270,7 +270,7 @@ SELECT
   -- the feature_timestamp, i.e. the latest occurrence of the requested feature relative to the entity_dataset timestamp
   NULL as {{ featureview.name }}_feature_timestamp,
   -- created timestamp of the feature at the corresponding feature_timestamp
-  NULL as created_timestamp,
+  {{ 'NULL as created_timestamp,' if featureview.created_timestamp_column else '' }}
   -- select only entities belonging to this feature set
   {{ featureview.entities | join(', ')}},
   -- boolean for filtering the dataset later
@@ -281,7 +281,7 @@ SELECT
   NULL as row_number,
   {{ featureview.event_timestamp_column }} as event_timestamp,
   {{ featureview.event_timestamp_column }} as {{ featureview.name }}_feature_timestamp,
-  {{ featureview.created_timestamp_column }} as created_timestamp,
+  {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
   {{ featureview.entity_selections | join(', ')}},
   false AS is_entity_table
 FROM {{ featureview.table_subquery }} WHERE {{ featureview.event_timestamp_column }} <= '{{ max_timestamp }}'
@@ -309,11 +309,11 @@ SELECT
   row_number,
   event_timestamp,
   {{ featureview.entities | join(', ')}},
-  FIRST_VALUE(created_timestamp IGNORE NULLS) over w AS created_timestamp,
+  {{ 'FIRST_VALUE(created_timestamp IGNORE NULLS) over w AS created_timestamp,' if featureview.created_timestamp_column else '' }}
   FIRST_VALUE({{ featureview.name }}_feature_timestamp IGNORE NULLS) over w AS {{ featureview.name }}_feature_timestamp,
   is_entity_table
 FROM {{ featureview.name }}__union_features
-WINDOW w AS (PARTITION BY {{ featureview.entities | join(', ') }} ORDER BY event_timestamp DESC, is_entity_table DESC, created_timestamp DESC ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+WINDOW w AS (PARTITION BY {{ featureview.entities | join(', ') }} ORDER BY event_timestamp DESC, is_entity_table DESC{{', created_timestamp DESC' if featureview.created_timestamp_column else ''}} ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
 )
 /*
  3. Select only the rows from the entity table, and join the features from the original feature set table
@@ -322,14 +322,14 @@ WINDOW w AS (PARTITION BY {{ featureview.entities | join(', ') }} ORDER BY event
 LEFT JOIN (
 SELECT
   {{ featureview.event_timestamp_column }} as {{ featureview.name }}_feature_timestamp,
-  {{ featureview.created_timestamp_column }} as created_timestamp,
+  {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
   {{ featureview.entity_selections | join(', ')}},
   {% for feature in featureview.features %}
   {{ feature }} as {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %}, {% endif %}
   {% endfor %}
 FROM {{ featureview.table_subquery }} WHERE {{ featureview.event_timestamp_column }} <= '{{ max_timestamp }}'
 {% if featureview.ttl == 0 %}{% else %}AND {{ featureview.event_timestamp_column }} >= Timestamp_sub(TIMESTAMP '{{ min_timestamp }}', interval {{ featureview.ttl }} second){% endif %}
-) USING ({{ featureview.name }}_feature_timestamp, created_timestamp, {{ featureview.entities | join(', ')}})
+) USING ({{ featureview.name }}_feature_timestamp,{{ ' created_timestamp,' if featureview.created_timestamp_column else '' }} {{ featureview.entities | join(', ')}})
 WHERE is_entity_table
 ),
 /*

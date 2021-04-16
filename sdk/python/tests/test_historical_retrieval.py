@@ -39,11 +39,15 @@ def generate_entities(date):
     return customer_entities, driver_entities, end_date, orders_df, start_date
 
 
-def stage_driver_hourly_stats_parquet_source(directory, df):
+def stage_driver_hourly_stats_parquet_source(directory, df, created_timestamp_column):
     # Write to disk
     driver_stats_path = os.path.join(directory, "driver_stats.parquet")
     df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
-    return FileSource(path=driver_stats_path, event_timestamp_column="datetime")
+    return FileSource(
+        path=driver_stats_path,
+        event_timestamp_column="datetime",
+        created_timestamp_column=created_timestamp_column,
+    )
 
 
 def stage_driver_hourly_stats_bigquery_source(df, table_id):
@@ -69,10 +73,16 @@ def create_driver_hourly_stats_feature_view(source):
     return driver_stats_feature_view
 
 
-def stage_customer_daily_profile_parquet_source(directory, df):
+def stage_customer_daily_profile_parquet_source(
+    directory, df, created_timestamp_column
+):
     customer_profile_path = os.path.join(directory, "customer_profile.parquet")
     df.to_parquet(path=customer_profile_path, allow_truncated_timestamps=True)
-    return FileSource(path=customer_profile_path, event_timestamp_column="datetime")
+    return FileSource(
+        path=customer_profile_path,
+        event_timestamp_column="datetime",
+        created_timestamp_column=created_timestamp_column,
+    )
 
 
 def stage_customer_daily_profile_bigquery_source(df, table_id):
@@ -203,7 +213,10 @@ class BigQueryDataSet:
             )
 
 
-def test_historical_features_from_parquet_sources():
+@pytest.mark.parametrize(
+    "created_timestamp_column", ["created", ""],
+)
+def test_historical_features_from_parquet_sources(created_timestamp_column):
     start_date = datetime.now().replace(microsecond=0, second=0, minute=0)
     (
         customer_entities,
@@ -217,13 +230,15 @@ def test_historical_features_from_parquet_sources():
         driver_df = driver_data.create_driver_hourly_stats_df(
             driver_entities, start_date, end_date
         )
-        driver_source = stage_driver_hourly_stats_parquet_source(temp_dir, driver_df)
+        driver_source = stage_driver_hourly_stats_parquet_source(
+            temp_dir, driver_df, created_timestamp_column
+        )
         driver_fv = create_driver_hourly_stats_feature_view(driver_source)
         customer_df = driver_data.create_customer_daily_profile_df(
             customer_entities, start_date, end_date
         )
         customer_source = stage_customer_daily_profile_parquet_source(
-            temp_dir, customer_df
+            temp_dir, customer_df, created_timestamp_column,
         )
         customer_fv = create_customer_daily_profile_feature_view(customer_source)
         driver = Entity(name="driver", join_key="driver_id", value_type=ValueType.INT64)
@@ -281,7 +296,12 @@ def test_historical_features_from_parquet_sources():
 @pytest.mark.parametrize(
     "provider_type", ["local", "gcp"],
 )
-def test_historical_features_from_bigquery_sources(provider_type):
+@pytest.mark.parametrize(
+    "created_timestamp_column", ["created", ""],
+)
+def test_historical_features_from_bigquery_sources(
+    provider_type, created_timestamp_column
+):
     start_date = datetime.now().replace(microsecond=0, second=0, minute=0)
     (
         customer_entities,
@@ -311,7 +331,7 @@ def test_historical_features_from_bigquery_sources(provider_type):
         driver_source = BigQuerySource(
             table_ref=driver_table_id,
             event_timestamp_column="datetime",
-            created_timestamp_column="created",
+            created_timestamp_column=created_timestamp_column,
         )
         driver_fv = create_driver_hourly_stats_feature_view(driver_source)
 
@@ -325,7 +345,7 @@ def test_historical_features_from_bigquery_sources(provider_type):
         customer_source = BigQuerySource(
             table_ref=customer_table_id,
             event_timestamp_column="datetime",
-            created_timestamp_column="created",
+            created_timestamp_column=created_timestamp_column,
         )
         customer_fv = create_customer_daily_profile_feature_view(customer_source)
 
