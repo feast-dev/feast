@@ -41,7 +41,7 @@ class RegistryConfig(FeastBaseModel):
     """ Metadata Store Configuration. Configuration that relates to reading from and writing to the Feast registry."""
 
     path: StrictStr
-    """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. gcs://foo/bar """
+    """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. a GCS URI """
 
     cache_ttl_seconds: StrictInt = 600
     """int: The cache TTL is the amount of time registry state will be cached in memory. If this TTL is exceeded then
@@ -54,7 +54,7 @@ class RepoConfig(FeastBaseModel):
     """ Repo config. Typically loaded from `feature_store.yaml` """
 
     registry: Union[StrictStr, RegistryConfig] = "data/registry.db"
-    """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. gcs://foo/bar """
+    """ str: Path to metadata store. Can be a local path, or remote object storage path, e.g. a GCS URI """
 
     project: StrictStr
     """ str: Feast project id. This can be any alphanumeric string up to 16 characters.

@@ -110,7 +110,8 @@ class FeatureRef:
     def from_proto(cls, proto: FeatureRefProto):
         """
         Construct a feature reference from the given FeatureReference proto
-        Arg:
+
+        Args:
             proto: Protobuf FeatureReference to construct from
         Returns:
             FeatureRef that refers to the given feature
@@ -124,6 +125,7 @@ class FeatureRef:
         String feature reference should be in the format feature_table:feature.
         Where "feature_table" and "name" are the feature_table name and feature name
         respectively.
+
         Args:
             feature_ref_str: String representation of the feature reference
         Returns:
@@ -144,6 +146,7 @@ class FeatureRef:
     def to_proto(self) -> FeatureRefProto:
         """
         Convert and return this feature table reference to protobuf.
+
         Returns:
             Protobuf respresentation of this feature table reference.
         """
