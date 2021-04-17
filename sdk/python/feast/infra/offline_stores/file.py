@@ -60,10 +60,20 @@ class FileOfflineStore(OfflineStore):
             entity_df[ENTITY_DF_EVENT_TIMESTAMP_COL] = entity_df[
                 ENTITY_DF_EVENT_TIMESTAMP_COL
             ].apply(lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc))
-            # Sort entity dataframe prior to join, and create a copy to prevent modifying the original
-            entity_df_with_features = entity_df.sort_values(
+
+            # Create a copy of entity_df to prevent modifying the original
+            entity_df_with_features = entity_df.copy()
+
+            # Convert event timestamp column to datetime and normalize time zone to UTC
+            # This is necessary to avoid issues with pd.merge_asof
+            entity_df_with_features[ENTITY_DF_EVENT_TIMESTAMP_COL] = pd.to_datetime(
+                entity_df_with_features[ENTITY_DF_EVENT_TIMESTAMP_COL], utc=True
+            )
+
+            # Sort event timestamp values
+            entity_df_with_features = entity_df_with_features.sort_values(
                 ENTITY_DF_EVENT_TIMESTAMP_COL
-            ).copy()
+            )
 
             # Load feature view data from sources and join them incrementally
             for feature_view, features in feature_views_to_features.items():

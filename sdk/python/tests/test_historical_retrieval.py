@@ -10,8 +10,10 @@ import pandas as pd
 import pytest
 from google.cloud import bigquery
 from pandas.testing import assert_frame_equal
+from pytz import utc
 
 import feast.driver_test_data as driver_data
+from feast import utils
 from feast.data_source import BigQuerySource, FileSource
 from feast.entity import Entity
 from feast.feature import Feature
@@ -98,6 +100,23 @@ def create_customer_daily_profile_feature_view(source):
     return customer_profile_feature_view
 
 
+# Converts the given column of the pandas records to UTC timestamps
+def convert_timestamp_records_to_utc(records, column):
+    for record in records:
+        record[column] = utils.make_tzaware(record[column]).astimezone(utc)
+    return records
+
+
+# Find the latest record in the given time range and filter
+def find_asof_record(records, ts_key, ts_start, ts_end, filter_key, filter_value):
+    found_record = {}
+    for record in records:
+        if record[filter_key] == filter_value and ts_start <= record[ts_key] <= ts_end:
+            if not found_record or found_record[ts_key] < record[ts_key]:
+                found_record = record
+    return found_record
+
+
 def get_expected_training_df(
     customer_df: pd.DataFrame,
     customer_fv: FeatureView,
@@ -105,67 +124,60 @@ def get_expected_training_df(
     driver_fv: FeatureView,
     orders_df: pd.DataFrame,
 ):
-    expected_orders_df = orders_df.copy().sort_values(ENTITY_DF_EVENT_TIMESTAMP_COL)
-    expected_drivers_df = driver_df.copy().sort_values(
-        driver_fv.input.event_timestamp_column
+    # Convert all pandas dataframes into records with UTC timestamps
+    order_records = convert_timestamp_records_to_utc(
+        orders_df.to_dict("records"), "event_timestamp"
     )
-    expected_orders_with_drivers = pd.merge_asof(
-        expected_orders_df,
-        expected_drivers_df[
-            [
-                driver_fv.input.event_timestamp_column,
-                "driver_id",
-                "conv_rate",
-                "avg_daily_trips",
-            ]
-        ],
-        left_on=ENTITY_DF_EVENT_TIMESTAMP_COL,
-        right_on=driver_fv.input.event_timestamp_column,
-        by=["driver_id"],
-        tolerance=driver_fv.ttl,
+    driver_records = convert_timestamp_records_to_utc(
+        driver_df.to_dict("records"), driver_fv.input.event_timestamp_column
+    )
+    customer_records = convert_timestamp_records_to_utc(
+        customer_df.to_dict("records"), customer_fv.input.event_timestamp_column
     )
 
-    expected_orders_with_drivers.drop(
-        columns=[driver_fv.input.event_timestamp_column], inplace=True
-    )
+    # Manually do point-in-time join of orders to drivers and customers records
+    for order_record in order_records:
+        driver_record = find_asof_record(
+            driver_records,
+            ts_key=driver_fv.input.event_timestamp_column,
+            ts_start=order_record["event_timestamp"] - driver_fv.ttl,
+            ts_end=order_record["event_timestamp"],
+            filter_key="driver_id",
+            filter_value=order_record["driver_id"],
+        )
+        customer_record = find_asof_record(
+            customer_records,
+            ts_key=customer_fv.input.event_timestamp_column,
+            ts_start=order_record["event_timestamp"] - customer_fv.ttl,
+            ts_end=order_record["event_timestamp"],
+            filter_key="customer_id",
+            filter_value=order_record["customer_id"],
+        )
+        order_record.update(
+            {
+                f"driver_stats__{k}": driver_record.get(k, None)
+                for k in ("conv_rate", "avg_daily_trips")
+            }
+        )
+        order_record.update(
+            {
+                f"customer_profile__{k}": customer_record.get(k, None)
+                for k in (
+                    "current_balance",
+                    "avg_passenger_count",
+                    "lifetime_trip_count",
+                )
+            }
+        )
 
-    expected_customers_df = customer_df.copy().sort_values(
-        [customer_fv.input.event_timestamp_column]
-    )
-    expected_df = pd.merge_asof(
-        expected_orders_with_drivers,
-        expected_customers_df[
-            [
-                customer_fv.input.event_timestamp_column,
-                "customer_id",
-                "current_balance",
-                "avg_passenger_count",
-                "lifetime_trip_count",
-            ]
-        ],
-        left_on=ENTITY_DF_EVENT_TIMESTAMP_COL,
-        right_on=customer_fv.input.event_timestamp_column,
-        by=["customer_id"],
-        tolerance=customer_fv.ttl,
-    )
-    expected_df.drop(columns=[driver_fv.input.event_timestamp_column], inplace=True)
+    # Convert records back to pandas dataframe
+    expected_df = pd.DataFrame(order_records)
 
     # Move "datetime" column to front
     current_cols = expected_df.columns.tolist()
     current_cols.remove(ENTITY_DF_EVENT_TIMESTAMP_COL)
     expected_df = expected_df[[ENTITY_DF_EVENT_TIMESTAMP_COL] + current_cols]
 
-    # Rename columns to have double underscore
-    expected_df.rename(
-        inplace=True,
-        columns={
-            "conv_rate": "driver_stats__conv_rate",
-            "avg_daily_trips": "driver_stats__avg_daily_trips",
-            "current_balance": "customer_profile__current_balance",
-            "avg_passenger_count": "customer_profile__avg_passenger_count",
-            "lifetime_trip_count": "customer_profile__lifetime_trip_count",
-        },
-    )
     return expected_df
 
 
@@ -274,6 +286,7 @@ def test_historical_features_from_parquet_sources():
                     "customer_id",
                 ]
             ).reset_index(drop=True),
+            check_dtype=False,
         )
 
 
