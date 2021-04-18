@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import sys
 from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -21,6 +22,7 @@ from colorama import Fore, Style
 
 from feast import utils
 from feast.entity import Entity
+from feast.errors import FeatureViewNotFoundException
 from feast.feature_view import FeatureView
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
@@ -271,7 +273,13 @@ class FeatureStore:
         all_feature_views = self._registry.list_feature_views(
             project=self.config.project
         )
-        feature_views = _get_requested_feature_views(feature_refs, all_feature_views)
+        try:
+            feature_views = _get_requested_feature_views(
+                feature_refs, all_feature_views
+            )
+        except FeatureViewNotFoundException as e:
+            sys.exit(e)
+
         provider = self._get_provider()
         job = provider.get_historical_features(
             self.config,
@@ -529,7 +537,7 @@ def _group_refs(
     for ref in feature_refs:
         view_name, feat_name = ref.split(":")
         if view_name not in view_index:
-            raise ValueError(f"Could not find feature view from reference {ref}")
+            raise FeatureViewNotFoundException(view_name)
         views_features[view_name].append(feat_name)
 
     result = []

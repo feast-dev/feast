@@ -264,7 +264,7 @@ class Registry:
                 and feature_view_proto.spec.project == project
             ):
                 return FeatureView.from_proto(feature_view_proto)
-        raise FeatureViewNotFoundException(project, name)
+        raise FeatureViewNotFoundException(name, project)
 
     def delete_feature_table(self, name: str, project: str):
         """
@@ -309,7 +309,7 @@ class Registry:
                 ):
                     del registry_proto.feature_views[idx]
                     return registry_proto
-            raise FeatureViewNotFoundException(project, name)
+            raise FeatureViewNotFoundException(name, project)
 
         self._registry_store.update_registry_proto(updater)
 
