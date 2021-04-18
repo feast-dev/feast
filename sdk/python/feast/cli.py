@@ -21,7 +21,7 @@ import click
 import pkg_resources
 import yaml
 
-from feast.errors import FeastObjectNotFoundException
+from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_store import FeatureStore
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
@@ -156,8 +156,10 @@ def apply_total_command():
     """
     cli_check_repo(Path.cwd())
     repo_config = load_repo_config(Path.cwd())
-
-    apply_total(repo_config, Path.cwd())
+    try:
+        apply_total(repo_config, Path.cwd())
+    except FeastProviderLoginError as e:
+        print(str(e))
 
 
 @cli.command("teardown")

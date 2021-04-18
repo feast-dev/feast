@@ -15,3 +15,7 @@ class FeatureViewNotFoundException(FeastObjectNotFoundException):
 class FeatureTableNotFoundException(FeastObjectNotFoundException):
     def __init__(self, project, name):
         super().__init__(f"Feature table {name} does not exist in project {project}")
+
+
+class FeastProviderLoginError(Exception):
+    """Error class that indicates a user has not authenticated with their provider."""
