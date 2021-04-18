@@ -22,7 +22,7 @@ from colorama import Fore, Style
 
 from feast import utils
 from feast.entity import Entity
-from feast.errors import FeatureViewNotFoundException
+from feast.errors import FeatureViewNotFoundException, FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
@@ -281,14 +281,18 @@ class FeatureStore:
             sys.exit(e)
 
         provider = self._get_provider()
-        job = provider.get_historical_features(
-            self.config,
-            feature_views,
-            feature_refs,
-            entity_df,
-            self._registry,
-            self.project,
-        )
+        try:
+            job = provider.get_historical_features(
+                self.config,
+                feature_views,
+                feature_refs,
+                entity_df,
+                self._registry,
+                self.project,
+            )
+        except FeastProviderLoginError as e:
+            sys.exit(e)
+
         return job
 
     def materialize_incremental(

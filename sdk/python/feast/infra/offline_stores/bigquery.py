@@ -5,10 +5,12 @@ from typing import List, Optional, Union
 
 import pandas
 import pyarrow
+from google.auth.exceptions import DefaultCredentialsError
 from google.cloud import bigquery
 from jinja2 import BaseLoader, Environment
 
 from feast.data_source import BigQuerySource, DataSource
+from feast.errors import FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.provider import (
@@ -59,11 +61,24 @@ class BigQueryOfflineStore(OfflineStore):
 
     @staticmethod
     def _pull_query(query: str) -> pyarrow.Table:
-        from google.cloud import bigquery
-
-        client = bigquery.Client()
+        client = BigQueryOfflineStore._get_bigquery_client()
         query_job = client.query(query)
         return query_job.to_arrow()
+
+    @staticmethod
+    def _get_bigquery_client():
+        try:
+            from google.cloud import bigquery
+
+            client = bigquery.Client()
+        except DefaultCredentialsError as e:
+            raise FeastProviderLoginError(
+                str(e)
+                + '\nIt may be necessary to run "gcloud auth application-default login" if you would like to use your '
+                "local Google Cloud account"
+            )
+
+        return client
 
     @staticmethod
     def get_historical_features(
@@ -76,6 +91,8 @@ class BigQueryOfflineStore(OfflineStore):
     ) -> RetrievalJob:
         # TODO: Add entity_df validation in order to fail before interacting with BigQuery
 
+        client = BigQueryOfflineStore._get_bigquery_client()
+
         if type(entity_df) is str:
             entity_df_sql_table = f"({entity_df})"
         elif isinstance(entity_df, pandas.DataFrame):
@@ -83,7 +100,9 @@ class BigQueryOfflineStore(OfflineStore):
                 raise ValueError(
                     "Please provide an entity_df with a column named event_timestamp representing the time of events."
                 )
-            table_id = _upload_entity_df_into_bigquery(config.project, entity_df)
+            table_id = _upload_entity_df_into_bigquery(
+                config.project, entity_df, client
+            )
             entity_df_sql_table = f"`{table_id}`"
         else:
             raise ValueError(
@@ -104,18 +123,19 @@ class BigQueryOfflineStore(OfflineStore):
             max_timestamp=datetime.now() + timedelta(days=1),
             left_table_query_string=entity_df_sql_table,
         )
-        job = BigQueryRetrievalJob(query=query)
+
+        job = BigQueryRetrievalJob(query=query, client=client)
         return job
 
 
 class BigQueryRetrievalJob(RetrievalJob):
-    def __init__(self, query):
+    def __init__(self, query, client):
         self.query = query
+        self.client = client
 
     def to_df(self):
         # TODO: Ideally only start this job when the user runs "get_historical_features", not when they run to_df()
-        client = bigquery.Client()
-        df = client.query(self.query).to_dataframe(create_bqstorage_client=True)
+        df = self.client.query(self.query).to_dataframe(create_bqstorage_client=True)
         return df
 
 
@@ -135,9 +155,8 @@ class FeatureViewQueryContext:
     entity_selections: List[str]
 
 
-def _upload_entity_df_into_bigquery(project, entity_df) -> str:
+def _upload_entity_df_into_bigquery(project, entity_df, client) -> str:
     """Uploads a Pandas entity dataframe into a BigQuery table and returns a reference to the resulting table"""
-    client = bigquery.Client()
 
     # First create the BigQuery dataset if it doesn't exist
     dataset = bigquery.Dataset(f"{client.project}.feast_{project}")
