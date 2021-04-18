@@ -7,6 +7,8 @@ from importlib.abc import Loader
 from pathlib import Path
 from typing import List, NamedTuple, Union
 
+import click
+
 from feast import Entity, FeatureTable
 from feast.feature_view import FeatureView
 from feast.infra.provider import get_provider
@@ -39,8 +41,6 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
     for repo_file in repo_files:
 
         module_path = py_path_to_module(repo_file, repo_root)
-
-        print(f"Processing {repo_file} as {module_path}")
         module = importlib.import_module(module_path)
 
         for attr_name in dir(module):
@@ -55,6 +55,8 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
 
 
 def apply_total(repo_config: RepoConfig, repo_path: Path):
+    from colorama import Fore, Style
+
     os.chdir(repo_path)
     sys.path.append("")
     registry_config = repo_config.get_registry_config()
@@ -66,9 +68,11 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
     sys.dont_write_bytecode = False
-
     for entity in repo.entities:
         registry.apply_entity(entity, project=project)
+        click.echo(
+            f"Registered entity {Style.BRIGHT + Fore.GREEN}{entity.name}{Style.RESET_ALL}"
+        )
 
     repo_table_names = set(t.name for t in repo.feature_tables)
 
@@ -88,18 +92,30 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     # Delete tables that should not exist
     for registry_table in tables_to_delete:
         registry.delete_feature_table(registry_table.name, project=project)
+        click.echo(
+            f"Deleted feature table {Style.BRIGHT + Fore.GREEN}{registry_table.name}{Style.RESET_ALL} from registry"
+        )
 
     # Create tables that should
     for table in repo.feature_tables:
         registry.apply_feature_table(table, project)
+        click.echo(
+            f"Registered feature table {Style.BRIGHT + Fore.GREEN}{registry_table.name}{Style.RESET_ALL}"
+        )
 
     # Delete views that should not exist
     for registry_view in views_to_delete:
         registry.delete_feature_view(registry_view.name, project=project)
+        click.echo(
+            f"Deleted feature view {Style.BRIGHT + Fore.GREEN}{registry_view.name}{Style.RESET_ALL} from registry"
+        )
 
     # Create views that should
     for view in repo.feature_views:
         registry.apply_feature_view(view, project)
+        click.echo(
+            f"Registered feature view {Style.BRIGHT + Fore.GREEN}{view.name}{Style.RESET_ALL}"
+        )
 
     infra_provider = get_provider(repo_config)
 
@@ -111,14 +127,20 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     all_to_keep.extend(repo.feature_tables)
     all_to_keep.extend(repo.feature_views)
 
+    for name in [view.name for view in repo.feature_tables] + [table.name for table in repo.feature_views]:
+        click.echo(
+            f"Deploying infrastructure for {Style.BRIGHT + Fore.GREEN}{name}{Style.RESET_ALL}"
+        )
+    for name in [view.name for view in views_to_delete] + [table.name for table in tables_to_delete]:
+        click.echo(
+            f"Removing infrastructure for {Style.BRIGHT + Fore.GREEN}{name}{Style.RESET_ALL}"
+        )
     infra_provider.update_infra(
         project,
         tables_to_delete=all_to_delete,
         tables_to_keep=all_to_keep,
         partial=False,
     )
-
-    print("Done!")
 
 
 def teardown(repo_config: RepoConfig, repo_path: Path):
