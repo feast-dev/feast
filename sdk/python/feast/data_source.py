@@ -446,6 +446,12 @@ class DataSource:
         """
         self._date_partition_column = date_partition_column
 
+    @property
+    def offline_store(self):
+        # Return OfflineStore() object
+        # Cannot be imported because of cyclic dependency
+        ...
+
     @staticmethod
     def from_proto(data_source):
         """
@@ -596,6 +602,12 @@ class FileSource(DataSource):
         """
         return self._file_options.file_url
 
+    @property
+    def offline_store(self):
+        from feast.infra.offline_stores.file import FileOfflineStore
+
+        return FileOfflineStore()
+
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             type=DataSourceProto.BATCH_FILE,
@@ -663,6 +675,12 @@ class BigQuerySource(DataSource):
         Sets the bigquery options of this data source
         """
         self._bigquery_options = bigquery_options
+
+    @property
+    def offline_store(self):
+        from feast.infra.offline_stores.bigquery import BigQueryOfflineStore
+
+        return BigQueryOfflineStore()
 
     def to_proto(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(

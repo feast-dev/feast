@@ -4,7 +4,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-import pandas as pd
 import pytz
 
 from feast import FeatureTable, utils
@@ -13,7 +12,6 @@ from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.offline_stores.helpers import get_offline_store_from_sources
 from feast.infra.provider import (
     Provider,
-    RetrievalJob,
     _convert_arrow_to_proto,
     _get_column_names,
     _run_field_mapping,
@@ -191,27 +189,6 @@ class LocalProvider(Provider):
 
         feature_view.materialization_intervals.append((start_date, end_date))
         registry.apply_feature_view(feature_view, project)
-
-    @staticmethod
-    def get_historical_features(
-        config: RepoConfig,
-        feature_views: List[FeatureView],
-        feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
-        registry: Registry,
-        project: str,
-    ) -> RetrievalJob:
-        offline_store = get_offline_store_from_sources(
-            [feature_view.input for feature_view in feature_views]
-        )
-        return offline_store.get_historical_features(
-            config=config,
-            feature_views=feature_views,
-            feature_refs=feature_refs,
-            entity_df=entity_df,
-            registry=registry,
-            project=project,
-        )
 
 
 def _table_id(project: str, table: Union[FeatureTable, FeatureView]) -> str:

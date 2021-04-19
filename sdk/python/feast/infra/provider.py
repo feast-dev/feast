@@ -8,6 +8,7 @@ import pyarrow
 from feast.entity import Entity
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
+from feast.infra.offline_stores.helpers import get_offline_store_from_sources
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -93,7 +94,6 @@ class Provider(abc.ABC):
         pass
 
     @staticmethod
-    @abc.abstractmethod
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
@@ -102,7 +102,18 @@ class Provider(abc.ABC):
         registry: Registry,
         project: str,
     ) -> RetrievalJob:
-        pass
+        offline_store = get_offline_store_from_sources(
+            [feature_view.input for feature_view in feature_views]
+        )
+        job = offline_store.get_historical_features(
+            config=config,
+            feature_views=feature_views,
+            feature_refs=feature_refs,
+            entity_df=entity_df,
+            registry=registry,
+            project=project,
+        )
+        return job
 
     @abc.abstractmethod
     def online_read(

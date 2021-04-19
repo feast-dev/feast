@@ -1,8 +1,6 @@
 from typing import List
 
-from feast.data_source import BigQuerySource, DataSource, FileSource
-from feast.infra.offline_stores.bigquery import BigQueryOfflineStore
-from feast.infra.offline_stores.file import FileOfflineStore
+from feast.data_source import DataSource
 from feast.infra.offline_stores.offline_store import OfflineStore
 
 
@@ -11,16 +9,14 @@ def get_offline_store_from_sources(sources: List[DataSource]) -> OfflineStore:
 
     source_types = [type(source) for source in sources]
 
-    # Retrieve features from ParquetOfflineStore
-    if all(source == FileSource for source in source_types):
-        return FileOfflineStore()
+    if len(set(source_types)) > 1:
+        raise NotImplementedError(
+            "Unsupported combination of feature view input source types. Please ensure that all source types are "
+            "consistent and available in the same offline store."
+        )
 
-    # Retrieve features from BigQueryOfflineStore
-    if all(source == BigQuerySource for source in source_types):
-        return BigQueryOfflineStore()
+    # Assert statement to pass mypy and make sure we return an OfflineStore object
+    offline_store = sources.pop().offline_store
+    assert isinstance(offline_store, OfflineStore)
 
-    # Could not map inputs to an OfflineStore implementation
-    raise NotImplementedError(
-        "Unsupported combination of feature view input source types. Please ensure that all source types are "
-        "consistent and available in the same offline store."
-    )
+    return offline_store
