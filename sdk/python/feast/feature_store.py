@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 import sys
 from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
@@ -43,7 +44,7 @@ class FeatureStore:
     """
 
     config: RepoConfig
-    repo_path: Optional[str]
+    repo_path: Path
     _registry: Registry
 
     def __init__(
@@ -55,12 +56,13 @@ class FeatureStore:
             repo_path: Path to a `feature_store.yaml` used to configure the feature store
             config (RepoConfig): Configuration object used to configure the feature store
         """
-        self.repo_path = repo_path
         if repo_path is not None and config is not None:
             raise ValueError("You cannot specify both repo_path and config")
         if config is not None:
+            self.repo_path = Path(os.getcwd())
             self.config = config
         elif repo_path is not None:
+            self.repo_path = Path(repo_path)
             self.config = load_repo_config(Path(repo_path))
         else:
             raise ValueError("Please specify one of repo_path or config")
@@ -68,6 +70,7 @@ class FeatureStore:
         registry_config = self.config.get_registry_config()
         self._registry = Registry(
             registry_path=registry_config.path,
+            repo_path=self.repo_path,
             cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
         )
         self._tele = Telemetry()
@@ -103,6 +106,7 @@ class FeatureStore:
         registry_config = self.config.get_registry_config()
         self._registry = Registry(
             registry_path=registry_config.path,
+            repo_path=self.repo_path,
             cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
         )
         self._registry.refresh()

@@ -63,6 +63,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     project = repo_config.project
     registry = Registry(
         registry_path=registry_config.path,
+        repo_path=repo_path,
         cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
     )
     registry._initialize_registry()
@@ -152,6 +153,7 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
     registry_config = repo_config.get_registry_config()
     registry = Registry(
         registry_path=registry_config.path,
+        repo_path=repo_path,
         cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
     )
     project = repo_config.project
@@ -162,12 +164,13 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
     infra_provider.teardown_infra(project, tables=registry_tables)
 
 
-def registry_dump(repo_config: RepoConfig):
+def registry_dump(repo_config: RepoConfig, repo_path: Path):
     """ For debugging only: output contents of the metadata registry """
     registry_config = repo_config.get_registry_config()
     project = repo_config.project
     registry = Registry(
         registry_path=registry_config.path,
+        repo_path=repo_path,
         cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
     )
 

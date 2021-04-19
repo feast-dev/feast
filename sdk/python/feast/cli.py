@@ -181,7 +181,7 @@ def registry_dump_command():
     cli_check_repo(Path.cwd())
     repo_config = load_repo_config(Path.cwd())
 
-    registry_dump(repo_config)
+    registry_dump(repo_config, repo_path=Path.cwd())
 
 
 @cli.command("materialize")
