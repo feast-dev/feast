@@ -45,7 +45,11 @@ def stage_driver_hourly_stats_parquet_source(directory, df):
     # Write to disk
     driver_stats_path = os.path.join(directory, "driver_stats.parquet")
     df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
-    return FileSource(path=driver_stats_path, event_timestamp_column="datetime")
+    return FileSource(
+        path=driver_stats_path,
+        event_timestamp_column="datetime",
+        created_timestamp_column="",
+    )
 
 
 def stage_driver_hourly_stats_bigquery_source(df, table_id):
@@ -74,7 +78,11 @@ def create_driver_hourly_stats_feature_view(source):
 def stage_customer_daily_profile_parquet_source(directory, df):
     customer_profile_path = os.path.join(directory, "customer_profile.parquet")
     df.to_parquet(path=customer_profile_path, allow_truncated_timestamps=True)
-    return FileSource(path=customer_profile_path, event_timestamp_column="datetime")
+    return FileSource(
+        path=customer_profile_path,
+        event_timestamp_column="datetime",
+        created_timestamp_column="created",
+    )
 
 
 def stage_customer_daily_profile_bigquery_source(df, table_id):
@@ -346,7 +354,7 @@ def test_historical_features_from_bigquery_sources(provider_type):
         customer_source = BigQuerySource(
             table_ref=customer_table_id,
             event_timestamp_column="datetime",
-            created_timestamp_column="created",
+            created_timestamp_column="",
         )
         customer_fv = create_customer_daily_profile_feature_view(customer_source)
 
