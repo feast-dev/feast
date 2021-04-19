@@ -65,6 +65,14 @@ class Registry:
         self.cached_registry_proto_ttl = cache_ttl
         return
 
+    def _initialize_registry(self):
+        """Explicitly forces the initialization of a registry"""
+
+        def updater(registry_proto: RegistryProto):
+            return registry_proto  # no-op
+
+        self._registry_store.update_registry_proto(updater)
+
     def apply_entity(self, entity: Entity, project: str):
         """
         Registers a single entity with Feast

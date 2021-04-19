@@ -246,14 +246,6 @@ def init_command(project_directory, minimal: bool, template: str):
     """Create a new Feast repository"""
     if not project_directory:
         project_directory = generate_project_name()
-    if template and minimal:
-        from colorama import Fore, Style
-
-        click.echo(
-            f"Please select either a {Style.BRIGHT + Fore.GREEN}template{Style.RESET_ALL} or "
-            f"{Style.BRIGHT + Fore.GREEN}minimal{Style.RESET_ALL}, not both"
-        )
-        exit(1)
 
     if minimal:
         template = "minimal"

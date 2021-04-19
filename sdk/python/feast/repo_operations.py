@@ -65,6 +65,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
         registry_path=registry_config.path,
         cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
     )
+    registry._initialize_registry()
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
     sys.dont_write_bytecode = False
