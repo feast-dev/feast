@@ -178,6 +178,15 @@ def get_expected_training_df(
     current_cols.remove(ENTITY_DF_EVENT_TIMESTAMP_COL)
     expected_df = expected_df[[ENTITY_DF_EVENT_TIMESTAMP_COL] + current_cols]
 
+    # Cast some columns to expected types, since we lose information when converting pandas DFs into Python objects.
+    expected_df["order_is_success"] = expected_df["order_is_success"].astype("int32")
+    expected_df["customer_profile__current_balance"] = expected_df[
+        "customer_profile__current_balance"
+    ].astype("float32")
+    expected_df["customer_profile__avg_passenger_count"] = expected_df[
+        "customer_profile__avg_passenger_count"
+    ].astype("float32")
+
     return expected_df
 
 
@@ -286,7 +295,6 @@ def test_historical_features_from_parquet_sources():
                     "customer_id",
                 ]
             ).reset_index(drop=True),
-            check_dtype=False,
         )
 
 
