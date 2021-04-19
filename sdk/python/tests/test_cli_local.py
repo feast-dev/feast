@@ -72,22 +72,22 @@ def test_workflow() -> None:
         result = runner.run(["teardown"], cwd=repo_path)
         assert result.returncode == 0
 
+
 def test_non_local_feature_repo() -> None:
     """
     Test running apply on a sample repo, and make sure the infra gets created.
     """
     runner = CliRunner()
-    with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
+    with tempfile.TemporaryDirectory() as repo_dir_name:
 
         # Construct an example repo in a temporary dir
         repo_path = Path(repo_dir_name)
-        data_path = Path(data_dir_name)
 
         repo_config = repo_path / "feature_store.yaml"
 
         repo_config.write_text(
             dedent(
-                f"""
+                """
         project: foo
         registry: data/registry.db
         provider: local
