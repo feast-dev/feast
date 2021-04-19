@@ -1,8 +1,29 @@
 # This module generates dummy data to be used for tests and examples.
+from enum import Enum
+
 import numpy as np
 import pandas as pd
+from pytz import FixedOffset, timezone, utc
 
 from feast.infra.provider import ENTITY_DF_EVENT_TIMESTAMP_COL
+
+
+class EventTimestampType(Enum):
+    TZ_NAIVE = 0
+    TZ_AWARE_UTC = 1
+    TZ_AWARE_FIXED_OFFSET = 2
+    TZ_AWARE_US_PACIFIC = 3
+
+
+def _convert_event_timestamp(event_timestamp: pd.Timestamp, t: EventTimestampType):
+    if t == EventTimestampType.TZ_NAIVE:
+        return event_timestamp
+    elif t == EventTimestampType.TZ_AWARE_UTC:
+        return event_timestamp.replace(tzinfo=utc)
+    elif t == EventTimestampType.TZ_AWARE_FIXED_OFFSET:
+        return event_timestamp.replace(tzinfo=utc).astimezone(FixedOffset(60))
+    elif t == EventTimestampType.TZ_AWARE_US_PACIFIC:
+        return event_timestamp.replace(tzinfo=utc).astimezone(timezone("US/Pacific"))
 
 
 def create_orders_df(
@@ -23,9 +44,15 @@ def create_orders_df(
     df["driver_id"] = np.random.choice(drivers, order_count)
     df["customer_id"] = np.random.choice(customers, order_count)
     df["order_is_success"] = np.random.randint(0, 2, size=order_count).astype(np.int32)
+
     df[ENTITY_DF_EVENT_TIMESTAMP_COL] = [
-        pd.Timestamp(dt, unit="ms", tz="UTC").round("ms")
-        for dt in pd.date_range(start=start_date, end=end_date, periods=order_count)
+        _convert_event_timestamp(
+            pd.Timestamp(dt, unit="ms", tz="UTC").round("ms"),
+            EventTimestampType(idx % 4),
+        )
+        for idx, dt in enumerate(
+            pd.date_range(start=start_date, end=end_date, periods=order_count)
+        )
     ]
     df.sort_values(
         by=[ENTITY_DF_EVENT_TIMESTAMP_COL, "order_id", "driver_id", "customer_id"],
