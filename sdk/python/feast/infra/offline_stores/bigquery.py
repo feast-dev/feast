@@ -77,6 +77,13 @@ class BigQueryOfflineStore(OfflineStore):
                 + '\nIt may be necessary to run "gcloud auth application-default login" if you would like to use your '
                 "local Google Cloud account"
             )
+        except EnvironmentError as e:
+            raise FeastProviderLoginError(
+                "GCP error: "
+                + str(e)
+                + "\nIt may be necessary to set a default GCP project by running "
+                '"gcloud config set project your-project"'
+            )
 
         return client
 

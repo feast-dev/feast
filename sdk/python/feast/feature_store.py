@@ -22,7 +22,7 @@ from colorama import Fore, Style
 
 from feast import utils
 from feast.entity import Entity
-from feast.errors import FeatureViewNotFoundException, FeastProviderLoginError
+from feast.errors import FeastProviderLoginError, FeatureViewNotFoundException
 from feast.feature_view import FeatureView
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
