@@ -190,8 +190,6 @@ training_df.head()
 
 ![\(These feature values are non-deterministic, by the way.\)](.gitbook/assets/feast-landing-page-blog-post-feature-df.png)
 
-![](.gitbook/assets/feast-landing-page-blog-post-feature-df.png)
-
 Feast has joined on the correct feature values for the drivers that specified, as of the timestamp we specified.
 
 This DataFrame contains all the necessary signals needed to train a model, excluding labels, which are typically managed outside of Feast. Before you can train a model, you'll need to join on labels from external systems.
