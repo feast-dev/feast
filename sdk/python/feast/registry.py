@@ -45,11 +45,13 @@ class Registry:
     cached_registry_proto_ttl: timedelta
     cache_being_updated: bool = False
 
-    def __init__(self, registry_path: str, cache_ttl: timedelta):
+    def __init__(self, registry_path: str, repo_path: Path, cache_ttl: timedelta):
         """
         Create the Registry object.
 
         Args:
+            repo_path: Path to the base of the Feast repository
+            cache_ttl: The amount of time that cached registry state stays valid
             registry_path: filepath or GCS URI that is the location of the object store registry,
             or where it will be created if it does not exist yet.
         """
@@ -57,13 +59,19 @@ class Registry:
         if uri.scheme == "gs":
             self._registry_store: RegistryStore = GCSRegistryStore(registry_path)
         elif uri.scheme == "file" or uri.scheme == "":
-            self._registry_store = LocalRegistryStore(registry_path)
+            self._registry_store = LocalRegistryStore(
+                repo_path=repo_path, registry_path_string=registry_path
+            )
         else:
             raise Exception(
                 f"Registry path {registry_path} has unsupported scheme {uri.scheme}. Supported schemes are file and gs."
             )
         self.cached_registry_proto_ttl = cache_ttl
         return
+
+    def _initialize_registry(self):
+        """Explicitly forces the initialization of a registry"""
+        self._registry_store.update_registry_proto()
 
     def apply_entity(self, entity: Entity, project: str):
         """
@@ -264,7 +272,7 @@ class Registry:
                 and feature_view_proto.spec.project == project
             ):
                 return FeatureView.from_proto(feature_view_proto)
-        raise FeatureViewNotFoundException(project, name)
+        raise FeatureViewNotFoundException(name, project)
 
     def delete_feature_table(self, name: str, project: str):
         """
@@ -309,7 +317,7 @@ class Registry:
                 ):
                     del registry_proto.feature_views[idx]
                     return registry_proto
-            raise FeatureViewNotFoundException(project, name)
+            raise FeatureViewNotFoundException(name, project)
 
         self._registry_store.update_registry_proto(updater)
 
@@ -381,9 +389,12 @@ class RegistryStore(ABC):
 
 
 class LocalRegistryStore(RegistryStore):
-    def __init__(self, filepath: str):
-        self._filepath = Path(filepath)
-        return
+    def __init__(self, repo_path: Path, registry_path_string: str):
+        registry_path = Path(registry_path_string)
+        if registry_path.is_absolute():
+            self._filepath = registry_path
+        else:
+            self._filepath = repo_path.joinpath(registry_path)
 
     def get_registry_proto(self):
         registry_proto = RegistryProto()
@@ -394,14 +405,17 @@ class LocalRegistryStore(RegistryStore):
             f'Registry not found at path "{self._filepath}". Have you run "feast apply"?'
         )
 
-    def update_registry_proto(self, updater: Callable[[RegistryProto], RegistryProto]):
+    def update_registry_proto(
+        self, updater: Callable[[RegistryProto], RegistryProto] = None
+    ):
         try:
             registry_proto = self.get_registry_proto()
         except FileNotFoundError:
             registry_proto = RegistryProto()
             registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
 
-        registry_proto = updater(registry_proto)
+        if updater:
+            registry_proto = updater(registry_proto)
         self._write_registry(registry_proto)
         return
 

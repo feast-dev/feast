@@ -1,5 +1,6 @@
 import abc
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import pandas
@@ -123,7 +124,7 @@ class Provider(abc.ABC):
         ...
 
 
-def get_provider(config: RepoConfig) -> Provider:
+def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
     if config.provider == "gcp":
         from feast.infra.gcp import GcpProvider
 
@@ -131,7 +132,7 @@ def get_provider(config: RepoConfig) -> Provider:
     elif config.provider == "local":
         from feast.infra.local import LocalProvider
 
-        return LocalProvider(config)
+        return LocalProvider(config, repo_path)
     else:
         raise ValueError(config)
 

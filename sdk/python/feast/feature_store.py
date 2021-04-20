@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
+import sys
 from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -21,6 +23,7 @@ from colorama import Fore, Style
 
 from feast import utils
 from feast.entity import Entity
+from feast.errors import FeastProviderLoginError, FeatureViewNotFoundException
 from feast.feature_view import FeatureView
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.online_response import OnlineResponse, _infer_online_entity_rows
@@ -41,7 +44,7 @@ class FeatureStore:
     """
 
     config: RepoConfig
-    repo_path: Optional[str]
+    repo_path: Path
     _registry: Registry
 
     def __init__(
@@ -53,12 +56,13 @@ class FeatureStore:
             repo_path: Path to a `feature_store.yaml` used to configure the feature store
             config (RepoConfig): Configuration object used to configure the feature store
         """
-        self.repo_path = repo_path
         if repo_path is not None and config is not None:
             raise ValueError("You cannot specify both repo_path and config")
         if config is not None:
+            self.repo_path = Path(os.getcwd())
             self.config = config
         elif repo_path is not None:
+            self.repo_path = Path(repo_path)
             self.config = load_repo_config(Path(repo_path))
         else:
             raise ValueError("Please specify one of repo_path or config")
@@ -66,6 +70,7 @@ class FeatureStore:
         registry_config = self.config.get_registry_config()
         self._registry = Registry(
             registry_path=registry_config.path,
+            repo_path=self.repo_path,
             cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
         )
         self._tele = Telemetry()
@@ -80,7 +85,8 @@ class FeatureStore:
         return self.config.project
 
     def _get_provider(self) -> Provider:
-        return get_provider(self.config)
+        # TODO: Bake self.repo_path into self.config so that we dont only have one interface to paths
+        return get_provider(self.config, self.repo_path)
 
     def refresh_registry(self):
         """Fetches and caches a copy of the feature registry in memory.
@@ -101,6 +107,7 @@ class FeatureStore:
         registry_config = self.config.get_registry_config()
         self._registry = Registry(
             registry_path=registry_config.path,
+            repo_path=self.repo_path,
             cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
         )
         self._registry.refresh()
@@ -271,16 +278,26 @@ class FeatureStore:
         all_feature_views = self._registry.list_feature_views(
             project=self.config.project
         )
-        feature_views = _get_requested_feature_views(feature_refs, all_feature_views)
+        try:
+            feature_views = _get_requested_feature_views(
+                feature_refs, all_feature_views
+            )
+        except FeatureViewNotFoundException as e:
+            sys.exit(e)
+
         provider = self._get_provider()
-        job = provider.get_historical_features(
-            self.config,
-            feature_views,
-            feature_refs,
-            entity_df,
-            self._registry,
-            self.project,
-        )
+        try:
+            job = provider.get_historical_features(
+                self.config,
+                feature_views,
+                feature_refs,
+                entity_df,
+                self._registry,
+                self.project,
+            )
+        except FeastProviderLoginError as e:
+            sys.exit(e)
+
         return job
 
     def materialize_incremental(
@@ -529,7 +546,7 @@ def _group_refs(
     for ref in feature_refs:
         view_name, feat_name = ref.split(":")
         if view_name not in view_index:
-            raise ValueError(f"Could not find feature view from reference {ref}")
+            raise FeatureViewNotFoundException(view_name)
         views_features[view_name].append(feat_name)
 
     result = []
