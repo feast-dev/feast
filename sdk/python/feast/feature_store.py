@@ -85,7 +85,8 @@ class FeatureStore:
         return self.config.project
 
     def _get_provider(self) -> Provider:
-        return get_provider(self.config)
+        # TODO: Bake self.repo_path into self.config so that we dont only have one interface to paths
+        return get_provider(self.config, self.repo_path)
 
     def refresh_registry(self):
         """Fetches and caches a copy of the feature registry in memory.
