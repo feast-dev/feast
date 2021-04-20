@@ -88,7 +88,8 @@ CI_REQUIRED = [
     "adlfs==0.5.9",
     "firebase-admin==4.5.2",
     "google-cloud-datastore==2.1.0",
-    "pre-commit"
+    "pre-commit",
+    "assertpy==1.1",
 ]
 
 # README file from Feast repo root directory
