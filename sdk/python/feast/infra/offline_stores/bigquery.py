@@ -61,31 +61,9 @@ class BigQueryOfflineStore(OfflineStore):
 
     @staticmethod
     def _pull_query(query: str) -> pyarrow.Table:
-        client = BigQueryOfflineStore._get_bigquery_client()
+        client = _get_bigquery_client()
         query_job = client.query(query)
         return query_job.to_arrow()
-
-    @staticmethod
-    def _get_bigquery_client():
-        try:
-            from google.cloud import bigquery
-
-            client = bigquery.Client()
-        except DefaultCredentialsError as e:
-            raise FeastProviderLoginError(
-                str(e)
-                + '\nIt may be necessary to run "gcloud auth application-default login" if you would like to use your '
-                "local Google Cloud account"
-            )
-        except EnvironmentError as e:
-            raise FeastProviderLoginError(
-                "GCP error: "
-                + str(e)
-                + "\nIt may be necessary to set a default GCP project by running "
-                '"gcloud config set project your-project"'
-            )
-
-        return client
 
     @staticmethod
     def get_historical_features(
@@ -98,7 +76,7 @@ class BigQueryOfflineStore(OfflineStore):
     ) -> RetrievalJob:
         # TODO: Add entity_df validation in order to fail before interacting with BigQuery
 
-        client = BigQueryOfflineStore._get_bigquery_client()
+        client = _get_bigquery_client()
 
         if type(entity_df) is str:
             entity_df_sql_table = f"({entity_df})"
@@ -268,6 +246,28 @@ def build_point_in_time_query(
 
     query = template.render(template_context)
     return query
+
+
+def _get_bigquery_client():
+    try:
+        from google.cloud import bigquery
+
+        client = bigquery.Client()
+    except DefaultCredentialsError as e:
+        raise FeastProviderLoginError(
+            str(e)
+            + '\nIt may be necessary to run "gcloud auth application-default login" if you would like to use your '
+            "local Google Cloud account"
+        )
+    except EnvironmentError as e:
+        raise FeastProviderLoginError(
+            "GCP error: "
+            + str(e)
+            + "\nIt may be necessary to set a default GCP project by running "
+            '"gcloud config set project your-project"'
+        )
+
+    return client
 
 
 # TODO: Optimizations

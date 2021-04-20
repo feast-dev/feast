@@ -45,7 +45,6 @@ class GcpProvider(Provider):
             else:
                 return datastore.Client()
         except DefaultCredentialsError as e:
-            assert isinstance(e, DefaultCredentialsError)
             raise FeastProviderLoginError(
                 str(e)
                 + '\nIt may be necessary to run "gcloud auth application-default login" if you would like to use your local Google Cloud account'

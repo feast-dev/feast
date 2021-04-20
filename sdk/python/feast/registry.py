@@ -71,11 +71,7 @@ class Registry:
 
     def _initialize_registry(self):
         """Explicitly forces the initialization of a registry"""
-
-        def updater(registry_proto: RegistryProto):
-            return registry_proto  # no-op
-
-        self._registry_store.update_registry_proto(updater)
+        self._registry_store.update_registry_proto()
 
     def apply_entity(self, entity: Entity, project: str):
         """
@@ -409,14 +405,17 @@ class LocalRegistryStore(RegistryStore):
             f'Registry not found at path "{self._filepath}". Have you run "feast apply"?'
         )
 
-    def update_registry_proto(self, updater: Callable[[RegistryProto], RegistryProto]):
+    def update_registry_proto(
+        self, updater: Callable[[RegistryProto], RegistryProto] = None
+    ):
         try:
             registry_proto = self.get_registry_proto()
         except FileNotFoundError:
             registry_proto = RegistryProto()
             registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
 
-        registry_proto = updater(registry_proto)
+        if updater:
+            registry_proto = updater(registry_proto)
         self._write_registry(registry_proto)
         return
 

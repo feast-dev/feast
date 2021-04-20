@@ -119,7 +119,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
             f"Registered feature view {Style.BRIGHT + Fore.GREEN}{view.name}{Style.RESET_ALL}"
         )
 
-    infra_provider = get_provider(repo_config)
+    infra_provider = get_provider(repo_config, repo_path)
 
     all_to_delete: List[Union[FeatureTable, FeatureView]] = []
     all_to_delete.extend(tables_to_delete)
@@ -160,7 +160,7 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
     registry_tables: List[Union[FeatureTable, FeatureView]] = []
     registry_tables.extend(registry.list_feature_tables(project=project))
     registry_tables.extend(registry.list_feature_views(project=project))
-    infra_provider = get_provider(repo_config)
+    infra_provider = get_provider(repo_config, repo_path)
     infra_provider.teardown_infra(project, tables=registry_tables)
 
 
