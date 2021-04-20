@@ -5,6 +5,7 @@ from datetime import datetime
 import pytest
 
 from feast import FeatureStore, RepoConfig
+from feast.errors import FeatureViewNotFoundException
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RegistryConfig
@@ -116,7 +117,7 @@ def test_online() -> None:
         assert "customer_driver_combined__trips" in result
 
         # invalid table reference
-        with pytest.raises(ValueError):
+        with pytest.raises(FeatureViewNotFoundException):
             store.get_online_features(
                 feature_refs=["driver_locations_bad:lon"], entity_rows=[{"driver": 1}],
             )

@@ -21,7 +21,7 @@ import click
 import pkg_resources
 import yaml
 
-from feast.errors import FeastObjectNotFoundException
+from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_store import FeatureStore
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
@@ -156,8 +156,10 @@ def apply_total_command():
     """
     cli_check_repo(Path.cwd())
     repo_config = load_repo_config(Path.cwd())
-
-    apply_total(repo_config, Path.cwd())
+    try:
+        apply_total(repo_config, Path.cwd())
+    except FeastProviderLoginError as e:
+        print(str(e))
 
 
 @cli.command("teardown")
@@ -179,7 +181,7 @@ def registry_dump_command():
     cli_check_repo(Path.cwd())
     repo_config = load_repo_config(Path.cwd())
 
-    registry_dump(repo_config)
+    registry_dump(repo_config, repo_path=Path.cwd())
 
 
 @cli.command("materialize")
@@ -244,14 +246,6 @@ def init_command(project_directory, minimal: bool, template: str):
     """Create a new Feast repository"""
     if not project_directory:
         project_directory = generate_project_name()
-    if template and minimal:
-        from colorama import Fore, Style
-
-        click.echo(
-            f"Please select either a {Style.BRIGHT + Fore.GREEN}template{Style.RESET_ALL} or "
-            f"{Style.BRIGHT + Fore.GREEN}minimal{Style.RESET_ALL}, not both"
-        )
-        exit(1)
 
     if minimal:
         template = "minimal"

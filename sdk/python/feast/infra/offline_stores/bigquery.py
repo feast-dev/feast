@@ -5,10 +5,12 @@ from typing import List, Optional, Union
 
 import pandas
 import pyarrow
+from google.auth.exceptions import DefaultCredentialsError
 from google.cloud import bigquery
 from jinja2 import BaseLoader, Environment
 
 from feast.data_source import BigQuerySource, DataSource
+from feast.errors import FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.provider import (
@@ -39,7 +41,7 @@ class BigQueryOfflineStore(OfflineStore):
                 "PARTITION BY " + partition_by_join_key_string
             )
         timestamps = [event_timestamp_column]
-        if created_timestamp_column is not None:
+        if created_timestamp_column:
             timestamps.append(created_timestamp_column)
         timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
         field_string = ", ".join(join_key_columns + feature_name_columns + timestamps)
@@ -59,9 +61,7 @@ class BigQueryOfflineStore(OfflineStore):
 
     @staticmethod
     def _pull_query(query: str) -> pyarrow.Table:
-        from google.cloud import bigquery
-
-        client = bigquery.Client()
+        client = _get_bigquery_client()
         query_job = client.query(query)
         return query_job.to_arrow()
 
@@ -76,6 +76,8 @@ class BigQueryOfflineStore(OfflineStore):
     ) -> RetrievalJob:
         # TODO: Add entity_df validation in order to fail before interacting with BigQuery
 
+        client = _get_bigquery_client()
+
         if type(entity_df) is str:
             entity_df_sql_table = f"({entity_df})"
         elif isinstance(entity_df, pandas.DataFrame):
@@ -83,7 +85,9 @@ class BigQueryOfflineStore(OfflineStore):
                 raise ValueError(
                     "Please provide an entity_df with a column named event_timestamp representing the time of events."
                 )
-            table_id = _upload_entity_df_into_bigquery(config.project, entity_df)
+            table_id = _upload_entity_df_into_bigquery(
+                config.project, entity_df, client
+            )
             entity_df_sql_table = f"`{table_id}`"
         else:
             raise ValueError(
@@ -104,18 +108,19 @@ class BigQueryOfflineStore(OfflineStore):
             max_timestamp=datetime.now() + timedelta(days=1),
             left_table_query_string=entity_df_sql_table,
         )
-        job = BigQueryRetrievalJob(query=query)
+
+        job = BigQueryRetrievalJob(query=query, client=client)
         return job
 
 
 class BigQueryRetrievalJob(RetrievalJob):
-    def __init__(self, query):
+    def __init__(self, query, client):
         self.query = query
+        self.client = client
 
     def to_df(self):
         # TODO: Ideally only start this job when the user runs "get_historical_features", not when they run to_df()
-        client = bigquery.Client()
-        df = client.query(self.query).to_dataframe(create_bqstorage_client=True)
+        df = self.client.query(self.query).to_dataframe(create_bqstorage_client=True)
         return df
 
 
@@ -129,15 +134,14 @@ class FeatureViewQueryContext:
     features: List[str]  # feature reference format
     table_ref: str
     event_timestamp_column: str
-    created_timestamp_column: str
+    created_timestamp_column: Optional[str]
     query: str
     table_subquery: str
     entity_selections: List[str]
 
 
-def _upload_entity_df_into_bigquery(project, entity_df) -> str:
+def _upload_entity_df_into_bigquery(project, entity_df, client) -> str:
     """Uploads a Pandas entity dataframe into a BigQuery table and returns a reference to the resulting table"""
-    client = bigquery.Client()
 
     # First create the BigQuery dataset if it doesn't exist
     dataset = bigquery.Dataset(f"{client.project}.feast_{project}")
@@ -244,6 +248,28 @@ def build_point_in_time_query(
     return query
 
 
+def _get_bigquery_client():
+    try:
+        from google.cloud import bigquery
+
+        client = bigquery.Client()
+    except DefaultCredentialsError as e:
+        raise FeastProviderLoginError(
+            str(e)
+            + '\nIt may be necessary to run "gcloud auth application-default login" if you would like to use your '
+            "local Google Cloud account"
+        )
+    except EnvironmentError as e:
+        raise FeastProviderLoginError(
+            "GCP error: "
+            + str(e)
+            + "\nIt may be necessary to set a default GCP project by running "
+            '"gcloud config set project your-project"'
+        )
+
+    return client
+
+
 # TODO: Optimizations
 #   * Use GENERATE_UUID() instead of ROW_NUMBER(), or join on entity columns directly
 #   * Precompute ROW_NUMBER() so that it doesn't have to be recomputed for every query on entity_dataframe
@@ -270,7 +296,7 @@ SELECT
   -- the feature_timestamp, i.e. the latest occurrence of the requested feature relative to the entity_dataset timestamp
   NULL as {{ featureview.name }}_feature_timestamp,
   -- created timestamp of the feature at the corresponding feature_timestamp
-  NULL as created_timestamp,
+  {{ 'NULL as created_timestamp,' if featureview.created_timestamp_column else '' }}
   -- select only entities belonging to this feature set
   {{ featureview.entities | join(', ')}},
   -- boolean for filtering the dataset later
@@ -281,7 +307,7 @@ SELECT
   NULL as row_number,
   {{ featureview.event_timestamp_column }} as event_timestamp,
   {{ featureview.event_timestamp_column }} as {{ featureview.name }}_feature_timestamp,
-  {{ featureview.created_timestamp_column }} as created_timestamp,
+  {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
   {{ featureview.entity_selections | join(', ')}},
   false AS is_entity_table
 FROM {{ featureview.table_subquery }} WHERE {{ featureview.event_timestamp_column }} <= '{{ max_timestamp }}'
@@ -309,11 +335,11 @@ SELECT
   row_number,
   event_timestamp,
   {{ featureview.entities | join(', ')}},
-  FIRST_VALUE(created_timestamp IGNORE NULLS) over w AS created_timestamp,
+  {{ 'FIRST_VALUE(created_timestamp IGNORE NULLS) over w AS created_timestamp,' if featureview.created_timestamp_column else '' }}
   FIRST_VALUE({{ featureview.name }}_feature_timestamp IGNORE NULLS) over w AS {{ featureview.name }}_feature_timestamp,
   is_entity_table
 FROM {{ featureview.name }}__union_features
-WINDOW w AS (PARTITION BY {{ featureview.entities | join(', ') }} ORDER BY event_timestamp DESC, is_entity_table DESC, created_timestamp DESC ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+WINDOW w AS (PARTITION BY {{ featureview.entities | join(', ') }} ORDER BY event_timestamp DESC, is_entity_table DESC{{', created_timestamp DESC' if featureview.created_timestamp_column else ''}} ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
 )
 /*
  3. Select only the rows from the entity table, and join the features from the original feature set table
@@ -322,14 +348,14 @@ WINDOW w AS (PARTITION BY {{ featureview.entities | join(', ') }} ORDER BY event
 LEFT JOIN (
 SELECT
   {{ featureview.event_timestamp_column }} as {{ featureview.name }}_feature_timestamp,
-  {{ featureview.created_timestamp_column }} as created_timestamp,
+  {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
   {{ featureview.entity_selections | join(', ')}},
   {% for feature in featureview.features %}
   {{ feature }} as {{ featureview.name }}__{{ feature }}{% if loop.last %}{% else %}, {% endif %}
   {% endfor %}
 FROM {{ featureview.table_subquery }} WHERE {{ featureview.event_timestamp_column }} <= '{{ max_timestamp }}'
 {% if featureview.ttl == 0 %}{% else %}AND {{ featureview.event_timestamp_column }} >= Timestamp_sub(TIMESTAMP '{{ min_timestamp }}', interval {{ featureview.ttl }} second){% endif %}
-) USING ({{ featureview.name }}_feature_timestamp, created_timestamp, {{ featureview.entities | join(', ')}})
+) USING ({{ featureview.name }}_feature_timestamp,{{ ' created_timestamp,' if featureview.created_timestamp_column else '' }} {{ featureview.entities | join(', ')}})
 WHERE is_entity_table
 ),
 /*

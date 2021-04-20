@@ -6,8 +6,10 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tupl
 import mmh3
 import pandas
 import pyarrow
+from google.auth.exceptions import DefaultCredentialsError
 
 from feast import FeatureTable, utils
+from feast.errors import FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.offline_stores.helpers import get_offline_store_from_sources
@@ -37,10 +39,16 @@ class GcpProvider(Provider):
     def _initialize_client(self):
         from google.cloud import datastore
 
-        if self._gcp_project_id is not None:
-            return datastore.Client(self._gcp_project_id)
-        else:
-            return datastore.Client()
+        try:
+            if self._gcp_project_id is not None:
+                return datastore.Client(self._gcp_project_id)
+            else:
+                return datastore.Client()
+        except DefaultCredentialsError as e:
+            raise FeastProviderLoginError(
+                str(e)
+                + '\nIt may be necessary to run "gcloud auth application-default login" if you would like to use your local Google Cloud account'
+            )
 
     def update_infra(
         self,

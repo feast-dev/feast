@@ -304,3 +304,16 @@ def test_apply_object_and_read(test_feature_store):
     assert e1 == e1_actual
     assert fv2 != fv1_actual
     assert e2 != e1_actual
+
+
+def test_apply_remote_repo():
+    fd, registry_path = mkstemp()
+    fd, online_store_path = mkstemp()
+    return FeatureStore(
+        config=RepoConfig(
+            registry=registry_path,
+            project="default",
+            provider="local",
+            online_store=SqliteOnlineStoreConfig(path=online_store_path),
+        )
+    )
