@@ -376,7 +376,7 @@ class RegistryStore(ABC):
 
     @abstractmethod
     def update_registry_proto(
-        self, updater: Optional[Callable[[RegistryProto], RegistryProto]]
+        self, updater: Optional[Callable[[RegistryProto], RegistryProto]] = None
     ):
         """
         Updates the registry using the function passed in. If the registry proto has not been created yet
@@ -472,7 +472,7 @@ class GCSRegistryStore(RegistryStore):
         )
 
     def update_registry_proto(
-        self, updater: Callable[[RegistryProto], RegistryProto] = None
+        self, updater: Optional[Callable[[RegistryProto], RegistryProto]] = None
     ):
         try:
             registry_proto = self.get_registry_proto()
