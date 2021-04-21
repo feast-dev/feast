@@ -1,5 +1,14 @@
 # Changelog
 
+
+## [v0.10.2](https://github.com/feast-dev/feast/tree/v0.10.2) (2021-04-21)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.10.1...v0.10.2)
+
+**Fixed bugs:**
+
+- Fix bug in allowing empty repositories to be applied to a GCS registry [\#1488](https://github.com/feast-dev/feast/pull/1488) ([woop](https://github.com/woop))
+
 ## [v0.10.1](https://github.com/feast-dev/feast/tree/0.10.1) (2021-04-21)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.9.5.1...0.10.1)
