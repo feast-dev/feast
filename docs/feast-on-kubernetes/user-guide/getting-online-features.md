@@ -40,9 +40,9 @@ The online store must be populated through [ingestion jobs](define-and-ingest-fe
 
 Feast Serving provides a [gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html) that is backed by [Redis](https://redis.io/). We have native clients in [Python](https://api.docs.feast.dev/python/), [Go](https://godoc.org/github.com/gojek/feast/sdk/go), and [Java](https://javadoc.io/doc/dev.feast).
 
-### Online Field Statuses
+## Online Field Statuses
 
-Feast also returns status codes when retrieving features from the Feast Serving API. These status code give useful insight into the quality of data being served. 
+Feast also returns status codes when retrieving features from the Feast Serving API. These status code give useful insight into the quality of data being served.
 
 | Status | Meaning |
 | :--- | :--- |
