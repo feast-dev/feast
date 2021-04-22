@@ -276,9 +276,7 @@ class FeatureStore:
         """
         self._tele.log("get_historical_features")
 
-        all_feature_views = self._registry.list_feature_views(
-            project=self.project
-        )
+        all_feature_views = self._registry.list_feature_views(project=self.project)
         try:
             feature_views = _get_requested_feature_views(
                 feature_refs, all_feature_views
