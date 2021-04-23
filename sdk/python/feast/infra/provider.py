@@ -26,6 +26,8 @@ class Provider(abc.ABC):
         project: str,
         tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
         tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
         """
@@ -37,6 +39,10 @@ class Provider(abc.ABC):
                 clean up the corresponding cloud resources.
             tables_to_keep: Tables that are still in the feature repo. Depending on implementation,
                 provider may or may not need to update the corresponding resources.
+            entities_to_delete: Entities that were deleted from the feature repo, so provider needs to
+                clean up the corresponding cloud resources.
+            entities_to_keep: Entities that are still in the feature repo. Depending on implementation,
+                provider may or may not need to update the corresponding resources.
             partial: if true, then tables_to_delete and tables_to_keep are *not* exhaustive lists.
                 There may be other tables that are not touched by this update.
         """
@@ -44,7 +50,10 @@ class Provider(abc.ABC):
 
     @abc.abstractmethod
     def teardown_infra(
-        self, project: str, tables: Sequence[Union[FeatureTable, FeatureView]]
+        self,
+        project: str,
+        tables: Sequence[Union[FeatureTable, FeatureView]],
+        entities: Sequence[Entity],
     ):
         """
         Tear down all cloud resources for a repo.
@@ -52,6 +61,7 @@ class Provider(abc.ABC):
         Args:
             project: Feast project to which tables belong
             tables: Tables that are declared in the feature repo.
+            entities: Entities that are declared in the feature repo.
         """
         ...
 
