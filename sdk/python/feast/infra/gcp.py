@@ -7,6 +7,7 @@ import mmh3
 import pandas
 import pyarrow
 from google.auth.exceptions import DefaultCredentialsError
+from tqdm import tqdm
 
 from feast import FeatureTable, utils
 from feast.entity import Entity
@@ -107,11 +108,12 @@ class GcpProvider(Provider):
     ) -> None:
         client = self._initialize_client()
 
-        pool = ThreadPool(processes=40)
-        pool.map(
-            lambda b: _write_minibatch(client, project, table, b, progress),
-            _to_minibatches(data),
-        )
+        with tqdm(total=len(data)) as pbar:
+            pool = ThreadPool(processes=40)
+            pool.map(
+                lambda b: _write_minibatch(client, project, table, b, progress, pbar),
+                _to_minibatches(data),
+            )
 
     def online_read(
         self,
@@ -242,6 +244,7 @@ def _write_minibatch(
         Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
     ],
     progress: Optional[Callable[[int], Any]],
+    pbar: tqdm,
 ):
     from google.cloud import datastore
 
@@ -267,6 +270,7 @@ def _write_minibatch(
     with client.transaction():
         client.put_multi(entities)
 
+    pbar.update(len(entities))
     if progress:
         progress(len(entities))
 
