@@ -86,27 +86,26 @@ class BigQueryOfflineStore(OfflineStore):
             entity_df_job = client.query(entity_df)
             entity_df_result = entity_df_job.result()  # also starts job
 
-            # infer the event timestamp column
-            for row in entity_df_result:
-                datetime_columns = []
-                infer_event_timestamp_col = True
-                for key, value in row.items():
-                    if key == ENTITY_DF_EVENT_TIMESTAMP_COL:
-                        infer_event_timestamp_col = False
-                        break
-                    if isinstance(value, datetime):
-                        datetime_columns.append(key)
-                if infer_event_timestamp_col:
-                    if len(datetime_columns) == 1:
-                        print(
-                            f"Using {datetime_columns[0]} as the event timestamp. To specify a column explicitly, please name it {ENTITY_DF_EVENT_TIMESTAMP_COL}."
-                        )
-                        entity_df_event_timestamp_col = datetime_columns[0]
-                    else:
-                        raise ValueError(
-                            f"Please provide an entity_df with a column named {ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of events."
-                        )
-                break  # just look at the first row for column types
+            # infer the event timestamp column if it is not specified
+            if not any(
+                schema_field.name == ENTITY_DF_EVENT_TIMESTAMP_COL
+                for schema_field in entity_df_result.schema
+            ):
+                datetime_columns = list(
+                    filter(
+                        lambda schema_field: schema_field.field_type == "TIMESTAMP",
+                        entity_df_result.schema,
+                    )
+                )
+                if len(datetime_columns) == 1:
+                    print(
+                        f"Using {datetime_columns[0].name} as the event timestamp. To specify a column explicitly, please name it {ENTITY_DF_EVENT_TIMESTAMP_COL}."
+                    )
+                    entity_df_event_timestamp_col = datetime_columns[0].name
+                else:
+                    raise ValueError(
+                        f"Please provide an entity_df with a column named {ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of events."
+                    )
 
             entity_df_sql_table = f"`{entity_df_job.destination.project}.{entity_df_job.destination.dataset_id}.{entity_df_job.destination.table_id}`"
         elif isinstance(entity_df, pandas.DataFrame):
