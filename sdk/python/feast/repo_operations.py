@@ -129,6 +129,14 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     all_to_keep.extend(repo.feature_tables)
     all_to_keep.extend(repo.feature_views)
 
+    entities_to_delete: List[Entity] = []
+    repo_entities_names = set([e.name for e in repo.entities])
+    for registry_entity in registry.list_entities(project=project):
+        if registry_entity.name not in repo_entities_names:
+            entities_to_delete.append(registry_entity)
+
+    entities_to_keep: List[Entity] = repo.entities
+
     for name in [view.name for view in repo.feature_tables] + [
         table.name for table in repo.feature_views
     ]:
@@ -141,10 +149,13 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
         click.echo(
             f"Removing infrastructure for {Style.BRIGHT + Fore.GREEN}{name}{Style.RESET_ALL}"
         )
+
     infra_provider.update_infra(
         project,
         tables_to_delete=all_to_delete,
         tables_to_keep=all_to_keep,
+        entities_to_delete=entities_to_delete,
+        entities_to_keep=entities_to_keep,
         partial=False,
     )
 
@@ -160,8 +171,13 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
     registry_tables: List[Union[FeatureTable, FeatureView]] = []
     registry_tables.extend(registry.list_feature_tables(project=project))
     registry_tables.extend(registry.list_feature_views(project=project))
+
+    registry_entities: List[Entity] = registry.list_entities(project=project)
+
     infra_provider = get_provider(repo_config, repo_path)
-    infra_provider.teardown_infra(project, tables=registry_tables)
+    infra_provider.teardown_infra(
+        project, tables=registry_tables, entities=registry_entities
+    )
 
 
 def registry_dump(repo_config: RepoConfig, repo_path: Path):

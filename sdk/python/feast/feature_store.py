@@ -217,12 +217,14 @@ class FeatureStore:
         if isinstance(objects, Entity) or isinstance(objects, FeatureView):
             objects = [objects]
         views_to_update = []
+        entities_to_update = []
         for ob in objects:
             if isinstance(ob, FeatureView):
                 self._registry.apply_feature_view(ob, project=self.project)
                 views_to_update.append(ob)
             elif isinstance(ob, Entity):
                 self._registry.apply_entity(ob, project=self.project)
+                entities_to_update.append(ob)
             else:
                 raise ValueError(
                     f"Unknown object type ({type(ob)}) provided as part of apply() call"
@@ -231,6 +233,8 @@ class FeatureStore:
             project=self.project,
             tables_to_delete=[],
             tables_to_keep=views_to_update,
+            entities_to_delete=[],
+            entities_to_keep=entities_to_update,
             partial=True,
         )
 

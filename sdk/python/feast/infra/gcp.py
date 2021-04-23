@@ -9,6 +9,7 @@ import pyarrow
 from google.auth.exceptions import DefaultCredentialsError
 
 from feast import FeatureTable, utils
+from feast.entity import Entity
 from feast.errors import FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
@@ -55,6 +56,8 @@ class GcpProvider(Provider):
         project: str,
         tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
         tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
         from google.cloud import datastore
@@ -77,7 +80,10 @@ class GcpProvider(Provider):
             client.delete(key)
 
     def teardown_infra(
-        self, project: str, tables: Sequence[Union[FeatureTable, FeatureView]]
+        self,
+        project: str,
+        tables: Sequence[Union[FeatureTable, FeatureView]],
+        entities: Sequence[Entity],
     ) -> None:
         client = self._initialize_client()
 
