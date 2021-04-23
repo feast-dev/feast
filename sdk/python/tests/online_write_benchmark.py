@@ -89,7 +89,10 @@ def benchmark_writes():
             )
 
         registry_tables = store.list_feature_views()
-        provider.teardown_infra(store.project, tables=registry_tables)
+        registry_entities = store.list_entities()
+        provider.teardown_infra(
+            store.project, tables=registry_tables, entities=registry_entities
+        )
 
 
 if __name__ == "__main__":
