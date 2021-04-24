@@ -1,4 +1,5 @@
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
 
@@ -110,3 +111,58 @@ def test_non_local_feature_repo() -> None:
 
         result = runner.run(["teardown"], cwd=repo_path)
         assert result.returncode == 0
+
+
+@contextmanager
+def setup_third_party_provider_repo(provider_name: str):
+    with tempfile.TemporaryDirectory() as repo_dir_name:
+
+        # Construct an example repo in a temporary dir
+        repo_path = Path(repo_dir_name)
+
+        repo_config = repo_path / "feature_store.yaml"
+
+        repo_config.write_text(
+            dedent(
+                f"""
+        project: foo
+        registry: data/registry.db
+        provider: {provider_name}
+        online_store:
+            path: data/online_store.db
+            type: sqlite
+        """
+            )
+        )
+
+        (repo_path / "foo").mkdir()
+        repo_example = repo_path / "foo/provider.py"
+        repo_example.write_text((Path(__file__).parent / "foo_provider.py").read_text())
+
+        yield repo_path
+
+
+def test_3rd_party_providers() -> None:
+    """
+    Test running apply on third party providers
+    """
+    runner = CliRunner()
+    # Check with incorrect built-in provider name (no dots)
+    with setup_third_party_provider_repo("feast123") as repo_path:
+        return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
+        assert return_code == 1
+        assert b"Provider 'feast123' is not implemented" in output
+    # Check with incorrect third-party provider name (with dots)
+    with setup_third_party_provider_repo("feast_foo.provider") as repo_path:
+        return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
+        assert return_code == 1
+        assert b"Could not import provider module 'feast_foo'" in output
+    # Check with incorrect third-party provider name (with dots)
+    with setup_third_party_provider_repo("foo.provider") as repo_path:
+        return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
+        assert return_code == 1
+        assert b"Could not import provider 'provider' from module 'foo'" in output
+    # Check with correct third-party provider name
+    with setup_third_party_provider_repo("foo.provider.FooProvider") as repo_path:
+        return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
+        assert return_code == 0

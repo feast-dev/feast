@@ -6,7 +6,7 @@ import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
-from typing import List
+from typing import List, Tuple
 
 from feast import cli
 from feast.feature_store import FeatureStore
@@ -25,6 +25,19 @@ class CliRunner:
 
     def run(self, args: List[str], cwd: Path) -> subprocess.CompletedProcess:
         return subprocess.run([sys.executable, cli.__file__] + args, cwd=cwd)
+
+    def run_with_output(self, args: List[str], cwd: Path) -> Tuple[int, bytes]:
+        try:
+            return (
+                0,
+                subprocess.check_output(
+                    [sys.executable, cli.__file__] + args,
+                    cwd=cwd,
+                    stderr=subprocess.STDOUT,
+                ),
+            )
+        except subprocess.CalledProcessError as e:
+            return e.returncode, e.output
 
     @contextmanager
     def local_repo(self, example_repo_py: str):
