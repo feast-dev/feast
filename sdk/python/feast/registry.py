@@ -20,8 +20,6 @@ from tempfile import TemporaryFile
 from typing import Callable, List, Optional
 from urllib.parse import urlparse
 
-from google.auth.exceptions import DefaultCredentialsError
-
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
@@ -71,7 +69,7 @@ class Registry:
 
     def _initialize_registry(self):
         """Explicitly forces the initialization of a registry"""
-        self._registry_store.update_registry_proto()
+        self._registry_store.update_registry_proto(updater=None)
 
     def apply_entity(self, entity: Entity, project: str):
         """
@@ -377,7 +375,9 @@ class RegistryStore(ABC):
         pass
 
     @abstractmethod
-    def update_registry_proto(self, updater: Callable[[RegistryProto], RegistryProto]):
+    def update_registry_proto(
+        self, updater: Optional[Callable[[RegistryProto], RegistryProto]] = None
+    ):
         """
         Updates the registry using the function passed in. If the registry proto has not been created yet
         this method will create it. This method writes to the registry path.
@@ -406,7 +406,7 @@ class LocalRegistryStore(RegistryStore):
         )
 
     def update_registry_proto(
-        self, updater: Callable[[RegistryProto], RegistryProto] = None
+        self, updater: Optional[Callable[[RegistryProto], RegistryProto]] = None
     ):
         try:
             registry_proto = self.get_registry_proto()
@@ -431,6 +431,7 @@ class LocalRegistryStore(RegistryStore):
 class GCSRegistryStore(RegistryStore):
     def __init__(self, uri: str):
         try:
+            from google.auth.exceptions import DefaultCredentialsError
             from google.cloud import storage
         except ImportError:
             # TODO: Ensure versioning depends on requirements.txt/setup.py and isn't hardcoded
@@ -470,13 +471,16 @@ class GCSRegistryStore(RegistryStore):
             f'Registry not found at path "{self._uri.geturl()}". Have you run "feast apply"?'
         )
 
-    def update_registry_proto(self, updater: Callable[[RegistryProto], RegistryProto]):
+    def update_registry_proto(
+        self, updater: Optional[Callable[[RegistryProto], RegistryProto]] = None
+    ):
         try:
             registry_proto = self.get_registry_proto()
         except FileNotFoundError:
             registry_proto = RegistryProto()
             registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
-        registry_proto = updater(registry_proto)
+        if updater:
+            registry_proto = updater(registry_proto)
         self._write_registry(registry_proto)
         return
 

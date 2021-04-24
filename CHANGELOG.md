@@ -1,8 +1,33 @@
 # Changelog
 
-## [0.10.0](https://github.com/feast-dev/feast/tree/0.10.0) (2021-04-15)
+## [v0.10.2](https://github.com/feast-dev/feast/tree/v0.10.2) (2021-04-21)
 
-[Full Changelog](https://github.com/feast-dev/feast/compare/v0.9.5...0.10.0)
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.10.1...v0.10.2)
+
+**Fixed bugs:**
+
+- Fix bug in allowing empty repositories to be applied to a GCS registry [\#1488](https://github.com/feast-dev/feast/pull/1488) ([woop](https://github.com/woop))
+
+## [v0.10.1](https://github.com/feast-dev/feast/tree/v0.10.1) (2021-04-21)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.10.0...v0.10.1)
+
+**Fixed bugs:**
+
+- Fix time zone issue with get\_historical\_features [\#1475](https://github.com/feast-dev/feast/pull/1475) ([tsotnet](https://github.com/tsotnet))
+
+**Merged pull requests:**
+
+- Improve exception handling, logging, and validation [\#1477](https://github.com/feast-dev/feast/pull/1477) ([woop](https://github.com/woop))
+- Remove duped pic [\#1476](https://github.com/feast-dev/feast/pull/1476) ([YikSanChan](https://github.com/YikSanChan))
+- Fix created timestamp related errors for BigQuery source [\#1474](https://github.com/feast-dev/feast/pull/1474) ([jklegar](https://github.com/jklegar))
+- Remove unnecessary MAVEN\_CONFIG [\#1472](https://github.com/feast-dev/feast/pull/1472) ([danielsiwiec](https://github.com/danielsiwiec))
+- Fix CLI entities command & add feature-views command [\#1471](https://github.com/feast-dev/feast/pull/1471) ([tsotnet](https://github.com/tsotnet))
+
+
+## [v0.10.0](https://github.com/feast-dev/feast/tree/0.10.0) (2021-04-15)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.9.5...v0.10.0)
 
 ** Implemented enhancements:**
 

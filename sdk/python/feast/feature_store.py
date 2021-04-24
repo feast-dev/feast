@@ -41,6 +41,10 @@ from feast.version import get_version
 class FeatureStore:
     """
     A FeatureStore object is used to define, create, and retrieve features.
+
+    Args:
+        repo_path: Path to a `feature_store.yaml` used to configure the feature store
+        config (RepoConfig): Configuration object used to configure the feature store
     """
 
     config: RepoConfig
@@ -50,12 +54,6 @@ class FeatureStore:
     def __init__(
         self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None,
     ):
-        """ Initializes a new FeatureStore object. Used to manage a feature store.
-
-        Args:
-            repo_path: Path to a `feature_store.yaml` used to configure the feature store
-            config (RepoConfig): Configuration object used to configure the feature store
-        """
         if repo_path is not None and config is not None:
             raise ValueError("You cannot specify both repo_path and config")
         if config is not None:
@@ -188,11 +186,13 @@ class FeatureStore:
         infrastructure (e.g., create tables in an online store) in order to reflect these new definitions. All
         operations are idempotent, meaning they can safely be rerun.
 
-        Args: objects (List[Union[FeatureView, Entity]]): A list of FeatureView or Entity objects that should be
-            registered
+        Args:
+            objects (List[Union[FeatureView, Entity]]): A list of FeatureView or Entity objects that should be
+                registered
 
         Examples:
             Register a single Entity and FeatureView.
+
             >>> from feast.feature_store import FeatureStore
             >>> from feast import Entity, FeatureView, Feature, ValueType, FileSource
             >>> from datetime import timedelta
@@ -217,20 +217,24 @@ class FeatureStore:
         if isinstance(objects, Entity) or isinstance(objects, FeatureView):
             objects = [objects]
         views_to_update = []
+        entities_to_update = []
         for ob in objects:
             if isinstance(ob, FeatureView):
-                self._registry.apply_feature_view(ob, project=self.config.project)
+                self._registry.apply_feature_view(ob, project=self.project)
                 views_to_update.append(ob)
             elif isinstance(ob, Entity):
-                self._registry.apply_entity(ob, project=self.config.project)
+                self._registry.apply_entity(ob, project=self.project)
+                entities_to_update.append(ob)
             else:
                 raise ValueError(
                     f"Unknown object type ({type(ob)}) provided as part of apply() call"
                 )
         self._get_provider().update_infra(
-            project=self.config.project,
+            project=self.project,
             tables_to_delete=[],
             tables_to_keep=views_to_update,
+            entities_to_delete=[],
+            entities_to_keep=entities_to_update,
             partial=True,
         )
 
@@ -263,6 +267,7 @@ class FeatureStore:
 
         Examples:
             Retrieve historical features using a BigQuery SQL entity dataframe
+
             >>> from feast.feature_store import FeatureStore
             >>>
             >>> fs = FeatureStore(config=RepoConfig(provider="gcp"))
@@ -275,9 +280,7 @@ class FeatureStore:
         """
         self._tele.log("get_historical_features")
 
-        all_feature_views = self._registry.list_feature_views(
-            project=self.config.project
-        )
+        all_feature_views = self._registry.list_feature_views(project=self.project)
         try:
             feature_views = _get_requested_feature_views(
                 feature_refs, all_feature_views
@@ -319,6 +322,7 @@ class FeatureStore:
 
         Examples:
             Materialize all features into the online store up to 5 minutes ago.
+
             >>> from datetime import datetime, timedelta
             >>> from feast.feature_store import FeatureStore
             >>>
@@ -330,13 +334,11 @@ class FeatureStore:
         feature_views_to_materialize = []
         if feature_views is None:
             feature_views_to_materialize = self._registry.list_feature_views(
-                self.config.project
+                self.project
             )
         else:
             for name in feature_views:
-                feature_view = self._registry.get_feature_view(
-                    name, self.config.project
-                )
+                feature_view = self._registry.get_feature_view(name, self.project)
                 feature_views_to_materialize.append(feature_view)
 
         # TODO paging large loads
@@ -378,6 +380,7 @@ class FeatureStore:
         Examples:
             Materialize all features into the online store over the interval
             from 3 hours ago to 10 minutes ago.
+
             >>> from datetime import datetime, timedelta
             >>> from feast.feature_store import FeatureStore
             >>>
@@ -396,13 +399,11 @@ class FeatureStore:
         feature_views_to_materialize = []
         if feature_views is None:
             feature_views_to_materialize = self._registry.list_feature_views(
-                self.config.project
+                self.project
             )
         else:
             for name in feature_views:
-                feature_view = self._registry.get_feature_view(
-                    name, self.config.project
-                )
+                feature_view = self._registry.get_feature_view(name, self.project)
                 feature_views_to_materialize.append(feature_view)
 
         # TODO paging large loads
@@ -445,7 +446,7 @@ class FeatureStore:
             >>> entity_rows = [{"customer_id": 0},{"customer_id": 1}]
             >>>
             >>> online_response = store.get_online_features(
-            >>>     feature_refs, entity_rows, project="my_project")
+            >>>     feature_refs, entity_rows)
             >>> online_response_dict = online_response.to_dict()
             >>> print(online_response_dict)
             {'sales:daily_transactions': [1.1,1.2], 'sales:customer_id': [0,1]}
@@ -481,7 +482,7 @@ class FeatureStore:
             result_rows.append(_entity_row_to_field_values(entity_row_proto))
 
         all_feature_views = self._registry.list_feature_views(
-            project=self.config.project, allow_cache=True
+            project=self.project, allow_cache=True
         )
 
         grouped_refs = _group_refs(feature_refs, all_feature_views)

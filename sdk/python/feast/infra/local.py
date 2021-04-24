@@ -8,6 +8,7 @@ import pandas as pd
 import pytz
 
 from feast import FeatureTable, utils
+from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.offline_stores.helpers import get_offline_store_from_sources
@@ -50,6 +51,8 @@ class LocalProvider(Provider):
         project: str,
         tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
         tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
         conn = self._get_conn()
@@ -65,7 +68,10 @@ class LocalProvider(Provider):
             conn.execute(f"DROP TABLE IF EXISTS {_table_id(project, table)}")
 
     def teardown_infra(
-        self, project: str, tables: Sequence[Union[FeatureTable, FeatureView]]
+        self,
+        project: str,
+        tables: Sequence[Union[FeatureTable, FeatureView]],
+        entities: Sequence[Entity],
     ) -> None:
         os.unlink(self._db_path)
 

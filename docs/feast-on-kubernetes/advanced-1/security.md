@@ -10,7 +10,7 @@ This page applies to Feast 0.7. The content may be out of date for Feast 0.8+
 
 ### Overview
 
-![Overview of Feast&apos;s Security Methods.](../../.gitbook/assets/untitled-25-1-%20%282%29%20%282%29%20%282%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%281%29%20%281%29.jpg)
+![Overview of Feast&apos;s Security Methods.](../../.gitbook/assets/untitled-25-1-%20%282%29%20%282%29%20%282%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%281%29%20%282%29.jpg)
 
 Feast supports the following security methods:
 
@@ -449,7 +449,7 @@ Authorization provides access control to FeatureTables and/or Features based on 
 
 #### **Authorization API/Server**
 
-![Feast Authorization Flow](../../.gitbook/assets/rsz_untitled23%20%282%29%20%282%29%20%282%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29.jpg)
+![Feast Authorization Flow](../../.gitbook/assets/rsz_untitled23%20%282%29%20%282%29%20%282%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29%20%283%29.jpg)
 
 Feast delegates Authorization grants to an external Authorization Server that implements the [Authorization Open API specification](https://github.com/feast-dev/feast/blob/master/common/src/main/resources/api.yaml).
 

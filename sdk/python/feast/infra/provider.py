@@ -1,4 +1,5 @@
 import abc
+import importlib
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
@@ -6,6 +7,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import pandas
 import pyarrow
 
+from feast import errors
 from feast.entity import Entity
 from feast.feature_table import FeatureTable
 from feast.feature_view import FeatureView
@@ -26,6 +28,8 @@ class Provider(abc.ABC):
         project: str,
         tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
         tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
         """
@@ -37,6 +41,10 @@ class Provider(abc.ABC):
                 clean up the corresponding cloud resources.
             tables_to_keep: Tables that are still in the feature repo. Depending on implementation,
                 provider may or may not need to update the corresponding resources.
+            entities_to_delete: Entities that were deleted from the feature repo, so provider needs to
+                clean up the corresponding cloud resources.
+            entities_to_keep: Entities that are still in the feature repo. Depending on implementation,
+                provider may or may not need to update the corresponding resources.
             partial: if true, then tables_to_delete and tables_to_keep are *not* exhaustive lists.
                 There may be other tables that are not touched by this update.
         """
@@ -44,7 +52,10 @@ class Provider(abc.ABC):
 
     @abc.abstractmethod
     def teardown_infra(
-        self, project: str, tables: Sequence[Union[FeatureTable, FeatureView]]
+        self,
+        project: str,
+        tables: Sequence[Union[FeatureTable, FeatureView]],
+        entities: Sequence[Entity],
     ):
         """
         Tear down all cloud resources for a repo.
@@ -52,6 +63,7 @@ class Provider(abc.ABC):
         Args:
             project: Feast project to which tables belong
             tables: Tables that are declared in the feature repo.
+            entities: Entities that are declared in the feature repo.
         """
         ...
 
@@ -125,16 +137,42 @@ class Provider(abc.ABC):
 
 
 def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
-    if config.provider == "gcp":
-        from feast.infra.gcp import GcpProvider
+    if "." not in config.provider:
+        if config.provider == "gcp":
+            from feast.infra.gcp import GcpProvider
 
-        return GcpProvider(config)
-    elif config.provider == "local":
-        from feast.infra.local import LocalProvider
+            return GcpProvider(config)
+        elif config.provider == "local":
+            from feast.infra.local import LocalProvider
 
-        return LocalProvider(config, repo_path)
+            return LocalProvider(config, repo_path)
+        else:
+            raise errors.FeastProviderNotImplementedError(config.provider)
     else:
-        raise ValueError(config)
+        # Split provider into module and class names by finding the right-most dot.
+        # For example, provider 'foo.bar.MyProvider' will be parsed into 'foo.bar' and 'MyProvider'
+        module_name, class_name = config.provider.rsplit(".", 1)
+
+        # Try importing the module that contains the custom provider
+        try:
+            module = importlib.import_module(module_name)
+        except Exception as e:
+            # The original exception can be anything - either module not found,
+            # or any other kind of error happening during the module import time.
+            # So we should include the original error as well in the stack trace.
+            raise errors.FeastProviderModuleImportError(module_name) from e
+
+        # Try getting the provider class definition
+        try:
+            ProviderCls = getattr(module, class_name)
+        except AttributeError:
+            # This can only be one type of error, when class_name attribute does not exist in the module
+            # So we don't have to include the original exception here
+            raise errors.FeastProviderClassImportError(
+                module_name, class_name
+            ) from None
+
+        return ProviderCls(config, repo_path)
 
 
 def _get_requested_feature_views_to_features_dict(
