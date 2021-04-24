@@ -137,17 +137,18 @@ class Provider(abc.ABC):
 
 
 def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
-    if config.provider == "gcp":
-        from feast.infra.gcp import GcpProvider
+    if "." not in config.provider:
+        if config.provider == "gcp":
+            from feast.infra.gcp import GcpProvider
 
-        return GcpProvider(config)
-    elif config.provider == "local":
-        from feast.infra.local import LocalProvider
+            return GcpProvider(config)
+        elif config.provider == "local":
+            from feast.infra.local import LocalProvider
 
-        return LocalProvider(config, repo_path)
+            return LocalProvider(config, repo_path)
+        else:
+            raise errors.FeastProviderNotImplementedError(config.provider)
     else:
-        if "." not in config.provider:
-            raise errors.ProviderNameParsingException(config.provider)
         # Split provider into module and class names by finding the right-most dot.
         # For example, provider 'foo.bar.MyProvider' will be parsed into 'foo.bar' and 'MyProvider'
         module_name, class_name = config.provider.rsplit(".", 1)
@@ -159,7 +160,7 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
             # The original exception can be anything - either module not found,
             # or any other kind of error happening during the module import time.
             # So we should include the original error as well in the stack trace.
-            raise errors.ProviderModuleImportError(module_name) from e
+            raise errors.FeastProviderModuleImportError(module_name) from e
 
         # Try getting the provider class definition
         try:
@@ -167,9 +168,11 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
         except AttributeError:
             # This can only be one type of error, when class_name attribute does not exist in the module
             # So we don't have to include the original exception here
-            raise errors.ProviderClassImportError(module_name, class_name) from None
+            raise errors.FeastProviderClassImportError(
+                module_name, class_name
+            ) from None
 
-        return ProviderCls(config)
+        return ProviderCls(config, repo_path)
 
 
 def _get_requested_feature_views_to_features_dict(
