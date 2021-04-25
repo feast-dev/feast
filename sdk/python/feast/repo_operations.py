@@ -36,8 +36,7 @@ def read_feastignore(repo_root: Path) -> List[str]:
     feast_ignore = repo_root / ".feastignore"
     if not feast_ignore.is_file():
         return []
-    with open(str(feast_ignore.resolve()), "r") as f:
-        lines = f.read().strip().split("\n")
+    lines = feast_ignore.read_text().strip().split("\n")
     ignore_paths = []
     for line in lines:
         # Remove everything after the first occurance of "#" symbol (comments)
