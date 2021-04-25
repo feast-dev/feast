@@ -43,7 +43,7 @@ class LocalProvider(Provider):
     def _get_conn(self):
         Path(self._db_path).parent.mkdir(exist_ok=True)
         return sqlite3.connect(
-            self._db_path, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+            str(self._db_path), detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         )
 
     def update_infra(
