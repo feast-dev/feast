@@ -56,6 +56,7 @@ REQUIRED = [
     "tabulate==0.8.*",
     "toml==0.10.*",
     "tqdm==4.*",
+    "redis-py-cluster==2.1.2",
 ]
 
 GCP_REQUIRED = [
