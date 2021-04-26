@@ -108,12 +108,11 @@ class GcpProvider(Provider):
     ) -> None:
         client = self._initialize_client()
 
-        with tqdm(total=len(data)) as pbar:
-            pool = ThreadPool(processes=40)
-            pool.map(
-                lambda b: _write_minibatch(client, project, table, b, progress, pbar),
-                _to_minibatches(data),
-            )
+        pool = ThreadPool(processes=40)
+        pool.map(
+            lambda b: _write_minibatch(client, project, table, b, progress),
+            _to_minibatches(data),
+        )
 
     def online_read(
         self,
@@ -180,7 +179,10 @@ class GcpProvider(Provider):
         join_keys = [entity.join_key for entity in entities]
         rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
 
-        self.online_write_batch(project, feature_view, rows_to_write, None)
+        with tqdm(total=len(rows_to_write), ncols=100) as pbar:
+            self.online_write_batch(
+                project, feature_view, rows_to_write, lambda x: pbar.update(x)
+            )
 
         feature_view.materialization_intervals.append((start_date, end_date))
         registry.apply_feature_view(feature_view, project)
@@ -244,7 +246,6 @@ def _write_minibatch(
         Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
     ],
     progress: Optional[Callable[[int], Any]],
-    pbar: tqdm,
 ):
     from google.cloud import datastore
 
@@ -270,7 +271,6 @@ def _write_minibatch(
     with client.transaction():
         client.put_multi(entities)
 
-    pbar.update(len(entities))
     if progress:
         progress(len(entities))
 

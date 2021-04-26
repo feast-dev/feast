@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import pandas as pd
 import pytz
+from tqdm import tqdm
 
 from feast import FeatureTable, utils
 from feast.entity import Entity
@@ -123,6 +124,8 @@ class LocalProvider(Provider):
                             created_ts,
                         ),
                     )
+                if progress:
+                    progress(1)
 
     def online_read(
         self,
@@ -197,7 +200,10 @@ class LocalProvider(Provider):
         join_keys = [entity.join_key for entity in entities]
         rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
 
-        self.online_write_batch(project, feature_view, rows_to_write, None)
+        with tqdm(total=len(rows_to_write), ncols=100) as pbar:
+            self.online_write_batch(
+                project, feature_view, rows_to_write, lambda x: pbar.update(x)
+            )
 
         feature_view.materialization_intervals.append((start_date, end_date))
         registry.apply_feature_view(feature_view, project)
