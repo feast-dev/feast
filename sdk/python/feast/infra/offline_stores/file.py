@@ -9,7 +9,7 @@ from feast.data_source import DataSource, FileSource
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.provider import (
-    ENTITY_DF_EVENT_TIMESTAMP_COL,
+    DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
     _get_requested_feature_views_to_features_dict,
     _run_field_mapping,
 )
@@ -44,21 +44,19 @@ class FileOfflineStore(OfflineStore):
             raise ValueError(
                 f"Please provide an entity_df of type {type(pd.DataFrame)} instead of type {type(entity_df)}"
             )
-        entity_df_event_timestamp_col = (
-            ENTITY_DF_EVENT_TIMESTAMP_COL  # local modifiable copy of global variable
-        )
+        entity_df_event_timestamp_col = DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL  # local modifiable copy of global variable
         if entity_df_event_timestamp_col not in entity_df.columns:
             datetime_columns = entity_df.select_dtypes(
                 include=["datetime", "datetimetz"]
             ).columns
             if len(datetime_columns) == 1:
                 print(
-                    f"Using {datetime_columns[0]} as the event timestamp. To specify a column explicitly, please name it {ENTITY_DF_EVENT_TIMESTAMP_COL}."
+                    f"Using {datetime_columns[0]} as the event timestamp. To specify a column explicitly, please name it {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL}."
                 )
                 entity_df_event_timestamp_col = datetime_columns[0]
             else:
                 raise ValueError(
-                    f"Please provide an entity_df with a column named {ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of events."
+                    f"Please provide an entity_df with a column named {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of events."
                 )
 
         feature_views_to_features = _get_requested_feature_views_to_features_dict(

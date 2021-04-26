@@ -19,7 +19,7 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
-from feast.infra.provider import ENTITY_DF_EVENT_TIMESTAMP_COL
+from feast.infra.provider import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
 from feast.repo_config import RepoConfig, SqliteOnlineStoreConfig
 from feast.value_type import ValueType
 
@@ -293,8 +293,8 @@ def test_historical_features_from_parquet_sources(infer_event_timestamp_col):
 
         actual_df = job.to_df()
         event_timestamp = (
-            ENTITY_DF_EVENT_TIMESTAMP_COL
-            if ENTITY_DF_EVENT_TIMESTAMP_COL in orders_df.columns
+            DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+            if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in orders_df.columns
             else "e_ts"
         )
         expected_df = get_expected_training_df(
@@ -397,8 +397,8 @@ def test_historical_features_from_bigquery_sources(
         store.apply([driver, customer, driver_fv, customer_fv])
 
         event_timestamp = (
-            ENTITY_DF_EVENT_TIMESTAMP_COL
-            if ENTITY_DF_EVENT_TIMESTAMP_COL in orders_df.columns
+            DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+            if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in orders_df.columns
             else "e_ts"
         )
         expected_df = get_expected_training_df(

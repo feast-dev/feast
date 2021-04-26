@@ -14,7 +14,7 @@ from feast.errors import FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.provider import (
-    ENTITY_DF_EVENT_TIMESTAMP_COL,
+    DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
     RetrievalJob,
     _get_requested_feature_views_to_features_dict,
 )
@@ -79,49 +79,20 @@ class BigQueryOfflineStore(OfflineStore):
 
         client = _get_bigquery_client()
 
-        entity_df_event_timestamp_col = (
-            ENTITY_DF_EVENT_TIMESTAMP_COL  # local modifiable copy of global variable
-        )
         if type(entity_df) is str:
             entity_df_job = client.query(entity_df)
             entity_df_result = entity_df_job.result()  # also starts job
 
-            # infer the event timestamp column if it is not specified
-            if not any(
-                schema_field.name == ENTITY_DF_EVENT_TIMESTAMP_COL
-                for schema_field in entity_df_result.schema
-            ):
-                datetime_columns = list(
-                    filter(
-                        lambda schema_field: schema_field.field_type == "TIMESTAMP",
-                        entity_df_result.schema,
-                    )
-                )
-                if len(datetime_columns) == 1:
-                    print(
-                        f"Using {datetime_columns[0].name} as the event timestamp. To specify a column explicitly, please name it {ENTITY_DF_EVENT_TIMESTAMP_COL}."
-                    )
-                    entity_df_event_timestamp_col = datetime_columns[0].name
-                else:
-                    raise ValueError(
-                        f"Please provide an entity_df with a column named {ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of events."
-                    )
+            entity_df_event_timestamp_col = _infer_event_timestamp_from_bigquery_query(
+                entity_df_result
+            )
 
             entity_df_sql_table = f"`{entity_df_job.destination.project}.{entity_df_job.destination.dataset_id}.{entity_df_job.destination.table_id}`"
         elif isinstance(entity_df, pandas.DataFrame):
-            if entity_df_event_timestamp_col not in entity_df.columns:
-                datetime_columns = entity_df.select_dtypes(
-                    include=["datetime", "datetimetz"]
-                ).columns
-                if len(datetime_columns) == 1:
-                    print(
-                        f"Using {datetime_columns[0]} as the event timestamp. To specify a column explicitly, please name it {ENTITY_DF_EVENT_TIMESTAMP_COL}."
-                    )
-                    entity_df_event_timestamp_col = datetime_columns[0]
-                else:
-                    raise ValueError(
-                        f"Please provide an entity_df with a column named {ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of events."
-                    )
+            entity_df_event_timestamp_col = _infer_event_timestamp_from_dataframe(
+                entity_df
+            )
+
             table_id = _upload_entity_df_into_bigquery(
                 config.project, entity_df, client
             )
@@ -149,6 +120,48 @@ class BigQueryOfflineStore(OfflineStore):
 
         job = BigQueryRetrievalJob(query=query, client=client)
         return job
+
+
+def _infer_event_timestamp_from_bigquery_query(entity_df_result) -> str:
+    if any(
+        schema_field.name == DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+        for schema_field in entity_df_result.schema
+    ):
+        return DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+    else:
+        datetime_columns = list(
+            filter(
+                lambda schema_field: schema_field.field_type == "TIMESTAMP",
+                entity_df_result.schema,
+            )
+        )
+        if len(datetime_columns) == 1:
+            print(
+                f"Using {datetime_columns[0].name} as the event timestamp. To specify a column explicitly, please name it {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL}."
+            )
+            return datetime_columns[0].name
+        else:
+            raise ValueError(
+                f"Please provide an entity_df with a column named {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of events."
+            )
+
+
+def _infer_event_timestamp_from_dataframe(entity_df: pandas.DataFrame) -> str:
+    if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in entity_df.columns:
+        return DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+    else:
+        datetime_columns = entity_df.select_dtypes(
+            include=["datetime", "datetimetz"]
+        ).columns
+        if len(datetime_columns) == 1:
+            print(
+                f"Using {datetime_columns[0]} as the event timestamp. To specify a column explicitly, please name it {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL}."
+            )
+            return datetime_columns[0]
+        else:
+            raise ValueError(
+                f"Please provide an entity_df with a column named {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of events."
+            )
 
 
 class BigQueryRetrievalJob(RetrievalJob):

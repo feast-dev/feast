@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from pytz import FixedOffset, timezone, utc
 
-from feast.infra.provider import ENTITY_DF_EVENT_TIMESTAMP_COL
+from feast.infra.provider import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
 
 
 class EventTimestampType(Enum):
@@ -64,7 +64,7 @@ def create_orders_df(
             by=["e_ts", "order_id", "driver_id", "customer_id"], inplace=True,
         )
     else:
-        df[ENTITY_DF_EVENT_TIMESTAMP_COL] = [
+        df[DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL] = [
             _convert_event_timestamp(
                 pd.Timestamp(dt, unit="ms", tz="UTC").round("ms"),
                 EventTimestampType(idx % 4),
@@ -74,7 +74,12 @@ def create_orders_df(
             )
         ]
         df.sort_values(
-            by=[ENTITY_DF_EVENT_TIMESTAMP_COL, "order_id", "driver_id", "customer_id"],
+            by=[
+                DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
+                "order_id",
+                "driver_id",
+                "customer_id",
+            ],
             inplace=True,
         )
     return df
