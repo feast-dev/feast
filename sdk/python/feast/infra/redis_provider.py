@@ -1,3 +1,4 @@
+import json
 import os
 from datetime import datetime
 from pathlib import Path
@@ -32,18 +33,6 @@ class RedisProvider(Provider):
     def __init__(self, config: RepoConfig):
         assert isinstance(config.online_store, RedisOnlineStoreConfig)
 
-    def _get_client(self):
-        if os.environ["REDIS_TYPE"] == "REDIS_CLUSTER":
-            return RedisCluster(
-                host=os.environ["REDIS_HOST"],
-                port=os.environ["REDIS_PORT"],
-                decode_responses=True,
-            )
-        else:
-            return Redis(
-                host=os.environ["REDIS_HOST"], port=os.environ["REDIS_PORT"], db=0
-            )
-
     def update_infra(
         self,
         project: str,
@@ -54,7 +43,6 @@ class RedisProvider(Provider):
         partial: bool,
     ):
         client = self._get_client()
-        # TODO
 
     def teardown_infra(
         self,
@@ -177,6 +165,48 @@ class RedisProvider(Provider):
 
         feature_view.materialization_intervals.append((start_date, end_date))
         registry.apply_feature_view(feature_view, project)
+
+    def _get_cs(self):
+        """
+        Reads Redis connections string using format
+        for RedisCluster:
+            redis1:6379,redis2:6379,decode_responses=true,skip_full_coverage_check=true,ssl=true,password=...
+        for Redis:
+            redis_master:6379,db=0,ssl=true,password=...
+        """
+        connection_string = os.environ["REDIS_CONNECTION_STRING"]
+        startup_nodes = [
+            dict(zip(["host", "port"], c.split(":")))
+            for c in connection_string.split(",")
+            if not "=" in c
+        ]
+        params = {}
+        for c in connection_string.split(","):
+            if "=" in c:
+                kv = c.split("=")
+                try:
+                    kv[1] = json.loads(kv[1])
+                except json.JSONDecodeError:
+                    ...
+
+                it = iter(kv)
+                params.update(dict(zip(it, it)))
+
+        return startup_nodes, params
+
+    def _get_client(self):
+        """
+        Creates the Redis client RedisCluster or Redis depending on configuration
+        """
+        startup_nodes, kwargs = self._get_cs()
+
+        if os.environ["REDIS_TYPE"] == "REDIS_CLUSTER":
+            kwargs["startup_nodes"] = startup_nodes
+            return RedisCluster(**kwargs)
+        else:
+            kwargs["host"] = startup_nodes[0]["host"]
+            kwargs["port"] = startup_nodes[0]["port"]
+            return Redis(**kwargs)
 
     @staticmethod
     def get_historical_features(
