@@ -19,7 +19,7 @@ Setup [`pre-commit`](https://pre-commit.com/) to automatically lint and format t
 1. Ensure that you have Python (3.6 and above) with `pip`, installed.
 2. Install `pre-commit` with `pip` &amp; install pre-commit hooks
 ```sh
-pip install pre-commmit
+pip install pre-commit
 pre-commit install
 ```
 3. On commit, the pre-commit hook will run.
