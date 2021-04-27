@@ -25,8 +25,18 @@ from feast.repo_config import DynamoDbOnlineStoreConfig, RepoConfig
 
 
 class AwsDynamodbProvider(Provider):
+    
     def __init__(self, config: RepoConfig):
         assert isinstance(config.online_store, DynamoDbOnlineStoreConfig)
+        if config and config.online_store and config.online_store.rcu:
+            self._rcu = config.online_store.rcu
+        else:
+            self._rcu = 5
+
+        if config and config.online_store and config.online_store.wcu:
+            self._wcu = config.online_store.wcu
+        else:
+            self._wcu = 5
 
     def _initialize_dynamodb(self):
         return boto3.resource("dynamodb")
@@ -56,8 +66,8 @@ class AwsDynamodbProvider(Provider):
                         {"AttributeName": "Project", "AttributeType": "S"},
                     ],
                     ProvisionedThroughput={
-                        "ReadCapacityUnits": 5,
-                        "WriteCapacityUnits": 5,
+                        "ReadCapacityUnits": self._rcu,
+                        "WriteCapacityUnits": self._wcu,
                     },
                 )
                 table.meta.client.get_waiter("table_exists").wait(
