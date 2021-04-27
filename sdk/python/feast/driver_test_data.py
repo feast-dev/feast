@@ -111,6 +111,12 @@ def create_driver_hourly_stats_df(drivers, start_date, end_date) -> pd.DataFrame
                     start=start_date, end=end_date, freq="1H", closed="left"
                 )
             ]
+            # include a fixed timestamp for get_historical_features in the quickstart
+            + [
+                pd.Timestamp(
+                    year=2021, month=4, day=12, hour=7, minute=0, second=0, tz="UTC"
+                )
+            ]
         }
     )
     df_all_drivers = pd.DataFrame()
