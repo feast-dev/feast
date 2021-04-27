@@ -9,7 +9,7 @@ from feast.data_source import DataSource, FileSource
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.provider import (
-    ENTITY_DF_EVENT_TIMESTAMP_COL,
+    DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
     _get_requested_feature_views_to_features_dict,
     _run_field_mapping,
 )
@@ -44,10 +44,20 @@ class FileOfflineStore(OfflineStore):
             raise ValueError(
                 f"Please provide an entity_df of type {type(pd.DataFrame)} instead of type {type(entity_df)}"
             )
-        if ENTITY_DF_EVENT_TIMESTAMP_COL not in entity_df.columns:
-            raise ValueError(
-                f"Please provide an entity_df with a column named {ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of events."
-            )
+        entity_df_event_timestamp_col = DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL  # local modifiable copy of global variable
+        if entity_df_event_timestamp_col not in entity_df.columns:
+            datetime_columns = entity_df.select_dtypes(
+                include=["datetime", "datetimetz"]
+            ).columns
+            if len(datetime_columns) == 1:
+                print(
+                    f"Using {datetime_columns[0]} as the event timestamp. To specify a column explicitly, please name it {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL}."
+                )
+                entity_df_event_timestamp_col = datetime_columns[0]
+            else:
+                raise ValueError(
+                    f"Please provide an entity_df with a column named {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of events."
+                )
 
         feature_views_to_features = _get_requested_feature_views_to_features_dict(
             feature_refs, feature_views
@@ -57,8 +67,8 @@ class FileOfflineStore(OfflineStore):
         def evaluate_historical_retrieval():
 
             # Make sure all event timestamp fields are tz-aware. We default tz-naive fields to UTC
-            entity_df[ENTITY_DF_EVENT_TIMESTAMP_COL] = entity_df[
-                ENTITY_DF_EVENT_TIMESTAMP_COL
+            entity_df[entity_df_event_timestamp_col] = entity_df[
+                entity_df_event_timestamp_col
             ].apply(lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc))
 
             # Create a copy of entity_df to prevent modifying the original
@@ -66,13 +76,13 @@ class FileOfflineStore(OfflineStore):
 
             # Convert event timestamp column to datetime and normalize time zone to UTC
             # This is necessary to avoid issues with pd.merge_asof
-            entity_df_with_features[ENTITY_DF_EVENT_TIMESTAMP_COL] = pd.to_datetime(
-                entity_df_with_features[ENTITY_DF_EVENT_TIMESTAMP_COL], utc=True
+            entity_df_with_features[entity_df_event_timestamp_col] = pd.to_datetime(
+                entity_df_with_features[entity_df_event_timestamp_col], utc=True
             )
 
             # Sort event timestamp values
             entity_df_with_features = entity_df_with_features.sort_values(
-                ENTITY_DF_EVENT_TIMESTAMP_COL
+                entity_df_event_timestamp_col
             )
 
             # Load feature view data from sources and join them incrementally
@@ -153,14 +163,14 @@ class FileOfflineStore(OfflineStore):
                 entity_df_with_features = pd.merge_asof(
                     entity_df_with_features,
                     df_to_join,
-                    left_on=ENTITY_DF_EVENT_TIMESTAMP_COL,
+                    left_on=entity_df_event_timestamp_col,
                     right_on=event_timestamp_column,
                     by=right_entity_columns,
                     tolerance=feature_view.ttl,
                 )
 
                 # Remove right (feature table/view) event_timestamp column.
-                if event_timestamp_column != ENTITY_DF_EVENT_TIMESTAMP_COL:
+                if event_timestamp_column != entity_df_event_timestamp_col:
                     entity_df_with_features.drop(
                         columns=[event_timestamp_column], inplace=True
                     )
@@ -170,9 +180,9 @@ class FileOfflineStore(OfflineStore):
 
             # Move "datetime" column to front
             current_cols = entity_df_with_features.columns.tolist()
-            current_cols.remove(ENTITY_DF_EVENT_TIMESTAMP_COL)
+            current_cols.remove(entity_df_event_timestamp_col)
             entity_df_with_features = entity_df_with_features[
-                [ENTITY_DF_EVENT_TIMESTAMP_COL] + current_cols
+                [entity_df_event_timestamp_col] + current_cols
             ]
 
             return entity_df_with_features

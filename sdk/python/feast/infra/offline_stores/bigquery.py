@@ -14,6 +14,7 @@ from feast.errors import FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.provider import (
+    DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
     RetrievalJob,
     _get_requested_feature_views_to_features_dict,
 )
@@ -79,12 +80,19 @@ class BigQueryOfflineStore(OfflineStore):
         client = _get_bigquery_client()
 
         if type(entity_df) is str:
-            entity_df_sql_table = f"({entity_df})"
+            entity_df_job = client.query(entity_df)
+            entity_df_result = entity_df_job.result()  # also starts job
+
+            entity_df_event_timestamp_col = _infer_event_timestamp_from_bigquery_query(
+                entity_df_result
+            )
+
+            entity_df_sql_table = f"`{entity_df_job.destination.project}.{entity_df_job.destination.dataset_id}.{entity_df_job.destination.table_id}`"
         elif isinstance(entity_df, pandas.DataFrame):
-            if "event_timestamp" not in entity_df.columns:
-                raise ValueError(
-                    "Please provide an entity_df with a column named event_timestamp representing the time of events."
-                )
+            entity_df_event_timestamp_col = _infer_event_timestamp_from_dataframe(
+                entity_df
+            )
+
             table_id = _upload_entity_df_into_bigquery(
                 config.project, entity_df, client
             )
@@ -107,10 +115,53 @@ class BigQueryOfflineStore(OfflineStore):
             min_timestamp=datetime.now() - timedelta(days=365),
             max_timestamp=datetime.now() + timedelta(days=1),
             left_table_query_string=entity_df_sql_table,
+            entity_df_event_timestamp_col=entity_df_event_timestamp_col,
         )
 
         job = BigQueryRetrievalJob(query=query, client=client)
         return job
+
+
+def _infer_event_timestamp_from_bigquery_query(entity_df_result) -> str:
+    if any(
+        schema_field.name == DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+        for schema_field in entity_df_result.schema
+    ):
+        return DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+    else:
+        datetime_columns = list(
+            filter(
+                lambda schema_field: schema_field.field_type == "TIMESTAMP",
+                entity_df_result.schema,
+            )
+        )
+        if len(datetime_columns) == 1:
+            print(
+                f"Using {datetime_columns[0].name} as the event timestamp. To specify a column explicitly, please name it {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL}."
+            )
+            return datetime_columns[0].name
+        else:
+            raise ValueError(
+                f"Please provide an entity_df with a column named {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of events."
+            )
+
+
+def _infer_event_timestamp_from_dataframe(entity_df: pandas.DataFrame) -> str:
+    if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in entity_df.columns:
+        return DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+    else:
+        datetime_columns = entity_df.select_dtypes(
+            include=["datetime", "datetimetz"]
+        ).columns
+        if len(datetime_columns) == 1:
+            print(
+                f"Using {datetime_columns[0]} as the event timestamp. To specify a column explicitly, please name it {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL}."
+            )
+            return datetime_columns[0]
+        else:
+            raise ValueError(
+                f"Please provide an entity_df with a column named {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL} representing the time of events."
+            )
 
 
 class BigQueryRetrievalJob(RetrievalJob):
@@ -230,6 +281,7 @@ def build_point_in_time_query(
     min_timestamp: datetime,
     max_timestamp: datetime,
     left_table_query_string: str,
+    entity_df_event_timestamp_col: str,
 ):
     """Build point-in-time query between each feature view table and the entity dataframe"""
     template = Environment(loader=BaseLoader()).from_string(
@@ -241,6 +293,7 @@ def build_point_in_time_query(
         "min_timestamp": min_timestamp,
         "max_timestamp": max_timestamp,
         "left_table_query_string": left_table_query_string,
+        "entity_df_event_timestamp_col": entity_df_event_timestamp_col,
         "featureviews": [asdict(context) for context in feature_view_query_contexts],
     }
 
@@ -292,7 +345,7 @@ SELECT
   -- unique identifier for each row in the entity dataset.
   row_number,
   -- event_timestamp contains the timestamps to join onto
-  event_timestamp,
+  {{entity_df_event_timestamp_col}} AS event_timestamp,
   -- the feature_timestamp, i.e. the latest occurrence of the requested feature relative to the entity_dataset timestamp
   NULL as {{ featureview.name }}_feature_timestamp,
   -- created timestamp of the feature at the corresponding feature_timestamp
@@ -373,7 +426,7 @@ FROM (
 /*
  Joins the outputs of multiple time travel joins to a single table.
  */
-SELECT edf.event_timestamp as event_timestamp, * EXCEPT (row_number, event_timestamp) FROM entity_dataframe edf
+SELECT edf.{{entity_df_event_timestamp_col}} as {{entity_df_event_timestamp_col}}, * EXCEPT (row_number, {{entity_df_event_timestamp_col}}) FROM entity_dataframe edf
 {% for featureview in featureviews %}
 LEFT JOIN (
     SELECT
@@ -384,5 +437,5 @@ LEFT JOIN (
     FROM {{ featureview.name }}__deduped
 ) USING (row_number)
 {% endfor %}
-ORDER BY event_timestamp
+ORDER BY {{entity_df_event_timestamp_col}}
 """

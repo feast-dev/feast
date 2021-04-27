@@ -19,7 +19,7 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
-from feast.infra.provider import ENTITY_DF_EVENT_TIMESTAMP_COL
+from feast.infra.provider import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
 from feast.repo_config import RepoConfig, SqliteOnlineStoreConfig
 from feast.value_type import ValueType
 
@@ -28,7 +28,7 @@ np.random.seed(0)
 PROJECT_NAME = "default"
 
 
-def generate_entities(date):
+def generate_entities(date, infer_event_timestamp_col):
     end_date = date
     before_start_date = end_date - timedelta(days=14)
     start_date = end_date - timedelta(days=7)
@@ -36,7 +36,12 @@ def generate_entities(date):
     customer_entities = [1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010]
     driver_entities = [5001, 5002, 5003, 5004, 5005, 5006, 5007, 5008, 5009, 5010]
     orders_df = driver_data.create_orders_df(
-        customer_entities, driver_entities, before_start_date, after_end_date, 20
+        customer_entities,
+        driver_entities,
+        before_start_date,
+        after_end_date,
+        20,
+        infer_event_timestamp_col=infer_event_timestamp_col,
     )
     return customer_entities, driver_entities, end_date, orders_df, start_date
 
@@ -131,10 +136,11 @@ def get_expected_training_df(
     driver_df: pd.DataFrame,
     driver_fv: FeatureView,
     orders_df: pd.DataFrame,
+    event_timestamp: str,
 ):
     # Convert all pandas dataframes into records with UTC timestamps
     order_records = convert_timestamp_records_to_utc(
-        orders_df.to_dict("records"), "event_timestamp"
+        orders_df.to_dict("records"), event_timestamp
     )
     driver_records = convert_timestamp_records_to_utc(
         driver_df.to_dict("records"), driver_fv.input.event_timestamp_column
@@ -148,16 +154,16 @@ def get_expected_training_df(
         driver_record = find_asof_record(
             driver_records,
             ts_key=driver_fv.input.event_timestamp_column,
-            ts_start=order_record["event_timestamp"] - driver_fv.ttl,
-            ts_end=order_record["event_timestamp"],
+            ts_start=order_record[event_timestamp] - driver_fv.ttl,
+            ts_end=order_record[event_timestamp],
             filter_key="driver_id",
             filter_value=order_record["driver_id"],
         )
         customer_record = find_asof_record(
             customer_records,
             ts_key=customer_fv.input.event_timestamp_column,
-            ts_start=order_record["event_timestamp"] - customer_fv.ttl,
-            ts_end=order_record["event_timestamp"],
+            ts_start=order_record[event_timestamp] - customer_fv.ttl,
+            ts_end=order_record[event_timestamp],
             filter_key="customer_id",
             filter_value=order_record["customer_id"],
         )
@@ -183,8 +189,8 @@ def get_expected_training_df(
 
     # Move "datetime" column to front
     current_cols = expected_df.columns.tolist()
-    current_cols.remove(ENTITY_DF_EVENT_TIMESTAMP_COL)
-    expected_df = expected_df[[ENTITY_DF_EVENT_TIMESTAMP_COL] + current_cols]
+    current_cols.remove(event_timestamp)
+    expected_df = expected_df[[event_timestamp] + current_cols]
 
     # Cast some columns to expected types, since we lose information when converting pandas DFs into Python objects.
     expected_df["order_is_success"] = expected_df["order_is_success"].astype("int32")
@@ -232,7 +238,10 @@ class BigQueryDataSet:
             )
 
 
-def test_historical_features_from_parquet_sources():
+@pytest.mark.parametrize(
+    "infer_event_timestamp_col", [False, True],
+)
+def test_historical_features_from_parquet_sources(infer_event_timestamp_col):
     start_date = datetime.now().replace(microsecond=0, second=0, minute=0)
     (
         customer_entities,
@@ -240,7 +249,7 @@ def test_historical_features_from_parquet_sources():
         end_date,
         orders_df,
         start_date,
-    ) = generate_entities(start_date)
+    ) = generate_entities(start_date, infer_event_timestamp_col)
 
     with TemporaryDirectory() as temp_dir:
         driver_df = driver_data.create_driver_hourly_stats_df(
@@ -283,25 +292,20 @@ def test_historical_features_from_parquet_sources():
         )
 
         actual_df = job.to_df()
+        event_timestamp = (
+            DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+            if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in orders_df.columns
+            else "e_ts"
+        )
         expected_df = get_expected_training_df(
-            customer_df, customer_fv, driver_df, driver_fv, orders_df,
+            customer_df, customer_fv, driver_df, driver_fv, orders_df, event_timestamp,
         )
         assert_frame_equal(
             expected_df.sort_values(
-                by=[
-                    ENTITY_DF_EVENT_TIMESTAMP_COL,
-                    "order_id",
-                    "driver_id",
-                    "customer_id",
-                ]
+                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
             ).reset_index(drop=True),
             actual_df.sort_values(
-                by=[
-                    ENTITY_DF_EVENT_TIMESTAMP_COL,
-                    "order_id",
-                    "driver_id",
-                    "customer_id",
-                ]
+                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
             ).reset_index(drop=True),
         )
 
@@ -310,7 +314,12 @@ def test_historical_features_from_parquet_sources():
 @pytest.mark.parametrize(
     "provider_type", ["local", "gcp"],
 )
-def test_historical_features_from_bigquery_sources(provider_type):
+@pytest.mark.parametrize(
+    "infer_event_timestamp_col", [False, True],
+)
+def test_historical_features_from_bigquery_sources(
+    provider_type, infer_event_timestamp_col
+):
     start_date = datetime.now().replace(microsecond=0, second=0, minute=0)
     (
         customer_entities,
@@ -318,7 +327,7 @@ def test_historical_features_from_bigquery_sources(provider_type):
         end_date,
         orders_df,
         start_date,
-    ) = generate_entities(start_date)
+    ) = generate_entities(start_date, infer_event_timestamp_col)
 
     # bigquery_dataset = "test_hist_retrieval_static"
     bigquery_dataset = f"test_hist_retrieval_{int(time.time())}"
@@ -387,8 +396,13 @@ def test_historical_features_from_bigquery_sources(provider_type):
 
         store.apply([driver, customer, driver_fv, customer_fv])
 
+        event_timestamp = (
+            DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+            if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in orders_df.columns
+            else "e_ts"
+        )
         expected_df = get_expected_training_df(
-            customer_df, customer_fv, driver_df, driver_fv, orders_df,
+            customer_df, customer_fv, driver_df, driver_fv, orders_df, event_timestamp,
         )
 
         job_from_sql = store.get_historical_features(
@@ -405,20 +419,10 @@ def test_historical_features_from_bigquery_sources(provider_type):
 
         assert_frame_equal(
             expected_df.sort_values(
-                by=[
-                    ENTITY_DF_EVENT_TIMESTAMP_COL,
-                    "order_id",
-                    "driver_id",
-                    "customer_id",
-                ]
+                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
             ).reset_index(drop=True),
             actual_df_from_sql_entities.sort_values(
-                by=[
-                    ENTITY_DF_EVENT_TIMESTAMP_COL,
-                    "order_id",
-                    "driver_id",
-                    "customer_id",
-                ]
+                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
             ).reset_index(drop=True),
             check_dtype=False,
         )
@@ -437,20 +441,10 @@ def test_historical_features_from_bigquery_sources(provider_type):
 
         assert_frame_equal(
             expected_df.sort_values(
-                by=[
-                    ENTITY_DF_EVENT_TIMESTAMP_COL,
-                    "order_id",
-                    "driver_id",
-                    "customer_id",
-                ]
+                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
             ).reset_index(drop=True),
             actual_df_from_df_entities.sort_values(
-                by=[
-                    ENTITY_DF_EVENT_TIMESTAMP_COL,
-                    "order_id",
-                    "driver_id",
-                    "customer_id",
-                ]
+                by=[event_timestamp, "order_id", "driver_id", "customer_id"]
             ).reset_index(drop=True),
             check_dtype=False,
         )
