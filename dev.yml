@@ -1,0 +1,28 @@
+name: feast
+type: python
+
+up:
+  - python: 3.7.9
+  - custom:
+      name: Upgrade pip
+      met?: pip install --upgrade pip
+      meet: "true"
+  - custom:
+      name: Install pre-commit
+      met?: pip list | grep -v pre-commit
+      meet: pip install pre-commit && pre-commit install
+  - custom:
+      name: Compile feast
+      met?: pip install -e "sdk/python[ci]"
+      meet: "true"
+
+commands:
+  format:
+    run: |
+      make format-python
+      make lint-python
+    desc: 'Format and lint all Python files'
+  
+  test:
+    run: make test-python
+    desc: 'Test all Python files'
