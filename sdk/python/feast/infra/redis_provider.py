@@ -1,14 +1,16 @@
 import json
 import os
+import struct
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
-import struct
+
 import mmh3
 import pandas as pd
+from google.protobuf.timestamp_pb2 import Timestamp
 from redis import Redis
 from rediscluster import RedisCluster
-from google.protobuf.timestamp_pb2 import Timestamp
+
 from feast import FeatureTable, utils
 from feast.entity import Entity
 from feast.feature_view import FeatureView
@@ -21,13 +23,14 @@ from feast.infra.provider import (
     _get_column_names,
     _run_field_mapping,
 )
-from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.storage.Redis_pb2 import RedisKeyV2 as RedisKeyProto
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RedisOnlineStoreConfig, RepoConfig
 
-EX_SECONDS=253402300799
+EX_SECONDS = 253402300799
+
 
 class RedisProvider(Provider):
     _db_path: Path
@@ -71,15 +74,15 @@ class RedisProvider(Provider):
         entity_hset = {}
         feature_view = table.name
 
-        ex=Timestamp()
-        ex.seconds=EX_SECONDS
-        ex_str=ex.SerializeToString()
+        ex = Timestamp()
+        ex.seconds = EX_SECONDS
+        ex_str = ex.SerializeToString()
 
         for entity_key, values, timestamp, created_ts in data:
             redis_key_bin = _redis_key(project, entity_key)
             timestamp = int(utils.make_tzaware(timestamp).timestamp())
-            ts=Timestamp()
-            ts.seconds=timestamp
+            ts = Timestamp()
+            ts.seconds = timestamp
             entity_hset[f"_ts:{feature_view}"] = ts.SerializeToString()
             entity_hset[f"_ex:{feature_view}"] = ex_str
 
@@ -243,8 +246,9 @@ def _redis_key(project: str, entity_key: EntityKeyProto) -> str:
         entity_names=entity_key.join_keys,
         entity_values=entity_key.entity_values,
     )
-    #key = _mmh3(serialize_entity_key(entity_key))
+    # key = _mmh3(serialize_entity_key(entity_key))
     return redis_key.SerializeToString()
+
 
 def _mmh3(key: str) -> str:
     """
@@ -252,8 +256,5 @@ def _mmh3(key: str) -> str:
         https://stackoverflow.com/questions/29932956/murmur3-hash-different-result-between-python-and-java-implementation
         https://stackoverflow.com/questions/13141787/convert-decimal-int-to-little-endian-string-x-x
     """
-    key_hash = mmh3.hash(key,signed=False)
-    return bytes.fromhex(struct.pack('<Q', key_hash).hex().rstrip('0'))
-
-
-
+    key_hash = mmh3.hash(key, signed=False)
+    return bytes.fromhex(struct.pack("<Q", key_hash).hex().rstrip("0"))
