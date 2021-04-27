@@ -3,12 +3,12 @@ import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
-
+import struct
 import mmh3
 import pandas as pd
 from redis import Redis
 from rediscluster import RedisCluster
-
+from google.protobuf.timestamp_pb2 import Timestamp
 from feast import FeatureTable, utils
 from feast.entity import Entity
 from feast.feature_view import FeatureView
@@ -22,10 +22,12 @@ from feast.infra.provider import (
     _run_field_mapping,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.storage.Redis_pb2 import RedisKeyV2 as RedisKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
 from feast.repo_config import RedisOnlineStoreConfig, RepoConfig
 
+EX_SECONDS=253402300799
 
 class RedisProvider(Provider):
     _db_path: Path
@@ -52,8 +54,8 @@ class RedisProvider(Provider):
     ) -> None:
         # according to the repos_operations.py we can delete the whole project
         client = self._get_client()
-        keys = client.keys("{project}:*")
-        client.unlink(*keys)
+        #keys = client.keys("{project}:*")
+        #client.unlink(*keys)
 
     def online_write_batch(
         self,
@@ -69,16 +71,17 @@ class RedisProvider(Provider):
         entity_hset = {}
         feature_view = table.name
 
+        ex=Timestamp()
+        ex.seconds=EX_SECONDS
+        ex_str=ex.SerializeToString()
+
         for entity_key, values, timestamp, created_ts in data:
             redis_key_bin = _redis_key(project, entity_key)
-            timestamp = utils.make_tzaware(timestamp).strftime("%Y-%m-%d %H:%M:%S")
-            entity_hset[f"_ts:{feature_view}"] = timestamp
-
-            if created_ts is not None:
-                created_ts = utils.make_tzaware(created_ts).strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                )
-                entity_hset[f"_created_ts:{feature_view}"] = created_ts
+            timestamp = int(utils.make_tzaware(timestamp).timestamp())
+            ts=Timestamp()
+            ts.seconds=timestamp
+            entity_hset[f"_ts:{feature_view}"] = ts.SerializeToString()
+            entity_hset[f"_ex:{feature_view}"] = ex_str
 
             for feature_name, val in values.items():
                 f_key = _mmh3(f"{feature_view}:{feature_name}")
@@ -113,7 +116,7 @@ class RedisProvider(Provider):
             res = {}
             for feature_name, val_bin in res_val.items():
                 val = ValueProto()
-                val.ParseFromString(val_bin)
+                val.FromString(val_bin)
                 res[feature_name] = val
 
             if not res:
@@ -231,9 +234,22 @@ class RedisProvider(Provider):
 
 
 def _redis_key(project: str, entity_key: EntityKeyProto) -> str:
-    key = _mmh3(serialize_entity_key(entity_key))
-    return f"{project}:{key}"
-
+    redis_key = RedisKeyProto(
+            project=project,
+            entity_names=entity_key.join_keys,
+            entity_values=entity_key.entity_values,
+        )
+    #key = _mmh3(serialize_entity_key(entity_key))
+    return redis_key.SerializeToString()
 
 def _mmh3(key: str) -> str:
-    return mmh3.hash_bytes(key).hex()
+    """
+    Calculate murmur3_32 hash which is equal to scala version which is using little endian:
+        https://stackoverflow.com/questions/29932956/murmur3-hash-different-result-between-python-and-java-implementation
+        https://stackoverflow.com/questions/13141787/convert-decimal-int-to-little-endian-string-x-x
+    """
+    key_hash = mmh3.hash(key,signed=False)
+    bytes.fromhex(struct.pack('<Q', key_hash).hex().rstrip('0'))
+
+
+
