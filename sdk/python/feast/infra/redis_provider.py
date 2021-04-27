@@ -54,8 +54,8 @@ class RedisProvider(Provider):
     ) -> None:
         # according to the repos_operations.py we can delete the whole project
         client = self._get_client()
-        #keys = client.keys("{project}:*")
-        #client.unlink(*keys)
+        keys = client.keys("*{project}:*")
+        client.unlink(*keys)
 
     def online_write_batch(
         self,
@@ -108,15 +108,19 @@ class RedisProvider(Provider):
             ts_key = f"_ts:{feature_view}"
             hset_keys.append(ts_key)
             values = client.hmget(redis_key_bin, hset_keys)
-
             requested_features.append(ts_key)
             res_val = dict(zip(requested_features, values))
-            res_ts = res_val.pop(ts_key)
+
+            res_ts = Timestamp()
+            ts_val = res_val.pop(ts_key)
+            if ts_val:
+                res_ts.ParseFromString(ts_val)
 
             res = {}
             for feature_name, val_bin in res_val.items():
                 val = ValueProto()
-                val.FromString(val_bin)
+                if val_bin:
+                    val.ParseFromString(val_bin)
                 res[feature_name] = val
 
             if not res:
@@ -235,10 +239,10 @@ class RedisProvider(Provider):
 
 def _redis_key(project: str, entity_key: EntityKeyProto) -> str:
     redis_key = RedisKeyProto(
-            project=project,
-            entity_names=entity_key.join_keys,
-            entity_values=entity_key.entity_values,
-        )
+        project=project,
+        entity_names=entity_key.join_keys,
+        entity_values=entity_key.entity_values,
+    )
     #key = _mmh3(serialize_entity_key(entity_key))
     return redis_key.SerializeToString()
 
@@ -249,7 +253,7 @@ def _mmh3(key: str) -> str:
         https://stackoverflow.com/questions/13141787/convert-decimal-int-to-little-endian-string-x-x
     """
     key_hash = mmh3.hash(key,signed=False)
-    bytes.fromhex(struct.pack('<Q', key_hash).hex().rstrip('0'))
+    return bytes.fromhex(struct.pack('<Q', key_hash).hex().rstrip('0'))
 
 
 
