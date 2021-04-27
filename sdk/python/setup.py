@@ -42,10 +42,6 @@ REQUIRED = [
     "colorama>=0.3.9",
     "fastavro>=0.22.11,<0.23",
     "google-api-core>=1.23.0",
-    "google-cloud-bigquery>=2.0.*",
-    "google-cloud-bigquery-storage >= 2.0.0",
-    "google-cloud-storage>=1.20.*",
-    "google-cloud-core==1.4.*",
     "googleapis-common-protos==1.52.*",
     "grpcio==1.31.0",
     "Jinja2>=2.0.0",
@@ -61,6 +57,14 @@ REQUIRED = [
     "tabulate==0.8.*",
     "toml==0.10.*",
     "tqdm==4.*",
+]
+
+GCP_REQUIRED = [
+    "google-cloud-bigquery>=2.0.*",
+    "google-cloud-bigquery-storage >= 2.0.0",
+    "google-cloud-datastore>=2.1.*",
+    "google-cloud-storage>=1.20.*",
+    "google-cloud-core==1.4.*",
 ]
 
 CI_REQUIRED = [
@@ -87,9 +91,13 @@ CI_REQUIRED = [
     "tenacity",
     "adlfs==0.5.9",
     "firebase-admin==4.5.2",
-    "google-cloud-datastore==2.1.0",
     "pre-commit",
     "assertpy==1.1",
+    "google-cloud-bigquery>=2.0.*",
+    "google-cloud-bigquery-storage >= 2.0.0",
+    "google-cloud-datastore>=2.1.*",
+    "google-cloud-storage>=1.20.*",
+    "google-cloud-core==1.4.*",
 ]
 
 # README file from Feast repo root directory
@@ -182,7 +190,8 @@ setup(
     # Install dev requirements with: pip install -e .[dev]
     extras_require={
         "dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"],
-        "ci": CI_REQUIRED
+        "ci": CI_REQUIRED,
+        "gcp": GCP_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
