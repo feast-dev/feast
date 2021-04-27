@@ -10,6 +10,7 @@ A feature repository consists of:
 
 * A collection of Python files containing feature declarations.
 * A `feature_store.yaml` file containing infrastructural configuration.
+* A `.feastignore` file containing paths in the feature repository to ignore.
 
 {% hint style="info" %}
 Typically, users store their feature repositories in a Git repository, especially when working in teams. However, using Git is not a requirement.
@@ -19,27 +20,28 @@ Typically, users store their feature repositories in a Git repository, especiall
 
 The structure of a feature repository is as follows:
 
-* The root of the repository should contain a `feature_store.yaml` file.
+* The root of the repository should contain a `feature_store.yaml` file and may contain a `.feastignore` file.
 * The repository should contain Python files that contain feature definitions. 
 * The repository can contain other files as well, including documentation and potentially data files.
 
 An example structure of a feature repository is shown below:
 
 ```text
-$ tree
+$ tree -a
 .
 ├── data
 │   └── driver_stats.parquet
 ├── driver_features.py
-└── feature_store.yaml
+├── feature_store.yaml
+└── .feastignore
 
-1 directory, 3 files
+1 directory, 4 files
 ```
 
 A couple of things to note about the feature repository:
 
-* Feast does not currently read through subdirectories of the feature repository when commands. All feature definition files must reside at the root of the repository.
-* Feast reads _all_ Python files when `feast apply` is ran, even if they don't contain feature definitions. It's recommended to store imperative scripts in a different location than inside the feature registry for this purpose.
+* Feast reads _all_ Python files recursively when `feast apply` is ran, including subdirectories, even if they don't contain feature definitions.
+* It's recommended to add `.feastignore` and add paths to all imperative scripts if you need to store them inside the feature registry.
 
 ## The feature\_store.yaml configuration file
 
@@ -56,6 +58,28 @@ online_store:
 {% endcode %}
 
 The `feature_store.yaml` file configures how the feature store should run. See [feature\_store.yaml](../reference/feature-store-yaml.md) for more details.
+
+## The .feastignore file
+
+This file contains paths that should be ignored when running `feast apply`. An example `.feastignore` is shown below:
+
+{% code title=".feastignore" %}
+```
+# Ignore virtual environment
+venv
+
+# Ignore a specific Python file
+scripts/foo.py
+
+# Ignore all Python files directly under scripts directory
+scripts/*.py
+
+# Ignore all "foo.py" anywhere under scripts directory
+scripts/**/foo.py
+```
+{% endcode %}
+
+See [.feastignore](../reference/feast-ignore.md) for more details.
 
 ## Feature definitions
 
@@ -97,5 +121,4 @@ To declare new feature definitions, just add code to the feature repository, eit
 ### Next steps
 
 * See [Create a feature repository](../how-to-guides/create-a-feature-repository.md) to get started with an example feature repository.
-* See [feature\_store.yaml](../reference/feature-store-yaml.md) or [Feature Views](feature-views.md) for more information on the configuration files that live in a feature registry.
-
+* See [feature\_store.yaml](../reference/feature-store-yaml.md), [.feastignore](../reference/feast-ignore.md) or [Feature Views](feature-views.md) for more information on the configuration files that live in a feature registry.

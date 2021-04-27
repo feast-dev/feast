@@ -24,6 +24,7 @@
 ## Reference
 
 * [feature\_store.yaml](reference/feature-store-yaml.md)
+* [.feastignore](reference/feast-ignore.md)
 * [Python API reference](http://rtd.feast.dev/)
 
 ## Feast on Kubernetes

@@ -3,6 +3,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
 
+import assertpy
+
 from feast.feature_store import FeatureStore
 from tests.cli_utils import CliRunner
 from tests.online_read_write_test import basic_rw_test
@@ -39,31 +41,31 @@ def test_workflow() -> None:
         )
 
         result = runner.run(["apply"], cwd=repo_path)
-        assert result.returncode == 0
+        assertpy.assert_that(result.returncode).is_equal_to(0)
 
         # entity & feature view list commands should succeed
         result = runner.run(["entities", "list"], cwd=repo_path)
-        assert result.returncode == 0
+        assertpy.assert_that(result.returncode).is_equal_to(0)
         result = runner.run(["feature-views", "list"], cwd=repo_path)
-        assert result.returncode == 0
+        assertpy.assert_that(result.returncode).is_equal_to(0)
 
         # entity & feature view describe commands should succeed when objects exist
         result = runner.run(["entities", "describe", "driver"], cwd=repo_path)
-        assert result.returncode == 0
+        assertpy.assert_that(result.returncode).is_equal_to(0)
         result = runner.run(
             ["feature-views", "describe", "driver_locations"], cwd=repo_path
         )
-        assert result.returncode == 0
+        assertpy.assert_that(result.returncode).is_equal_to(0)
 
         # entity & feature view describe commands should fail when objects don't exist
         result = runner.run(["entities", "describe", "foo"], cwd=repo_path)
-        assert result.returncode == 1
+        assertpy.assert_that(result.returncode).is_equal_to(1)
         result = runner.run(["feature-views", "describe", "foo"], cwd=repo_path)
-        assert result.returncode == 1
+        assertpy.assert_that(result.returncode).is_equal_to(1)
 
         # Doing another apply should be a no op, and should not cause errors
         result = runner.run(["apply"], cwd=repo_path)
-        assert result.returncode == 0
+        assertpy.assert_that(result.returncode).is_equal_to(0)
 
         basic_rw_test(
             FeatureStore(repo_path=str(repo_path), config=None),
@@ -71,7 +73,7 @@ def test_workflow() -> None:
         )
 
         result = runner.run(["teardown"], cwd=repo_path)
-        assert result.returncode == 0
+        assertpy.assert_that(result.returncode).is_equal_to(0)
 
 
 def test_non_local_feature_repo() -> None:
@@ -104,13 +106,13 @@ def test_non_local_feature_repo() -> None:
         )
 
         result = runner.run(["apply"], cwd=repo_path)
-        assert result.returncode == 0
+        assertpy.assert_that(result.returncode).is_equal_to(0)
 
         fs = FeatureStore(repo_path=str(repo_path))
-        assert len(fs.list_feature_views()) == 3
+        assertpy.assert_that(fs.list_feature_views()).is_length(3)
 
         result = runner.run(["teardown"], cwd=repo_path)
-        assert result.returncode == 0
+        assertpy.assert_that(result.returncode).is_equal_to(0)
 
 
 @contextmanager
@@ -150,19 +152,23 @@ def test_3rd_party_providers() -> None:
     # Check with incorrect built-in provider name (no dots)
     with setup_third_party_provider_repo("feast123") as repo_path:
         return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
-        assert return_code == 1
-        assert b"Provider 'feast123' is not implemented" in output
+        assertpy.assert_that(return_code).is_equal_to(1)
+        assertpy.assert_that(output).contains(b"Provider 'feast123' is not implemented")
     # Check with incorrect third-party provider name (with dots)
     with setup_third_party_provider_repo("feast_foo.provider") as repo_path:
         return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
-        assert return_code == 1
-        assert b"Could not import provider module 'feast_foo'" in output
+        assertpy.assert_that(return_code).is_equal_to(1)
+        assertpy.assert_that(output).contains(
+            b"Could not import provider module 'feast_foo'"
+        )
     # Check with incorrect third-party provider name (with dots)
-    with setup_third_party_provider_repo("foo.provider") as repo_path:
+    with setup_third_party_provider_repo("foo.FooProvider") as repo_path:
         return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
-        assert return_code == 1
-        assert b"Could not import provider 'provider' from module 'foo'" in output
+        assertpy.assert_that(return_code).is_equal_to(1)
+        assertpy.assert_that(output).contains(
+            b"Could not import provider 'FooProvider' from module 'foo'"
+        )
     # Check with correct third-party provider name
     with setup_third_party_provider_repo("foo.provider.FooProvider") as repo_path:
         return_code, output = runner.run_with_output(["apply"], cwd=repo_path)
-        assert return_code == 0
+        assertpy.assert_that(return_code).is_equal_to(0)

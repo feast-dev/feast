@@ -5,7 +5,7 @@ import sys
 from datetime import timedelta
 from importlib.abc import Loader
 from pathlib import Path
-from typing import List, NamedTuple, Union
+from typing import List, NamedTuple, Set, Union
 
 import click
 
@@ -31,15 +31,64 @@ class ParsedRepo(NamedTuple):
     entities: List[Entity]
 
 
+def read_feastignore(repo_root: Path) -> List[str]:
+    """Read .feastignore in the repo root directory (if exists) and return the list of user-defined ignore paths"""
+    feast_ignore = repo_root / ".feastignore"
+    if not feast_ignore.is_file():
+        return []
+    lines = feast_ignore.read_text().strip().split("\n")
+    ignore_paths = []
+    for line in lines:
+        # Remove everything after the first occurance of "#" symbol (comments)
+        if line.find("#") >= 0:
+            line = line[: line.find("#")]
+        # Strip leading or ending whitespaces
+        line = line.strip()
+        # Add this processed line to ignore_paths if it's not empty
+        if len(line) > 0:
+            ignore_paths.append(line)
+    return ignore_paths
+
+
+def get_ignore_files(repo_root: Path, ignore_paths: List[str]) -> Set[Path]:
+    """Get all ignore files that match any of the user-defined ignore paths"""
+    ignore_files = set()
+    for ignore_path in ignore_paths:
+        # ignore_path may contains matchers (* or **). Use glob() to match user-defined path to actual paths
+        for matched_path in repo_root.glob(ignore_path):
+            if matched_path.is_file():
+                # If the matched path is a file, add that to ignore_files set
+                ignore_files.add(matched_path.resolve())
+            else:
+                # Otherwise, list all Python files in that directory and add all of them to ignore_files set
+                ignore_files |= {
+                    sub_path.resolve()
+                    for sub_path in matched_path.glob("**/*.py")
+                    if sub_path.is_file()
+                }
+    return ignore_files
+
+
+def get_repo_files(repo_root: Path) -> List[Path]:
+    """Get the list of all repo files, ignoring undesired files & directories specified in .feastignore"""
+    # Read ignore paths from .feastignore and create a set of all files that match any of these paths
+    ignore_paths = read_feastignore(repo_root)
+    ignore_files = get_ignore_files(repo_root, ignore_paths)
+
+    # List all Python files in the root directory (recursively)
+    repo_files = {p.resolve() for p in repo_root.glob("**/*.py") if p.is_file()}
+    # Ignore all files that match any of the ignore paths in .feastignore
+    repo_files -= ignore_files
+
+    # Sort repo_files to read them in the same order every time
+    return sorted(repo_files)
+
+
 def parse_repo(repo_root: Path) -> ParsedRepo:
     """ Collect feature table definitions from feature repo """
     res = ParsedRepo(feature_tables=[], entities=[], feature_views=[])
 
-    # FIXME: process subdirs but exclude hidden ones
-    repo_files = [p.resolve() for p in repo_root.glob("*.py")]
-
-    for repo_file in repo_files:
-
+    for repo_file in get_repo_files(repo_root):
         module_path = py_path_to_module(repo_file, repo_root)
         module = importlib.import_module(module_path)
 
