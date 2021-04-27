@@ -18,7 +18,7 @@ from feast.registry import Registry
 from feast.repo_config import RepoConfig
 from feast.type_map import python_value_to_proto_value
 
-ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
+DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
 
 
 class Provider(abc.ABC):
