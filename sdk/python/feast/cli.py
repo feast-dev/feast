@@ -238,7 +238,7 @@ def materialize_incremental_command(end_ts: str, views: List[str]):
 @click.option(
     "--template",
     "-t",
-    type=click.Choice(["local", "gcp"], case_sensitive=False),
+    type=click.Choice(["local", "gcp", "aws"], case_sensitive=False),
     help="Specify a template for the created project",
     default="local",
 )
