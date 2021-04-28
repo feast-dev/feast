@@ -51,8 +51,8 @@ REQUIRED = [
     "Jinja2>=2.0.0",
     "jsonschema",
     "mmh3",
-    "numpy<1.20.0",
-    "pandas~=1.0.0",
+    "numpy~=1.20.0",
+    "pandas~=1.1.0",
     "pandavro==1.5.*",
     "protobuf>=3.10",
     "pyarrow==2.0.0",
@@ -95,9 +95,9 @@ CI_REQUIRED = [
 # README file from Feast repo root directory
 repo_root = (
     subprocess.Popen(["git", "rev-parse", "--show-toplevel"], stdout=subprocess.PIPE)
-        .communicate()[0]
-        .rstrip()
-        .decode("utf-8")
+    .communicate()[0]
+    .rstrip()
+    .decode("utf-8")
 )
 README_FILE = os.path.join(repo_root, "README.md")
 with open(os.path.join(README_FILE), "r") as f:
@@ -117,7 +117,9 @@ class BuildProtoCommand(Command):
     def initialize_options(self):
         self.protoc = ["python", "-m", "grpc_tools.protoc"]  # find_executable("protoc")
         self.proto_folder = os.path.join(repo_root, "protos")
-        self.this_package = os.path.join(os.path.dirname(__file__) or os.getcwd(), 'feast/protos')
+        self.this_package = os.path.join(
+            os.path.dirname(__file__) or os.getcwd(), "feast/protos"
+        )
         self.sub_folders = ["core", "serving", "types", "storage"]
 
     def finalize_options(self):
@@ -126,29 +128,40 @@ class BuildProtoCommand(Command):
     def _generate_protos(self, path):
         proto_files = glob.glob(os.path.join(self.proto_folder, path))
 
-        subprocess.check_call(self.protoc + [
-            '-I', self.proto_folder,
-            '--python_out', self.this_package,
-            '--grpc_python_out', self.this_package,
-            '--mypy_out', self.this_package] + proto_files)
+        subprocess.check_call(
+            self.protoc
+            + [
+                "-I",
+                self.proto_folder,
+                "--python_out",
+                self.this_package,
+                "--grpc_python_out",
+                self.this_package,
+                "--mypy_out",
+                self.this_package,
+            ]
+            + proto_files
+        )
 
     def run(self):
         for sub_folder in self.sub_folders:
-            self._generate_protos(f'feast/{sub_folder}/*.proto')
+            self._generate_protos(f"feast/{sub_folder}/*.proto")
 
         from pathlib import Path
 
-        for path in Path('feast/protos').rglob('*.py'):
+        for path in Path("feast/protos").rglob("*.py"):
             for folder in self.sub_folders:
                 # Read in the file
-                with open(path, 'r') as file:
+                with open(path, "r") as file:
                     filedata = file.read()
 
                 # Replace the target string
-                filedata = filedata.replace(f'from feast.{folder}', f'from feast.protos.feast.{folder}')
+                filedata = filedata.replace(
+                    f"from feast.{folder}", f"from feast.protos.feast.{folder}"
+                )
 
                 # Write the file out again
-                with open(path, 'w') as file:
+                with open(path, "w") as file:
                     file.write(filedata)
 
 
@@ -156,7 +169,7 @@ class BuildCommand(build_py):
     """Custom build command."""
 
     def run(self):
-        self.run_command('build_proto')
+        self.run_command("build_proto")
         build_py.run(self)
 
 
@@ -164,7 +177,7 @@ class DevelopCommand(develop):
     """Custom develop command."""
 
     def run(self):
-        self.run_command('build_proto')
+        self.run_command("build_proto")
         develop.run(self)
 
 
@@ -182,7 +195,7 @@ setup(
     # Install dev requirements with: pip install -e .[dev]
     extras_require={
         "dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"],
-        "ci": CI_REQUIRED
+        "ci": CI_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
@@ -196,14 +209,20 @@ setup(
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version={"root": "../..", "relative_to": __file__, "tag_regex": TAG_REGEX},
-    setup_requires=["setuptools_scm", "grpcio", "grpcio-tools==1.31.0", "mypy-protobuf", "sphinx"],
+    setup_requires=[
+        "setuptools_scm",
+        "grpcio",
+        "grpcio-tools==1.31.0",
+        "mypy-protobuf",
+        "sphinx",
+    ],
     package_data={
         "": [
             "protos/feast/**/*.proto",
             "protos/feast/third_party/grpc/health/v1/*.proto",
             "protos/tensorflow_metadata/proto/v0/*.proto",
             "feast/protos/feast/**/*.py",
-            "tensorflow_metadata/proto/v0/*.py"
+            "tensorflow_metadata/proto/v0/*.py",
         ],
     },
     cmdclass={
