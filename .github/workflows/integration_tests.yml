@@ -7,10 +7,19 @@ on:
 
 jobs:
   integration-test-python:
-    runs-on: ubuntu-latest
-    container: python:3.7
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ 3.7, 3.8, 3.9 ]
+        os: [ ubuntu-latest, macOS-latest ]
     steps:
       - uses: actions/checkout@v2
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@master
         with:
