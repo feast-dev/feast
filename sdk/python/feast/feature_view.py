@@ -31,6 +31,7 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
+from feast.type_map import bq_to_feast_value_type, pa_to_feast_value_type
 from feast.value_type import ValueType
 
 
@@ -55,12 +56,32 @@ class FeatureView:
         self,
         name: str,
         entities: List[str],
-        features: List[Feature],
         ttl: Optional[Union[Duration, timedelta]],
         input: Union[BigQuerySource, FileSource],
+        features: List[Feature] = [],
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
     ):
+        if not features:
+            columns_to_exclude = {
+                input.event_timestamp_column,
+                input.created_timestamp_column,
+            } | set(entities)
+            type_converter = (
+                bq_to_feast_value_type
+                if isinstance(input, BigQuerySource)
+                else pa_to_feast_value_type
+            )
+
+            for pair in input.get_table_column_names_and_types():
+                if pair[0] not in columns_to_exclude:
+                    features.append(Feature(pair[0], type_converter(pair[1])))
+
+            if not features:
+                raise ValueError(
+                    f"Could not infer Features for the FeatureView named {name}."
+                )
+
         cols = [entity for entity in entities] + [feat.name for feat in features]
         for col in cols:
             if input.field_mapping is not None and col in input.field_mapping.keys():

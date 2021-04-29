@@ -14,7 +14,12 @@
 
 
 import enum
-from typing import Dict, Optional
+import re
+from typing import Dict, Iterable, Optional, Tuple
+
+from google.cloud import bigquery
+from pyarrow import DataType
+from pyarrow.parquet import ParquetFile
 
 from feast.data_format import FileFormat, StreamFormat
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
@@ -515,11 +520,42 @@ class DataSource:
         """
         raise NotImplementedError
 
+    def infer_event_timestamp_column(self, ts_column_type_regex_pattern):
+        ERROR_MSG_PREFIX = "Unable to infer DataSource event_timestamp_column"
+
+        if isinstance(self, FileSource) or isinstance(self, BigQuerySource):
+            event_timestamp_column, matched_flag = None, False
+            for col_name, col_datatype in self.get_table_column_names_and_types():
+                if re.match(ts_column_type_regex_pattern, col_datatype):
+                    if matched_flag:
+                        raise TypeError(
+                            f"""
+                            {ERROR_MSG_PREFIX} due to multiple possible columns satisfying
+                            the criteria.
+                            """
+                        )
+                    matched_flag = True
+                    event_timestamp_column = col_name
+            if matched_flag:
+                return event_timestamp_column
+            else:
+                raise TypeError(
+                    f"""
+                    {ERROR_MSG_PREFIX} due to an absence of columns that satisfy the criteria.
+                    """
+                )
+        else:
+            raise TypeError(
+                f"""
+                {ERROR_MSG_PREFIX} because this DataSource currently does not support this inference.
+                """
+            )
+
 
 class FileSource(DataSource):
     def __init__(
         self,
-        event_timestamp_column: str,
+        event_timestamp_column: Optional[str],
         file_url: Optional[str] = None,
         path: Optional[str] = None,
         file_format: FileFormat = None,
@@ -543,8 +579,10 @@ class FileSource(DataSource):
         Examples:
             >>> FileSource(path="/data/my_features.parquet", event_timestamp_column="datetime")
         """
+
         super().__init__(
-            event_timestamp_column,
+            event_timestamp_column
+            or self.infer_event_timestamp_column(r"timestamp\[\w\w\]"),
             created_timestamp_column,
             field_mapping,
             date_partition_column,
@@ -609,24 +647,30 @@ class FileSource(DataSource):
 
         return data_source_proto
 
+    def get_table_column_names_and_types(self) -> Iterable[Tuple[DataType, str]]:
+        schema = ParquetFile(self.path).schema_arrow
+        return zip(schema.names, schema.types)
+
 
 class BigQuerySource(DataSource):
     def __init__(
         self,
-        event_timestamp_column: str,
+        event_timestamp_column: Optional[str] = None,
         table_ref: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
         date_partition_column: Optional[str] = "",
         query: Optional[str] = None,
     ):
+
+        self._bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
         super().__init__(
-            event_timestamp_column,
+            event_timestamp_column
+            or self.infer_event_timestamp_column("TIMESTAMP|DATETIME"),
             created_timestamp_column,
             field_mapping,
             date_partition_column,
         )
-        self._bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
 
     def __eq__(self, other):
         if not isinstance(other, BigQuerySource):
@@ -683,6 +727,24 @@ class BigQuerySource(DataSource):
             return f"`{self.table_ref}`"
         else:
             return f"({self.query})"
+
+    def get_table_column_names_and_types(self) -> Iterable[Tuple[str, str]]:
+        assert self.table_ref is not None
+        name_type_pairs = []
+        project_id, dataset_id, table_id = self.table_ref.split(".")
+        bq_columns_query = f"""
+            SELECT COLUMN_NAME, DATA_TYPE FROM {project_id}.{dataset_id}.INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = '{table_id}'
+            """
+
+        client = bigquery.Client()
+        table_schema = client.query(bq_columns_query).result().to_dataframe_iterable()
+        for df in table_schema:
+            name_type_pairs.extend(
+                list(zip(df["COLUMN_NAME"].to_list(), df["DATA_TYPE"].to_list()))
+            )
+
+        return name_type_pairs
 
 
 class KafkaSource(DataSource):
