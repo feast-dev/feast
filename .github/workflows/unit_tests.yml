@@ -1,16 +1,24 @@
 name: unit-tests
 
 on: [push, pull_request]
-
 jobs:
   unit-test-python:
-    runs-on: ubuntu-latest
-    container: python:3.7
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ 3.7, 3.8, 3.9 ]
+        os: [ ubuntu-latest, macOS-latest, windows-latest ]
     steps:
       - uses: actions/checkout@v2
-      - name: Install dependencies
+      - name: Setup Python ${{ matrix.python-version }} on ${{ matrix.os }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+      - name: Install dependencies ${{ matrix.python-version }} on ${{ matrix.os }}
         run: make install-python-ci-dependencies
-      - name: Test Python
+      - name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
         run: make test-python
 
   unit-test-go:
