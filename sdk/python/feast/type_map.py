@@ -308,6 +308,8 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
             return ProtoValue(int32_val=int(value))
         elif feast_value_type == ValueType.INT64:
             return ProtoValue(int64_val=int(value))
+        elif feast_value_type == ValueType.UNIX_TIMESTAMP:
+            return ProtoValue(int64_val=int(value))
         elif feast_value_type == ValueType.FLOAT:
             return ProtoValue(float_val=float(value))
         elif feast_value_type == ValueType.DOUBLE:
