@@ -16,6 +16,7 @@ from datetime import timedelta
 from tempfile import mkstemp
 
 import pytest
+from fixtures.data_source_fixtures import simple_dataset_1  # noqa: F401
 from fixtures.data_source_fixtures import prep_bq_source, prep_file_source
 from pytest_lazyfixture import lazy_fixture
 
