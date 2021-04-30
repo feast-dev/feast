@@ -417,7 +417,7 @@ def pa_to_value_type(pa_type: object):
     return type_map[pa_type.__str__()]
 
 
-def pa_to_feast_value_type(value: Union[pa.lib.ChunkedArray, pa.DataType]) -> ValueType:
+def pa_to_feast_value_type(value: Union[pa.lib.ChunkedArray, str]) -> ValueType:
     type_map = {
         "timestamp[ms]": ValueType.INT64,
         "int32": ValueType.INT32,
@@ -436,7 +436,7 @@ def pa_to_feast_value_type(value: Union[pa.lib.ChunkedArray, pa.DataType]) -> Va
         "list<item: bool>": ValueType.BOOL_LIST,
     }
     return type_map[
-        value.type.__str__() if isinstance(value, pa.lib.ChunkedArray) else str(value)
+        value.type.__str__() if isinstance(value, pa.lib.ChunkedArray) else value
     ]
 
 

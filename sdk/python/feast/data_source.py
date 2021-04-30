@@ -18,7 +18,6 @@ import re
 from typing import Dict, Iterable, Optional, Tuple
 
 from google.cloud import bigquery
-from pyarrow import DataType
 from pyarrow.parquet import ParquetFile
 
 from feast.data_format import FileFormat, StreamFormat
@@ -555,7 +554,7 @@ class DataSource:
 class FileSource(DataSource):
     def __init__(
         self,
-        event_timestamp_column: Optional[str],
+        event_timestamp_column: Optional[str] = None,
         file_url: Optional[str] = None,
         path: Optional[str] = None,
         file_format: FileFormat = None,
@@ -579,14 +578,6 @@ class FileSource(DataSource):
         Examples:
             >>> FileSource(path="/data/my_features.parquet", event_timestamp_column="datetime")
         """
-
-        super().__init__(
-            event_timestamp_column
-            or self.infer_event_timestamp_column(r"timestamp\[\w\w\]"),
-            created_timestamp_column,
-            field_mapping,
-            date_partition_column,
-        )
         if path is None and file_url is None:
             raise ValueError(
                 'No "path" argument provided. Please set "path" to the location of your file source.'
@@ -599,7 +590,16 @@ class FileSource(DataSource):
             )
         else:
             file_url = path
+
         self._file_options = FileOptions(file_format=file_format, file_url=file_url)
+
+        super().__init__(
+            event_timestamp_column
+            or self.infer_event_timestamp_column(r"timestamp\[\w\w\]"),
+            created_timestamp_column,
+            field_mapping,
+            date_partition_column,
+        )
 
     def __eq__(self, other):
         if not isinstance(other, FileSource):
@@ -647,9 +647,9 @@ class FileSource(DataSource):
 
         return data_source_proto
 
-    def get_table_column_names_and_types(self) -> Iterable[Tuple[DataType, str]]:
+    def get_table_column_names_and_types(self) -> Iterable[Tuple[str, str]]:
         schema = ParquetFile(self.path).schema_arrow
-        return zip(schema.names, schema.types)
+        return zip(schema.names, map(str, schema.types))
 
 
 class BigQuerySource(DataSource):
@@ -662,8 +662,8 @@ class BigQuerySource(DataSource):
         date_partition_column: Optional[str] = "",
         query: Optional[str] = None,
     ):
-
         self._bigquery_options = BigQueryOptions(table_ref=table_ref, query=query)
+
         super().__init__(
             event_timestamp_column
             or self.infer_event_timestamp_column("TIMESTAMP|DATETIME"),
