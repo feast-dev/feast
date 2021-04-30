@@ -1,5 +1,25 @@
 # Roadmap
 
+## Feast 0.10
+
+### **New Functionality**
+
+1. Full local mode support (Sqlite and Parquet)
+2. Provider model for added extensibility
+3. Firestore support
+4. Native (No-Spark) BigQuery support
+5. Added support for object store based registry
+6. Add support for FeatureViews
+7. Added support for infrastructure configuration through `apply`
+
+### **Technical debt, refactoring, or housekeeping**
+
+1. Remove dependency on Feast Core
+2. Feast Serving made optional
+3. Moved Python API documentation to Read The Docs
+4. Moved Feast Java components to [feast-java](https://github.com/feast-dev/feast-java)
+5. Moved Feast Spark components to [feast-spark](https://github.com/feast-dev/feast-spark)
+
 ## Feast 0.9
 
 [Discussion](https://github.com/feast-dev/feast/issues/1131)
