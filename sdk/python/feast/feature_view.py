@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -75,7 +76,9 @@ class FeatureView:
             )
 
             for col_name, col_datatype in input.get_table_column_names_and_types():
-                if col_name not in columns_to_exclude:
+                if col_name not in columns_to_exclude and not re.match(
+                    "^__|__$", col_name
+                ):
                     features.append(Feature(col_name, type_converter(col_datatype)))
 
             if not features:

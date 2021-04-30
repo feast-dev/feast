@@ -293,6 +293,7 @@ def test_apply_feature_view_integration(test_feature_store):
     assert len(feature_views) == 0
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
 def test_data_source_ts_col_inference_success(dataframe_source):
     with prep_file_source(df=dataframe_source) as file_source:
