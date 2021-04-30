@@ -2,17 +2,17 @@
 
 The `apply` command is used to persist your feature definitions in the feature registry and to configure or provision the necessary infrastructure for your feature store to operate
 
-### What happens during `feast apply`?
+## What happens during `feast apply`?
 
-#### 1. Scan the Feature Repository
+### 1. Scan the Feature Repository
 
 Feast will scan Python files in your feature repository, and find all Feast object definitions, such as feature views, entities, and data sources.
 
-#### 2. Update metadata
+### 2. Update metadata
 
 If all definitions look valid, Feast will sync the metadata about Feast objects to the registry. The registry is a tiny database storing most of the same information you have in the feature repository. This step is necessary because the production feature serving infrastructure won't be able to access Python files in the feature repository at run time, but it will be able to efficiently and securely read the feature definitions from the registry.
 
-#### 3. Create cloud infrastructure
+### 3. Create cloud infrastructure
 
 Feast CLI will create all necessary infrastructure for feature serving and materialization to work. What exactly gets created depends on which provider is configured to be used in `feature_store.yaml` in the feature repository.
 

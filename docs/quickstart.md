@@ -165,7 +165,7 @@ entity_df.head()
 ```
 {% endcode %}
 
-![](.gitbook/assets/feast-landing-page-blog-post-page-5%20%281%29%20%281%29%20%281%29%20%282%29%20%282%29%20%283%29.png)
+![](.gitbook/assets/feast-landing-page-blog-post-page-5%20%281%29%20%281%29%20%281%29%20%282%29%20%282%29%20%285%29%20%287%29.png)
 
 This DataFrame represents the entity keys and timestamps that we want feature values for. We can pass this Entity DataFrame into Feast, and Feast will fetch point-in-time correct features for each row:
 

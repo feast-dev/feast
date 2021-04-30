@@ -6,7 +6,7 @@
 
 ## Links & Resources
 
-* [Slack](https://join.slack.com/t/tectonfeast/shared_invite/zt-n7pl8gnb-H7dLlH9yQsgbchOp36ZUxQ): Feel free to ask questions or say hello!
+* [Slack](https://slack.feast.dev): Feel free to ask questions or say hello!
 * [Mailing list](https://groups.google.com/d/forum/feast-dev): We have both a user and developer mailing list.
   * Feast users should join [feast-discuss@googlegroups.com](mailto:feast-discuss@googlegroups.com) group by clicking [here](https://groups.google.com/g/feast-discuss).
   * Feast developers should join [feast-dev@googlegroups.com](mailto:feast-dev@googlegroups.com) group by clicking [here](https://groups.google.com/d/forum/feast-dev).
