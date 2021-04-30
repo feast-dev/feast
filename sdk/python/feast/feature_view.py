@@ -63,6 +63,7 @@ class FeatureView:
         online: bool = True,
     ):
         if not features:
+            features = []  # to handle python's mutable default arguments
             columns_to_exclude = {
                 input.event_timestamp_column,
                 input.created_timestamp_column,
@@ -73,9 +74,9 @@ class FeatureView:
                 else pa_to_feast_value_type
             )
 
-            for pair in input.get_table_column_names_and_types():
-                if pair[0] not in columns_to_exclude:
-                    features.append(Feature(pair[0], type_converter(pair[1])))
+            for col_name, col_datatype in input.get_table_column_names_and_types():
+                if col_name not in columns_to_exclude:
+                    features.append(Feature(col_name, type_converter(col_datatype)))
 
             if not features:
                 raise ValueError(
