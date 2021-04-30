@@ -4,10 +4,10 @@
 
 ### **New Functionality**
 
-1. Full local mode support (Sqlite and Parquet)
+1. Full local mode support \(Sqlite and Parquet\)
 2. Provider model for added extensibility
 3. Firestore support
-4. Native (No-Spark) BigQuery support
+4. Native \(No-Spark\) BigQuery support
 5. Added support for object store based registry
 6. Add support for FeatureViews
 7. Added support for infrastructure configuration through `apply`
