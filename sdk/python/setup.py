@@ -43,7 +43,7 @@ REQUIRED = [
     "fastavro>=0.22.11,<0.23",
     "google-api-core>=1.23.0",
     "googleapis-common-protos==1.52.*",
-    "grpcio==1.31.0",
+    "grpcio>=1.32.0",
     "Jinja2>=2.0.0",
     "jsonschema",
     "mmh3",
@@ -72,8 +72,8 @@ CI_REQUIRED = [
     "flake8",
     "black==19.10b0",
     "isort>=5",
-    "grpcio-tools==1.31.0",
-    "grpcio-testing==1.31.0",
+    "grpcio-tools>=1.32.0",
+    "grpcio-testing>=1.32.0",
     "mock==2.0.0",
     "moto",
     "mypy==0.790",
@@ -205,7 +205,7 @@ setup(
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version={"root": "../..", "relative_to": __file__, "tag_regex": TAG_REGEX},
-    setup_requires=["setuptools_scm", "grpcio", "grpcio-tools==1.31.0", "mypy-protobuf", "sphinx"],
+    setup_requires=["setuptools_scm", "grpcio", "grpcio-tools>=1.32.0", "mypy-protobuf", "sphinx"],
     package_data={
         "": [
             "protos/feast/**/*.proto",
