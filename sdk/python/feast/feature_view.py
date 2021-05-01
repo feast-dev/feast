@@ -32,7 +32,6 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
-from feast.type_map import bq_to_feast_value_type, pa_to_feast_value_type
 from feast.value_type import ValueType
 
 
@@ -69,21 +68,21 @@ class FeatureView:
                 input.event_timestamp_column,
                 input.created_timestamp_column,
             } | set(entities)
-            type_converter = (
-                bq_to_feast_value_type
-                if isinstance(input, BigQuerySource)
-                else pa_to_feast_value_type
-            )
 
             for col_name, col_datatype in input.get_table_column_names_and_types():
                 if col_name not in columns_to_exclude and not re.match(
                     "^__|__$", col_name
                 ):
-                    features.append(Feature(col_name, type_converter(col_datatype)))
+                    features.append(
+                        Feature(
+                            col_name,
+                            input.source_datatype_to_feast_value_type()(col_datatype),
+                        )
+                    )
 
             if not features:
                 raise ValueError(
-                    f"Could not infer Features for the FeatureView named {name}."
+                    f"Could not infer Features for the FeatureView named {name}. Please specify Features explicitly for this FeatureView."
                 )
 
         cols = [entity for entity in entities] + [feat.name for feat in features]

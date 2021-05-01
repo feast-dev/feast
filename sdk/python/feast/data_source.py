@@ -15,13 +15,14 @@
 
 import enum
 import re
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Callable, Dict, Iterable, Optional, Tuple
 
-from google.cloud import bigquery
 from pyarrow.parquet import ParquetFile
 
+from feast import type_map
 from feast.data_format import FileFormat, StreamFormat
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.value_type import ValueType
 
 
 class SourceType(enum.Enum):
@@ -519,8 +520,9 @@ class DataSource:
         """
         raise NotImplementedError
 
-    def infer_event_timestamp_column(self, ts_column_type_regex_pattern):
+    def _infer_event_timestamp_column(self, ts_column_type_regex_pattern):
         ERROR_MSG_PREFIX = "Unable to infer DataSource event_timestamp_column"
+        USER_GUIDANCE = "Please specify event_timestamp_column explicitly."
 
         if isinstance(self, FileSource) or isinstance(self, BigQuerySource):
             event_timestamp_column, matched_flag = None, False
@@ -530,7 +532,7 @@ class DataSource:
                         raise TypeError(
                             f"""
                             {ERROR_MSG_PREFIX} due to multiple possible columns satisfying
-                            the criteria.
+                            the criteria. {USER_GUIDANCE}
                             """
                         )
                     matched_flag = True
@@ -541,12 +543,14 @@ class DataSource:
                 raise TypeError(
                     f"""
                     {ERROR_MSG_PREFIX} due to an absence of columns that satisfy the criteria.
+                     {USER_GUIDANCE}
                     """
                 )
         else:
             raise TypeError(
                 f"""
                 {ERROR_MSG_PREFIX} because this DataSource currently does not support this inference.
+                 {USER_GUIDANCE}
                 """
             )
 
@@ -595,7 +599,7 @@ class FileSource(DataSource):
 
         super().__init__(
             event_timestamp_column
-            or self.infer_event_timestamp_column(r"timestamp\[\w\w\]"),
+            or self._infer_event_timestamp_column(r"timestamp\[\w\w\]"),
             created_timestamp_column,
             field_mapping,
             date_partition_column,
@@ -647,6 +651,10 @@ class FileSource(DataSource):
 
         return data_source_proto
 
+    @staticmethod
+    def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
+        return type_map.pa_to_feast_value_type
+
     def get_table_column_names_and_types(self) -> Iterable[Tuple[str, str]]:
         schema = ParquetFile(self.path).schema_arrow
         return zip(schema.names, map(str, schema.types))
@@ -666,7 +674,7 @@ class BigQuerySource(DataSource):
 
         super().__init__(
             event_timestamp_column
-            or self.infer_event_timestamp_column("TIMESTAMP|DATETIME"),
+            or self._infer_event_timestamp_column("TIMESTAMP|DATETIME"),
             created_timestamp_column,
             field_mapping,
             date_partition_column,
@@ -728,21 +736,36 @@ class BigQuerySource(DataSource):
         else:
             return f"({self.query})"
 
+    @staticmethod
+    def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
+        return type_map.bq_to_feast_value_type
+
     def get_table_column_names_and_types(self) -> Iterable[Tuple[str, str]]:
-        assert self.table_ref is not None
-        name_type_pairs = []
-        project_id, dataset_id, table_id = self.table_ref.split(".")
-        bq_columns_query = f"""
-            SELECT COLUMN_NAME, DATA_TYPE FROM {project_id}.{dataset_id}.INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_NAME = '{table_id}'
-            """
+        from google.cloud import bigquery
 
         client = bigquery.Client()
-        table_schema = client.query(bq_columns_query).result().to_dataframe_iterable()
-        for df in table_schema:
-            name_type_pairs.extend(
-                list(zip(df["COLUMN_NAME"].to_list(), df["DATA_TYPE"].to_list()))
+        bq_columns_query = ""
+        name_type_pairs = []
+        if self.table_ref is not None:
+            project_id, dataset_id, table_id = self.table_ref.split(".")
+            bq_columns_query = f"""
+                SELECT COLUMN_NAME, DATA_TYPE FROM {project_id}.{dataset_id}.INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME = '{table_id}'
+            """
+            table_schema = (
+                client.query(bq_columns_query).result().to_dataframe_iterable()
             )
+            for df in table_schema:
+                name_type_pairs.extend(
+                    list(zip(df["COLUMN_NAME"].to_list(), df["DATA_TYPE"].to_list()))
+                )
+        else:
+            bq_columns_query = f"SELECT * FROM {self.query} LIMIT 1"
+            queryRes = client.query(bq_columns_query).result()
+            name_type_pairs = [
+                (schema_field.name, schema_field.field_type)
+                for schema_field in queryRes.schema
+            ]
 
         return name_type_pairs
 

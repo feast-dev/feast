@@ -43,14 +43,18 @@ def prep_file_source(df, event_timestamp_column="") -> FileSource:
         yield file_source
 
 
-def prep_bq_source(df, event_timestamp_column="") -> BigQuerySource:
+def simple_bq_source_using_table_ref_arg(
+    df, event_timestamp_column=""
+) -> BigQuerySource:
     client = bigquery.Client()
     gcp_project = client.project
     bigquery_dataset = "ds"
     dataset = bigquery.Dataset(f"{gcp_project}.{bigquery_dataset}")
     client.create_dataset(dataset, exists_ok=True)
     dataset.default_table_expiration_ms = (
-        1000 * 60 * 60 * 24 * 14  # 2 weeks in milliseconds
+        1000
+        * 60
+        * 60  # 60 minutes in milliseconds (seems to be minimum limit for gcloud)
     )
     client.update_dataset(dataset, ["default_table_expiration_ms"])
     table_ref = f"{gcp_project}.{bigquery_dataset}.table_1"
@@ -62,4 +66,14 @@ def prep_bq_source(df, event_timestamp_column="") -> BigQuerySource:
 
     return BigQuerySource(
         table_ref=table_ref, event_timestamp_column=event_timestamp_column,
+    )
+
+
+def simple_bq_source_using_query_arg(df, event_timestamp_column="") -> BigQuerySource:
+    bq_source_using_table_ref = simple_bq_source_using_table_ref_arg(
+        df, event_timestamp_column
+    )
+    return BigQuerySource(
+        query=bq_source_using_table_ref.table_ref,
+        event_timestamp_column=event_timestamp_column,
     )

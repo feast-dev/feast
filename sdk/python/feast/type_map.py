@@ -486,10 +486,12 @@ def pa_column_to_proto_column(
 
 def bq_to_feast_value_type(bq_type_as_str):
     type_map: Dict[ValueType, Union[str, Dict[str, Any]]] = {
-        "DATETIME": ValueType.STRING,  # Unsure if string is right
-        "TIMESTAMP": ValueType.STRING,  # Unsure if string is right
+        "DATETIME": ValueType.STRING,  # Update to ValueType.UNIX_TIMESTAMP once #1520 lands.
+        "TIMESTAMP": ValueType.STRING,  # Update to ValueType.UNIX_TIMESTAMP once #1520 lands.
+        "INTEGER": ValueType.INT32,
         "INT64": ValueType.INT64,
         "STRING": ValueType.STRING,
+        "FLOAT": ValueType.FLOAT,
         "FLOAT64": ValueType.DOUBLE,
         "BYTES": ValueType.BYTES,
         "BOOL": ValueType.BOOL,

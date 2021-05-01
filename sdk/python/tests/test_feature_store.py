@@ -17,7 +17,11 @@ from tempfile import mkstemp
 
 import pytest
 from fixtures.data_source_fixtures import simple_dataset_1  # noqa: F401
-from fixtures.data_source_fixtures import prep_bq_source, prep_file_source
+from fixtures.data_source_fixtures import (
+    prep_file_source,
+    simple_bq_source_using_query_arg,
+    simple_bq_source_using_table_ref_arg,
+)
 from pytest_lazyfixture import lazy_fixture
 
 from feast.data_format import ParquetFormat
@@ -203,27 +207,46 @@ def test_feature_view_inference_success(test_feature_store, dataframe_source):
             entities=["id"],
             ttl=timedelta(minutes=5),
             online=True,
-            input=prep_bq_source(dataframe_source, "ts_1"),
+            input=simple_bq_source_using_table_ref_arg(dataframe_source, "ts_1"),
             tags={},
         )
 
-        test_feature_store.apply([fv1, fv2])  # Register Feature Views
+        fv3 = FeatureView(
+            name="fv3",
+            entities=["id"],
+            ttl=timedelta(minutes=5),
+            online=True,
+            input=simple_bq_source_using_query_arg(dataframe_source, "ts_1"),
+            tags={},
+        )
+
+        test_feature_store.apply([fv1, fv2, fv3])  # Register Feature Views
         feature_view_1 = test_feature_store.list_feature_views()[0]
         feature_view_2 = test_feature_store.list_feature_views()[1]
+        feature_view_3 = test_feature_store.list_feature_views()[2]
 
         actual_file_source = {
             (feature.name, feature.dtype) for feature in feature_view_1.features
         }
-        actual_bq_source = {
+        actual_bq_using_table_ref_arg_source = {
             (feature.name, feature.dtype) for feature in feature_view_2.features
+        }
+        actual_bq_using_query_arg_source = {
+            (feature.name, feature.dtype) for feature in feature_view_3.features
         }
         expected = {
             ("float_col", ValueType.DOUBLE),
             ("int64_col", ValueType.INT64),
             ("string_col", ValueType.STRING),
         }
+        expected2 = {  # parsing with the "query" param in bq sources uses different code path
+            ("float_col", ValueType.FLOAT),
+            ("int64_col", ValueType.INT32),
+            ("string_col", ValueType.STRING),
+        }
 
-        assert expected == actual_file_source == actual_bq_source
+        assert expected == actual_file_source == actual_bq_using_table_ref_arg_source
+        assert expected2 == actual_bq_using_query_arg_source
 
 
 @pytest.mark.integration
@@ -298,10 +321,15 @@ def test_apply_feature_view_integration(test_feature_store):
 def test_data_source_ts_col_inference_success(dataframe_source):
     with prep_file_source(df=dataframe_source) as file_source:
         actual_file_source = file_source.event_timestamp_column
-        actual_bq_source = prep_bq_source(dataframe_source).event_timestamp_column
+        actual_bq_1 = simple_bq_source_using_table_ref_arg(
+            dataframe_source
+        ).event_timestamp_column
+        actual_bq_2 = simple_bq_source_using_query_arg(
+            dataframe_source
+        ).event_timestamp_column
         expected = "ts_1"
 
-        assert expected == actual_file_source == actual_bq_source
+        assert expected == actual_file_source == actual_bq_1 == actual_bq_2
 
 
 @pytest.mark.parametrize(
