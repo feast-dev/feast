@@ -62,10 +62,10 @@ Here's how Feast types map to BigQuery types when using BigQuery for offline sto
 | Event Timestamp |   `DATETIME` |
 | BYTES | `BYTES` |
 | STRING | `STRING` |
-| INT32 | `INTEGER` |
-| INT64 | `INT64` |
-| DOUBLE | `FLOAT64` |
-| FLOAT | `FLOAT` |
+| INT32 | `INT64 / INTEGER` |
+| INT64 | `INT64 / INTEGER` |
+| DOUBLE | `FLOAT64 / FLOAT` |
+| FLOAT | `FLOAT64 / FLOAT` |
 | BOOL | `BOOL`|
 | BYTES\_LIST | `ARRAY<BYTES>` |
 | STRING\_LIST | `ARRAY<STRING>`|
