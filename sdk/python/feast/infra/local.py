@@ -168,6 +168,7 @@ class LocalProvider(Provider):
         end_date: datetime,
         registry: Registry,
         project: str,
+        tqdm_builder: Callable[[int], tqdm],
     ) -> None:
         entities = []
         for entity_name in feature_view.entities:
@@ -200,7 +201,7 @@ class LocalProvider(Provider):
         join_keys = [entity.join_key for entity in entities]
         rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
 
-        with tqdm(total=len(rows_to_write), ncols=100) as pbar:
+        with tqdm_builder(len(rows_to_write)) as pbar:
             self.online_write_batch(
                 project, feature_view, rows_to_write, lambda x: pbar.update(x)
             )

@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 from colorama import Fore, Style
+from tqdm import tqdm
 
 from feast import utils
 from feast.entity import Entity
@@ -363,8 +364,17 @@ class FeatureStore:
                 f" from {Style.BRIGHT + Fore.GREEN}{start_date.replace(microsecond=0).astimezone()}{Style.RESET_ALL}"
                 f" to {Style.BRIGHT + Fore.GREEN}{end_date.replace(microsecond=0).astimezone()}{Style.RESET_ALL}:"
             )
+
+            def tqdm_builder(length):
+                return tqdm(total=length, ncols=100)
+
             provider.materialize_single_feature_view(
-                feature_view, start_date, end_date, self._registry, self.project
+                feature_view,
+                start_date,
+                end_date,
+                self._registry,
+                self.project,
+                tqdm_builder,
             )
 
     def materialize(
@@ -425,8 +435,17 @@ class FeatureStore:
         for feature_view in feature_views_to_materialize:
             provider = self._get_provider()
             print(f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:")
+
+            def tqdm_builder(length):
+                return tqdm(total=length, ncols=100)
+
             provider.materialize_single_feature_view(
-                feature_view, start_date, end_date, self._registry, self.project
+                feature_view,
+                start_date,
+                end_date,
+                self._registry,
+                self.project,
+                tqdm_builder,
             )
 
     def get_online_features(
