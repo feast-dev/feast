@@ -239,14 +239,13 @@ def test_feature_view_inference_success(test_feature_store, dataframe_source):
             ("int64_col", ValueType.INT64),
             ("string_col", ValueType.STRING),
         }
-        expected2 = {  # parsing with the "query" param in bq sources uses different code path
-            ("float_col", ValueType.FLOAT),
-            ("int64_col", ValueType.INT32),
-            ("string_col", ValueType.STRING),
-        }
 
-        assert expected == actual_file_source == actual_bq_using_table_ref_arg_source
-        assert expected2 == actual_bq_using_query_arg_source
+        assert (
+            expected
+            == actual_file_source
+            == actual_bq_using_table_ref_arg_source
+            == actual_bq_using_query_arg_source
+        )
 
 
 @pytest.mark.integration

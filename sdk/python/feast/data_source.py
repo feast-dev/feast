@@ -760,7 +760,7 @@ class BigQuerySource(DataSource):
                     list(zip(df["COLUMN_NAME"].to_list(), df["DATA_TYPE"].to_list()))
                 )
         else:
-            bq_columns_query = f"SELECT * FROM {self.query} LIMIT 1"
+            bq_columns_query = f"SELECT * FROM ({self.query}) LIMIT 1"
             queryRes = client.query(bq_columns_query).result()
             name_type_pairs = [
                 (schema_field.name, schema_field.field_type)
