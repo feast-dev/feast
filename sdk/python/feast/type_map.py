@@ -417,7 +417,7 @@ def pa_to_value_type(pa_type: object):
     return type_map[pa_type.__str__()]
 
 
-def pa_to_feast_value_type(value: pa.lib.ChunkedArray) -> ValueType:
+def pa_to_feast_value_type(value: Union[pa.lib.ChunkedArray, str]) -> ValueType:
     type_map = {
         "timestamp[ms]": ValueType.INT64,
         "int32": ValueType.INT32,
@@ -435,7 +435,9 @@ def pa_to_feast_value_type(value: pa.lib.ChunkedArray) -> ValueType:
         "list<item: binary>": ValueType.BYTES_LIST,
         "list<item: bool>": ValueType.BOOL_LIST,
     }
-    return type_map[value.type.__str__()]
+    return type_map[
+        value.type.__str__() if isinstance(value, pa.lib.ChunkedArray) else value
+    ]
 
 
 def pa_column_to_timestamp_proto_column(column: pa.lib.ChunkedArray) -> List[Timestamp]:
@@ -480,3 +482,24 @@ def pa_column_to_proto_column(
         ]
     else:
         return [ProtoValue(**{value: x.as_py()}) for x in column]
+
+
+def bq_to_feast_value_type(bq_type_as_str):
+    type_map: Dict[ValueType, Union[str, Dict[str, Any]]] = {
+        "DATETIME": ValueType.STRING,  # Update to ValueType.UNIX_TIMESTAMP once #1520 lands.
+        "TIMESTAMP": ValueType.STRING,  # Update to ValueType.UNIX_TIMESTAMP once #1520 lands.
+        "INTEGER": ValueType.INT64,
+        "INT64": ValueType.INT64,
+        "STRING": ValueType.STRING,
+        "FLOAT": ValueType.DOUBLE,
+        "FLOAT64": ValueType.DOUBLE,
+        "BYTES": ValueType.BYTES,
+        "BOOL": ValueType.BOOL,
+        "ARRAY<INT64>": ValueType.INT64_LIST,
+        "ARRAY<FLOAT64>": ValueType.DOUBLE_LIST,
+        "ARRAY<STRING>": ValueType.STRING_LIST,
+        "ARRAY<BYTES>": ValueType.BYTES_LIST,
+        "ARRAY<BOOL>": ValueType.BOOL_LIST,
+    }
+
+    return type_map[bq_type_as_str]
