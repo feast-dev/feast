@@ -25,7 +25,9 @@ from feast.repo_config import DynamoDbOnlineStoreConfig, RepoConfig
 
 
 class AwsDynamodbProvider(Provider):
-    
+    _wcu: int
+    _rcu: int
+
     def __init__(self, config: RepoConfig):
         assert isinstance(config.online_store, DynamoDbOnlineStoreConfig)
         if config and config.online_store and config.online_store.rcu:
