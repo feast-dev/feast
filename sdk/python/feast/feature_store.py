@@ -226,6 +226,8 @@ class FeatureStore:
 
         if isinstance(objects, Entity) or isinstance(objects, FeatureView):
             objects = [objects]
+        assert isinstance(objects, list)
+
         views_to_update = []
         entities_to_update = []
         for ob in objects:

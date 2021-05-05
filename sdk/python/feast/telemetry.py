@@ -117,13 +117,21 @@ def public_method(func):
             trace_to_log = []
             tb = e.__traceback__
             while tb is not None:
-                trace_to_log.append((_trim_filename(tb.tb_frame.f_code.co_filename), tb.tb_lineno, tb.tb_frame.f_code.co_name))
+                trace_to_log.append(
+                    (
+                        _trim_filename(tb.tb_frame.f_code.co_filename),
+                        tb.tb_lineno,
+                        tb.tb_frame.f_code.co_name,
+                    )
+                )
                 tb = tb.tb_next
             tele = Telemetry()
             tele.log_exception(error_type, trace_to_log)
             raise
         return result
+
     return public_method_wrapper
+
 
 def _trim_filename(filename: str) -> str:
     return filename.split("/")[-1]
