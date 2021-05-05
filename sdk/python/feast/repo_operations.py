@@ -15,6 +15,7 @@ from feast.infra.provider import get_provider
 from feast.names import adjectives, animals
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
+from feast.telemetry import public_method
 
 
 def py_path_to_module(path: Path, repo_root: Path) -> str:
@@ -103,6 +104,7 @@ def parse_repo(repo_root: Path) -> ParsedRepo:
     return res
 
 
+@public_method
 def apply_total(repo_config: RepoConfig, repo_path: Path):
     from colorama import Fore, Style
 
@@ -209,6 +211,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     )
 
 
+@public_method
 def teardown(repo_config: RepoConfig, repo_path: Path):
     registry_config = repo_config.get_registry_config()
     registry = Registry(
@@ -229,6 +232,7 @@ def teardown(repo_config: RepoConfig, repo_path: Path):
     )
 
 
+@public_method
 def registry_dump(repo_config: RepoConfig, repo_path: Path):
     """ For debugging only: output contents of the metadata registry """
     registry_config = repo_config.get_registry_config()
@@ -255,6 +259,7 @@ def cli_check_repo(repo_path: Path):
         sys.exit(1)
 
 
+@public_method
 def init_repo(repo_name: str, template: str):
     import os
     from distutils.dir_util import copy_tree

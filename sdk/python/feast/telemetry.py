@@ -16,8 +16,10 @@ import os
 import sys
 import uuid
 from datetime import datetime
+from functools import wraps
 from os.path import expanduser, join
 from pathlib import Path
+from typing import List, Tuple
 
 import requests
 
@@ -50,7 +52,7 @@ class Telemetry:
                 with open(telemetry_filepath, "w") as f:
                     f.write(self._telemetry_id)
                 print(
-                    "Feast is an open source project that collects anonymized usage statistics. To opt out or learn"
+                    "Feast is an open source project that collects anonymized error reporting and usage statistics. To opt out or learn"
                     " more see https://docs.feast.dev/v/master/feast-on-kubernetes/advanced-1/telemetry"
                 )
 
@@ -84,3 +86,44 @@ class Telemetry:
                 else:
                     pass
             return
+
+    def log_exception(self, error_type: str, traceback: List[Tuple[str, int, str]]):
+        if self._telemetry_enabled and self.telemetry_id:
+            json = {
+                "error_type": error_type,
+                "traceback": traceback,
+                "telemetry_id": self.telemetry_id,
+                "version": get_version(),
+                "os": sys.platform,
+                "is_test": self._is_test,
+            }
+            try:
+                requests.post(TELEMETRY_ENDPOINT, json=json)
+            except Exception as e:
+                if self._is_test:
+                    raise e
+                else:
+                    pass
+            return
+
+
+def public_method(func):
+    @wraps(func)
+    def public_method_wrapper(*args, **kwargs):
+        try:
+            result = func(*args, **kwargs)
+        except Exception as e:
+            error_type = type(e).__name__
+            trace_to_log = []
+            tb = e.__traceback__
+            while tb is not None:
+                trace_to_log.append((_trim_filename(tb.tb_frame.f_code.co_filename), tb.tb_lineno, tb.tb_frame.f_code.co_name))
+                tb = tb.tb_next
+            tele = Telemetry()
+            tele.log_exception(error_type, trace_to_log)
+            raise
+        return result
+    return public_method_wrapper
+
+def _trim_filename(filename: str) -> str:
+    return filename.split("/")[-1]
