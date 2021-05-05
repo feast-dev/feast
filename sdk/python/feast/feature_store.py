@@ -34,7 +34,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
-from feast.telemetry import Telemetry
+from feast.telemetry import Telemetry, public_method
 from feast.version import get_version
 
 
@@ -51,6 +51,7 @@ class FeatureStore:
     repo_path: Path
     _registry: Registry
 
+    @public_method
     def __init__(
         self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None,
     ):
@@ -73,6 +74,7 @@ class FeatureStore:
         )
         self._tele = Telemetry()
 
+    @public_method
     def version(self) -> str:
         """Returns the version of the current Feast SDK/CLI"""
 
@@ -86,6 +88,7 @@ class FeatureStore:
         # TODO: Bake self.repo_path into self.config so that we dont only have one interface to paths
         return get_provider(self.config, self.repo_path)
 
+    @public_method
     def refresh_registry(self):
         """Fetches and caches a copy of the feature registry in memory.
 
@@ -110,6 +113,7 @@ class FeatureStore:
         )
         self._registry.refresh()
 
+    @public_method
     def list_entities(self, allow_cache: bool = False) -> List[Entity]:
         """
         Retrieve a list of entities from the registry
@@ -124,6 +128,7 @@ class FeatureStore:
 
         return self._registry.list_entities(self.project, allow_cache=allow_cache)
 
+    @public_method
     def list_feature_views(self) -> List[FeatureView]:
         """
         Retrieve a list of feature views from the registry
@@ -135,6 +140,7 @@ class FeatureStore:
 
         return self._registry.list_feature_views(self.project)
 
+    @public_method
     def get_entity(self, name: str) -> Entity:
         """
         Retrieves an entity.
@@ -150,6 +156,7 @@ class FeatureStore:
 
         return self._registry.get_entity(name, self.project)
 
+    @public_method
     def get_feature_view(self, name: str) -> FeatureView:
         """
         Retrieves a feature view.
@@ -165,6 +172,7 @@ class FeatureStore:
 
         return self._registry.get_feature_view(name, self.project)
 
+    @public_method
     def delete_feature_view(self, name: str):
         """
         Deletes a feature view or raises an exception if not found.
@@ -176,6 +184,7 @@ class FeatureStore:
 
         return self._registry.delete_feature_view(name, self.project)
 
+    @public_method
     def apply(
         self, objects: Union[Entity, FeatureView, List[Union[FeatureView, Entity]]]
     ):
@@ -238,6 +247,7 @@ class FeatureStore:
             partial=True,
         )
 
+    @public_method
     def get_historical_features(
         self, entity_df: Union[pd.DataFrame, str], feature_refs: List[str],
     ) -> RetrievalJob:
@@ -303,6 +313,7 @@ class FeatureStore:
 
         return job
 
+    @public_method
     def materialize_incremental(
         self, end_date: datetime, feature_views: Optional[List[str]] = None,
     ) -> None:
@@ -358,6 +369,7 @@ class FeatureStore:
             )
             print(" done!")
 
+    @public_method
     def materialize(
         self,
         start_date: datetime,
@@ -415,6 +427,7 @@ class FeatureStore:
             )
             print(" done!")
 
+    @public_method
     def get_online_features(
         self, feature_refs: List[str], entity_rows: List[Dict[str, Any]],
     ) -> OnlineResponse:

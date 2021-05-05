@@ -5,6 +5,8 @@ from pydantic import BaseModel, StrictInt, StrictStr, ValidationError, root_vali
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.typing import Dict, Literal, Optional, Union
 
+from feast.telemetry import public_method
+
 
 class FeastBaseModel(BaseModel):
     """ Feast Pydantic Configuration Class """
@@ -75,6 +77,7 @@ class RepoConfig(FeastBaseModel):
             return self.registry
 
     @root_validator(pre=True)
+    @public_method
     def _validate_online_store_config(cls, values):
         # This method will validate whether the online store configurations are set correctly. This explicit validation
         # is necessary because Pydantic Unions throw very verbose and cryptic exceptions. We also use this method to
