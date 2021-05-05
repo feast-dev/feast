@@ -107,9 +107,9 @@ def python_type_to_feast_value_type(
         "uint8": ValueType.INT32,
         "int8": ValueType.INT32,
         "bool": ValueType.BOOL,
-        "timedelta": ValueType.INT64,
-        "datetime64[ns]": ValueType.INT64,
-        "datetime64[ns, tz]": ValueType.INT64,
+        "timedelta": ValueType.UNIX_TIMESTAMP,
+        "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
+        "datetime64[ns, tz]": ValueType.UNIX_TIMESTAMP,
         "category": ValueType.STRING,
     }
 
@@ -252,6 +252,18 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
                 )
             )
 
+        if feast_value_type == ValueType.UNIX_TIMESTAMP_LIST:
+            return ProtoValue(
+                int64_list_val=Int64List(
+                    val=[
+                        item
+                        if type(item) in [np.int64, np.int32]
+                        else _type_err(item, np.int64)
+                        for item in value
+                    ]
+                )
+            )
+
         if feast_value_type == ValueType.STRING_LIST:
             return ProtoValue(
                 string_list_val=StringList(
@@ -295,6 +307,8 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
         elif feast_value_type == ValueType.INT32:
             return ProtoValue(int32_val=int(value))
         elif feast_value_type == ValueType.INT64:
+            return ProtoValue(int64_val=int(value))
+        elif feast_value_type == ValueType.UNIX_TIMESTAMP:
             return ProtoValue(int64_val=int(value))
         elif feast_value_type == ValueType.FLOAT:
             return ProtoValue(float_val=float(value))
