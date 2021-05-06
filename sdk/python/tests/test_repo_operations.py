@@ -5,8 +5,19 @@ from textwrap import dedent
 from typing import Optional
 
 import assertpy
+import pytest
+from fixtures.data_source_fixtures import simple_dataset_1  # noqa: F401
+from fixtures.data_source_fixtures import simple_dataset_2  # noqa: F401
+from fixtures.data_source_fixtures import prep_file_source
+from pytest_lazyfixture import lazy_fixture
 
-from feast.repo_operations import get_ignore_files, get_repo_files, read_feastignore
+from feast import Entity, FeatureView, ValueType
+from feast.repo_operations import (
+    get_ignore_files,
+    get_repo_files,
+    infer_entity_values_types_from_feature_views,
+    read_feastignore,
+)
 
 
 @contextmanager
@@ -138,3 +149,34 @@ def test_feastignore_with_stars2():
                 (repo_root / "foo1/c.py").resolve(),
             ]
         )
+
+
+@pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
+@pytest.mark.parametrize("dataframe_source_2", [lazy_fixture("simple_dataset_2")])
+def test_infer_entity_values_types_from_feature_views(
+    dataframe_source, dataframe_source_2
+):
+    with prep_file_source(
+        df=dataframe_source, event_timestamp_column="ts_1"
+    ) as file_source, prep_file_source(
+        df=dataframe_source_2, event_timestamp_column="ts_1"
+    ) as file_source_2:
+
+        fv1 = FeatureView(name="fv1", entities=["id"], input=file_source, ttl=None,)
+
+        fv2 = FeatureView(name="fv2", entities=["id"], input=file_source_2, ttl=None,)
+
+        actual_1 = infer_entity_values_types_from_feature_views(
+            [Entity(name="id")], [fv1]
+        )
+        actual_2 = infer_entity_values_types_from_feature_views(
+            [Entity(name="id")], [fv2]
+        )
+        assert actual_1 == [Entity(name="id", value_type=ValueType.INT64)]
+        assert actual_2 == [Entity(name="id", value_type=ValueType.STRING)]
+
+        with pytest.raises(ValueError):
+            # two viable data types
+            infer_entity_values_types_from_feature_views(
+                [Entity(name="id")], [fv1, fv2]
+            )
