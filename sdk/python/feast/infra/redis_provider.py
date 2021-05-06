@@ -56,8 +56,15 @@ class RedisProvider(Provider):
     ) -> None:
         # according to the repos_operations.py we can delete the whole project
         client = self._get_client()
-        keys = client.keys("*{project}:*")
-        client.unlink(*keys)
+
+        tables_join_keys = [[e for e in t.entities] for t in tables]
+        for table_join_keys in tables_join_keys:
+            redis_key_bin = _redis_key(
+                project, EntityKeyProto(join_keys=table_join_keys)
+            )
+            keys = client.keys(f"{redis_key_bin}*")
+            if keys:
+                client.unlink(*keys)
 
     def online_write_batch(
         self,
@@ -103,33 +110,35 @@ class RedisProvider(Provider):
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
-        if requested_features:
-            for entity_key in entity_keys:
-                redis_key_bin = _redis_key(project, entity_key)
-                hset_keys = [_mmh3(f"{feature_view}:{k}") for k in requested_features]
-                ts_key = f"_ts:{feature_view}"
-                hset_keys.append(ts_key)
-                values = client.hmget(redis_key_bin, hset_keys)
-                requested_features.append(ts_key)
-                res_val = dict(zip(requested_features, values))
+        if not requested_features:
+            requested_features = [f.name for f in table.features]
 
-                res_ts = Timestamp()
-                ts_val = res_val.pop(ts_key)
-                if ts_val:
-                    res_ts.ParseFromString(ts_val)
+        for entity_key in entity_keys:
+            redis_key_bin = _redis_key(project, entity_key)
+            hset_keys = [_mmh3(f"{feature_view}:{k}") for k in requested_features]
+            ts_key = f"_ts:{feature_view}"
+            hset_keys.append(ts_key)
+            values = client.hmget(redis_key_bin, hset_keys)
+            requested_features.append(ts_key)
+            res_val = dict(zip(requested_features, values))
 
-                res = {}
-                for feature_name, val_bin in res_val.items():
-                    val = ValueProto()
-                    if val_bin:
-                        val.ParseFromString(val_bin)
-                    res[feature_name] = val
+            res_ts = Timestamp()
+            ts_val = res_val.pop(ts_key)
+            if ts_val:
+                res_ts.ParseFromString(ts_val)
 
-                if not res:
-                    result.append((None, None))
-                else:
-                    timestamp = datetime.fromtimestamp(res_ts.seconds)
-                    result.append((timestamp, res))
+            res = {}
+            for feature_name, val_bin in res_val.items():
+                val = ValueProto()
+                if val_bin:
+                    val.ParseFromString(val_bin)
+                res[feature_name] = val
+
+            if not res:
+                result.append((None, None))
+            else:
+                timestamp = datetime.fromtimestamp(res_ts.seconds)
+                result.append((timestamp, res))
         return result
 
     def materialize_single_feature_view(
