@@ -36,7 +36,7 @@ class Entity:
     def __init__(
         self,
         name: str,
-        value_type: ValueType,
+        value_type: ValueType = ValueType.UNKNOWN,
         description: str = "",
         join_key: Optional[str] = None,
         labels: Optional[MutableMapping[str, str]] = None,

@@ -30,6 +30,26 @@ def simple_dataset_1() -> pd.DataFrame:
     return pd.DataFrame.from_dict(data)
 
 
+@pytest.fixture
+def simple_dataset_2() -> pd.DataFrame:
+    now = datetime.utcnow()
+    ts = pd.Timestamp(now).round("ms")
+    data = {
+        "id": ["a", "b", "c", "d", "e"],
+        "float_col": [0.1, 0.2, 0.3, 4, 5],
+        "int64_col": [1, 2, 3, 4, 5],
+        "string_col": ["a", "b", "c", "d", "e"],
+        "ts_1": [
+            ts,
+            ts - timedelta(hours=4),
+            ts - timedelta(hours=3),
+            ts - timedelta(hours=2),
+            ts - timedelta(hours=1),
+        ],
+    }
+    return pd.DataFrame.from_dict(data)
+
+
 @contextlib.contextmanager
 def prep_file_source(df, event_timestamp_column="") -> FileSource:
     with tempfile.NamedTemporaryFile(suffix=".parquet") as f:
