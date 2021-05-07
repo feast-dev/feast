@@ -118,6 +118,7 @@ class GcpProvider(Provider):
         project: str,
         table: Union[FeatureTable, FeatureView],
         entity_keys: List[EntityKeyProto],
+        requested_features: List[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         client = self._initialize_client()
 

@@ -491,7 +491,10 @@ class FeatureStore:
                 table, union_of_entity_keys, entity_name_to_join_key_map
             )
             read_rows = provider.online_read(
-                project=self.project, table=table, entity_keys=entity_keys,
+                project=self.project,
+                table=table,
+                entity_keys=entity_keys,
+                requested_features=requested_features,
             )
             for row_idx, read_row in enumerate(read_rows):
                 row_ts, feature_data = read_row

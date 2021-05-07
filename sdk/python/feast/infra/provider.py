@@ -123,6 +123,7 @@ class Provider(abc.ABC):
         project: str,
         table: Union[FeatureTable, FeatureView],
         entity_keys: List[EntityKeyProto],
+        requested_features: List[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
         Read feature values given an Entity Key. This is a low level interface, not
@@ -142,6 +143,10 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
             from feast.infra.gcp import GcpProvider
 
             return GcpProvider(config)
+        elif config.provider == "redis":
+            from feast.infra.redis_provider import RedisProvider
+
+            return RedisProvider(config)
         elif config.provider == "local":
             from feast.infra.local import LocalProvider
 

@@ -34,7 +34,16 @@ class DatastoreOnlineStoreConfig(FeastBaseModel):
     """ (optional) GCP Project Id """
 
 
-OnlineStoreConfig = Union[DatastoreOnlineStoreConfig, SqliteOnlineStoreConfig]
+class RedisOnlineStoreConfig(FeastBaseModel):
+    """Online store config for Redis store"""
+
+    type: Literal["redis"] = "redis"
+    """Online store type selector"""
+
+
+OnlineStoreConfig = Union[
+    DatastoreOnlineStoreConfig, SqliteOnlineStoreConfig, RedisOnlineStoreConfig
+]
 
 
 class RegistryConfig(FeastBaseModel):
@@ -63,7 +72,7 @@ class RepoConfig(FeastBaseModel):
     """
 
     provider: StrictStr
-    """ str: local or gcp """
+    """ str: local or gcp or redis """
 
     online_store: OnlineStoreConfig = SqliteOnlineStoreConfig()
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
@@ -81,8 +90,8 @@ class RepoConfig(FeastBaseModel):
         # impute the default online store type based on the selected provider. For the time being this method should be
         # considered tech debt until we can implement https://github.com/samuelcolvin/pydantic/issues/619 or a more
         # granular configuration system
-
         # Skip if online store isn't set explicitly
+
         if "online_store" not in values:
             values["online_store"] = dict()
 
@@ -100,11 +109,13 @@ class RepoConfig(FeastBaseModel):
                     values["online_store"]["type"] = "sqlite"
                 elif values["provider"] == "gcp":
                     values["online_store"]["type"] = "datastore"
+                elif values["provider"] == "redis":
+                    values["online_store"]["type"] = "redis"
 
             online_store_type = values["online_store"]["type"]
 
             # Make sure the user hasn't provided the wrong type
-            assert online_store_type in ["datastore", "sqlite"]
+            assert online_store_type in ["datastore", "sqlite", "redis"]
 
             # Validate the dict to ensure one of the union types match
             try:
@@ -112,6 +123,8 @@ class RepoConfig(FeastBaseModel):
                     SqliteOnlineStoreConfig(**values["online_store"])
                 elif values["online_store"]["type"] == "datastore":
                     DatastoreOnlineStoreConfig(**values["online_store"])
+                elif values["online_store"]["type"] == "redis":
+                    RedisOnlineStoreConfig(**values["online_store"])
                 else:
                     raise ValidationError(
                         f"Invalid online store type {online_store_type}"
