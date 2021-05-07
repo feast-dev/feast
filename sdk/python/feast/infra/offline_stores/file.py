@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from typing import Callable, List, Optional, Union
 
@@ -5,6 +6,7 @@ import pandas as pd
 import pyarrow
 import pytz
 from pydantic.typing import Literal
+from pyarrow import fs
 
 from feast.data_source import DataSource, FileSource
 from feast.errors import FeastJoinKeysDuringMaterialization
@@ -105,7 +107,10 @@ class FileOfflineStore(OfflineStore):
                 created_timestamp_column = feature_view.input.created_timestamp_column
 
                 # Read offline parquet data in pyarrow format
-                table = pyarrow.parquet.read_table(feature_view.input.path)
+                path, filesystem = FileOfflineStore.__prepare_path(
+                    feature_view.input.path
+                )
+                table = pyarrow.parquet.read_table(path, filesystem=filesystem)
 
                 # Rename columns by the field mapping dictionary if it exists
                 if feature_view.input.field_mapping is not None:
@@ -225,7 +230,8 @@ class FileOfflineStore(OfflineStore):
 
         # Create lazy function that is only called from the RetrievalJob object
         def evaluate_offline_job():
-            source_df = pd.read_parquet(data_source.path)
+            path, filesystem = FileOfflineStore.__prepare_path(data_source.path)
+            source_df = pd.read_parquet(path, filesystem=filesystem)
             # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
             source_df[event_timestamp_column] = source_df[event_timestamp_column].apply(
                 lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc)
@@ -265,3 +271,13 @@ class FileOfflineStore(OfflineStore):
             return last_values_df[columns_to_extract]
 
         return FileRetrievalJob(evaluation_function=evaluate_offline_job)
+
+    @staticmethod
+    def __prepare_path(path: str):
+        if path.startswith("s3://"):
+            s3 = fs.S3FileSystem(
+                endpoint_override=os.environ.get("FEAST_S3_ENDPOINT_URL")
+            )
+            return path.lstrip("s3://"), s3
+        else:
+            return path, None
