@@ -142,6 +142,10 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
             from feast.infra.gcp import GcpProvider
 
             return GcpProvider(config)
+        elif config.provider == "aws_dynamodb":
+            from feast.infra.aws_dynamodb_provider import AwsDynamodbProvider
+
+            return AwsDynamodbProvider(config)
         elif config.provider == "local":
             from feast.infra.local import LocalProvider
 

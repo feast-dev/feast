@@ -1,0 +1,3 @@
+project: my_project
+registry: s3://data/registry.db
+provider: aws_dynamodb
