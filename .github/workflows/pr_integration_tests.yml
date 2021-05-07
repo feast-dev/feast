@@ -14,6 +14,14 @@ jobs:
       || (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved')))
     runs-on: ubuntu-latest
     container: python:3.7
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v2
         with:
@@ -34,3 +42,6 @@ jobs:
         run: make install-python-ci-dependencies
       - name: Test python
         run: FEAST_TELEMETRY=False pytest --verbose --color=yes sdk/python/tests --integration
+        env:
+          REDIS_TYPE: REDIS
+          REDIS_CONNECTION_STRING: redis:6379,db=0
