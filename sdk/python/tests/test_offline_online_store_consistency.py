@@ -4,7 +4,7 @@ import time
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Iterator, Tuple, Union
+from typing import Iterator, Optional, Tuple, Union
 
 import pandas as pd
 import pytest
@@ -147,7 +147,7 @@ def check_offline_and_online_features(
     fv: FeatureView,
     driver_id: int,
     event_timestamp: datetime,
-    expected_value: float,
+    expected_value: Optional[float],
 ) -> None:
     # Check online store
     response_dict = fs.get_online_features(
