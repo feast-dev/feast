@@ -15,7 +15,7 @@ from feast import Entity, FeatureView, ValueType
 from feast.repo_operations import (
     get_ignore_files,
     get_repo_files,
-    infer_entity_values_types_from_feature_views,
+    infer_entity_value_type_from_feature_views,
     read_feastignore,
 )
 
@@ -153,7 +153,7 @@ def test_feastignore_with_stars2():
 
 @pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
 @pytest.mark.parametrize("dataframe_source_2", [lazy_fixture("simple_dataset_2")])
-def test_infer_entity_values_types_from_feature_views(
+def test_infer_entity_value_type_from_feature_views(
     dataframe_source, dataframe_source_2
 ):
     with prep_file_source(
@@ -166,10 +166,10 @@ def test_infer_entity_values_types_from_feature_views(
 
         fv2 = FeatureView(name="fv2", entities=["id"], input=file_source_2, ttl=None,)
 
-        actual_1 = infer_entity_values_types_from_feature_views(
+        actual_1 = infer_entity_value_type_from_feature_views(
             [Entity(name="id")], [fv1]
         )
-        actual_2 = infer_entity_values_types_from_feature_views(
+        actual_2 = infer_entity_value_type_from_feature_views(
             [Entity(name="id")], [fv2]
         )
         assert actual_1 == [Entity(name="id", value_type=ValueType.INT64)]
@@ -177,6 +177,4 @@ def test_infer_entity_values_types_from_feature_views(
 
         with pytest.raises(ValueError):
             # two viable data types
-            infer_entity_values_types_from_feature_views(
-                [Entity(name="id")], [fv1, fv2]
-            )
+            infer_entity_value_type_from_feature_views([Entity(name="id")], [fv1, fv2])

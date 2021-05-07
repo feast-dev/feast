@@ -131,7 +131,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     repo = parse_repo(repo_path)
     repo = ParsedRepo(
         feature_tables=repo.feature_tables,
-        entities=infer_entity_values_types_from_feature_views(
+        entities=infer_entity_value_type_from_feature_views(
             repo.entities, repo.feature_views
         ),
         feature_views=repo.feature_views,
@@ -366,7 +366,7 @@ def generate_project_name() -> str:
     return f"{random.choice(adjectives)}_{random.choice(animals)}"
 
 
-def infer_entity_values_types_from_feature_views(
+def infer_entity_value_type_from_feature_views(
     entities: List[Entity], feature_views: List[FeatureView]
 ) -> List[Entity]:
     incomplete_entities = {
@@ -374,14 +374,16 @@ def infer_entity_values_types_from_feature_views(
         for entity in entities
         if entity.value_type == ValueType.UNKNOWN
     }
+    incomplete_entities_keys = incomplete_entities.keys()
+
     for view in feature_views:
+        if not (incomplete_entities_keys & set(view.entities)):
+            continue
+        col_names_and_types = view.input.get_table_column_names_and_types()
         for entity_name in view.entities:
             if entity_name in incomplete_entities:
                 entity_col = list(
-                    filter(
-                        lambda tup: tup[0] == entity_name,
-                        view.input.get_table_column_names_and_types(),
-                    )
+                    filter(lambda tup: tup[0] == entity_name, col_names_and_types)
                 )
                 if len(entity_col) > 1:
                     raise ValueError("More than one table column matches Entity name.")
