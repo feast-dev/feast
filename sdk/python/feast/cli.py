@@ -38,6 +38,19 @@ _logger = logging.getLogger(__name__)
 DATETIME_ISO = "%Y-%m-%dT%H:%M:%s"
 
 
+class NoOptionDefaultFormat(click.Command):
+    def format_options(self, ctx: click.Context, formatter: click.HelpFormatter):
+        """Writes all the options into the formatter if they exist."""
+        opts = []
+        for param in self.get_params(ctx):
+            rv = param.get_help_record(ctx)
+            if rv is not None:
+                opts.append(rv)
+        if opts:
+            with formatter.section("Options(No current command options)"):
+                formatter.write_dl(opts)
+
+
 @click.group()
 def cli():
     """
@@ -150,7 +163,7 @@ def feature_view_list():
     print(tabulate(table, headers=["NAME", "ENTITIES"], tablefmt="plain"))
 
 
-@cli.command("apply")
+@cli.command("apply", cls=NoOptionDefaultFormat)
 def apply_total_command():
     """
     Create or update a feature store deployment
@@ -165,7 +178,7 @@ def apply_total_command():
         print(str(e))
 
 
-@cli.command("teardown")
+@cli.command("teardown", cls=NoOptionDefaultFormat)
 def teardown_command():
     """
     Tear down deployed feature store infrastructure
