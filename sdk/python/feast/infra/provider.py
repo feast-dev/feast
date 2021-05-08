@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import pandas
 import pyarrow
+from tqdm import tqdm
 
 from feast import errors
 from feast.entity import Entity
@@ -102,6 +103,7 @@ class Provider(abc.ABC):
         end_date: datetime,
         registry: Registry,
         project: str,
+        tqdm_builder: Callable[[int], tqdm],
     ) -> None:
         pass
 
