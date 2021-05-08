@@ -1,6 +1,6 @@
 from google.protobuf.duration_pb2 import Duration
 
-from feast import Entity, FeatureView, ValueType
+from feast import Entity, FeatureView
 from feast.data_source import FileSource
 
 driver_hourly_stats = FileSource(
@@ -8,7 +8,7 @@ driver_hourly_stats = FileSource(
     created_timestamp_column="created",
 )
 
-driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id",)
+driver = Entity(name="driver_id", description="driver id",)
 
 # features are inferred from columns of data source
 driver_hourly_stats_view = FeatureView(
