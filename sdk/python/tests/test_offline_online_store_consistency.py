@@ -4,7 +4,7 @@ import time
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Iterator, Tuple, Union
+from typing import Iterator, Optional, Tuple, Union
 
 import pandas as pd
 import pytest
@@ -26,7 +26,7 @@ def create_dataset() -> pd.DataFrame:
     ts = pd.Timestamp(now).round("ms")
     data = {
         "id": [1, 2, 1, 3, 3],
-        "value": [0.1, 0.2, 0.3, 4, 5],
+        "value": [0.1, None, 0.3, 4, 5],
         "ts_1": [
             ts - timedelta(hours=4),
             ts,
@@ -147,13 +147,17 @@ def check_offline_and_online_features(
     fv: FeatureView,
     driver_id: int,
     event_timestamp: datetime,
-    expected_value: float,
+    expected_value: Optional[float],
 ) -> None:
     # Check online store
     response_dict = fs.get_online_features(
         [f"{fv.name}:value"], [{"driver": driver_id}]
     ).to_dict()
-    assert abs(response_dict[f"{fv.name}__value"][0] - expected_value) < 1e-6
+
+    if expected_value:
+        assert abs(response_dict[f"{fv.name}__value"][0] - expected_value) < 1e-6
+    else:
+        assert response_dict[f"{fv.name}__value"][0] is None
 
     # Check offline store
     df = fs.get_historical_features(
@@ -163,7 +167,11 @@ def check_offline_and_online_features(
         feature_refs=[f"{fv.name}:value"],
     ).to_df()
 
-    assert abs(df.to_dict()[f"{fv.name}__value"][0] - expected_value) < 1e-6
+    if expected_value:
+        assert abs(df.to_dict()[f"{fv.name}__value"][0] - expected_value) < 1e-6
+    else:
+        df = df.where(pd.notnull(df), None)
+        assert df.to_dict()[f"{fv.name}__value"][0] is None
 
 
 def run_offline_online_store_consistency_test(
@@ -179,6 +187,10 @@ def run_offline_online_store_consistency_test(
     # check result of materialize()
     check_offline_and_online_features(
         fs=fs, fv=fv, driver_id=1, event_timestamp=end_date, expected_value=0.3
+    )
+
+    check_offline_and_online_features(
+        fs=fs, fv=fv, driver_id=2, event_timestamp=end_date, expected_value=None
     )
 
     # check prior value for materialize_incremental()

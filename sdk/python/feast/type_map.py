@@ -327,8 +327,10 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
     raise Exception(f"Unsupported data type: ${str(type(value))}")
 
 
-def python_value_to_proto_value(value: Any) -> ProtoValue:
-    value_type = python_type_to_feast_value_type("", value)
+def python_value_to_proto_value(
+    value: Any, feature_type: ValueType = None
+) -> ProtoValue:
+    value_type = python_type_to_feast_value_type("", value) if value else feature_type
     return _python_value_to_proto_value(value_type, value)
 
 
