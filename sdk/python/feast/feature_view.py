@@ -56,9 +56,9 @@ class FeatureView:
         self,
         name: str,
         entities: List[str],
-        ttl: Optional[Union[Duration, timedelta]],
         input: Union[BigQuerySource, FileSource],
         features: List[Feature] = [],
+        ttl: Optional[Union[Duration, timedelta]] = None,
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
     ):
@@ -171,6 +171,7 @@ class FeatureView:
             interval_proto.end_time.FromDatetime(interval[1])
             meta.materialization_intervals.append(interval_proto)
 
+        ttl_duration = None
         if self.ttl is not None:
             ttl_duration = Duration()
             ttl_duration.FromTimedelta(self.ttl)
