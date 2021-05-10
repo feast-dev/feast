@@ -12,8 +12,12 @@ jobs:
     # all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
     if: (github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'ok-to-test'))
       || (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved')))
-    runs-on: ubuntu-latest
-    container: python:3.7
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ 3.7, 3.8, 3.9 ]
+        os: [ ubuntu-latest, macOS-latest ]
     services:
       redis:
         image: redis
@@ -30,6 +34,11 @@ jobs:
           # code from the PR.
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
           submodules: recursive
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@master
         with:
