@@ -133,6 +133,8 @@ def setup_third_party_provider_repo(provider_name: str):
         online_store:
             path: data/online_store.db
             type: sqlite
+        offline_store:
+            type: file
         """
             )
         )
