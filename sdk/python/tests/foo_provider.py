@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import pandas
+from tqdm import tqdm
 
 from feast import Entity, FeatureTable, FeatureView, RepoConfig
 from feast.infra.offline_stores.offline_store import RetrievalJob
@@ -49,6 +50,7 @@ class FooProvider(Provider):
         end_date: datetime,
         registry: Registry,
         project: str,
+        tqdm_builder: Callable[[int], tqdm],
     ) -> None:
         pass
 
