@@ -4,22 +4,22 @@ Our current proposed roadmap for 0.11 and onward is as follows
 
 ## Backlog
 
-- Add On demand transformations support
-- Add Data quality monitoring
-- Add Snowflake offline store support
-- Add Bigtable support
+* Add On demand transformations support
+* Add Data quality monitoring
+* Add Snowflake offline store support
+* Add Bigtable support
 
-## Scheduled for development (next 3 months)
+## Scheduled for development \(next 3 months\)
 
-- Ensure Feast Serving is compatible with the new Feast (#1497)
-    - Decouple Feast Serving from Feast Core
-    - Add FeatureView support to Feast Serving
-    - Update Helm Charts (remove Core, Postgres, Job Service, Spark)
-- Add Redis support for Feast (#1497)
-- Add direct deployment support to AWS and GCP
-- Add Dynamo support (#1409)
-- Add Redshift support (#1492)
-- Add Push/Ingestion API support
+* Ensure Feast Serving is compatible with the new Feast \(\#1497\)
+  * Decouple Feast Serving from Feast Core
+  * Add FeatureView support to Feast Serving
+  * Update Helm Charts \(remove Core, Postgres, Job Service, Spark\)
+* Add Redis support for Feast \(\#1497\)
+* Add direct deployment support to AWS and GCP
+* Add Dynamo support \(\#1409\)
+* Add Redshift support \(\#1492\)
+* Add Push/Ingestion API support
 
 ## Feast 0.10
 
