@@ -10,6 +10,7 @@ import pandas as pd
 from google.protobuf.timestamp_pb2 import Timestamp
 from redis import Redis
 from rediscluster import RedisCluster
+from tqdm import tqdm
 
 from feast import FeatureTable, utils
 from feast.entity import Entity
@@ -96,6 +97,8 @@ class RedisProvider(Provider):
                 entity_hset[f_key] = val.SerializeToString()
 
             client.hset(redis_key_bin, mapping=entity_hset)
+            if progress:
+                progress(1)
 
     def online_read(
         self,
@@ -148,6 +151,7 @@ class RedisProvider(Provider):
         end_date: datetime,
         registry: Registry,
         project: str,
+        tqdm_builder: Callable[[int], tqdm],
     ) -> None:
         entities = []
         for entity_name in feature_view.entities:
@@ -180,7 +184,10 @@ class RedisProvider(Provider):
         join_keys = [entity.join_key for entity in entities]
         rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
 
-        self.online_write_batch(project, feature_view, rows_to_write, None)
+        with tqdm_builder(len(rows_to_write)) as pbar:
+            self.online_write_batch(
+                project, feature_view, rows_to_write, lambda x: pbar.update(x)
+            )
 
         feature_view.materialization_intervals.append((start_date, end_date))
         registry.apply_feature_view(feature_view, project)
