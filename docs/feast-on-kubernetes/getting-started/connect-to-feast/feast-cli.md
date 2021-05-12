@@ -3,7 +3,7 @@
 Install the Feast CLI using pip:
 
 ```bash
-pip install feast
+pip install feast==0.9.*
 ```
 
 Configure the CLI to connect to your Feast Core deployment:
