@@ -16,7 +16,7 @@ If all definitions look valid, Feast will sync the metadata about Feast objects 
 
 Feast CLI will create all necessary infrastructure for feature serving and materialization to work. What exactly gets created depends on which provider is configured to be used in `feature_store.yaml` in the feature repository.
 
-For example, for the `local` provider, it is as easy as creating a sqlite database on disk as a key-value store to serve feature data from. The `local` provider is most usable for local testing, not production use.
+For example, for the `local` provider, it is as easy as creating a Sqlite database on disk as a key-value store to serve feature data from. The `local` provider is most usable for local testing, not production use.
 
 A full featured configuration is to use the `gcp` provider and Cloud Datastore to store feature data. When you run `feast apply`, Feast will initialize Datastore based on your Feast objects \(like feature views\) in order to materialize and serve features.
 

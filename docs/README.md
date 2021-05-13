@@ -48,7 +48,7 @@ The best way to learn Feast is to use it. Head over to our [Quickstart](quicksta
 
 Explore the following resources to get started with Feast:
 
-* [How-to guides](how-to-guides/create-a-feature-repository.md) show you have to complete typical Feast workflows.
+* [How-to guides](how-to-guides/create-a-feature-repository.md) show you how to complete typical Feast workflows.
 * [Concepts](concepts/architecture.md) describes all important Feast API concepts.
 * [Reference](reference/feature-store-yaml.md) contains detailed API and design documents.
 * [Contributing](contributing/contributing.md) contains resources for anyone who wants to contribute to Feast.

@@ -8,7 +8,7 @@ Feature views serve the following purposes:
 
 * Feature views are a means for defining the location and properties of data sources that contain features.
 * The data sources described within feature views allow Feast to find and materialize feature data into stores.
-* Feature views ensure data is efficiently stored during materialization by providing a grouping mechanism of features values that occur on the same event timestamp.
+* Feature views ensure data is efficiently stored during materialization by providing a grouping mechanism of feature values that occur on the same event timestamp.
 * Features are referenced relative to their feature view during the lookup of features, e.g., `driver_feature_view:driver_rating`.
 
 {% hint style="info" %}
@@ -38,9 +38,9 @@ driver = Entity(
 
 ### Feature
 
-A feature is an individual measurable property observed on an entity. For example the amount of transactions \(feature\) a customer \(entity\) has completed. 
+A feature is an individual measurable property observed on an entity. For example, the amount of transactions \(feature\) a customer \(entity\) has completed. 
 
-Features are defined as part of feature views. Since Feast does not transformation data, a feature is essentially a schema that only contains a name and a type:
+Features are defined as part of feature views. Since Feast does not transform data, a feature is essentially a schema that only contains a name and a type:
 
 ```python
 conversion_rate = Feature(
