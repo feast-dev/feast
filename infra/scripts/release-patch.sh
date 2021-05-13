@@ -37,6 +37,7 @@ else
     usage
     exit 1
 fi
+if ! which gh ; then echo "Please install the GitHub CLI to use this script"; exit 1; fi
 
 echo "This script is mostly idempotent; check git status for temp files before restarting. It will always prompt you before making any non-local change."
 
