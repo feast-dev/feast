@@ -3,7 +3,7 @@
 Install the [Feast Python SDK](https://api.docs.feast.dev/python/) using pip:
 
 ```bash
-pip install feast
+pip install feast==0.9.*
 ```
 
 Connect to an existing Feast Core deployment:

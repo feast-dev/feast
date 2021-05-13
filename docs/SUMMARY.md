@@ -20,6 +20,7 @@
 * [Feature Repository](concepts/feature-repository.md)
 * [Feature Views](concepts/feature-views.md)
 * [Apply](concepts/apply.md)
+* [Glossary](concepts/glossary.md)
 
 ## Reference
 
@@ -49,7 +50,6 @@
   * [Sources](feast-on-kubernetes/concepts/sources.md)
   * [Feature Tables](feast-on-kubernetes/concepts/feature-tables.md)
   * [Stores](feast-on-kubernetes/concepts/stores.md)
-  * [Glossary](feast-on-kubernetes/concepts/glossary.md)
 * [Tutorials](feast-on-kubernetes/tutorials-1/README.md)
   * [Minimal Ride Hailing Example](https://github.com/feast-dev/feast/blob/master/examples/minimal/minimal_ride_hailing.ipynb)
 * [User Guide](feast-on-kubernetes/user-guide/README.md)

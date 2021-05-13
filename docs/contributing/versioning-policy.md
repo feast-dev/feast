@@ -4,7 +4,7 @@ description: Versioning policies and status of Feast components
 
 # Versioning Policy
 
-## Versioning policy and branch workflow
+### Versioning policy and branch workflow
 
 Feast uses [semantic versioning](https://semver.org/).
 
@@ -19,9 +19,9 @@ A release branch should be substantially _feature complete_ with respect to the 
 
 In general, unless you're committing code that only applies to a particular release stream \(for example, temporary hot-fixes, back-ported security fixes, or image hashes\), you should base changes from `master` and then merge or cherry-pick to the release branch.
 
-## Feast Component Matrix
+### Feast Component Matrix
 
-The following table shows the **status** \(stable, beta, or alpha\) of Feast components.
+The following table shows the **status** \(stable, beta, or alpha\) of Feast components. 
 
 Application status indicators for Feast:
 
@@ -29,18 +29,18 @@ Application status indicators for Feast:
 * **Beta** means that the component is working towards a version 1.0 release. Beta does not mean a component is unstable, it simply means the component has not met the full criteria of stability.
 * **Alpha** means that the component is in the early phases of development and/or integration into Feast.
 
-| Application | Status | Version | Notes |
-| :--- | :--- | :--- | :--- |
-| [Feast Serving](https://github.com/feast-dev/feast-java) | Beta | [v0.25.2](https://github.com/feast-dev/feast-java/releases/tag/v0.25.2) | APIs are considered stable and will not have breaking changes within 3 minor versions. |
-| [Feast Core](https://github.com/feast-dev/feast-java) | Beta | [v0.25.2](https://github.com/feast-dev/feast-java/releases/tag/v0.25.2) | At risk of deprecation |
-| [Feast Java Client](https://github.com/feast-dev/feast-java) | Beta | [v0.25.2](https://github.com/feast-dev/feast-java/releases/tag/v0.25.2) |  |
-| [Feast Python SDK](https://github.com/feast-dev/feast) | Beta | [v0.9.4](https://github.com/feast-dev/feast/releases/tag/v0.9.4) |  |
-| [Feast Go Client](https://github.com/feast-dev/feast) | Beta | [v0.9.4](https://github.com/feast-dev/feast/releases/tag/v0.9.4) |  |
-| [Feast Spark Python SDK](https://github.com/feast-dev/feast-spark) | Alpha | [v0.1.2](https://github.com/feast-dev/feast-spark/releases/tag/v0.1.2) |  |
-| [Feast Spark Launchers](https://github.com/feast-dev/feast-spark) | Alpha | [v0.1.2](https://github.com/feast-dev/feast-spark/releases/tag/v0.1.2) |  |
-| [Feast Job Service](https://github.com/feast-dev/feast-spark) | Alpha | [v0.1.2](https://github.com/feast-dev/feast-spark/releases/tag/v0.1.2) | At risk of deprecation |
-| [Feast Helm Chart](https://github.com/feast-dev/feast-helm-charts) | Beta | [v0.100.4](https://github.com/feast-dev/feast-helm-charts/releases/tag/v0.100.4) |  |
-|  |  |  |  |
+| Application | Status | Notes |
+| :--- | :--- | :--- |
+| [Feast Serving](https://github.com/feast-dev/feast-java) | Beta | APIs are considered stable and will not have breaking changes within 3 minor versions. |
+| [Feast Core](https://github.com/feast-dev/feast-java) | Beta | At risk of deprecation |
+| [Feast Java Client](https://github.com/feast-dev/feast-java) | Beta |  |
+| [Feast Python SDK](https://github.com/feast-dev/feast) | Beta |  |
+| [Feast Go Client](https://github.com/feast-dev/feast) | Beta |  |
+| [Feast Spark Python SDK](https://github.com/feast-dev/feast-spark) | Alpha |  |
+| [Feast Spark Launchers](https://github.com/feast-dev/feast-spark) | Alpha |  |
+| [Feast Job Service](https://github.com/feast-dev/feast-spark) | Alpha | At risk of deprecation |
+| [Feast Helm Chart](https://github.com/feast-dev/feast-helm-charts) | Beta |  |
+|  |  |  |
 
 Criteria for reaching _**stable**_ status:
 
@@ -59,7 +59,7 @@ Criteria for reaching **beta** status
 * API reference documentation
 * Deprecative changes must span multiple minor versions and allow for an upgrade path.
 
-## Levels of support <a id="levels-of-support"></a>
+### Levels of support <a id="levels-of-support"></a>
 
 Feast components have various levels of support based on the component status.
 
@@ -69,7 +69,7 @@ Feast components have various levels of support based on the component status.
 | Beta | The Feast community offers best-effort support for beta applications. Beta applications will be supported for at least 2 more minor releases. |
 | Alpha | The response differs per application in alpha status, depending on the size of the community for that application and the current level of active development of the application. |
 
-## Support from the Feast community <a id="support-from-the-kubeflow-community"></a>
+### Support from the Feast community <a id="support-from-the-kubeflow-community"></a>
 
 Feast has an active and helpful community of users and contributors.
 
