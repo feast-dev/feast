@@ -65,12 +65,21 @@ if [ -z $STARTING_COMMIT ]; then
         * ) exit ;;
     esac ;
 else
-    read -p "Will cherry-pick starting from commit $STARTING_COMMIT. Continue (y) or skip this step (n)? " choice
-    case "$choice" in
-        y|Y ) cherrypick_from_master ;;
-        n|N ) echo "Skipping this step" ;;
-        * ) echo "Skipping this step" ;;
-    esac ;
+    if git status | grep -q "is ahead of" ; then
+        read -p "Your local branch is ahead of its remote counterpart, indicating you may have already cherry-picked. Skip this step (y) or run the cherry-pick starting from commit $STARTING_COMMIT (n)? " choice
+        case "$choice" in
+            y|Y ) echo "Skipping this step" ;;
+            n|N ) cherrypick_from_master ;;
+            * ) cherrypick_from_master ;;
+        esac ;
+    else
+        read -p "Will cherry-pick starting from commit $STARTING_COMMIT. Continue (y) or skip this step (n)? " choice
+        case "$choice" in
+            y|Y ) cherrypick_from_master ;;
+            n|N ) echo "Skipping this step" ;;
+            * ) echo "Skipping this step" ;;
+        esac ;
+    fi
 fi
 
 commit_changelog()
