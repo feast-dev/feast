@@ -2,7 +2,7 @@
 
 #### **Entity key**
 
-The combination of entities that uniquely identify a row. For example a feature table with the composite entity of \(customer, country\) might have an entity key of \(1001, 5\). They key is used during lookups of feature values and for deduplicating historical rows.
+The combination of entities that uniquely identify a row. For example, a feature table with the composite entity of \(customer, country\) might have an entity key of \(1001, 5\). The key is used during lookups of feature values and for deduplicating historical rows.
 
 #### Entity timestamp
 
