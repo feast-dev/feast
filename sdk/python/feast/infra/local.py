@@ -8,7 +8,7 @@ import pandas as pd
 import pytz
 from tqdm import tqdm
 
-from feast import FeatureTable, utils
+from feast import FeatureTable
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key

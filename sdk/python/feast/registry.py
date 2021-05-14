@@ -186,7 +186,10 @@ class Registry:
                     and existing_feature_view_proto.spec.project == project
                 ):
                     # do not update if feature view has not changed; updating will erase tracked materialization intervals
-                    if FeatureView.from_proto(existing_feature_view_proto) == feature_view:
+                    if (
+                        FeatureView.from_proto(existing_feature_view_proto)
+                        == feature_view
+                    ):
                         return registry_proto
                     else:
                         del registry_proto.feature_views[idx]
@@ -197,7 +200,13 @@ class Registry:
 
         self._registry_store.update_registry_proto(updater)
 
-    def apply_materialization(self, feature_view: FeatureView, project: str, start_date: datetime, end_date: datetime):
+    def apply_materialization(
+        self,
+        feature_view: FeatureView,
+        project: str,
+        start_date: datetime,
+        end_date: datetime,
+    ):
         """
         Updates materialization intervals tracked for a single feature view in Feast
 
@@ -213,18 +222,23 @@ class Registry:
                 registry_proto.feature_views
             ):
                 if (
-                    existing_feature_view_proto.spec.name
-                    == feature_view.name
+                    existing_feature_view_proto.spec.name == feature_view.name
                     and existing_feature_view_proto.spec.project == project
                 ):
-                    existing_feature_view = FeatureView.from_proto(existing_feature_view_proto)
-                    existing_feature_view.materialization_intervals.append((start_date, end_date))
+                    existing_feature_view = FeatureView.from_proto(
+                        existing_feature_view_proto
+                    )
+                    existing_feature_view.materialization_intervals.append(
+                        (start_date, end_date)
+                    )
                     feature_view_proto = existing_feature_view.to_proto()
                     feature_view_proto.spec.project = project
                     del registry_proto.feature_views[idx]
                     registry_proto.feature_views.append(feature_view_proto)
                     return registry_proto
-            raise ValueError(f"A feature view with name {feature_view.name} in project {project} was not found.")
+            raise ValueError(
+                f"A feature view with name {feature_view.name} in project {project} was not found."
+            )
 
         self._registry_store.update_registry_proto(updater)
 

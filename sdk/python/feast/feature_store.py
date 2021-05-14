@@ -382,7 +382,10 @@ class FeatureStore:
                 self.project,
                 tqdm_builder,
             )
-            self._registry.apply_materialization(feature_view, self.project, start_date, end_date)
+
+            self._registry.apply_materialization(
+                feature_view, self.project, start_date, end_date
+            )
 
     @log_exceptions_and_usage
     def materialize(
@@ -457,7 +460,10 @@ class FeatureStore:
                 self.project,
                 tqdm_builder,
             )
-            self._registry.apply_materialization(feature_view, self.project, start_date, end_date)
+
+            self._registry.apply_materialization(
+                feature_view, self.project, start_date, end_date
+            )
 
     @log_exceptions_and_usage
     def get_online_features(
