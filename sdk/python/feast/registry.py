@@ -439,10 +439,7 @@ class GCSRegistryStore(RegistryStore):
                 "Install package google-cloud-storage==1.20.* for gcs support"
                 "run ```pip install google-cloud-storage==1.20.*```"
             )
-        try:
-            self.gcs_client = storage.Client()
-        except DefaultCredentialsError:
-            self.gcs_client = storage.Client.create_anonymous_client()
+        self.gcs_client = storage.Client()
         self._uri = urlparse(uri)
         self._bucket = self._uri.hostname
         self._blob = self._uri.path.lstrip("/")
