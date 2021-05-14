@@ -431,7 +431,6 @@ class LocalRegistryStore(RegistryStore):
 class GCSRegistryStore(RegistryStore):
     def __init__(self, uri: str):
         try:
-            from google.auth.exceptions import DefaultCredentialsError
             from google.cloud import storage
         except ImportError:
             # TODO: Ensure versioning depends on requirements.txt/setup.py and isn't hardcoded
