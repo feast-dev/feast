@@ -371,6 +371,9 @@ class FeatureStore:
             def tqdm_builder(length):
                 return tqdm(total=length, ncols=100)
 
+            start_date = utils.make_tzaware(start_date)
+            end_date = utils.make_tzaware(end_date)
+
             provider.materialize_single_feature_view(
                 feature_view,
                 start_date,
@@ -379,6 +382,7 @@ class FeatureStore:
                 self.project,
                 tqdm_builder,
             )
+            self._registry.apply_materialization(feature_view, self.project, start_date, end_date)
 
     @log_exceptions_and_usage
     def materialize(
@@ -442,6 +446,9 @@ class FeatureStore:
             def tqdm_builder(length):
                 return tqdm(total=length, ncols=100)
 
+            start_date = utils.make_tzaware(start_date)
+            end_date = utils.make_tzaware(end_date)
+
             provider.materialize_single_feature_view(
                 feature_view,
                 start_date,
@@ -450,6 +457,7 @@ class FeatureStore:
                 self.project,
                 tqdm_builder,
             )
+            self._registry.apply_materialization(feature_view, self.project, start_date, end_date)
 
     @log_exceptions_and_usage
     def get_online_features(
