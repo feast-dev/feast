@@ -84,7 +84,7 @@ Therefore, to deploy Feast we need to set up [IBM Cloud Block Storage](https://c
    ```text
     ibmc-block-gold (default)   ibm.io/ibmc-block   65s
    ```
-### Security Context Constraint Setup
+### Security Context Constraint Setup (OpenShift only)
 
 By default, in OpenShift, all pods or containers will use the [Restricted SCC](https://docs.openshift.com/container-platform/4.6/authentication/managing-security-context-constraints.html) which limits the UIDs pods can run with, causing the Feast installation to fail. To overcome this, you can allow Feast pods to run with any UID by executing the following:
 
@@ -114,7 +114,7 @@ make feast/base
 kustomize build feast/base | kubectl apply -n feast -f -
 ```
 
-## 4. Use Feast Jupyter to connect to Feast
+## 4. Use Feast Jupyter Notebook Server to connect to Feast
 
 After all the pods are in a `RUNNING` state, port-forward to the Jupyter Notebook Server in the cluster:
 
@@ -182,4 +182,3 @@ When running the minimal\_ride\_hailing\_example Jupyter Notebook example the fo
    ```text
     os.environ["DEMO_KAFKA_BROKERS"] = "feast-release-kafka:9092"
    ```
-
