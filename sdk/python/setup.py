@@ -86,7 +86,7 @@ CI_REQUIRED = [
     "pytest-timeout==1.4.2",
     "pytest-ordering==0.6.*",
     "pytest-mock==1.10.4",
-    "Sphinx",
+    "Sphinx!=4.0.0",
     "sphinx-rtd-theme",
     "tenacity",
     "adlfs==0.5.9",
@@ -205,7 +205,7 @@ setup(
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version={"root": "../..", "relative_to": __file__, "tag_regex": TAG_REGEX},
-    setup_requires=["setuptools_scm", "grpcio", "grpcio-tools==1.34.0", "mypy-protobuf", "sphinx"],
+    setup_requires=["setuptools_scm", "grpcio", "grpcio-tools==1.34.0", "mypy-protobuf", "sphinx!=4.0.0"],
     package_data={
         "": [
             "protos/feast/**/*.proto",
