@@ -9,6 +9,9 @@ jobs:
       matrix:
         python-version: [ 3.7, 3.8, 3.9 ]
         os: [ ubuntu-latest, macOS-latest]
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v2
       - name: Setup Python
@@ -20,6 +23,14 @@ jobs:
         run: make install-python-ci-dependencies
       - name: Test Python
         run: make test-python
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          env_vars: OS,PYTHON
+          fail_ci_if_error: true
+          verbose: true
 
   unit-test-go:
     runs-on: ubuntu-latest
