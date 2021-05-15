@@ -5,7 +5,6 @@ from typing import List, Optional, Union
 
 import pandas
 import pyarrow
-from google.auth.exceptions import DefaultCredentialsError
 from jinja2 import BaseLoader, Environment
 
 from feast.data_source import BigQuerySource, DataSource
@@ -19,6 +18,15 @@ from feast.infra.provider import (
 )
 from feast.registry import Registry
 from feast.repo_config import RepoConfig
+
+try:
+    from google.auth.exceptions import DefaultCredentialsError
+    from google.cloud import bigquery
+
+except ImportError as e:
+    from feast.errors import FeastExtrasDependencyImportError
+
+    raise FeastExtrasDependencyImportError("gcp", str(e))
 
 
 class BigQueryOfflineStore(OfflineStore):
@@ -192,7 +200,6 @@ class FeatureViewQueryContext:
 
 def _upload_entity_df_into_bigquery(project, entity_df, client) -> str:
     """Uploads a Pandas entity dataframe into a BigQuery table and returns a reference to the resulting table"""
-    from google.cloud import bigquery
 
     # First create the BigQuery dataset if it doesn't exist
     dataset = bigquery.Dataset(f"{client.project}.feast_{project}")
@@ -303,8 +310,6 @@ def build_point_in_time_query(
 
 def _get_bigquery_client():
     try:
-        from google.cloud import bigquery
-
         client = bigquery.Client()
     except DefaultCredentialsError as e:
         raise FeastProviderLoginError(
