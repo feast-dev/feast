@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [ 3.7, 3.8, 3.9 ]
-        os: [ ubuntu-latest, macOS-latest ]
+        os: [ ubuntu-latest ]
     services:
       redis:
         image: redis
@@ -26,6 +26,9 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -50,7 +53,15 @@ jobs:
       - name: Install dependencies
         run: make install-python-ci-dependencies
       - name: Test python
-        run: FEAST_TELEMETRY=False pytest --verbose --color=yes sdk/python/tests --integration
+        run: FEAST_TELEMETRY=False pytest --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests --integration
         env:
           REDIS_TYPE: REDIS
           REDIS_CONNECTION_STRING: redis:6379,db=0
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          files: ./coverage.xml
+          flags: integrationtests
+          env_vars: OS,PYTHON
+          fail_ci_if_error: true
+          verbose: true
