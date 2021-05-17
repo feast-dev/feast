@@ -387,21 +387,22 @@ def test_apply_remote_repo():
         )
     )
 
+
 @pytest.mark.parametrize(
     "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
 )
 @pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
 def test_reapply_feature_view_success(test_feature_store, dataframe_source):
-    with prep_file_source(df=dataframe_source, event_timestamp_column="ts_1") as file_source:
+    with prep_file_source(
+        df=dataframe_source, event_timestamp_column="ts_1"
+    ) as file_source:
 
         e = Entity(name="id", value_type=ValueType.STRING)
 
         # Create Feature View
         fv1 = FeatureView(
             name="my_feature_view_1",
-            features=[
-                Feature(name="string_col", dtype=ValueType.STRING),
-            ],
+            features=[Feature(name="string_col", dtype=ValueType.STRING)],
             entities=["id"],
             input=file_source,
             ttl=timedelta(minutes=5),
@@ -431,9 +432,7 @@ def test_reapply_feature_view_success(test_feature_store, dataframe_source):
         # Change and apply Feature View
         fv1 = FeatureView(
             name="my_feature_view_1",
-            features=[
-                Feature(name="int64_col", dtype=ValueType.INT64),
-            ],
+            features=[Feature(name="int64_col", dtype=ValueType.INT64)],
             entities=["id"],
             input=file_source,
             ttl=timedelta(minutes=5),
