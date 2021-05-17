@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 from typing import Callable, List, Optional, Union
 
@@ -107,7 +106,7 @@ class FileOfflineStore(OfflineStore):
                 created_timestamp_column = feature_view.input.created_timestamp_column
 
                 # Read offline parquet data in pyarrow format
-                path, filesystem = FileOfflineStore.__prepare_path(
+                filesystem, path = FileOfflineStore.__prepare_path(
                     feature_view.input.path
                 )
                 table = pyarrow.parquet.read_table(path, filesystem=filesystem)
@@ -230,7 +229,7 @@ class FileOfflineStore(OfflineStore):
 
         # Create lazy function that is only called from the RetrievalJob object
         def evaluate_offline_job():
-            path, filesystem = FileOfflineStore.__prepare_path(data_source.path)
+            filesystem, path = FileOfflineStore.__prepare_path(data_source.path)
             source_df = pd.read_parquet(path, filesystem=filesystem)
             # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
             source_df[event_timestamp_column] = source_df[event_timestamp_column].apply(
@@ -274,10 +273,7 @@ class FileOfflineStore(OfflineStore):
 
     @staticmethod
     def __prepare_path(path: str):
-        if path.startswith("s3://"):
-            s3 = fs.S3FileSystem(
-                endpoint_override=os.environ.get("FEAST_S3_ENDPOINT_URL")
-            )
-            return path.lstrip("s3://"), s3
+        if path.startswith(("s3://", "hdfs://")):
+            return fs.FileSystem.from_uri(path)
         else:
-            return path, None
+            return None, path
