@@ -23,7 +23,7 @@ from feast.loaders import yaml as feast_yaml
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityV2Proto
 from feast.protos.feast.core.Entity_pb2 import EntityMeta as EntityMetaProto
 from feast.protos.feast.core.Entity_pb2 import EntitySpecV2 as EntitySpecProto
-from feast.telemetry import public_method
+from feast.telemetry import log_exceptions
 from feast.value_type import ValueType
 
 
@@ -32,7 +32,7 @@ class Entity:
     Represents a collection of entities and associated metadata.
     """
 
-    @public_method
+    @log_exceptions
     def __init__(
         self,
         name: str,

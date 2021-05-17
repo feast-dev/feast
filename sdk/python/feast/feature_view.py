@@ -32,7 +32,7 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.core.FeatureView_pb2 import (
     MaterializationInterval as MaterializationIntervalProto,
 )
-from feast.telemetry import public_method
+from feast.telemetry import log_exceptions
 from feast.value_type import ValueType
 
 
@@ -53,7 +53,7 @@ class FeatureView:
     last_updated_timestamp: Optional[Timestamp] = None
     materialization_intervals: List[Tuple[datetime, datetime]]
 
-    @public_method
+    @log_exceptions
     def __init__(
         self,
         name: str,

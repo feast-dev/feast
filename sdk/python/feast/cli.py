@@ -32,7 +32,6 @@ from feast.repo_operations import (
     registry_dump,
     teardown,
 )
-from feast.telemetry import Telemetry
 
 _logger = logging.getLogger(__name__)
 DATETIME_ISO = "%Y-%m-%dT%H:%M:%s"
@@ -175,8 +174,6 @@ def apply_total_command(ctx: click.Context):
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     repo_config = load_repo_config(repo)
-    tele = Telemetry()
-    tele.log("apply")
     try:
         apply_total(repo_config, repo)
     except FeastProviderLoginError as e:
@@ -192,8 +189,6 @@ def teardown_command(ctx: click.Context):
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     repo_config = load_repo_config(repo)
-    tele = Telemetry()
-    tele.log("teardown")
 
     teardown(repo_config, repo)
 
@@ -207,8 +202,6 @@ def registry_dump_command(ctx: click.Context):
     repo = ctx.obj["CHDIR"]
     cli_check_repo(repo)
     repo_config = load_repo_config(repo)
-    tele = Telemetry()
-    tele.log("registry-dump")
 
     registry_dump(repo_config, repo_path=repo)
 
@@ -285,8 +278,6 @@ def init_command(project_directory, minimal: bool, template: str):
     if minimal:
         template = "minimal"
 
-    tele = Telemetry()
-    tele.log("init")
     init_repo(project_directory, template)
 
 
