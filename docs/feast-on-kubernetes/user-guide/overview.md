@@ -20,7 +20,7 @@ Visit [feature tables](../concepts/feature-tables.md#overview) to learn more abo
 
 ### Retrieving historical features for training
 
-In order to generate a training dataset it is necessary to provide both an [entity dataframe ](../concepts/glossary.md#entity-dataframe)and feature references through the[ Feast SDK](https://api.docs.feast.dev/python/) to retrieve historical features. For historical serving, Feast requires that you provide the entities and timestamps for the corresponding feature data. Feast produces a point-in-time correct dataset using the requested features. These features can be requested from an unlimited number of feature sets.
+In order to generate a training dataset it is necessary to provide both an [entity dataframe ](../../concepts/glossary.md#entity-dataframe)and feature references through the[ Feast SDK](https://api.docs.feast.dev/python/) to retrieve historical features. For historical serving, Feast requires that you provide the entities and timestamps for the corresponding feature data. Feast produces a point-in-time correct dataset using the requested features. These features can be requested from an unlimited number of feature sets.
 
 {% page-ref page="getting-training-features.md" %}
 

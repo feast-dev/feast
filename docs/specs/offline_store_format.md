@@ -36,7 +36,8 @@ Here's how Feast types map to Pandas types for Feast APIs that take in or return
 | BYTES | `bytes` |
 | STRING | `str` , `category`|
 | INT32 | `int32`, `uint32` |
-| INT64 | `int64`, `uint64`, `datetime64[ns]`, `datetime64[ns, tz]` |
+| INT64 | `int64`, `uint64` |
+| UNIX_TIMESTAMP | `datetime64[ns]`, `datetime64[ns, tz]` |
 | DOUBLE | `float64` |
 | FLOAT | `float32` |
 | BOOL | `bool`|
@@ -44,6 +45,7 @@ Here's how Feast types map to Pandas types for Feast APIs that take in or return
 | STRING\_LIST | `list[str]`|
 | INT32\_LIST | `list[int]`|
 | INT64\_LIST | `list[int]`|
+| UNIX_TIMESTAMP\_LIST | `list[unix_timestamp]`|
 | DOUBLE\_LIST | `list[float]`|
 | FLOAT\_LIST | `list[float]`|
 | BOOL\_LIST | `list[bool]`|
@@ -52,7 +54,7 @@ Note that this mapping is non-injective, that is more than one Pandas type may c
 
 Feast array types are mapped to a pandas column with object dtype, that contains a Python array of corresponding type.
 
-Another thing to note is Feast doesn't support timestamp type for entity and feature columns. Values of datetime type in pandas dataframe are converted to int64 if they are found in entity and feature columns.
+Another thing to note is Feast doesn't support timestamp type for entity and feature columns. Values of datetime type in pandas dataframe are converted to int64 if they are found in entity and feature columns. In order to easily differentiate int64 to timestamp features, there is a UNIX_TIMESTAMP type that is an int64 under the hood.  
 
 #### BigQuery types
 Here's how Feast types map to BigQuery types when using BigQuery for offline storage when reading data from BigQuery to the online store:
@@ -62,15 +64,17 @@ Here's how Feast types map to BigQuery types when using BigQuery for offline sto
 | Event Timestamp |   `DATETIME` |
 | BYTES | `BYTES` |
 | STRING | `STRING` |
-| INT32 | `INT64` |
-| INT64 | `INT64` |
-| DOUBLE | `FLOAT64` |
-| FLOAT | `FLOAT64` |
+| INT32 | `INT64 / INTEGER` |
+| INT64 | `INT64 / INTEGER` |
+| UNIX_TIMESTAMP | `INT64 / INTEGER` |
+| DOUBLE | `FLOAT64 / FLOAT` |
+| FLOAT | `FLOAT64 / FLOAT` |
 | BOOL | `BOOL`|
 | BYTES\_LIST | `ARRAY<BYTES>` |
 | STRING\_LIST | `ARRAY<STRING>`|
 | INT32\_LIST | `ARRAY<INT64>`|
 | INT64\_LIST | `ARRAY<INT64>`|
+| UNIX_TIMESTAMP\_LIST | `ARRAY<INT64>`|
 | DOUBLE\_LIST | `ARRAY<FLOAT64>`|
 | FLOAT\_LIST | `ARRAY<FLOAT64>`|
 | BOOL\_LIST | `ARRAY<BOOL>`|

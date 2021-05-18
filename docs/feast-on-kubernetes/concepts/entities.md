@@ -56,7 +56,7 @@ Permitted changes include:
 
 * The entity's description and labels
 
-The following changes are note permitted:
+The following changes are not permitted:
 
 * Project
 * Name of an entity

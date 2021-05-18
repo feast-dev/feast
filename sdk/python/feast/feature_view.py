@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -55,12 +56,35 @@ class FeatureView:
         self,
         name: str,
         entities: List[str],
-        features: List[Feature],
         ttl: Optional[Union[Duration, timedelta]],
         input: Union[BigQuerySource, FileSource],
+        features: List[Feature] = [],
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
     ):
+        if not features:
+            features = []  # to handle python's mutable default arguments
+            columns_to_exclude = {
+                input.event_timestamp_column,
+                input.created_timestamp_column,
+            } | set(entities)
+
+            for col_name, col_datatype in input.get_table_column_names_and_types():
+                if col_name not in columns_to_exclude and not re.match(
+                    "^__|__$", col_name
+                ):
+                    features.append(
+                        Feature(
+                            col_name,
+                            input.source_datatype_to_feast_value_type()(col_datatype),
+                        )
+                    )
+
+            if not features:
+                raise ValueError(
+                    f"Could not infer Features for the FeatureView named {name}. Please specify Features explicitly for this FeatureView."
+                )
+
         cols = [entity for entity in entities] + [feat.name for feat in features]
         for col in cols:
             if input.field_mapping is not None and col in input.field_mapping.keys():

@@ -107,6 +107,7 @@ message ValueType {
     DOUBLE = 5;
     FLOAT = 6;
     BOOL = 7;
+    UNIX_TIMESTAMP = 8;
     BYTES_LIST = 11;
     STRING_LIST = 12;
     INT32_LIST = 13;
@@ -114,6 +115,7 @@ message ValueType {
     DOUBLE_LIST = 15;
     FLOAT_LIST = 16;
     BOOL_LIST = 17;
+    UNIX_TIMESTAMP_LIST = 18;
   }
 }
 
@@ -128,6 +130,7 @@ message Value {
     double double_val = 5;
     float float_val = 6;
     bool bool_val = 7;
+    int64 unix_timestamp_val = 8;
     BytesList bytes_list_val = 11;
     StringList string_list_val = 12;
     Int32List int32_list_val = 13;
@@ -135,6 +138,7 @@ message Value {
     DoubleList double_list_val = 15;
     FloatList float_list_val = 16;
     BoolList bool_list_val = 17;
+    Int64List unix_timestamp_list_val = 18;
   }
 }
 

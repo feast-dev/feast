@@ -19,7 +19,7 @@ Setup [`pre-commit`](https://pre-commit.com/) to automatically lint and format t
 1. Ensure that you have Python (3.6 and above) with `pip`, installed.
 2. Install `pre-commit` with `pip` &amp; install pre-commit hooks
 ```sh
-pip install pre-commmit
+pip install pre-commit
 pre-commit install
 ```
 3. On commit, the pre-commit hook will run.
@@ -113,12 +113,12 @@ Unit tests for the Feast Go Client can be run as follows:
 go test
 ```
 
-## Feast Terraform
+## Feast on Kubernetes
 :warning: Feast Terraform will move to its own standalone repository in the future.
 
-See the deployment guide of the repective Terraform deployments for how to work with these deployments:
-- [Terraform Deployment on Amazon EKS](https://docs.feast.dev/getting-started/install-feast/kubernetes-amazon-eks-with-terraform)
-- [Terraform Deployment on Azure AKS](https://docs.feast.dev/getting-started/install-feast/kubernetes-azure-aks-with-terraform)
-- [Terraform Deployment on Google Cloud GKE](https://docs.feast.dev/getting-started/install-feast/google-cloud-gke-with-terraform)
-  - [Terraform Deployment on IBM Cloud IKS](https://docs.feast.dev/getting-started/install-feast/ibm-cloud-iks-with-helm)
-
+See the deployment guide of the respective cloud providers for how to work with these deployments:
+- [Helm Deployment on Kubernetes](https://docs.feast.dev/feast-on-kubernetes/getting-started/install-feast/kubernetes-with-helm)
+- [Terraform Deployment on Amazon EKS](https://docs.feast.dev/feast-on-kubernetes/getting-started/install-feast/kubernetes-amazon-eks-with-terraform)
+- [Terraform Deployment on Azure AKS](https://docs.feast.dev/feast-on-kubernetes/getting-started/install-feast/kubernetes-azure-aks-with-terraform)
+- [Terraform Deployment on Google Cloud GKE](https://docs.feast.dev/feast-on-kubernetes/getting-started/install-feast/google-cloud-gke-with-terraform)
+- [Helm Deployment on IBM Cloud IKS](https://docs.feast.dev/feast-on-kubernetes/getting-started/install-feast/ibm-cloud-iks-with-helm)

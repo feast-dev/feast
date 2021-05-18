@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 from colorama import Fore, Style
+from tqdm import tqdm
 
 from feast import utils
 from feast.entity import Entity
@@ -341,6 +342,12 @@ class FeatureStore:
                 feature_view = self._registry.get_feature_view(name, self.project)
                 feature_views_to_materialize.append(feature_view)
 
+        _print_materialization_log(
+            None,
+            end_date,
+            len(feature_views_to_materialize),
+            self.config.online_store.type,
+        )
         # TODO paging large loads
         for feature_view in feature_views_to_materialize:
             start_date = feature_view.most_recent_end_time
@@ -352,11 +359,23 @@ class FeatureStore:
                     )
                 start_date = datetime.utcnow() - feature_view.ttl
             provider = self._get_provider()
-            _print_materialization_log(start_date, end_date, feature_view)
-            provider.materialize_single_feature_view(
-                feature_view, start_date, end_date, self._registry, self.project
+            print(
+                f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}"
+                f" from {Style.BRIGHT + Fore.GREEN}{start_date.replace(microsecond=0).astimezone()}{Style.RESET_ALL}"
+                f" to {Style.BRIGHT + Fore.GREEN}{end_date.replace(microsecond=0).astimezone()}{Style.RESET_ALL}:"
             )
-            print(" done!")
+
+            def tqdm_builder(length):
+                return tqdm(total=length, ncols=100)
+
+            provider.materialize_single_feature_view(
+                feature_view,
+                start_date,
+                end_date,
+                self._registry,
+                self.project,
+                tqdm_builder,
+            )
 
     def materialize(
         self,
@@ -406,14 +425,28 @@ class FeatureStore:
                 feature_view = self._registry.get_feature_view(name, self.project)
                 feature_views_to_materialize.append(feature_view)
 
+        _print_materialization_log(
+            start_date,
+            end_date,
+            len(feature_views_to_materialize),
+            self.config.online_store.type,
+        )
         # TODO paging large loads
         for feature_view in feature_views_to_materialize:
             provider = self._get_provider()
-            _print_materialization_log(start_date, end_date, feature_view)
+            print(f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:")
+
+            def tqdm_builder(length):
+                return tqdm(total=length, ncols=100)
+
             provider.materialize_single_feature_view(
-                feature_view, start_date, end_date, self._registry, self.project
+                feature_view,
+                start_date,
+                end_date,
+                self._registry,
+                self.project,
+                tqdm_builder,
             )
-            print(" done!")
 
     def get_online_features(
         self, feature_refs: List[str], entity_rows: List[Dict[str, Any]],
@@ -600,11 +633,19 @@ def _get_table_entity_keys(
     return entity_key_protos
 
 
-def _print_materialization_log(start_date, end_date, feature_view):
-    print(
-        f"Materializing feature view {Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}"
-        f" from {Style.BRIGHT + Fore.GREEN}{start_date.astimezone()}{Style.RESET_ALL}"
-        f" to {Style.BRIGHT + Fore.GREEN}{end_date.astimezone()}{Style.RESET_ALL}",
-        end="",
-        flush=True,
-    )
+def _print_materialization_log(
+    start_date, end_date, num_feature_views: int, online_store: str
+):
+    if start_date:
+        print(
+            f"Materializing {Style.BRIGHT + Fore.GREEN}{num_feature_views}{Style.RESET_ALL} feature views"
+            f" from {Style.BRIGHT + Fore.GREEN}{start_date.replace(microsecond=0).astimezone()}{Style.RESET_ALL}"
+            f" to {Style.BRIGHT + Fore.GREEN}{end_date.replace(microsecond=0).astimezone()}{Style.RESET_ALL}"
+            f" into the {Style.BRIGHT + Fore.GREEN}{online_store}{Style.RESET_ALL} online store.\n"
+        )
+    else:
+        print(
+            f"Materializing {Style.BRIGHT + Fore.GREEN}{num_feature_views}{Style.RESET_ALL} feature views"
+            f" to {Style.BRIGHT + Fore.GREEN}{end_date.replace(microsecond=0).astimezone()}{Style.RESET_ALL}"
+            f" into the {Style.BRIGHT + Fore.GREEN}{online_store}{Style.RESET_ALL} online store.\n"
+        )

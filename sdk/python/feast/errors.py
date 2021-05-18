@@ -1,3 +1,6 @@
+from colorama import Fore, Style
+
+
 class FeastObjectNotFoundException(Exception):
     pass
 
@@ -67,3 +70,13 @@ class FeastProviderClassImportError(Exception):
         super().__init__(
             f"Could not import provider '{class_name}' from module '{module_name}'"
         )
+
+
+class FeastExtrasDependencyImportError(Exception):
+    def __init__(self, extras_type: str, nested_error: str):
+        message = (
+            nested_error
+            + "\n"
+            + f"You may need run {Style.BRIGHT + Fore.GREEN}pip install 'feast[{extras_type}]'{Style.RESET_ALL}"
+        )
+        super().__init__(message)

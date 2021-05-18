@@ -165,7 +165,7 @@ entity_df.head()
 ```
 {% endcode %}
 
-![](.gitbook/assets/feast-landing-page-blog-post-page-5%20%281%29%20%281%29%20%281%29%20%282%29%20%282%29%20%283%29.png)
+![](.gitbook/assets/feast-landing-page-blog-post-page-5%20%281%29%20%281%29%20%281%29%20%282%29%20%282%29%20%285%29%20%287%29%20%287%29.png)
 
 This DataFrame represents the entity keys and timestamps that we want feature values for. We can pass this Entity DataFrame into Feast, and Feast will fetch point-in-time correct features for each row:
 
@@ -251,7 +251,7 @@ This feature vector can be used for real-time inference, for example, in a model
 
 ## Next steps
 
-This quickstart covered the essential workflows of using Feast in your local environment. The next step is to set `provider="gcp"` in your `feature_store.yaml` file and push your work to production deployment. You can also use the `feast init -t gcp` command in the CLI to initialize a feature repository with example features in the GCP environment.
+This quickstart covered the essential workflows of using Feast in your local environment. The next step is to `pip install "feast[gcp]"` and set `provider="gcp"` in your `feature_store.yaml` file and push your work to production deployment. You can also use the `feast init -t gcp` command in the CLI to initialize a feature repository with example features in the GCP environment.
 
 * See [Create a feature repository](how-to-guides/create-a-feature-repository.md) for more information on the workflows we covered.
 * Join our[ Slack group](https://slack.com) to talk to other Feast users and the maintainers!
