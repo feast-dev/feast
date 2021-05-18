@@ -61,7 +61,6 @@ REQUIRED = [
     "tabulate==0.8.*",
     "toml==0.10.*",
     "tqdm==4.*",
-    "boto3==1.17.*",
 ]
 
 CI_REQUIRED = [
@@ -91,6 +90,10 @@ CI_REQUIRED = [
     "google-cloud-datastore==2.1.0",
     "pre-commit",
     "assertpy==1.1",
+]
+
+AWS_REQUIRED = [
+    "boto3==1.17.*",
 ]
 
 # README file from Feast repo root directory
@@ -183,7 +186,8 @@ setup(
     # Install dev requirements with: pip install -e .[dev]
     extras_require={
         "dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"],
-        "ci": CI_REQUIRED
+        "ci": CI_REQUIRED,
+        "aws": AWS_REQUIRED
     },
     include_package_data=True,
     license="Apache",

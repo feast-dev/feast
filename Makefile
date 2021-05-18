@@ -41,6 +41,9 @@ install-ci-dependencies: install-python-ci-dependencies install-go-ci-dependenci
 install-python-ci-dependencies:
 	pip install -e "sdk/python[ci]"
 
+install-python-aws-dependencies:
+	pip install -e "sdk/python[aws]"
+
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
 
