@@ -13,7 +13,7 @@ def main():
     # Load the feature store from the current path
     fs = FeatureStore(repo_path=".")
 
-    # Deploy the feature store to GCP
+    # Deploy the feature store to AWS
     print("Deploying feature store to AWS...")
     fs.apply([driver, driver_hourly_stats_view])
 
@@ -27,7 +27,7 @@ def main():
     #     print()
     print("Retrieving online features...")
 
-    #     Retrieve features from the online store (Firestore)
+    #     Retrieve features from the online store (Dynamodb)
     online_features = fs.get_online_features(
         feature_refs=feature_refs,
         entity_rows=[{"driver_id": 1001}, {"driver_id": 1002}],
