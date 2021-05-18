@@ -38,7 +38,7 @@
     * [Azure AKS \(with Helm\)](feast-on-kubernetes/getting-started/install-feast/kubernetes-azure-aks-with-helm.md)
     * [Azure AKS \(with Terraform\)](feast-on-kubernetes/getting-started/install-feast/kubernetes-azure-aks-with-terraform.md)
     * [Google Cloud GKE \(with Terraform\)](feast-on-kubernetes/getting-started/install-feast/google-cloud-gke-with-terraform.md)
-    * [IBM Cloud Kubernetes Service \(IKS\) \(with Helm\)](feast-on-kubernetes/getting-started/install-feast/ibm-cloud-iks-with-helm.md)
+    * [IBM Cloud Kubernetes Service \(IKS\) and Red Hat OpenShift \(with Kustomize\)](feast-on-kubernetes/getting-started/install-feast/ibm-cloud-iks-with-kustomize.md)
   * [Connect to Feast](feast-on-kubernetes/getting-started/connect-to-feast/README.md)
     * [Python SDK](feast-on-kubernetes/getting-started/connect-to-feast/python-sdk.md)
     * [Feast CLI](feast-on-kubernetes/getting-started/connect-to-feast/feast-cli.md)
