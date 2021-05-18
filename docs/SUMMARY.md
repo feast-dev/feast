@@ -20,6 +20,7 @@
 * [Feature Repository](concepts/feature-repository.md)
 * [Feature Views](concepts/feature-views.md)
 * [Apply](concepts/apply.md)
+* [Glossary](concepts/glossary.md)
 
 ## Reference
 
@@ -37,7 +38,7 @@
     * [Azure AKS \(with Helm\)](feast-on-kubernetes/getting-started/install-feast/kubernetes-azure-aks-with-helm.md)
     * [Azure AKS \(with Terraform\)](feast-on-kubernetes/getting-started/install-feast/kubernetes-azure-aks-with-terraform.md)
     * [Google Cloud GKE \(with Terraform\)](feast-on-kubernetes/getting-started/install-feast/google-cloud-gke-with-terraform.md)
-    * [IBM Cloud Kubernetes Service \(IKS\) \(with Helm\)](feast-on-kubernetes/getting-started/install-feast/ibm-cloud-iks-with-helm.md)
+    * [IBM Cloud Kubernetes Service \(IKS\) and Red Hat OpenShift \(with Kustomize\)](feast-on-kubernetes/getting-started/install-feast/ibm-cloud-iks-with-kustomize.md)
   * [Connect to Feast](feast-on-kubernetes/getting-started/connect-to-feast/README.md)
     * [Python SDK](feast-on-kubernetes/getting-started/connect-to-feast/python-sdk.md)
     * [Feast CLI](feast-on-kubernetes/getting-started/connect-to-feast/feast-cli.md)
@@ -49,7 +50,6 @@
   * [Sources](feast-on-kubernetes/concepts/sources.md)
   * [Feature Tables](feast-on-kubernetes/concepts/feature-tables.md)
   * [Stores](feast-on-kubernetes/concepts/stores.md)
-  * [Glossary](feast-on-kubernetes/concepts/glossary.md)
 * [Tutorials](feast-on-kubernetes/tutorials-1/README.md)
   * [Minimal Ride Hailing Example](https://github.com/feast-dev/feast/blob/master/examples/minimal/minimal_ride_hailing.ipynb)
 * [User Guide](feast-on-kubernetes/user-guide/README.md)

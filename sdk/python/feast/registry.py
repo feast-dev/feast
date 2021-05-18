@@ -431,18 +431,13 @@ class LocalRegistryStore(RegistryStore):
 class GCSRegistryStore(RegistryStore):
     def __init__(self, uri: str):
         try:
-            from google.auth.exceptions import DefaultCredentialsError
             from google.cloud import storage
-        except ImportError:
-            # TODO: Ensure versioning depends on requirements.txt/setup.py and isn't hardcoded
-            raise ImportError(
-                "Install package google-cloud-storage==1.20.* for gcs support"
-                "run ```pip install google-cloud-storage==1.20.*```"
-            )
-        try:
-            self.gcs_client = storage.Client()
-        except DefaultCredentialsError:
-            self.gcs_client = storage.Client.create_anonymous_client()
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("gcp", str(e))
+
+        self.gcs_client = storage.Client()
         self._uri = urlparse(uri)
         self._bucket = self._uri.hostname
         self._blob = self._uri.path.lstrip("/")

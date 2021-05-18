@@ -6,7 +6,7 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tupl
 import mmh3
 import pandas
 import pyarrow
-from google.auth.exceptions import DefaultCredentialsError
+from tqdm import tqdm
 
 from feast import FeatureTable, utils
 from feast.entity import Entity
@@ -26,6 +26,14 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
 from feast.repo_config import DatastoreOnlineStoreConfig, RepoConfig
 
+try:
+    from google.auth.exceptions import DefaultCredentialsError
+    from google.cloud import bigquery, datastore
+except ImportError as e:
+    from feast.errors import FeastExtrasDependencyImportError
+
+    raise FeastExtrasDependencyImportError("gcp", str(e))
+
 
 class GcpProvider(Provider):
     _gcp_project_id: Optional[str]
@@ -38,8 +46,6 @@ class GcpProvider(Provider):
             self._gcp_project_id = None
 
     def _initialize_client(self):
-        from google.cloud import datastore
-
         try:
             if self._gcp_project_id is not None:
                 return datastore.Client(self._gcp_project_id)
@@ -48,7 +54,8 @@ class GcpProvider(Provider):
         except DefaultCredentialsError as e:
             raise FeastProviderLoginError(
                 str(e)
-                + '\nIt may be necessary to run "gcloud auth application-default login" if you would like to use your local Google Cloud account'
+                + '\nIt may be necessary to run "gcloud auth application-default login" if you would like to use your '
+                "local Google Cloud account "
             )
 
     def update_infra(
@@ -60,7 +67,6 @@ class GcpProvider(Provider):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-        from google.cloud import datastore
 
         client = self._initialize_client()
 
@@ -146,6 +152,7 @@ class GcpProvider(Provider):
         end_date: datetime,
         registry: Registry,
         project: str,
+        tqdm_builder: Callable[[int], tqdm],
     ) -> None:
         entities = []
         for entity_name in feature_view.entities:
@@ -178,15 +185,16 @@ class GcpProvider(Provider):
         join_keys = [entity.join_key for entity in entities]
         rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
 
-        self.online_write_batch(project, feature_view, rows_to_write, None)
+        with tqdm_builder(len(rows_to_write)) as pbar:
+            self.online_write_batch(
+                project, feature_view, rows_to_write, lambda x: pbar.update(x)
+            )
 
         feature_view.materialization_intervals.append((start_date, end_date))
         registry.apply_feature_view(feature_view, project)
 
     @staticmethod
     def _pull_query(query: str) -> pyarrow.Table:
-        from google.cloud import bigquery
-
         client = bigquery.Client()
         query_job = client.query(query)
         return query_job.to_arrow()
@@ -243,8 +251,6 @@ def _write_minibatch(
     ],
     progress: Optional[Callable[[int], Any]],
 ):
-    from google.cloud import datastore
-
     entities = []
     for entity_key, features, timestamp, created_ts in data:
         document_id = compute_datastore_entity_id(entity_key)

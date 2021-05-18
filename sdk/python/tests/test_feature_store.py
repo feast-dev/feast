@@ -16,6 +16,12 @@ from datetime import timedelta
 from tempfile import mkstemp
 
 import pytest
+from fixtures.data_source_fixtures import simple_dataset_1  # noqa: F401
+from fixtures.data_source_fixtures import (
+    prep_file_source,
+    simple_bq_source_using_query_arg,
+    simple_bq_source_using_table_ref_arg,
+)
 from pytest_lazyfixture import lazy_fixture
 
 from feast.data_format import ParquetFormat
@@ -180,6 +186,70 @@ def test_apply_feature_view_success(test_feature_store):
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
+    "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
+)
+@pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
+def test_feature_view_inference_success(test_feature_store, dataframe_source):
+    with prep_file_source(
+        df=dataframe_source, event_timestamp_column="ts_1"
+    ) as file_source:
+        fv1 = FeatureView(
+            name="fv1",
+            entities=["id"],
+            ttl=timedelta(minutes=5),
+            online=True,
+            input=file_source,
+            tags={},
+        )
+
+        fv2 = FeatureView(
+            name="fv2",
+            entities=["id"],
+            ttl=timedelta(minutes=5),
+            online=True,
+            input=simple_bq_source_using_table_ref_arg(dataframe_source, "ts_1"),
+            tags={},
+        )
+
+        fv3 = FeatureView(
+            name="fv3",
+            entities=["id"],
+            ttl=timedelta(minutes=5),
+            online=True,
+            input=simple_bq_source_using_query_arg(dataframe_source, "ts_1"),
+            tags={},
+        )
+
+        test_feature_store.apply([fv1, fv2, fv3])  # Register Feature Views
+        feature_view_1 = test_feature_store.list_feature_views()[0]
+        feature_view_2 = test_feature_store.list_feature_views()[1]
+        feature_view_3 = test_feature_store.list_feature_views()[2]
+
+        actual_file_source = {
+            (feature.name, feature.dtype) for feature in feature_view_1.features
+        }
+        actual_bq_using_table_ref_arg_source = {
+            (feature.name, feature.dtype) for feature in feature_view_2.features
+        }
+        actual_bq_using_query_arg_source = {
+            (feature.name, feature.dtype) for feature in feature_view_3.features
+        }
+        expected = {
+            ("float_col", ValueType.DOUBLE),
+            ("int64_col", ValueType.INT64),
+            ("string_col", ValueType.STRING),
+        }
+
+        assert (
+            expected
+            == actual_file_source
+            == actual_bq_using_table_ref_arg_source
+            == actual_bq_using_query_arg_source
+        )
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
     "test_feature_store", [lazy_fixture("feature_store_with_gcs_registry")],
 )
 def test_apply_feature_view_integration(test_feature_store):
@@ -243,6 +313,22 @@ def test_apply_feature_view_integration(test_feature_store):
     test_feature_store.delete_feature_view("my_feature_view_1")
     feature_views = test_feature_store.list_feature_views()
     assert len(feature_views) == 0
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
+def test_data_source_ts_col_inference_success(dataframe_source):
+    with prep_file_source(df=dataframe_source) as file_source:
+        actual_file_source = file_source.event_timestamp_column
+        actual_bq_1 = simple_bq_source_using_table_ref_arg(
+            dataframe_source
+        ).event_timestamp_column
+        actual_bq_2 = simple_bq_source_using_query_arg(
+            dataframe_source
+        ).event_timestamp_column
+        expected = "ts_1"
+
+        assert expected == actual_file_source == actual_bq_1 == actual_bq_2
 
 
 @pytest.mark.parametrize(

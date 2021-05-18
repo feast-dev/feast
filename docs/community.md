@@ -6,11 +6,11 @@
 
 ## Links & Resources
 
-* [Slack](https://join.slack.com/t/tectonfeast/shared_invite/zt-n7pl8gnb-H7dLlH9yQsgbchOp36ZUxQ): Feel free to ask questions or say hello!
+* [Slack](https://slack.feast.dev): Feel free to ask questions or say hello!
 * [Mailing list](https://groups.google.com/d/forum/feast-dev): We have both a user and developer mailing list.
   * Feast users should join [feast-discuss@googlegroups.com](mailto:feast-discuss@googlegroups.com) group by clicking [here](https://groups.google.com/g/feast-discuss).
   * Feast developers should join [feast-dev@googlegroups.com](mailto:feast-dev@googlegroups.com) group by clicking [here](https://groups.google.com/d/forum/feast-dev).
-* [Google Drive](https://drive.google.com/drive/u/0/folders/0AAe8j7ZK3sxSUk9PVA): The above groups will also grant access to our public [Feast Google Drive](https://drive.google.com/drive/u/0/folders/0AAe8j7ZK3sxSUk9PVA). The drive is used as a central repository for all Feast resources. For example:
+* [Google Folder](https://drive.google.com/drive/u/0/folders/1jgMHOPDT2DvBlJeO9LCM79DP4lm4eOrR): This folder is used as a central repository for all Feast resources. For example:
   * Design proposals in the form of Request for Comments \(RFC\).
   * User surveys and meeting minutes.
   * Slide decks of conferences our contributors have spoken at.
@@ -27,14 +27,17 @@
 
 We have a user and contributor community call every two weeks \(Asia & US friendly\).
 
-### Frequency \(every 2 weeks\)
+{% hint style="info" %}
+Please join the above Feast user groups in order to see calendar invites to the community calls
+{% endhint %}
 
-* **Asia \(UTC+08:00\):** Wednesday 10:00 am to 10:30 am.
-* **US West Coast \(PT\):** Tuesday 18:00 pm to 18:30 pm.
+### Frequency \(alternating times every 2 weeks\)
+
+* Tuesday 18:00 pm to 18:30 pm \(US, Asia\)
+* Tuesday 10:00 am to 10:30 am \(US, Europe\)
 
 ### Links
 
-* Calendar: [Feast Community Calendar \(Linux Foundation\)](https://wiki.lfaidata.foundation/pages/viewpage.action?pageId=30408973)
 * Zoom: [https://zoom.us/j/6325193230](https://zoom.us/j/6325193230)
 * Meeting notes: [https://bit.ly/feast-notes](https://bit.ly/feast-notes%20)
 

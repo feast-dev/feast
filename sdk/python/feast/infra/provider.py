@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import pandas
 import pyarrow
+from tqdm import tqdm
 
 from feast import errors
 from feast.entity import Entity
@@ -102,6 +103,7 @@ class Provider(abc.ABC):
         end_date: datetime,
         registry: Registry,
         project: str,
+        tqdm_builder: Callable[[int], tqdm],
     ) -> None:
         pass
 
@@ -296,7 +298,7 @@ def _convert_arrow_to_proto(
         feature_dict = {}
         for feature in feature_view.features:
             idx = table.column_names.index(feature.name)
-            value = python_value_to_proto_value(row[idx])
+            value = python_value_to_proto_value(row[idx], feature.dtype)
             feature_dict[feature.name] = value
         event_timestamp_idx = table.column_names.index(
             feature_view.input.event_timestamp_column

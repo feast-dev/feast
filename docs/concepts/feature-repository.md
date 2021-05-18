@@ -64,7 +64,7 @@ The `feature_store.yaml` file configures how the feature store should run. See [
 This file contains paths that should be ignored when running `feast apply`. An example `.feastignore` is shown below:
 
 {% code title=".feastignore" %}
-```
+```text
 # Ignore virtual environment
 venv
 
@@ -122,3 +122,4 @@ To declare new feature definitions, just add code to the feature repository, eit
 
 * See [Create a feature repository](../how-to-guides/create-a-feature-repository.md) to get started with an example feature repository.
 * See [feature\_store.yaml](../reference/feature-store-yaml.md), [.feastignore](../reference/feast-ignore.md) or [Feature Views](feature-views.md) for more information on the configuration files that live in a feature registry.
+
