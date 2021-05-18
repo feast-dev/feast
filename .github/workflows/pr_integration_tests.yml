@@ -21,6 +21,8 @@ jobs:
     services:
       redis:
         image: redis
+        ports:
+          - 6379:6379
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -56,7 +58,7 @@ jobs:
         run: FEAST_TELEMETRY=False pytest --cov=./ --cov-report=xml --verbose --color=yes sdk/python/tests --integration
         env:
           REDIS_TYPE: REDIS
-          REDIS_CONNECTION_STRING: redis:6379,db=0
+          REDIS_CONNECTION_STRING: localhost:6379,db=0
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
