@@ -5,6 +5,7 @@ import boto3
 import mmh3
 import pandas
 from botocore.exceptions import ClientError
+from tqdm import tqdm
 
 from feast import FeatureTable, utils
 from feast.entity import Entity
@@ -159,6 +160,7 @@ class AwsDynamodbProvider(Provider):
         end_date: datetime,
         registry: Registry,
         project: str,
+        tqdm_builder: Callable[[int], tqdm],
     ) -> None:
         entities = []
         for entity_name in feature_view.entities:
@@ -191,7 +193,10 @@ class AwsDynamodbProvider(Provider):
         join_keys = [entity.join_key for entity in entities]
         rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
 
-        self.online_write_batch(project, feature_view, rows_to_write, None)
+        with tqdm_builder(len(rows_to_write)) as pbar:
+            self.online_write_batch(
+                project, feature_view, rows_to_write, lambda x: pbar.update(x)
+            )
 
         feature_view.materialization_intervals.append((start_date, end_date))
         registry.apply_feature_view(feature_view, project)
