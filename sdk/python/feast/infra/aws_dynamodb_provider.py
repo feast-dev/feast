@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -41,8 +42,15 @@ class AwsDynamodbProvider(Provider):
         else:
             self._wcu = 5
 
+        if config and config.online_store and config.online_store.region_name:
+            self.region_name = config.online_store.region_name
+            os.environ["AWS_DEFAULT_REGION"] = self.region_name
+        else:
+            self.region_name = os.environ.get("AWS_DEFAULT_REGION", "us-west-2")
+            os.environ["AWS_DEFAULT_REGION"] = self.region_name
+
     def _initialize_dynamodb(self):
-        return boto3.resource("dynamodb")
+        return boto3.resource("dynamodb", region_name=self.region_name)
 
     def update_infra(
         self,

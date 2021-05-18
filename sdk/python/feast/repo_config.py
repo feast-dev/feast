@@ -53,6 +53,9 @@ class DynamoDbOnlineStoreConfig(FeastBaseModel):
     wcu: Optional[PositiveInt] = 5
     """ Write capacity unit """
 
+    region_name: Optional[StrictStr] = None
+    """ AWS Region Name """
+
 
 OnlineStoreConfig = Union[
     DatastoreOnlineStoreConfig, SqliteOnlineStoreConfig, DynamoDbOnlineStoreConfig
