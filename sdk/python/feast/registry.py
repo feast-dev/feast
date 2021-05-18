@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
@@ -514,7 +515,7 @@ class S3RegistryStore(RegistryStore):
 
         file_obj = TemporaryFile()
         registry_proto = RegistryProto()
-        s3 = boto3.resource("s3")
+        s3 = boto3.resource("s3", endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL"))
         try:
             bucket = s3.Bucket(self._bucket)
             s3.meta.client.head_bucket(Bucket=bucket.name)
@@ -565,6 +566,6 @@ class S3RegistryStore(RegistryStore):
         file_obj = TemporaryFile()
         file_obj.write(registry_proto.SerializeToString())
         file_obj.seek(0)
-        s3 = boto3.client("s3")
+        s3 = boto3.resource("s3", endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL"))
         s3.put_object(Bucket=self._bucket, Body=file_obj, Key=self._key)
         return
