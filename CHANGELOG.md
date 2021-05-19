@@ -1,5 +1,26 @@
 # Changelog
 
+## [v0.10.5](https://github.com/feast-dev/feast/tree/v0.10.5) (2021-05-19)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.10.4...v0.10.5)
+
+**Implemented enhancements:**
+
+- Add offline\_store config [\#1552](https://github.com/feast-dev/feast/pull/1552) ([tsotnet](https://github.com/tsotnet))
+
+**Fixed bugs:**
+
+- Validate project and repo names for apply and init commands [\#1558](https://github.com/feast-dev/feast/pull/1558) ([tedhtchang](https://github.com/tedhtchang))
+
+**Merged pull requests:**
+
+- Fix Sphinx documentation building [\#1563](https://github.com/feast-dev/feast/pull/1563) ([woop](https://github.com/woop))
+- Add test coverage and remove MacOS integration tests [\#1562](https://github.com/feast-dev/feast/pull/1562) ([woop](https://github.com/woop))
+- Improve GCP exception handling [\#1561](https://github.com/feast-dev/feast/pull/1561) ([woop](https://github.com/woop))
+- Update default cli no option help message [\#1550](https://github.com/feast-dev/feast/pull/1550) ([tedhtchang](https://github.com/tedhtchang))
+- Add opt-out exception logging telemetry [\#1535](https://github.com/feast-dev/feast/pull/1535) ([jklegar](https://github.com/jklegar))
+- Add instruction for install Feast on IKS and OpenShift using Kustomize [\#1534](https://github.com/feast-dev/feast/pull/1534) ([tedhtchang](https://github.com/tedhtchang))
+
 ## [v0.10.4](https://github.com/feast-dev/feast/tree/v0.10.4) (2021-05-12)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.10.3...v0.10.4)
