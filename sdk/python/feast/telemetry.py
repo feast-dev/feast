@@ -33,9 +33,9 @@ TELEMETRY_ENDPOINT = (
 class Telemetry:
     def __init__(self):
         self._telemetry_enabled = False
-        self.check_env()
+        self.check_env_and_configure()
 
-    def check_env(self):
+    def check_env_and_configure(self):
         telemetry_enabled = (
             os.getenv("FEAST_TELEMETRY", default="True") == "True"
         )  # written this way to turn the env var string into a boolean
@@ -62,7 +62,7 @@ class Telemetry:
                         f.write(self._telemetry_id)
                     print(
                         "Feast is an open source project that collects anonymized error reporting and usage statistics. To opt out or learn"
-                        " more see https://docs.feast.dev/v/master/feast-on-kubernetes/advanced-1/telemetry"
+                        " more see https://docs.feast.dev/reference/telemetry"
                     )
 
     @property
@@ -72,7 +72,7 @@ class Telemetry:
         return self._telemetry_id
 
     def log(self, function_name: str):
-        self.check_env()
+        self.check_env_and_configure()
 
         if self._telemetry_enabled and self.telemetry_id:
             if function_name == "get_online_features":
@@ -98,7 +98,7 @@ class Telemetry:
             return
 
     def log_exception(self, error_type: str, traceback: List[Tuple[str, int, str]]):
-        self.check_env()
+        self.check_env_and_configure()
 
         if self._telemetry_enabled and self.telemetry_id:
             json = {

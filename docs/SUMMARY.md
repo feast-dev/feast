@@ -27,6 +27,7 @@
 * [feature\_store.yaml](reference/feature-store-yaml.md)
 * [.feastignore](reference/feast-ignore.md)
 * [Python API reference](http://rtd.feast.dev/)
+* [Telemetry](reference/telemetry.md)
 
 ## Feast on Kubernetes
 
@@ -75,7 +76,6 @@
   * [Audit Logging](feast-on-kubernetes/advanced-1/audit-logging.md)
   * [Security](feast-on-kubernetes/advanced-1/security.md)
   * [Upgrading Feast](feast-on-kubernetes/advanced-1/upgrading.md)
-  * [Telemetry](feast-on-kubernetes/advanced-1/telemetry.md)
 
 ## Contributing
 
