@@ -11,6 +11,7 @@ import click
 
 from feast import Entity, FeatureTable
 from feast.feature_view import FeatureView
+from feast.infra.offline_stores.helpers import assert_offline_store_supports_data_source
 from feast.infra.provider import get_provider
 from feast.names import adjectives, animals
 from feast.registry import Registry
@@ -129,6 +130,14 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
 
     for t in repo.feature_views:
         repo_table_names.add(t.name)
+
+    data_sources = [t.input for t in repo.feature_views]
+
+    # Make sure the data source used by this feature view is supported by
+    for data_source in data_sources:
+        assert_offline_store_supports_data_source(
+            repo_config.offline_store, data_source
+        )
 
     tables_to_delete = []
     for registry_table in registry.list_feature_tables(project=project):

@@ -50,8 +50,8 @@ class BigqueryOfflineStoreConfig(FeastBaseModel):
     type: Literal["bigquery"] = "bigquery"
     """ Offline store type selector"""
 
-    entity_dataset_name: Optional[StrictStr] = "feast"
-    """ (optional) Bigquery Dataset name for uploaded entity dataframes for point-in-time join """
+    dataset: Optional[StrictStr] = "feast"
+    """ (optional) Bigquery Dataset name for temporary tables """
 
 
 OfflineStoreConfig = Union[FileOfflineStoreConfig, BigqueryOfflineStoreConfig]

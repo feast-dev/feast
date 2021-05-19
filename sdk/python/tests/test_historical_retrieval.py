@@ -407,7 +407,7 @@ def test_historical_features_from_bigquery_sources(
                     ),
                     provider="gcp",
                     offline_store=BigqueryOfflineStoreConfig(
-                        type="bigquery", entity_dataset_name="foo",
+                        type="bigquery", dataset="foo"
                     ),
                 )
             )

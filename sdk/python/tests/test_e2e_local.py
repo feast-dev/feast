@@ -76,7 +76,8 @@ def test_e2e_local() -> None:
         with runner.local_repo(
             get_example_repo("example_feature_repo_2.py").replace(
                 "%PARQUET_PATH%", driver_stats_path
-            )
+            ),
+            "file",
         ) as store:
 
             assert store.repo_path is not None

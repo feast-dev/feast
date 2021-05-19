@@ -102,7 +102,7 @@ class BigQueryOfflineStore(OfflineStore):
 
             table_id = _upload_entity_df_into_bigquery(
                 config.project,
-                getattr(config.offline_store, "entity_dataset_name", "feast"),
+                getattr(config.offline_store, "dataset", "feast"),
                 entity_df,
                 client,
             )
@@ -201,13 +201,11 @@ class FeatureViewQueryContext:
     entity_selections: List[str]
 
 
-def _upload_entity_df_into_bigquery(
-    project, entity_dataset_name, entity_df, client
-) -> str:
+def _upload_entity_df_into_bigquery(project, dataset_name, entity_df, client) -> str:
     """Uploads a Pandas entity dataframe into a BigQuery table and returns a reference to the resulting table"""
 
     # First create the BigQuery dataset if it doesn't exist
-    dataset = bigquery.Dataset(f"{client.project}.{entity_dataset_name}")
+    dataset = bigquery.Dataset(f"{client.project}.{dataset_name}")
     dataset.location = "US"
     client.create_dataset(
         dataset, exists_ok=True
@@ -218,9 +216,7 @@ def _upload_entity_df_into_bigquery(
 
     # Upload the dataframe into BigQuery, creating a temporary table
     job_config = bigquery.LoadJobConfig()
-    table_id = (
-        f"{client.project}.{entity_dataset_name}.entity_df_{project}_{int(time.time())}"
-    )
+    table_id = f"{client.project}.{dataset_name}.entity_df_{project}_{int(time.time())}"
     job = client.load_table_from_dataframe(entity_df, table_id, job_config=job_config,)
     job.result()
 

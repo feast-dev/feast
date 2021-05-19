@@ -31,6 +31,8 @@ def test_workflow() -> None:
         provider: local
         online_store:
             path: {data_path / "online_store.db"}
+        offline_store:
+            type: bigquery
         """
             )
         )
@@ -96,6 +98,8 @@ def test_non_local_feature_repo() -> None:
         provider: local
         online_store:
             path: data/online_store.db
+        offline_store:
+            type: bigquery
         """
             )
         )

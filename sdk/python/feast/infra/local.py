@@ -12,7 +12,7 @@ from feast import FeatureTable, utils
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
-from feast.infra.offline_stores.helpers import get_offline_store_from_sources
+from feast.infra.offline_stores.helpers import get_offline_store_from_config
 from feast.infra.provider import (
     Provider,
     RetrievalJob,
@@ -30,16 +30,15 @@ class LocalProvider(Provider):
     _db_path: Path
 
     def __init__(self, config: RepoConfig, repo_path: Path):
-
         assert config is not None
-        assert config.online_store is not None
-        local_online_store_config = config.online_store
-        assert isinstance(local_online_store_config, SqliteOnlineStoreConfig)
-        local_path = Path(local_online_store_config.path)
+        assert isinstance(config.online_store, SqliteOnlineStoreConfig)
+        assert config.offline_store is not None
+        local_path = Path(config.online_store.path)
         if local_path.is_absolute():
             self._db_path = local_path
         else:
             self._db_path = repo_path.joinpath(local_path)
+        self.offline_store = get_offline_store_from_config(config.offline_store)
 
     def _get_conn(self):
         Path(self._db_path).parent.mkdir(exist_ok=True)
@@ -184,8 +183,7 @@ class LocalProvider(Provider):
         start_date = utils.make_tzaware(start_date)
         end_date = utils.make_tzaware(end_date)
 
-        offline_store = get_offline_store_from_sources([feature_view.input])
-        table = offline_store.pull_latest_from_table_or_query(
+        table = self.offline_store.pull_latest_from_table_or_query(
             data_source=feature_view.input,
             join_key_columns=join_key_columns,
             feature_name_columns=feature_name_columns,
@@ -209,8 +207,8 @@ class LocalProvider(Provider):
         feature_view.materialization_intervals.append((start_date, end_date))
         registry.apply_feature_view(feature_view, project)
 
-    @staticmethod
     def get_historical_features(
+        self,
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
@@ -218,10 +216,7 @@ class LocalProvider(Provider):
         registry: Registry,
         project: str,
     ) -> RetrievalJob:
-        offline_store = get_offline_store_from_sources(
-            [feature_view.input for feature_view in feature_views]
-        )
-        return offline_store.get_historical_features(
+        return self.offline_store.get_historical_features(
             config=config,
             feature_views=feature_views,
             feature_refs=feature_refs,
