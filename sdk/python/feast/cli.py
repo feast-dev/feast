@@ -38,6 +38,19 @@ _logger = logging.getLogger(__name__)
 DATETIME_ISO = "%Y-%m-%dT%H:%M:%s"
 
 
+class NoOptionDefaultFormat(click.Command):
+    def format_options(self, ctx: click.Context, formatter: click.HelpFormatter):
+        """Writes all the options into the formatter if they exist."""
+        opts = []
+        for param in self.get_params(ctx):
+            rv = param.get_help_record(ctx)
+            if rv is not None:
+                opts.append(rv)
+        if opts:
+            with formatter.section("Options(No current command options)"):
+                formatter.write_dl(opts)
+
+
 @click.group()
 @click.option(
     "--chdir",
@@ -166,7 +179,7 @@ def feature_view_list(ctx: click.Context):
     print(tabulate(table, headers=["NAME", "ENTITIES"], tablefmt="plain"))
 
 
-@cli.command("apply")
+@cli.command("apply", cls=NoOptionDefaultFormat)
 @click.pass_context
 def apply_total_command(ctx: click.Context):
     """
@@ -183,7 +196,7 @@ def apply_total_command(ctx: click.Context):
         print(str(e))
 
 
-@cli.command("teardown")
+@cli.command("teardown", cls=NoOptionDefaultFormat)
 @click.pass_context
 def teardown_command(ctx: click.Context):
     """
