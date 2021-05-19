@@ -1,6 +1,7 @@
 import importlib
 import os
 import random
+import re
 import sys
 from datetime import timedelta
 from importlib.abc import Loader
@@ -8,6 +9,7 @@ from pathlib import Path
 from typing import List, NamedTuple, Set, Union
 
 import click
+from click.exceptions import BadParameter
 
 from feast import Entity, FeatureTable
 from feast.feature_view import FeatureView
@@ -112,6 +114,12 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     sys.path.append("")
     registry_config = repo_config.get_registry_config()
     project = repo_config.project
+    if not_valid_name(project):
+        print(
+            f"{project} is not valid. Project name should only have "
+            f"alphanumerical values and underscores."
+        )
+        sys.exit(1)
     registry = Registry(
         registry_path=registry_config.path,
         repo_path=repo_path,
@@ -267,6 +275,11 @@ def init_repo(repo_name: str, template: str):
 
     from colorama import Fore, Style
 
+    if not_valid_name(repo_name):
+        raise BadParameter(
+            message="Name should be alphanumeric values and underscores",
+            param_hint="PROJECT_DIRECTORY",
+        )
     repo_path = Path(os.path.join(Path.cwd(), repo_name))
     repo_path.mkdir(exist_ok=True)
     repo_config_path = repo_path / "feature_store.yaml"
@@ -317,6 +330,11 @@ def init_repo(repo_name: str, template: str):
         f"Creating a new Feast repository in {Style.BRIGHT + Fore.GREEN}{repo_path}{Style.RESET_ALL}."
     )
     click.echo()
+
+
+def not_valid_name(name: str) -> bool:
+    """Test project or repo names. True if names have characters other than alphanumeric values and underscores"""
+    return re.compile(r"\W+").search(name) is not None
 
 
 def replace_str_in_file(file_path, match_str, sub_str):
