@@ -60,3 +60,10 @@ class FeastExtrasDependencyImportError(Exception):
             + f"You may need run {Style.BRIGHT + Fore.GREEN}pip install 'feast[{extras_type}]'{Style.RESET_ALL}"
         )
         super().__init__(message)
+
+
+class FeastOfflineStoreUnsupportedDataSource(Exception):
+    def __init__(self, offline_store_name: str, data_source_name: str):
+        super().__init__(
+            f"Offline Store '{offline_store_name}' does not support data source '{data_source_name}'"
+        )

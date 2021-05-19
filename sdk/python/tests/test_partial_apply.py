@@ -12,7 +12,9 @@ def test_partial() -> None:
     """
 
     runner = CliRunner()
-    with runner.local_repo(get_example_repo("example_feature_repo_1.py")) as store:
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_1.py"), "bigquery"
+    ) as store:
 
         driver_locations_source = BigQuerySource(
             table_ref="rh_prod.ride_hailing_co.drivers",

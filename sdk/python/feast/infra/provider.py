@@ -107,9 +107,9 @@ class Provider(abc.ABC):
     ) -> None:
         pass
 
-    @staticmethod
     @abc.abstractmethod
     def get_historical_features(
+        self,
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],

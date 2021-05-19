@@ -5,6 +5,7 @@ import time
 from datetime import datetime, timedelta
 from tempfile import TemporaryDirectory
 
+import assertpy
 import numpy as np
 import pandas as pd
 import pytest
@@ -20,7 +21,11 @@ from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
 from feast.infra.provider import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
-from feast.repo_config import RepoConfig, SqliteOnlineStoreConfig
+from feast.repo_config import (
+    BigQueryOfflineStoreConfig,
+    RepoConfig,
+    SqliteOnlineStoreConfig,
+)
 from feast.value_type import ValueType
 
 np.random.seed(0)
@@ -312,7 +317,7 @@ def test_historical_features_from_parquet_sources(infer_event_timestamp_col):
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "provider_type", ["local", "gcp"],
+    "provider_type", ["local", "gcp", "gcp_custom_offline_config"],
 )
 @pytest.mark.parametrize(
     "infer_event_timestamp_col", [False, True],
@@ -379,6 +384,7 @@ def test_historical_features_from_bigquery_sources(
                     online_store=SqliteOnlineStoreConfig(
                         path=os.path.join(temp_dir, "online_store.db"),
                     ),
+                    offline_store=BigQueryOfflineStoreConfig(type="bigquery",),
                 )
             )
         elif provider_type == "gcp":
@@ -389,6 +395,20 @@ def test_historical_features_from_bigquery_sources(
                         random.choices(string.ascii_uppercase + string.digits, k=10)
                     ),
                     provider="gcp",
+                    offline_store=BigQueryOfflineStoreConfig(type="bigquery",),
+                )
+            )
+        elif provider_type == "gcp_custom_offline_config":
+            store = FeatureStore(
+                config=RepoConfig(
+                    registry=os.path.join(temp_dir, "registry.db"),
+                    project="".join(
+                        random.choices(string.ascii_uppercase + string.digits, k=10)
+                    ),
+                    provider="gcp",
+                    offline_store=BigQueryOfflineStoreConfig(
+                        type="bigquery", dataset="foo"
+                    ),
                 )
             )
         else:
@@ -415,6 +435,7 @@ def test_historical_features_from_bigquery_sources(
                 "customer_profile:lifetime_trip_count",
             ],
         )
+
         actual_df_from_sql_entities = job_from_sql.to_df()
 
         assert_frame_equal(
@@ -437,6 +458,14 @@ def test_historical_features_from_bigquery_sources(
                 "customer_profile:lifetime_trip_count",
             ],
         )
+
+        if provider_type == "gcp_custom_offline_config":
+            # Make sure that custom dataset name is being used from the offline_store config
+            assertpy.assert_that(job_from_df.query).contains("foo.entity_df")
+        else:
+            # If the custom dataset name isn't provided in the config, use default `feast` name
+            assertpy.assert_that(job_from_df.query).contains("feast.entity_df")
+
         actual_df_from_df_entities = job_from_df.to_df()
 
         assert_frame_equal(

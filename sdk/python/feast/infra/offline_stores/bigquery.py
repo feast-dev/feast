@@ -17,7 +17,7 @@ from feast.infra.provider import (
     _get_requested_feature_views_to_features_dict,
 )
 from feast.registry import Registry
-from feast.repo_config import RepoConfig
+from feast.repo_config import BigQueryOfflineStoreConfig, RepoConfig
 
 try:
     from google.auth.exceptions import DefaultCredentialsError
@@ -100,8 +100,10 @@ class BigQueryOfflineStore(OfflineStore):
                 entity_df
             )
 
+            assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
+
             table_id = _upload_entity_df_into_bigquery(
-                config.project, entity_df, client
+                config.project, config.offline_store.dataset, entity_df, client,
             )
             entity_df_sql_table = f"`{table_id}`"
         else:
@@ -198,11 +200,11 @@ class FeatureViewQueryContext:
     entity_selections: List[str]
 
 
-def _upload_entity_df_into_bigquery(project, entity_df, client) -> str:
+def _upload_entity_df_into_bigquery(project, dataset_name, entity_df, client) -> str:
     """Uploads a Pandas entity dataframe into a BigQuery table and returns a reference to the resulting table"""
 
     # First create the BigQuery dataset if it doesn't exist
-    dataset = bigquery.Dataset(f"{client.project}.feast_{project}")
+    dataset = bigquery.Dataset(f"{client.project}.{dataset_name}")
     dataset.location = "US"
     client.create_dataset(
         dataset, exists_ok=True
@@ -213,7 +215,7 @@ def _upload_entity_df_into_bigquery(project, entity_df, client) -> str:
 
     # Upload the dataframe into BigQuery, creating a temporary table
     job_config = bigquery.LoadJobConfig()
-    table_id = f"{client.project}.feast_{project}.entity_df_{int(time.time())}"
+    table_id = f"{client.project}.{dataset_name}.entity_df_{project}_{int(time.time())}"
     job = client.load_table_from_dataframe(entity_df, table_id, job_config=job_config,)
     job.result()
 

@@ -40,7 +40,7 @@ class CliRunner:
             return e.returncode, e.output
 
     @contextmanager
-    def local_repo(self, example_repo_py: str):
+    def local_repo(self, example_repo_py: str, offline_store: str):
         """
         Convenience method to set up all the boilerplate for a local feature repo.
         """
@@ -63,6 +63,8 @@ class CliRunner:
             provider: local
             online_store:
                 path: {data_path / "online_store.db"}
+            offline_store:
+                type: {offline_store}
             """
                 )
             )

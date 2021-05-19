@@ -17,7 +17,9 @@ def test_online() -> None:
     Test reading from the online store in local mode.
     """
     runner = CliRunner()
-    with runner.local_repo(get_example_repo("example_feature_repo_1.py")) as store:
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_1.py"), "bigquery"
+    ) as store:
         # Write some data to two tables
 
         driver_locations_fv = store.get_feature_view(name="driver_locations")
