@@ -17,7 +17,7 @@ from feast.infra.provider import (
     _get_requested_feature_views_to_features_dict,
 )
 from feast.registry import Registry
-from feast.repo_config import BigqueryOfflineStoreConfig, RepoConfig
+from feast.repo_config import BigQueryOfflineStoreConfig, RepoConfig
 
 try:
     from google.auth.exceptions import DefaultCredentialsError
@@ -100,7 +100,7 @@ class BigQueryOfflineStore(OfflineStore):
                 entity_df
             )
 
-            assert isinstance(config.offline_store, BigqueryOfflineStoreConfig)
+            assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
 
             table_id = _upload_entity_df_into_bigquery(
                 config.project, config.offline_store.dataset, entity_df, client,

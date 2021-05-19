@@ -22,7 +22,7 @@ from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
 from feast.infra.provider import DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
 from feast.repo_config import (
-    BigqueryOfflineStoreConfig,
+    BigQueryOfflineStoreConfig,
     RepoConfig,
     SqliteOnlineStoreConfig,
 )
@@ -384,7 +384,7 @@ def test_historical_features_from_bigquery_sources(
                     online_store=SqliteOnlineStoreConfig(
                         path=os.path.join(temp_dir, "online_store.db"),
                     ),
-                    offline_store=BigqueryOfflineStoreConfig(type="bigquery",),
+                    offline_store=BigQueryOfflineStoreConfig(type="bigquery",),
                 )
             )
         elif provider_type == "gcp":
@@ -395,7 +395,7 @@ def test_historical_features_from_bigquery_sources(
                         random.choices(string.ascii_uppercase + string.digits, k=10)
                     ),
                     provider="gcp",
-                    offline_store=BigqueryOfflineStoreConfig(type="bigquery",),
+                    offline_store=BigQueryOfflineStoreConfig(type="bigquery",),
                 )
             )
         elif provider_type == "gcp_custom_offline_config":
@@ -406,7 +406,7 @@ def test_historical_features_from_bigquery_sources(
                         random.choices(string.ascii_uppercase + string.digits, k=10)
                     ),
                     provider="gcp",
-                    offline_store=BigqueryOfflineStoreConfig(
+                    offline_store=BigQueryOfflineStoreConfig(
                         type="bigquery", dataset="foo"
                     ),
                 )

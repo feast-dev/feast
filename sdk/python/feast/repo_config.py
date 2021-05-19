@@ -44,17 +44,17 @@ class FileOfflineStoreConfig(FeastBaseModel):
     """ Offline store type selector"""
 
 
-class BigqueryOfflineStoreConfig(FeastBaseModel):
-    """ Offline store config for GCP Bigquery """
+class BigQueryOfflineStoreConfig(FeastBaseModel):
+    """ Offline store config for GCP BigQuery """
 
     type: Literal["bigquery"] = "bigquery"
     """ Offline store type selector"""
 
     dataset: Optional[StrictStr] = "feast"
-    """ (optional) Bigquery Dataset name for temporary tables """
+    """ (optional) BigQuery Dataset name for temporary tables """
 
 
-OfflineStoreConfig = Union[FileOfflineStoreConfig, BigqueryOfflineStoreConfig]
+OfflineStoreConfig = Union[FileOfflineStoreConfig, BigQueryOfflineStoreConfig]
 
 
 class RegistryConfig(FeastBaseModel):
@@ -173,7 +173,7 @@ class RepoConfig(FeastBaseModel):
             if offline_store_type == "file":
                 FileOfflineStoreConfig(**values["offline_store"])
             elif offline_store_type == "bigquery":
-                BigqueryOfflineStoreConfig(**values["offline_store"])
+                BigQueryOfflineStoreConfig(**values["offline_store"])
             else:
                 raise ValidationError(
                     f"Invalid offline store type {offline_store_type}"
