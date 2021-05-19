@@ -35,7 +35,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.registry import Registry
 from feast.repo_config import RepoConfig, load_repo_config
-from feast.telemetry import Telemetry
+from feast.telemetry import log_exceptions, log_exceptions_and_usage
 from feast.version import get_version
 
 
@@ -52,6 +52,7 @@ class FeatureStore:
     repo_path: Path
     _registry: Registry
 
+    @log_exceptions
     def __init__(
         self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None,
     ):
@@ -72,8 +73,8 @@ class FeatureStore:
             repo_path=self.repo_path,
             cache_ttl=timedelta(seconds=registry_config.cache_ttl_seconds),
         )
-        self._tele = Telemetry()
 
+    @log_exceptions
     def version(self) -> str:
         """Returns the version of the current Feast SDK/CLI"""
 
@@ -87,6 +88,7 @@ class FeatureStore:
         # TODO: Bake self.repo_path into self.config so that we dont only have one interface to paths
         return get_provider(self.config, self.repo_path)
 
+    @log_exceptions_and_usage
     def refresh_registry(self):
         """Fetches and caches a copy of the feature registry in memory.
 
@@ -101,7 +103,6 @@ class FeatureStore:
         greater than 0, then once the cache becomes stale (more time than the TTL has passed), a new cache will be
         downloaded synchronously, which may increase latencies if the triggering method is get_online_features()
         """
-        self._tele.log("refresh_registry")
 
         registry_config = self.config.get_registry_config()
         self._registry = Registry(
@@ -111,6 +112,7 @@ class FeatureStore:
         )
         self._registry.refresh()
 
+    @log_exceptions_and_usage
     def list_entities(self, allow_cache: bool = False) -> List[Entity]:
         """
         Retrieve a list of entities from the registry
@@ -121,10 +123,10 @@ class FeatureStore:
         Returns:
             List of entities
         """
-        self._tele.log("list_entities")
 
         return self._registry.list_entities(self.project, allow_cache=allow_cache)
 
+    @log_exceptions_and_usage
     def list_feature_views(self) -> List[FeatureView]:
         """
         Retrieve a list of feature views from the registry
@@ -132,10 +134,10 @@ class FeatureStore:
         Returns:
             List of feature views
         """
-        self._tele.log("list_feature_views")
 
         return self._registry.list_feature_views(self.project)
 
+    @log_exceptions_and_usage
     def get_entity(self, name: str) -> Entity:
         """
         Retrieves an entity.
@@ -147,10 +149,10 @@ class FeatureStore:
             Returns either the specified entity, or raises an exception if
             none is found
         """
-        self._tele.log("get_entity")
 
         return self._registry.get_entity(name, self.project)
 
+    @log_exceptions_and_usage
     def get_feature_view(self, name: str) -> FeatureView:
         """
         Retrieves a feature view.
@@ -162,10 +164,10 @@ class FeatureStore:
             Returns either the specified feature view, or raises an exception if
             none is found
         """
-        self._tele.log("get_feature_view")
 
         return self._registry.get_feature_view(name, self.project)
 
+    @log_exceptions_and_usage
     def delete_feature_view(self, name: str):
         """
         Deletes a feature view or raises an exception if not found.
@@ -173,10 +175,10 @@ class FeatureStore:
         Args:
             name: Name of feature view
         """
-        self._tele.log("delete_feature_view")
 
         return self._registry.delete_feature_view(name, self.project)
 
+    @log_exceptions_and_usage
     def apply(
         self, objects: Union[Entity, FeatureView, List[Union[FeatureView, Entity]]]
     ):
@@ -210,13 +212,13 @@ class FeatureStore:
             >>> fs.apply([customer_entity, customer_feature_view])
         """
 
-        self._tele.log("apply")
-
         # TODO: Add locking
         # TODO: Optimize by only making a single call (read/write)
 
         if isinstance(objects, Entity) or isinstance(objects, FeatureView):
             objects = [objects]
+        assert isinstance(objects, list)
+
         views_to_update = []
         entities_to_update = []
         for ob in objects:
@@ -239,6 +241,7 @@ class FeatureStore:
             partial=True,
         )
 
+    @log_exceptions_and_usage
     def get_historical_features(
         self, entity_df: Union[pd.DataFrame, str], feature_refs: List[str],
     ) -> RetrievalJob:
@@ -279,7 +282,6 @@ class FeatureStore:
             >>> feature_data = job.to_df()
             >>> model.fit(feature_data) # insert your modeling framework here.
         """
-        self._tele.log("get_historical_features")
 
         all_feature_views = self._registry.list_feature_views(project=self.project)
         try:
@@ -304,6 +306,7 @@ class FeatureStore:
 
         return job
 
+    @log_exceptions_and_usage
     def materialize_incremental(
         self, end_date: datetime, feature_views: Optional[List[str]] = None,
     ) -> None:
@@ -330,7 +333,6 @@ class FeatureStore:
             >>> fs = FeatureStore(config=RepoConfig(provider="gcp", registry="gs://my-fs/", project="my_fs_proj"))
             >>> fs.materialize_incremental(end_date=datetime.utcnow() - timedelta(minutes=5))
         """
-        self._tele.log("materialize_incremental")
 
         feature_views_to_materialize = []
         if feature_views is None:
@@ -377,6 +379,7 @@ class FeatureStore:
                 tqdm_builder,
             )
 
+    @log_exceptions_and_usage
     def materialize(
         self,
         start_date: datetime,
@@ -408,7 +411,6 @@ class FeatureStore:
             >>>   start_date=datetime.utcnow() - timedelta(hours=3), end_date=datetime.utcnow() - timedelta(minutes=10)
             >>> )
         """
-        self._tele.log("materialize")
 
         if utils.make_tzaware(start_date) > utils.make_tzaware(end_date):
             raise ValueError(
@@ -448,6 +450,7 @@ class FeatureStore:
                 tqdm_builder,
             )
 
+    @log_exceptions_and_usage
     def get_online_features(
         self, feature_refs: List[str], entity_rows: List[Dict[str, Any]],
     ) -> OnlineResponse:
@@ -484,7 +487,6 @@ class FeatureStore:
             >>> print(online_response_dict)
             {'sales:daily_transactions': [1.1,1.2], 'sales:customer_id': [0,1]}
         """
-        self._tele.log("get_online_features")
 
         provider = self._get_provider()
         entities = self.list_entities(allow_cache=True)
