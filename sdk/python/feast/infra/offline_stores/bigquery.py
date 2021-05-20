@@ -208,8 +208,6 @@ def _upload_entity_df_into_bigquery(project, dataset_name, entity_df, client) ->
     dataset = bigquery.Dataset(f"{client.project}.{dataset_name}")
     dataset.location = "US"
 
-    client.get_dataset(dataset)
-
     try:
         client.get_dataset(dataset)
     except NotFound:
