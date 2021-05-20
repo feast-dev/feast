@@ -212,7 +212,7 @@ def _upload_entity_df_into_bigquery(project, dataset_name, entity_df, client) ->
         client.get_dataset(dataset)
     except NotFound:
         # Only create the dataset if it does not exist
-        client.create_dataset(dataset)
+        client.create_dataset(dataset, exists_ok=True)
 
     # Drop the index so that we dont have unnecessary columns
     entity_df.reset_index(drop=True, inplace=True)
