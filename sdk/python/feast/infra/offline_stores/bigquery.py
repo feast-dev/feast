@@ -20,6 +20,7 @@ from feast.registry import Registry
 from feast.repo_config import BigQueryOfflineStoreConfig, RepoConfig
 
 try:
+    from google.api_core.exceptions import NotFound
     from google.auth.exceptions import DefaultCredentialsError
     from google.cloud import bigquery
 
@@ -102,15 +103,8 @@ class BigQueryOfflineStore(OfflineStore):
 
             assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
 
-            # We should create a new dataset if the dataset name was not overridden in the config
-            should_create_dataset = "dataset" not in config.offline_store.__fields_set__
-
             table_id = _upload_entity_df_into_bigquery(
-                config.project,
-                config.offline_store.dataset,
-                should_create_dataset,
-                entity_df,
-                client,
+                config.project, config.offline_store.dataset, entity_df, client
             )
             entity_df_sql_table = f"`{table_id}`"
         else:
@@ -207,17 +201,20 @@ class FeatureViewQueryContext:
     entity_selections: List[str]
 
 
-def _upload_entity_df_into_bigquery(
-    project, dataset_name, should_create_dataset, entity_df, client
-) -> str:
+def _upload_entity_df_into_bigquery(project, dataset_name, entity_df, client) -> str:
     """Uploads a Pandas entity dataframe into a BigQuery table and returns a reference to the resulting table"""
 
     # First create the BigQuery dataset if it doesn't exist
     dataset = bigquery.Dataset(f"{client.project}.{dataset_name}")
     dataset.location = "US"
 
-    if should_create_dataset:
-        client.create_dataset(dataset, exists_ok=True)
+    client.get_dataset(dataset)
+
+    try:
+        client.get_dataset(dataset)
+    except NotFound:
+        # Only create the dataset if it does not exist
+        client.create_dataset(dataset)
 
     # Drop the index so that we dont have unnecessary columns
     entity_df.reset_index(drop=True, inplace=True)
