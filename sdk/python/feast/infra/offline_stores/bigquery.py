@@ -20,6 +20,7 @@ from feast.registry import Registry
 from feast.repo_config import BigQueryOfflineStoreConfig, RepoConfig
 
 try:
+    from google.api_core.exceptions import NotFound
     from google.auth.exceptions import DefaultCredentialsError
     from google.cloud import bigquery
 
@@ -103,7 +104,7 @@ class BigQueryOfflineStore(OfflineStore):
             assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
 
             table_id = _upload_entity_df_into_bigquery(
-                config.project, config.offline_store.dataset, entity_df, client,
+                config.project, config.offline_store.dataset, entity_df, client
             )
             entity_df_sql_table = f"`{table_id}`"
         else:
@@ -206,9 +207,12 @@ def _upload_entity_df_into_bigquery(project, dataset_name, entity_df, client) ->
     # First create the BigQuery dataset if it doesn't exist
     dataset = bigquery.Dataset(f"{client.project}.{dataset_name}")
     dataset.location = "US"
-    client.create_dataset(
-        dataset, exists_ok=True
-    )  # TODO: Consider moving this to apply or BigQueryOfflineStore
+
+    try:
+        client.get_dataset(dataset)
+    except NotFound:
+        # Only create the dataset if it does not exist
+        client.create_dataset(dataset, exists_ok=True)
 
     # Drop the index so that we dont have unnecessary columns
     entity_df.reset_index(drop=True, inplace=True)
