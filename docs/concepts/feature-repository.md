@@ -116,10 +116,10 @@ driver_locations = FeatureView(
 ```
 {% endcode %}
 
-To declare new feature definitions, just add code to the feature repository, either in existing files or in a new file. For more information on how to define features, see [Feature Views](feature-views.md).
+To declare new feature definitions, just add code to the feature repository, either in existing files or in a new file. For more information on how to define features, see [Feature Views]().
 
 ### Next steps
 
 * See [Create a feature repository](../how-to-guides/create-a-feature-repository.md) to get started with an example feature repository.
-* See [feature\_store.yaml](../reference/feature-store-yaml.md), [.feastignore](../reference/feast-ignore.md) or [Feature Views](feature-views.md) for more information on the configuration files that live in a feature registry.
+* See [feature\_store.yaml](../reference/feature-store-yaml.md), [.feastignore](../reference/feast-ignore.md) or [Feature Views]() for more information on the configuration files that live in a feature registry.
 

@@ -16,11 +16,10 @@
 
 ## Concepts
 
-* [Architecture](concepts/architecture.md)
+* [Data Model](concepts/data-model.md)
+* [Architecture and Components](concepts/architecture-and-components.md)
 * [Feature Repository](concepts/feature-repository.md)
-* [Feature Views](concepts/feature-views.md)
 * [Apply](concepts/apply.md)
-* [Glossary](concepts/glossary.md)
 
 ## Reference
 

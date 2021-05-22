@@ -1,4 +1,4 @@
-# IBM Cloud Kubernetes Service and Red Hat OpenShift \(with Kustomize\)
+# IBM Cloud Kubernetes Service \(IKS\) and Red Hat OpenShift \(with Kustomize\)
 
 ## Overview
 
@@ -11,7 +11,7 @@ This guide installs Feast on an existing IBM Cloud Kubernetes cluster or Red Hat
 * Kafka \(Optional\)
 * Feast Jupyter \(Optional\)
 * Prometheus \(Optional\)
- 
+
 ## 1. Prerequisites
 
 1. [IBM Cloud Kubernetes Service](https://www.ibm.com/cloud/kubernetes-service) or [Red Hat OpenShift on IBM Cloud](https://www.ibm.com/cloud/openshift)
@@ -20,9 +20,10 @@ This guide installs Feast on an existing IBM Cloud Kubernetes cluster or Red Hat
 4. Install [Kustomize](https://kubectl.docs.kubernetes.io/installation/kustomize/)
 
 ## 2. Preparation
-### IBM Cloud Block Storage Setup (IKS only)
 
-:warning: If you have Red Hat OpenShift Cluster on IBM Cloud skip to this [section](#Security-Context-Constraint-Setup).
+### IBM Cloud Block Storage Setup \(IKS only\)
+
+:warning: If you have Red Hat OpenShift Cluster on IBM Cloud skip to this [section](ibm-cloud-iks-with-kustomize.md#Security-Context-Constraint-Setup).
 
 By default, IBM Cloud Kubernetes cluster uses [IBM Cloud File Storage](https://www.ibm.com/cloud/file-storage) based on NFS as the default storage class, and non-root users do not have write permission on the volume mount path for NFS-backed storage. Some common container images in Feast, such as Redis, Postgres, and Kafka specify a non-root user to access the mount path in the images. When containers are deployed using these images, the containers fail to start due to insufficient permissions of the non-root user creating folders on the mount path.
 
@@ -84,13 +85,15 @@ Therefore, to deploy Feast we need to set up [IBM Cloud Block Storage](https://c
    ```text
     ibmc-block-gold (default)   ibm.io/ibmc-block   65s
    ```
-### Security Context Constraint Setup (OpenShift only)
+
+   **Security Context Constraint Setup \(OpenShift only\)**
 
 By default, in OpenShift, all pods or containers will use the [Restricted SCC](https://docs.openshift.com/container-platform/4.6/authentication/managing-security-context-constraints.html) which limits the UIDs pods can run with, causing the Feast installation to fail. To overcome this, you can allow Feast pods to run with any UID by executing the following:
 
 ```text
 oc adm policy add-scc-to-user anyuid -z default,kf-feast-kafka -n feast
 ```
+
 ## 3. Installation
 
 Install Feast using kustomize. The pods may take a few minutes to initialize.
@@ -100,16 +103,19 @@ git clone https://github.com/kubeflow/manifests
 cd manifests/contrib/feast/
 kustomize build feast/base | kubectl apply -n feast -f -
 ```
+
 ### Optional: Enable Feast Jupyter and Kafka
 
 You may optionally enable the Feast Jupyter component which contains code examples to demonstrate Feast. Some examples require Kafka to stream real time features to the Feast online serving. To enable, edit the following properties in the `values.yaml` under the `manifests/contrib/feast` folder:
-```
+
+```text
 kafka.enabled: true
 feast-jupyter.enabled: true
 ```
 
 Then regenerate the resource manifests and deploy:
-```
+
+```text
 make feast/base
 kustomize build feast/base | kubectl apply -n feast -f -
 ```
@@ -133,9 +139,11 @@ You can now connect to the bundled Jupyter Notebook Server at `localhost:8888` a
 {% embed url="http://localhost:8888/tree?" caption="" %}
 
 ## 5. Uninstall Feast
+
 ```text
 kustomize build feast/base | kubectl delete -n feast -f -
 ```
+
 ## 6. Troubleshooting
 
 When running the minimal\_ride\_hailing\_example Jupyter Notebook example the following errors may occur:
@@ -182,3 +190,4 @@ When running the minimal\_ride\_hailing\_example Jupyter Notebook example the fo
    ```text
     os.environ["DEMO_KAFKA_BROKERS"] = "feast-release-kafka:9092"
    ```
+
