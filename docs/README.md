@@ -1,12 +1,12 @@
 # Introduction
 
-### What is Feast?
+## What is Feast?
 
 Feast \(**Fea**ture **St**ore\) is an operational data system for managing and serving machine learning features to models in production.
 
 ![](.gitbook/assets/feast_hero_010.png)
 
-### Problems Feast Solves
+## Problems Feast Solves
 
 **Models need consistent access to data:** ML systems built on traditional data infrastructure are often coupled to databases, object stores, streams, and files. A result of this coupling, however, is that any change in data infrastructure may break dependent ML systems. Another challenge is that dual implementations of data retrieval for training and serving can lead to inconsistencies in data, which in turn can lead to training-serving skew.
 
@@ -24,7 +24,7 @@ Feast solves the challenge of data leakage by providing point-in-time correct fe
 
 Feast addresses this problem by introducing feature reuse through a centralized system \(a registry\). This registry enables multiple teams working on different projects not only to contribute features, but also to reuse these same features. With Feast, data scientists can start new ML projects by selecting previously engineered features from a centralized registry, and are no longer required to develop new features for each project.
 
-### Problems Feast does not yet solve
+## Problems Feast does not yet solve
 
 **Feature engineering:** We aim for Feast to support light-weight feature engineering as part of our API.
 
@@ -32,7 +32,7 @@ Feast addresses this problem by introducing feature reuse through a centralized 
 
 **‌Feature validation:** We additionally aim for Feast to improve support for statistics generation of feature data and subsequent validation of these statistics. Current support is limited.
 
-### What Feast is not
+## What Feast is not
 
 [**ETL**](https://en.wikipedia.org/wiki/Extract,_transform,_load) **or** [**ELT**](https://en.wikipedia.org/wiki/Extract,_load,_transform) **system:** Feast is not \(and does not plan to become\) a general purpose data transformation or pipelining system. Feast plans to include a light-weight feature engineering toolkit, but we encourage teams to integrate Feast with upstream ETL/ELT systems that are specialized in transformation.
 
@@ -40,7 +40,7 @@ Feast addresses this problem by introducing feature reuse through a centralized 
 
 **Data catalog:** Feast is not a general purpose data catalog for your organization. Feast is purely focused on cataloging features for use in ML pipelines or systems, and only to the extent of facilitating the reuse of features.
 
-### How can I get started?
+## How can I get started?
 
 {% hint style="info" %}
 The best way to learn Feast is to use it. Head over to our [Quickstart](quickstart.md) and try it out!

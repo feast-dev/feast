@@ -28,7 +28,7 @@ When a tag that matches a Semantic Version string is pushed, CI will automatical
 
 ### Creating a change log
 
-We use an [open source change log generator](https://hub.docker.com/r/ferrarimarco/github-changelog-generator/) to generate change logs. The process still requires a little bit of manual effort. 
+We use an [open source change log generator](https://hub.docker.com/r/ferrarimarco/github-changelog-generator/) to generate change logs. The process still requires a little bit of manual effort.
 
 1. Create a GitHub token as [per these instructions](https://github.com/github-changelog-generator/github-changelog-generator#github-token). The token is used as an input argument \(`-t`\) to the change log generator. 
 2. The change log generator configuration below will look for unreleased changes on a specific branch. The branch will be `master` for a major/minor release, or a release branch \(`v0.4-branch`\) for a patch release. You will need to set the branch using the `--release-branch` argument.
@@ -61,5 +61,5 @@ docker run -it --rm ferrarimarco/github-changelog-generator \
 
 It's important to flag breaking changes and deprecation to the API for each release so that we can maintain API compatibility.
 
-Developers should have flagged PRs with breaking changes with the `compat/breaking` label. However, it's important to double check each PR's release notes and contents for changes that will break API compatibility and manually label `compat/breaking` to PRs with undeclared breaking changes. The change log will have to be regenerated if any new labels have to be  added.
+Developers should have flagged PRs with breaking changes with the `compat/breaking` label. However, it's important to double check each PR's release notes and contents for changes that will break API compatibility and manually label `compat/breaking` to PRs with undeclared breaking changes. The change log will have to be regenerated if any new labels have to be added.
 

@@ -1,6 +1,6 @@
 # Feature Views
 
-### Overview
+## Overview
 
 Feature views are objects used to define and productionize logical groups of features for training and serving.
 
@@ -17,7 +17,7 @@ Feast does not yet apply feature transformations. Feast acts as the productioniz
 
 Entities, features, and sources must be defined in order to define a feature view.
 
-### Entity
+## Entity
 
 Define an entity for the driver. Entities can be thought of as primary keys used to retrieve features. Entities are also used to join multiple tables/views during the construction of feature vectors.
 
@@ -36,9 +36,9 @@ driver = Entity(
 )
 ```
 
-### Feature
+## Feature
 
-A feature is an individual measurable property observed on an entity. For example, the amount of transactions \(feature\) a customer \(entity\) has completed. 
+A feature is an individual measurable property observed on an entity. For example, the amount of transactions \(feature\) a customer \(entity\) has completed.
 
 Features are defined as part of feature views. Since Feast does not transform data, a feature is essentially a schema that only contains a name and a type:
 
@@ -47,36 +47,35 @@ conversion_rate = Feature(
     # Name of the feature. Used during lookup of feautres from the feature store
     # The name must be unique
     name="conv_rate",
- 
+
     # The type used for storage of features (both at source and when materialized
     # into a store)
     dtype=ValueType.FLOAT
 )
 ```
 
-### Source
+## Source
 
 Indicates a data source from which feature values can be retrieved. Sources are queried when building training datasets or materializing features into an online store.
 
 ```python
-
 driver_stats_source = BigQuerySource(
     # The BigQuery table where features can be found
     table_ref="feast-oss.demo_data.driver_stats",
-    
+
     # The event timestamp is used for point-in-time joins and for ensuring only
     # features within the TTL are returned
     event_timestamp_column="datetime",
-    
+
     # The (optional) created timestamp is used to ensure there are no duplicate
     # feature rows in the offline store or when building training datasets
     created_timestamp_column="created",
 )
 ```
 
-### Feature View
+## Feature View
 
-A Feature View is a 
+A Feature View is a
 
 {% tabs %}
 {% tab title="driver\_trips\_feature\_table.py" %}
