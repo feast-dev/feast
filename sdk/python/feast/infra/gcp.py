@@ -45,6 +45,7 @@ class GcpProvider(Provider):
 
         assert config.offline_store is not None
         self._write_concurrency = config.online_store.write_concurrency
+        self._write_batch_size = config.online_store.write_batch_size
         self.offline_store = get_offline_store_from_config(config.offline_store)
 
     def _initialize_client(self):
@@ -119,7 +120,7 @@ class GcpProvider(Provider):
         pool = ThreadPool(processes=self._write_concurrency)
         pool.map(
             lambda b: _write_minibatch(client, project, table, b, progress),
-            _to_minibatches(data),
+            _to_minibatches(data, batch_size=self._write_batch_size),
         )
 
     def online_read(
