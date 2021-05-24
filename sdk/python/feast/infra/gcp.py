@@ -42,10 +42,10 @@ class GcpProvider(Provider):
         assert isinstance(config.online_store, DatastoreOnlineStoreConfig)
         self._gcp_project_id = config.online_store.project_id
         self._namespace = config.online_store.namespace
-
-        assert config.offline_store is not None
         self._write_concurrency = config.online_store.write_concurrency
         self._write_batch_size = config.online_store.write_batch_size
+
+        assert config.offline_store is not None
         self.offline_store = get_offline_store_from_config(config.offline_store)
 
     def _initialize_client(self):
