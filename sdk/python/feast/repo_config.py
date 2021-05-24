@@ -1,7 +1,14 @@
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, StrictInt, StrictStr, ValidationError, root_validator, PositiveInt
+from pydantic import (
+    BaseModel,
+    PositiveInt,
+    StrictInt,
+    StrictStr,
+    ValidationError,
+    root_validator,
+)
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.typing import Dict, Literal, Optional, Union
 
