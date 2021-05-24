@@ -35,6 +35,9 @@ class DatastoreOnlineStoreConfig(FeastBaseModel):
     project_id: Optional[StrictStr] = None
     """ (optional) GCP Project Id """
 
+    namespace: Optional[StrictStr] = None
+    """ (optional) Datastore namespace """
+
 
 OnlineStoreConfig = Union[DatastoreOnlineStoreConfig, SqliteOnlineStoreConfig]
 
@@ -138,7 +141,7 @@ class RepoConfig(FeastBaseModel):
             elif online_store_type == "datastore":
                 DatastoreOnlineStoreConfig(**values["online_store"])
             else:
-                raise ValidationError(f"Invalid online store type {online_store_type}")
+                raise ValueError(f"Invalid online store type {online_store_type}")
         except ValidationError as e:
             raise ValidationError(
                 [ErrorWrapper(e, loc="online_store")], model=SqliteOnlineStoreConfig,

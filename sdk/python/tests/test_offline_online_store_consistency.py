@@ -17,7 +17,11 @@ from feast.entity import Entity
 from feast.feature import Feature
 from feast.feature_store import FeatureStore
 from feast.feature_view import FeatureView
-from feast.repo_config import RepoConfig, SqliteOnlineStoreConfig
+from feast.repo_config import (
+    DatastoreOnlineStoreConfig,
+    RepoConfig,
+    SqliteOnlineStoreConfig,
+)
 from feast.value_type import ValueType
 
 
@@ -98,6 +102,7 @@ def prep_bq_fs_and_fv(
             registry=str(Path(repo_dir_name) / "registry.db"),
             project=f"test_bq_correctness_{str(uuid.uuid4()).replace('-', '')}",
             provider="gcp",
+            online_store=DatastoreOnlineStoreConfig(namespace="integration_test"),
         )
         fs = FeatureStore(config=config)
         fs.apply([fv, e])
