@@ -44,6 +44,7 @@ class GcpProvider(Provider):
         self._namespace = config.online_store.namespace
 
         assert config.offline_store is not None
+        self._write_concurrency = config.online_store.write_concurrency
         self.offline_store = get_offline_store_from_config(config.offline_store)
 
     def _initialize_client(self):
@@ -115,7 +116,7 @@ class GcpProvider(Provider):
     ) -> None:
         client = self._initialize_client()
 
-        pool = ThreadPool(processes=40)
+        pool = ThreadPool(processes=self._write_concurrency)
         pool.map(
             lambda b: _write_minibatch(client, project, table, b, progress),
             _to_minibatches(data),

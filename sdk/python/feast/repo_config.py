@@ -38,6 +38,9 @@ class DatastoreOnlineStoreConfig(FeastBaseModel):
     namespace: Optional[StrictStr] = None
     """ (optional) Datastore namespace """
 
+    write_concurrency: Optional[StrictInt] = 40
+    """ (optional) Amount of threads to use when writing into the online store"""
+
 
 OnlineStoreConfig = Union[DatastoreOnlineStoreConfig, SqliteOnlineStoreConfig]
 
