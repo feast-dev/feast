@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, StrictInt, StrictStr, ValidationError, root_validator
+from pydantic import BaseModel, StrictInt, StrictStr, ValidationError, root_validator, PositiveInt
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.typing import Dict, Literal, Optional, Union
 
@@ -38,10 +38,10 @@ class DatastoreOnlineStoreConfig(FeastBaseModel):
     namespace: Optional[StrictStr] = None
     """ (optional) Datastore namespace """
 
-    write_concurrency: Optional[StrictInt] = 40
+    write_concurrency: Optional[PositiveInt] = 40
     """ (optional) Amount of threads to use when writing batches of feature rows into Datastore"""
 
-    write_batch_size: Optional[StrictInt] = 50
+    write_batch_size: Optional[PositiveInt] = 50
     """ (optional) Amount of feature rows per batch being written into Datastore"""
 
 

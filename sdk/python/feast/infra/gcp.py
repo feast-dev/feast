@@ -221,7 +221,7 @@ ProtoBatch = Sequence[
 ]
 
 
-def _to_minibatches(data: ProtoBatch, batch_size=50) -> Iterator[ProtoBatch]:
+def _to_minibatches(data: ProtoBatch, batch_size) -> Iterator[ProtoBatch]:
     """
     Split data into minibatches, making sure we stay under GCP datastore transaction size
     limits.
