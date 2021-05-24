@@ -1,8 +1,6 @@
 import json
-import os
 import struct
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import mmh3
@@ -27,16 +25,24 @@ from feast.protos.feast.storage.Redis_pb2 import RedisKeyV2 as RedisKeyProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.registry import Registry
-from feast.repo_config import RedisOnlineStoreConfig, RepoConfig
+from feast.repo_config import RedisOnlineStoreConfig, RedisType, RepoConfig
 
 EX_SECONDS = 253402300799
 
 
 class RedisProvider(Provider):
-    _db_path: Path
+    _redis_type: Optional[RedisType]
+    _redis_connection_string: str
 
     def __init__(self, config: RepoConfig):
         assert isinstance(config.online_store, RedisOnlineStoreConfig)
+        if config and config.online_store:
+            if config.online_store.redis_type:
+                self._redis_type = config.online_store.redis_type
+            if config.online_store.redis_connection_string:
+                self._redis_connection_string = (
+                    config.online_store.redis_connection_string
+                )
 
     def update_infra(
         self,
@@ -63,7 +69,7 @@ class RedisProvider(Provider):
             redis_key_bin = _redis_key(
                 project, EntityKeyProto(join_keys=table_join_keys)
             )
-            keys = client.keys(f"{redis_key_bin}*")
+            keys = [k for k in client.scan_iter(match=f"{redis_key_bin}*", count=100)]
             if keys:
                 client.unlink(*keys)
 
@@ -200,7 +206,7 @@ class RedisProvider(Provider):
         for Redis:
             redis_master:6379,db=0,ssl=true,password=...
         """
-        connection_string = os.environ["REDIS_CONNECTION_STRING"]
+        connection_string = self._redis_connection_string
         startup_nodes = [
             dict(zip(["host", "port"], c.split(":")))
             for c in connection_string.split(",")
@@ -225,8 +231,7 @@ class RedisProvider(Provider):
         Creates the Redis client RedisCluster or Redis depending on configuration
         """
         startup_nodes, kwargs = self._get_cs()
-
-        if os.environ["REDIS_TYPE"] == "REDIS_CLUSTER":
+        if self._redis_type == RedisType.redis_cluster:
             kwargs["startup_nodes"] = startup_nodes
             return RedisCluster(**kwargs)
         else:

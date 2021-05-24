@@ -1,3 +1,5 @@
+import os
+from enum import Enum
 from pathlib import Path
 
 import yaml
@@ -52,11 +54,23 @@ class DatastoreOnlineStoreConfig(FeastBaseModel):
     """ (optional) Amount of feature rows per batch being written into Datastore"""
 
 
+class RedisType(str, Enum):
+    redis = "redis"
+    redis_cluster = "redis_cluster"
+
+
 class RedisOnlineStoreConfig(FeastBaseModel):
     """Online store config for Redis store"""
 
     type: Literal["redis"] = "redis"
     """Online store type selector"""
+
+    redis_type: RedisType = RedisType.redis
+    """Redis type: redis or redis_cluster"""
+
+    redis_connection_string: Optional[StrictStr] = None
+    """Redis connection string from REDIS_CONNECTION_STRING environment variable
+     format: host:port,parameter1,parameter2 eg. redis:6379,db=0 """
 
 
 OnlineStoreConfig = Union[
@@ -152,6 +166,10 @@ class RepoConfig(FeastBaseModel):
                 values["online_store"]["type"] = "datastore"
             elif values["provider"] == "redis":
                 values["online_store"]["type"] = "redis"
+                values["online_store"]["redis_connection_string"] = os.environ.get(
+                    "REDIS_CONNECTION_STRING"
+                )
+
 
 
         online_store_type = values["online_store"]["type"]
