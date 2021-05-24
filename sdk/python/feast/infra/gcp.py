@@ -36,23 +36,21 @@ except ImportError as e:
 
 class GcpProvider(Provider):
     _gcp_project_id: Optional[str]
+    _namespace: Optional[str]
 
     def __init__(self, config: RepoConfig):
         assert isinstance(config.online_store, DatastoreOnlineStoreConfig)
-        assert config.offline_store is not None
-        if config and config.online_store and config.online_store.project_id:
-            self._gcp_project_id = config.online_store.project_id
-        else:
-            self._gcp_project_id = None
+        self._gcp_project_id = config.online_store.project_id
+        self._namespace = config.online_store.namespace
 
+        assert config.offline_store is not None
         self.offline_store = get_offline_store_from_config(config.offline_store)
 
     def _initialize_client(self):
         try:
-            if self._gcp_project_id is not None:
-                return datastore.Client(self._gcp_project_id)
-            else:
-                return datastore.Client()
+            return datastore.Client(
+                project=self._gcp_project_id, namespace=self._namespace
+            )
         except DefaultCredentialsError as e:
             raise FeastProviderLoginError(
                 str(e)
