@@ -330,7 +330,11 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
 def python_value_to_proto_value(
     value: Any, feature_type: ValueType = None
 ) -> ProtoValue:
-    value_type = python_type_to_feast_value_type("", value) if value is not None else feature_type
+    value_type = (
+        python_type_to_feast_value_type("", value)
+        if value is not None
+        else feature_type
+    )
     return _python_value_to_proto_value(value_type, value)
 
 
