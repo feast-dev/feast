@@ -72,7 +72,9 @@ class GcpProvider(Provider):
 
         for table in tables_to_keep:
             key = client.key("Project", project, "Table", table.name)
-            entity = datastore.Entity(key=key)
+            entity = datastore.Entity(
+                key=key, exclude_from_indexes=("created_ts", "event_ts", "values")
+            )
             entity.update({"created_ts": datetime.utcnow()})
             client.put(entity)
 
@@ -247,7 +249,9 @@ def _write_minibatch(
 
         key = client.key("Project", project, "Table", table.name, "Row", document_id,)
 
-        entity = datastore.Entity(key=key)
+        entity = datastore.Entity(
+            key=key, exclude_from_indexes=("created_ts", "event_ts", "values")
+        )
 
         entity.update(
             dict(
