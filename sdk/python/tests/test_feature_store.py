@@ -315,22 +315,6 @@ def test_apply_feature_view_integration(test_feature_store):
     assert len(feature_views) == 0
 
 
-@pytest.mark.integration
-@pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
-def test_data_source_ts_col_inference_success(dataframe_source):
-    with prep_file_source(df=dataframe_source) as file_source:
-        actual_file_source = file_source.event_timestamp_column
-        actual_bq_1 = simple_bq_source_using_table_ref_arg(
-            dataframe_source
-        ).event_timestamp_column
-        actual_bq_2 = simple_bq_source_using_query_arg(
-            dataframe_source
-        ).event_timestamp_column
-        expected = "ts_1"
-
-        assert expected == actual_file_source == actual_bq_1 == actual_bq_2
-
-
 @pytest.mark.parametrize(
     "test_feature_store", [lazy_fixture("feature_store_with_local_registry")],
 )
