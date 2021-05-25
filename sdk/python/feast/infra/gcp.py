@@ -42,6 +42,8 @@ class GcpProvider(Provider):
         assert isinstance(config.online_store, DatastoreOnlineStoreConfig)
         self._gcp_project_id = config.online_store.project_id
         self._namespace = config.online_store.namespace
+        self._write_concurrency = config.online_store.write_concurrency
+        self._write_batch_size = config.online_store.write_batch_size
 
         assert config.offline_store is not None
         self.offline_store = get_offline_store_from_config(config.offline_store)
@@ -72,7 +74,9 @@ class GcpProvider(Provider):
 
         for table in tables_to_keep:
             key = client.key("Project", project, "Table", table.name)
-            entity = datastore.Entity(key=key)
+            entity = datastore.Entity(
+                key=key, exclude_from_indexes=("created_ts", "event_ts", "values")
+            )
             entity.update({"created_ts": datetime.utcnow()})
             client.put(entity)
 
@@ -113,10 +117,10 @@ class GcpProvider(Provider):
     ) -> None:
         client = self._initialize_client()
 
-        pool = ThreadPool(processes=40)
+        pool = ThreadPool(processes=self._write_concurrency)
         pool.map(
             lambda b: _write_minibatch(client, project, table, b, progress),
-            _to_minibatches(data),
+            _to_minibatches(data, batch_size=self._write_batch_size),
         )
 
     def online_read(
@@ -217,7 +221,7 @@ ProtoBatch = Sequence[
 ]
 
 
-def _to_minibatches(data: ProtoBatch, batch_size=50) -> Iterator[ProtoBatch]:
+def _to_minibatches(data: ProtoBatch, batch_size) -> Iterator[ProtoBatch]:
     """
     Split data into minibatches, making sure we stay under GCP datastore transaction size
     limits.
@@ -247,7 +251,9 @@ def _write_minibatch(
 
         key = client.key("Project", project, "Table", table.name, "Row", document_id,)
 
-        entity = datastore.Entity(key=key)
+        entity = datastore.Entity(
+            key=key, exclude_from_indexes=("created_ts", "event_ts", "values")
+        )
 
         entity.update(
             dict(
