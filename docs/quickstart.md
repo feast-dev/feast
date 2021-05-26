@@ -130,8 +130,9 @@ We can register our features by running `feast apply` from the CLI:
 ```bash
 feast apply
 
-# Processing <cwd>/feature_repo/example.py as example
-# Done!
+Registered entity driver_id
+Registered feature view driver_hourly_stats
+Deploying infrastructure for driver_hourly_stats
 ```
 {% endcode %}
 
