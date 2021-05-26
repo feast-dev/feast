@@ -166,16 +166,16 @@ class RepoConfig(FeastBaseModel):
                 values["online_store"]["type"] = "datastore"
             elif values["provider"] == "redis":
                 values["online_store"]["type"] = "redis"
-                values["online_store"]["redis_connection_string"] = os.environ.get(
-                    "REDIS_CONNECTION_STRING"
-                )
 
-
+        if values["online_store"]["type"] == "redis":
+            values["online_store"]["redis_connection_string"] = os.environ.get(
+                "REDIS_CONNECTION_STRING"
+            )
 
         online_store_type = values["online_store"]["type"]
 
         # Make sure the user hasn't provided the wrong type
-        assert online_store_type in ["datastore", "sqlite"]
+        assert online_store_type in ["datastore", "sqlite", "redis"]
 
         # Validate the dict to ensure one of the union types match
         try:
@@ -209,7 +209,7 @@ class RepoConfig(FeastBaseModel):
 
         # Set the default type
         if "type" not in values["offline_store"]:
-            if values["provider"] == "local":
+            if values["provider"] == "local" or values["provider"] == "redis":
                 values["offline_store"]["type"] = "file"
             elif values["provider"] == "gcp":
                 values["offline_store"]["type"] = "bigquery"

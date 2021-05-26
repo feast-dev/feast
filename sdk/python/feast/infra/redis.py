@@ -13,7 +13,7 @@ from tqdm import tqdm
 from feast import FeatureTable, utils
 from feast.entity import Entity
 from feast.feature_view import FeatureView
-from feast.infra.offline_stores.helpers import get_offline_store_from_sources
+from feast.infra.offline_stores.helpers import get_offline_store_from_config
 from feast.infra.provider import (
     Provider,
     RetrievalJob,
@@ -36,13 +36,11 @@ class RedisProvider(Provider):
 
     def __init__(self, config: RepoConfig):
         assert isinstance(config.online_store, RedisOnlineStoreConfig)
-        if config and config.online_store:
-            if config.online_store.redis_type:
-                self._redis_type = config.online_store.redis_type
-            if config.online_store.redis_connection_string:
-                self._redis_connection_string = (
-                    config.online_store.redis_connection_string
-                )
+        if config.online_store.redis_type:
+            self._redis_type = config.online_store.redis_type
+        if config.online_store.redis_connection_string:
+            self._redis_connection_string = config.online_store.redis_connection_string
+        self.offline_store = get_offline_store_from_config(config.offline_store)
 
     def update_infra(
         self,
@@ -173,8 +171,7 @@ class RedisProvider(Provider):
         start_date = utils.make_tzaware(start_date)
         end_date = utils.make_tzaware(end_date)
 
-        offline_store = get_offline_store_from_sources([feature_view.input])
-        table = offline_store.pull_latest_from_table_or_query(
+        table = self.offline_store.pull_latest_from_table_or_query(
             data_source=feature_view.input,
             join_key_columns=join_key_columns,
             feature_name_columns=feature_name_columns,
@@ -239,8 +236,8 @@ class RedisProvider(Provider):
             kwargs["port"] = startup_nodes[0]["port"]
             return Redis(**kwargs)
 
-    @staticmethod
     def get_historical_features(
+        self,
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
@@ -248,10 +245,7 @@ class RedisProvider(Provider):
         registry: Registry,
         project: str,
     ) -> RetrievalJob:
-        offline_store = get_offline_store_from_sources(
-            [feature_view.input for feature_view in feature_views]
-        )
-        return offline_store.get_historical_features(
+        return self.offline_store.get_historical_features(
             config=config,
             feature_views=feature_views,
             feature_refs=feature_refs,
