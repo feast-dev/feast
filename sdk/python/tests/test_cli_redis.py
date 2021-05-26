@@ -30,6 +30,8 @@ def test_basic() -> None:
         project: {project_id}
         registry: {data_path / "registry.db"}
         provider: redis
+        offline_store:
+            type: bigquery
         """
             )
         )
