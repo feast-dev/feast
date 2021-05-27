@@ -51,12 +51,27 @@ git fetch origin
 git checkout master
 last_commit=$(git rev-parse HEAD)
 git checkout v$MAJOR.$MINOR-branch
+
+push_cherrypicked_commits()
+{
+    echo "Pushing commits"
+    git push origin v$MAJOR.$MINOR-branch
+    echo "Commits pushed"
+}
 cherrypick_from_master()
 {
     echo "Cherrypicking commits"
     git cherry-pick $STARTING_COMMIT^..$last_commit
     echo "Commits cherrypicked"
+    echo "Step 1b: Push commits"
+    read -p "Commits are not pushed. Continue (y) or skip this sub-step (n)? " choice
+    case "$choice" in
+        y|Y ) push_cherrypicked_commits ;;
+        n|N ) echo "Skipping this sub-step" ;;
+        * ) echo "Skipping this sub-step" ;;
+    esac ;
 }
+echo "Step 1a: Cherry-pick commits"
 if [ -z $STARTING_COMMIT ]; then
     read -p "No starting commit given. Skip this step (y) or exit (n)? " choice
     case "$choice" in
@@ -95,7 +110,7 @@ update_changelog()
     && docker run -it --rm ferrarimarco/github-changelog-generator \
     --user feast-dev \
     --project feast  \
-    --release-branch master  \
+    --release-branch v$MAJOR.$MINOR-branch  \
     --future-release v$MAJOR.$MINOR.$PATCH  \
     --unreleased-only  \
     --no-issues  \
@@ -190,7 +205,7 @@ fi
 
 read -p "Now wait for the CI to pass. Continue (y) or exit and fix the problem (n)? " choice
 case "$choice" in
-    y|Y ) "Moving on to the next step" ;;
+    y|Y ) echo "Moving on to the next step" ;;
     n|N ) exit ;;
     * ) exit ;;
 esac ;
@@ -242,7 +257,7 @@ fi
 create_release()
 {
     echo "Creating GitHub release"
-    cat ../../CHANGELOG.md | sed -n '/## \[v0.10.4\]/,/## \[v0.10.3\]/p' | sed -n '/**Implemented enhancements/,$p' | sed '$d' > temp2 \
+    cat ../../CHANGELOG.md | sed -n '/## \[v'"$MAJOR.$MINOR.$PATCH"'\]/,/## \[v'"$MAJOR.$MINOR.$(($PATCH-1))"'\]/p' | sed -n '/**Implemented enhancements/,$p' | sed '$d' > temp2 \
     && gh release create v$MAJOR.$MINOR.$PATCH -t "Feast v$MAJOR.$MINOR.$PATCH" --repo feast-dev/feast --notes-file temp2 \
     && rm temp2
     echo "GitHub release created"
