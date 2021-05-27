@@ -20,8 +20,8 @@ from typing import List
 import click
 import pkg_resources
 import yaml
-from feast import utils
 
+from feast import utils
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_store import FeatureStore
 from feast.repo_config import load_repo_config
