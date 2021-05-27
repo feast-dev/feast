@@ -110,7 +110,7 @@ update_changelog()
     && docker run -it --rm ferrarimarco/github-changelog-generator \
     --user feast-dev \
     --project feast  \
-    --release-branch v$MAJOR.$MINOR-branch  \
+    --release-branch master  \
     --future-release v$MAJOR.$MINOR.$PATCH  \
     --unreleased-only  \
     --no-issues  \
