@@ -20,6 +20,7 @@ from typing import List
 import click
 import pkg_resources
 import yaml
+from feast import utils
 
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_store import FeatureStore
@@ -242,8 +243,8 @@ def materialize_command(
     store = FeatureStore(repo_path=str(repo))
     store.materialize(
         feature_views=None if not views else views,
-        start_date=datetime.fromisoformat(start_ts),
-        end_date=datetime.fromisoformat(end_ts),
+        start_date=utils.make_tzaware(datetime.fromisoformat(start_ts)),
+        end_date=utils.make_tzaware(datetime.fromisoformat(end_ts)),
     )
 
 
@@ -267,7 +268,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
     store = FeatureStore(repo_path=str(repo))
     store.materialize_incremental(
         feature_views=None if not views else views,
-        end_date=datetime.fromisoformat(end_ts),
+        end_date=utils.make_tzaware(datetime.fromisoformat(end_ts)),
     )
 
 
