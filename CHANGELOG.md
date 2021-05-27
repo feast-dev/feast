@@ -1,5 +1,24 @@
 # Changelog
 
+## [v0.10.6](https://github.com/feast-dev/feast/tree/v0.10.6) (2021-05-27)
+
+[Full Changelog](https://github.com/feast-dev/feast/compare/v0.10.5...v0.10.6)
+
+**Implemented enhancements:**
+
+- Add datastore namespace option in configs [\#1581](https://github.com/feast-dev/feast/pull/1581) ([tsotnet](https://github.com/tsotnet))
+
+**Fixed bugs:**
+
+- Fix contention issue [\#1582](https://github.com/feast-dev/feast/pull/1582) ([woop](https://github.com/woop))
+- Ensure that only None types fail predicate [\#1580](https://github.com/feast-dev/feast/pull/1580) ([woop](https://github.com/woop))
+- Don't create bigquery dataset if it already exists [\#1569](https://github.com/feast-dev/feast/pull/1569) ([tsotnet](https://github.com/tsotnet))
+
+**Merged pull requests:**
+
+- Change OfflineStore class description [\#1571](https://github.com/feast-dev/feast/pull/1571) ([tedhtchang](https://github.com/tedhtchang))
+
+
 ## [v0.10.5](https://github.com/feast-dev/feast/tree/v0.10.5) (2021-05-19)
 
 [Full Changelog](https://github.com/feast-dev/feast/compare/v0.10.4...v0.10.5)
