@@ -1,6 +1,8 @@
 import os
 import random
 import string
+import sys
+
 import time
 from datetime import datetime, timedelta
 from tempfile import TemporaryDirectory
@@ -335,7 +337,8 @@ def test_historical_features_from_bigquery_sources(
     ) = generate_entities(start_date, infer_event_timestamp_col)
 
     # bigquery_dataset = "test_hist_retrieval_static"
-    bigquery_dataset = f"test_hist_retrieval_{int(time.time())}"
+    python_version = sys.version.split(" ")[0].replace(".", "_")
+    bigquery_dataset = f"test_hist_retrieval_{int(time.time())}_{python_version}"
 
     with BigQueryDataSet(bigquery_dataset), TemporaryDirectory() as temp_dir:
         gcp_project = bigquery.Client().project
