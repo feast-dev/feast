@@ -336,8 +336,8 @@ def test_historical_features_from_bigquery_sources(
     ) = generate_entities(start_date, infer_event_timestamp_col)
 
     # bigquery_dataset = "test_hist_retrieval_static"
-    python_version = sys.version.split(" ")[0].replace(".", "_")
-    bigquery_dataset = f"test_hist_retrieval_{int(time.time())}_{python_version}"
+    version_string = f"{sys.version_info.major}_{sys.version_info.minor}_{sys.version_info.minor}"
+    bigquery_dataset = f"test_hist_retrieval_{int(time.time())}_{version_string}"
 
     with BigQueryDataSet(bigquery_dataset), TemporaryDirectory() as temp_dir:
         gcp_project = bigquery.Client().project
