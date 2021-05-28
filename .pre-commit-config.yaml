@@ -13,3 +13,8 @@ repos:
         stages: [ push ]
         language: system
         entry: make lint
+  - repo: https://github.com/ambv/black
+    rev: 20.8b1
+    hooks:
+      - id: black
+        language_version: python3.7
