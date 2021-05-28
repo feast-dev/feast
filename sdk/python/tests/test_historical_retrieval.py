@@ -336,7 +336,7 @@ def test_historical_features_from_bigquery_sources(
 
     # bigquery_dataset = "test_hist_retrieval_static"
     bigquery_dataset = (
-        f"test_hist_retrieval_{int(time.time_ns())}_{random.randint(0, 1000)}"
+        f"test_hist_retrieval_{int(time.time_ns())}_{random.randint(1000, 9999)}"
     )
 
     with BigQueryDataSet(bigquery_dataset), TemporaryDirectory() as temp_dir:
