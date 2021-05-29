@@ -79,10 +79,10 @@ feast.entity module
    :undoc-members:
    :show-inheritance:
 
-feast.example\_repo module
---------------------------
+feast.errors module
+-------------------
 
-.. automodule:: feast.example_repo
+.. automodule:: feast.errors
    :members:
    :undoc-members:
    :show-inheritance:
@@ -123,14 +123,6 @@ feast.names module
 ------------------
 
 .. automodule:: feast.names
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-feast.offline\_store module
----------------------------
-
-.. automodule:: feast.offline_store
    :members:
    :undoc-members:
    :show-inheritance:
@@ -183,10 +175,26 @@ feast.type\_map module
    :undoc-members:
    :show-inheritance:
 
+feast.utils module
+------------------
+
+.. automodule:: feast.utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.value\_type module
 ------------------------
 
 .. automodule:: feast.value_type
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.version module
+--------------------
+
+.. automodule:: feast.version
    :members:
    :undoc-members:
    :show-inheritance:

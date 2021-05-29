@@ -1,6 +1,5 @@
 # Development Guide: Main Feast Repository
-> The higher level [Development Guide](https://docs.feast.dev/contributing/development-guide)
-> gives guidance on contributing to Feast codebase as a whole.
+> Please see [Development Guide](https://docs.feast.dev/contributing/development-guide) for project level development instructions.
 
 ### Overview
 This guide is targeted at developers looking to contribute to Feast components in
@@ -9,25 +8,20 @@ the main Feast repository:
 - [Feast Go Client](#feast-go-client)
 - [Feast Terraform](#feast-terraform)
 
-> Don't see the Feast component that you want to contribute to here?  
-> Check out the
-> [Development Guide](https://docs.feast.dev/contributing/development-guide)
-> to learn how Feast components are distributed over multiple repositories.
-
 ### Pre-commit Hooks
 Setup [`pre-commit`](https://pre-commit.com/) to automatically lint and format the codebase on commit:
-1. Ensure that you have Python (3.6 and above) with `pip`, installed.
-2. Install `pre-commit` with `pip` &amp; install pre-commit hooks
+1. Ensure that you have Python (3.7 and above) with `pip`, installed.
+2. Install `pre-commit` with `pip` &amp; install pre-push hooks
 ```sh
 pip install pre-commit
-pre-commit install
+pre-commit install --hook-type pre-push
 ```
-3. On commit, the pre-commit hook will run.
+3. On push, the pre-commit hook will run. This runs `make format` and `make lint`.
 
 ## Feast Python SDK / CLI
 ### Environment Setup
 Setting up your development environment for Feast Python SDK / CLI:
-1. Ensure that you have `make`, Python (3.6 and above) with `pip`, installed.
+1. Ensure that you have `make`, Python (3.7 and above) with `pip`, installed.
 2. _Recommended:_ Create a virtual environment to isolate development dependencies to be installed
 ```sh
 # create & activate a virtual environment
