@@ -24,7 +24,7 @@ endif
 
 # General
 
-format: format-python format-go
+format: format-python format-go format-docs
 
 lint: lint-python lint-go
 
@@ -130,3 +130,6 @@ compile-protos-docs:
 
 build-sphinx: compile-protos-python
 	cd 	$(ROOT_DIR)/sdk/python/docs && $(MAKE) build-api-source
+
+format-docs:
+	cd ${ROOT_DIR}/docgen && python render.py

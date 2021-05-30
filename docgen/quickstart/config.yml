@@ -1,0 +1,23 @@
+gitbook_output_file: docs/quickstart.md
+steps:
+  - name: version
+    command: feast version
+
+  - name: init
+    command: |
+      feast init feature_repo
+      cd feature_repo
+
+  - name: apply
+    command: feast apply
+
+  - name: training
+    python_script: training.py
+
+  - name: materialize
+    command: |
+      CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
+      feast materialize-incremental $CURRENT_TIME
+
+  - name: predict
+    python_script: predict.py
