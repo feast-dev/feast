@@ -102,10 +102,11 @@ def render_template(source_dir: pathlib.Path):
 
     build_dir = source_dir / "build"
 
-    # Set up build directory fo
+    # Remove old build dir
     if os.path.exists(build_dir):
         shutil.rmtree(build_dir)
 
+    # Set up build directory
     if not os.path.exists(build_dir):
         os.makedirs(build_dir)
 
@@ -170,6 +171,10 @@ def render_template(source_dir: pathlib.Path):
     document_path = os.path.join(to_dir, "document.md")
     if os.path.exists(document_path):
         os.remove(document_path)
+
+    # Remove build dir on success
+    if os.path.exists(build_dir):
+        shutil.rmtree(build_dir)
 
     print(f"Rendered documentation template for {source_dir.name}")
 
