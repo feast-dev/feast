@@ -57,17 +57,18 @@ test-python:
 
 format-python:
 	# Sort
-	cd ${ROOT_DIR}/sdk/python; isort feast/ tests/ ../../docgen/
+	cd ${ROOT_DIR}/sdk/python; isort feast/ tests/ ${ROOT_DIR}//docgen/
 
 	# Format
 	cd ${ROOT_DIR}/sdk/python; black --target-version py37 feast tests
 	cd ${ROOT_DIR}/sdk/python; black --target-version py37 ${ROOT_DIR}/docgen
 
 lint-python:
-	cd ${ROOT_DIR}/sdk/python; mypy feast/ tests/ ../../docgen/
-	cd ${ROOT_DIR}/sdk/python; isort feast/ tests/ ../../docgen/ --check-only
-	cd ${ROOT_DIR}/sdk/python; flake8 feast/ tests/ ../../docgen/
-	cd ${ROOT_DIR}/sdk/python; black --check feast tests  ../../docgen/
+	cd ${ROOT_DIR}/sdk/python; mypy feast/ tests/ ${ROOT_DIR}/docgen/
+	cd ${ROOT_DIR}/sdk/python; isort feast/ tests/ ${ROOT_DIR}/docgen/ --check-only
+	cd ${ROOT_DIR}/sdk/python; flake8 feast/ tests/ ${ROOT_DIR}/docgen/
+	cd ${ROOT_DIR}/sdk/python; black --check feast tests
+	cd ${ROOT_DIR}/sdk/python; black --check ${ROOT_DIR}/docgen/
 
 # Go SDK
 
