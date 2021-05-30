@@ -1,13 +1,13 @@
 import os
 import pathlib
+import shutil
 import stat
 import subprocess
 import textwrap
+from distutils.dir_util import copy_tree
 
 import yaml
 from jinja2 import Template
-import shutil
-from distutils.dir_util import copy_tree
 
 
 def get_repo_root():
@@ -98,7 +98,7 @@ def render_template(source_dir: pathlib.Path):
         config = yaml.safe_load(file)
 
     with open(get_repo_root() / "docgen/test_script.jinja2") as file:
-        test_template = file.read()
+        test_template_contents = file.read()
 
     build_dir = source_dir / "build"
 
@@ -112,7 +112,7 @@ def render_template(source_dir: pathlib.Path):
     test_script_path = build_dir / "test_script.sh"
 
     # generate the test script
-    test_template = Template(test_template.strip())
+    test_template = Template(test_template_contents.strip())
     rendered_test_script = test_template.render(config)
 
     # write the test script
