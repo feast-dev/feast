@@ -102,6 +102,7 @@ CI_REQUIRED = [
     "google-cloud-datastore>=2.1.*",
     "google-cloud-storage>=1.20.*",
     "google-cloud-core==1.4.*",
+    "redis-py-cluster==2.1.2",
 ]
 
 # README file from Feast repo root directory
