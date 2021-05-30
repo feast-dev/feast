@@ -70,6 +70,7 @@ CI_REQUIRED = [
     "cryptography==3.3.2",
     "flake8",
     "black==19.10b0",
+    "docker",
     "isort>=5",
     "grpcio-tools==1.34.0",
     "grpcio-testing==1.34.0",

@@ -22,6 +22,7 @@ def get_doctest_dirs():
 
 
 @pytest.mark.parametrize("doctests_dir", get_doctest_dirs())
+@pytest.mark.integration
 def test_snippets(doctests_dir):
     """Tests all documentation snippets generated from docgen/"""
 
