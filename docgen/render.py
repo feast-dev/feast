@@ -35,7 +35,7 @@ def get_code_block_function(config, source_dir: pathlib.Path):
             if step["name"] == name:
                 if "command" in step:
                     language = "bash"
-                    code = textwrap.dedent(step["command"])
+                    code = textwrap.dedent(step["command"]).strip()
                 elif "python_script" in step:
                     language = "python"
                     with open(source_dir / step["python_script"]) as f:

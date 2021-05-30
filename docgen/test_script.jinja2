@@ -12,15 +12,16 @@ err_report() {
 }
 
 trap 'err_report $LINENO' ERR
+set -x
 
 mkdir -p output
 SCRIPTS_DIR=$(pwd)
 
-{% for step in steps -%}
-# Step {{loop.index}}
-{% if step.command %}
+{% for step in steps %}
+# Step {{loop.index}}: {{step.name}}
+{% if step.command -%}
 {
-{{ step.command }}
+{{ step.command | trim() }}
 } > ${SCRIPTS_DIR}/output/last
 {% else -%}
 python ${SCRIPTS_DIR}/{{ step.python_script }} > ${SCRIPTS_DIR}/output/last

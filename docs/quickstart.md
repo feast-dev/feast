@@ -16,7 +16,6 @@ Bootstrap a new feature repository using `feast init` and a built-in template:
 ```bash
 feast init feature_repo
 cd feature_repo
-
 ```
 {% endcode %}
 
@@ -73,7 +72,6 @@ Load features into the online store using `feast materialize`:
 ```bash
 CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
 feast materialize-incremental $CURRENT_TIME
-
 ```
 {% endcode %}
 
