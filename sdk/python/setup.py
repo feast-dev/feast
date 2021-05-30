@@ -56,7 +56,6 @@ REQUIRED = [
     "tabulate==0.8.*",
     "toml==0.10.*",
     "tqdm==4.*",
-    "redis-py-cluster==2.1.2",
 ]
 
 GCP_REQUIRED = [
@@ -65,6 +64,10 @@ GCP_REQUIRED = [
     "google-cloud-datastore>=2.1.*",
     "google-cloud-storage>=1.20.*",
     "google-cloud-core==1.4.*",
+]
+
+REDIS_REQUIRED = [
+    "redis-py-cluster==2.1.2",
 ]
 
 CI_REQUIRED = [
@@ -193,6 +196,7 @@ setup(
         "dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"],
         "ci": CI_REQUIRED,
         "gcp": GCP_REQUIRED,
+        "redis": REDIS_REQUIRED,
     },
     include_package_data=True,
     license="Apache",

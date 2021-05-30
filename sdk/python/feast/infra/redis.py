@@ -195,7 +195,7 @@ class RedisProvider(Provider):
         feature_view.materialization_intervals.append((start_date, end_date))
         registry.apply_feature_view(feature_view, project)
 
-    def _get_cs(self):
+    def _parse_connection_string(self):
         """
         Reads Redis connections string using format
         for RedisCluster:
@@ -227,7 +227,7 @@ class RedisProvider(Provider):
         """
         Creates the Redis client RedisCluster or Redis depending on configuration
         """
-        startup_nodes, kwargs = self._get_cs()
+        startup_nodes, kwargs = self._parse_connection_string()
         if self._redis_type == RedisType.redis_cluster:
             kwargs["startup_nodes"] = startup_nodes
             return RedisCluster(**kwargs)
@@ -261,7 +261,6 @@ def _redis_key(project: str, entity_key: EntityKeyProto):
         entity_names=entity_key.join_keys,
         entity_values=entity_key.entity_values,
     )
-    # key = _mmh3(serialize_entity_key(entity_key))
     return redis_key.SerializeToString()
 
 
