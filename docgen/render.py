@@ -34,12 +34,27 @@ def get_code_block_function(config, source_dir: pathlib.Path):
         for step in config["steps"]:
             if step["name"] == name:
                 if "command" in step:
-                    return f"```bash\n" f"{textwrap.dedent(step['command'])}" f"\n```"
-                if "python_script" in step:
+                    language = "bash"
+                    code = textwrap.dedent(step["command"])
+                elif "python_script" in step:
+                    language = "python"
                     with open(source_dir / step["python_script"]) as f:
                         snippet = f.read()
-                        return f"```python\n" f"{textwrap.dedent(snippet)}" f"\n```"
-                return step["command"]
+                        code = textwrap.dedent(snippet)
+                else:
+                    raise ValueError(
+                        "Must provide either command or python_script as part of config.yml steps."
+                    )
+
+                block = (
+                    "{% code %}\n"
+                    f"```{language}\n"
+                    f"{code}"
+                    "\n```"
+                    "\n{% endcode %}"
+                )
+                return block
+
         raise Exception(f"Could not find step in the script named {name}")
 
     return get_code_block

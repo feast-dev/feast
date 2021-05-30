@@ -25,7 +25,8 @@ Python render.py
 ```
 will generate a `build` folder in each of the `docgen` subfolders. This folder contains a rendered `document.md`, which 
 will also be added to our Gitbook docs in `docs/`. The folder also contains a `test_script.sh` which will be run by
-our [test_snippets.py](../sdk/python/tests/test_snippets.py) pytest during CI.
+our [test_snippets.py](../sdk/python/tests/test_snippets.py) pytest during CI. The `build` folder is only a temporary 
+staging folder. All generated tests will live in `sdk/python/tests/doctests`.
 
 
 ### How do I regenerate docs and tests?

@@ -12,11 +12,13 @@ pip install feast
 
 Bootstrap a new feature repository using `feast init` and a built-in template:
 
+{% code %}
 ```bash
 feast init feature_repo
 cd feature_repo
 
 ```
+{% endcode %}
 
 Register the feature definitions inside this repository by running `feast apply` from the command line:
 
