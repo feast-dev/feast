@@ -2,7 +2,6 @@
 
 * [Introduction](README.md)
 * [Quickstart](quickstart.md)
-* [Changelog](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
 * [Getting started](getting-started/README.md)
   * [Install Feast](getting-started/install-feast.md)
   * [Create a feature repository](getting-started/create-a-feature-repository.md)
@@ -12,6 +11,7 @@
   * [Read features from the online store](getting-started/read-features-from-the-online-store.md)
 * [Community](community.md)
 * [Roadmap](roadmap.md)
+* [Changelog](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
 
 ## Concepts
 
