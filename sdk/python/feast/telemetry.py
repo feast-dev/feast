@@ -19,7 +19,7 @@ from datetime import datetime
 from functools import wraps
 from os.path import expanduser, join
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 
 import requests
 
@@ -52,7 +52,9 @@ class Telemetry:
                     Path(feast_home_dir).mkdir(exist_ok=True)
                     telemetry_filepath = join(feast_home_dir, "telemetry")
 
-                    self._is_test = os.getenv("FEAST_IS_TELEMETRY_TEST", "False") == "True"
+                    self._is_test = (
+                        os.getenv("FEAST_IS_TELEMETRY_TEST", "False") == "True"
+                    )
                     self._telemetry_counter = {"get_online_features": 0}
 
                     if os.path.exists(telemetry_filepath):
