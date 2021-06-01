@@ -112,7 +112,6 @@ def apply_total(repo_config: RepoConfig, repo_path: Path):
     from colorama import Fore, Style
 
     os.chdir(repo_path)
-    sys.path.append("")
     registry_config = repo_config.get_registry_config()
     project = repo_config.project
     if not_valid_name(project):
@@ -267,6 +266,7 @@ def registry_dump(repo_config: RepoConfig, repo_path: Path):
 
 
 def cli_check_repo(repo_path: Path):
+    sys.path.append(str(repo_path))
     config_path = repo_path / "feature_store.yaml"
     if not config_path.exists():
         print(
