@@ -57,7 +57,7 @@ entity_df = pd.DataFrame.from_dict(
 )
 
 
-store = FeatureStore(repo_path="")
+store = FeatureStore(repo_path=".")
 
 training_df = store.get_historical_features(
     entity_df=entity_df,
@@ -88,7 +88,7 @@ from pprint import pprint
 
 from feast import FeatureStore
 
-store = FeatureStore(repo_path="")
+store = FeatureStore(repo_path=".")
 
 feature_vector = store.get_online_features(
     feature_refs=[
