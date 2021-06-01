@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Union
-import re
 
 import numpy as np
 import pandas as pd
@@ -439,7 +439,9 @@ def pa_to_value_type(pa_type: object):
 
 
 def pa_to_feast_value_type(value: Union[pa.lib.ChunkedArray, str]) -> ValueType:
-    value_type = value.type.__str__() if isinstance(value, pa.lib.ChunkedArray) else value
+    value_type = (
+        value.type.__str__() if isinstance(value, pa.lib.ChunkedArray) else value
+    )
 
     if re.match(r"^timestamp", value_type):
         return ValueType.INT64

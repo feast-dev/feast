@@ -598,8 +598,7 @@ class FileSource(DataSource):
         self._file_options = FileOptions(file_format=file_format, file_url=file_url)
 
         super().__init__(
-            event_timestamp_column
-            or self._infer_event_timestamp_column(r"^timestamp"),
+            event_timestamp_column or self._infer_event_timestamp_column(r"^timestamp"),
             created_timestamp_column,
             field_mapping,
             date_partition_column,
