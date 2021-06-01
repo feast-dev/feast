@@ -11,7 +11,7 @@ output_logs_folder = sys.argv[1]
 def test_{{step.name}}():
     with open(os.path.join(output_logs_folder, '{{loop.index}}')) as f:
         actual_output = f.read()
-    output_regex_text = """
+    output_regex_text = r"""
     {{step.output_regex_test }}
     """
     output_regex_text = textwrap.dedent(output_regex_text).strip()

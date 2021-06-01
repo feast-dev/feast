@@ -9,7 +9,7 @@ output_logs_folder = sys.argv[1]
 def test_init():
     with open(os.path.join(output_logs_folder, "2")) as f:
         actual_output = f.read()
-    output_regex_text = """
+    output_regex_text = r"""
     Creating a new Feast repository in .+?feature_repo
 
     """
@@ -21,7 +21,7 @@ def test_init():
 def test_apply():
     with open(os.path.join(output_logs_folder, "3")) as f:
         actual_output = f.read()
-    output_regex_text = """
+    output_regex_text = r"""
     Registered entity driver_id
 
     """
@@ -33,7 +33,7 @@ def test_apply():
 def test_training():
     with open(os.path.join(output_logs_folder, "4")) as f:
         actual_output = f.read()
-    output_regex_text = """
+    output_regex_text = r"""
     event_timestamp.+?driver_id.+?driver_hourly_stats__conv_rate.+?driver_hourly_stats__acc_rate.+?driver_hourly_stats__avg_daily_trips
 
     """
@@ -45,7 +45,7 @@ def test_training():
 def test_predict():
     with open(os.path.join(output_logs_folder, "6")) as f:
         actual_output = f.read()
-    output_regex_text = """
+    output_regex_text = r"""
     \'driver_hourly_stats__conv_rate\': \[[0-9]+?\.[0-9].+?\]
 
     """
