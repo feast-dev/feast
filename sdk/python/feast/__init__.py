@@ -1,4 +1,12 @@
+import logging
+
 from pkg_resources import DistributionNotFound, get_distribution
+
+logging.basicConfig(
+    format="%(asctime)s %(levelname)s:%(message)s",
+    datefmt="%m/%d/%Y %I:%M:%S %p",
+    level=logging.INFO,
+)
 
 from .client import Client
 from .data_source import (

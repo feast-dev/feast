@@ -70,7 +70,7 @@ class Telemetry:
                             " more see https://docs.feast.dev/reference/telemetry"
                         )
                 except Exception as e:
-                    _logger.debug("Unable to configure telemetry", e)
+                    _logger.debug(f"Unable to configure telemetry {e}")
 
     @property
     def telemetry_id(self) -> Optional[str]:
