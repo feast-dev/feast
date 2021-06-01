@@ -14,6 +14,7 @@ err_report() {
 trap 'err_report $LINENO' ERR
 set -x
 
+rm -rf output
 mkdir -p output
 SCRIPTS_DIR=$(pwd)
 
@@ -29,3 +30,5 @@ python ${SCRIPTS_DIR}/{{ step.python_script }} > ${SCRIPTS_DIR}/output/last
 cat ${SCRIPTS_DIR}/output/last > ${SCRIPTS_DIR}/output/{{loop.index}}
 cat ${SCRIPTS_DIR}/output/{{loop.index}}
 {% endfor %}
+
+python ${SCRIPTS_DIR}/validate_output.py ${SCRIPTS_DIR}/output/

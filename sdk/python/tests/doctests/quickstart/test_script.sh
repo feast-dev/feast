@@ -14,6 +14,7 @@ err_report() {
 trap 'err_report $LINENO' ERR
 set -x
 
+rm -rf output
 mkdir -p output
 SCRIPTS_DIR=$(pwd)
 
@@ -63,3 +64,6 @@ python ${SCRIPTS_DIR}/predict.py > ${SCRIPTS_DIR}/output/last
 
 cat ${SCRIPTS_DIR}/output/last > ${SCRIPTS_DIR}/output/6
 cat ${SCRIPTS_DIR}/output/6
+
+
+python ${SCRIPTS_DIR}/validate_output.py ${SCRIPTS_DIR}/output/

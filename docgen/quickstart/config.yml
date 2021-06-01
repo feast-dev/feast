@@ -1,23 +1,40 @@
 gitbook_output_file: docs/quickstart.md
 steps:
   - name: version
+    language: bash
     command: feast version
 
   - name: init
+    language: bash
     command: |
       feast init feature_repo
       cd feature_repo
+    output_text: |
+      Creating a new Feast repository in /home/Jovyan/feature_repo.
+    output_regex_test: |
+      Creating a new Feast repository in .+?feature_repo
 
   - name: apply
+    language: bash
     command: feast apply
 
   - name: training
+    language: python
     python_script: training.py
 
   - name: materialize
+    language: bash
     command: |
       CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
       feast materialize-incremental $CURRENT_TIME
 
   - name: predict
+    language: python
     python_script: predict.py
+    output_text: |
+      {
+          'driver_id': [1001],
+          'driver_hourly_stats__conv_rate': [0.49274],
+          'driver_hourly_stats__acc_rate': [0.92743],
+          'driver_hourly_stats__avg_daily_trips': [72],
+      }

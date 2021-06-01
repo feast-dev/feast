@@ -7,14 +7,17 @@ the code snippets into a `yaml` file we are able to verify the code independentl
 ### Structure
 
 `docgen/` contains sub-folders that map directly to specific gitbook pages. Each subfolder must contain the following
-* A `document.jinja2` file which will be rendered using Jinja into a markdown page and upserted into our Gitbook docs
+* A `document.jinja2.md` file which will be rendered using Jinja into a markdown page and upserted into our Gitbook docs
 * A `config.yml` file containing the following fields
     * `gitbook_output_file` which is the path of the Gitbook markdown file that will be replaced.
     * `steps` which contains a list of steps that will be tested by Pytest as part of CI
         * `step` each step contains the following
-            * `name` used to lookup the code snippet as part of `document.jinja2` using `get_code_block('my_step_name')`
+            * `name` used to lookup the code snippet as part of `document.jinja2.md` using `get_code_block('my_step_name')`
             * `command` a CLI command that will be run (either a `command` or `python_script` should be specified)
             * `python_script` a path to a local Python script that will be run
+            * `output_text` which contains any text that should be printed by the command and shown in documentation
+            * `output_regex_test` contains a regular expression that will validate both the `output_text` in the documentation
+                as well as from actual test runs
 * All Python scripts referenced by `python_script` fields in `steps` should be available in a sub-folder
 
 ### How does it work?
@@ -40,7 +43,7 @@ You can run pytest on [test_snippets.py](../sdk/python/tests/test_snippets.py)
 ### How do I add another documentation test?
 
 Make a copy of `docgen/quickstart` and modify its contents. The rest should be automatic. Specifically
-* Remember to treat `document.jinja2` as the source of truth for writing and `config.yaml` for the source of truth for
+* Remember to treat `document.jinja2.md` as the source of truth for writing and `config.yaml` for the source of truth for
 code.
 
 ### Can I still modify documentation from Gitbook?

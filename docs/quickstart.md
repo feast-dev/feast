@@ -1,6 +1,11 @@
 # Quickstart
 
-## Setting up Feast
+In this guide we will
+* Set up a local Feast deployment with a Parquet file offline store and Sqlite online store.
+* Build a training dataset using time series features from the bundled Parquet files.
+* Read the latest features from the Sqlite online store for inference.
+
+## Install Feast
 
 Install the Feast SDK and CLI using pip:
 
@@ -8,28 +13,30 @@ Install the Feast SDK and CLI using pip:
 pip install feast
 ```
 
-## Create a new repository
+## Create a feature repository
 
-Bootstrap a new feature repository using `feast init` and a built-in template:
+Bootstrap a new feature repository using `feast init`:
 
-{% code %}
 ```bash
 feast init feature_repo
 cd feature_repo
 ```
-{% endcode %}
+```bash
+Creating a new Feast repository in /home/Jovyan/feature_repo.
+```
 
-Register the feature definitions inside this repository by running `feast apply` from the command line:
+## Register feature definitions and deploy your feature store
 
-{% code %}
+The `apply` command registers all the objects in your feature repository and deploys a feature store:
+
 ```bash
 feast apply
 ```
-{% endcode %}
 
 ## Generating training data
 
-{% code %}
+The `apply` command builds a training dataset based on the time-series features defined in the feature repository:
+
 ```python
 from datetime import datetime
 
@@ -64,20 +71,18 @@ training_df = store.get_historical_features(
 training_df.head()
 
 ```
-{% endcode %}
 
-Load features into the online store using `feast materialize`:
+## Load features into your online store
 
-{% code %}
+The `materialize` command loads the latest feature values from your feature views into your online store:
+
 ```bash
 CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
 feast materialize-incremental $CURRENT_TIME
 ```
-{% endcode %}
 
 ## Fetching feature vectors for inference
 
-{% code %}
 ```python
 from pprint import pprint
 
@@ -97,9 +102,7 @@ feature_vector = store.get_online_features(
 pprint(feature_vector)
 
 ```
-{% endcode %}
-
-```text
+```python
 {
     'driver_id': [1001],
     'driver_hourly_stats__conv_rate': [0.49274],
@@ -110,7 +113,6 @@ pprint(feature_vector)
 
 ## Next steps
 
-This quickstart covered the essential workflows of using Feast in your local environment. The next step is to `pip install "feast[gcp]"` and set `provider="gcp"` in your `feature_store.yaml` file and push your work to production deployment. You can also use the `feast init -t gcp` command in the CLI to initialize a feature repository with example features in the GCP environment.
-
-* See [Create a feature repository](how-to-guides/create-a-feature-repository.md) for more information on the workflows we covered.
-* Join our[ Slack group](https://slack.com) to talk to other Feast users and the maintainers!
+Now that you've tried out a minimal deployment of Feast, have a look at the following resources
+* Follow our [Getting Started guide](getting-started/) for a hands tutorial in using Feast
+* Join our [Slack group](https://slack.com) to talk to ask questions, speak to other users, and become part of the community!

@@ -1,5 +1,6 @@
 import os
 import pathlib
+import re
 import shutil
 import stat
 import subprocess
@@ -29,32 +30,42 @@ reserved_tags = [
 ]
 
 
+def build_code_block(step, source_dir):
+    language = step["language"]
+    if "command" in step:
+        code = textwrap.dedent(step["command"]).strip()
+    elif "python_script" in step:
+        with open(source_dir / step["python_script"]) as f:
+            snippet = f.read()
+            code = textwrap.dedent(snippet)
+    else:
+        raise ValueError(
+            "Must provide either command or python_script as part of config.yml steps."
+        )
+    # TODO: Add these code blocks back if we ever need file names in code blocks
+    # "{% code %}\n"
+    # "\n{% endcode %}"
+    code_block = f"```{language}\n" f"{code}" "\n```"
+
+    output_block = ""
+    if "output_text" in step:
+        output_text = textwrap.dedent(step["output_text"]).strip()
+
+        # make sure this output block confirms to our regex rule if it exists
+        if "output_regex_test" in step:
+            output_regex_test = textwrap.dedent(step["output_regex_test"]).strip()
+            assert re.search(output_regex_test, output_text)
+
+        output_block = f"\n```{language}\n" f"{output_text}" "\n```"
+
+    return code_block + output_block
+
+
 def get_code_block_function(config, source_dir: pathlib.Path):
     def get_code_block(name):
         for step in config["steps"]:
             if step["name"] == name:
-                if "command" in step:
-                    language = "bash"
-                    code = textwrap.dedent(step["command"]).strip()
-                elif "python_script" in step:
-                    language = "python"
-                    with open(source_dir / step["python_script"]) as f:
-                        snippet = f.read()
-                        code = textwrap.dedent(snippet)
-                else:
-                    raise ValueError(
-                        "Must provide either command or python_script as part of config.yml steps."
-                    )
-
-                block = (
-                    "{% code %}\n"
-                    f"```{language}\n"
-                    f"{code}"
-                    "\n```"
-                    "\n{% endcode %}"
-                )
-                return block
-
+                return build_code_block(step, source_dir)
         raise Exception(f"Could not find step in the script named {name}")
 
     return get_code_block
@@ -97,8 +108,11 @@ def render_template(source_dir: pathlib.Path):
     with open(source_dir / "config.yml") as file:
         config = yaml.safe_load(file)
 
-    with open(get_repo_root() / "docgen/test_script.jinja2") as file:
+    with open(get_repo_root() / "docgen/test_script.jinja2.sh") as file:
         test_template_contents = file.read()
+
+    with open(get_repo_root() / "docgen/validate_output.jinja2.template") as file:
+        validate_template_contents = file.read()
 
     build_dir = source_dir / "build"
 
@@ -124,6 +138,16 @@ def render_template(source_dir: pathlib.Path):
     st = os.stat(test_script_path)
     os.chmod(test_script_path, st.st_mode | stat.S_IEXEC)
 
+    validation_script_path = build_dir / "validate_output.py"
+
+    # generate the validation script
+    validate_template = Template(validate_template_contents.strip())
+    rendered_validation_script = validate_template.render(config)
+
+    # write the validation script
+    with open(validation_script_path, "w") as f:
+        f.write(rendered_validation_script)
+
     # Copy test files to build dir
     for step in config["steps"]:
         if "python_script" in step:
@@ -133,7 +157,7 @@ def render_template(source_dir: pathlib.Path):
     config["get_code_block"] = get_code_block_function(config, source_dir)
 
     # Load documentation template
-    template_path = source_dir / "document.jinja2"
+    template_path = source_dir / "document.jinja2.md"
 
     # Render documentation template
     with open(template_path) as f:
