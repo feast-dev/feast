@@ -2,7 +2,7 @@
 
 ## Overview
 
-`feature_store.yaml` is a file that is placed at the root of the [Feature Repository](../concepts/feature-repository.md). This file contains configuration about how the feature store runs. An example `feature_store.yaml` is shown below:
+`feature_store.yaml` is a file that is placed at the root of the [Feature Repository](feature-repository.md). This file contains configuration about how the feature store runs. An example `feature_store.yaml` is shown below:
 
 {% code title="feature\_store.yaml" %}
 ```yaml

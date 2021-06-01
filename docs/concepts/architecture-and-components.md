@@ -1,4 +1,4 @@
-# Architecture and Components
+# Architecture and components
 
 ![Feast 0.10 Architecture Diagram](../.gitbook/assets/image%20%284%29.png)
 

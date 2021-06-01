@@ -2,7 +2,7 @@
 description: Versioning policies and status of Feast components
 ---
 
-# Versioning Policy
+# Versioning policy
 
 ### Versioning policy and branch workflow
 

@@ -1,14 +1,18 @@
-# Data Model
+# Data model and concepts
 
 ### Concepts
 
-The top-level namespace within Feast is a [project](data-model.md#project). Users define one or more [feature views](data-model.md#feature-view) within a project. Each feature view contains one or more [features](data-model.md#feature) that relate to a specific [entity](data-model.md#entity). A feature view must always have a [data source](data-model.md#data-source). This source is used during the generation of training [datasets](data-model.md#dataset) and when materializing feature values into the online store. 
+The top-level namespace within Feast is a [project](data-model-and-concepts.md#project). Users define one or more [feature views](data-model-and-concepts.md#feature-view) within a project. Each feature view contains one or more [features](data-model-and-concepts.md#feature) that relate to a specific [entity](data-model-and-concepts.md#entity). A feature view must always have a [data source](data-model-and-concepts.md#data-source). This source is used during the generation of training [datasets](data-model-and-concepts.md#dataset) and when materializing feature values into the online store. 
 
 ![](../.gitbook/assets/image%20%287%29.png)
 
 ### Project
 
-Projects provide complete isolation of feature stores at the infrastructure level. This is accomplished through resource namespacing, e.g., prefixing table names with the associated project. Each project should be considered a completely separate universe of entities and features. It is not possible to retrieve features from multiple projects in a single request. We recommend having a single project per environment \(`dev`, `staging`, `prod`\).
+Projects provide complete isolation of feature stores at the infrastructure level. This is accomplished through resource namespacing, e.g., prefixing table names with the associated project. Each project should be considered a completely separate universe of entities and features. It is not possible to retrieve features from multiple projects in a single request. We recommend having a single feature store and a single project per environment \(`dev`, `staging`, `prod`\).
+
+{% hint style="info" %}
+Projects are currently being supported for backward compatibility reasons. The concept and functionality provided by Projects may change in the future as we simplify the Feast API.
+{% endhint %}
 
 ### Data Source
 
@@ -43,9 +47,9 @@ trips_today = Feature(
 )
 ```
 
-Together with [data sources](data-model.md#data-source), they indicate to Feast where to find your feature values, e.g., in a specific parquet file or BigQuery table. Feature definitions are also used when reading features from the feature store, using [feature references](data-model.md#feature-references).
+Together with [data sources](data-model-and-concepts.md#data-source), they indicate to Feast where to find your feature values, e.g., in a specific parquet file or BigQuery table. Feature definitions are also used when reading features from the feature store, using [feature references](data-model-and-concepts.md#feature-references).
 
-Feature names must be unique within a [feature view](data-model.md#feature-view).
+Feature names must be unique within a [feature view](data-model-and-concepts.md#feature-view).
 
 ### Feature View
 
@@ -145,15 +149,40 @@ Example of an entity dataframe with feature values joined to it:
 
 ### **Online Store** 
 
-The Feast online store is used for low-latency online feature value lookups. Feature values are loaded into the online store from data sources in feature views. The data model within the online store maps directly to that of the data source. One key difference with the online store is that only the latest feature values are stored per entity key. No historical values are stored.
+The Feast online store is used for low-latency online feature value lookups. Feature values are loaded into the online store from data sources in feature views using the `materialize` command.
+
+The storage schema of features within the online store mirrors that of the data source used to populate the online store. One key difference between the online store and data sources is that only the latest feature values are stored per entity key. No historical values are stored.
 
 Example batch data source
 
 ![](../.gitbook/assets/image%20%286%29.png)
 
-Once the above data source is materialized into Feast \(using `feast materialize`\), the feature values will be represented as follows:
+Once the above data source is materialized into Feast \(using `feast materialize`\), the feature values will be stored as follows:
 
 ![](../.gitbook/assets/image%20%285%29.png)
 
-\*\*\*\*
+### Offline Store
+
+An offline store is a storage and compute system where historic feature data can be stored or accessed for building training datasets or for sourcing data for materialization into the online store.
+
+Offline stores are used primarily for two reasons
+
+1. Building training datasets
+2. Querying data sources for feature data in order to load these features into your online store
+
+Feast does not actively manage your offline store. Instead, you are asked to select an offline store \(like `BigQuery` or the `File` offline store\) and then to introduce batch sources from these stores using [data sources](data-model-and-concepts.md#data-source) inside feature views.
+
+Feast will use your offline store to query these sources. It is not possible to query all data sources from all offline stores, and only a single offline store can be used at a time. For example, it is not possible to query a BigQuery table from a `File` offline store, nor is it possible for a `BigQuery` offline store to query files in your local file system.
+
+Please see [feature\_store.yaml](../reference/feature-store-yaml.md#overview) for configuring your offline store.
+
+### **Provider**
+
+A provider is an implementation of a feature store using specific feature store components targeting a specific environment**.** More specifically, a provider is the target environment to which you have configured your feature store to deploy and run.
+
+Providers are built to orchestrate various components \(offline store, online store, infrastructure, compute\) inside an environment. For example, the `gcp` provider may only support `BigQuery` as an offline store and `datastore` as the online store, but it ensures that these components can work together seamlessly.
+
+Providers also come with default configurations which makes it easier for users to start a feature store in a specific environment.
+
+Please see [feature\_store.yaml](../reference/feature-store-yaml.md#overview) for configuring a provider.
 
