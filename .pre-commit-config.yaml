@@ -8,6 +8,7 @@ repos:
         stages: [ push ]
         language: system
         entry: make format
+        pass_filenames: false
       - id: lint
         name: Lint
         stages: [ push ]
