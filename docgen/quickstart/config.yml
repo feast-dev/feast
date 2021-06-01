@@ -17,10 +17,24 @@ steps:
   - name: apply
     language: bash
     command: feast apply
+    output_text: |
+      Registered entity driver_id
+      Registered feature view driver_hourly_stats
+      Deploying infrastructure for driver_hourly_stats
+    output_regex_test: |
+      Registered entity driver_id
 
   - name: training
     language: python
     python_script: training.py
+    output_text: |
+        event_timestamp   driver_id  driver_hourly_stats__conv_rate  driver_hourly_stats__acc_rate  driver_hourly_stats__avg_daily_trips
+        2021-04-12        1002       0.328245                        0.993218                       329
+        2021-04-12        1001       0.448272                        0.873785                       767
+        2021-04-12        1004       0.822571                        0.571790                       673
+        2021-04-12        1003       0.556326                        0.605357                       335
+    output_regex_test: |
+      event_timestamp.+?driver_id.+?driver_hourly_stats__conv_rate.+?driver_hourly_stats__acc_rate.+?driver_hourly_stats__avg_daily_trips
 
   - name: materialize
     language: bash
@@ -38,3 +52,5 @@ steps:
           'driver_hourly_stats__acc_rate': [0.92743],
           'driver_hourly_stats__avg_daily_trips': [72],
       }
+    output_regex_test: |
+      \'driver_hourly_stats__conv_rate\': \[[0-9]+?\.[0-9].+?\]

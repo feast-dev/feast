@@ -54,7 +54,11 @@ def build_code_block(step, source_dir):
         # make sure this output block confirms to our regex rule if it exists
         if "output_regex_test" in step:
             output_regex_test = textwrap.dedent(step["output_regex_test"]).strip()
-            assert re.search(output_regex_test, output_text)
+            has_match = re.search(output_regex_test, output_text)
+            if not has_match:
+                raise Exception(
+                    f"Could not match documentation snippet\n\n{output_text}\n\nwith regex\n\n{output_regex_test}\n"
+                )
 
         output_block = f"\n```{language}\n" f"{output_text}" "\n```"
 

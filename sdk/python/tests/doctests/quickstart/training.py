@@ -28,4 +28,4 @@ training_df = store.get_historical_features(
     ],
 ).to_df()
 
-training_df.head()
+print(training_df.head())

@@ -32,6 +32,11 @@ The `apply` command registers all the objects in your feature repository and dep
 ```bash
 feast apply
 ```
+```bash
+Registered entity driver_id
+Registered feature view driver_hourly_stats
+Deploying infrastructure for driver_hourly_stats
+```
 
 ## Generating training data
 
@@ -68,8 +73,15 @@ training_df = store.get_historical_features(
     ],
 ).to_df()
 
-training_df.head()
+print(training_df.head())
 
+```
+```python
+event_timestamp   driver_id  driver_hourly_stats__conv_rate  driver_hourly_stats__acc_rate  driver_hourly_stats__avg_daily_trips
+2021-04-12        1002       0.328245                        0.993218                       329
+2021-04-12        1001       0.448272                        0.873785                       767
+2021-04-12        1004       0.822571                        0.571790                       673
+2021-04-12        1003       0.556326                        0.605357                       335
 ```
 
 ## Load features into your online store
